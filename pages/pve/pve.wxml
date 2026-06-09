@@ -1,0 +1,48 @@
+<view class="page-shell">
+  <navigation-bar title="{{navTitle}}" back="{{false}}" color="#211A15" background="#F4F1E8"></navigation-bar>
+  <scroll-view class="page-scroll" scroll-y type="list">
+    <view class="page-content">
+      <view class="hero pve-hero">
+        <text class="hero-kicker">{{kicker}}</text>
+        <text class="hero-title">{{title}}</text>
+        <text class="hero-desc">{{desc}}</text>
+      </view>
+
+      <view class="metrics">
+        <view class="metric-card" wx:for="{{metrics}}" wx:key="label">
+          <text class="metric-value">{{item.value}}</text>
+          <text class="metric-label">{{item.label}}</text>
+        </view>
+      </view>
+
+      <view class="section">
+        <view class="section-header">
+          <text class="section-title">专区入口</text>
+          <text class="section-action">赛季</text>
+        </view>
+        <view class="quick-grid">
+          <view class="quick-item" wx:for="{{quickActions}}" wx:key="title">
+            <text class="quick-title">{{item.title}}</text>
+            <text class="quick-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="section">
+        <view class="section-header">
+          <text class="section-title">大秘境榜单 top3</text>
+          <text class="section-action">详情</text>
+        </view>
+        <view class="task-list">
+          <view class="task-card" wx:for="{{tasks}}" wx:key="title">
+            <view class="task-row">
+              <text class="task-title">{{item.title}}</text>
+              <text class="task-status">{{item.status}}</text>
+            </view>
+            <text class="task-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</view>

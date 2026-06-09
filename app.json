@@ -1,0 +1,57 @@
+{
+  "pages": [
+    "pages/news/news",
+    "pages/builds/builds",
+    "pages/pve/pve",
+    "pages/simulator/simulator",
+    "pages/profile/profile"
+  ],
+  "window": {
+    "backgroundColor": "#F4F1E8",
+    "navigationBarTextStyle": "black",
+    "navigationStyle": "custom"
+  },
+  "tabBar": {
+    "color": "#7B7468",
+    "selectedColor": "#B36B16",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/news/news",
+        "text": "资讯"
+      },
+      {
+        "pagePath": "pages/builds/builds",
+        "text": "BD"
+      },
+      {
+        "pagePath": "pages/pve/pve",
+        "text": "副本"
+      },
+      {
+        "pagePath": "pages/simulator/simulator",
+        "text": "模拟器"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
+      }
+    ]
+  },
+  "style": "v2",
+  "renderer": "skyline",
+  "rendererOptions": {
+    "skyline": {
+      "defaultDisplayBlock": true,
+      "defaultContentBox": true,
+      "tagNameStyleIsolation": "legacy",
+      "disableABTest": true,
+      "sdkVersionBegin": "3.0.0",
+      "sdkVersionEnd": "15.255.255"
+    }
+  },
+  "componentFramework": "glass-easel",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

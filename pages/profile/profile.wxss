@@ -1,0 +1,92 @@
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  margin-top: 0;
+}
+
+.avatar {
+  width: 104rpx;
+  height: 104rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 28rpx;
+  background: #192436;
+  color: #ffffff;
+  font-size: 44rpx;
+  font-weight: 700;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  display: block;
+  color: #211a15;
+  font-size: 36rpx;
+  font-weight: 700;
+}
+
+.user-desc {
+  display: block;
+  margin-top: 10rpx;
+  color: #7b7468;
+  font-size: 24rpx;
+}
+
+.ability-list,
+.setting-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.ability-row,
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid rgba(47, 34, 24, 0.08);
+}
+
+.ability-row:last-child,
+.setting-row:last-child {
+  border-bottom: 0;
+}
+
+.ability-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.ability-name,
+.setting-title {
+  display: block;
+  color: #211a15;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.ability-desc {
+  display: block;
+  margin-top: 8rpx;
+  color: #7b7468;
+  font-size: 23rpx;
+  line-height: 1.4;
+}
+
+.ability-level {
+  flex: none;
+  color: #b36b16;
+  font-size: 24rpx;
+}
+
+.setting-arrow {
+  color: #a5aba1;
+  font-size: 36rpx;
+}
