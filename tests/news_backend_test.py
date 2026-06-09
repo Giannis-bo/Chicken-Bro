@@ -1,9 +1,13 @@
 import os
+import json
 import sqlite3
 import tempfile
+import threading
 import unittest
 from contextlib import closing
+from http.server import ThreadingHTTPServer
 from pathlib import Path
+from urllib.request import Request, urlopen
 
 
 class NewsBackendTest(unittest.TestCase):
@@ -103,6 +107,193 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual([article["channel"] for article in ptr_payload["articles"]], ["测试服前瞻"])
         self.assertTrue(all("class-change" in article["tags"] for article in class_payload["articles"]))
         self.assertEqual([article["id"] for article in channel_payload["articles"]], ["all-1"])
+
+    def test_backend_exposes_specialization_payloads_from_shared_data_modules(self):
+        home = self.backend.get_builds_home_payload()
+        intel = self.backend.get_builds_intel_payload()
+        detail = self.backend.get_builds_detail_payload("法师-冰霜")
+
+        self.assertEqual(home["navTitle"], "职业专精")
+        self.assertEqual([item["key"] for item in home["quickActions"]], ["talents", "gear", "statWeights", "rotation"])
+        self.assertEqual(len(home["classOptions"]), 13)
+        self.assertGreaterEqual(len(intel["items"]), 5)
+        self.assertEqual(detail["id"], "法师-冰霜")
+        self.assertIn("talents", detail["details"])
+        self.assertRegex(detail["details"]["talents"]["sourceUrl"], r"^https://")
+
+    def test_backend_exposes_pve_home_and_module_payloads_from_shared_data_modules(self):
+        home = self.backend.get_pve_home_payload()
+        module = self.backend.get_pve_module_payload("bossGuides")
+
+        self.assertEqual(home["navTitle"], "副本")
+        self.assertEqual([zone["title"] for zone in home["zones"]], ["大秘境专区", "团队 raid 专区"])
+        self.assertEqual(module["key"], "bossGuides")
+        self.assertEqual(module["navTitle"], "boss攻略")
+        self.assertGreater(len(module["items"]), 0)
+        self.assertRegex(module["items"][0]["sourceUrl"], r"^https://")
+
+    def test_backend_exposes_simulator_home_and_llm_ready_analysis(self):
+        home = self.backend.build_simulator_home_payload()
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "simcraft",
+                "character": "冰法样例",
+                "profile": "talents=CAE\ngear_ilvl=700",
+                "question": "帮我比较属性收益",
+            }
+        )
+
+        self.assertEqual(home["navTitle"], "模拟器")
+        self.assertTrue(any(action["key"] == "simcraft" for action in home["quickActions"]))
+        self.assertEqual(analysis["mode"], "simcraft")
+        self.assertEqual(analysis["status"], "ready")
+        self.assertGreater(len(analysis["recommendations"]), 0)
+        self.assertIn("prompt", analysis["llm"])
+        self.assertIn("simcraft", analysis["capabilities"])
+
+    def test_simulator_home_exposes_simcraft_version_check_status(self):
+        version_file = Path(self.tmp.name) / "simc-version.json"
+        version_file.write_text(
+            json.dumps(
+                {
+                    "checkedAt": "2026-06-09T13:52:08+00:00",
+                    "localTag": "1205-2026-06-07-ca5b6d7",
+                    "latestTag": "1205-2026-06-09-abcd123",
+                    "updateAvailable": True,
+                    "source": "dockerhub",
+                    "image": "simulationcraftorg/simc:1205-2026-06-07-ca5b6d7",
+                }
+            ),
+            encoding="utf-8",
+        )
+        os.environ["WOW_SIMC_VERSION_FILE"] = str(version_file)
+        try:
+            home = self.backend.build_simulator_home_payload()
+        finally:
+            os.environ.pop("WOW_SIMC_VERSION_FILE", None)
+
+        self.assertEqual(home["simcraftVersion"]["localTag"], "1205-2026-06-07-ca5b6d7")
+        self.assertEqual(home["simcraftVersion"]["latestTag"], "1205-2026-06-09-abcd123")
+        self.assertTrue(home["simcraftVersion"]["updateAvailable"])
+        self.assertEqual(home["simcraftVersion"]["source"], "dockerhub")
+
+    def test_wechat_login_creates_user_token_without_exposing_session_key(self):
+        payload = self.backend.login_with_wechat_code(
+            "wx-code-1",
+            exchange_code=lambda code: {
+                "openid": "openid-1",
+                "unionid": "union-1",
+                "session_key": "secret-session",
+            },
+        )
+
+        self.assertEqual(payload["user"]["openid"], "openid-1")
+        self.assertEqual(payload["user"]["unionid"], "union-1")
+        self.assertIn("accessToken", payload)
+        self.assertGreater(payload["expiresAt"], 0)
+        self.assertNotIn("session_key", json.dumps(payload))
+        self.assertEqual(self.backend.authenticate_token(payload["accessToken"])["openid"], "openid-1")
+
+    def test_expired_auth_token_is_rejected(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-expired",
+            exchange_code=lambda code: {"openid": "openid-expired"},
+        )
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            conn.execute(
+                "UPDATE auth_tokens SET expires_at = ? WHERE token = ?",
+                ("2020-01-01T00:00:00+00:00", login["accessToken"]),
+            )
+            conn.commit()
+
+        self.assertIsNone(self.backend.authenticate_token(login["accessToken"]))
+
+    def test_user_profile_update_persists_avatar_and_nickname(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-2",
+            exchange_code=lambda code: {"openid": "openid-2"},
+        )
+
+        profile = self.backend.update_user_profile(
+            login["accessToken"],
+            {"nickname": "冰法玩家", "avatarUrl": "https://cdn.example/avatar.png"},
+        )
+
+        self.assertEqual(profile["nickname"], "冰法玩家")
+        self.assertEqual(profile["avatarUrl"], "https://cdn.example/avatar.png")
+        self.assertEqual(self.backend.authenticate_token(login["accessToken"])["nickname"], "冰法玩家")
+
+    def test_authenticated_simulator_analysis_is_saved_as_user_task(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-3",
+            exchange_code=lambda code: {"openid": "openid-3"},
+        )
+
+        analysis = self.backend.analyze_and_store_simulator_task(
+            {"mode": "wcl", "question": "复盘 boss 战"},
+            access_token=login["accessToken"],
+        )
+        tasks = self.backend.list_simulator_tasks(login["accessToken"])
+
+        self.assertEqual(analysis["owner"]["openid"], "openid-3")
+        self.assertTrue(analysis["taskId"])
+        self.assertEqual(len(tasks["tasks"]), 1)
+        self.assertEqual(tasks["tasks"][0]["taskId"], analysis["taskId"])
+        self.assertEqual(tasks["tasks"][0]["mode"], "wcl")
+
+    def test_simulator_task_list_tolerates_corrupted_json_rows(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-corrupt",
+            exchange_code=lambda code: {"openid": "openid-corrupt"},
+        )
+        user = self.backend.authenticate_token(login["accessToken"])
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            conn.execute(
+                """
+                INSERT INTO simulator_tasks (
+                    id, user_id, mode, status, request_json, analysis_json, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "task-corrupt",
+                    user["id"],
+                    "wcl",
+                    "ready",
+                    "{bad-json",
+                    "{bad-json",
+                    "2026-06-09T03:33:40+00:00",
+                    "2026-06-09T03:33:40+00:00",
+                ),
+            )
+            conn.commit()
+
+        tasks = self.backend.list_simulator_tasks(login["accessToken"])
+
+        self.assertEqual(tasks["tasks"][0]["taskId"], "task-corrupt")
+        self.assertEqual(tasks["tasks"][0]["question"], "")
+        self.assertEqual(tasks["tasks"][0]["recommendations"], [])
+
+    def test_http_post_simulator_analyze_route_returns_analysis_payload(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/api/simulator/analyze"
+            request = Request(
+                url,
+                data=json.dumps({"mode": "simcraft", "question": "比较属性收益"}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(payload["mode"], "simcraft")
+            self.assertGreater(len(payload["recommendations"]), 0)
+        finally:
+            server.shutdown()
+            server.server_close()
 
 
 if __name__ == "__main__":

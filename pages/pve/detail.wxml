@@ -1,0 +1,39 @@
+<view class="page-shell pve-detail-shell">
+  <navigation-bar title="{{activeModule.navTitle}}" back="{{true}}" color="#FFFFFF" background="#7A1116"></navigation-bar>
+  <scroll-view class="page-scroll" scroll-y type="list">
+    <view class="page-content pve-detail-content">
+      <view class="detail-hero">
+        <text class="detail-kicker">{{activeModule.zoneTitle}}</text>
+        <text class="detail-title">{{activeModule.title}}</text>
+        <text class="detail-desc">{{activeModule.desc}}</text>
+      </view>
+
+      <view class="detail-source-strip">
+        <text>{{activeModule.currentSeason}}</text>
+        <text>{{activeModule.itemCount}} 条数据</text>
+        <text>{{activeModule.lastAnalyzedAt}}</text>
+      </view>
+
+      <view class="record-list">
+        <view class="record-card" wx:for="{{activeModule.items}}" wx:for-item="record" wx:for-index="recordIndex" wx:key="recordIndex">
+          <view class="record-row">
+            <text class="record-title">{{record.title}}</text>
+            <text class="record-value">{{record.value}}</text>
+          </view>
+          <text class="record-desc">{{record.desc}}</text>
+          <view class="record-source">
+            <text>{{record.sourceName}}</text>
+            <text>{{record.publishedAt}}</text>
+          </view>
+          <text class="record-window">{{record.analysisWindow}}</text>
+        </view>
+      </view>
+
+      <view class="source-box">
+        <text class="source-box-title">专区来源</text>
+        <text class="source-box-text">{{activeModule.sourceName}}</text>
+        <text class="source-box-text">{{activeModule.analysisWindow}}</text>
+      </view>
+    </view>
+  </scroll-view>
+</view>

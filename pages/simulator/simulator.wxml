@@ -21,9 +21,21 @@
           <text class="section-action">新建</text>
         </view>
         <view class="quick-grid">
-          <view class="quick-item" wx:for="{{quickActions}}" wx:key="title">
+          <view class="quick-item" wx:for="{{quickActions}}" wx:key="title" data-key="{{item.key}}" bindtap="openTool">
             <text class="quick-title">{{item.title}}</text>
             <text class="quick-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="section" wx:if="{{latestAnalysis}}">
+        <view class="section-header">
+          <text class="section-title">分析结果</text>
+          <text class="section-action">{{latestAnalysis.mode}}</text>
+        </view>
+        <view class="task-list">
+          <view class="task-card" wx:for="{{latestAnalysis.recommendations}}" wx:key="*this">
+            <text class="task-desc">{{item}}</text>
           </view>
         </view>
       </view>

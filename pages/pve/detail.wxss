@@ -1,0 +1,142 @@
+.pve-detail-shell {
+  background: #1d080a;
+}
+
+.pve-detail-content {
+  padding-bottom: 72rpx;
+}
+
+.detail-hero {
+  padding: 34rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #7a1116 0%, #4a090d 62%, #1d080a 100%);
+  color: #ffffff;
+  box-shadow: 0 18rpx 42rpx rgba(122, 17, 22, 0.22);
+}
+
+.detail-kicker {
+  display: inline-flex;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 22rpx;
+}
+
+.detail-title {
+  display: block;
+  margin-top: 24rpx;
+  font-size: 42rpx;
+  line-height: 1.18;
+  font-weight: 700;
+}
+
+.detail-desc {
+  display: block;
+  margin-top: 16rpx;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 25rpx;
+  line-height: 1.55;
+}
+
+.detail-source-strip,
+.source-box {
+  margin-top: 22rpx;
+  padding: 24rpx;
+  border: 1rpx solid rgba(122, 17, 22, 0.14);
+  border-radius: 18rpx;
+  background: #fffaf0;
+  box-shadow: 0 12rpx 30rpx rgba(47, 34, 24, 0.05);
+}
+
+.detail-source-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 14rpx;
+  color: #8e6419;
+  font-size: 22rpx;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-top: 22rpx;
+}
+
+.record-card {
+  padding: 24rpx;
+  border: 1rpx solid rgba(122, 17, 22, 0.12);
+  border-radius: 18rpx;
+  background: #fffaf0;
+  box-shadow: 0 12rpx 30rpx rgba(47, 34, 24, 0.05);
+}
+
+.record-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.record-title {
+  flex: 1;
+  color: #2b0b0e;
+  font-size: 28rpx;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.record-value {
+  flex: none;
+  max-width: 230rpx;
+  color: #d7a33d;
+  font-size: 24rpx;
+  line-height: 1.35;
+  text-align: right;
+  font-weight: 700;
+}
+
+.record-desc {
+  display: block;
+  margin-top: 12rpx;
+  color: #6b5550;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.record-source {
+  display: flex;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-top: 14rpx;
+  color: #8d7a72;
+  font-size: 21rpx;
+  line-height: 1.35;
+}
+
+.record-window {
+  display: block;
+  margin-top: 8rpx;
+  color: #8d7a72;
+  font-size: 21rpx;
+  line-height: 1.4;
+}
+
+.source-box-title {
+  display: block;
+  color: #7a1116;
+  font-size: 26rpx;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.source-box-text {
+  display: block;
+  margin-top: 10rpx;
+  color: #725b54;
+  font-size: 23rpx;
+  line-height: 1.45;
+}

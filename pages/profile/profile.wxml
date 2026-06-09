@@ -3,9 +3,21 @@
   <scroll-view class="page-scroll" scroll-y type="list">
     <view class="page-content profile-page">
       <view class="profile-card user-card">
-        <view class="avatar">W</view>
+        <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <image wx:if="{{user.avatarUrl}}" class="avatar-image" src="{{user.avatarUrl}}" mode="aspectFill"></image>
+          <text wx:else class="avatar">W</text>
+        </button>
         <view class="user-info">
-          <text class="user-name">WOW 玩家</text>
+          <input
+            class="user-name nickname-input"
+            type="nickname"
+            value="{{nicknameDraft}}"
+            placeholder="点击填写微信昵称"
+            bindinput="onNicknameInput"
+            bindblur="saveNickname"
+            bindconfirm="onNicknameConfirm"
+            confirm-type="done"
+          />
           <text class="user-desc">管理角色、偏好和常用数据源</text>
         </view>
       </view>

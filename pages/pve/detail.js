@@ -1,29 +1,26 @@
-const { fallbackPveHome, requestPveHome } = require('./pve-api')
+const { fallbackPveModule, requestPveModule } = require('./pve-api')
 
 Page({
   data: {
-    ...fallbackPveHome(),
+    activeModule: fallbackPveModule('teamLadder'),
     loading: false,
     fromFallback: true,
     requestError: ''
   },
 
-  onLoad() {
-    this.loadPveHome()
-  },
-
-  openPveModule(event) {
-    const moduleKey = event.currentTarget.dataset.key
-    wx.navigateTo({
-      url: `/pages/pve/detail?module=${moduleKey}`
+  onLoad(options) {
+    const moduleKey = options.module || 'teamLadder'
+    this.setData({
+      activeModule: fallbackPveModule(moduleKey)
     })
+    this.loadModule(moduleKey)
   },
 
-  loadPveHome() {
+  loadModule(moduleKey) {
     this.setData({ loading: true })
-    requestPveHome().then(({ payload, fromFallback, error }) => {
+    requestPveModule(moduleKey).then(({ payload, fromFallback, error }) => {
       this.setData({
-        ...payload,
+        activeModule: payload,
         fromFallback,
         requestError: error || ''
       })

@@ -1,0 +1,112 @@
+<view class="page-shell detail-shell">
+  <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#153F8A"></navigation-bar>
+  <scroll-view class="page-scroll" scroll-y type="list">
+    <view class="page-content detail-content">
+      <view class="detail-hero">
+        <text class="detail-kicker">职业专精查询</text>
+        <text class="detail-title">{{activeQuery.title}}</text>
+        <text class="detail-desc">{{activeQuery.desc}}</text>
+      </view>
+
+      <view class="filter-panel">
+        <view class="picker-field">
+          <text class="picker-label">职业</text>
+          <picker mode="selector" range="{{classOptions}}" range-key="name" value="{{selectedClassIndex}}" bindchange="selectClass">
+            <view class="picker-value">{{selectedClass.name}}</view>
+          </picker>
+        </view>
+        <view class="picker-field">
+          <text class="picker-label">专精</text>
+          <picker mode="selector" range="{{specOptions}}" range-key="title" value="{{selectedSpecIndex}}" bindchange="selectSpec">
+            <view class="picker-value">{{selectedSpec.title}}</view>
+          </picker>
+        </view>
+      </view>
+
+      <view class="source-strip" wx:if="{{activeDetail}}">
+        <text>{{selectedSpec.role}}</text>
+        <text>{{activeDetail.sourceName}}</text>
+        <text>{{activeDetail.publishedAt}}</text>
+      </view>
+
+      <view class="module-panel talent-panel" wx:if="{{activeQueryKey == 'talents'}}">
+        <view class="panel-header">
+          <text class="panel-title">{{activeDetail.title}}</text>
+          <text class="panel-subtitle">天赋代码、场景差异和核心节点</text>
+        </view>
+        <view class="talent-code-card" wx:if="{{activeDetail.importCode}}">
+          <text class="code-label">导入代码</text>
+          <text class="code-value">{{activeDetail.importCode}}</text>
+        </view>
+        <view class="talent-chip-list" wx:if="{{activeDetail.coreTalents}}">
+          <text class="talent-chip" wx:for="{{activeDetail.coreTalents}}" wx:key="*this">{{item}}</text>
+        </view>
+        <view class="insight-list">
+          <text class="insight-item" wx:for="{{activeDetail.items}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+
+      <view class="module-panel gear-panel" wx:if="{{activeQueryKey == 'gear'}}">
+        <view class="panel-header">
+          <text class="panel-title">{{activeDetail.title}}</text>
+          <text class="panel-subtitle">按部位展示装备、掉落来源和替代选择</text>
+        </view>
+        <view class="gear-list">
+          <view class="gear-row" wx:for="{{activeDetail.gear}}" wx:key="slot">
+            <text class="gear-slot">{{item.slot}}</text>
+            <view class="gear-copy">
+              <text class="gear-name">{{item.name}}</text>
+              <text class="gear-source">{{item.source}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="insight-list">
+          <text class="insight-item" wx:for="{{activeDetail.items}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+
+      <view class="module-panel stats-panel" wx:if="{{activeQueryKey == 'statWeights'}}">
+        <view class="panel-header">
+          <text class="panel-title">{{activeDetail.title}}</text>
+          <text class="panel-subtitle">属性优先级、权重趋势和适用边界</text>
+        </view>
+        <view class="stat-bars">
+          <view class="stat-row" wx:for="{{activeDetail.stats}}" wx:key="name">
+            <view class="stat-copy">
+              <text class="stat-name">{{item.name}}</text>
+              <text class="stat-value">{{item.value}}</text>
+            </view>
+            <view class="stat-track">
+              <view class="stat-fill" style="width: {{item.percent}}%;"></view>
+            </view>
+          </view>
+        </view>
+        <view class="insight-list">
+          <text class="insight-item" wx:for="{{activeDetail.items}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+
+      <view class="module-panel rotation-panel" wx:if="{{activeQueryKey == 'rotation'}}">
+        <view class="panel-header">
+          <text class="panel-title">{{activeDetail.title}}</text>
+          <text class="panel-subtitle">起手、爆发、平稳期和场景处理</text>
+        </view>
+        <view class="rotation-timeline">
+          <view class="rotation-step" wx:for="{{activeDetail.rotation}}" wx:key="phase">
+            <text class="phase-name">{{item.phase}}</text>
+            <text class="phase-copy">{{item.action}}</text>
+          </view>
+        </view>
+        <view class="insight-list">
+          <text class="insight-item" wx:for="{{activeDetail.items}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+
+      <view class="source-box" wx:if="{{activeDetail}}">
+        <text class="source-box-title">来源与样本窗口</text>
+        <text class="source-box-text">{{activeDetail.analysisWindow}}</text>
+        <text class="source-box-text">{{activeDetail.sourceNote}}</text>
+      </view>
+    </view>
+  </scroll-view>
+</view>

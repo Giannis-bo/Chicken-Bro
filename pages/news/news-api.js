@@ -1,37 +1,8 @@
 const { buildNewsHomePayload, createRefreshState, shouldAutoRefresh } = require('../../server/news/home-payload')
 const seedArticles = require('../../server/news/articles.seed')
+const { apiUrl } = require('../common/api-client')
 
-const DEV_API_BASE_URL = 'http://124.223.51.33'
 const STORAGE_KEY = 'wow_news_last_refreshed_at'
-const API_BASE_STORAGE_KEY = 'wow_news_api_base_url'
-
-function miniProgramEnvVersion() {
-  if (typeof wx === 'undefined' || typeof wx.getAccountInfoSync !== 'function') return 'develop'
-  const accountInfo = wx.getAccountInfoSync() || {}
-  return (accountInfo.miniProgram && accountInfo.miniProgram.envVersion) || 'develop'
-}
-
-function configuredApiBaseUrl() {
-  const app = typeof getApp === 'function' ? getApp() : null
-  const globalApiBaseUrl = app && app.globalData && app.globalData.newsApiBaseUrl
-  if (globalApiBaseUrl) return globalApiBaseUrl
-
-  if (typeof wx !== 'undefined' && typeof wx.getStorageSync === 'function') {
-    const storedApiBaseUrl = wx.getStorageSync(API_BASE_STORAGE_KEY)
-    if (storedApiBaseUrl) return storedApiBaseUrl
-  }
-
-  if (typeof process !== 'undefined' && process.env && process.env.WOW_NEWS_API_BASE_URL) {
-    return process.env.WOW_NEWS_API_BASE_URL
-  }
-
-  return miniProgramEnvVersion() === 'develop' ? DEV_API_BASE_URL : ''
-}
-
-function apiUrl(path) {
-  const baseUrl = configuredApiBaseUrl()
-  return baseUrl ? `${baseUrl}${path}` : ''
-}
 
 function fallbackPayload(refreshMode) {
   return buildNewsHomePayload(seedArticles, createRefreshState(refreshMode || 'fallback'))

@@ -4,7 +4,10 @@
     "pages/news/list",
     "pages/news/detail",
     "pages/builds/builds",
+    "pages/builds/intel",
+    "pages/builds/detail",
     "pages/pve/pve",
+    "pages/pve/detail",
     "pages/simulator/simulator",
     "pages/profile/profile"
   ],
@@ -25,11 +28,11 @@
       },
       {
         "pagePath": "pages/builds/builds",
-        "text": "BD"
+        "text": "职业专精"
       },
       {
         "pagePath": "pages/pve/pve",
-        "text": "副本"
+        "text": "PVE专区"
       },
       {
         "pagePath": "pages/simulator/simulator",

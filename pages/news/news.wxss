@@ -9,7 +9,11 @@
 
 .news-swiper {
   width: 100%;
-  height: 440rpx;
+  height: 408rpx;
+}
+
+.news-swiper .wx-swiper-dots {
+  bottom: 12rpx;
 }
 
 .banner-card {

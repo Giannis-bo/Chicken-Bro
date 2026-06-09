@@ -5,3 +5,8 @@ project.private.config.json
 
 # Logs
 *.log
+
+# Python/runtime output
+__pycache__/
+*.py[cod]
+server/data/

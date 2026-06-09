@@ -1,0 +1,23 @@
+[Unit]
+Description=WOW Mini Program Unified Backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/wow-mini-program
+EnvironmentFile=-/etc/wow-backend.env
+Environment=WOW_NEWS_HOST=127.0.0.1
+Environment=WOW_NEWS_PORT=8787
+Environment=WOW_NEWS_ENABLE_COLLECTORS=1
+Environment=WOW_NEWS_DB=/opt/wow-mini-program/server/data/wow_news.sqlite3
+Environment=WOW_LLM_MODEL=deepseek-v4-flash
+Environment=WOW_SIMC_BIN=/opt/wow-simc/current/simc
+Environment=WOW_SIMC_VERSION_FILE=/var/lib/wow-backend/simc-version.json
+ExecStart=/usr/bin/python3 /opt/wow-mini-program/server/news_backend.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -14,3 +14,10 @@ test('navigation home button has an implementation that returns to the news tab'
   const css = fs.readFileSync('components/navigation-bar/navigation-bar.wxss', 'utf8')
   assert.match(css, /\.weui-navigation-bar__btn_home[\s\S]*background-color:\s*currentColor/)
 })
+
+test('pve tab is named PVE zone', () => {
+  const app = JSON.parse(fs.readFileSync('app.json', 'utf8'))
+  const tab = app.tabBar.list.find((item) => item.pagePath === 'pages/pve/pve')
+
+  assert.equal(tab.text, 'PVE专区')
+})
