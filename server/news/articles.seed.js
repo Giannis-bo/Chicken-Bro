@@ -1,0 +1,67 @@
+module.exports = [
+  {
+    id: 'blizzard-midnight-revelations-2026-06-03',
+    title: 'Midnight: Revelations 内容更新将于 6 月 16 日上线',
+    summary: '官方公布 Midnight: Revelations 更新：新区域、Omnium Folio、单 Boss 团本 Sporefall、Turbulent Timeways 和后续故事章节。',
+    channel: '正式服动态',
+    category: '正式服',
+    tags: ['content-update'],
+    importance: 100,
+    sourceName: 'Blizzard News',
+    sourceUrl: 'https://worldofwarcraft.blizzard.com/en-us/news/24266797/the-midnight-revelations-content-update-goes-live-17-june',
+    publishedAt: '2026-06-03',
+    sourceNote: '暴雪官方 World of Warcraft 新闻，页面标注 June 3rd by Blizzard Entertainment。'
+  },
+  {
+    id: 'blizzard-hotfixes-2026-06-03',
+    title: '官方 Hotfixes 更新至 2026 年 6 月 3 日',
+    summary: '官方热修列表更新，包含 Midnight 世界任务、职业套装和守护德鲁伊 Apex Talent 后续调整方向等修正说明。',
+    channel: '职业强度变化',
+    category: '正式服',
+    tags: ['hotfix', 'class-change'],
+    importance: 96,
+    sourceName: 'Blizzard News',
+    sourceUrl: 'https://worldofwarcraft.blizzard.com/news/24276957/hotfixes-june-3-2026',
+    publishedAt: '2026-06-03',
+    sourceNote: '暴雪官方 Hotfixes 页面，标题更新为 Hotfixes: June 3, 2026。'
+  },
+  {
+    id: 'blizzard-wow-weekly-2026-05-29',
+    title: 'WoW Weekly 汇总 Omnium Folio、六月商栈与 Ambassador 动态',
+    summary: '官方周报汇总本周重点内容，包含 Midnight 工具、六月 Trading Post 奖励、社区项目和后续资讯入口。',
+    channel: '正式服动态',
+    category: '正式服',
+    tags: ['weekly'],
+    importance: 88,
+    sourceName: 'Blizzard News',
+    sourceUrl: 'https://worldofwarcraft.blizzard.com/en-us/news/24244887',
+    publishedAt: '2026-05-29',
+    sourceNote: '暴雪官方周报，页面标注 May 29, 2026 by Blizzard Entertainment。'
+  },
+  {
+    id: 'blizzard-june-trading-post-2026-05-28',
+    title: "六月商栈推出 An'she 主题奖励",
+    summary: "官方公布六月 Trading Post 物品与奖励，完成 Traveler's Log 可获得 Flame-Painted Sun Roc 坐骑。",
+    channel: '正式服动态',
+    category: '正式服',
+    tags: ['event'],
+    importance: 78,
+    sourceName: 'Blizzard News',
+    sourceUrl: 'https://news.blizzard.com/en-us/article/24271859/take-a-midsummer-stroll-over-to-the-june-trading-post',
+    publishedAt: '2026-05-28',
+    sourceNote: '暴雪官方新闻与论坛同步发布，论坛帖由 Blizzard Entertainment 于 2026-05-28 发布。'
+  },
+  {
+    id: 'wowhead-ptr-class-tuning-2026-04-13',
+    title: 'PTR 12.0.5 德鲁伊与战士职业调整记录',
+    summary: 'Wowhead 摘录暴雪 PTR 开发说明，记录恢复德、武器/狂怒/防护战士相关调优与改动回滚。',
+    channel: '测试服前瞻',
+    category: '测试服',
+    tags: ['ptr', 'class-change'],
+    importance: 72,
+    sourceName: 'Wowhead',
+    sourceUrl: 'https://www.wowhead.com/news/more-class-tuning-for-druids-and-warriors-in-patch-12-0-5-ptr-development-notes-381217',
+    publishedAt: '2026-04-13',
+    sourceNote: 'Wowhead 新闻页标注 Posted 2026/04/13，并说明来源为 Blizzard PTR development notes。'
+  }
+]

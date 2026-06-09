@@ -1,0 +1,58 @@
+<view class="page-shell detail-shell">
+  <navigation-bar title="{{navTitle}}" back="{{true}}" homeButton="{{homeButton}}" color="#F7E4B0" background="#111821"></navigation-bar>
+
+  <scroll-view class="page-scroll" scroll-y type="list">
+    <view class="detail-content">
+      <view wx:if="{{loading}}" class="detail-card loading-card">
+        <text class="loading-text">加载中</text>
+      </view>
+
+      <view wx:elif="{{article}}" class="detail-card">
+        <view class="detail-meta-row">
+          <text class="detail-channel">{{article.channel}}</text>
+          <text class="detail-date">{{article.publishedAt}}</text>
+        </view>
+
+        <text class="detail-title">{{article.title}}</text>
+        <text class="detail-summary">{{article.summary}}</text>
+
+        <view class="detail-chip-row">
+          <view wx:for="{{article.metaChips}}" wx:key="label" class="detail-chip">
+            <text class="detail-chip-label">{{item.label}}</text>
+            <text class="detail-chip-value">{{item.value}}</text>
+          </view>
+        </view>
+
+        <view class="body-panel">
+          <text class="section-label">中文正文</text>
+          <text class="detail-body">{{article.bodyZh}}</text>
+        </view>
+
+        <view class="original-panel">
+          <text class="section-label">原文</text>
+          <text class="original-title">{{article.originalTitle}}</text>
+          <text class="original-body">{{article.originalBody}}</text>
+        </view>
+
+        <view class="source-panel">
+          <view class="source-head">
+            <text class="source-label">来源</text>
+            <text class="source-title">{{article.sourceName}}</text>
+          </view>
+          <text class="source-url">{{article.sourceUrl}}</text>
+          <text class="source-desc">{{article.sourceNote}}</text>
+          <button class="source-button" bindtap="copySourceUrl">复制原文链接</button>
+        </view>
+
+        <view wx:if="{{fromFallback && requestError}}" class="detail-warning">
+          <text>后端请求未成功，当前显示本地缓存：{{requestError}}</text>
+        </view>
+      </view>
+
+      <view wx:else class="detail-card loading-card">
+        <text class="loading-text">未找到这条资讯</text>
+        <text wx:if="{{requestError}}" class="detail-warning-text">{{requestError}}</text>
+      </view>
+    </view>
+  </scroll-view>
+</view>

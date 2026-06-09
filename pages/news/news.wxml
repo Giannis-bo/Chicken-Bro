@@ -1,45 +1,72 @@
-<view class="page-shell">
-  <navigation-bar title="{{navTitle}}" back="{{false}}" color="#211A15" background="#F4F1E8"></navigation-bar>
+<view class="page-shell news-shell">
+  <navigation-bar title="{{navTitle}}" back="{{false}}" color="#F7E4B0" background="#111821"></navigation-bar>
+
   <scroll-view class="page-scroll" scroll-y type="list">
-    <view class="page-content">
-      <view class="hero news-hero">
-        <text class="hero-kicker">{{kicker}}</text>
-        <text class="hero-title">{{title}}</text>
-        <text class="hero-desc">{{desc}}</text>
+    <view class="page-content news-content">
+      <swiper class="news-swiper" indicator-dots circular autoplay interval="5200" duration="420" indicator-color="rgba(247, 228, 176, 0.28)" indicator-active-color="#F0B84B">
+        <swiper-item wx:for="{{heroNews}}" wx:key="id">
+          <view class="banner-card" data-id="{{item.id}}" bindtap="openArticle">
+            <view class="banner-topline">
+              <text class="banner-channel">{{item.channel}}</text>
+              <text class="banner-date">{{item.publishedAt}}</text>
+            </view>
+            <text class="banner-title">{{item.title}}</text>
+            <text class="banner-summary">{{item.summary}}</text>
+            <view class="source-row">
+              <text class="source-name">{{item.sourceName}}</text>
+              <text class="source-dot">/</text>
+              <text class="source-note">{{item.sourceNote}}</text>
+            </view>
+          </view>
+        </swiper-item>
+      </swiper>
+
+      <view class="refresh-strip">
+        <view class="refresh-copy">
+          <text class="refresh-label">最近刷新</text>
+          <text class="refresh-time">{{lastRefreshedAt}}</text>
+          <text wx:if="{{fromFallback && requestError}}" class="refresh-error">后端请求未成功：{{requestError}}</text>
+        </view>
+        <button class="refresh-button" loading="{{loading}}" bindtap="handleRefresh">刷新</button>
       </view>
 
-      <view class="metrics">
-        <view class="metric-card" wx:for="{{metrics}}" wx:key="label">
-          <text class="metric-value">{{item.value}}</text>
-          <text class="metric-label">{{item.label}}</text>
+      <view class="metrics news-metrics">
+        <view class="metric-card news-metric-card" wx:for="{{metrics}}" wx:key="label" data-key="{{item.key}}" bindtap="openMetric">
+          <text class="metric-value news-metric-value">{{item.value}}</text>
+          <text class="metric-label news-metric-label">{{item.label}}</text>
         </view>
       </view>
 
-      <view class="section">
+      <view class="section news-section">
         <view class="section-header">
-          <text class="section-title">资讯频道</text>
-          <text class="section-action">订阅</text>
+          <text class="section-title news-section-title">资讯频道</text>
         </view>
-        <view class="quick-grid">
-          <view class="quick-item" wx:for="{{quickActions}}" wx:key="title">
-            <text class="quick-title">{{item.title}}</text>
-            <text class="quick-desc">{{item.desc}}</text>
+        <view class="channel-grid">
+          <view class="channel-item" wx:for="{{channels}}" wx:key="id" data-value="{{item.title}}" bindtap="openChannel">
+            <text class="channel-title">{{item.title}}</text>
+            <text class="channel-desc">{{item.desc}}</text>
           </view>
         </view>
       </view>
 
-      <view class="section">
+      <view class="section news-section">
         <view class="section-header">
-          <text class="section-title">今日重点</text>
-          <text class="section-action">刷新</text>
+          <text class="section-title news-section-title">今日重点</text>
+          <text class="section-action news-section-action">{{fromFallback ? '本地缓存' : refreshMode}}</text>
         </view>
-        <view class="task-list">
-          <view class="task-card" wx:for="{{tasks}}" wx:key="title">
-            <view class="task-row">
-              <text class="task-title">{{item.title}}</text>
-              <text class="task-status">{{item.status}}</text>
+        <view class="highlight-list">
+          <view class="highlight-card" wx:for="{{highlights}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
+            <view class="highlight-head">
+              <text class="highlight-channel">{{item.channel}}</text>
+              <text class="highlight-date">{{item.publishedAt}}</text>
             </view>
-            <text class="task-desc">{{item.desc}}</text>
+            <text class="highlight-title">{{item.title}}</text>
+            <text class="highlight-summary">{{item.summary}}</text>
+            <view class="source-row highlight-source">
+              <text class="source-name">{{item.sourceName}}</text>
+              <text class="source-dot">/</text>
+              <text class="source-note">{{item.sourceNote}}</text>
+            </view>
           </view>
         </view>
       </view>

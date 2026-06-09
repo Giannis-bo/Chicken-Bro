@@ -1,6 +1,8 @@
 {
   "pages": [
     "pages/news/news",
+    "pages/news/list",
+    "pages/news/detail",
     "pages/builds/builds",
     "pages/pve/pve",
     "pages/simulator/simulator",
@@ -19,7 +21,7 @@
     "list": [
       {
         "pagePath": "pages/news/news",
-        "text": "资讯"
+        "text": "最新资讯"
       },
       {
         "pagePath": "pages/builds/builds",

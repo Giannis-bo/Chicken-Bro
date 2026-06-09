@@ -34,6 +34,10 @@ Component({
       type: Boolean,
       value: false,
     },
+    homePath: {
+      type: String,
+      value: '/pages/news/news'
+    },
     animated: {
       // 显示隐藏的时候opacity动画效果
       type: Boolean,
@@ -97,6 +101,12 @@ Component({
         })
       }
       this.triggerEvent('back', { delta: data.delta }, {})
+    },
+    home() {
+      wx.switchTab({
+        url: this.data.homePath || '/pages/news/news'
+      })
+      this.triggerEvent('home', {}, {})
     }
   },
 })

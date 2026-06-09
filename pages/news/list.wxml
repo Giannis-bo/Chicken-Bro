@@ -1,0 +1,36 @@
+<view class="page-shell list-shell">
+  <navigation-bar title="{{navTitle}}" back="{{true}}" color="#F7E4B0" background="#111821"></navigation-bar>
+
+  <scroll-view class="page-scroll" scroll-y type="list">
+    <view class="list-content">
+      <view class="list-header">
+        <text class="list-title">{{title}}</text>
+        <text class="list-count">{{count}} 条资讯</text>
+        <text wx:if="{{fromFallback && requestError}}" class="list-error">后端请求未成功：{{requestError}}</text>
+      </view>
+
+      <view wx:if="{{loading}}" class="list-card empty-card">
+        <text class="empty-text">加载中</text>
+      </view>
+
+      <view wx:elif="{{articles.length}}" class="article-list">
+        <view class="list-card article-card" wx:for="{{articles}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
+          <view class="article-head">
+            <text class="article-channel">{{item.channel}}</text>
+            <text class="article-date">{{item.publishedAt}}</text>
+          </view>
+          <text class="article-title">{{item.title}}</text>
+          <text class="article-summary">{{item.summary}}</text>
+          <view class="article-source">
+            <text>{{item.sourceName}}</text>
+            <text class="article-source-url">{{item.sourceUrl}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view wx:else class="list-card empty-card">
+        <text class="empty-text">暂无资讯</text>
+      </view>
+    </view>
+  </scroll-view>
+</view>
