@@ -252,7 +252,8 @@ else
 fi
 chmod 0700 "${CODEX_HOME_DIR}" "${CODEX_JOBS_DIR}"
 chmod 0600 "${CODEX_HOME_DIR}/config.toml"
-latest_simc_commit="$(SIMC_GITHUB_REPO="${SIMC_GITHUB_REPO}" SIMC_BRANCH="${SIMC_BRANCH}" python3 - <<'PY'
+latest_simc_commit=""
+if ! latest_simc_commit="$(SIMC_GITHUB_REPO="${SIMC_GITHUB_REPO}" SIMC_BRANCH="${SIMC_BRANCH}" python3 - <<'PY'
 import json
 import os
 import sys
@@ -269,7 +270,15 @@ except Exception as error:
     print(f"failed to resolve SimulationCraft branch commit: {error}", file=sys.stderr)
     sys.exit(1)
 PY
-)"
+)"; then
+  if [[ -x "${SIMC_BIN}" && -f "${SIMC_COMMIT_FILE}" ]]; then
+    latest_simc_commit="$(cat "${SIMC_COMMIT_FILE}")"
+    echo "Reusing existing SimulationCraft binary at ${SIMC_BIN}; GitHub version lookup failed." >&2
+  else
+    echo "SimulationCraft is not installed and GitHub version lookup failed." >&2
+    exit 1
+  fi
+fi
 if [[ ! -x "${SIMC_BIN}" || ! -f "${SIMC_COMMIT_FILE}" || "$(cat "${SIMC_COMMIT_FILE}")" != "${latest_simc_commit}" ]]; then
   simc_archive="${SIMC_ROOT}/source-${latest_simc_commit}.tar.gz"
   rm -rf "${SIMC_SRC}" "${SIMC_BUILD}"

@@ -24,6 +24,14 @@ class DeployLighthouseScriptTest(unittest.TestCase):
         self.assertIn("reject_path_traversal CODEX_JOBS_DIR", script)
         self.assertIn("reject_path_traversal CODEX_HOME_DIR", script)
 
+    def test_deploy_script_can_reuse_existing_simc_when_github_lookup_fails(self):
+        script = Path("server/deploy_lighthouse.sh").read_text(encoding="utf-8")
+
+        self.assertIn("latest_simc_commit=\"\"", script)
+        self.assertIn("if ! latest_simc_commit=", script)
+        self.assertIn("Reusing existing SimulationCraft binary", script)
+        self.assertIn("SimulationCraft is not installed and GitHub version lookup failed.", script)
+
     def test_systemd_service_exposes_codex_worker_environment(self):
         service = Path("server/wow-backend.service").read_text(encoding="utf-8")
 
