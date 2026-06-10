@@ -143,6 +143,53 @@ test('simulator analysis allows enough time for real SimC and LLM results', asyn
   assert.ok(captured.timeout >= 60000)
 })
 
+test('simulator agent recovers clarification UI when older backend returns empty profile', async () => {
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    request: (options) => {
+      options.success({
+        statusCode: 200,
+        data: {
+          mode: 'simcraft_agent',
+          status: 'ready',
+          request: {
+            prompt: '我是现在是290装等的风暴元素萨，帮我看看理想的5目标AOE模拟多少伤害？',
+            runSimulation: true
+          },
+          stages: [
+            { key: 'profile_check', title: 'Profile 检查', status: 'blocked', executor: 'backend', summary: '缺少完整 SimCraft profile' },
+            { key: 'simc_execution', title: 'SimC 执行', status: 'failed', executor: 'simcraft', summary: 'empty profile', metric: '' }
+          ],
+          simulation: {
+            ran: false,
+            error: 'empty profile'
+          },
+          recommendations: ['旧后端错误地尝试执行空 profile。']
+        }
+      })
+    }
+  }
+
+  const simulatorApi = resetModule('../pages/simulator/simulator-api')
+  const result = await simulatorApi.requestSimulatorAnalysis({
+    mode: 'simcraft_agent',
+    message: '我是现在是290装等的风暴元素萨，帮我看看理想的5目标AOE模拟多少伤害？',
+    prompt: '我是现在是290装等的风暴元素萨，帮我看看理想的5目标AOE模拟多少伤害？',
+    round: 1,
+    runSimulation: true
+  })
+
+  assert.equal(result.fromFallback, false)
+  assert.equal(result.payload.agent.status, 'needs_clarification')
+  assert.equal(result.payload.agent.intent, 'baseline')
+  assert.deepEqual(result.payload.agent.missingSlots, ['character_source'])
+  assert.match(result.payload.agent.question, /\/simc/)
+  assert.equal(result.payload.stages[1].status, 'skipped')
+  assert.equal(result.payload.simulation.error, 'missing character source')
+  assert.match(result.payload.recommendations[0], /角色数据来源/)
+})
+
 test('auth client exchanges wx.login code and stores backend token', async () => {
   const storage = {}
   global.wx = {

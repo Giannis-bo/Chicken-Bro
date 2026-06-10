@@ -269,6 +269,33 @@ class NewsBackendTest(unittest.TestCase):
         self.assertFalse(analysis["simulation"]["ran"])
         self.assertEqual(analysis["simulation"]["error"], "missing character source")
 
+    def test_unknown_simulator_mode_without_profile_does_not_run_empty_simc(self):
+        simc_bin = Path(self.tmp.name) / "fake-unknown-mode-simc"
+        captured_profile = Path(self.tmp.name) / "unexpected-unknown-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'DPS=999999\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "future_simcraft_mode",
+                    "prompt": "我是风暴元素萨，想跑五目标 AOE",
+                    "runSimulation": True,
+                }
+            )
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        self.assertFalse(captured_profile.exists())
+        self.assertFalse(analysis["request"]["runSimulation"])
+        self.assertFalse(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["simulation"]["error"], "missing simcraft profile")
+
     def test_simc_agent_caps_clarification_at_three_rounds(self):
         analysis = self.backend.analyze_simulator_request(
             {

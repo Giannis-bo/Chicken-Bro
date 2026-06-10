@@ -49,6 +49,10 @@ def truthy_env(name):
     return str(os.environ.get(name, "")).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def is_simcraft_mode(mode):
+    return "simcraft" in str(mode or "").lower()
+
+
 def simc_binary():
     configured = os.environ.get("WOW_SIMC_BIN")
     if configured:
@@ -317,7 +321,7 @@ def normalize_analysis_request(payload):
     profile = explicit_profile or extracted_profile
     mode = source.get("mode") or "simcraft"
     run_simulation = bool(source.get("runSimulation"))
-    if mode == "simcraft" and run_simulation and not profile:
+    if run_simulation and not profile:
         run_simulation = False
     if mode == "simcraft" and profile:
         run_simulation = True
@@ -704,7 +708,7 @@ def analyze_simulator_request(payload, codex_runner=None):
             "ran": False,
             "available": bool(simc_binary()),
             "summary": "",
-            "error": "missing simcraft profile" if request_data["mode"] == "simcraft" and not request_data["profile"] else "simulation not requested",
+            "error": "missing simcraft profile" if is_simcraft_mode(request_data["mode"]) and not request_data["profile"] else "simulation not requested",
         }
     simulation = dict(simulation)
     simulation["metrics"] = parse_simcraft_metrics(simulation.get("summary", ""))

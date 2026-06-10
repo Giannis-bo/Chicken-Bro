@@ -110,6 +110,105 @@ function fallbackSimulatorAnalysis(request) {
   }
 }
 
+function agentClarificationPayload(request) {
+  const prompt = (request && (request.message || request.prompt)) || ''
+  return {
+    mode: 'simcraft_agent',
+    status: 'ready',
+    request: {
+      prompt,
+      message: prompt,
+      runSimulation: false
+    },
+    agent: {
+      status: 'needs_clarification',
+      round: (request && request.round) || 1,
+      intent: 'baseline',
+      missingSlots: ['character_source'],
+      question: '要做准确 SimC，需要角色数据来源。请粘贴游戏内 /simc 插件导出，或提供角色名、服务器和地区。',
+      quickReplies: ['粘贴 /simc 导出', '提供角色名服务器', '只生成待补齐模板'],
+      draftProfile: '',
+      validation: {
+        passed: false,
+        errors: ['missing character source'],
+        warnings: []
+      },
+      summaryCards: [
+        { title: '结论', text: '本次没有执行真实 SimC：缺少角色数据来源。' },
+        { title: '下一步', text: '请补充 /simc 导出或角色名、服务器和地区。' }
+      ]
+    },
+    stages: [
+      {
+        key: 'profile_check',
+        title: 'Profile 检查',
+        status: 'blocked',
+        executor: 'backend',
+        summary: '缺少角色数据来源'
+      },
+      {
+        key: 'simc_execution',
+        title: 'SimC 执行',
+        status: 'skipped',
+        executor: 'simcraft',
+        summary: 'missing character source',
+        metric: ''
+      },
+      {
+        key: 'ai_interpretation',
+        title: 'AI 解读',
+        status: 'skipped',
+        executor: 'llm',
+        summary: '等待补充角色数据'
+      }
+    ],
+    simulation: {
+      ran: false,
+      available: false,
+      summary: '',
+      error: 'missing character source'
+    },
+    capabilities: {
+      simcraft: false,
+      codex: false,
+      llm: false
+    },
+    recommendations: [
+      '要做准确 SimC，需要角色数据来源。请粘贴游戏内 /simc 插件导出，或提供角色名、服务器和地区。'
+    ],
+    llm: {
+      prompt: '',
+      called: false,
+      model: '',
+      content: '',
+      error: ''
+    },
+    codex: {
+      enabled: false,
+      called: false,
+      status: 'skipped',
+      jobId: '',
+      lastMessage: '',
+      error: 'missing character source'
+    }
+  }
+}
+
+function isLegacyEmptyProfileAgentResponse(request, payload) {
+  if (!request || request.mode !== 'simcraft_agent') return false
+  if (!payload || payload.agent) return false
+  const simulationError = payload.simulation && payload.simulation.error
+  const simcStage = (payload.stages || []).find((stage) => stage && stage.key === 'simc_execution')
+  return simulationError === 'empty profile' || (simcStage && simcStage.summary === 'empty profile')
+}
+
+function normalizeSimulatorAnalysisPayload(request, payload) {
+  if (isLegacyEmptyProfileAgentResponse(request, payload)) {
+    return agentClarificationPayload(request)
+  }
+  return payload
+}
+
 function requestSimulatorHome() {
   return requestJson('/api/simulator/home', {
     fallback: fallbackSimulatorHome,
@@ -124,6 +223,11 @@ function requestSimulatorAnalysis(request) {
     timeout: 90000,
     fallback: () => fallbackSimulatorAnalysis(request),
     validate: (data) => data && data.status && data.recommendations
+  }).then((result) => {
+    return {
+      ...result,
+      payload: normalizeSimulatorAnalysisPayload(request || {}, result.payload)
+    }
   })
 }
 
@@ -136,8 +240,10 @@ function requestSimulatorTasks() {
 }
 
 module.exports = {
+  agentClarificationPayload,
   fallbackSimulatorAnalysis,
   fallbackSimulatorHome,
+  normalizeSimulatorAnalysisPayload,
   requestSimulatorAnalysis,
   requestSimulatorHome,
   requestSimulatorTasks
