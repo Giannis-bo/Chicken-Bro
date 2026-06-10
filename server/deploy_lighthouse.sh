@@ -284,22 +284,32 @@ if [[ ! -x "${SIMC_BIN}" || ! -f "${SIMC_COMMIT_FILE}" || "$(cat "${SIMC_COMMIT_
   rm -rf "${SIMC_SRC}" "${SIMC_BUILD}"
   mkdir -p "${SIMC_SRC}"
   if [[ ! -f "${simc_archive}" ]] || ! tar -tzf "${simc_archive}" >/dev/null 2>&1; then
-    curl -fL --retry 5 --connect-timeout 30 --speed-time 120 --speed-limit 1024 \
+    if ! curl -fL --retry 5 --connect-timeout 30 --speed-time 120 --speed-limit 1024 \
       -o "${simc_archive}" \
-      "https://github.com/${SIMC_GITHUB_REPO}/archive/${latest_simc_commit}.tar.gz"
+      "https://github.com/${SIMC_GITHUB_REPO}/archive/${latest_simc_commit}.tar.gz"; then
+      if [[ -x "${SIMC_BIN}" && -f "${SIMC_COMMIT_FILE}" ]]; then
+        latest_simc_commit="$(cat "${SIMC_COMMIT_FILE}")"
+        echo "SimulationCraft source download failed; reusing existing SimulationCraft binary at ${SIMC_BIN}." >&2
+      else
+        echo "SimulationCraft source download failed and no existing binary is available." >&2
+        exit 1
+      fi
+    fi
   fi
-  tar -xzf "${simc_archive}" --strip-components=1 -C "${SIMC_SRC}"
-  cmake -S "${SIMC_SRC}" -B "${SIMC_BUILD}" -DBUILD_GUI=OFF -DCMAKE_BUILD_TYPE=Release
-  cmake --build "${SIMC_BUILD}" --target simc --parallel "$(nproc)"
-  built_simc="$(find "${SIMC_BUILD}" -type f -name simc -perm -111 | head -n 1)"
-  if [[ -z "${built_simc}" ]]; then
-    echo "failed to locate built simc binary under ${SIMC_BUILD}" >&2
-    exit 1
+  if [[ ! -x "${SIMC_BIN}" || ! -f "${SIMC_COMMIT_FILE}" || "$(cat "${SIMC_COMMIT_FILE}")" != "${latest_simc_commit}" ]]; then
+    tar -xzf "${simc_archive}" --strip-components=1 -C "${SIMC_SRC}"
+    cmake -S "${SIMC_SRC}" -B "${SIMC_BUILD}" -DBUILD_GUI=OFF -DCMAKE_BUILD_TYPE=Release
+    cmake --build "${SIMC_BUILD}" --target simc --parallel "$(nproc)"
+    built_simc="$(find "${SIMC_BUILD}" -type f -name simc -perm -111 | head -n 1)"
+    if [[ -z "${built_simc}" ]]; then
+      echo "failed to locate built simc binary under ${SIMC_BUILD}" >&2
+      exit 1
+    fi
+    mkdir -p "${SIMC_CURRENT}"
+    cp "${built_simc}" "${SIMC_BIN}"
+    chmod 0755 "${SIMC_BIN}"
+    printf '%s\n' "${latest_simc_commit}" >"${SIMC_COMMIT_FILE}"
   fi
-  mkdir -p "${SIMC_CURRENT}"
-  cp "${built_simc}" "${SIMC_BIN}"
-  chmod 0755 "${SIMC_BIN}"
-  printf '%s\n' "${latest_simc_commit}" >"${SIMC_COMMIT_FILE}"
 fi
 
 sudo tee /usr/local/bin/wow-simc-version-check >/dev/null <<'SIMCCHECK'

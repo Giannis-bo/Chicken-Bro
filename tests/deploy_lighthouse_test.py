@@ -31,6 +31,7 @@ class DeployLighthouseScriptTest(unittest.TestCase):
         self.assertIn("if ! latest_simc_commit=", script)
         self.assertIn("Reusing existing SimulationCraft binary", script)
         self.assertIn("SimulationCraft is not installed and GitHub version lookup failed.", script)
+        self.assertIn("SimulationCraft source download failed", script)
 
     def test_systemd_service_exposes_codex_worker_environment(self):
         service = Path("server/wow-backend.service").read_text(encoding="utf-8")
