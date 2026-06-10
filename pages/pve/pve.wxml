@@ -1,5 +1,5 @@
 <view class="page-shell pve-shell">
-  <navigation-bar title="{{navTitle}}" back="{{false}}" color="#FFFFFF" background="#7A1116"></navigation-bar>
+  <navigation-bar title="{{navTitle}}" back="{{false}}" color="#FFFFFF" background="#111111"></navigation-bar>
   <scroll-view class="page-scroll" scroll-y type="list">
     <view class="page-content">
       <view class="hero pve-hero">

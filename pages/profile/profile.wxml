@@ -1,5 +1,5 @@
 <view class="page-shell">
-  <navigation-bar title="我的" back="{{false}}" color="#211A15" background="#F4F1E8"></navigation-bar>
+  <navigation-bar title="我的" back="{{false}}" color="#FFFFFF" background="#111111"></navigation-bar>
   <scroll-view class="page-scroll" scroll-y type="list">
     <view class="page-content profile-page">
       <view class="profile-card user-card">

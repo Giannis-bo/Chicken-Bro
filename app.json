@@ -12,15 +12,15 @@
     "pages/profile/profile"
   ],
   "window": {
-    "backgroundColor": "#F4F1E8",
-    "navigationBarTextStyle": "black",
+    "backgroundColor": "#060606",
+    "navigationBarTextStyle": "white",
     "navigationStyle": "custom"
   },
   "tabBar": {
-    "color": "#7B7468",
-    "selectedColor": "#B36B16",
-    "backgroundColor": "#FFFFFF",
-    "borderStyle": "white",
+    "color": "#8E8E8E",
+    "selectedColor": "#F8B700",
+    "backgroundColor": "#101010",
+    "borderStyle": "black",
     "list": [
       {
         "pagePath": "pages/news/news",

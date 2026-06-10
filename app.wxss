@@ -2,8 +2,8 @@
 page {
   height: 100vh;
   min-height: 100vh;
-  background: #f4f1e8;
-  color: #211a15;
+  background: #060606;
+  color: #e1e2e5;
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 28rpx;
 }
@@ -19,7 +19,7 @@ scroll-view {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f4f1e8;
+  background: #060606;
 }
 
 .page-scroll {
@@ -29,27 +29,28 @@ scroll-view {
 }
 
 .page-content {
-  padding: 28rpx 32rpx 56rpx;
+  padding: 24rpx 28rpx 56rpx;
 }
 
 .hero {
   position: relative;
-  padding: 36rpx 34rpx;
+  padding: 32rpx 30rpx;
   overflow: hidden;
-  border-radius: 28rpx;
-  background: #192436;
+  border: 1rpx solid rgba(248, 183, 0, 0.24);
+  border-radius: 16rpx;
+  background: #111111;
   color: #ffffff;
 }
 
 .hero::after {
   content: "";
   position: absolute;
-  right: -76rpx;
-  bottom: -92rpx;
+  right: -82rpx;
+  bottom: -108rpx;
   width: 260rpx;
   height: 260rpx;
   border-radius: 50%;
-  background: rgba(255, 218, 112, 0.28);
+  background: rgba(139, 63, 245, 0.2);
 }
 
 .hero-kicker {
@@ -57,21 +58,22 @@ scroll-view {
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  padding: 8rpx 18rpx;
+  padding: 7rpx 16rpx;
   border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.16);
-  color: rgba(255, 255, 255, 0.88);
+  background: rgba(248, 183, 0, 0.14);
+  color: #f8b700;
   font-size: 22rpx;
+  font-weight: 700;
 }
 
 .hero-title {
   position: relative;
   z-index: 1;
   display: block;
-  margin-top: 26rpx;
-  font-size: 48rpx;
+  margin-top: 24rpx;
+  font-size: 46rpx;
   line-height: 1.15;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .hero-desc {
@@ -80,7 +82,7 @@ scroll-view {
   display: block;
   width: 86%;
   margin-top: 18rpx;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(225, 226, 229, 0.76);
   font-size: 26rpx;
   line-height: 1.55;
 }
@@ -94,16 +96,16 @@ scroll-view {
 .section,
 .task-card,
 .profile-card {
-  border: 1rpx solid rgba(47, 34, 24, 0.08);
-  border-radius: 20rpx;
-  background: #ffffff;
-  box-shadow: 0 12rpx 36rpx rgba(47, 34, 24, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+  background: #151515;
+  box-shadow: 0 16rpx 36rpx rgba(0, 0, 0, 0.28);
 }
 
 .metric-card {
   flex: 1;
-  min-height: 144rpx;
-  padding: 24rpx 18rpx;
+  min-height: 132rpx;
+  padding: 22rpx 18rpx;
 }
 
 .metric-card + .metric-card {
@@ -112,16 +114,16 @@ scroll-view {
 
 .metric-value {
   display: block;
-  color: #b36b16;
+  color: #f8b700;
   font-size: 34rpx;
   line-height: 1;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .metric-label {
   display: block;
   margin-top: 16rpx;
-  color: #7b7468;
+  color: #9a9a9a;
   font-size: 22rpx;
   line-height: 1.35;
 }
@@ -139,14 +141,15 @@ scroll-view {
 }
 
 .section-title {
-  color: #211a15;
+  color: #f1f1f1;
   font-size: 30rpx;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .section-action {
-  color: #b36b16;
+  color: #f8b700;
   font-size: 24rpx;
+  font-weight: 700;
 }
 
 .quick-grid {
@@ -160,21 +163,22 @@ scroll-view {
   min-height: 132rpx;
   margin: 8rpx;
   padding: 24rpx;
-  border-radius: 18rpx;
-  background: #fbf5e7;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+  background: #101010;
 }
 
 .quick-title {
   display: block;
-  color: #2c2119;
+  color: #f1f1f1;
   font-size: 27rpx;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .quick-desc {
   display: block;
   margin-top: 10rpx;
-  color: #7b7468;
+  color: #a7a7a7;
   font-size: 23rpx;
   line-height: 1.42;
 }
@@ -198,9 +202,9 @@ scroll-view {
 
 .task-title {
   flex: 1;
-  color: #211a15;
+  color: #f1f1f1;
   font-size: 28rpx;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.35;
 }
 
@@ -208,15 +212,16 @@ scroll-view {
   flex: none;
   padding: 8rpx 16rpx;
   border-radius: 999rpx;
-  background: #fff0c4;
-  color: #80510d;
+  background: rgba(139, 63, 245, 0.18);
+  color: #b78aff;
   font-size: 22rpx;
+  font-weight: 700;
 }
 
 .task-desc {
   display: block;
   margin-top: 12rpx;
-  color: #7b7468;
+  color: #a7a7a7;
   font-size: 24rpx;
   line-height: 1.5;
 }

@@ -15,11 +15,11 @@ from urllib.request import urlopen
 
 try:
     from .news_collector import canonical_article_key, collect_feed_articles, merge_articles
-    from .news_translator import localize_article
+    from .news_translator import localize_article, visible_translation_issues
     from .simulator_payload import analyze_simulator_request, build_simulator_home_payload
 except ImportError:
     from news_collector import canonical_article_key, collect_feed_articles, merge_articles
-    from news_translator import localize_article
+    from news_translator import localize_article, visible_translation_issues
     from simulator_payload import analyze_simulator_request, build_simulator_home_payload
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -228,6 +228,7 @@ def refresh_articles(refresh_mode):
 
     refreshed_at = utc_now()
     accepted_ids = [article["id"] for article in accepted]
+    translation_issues = visible_translation_issues(accepted)
     with db_connection() as conn:
         for article in accepted:
             conn.execute(
@@ -292,6 +293,8 @@ def refresh_articles(refresh_mode):
                         "collectorEnabled": ENABLE_COLLECTORS,
                         "collectedCount": len(collected_articles),
                         "collectorErrors": collector_errors,
+                        "translationIssueCount": len(translation_issues),
+                        "translationIssues": translation_issues[:20],
                     },
                     ensure_ascii=False,
                 ),
@@ -312,6 +315,34 @@ def latest_refresh_state():
     if not row:
         return refresh_articles("bootstrap")
     return {"refreshMode": row[0], "lastRefreshedAt": row[1]}
+
+
+def latest_refresh_run_payload():
+    init_db()
+    with db_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT refresh_mode, refreshed_at, accepted_count, rejected_count, message
+            FROM news_refresh_runs
+            ORDER BY id DESC LIMIT 1
+            """
+        ).fetchone()
+    if not row:
+        latest_refresh_state()
+        return latest_refresh_run_payload()
+
+    message = safe_json_loads(row[4], {}, "latest news refresh run message")
+    return {
+        "refreshMode": row[0],
+        "refreshedAt": row[1],
+        "acceptedCount": row[2],
+        "rejectedCount": row[3],
+        "collectorEnabled": bool(message.get("collectorEnabled")),
+        "collectedCount": int(message.get("collectedCount", 0) or 0),
+        "collectorErrors": message.get("collectorErrors", []),
+        "translationIssueCount": int(message.get("translationIssueCount", 0) or 0),
+        "translationIssues": message.get("translationIssues", []),
+    }
 
 
 def public_user_from_row(row):
@@ -774,6 +805,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/news/home":
             json_response(self, 200, build_home_payload())
+            return
+        if path == "/api/news/refresh-runs/latest":
+            json_response(self, 200, latest_refresh_run_payload())
             return
         if path == "/api/builds/home":
             json_response(self, 200, get_builds_home_payload())

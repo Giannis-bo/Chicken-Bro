@@ -82,6 +82,10 @@ LLM 和 SimCraft 由服务器环境控制：
 - `WOW_LLM_MODEL`：默认 `deepseek-v4-flash`。
 - `WOW_SIMC_BIN`：默认 `/opt/wow-simc/current/simc`，部署脚本会从官方源码构建 CLI。
 - `WOW_SIMC_VERSION_FILE`：默认 `/var/lib/wow-backend/simc-version.json`，由定时任务写入当前镜像 tag 与最新 tag。
+- `WOW_CODEX_BIN`：默认 `/usr/local/bin/codex`，用于低频 Agent Worker。
+- `WOW_CODEX_HOME`：默认 `/home/ubuntu/.codex`，只存服务器本地 Codex 配置和认证缓存。
+- `WOW_CODEX_JOBS_DIR`：默认 `/var/lib/wow-backend/codex-jobs`，每个 Codex job 使用独立目录。
+- `WOW_CODEX_SANDBOX`：默认 `workspace-write`；后端用户任务不要使用 `danger-full-access`。
 
 生产环境密钥放在服务器 `/etc/wow-backend.env`，例如：
 
@@ -91,6 +95,18 @@ WOW_LLM_MODEL=deepseek-v4-flash
 WOW_LLM_API_KEY=...
 ```
 
+Codex CLI 认证也只放服务器本地。推荐两种方式：
+
+```bash
+# 方式一：API key，适合后端自动化
+printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key
+
+# 方式二：ChatGPT / Codex access token，适合需要走 ChatGPT workspace 身份的私有 runner
+printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
+```
+
+不要把 `~/.codex/auth.json`、`CODEX_ACCESS_TOKEN` 或 API key 提交到仓库或写进小程序端。
+
 ## 轻量云部署
 
 服务器默认目标为腾讯轻量云 `ubuntu@124.223.51.33`：
@@ -99,10 +115,21 @@ WOW_LLM_API_KEY=...
 ./server/deploy_lighthouse.sh
 ```
 
-脚本会上传当前工作区、安装 Python/Node/Nginx 与 SimCraft 构建依赖，从官方 `simulationcraft/simc` 仓库的 `midnight` 分支构建 CLI-only `simc`，注册 `wow-simc-version-check.timer` 每 12 小时检测 GitHub 分支版本，注册 `wow-backend` systemd service，并用 Nginx 将 80 端口代理到本机 `8787`。如服务器或用户变化，可通过环境变量覆盖：
+脚本会上传当前工作区、安装 Python/Node/Nginx、Codex CLI 与 SimCraft 构建依赖，从官方 `simulationcraft/simc` 仓库的 `midnight` 分支构建 CLI-only `simc`，注册 `wow-simc-version-check.timer` 每 12 小时检测 GitHub 分支版本，注册 `wow-backend` systemd service，并用 Nginx 将 80 端口代理到本机 `8787`。如服务器或用户变化，可通过环境变量覆盖：
 
 ```bash
 WOW_LIGHTHOUSE_HOST=124.223.51.33 WOW_LIGHTHOUSE_USER=ubuntu ./server/deploy_lighthouse.sh
+```
+
+部署后在服务器上验证 Codex：
+
+```bash
+codex --version
+codex login status
+CODEX_HOME=/home/ubuntu/.codex python3 - <<'PY'
+from server.codex_worker import run_codex_job
+print(run_codex_job("只回复 OK", jobs_dir="/var/lib/wow-backend/codex-jobs", timeout_seconds=120)["status"])
+PY
 ```
 
 ## 后续方向

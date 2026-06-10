@@ -1,0 +1,35 @@
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+
+test('simulator page accepts prompt input and submits a simcraft run', () => {
+  const js = fs.readFileSync('pages/simulator/simulator.js', 'utf8')
+  const wxml = fs.readFileSync('pages/simulator/simulator.wxml', 'utf8')
+  const css = fs.readFileSync('pages/simulator/simulator.wxss', 'utf8')
+
+  assert.match(wxml, /textarea[\s\S]*value="\{\{simPrompt\}\}"/)
+  assert.match(wxml, /bindinput="updateSimPrompt"/)
+  assert.match(wxml, /bindtap="submitSimulation"/)
+  assert.match(wxml, /latestAnalysis\.llm\.content/)
+  assert.match(wxml, /ai-advice-text"[\s\S]*user-select="\{\{true\}\}"/)
+  assert.match(wxml, /SimC 状态/)
+  assert.match(wxml, /simulation\.error[\s\S]*user-select="\{\{true\}\}"/)
+  assert.match(wxml, /Codex Worker/)
+  assert.match(js, /updateSimPrompt\(event\)/)
+  assert.match(js, /submitSimulation\(\)/)
+  assert.match(js, /prompt:\s*this\.data\.simPrompt/)
+  assert.match(js, /runSimulation:\s*true/)
+  assert.match(css, /\.sim-input/)
+  assert.match(css, /\.submit-button/)
+})
+
+test('simulator page uses a dark code-console visual treatment', () => {
+  const wxml = fs.readFileSync('pages/simulator/simulator.wxml', 'utf8')
+  const css = fs.readFileSync('pages/simulator/simulator.wxss', 'utf8')
+
+  assert.match(wxml, /background="#111111"/)
+  assert.match(css, /\.simulator-hero[\s\S]*#493477/i)
+  assert.match(css, /\.sim-input[\s\S]*background:\s*#101010;/)
+  assert.match(css, /\.sim-input[\s\S]*color:\s*#e1e2e5;/)
+  assert.match(css, /\.submit-button[\s\S]*background:\s*#8b3ff5;/)
+})

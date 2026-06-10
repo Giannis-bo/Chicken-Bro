@@ -69,6 +69,80 @@ test('pve and simulator apis expose fallback payloads', async () => {
   assert.equal(analysis.payload.mode, 'simcraft')
 })
 
+test('simulator analysis posts prompt to backend without requiring authenticated https', async () => {
+  let captured = null
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    request: (options) => {
+      captured = options
+      options.success({
+        statusCode: 200,
+        data: {
+          mode: 'simcraft',
+          status: 'ready',
+          request: {
+            prompt: '帮我跑一下冰法单体',
+            runSimulation: true
+          },
+          simulation: {
+            ran: true,
+            summary: 'DPS Ranking: 123456'
+          },
+          recommendations: ['本次 SimC 已跑通，当前 profile 约为 123456 DPS。']
+        }
+      })
+    }
+  }
+
+  const simulatorApi = resetModule('../pages/simulator/simulator-api')
+  const result = await simulatorApi.requestSimulatorAnalysis({
+    mode: 'simcraft',
+    prompt: '帮我跑一下冰法单体',
+    runSimulation: true
+  })
+
+  assert.equal(result.fromFallback, false)
+  assert.match(captured.url, /\/api\/simulator\/analyze$/)
+  assert.equal(captured.method, 'POST')
+  assert.equal(captured.data.prompt, '帮我跑一下冰法单体')
+  assert.equal(captured.data.runSimulation, true)
+  assert.equal(captured.header.Authorization, undefined)
+  assert.equal(result.payload.simulation.ran, true)
+})
+
+test('simulator analysis allows enough time for real SimC and LLM results', async () => {
+  let captured = null
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    request: (options) => {
+      captured = options
+      options.success({
+        statusCode: 200,
+        data: {
+          mode: 'simcraft',
+          status: 'ready',
+          simulation: {
+            ran: true,
+            metrics: { dps: '238.715' }
+          },
+          recommendations: ['本次 SimC 已跑通，当前 profile 约为 238.715 DPS。']
+        }
+      })
+    }
+  }
+
+  const simulatorApi = resetModule('../pages/simulator/simulator-api')
+  await simulatorApi.requestSimulatorAnalysis({
+    mode: 'simcraft',
+    prompt: '帮我跑一下真实 profile',
+    runSimulation: true
+  })
+
+  assert.ok(captured.timeout >= 60000)
+})
+
 test('auth client exchanges wx.login code and stores backend token', async () => {
   const storage = {}
   global.wx = {

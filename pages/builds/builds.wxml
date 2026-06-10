@@ -1,5 +1,5 @@
 <view class="page-shell builds-shell">
-  <navigation-bar title="{{navTitle}}" back="{{false}}" color="#FFFFFF" background="#153F8A"></navigation-bar>
+  <navigation-bar title="{{navTitle}}" back="{{false}}" color="#FFFFFF" background="#111111"></navigation-bar>
   <scroll-view class="page-scroll" scroll-y type="list">
     <view class="page-content builds-content">
       <view class="hero builds-hero">
@@ -34,7 +34,7 @@
           <text class="section-title">热门专精</text>
           <text class="section-action" bindtap="openIntelPage">查看全部</text>
         </view>
-        <swiper class="intel-swiper" indicator-dots circular indicator-color="rgba(21, 63, 138, 0.22)" indicator-active-color="#F2C94C">
+        <swiper class="intel-swiper" indicator-dots circular indicator-color="rgba(255, 255, 255, 0.18)" indicator-active-color="#8B3FF5">
           <swiper-item wx:for="{{featuredSpecializations}}" wx:key="id">
             <view class="task-card intel-card">
               <view class="task-row">

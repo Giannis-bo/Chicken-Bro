@@ -1,5 +1,5 @@
 <view class="page-shell news-shell">
-  <navigation-bar title="{{navTitle}}" back="{{false}}" color="#F7E4B0" background="#111821"></navigation-bar>
+  <navigation-bar title="{{navTitle}}" back="{{false}}" color="#F8B700" background="#111111"></navigation-bar>
 
   <scroll-view class="page-scroll" scroll-y type="list">
     <view class="page-content news-content">

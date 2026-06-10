@@ -1,5 +1,5 @@
 <view class="page-shell detail-shell">
-  <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#153F8A"></navigation-bar>
+  <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
   <scroll-view class="page-scroll" scroll-y type="list">
     <view class="page-content detail-content">
       <view class="detail-hero">

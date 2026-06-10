@@ -102,22 +102,23 @@ test('pve detail page renders the selected module records and source evidence', 
   assert.match(wxml, /record\.analysisWindow/)
 })
 
-test('pve home and detail pages use a Horde visual palette', () => {
+test('pve home and detail pages use a dark competitive dungeon palette', () => {
   const homeWxml = fs.readFileSync('pages/pve/pve.wxml', 'utf8')
   const homeCss = fs.readFileSync('pages/pve/pve.wxss', 'utf8')
   const detailWxml = fs.readFileSync('pages/pve/detail.wxml', 'utf8')
   const detailCss = fs.readFileSync('pages/pve/detail.wxss', 'utf8')
   const combined = `${homeWxml}\n${homeCss}\n${detailWxml}\n${detailCss}`
 
-  assert.match(homeWxml, /background="#7A1116"/)
+  assert.match(homeWxml, /background="#111111"/)
   assert.match(homeWxml, /color="#FFFFFF"/)
-  assert.match(detailWxml, /background="#7A1116"/)
+  assert.match(detailWxml, /background="#111111"/)
   assert.match(homeCss, /\.pve-hero[\s\S]*#7a1116/i)
-  assert.match(homeCss, /\.pve-hero[\s\S]*#1d080a/i)
-  assert.match(homeCss, /\.module-footer[\s\S]*#d7a33d/i)
+  assert.match(homeCss, /\.pve-hero[\s\S]*#060606/i)
+  assert.match(homeCss, /\.module-footer[\s\S]*#f8b700/i)
   assert.match(detailCss, /\.detail-hero[\s\S]*#7a1116/i)
-  assert.match(detailCss, /\.detail-hero[\s\S]*#1d080a/i)
-  assert.match(detailCss, /\.record-value[\s\S]*#d7a33d/i)
+  assert.match(detailCss, /\.detail-hero[\s\S]*#060606/i)
+  assert.match(detailCss, /\.record-value[\s\S]*#f8b700/i)
+  assert.match(homeCss, /\.zone-item[\s\S]*border-radius:\s*16rpx;/)
   assert.doesNotMatch(combined, /#214f57/i)
   assert.doesNotMatch(combined, /#2f6b64/i)
 })

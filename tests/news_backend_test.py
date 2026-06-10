@@ -75,6 +75,34 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(self.backend.normalize_refresh_mode("scheduled"), "scheduled")
         self.assertIsNone(self.backend.normalize_refresh_mode("unexpected"))
 
+    def test_refresh_run_records_visible_translation_quality_summary(self):
+        self.backend.refresh_articles("manual")
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            row = conn.execute(
+                """
+                SELECT message FROM news_refresh_runs
+                ORDER BY id DESC LIMIT 1
+                """
+            ).fetchone()
+
+        message = json.loads(row[0])
+        self.assertIn("translationIssueCount", message)
+        self.assertIn("translationIssues", message)
+        self.assertIsInstance(message["translationIssues"], list)
+
+    def test_latest_refresh_run_payload_exposes_translation_quality_summary(self):
+        self.backend.refresh_articles("manual")
+
+        payload = self.backend.latest_refresh_run_payload()
+
+        self.assertEqual(payload["refreshMode"], "manual")
+        self.assertGreater(payload["acceptedCount"], 0)
+        self.assertIn("refreshedAt", payload)
+        self.assertIn("translationIssueCount", payload)
+        self.assertIn("translationIssues", payload)
+        self.assertIsInstance(payload["translationIssues"], list)
+
     def test_list_articles_supports_metric_and_channel_filters_without_duplicates(self):
         articles = [
             ("all-1", "Article one", "Summary one", "正式服动态", "正式服", "[]", 80, "Blizzard News", "https://worldofwarcraft.blizzard.com/news/1001/article-one", "2026-06-09", "Source one."),
@@ -150,6 +178,142 @@ class NewsBackendTest(unittest.TestCase):
         self.assertGreater(len(analysis["recommendations"]), 0)
         self.assertIn("prompt", analysis["llm"])
         self.assertIn("simcraft", analysis["capabilities"])
+
+    def test_simulator_prompt_with_embedded_profile_runs_simcraft_and_returns_conclusion(self):
+        simc_bin = Path(self.tmp.name) / "fake-simc"
+        captured_profile = Path(self.tmp.name) / "captured-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'DPS Ranking:\\n1. 冰法样例 123456 dps\\nScale Factors:\\nintellect=9.1 haste=6.4 mastery=5.7\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft",
+                    "prompt": "帮我跑一下单体 5 分钟，并解释属性收益\n```simc\nmage=\"冰法样例\"\ntalents=CAE\ngear_ilvl=700\n```",
+                }
+            )
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        self.assertTrue(analysis["simulation"]["ran"])
+        self.assertIn('mage="冰法样例"', captured_profile.read_text(encoding="utf-8"))
+        self.assertIn("123456", analysis["simulation"]["summary"])
+        self.assertTrue(any("123456" in item for item in analysis["recommendations"]))
+        self.assertEqual(analysis["request"]["profileSource"], "prompt")
+
+    def test_simulator_natural_language_without_profile_does_not_run_simcraft(self):
+        simc_bin = Path(self.tmp.name) / "fake-simc-should-not-run"
+        captured_profile = Path(self.tmp.name) / "unexpected-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'DPS=999999\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft",
+                    "prompt": "装等290风暴元素萨，帮我模拟一下单体输出",
+                    "runSimulation": True,
+                }
+            )
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        self.assertFalse(captured_profile.exists())
+        self.assertFalse(analysis["request"]["runSimulation"])
+        self.assertEqual(analysis["request"]["profileSource"], "none")
+        self.assertFalse(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["simulation"]["error"], "missing simcraft profile")
+        self.assertIn("缺少 SimCraft profile", analysis["llm"]["prompt"])
+        self.assertTrue(any("未执行 SimC" in item for item in analysis["recommendations"]))
+
+    def test_simulator_analysis_exposes_enabled_codex_worker_status(self):
+        simc_bin = Path(self.tmp.name) / "fake-simc-codex"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            "cat >/dev/null\n"
+            "printf 'Player: CodexMage\\n  DPS=654321 DPS-Error=0/0.00%%\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        calls = []
+
+        def fake_codex_runner(prompt, **kwargs):
+            calls.append({"prompt": prompt, "kwargs": kwargs})
+            return {
+                "jobId": "codex-job-1",
+                "status": "succeeded",
+                "returnCode": 0,
+                "lastMessage": "Codex 已复核 SimC 摘要。",
+                "stderr": "",
+                "events": [],
+            }
+
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        os.environ["WOW_CODEX_SIMULATOR_ENABLED"] = "1"
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft",
+                    "prompt": "跑一下\n```simc\nmage=\"CodexMage\"\ntalents=CAE\ngear_ilvl=700\n```",
+                },
+                codex_runner=fake_codex_runner,
+            )
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+            os.environ.pop("WOW_CODEX_SIMULATOR_ENABLED", None)
+
+        self.assertTrue(analysis["codex"]["called"])
+        self.assertEqual(analysis["codex"]["status"], "succeeded")
+        self.assertEqual(analysis["codex"]["lastMessage"], "Codex 已复核 SimC 摘要。")
+        self.assertIn("DPS=654321", calls[0]["prompt"])
+        self.assertIn("mage=\"CodexMage\"", calls[0]["prompt"])
+
+    def test_simulator_prompt_profile_extraction_stops_at_closing_code_fence(self):
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "simcraft",
+                "prompt": (
+                    "帮我跑一下这个 profile\n"
+                    "```simc\n"
+                    "mage=\"冰法样例\"\n"
+                    "talents=CAE\n"
+                    "gear_ilvl=700\n"
+                    "```\n"
+                    "顺便解释一下为什么急速收益高。"
+                ),
+            }
+        )
+
+        self.assertEqual(analysis["request"]["profile"], 'mage="冰法样例"\ntalents=CAE\ngear_ilvl=700')
+
+    def test_simulator_metrics_parse_real_simcraft_decimal_dps_output(self):
+        from server.simulator_payload import parse_simcraft_metrics
+
+        self.assertEqual(
+            parse_simcraft_metrics(
+                "Player: SmokeWarrior human warrior arms 80\n"
+                "  DPS=119.35741006451615 DPS-Error=0/0.00% DPS-Range=0/0.00%\n"
+            )["dps"],
+            "119.357",
+        )
+
+    def test_simulator_metrics_does_not_treat_unrelated_large_numbers_as_dps(self):
+        from server.simulator_payload import parse_simcraft_metrics
+
+        self.assertEqual(
+            parse_simcraft_metrics("Generated report id 20260610110524 with 120000 iterations and no DPS line"),
+            {},
+        )
 
     def test_simulator_home_exposes_simcraft_version_check_status(self):
         version_file = Path(self.tmp.name) / "simc-version.json"
@@ -291,6 +455,65 @@ class NewsBackendTest(unittest.TestCase):
             self.assertEqual(response.status, 200)
             self.assertEqual(payload["mode"], "simcraft")
             self.assertGreater(len(payload["recommendations"]), 0)
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_http_post_simulator_analyze_route_runs_simcraft_from_prompt(self):
+        simc_bin = Path(self.tmp.name) / "fake-route-simc"
+        captured_profile = Path(self.tmp.name) / "captured-route-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'DPS Ranking:\\n1. 路由测试 130001 dps\\nScale Factors:\\nintellect=9.2 haste=6.7\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/api/simulator/analyze"
+            request = Request(
+                url,
+                data=json.dumps(
+                    {
+                        "mode": "simcraft",
+                        "prompt": "跑这个单体 profile\n```simc\nmage=\"路由测试\"\ntalents=CAE\ngear_ilvl=705\n```",
+                    },
+                    ensure_ascii=False,
+                ).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        self.assertEqual(response.status, 200)
+        self.assertTrue(payload["simulation"]["ran"])
+        self.assertEqual(payload["simulation"]["metrics"]["dps"], "130001")
+        self.assertEqual(payload["request"]["profileSource"], "prompt")
+        self.assertIn('mage="路由测试"', captured_profile.read_text(encoding="utf-8"))
+
+    def test_http_get_latest_news_refresh_run_route_returns_quality_summary(self):
+        self.backend.refresh_articles("manual")
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/api/news/refresh-runs/latest"
+            with urlopen(url, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(payload["refreshMode"], "manual")
+            self.assertIn("translationIssueCount", payload)
+            self.assertIn("translationIssues", payload)
         finally:
             server.shutdown()
             server.server_close()

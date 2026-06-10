@@ -14,7 +14,20 @@ test('news carousel dots align with the banner card frame', () => {
   const swiperBlock = block(css, '.news-swiper')
   const bannerBlock = block(css, '.banner-card')
 
-  assert.match(swiperBlock, /height:\s*408rpx;/)
-  assert.match(bannerBlock, /height:\s*408rpx;/)
+  assert.match(swiperBlock, /height:\s*384rpx;/)
+  assert.match(bannerBlock, /height:\s*384rpx;/)
   assert.match(css, /\.news-swiper\s+\.wx-swiper-dots[\s\S]*bottom:\s*12rpx;/)
+})
+
+test('news page adopts a dark Wowhead-style news surface', () => {
+  const css = fs.readFileSync('pages/news/news.wxss', 'utf8')
+
+  assert.match(css, /\.news-shell[\s\S]*background:\s*#060606;/)
+  assert.match(css, /\.news-content[\s\S]*#060606[\s\S]*#101010/)
+  assert.match(css, /\.banner-card[\s\S]*border-radius:\s*16rpx;/)
+  assert.match(css, /\.banner-card[\s\S]*#f8b700/i)
+  assert.match(css, /\.news-section[\s\S]*background:\s*#151515;/)
+  assert.match(css, /\.highlight-card[\s\S]*background:\s*#101010;/)
+  assert.doesNotMatch(css, /#fff7e5/i)
+  assert.doesNotMatch(css, /#fffaf0/i)
 })

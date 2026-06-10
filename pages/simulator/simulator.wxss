@@ -1,3 +1,51 @@
 .simulator-hero {
-  background: #493477;
+  border-color: rgba(139, 63, 245, 0.5);
+  background: linear-gradient(135deg, #493477 0%, #1a1128 58%, #060606 100%);
+  box-shadow: 0 18rpx 44rpx rgba(73, 52, 119, 0.28);
+}
+
+.sim-panel {
+  gap: 18rpx;
+  border-color: rgba(139, 63, 245, 0.18);
+}
+
+.sim-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 240rpx;
+  padding: 22rpx;
+  border: 1rpx solid rgba(139, 63, 245, 0.3);
+  border-radius: 16rpx;
+  background: #101010;
+  color: #e1e2e5;
+  font-size: 25rpx;
+  line-height: 1.55;
+}
+
+.submit-button {
+  width: 100%;
+  min-height: 84rpx;
+  border-radius: 16rpx;
+  background: #8b3ff5;
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 800;
+  line-height: 84rpx;
+}
+
+.submit-button[disabled] {
+  background: #3a2c55;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.submit-button::after {
+  border: 0;
+}
+
+.ai-advice-card {
+  border-color: rgba(139, 63, 245, 0.22);
+}
+
+.ai-advice-text {
+  white-space: pre-wrap;
 }

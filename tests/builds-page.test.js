@@ -65,16 +65,18 @@ test('query detail page has module-specific UI sections', () => {
   assert.match(wxml, /class="rotation-timeline"/)
 })
 
-test('builds page uses an Alliance visual palette', () => {
+test('builds page uses an Archon-style specialization meta palette', () => {
   const wxml = fs.readFileSync('pages/builds/builds.wxml', 'utf8')
   const css = fs.readFileSync('pages/builds/builds.wxss', 'utf8')
 
-  assert.match(wxml, /background="#153F8A"/)
+  assert.match(wxml, /background="#111111"/)
   assert.match(wxml, /color="#FFFFFF"/)
-  assert.match(css, /\.builds-shell[\s\S]*background:\s*#edf3ff;/)
-  assert.match(css, /\.builds-hero[\s\S]*#153f8a/i)
-  assert.match(css, /\.builds-hero[\s\S]*#f2c94c/i)
-  assert.match(css, /\.query-card[\s\S]*background:\s*linear-gradient\(180deg,\s*#f8fbff/)
+  assert.match(css, /\.builds-shell[\s\S]*background:\s*#060606;/)
+  assert.match(css, /\.builds-hero[\s\S]*#8b3ff5/i)
+  assert.match(css, /\.builds-hero[\s\S]*#f8b700/i)
+  assert.match(css, /\.query-card[\s\S]*border-radius:\s*16rpx;/)
+  assert.match(css, /\.query-card[\s\S]*background:\s*#151515;/)
+  assert.doesNotMatch(css, /#edf3ff/i)
 })
 
 test('featured specialization cards show source evidence', () => {

@@ -33,8 +33,19 @@ function fallbackSimulatorAnalysis(request) {
   return {
     mode: (request && request.mode) || 'simcraft',
     status: 'ready',
+    request: {
+      prompt: (request && request.prompt) || '',
+      runSimulation: !!(request && request.runSimulation)
+    },
+    simulation: {
+      ran: false,
+      available: false,
+      summary: '',
+      error: 'using local fallback'
+    },
     capabilities: {
       simcraft: false,
+      codex: false,
       llm: false
     },
     recommendations: [
@@ -46,6 +57,14 @@ function fallbackSimulatorAnalysis(request) {
       called: false,
       model: '',
       content: '',
+      error: 'missing api base url'
+    },
+    codex: {
+      enabled: false,
+      called: false,
+      status: 'disabled',
+      jobId: '',
+      lastMessage: '',
       error: 'missing api base url'
     }
   }
@@ -62,8 +81,7 @@ function requestSimulatorAnalysis(request) {
   return requestJson('/api/simulator/analyze', {
     method: 'POST',
     data: request || {},
-    auth: true,
-    timeout: 15000,
+    timeout: 90000,
     fallback: () => fallbackSimulatorAnalysis(request),
     validate: (data) => data && data.status && data.recommendations
   })

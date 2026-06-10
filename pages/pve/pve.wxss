@@ -1,20 +1,20 @@
 .pve-shell {
-  background: #1d080a;
+  background: #060606;
 }
 
 .pve-hero {
-  border: 2rpx solid rgba(215, 163, 61, 0.36);
-  background: linear-gradient(135deg, #7a1116 0%, #4a090d 58%, #1d080a 100%);
-  box-shadow: 0 18rpx 42rpx rgba(122, 17, 22, 0.22);
+  border: 1rpx solid rgba(167, 26, 25, 0.48);
+  background: linear-gradient(135deg, #7a1116 0%, #2b0b0e 54%, #060606 100%);
+  box-shadow: 0 18rpx 44rpx rgba(122, 17, 22, 0.28);
 }
 
 .pve-hero::after {
-  background: rgba(215, 163, 61, 0.28);
+  background: rgba(248, 183, 0, 0.18);
 }
 
 .zone-section {
-  border-color: rgba(122, 17, 22, 0.16);
-  background: #fffaf0;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: #151515;
 }
 
 .zone-section .section-header {
@@ -23,19 +23,19 @@
 }
 
 .zone-section .section-title {
-  color: #7a1116;
+  color: #ffffff;
 }
 
 .zone-section .section-action {
   max-width: 360rpx;
-  color: #8e6419;
+  color: #f8b700;
   line-height: 1.35;
   text-align: right;
 }
 
 .zone-desc {
   display: block;
-  color: #6b5550;
+  color: #a7a7a7;
   font-size: 24rpx;
   line-height: 1.55;
 }
@@ -45,7 +45,7 @@
   justify-content: space-between;
   gap: 16rpx;
   margin-top: 18rpx;
-  color: #8e6419;
+  color: #f8b700;
   font-size: 22rpx;
   line-height: 1.4;
 }
@@ -53,7 +53,7 @@
 .source-note {
   display: block;
   margin-top: 8rpx;
-  color: #806e67;
+  color: #8e8e8e;
   font-size: 22rpx;
   line-height: 1.45;
 }
@@ -64,20 +64,21 @@
 
 .zone-item {
   min-height: 164rpx;
-  border: 1rpx solid rgba(122, 17, 22, 0.12);
-  background: #fff3df;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+  background: #101010;
 }
 
 .zone-item:nth-child(2n) {
-  background: #faeadb;
+  background: #151515;
 }
 
 .zone-item .quick-title {
-  color: #2b0b0e;
+  color: #f1f1f1;
 }
 
 .zone-item .quick-desc {
-  color: #725b54;
+  color: #a7a7a7;
 }
 
 .module-footer {
@@ -85,8 +86,8 @@
   justify-content: space-between;
   gap: 12rpx;
   margin-top: 18rpx;
-  color: #d7a33d;
+  color: #f8b700;
   font-size: 22rpx;
   line-height: 1.35;
-  font-weight: 700;
+  font-weight: 800;
 }

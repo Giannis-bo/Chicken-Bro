@@ -10,6 +10,8 @@ SSH_TARGET="${REMOTE_USER}@${REMOTE_HOST}"
 SSH_OPTS=(-o StrictHostKeyChecking=yes -o ConnectTimeout=15)
 SIMC_GITHUB_REPO="${WOW_SIMC_GITHUB_REPO:-simulationcraft/simc}"
 SIMC_BRANCH="${WOW_SIMC_BRANCH:-midnight}"
+CODEX_JOBS_DIR="${WOW_CODEX_JOBS_DIR:-/var/lib/wow-backend/codex-jobs}"
+CODEX_HOME_DIR="${WOW_CODEX_HOME:-/home/${REMOTE_USER}/.codex}"
 
 validate_env_value() {
   local name="$1"
@@ -21,11 +23,25 @@ validate_env_value() {
   fi
 }
 
+reject_path_traversal() {
+  local name="$1"
+  local value="$2"
+  if [[ "${value}" == *".."* ]]; then
+    echo "Invalid ${name}: path traversal is not allowed" >&2
+    exit 1
+  fi
+}
+
 validate_env_value REMOTE_HOST "${REMOTE_HOST}" '^[A-Za-z0-9_.:-]+$'
 validate_env_value REMOTE_USER "${REMOTE_USER}" '^[A-Za-z_][A-Za-z0-9_.-]*$'
 validate_env_value REMOTE_DIR "${REMOTE_DIR}" '^/[A-Za-z0-9_./-]+$'
 validate_env_value SIMC_GITHUB_REPO "${SIMC_GITHUB_REPO}" '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
 validate_env_value SIMC_BRANCH "${SIMC_BRANCH}" '^[A-Za-z0-9_.\@/-]+$'
+validate_env_value CODEX_JOBS_DIR "${CODEX_JOBS_DIR}" '^/[A-Za-z0-9_./-]+$'
+validate_env_value CODEX_HOME_DIR "${CODEX_HOME_DIR}" '^/[A-Za-z0-9_./-]+$'
+reject_path_traversal REMOTE_DIR "${REMOTE_DIR}"
+reject_path_traversal CODEX_JOBS_DIR "${CODEX_JOBS_DIR}"
+reject_path_traversal CODEX_HOME_DIR "${CODEX_HOME_DIR}"
 
 if [[ -n "${WOW_LIGHTHOUSE_KEY:-}" ]]; then
   SSH_OPTS+=(-i "${WOW_LIGHTHOUSE_KEY}")
@@ -50,7 +66,7 @@ COPYFILE_DISABLE=1 tar \
   --exclude '.DS_Store' \
   -czf - . | ssh_remote "sudo mkdir -p '${REMOTE_DIR}' && sudo tar -xzf - -C '${REMOTE_DIR}' && sudo chown -R ${REMOTE_USER}:${REMOTE_USER} '${REMOTE_DIR}'"
 
-ssh_remote "WOW_LIGHTHOUSE_DIR='${REMOTE_DIR}' SERVICE_NAME='${SERVICE_NAME}' SIMC_GITHUB_REPO='${SIMC_GITHUB_REPO}' SIMC_BRANCH='${SIMC_BRANCH}' bash -s" <<'REMOTE'
+ssh_remote "WOW_LIGHTHOUSE_DIR='${REMOTE_DIR}' SERVICE_NAME='${SERVICE_NAME}' SIMC_GITHUB_REPO='${SIMC_GITHUB_REPO}' SIMC_BRANCH='${SIMC_BRANCH}' WOW_CODEX_JOBS_DIR='${CODEX_JOBS_DIR}' WOW_CODEX_HOME='${CODEX_HOME_DIR}' bash -s" <<'REMOTE'
 set -euo pipefail
 
 REMOTE_DIR="${WOW_LIGHTHOUSE_DIR:-/opt/wow-mini-program}"
@@ -63,12 +79,179 @@ SIMC_BUILD="${SIMC_ROOT}/build"
 SIMC_CURRENT="${SIMC_ROOT}/current"
 SIMC_BIN="${SIMC_CURRENT}/simc"
 SIMC_COMMIT_FILE="${SIMC_ROOT}/.commit"
+CODEX_JOBS_DIR="${WOW_CODEX_JOBS_DIR:-/var/lib/wow-backend/codex-jobs}"
+CODEX_HOME_DIR="${WOW_CODEX_HOME:-/home/ubuntu/.codex}"
+CODEX_BIN="/usr/local/bin/codex"
+
+install_codex_from_github_release() {
+  CODEX_HOME_DIR="${CODEX_HOME_DIR}" python3 - <<'PY'
+import hashlib
+import json
+import os
+import shutil
+import stat
+import subprocess
+import tarfile
+import tempfile
+from pathlib import Path
+from urllib.request import urlopen
+
+target = "x86_64-unknown-linux-musl"
+package_asset = f"codex-package-{target}.tar.gz"
+checksum_asset = "codex-package_SHA256SUMS"
+api_url = "https://api.github.com/repos/openai/codex/releases/latest"
+codex_home = Path(os.environ.get("CODEX_HOME_DIR", str(Path.home() / ".codex")))
+bin_dir = Path.home() / ".local" / "bin"
+
+
+def fetch_json(url):
+    with urlopen(url, timeout=60) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def download(url, path):
+    subprocess.run(
+        [
+            "curl",
+            "-fL",
+            "--retry",
+            "5",
+            "--connect-timeout",
+            "30",
+            "--speed-time",
+            "120",
+            "--speed-limit",
+            "1024",
+            "-o",
+            str(path),
+            url,
+        ],
+        check=True,
+    )
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+release = fetch_json(api_url)
+tag = release["tag_name"]
+version = tag.removeprefix("rust-v")
+assets = {asset["name"]: asset for asset in release["assets"]}
+if package_asset not in assets or checksum_asset not in assets:
+    raise SystemExit(f"missing Codex release assets for {target} in {tag}")
+
+standalone_root = codex_home / "packages" / "standalone"
+release_dir = standalone_root / "releases" / f"{version}-{target}"
+current_link = standalone_root / "current"
+if (release_dir / "bin" / "codex").exists():
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    if current_link.exists() or current_link.is_symlink():
+        current_link.unlink()
+    current_link.symlink_to(release_dir)
+    visible = bin_dir / "codex"
+    if visible.exists() or visible.is_symlink():
+        visible.unlink()
+    visible.symlink_to(current_link / "bin" / "codex")
+    raise SystemExit(0)
+
+with tempfile.TemporaryDirectory() as tmp:
+    tmp_path = Path(tmp)
+    package_path = tmp_path / package_asset
+    checksum_path = tmp_path / checksum_asset
+    download(assets[checksum_asset]["browser_download_url"], checksum_path)
+    download(assets[package_asset]["browser_download_url"], package_path)
+
+    expected_digest = ""
+    for line in checksum_path.read_text(encoding="utf-8").splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[1] == package_asset:
+            expected_digest = parts[0].lower()
+            break
+    if not expected_digest:
+        raise SystemExit(f"missing checksum entry for {package_asset}")
+    actual_digest = sha256(package_path)
+    if actual_digest != expected_digest:
+        raise SystemExit(f"Codex package checksum mismatch: expected {expected_digest}, got {actual_digest}")
+
+    staging_dir = standalone_root / "releases" / f".staging.{version}-{target}"
+    if staging_dir.exists():
+        shutil.rmtree(staging_dir)
+    staging_dir.mkdir(parents=True)
+    with tarfile.open(package_path, "r:gz") as archive:
+        archive.extractall(staging_dir)
+
+    for executable in [
+        staging_dir / "bin" / "codex",
+        staging_dir / "codex-path" / "rg",
+        staging_dir / "codex-resources" / "bwrap",
+    ]:
+        if executable.exists():
+            executable.chmod(executable.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    codex_link = staging_dir / "codex"
+    if codex_link.exists() or codex_link.is_symlink():
+        codex_link.unlink()
+    codex_link.symlink_to("bin/codex")
+
+    if release_dir.exists() or release_dir.is_symlink():
+        shutil.rmtree(release_dir)
+    staging_dir.rename(release_dir)
+
+bin_dir.mkdir(parents=True, exist_ok=True)
+if current_link.exists() or current_link.is_symlink():
+    current_link.unlink()
+current_link.symlink_to(release_dir)
+visible = bin_dir / "codex"
+if visible.exists() or visible.is_symlink():
+    visible.unlink()
+visible.symlink_to(current_link / "bin" / "codex")
+PY
+}
 
 sudo apt-get update
-sudo apt-get install -y python3 nodejs npm nginx git cmake build-essential libcurl4-openssl-dev pkg-config
+sudo apt-get install -y python3 nodejs npm nginx git cmake build-essential libcurl4-openssl-dev pkg-config curl ca-certificates
 
-sudo mkdir -p "${SIMC_ROOT}" /var/lib/wow-backend
-sudo chown -R "$(id -un):$(id -gn)" "${SIMC_ROOT}" /var/lib/wow-backend
+sudo mkdir -p "${SIMC_ROOT}" /var/lib/wow-backend "${CODEX_JOBS_DIR}" "${CODEX_HOME_DIR}"
+sudo chown -R "$(id -un):$(id -gn)" "${SIMC_ROOT}" /var/lib/wow-backend "${CODEX_HOME_DIR}"
+
+if ! command -v codex >/dev/null 2>&1; then
+  if ! curl -fsSL --connect-timeout 30 https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh; then
+    echo "Codex installer endpoint failed; falling back to GitHub release asset." >&2
+    install_codex_from_github_release
+  fi
+fi
+if [[ -x "${HOME}/.local/bin/codex" && ! -x "${CODEX_BIN}" ]]; then
+  sudo ln -sf "${HOME}/.local/bin/codex" "${CODEX_BIN}"
+fi
+if ! command -v codex >/dev/null 2>&1; then
+  echo "Codex CLI install did not place codex on PATH" >&2
+  exit 1
+fi
+
+if [[ ! -f "${CODEX_HOME_DIR}/config.toml" ]]; then
+  cat >"${CODEX_HOME_DIR}/config.toml" <<CODEXCONFIG
+model = "gpt-5.5"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+cli_auth_credentials_store = "file"
+
+[projects."${CODEX_JOBS_DIR}"]
+trust_level = "trusted"
+CODEXCONFIG
+else
+  if ! grep -q 'cli_auth_credentials_store = "file"' "${CODEX_HOME_DIR}/config.toml"; then
+    printf '\ncli_auth_credentials_store = "file"\n' >>"${CODEX_HOME_DIR}/config.toml"
+  fi
+  if ! grep -q "\\[projects\\.\"${CODEX_JOBS_DIR}\"\\]" "${CODEX_HOME_DIR}/config.toml"; then
+    printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "${CODEX_JOBS_DIR}" >>"${CODEX_HOME_DIR}/config.toml"
+  fi
+fi
+chmod 0700 "${CODEX_HOME_DIR}" "${CODEX_JOBS_DIR}"
+chmod 0600 "${CODEX_HOME_DIR}/config.toml"
 latest_simc_commit="$(SIMC_GITHUB_REPO="${SIMC_GITHUB_REPO}" SIMC_BRANCH="${SIMC_BRANCH}" python3 - <<'PY'
 import json
 import os
