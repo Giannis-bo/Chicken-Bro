@@ -318,6 +318,69 @@ def heuristic_recommendations(request_data, simulation):
     return recommendations
 
 
+def build_pipeline_stages(request_data, simulation, llm_result):
+    has_profile = bool(request_data.get("profile"))
+    profile_source = request_data.get("profileSource") or "none"
+    dps = (simulation.get("metrics") or {}).get("dps", "")
+
+    if has_profile:
+        profile_stage = {
+            "key": "profile_check",
+            "title": "Profile 检查",
+            "status": "passed",
+            "executor": "backend",
+            "summary": f"已识别 {profile_source} SimCraft profile",
+        }
+    else:
+        profile_stage = {
+            "key": "profile_check",
+            "title": "Profile 检查",
+            "status": "blocked",
+            "executor": "backend",
+            "summary": "缺少完整 SimCraft profile",
+        }
+
+    if simulation.get("ran"):
+        simc_summary = "SimC 已执行成功"
+        if dps:
+            simc_summary = f"SimC 已执行成功，DPS {dps}"
+        simc_stage = {
+            "key": "simc_execution",
+            "title": "SimC 执行",
+            "status": "completed",
+            "executor": "simcraft",
+            "summary": simc_summary,
+            "metric": dps,
+        }
+    elif request_data.get("mode") == "simcraft" and not has_profile:
+        simc_stage = {
+            "key": "simc_execution",
+            "title": "SimC 执行",
+            "status": "skipped",
+            "executor": "simcraft",
+            "summary": simulation.get("error") or "missing simcraft profile",
+            "metric": "",
+        }
+    else:
+        simc_stage = {
+            "key": "simc_execution",
+            "title": "SimC 执行",
+            "status": "failed" if simulation.get("error") else "skipped",
+            "executor": "simcraft",
+            "summary": simulation.get("error") or "simulation not requested",
+            "metric": "",
+        }
+
+    ai_stage = {
+        "key": "ai_interpretation",
+        "title": "AI 解读",
+        "status": "completed" if llm_result.get("called") and not llm_result.get("error") else ("failed" if llm_result.get("called") else "skipped"),
+        "executor": "llm",
+        "summary": "已基于真实执行状态生成建议" if llm_result.get("content") else (llm_result.get("error") or "LLM 未配置"),
+    }
+    return [profile_stage, simc_stage, ai_stage]
+
+
 def parse_simcraft_metrics(output):
     metrics = {}
     text = str(output or "")
@@ -347,6 +410,7 @@ def analyze_simulator_request(payload, codex_runner=None):
     prompt = build_llm_prompt(request_data, simulation)
     llm_result = call_llm(prompt)
     codex_result = call_codex_worker(request_data, simulation, codex_runner=codex_runner)
+    stages = build_pipeline_stages(request_data, simulation, llm_result)
 
     return {
         "mode": request_data["mode"],
@@ -358,6 +422,7 @@ def analyze_simulator_request(payload, codex_runner=None):
             "codex": codex_result["enabled"],
         },
         "request": request_data,
+        "stages": stages,
         "simulation": simulation,
         "codex": codex_result,
         "recommendations": heuristic_recommendations(request_data, simulation),

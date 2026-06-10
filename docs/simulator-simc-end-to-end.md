@@ -19,7 +19,7 @@ Make the simulator tab prove the first usable path: the mini program accepts a p
 
 3. The backend extracts the fenced `simc` or `simulationcraft` code block.
 4. If a profile is present, the backend runs `WOW_SIMC_BIN` or a `simc`/`simulationcraft` binary on `PATH`.
-5. The response includes the normalized request, simulation status, parsed DPS metric, raw summary, and Chinese recommendations.
+5. The response includes the normalized request, a three-step execution path, simulation status, parsed DPS metric, raw summary, and Chinese recommendations.
 
 ## Response Shape
 
@@ -32,6 +32,30 @@ Make the simulator tab prove the first usable path: the mini program accepts a p
     "profileSource": "prompt",
     "runSimulation": true
   },
+  "stages": [
+    {
+      "key": "profile_check",
+      "title": "Profile 检查",
+      "status": "passed",
+      "executor": "backend",
+      "summary": "已识别 prompt SimCraft profile"
+    },
+    {
+      "key": "simc_execution",
+      "title": "SimC 执行",
+      "status": "completed",
+      "executor": "simcraft",
+      "summary": "SimC 已执行成功，DPS 123456",
+      "metric": "123456"
+    },
+    {
+      "key": "ai_interpretation",
+      "title": "AI 解读",
+      "status": "completed",
+      "executor": "llm",
+      "summary": "已基于真实执行状态生成建议"
+    }
+  ],
   "simulation": {
     "ran": true,
     "available": true,
@@ -49,8 +73,10 @@ Make the simulator tab prove the first usable path: the mini program accepts a p
 ## First-Phase Boundaries
 
 - Natural-language-only prompts do not invent a profile yet; they return guidance asking for a profile or more character data.
+- Natural-language-only prompts return `profile_check=blocked`, `simc_execution=skipped`, and `simulation.error=missing simcraft profile`.
 - The first usable prompt format is natural language plus a fenced SimC profile.
 - LLM output is optional. The deterministic SimC result and heuristic recommendation path must still return a useful conclusion when LLM credentials are absent.
+- Codex Worker remains an optional asynchronous reviewer. The main request path is backend validation, then SimC execution, then LLM interpretation.
 - The mini program does not hold OpenAI, Codex, or SimC credentials. All execution stays behind the backend.
 
 ## Verification

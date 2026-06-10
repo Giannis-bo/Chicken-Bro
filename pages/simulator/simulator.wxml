@@ -50,6 +50,20 @@
           <text class="section-action">{{latestAnalysis.mode}}</text>
         </view>
         <view class="task-list">
+          <view class="task-card stage-card" wx:if="{{latestAnalysis.stages && latestAnalysis.stages.length}}">
+            <text class="task-title">执行路径</text>
+            <text class="task-desc">Profile 检查 / SimC 执行 / AI 解读</text>
+            <view class="stage-list">
+              <view class="stage-row" wx:for="{{latestAnalysis.stages}}" wx:key="key">
+                <view class="stage-main">
+                  <text class="stage-title">{{item.title}}</text>
+                  <text class="stage-executor">{{item.executor}}</text>
+                </view>
+                <text class="stage-status">{{item.status}}</text>
+                <text class="task-desc" user-select="{{true}}">{{item.summary}}</text>
+              </view>
+            </view>
+          </view>
           <view class="task-card ai-advice-card" wx:if="{{latestAnalysis.llm && latestAnalysis.llm.content}}">
             <text class="task-title">AI 建议</text>
             <text class="task-desc ai-advice-text" user-select="{{true}}">{{latestAnalysis.llm.content}}</text>

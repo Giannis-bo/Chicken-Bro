@@ -205,6 +205,13 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("123456", analysis["simulation"]["summary"])
         self.assertTrue(any("123456" in item for item in analysis["recommendations"]))
         self.assertEqual(analysis["request"]["profileSource"], "prompt")
+        self.assertEqual([stage["key"] for stage in analysis["stages"]], ["profile_check", "simc_execution", "ai_interpretation"])
+        self.assertEqual(analysis["stages"][0]["status"], "passed")
+        self.assertEqual(analysis["stages"][0]["executor"], "backend")
+        self.assertEqual(analysis["stages"][1]["status"], "completed")
+        self.assertEqual(analysis["stages"][1]["executor"], "simcraft")
+        self.assertEqual(analysis["stages"][1]["metric"], "123456")
+        self.assertEqual(analysis["stages"][2]["executor"], "llm")
 
     def test_simulator_natural_language_without_profile_does_not_run_simcraft(self):
         simc_bin = Path(self.tmp.name) / "fake-simc-should-not-run"
@@ -235,6 +242,13 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["simulation"]["error"], "missing simcraft profile")
         self.assertIn("缺少 SimCraft profile", analysis["llm"]["prompt"])
         self.assertTrue(any("未执行 SimC" in item for item in analysis["recommendations"]))
+        self.assertEqual([stage["key"] for stage in analysis["stages"]], ["profile_check", "simc_execution", "ai_interpretation"])
+        self.assertEqual(analysis["stages"][0]["status"], "blocked")
+        self.assertEqual(analysis["stages"][0]["summary"], "缺少完整 SimCraft profile")
+        self.assertEqual(analysis["stages"][1]["status"], "skipped")
+        self.assertIn("missing simcraft profile", analysis["stages"][1]["summary"])
+        self.assertIn(analysis["stages"][2]["status"], {"completed", "skipped"})
+        self.assertEqual(analysis["stages"][2]["executor"], "llm")
 
     def test_simulator_analysis_exposes_enabled_codex_worker_status(self):
         simc_bin = Path(self.tmp.name) / "fake-simc-codex"

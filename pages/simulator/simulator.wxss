@@ -49,3 +49,52 @@
 .ai-advice-text {
   white-space: pre-wrap;
 }
+
+.stage-card {
+  gap: 16rpx;
+}
+
+.stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
+.stage-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  padding: 14rpx 0;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.stage-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.stage-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.stage-title {
+  min-width: 0;
+  color: #ffffff;
+  font-size: 25rpx;
+  font-weight: 800;
+}
+
+.stage-executor,
+.stage-status {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 22rpx;
+  line-height: 1.4;
+}
+
+.stage-status {
+  color: #ffd24a;
+  font-weight: 700;
+}

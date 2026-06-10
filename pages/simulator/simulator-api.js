@@ -37,6 +37,30 @@ function fallbackSimulatorAnalysis(request) {
       prompt: (request && request.prompt) || '',
       runSimulation: !!(request && request.runSimulation)
     },
+    stages: [
+      {
+        key: 'profile_check',
+        title: 'Profile 检查',
+        status: 'blocked',
+        executor: 'backend',
+        summary: '本地兜底模式无法校验完整 profile'
+      },
+      {
+        key: 'simc_execution',
+        title: 'SimC 执行',
+        status: 'skipped',
+        executor: 'simcraft',
+        summary: '未连接后端，未执行服务器 SimC',
+        metric: ''
+      },
+      {
+        key: 'ai_interpretation',
+        title: 'AI 解读',
+        status: 'skipped',
+        executor: 'llm',
+        summary: '未连接后端，未调用 LLM'
+      }
+    ],
     simulation: {
       ran: false,
       available: false,
