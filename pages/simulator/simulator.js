@@ -12,7 +12,8 @@ Page({
     loading: false,
     fromFallback: true,
     requestError: '',
-    simPrompt: '帮我跑一下冰法单体 5 分钟，并解释属性收益\n```simc\nmage="冰法样例"\ntalents=CAE\ngear_ilvl=700\n```',
+    simPrompt: '我是冰法，想跑单体 5 分钟并解释属性收益\n```simc\nmage="冰法样例"\ntalents=CAE\ngear_ilvl=700\n```',
+    agentRound: 1,
     latestAnalysis: null
   },
 
@@ -53,23 +54,38 @@ Page({
     this.setData({ simPrompt: event.detail.value || '' })
   },
 
+  useQuickReply(event) {
+    const reply = event.currentTarget.dataset.reply || ''
+    if (!reply) return
+    const prompt = (this.data.simPrompt || '').trim()
+    this.setData({
+      simPrompt: prompt ? `${prompt}\n${reply}` : reply
+    })
+  },
+
   submitSimulation() {
     const prompt = (this.data.simPrompt || '').trim()
     this.setData({ loading: true })
     loginWithWechat().catch(() => null).then(() => {
       return requestSimulatorAnalysis({
-        mode: 'simcraft',
+        mode: 'simcraft_agent',
         prompt: this.data.simPrompt,
+        message: this.data.simPrompt,
+        round: this.data.agentRound,
         runSimulation: true
       })
     }).then(({ payload, fromFallback, error }) => {
+      const nextRound = payload && payload.agent && payload.agent.status === 'needs_clarification'
+        ? Math.min((payload.agent.round || this.data.agentRound) + 1, 3)
+        : 1
       this.setData({
         latestAnalysis: payload,
         fromFallback,
-        requestError: error || ''
+        requestError: error || '',
+        agentRound: nextRound
       })
       wx.showToast({
-        title: prompt ? (fromFallback ? '已生成本地建议' : '模拟已返回') : '已提交模拟',
+        title: prompt ? (fromFallback ? '已生成本地建议' : 'Agent 已返回') : '已提交模拟',
         icon: 'none'
       })
       this.loadSimulatorTasks()

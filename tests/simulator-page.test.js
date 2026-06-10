@@ -22,10 +22,29 @@ test('simulator page accepts prompt input and submits a simcraft run', () => {
   assert.match(wxml, /Codex Worker/)
   assert.match(js, /updateSimPrompt\(event\)/)
   assert.match(js, /submitSimulation\(\)/)
+  assert.match(js, /mode:\s*'simcraft_agent'/)
   assert.match(js, /prompt:\s*this\.data\.simPrompt/)
+  assert.match(js, /message:\s*this\.data\.simPrompt/)
   assert.match(js, /runSimulation:\s*true/)
   assert.match(css, /\.sim-input/)
   assert.match(css, /\.submit-button/)
+})
+
+test('simulator page renders simc agent clarification and summary cards', () => {
+  const wxml = fs.readFileSync('pages/simulator/simulator.wxml', 'utf8')
+  const css = fs.readFileSync('pages/simulator/simulator.wxss', 'utf8')
+  const api = fs.readFileSync('pages/simulator/simulator-api.js', 'utf8')
+
+  assert.match(wxml, /SimC Agent/)
+  assert.match(wxml, /latestAnalysis\.agent\.question/)
+  assert.match(wxml, /latestAnalysis\.agent\.quickReplies/)
+  assert.match(wxml, /latestAnalysis\.agent\.summaryCards/)
+  assert.match(wxml, /latestAnalysis\.agent\.draftProfile/)
+  assert.match(api, /agent:\s*\{/)
+  assert.match(api, /needs_clarification/)
+  assert.match(css, /\.agent-card/)
+  assert.match(css, /\.quick-reply/)
+  assert.match(css, /\.agent-template/)
 })
 
 test('simulator page uses a dark code-console visual treatment', () => {

@@ -4,15 +4,15 @@ function fallbackSimulatorHome() {
   return {
     navTitle: '模拟器',
     kicker: '能力 04',
-    title: '构筑模拟器与 AI 分析',
-    desc: '提供 AI 辅助能力，帮助玩家跑 SimCraft、分析 WCL 数据、比较配装收益和定位输出问题。',
+    title: 'SimC Agent 与构筑分析',
+    desc: '用普通语言描述模拟目标，后端负责澄清需求、生成 SimC 模板、执行模拟并总结结论。',
     metrics: [
       { value: 'Prompt', label: 'LLM' },
       { value: '待安装', label: 'SimCraft' },
       { value: 'WCL', label: '日志复盘' }
     ],
     quickActions: [
-      { key: 'simcraft', title: '跑 SimCraft', desc: '比较装备、天赋和属性收益' },
+      { key: 'simcraft', title: 'SimC Agent', desc: '普通话描述需求，自动生成模拟模板' },
       { key: 'wcl', title: '分析 WCL', desc: '定位循环、爆发和减员问题' },
       { key: 'gearCompare', title: '配装对比', desc: '多套装备收益横向比较' },
       { key: 'llmAdvice', title: 'AI 建议', desc: '生成可执行优化建议' }
@@ -35,7 +35,23 @@ function fallbackSimulatorAnalysis(request) {
     status: 'ready',
     request: {
       prompt: (request && request.prompt) || '',
+      message: (request && request.message) || '',
       runSimulation: !!(request && request.runSimulation)
+    },
+    agent: {
+      status: 'needs_clarification',
+      round: (request && request.round) || 1,
+      intent: 'baseline',
+      missingSlots: ['character_source'],
+      question: '要做准确 SimC，请粘贴游戏内 /simc 插件导出，或提供角色名、服务器和地区。',
+      quickReplies: ['粘贴 /simc 导出', '提供角色名服务器', '只生成待补齐模板'],
+      draftProfile: '',
+      validation: {
+        passed: false,
+        errors: ['missing character source'],
+        warnings: []
+      },
+      summaryCards: []
     },
     stages: [
       {

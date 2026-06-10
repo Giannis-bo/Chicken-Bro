@@ -21,6 +21,56 @@ Make the simulator tab prove the first usable path: the mini program accepts a p
 4. If a profile is present, the backend runs `WOW_SIMC_BIN` or a `simc`/`simulationcraft` binary on `PATH`.
 5. The response includes the normalized request, a three-step execution path, simulation status, parsed DPS metric, raw summary, and Chinese recommendations.
 
+## SimC Agent Flow
+
+The simulator tab now uses `mode=simcraft_agent` for the primary player-facing path. This mode treats the textarea as a conversation entry instead of a raw profile-only form:
+
+```json
+{
+  "mode": "simcraft_agent",
+  "message": "我是冰法，想跑单体 5 分钟并解释属性收益\n```simc\nmage=\"冰法样例\"\ntalents=CAE\ngear_ilvl=700\n```",
+  "round": 1,
+  "runSimulation": true
+}
+```
+
+Agent behavior:
+
+- Natural-language-only requests identify intent, infer a default scenario, and ask for exactly one missing high-impact input.
+- Clarification is capped at three rounds. On the third round, missing character data becomes `agent.status=insufficient_data` instead of another open-ended question.
+- Off-topic requests such as代打、卡 bug、外挂、无关代码或剧情问题 return `agent.status=off_topic` and refocus the player on SimC simulation.
+- A fenced `/simc` export is converted into an executable template by appending controlled backend defaults such as `iterations`, `fight_style`, `desired_targets`, `max_time`, and scale-factor settings when the player asks for stat weights.
+- Codex Worker is skipped until a validated executable template exists. The main path remains deterministic validation, server-side SimC execution, and optional LLM interpretation.
+
+The response adds an `agent` object:
+
+```json
+{
+  "agent": {
+    "status": "simc_completed",
+    "round": 2,
+    "intent": "stat_weights",
+    "missingSlots": [],
+    "question": "",
+    "quickReplies": [],
+    "draftProfile": "mage=\"冰法样例\"\n...",
+    "validation": {
+      "passed": true,
+      "errors": [],
+      "warnings": []
+    },
+    "summaryCards": [
+      {
+        "title": "结论",
+        "text": "本次 SimC 已跑通，当前模板约为 123456 DPS。"
+      }
+    ]
+  }
+}
+```
+
+Player-facing result cards should lead with the simplified conclusion, then show simulation conditions, caveats, execution stages, optional AI text, and the generated SimC template for review.
+
 ## Response Shape
 
 ```json

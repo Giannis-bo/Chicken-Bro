@@ -17,7 +17,7 @@
 
       <view class="section sim-panel">
         <view class="section-header">
-          <text class="section-title">SimC 输入</text>
+          <text class="section-title">SimC Agent</text>
           <text class="section-action">{{loading ? '运行中' : '可提交'}}</text>
         </view>
         <textarea
@@ -50,6 +50,31 @@
           <text class="section-action">{{latestAnalysis.mode}}</text>
         </view>
         <view class="task-list">
+          <view class="task-card agent-card" wx:if="{{latestAnalysis.agent}}">
+            <view class="task-row">
+              <text class="task-title">SimC Agent</text>
+              <text class="task-status">{{latestAnalysis.agent.status}}</text>
+            </view>
+            <text class="task-desc" wx:if="{{latestAnalysis.agent.question}}" user-select="{{true}}">{{latestAnalysis.agent.question}}</text>
+            <view class="quick-reply-list" wx:if="{{latestAnalysis.agent.quickReplies && latestAnalysis.agent.quickReplies.length}}">
+              <button
+                class="quick-reply"
+                wx:for="{{latestAnalysis.agent.quickReplies}}"
+                wx:key="*this"
+                data-reply="{{item}}"
+                bindtap="useQuickReply"
+              >{{item}}</button>
+            </view>
+          </view>
+          <view class="task-card agent-card" wx:if="{{latestAnalysis.agent && latestAnalysis.agent.summaryCards && latestAnalysis.agent.summaryCards.length}}">
+            <text class="task-title">简化结论</text>
+            <view class="agent-summary-list">
+              <view class="agent-summary-row" wx:for="{{latestAnalysis.agent.summaryCards}}" wx:key="title">
+                <text class="stage-title">{{item.title}}</text>
+                <text class="task-desc" user-select="{{true}}">{{item.text}}</text>
+              </view>
+            </view>
+          </view>
           <view class="task-card stage-card" wx:if="{{latestAnalysis.stages && latestAnalysis.stages.length}}">
             <text class="task-title">执行路径</text>
             <text class="task-desc">Profile 检查 / SimC 执行 / AI 解读</text>
@@ -81,6 +106,10 @@
           <view class="task-card" wx:if="{{latestAnalysis.simulation && latestAnalysis.simulation.summary}}">
             <text class="task-title">SimC 摘要</text>
             <text class="task-desc" user-select="{{true}}">{{latestAnalysis.simulation.summary}}</text>
+          </view>
+          <view class="task-card agent-card" wx:if="{{latestAnalysis.agent && latestAnalysis.agent.draftProfile}}">
+            <text class="task-title">生成的 SimC 模板</text>
+            <text class="task-desc agent-template" user-select="{{true}}">{{latestAnalysis.agent.draftProfile}}</text>
           </view>
           <view class="task-card" wx:for="{{latestAnalysis.recommendations}}" wx:key="*this">
             <text class="task-desc" user-select="{{true}}">{{item}}</text>

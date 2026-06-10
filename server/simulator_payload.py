@@ -21,6 +21,17 @@ except ImportError:
 
 
 DEFAULT_SIMC_VERSION_FILE = "/var/lib/wow-backend/simc-version.json"
+SIMC_AGENT_MAX_ROUNDS = 3
+SIMC_AGENT_FORBIDDEN_KEYS = {"html", "json", "output", "save", "xml"}
+SIMC_AGENT_OFF_TOPIC_PATTERNS = [
+    "代打",
+    "卡bug",
+    "卡 bug",
+    "外挂",
+    "脚本刷",
+    "写代码",
+    "剧情",
+]
 
 
 def utc_now():
@@ -118,6 +129,152 @@ def extract_simc_profile_from_prompt(prompt):
     return "\n".join(profile_lines).strip()
 
 
+def normalize_agent_round(value):
+    try:
+        round_number = int(value)
+    except (TypeError, ValueError):
+        return 1
+    return max(1, min(round_number, SIMC_AGENT_MAX_ROUNDS))
+
+
+def simc_agent_message(source):
+    return str(source.get("message") or source.get("prompt") or source.get("question") or "").strip()
+
+
+def is_simc_agent_off_topic(text):
+    lowered = str(text or "").lower()
+    return any(pattern in lowered for pattern in SIMC_AGENT_OFF_TOPIC_PATTERNS)
+
+
+def infer_simc_agent_intent(text):
+    lowered = str(text or "").lower()
+    if is_simc_agent_off_topic(lowered):
+        return "out_of_scope"
+    if any(keyword in lowered for keyword in ["属性", "急速", "精通", "暴击", "全能", "scale", "权重"]):
+        return "stat_weights"
+    if any(keyword in lowered for keyword in ["饰品", "装备", "武器", "换不换", "配装"]):
+        return "gear_compare"
+    if "天赋" in lowered:
+        return "talent_compare"
+    return "baseline"
+
+
+def infer_simc_agent_scenario(text):
+    lowered = str(text or "").lower()
+    duration = 300
+    duration_match = re.search(r"(\d+)\s*分钟", lowered)
+    if duration_match:
+        duration = max(60, min(900, int(duration_match.group(1)) * 60))
+    if any(keyword in lowered for keyword in ["大秘境", "aoe", "群体", "多目标", "五目标", "5目标"]):
+        return {
+            "fightStyle": "HecticAddCleave",
+            "durationSeconds": duration,
+            "targets": 5,
+            "label": "大秘境多目标",
+        }
+    return {
+        "fightStyle": "Patchwerk",
+        "durationSeconds": duration,
+        "targets": 1,
+        "label": "单体基准",
+    }
+
+
+def append_simc_option(lines, key, value):
+    prefix = f"{key}="
+    if any(line.strip().startswith(prefix) for line in lines):
+        return
+    lines.append(f"{key}={value}")
+
+
+def build_agent_simc_profile(profile, intent, scenario):
+    lines = [line.rstrip() for line in str(profile or "").splitlines() if line.strip()]
+    if not lines:
+        return ""
+    lines.append("")
+    append_simc_option(lines, "iterations", int_env("WOW_SIMC_AGENT_ITERATIONS", 10000))
+    append_simc_option(lines, "fight_style", scenario["fightStyle"])
+    append_simc_option(lines, "desired_targets", scenario["targets"])
+    append_simc_option(lines, "max_time", scenario["durationSeconds"])
+    append_simc_option(lines, "vary_combat_length", "0.2")
+    if intent == "stat_weights":
+        append_simc_option(lines, "calculate_scale_factors", "1")
+        append_simc_option(lines, "scale_only", "int,crit,haste,mastery,vers")
+    return "\n".join(lines).strip()
+
+
+def validate_agent_simc_profile(profile):
+    errors = []
+    warnings = []
+    text = str(profile or "").strip()
+    if not text:
+        errors.append("missing character source")
+    if len(text) > int_env("WOW_SIMC_AGENT_MAX_PROFILE_CHARS", 12000):
+        errors.append("profile too large")
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key = stripped.split("=", 1)[0].strip().lower()
+        if key in SIMC_AGENT_FORBIDDEN_KEYS:
+            errors.append(f"forbidden simc output option: {key}")
+    if text and "talents=" not in text:
+        warnings.append("缺少 talents，模拟可信度会下降")
+    if text and not any(looks_like_simc_profile_line(line) for line in text.splitlines()):
+        errors.append("profile is not a recognizable SimC template")
+    return {
+        "passed": not errors,
+        "errors": errors,
+        "warnings": warnings,
+    }
+
+
+def build_agent_clarification_question(missing_slots, round_number):
+    if round_number >= SIMC_AGENT_MAX_ROUNDS:
+        return "信息仍不足，不能执行真实 SimC。请粘贴游戏内 /simc 插件导出，或提供可导入的角色名、服务器和地区。"
+    if "character_source" in missing_slots:
+        return "要做准确 SimC，需要角色数据来源。请粘贴游戏内 /simc 插件导出，或提供角色名、服务器和地区。"
+    return "还差一项关键信息：请说明这次要模拟单体、团本 Boss，还是大秘境多目标。"
+
+
+def build_agent_quick_replies(missing_slots):
+    if "character_source" in missing_slots:
+        return ["粘贴 /simc 导出", "提供角色名服务器", "只生成待补齐模板"]
+    return ["单体 5 分钟", "大秘境多目标", "比较装备收益"]
+
+
+def build_agent_summary_cards(request_data, simulation, scenario):
+    dps = (simulation.get("metrics") or {}).get("dps", "")
+    if simulation.get("ran") and dps:
+        conclusion = f"本次 SimC 已跑通，当前模板约为 {dps} DPS。"
+    elif simulation.get("ran"):
+        conclusion = "本次 SimC 已跑通，但输出摘要中没有解析到 DPS。"
+    else:
+        conclusion = f"本次没有完成真实 SimC：{simulation.get('error') or '未执行'}。"
+    return [
+        {"title": "结论", "text": conclusion},
+        {
+            "title": "模拟条件",
+            "text": f"{scenario['label']}，{scenario['durationSeconds']} 秒，{scenario['fightStyle']}。",
+        },
+        {
+            "title": "边界",
+            "text": "这个结论只适用于本次模板和场景，不应直接外推到其他装备、天赋或大秘境层数。",
+        },
+    ]
+
+
+def skipped_codex_worker_result(error="not executable"):
+    return {
+        "enabled": truthy_env("WOW_CODEX_SIMULATOR_ENABLED"),
+        "called": False,
+        "status": "skipped",
+        "jobId": "",
+        "lastMessage": "",
+        "error": error,
+    }
+
+
 def build_simulator_home_payload():
     has_simc = bool(simc_binary())
     has_llm = llm_configured()
@@ -192,7 +349,7 @@ def build_llm_prompt(request_data, simulation):
         sections.append(f"SimCraft 执行摘要：\n{simulation['summary']}")
     if simulation.get("error"):
         sections.append(f"SimCraft 执行错误：\n{simulation['error']}")
-    if request_data["mode"] == "simcraft" and not request_data["profile"]:
+    if request_data["mode"] in {"simcraft", "simcraft_agent"} and not request_data["profile"]:
         sections.append("缺少 SimCraft profile：本次只可做输入说明和 profile 补全建议，不能声称已经完成 SimC 模拟。")
     sections.append("如果模拟失败或未执行，请直接说明服务器返回的原因，不要把它描述成无法访问本地工具。")
     sections.append("输出格式：先给 3 条优先级最高的结论，再列验证方式和下一步需要补充的数据。")
@@ -300,7 +457,7 @@ def call_llm(prompt):
 
 def heuristic_recommendations(request_data, simulation):
     recommendations = []
-    if request_data["mode"] == "simcraft":
+    if request_data["mode"] in {"simcraft", "simcraft_agent"}:
         dps = simulation.get("metrics", {}).get("dps")
         if simulation.get("ran") and dps:
             recommendations.append(f"本次 SimC 已跑通，当前 profile 约为 {dps} DPS；先把这个作为基准，再比较装备或天赋变体。")
@@ -352,7 +509,7 @@ def build_pipeline_stages(request_data, simulation, llm_result):
             "summary": simc_summary,
             "metric": dps,
         }
-    elif request_data.get("mode") == "simcraft" and not has_profile:
+    elif request_data.get("mode") in {"simcraft", "simcraft_agent"} and not has_profile:
         simc_stage = {
             "key": "simc_execution",
             "title": "SimC 执行",
@@ -394,7 +551,151 @@ def parse_simcraft_metrics(output):
     return metrics
 
 
+def analyze_simc_agent_request(payload, codex_runner=None):
+    source = payload if isinstance(payload, dict) else {}
+    message = simc_agent_message(source)
+    round_number = normalize_agent_round(source.get("round") or source.get("conversationRound"))
+    intent = infer_simc_agent_intent(message)
+    scenario = infer_simc_agent_scenario(message)
+    explicit_profile = str(source.get("profile") or "").strip()
+    extracted_profile = extract_simc_profile_from_prompt(message)
+    source_profile = explicit_profile or extracted_profile
+    profile_source = "explicit" if explicit_profile else ("prompt" if extracted_profile else "none")
+    missing_slots = [] if source_profile else ["character_source"]
+
+    request_data = {
+        "mode": "simcraft_agent",
+        "character": str(source.get("character") or "").strip(),
+        "prompt": message,
+        "profile": "",
+        "profileSource": profile_source,
+        "wclUrl": str(source.get("wclUrl") or "").strip(),
+        "question": message,
+        "runSimulation": False,
+    }
+
+    if intent == "out_of_scope":
+        simulation = {
+            "ran": False,
+            "available": bool(simc_binary()),
+            "summary": "",
+            "error": "out of scope",
+            "metrics": {},
+        }
+        agent = {
+            "status": "off_topic",
+            "round": round_number,
+            "intent": intent,
+            "confidence": 0.95,
+            "missingSlots": [],
+            "question": "这个问题不属于 SimC 模拟范围。我可以帮你做角色 DPS、装备、饰品、天赋或属性收益模拟。",
+            "quickReplies": ["跑当前角色基准", "比较装备收益", "查看属性收益"],
+            "draftProfile": "",
+            "validation": {"passed": False, "errors": ["out of scope"], "warnings": []},
+            "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
+        }
+        llm_result = call_llm(build_llm_prompt(request_data, simulation))
+        codex_result = skipped_codex_worker_result("out of scope")
+        return build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result)
+
+    if missing_slots:
+        status = "insufficient_data" if round_number >= SIMC_AGENT_MAX_ROUNDS else "needs_clarification"
+        simulation = {
+            "ran": False,
+            "available": bool(simc_binary()),
+            "summary": "",
+            "error": "missing character source",
+            "metrics": {},
+        }
+        agent = {
+            "status": status,
+            "round": round_number,
+            "intent": intent,
+            "confidence": 0.78,
+            "missingSlots": missing_slots,
+            "question": build_agent_clarification_question(missing_slots, round_number),
+            "quickReplies": build_agent_quick_replies(missing_slots),
+            "draftProfile": "",
+            "validation": {"passed": False, "errors": missing_slots, "warnings": []},
+            "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
+        }
+        llm_result = call_llm(build_llm_prompt(request_data, simulation))
+        codex_result = skipped_codex_worker_result("missing character source")
+        return build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result)
+
+    draft_profile = build_agent_simc_profile(source_profile, intent, scenario)
+    validation = validate_agent_simc_profile(draft_profile)
+    request_data["profile"] = draft_profile
+    request_data["runSimulation"] = validation["passed"]
+    if validation["passed"]:
+        simulation = run_simcraft(draft_profile)
+    else:
+        simulation = {
+            "ran": False,
+            "available": bool(simc_binary()),
+            "summary": "",
+            "error": "; ".join(validation["errors"]) or "template invalid",
+        }
+    simulation = dict(simulation)
+    simulation["metrics"] = parse_simcraft_metrics(simulation.get("summary", ""))
+    status = "simc_completed" if simulation.get("ran") else ("template_invalid" if not validation["passed"] else "simc_failed")
+    agent = {
+        "status": status,
+        "round": round_number,
+        "intent": intent,
+        "confidence": 0.88,
+        "missingSlots": [],
+        "question": "",
+        "quickReplies": [],
+        "draftProfile": draft_profile,
+        "validation": validation,
+        "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
+        "scenario": scenario,
+    }
+    llm_result = call_llm(build_llm_prompt(request_data, simulation))
+    codex_result = call_codex_worker(request_data, simulation, codex_runner=codex_runner) if validation["passed"] else skipped_codex_worker_result("template invalid")
+    return build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result)
+
+
+def build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result):
+    stages = build_pipeline_stages(request_data, simulation, llm_result)
+    recommendations = heuristic_recommendations(request_data, simulation)
+    if agent["status"] == "needs_clarification":
+        recommendations = [agent["question"]]
+    elif agent["status"] == "insufficient_data":
+        recommendations = [agent["question"], "第三轮后不再继续追问，建议先拿到 /simc 导出再提交。"]
+    elif agent["status"] == "off_topic":
+        recommendations = [agent["question"]]
+    return {
+        "mode": "simcraft_agent",
+        "status": "ready",
+        "createdAt": utc_now(),
+        "capabilities": {
+            "simcraft": bool(simc_binary()),
+            "llm": llm_configured(),
+            "codex": codex_result["enabled"],
+        },
+        "request": request_data,
+        "agent": agent,
+        "stages": stages,
+        "simulation": simulation,
+        "codex": codex_result,
+        "recommendations": recommendations,
+        "llm": {
+            "prompt": build_llm_prompt(request_data, simulation),
+            "called": llm_result["called"],
+            "model": llm_result.get("model", llm_model()),
+            "content": llm_result["content"],
+            "error": llm_result["error"],
+        },
+    }
+
+
 def analyze_simulator_request(payload, codex_runner=None):
+    source = payload if isinstance(payload, dict) else {}
+    if (source.get("mode") or "") == "simcraft_agent":
+        return analyze_simc_agent_request(source, codex_runner=codex_runner)
+
     request_data = normalize_analysis_request(payload)
     if request_data["runSimulation"]:
         simulation = run_simcraft(request_data["profile"])

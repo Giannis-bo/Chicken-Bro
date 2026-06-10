@@ -250,6 +250,120 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn(analysis["stages"][2]["status"], {"completed", "skipped"})
         self.assertEqual(analysis["stages"][2]["executor"], "llm")
 
+    def test_simc_agent_natural_language_asks_for_one_missing_input(self):
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "simcraft_agent",
+                "round": 1,
+                "message": "我是710冰法，想知道急速还是精通收益高，主要打单体",
+            }
+        )
+
+        self.assertEqual(analysis["mode"], "simcraft_agent")
+        self.assertEqual(analysis["agent"]["status"], "needs_clarification")
+        self.assertEqual(analysis["agent"]["round"], 1)
+        self.assertEqual(analysis["agent"]["intent"], "stat_weights")
+        self.assertEqual(analysis["agent"]["missingSlots"], ["character_source"])
+        self.assertIn("/simc", analysis["agent"]["question"])
+        self.assertGreaterEqual(len(analysis["agent"]["quickReplies"]), 3)
+        self.assertFalse(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["simulation"]["error"], "missing character source")
+
+    def test_simc_agent_caps_clarification_at_three_rounds(self):
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "simcraft_agent",
+                "round": 3,
+                "message": "你就自己猜一下我装备吧，反正我是法师",
+            }
+        )
+
+        self.assertEqual(analysis["agent"]["status"], "insufficient_data")
+        self.assertEqual(analysis["agent"]["round"], 3)
+        self.assertIn("不能执行真实 SimC", analysis["agent"]["question"])
+        self.assertFalse(analysis["request"]["runSimulation"])
+        self.assertFalse(analysis["simulation"]["ran"])
+
+    def test_simc_agent_rejects_off_topic_requests_and_refocuses_on_simc(self):
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "simcraft_agent",
+                "round": 1,
+                "message": "帮我写个卡bug宏顺便代打上分",
+            }
+        )
+
+        self.assertEqual(analysis["agent"]["status"], "off_topic")
+        self.assertEqual(analysis["agent"]["intent"], "out_of_scope")
+        self.assertIn("不属于 SimC 模拟范围", analysis["agent"]["question"])
+        self.assertFalse(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["simulation"]["error"], "out of scope")
+
+    def test_simc_agent_does_not_call_codex_before_template_is_executable(self):
+        calls = []
+
+        def fake_codex_runner(prompt, **kwargs):
+            calls.append(prompt)
+            return {"status": "succeeded", "jobId": "unexpected", "lastMessage": "", "stderr": ""}
+
+        os.environ["WOW_CODEX_SIMULATOR_ENABLED"] = "1"
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft_agent",
+                    "round": 1,
+                    "message": "帮我代打上分",
+                },
+                codex_runner=fake_codex_runner,
+            )
+        finally:
+            os.environ.pop("WOW_CODEX_SIMULATOR_ENABLED", None)
+
+        self.assertEqual(calls, [])
+        self.assertFalse(analysis["codex"]["called"])
+        self.assertEqual(analysis["codex"]["status"], "skipped")
+
+    def test_simc_agent_generates_validated_template_and_runs_embedded_profile(self):
+        simc_bin = Path(self.tmp.name) / "fake-agent-simc"
+        captured_profile = Path(self.tmp.name) / "captured-agent-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'DPS Ranking:\\n1. AgentMage 150000 dps\\nScale Factors:\\nintellect=9.5 haste=6.1 mastery=5.8\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft_agent",
+                    "round": 2,
+                    "message": (
+                        "用这个冰法 /simc 导出跑单体5分钟属性收益\n"
+                        "```simc\n"
+                        "mage=\"AgentMage\"\n"
+                        "talents=CAE\n"
+                        "gear_ilvl=710\n"
+                        "```\n"
+                    ),
+                }
+            )
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        executed_profile = captured_profile.read_text(encoding="utf-8")
+        self.assertTrue(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["agent"]["status"], "simc_completed")
+        self.assertTrue(analysis["agent"]["validation"]["passed"])
+        self.assertIn('mage="AgentMage"', analysis["agent"]["draftProfile"])
+        self.assertIn("fight_style=Patchwerk", executed_profile)
+        self.assertIn("max_time=300", executed_profile)
+        self.assertIn("calculate_scale_factors=1", executed_profile)
+        self.assertEqual(analysis["simulation"]["metrics"]["dps"], "150000")
+        self.assertEqual(analysis["agent"]["summaryCards"][0]["title"], "结论")
+        self.assertIn("150000", analysis["agent"]["summaryCards"][0]["text"])
+
     def test_simulator_analysis_exposes_enabled_codex_worker_status(self):
         simc_bin = Path(self.tmp.name) / "fake-simc-codex"
         simc_bin.write_text(
