@@ -49,20 +49,21 @@ Page({
     const question = task.question || request.question || request.prompt || request.message || '未记录玩家问题'
     const modeText = this.modeText(task.mode || request.mode || analysisRequest.mode || '')
     const recommendations = (analysis.recommendations || task.recommendations || []).slice(0, 3)
-    const simcDps = metrics.dps || ''
     const mythicPlusReference = analysis.mythicPlusReference || null
     const buildContext = analysisRequest.buildContext || request.buildContext || null
     const isPreviewSimc = this.isPreviewSimc(task, request, analysisRequest, simulation)
-    const simcMetricLabel = simulation.metricLabel || (isPreviewSimc ? '模板试跑 DPS' : 'DPS')
-    const simcUnitText = simulation.metricUnit || '伤害/秒'
+    const simcDps = isPreviewSimc ? '' : (metrics.dps || '')
+    const simcMetricLabel = simulation.metricLabel || (isPreviewSimc ? '正式 SimC DPS' : 'DPS')
+    const simcUnitText = simulation.metricUnit || (isPreviewSimc ? '需要完整 /simc 导出' : '伤害/秒')
+    const simcDisplayValue = simcDps || (isPreviewSimc ? '未执行正式模拟' : '未解析')
     const mythicPlusReferenceText = mythicPlusReference
       ? (mythicPlusReference.comparisonText || `${mythicPlusReference.avgDps || ''} / ${mythicPlusReference.maxDps || ''}`)
       : ''
-    const briefConclusion = simcDps
-      ? (isPreviewSimc
-          ? `SimC 模板试跑已跑通，${simcDps} DPS（${simcUnitText}）只表示生成模板可执行，不能代表真实角色输出。`
-          : `SimC 已跑通，当前模板约 ${simcDps} DPS（${simcUnitText}）。`)
-      : (recommendations[0] || (simulation.error ? `SimC 未产出可用 DPS：${simulation.error}` : '任务已记录，等待可用结果。'))
+    const briefConclusion = isPreviewSimc
+      ? '已生成可执行 SimC 模板；未执行正式 SimC DPS 模拟。请提供完整 /simc 导出后再给出可用于对比的输出。'
+      : (simcDps
+          ? `SimC 已跑通，当前模板约 ${simcDps} DPS（${simcUnitText}）。`
+          : (recommendations[0] || (simulation.error ? `SimC 未产出可用 DPS：${simulation.error}` : '任务已记录，等待可用结果。')))
     return {
       ...task,
       question,
@@ -78,9 +79,10 @@ Page({
       buildContextText: this.buildContextText(buildContext),
       stages: analysis.stages || [],
       simcDps,
+      simcDisplayValue,
       simcMetricLabel,
       simcUnitText,
-      simcStatusText: simulation.ran ? (isPreviewSimc ? '模板试跑' : '已跑通') : (simulation.error ? '未跑通' : '待执行'),
+      simcStatusText: isPreviewSimc ? '需完整 /simc' : (simulation.ran ? '已跑通' : (simulation.error ? '未跑通' : '待执行')),
       createdAtText: task.createdAt || ''
     }
   },

@@ -423,11 +423,14 @@ class NewsBackendTest(unittest.TestCase):
             }
         )
 
-        self.assertIn(analysis["agent"]["status"], {"simc_failed", "simc_completed"})
-        self.assertIn("构筑上下文", calls[0])
-        self.assertIn("天赋导入代码：CAE_CONTEXT", calls[0])
-        self.assertIn("Gaze of the Alnseer", calls[0])
-        self.assertIn("装备候选只能作为比较上下文", calls[0])
+        self.assertEqual(analysis["agent"]["status"], "template_preview")
+        self.assertFalse(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["simulation"]["metrics"], {})
+        self.assertEqual(analysis["simulation"]["quality"], "preview")
+        self.assertEqual(calls, [])
+        self.assertIn("未执行正式 SimC DPS 模拟", analysis["recommendations"][0])
+        self.assertIn("talents=CAE_CONTEXT", analysis["agent"]["draftProfile"])
+        self.assertNotIn("Gaze of the Alnseer=", analysis["agent"]["draftProfile"])
 
     def test_simc_agent_asks_for_playable_slots_not_external_sources(self):
         analysis = self.backend.analyze_simulator_request(
@@ -834,7 +837,7 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["agent"]["summaryCards"][0]["title"], "结论")
         self.assertIn("150000", analysis["agent"]["summaryCards"][0]["text"])
 
-    def test_simc_agent_generated_profiles_use_preview_iterations_for_submit(self):
+    def test_simc_agent_generated_profiles_do_not_emit_player_facing_dps(self):
         simc_bin = Path(self.tmp.name) / "fake-generated-simc"
         captured_profile = Path(self.tmp.name) / "captured-generated-profile.txt"
         simc_bin.write_text(
@@ -857,17 +860,16 @@ class NewsBackendTest(unittest.TestCase):
         finally:
             os.environ.pop("WOW_SIMC_BIN", None)
 
-        executed_profile = captured_profile.read_text(encoding="utf-8")
-        self.assertTrue(analysis["simulation"]["ran"])
+        self.assertFalse(captured_profile.exists())
+        self.assertFalse(analysis["simulation"]["ran"])
         self.assertEqual(analysis["request"]["profileSource"], "generated")
-        self.assertIn("iterations=500", executed_profile)
-        self.assertNotIn("iterations=10000", executed_profile)
         self.assertEqual(analysis["simulation"]["quality"], "preview")
-        self.assertEqual(analysis["simulation"]["metricLabel"], "模板试跑 DPS")
-        self.assertEqual(analysis["simulation"]["metricUnit"], "伤害/秒")
-        self.assertIn("模板试跑", analysis["recommendations"][0])
-        self.assertIn("伤害/秒", analysis["recommendations"][0])
-        self.assertNotIn("作为基准", analysis["recommendations"][0])
+        self.assertEqual(analysis["simulation"]["metrics"], {})
+        self.assertEqual(analysis["simulation"]["metricLabel"], "正式 SimC DPS")
+        self.assertEqual(analysis["simulation"]["metricUnit"], "需要完整 /simc 导出")
+        self.assertIn("未执行正式 SimC DPS 模拟", analysis["recommendations"][0])
+        self.assertIn("完整 /simc 导出", analysis["recommendations"][0])
+        self.assertNotIn("53000", json.dumps(analysis, ensure_ascii=False))
 
     def test_simulator_analysis_exposes_enabled_codex_worker_status(self):
         simc_bin = Path(self.tmp.name) / "fake-simc-codex"
@@ -996,7 +998,17 @@ class NewsBackendTest(unittest.TestCase):
             {
                 "mode": "simcraft_agent",
                 "round": 1,
-                "message": "我现在290风暴元素萨，在大秘境AOE环境下DPS应该多少合格？",
+                "message": (
+                    "我现在290风暴元素萨，在大秘境AOE环境下DPS应该多少合格？\n"
+                    "```simc\n"
+                    "shaman=\"ElementalReference\"\n"
+                    "level=80\n"
+                    "race=troll\n"
+                    "role=spell\n"
+                    "spec=elemental\n"
+                    "scale_to_itemlevel=290\n"
+                    "```\n"
+                ),
             }
         )
 
@@ -1028,7 +1040,17 @@ class NewsBackendTest(unittest.TestCase):
             {
                 "mode": "simcraft_agent",
                 "round": 1,
-                "message": "我是285的惩戒骑，大秘境AOE什么DPS",
+                "message": (
+                    "我是285的惩戒骑，大秘境AOE什么DPS\n"
+                    "```simc\n"
+                    "paladin=\"RetReference\"\n"
+                    "level=80\n"
+                    "race=human\n"
+                    "role=attack\n"
+                    "spec=retribution\n"
+                    "scale_to_itemlevel=285\n"
+                    "```\n"
+                ),
             }
         )
 
@@ -1071,7 +1093,17 @@ class NewsBackendTest(unittest.TestCase):
                 {
                     "mode": "simcraft_agent",
                     "round": 1,
-                    "message": "我是285的惩戒骑，大秘境AOE什么DPS",
+                    "message": (
+                        "我是285的惩戒骑，大秘境AOE什么DPS\n"
+                        "```simc\n"
+                        "paladin=\"RetFailure\"\n"
+                        "level=80\n"
+                        "race=human\n"
+                        "role=attack\n"
+                        "spec=retribution\n"
+                        "scale_to_itemlevel=285\n"
+                        "```\n"
+                    ),
                     "runSimulation": True,
                 }
             )

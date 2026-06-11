@@ -54,7 +54,7 @@
             <view class="result-cell">
               <text class="benchmark-label">{{detail.simcMetricLabel}}</text>
               <text class="benchmark-unit">{{detail.simcUnitText}}</text>
-              <text class="benchmark-value">{{detail.simcDps || '未解析'}}</text>
+              <text class="benchmark-value">{{detail.simcDisplayValue}}</text>
             </view>
           </view>
         </view>

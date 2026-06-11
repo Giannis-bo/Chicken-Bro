@@ -181,7 +181,8 @@ test('simulator task detail page renders saved task analysis', () => {
   assert.match(js, /questionSummary/)
   assert.match(js, /simcMetricLabel/)
   assert.match(js, /simcUnitText/)
-  assert.match(wxml, /detail\.simcDps/)
+  assert.match(js, /simcDisplayValue/)
+  assert.match(wxml, /detail\.simcDisplayValue/)
   assert.match(wxml, /detail\.simcMetricLabel/)
   assert.match(wxml, /detail\.simcUnitText/)
   assert.match(wxml, /detail\.briefConclusion/)
@@ -237,7 +238,7 @@ test('task detail normalizes long build prompts into a compact report header', (
   assert.ok(normalized.questionSummary.length < normalized.question.length)
 })
 
-test('task detail labels generated SimC values as preview damage per second', () => {
+test('task detail hides generated SimC preview DPS values from the report', () => {
   let pageDefinition = null
   const originalPage = global.Page
   global.Page = (definition) => {
@@ -255,23 +256,23 @@ test('task detail labels generated SimC values as preview damage per second', ()
     analysis: {
       request: { profileSource: 'generated' },
       simulation: {
-        ran: true,
         quality: 'preview',
-        metricLabel: '模板试跑 DPS',
-        metricUnit: '伤害/秒',
+        metricLabel: '正式 SimC DPS',
+        metricUnit: '需要完整 /simc 导出',
         metrics: { dps: '26.129' },
         error: ''
       },
-      recommendations: ['模板试跑已跑通，26.129 DPS 仅表示生成模板可执行。']
+      recommendations: ['已生成可执行 SimC 模板；未执行正式 SimC DPS 模拟。']
     }
   })
 
-  assert.equal(normalized.simcStatusText, '模板试跑')
-  assert.equal(normalized.simcMetricLabel, '模板试跑 DPS')
-  assert.equal(normalized.simcUnitText, '伤害/秒')
-  assert.match(normalized.briefConclusion, /模板试跑/)
-  assert.match(normalized.briefConclusion, /伤害\/秒/)
-  assert.doesNotMatch(normalized.briefConclusion, /基准/)
+  assert.equal(normalized.simcStatusText, '需完整 /simc')
+  assert.equal(normalized.simcMetricLabel, '正式 SimC DPS')
+  assert.equal(normalized.simcUnitText, '需要完整 /simc 导出')
+  assert.equal(normalized.simcDps, '')
+  assert.equal(normalized.simcDisplayValue, '未执行正式模拟')
+  assert.match(normalized.briefConclusion, /未执行正式 SimC DPS 模拟/)
+  assert.doesNotMatch(normalized.briefConclusion, /26\.129/)
 })
 
 test('wcl analysis page submits WCL questions through the simulator analyzer', () => {

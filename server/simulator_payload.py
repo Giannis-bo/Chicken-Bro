@@ -1223,12 +1223,10 @@ def heuristic_recommendations(request_data, simulation):
     mythic_reference = request_data.get("mythicPlusReference") if isinstance(request_data, dict) else None
     if request_data["mode"] in {"simcraft", "simcraft_agent"}:
         dps = simulation.get("metrics", {}).get("dps")
-        if simulation.get("ran") and dps and request_data.get("profileSource") == "generated":
-            recommendations.append(f"SimC 模板试跑已跑通，输出为 {dps} DPS（伤害/秒）；这只说明自动生成模板可执行，不能代表真实角色输出。")
+        if request_data.get("profileSource") == "generated":
+            recommendations.append("已生成可执行 SimC 模板；未执行正式 SimC DPS 模拟。请提供完整 /simc 导出后再给出可用于对比的输出。")
         elif simulation.get("ran") and dps:
             recommendations.append(f"本次 SimC 已跑通，当前 profile 约为 {dps} DPS；先把这个作为基准，再比较装备或天赋变体。")
-        elif simulation.get("ran") and request_data.get("profileSource") == "generated":
-            recommendations.append("SimC 模板试跑已跑通，但未解析到 DPS；它只表示自动生成模板可执行，正式比较仍需要完整 /simc 导出。")
         elif simulation.get("ran"):
             recommendations.append("本次 SimC 已跑通，先把返回摘要作为基准样本，再逐项比较装备、天赋和属性收益。")
         elif not request_data["profile"]:
@@ -1271,7 +1269,16 @@ def build_pipeline_stages(request_data, simulation, llm_result):
             "summary": "缺少完整 SimCraft profile",
         }
 
-    if simulation.get("ran"):
+    if is_preview:
+        simc_stage = {
+            "key": "simc_execution",
+            "title": "正式 SimC DPS",
+            "status": "skipped",
+            "executor": "simcraft",
+            "summary": "generated 模板仅用于确认可生成；需要完整 /simc 导出后才执行正式 DPS 模拟。",
+            "metric": "",
+        }
+    elif simulation.get("ran"):
         simc_summary = "SimC 模板试跑已执行成功" if is_preview else "SimC 已执行成功"
         if dps:
             simc_summary = f"SimC 模板试跑已执行成功，{dps} DPS（伤害/秒）" if is_preview else f"SimC 已执行成功，DPS {dps}"
@@ -1339,8 +1346,9 @@ def parse_simcraft_metrics(output):
 def apply_simulation_metric_metadata(request_data, simulation):
     if request_data.get("profileSource") == "generated":
         simulation["quality"] = "preview"
-        simulation["metricLabel"] = "模板试跑 DPS"
-        simulation["metricUnit"] = "伤害/秒"
+        simulation["metrics"] = {}
+        simulation["metricLabel"] = "正式 SimC DPS"
+        simulation["metricUnit"] = "需要完整 /simc 导出"
     else:
         simulation.setdefault("quality", "full")
         simulation.setdefault("metricLabel", "DPS")
@@ -1435,8 +1443,17 @@ def analyze_simc_agent_request(payload, codex_runner=None):
     validation = validate_agent_simc_profile(draft_profile)
     request_data["profile"] = draft_profile
     request_data["mythicPlusReference"] = build_mythic_plus_reference(draft_profile, scenario)
-    request_data["runSimulation"] = validation["passed"] and not confirm_only
+    is_generated_profile = profile_source == "generated"
+    request_data["runSimulation"] = validation["passed"] and not confirm_only and not is_generated_profile
     if validation["passed"] and confirm_only:
+        simulation = {
+            "ran": False,
+            "available": bool(simc_binary()),
+            "summary": "",
+            "error": "",
+            "metrics": {},
+        }
+    elif validation["passed"] and is_generated_profile:
         simulation = {
             "ran": False,
             "available": bool(simc_binary()),
@@ -1457,6 +1474,7 @@ def analyze_simc_agent_request(payload, codex_runner=None):
     simulation["metrics"] = simulation.get("metrics") or parse_simcraft_metrics(simulation.get("summary", ""))
     simulation = apply_simulation_metric_metadata(request_data, simulation)
     status = "template_ready" if validation["passed"] and confirm_only else (
+        "template_preview" if validation["passed"] and is_generated_profile else
         "simc_completed" if simulation.get("ran") else ("template_invalid" if not validation["passed"] else "simc_failed")
     )
     agent = {
@@ -1474,8 +1492,10 @@ def analyze_simc_agent_request(payload, codex_runner=None):
         "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
         "scenario": scenario,
     }
-    llm_result = skipped_llm_result("template confirmation") if validation["passed"] and confirm_only else call_llm(build_llm_prompt(request_data, simulation))
-    codex_result = call_codex_worker(request_data, simulation, codex_runner=codex_runner) if validation["passed"] and not confirm_only else skipped_codex_worker_result("template confirmation" if confirm_only else "template invalid")
+    llm_result = skipped_llm_result("template confirmation") if validation["passed"] and confirm_only else (
+        skipped_llm_result("generated template preview") if validation["passed"] and is_generated_profile else call_llm(build_llm_prompt(request_data, simulation))
+    )
+    codex_result = call_codex_worker(request_data, simulation, codex_runner=codex_runner) if validation["passed"] and not confirm_only and not is_generated_profile else skipped_codex_worker_result("template confirmation" if confirm_only else ("generated template preview" if is_generated_profile else "template invalid"))
     return build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result)
 
 
