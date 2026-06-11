@@ -7,6 +7,8 @@ const {
 Page({
   data: {
     ...fallbackSimulatorHome(),
+    tasks: [],
+    scrollTarget: '',
     loading: false,
     fromFallback: true,
     requestError: ''
@@ -14,6 +16,10 @@ Page({
 
   onLoad() {
     this.loadSimulatorHome()
+    this.loadSimulatorTasks()
+  },
+
+  onShow() {
     this.loadSimulatorTasks()
   },
 
@@ -28,7 +34,9 @@ Page({
       return
     }
     if (mode === 'tasks') {
-      wx.pageScrollTo && wx.pageScrollTo({ selector: '.task-section', duration: 240 })
+      this.setData({ scrollTarget: '' }, () => {
+        this.setData({ scrollTarget: 'task-section' })
+      })
     }
   },
 
@@ -53,9 +61,13 @@ Page({
 
   loadSimulatorTasks() {
     requestSimulatorTasks().then(({ payload, fromFallback }) => {
-      if (fromFallback || !payload.tasks || !payload.tasks.length) return
+      const tasks = payload && Array.isArray(payload.tasks) ? payload.tasks : []
+      if (fromFallback || !tasks.length) {
+        this.setData({ tasks: [] })
+        return
+      }
       this.setData({
-        tasks: payload.tasks.map((task) => ({
+        tasks: tasks.map((task) => ({
           taskId: task.taskId,
           title: task.question || `${task.mode} 分析`,
           status: task.status || 'ready',

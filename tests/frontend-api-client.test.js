@@ -409,6 +409,9 @@ test('simulator task submit can use insecure http as guest without sending beare
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
     getStorageSync: (key) => storage[key] || '',
+    setStorageSync: (key, value) => {
+      storage[key] = value
+    },
     request: (options) => {
       captured = options
       options.success({
@@ -434,12 +437,15 @@ test('simulator task submit can use insecure http as guest without sending beare
   assert.match(captured.url, /^http:\/\/api\.example\.test\/api\/simulator\/analyze$/)
   assert.equal(captured.header.Authorization, undefined)
   assert.equal(captured.data.saveTask, true)
+  assert.match(captured.data.guestId, /^guest-/)
+  assert.equal(storage.wow_simulator_guest_id, captured.data.guestId)
 })
 
 test('simulator task list can read guest tasks over insecure http without bearer token', async () => {
   const storage = {
     wow_backend_api_base_url: 'http://api.example.test',
-    wow_backend_auth_token: 'token-that-must-stay-local'
+    wow_backend_auth_token: 'token-that-must-stay-local',
+    wow_simulator_guest_id: 'guest-device-a'
   }
   let captured = null
   global.wx = {
@@ -462,14 +468,15 @@ test('simulator task list can read guest tasks over insecure http without bearer
 
   assert.equal(result.fromFallback, false)
   assert.equal(result.payload.tasks[0].taskId, 'guest-task-1')
-  assert.match(captured.url, /^http:\/\/api\.example\.test\/api\/simulator\/tasks\?guest=1$/)
+  assert.match(captured.url, /^http:\/\/api\.example\.test\/api\/simulator\/tasks\?guest=1&guestId=guest-device-a$/)
   assert.equal(captured.header.Authorization, undefined)
 })
 
 test('simulator task detail can read a saved guest task over insecure http', async () => {
   const storage = {
     wow_backend_api_base_url: 'http://api.example.test',
-    wow_backend_auth_token: 'token-that-must-stay-local'
+    wow_backend_auth_token: 'token-that-must-stay-local',
+    wow_simulator_guest_id: 'guest-device-a'
   }
   let captured = null
   global.wx = {
@@ -500,7 +507,7 @@ test('simulator task detail can read a saved guest task over insecure http', asy
 
   assert.equal(result.fromFallback, false)
   assert.equal(result.payload.task.taskId, 'guest-task-1')
-  assert.match(captured.url, /^http:\/\/api\.example\.test\/api\/simulator\/task\?id=guest-task-1&guest=1$/)
+  assert.match(captured.url, /^http:\/\/api\.example\.test\/api\/simulator\/task\?id=guest-task-1&guest=1&guestId=guest-device-a$/)
   assert.equal(captured.header.Authorization, undefined)
 })
 

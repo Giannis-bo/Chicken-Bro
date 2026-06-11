@@ -26,8 +26,9 @@ Page({
     loginWithWechat().catch(() => null).then(() => {
       return requestSimulatorAnalysis({
         mode: 'wcl',
-        prompt: this.data.wclPrompt
-      })
+        prompt: this.data.wclPrompt,
+        saveTask: true
+      }, { auth: true, allowInsecureGuestRequest: true })
     }).then(({ payload, fromFallback, error }) => {
       this.setData({
         latestAnalysis: payload,

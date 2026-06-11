@@ -333,6 +333,8 @@ class NewsBackendTest(unittest.TestCase):
             return {"called": True, "model": "fake", "content": "已读取构筑上下文。", "error": ""}
 
         import server.simulator_payload as simulator_payload
+        original_call_chat_completion = simulator_payload.call_chat_completion
+        self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
         simulator_payload.call_chat_completion = fake_call_chat_completion
         build_context = {
             "specId": "法师-冰霜",
@@ -380,6 +382,19 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["request"]["buildContext"]["specId"], "法师-冰霜")
         self.assertIn("talents=CAE_CONTEXT", analysis["agent"]["draftProfile"])
         self.assertNotIn("Gaze of the Alnseer=", analysis["agent"]["draftProfile"])
+        self.assertEqual(calls, [])
+        self.assertFalse(analysis["llm"]["called"])
+
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "simcraft_agent",
+                "round": 1,
+                "message": "请按职业专精页里的方案，比较这套装备的大秘境 AOE 收益",
+                "buildContext": build_context,
+            }
+        )
+
+        self.assertIn(analysis["agent"]["status"], {"simc_failed", "simc_completed"})
         self.assertIn("构筑上下文", calls[0])
         self.assertIn("天赋导入代码：CAE_CONTEXT", calls[0])
         self.assertIn("Gaze of the Alnseer", calls[0])
@@ -426,6 +441,23 @@ class NewsBackendTest(unittest.TestCase):
             ["我是痛苦术，看大秘境 AOE", "我是恶魔术，看大秘境 AOE", "我是毁灭术，看大秘境 AOE"],
         )
 
+    def test_simc_agent_requires_explicit_item_level_and_scenario_before_ready(self):
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "simcraft_agent",
+                "round": 1,
+                "confirmOnly": True,
+                "message": "我是冰法",
+            }
+        )
+
+        self.assertEqual(analysis["agent"]["status"], "needs_clarification")
+        self.assertEqual(analysis["agent"]["filledSlots"]["spec"], "frost")
+        self.assertIn("itemLevel", analysis["agent"]["missingSlots"])
+        self.assertIn("scenario", analysis["agent"]["missingSlots"])
+        self.assertFalse(analysis["agent"].get("canSubmitTask", False))
+        self.assertEqual(analysis["request"]["profile"], "")
+
     def test_simc_agent_fills_warlock_spec_on_second_round_without_repeating_prompt(self):
         analysis = self.backend.analyze_simulator_request(
             {
@@ -451,6 +483,23 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("scale_to_itemlevel=285", analysis["agent"]["draftProfile"])
         self.assertIn("fight_style=HecticAddCleave", analysis["agent"]["draftProfile"])
 
+    def test_simc_agent_uses_latest_spec_correction_in_conversation_history(self):
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "simcraft_agent",
+                "round": 2,
+                "confirmOnly": True,
+                "message": (
+                    "第1轮玩家：我是700装等痛苦术，看大秘境 AOE\n"
+                    "第2轮玩家：改成毁灭术，还是看大秘境 AOE"
+                ),
+            }
+        )
+
+        self.assertEqual(analysis["agent"]["filledSlots"]["spec"], "destruction")
+        self.assertIn('warlock="Generated_Destruction_Warlock"', analysis["agent"]["draftProfile"])
+        self.assertIn("spec=destruction", analysis["agent"]["draftProfile"])
+
     def test_simc_agent_generates_elemental_shaman_mythic_plus_template(self):
         analysis = self.backend.analyze_simulator_request(
             {
@@ -470,6 +519,26 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("gear_ilvl=290", analysis["agent"]["draftProfile"])
         self.assertIn("fight_style=HecticAddCleave", analysis["agent"]["draftProfile"])
         self.assertTrue(analysis["agent"]["canSubmitTask"])
+
+    def test_simc_agent_generated_profiles_use_class_valid_default_races(self):
+        cases = [
+            ("浩劫恶魔猎手", "race=night_elf"),
+            ("惩戒圣骑士", "race=human"),
+            ("增辉唤魔师", "race=dracthyr"),
+        ]
+        for spec_text, expected_race in cases:
+            with self.subTest(spec=spec_text):
+                analysis = self.backend.analyze_simulator_request(
+                    {
+                        "mode": "simcraft_agent",
+                        "round": 1,
+                        "confirmOnly": True,
+                        "message": f"我是700装等{spec_text}，想看大秘境 AOE",
+                    }
+                )
+                self.assertEqual(analysis["agent"]["status"], "template_ready")
+                self.assertIn(expected_race, analysis["agent"]["draftProfile"])
+                self.assertNotIn("race=troll", analysis["agent"]["draftProfile"])
 
     def test_simc_agent_generates_templates_for_all_classes_and_specs(self):
         import server.simulator_payload as simulator_payload
@@ -667,6 +736,34 @@ class NewsBackendTest(unittest.TestCase):
         self.assertFalse(analysis["request"]["runSimulation"])
         self.assertIn('mage="ConfirmMage"', analysis["agent"]["draftProfile"])
 
+    def test_simc_agent_confirm_only_template_ready_skips_llm_call(self):
+        import server.simulator_payload as simulator_payload
+
+        calls = []
+        original_call_chat_completion = simulator_payload.call_chat_completion
+        simulator_payload.call_chat_completion = lambda *args, **kwargs: calls.append(args) or {
+            "called": True,
+            "model": "fake",
+            "content": "不应该调用",
+            "error": "",
+        }
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft_agent",
+                    "round": 1,
+                    "confirmOnly": True,
+                    "message": "我是700装等冰法，想看单体 5 分钟属性收益",
+                }
+            )
+        finally:
+            simulator_payload.call_chat_completion = original_call_chat_completion
+
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertEqual(calls, [])
+        self.assertFalse(analysis["llm"]["called"])
+        self.assertEqual(analysis["llm"]["error"], "template confirmation")
+
     def test_simc_agent_generates_validated_template_and_runs_embedded_profile(self):
         simc_bin = Path(self.tmp.name) / "fake-agent-simc"
         captured_profile = Path(self.tmp.name) / "captured-agent-profile.txt"
@@ -828,12 +925,13 @@ class NewsBackendTest(unittest.TestCase):
             }
 
         import server.simulator_payload as simulator_payload
+        original_call_chat_completion = simulator_payload.call_chat_completion
+        self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
         simulator_payload.call_chat_completion = fake_call_chat_completion
         analysis = self.backend.analyze_simulator_request(
             {
                 "mode": "simcraft_agent",
                 "round": 1,
-                "confirmOnly": True,
                 "message": "我现在290风暴元素萨，在大秘境AOE环境下DPS应该多少合格？",
             }
         )
@@ -859,12 +957,13 @@ class NewsBackendTest(unittest.TestCase):
             }
 
         import server.simulator_payload as simulator_payload
+        original_call_chat_completion = simulator_payload.call_chat_completion
+        self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
         simulator_payload.call_chat_completion = fake_call_chat_completion
         analysis = self.backend.analyze_simulator_request(
             {
                 "mode": "simcraft_agent",
                 "round": 1,
-                "confirmOnly": True,
                 "message": "我是285的惩戒骑，大秘境AOE什么DPS",
             }
         )
@@ -899,6 +998,8 @@ class NewsBackendTest(unittest.TestCase):
             }
 
         import server.simulator_payload as simulator_payload
+        original_call_chat_completion = simulator_payload.call_chat_completion
+        self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
         simulator_payload.call_chat_completion = fake_call_chat_completion
         os.environ["WOW_SIMC_BIN"] = str(simc_bin)
         try:
@@ -1075,13 +1176,13 @@ class NewsBackendTest(unittest.TestCase):
 
     def test_guest_simulator_analysis_can_be_saved_without_auth_token(self):
         analysis = self.backend.analyze_and_store_simulator_task(
-            {"mode": "simcraft_agent", "prompt": "290元素萨大秘境AOE", "saveTask": True},
+            {"mode": "simcraft_agent", "prompt": "290元素萨大秘境AOE", "saveTask": True, "guestId": "device-a"},
             access_token="",
         )
-        tasks = self.backend.list_simulator_tasks("", allow_guest=True)
-        detail = self.backend.get_simulator_task("", analysis["taskId"], allow_guest=True)
+        tasks = self.backend.list_simulator_tasks("", allow_guest=True, guest_id="device-a")
+        detail = self.backend.get_simulator_task("", analysis["taskId"], allow_guest=True, guest_id="device-a")
 
-        self.assertEqual(analysis["owner"]["openid"], "guest-simulator")
+        self.assertTrue(analysis["owner"]["openid"].startswith("guest-simulator-"))
         self.assertTrue(analysis["taskId"])
         self.assertEqual(len(tasks["tasks"]), 1)
         self.assertEqual(tasks["tasks"][0]["taskId"], analysis["taskId"])
@@ -1092,12 +1193,31 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(detail["task"]["request"]["prompt"], "290元素萨大秘境AOE")
         self.assertIn("analysis", detail["task"])
 
+    def test_guest_simulator_task_history_is_isolated_by_guest_id(self):
+        analysis_a = self.backend.analyze_and_store_simulator_task(
+            {"mode": "simcraft_agent", "question": "游客 A", "saveTask": True, "guestId": "device-a"},
+            access_token="",
+        )
+        analysis_b = self.backend.analyze_and_store_simulator_task(
+            {"mode": "simcraft_agent", "question": "游客 B", "saveTask": True, "guestId": "device-b"},
+            access_token="",
+        )
+
+        tasks_a = self.backend.list_simulator_tasks("", allow_guest=True, guest_id="device-a")
+        tasks_b = self.backend.list_simulator_tasks("", allow_guest=True, guest_id="device-b")
+
+        self.assertEqual([task["taskId"] for task in tasks_a["tasks"]], [analysis_a["taskId"]])
+        self.assertEqual([task["taskId"] for task in tasks_b["tasks"]], [analysis_b["taskId"]])
+        with self.assertRaises(KeyError):
+            self.backend.get_simulator_task("", analysis_b["taskId"], allow_guest=True, guest_id="device-a")
+
     def test_guest_simulator_task_detail_preserves_build_context(self):
         analysis = self.backend.analyze_and_store_simulator_task(
             {
                 "mode": "simcraft_agent",
                 "prompt": "按职业专精页方案提交",
                 "saveTask": True,
+                "guestId": "device-context",
                 "buildContext": {
                     "specId": "法师-冰霜",
                     "className": "法师",
@@ -1110,7 +1230,7 @@ class NewsBackendTest(unittest.TestCase):
             },
             access_token="",
         )
-        detail = self.backend.get_simulator_task("", analysis["taskId"], allow_guest=True)
+        detail = self.backend.get_simulator_task("", analysis["taskId"], allow_guest=True, guest_id="device-context")
 
         self.assertEqual(detail["task"]["request"]["buildContext"]["specId"], "法师-冰霜")
         self.assertEqual(detail["task"]["analysis"]["request"]["buildContext"]["specId"], "法师-冰霜")
@@ -1118,24 +1238,39 @@ class NewsBackendTest(unittest.TestCase):
 
     def test_guest_simulator_task_list_requires_explicit_guest_flag(self):
         self.backend.analyze_and_store_simulator_task(
-            {"mode": "simcraft_agent", "question": "290元素萨大秘境AOE", "saveTask": True},
+            {"mode": "simcraft_agent", "question": "290元素萨大秘境AOE", "saveTask": True, "guestId": "device-a"},
             access_token="",
         )
 
         with self.assertRaises(PermissionError):
             self.backend.list_simulator_tasks("")
+        with self.assertRaises(PermissionError):
+            self.backend.list_simulator_tasks("", allow_guest=True)
+
+    def test_guest_simulator_read_does_not_create_user_for_unknown_guest_id(self):
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            before = conn.execute("SELECT COUNT(*) FROM wechat_users").fetchone()[0]
+
+        with self.assertRaises(PermissionError):
+            self.backend.list_simulator_tasks("", allow_guest=True, guest_id="unknown-read")
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            after = conn.execute("SELECT COUNT(*) FROM wechat_users").fetchone()[0]
+        self.assertEqual(after, before)
 
     def test_simulator_task_detail_requires_owner_or_guest_flag(self):
         analysis = self.backend.analyze_and_store_simulator_task(
-            {"mode": "simcraft_agent", "question": "游客任务", "saveTask": True},
+            {"mode": "simcraft_agent", "question": "游客任务", "saveTask": True, "guestId": "device-detail"},
             access_token="",
         )
 
         with self.assertRaises(PermissionError):
             self.backend.get_simulator_task("", analysis["taskId"])
+        with self.assertRaises(PermissionError):
+            self.backend.get_simulator_task("", analysis["taskId"], allow_guest=True)
 
         with self.assertRaises(KeyError):
-            self.backend.get_simulator_task("", "missing-task", allow_guest=True)
+            self.backend.get_simulator_task("", "missing-task", allow_guest=True, guest_id="device-detail")
 
     def test_simulator_task_list_tolerates_corrupted_json_rows(self):
         login = self.backend.login_with_wechat_code(

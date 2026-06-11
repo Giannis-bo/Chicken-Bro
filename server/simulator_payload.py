@@ -304,6 +304,11 @@ def build_simc_agent_spec_patterns():
 SIMC_AGENT_CLASS_PATTERNS = build_simc_agent_class_patterns()
 SIMC_AGENT_SPEC_PATTERNS = build_simc_agent_spec_patterns()
 SIMC_AGENT_CLASS_KEYS = {entry["key"] for entry in SIMC_AGENT_CLASS_REGISTRY}
+SIMC_AGENT_DEFAULT_RACE_BY_CLASS = {
+    "demonhunter": "night_elf",
+    "evoker": "dracthyr",
+    "paladin": "human",
+}
 SIMC_AGENT_SPEC_BY_KEY = {
     f'{entry["key"]}-{spec["key"]}': {
         "class": entry["key"],
@@ -492,13 +497,35 @@ def infer_simc_agent_scenario(text):
     }
 
 
+def has_explicit_simc_agent_scenario(text):
+    lowered = str(text or "").lower()
+    return any(keyword in lowered for keyword in [
+        "大秘境",
+        "aoe",
+        "群体",
+        "多目标",
+        "五目标",
+        "5目标",
+        "单体",
+        "团本",
+        "boss",
+        "首领",
+        "patchwerk",
+    ])
+
+
 def infer_simc_agent_specialization(text):
     lowered = str(text or "").lower()
     compact = re.sub(r"\s+", "", lowered)
+    latest_entry = None
+    latest_index = -1
     for entry in SIMC_AGENT_SPEC_PATTERNS:
-        if any(pattern.lower().replace(" ", "") in compact for pattern in entry["patterns"]):
-            return entry
-    return None
+        for pattern in entry["patterns"]:
+            index = compact.rfind(pattern.lower().replace(" ", ""))
+            if index > latest_index:
+                latest_entry = entry
+                latest_index = index
+    return latest_entry
 
 
 def infer_simc_agent_class(text):
@@ -525,12 +552,22 @@ def infer_simc_agent_item_level(text):
     return int_env("WOW_SIMC_AGENT_DEFAULT_ITEM_LEVEL", 700)
 
 
+def has_explicit_simc_agent_item_level(text):
+    lowered = str(text or "").lower()
+    if re.search(r"(\d{2,4})\s*(?:装等|ilvl|item\s*level)", lowered):
+        return True
+    if infer_simc_agent_class(text) or infer_simc_agent_specialization(text):
+        return bool(re.search(r"(?<!第)([1-9]\d{2})(?!\d)", lowered))
+    return False
+
+
 def build_agent_filled_slots(text, spec_info, scenario, item_level):
     class_info = infer_simc_agent_class(text)
     return {
         "class": (spec_info or {}).get("class") or ((class_info or {}).get("class") or ""),
         "classLabel": (spec_info or {}).get("classLabel") or ((class_info or {}).get("label") or ""),
         "spec": (spec_info or {}).get("spec") or "",
+        "specLabel": (spec_info or {}).get("specLabel") or "",
         "itemLevel": item_level,
         "scenario": scenario.get("label", ""),
         "fightStyle": scenario.get("fightStyle", ""),
@@ -614,6 +651,19 @@ def spec_info_from_build_context(context):
     return None
 
 
+def build_simc_agent_missing_slots(source_profile, generated_profile, spec_info, message, build_context=None):
+    if source_profile:
+        return []
+    if not spec_info:
+        return ["specialization"]
+    missing_slots = []
+    if generated_profile and not build_context and not has_explicit_simc_agent_item_level(message):
+        missing_slots.append("itemLevel")
+    if generated_profile and not has_explicit_simc_agent_scenario(message):
+        missing_slots.append("scenario")
+    return missing_slots
+
+
 def build_context_talent_import_code(context):
     if not context:
         return ""
@@ -623,10 +673,11 @@ def build_context_talent_import_code(context):
 def build_generated_simc_profile(spec_info, item_level, build_context=None):
     if not spec_info:
         return ""
+    default_race = SIMC_AGENT_DEFAULT_RACE_BY_CLASS.get(spec_info["class"], "troll")
     lines = [
         f'{spec_info["class"]}="{spec_info["actor"]}"',
         "level=80",
-        "race=troll",
+        f"race={default_race}",
         f'role={spec_info["role"]}',
         f'spec={spec_info["spec"]}',
         f"scale_to_itemlevel={item_level}",
@@ -891,6 +942,11 @@ def build_agent_clarification_question(missing_slots, round_number, filled_slots
             specs = "、".join(next((entry["specs"] for entry in SIMC_AGENT_CLASS_PATTERNS if entry["class"] == slots.get("class")), []))
             return f"已收到：{slots.get('itemLevel')} 装等{slots.get('classLabel')}、{slots.get('scenario') or '目标场景'}。还差专精：{specs or '请补充具体专精'}。"
         return "先告诉我职业和专精，再说想看单体、AOE、属性收益、天赋还是装备对比。"
+    if "itemLevel" in missing_slots and "scenario" in missing_slots:
+        spec_label = f"{slots.get('specLabel', '')}{slots.get('classLabel', '')}".strip()
+        return f"已收到：{spec_label or '当前专精'}。还差装等和模拟场景，请补充例如“700 装等，单体 5 分钟”或“大秘境多目标”。"
+    if "itemLevel" in missing_slots:
+        return "还差装等：请告诉我当前角色装等，例如 700、710 或 720。"
     return "还差一项关键信息：请说明这次要模拟单体、团本 Boss，还是大秘境多目标。"
 
 
@@ -901,6 +957,8 @@ def build_agent_quick_replies(missing_slots, filled_slots=None):
         if class_replies:
             return class_replies
         return ["我是冰法，看单体属性收益", "我是元素萨，看大秘境 AOE", "我是惩戒骑，比较装备收益"]
+    if "itemLevel" in missing_slots:
+        return ["700 装等，单体 5 分钟", "710 装等，大秘境多目标", "720 装等，比较装备收益"]
     return ["单体 5 分钟", "大秘境多目标", "比较装备收益"]
 
 
@@ -1143,6 +1201,15 @@ def call_llm(prompt):
     )
 
 
+def skipped_llm_result(reason):
+    return {
+        "called": False,
+        "model": llm_model(),
+        "content": "",
+        "error": reason,
+    }
+
+
 def heuristic_recommendations(request_data, simulation):
     recommendations = []
     mythic_reference = request_data.get("mythicPlusReference") if isinstance(request_data, dict) else None
@@ -1271,7 +1338,7 @@ def analyze_simc_agent_request(payload, codex_runner=None):
     source_profile = explicit_profile or extracted_profile
     generated_profile = "" if source_profile else build_generated_simc_profile(spec_info, item_level, build_context)
     profile_source = "explicit" if explicit_profile else ("prompt" if extracted_profile else ("generated" if generated_profile else "none"))
-    missing_slots = [] if source_profile or generated_profile else ["specialization"]
+    missing_slots = build_simc_agent_missing_slots(source_profile, generated_profile, spec_info, message, build_context)
 
     request_data = {
         "mode": "simcraft_agent",
@@ -1381,7 +1448,7 @@ def analyze_simc_agent_request(payload, codex_runner=None):
         "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
         "scenario": scenario,
     }
-    llm_result = call_llm(build_llm_prompt(request_data, simulation))
+    llm_result = skipped_llm_result("template confirmation") if validation["passed"] and confirm_only else call_llm(build_llm_prompt(request_data, simulation))
     codex_result = call_codex_worker(request_data, simulation, codex_runner=codex_runner) if validation["passed"] and not confirm_only else skipped_codex_worker_result("template confirmation" if confirm_only else "template invalid")
     return build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result)
 

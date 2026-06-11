@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hashlib
 import json
 import os
 import secrets
@@ -461,8 +462,35 @@ def authenticate_token(token):
     return public_user_from_row(row)
 
 
-def guest_simulator_user():
-    return upsert_wechat_user(GUEST_SIMULATOR_OPENID)
+def guest_openid_from_id(guest_id):
+    normalized = str(guest_id or "").strip()[:128]
+    if not normalized:
+        return ""
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:24]
+    return f"{GUEST_SIMULATOR_OPENID}-{digest}"
+
+
+def guest_simulator_user(guest_id=""):
+    guest_openid = guest_openid_from_id(guest_id)
+    if not guest_openid:
+        return None
+    return upsert_wechat_user(guest_openid)
+
+
+def find_guest_simulator_user(guest_id=""):
+    guest_openid = guest_openid_from_id(guest_id)
+    if not guest_openid:
+        return None
+    init_db()
+    with db_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT id, openid, unionid, nickname, avatar_url, created_at, updated_at
+            FROM wechat_users WHERE openid = ?
+            """,
+            (guest_openid,),
+        ).fetchone()
+    return public_user_from_row(row)
 
 
 def clean_text(value, limit):
@@ -505,15 +533,18 @@ def update_user_profile(access_token, profile):
 
 
 def analyze_and_store_simulator_task(request_data, access_token=""):
-    analysis = analyze_simulator_request(request_data)
+    request_payload = dict(request_data or {})
+    analysis = analyze_simulator_request(request_payload)
     user = authenticate_token(access_token)
-    if not user and (request_data or {}).get("saveTask"):
-        user = guest_simulator_user()
+    if not user and request_payload.get("saveTask"):
+        user = guest_simulator_user(request_payload.get("guestId"))
     if not user:
         return analysis
 
     task_id = uuid.uuid4().hex
     now = utc_now()
+    stored_request = dict(request_payload)
+    stored_request.pop("guestId", None)
     analysis = dict(analysis)
     analysis["taskId"] = task_id
     analysis["owner"] = {
@@ -534,7 +565,7 @@ def analyze_and_store_simulator_task(request_data, access_token=""):
                 user["id"],
                 analysis.get("mode", ""),
                 analysis.get("status", ""),
-                json.dumps(request_data or {}, ensure_ascii=False),
+                json.dumps(stored_request, ensure_ascii=False),
                 json.dumps(analysis, ensure_ascii=False),
                 now,
                 now,
@@ -543,10 +574,10 @@ def analyze_and_store_simulator_task(request_data, access_token=""):
     return analysis
 
 
-def list_simulator_tasks(access_token, allow_guest=False):
+def list_simulator_tasks(access_token, allow_guest=False, guest_id=""):
     user = authenticate_token(access_token)
     if not user and allow_guest:
-        user = guest_simulator_user()
+        user = find_guest_simulator_user(guest_id)
     if not user:
         raise PermissionError("invalid auth token")
 
@@ -585,10 +616,10 @@ def list_simulator_tasks(access_token, allow_guest=False):
     return {"user": user, "tasks": tasks}
 
 
-def get_simulator_task(access_token, task_id, allow_guest=False):
+def get_simulator_task(access_token, task_id, allow_guest=False, guest_id=""):
     user = authenticate_token(access_token)
     if not user and allow_guest:
-        user = guest_simulator_user()
+        user = find_guest_simulator_user(guest_id)
     if not user:
         raise PermissionError("invalid auth token")
 
@@ -900,6 +931,7 @@ class Handler(BaseHTTPRequestHandler):
                     list_simulator_tasks(
                         bearer_token_from_headers(self.headers),
                         allow_guest=query.get("guest", ["0"])[0] == "1",
+                        guest_id=query.get("guestId", [""])[0],
                     ),
                 )
             except PermissionError:
@@ -915,6 +947,7 @@ class Handler(BaseHTTPRequestHandler):
                         bearer_token_from_headers(self.headers),
                         query.get("id", [""])[0],
                         allow_guest=query.get("guest", ["0"])[0] == "1",
+                        guest_id=query.get("guestId", [""])[0],
                     ),
                 )
             except PermissionError:

@@ -1,5 +1,32 @@
 const { requestJson } = require('../common/api-client')
 
+const SIMULATOR_GUEST_ID_STORAGE_KEY = 'wow_simulator_guest_id'
+
+function randomGuestId() {
+  return `guest-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function simulatorGuestId() {
+  if (typeof wx === 'undefined' || typeof wx.getStorageSync !== 'function') return randomGuestId()
+  const stored = wx.getStorageSync(SIMULATOR_GUEST_ID_STORAGE_KEY)
+  if (stored) return stored
+  const nextGuestId = randomGuestId()
+  if (typeof wx.setStorageSync === 'function') wx.setStorageSync(SIMULATOR_GUEST_ID_STORAGE_KEY, nextGuestId)
+  return nextGuestId
+}
+
+function attachGuestId(request, requestOptions) {
+  const payload = { ...(request || {}) }
+  if (requestOptions.auth && requestOptions.allowInsecureGuestRequest && payload.saveTask) {
+    payload.guestId = simulatorGuestId()
+  }
+  return payload
+}
+
+function guestQueryString() {
+  return `guest=1&guestId=${encodeURIComponent(simulatorGuestId())}`
+}
+
 function fallbackAgentQuickReplies(request) {
   const prompt = String((request && (request.message || request.prompt)) || '')
   if (/术士|warlock/i.test(prompt)) {
@@ -282,24 +309,25 @@ function requestSimulatorHome() {
 
 function requestSimulatorAnalysis(request, options) {
   const requestOptions = options || {}
+  const requestPayload = attachGuestId(request, requestOptions)
   return requestJson('/api/simulator/analyze', {
     method: 'POST',
-    data: request || {},
+    data: requestPayload,
     auth: !!requestOptions.auth,
     allowInsecureGuestRequest: !!requestOptions.allowInsecureGuestRequest,
     timeout: 90000,
-    fallback: () => fallbackSimulatorAnalysis(request),
+    fallback: () => fallbackSimulatorAnalysis(requestPayload),
     validate: (data) => data && data.status && data.recommendations
   }).then((result) => {
     return {
       ...result,
-      payload: normalizeSimulatorAnalysisPayload(request || {}, result.payload)
+      payload: normalizeSimulatorAnalysisPayload(requestPayload, result.payload)
     }
   })
 }
 
 function requestSimulatorTasks() {
-  return requestJson('/api/simulator/tasks?guest=1', {
+  return requestJson(`/api/simulator/tasks?${guestQueryString()}`, {
     auth: true,
     allowInsecureGuestRequest: true,
     fallback: () => ({ tasks: [] }),
@@ -309,7 +337,7 @@ function requestSimulatorTasks() {
 
 function requestSimulatorTaskDetail(taskId) {
   const encodedTaskId = encodeURIComponent(taskId || '')
-  return requestJson(`/api/simulator/task?id=${encodedTaskId}&guest=1`, {
+  return requestJson(`/api/simulator/task?id=${encodedTaskId}&${guestQueryString()}`, {
     auth: true,
     allowInsecureGuestRequest: true,
     fallback: () => ({ task: null }),
@@ -325,5 +353,6 @@ module.exports = {
   requestSimulatorAnalysis,
   requestSimulatorHome,
   requestSimulatorTaskDetail,
-  requestSimulatorTasks
+  requestSimulatorTasks,
+  SIMULATOR_GUEST_ID_STORAGE_KEY
 }
