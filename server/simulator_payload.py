@@ -695,12 +695,18 @@ def append_simc_option(lines, key, value):
     lines.append(f"{key}={value}")
 
 
-def build_agent_simc_profile(profile, intent, scenario):
+def simc_agent_iterations(profile_source):
+    if profile_source == "generated":
+        return int_env("WOW_SIMC_AGENT_GENERATED_ITERATIONS", 500)
+    return int_env("WOW_SIMC_AGENT_ITERATIONS", 10000)
+
+
+def build_agent_simc_profile(profile, intent, scenario, profile_source=""):
     lines = [line.rstrip() for line in str(profile or "").splitlines() if line.strip()]
     if not lines:
         return ""
     lines.append("")
-    append_simc_option(lines, "iterations", int_env("WOW_SIMC_AGENT_ITERATIONS", 10000))
+    append_simc_option(lines, "iterations", simc_agent_iterations(profile_source))
     append_simc_option(lines, "fight_style", scenario["fightStyle"])
     append_simc_option(lines, "desired_targets", scenario["targets"])
     append_simc_option(lines, "max_time", scenario["durationSeconds"])
@@ -1185,10 +1191,12 @@ def run_simcraft(profile):
         return {"ran": False, "available": True, "summary": "", "error": str(error)}
 
     output = (result.stdout or result.stderr or "").strip()
+    metrics = parse_simcraft_metrics(output)
     return {
         "ran": result.returncode == 0,
         "available": True,
         "summary": output[:4000],
+        "metrics": metrics,
         "error": "" if result.returncode == 0 else (result.stderr or f"simc exited {result.returncode}")[:1000],
     }
 
@@ -1406,7 +1414,7 @@ def analyze_simc_agent_request(payload, codex_runner=None):
         codex_result = skipped_codex_worker_result("; ".join(f"missing {slot}" for slot in missing_slots))
         return build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result)
 
-    draft_profile = build_agent_simc_profile(source_profile or generated_profile, intent, scenario)
+    draft_profile = build_agent_simc_profile(source_profile or generated_profile, intent, scenario, profile_source)
     validation = validate_agent_simc_profile(draft_profile)
     request_data["profile"] = draft_profile
     request_data["mythicPlusReference"] = build_mythic_plus_reference(draft_profile, scenario)
@@ -1429,7 +1437,7 @@ def analyze_simc_agent_request(payload, codex_runner=None):
             "error": "; ".join(validation["errors"]) or "template invalid",
         }
     simulation = dict(simulation)
-    simulation["metrics"] = parse_simcraft_metrics(simulation.get("summary", ""))
+    simulation["metrics"] = simulation.get("metrics") or parse_simcraft_metrics(simulation.get("summary", ""))
     status = "template_ready" if validation["passed"] and confirm_only else (
         "simc_completed" if simulation.get("ran") else ("template_invalid" if not validation["passed"] else "simc_failed")
     )
@@ -1507,7 +1515,7 @@ def analyze_simulator_request(payload, codex_runner=None):
             "error": "missing simcraft profile" if is_simcraft_mode(request_data["mode"]) and not request_data["profile"] else "simulation not requested",
         }
     simulation = dict(simulation)
-    simulation["metrics"] = parse_simcraft_metrics(simulation.get("summary", ""))
+    simulation["metrics"] = simulation.get("metrics") or parse_simcraft_metrics(simulation.get("summary", ""))
     prompt = build_llm_prompt(request_data, simulation)
     llm_result = call_llm(prompt)
     guarded_llm_content = build_guarded_llm_content(request_data, simulation, llm_result)

@@ -173,12 +173,64 @@ test('simulator task detail page renders saved task analysis', () => {
   assert.doesNotMatch(wxml, /detail\.simulationSummary/)
   assert.doesNotMatch(wxml, /detail\.llmContent/)
   assert.doesNotMatch(wxml, /AI 解读/)
+  assert.match(wxml, /detail\.heroTitle/)
+  assert.match(wxml, /detail\.questionSummary/)
+  assert.doesNotMatch(wxml, /class="detail-title">\{\{detail\.question\}\}/)
+  assert.match(js, /summarizeTaskQuestion\(question\)/)
+  assert.match(js, /heroTitle/)
+  assert.match(js, /questionSummary/)
   assert.match(wxml, /detail\.simcDps/)
   assert.match(wxml, /detail\.briefConclusion/)
   assert.match(api, /requestSimulatorTaskDetail\(taskId\)/)
   assert.match(css, /\.task-detail-hero/)
+  assert.match(css, /word-break:\s*break-all/)
+  assert.match(css, /white-space:\s*pre-wrap/)
   assert.match(css, /\.build-context-box/)
   assert.doesNotMatch(css, /\.detail-code/)
+})
+
+test('task detail normalizes long build prompts into a compact report header', () => {
+  let pageDefinition = null
+  const originalPage = global.Page
+  global.Page = (definition) => {
+    pageDefinition = definition
+  }
+  delete require.cache[require.resolve('../pages/simulator/task-detail.js')]
+  require('../pages/simulator/task-detail.js')
+  global.Page = originalPage
+
+  const longTalentCode = `CAE${'A'.repeat(96)}`
+  const normalized = pageDefinition.normalizeTaskDetail({
+    taskId: 'task-long',
+    mode: 'simcraft_agent',
+    question: [
+      '第1轮玩家：我从职业专精页带入了冰霜法师的天赋构筑。',
+      '请按大秘境多目标场景，先确认这个方案能否生成 SimC 任务。',
+      `天赋导入代码：${longTalentCode}`,
+      '装备候选：武器：Umbral Spire of Zuraal；饰品：Gaze of the Alnseer'
+    ].join('\n'),
+    request: {},
+    analysis: {
+      request: {
+        buildContext: {
+          className: '法师',
+          specName: '冰霜',
+          activeQueryTitle: '天赋构筑',
+          details: {
+            talents: { importCode: longTalentCode },
+            gear: { gear: [{ slot: '武器', name: 'Umbral Spire of Zuraal' }] }
+          }
+        }
+      },
+      simulation: { ran: false, error: '' },
+      recommendations: []
+    }
+  })
+
+  assert.equal(normalized.heroTitle, 'SimC 任务 · 冰霜法师')
+  assert.match(normalized.questionSummary, /冰霜法师的天赋构筑/)
+  assert.doesNotMatch(normalized.questionSummary, new RegExp(longTalentCode))
+  assert.ok(normalized.questionSummary.length < normalized.question.length)
 })
 
 test('wcl analysis page submits WCL questions through the simulator analyzer', () => {

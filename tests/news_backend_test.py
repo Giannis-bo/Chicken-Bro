@@ -261,6 +261,35 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["stages"][1]["metric"], "123456")
         self.assertEqual(analysis["stages"][2]["executor"], "llm")
 
+    def test_simulator_parses_dps_from_full_simcraft_output_before_truncating_summary(self):
+        simc_bin = Path(self.tmp.name) / "fake-long-simc"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            "cat >/dev/null\n"
+            "python3 - <<'PY'\n"
+            "print('warmup line ' * 500)\n"
+            "print('Player: LongOutputMage')\n"
+            "print('  DPS=77777.123 DPS-Error=0/0.00%')\n"
+            "PY\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft",
+                    "profile": "mage=\"LongOutputMage\"\ntalents=CAE\ngear_ilvl=700",
+                    "question": "跑一次长输出 profile",
+                }
+            )
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        self.assertTrue(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["simulation"]["metrics"]["dps"], "77777.123")
+        self.assertLessEqual(len(analysis["simulation"]["summary"]), 4000)
+
     def test_simulator_natural_language_without_profile_does_not_run_simcraft(self):
         simc_bin = Path(self.tmp.name) / "fake-simc-should-not-run"
         captured_profile = Path(self.tmp.name) / "unexpected-profile.txt"
@@ -804,6 +833,35 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["simulation"]["metrics"]["dps"], "150000")
         self.assertEqual(analysis["agent"]["summaryCards"][0]["title"], "结论")
         self.assertIn("150000", analysis["agent"]["summaryCards"][0]["text"])
+
+    def test_simc_agent_generated_profiles_use_preview_iterations_for_submit(self):
+        simc_bin = Path(self.tmp.name) / "fake-generated-simc"
+        captured_profile = Path(self.tmp.name) / "captured-generated-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'Player: GeneratedFrostMage\\n  DPS=53000 DPS-Error=0/0.00%%\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        try:
+            os.environ.pop("WOW_SIMC_AGENT_GENERATED_ITERATIONS", None)
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft_agent",
+                    "round": 1,
+                    "message": "我是700装等冰法，想看大秘境 AOE DPS 是否合格",
+                }
+            )
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        executed_profile = captured_profile.read_text(encoding="utf-8")
+        self.assertTrue(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["request"]["profileSource"], "generated")
+        self.assertIn("iterations=500", executed_profile)
+        self.assertNotIn("iterations=10000", executed_profile)
 
     def test_simulator_analysis_exposes_enabled_codex_worker_status(self):
         simc_bin = Path(self.tmp.name) / "fake-simc-codex"

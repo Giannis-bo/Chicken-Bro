@@ -9,7 +9,7 @@
       <view wx:elif="{{detail}}">
         <view class="task-detail-hero">
           <text class="detail-kicker">任务详情</text>
-          <text class="detail-title">{{detail.question}}</text>
+          <text class="detail-title">{{detail.heroTitle}}</text>
           <text class="detail-summary" user-select="{{true}}">{{detail.briefConclusion}}</text>
           <view class="detail-meta-row">
             <text>{{detail.statusText}}</text>
@@ -20,9 +20,9 @@
         <view class="section">
           <view class="section-header">
             <text class="section-title">玩家问题</text>
-            <text class="section-action">{{detail.mode}}</text>
+            <text class="section-action">{{detail.modeText}}</text>
           </view>
-          <text class="task-desc detail-text" user-select="{{true}}">{{detail.question}}</text>
+          <text class="task-desc detail-text detail-question-text" user-select="{{true}}">{{detail.questionSummary}}</text>
         </view>
 
         <view class="section build-context-box" wx:if="{{detail.buildContextText}}">
