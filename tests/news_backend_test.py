@@ -68,6 +68,33 @@ class NewsBackendTest(unittest.TestCase):
         self.tmp.cleanup()
         os.environ.pop("WOW_NEWS_DB", None)
 
+    def patch_simc_confirmation_llm(self, response):
+        import server.simulator_payload as simulator_payload
+
+        original_call_chat_completion = simulator_payload.call_chat_completion
+
+        def fake_call_chat_completion(system_prompt, user_prompt, temperature=0.2):
+            payload = response(system_prompt, user_prompt, temperature) if callable(response) else response
+            return {
+                "called": True,
+                "model": "fake",
+                "content": json.dumps(payload, ensure_ascii=False),
+                "error": "",
+            }
+
+        self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
+        simulator_payload.call_chat_completion = fake_call_chat_completion
+
+    def confirmation_response(self, status="needs_clarification", missing_slots=None, question=""):
+        return {
+            "status": status,
+            "intent": "baseline",
+            "filledSlots": {},
+            "missingSlots": missing_slots or [],
+            "question": question or "还差天赋导入码和手选装备数据。",
+            "quickReplies": ["打开天赋模拟器补天赋", "继续补装备", "我先只看参考区间"],
+        }
+
     def test_get_article_detail_by_id_returns_source_evidence(self):
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
             conn.execute(
@@ -328,6 +355,13 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["stages"][2]["executor"], "llm")
 
     def test_simc_agent_generates_template_from_natural_language(self):
+        self.patch_simc_confirmation_llm(
+            self.confirmation_response(
+                missing_slots=["talents", "gear"],
+                question="已识别冰霜法师单体属性收益；还差天赋导入码和手选装备数据。",
+            )
+        )
+
         analysis = self.backend.analyze_simulator_request(
             {
                 "mode": "simcraft_agent",
@@ -338,33 +372,99 @@ class NewsBackendTest(unittest.TestCase):
         )
 
         self.assertEqual(analysis["mode"], "simcraft_agent")
-        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertEqual(analysis["agent"]["status"], "needs_clarification")
         self.assertEqual(analysis["agent"]["round"], 1)
         self.assertEqual(analysis["agent"]["intent"], "stat_weights")
-        self.assertEqual(analysis["agent"]["missingSlots"], [])
-        self.assertTrue(analysis["agent"]["validation"]["passed"])
-        self.assertTrue(analysis["agent"]["canSubmitTask"])
+        self.assertEqual(analysis["agent"]["missingSlots"], ["talents", "gear"])
+        self.assertFalse(analysis["agent"]["validation"]["passed"])
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
         self.assertEqual(analysis["request"]["profileSource"], "generated")
-        self.assertIn('mage="Generated_Frost_Mage"', analysis["agent"]["draftProfile"])
-        self.assertIn("spec=frost", analysis["agent"]["draftProfile"])
-        self.assertIn("scale_to_itemlevel=710", analysis["agent"]["draftProfile"])
-        self.assertNotIn("talents=generated_template", analysis["agent"]["draftProfile"])
-        self.assertNotIn("gear_ilvl=710", analysis["agent"]["draftProfile"])
-        self.assertIn("calculate_scale_factors=1", analysis["agent"]["draftProfile"])
+        self.assertEqual(analysis["request"]["profile"], "")
+        self.assertEqual(analysis["agent"]["draftProfile"], "")
+        self.assertEqual(analysis["agent"]["filledSlots"]["class"], "mage")
+        self.assertEqual(analysis["agent"]["filledSlots"]["spec"], "frost")
+        self.assertEqual(analysis["agent"]["filledSlots"]["itemLevel"], 710)
+        self.assertTrue(analysis["llm"]["called"])
         self.assertFalse(analysis["simulation"]["ran"])
-        self.assertEqual(analysis["simulation"]["error"], "")
+        self.assertIn("missing talents", analysis["simulation"]["error"])
+
+    def test_simc_agent_confirm_only_recognizes_tianqi_unholy_dk_without_irrelevant_replies(self):
+        self.patch_simc_confirmation_llm(
+            {
+                "status": "needs_clarification",
+                "intent": "baseline",
+                "filledSlots": {
+                    "class": "deathknight",
+                    "classLabel": "死亡骑士",
+                    "spec": "unholy",
+                    "specLabel": "邪恶",
+                    "heroTalent": "天启",
+                    "itemLevel": 278,
+                    "scenario": "大秘境多目标",
+                    "targets": 5,
+                    "durationSeconds": 300,
+                },
+                "missingSlots": ["talents", "gear"],
+                "question": "已识别：278 装等邪恶死亡骑士（天启流派）、大秘境 AOE。还差天赋导入码和手选装备数据，才能生成可复核 SimC profile。",
+                "quickReplies": ["打开天赋模拟器补天赋", "继续补装备", "我先只看参考区间"],
+            }
+        )
+
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "simcraft_agent",
+                "round": 1,
+                "confirmOnly": True,
+                "message": "278天启邪DK，大秘境AOE 什么DPS合格？",
+            }
+        )
+
+        self.assertEqual(analysis["agent"]["status"], "needs_clarification")
+        self.assertEqual(analysis["agent"]["filledSlots"]["class"], "deathknight")
+        self.assertEqual(analysis["agent"]["filledSlots"]["spec"], "unholy")
+        self.assertEqual(analysis["agent"]["filledSlots"]["heroTalent"], "天启")
+        self.assertEqual(analysis["agent"]["filledSlots"]["itemLevel"], 278)
+        self.assertEqual(analysis["agent"]["missingSlots"], ["talents", "gear"])
+        self.assertEqual(analysis["agent"]["quickReplies"], ["打开天赋模拟器补天赋", "继续补装备", "我先只看参考区间"])
+        self.assertNotRegex("\n".join(analysis["agent"]["quickReplies"]), "冰法|元素萨|恶魔术|惩戒")
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
+        self.assertFalse(analysis["request"]["runSimulation"])
+        self.assertEqual(analysis["mythicPlusReference"]["specKey"], "deathknight-unholy")
+
+    def test_simc_agent_confirmation_fails_closed_on_invalid_llm_json(self):
+        import server.simulator_payload as simulator_payload
+
+        original_call_chat_completion = simulator_payload.call_chat_completion
+        simulator_payload.call_chat_completion = lambda *args, **kwargs: {
+            "called": True,
+            "model": "fake",
+            "content": "我觉得可以直接跑",
+            "error": "",
+        }
+        self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
+
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "simcraft_agent",
+                "round": 1,
+                "confirmOnly": True,
+                "message": "278天启邪DK，大秘境AOE 什么DPS合格？",
+            }
+        )
+
+        self.assertEqual(analysis["agent"]["status"], "confirmation_failed")
+        self.assertEqual(analysis["agent"]["quickReplies"], [])
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
+        self.assertIn("重试", analysis["agent"]["question"])
+        self.assertTrue(analysis["llm"]["called"])
 
     def test_simc_agent_uses_build_context_for_talent_and_gear_linkage(self):
-        calls = []
-
-        def fake_call_chat_completion(system_prompt, user_prompt, temperature=0.2):
-            calls.append(user_prompt)
-            return {"called": True, "model": "fake", "content": "已读取构筑上下文。", "error": ""}
-
-        import server.simulator_payload as simulator_payload
-        original_call_chat_completion = simulator_payload.call_chat_completion
-        self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
-        simulator_payload.call_chat_completion = fake_call_chat_completion
+        self.patch_simc_confirmation_llm(
+            self.confirmation_response(
+                missing_slots=["gear"],
+                question="已读取天赋导入码；还差手选装备数据。",
+            )
+        )
         build_context = {
             "specId": "法师-冰霜",
             "className": "法师",
@@ -405,32 +505,105 @@ class NewsBackendTest(unittest.TestCase):
             }
         )
 
-        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertEqual(analysis["agent"]["status"], "needs_clarification")
         self.assertEqual(analysis["agent"]["filledSlots"]["class"], "mage")
         self.assertEqual(analysis["agent"]["filledSlots"]["spec"], "frost")
         self.assertEqual(analysis["request"]["buildContext"]["specId"], "法师-冰霜")
-        self.assertIn("talents=CAE_CONTEXT", analysis["agent"]["draftProfile"])
+        self.assertIn("gear", analysis["agent"]["missingSlots"])
         self.assertNotIn("Gaze of the Alnseer=", analysis["agent"]["draftProfile"])
-        self.assertEqual(calls, [])
-        self.assertFalse(analysis["llm"]["called"])
+        self.assertTrue(analysis["llm"]["called"])
+
+    def test_simc_agent_builds_assembled_profile_from_selected_gear(self):
+        self.patch_simc_confirmation_llm(
+            self.confirmation_response(status="template_ready", missing_slots=[], question="")
+        )
+        build_context = {
+            "specId": "法师-冰霜",
+            "className": "法师",
+            "specName": "冰霜",
+            "role": "远程输出",
+            "activeQueryKey": "gear",
+            "details": {
+                "talents": {"importCode": "CAE_CONTEXT"},
+                "gear": {
+                    "simcItems": [
+                        {
+                            "slot": "main_hand",
+                            "name": "Prodigious Gene Splicer",
+                            "id": 237729,
+                            "ilevel": 278,
+                            "enchantId": 3368,
+                        },
+                        {
+                            "slot": "trinket1",
+                            "name": "Test Trinket",
+                            "id": 123456,
+                            "ilevel": 278,
+                            "bonusId": ["6652", "10877"],
+                            "gemId": ["213743", "213744"],
+                        },
+                    ]
+                },
+            },
+        }
 
         analysis = self.backend.analyze_simulator_request(
             {
                 "mode": "simcraft_agent",
                 "round": 1,
+                "confirmOnly": True,
                 "message": "请按职业专精页里的方案，比较这套装备的大秘境 AOE 收益",
                 "buildContext": build_context,
             }
         )
 
-        self.assertEqual(analysis["agent"]["status"], "template_preview")
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertEqual(analysis["request"]["profileSource"], "assembled")
         self.assertFalse(analysis["simulation"]["ran"])
-        self.assertEqual(analysis["simulation"]["metrics"], {})
-        self.assertEqual(analysis["simulation"]["quality"], "preview")
-        self.assertEqual(calls, [])
-        self.assertIn("未执行正式 SimC DPS 模拟", analysis["recommendations"][0])
+        self.assertTrue(analysis["agent"]["canSubmitTask"])
         self.assertIn("talents=CAE_CONTEXT", analysis["agent"]["draftProfile"])
-        self.assertNotIn("Gaze of the Alnseer=", analysis["agent"]["draftProfile"])
+        self.assertIn("main_hand=prodigious_gene_splicer,id=237729,ilevel=278,enchant_id=3368", analysis["agent"]["draftProfile"])
+        self.assertIn("trinket1=test_trinket,id=123456,ilevel=278,bonus_id=6652/10877,gem_id=213743/213744", analysis["agent"]["draftProfile"])
+
+    def test_simc_agent_runs_assembled_profile_from_selected_gear_on_submit(self):
+        self.patch_simc_confirmation_llm({"status": "template_ready", "missingSlots": [], "question": "", "quickReplies": []})
+        simc_bin = Path(self.tmp.name) / "fake-assembled-simc"
+        captured_profile = Path(self.tmp.name) / "captured-assembled-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'DPS Ranking:\\n1. Generated_Frost_Mage 123456 dps\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft_agent",
+                    "round": 1,
+                    "message": "请按职业专精页里的方案，跑大秘境 AOE",
+                    "buildContext": {
+                        "specId": "法师-冰霜",
+                        "className": "法师",
+                        "specName": "冰霜",
+                        "details": {
+                            "talents": {"importCode": "CAE_CONTEXT"},
+                            "gear": {"simcItems": [{"slot": "main_hand", "name": "Prodigious Gene Splicer", "id": 237729, "ilevel": 278}]},
+                        },
+                    },
+                }
+            )
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        executed_profile = captured_profile.read_text(encoding="utf-8")
+        self.assertEqual(analysis["request"]["profileSource"], "assembled")
+        self.assertTrue(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["agent"]["status"], "simc_completed")
+        self.assertEqual(analysis["simulation"]["metrics"]["dps"], "123456")
+        self.assertIn("talents=CAE_CONTEXT", executed_profile)
+        self.assertIn("main_hand=prodigious_gene_splicer,id=237729,ilevel=278", executed_profile)
 
     def test_simc_agent_asks_for_playable_slots_not_external_sources(self):
         analysis = self.backend.analyze_simulator_request(
@@ -474,6 +647,13 @@ class NewsBackendTest(unittest.TestCase):
         )
 
     def test_simc_agent_requires_explicit_item_level_and_scenario_before_ready(self):
+        self.patch_simc_confirmation_llm(
+            self.confirmation_response(
+                missing_slots=["itemLevel", "scenario", "talents", "gear"],
+                question="已识别冰霜法师；还差装等、场景、天赋和装备。",
+            )
+        )
+
         analysis = self.backend.analyze_simulator_request(
             {
                 "mode": "simcraft_agent",
@@ -491,6 +671,13 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["request"]["profile"], "")
 
     def test_simc_agent_fills_warlock_spec_on_second_round_without_repeating_prompt(self):
+        self.patch_simc_confirmation_llm(
+            self.confirmation_response(
+                missing_slots=["talents", "gear"],
+                question="已识别恶魔术士大秘境 AOE；还差天赋和装备。",
+            )
+        )
+
         analysis = self.backend.analyze_simulator_request(
             {
                 "mode": "simcraft_agent",
@@ -503,19 +690,23 @@ class NewsBackendTest(unittest.TestCase):
             }
         )
 
-        self.assertEqual(analysis["agent"]["status"], "template_ready")
-        self.assertEqual(analysis["agent"]["missingSlots"], [])
+        self.assertEqual(analysis["agent"]["status"], "needs_clarification")
+        self.assertEqual(analysis["agent"]["missingSlots"], ["talents", "gear"])
         self.assertEqual(analysis["agent"]["filledSlots"]["class"], "warlock")
         self.assertEqual(analysis["agent"]["filledSlots"]["spec"], "demonology")
         self.assertEqual(analysis["agent"]["filledSlots"]["itemLevel"], 285)
-        self.assertTrue(analysis["agent"]["canSubmitTask"])
-        self.assertEqual(analysis["agent"]["quickReplies"], [])
-        self.assertIn('warlock="Generated_Demonology_Warlock"', analysis["agent"]["draftProfile"])
-        self.assertIn("spec=demonology", analysis["agent"]["draftProfile"])
-        self.assertIn("scale_to_itemlevel=285", analysis["agent"]["draftProfile"])
-        self.assertIn("fight_style=HecticAddCleave", analysis["agent"]["draftProfile"])
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
+        self.assertEqual(analysis["agent"]["quickReplies"], ["打开天赋模拟器补天赋", "继续补装备", "我先只看参考区间"])
+        self.assertEqual(analysis["agent"]["draftProfile"], "")
 
     def test_simc_agent_uses_latest_spec_correction_in_conversation_history(self):
+        self.patch_simc_confirmation_llm(
+            self.confirmation_response(
+                missing_slots=["talents", "gear"],
+                question="已按最新一轮识别为毁灭术；还差天赋和装备。",
+            )
+        )
+
         analysis = self.backend.analyze_simulator_request(
             {
                 "mode": "simcraft_agent",
@@ -529,10 +720,17 @@ class NewsBackendTest(unittest.TestCase):
         )
 
         self.assertEqual(analysis["agent"]["filledSlots"]["spec"], "destruction")
-        self.assertIn('warlock="Generated_Destruction_Warlock"', analysis["agent"]["draftProfile"])
-        self.assertIn("spec=destruction", analysis["agent"]["draftProfile"])
+        self.assertEqual(analysis["agent"]["missingSlots"], ["talents", "gear"])
+        self.assertEqual(analysis["agent"]["draftProfile"], "")
 
     def test_simc_agent_generates_elemental_shaman_mythic_plus_template(self):
+        self.patch_simc_confirmation_llm(
+            self.confirmation_response(
+                missing_slots=["talents", "gear"],
+                question="已识别风暴元素萨大秘境 AOE；还差天赋和装备。",
+            )
+        )
+
         analysis = self.backend.analyze_simulator_request(
             {
                 "mode": "simcraft_agent",
@@ -542,33 +740,43 @@ class NewsBackendTest(unittest.TestCase):
             }
         )
 
-        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertEqual(analysis["agent"]["status"], "needs_clarification")
         self.assertEqual(analysis["request"]["profileSource"], "generated")
-        self.assertIn('shaman="Generated_Elemental_Shaman"', analysis["agent"]["draftProfile"])
-        self.assertIn("spec=elemental", analysis["agent"]["draftProfile"])
-        self.assertIn("scale_to_itemlevel=290", analysis["agent"]["draftProfile"])
-        self.assertNotIn("talents=generated_template", analysis["agent"]["draftProfile"])
-        self.assertNotIn("gear_ilvl=290", analysis["agent"]["draftProfile"])
-        self.assertIn("fight_style=HecticAddCleave", analysis["agent"]["draftProfile"])
-        self.assertTrue(analysis["agent"]["canSubmitTask"])
+        self.assertEqual(analysis["agent"]["filledSlots"]["spec"], "elemental")
+        self.assertEqual(analysis["agent"]["filledSlots"]["itemLevel"], 290)
+        self.assertEqual(analysis["agent"]["missingSlots"], ["talents", "gear"])
+        self.assertEqual(analysis["agent"]["draftProfile"], "")
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
 
     def test_simc_agent_generated_profiles_use_class_valid_default_races(self):
+        self.patch_simc_confirmation_llm(
+            self.confirmation_response(status="template_ready", missing_slots=[], question="")
+        )
         cases = [
-            ("浩劫恶魔猎手", "race=night_elf"),
-            ("惩戒圣骑士", "race=human"),
-            ("增辉唤魔师", "race=dracthyr"),
+            ("恶魔猎手", "浩劫", "race=night_elf"),
+            ("圣骑士", "惩戒", "race=human"),
+            ("唤魔师", "增辉", "race=dracthyr"),
         ]
-        for spec_text, expected_race in cases:
-            with self.subTest(spec=spec_text):
+        for class_label, spec_label, expected_race in cases:
+            with self.subTest(spec=f"{spec_label}{class_label}"):
                 analysis = self.backend.analyze_simulator_request(
                     {
                         "mode": "simcraft_agent",
                         "round": 1,
                         "confirmOnly": True,
-                        "message": f"我是700装等{spec_text}，想看大秘境 AOE",
+                        "message": f"我是700装等{spec_label}{class_label}，想看大秘境 AOE",
+                        "buildContext": {
+                            "className": class_label,
+                            "specName": spec_label,
+                            "details": {
+                                "talents": {"importCode": "CAE"},
+                                "gear": {"simcItems": [{"slot": "main_hand", "name": "Test Weapon", "id": 237729, "ilevel": 700}]},
+                            },
+                        },
                     }
                 )
                 self.assertEqual(analysis["agent"]["status"], "template_ready")
+                self.assertEqual(analysis["request"]["profileSource"], "assembled")
                 self.assertIn(expected_race, analysis["agent"]["draftProfile"])
                 self.assertNotIn("race=troll", analysis["agent"]["draftProfile"])
 
@@ -577,10 +785,10 @@ class NewsBackendTest(unittest.TestCase):
 
         original_call_chat_completion = simulator_payload.call_chat_completion
         simulator_payload.call_chat_completion = lambda *args, **kwargs: {
-            "called": False,
+            "called": True,
             "model": "fake",
-            "content": "",
-            "error": "llm disabled in test",
+            "content": json.dumps(self.confirmation_response(status="template_ready", missing_slots=[], question=""), ensure_ascii=False),
+            "error": "",
         }
         try:
             self.assertEqual(len(SIMC_AGENT_SPEC_CASES), 39)
@@ -592,6 +800,14 @@ class NewsBackendTest(unittest.TestCase):
                             "round": 1,
                             "confirmOnly": True,
                             "message": f"我是700装等{spec_label}{class_label}，想看大秘境 AOE 是否合格",
+                            "buildContext": {
+                                "className": class_label,
+                                "specName": spec_label,
+                                "details": {
+                                    "talents": {"importCode": "CAE"},
+                                    "gear": {"simcItems": [{"slot": "main_hand", "name": "Test Weapon", "id": 237729, "ilevel": 700}]},
+                                },
+                            },
                         }
                     )
 
@@ -600,6 +816,7 @@ class NewsBackendTest(unittest.TestCase):
                     self.assertEqual(analysis["agent"]["filledSlots"]["class"], class_key)
                     self.assertEqual(analysis["agent"]["filledSlots"]["spec"], spec_key)
                     self.assertTrue(analysis["agent"]["canSubmitTask"])
+                    self.assertEqual(analysis["request"]["profileSource"], "assembled")
                     self.assertIn(f'{class_key}="', analysis["agent"]["draftProfile"])
                     self.assertIn(f"spec={spec_key}", analysis["agent"]["draftProfile"])
                     self.assertEqual(analysis["mythicPlusReference"]["specKey"], f"{class_key}-{spec_key}")
@@ -625,6 +842,13 @@ class NewsBackendTest(unittest.TestCase):
                 self.assertTrue(reference["maxKey"].startswith("+"))
 
     def test_healer_mythic_plus_reference_uses_hps_not_fake_max_dps(self):
+        self.patch_simc_confirmation_llm(
+            self.confirmation_response(
+                missing_slots=["talents", "gear"],
+                question="已识别织雾武僧；还差天赋和装备。",
+            )
+        )
+
         analysis = self.backend.analyze_simulator_request(
             {
                 "mode": "simcraft_agent",
@@ -730,6 +954,9 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["codex"]["status"], "skipped")
 
     def test_simc_agent_confirm_only_validates_template_without_running_simc(self):
+        self.patch_simc_confirmation_llm(
+            self.confirmation_response(status="template_ready", missing_slots=[], question="")
+        )
         simc_bin = Path(self.tmp.name) / "fake-confirm-only-simc"
         captured_profile = Path(self.tmp.name) / "captured-confirm-only-profile.txt"
         simc_bin.write_text(
@@ -767,8 +994,9 @@ class NewsBackendTest(unittest.TestCase):
         self.assertTrue(analysis["agent"]["canSubmitTask"])
         self.assertFalse(analysis["request"]["runSimulation"])
         self.assertIn('mage="ConfirmMage"', analysis["agent"]["draftProfile"])
+        self.assertTrue(analysis["llm"]["called"])
 
-    def test_simc_agent_confirm_only_template_ready_skips_llm_call(self):
+    def test_simc_agent_confirm_only_template_ready_calls_llm_confirmation(self):
         import server.simulator_payload as simulator_payload
 
         calls = []
@@ -776,7 +1004,7 @@ class NewsBackendTest(unittest.TestCase):
         simulator_payload.call_chat_completion = lambda *args, **kwargs: calls.append(args) or {
             "called": True,
             "model": "fake",
-            "content": "不应该调用",
+            "content": json.dumps(self.confirmation_response(status="template_ready", missing_slots=[], question=""), ensure_ascii=False),
             "error": "",
         }
         try:
@@ -785,16 +1013,51 @@ class NewsBackendTest(unittest.TestCase):
                     "mode": "simcraft_agent",
                     "round": 1,
                     "confirmOnly": True,
-                    "message": "我是700装等冰法，想看单体 5 分钟属性收益",
+                    "message": (
+                        "用这个冰法 /simc 导出确认单体5分钟属性收益需求\n"
+                        "```simc\n"
+                        "mage=\"ConfirmMage\"\n"
+                        "talents=CAE\n"
+                        "gear_ilvl=710\n"
+                        "```\n"
+                    ),
                 }
             )
         finally:
             simulator_payload.call_chat_completion = original_call_chat_completion
 
         self.assertEqual(analysis["agent"]["status"], "template_ready")
-        self.assertEqual(calls, [])
-        self.assertFalse(analysis["llm"]["called"])
-        self.assertEqual(analysis["llm"]["error"], "template confirmation")
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(analysis["llm"]["called"])
+        self.assertEqual(analysis["llm"]["error"], "")
+
+    def test_simc_agent_confirm_only_clarification_calls_llm_confirmation(self):
+        import server.simulator_payload as simulator_payload
+
+        calls = []
+        original_call_chat_completion = simulator_payload.call_chat_completion
+        simulator_payload.call_chat_completion = lambda *args, **kwargs: calls.append(args) or {
+            "called": True,
+            "model": "fake",
+            "content": json.dumps(self.confirmation_response(missing_slots=["specialization"], question="先告诉我职业和专精。"), ensure_ascii=False),
+            "error": "",
+        }
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft_agent",
+                    "round": 1,
+                    "confirmOnly": True,
+                    "message": "我想看大秘境 AOE 是否合格",
+                }
+            )
+        finally:
+            simulator_payload.call_chat_completion = original_call_chat_completion
+
+        self.assertEqual(analysis["agent"]["status"], "needs_clarification")
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(analysis["llm"]["called"])
+        self.assertEqual(analysis["llm"]["error"], "")
 
     def test_simc_agent_generates_validated_template_and_runs_embedded_profile(self):
         simc_bin = Path(self.tmp.name) / "fake-agent-simc"
@@ -863,12 +1126,11 @@ class NewsBackendTest(unittest.TestCase):
         self.assertFalse(captured_profile.exists())
         self.assertFalse(analysis["simulation"]["ran"])
         self.assertEqual(analysis["request"]["profileSource"], "generated")
-        self.assertEqual(analysis["simulation"]["quality"], "preview")
         self.assertEqual(analysis["simulation"]["metrics"], {})
-        self.assertEqual(analysis["simulation"]["metricLabel"], "正式 SimC DPS")
-        self.assertEqual(analysis["simulation"]["metricUnit"], "需要完整 /simc 导出")
-        self.assertIn("未执行正式 SimC DPS 模拟", analysis["recommendations"][0])
-        self.assertIn("完整 /simc 导出", analysis["recommendations"][0])
+        self.assertEqual(analysis["agent"]["status"], "needs_clarification")
+        self.assertEqual(analysis["agent"]["missingSlots"], ["talents", "gear"])
+        self.assertIn("天赋", analysis["recommendations"][0])
+        self.assertIn("装备", analysis["recommendations"][0])
         self.assertNotIn("53000", json.dumps(analysis, ensure_ascii=False))
 
     def test_simulator_analysis_exposes_enabled_codex_worker_status(self):
@@ -1117,6 +1379,61 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("真实大秘境对标", analysis["llm"]["content"])
         self.assertIn("SimC 未产出可用 DPS", analysis["llm"]["content"])
         self.assertNotIn("100万", analysis["llm"]["content"])
+        self.assertNotIn("/simc", analysis["llm"]["content"])
+
+    def test_simc_failure_without_reference_does_not_claim_simulated_dps(self):
+        simc_bin = Path(self.tmp.name) / "fake-failing-single-target-simc"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            "printf 'No active players in sim!\\n' >&2\n"
+            "exit 1\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+
+        def fake_call_chat_completion(system_prompt, user_prompt, temperature=0.2):
+            return {
+                "called": True,
+                "model": "fake",
+                "content": "虽然 SimC 报错，但这次单体合格 DPS 大约是 100万。",
+                "error": "",
+            }
+
+        import server.simulator_payload as simulator_payload
+        original_call_chat_completion = simulator_payload.call_chat_completion
+        self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
+        simulator_payload.call_chat_completion = fake_call_chat_completion
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft_agent",
+                    "round": 1,
+                    "message": (
+                        "我是285的惩戒骑，单体5分钟什么DPS\n"
+                        "```simc\n"
+                        "paladin=\"RetFailureSingle\"\n"
+                        "level=80\n"
+                        "race=human\n"
+                        "role=attack\n"
+                        "spec=retribution\n"
+                        "scale_to_itemlevel=285\n"
+                        "```\n"
+                    ),
+                    "runSimulation": True,
+                }
+            )
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        self.assertIsNone(analysis["mythicPlusReference"])
+        self.assertEqual(analysis["agent"]["status"], "simc_failed")
+        self.assertFalse(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["simulation"]["metrics"], {})
+        self.assertIn("SimC 未产出可用 DPS", analysis["llm"]["content"])
+        self.assertIn("No active players", analysis["llm"]["content"])
+        self.assertNotIn("100万", analysis["llm"]["content"])
+        self.assertIn("完整 SimC profile", analysis["llm"]["content"])
         self.assertNotIn("/simc", analysis["llm"]["content"])
 
     def test_simc_agent_completed_report_is_brief_and_benchmarked(self):

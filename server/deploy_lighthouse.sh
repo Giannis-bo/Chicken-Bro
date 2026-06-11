@@ -12,6 +12,7 @@ SIMC_GITHUB_REPO="${WOW_SIMC_GITHUB_REPO:-simulationcraft/simc}"
 SIMC_BRANCH="${WOW_SIMC_BRANCH:-midnight}"
 CODEX_JOBS_DIR="${WOW_CODEX_JOBS_DIR:-/var/lib/wow-backend/codex-jobs}"
 CODEX_HOME_DIR="${WOW_CODEX_HOME:-/home/${REMOTE_USER}/.codex}"
+SKIP_BOOTSTRAP="${WOW_DEPLOY_SKIP_BOOTSTRAP:-0}"
 
 validate_env_value() {
   local name="$1"
@@ -39,6 +40,7 @@ validate_env_value SIMC_GITHUB_REPO "${SIMC_GITHUB_REPO}" '^[A-Za-z0-9_.-]+/[A-Z
 validate_env_value SIMC_BRANCH "${SIMC_BRANCH}" '^[A-Za-z0-9_.\@/-]+$'
 validate_env_value CODEX_JOBS_DIR "${CODEX_JOBS_DIR}" '^/[A-Za-z0-9_./-]+$'
 validate_env_value CODEX_HOME_DIR "${CODEX_HOME_DIR}" '^/[A-Za-z0-9_./-]+$'
+validate_env_value SKIP_BOOTSTRAP "${SKIP_BOOTSTRAP}" '^[01]$'
 reject_path_traversal REMOTE_DIR "${REMOTE_DIR}"
 reject_path_traversal CODEX_JOBS_DIR "${CODEX_JOBS_DIR}"
 reject_path_traversal CODEX_HOME_DIR "${CODEX_HOME_DIR}"
@@ -66,7 +68,7 @@ COPYFILE_DISABLE=1 tar \
   --exclude '.DS_Store' \
   -czf - . | ssh_remote "sudo mkdir -p '${REMOTE_DIR}' && sudo tar -xzf - -C '${REMOTE_DIR}' && sudo chown -R ${REMOTE_USER}:${REMOTE_USER} '${REMOTE_DIR}'"
 
-ssh_remote "WOW_LIGHTHOUSE_DIR='${REMOTE_DIR}' SERVICE_NAME='${SERVICE_NAME}' SIMC_GITHUB_REPO='${SIMC_GITHUB_REPO}' SIMC_BRANCH='${SIMC_BRANCH}' WOW_CODEX_JOBS_DIR='${CODEX_JOBS_DIR}' WOW_CODEX_HOME='${CODEX_HOME_DIR}' bash -s" <<'REMOTE'
+ssh_remote "WOW_LIGHTHOUSE_DIR='${REMOTE_DIR}' SERVICE_NAME='${SERVICE_NAME}' SIMC_GITHUB_REPO='${SIMC_GITHUB_REPO}' SIMC_BRANCH='${SIMC_BRANCH}' WOW_CODEX_JOBS_DIR='${CODEX_JOBS_DIR}' WOW_CODEX_HOME='${CODEX_HOME_DIR}' WOW_DEPLOY_SKIP_BOOTSTRAP='${SKIP_BOOTSTRAP}' bash -s" <<'REMOTE'
 set -euo pipefail
 
 REMOTE_DIR="${WOW_LIGHTHOUSE_DIR:-/opt/wow-mini-program}"
@@ -82,7 +84,23 @@ SIMC_COMMIT_FILE="${SIMC_ROOT}/.commit"
 CODEX_JOBS_DIR="${WOW_CODEX_JOBS_DIR:-/var/lib/wow-backend/codex-jobs}"
 CODEX_HOME_DIR="${WOW_CODEX_HOME:-/home/ubuntu/.codex}"
 CODEX_BIN="/usr/local/bin/codex"
+SKIP_BOOTSTRAP="${WOW_DEPLOY_SKIP_BOOTSTRAP:-0}"
 
+if [[ "${SKIP_BOOTSTRAP}" == "1" ]]; then
+  echo "Skipping remote bootstrap because WOW_DEPLOY_SKIP_BOOTSTRAP=1; reusing remote packages, Codex, and SimulationCraft."
+  for required_command in python3 curl systemctl; do
+    if ! command -v "${required_command}" >/dev/null 2>&1; then
+      echo "Missing required command in hot deploy mode: ${required_command}" >&2
+      exit 1
+    fi
+  done
+  if [[ ! -x "${SIMC_BIN}" ]]; then
+    echo "Missing existing SimulationCraft binary in hot deploy mode: ${SIMC_BIN}" >&2
+    exit 1
+  fi
+  sudo mkdir -p /var/lib/wow-backend "${CODEX_JOBS_DIR}" "${CODEX_HOME_DIR}"
+  sudo chown -R "$(id -un):$(id -gn)" /var/lib/wow-backend "${CODEX_HOME_DIR}"
+else # full remote bootstrap
 install_codex_from_github_release() {
   CODEX_HOME_DIR="${CODEX_HOME_DIR}" python3 - <<'PY'
 import hashlib
@@ -415,6 +433,7 @@ Persistent=true
 [Install]
 WantedBy=timers.target
 SIMCTIMER
+fi
 
 sudo mkdir -p "${REMOTE_DIR}/server/data"
 sudo chown -R "$(id -un):$(id -gn)" "${REMOTE_DIR}/server/data"
@@ -462,8 +481,10 @@ if [[ -n "${port80_pid}" ]]; then
 fi
 
 sudo systemctl daemon-reload
-sudo systemctl enable --now wow-simc-version-check.timer
-sudo systemctl start wow-simc-version-check.service
+if [[ "${SKIP_BOOTSTRAP}" != "1" ]]; then
+  sudo systemctl enable --now wow-simc-version-check.timer
+  sudo systemctl start wow-simc-version-check.service
+fi
 sudo systemctl enable --now "${SERVICE_NAME}"
 sudo systemctl restart "${SERVICE_NAME}"
 sudo systemctl restart nginx

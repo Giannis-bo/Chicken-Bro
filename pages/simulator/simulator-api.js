@@ -27,20 +27,6 @@ function guestQueryString() {
   return `guest=1&guestId=${encodeURIComponent(simulatorGuestId())}`
 }
 
-function fallbackAgentQuickReplies(request) {
-  const prompt = String((request && (request.message || request.prompt)) || '')
-  if (/术士|warlock/i.test(prompt)) {
-    return ['我是痛苦术，看大秘境 AOE', '我是恶魔术，看大秘境 AOE', '我是毁灭术，看大秘境 AOE']
-  }
-  if (/法师|mage/i.test(prompt)) {
-    return ['我是冰法，看单体属性收益', '我是火法，看大秘境 AOE', '我是奥法，看单体 DPS']
-  }
-  if (/萨满|shaman/i.test(prompt)) {
-    return ['我是元素萨，看大秘境 AOE', '我是增强萨，看大秘境 AOE']
-  }
-  return ['我是冰法，看单体属性收益', '我是元素萨，看大秘境 AOE', '我是恶魔术，看大秘境 AOE']
-}
-
 function fallbackSimulatorHome() {
   return {
     navTitle: '智能分析',
@@ -108,27 +94,28 @@ function normalizeSimulatorHomePayload(payload) {
   }
 }
 
-function fallbackSimulatorAnalysis(request) {
+function unavailableSimulatorAnalysis(request, reason) {
+  const prompt = (request && (request.message || request.prompt)) || ''
   return {
     mode: (request && request.mode) || 'simcraft',
     status: 'ready',
     request: {
-      prompt: (request && request.prompt) || '',
-      message: (request && request.message) || '',
-      runSimulation: !!(request && request.runSimulation)
+      prompt,
+      message: prompt,
+      runSimulation: false
     },
     agent: {
-      status: 'needs_clarification',
+      status: 'confirmation_failed',
       round: (request && request.round) || 1,
       intent: 'baseline',
-      missingSlots: ['specialization'],
-      question: '先告诉我职业和专精，再说想看单体、AOE、属性收益、天赋还是装备对比。',
-      quickReplies: fallbackAgentQuickReplies(request),
+      missingSlots: [],
+      question: '后端暂时无法完成 SimC 需求确认，请稍后重试。',
+      quickReplies: [],
       draftProfile: '',
       validation: {
         passed: false,
-        errors: ['missing specialization'],
-        warnings: []
+        errors: ['backend confirmation unavailable'],
+        warnings: reason ? [reason] : []
       },
       summaryCards: []
     },
@@ -136,31 +123,31 @@ function fallbackSimulatorAnalysis(request) {
       {
         key: 'profile_check',
         title: 'Profile 检查',
-        status: 'blocked',
+        status: 'failed',
         executor: 'backend',
-        summary: '本地兜底模式无法校验完整 profile'
+        summary: '后端确认不可用'
       },
       {
         key: 'simc_execution',
         title: 'SimC 执行',
         status: 'skipped',
         executor: 'simcraft',
-        summary: '未连接后端，未执行服务器 SimC',
+        summary: '需求未确认，未执行服务器 SimC',
         metric: ''
       },
       {
         key: 'ai_interpretation',
         title: 'AI 解读',
-        status: 'skipped',
+        status: 'failed',
         executor: 'llm',
-        summary: '未连接后端，未调用 LLM'
+        summary: '后端 LLM 确认不可用'
       }
     ],
     simulation: {
       ran: false,
       available: false,
       summary: '',
-      error: 'using local fallback'
+      error: reason || 'backend confirmation unavailable'
     },
     capabilities: {
       simcraft: false,
@@ -168,15 +155,14 @@ function fallbackSimulatorAnalysis(request) {
       llm: false
     },
     recommendations: [
-      '先补充职业专精、装等、目标场景和想解决的问题，后端会据此生成模板。',
-      '如果是 WCL 复盘，请补充具体战斗链接、难度、boss 和想解决的问题。'
+      '后端暂时无法完成 SimC 需求确认，请稍后重试。'
     ],
     llm: {
       prompt: '',
       called: false,
       model: '',
       content: '',
-      error: 'missing api base url'
+      error: reason || 'backend confirmation unavailable'
     },
     codex: {
       enabled: false,
@@ -189,88 +175,12 @@ function fallbackSimulatorAnalysis(request) {
   }
 }
 
+function fallbackSimulatorAnalysis(request) {
+  return unavailableSimulatorAnalysis(request, 'backend confirmation unavailable')
+}
+
 function agentClarificationPayload(request) {
-  const prompt = (request && (request.message || request.prompt)) || ''
-  return {
-    mode: 'simcraft_agent',
-    status: 'ready',
-    request: {
-      prompt,
-      message: prompt,
-      runSimulation: false
-    },
-    agent: {
-      status: 'needs_clarification',
-      round: (request && request.round) || 1,
-      intent: 'baseline',
-      missingSlots: ['specialization'],
-      question: '先告诉我职业和专精，再说想看单体、AOE、属性收益、天赋还是装备对比。',
-      quickReplies: fallbackAgentQuickReplies(request),
-      draftProfile: '',
-      validation: {
-        passed: false,
-        errors: ['missing specialization'],
-        warnings: []
-      },
-      summaryCards: [
-        { title: '结论', text: '本次没有执行真实 SimC：缺少职业专精。' },
-        { title: '下一步', text: '请补充职业专精、装等和目标场景。' }
-      ]
-    },
-    stages: [
-      {
-        key: 'profile_check',
-        title: 'Profile 检查',
-        status: 'blocked',
-        executor: 'backend',
-        summary: '缺少职业专精'
-      },
-      {
-        key: 'simc_execution',
-        title: 'SimC 执行',
-        status: 'skipped',
-        executor: 'simcraft',
-        summary: 'missing specialization',
-        metric: ''
-      },
-      {
-        key: 'ai_interpretation',
-        title: 'AI 解读',
-        status: 'skipped',
-        executor: 'llm',
-        summary: '等待补充职业专精和目标场景'
-      }
-    ],
-    simulation: {
-      ran: false,
-      available: false,
-      summary: '',
-      error: 'missing specialization'
-    },
-    capabilities: {
-      simcraft: false,
-      codex: false,
-      llm: false
-    },
-    recommendations: [
-      '先告诉我职业和专精，再说想看单体、AOE、属性收益、天赋还是装备对比。'
-    ],
-    llm: {
-      prompt: '',
-      called: false,
-      model: '',
-      content: '',
-      error: ''
-    },
-    codex: {
-      enabled: false,
-      called: false,
-      status: 'skipped',
-      jobId: '',
-      lastMessage: '',
-      error: 'missing specialization'
-    }
-  }
+  return unavailableSimulatorAnalysis(request, 'legacy backend response missing agent')
 }
 
 function isLegacyEmptyProfileAgentResponse(request, payload) {

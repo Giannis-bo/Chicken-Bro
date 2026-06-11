@@ -207,7 +207,7 @@ test('simulator analysis confirm-only requests do not require auth', async () =>
   assert.equal(captured.header.Authorization, undefined)
 })
 
-test('simulator agent recovers clarification UI when older backend returns empty profile', async () => {
+test('simulator agent fails closed when older backend returns empty profile', async () => {
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
     getStorageSync: () => '',
@@ -245,16 +245,17 @@ test('simulator agent recovers clarification UI when older backend returns empty
   })
 
   assert.equal(result.fromFallback, false)
-  assert.equal(result.payload.agent.status, 'needs_clarification')
+  assert.equal(result.payload.agent.status, 'confirmation_failed')
   assert.equal(result.payload.agent.intent, 'baseline')
-  assert.deepEqual(result.payload.agent.missingSlots, ['specialization'])
+  assert.deepEqual(result.payload.agent.missingSlots, [])
   assert.doesNotMatch(result.payload.agent.question, /\/simc|角色名|服务器/)
+  assert.equal(result.payload.stages[0].status, 'failed')
   assert.equal(result.payload.stages[1].status, 'skipped')
-  assert.equal(result.payload.simulation.error, 'missing specialization')
-  assert.match(result.payload.recommendations[0], /职业/)
+  assert.equal(result.payload.simulation.error, 'legacy backend response missing agent')
+  assert.match(result.payload.recommendations[0], /重试/)
 })
 
-test('simulator agent recovers clarification UI when older backend omits agent payload', async () => {
+test('simulator agent fails closed when older backend omits agent payload', async () => {
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
     getStorageSync: () => '',
@@ -288,13 +289,13 @@ test('simulator agent recovers clarification UI when older backend omits agent p
   })
 
   assert.equal(result.fromFallback, false)
-  assert.equal(result.payload.agent.status, 'needs_clarification')
+  assert.equal(result.payload.agent.status, 'confirmation_failed')
   assert.doesNotMatch(result.payload.agent.question, /\/simc|角色名|服务器/)
-  assert.match(result.payload.agent.question, /职业/)
+  assert.match(result.payload.agent.question, /重试/)
   assert.equal(result.payload.request.runSimulation, false)
 })
 
-test('simulator fallback clarification uses detected class quick replies', async () => {
+test('simulator fallback fails closed without local semantic quick replies', async () => {
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'release' } }),
     getStorageSync: () => '',
@@ -312,12 +313,10 @@ test('simulator fallback clarification uses detected class quick replies', async
   })
 
   assert.equal(result.fromFallback, true)
-  assert.deepEqual(result.payload.agent.quickReplies, [
-    '我是痛苦术，看大秘境 AOE',
-    '我是恶魔术，看大秘境 AOE',
-    '我是毁灭术，看大秘境 AOE'
-  ])
-  assert.doesNotMatch(result.payload.agent.quickReplies.join('\n'), /冰法|惩戒/)
+  assert.equal(result.payload.agent.status, 'confirmation_failed')
+  assert.deepEqual(result.payload.agent.quickReplies, [])
+  assert.match(result.payload.agent.question, /重试/)
+  assert.doesNotMatch(JSON.stringify(result.payload), /冰法|元素萨|恶魔术|惩戒/)
 })
 
 test('auth client exchanges wx.login code and stores backend token', async () => {

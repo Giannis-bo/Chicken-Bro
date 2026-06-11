@@ -54,6 +54,30 @@ test('simc quick replies are sent immediately and clear stale suggestions', () =
   assert.doesNotMatch(js, /useQuickReply\(event\)[\s\S]{0,180}setData\(\{\s*chatInput:\s*reply\s*\}\)/)
 })
 
+test('simc confirmation explains generated templates are preview-only', () => {
+  let pageDefinition = null
+  const originalPage = global.Page
+  global.Page = (definition) => {
+    pageDefinition = definition
+  }
+  delete require.cache[require.resolve('../pages/simulator/simc.js')]
+  require('../pages/simulator/simc.js')
+  global.Page = originalPage
+
+  const text = pageDefinition.aiTextFromAnalysis({
+    request: { profileSource: 'generated' },
+    agent: {
+      status: 'template_ready',
+      validation: { passed: true }
+    },
+    recommendations: ['需求已确认，可以提交 SimC 任务。']
+  })
+
+  assert.match(text, /模板预览/)
+  assert.match(text, /天赋导入码和手选装备数据/)
+  assert.doesNotMatch(text, /现在可以提交任务/)
+})
+
 test('simc page loads build context from specialization detail and confirms it', () => {
   const js = fs.readFileSync('pages/simulator/simc.js', 'utf8')
   const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
@@ -92,7 +116,8 @@ test('simulator page renders simc agent clarification and summary cards', () => 
   assert.doesNotMatch(wxml, /latestAnalysis\.agent\.summaryCards/)
   assert.doesNotMatch(wxml, /latestAnalysis\.agent\.draftProfile/)
   assert.match(api, /agent:\s*\{/)
-  assert.match(api, /needs_clarification/)
+  assert.match(api, /confirmation_failed/)
+  assert.doesNotMatch(api, /我是冰法|我是元素萨|我是恶魔术/)
   assert.match(css, /\.quick-reply/)
   assert.doesNotMatch(css, /\.agent-summary-list/)
   assert.doesNotMatch(css, /\.agent-template/)

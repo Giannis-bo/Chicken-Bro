@@ -116,8 +116,18 @@ Page({
   aiTextFromAnalysis(payload) {
     const agent = payload && payload.agent
     if (!agent) return '还缺职业专精或目标场景。请直接描述你玩的专精、装等，以及想看单体、AOE、属性收益还是装备对比。'
+    const profileSource = payload.request && payload.request.profileSource
+    if (agent.status === 'confirmation_failed') {
+      return agent.question || '后端暂时无法完成 SimC 需求确认，请稍后重试。'
+    }
+    if (profileSource === 'generated' && (agent.status === 'template_ready' || (agent.validation && agent.validation.passed))) {
+      return '需求已确认，当前是 SimC 模板预览。需要天赋导入码和手选装备数据后才会执行正式 DPS 模拟。'
+    }
+    if (profileSource === 'assembled' && agent.status === 'template_ready') {
+      return '需求、天赋和手选装备已确认，可以提交执行 SimC。'
+    }
     if (agent.status === 'template_ready' || (agent.validation && agent.validation.passed)) {
-      return '需求已确认，可以转成 SimC 模板。现在可以提交任务。'
+      return '需求和角色导出输入已确认，可以提交执行 SimC。'
     }
     if (agent.question) return agent.question
     const recommendation = payload.recommendations && payload.recommendations[0]

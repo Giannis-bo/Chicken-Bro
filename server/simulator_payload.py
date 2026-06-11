@@ -31,6 +31,86 @@ SIMC_AGENT_OFF_TOPIC_PATTERNS = [
     "写代码",
     "剧情",
 ]
+SIMC_AGENT_CONFIRMATION_STATUSES = {"needs_clarification", "template_ready", "off_topic"}
+SIMC_AGENT_CONFIRMATION_MISSING_SLOTS = {"specialization", "itemLevel", "scenario", "talents", "gear", "profile"}
+SIMC_AGENT_GEAR_SLOT_ALIASES = {
+    "head": "head",
+    "头": "head",
+    "头部": "head",
+    "neck": "neck",
+    "项链": "neck",
+    "肩": "shoulders",
+    "肩膀": "shoulders",
+    "shoulder": "shoulders",
+    "shoulders": "shoulders",
+    "back": "back",
+    "cloak": "back",
+    "披风": "back",
+    "chest": "chest",
+    "胸": "chest",
+    "胸甲": "chest",
+    "shirt": "shirt",
+    "衬衣": "shirt",
+    "tabard": "tabard",
+    "战袍": "tabard",
+    "wrist": "wrists",
+    "wrists": "wrists",
+    "bracer": "wrists",
+    "护腕": "wrists",
+    "hands": "hands",
+    "hand": "hands",
+    "gloves": "hands",
+    "手套": "hands",
+    "waist": "waist",
+    "belt": "waist",
+    "腰带": "waist",
+    "legs": "legs",
+    "leg": "legs",
+    "pants": "legs",
+    "腿": "legs",
+    "腿部": "legs",
+    "feet": "feet",
+    "boots": "feet",
+    "脚": "feet",
+    "鞋": "feet",
+    "finger1": "finger1",
+    "finger_1": "finger1",
+    "ring1": "finger1",
+    "戒指1": "finger1",
+    "戒指 1": "finger1",
+    "finger2": "finger2",
+    "finger_2": "finger2",
+    "ring2": "finger2",
+    "戒指2": "finger2",
+    "戒指 2": "finger2",
+    "trinket1": "trinket1",
+    "trinket_1": "trinket1",
+    "饰品1": "trinket1",
+    "饰品 1": "trinket1",
+    "trinket2": "trinket2",
+    "trinket_2": "trinket2",
+    "饰品2": "trinket2",
+    "饰品 2": "trinket2",
+    "main_hand": "main_hand",
+    "mainhand": "main_hand",
+    "main hand": "main_hand",
+    "weapon": "main_hand",
+    "武器": "main_hand",
+    "主手": "main_hand",
+    "off_hand": "off_hand",
+    "offhand": "off_hand",
+    "off hand": "off_hand",
+    "副手": "off_hand",
+}
+SIMC_AGENT_HERO_TALENT_ALIASES = [
+    {
+        "key": "rider_of_the_apocalypse",
+        "label": "天启",
+        "class": "deathknight",
+        "spec": "unholy",
+        "aliases": ["天启", "天启邪dk", "天启邪恶dk", "天启骑士", "天启流派"],
+    },
+]
 WOWGG_MYTHIC_PLUS_SAMPLE_WINDOW = "WoW.gg Midnight Mythic+ All Dungeons, All Keys, Week 12; last update 2026-06-10 10:46."
 WOWGG_MYTHIC_PLUS_SNAPSHOT = {
     "deathknight-blood": {"specName": "鲜血死亡骑士", "role": "tank", "avgDps": "105K", "maxDps": "147K", "maxKey": "+22", "sourcePath": "tank"},
@@ -561,9 +641,23 @@ def has_explicit_simc_agent_item_level(text):
     return False
 
 
+def infer_simc_agent_hero_talent(text, spec_info=None):
+    lowered = str(text or "").lower()
+    compact = re.sub(r"\s+", "", lowered)
+    for entry in SIMC_AGENT_HERO_TALENT_ALIASES:
+        if spec_info and entry.get("class") and entry["class"] != spec_info.get("class"):
+            continue
+        if spec_info and entry.get("spec") and entry["spec"] != spec_info.get("spec"):
+            continue
+        if any(alias.lower().replace(" ", "") in compact for alias in entry["aliases"]):
+            return entry
+    return None
+
+
 def build_agent_filled_slots(text, spec_info, scenario, item_level):
     class_info = infer_simc_agent_class(text)
-    return {
+    hero_talent = infer_simc_agent_hero_talent(text, spec_info)
+    slots = {
         "class": (spec_info or {}).get("class") or ((class_info or {}).get("class") or ""),
         "classLabel": (spec_info or {}).get("classLabel") or ((class_info or {}).get("label") or ""),
         "spec": (spec_info or {}).get("spec") or "",
@@ -573,6 +667,10 @@ def build_agent_filled_slots(text, spec_info, scenario, item_level):
         "fightStyle": scenario.get("fightStyle", ""),
         "targets": scenario.get("targets", 1),
     }
+    if hero_talent:
+        slots["heroTalent"] = hero_talent["label"]
+        slots["heroTalentKey"] = hero_talent["key"]
+    return slots
 
 
 def clean_context_value(value, limit=240):
@@ -602,6 +700,102 @@ def clean_context_rows(values, fields, limit=6):
     return rows
 
 
+def first_present(source, keys, default=""):
+    if not isinstance(source, dict):
+        return default
+    for key in keys:
+        if key in source and source.get(key) not in (None, ""):
+            return source.get(key)
+    return default
+
+
+def normalize_simc_slot(value):
+    key = re.sub(r"\s+", " ", str(value or "").strip().lower())
+    if not key:
+        return ""
+    return SIMC_AGENT_GEAR_SLOT_ALIASES.get(key) or SIMC_AGENT_GEAR_SLOT_ALIASES.get(key.replace("-", "_")) or ""
+
+
+def sanitize_simc_item_name(value, item_id=""):
+    text = str(value or "").strip().lower()
+    text = re.sub(r"[^a-z0-9]+", "_", text).strip("_")
+    if text:
+        return text[:80]
+    if item_id:
+        return f"item_{item_id}"
+    return "selected_item"
+
+
+def normalize_simc_option_value(value):
+    if isinstance(value, list):
+        values = [normalize_simc_option_value(item) for item in value]
+        return "/".join(item for item in values if item)
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return re.sub(r"[^A-Za-z0-9_:/.-]+", "", text)[:240]
+
+
+def normalize_simc_gear_item(value):
+    if not isinstance(value, dict):
+        return None
+    slot = normalize_simc_slot(first_present(value, ["slot", "slotKey", "equipmentSlot"]))
+    item_id = normalize_simc_option_value(first_present(value, ["id", "itemId", "item_id"]))
+    if not slot or not item_id:
+        return None
+
+    item = {
+        "slot": slot,
+        "name": sanitize_simc_item_name(first_present(value, ["name", "itemName", "displayName"]), item_id),
+        "id": item_id,
+    }
+    option_fields = [
+        ("ilevel", ["ilevel", "itemLevel", "item_level"]),
+        ("bonus_id", ["bonus_id", "bonusId", "bonusIds", "bonusListIDs"]),
+        ("gem_id", ["gem_id", "gemId", "gemIds"]),
+        ("gem_bonus_id", ["gem_bonus_id", "gemBonusId", "gemBonusIds"]),
+        ("gem_ilevel", ["gem_ilevel", "gemIlevel", "gemItemLevel", "gemItemLevels"]),
+        ("enchant_id", ["enchant_id", "enchantId", "enchant"]),
+        ("crafted_stats", ["crafted_stats", "craftedStats"]),
+        ("embellishment", ["embellishment"]),
+        ("source", ["source", "sourceName"]),
+    ]
+    for option_key, source_keys in option_fields:
+        option_value = normalize_simc_option_value(first_present(value, source_keys))
+        if option_value:
+            item[option_key] = option_value
+    return item
+
+
+def clean_simc_gear_items(values, limit=20):
+    if not isinstance(values, list):
+        return []
+    items = []
+    seen_slots = set()
+    for value in values:
+        item = normalize_simc_gear_item(value)
+        if not item or item["slot"] in seen_slots:
+            continue
+        seen_slots.add(item["slot"])
+        items.append(item)
+        if len(items) >= limit:
+            break
+    return items
+
+
+def build_simc_gear_lines(items):
+    lines = []
+    for item in items or []:
+        if not isinstance(item, dict) or not item.get("slot") or not item.get("id"):
+            continue
+        parts = [f'{item["slot"]}={item.get("name") or "selected_item"}', f'id={item["id"]}']
+        for option_key in ["ilevel", "bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats", "embellishment", "source"]:
+            if item.get(option_key):
+                parts.append(f"{option_key}={item[option_key]}")
+        lines.append(",".join(parts))
+    return lines
+
+
 def normalize_build_context(value):
     if not isinstance(value, dict):
         return None
@@ -609,6 +803,12 @@ def normalize_build_context(value):
     talents = details.get("talents") if isinstance(details.get("talents"), dict) else {}
     gear = details.get("gear") if isinstance(details.get("gear"), dict) else {}
     stat_weights = details.get("statWeights") if isinstance(details.get("statWeights"), dict) else {}
+    simulator_state = value.get("simulatorState") if isinstance(value.get("simulatorState"), dict) else {}
+    simulator_gear = simulator_state.get("gear") if isinstance(simulator_state.get("gear"), dict) else {}
+    gear_items = clean_simc_gear_items(
+        first_present(gear, ["simcItems", "selectedItems", "items"], [])
+        or first_present(simulator_gear, ["selectedItems", "simcItems", "items"], [])
+    )
     return {
         "specId": clean_context_value(value.get("specId"), 80),
         "className": clean_context_value(value.get("className"), 40),
@@ -629,10 +829,18 @@ def normalize_build_context(value):
             },
             "gear": {
                 "gear": clean_context_rows(gear.get("gear"), ["slot", "name", "source"], 8),
+                "simcItems": gear_items,
             },
             "statWeights": {
                 "stats": clean_context_rows(stat_weights.get("stats"), ["name", "value", "percent"], 6),
             },
+        },
+        "simulatorState": {
+            "gear": {
+                "selectedItems": gear_items,
+                "progressText": clean_context_value(simulator_gear.get("progressText"), 120),
+                "nextAction": clean_context_value(simulator_gear.get("nextAction"), 120),
+            }
         },
     }
 
@@ -651,7 +859,32 @@ def spec_info_from_build_context(context):
     return None
 
 
-def build_simc_agent_missing_slots(source_profile, generated_profile, spec_info, message, build_context=None):
+def build_context_talent_import_code(context):
+    if not context:
+        return ""
+    return (((context.get("details") or {}).get("talents") or {}).get("importCode") or "").strip()
+
+
+def build_context_gear_items(context):
+    if not context:
+        return []
+    details_items = (((context.get("details") or {}).get("gear") or {}).get("simcItems") or [])
+    state_items = (((context.get("simulatorState") or {}).get("gear") or {}).get("selectedItems") or [])
+    return clean_simc_gear_items(details_items or state_items)
+
+
+def request_gear_items(source, build_context=None):
+    source_items = []
+    if isinstance(source, dict):
+        gear_selection = source.get("gearSelection") if isinstance(source.get("gearSelection"), dict) else {}
+        source_items = clean_simc_gear_items(
+            first_present(gear_selection, ["items", "selectedItems", "simcItems"], [])
+            or first_present(source, ["gearItems", "simcGearItems"], [])
+        )
+    return source_items or build_context_gear_items(build_context)
+
+
+def build_simc_agent_missing_slots(source_profile, generated_profile, spec_info, message, build_context=None, gear_items=None):
     if source_profile:
         return []
     if not spec_info:
@@ -661,16 +894,14 @@ def build_simc_agent_missing_slots(source_profile, generated_profile, spec_info,
         missing_slots.append("itemLevel")
     if generated_profile and not has_explicit_simc_agent_scenario(message):
         missing_slots.append("scenario")
+    if generated_profile and not build_context_talent_import_code(build_context):
+        missing_slots.append("talents")
+    if generated_profile and not (gear_items or []):
+        missing_slots.append("gear")
     return missing_slots
 
 
-def build_context_talent_import_code(context):
-    if not context:
-        return ""
-    return (((context.get("details") or {}).get("talents") or {}).get("importCode") or "").strip()
-
-
-def build_generated_simc_profile(spec_info, item_level, build_context=None):
+def build_generated_simc_profile(spec_info, item_level, build_context=None, gear_items=None):
     if not spec_info:
         return ""
     default_race = SIMC_AGENT_DEFAULT_RACE_BY_CLASS.get(spec_info["class"], "troll")
@@ -685,6 +916,7 @@ def build_generated_simc_profile(spec_info, item_level, build_context=None):
     talent_code = build_context_talent_import_code(build_context)
     if talent_code:
         lines.append(f"talents={talent_code}")
+    lines.extend(build_simc_gear_lines(gear_items or build_context_gear_items(build_context)))
     return "\n".join(lines)
 
 
@@ -758,6 +990,161 @@ def build_mythic_plus_reference(profile, scenario):
             "sources": GENERIC_MYTHIC_PLUS_REFERENCE_SOURCES,
         }
     return json.loads(json.dumps(reference, ensure_ascii=False))
+
+
+def build_mythic_plus_reference_from_slots(filled_slots, scenario):
+    if not scenario or scenario.get("targets", 1) <= 1:
+        return None
+    if not filled_slots or not filled_slots.get("class") or not filled_slots.get("spec"):
+        return None
+    spec_key = f'{filled_slots["class"]}-{filled_slots["spec"]}'
+    reference = MYTHIC_PLUS_DPS_REFERENCES.get(spec_key)
+    if not reference:
+        return None
+    return json.loads(json.dumps(reference, ensure_ascii=False))
+
+
+def extract_json_object(text):
+    source = str(text or "").strip()
+    if not source:
+        return None
+    try:
+        payload = json.loads(source)
+    except json.JSONDecodeError:
+        start = source.find("{")
+        end = source.rfind("}")
+        if start < 0 or end <= start:
+            return None
+        try:
+            payload = json.loads(source[start:end + 1])
+        except json.JSONDecodeError:
+            return None
+    return payload if isinstance(payload, dict) else None
+
+
+def clean_confirmation_quick_replies(values):
+    if not isinstance(values, list):
+        return []
+    replies = []
+    for value in values[:3]:
+        text = clean_context_value(value, 40)
+        if text:
+            replies.append(text)
+    return replies
+
+
+def build_simc_confirmation_prompt(request_data, agent, draft_profile):
+    schema = {
+        "status": "needs_clarification | template_ready | off_topic",
+        "intent": "baseline | stat_weights | gear_compare | talent_compare | out_of_scope",
+        "filledSlots": {
+            "class": "deathknight",
+            "classLabel": "死亡骑士",
+            "spec": "unholy",
+            "specLabel": "邪恶",
+            "heroTalent": "天启",
+            "itemLevel": 278,
+            "scenario": "大秘境多目标",
+            "targets": 5,
+            "durationSeconds": 300,
+        },
+        "missingSlots": ["talents", "gear"],
+        "question": "下一句只问最少必要信息",
+        "quickReplies": ["打开天赋模拟器补天赋", "继续补装备", "我先只看参考区间"],
+    }
+    return "\n\n".join([
+        "你是 SimC 需求确认器，只能输出一个 JSON 对象，不要输出 Markdown。",
+        "目标：确认玩家的职业/专精/装等/场景/天赋/装备是否足以生成可复核 SimC profile。",
+        "硬规则：如果缺 talents 或真实 gear，不得返回 template_ready；不得编造装备、宝石、附魔、DPS 或角色导出。",
+        "硬规则：如果后端 deterministicSlots 已识别职业/专精，你必须保留，不得改成其它职业专精。",
+        f"允许的 JSON schema 示例：{json.dumps(schema, ensure_ascii=False)}",
+        f"玩家输入：{request_data.get('question') or request_data.get('prompt') or ''}",
+        f"deterministicSlots：{json.dumps(agent.get('filledSlots') or {}, ensure_ascii=False)}",
+        f"deterministicMissingSlots：{json.dumps(agent.get('missingSlots') or [], ensure_ascii=False)}",
+        f"当前 profileSource：{request_data.get('profileSource') or 'none'}",
+        f"当前 draftProfile：\n{(draft_profile or '')[:2000]}",
+    ]).strip()
+
+
+def call_simc_confirmation_llm(request_data, agent, draft_profile):
+    return call_chat_completion(
+        "你是 SimC 需求确认器。你必须只输出合法 JSON，不输出解释。",
+        build_simc_confirmation_prompt(request_data, agent, draft_profile),
+        temperature=0,
+    )
+
+
+def confirmation_failed_agent(base_agent, error):
+    agent = dict(base_agent)
+    agent.update({
+        "status": "confirmation_failed",
+        "confidence": 0,
+        "missingSlots": [],
+        "question": "后端暂时无法完成 SimC 需求确认，请稍后重试。",
+        "quickReplies": [],
+        "draftProfile": "",
+        "validation": {"passed": False, "errors": ["llm confirmation failed"], "warnings": [clean_context_value(error, 160)] if error else []},
+        "canSubmitTask": False,
+    })
+    return agent
+
+
+def normalize_confirmation_missing_slots(values, deterministic_missing):
+    missing = []
+    for slot in list(deterministic_missing or []) + list(values or []):
+        if slot in SIMC_AGENT_CONFIRMATION_MISSING_SLOTS and slot not in missing:
+            missing.append(slot)
+    return missing
+
+
+def apply_llm_confirmation(agent, llm_result, draft_profile):
+    if not llm_result.get("called") or llm_result.get("error"):
+        return confirmation_failed_agent(agent, llm_result.get("error") or "llm unavailable")
+    confirmation = extract_json_object(llm_result.get("content"))
+    if not confirmation:
+        return confirmation_failed_agent(agent, "invalid llm confirmation json")
+
+    status = confirmation.get("status")
+    if status not in SIMC_AGENT_CONFIRMATION_STATUSES:
+        return confirmation_failed_agent(agent, "invalid llm confirmation status")
+
+    deterministic_slots = agent.get("filledSlots") or {}
+    llm_slots = confirmation.get("filledSlots") if isinstance(confirmation.get("filledSlots"), dict) else {}
+    for key in ["class", "spec"]:
+        deterministic_value = deterministic_slots.get(key)
+        llm_value = llm_slots.get(key)
+        if deterministic_value and llm_value and deterministic_value != llm_value:
+            return confirmation_failed_agent(agent, f"llm changed {key}")
+
+    merged_slots = {**llm_slots, **deterministic_slots}
+    missing_slots = normalize_confirmation_missing_slots(confirmation.get("missingSlots"), agent.get("missingSlots") or [])
+    if missing_slots:
+        status = "needs_clarification"
+    elif agent.get("validation", {}).get("passed") and status != "off_topic":
+        status = "template_ready"
+
+    if missing_slots:
+        question = agent.get("question") or clean_context_value(confirmation.get("question"), 220)
+        quick_replies = agent.get("quickReplies") or clean_confirmation_quick_replies(confirmation.get("quickReplies"))
+    else:
+        question = clean_context_value(confirmation.get("question"), 220) or agent.get("question") or ""
+        quick_replies = clean_confirmation_quick_replies(confirmation.get("quickReplies")) or agent.get("quickReplies") or []
+    confirmed = dict(agent)
+    confirmed.update({
+        "status": status,
+        "intent": agent.get("intent") or confirmation.get("intent"),
+        "confidence": 0.9,
+        "missingSlots": missing_slots,
+        "filledSlots": merged_slots,
+        "question": "" if status == "template_ready" else question,
+        "quickReplies": [] if status == "template_ready" else quick_replies,
+        "draftProfile": draft_profile if status == "template_ready" else agent.get("draftProfile", ""),
+        "canSubmitTask": bool(status == "template_ready" and agent.get("validation", {}).get("passed")),
+    })
+    if status == "needs_clarification":
+        confirmed["validation"] = {"passed": False, "errors": missing_slots, "warnings": agent.get("validation", {}).get("warnings", [])}
+        confirmed["canSubmitTask"] = False
+    return confirmed
 
 
 def sanitize_simcraft_summary_for_llm(simulation):
@@ -877,7 +1264,7 @@ def build_guarded_llm_content(request_data, simulation, llm_result):
     metrics = (simulation or {}).get("metrics") or {}
     dps = metrics.get("dps", "")
     simc_error = str((simulation or {}).get("error") or "").strip()
-    needs_backend_guard = bool(reference and simc_error and not dps)
+    needs_backend_guard = bool(content and simc_error and not dps)
     needs_scale_guard = bool(reference and has_million_scale_dps_claim(content, reference))
     if not needs_backend_guard and not needs_scale_guard:
         return content
@@ -900,18 +1287,26 @@ def build_guarded_llm_content(request_data, simulation, llm_result):
             "3. **当前可给出的判断边界**：在后端没有生成完整可执行 SimC profile 前，"
             "只能用真实日志对标给保守区间；系统需要补齐武器、装备、饰品和天赋 slot 后，才能把 SimC 数值作为主结论。"
         )
-        verify_line = "验证方式：优先对比近两周同专精、相近装等、相近层数的大秘境日志；系统模板修复后再把模拟结果和日志区间并排输出。"
+        verify_line = "验证方式：优先对比近两周同专精、相近装等、相近层数的大秘境日志；补齐天赋和手选装备生成完整 SimC profile 后，再把模拟结果和日志区间并排输出。"
+
+    if reference:
+        reference_line = (
+            f"2. **真实大秘境对标**：{reference.get('specName', '')} 当前高端样本为 "
+            f"{reference.get('comparisonText') or mythic_plus_reference_comparison_text(reference)}，"
+            f"最高钥石 {reference.get('maxKey', '')}。结论必须围绕这个量级解释。"
+        )
+    else:
+        reference_line = (
+            "2. **横向对标状态**：本次请求没有可用的多目标真实日志参考；"
+            "不能补写合格 DPS 区间，也不能把 LLM 估算当作来源。"
+        )
 
     return "\n\n".join([
         "## 优先级最高的 3 条结论",
         f"1. **{simc_line}** 本次不能把未完成的 SimC 当作 DPS 标准，也不能从执行进度数字推断输出。",
-        (
-            f"2. **真实大秘境对标**：{reference.get('specName', '')} 当前高端样本为 "
-            f"{reference.get('comparisonText') or mythic_plus_reference_comparison_text(reference)}，"
-            f"最高钥石 {reference.get('maxKey', '')}。结论必须围绕这个量级解释。"
-        ),
+        reference_line,
         boundary_line,
-        verify_line,
+        f"{verify_line} 请补齐完整 SimC profile 后再复跑。",
     ])
 
 
@@ -943,16 +1338,26 @@ def validate_agent_simc_profile(profile):
 
 def build_agent_clarification_question(missing_slots, round_number, filled_slots=None):
     slots = filled_slots or {}
+    spec_label = f"{slots.get('specLabel', '')}{slots.get('classLabel', '')}".strip()
+    item_label = f"{slots.get('itemLevel')} 装等" if slots.get("itemLevel") else ""
+    scenario_label = slots.get("scenario") or "目标场景"
+    hero_label = f"（{slots.get('heroTalent')}流派）" if slots.get("heroTalent") else ""
     if "specialization" in missing_slots:
         if slots.get("classLabel"):
             specs = "、".join(next((entry["specs"] for entry in SIMC_AGENT_CLASS_PATTERNS if entry["class"] == slots.get("class")), []))
             return f"已收到：{slots.get('itemLevel')} 装等{slots.get('classLabel')}、{slots.get('scenario') or '目标场景'}。还差专精：{specs or '请补充具体专精'}。"
         return "先告诉我职业和专精，再说想看单体、AOE、属性收益、天赋还是装备对比。"
     if "itemLevel" in missing_slots and "scenario" in missing_slots:
-        spec_label = f"{slots.get('specLabel', '')}{slots.get('classLabel', '')}".strip()
         return f"已收到：{spec_label or '当前专精'}。还差装等和模拟场景，请补充例如“700 装等，单体 5 分钟”或“大秘境多目标”。"
     if "itemLevel" in missing_slots:
         return "还差装等：请告诉我当前角色装等，例如 700、710 或 720。"
+    if "talents" in missing_slots and "gear" in missing_slots:
+        recognized = "、".join(item for item in [f"{item_label}{spec_label}{hero_label}".strip(), scenario_label] if item)
+        return f"已识别：{recognized or '当前需求'}。还差天赋导入码和手选装备数据，才能生成可复核的 SimC profile。"
+    if "talents" in missing_slots:
+        return f"已识别：{item_label}{spec_label}{hero_label}、{scenario_label}。还差天赋导入码，才能把当前构筑写入 SimC profile。"
+    if "gear" in missing_slots:
+        return f"已识别：{item_label}{spec_label}{hero_label}、{scenario_label}。还差手选装备数据，包括 item id、装等、宝石和附魔。"
     return "还差一项关键信息：请说明这次要模拟单体、团本 Boss，还是大秘境多目标。"
 
 
@@ -965,6 +1370,12 @@ def build_agent_quick_replies(missing_slots, filled_slots=None):
         return ["我是冰法，看单体属性收益", "我是元素萨，看大秘境 AOE", "我是惩戒骑，比较装备收益"]
     if "itemLevel" in missing_slots:
         return ["700 装等，单体 5 分钟", "710 装等，大秘境多目标", "720 装等，比较装备收益"]
+    if "talents" in missing_slots and "gear" in missing_slots:
+        return ["打开天赋模拟器补天赋", "继续补装备", "我先只看参考区间"]
+    if "talents" in missing_slots:
+        return ["打开天赋模拟器补天赋", "我先只看参考区间"]
+    if "gear" in missing_slots:
+        return ["继续补装备", "我先只看参考区间"]
     return ["单体 5 分钟", "大秘境多目标", "比较装备收益"]
 
 
@@ -1224,7 +1635,7 @@ def heuristic_recommendations(request_data, simulation):
     if request_data["mode"] in {"simcraft", "simcraft_agent"}:
         dps = simulation.get("metrics", {}).get("dps")
         if request_data.get("profileSource") == "generated":
-            recommendations.append("已生成可执行 SimC 模板；未执行正式 SimC DPS 模拟。请提供完整 /simc 导出后再给出可用于对比的输出。")
+            recommendations.append("已识别 SimC 模板骨架；未执行正式 SimC DPS 模拟。请补齐天赋导入码和手选装备数据，或提供完整 SimC profile 后再给出可用于对比的输出。")
         elif simulation.get("ran") and dps:
             recommendations.append(f"本次 SimC 已跑通，当前 profile 约为 {dps} DPS；先把这个作为基准，再比较装备或天赋变体。")
         elif simulation.get("ran"):
@@ -1275,7 +1686,7 @@ def build_pipeline_stages(request_data, simulation, llm_result):
             "title": "正式 SimC DPS",
             "status": "skipped",
             "executor": "simcraft",
-            "summary": "generated 模板仅用于确认可生成；需要完整 /simc 导出后才执行正式 DPS 模拟。",
+            "summary": "generated 模板仅用于确认已识别槽位；需要天赋导入码和手选装备数据或完整 SimC profile 后才执行正式 DPS 模拟。",
             "metric": "",
         }
     elif simulation.get("ran"):
@@ -1369,9 +1780,11 @@ def analyze_simc_agent_request(payload, codex_runner=None):
     explicit_profile = str(source.get("profile") or "").strip()
     extracted_profile = extract_simc_profile_from_prompt(message)
     source_profile = explicit_profile or extracted_profile
-    generated_profile = "" if source_profile else build_generated_simc_profile(spec_info, item_level, build_context)
-    profile_source = "explicit" if explicit_profile else ("prompt" if extracted_profile else ("generated" if generated_profile else "none"))
-    missing_slots = build_simc_agent_missing_slots(source_profile, generated_profile, spec_info, message, build_context)
+    gear_items = request_gear_items(source, build_context)
+    generated_profile = "" if source_profile else build_generated_simc_profile(spec_info, item_level, build_context, gear_items)
+    assembled_profile = bool(generated_profile and build_context_talent_import_code(build_context) and gear_items)
+    profile_source = "explicit" if explicit_profile else ("prompt" if extracted_profile else ("assembled" if assembled_profile else ("generated" if generated_profile else "none")))
+    missing_slots = build_simc_agent_missing_slots(source_profile, generated_profile, spec_info, message, build_context, gear_items)
 
     request_data = {
         "mode": "simcraft_agent",
@@ -1409,7 +1822,7 @@ def analyze_simc_agent_request(payload, codex_runner=None):
             "validation": {"passed": False, "errors": ["out of scope"], "warnings": []},
             "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
         }
-        llm_result = call_llm(build_llm_prompt(request_data, simulation))
+        llm_result = skipped_llm_result("template confirmation") if confirm_only else call_llm(build_llm_prompt(request_data, simulation))
         codex_result = skipped_codex_worker_result("out of scope")
         return build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result)
 
@@ -1422,6 +1835,7 @@ def analyze_simc_agent_request(payload, codex_runner=None):
             "error": "; ".join(f"missing {slot}" for slot in missing_slots),
             "metrics": {},
         }
+        request_data["mythicPlusReference"] = build_mythic_plus_reference_from_slots(filled_slots, scenario)
         agent = {
             "status": status,
             "round": round_number,
@@ -1435,7 +1849,12 @@ def analyze_simc_agent_request(payload, codex_runner=None):
             "validation": {"passed": False, "errors": missing_slots, "warnings": []},
             "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
         }
-        llm_result = call_llm(build_llm_prompt(request_data, simulation))
+        if confirm_only:
+            llm_result = call_simc_confirmation_llm(request_data, agent, generated_profile)
+            agent = apply_llm_confirmation(agent, llm_result, generated_profile)
+            agent["summaryCards"] = build_agent_summary_cards(request_data, simulation, scenario)
+        else:
+            llm_result = call_llm(build_llm_prompt(request_data, simulation))
         codex_result = skipped_codex_worker_result("; ".join(f"missing {slot}" for slot in missing_slots))
         return build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result)
 
@@ -1492,9 +1911,14 @@ def analyze_simc_agent_request(payload, codex_runner=None):
         "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
         "scenario": scenario,
     }
-    llm_result = skipped_llm_result("template confirmation") if validation["passed"] and confirm_only else (
-        skipped_llm_result("generated template preview") if validation["passed"] and is_generated_profile else call_llm(build_llm_prompt(request_data, simulation))
-    )
+    if validation["passed"] and confirm_only:
+        llm_result = call_simc_confirmation_llm(request_data, agent, draft_profile)
+        agent = apply_llm_confirmation(agent, llm_result, draft_profile)
+        agent["summaryCards"] = build_agent_summary_cards(request_data, simulation, scenario)
+    elif validation["passed"] and is_generated_profile:
+        llm_result = skipped_llm_result("generated template preview")
+    else:
+        llm_result = call_llm(build_llm_prompt(request_data, simulation))
     codex_result = call_codex_worker(request_data, simulation, codex_runner=codex_runner) if validation["passed"] and not confirm_only and not is_generated_profile else skipped_codex_worker_result("template confirmation" if confirm_only else ("generated template preview" if is_generated_profile else "template invalid"))
     return build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result)
 
@@ -1505,10 +1929,17 @@ def build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_
     guarded_llm_content = build_guarded_llm_content(request_data, simulation, llm_result)
     if agent["status"] == "needs_clarification":
         recommendations = [agent["question"]]
+    elif agent["status"] == "confirmation_failed":
+        recommendations = [agent["question"]]
     elif agent["status"] == "off_topic":
         recommendations = [agent["question"]]
     elif agent["status"] == "template_ready":
-        recommendations = ["需求已确认，可以提交 SimC 任务。"]
+        if request_data.get("profileSource") == "generated":
+            recommendations = ["需求已确认，当前只能保存 SimC 模板预览；需要天赋导入码和手选装备数据或完整 SimC profile 后才会执行正式 DPS 模拟。"]
+        elif request_data.get("profileSource") == "assembled":
+            recommendations = ["需求、天赋和手选装备已确认，可以提交执行 SimC。"]
+        else:
+            recommendations = ["需求和 /simc 输入已确认，可以提交执行 SimC。"]
     return {
         "mode": "simcraft_agent",
         "status": "ready",
