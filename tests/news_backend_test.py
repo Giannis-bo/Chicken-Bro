@@ -862,6 +862,12 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["request"]["profileSource"], "generated")
         self.assertIn("iterations=500", executed_profile)
         self.assertNotIn("iterations=10000", executed_profile)
+        self.assertEqual(analysis["simulation"]["quality"], "preview")
+        self.assertEqual(analysis["simulation"]["metricLabel"], "模板试跑 DPS")
+        self.assertEqual(analysis["simulation"]["metricUnit"], "伤害/秒")
+        self.assertIn("模板试跑", analysis["recommendations"][0])
+        self.assertIn("伤害/秒", analysis["recommendations"][0])
+        self.assertNotIn("作为基准", analysis["recommendations"][0])
 
     def test_simulator_analysis_exposes_enabled_codex_worker_status(self):
         simc_bin = Path(self.tmp.name) / "fake-simc-codex"

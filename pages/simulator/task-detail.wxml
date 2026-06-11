@@ -52,7 +52,8 @@
           </view>
           <view class="result-strip">
             <view class="result-cell">
-              <text class="benchmark-label">DPS</text>
+              <text class="benchmark-label">{{detail.simcMetricLabel}}</text>
+              <text class="benchmark-unit">{{detail.simcUnitText}}</text>
               <text class="benchmark-value">{{detail.simcDps || '未解析'}}</text>
             </view>
           </view>

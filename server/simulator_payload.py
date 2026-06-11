@@ -1223,8 +1223,12 @@ def heuristic_recommendations(request_data, simulation):
     mythic_reference = request_data.get("mythicPlusReference") if isinstance(request_data, dict) else None
     if request_data["mode"] in {"simcraft", "simcraft_agent"}:
         dps = simulation.get("metrics", {}).get("dps")
-        if simulation.get("ran") and dps:
+        if simulation.get("ran") and dps and request_data.get("profileSource") == "generated":
+            recommendations.append(f"SimC 模板试跑已跑通，输出为 {dps} DPS（伤害/秒）；这只说明自动生成模板可执行，不能代表真实角色输出。")
+        elif simulation.get("ran") and dps:
             recommendations.append(f"本次 SimC 已跑通，当前 profile 约为 {dps} DPS；先把这个作为基准，再比较装备或天赋变体。")
+        elif simulation.get("ran") and request_data.get("profileSource") == "generated":
+            recommendations.append("SimC 模板试跑已跑通，但未解析到 DPS；它只表示自动生成模板可执行，正式比较仍需要完整 /simc 导出。")
         elif simulation.get("ran"):
             recommendations.append("本次 SimC 已跑通，先把返回摘要作为基准样本，再逐项比较装备、天赋和属性收益。")
         elif not request_data["profile"]:
@@ -1248,6 +1252,7 @@ def build_pipeline_stages(request_data, simulation, llm_result):
     profile_source = request_data.get("profileSource") or "none"
     dps = (simulation.get("metrics") or {}).get("dps", "")
     mythic_reference = request_data.get("mythicPlusReference") if isinstance(request_data, dict) else None
+    is_preview = profile_source == "generated"
 
     if has_profile:
         profile_stage = {
@@ -1267,12 +1272,12 @@ def build_pipeline_stages(request_data, simulation, llm_result):
         }
 
     if simulation.get("ran"):
-        simc_summary = "SimC 已执行成功"
+        simc_summary = "SimC 模板试跑已执行成功" if is_preview else "SimC 已执行成功"
         if dps:
-            simc_summary = f"SimC 已执行成功，DPS {dps}"
+            simc_summary = f"SimC 模板试跑已执行成功，{dps} DPS（伤害/秒）" if is_preview else f"SimC 已执行成功，DPS {dps}"
         simc_stage = {
             "key": "simc_execution",
-            "title": "SimC 执行",
+            "title": "SimC 模板试跑" if is_preview else "SimC 执行",
             "status": "completed",
             "executor": "simcraft",
             "summary": simc_summary,
@@ -1329,6 +1334,18 @@ def parse_simcraft_metrics(output):
     if dps_rank_match:
         metrics["dps"] = f"{float(dps_rank_match.group(1)):.3f}".rstrip("0").rstrip(".")
     return metrics
+
+
+def apply_simulation_metric_metadata(request_data, simulation):
+    if request_data.get("profileSource") == "generated":
+        simulation["quality"] = "preview"
+        simulation["metricLabel"] = "模板试跑 DPS"
+        simulation["metricUnit"] = "伤害/秒"
+    else:
+        simulation.setdefault("quality", "full")
+        simulation.setdefault("metricLabel", "DPS")
+        simulation.setdefault("metricUnit", "伤害/秒")
+    return simulation
 
 
 def analyze_simc_agent_request(payload, codex_runner=None):
@@ -1435,9 +1452,10 @@ def analyze_simc_agent_request(payload, codex_runner=None):
             "available": bool(simc_binary()),
             "summary": "",
             "error": "; ".join(validation["errors"]) or "template invalid",
-        }
+    }
     simulation = dict(simulation)
     simulation["metrics"] = simulation.get("metrics") or parse_simcraft_metrics(simulation.get("summary", ""))
+    simulation = apply_simulation_metric_metadata(request_data, simulation)
     status = "template_ready" if validation["passed"] and confirm_only else (
         "simc_completed" if simulation.get("ran") else ("template_invalid" if not validation["passed"] else "simc_failed")
     )
@@ -1513,9 +1531,10 @@ def analyze_simulator_request(payload, codex_runner=None):
             "available": bool(simc_binary()),
             "summary": "",
             "error": "missing simcraft profile" if is_simcraft_mode(request_data["mode"]) and not request_data["profile"] else "simulation not requested",
-        }
+    }
     simulation = dict(simulation)
     simulation["metrics"] = simulation.get("metrics") or parse_simcraft_metrics(simulation.get("summary", ""))
+    simulation = apply_simulation_metric_metadata(request_data, simulation)
     prompt = build_llm_prompt(request_data, simulation)
     llm_result = call_llm(prompt)
     guarded_llm_content = build_guarded_llm_content(request_data, simulation, llm_result)

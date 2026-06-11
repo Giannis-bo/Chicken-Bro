@@ -179,7 +179,11 @@ test('simulator task detail page renders saved task analysis', () => {
   assert.match(js, /summarizeTaskQuestion\(question\)/)
   assert.match(js, /heroTitle/)
   assert.match(js, /questionSummary/)
+  assert.match(js, /simcMetricLabel/)
+  assert.match(js, /simcUnitText/)
   assert.match(wxml, /detail\.simcDps/)
+  assert.match(wxml, /detail\.simcMetricLabel/)
+  assert.match(wxml, /detail\.simcUnitText/)
   assert.match(wxml, /detail\.briefConclusion/)
   assert.match(api, /requestSimulatorTaskDetail\(taskId\)/)
   assert.match(css, /\.task-detail-hero/)
@@ -231,6 +235,43 @@ test('task detail normalizes long build prompts into a compact report header', (
   assert.match(normalized.questionSummary, /冰霜法师的天赋构筑/)
   assert.doesNotMatch(normalized.questionSummary, new RegExp(longTalentCode))
   assert.ok(normalized.questionSummary.length < normalized.question.length)
+})
+
+test('task detail labels generated SimC values as preview damage per second', () => {
+  let pageDefinition = null
+  const originalPage = global.Page
+  global.Page = (definition) => {
+    pageDefinition = definition
+  }
+  delete require.cache[require.resolve('../pages/simulator/task-detail.js')]
+  require('../pages/simulator/task-detail.js')
+  global.Page = originalPage
+
+  const normalized = pageDefinition.normalizeTaskDetail({
+    taskId: 'task-preview',
+    mode: 'simcraft_agent',
+    question: '我是700装等冰法，想看大秘境 AOE DPS 是否合格',
+    request: {},
+    analysis: {
+      request: { profileSource: 'generated' },
+      simulation: {
+        ran: true,
+        quality: 'preview',
+        metricLabel: '模板试跑 DPS',
+        metricUnit: '伤害/秒',
+        metrics: { dps: '26.129' },
+        error: ''
+      },
+      recommendations: ['模板试跑已跑通，26.129 DPS 仅表示生成模板可执行。']
+    }
+  })
+
+  assert.equal(normalized.simcStatusText, '模板试跑')
+  assert.equal(normalized.simcMetricLabel, '模板试跑 DPS')
+  assert.equal(normalized.simcUnitText, '伤害/秒')
+  assert.match(normalized.briefConclusion, /模板试跑/)
+  assert.match(normalized.briefConclusion, /伤害\/秒/)
+  assert.doesNotMatch(normalized.briefConclusion, /基准/)
 })
 
 test('wcl analysis page submits WCL questions through the simulator analyzer', () => {

@@ -116,6 +116,14 @@
   font-weight: 700;
 }
 
+.benchmark-unit {
+  display: block;
+  margin-top: 4rpx;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 20rpx;
+  font-weight: 700;
+}
+
 .benchmark-value {
   display: block;
   margin-top: 8rpx;
