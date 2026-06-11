@@ -159,6 +159,23 @@ Player-facing task details should lead with the simplified conclusion, then show
 - Codex Worker remains an optional asynchronous reviewer. The main request path is backend validation, then SimC execution, then LLM interpretation.
 - The mini program does not hold OpenAI, Codex, or SimC credentials. All execution stays behind the backend.
 
+## SimC Conclusion Correctness Standard
+
+Passing tests is not sufficient unless the tests assert the semantic correctness of the player-facing SimC conclusion. Any change that touches SimC profile generation, DPS parsing, report wording, task detail rendering, or Mythic+ reference comparison must preserve these rules:
+
+- DPS always means raw damage per second. Do not imply `K`, `万`, or any scaled unit unless the value explicitly comes from a reference source that already labels it that way.
+- A `prompt` or `explicit` profile may be described as a runnable SimC result only when `simulation.ran=true` and `simulation.metrics.dps` was parsed from a final DPS line such as `DPS=` or `DPS Ranking`.
+- A `generated` profile is only a template execution check. It must use `simulation.quality=preview`, `metricLabel=模板试跑 DPS`, and `metricUnit=伤害/秒`; player-facing copy must not call it a real-character baseline, qualified DPS, or gearing conclusion.
+- Real Mythic+ reference values such as `168K` or `250K` must stay visually and semantically separate from SimC raw DPS. Reports must not compare a generated-template DPS value as if it were the same evidence type as real log data.
+- SimC failure, timeout, missing profile, or missing final DPS must never produce a simulated DPS claim. The report should state the backend reason and fall back to verified reference data or ask for a complete `/simc` export.
+- LLM output is not trusted for numeric truth. Backend guards and tests must reject unsupported million-scale claims, progress numbers, timestamps, iteration counts, report IDs, and any number not parsed from final SimC DPS output or trusted reference data.
+
+Required test coverage for future SimC changes:
+
+- Backend tests in `tests/news_backend_test.py` must cover DPS parsing from full SimC output before summary truncation, rejecting unrelated large numbers, generated-profile preview labeling, SimC failure wording, and Mythic+ reference guardrails.
+- Frontend tests in `tests/simulator-page.test.js` must cover the visible task-detail labels, units, and copy for generated preview metrics versus full `/simc` results.
+- A deployable SimC change must pass `python3 -m unittest discover -s tests -p '*_test.py'`, `node --test tests/*.test.js`, local `python3 server/simulator_e2e_smoke.py`, and after deployment the live smoke command below.
+
 ## Verification
 
 Local verification:
