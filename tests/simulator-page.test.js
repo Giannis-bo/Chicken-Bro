@@ -70,6 +70,16 @@ test('simc page loads build context from specialization detail and confirms it',
   assert.match(wxml, /buildContextTitle/)
 })
 
+test('simc prompt includes front-end talent and gear simulator state', () => {
+  const js = fs.readFileSync('pages/simulator/simc.js', 'utf8')
+
+  assert.match(js, /context\.simulatorState \|\| \{\}/)
+  assert.match(js, /talentState\.selectedNodes/)
+  assert.match(js, /talentState\.simcHint/)
+  assert.match(js, /gearState\.progressText/)
+  assert.match(js, /gearState\.nextAction/)
+})
+
 test('simulator page renders simc agent clarification and summary cards', () => {
   const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
   const css = fs.readFileSync('pages/simulator/simc.wxss', 'utf8')

@@ -66,13 +66,21 @@ Page({
     const talents = details.talents || {}
     const gearRows = (details.gear && details.gear.gear) || []
     const statRows = (details.statWeights && details.statWeights.stats) || []
+    const simulatorState = context.simulatorState || {}
+    const talentState = simulatorState.talent || {}
+    const gearState = simulatorState.gear || {}
+    const selectedTalentNodes = Array.isArray(talentState.selectedNodes) ? talentState.selectedNodes.join('、') : ''
     const gearNames = gearRows.slice(0, 4).map((item) => `${item.slot || '装备'}：${item.name}`).join('；')
     const stats = statRows.slice(0, 4).map((item) => item.name).join(' > ')
     return [
       `我从职业专精页带入了${context.specName || ''}${context.className || ''}的${context.activeQueryTitle || '构筑方案'}。`,
-      '请按大秘境多目标场景，先确认这个方案能否生成 SimC 任务。',
+      talentState.simcHint ? `请按${talentState.simcHint}场景，先确认这个方案能否生成 SimC 任务。` : '请按大秘境多目标场景，先确认这个方案能否生成 SimC 任务。',
       talents.importCode ? `天赋导入代码：${talents.importCode}` : '',
+      selectedTalentNodes ? `前端天赋模拟器已选择节点：${selectedTalentNodes}` : '',
+      talentState.summary ? `天赋模拟摘要：${talentState.summary}` : '',
       gearNames ? `装备候选：${gearNames}` : '',
+      gearState.progressText ? `装备获取进度：${gearState.progressText}` : '',
+      gearState.nextAction ? `装备下一步：${gearState.nextAction}` : '',
       stats ? `属性趋势：${stats}` : '',
       context.analysisWindow ? `样本窗口：${context.analysisWindow}` : ''
     ].filter(Boolean).join('\n')

@@ -13,10 +13,121 @@ const payload = fallbackPayload && Array.isArray(fallbackPayload.quickActions) ?
   trustedSources: []
 }
 const defaultSpecId = '法师-冰霜'
+const simulatorDefaults = {
+  talentScenarios: [
+    { key: 'mythicPlus', title: '大秘境', label: '多目标', simcHint: '大秘境多目标' },
+    { key: 'singleTarget', title: '单体', label: '5 分钟', simcHint: '单体 5 分钟' },
+    { key: 'raid', title: '团本', label: 'Boss', simcHint: '团本 Boss' }
+  ]
+}
+const talentScenarios = simulatorDefaults.talentScenarios
 
 function findQuery(queryKey) {
   const actions = Array.isArray(payload.quickActions) ? payload.quickActions : []
   return actions.find((item) => item.key === queryKey) || actions[0] || { key: 'talents', title: '天赋构筑', desc: '' }
+}
+
+function detailForQuery(selectedDetail, queryKey) {
+  const details = selectedDetail && selectedDetail.details ? selectedDetail.details : {}
+  return details[queryKey] || null
+}
+
+function gearKey(row, index) {
+  return `${row.slot || '装备'}-${row.name || index}-${index}`
+}
+
+function inferGearSourceType(source) {
+  const text = String(source || '').toLowerCase()
+  if (text.includes('dropped') || text.includes('drop') || text.includes('boss')) return '副本掉落'
+  if (text.includes('tier') || text.includes('set')) return '套装'
+  if (text.includes('crafted') || text.includes('craft')) return '制造'
+  if (text.includes('trinket')) return '饰品来源'
+  if (text.includes('archon') || text.includes('mythicstats')) return '样本热度'
+  if (text.includes('wowhead')) return '物品库'
+  return '来源待核'
+}
+
+function buildGearAcquisitionRows(activeDetail, acquiredKeys) {
+  const acquiredSet = new Set(Array.isArray(acquiredKeys) ? acquiredKeys : [])
+  const gearRows = activeDetail && Array.isArray(activeDetail.gear) ? activeDetail.gear : []
+  return gearRows.map((row, index) => {
+    const key = gearKey(row, index)
+    return {
+      ...row,
+      key,
+      priorityLabel: `优先级 ${index + 1}`,
+      sourceType: inferGearSourceType(row.source),
+      acquired: acquiredSet.has(key)
+    }
+  })
+}
+
+function buildGearProgressText(rows) {
+  if (!rows.length) return '暂无装备候选'
+  const acquiredCount = rows.filter((row) => row.acquired).length
+  return `已获取 ${acquiredCount}/${rows.length} 件`
+}
+
+function buildGearNextAction(rows) {
+  const nextRow = rows.find((row) => !row.acquired)
+  if (!nextRow) return rows.length ? '当前候选已全部标记获取，下一步进入 SimC 做真实收益校验。' : '等待装备数据刷新后再规划获取顺序。'
+  return `下一件：${nextRow.slot || '装备'} ${nextRow.name || '候选装备'} · ${nextRow.sourceType}`
+}
+
+function buildTalentNodeRows(activeDetail, selectedNodes) {
+  const selectedSet = new Set(Array.isArray(selectedNodes) ? selectedNodes : [])
+  const coreTalents = activeDetail && Array.isArray(activeDetail.coreTalents) ? activeDetail.coreTalents : []
+  return coreTalents.map((name, index) => ({
+    key: `${name}-${index}`,
+    name,
+    badge: index + 1,
+    selected: selectedSet.has(name)
+  }))
+}
+
+function buildTalentSimulationSummary(activeDetail, scenarioKey, selectedNodes) {
+  const scenario = talentScenarios.find((item) => item.key === scenarioKey) || talentScenarios[0]
+  const selectedList = Array.isArray(selectedNodes) ? selectedNodes : []
+  const selectedText = selectedList.length ? selectedList.join('、') : '未选择核心节点'
+  const codeText = activeDetail && activeDetail.importCode ? '已带入导入代码' : '缺少导入代码，仅作方向校验'
+  return `${scenario.title}${scenario.label}：${selectedText}；${codeText}。`
+}
+
+function createDetailDerivedState(selectedDetail, queryKey, state) {
+  const activeDetail = detailForQuery(selectedDetail, queryKey)
+  const talentDetail = detailForQuery(selectedDetail, 'talents')
+  const gearDetail = detailForQuery(selectedDetail, 'gear')
+  const currentState = state || {}
+  const baseTalents = talentDetail && Array.isArray(talentDetail.coreTalents) ? talentDetail.coreTalents : []
+  const activeTalentScenarioKey = currentState.activeTalentScenarioKey || talentScenarios[0].key
+  const selectedTalentNodes = Array.isArray(currentState.selectedTalentNodes)
+    ? currentState.selectedTalentNodes.filter((name) => baseTalents.includes(name))
+    : baseTalents.slice(0, 4)
+  const gearAcquiredKeys = Array.isArray(currentState.gearAcquiredKeys) ? currentState.gearAcquiredKeys : []
+  const talentNodeRows = buildTalentNodeRows(talentDetail, selectedTalentNodes)
+  const talentScenario = talentScenarios.find((item) => item.key === activeTalentScenarioKey) || talentScenarios[0]
+  const talentSimulationSummary = buildTalentSimulationSummary(talentDetail, talentScenario.key, selectedTalentNodes)
+  const gearAcquisitionRows = buildGearAcquisitionRows(gearDetail, gearAcquiredKeys)
+
+  return {
+    activeDetail,
+    activeTalentScenarioKey: talentScenario.key,
+    selectedTalentNodes,
+    talentNodeRows,
+    talentSimulationSummary,
+    talentSimulatorState: {
+      scenarioKey: talentScenario.key,
+      scenarioTitle: talentScenario.title,
+      simcHint: talentScenario.simcHint,
+      selectedNodes: selectedTalentNodes,
+      importCode: (talentDetail && talentDetail.importCode) || '',
+      summary: talentSimulationSummary
+    },
+    gearAcquiredKeys,
+    gearAcquisitionRows,
+    gearProgressText: buildGearProgressText(gearAcquisitionRows),
+    gearNextAction: buildGearNextAction(gearAcquisitionRows)
+  }
 }
 
 function createSelectionState(classIndex, specIndex, queryKey) {
@@ -35,7 +146,7 @@ function createSelectionState(classIndex, specIndex, queryKey) {
     specOptions,
     selectedSpec,
     selectedDetail: detail,
-    activeDetail: detail ? detail.details[queryKey] : null
+    ...createDetailDerivedState(detail, queryKey)
   }
 }
 
@@ -57,6 +168,7 @@ Page({
     navTitle: '职业专精查询',
     activeQueryKey: 'talents',
     activeQuery: findQuery('talents'),
+    talentScenarios,
     ...createSelectionState(defaultSelection.classIndex, defaultSelection.specIndex, 'talents'),
     loading: false,
     fromFallback: true,
@@ -115,7 +227,7 @@ Page({
     requestBuildsDetail(specId).then(({ payload, fromFallback, error }) => {
       this.setData({
         selectedDetail: payload,
-        activeDetail: payload ? payload.details[this.data.activeQueryKey] : null,
+        ...createDetailDerivedState(payload, this.data.activeQueryKey, this.data),
         fromFallback,
         requestError: error || ''
       })
@@ -140,8 +252,61 @@ Page({
       publishedAt: activeDetail.publishedAt || selectedDetail.publishedAt || '',
       analysisWindow: activeDetail.analysisWindow || selectedDetail.analysisWindow || '',
       sourceNote: activeDetail.sourceNote || selectedDetail.sourceNote || '',
-      details: selectedDetail.details || {}
+      details: selectedDetail.details || {},
+      simulatorState: {
+        talent: this.data.talentSimulatorState || {},
+        gear: {
+          progressText: this.data.gearProgressText || '',
+          nextAction: this.data.gearNextAction || '',
+          acquiredKeys: this.data.gearAcquiredKeys || []
+        }
+      }
     }
+  },
+
+  refreshDerivedState(overrides) {
+    const nextState = createDetailDerivedState(
+      this.data.selectedDetail,
+      this.data.activeQueryKey,
+      {
+        ...this.data,
+        ...(overrides || {})
+      }
+    )
+    this.setData(nextState)
+  },
+
+  setTalentScenario(event) {
+    const key = event.currentTarget.dataset.key || talentScenarios[0].key
+    this.refreshDerivedState({ activeTalentScenarioKey: key })
+  },
+
+  toggleTalentNode(event) {
+    const node = event.currentTarget.dataset.node || ''
+    if (!node) return
+    const selectedSet = new Set(this.data.selectedTalentNodes || [])
+    if (selectedSet.has(node)) {
+      selectedSet.delete(node)
+    } else {
+      selectedSet.add(node)
+    }
+    this.refreshDerivedState({ selectedTalentNodes: Array.from(selectedSet) })
+  },
+
+  toggleGearAcquired(event) {
+    const key = event.currentTarget.dataset.key || ''
+    if (!key) return
+    const acquiredSet = new Set(this.data.gearAcquiredKeys || [])
+    if (acquiredSet.has(key)) {
+      acquiredSet.delete(key)
+    } else {
+      acquiredSet.add(key)
+    }
+    this.refreshDerivedState({ gearAcquiredKeys: Array.from(acquiredSet) })
+  },
+
+  openTalentSimc() {
+    this.openSimcWithBuildContext()
   },
 
   openSimcWithBuildContext() {

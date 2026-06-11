@@ -41,6 +41,24 @@
         <view class="talent-chip-list" wx:if="{{activeDetail.coreTalents}}">
           <text class="talent-chip" wx:for="{{activeDetail.coreTalents}}" wx:key="*this">{{item}}</text>
         </view>
+        <view class="talent-simulator">
+          <view class="talent-scenario-tabs">
+            <view class="talent-scenario-tab {{activeTalentScenarioKey == item.key ? 'active' : ''}}" wx:for="{{talentScenarios}}" wx:key="key" data-key="{{item.key}}" bindtap="setTalentScenario">
+              <text class="scenario-title">{{item.title}}</text>
+              <text class="scenario-label">{{item.label}}</text>
+            </view>
+          </view>
+          <view class="talent-node-grid">
+            <view class="talent-node-chip {{item.selected ? 'selected' : ''}}" wx:for="{{talentNodeRows}}" wx:key="key" data-node="{{item.name}}" bindtap="toggleTalentNode">
+              <text class="talent-node-badge">{{item.badge}}</text>
+              <text class="talent-node-name">{{item.name}}</text>
+            </view>
+          </view>
+          <view class="talent-sim-summary">
+            <text>{{talentSimulationSummary}}</text>
+          </view>
+          <button class="talent-simc-button" bindtap="openTalentSimc">模拟这套天赋</button>
+        </view>
         <view class="insight-list">
           <text class="insight-item" wx:for="{{activeDetail.items}}" wx:key="*this">{{item}}</text>
         </view>
@@ -51,12 +69,21 @@
           <text class="panel-title">{{activeDetail.title}}</text>
           <text class="panel-subtitle">按部位展示装备、掉落来源和替代选择</text>
         </view>
+        <view class="gear-progress-panel">
+          <text class="gear-progress-main">{{gearProgressText}}</text>
+          <text class="gear-progress-next">{{gearNextAction}}</text>
+        </view>
         <view class="gear-list">
-          <view class="gear-row" wx:for="{{activeDetail.gear}}" wx:key="slot">
+          <view class="gear-row gear-acquisition-row {{item.acquired ? 'acquired' : ''}}" wx:for="{{gearAcquisitionRows}}" wx:key="key" data-key="{{item.key}}" bindtap="toggleGearAcquired">
             <text class="gear-slot">{{item.slot}}</text>
             <view class="gear-copy">
               <text class="gear-name">{{item.name}}</text>
               <text class="gear-source">{{item.source}}</text>
+            </view>
+            <view class="gear-meta">
+              <text class="gear-priority">{{item.priorityLabel}}</text>
+              <text class="gear-source-type">{{item.sourceType}}</text>
+              <text class="gear-check">{{item.acquired ? '已获取' : '待获取'}}</text>
             </view>
           </view>
         </view>
