@@ -9,6 +9,11 @@
       <text class="context-desc">{{desc}}</text>
     </view>
 
+    <view class="context-source" wx:if="{{buildContextTitle}}">
+      <text class="context-source-label">已带入</text>
+      <text class="context-source-title">{{buildContextTitle}}</text>
+    </view>
+
     <view class="chat-panel">
       <view class="chat-header">
         <text class="chat-title">SimC 需求确认</text>

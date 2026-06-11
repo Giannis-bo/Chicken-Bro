@@ -529,7 +529,7 @@ def build_agent_filled_slots(text, spec_info, scenario, item_level):
     class_info = infer_simc_agent_class(text)
     return {
         "class": (spec_info or {}).get("class") or ((class_info or {}).get("class") or ""),
-        "classLabel": (class_info or {}).get("label") or "",
+        "classLabel": (spec_info or {}).get("classLabel") or ((class_info or {}).get("label") or ""),
         "spec": (spec_info or {}).get("spec") or "",
         "itemLevel": item_level,
         "scenario": scenario.get("label", ""),
@@ -538,17 +538,103 @@ def build_agent_filled_slots(text, spec_info, scenario, item_level):
     }
 
 
-def build_generated_simc_profile(spec_info, item_level):
+def clean_context_value(value, limit=240):
+    return str(value or "").strip()[:limit]
+
+
+def clean_context_list(values, limit=6):
+    if not isinstance(values, list):
+        return []
+    return [clean_context_value(item, 120) for item in values[:limit] if clean_context_value(item, 120)]
+
+
+def clean_context_rows(values, fields, limit=6):
+    if not isinstance(values, list):
+        return []
+    rows = []
+    for row in values[:limit]:
+        if not isinstance(row, dict):
+            continue
+        cleaned = {
+            field: clean_context_value(row.get(field), 180)
+            for field in fields
+            if clean_context_value(row.get(field), 180)
+        }
+        if cleaned:
+            rows.append(cleaned)
+    return rows
+
+
+def normalize_build_context(value):
+    if not isinstance(value, dict):
+        return None
+    details = value.get("details") if isinstance(value.get("details"), dict) else {}
+    talents = details.get("talents") if isinstance(details.get("talents"), dict) else {}
+    gear = details.get("gear") if isinstance(details.get("gear"), dict) else {}
+    stat_weights = details.get("statWeights") if isinstance(details.get("statWeights"), dict) else {}
+    return {
+        "specId": clean_context_value(value.get("specId"), 80),
+        "className": clean_context_value(value.get("className"), 40),
+        "specName": clean_context_value(value.get("specName"), 40),
+        "role": clean_context_value(value.get("role"), 40),
+        "activeQueryKey": clean_context_value(value.get("activeQueryKey"), 40),
+        "activeQueryTitle": clean_context_value(value.get("activeQueryTitle"), 80),
+        "sourceName": clean_context_value(value.get("sourceName"), 80),
+        "publishedAt": clean_context_value(value.get("publishedAt"), 40),
+        "analysisWindow": clean_context_value(value.get("analysisWindow"), 260),
+        "sourceNote": clean_context_value(value.get("sourceNote"), 260),
+        "details": {
+            "talents": {
+                "importCode": clean_context_value(talents.get("importCode"), 400),
+                "sourceName": clean_context_value(talents.get("sourceName"), 80),
+                "sourceUrl": clean_context_value(talents.get("sourceUrl"), 180),
+                "coreTalents": clean_context_list(talents.get("coreTalents"), 8),
+            },
+            "gear": {
+                "gear": clean_context_rows(gear.get("gear"), ["slot", "name", "source"], 8),
+            },
+            "statWeights": {
+                "stats": clean_context_rows(stat_weights.get("stats"), ["name", "value", "percent"], 6),
+            },
+        },
+    }
+
+
+def spec_info_from_build_context(context):
+    if not context:
+        return None
+    spec_id = context.get("specId", "")
+    class_label = context.get("className", "")
+    spec_label = context.get("specName", "")
+    for entry in SIMC_AGENT_SPEC_PATTERNS:
+        if class_label and spec_label and entry["classLabel"] == class_label and entry["specLabel"] == spec_label:
+            return entry
+        if spec_id in {f'{entry["classLabel"]}-{entry["specLabel"]}', f'{entry["specLabel"]}{entry["classLabel"]}'}:
+            return entry
+    return None
+
+
+def build_context_talent_import_code(context):
+    if not context:
+        return ""
+    return (((context.get("details") or {}).get("talents") or {}).get("importCode") or "").strip()
+
+
+def build_generated_simc_profile(spec_info, item_level, build_context=None):
     if not spec_info:
         return ""
-    return "\n".join([
+    lines = [
         f'{spec_info["class"]}="{spec_info["actor"]}"',
         "level=80",
         "race=troll",
         f'role={spec_info["role"]}',
         f'spec={spec_info["spec"]}',
         f"scale_to_itemlevel={item_level}",
-    ])
+    ]
+    talent_code = build_context_talent_import_code(build_context)
+    if talent_code:
+        lines.append(f"talents={talent_code}")
+    return "\n".join(lines)
 
 
 def append_simc_option(lines, key, value):
@@ -660,6 +746,39 @@ def format_mythic_plus_reference_for_prompt(reference):
         *source_lines,
         "解释边界：",
         *note_lines,
+    ]).strip()
+
+
+def format_build_context_for_prompt(context):
+    if not context:
+        return ""
+    details = context.get("details") or {}
+    talents = details.get("talents") or {}
+    gear_rows = (details.get("gear") or {}).get("gear") or []
+    stat_rows = (details.get("statWeights") or {}).get("stats") or []
+    gear_lines = [
+        f"- {row.get('slot', '装备')}：{row.get('name', '')}；{row.get('source', '')}".strip("；")
+        for row in gear_rows[:6]
+    ]
+    stat_line = " > ".join(row.get("name", "") for row in stat_rows[:6] if row.get("name"))
+    talent_line = f"天赋导入代码：{talents.get('importCode')}" if talents.get("importCode") else "天赋导入代码：未提供，不能把当前天赋当作已精确模拟。"
+    source_line = "；".join(
+        item for item in [
+            context.get("sourceName", ""),
+            context.get("publishedAt", ""),
+            context.get("analysisWindow", ""),
+        ]
+        if item
+    )
+    return "\n".join([
+        f"专精：{context.get('specName', '')}{context.get('className', '')}；角色：{context.get('role', '')}",
+        f"入口：{context.get('activeQueryTitle') or context.get('activeQueryKey') or '职业专精详情'}",
+        f"来源：{source_line}",
+        talent_line,
+        "装备候选只能作为比较上下文；没有 item id、bonus id、enchant、gem 和当前角色导出时，不得硬写成 SimC gear 行。",
+        "装备候选：",
+        *(gear_lines or ["- 未提供装备候选"]),
+        f"属性趋势：{stat_line or '未提供'}",
     ]).strip()
 
 
@@ -890,11 +1009,13 @@ def normalize_analysis_request(payload):
         "wclUrl": str(source.get("wclUrl") or "").strip(),
         "question": str(source.get("question") or prompt or "").strip(),
         "runSimulation": run_simulation,
+        "buildContext": normalize_build_context(source.get("buildContext")),
     }
 
 
 def build_llm_prompt(request_data, simulation):
     mythic_plus_reference = request_data.get("mythicPlusReference") if isinstance(request_data, dict) else None
+    build_context = request_data.get("buildContext") if isinstance(request_data, dict) else None
     sections = [
         "你是魔兽世界构筑与日志分析助手，请给玩家可执行、可复核的建议。",
         f"分析模式：{request_data['mode']}",
@@ -912,6 +1033,8 @@ def build_llm_prompt(request_data, simulation):
         sections.append(f"SimCraft 执行错误：\n{simulation['error']}")
     if mythic_plus_reference:
         sections.append(f"真实大秘境对标：\n{format_mythic_plus_reference_for_prompt(mythic_plus_reference)}")
+    if build_context:
+        sections.append(f"构筑上下文：\n{format_build_context_for_prompt(build_context)}")
     if request_data["mode"] in {"simcraft", "simcraft_agent"} and not request_data["profile"]:
         sections.append("缺少可模拟模板：本次只可做输入说明和模板补全建议，不能声称已经完成 SimC 模拟。")
     if request_data["mode"] in {"simcraft", "simcraft_agent"}:
@@ -1135,29 +1258,33 @@ def parse_simcraft_metrics(output):
 
 def analyze_simc_agent_request(payload, codex_runner=None):
     source = payload if isinstance(payload, dict) else {}
+    build_context = normalize_build_context(source.get("buildContext"))
     message = simc_agent_message(source)
     round_number = normalize_agent_round(source.get("round") or source.get("conversationRound"))
     intent = infer_simc_agent_intent(message)
     scenario = infer_simc_agent_scenario(message)
-    spec_info = infer_simc_agent_specialization(message)
+    spec_info = infer_simc_agent_specialization(message) or spec_info_from_build_context(build_context)
     item_level = infer_simc_agent_item_level(message)
     filled_slots = build_agent_filled_slots(message, spec_info, scenario, item_level)
     explicit_profile = str(source.get("profile") or "").strip()
     extracted_profile = extract_simc_profile_from_prompt(message)
     source_profile = explicit_profile or extracted_profile
-    generated_profile = "" if source_profile else build_generated_simc_profile(spec_info, item_level)
+    generated_profile = "" if source_profile else build_generated_simc_profile(spec_info, item_level, build_context)
     profile_source = "explicit" if explicit_profile else ("prompt" if extracted_profile else ("generated" if generated_profile else "none"))
     missing_slots = [] if source_profile or generated_profile else ["specialization"]
 
     request_data = {
         "mode": "simcraft_agent",
-        "character": str(source.get("character") or "").strip(),
+        "character": str(source.get("character") or "").strip() or (
+            f"{build_context.get('specName', '')}{build_context.get('className', '')}" if build_context else ""
+        ),
         "prompt": message,
         "profile": "",
         "profileSource": profile_source,
         "wclUrl": str(source.get("wclUrl") or "").strip(),
         "question": message,
         "runSimulation": False,
+        "buildContext": build_context,
     }
     confirm_only = bool(source.get("confirmOnly"))
 

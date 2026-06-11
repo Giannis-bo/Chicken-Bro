@@ -3,6 +3,8 @@ const {
   requestSimulatorAnalysis
 } = require('./simulator-api')
 
+const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
+
 Page({
   data: {
     navTitle: '模拟 SimC',
@@ -26,9 +28,54 @@ Page({
     taskSubmitted: false,
     submittedTaskId: '',
     confirmedPrompt: '',
+    pendingBuildContext: null,
+    buildContextTitle: '',
     fromFallback: true,
     requestError: '',
     latestAnalysis: null
+  },
+
+  onLoad(options) {
+    this.loadBuildContext(options || {})
+  },
+
+  loadBuildContext(options) {
+    if (!options || options.from !== 'builds') return
+    if (typeof wx === 'undefined' || typeof wx.getStorageSync !== 'function') return
+    const context = wx.getStorageSync(SIMC_BUILD_CONTEXT_STORAGE_KEY)
+    if (!context || !context.specId) return
+    const prompt = this.buildPromptFromContext(context)
+    this.setData({
+      pendingBuildContext: context,
+      buildContextTitle: `${context.specName || ''}${context.className || ''} · ${context.activeQueryTitle || '构筑方案'}`,
+      messages: [
+        {
+          id: 'msg-0',
+          role: 'ai',
+          text: '已带入职业专精页的天赋、装备、属性和来源上下文。我会先确认能否生成 SimC 模板，再让你提交任务。'
+        }
+      ],
+      messageSeq: 1
+    }, () => {
+      this.sendChatContent(prompt, { buildContext: context })
+    })
+  },
+
+  buildPromptFromContext(context) {
+    const details = context.details || {}
+    const talents = details.talents || {}
+    const gearRows = (details.gear && details.gear.gear) || []
+    const statRows = (details.statWeights && details.statWeights.stats) || []
+    const gearNames = gearRows.slice(0, 4).map((item) => `${item.slot || '装备'}：${item.name}`).join('；')
+    const stats = statRows.slice(0, 4).map((item) => item.name).join(' > ')
+    return [
+      `我从职业专精页带入了${context.specName || ''}${context.className || ''}的${context.activeQueryTitle || '构筑方案'}。`,
+      '请按大秘境多目标场景，先确认这个方案能否生成 SimC 任务。',
+      talents.importCode ? `天赋导入代码：${talents.importCode}` : '',
+      gearNames ? `装备候选：${gearNames}` : '',
+      stats ? `属性趋势：${stats}` : '',
+      context.analysisWindow ? `样本窗口：${context.analysisWindow}` : ''
+    ].filter(Boolean).join('\n')
   },
 
   updateChatInput(event) {
@@ -94,9 +141,10 @@ Page({
     this.sendChatContent(content)
   },
 
-  sendChatContent(content) {
+  sendChatContent(content, options) {
     if (!content || this.data.loadingChat || this.data.canSubmitTask || this.data.taskSubmitted) return
 
+    const requestOptions = options || {}
     const nextRound = this.data.conversationRound + 1
     const userMessage = { id: `msg-${this.data.messageSeq}`, role: 'user', text: content }
     const nextMessages = this.data.messages.concat([userMessage])
@@ -117,14 +165,19 @@ Page({
         : this.data.latestAnalysis
     })
 
-    requestSimulatorAnalysis({
+    const requestPayload = {
       mode: 'simcraft_agent',
       message: prompt,
       prompt,
       round: nextRound,
       conversationRound: nextRound,
-      confirmOnly: true
-    }).then(({ payload, fromFallback, error }) => {
+      confirmOnly: true,
+      buildContext: this.data.pendingBuildContext
+    }
+    if (requestOptions.buildContext) requestPayload.buildContext = requestOptions.buildContext
+    if (!requestPayload.buildContext) delete requestPayload.buildContext
+
+    requestSimulatorAnalysis(requestPayload).then(({ payload, fromFallback, error }) => {
       const ready = this.isTaskReady(payload)
       this.appendMessages([
         { role: 'ai', text: this.aiTextFromAnalysis(payload) }
@@ -151,7 +204,8 @@ Page({
         prompt: this.data.confirmedPrompt,
         round: this.data.conversationRound,
         runSimulation: true,
-        saveTask: true
+        saveTask: true,
+        buildContext: this.data.pendingBuildContext
       }, { auth: true, allowInsecureGuestRequest: true })
     }).then(({ payload, fromFallback, error }) => {
       const saved = !!(payload && payload.taskId)

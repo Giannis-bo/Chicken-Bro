@@ -25,6 +25,14 @@
           <text class="task-desc detail-text" user-select="{{true}}">{{detail.question}}</text>
         </view>
 
+        <view class="section build-context-box" wx:if="{{detail.buildContextText}}">
+          <view class="section-header">
+            <text class="section-title">构筑上下文</text>
+            <text class="section-action">职业专精</text>
+          </view>
+          <text class="task-desc detail-text" user-select="{{true}}">{{detail.buildContextText}}</text>
+        </view>
+
         <view class="section" wx:if="{{detail.recommendations.length}}">
           <view class="section-header">
             <text class="section-title">AI 结论</text>

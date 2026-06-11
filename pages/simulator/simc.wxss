@@ -46,6 +46,33 @@
   line-height: 1.45;
 }
 
+.context-source {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-top: 14rpx;
+  padding: 14rpx 18rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.2);
+  border-radius: 14rpx;
+  background: rgba(248, 183, 0, 0.1);
+}
+
+.context-source-label {
+  flex: none;
+  color: #f8b700;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.context-source-title {
+  min-width: 0;
+  color: #ffffff;
+  font-size: 23rpx;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .chat-panel {
   min-height: 0;
   flex: 1;

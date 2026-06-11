@@ -130,3 +130,20 @@ test('query detail page can open on a specialization selected from intel cards',
   assert.match(js, /decodeURIComponent\(options\.spec\)/)
   assert.match(js, /findSpecSelection\(specId\)/)
 })
+
+test('query detail page can pass current talent and gear context to simc', () => {
+  const js = fs.readFileSync('pages/builds/detail.js', 'utf8')
+  const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
+  const css = fs.readFileSync('pages/builds/detail.wxss', 'utf8')
+
+  assert.match(wxml, /bindtap="openSimcWithBuildContext"/)
+  assert.match(wxml, /带当前构筑去 SimC/)
+  assert.match(js, /SIMC_BUILD_CONTEXT_STORAGE_KEY/)
+  assert.match(js, /buildSimcContext\(\)/)
+  assert.match(js, /details:\s*selectedDetail\.details \|\| \{\}/)
+  assert.match(js, /wx\.setStorageSync\(SIMC_BUILD_CONTEXT_STORAGE_KEY/)
+  assert.match(js, /\/pages\/simulator\/simc\?from=builds/)
+  assert.match(js, /fail:\s*\(error\) =>/)
+  assert.match(css, /\.simc-link-panel/)
+  assert.match(css, /\.simc-link-button/)
+})

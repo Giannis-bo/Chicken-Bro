@@ -102,6 +102,14 @@
         </view>
       </view>
 
+      <view class="simc-link-panel" wx:if="{{activeDetail}}">
+        <view class="simc-link-copy">
+          <text class="simc-link-title">用 SimC 校验当前方案</text>
+          <text class="simc-link-desc">带入当前专精、天赋、装备列表、属性趋势和来源证据，进入模拟器生成可提交任务。</text>
+        </view>
+        <button class="simc-link-button" bindtap="openSimcWithBuildContext">带当前构筑去 SimC</button>
+      </view>
+
       <view class="source-box" wx:if="{{activeDetail}}">
         <text class="source-box-title">来源与样本窗口</text>
         <text class="source-box-text">{{activeDetail.analysisWindow}}</text>

@@ -44,6 +44,18 @@ Agent behavior:
 - Mythic+ multi-target scenarios attach a WoW.gg Midnight Week 12 reference before the final report. DPS and tank specs use Avg DPS / Max DPS / Max Key; healer specs also include Avg HPS / Max HPS so the report does not judge healers by DPS alone.
 - Codex Worker is skipped until a validated executable template exists. The main path remains deterministic validation, server-side SimC execution, and optional LLM interpretation.
 
+## Builds-to-SimC Linkage
+
+The 职业专精 detail page is now a first-class SimC entry point. When a player taps `带当前构筑去 SimC`, the mini program stores a compact `buildContext` locally and navigates to `/pages/simulator/simc?from=builds`. The SimC page reads that context, shows the imported source, and automatically sends a confirmation prompt with the current specialization, active query, talent import code, gear candidates, stat trend, source name, publication date, and analysis window.
+
+Backend rules:
+
+- `buildContext` can fill class/spec when the player did not type them again in chat.
+- A talent import code from `buildContext.details.talents.importCode` is allowed to become `talents=<code>` in the generated SimC template.
+- Gear rows from `buildContext.details.gear.gear` remain comparison context only. They are not converted into SimC `gear_*` lines unless the system later has item id, bonus id, enchant, gem, and current-character export data.
+- The LLM prompt must label gear rows as candidates and preserve source evidence, so the report explains what can be compared now and what still requires a character export.
+- Saved task detail pages show the build context summary but intentionally hide the full generated SimC template and raw SimC output.
+
 The response adds an `agent` object:
 
 ```json

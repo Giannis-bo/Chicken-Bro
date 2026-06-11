@@ -42,6 +42,7 @@ Page({
     if (!task) return null
     const analysis = task.analysis || {}
     const request = task.request || {}
+    const analysisRequest = analysis.request || {}
     const agent = analysis.agent || {}
     const simulation = analysis.simulation || {}
     const metrics = simulation.metrics || {}
@@ -49,6 +50,7 @@ Page({
     const recommendations = (analysis.recommendations || task.recommendations || []).slice(0, 3)
     const simcDps = metrics.dps || ''
     const mythicPlusReference = analysis.mythicPlusReference || null
+    const buildContext = analysisRequest.buildContext || request.buildContext || null
     const mythicPlusReferenceText = mythicPlusReference
       ? (mythicPlusReference.comparisonText || `${mythicPlusReference.avgDps || ''} / ${mythicPlusReference.maxDps || ''}`)
       : ''
@@ -63,10 +65,29 @@ Page({
       recommendations,
       mythicPlusReference,
       mythicPlusReferenceText,
+      buildContext,
+      buildContextText: this.buildContextText(buildContext),
       stages: analysis.stages || [],
       simcDps,
       simcStatusText: simulation.ran ? '已跑通' : (simulation.error ? '未跑通' : '待执行'),
       createdAtText: task.createdAt || ''
     }
+  },
+
+  buildContextText(context) {
+    if (!context) return ''
+    const details = context.details || {}
+    const talents = details.talents || {}
+    const gearRows = (details.gear && details.gear.gear) || []
+    const gearNames = gearRows.slice(0, 3).map((item) => item.name).filter(Boolean).join('、')
+    const title = `${context.specName || ''}${context.className || ''}`
+    const source = context.sourceName || talents.sourceName || ''
+    return [
+      title ? `专精：${title}` : '',
+      context.activeQueryTitle ? `入口：${context.activeQueryTitle}` : '',
+      talents.importCode ? '已带入天赋导入代码' : '',
+      gearNames ? `装备候选：${gearNames}` : '',
+      source ? `来源：${source}` : ''
+    ].filter(Boolean).join('；')
   }
 })

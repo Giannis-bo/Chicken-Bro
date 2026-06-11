@@ -325,6 +325,66 @@ class NewsBackendTest(unittest.TestCase):
         self.assertFalse(analysis["simulation"]["ran"])
         self.assertEqual(analysis["simulation"]["error"], "")
 
+    def test_simc_agent_uses_build_context_for_talent_and_gear_linkage(self):
+        calls = []
+
+        def fake_call_chat_completion(system_prompt, user_prompt, temperature=0.2):
+            calls.append(user_prompt)
+            return {"called": True, "model": "fake", "content": "已读取构筑上下文。", "error": ""}
+
+        import server.simulator_payload as simulator_payload
+        simulator_payload.call_chat_completion = fake_call_chat_completion
+        build_context = {
+            "specId": "法师-冰霜",
+            "className": "法师",
+            "specName": "冰霜",
+            "role": "远程输出",
+            "activeQueryKey": "gear",
+            "sourceName": "Mythicstats + Wowhead",
+            "publishedAt": "2026-06-09",
+            "analysisWindow": "近 14 天高层大秘境样本",
+            "details": {
+                "talents": {
+                    "importCode": "CAE_CONTEXT",
+                    "coreTalents": ["Freezing Rain", "Splitting Ice"],
+                    "sourceName": "Wowhead",
+                },
+                "gear": {
+                    "gear": [
+                        {"slot": "饰品", "name": "Gaze of the Alnseer", "source": "Mythicstats top trinket"},
+                        {"slot": "武器", "name": "Umbral Spire of Zuraal", "source": "Zuraal"},
+                    ]
+                },
+                "statWeights": {
+                    "stats": [
+                        {"name": "Critical Strike", "value": "950", "percent": 95},
+                        {"name": "Mastery", "value": "803", "percent": 80},
+                    ]
+                },
+            },
+        }
+
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "simcraft_agent",
+                "round": 1,
+                "confirmOnly": True,
+                "message": "请按职业专精页里的方案，比较这套装备的大秘境 AOE 收益",
+                "buildContext": build_context,
+            }
+        )
+
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertEqual(analysis["agent"]["filledSlots"]["class"], "mage")
+        self.assertEqual(analysis["agent"]["filledSlots"]["spec"], "frost")
+        self.assertEqual(analysis["request"]["buildContext"]["specId"], "法师-冰霜")
+        self.assertIn("talents=CAE_CONTEXT", analysis["agent"]["draftProfile"])
+        self.assertNotIn("Gaze of the Alnseer=", analysis["agent"]["draftProfile"])
+        self.assertIn("构筑上下文", calls[0])
+        self.assertIn("天赋导入代码：CAE_CONTEXT", calls[0])
+        self.assertIn("Gaze of the Alnseer", calls[0])
+        self.assertIn("装备候选只能作为比较上下文", calls[0])
+
     def test_simc_agent_asks_for_playable_slots_not_external_sources(self):
         analysis = self.backend.analyze_simulator_request(
             {
@@ -1031,6 +1091,30 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(detail["task"]["question"], "290元素萨大秘境AOE")
         self.assertEqual(detail["task"]["request"]["prompt"], "290元素萨大秘境AOE")
         self.assertIn("analysis", detail["task"])
+
+    def test_guest_simulator_task_detail_preserves_build_context(self):
+        analysis = self.backend.analyze_and_store_simulator_task(
+            {
+                "mode": "simcraft_agent",
+                "prompt": "按职业专精页方案提交",
+                "saveTask": True,
+                "buildContext": {
+                    "specId": "法师-冰霜",
+                    "className": "法师",
+                    "specName": "冰霜",
+                    "details": {
+                        "talents": {"importCode": "CAE_CONTEXT"},
+                        "gear": {"gear": [{"slot": "饰品", "name": "Gaze of the Alnseer"}]},
+                    },
+                },
+            },
+            access_token="",
+        )
+        detail = self.backend.get_simulator_task("", analysis["taskId"], allow_guest=True)
+
+        self.assertEqual(detail["task"]["request"]["buildContext"]["specId"], "法师-冰霜")
+        self.assertEqual(detail["task"]["analysis"]["request"]["buildContext"]["specId"], "法师-冰霜")
+        self.assertIn("构筑上下文", detail["task"]["analysis"]["llm"]["prompt"])
 
     def test_guest_simulator_task_list_requires_explicit_guest_flag(self):
         self.backend.analyze_and_store_simulator_task(

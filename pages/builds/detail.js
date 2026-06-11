@@ -5,6 +5,7 @@ const {
   requestBuildsHome
 } = require('./builds-api')
 
+const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
 const fallbackPayload = fallbackBuildsHome()
 const payload = fallbackPayload && Array.isArray(fallbackPayload.quickActions) ? fallbackPayload : {
   quickActions: [],
@@ -120,6 +121,45 @@ Page({
       })
     }).finally(() => {
       this.setData({ loading: false })
+    })
+  },
+
+  buildSimcContext() {
+    const selectedDetail = this.data.selectedDetail || {}
+    const selectedSpec = this.data.selectedSpec || {}
+    const activeDetail = this.data.activeDetail || {}
+    const activeQuery = this.data.activeQuery || {}
+    return {
+      specId: selectedDetail.id || selectedSpec.id || '',
+      className: selectedDetail.className || selectedSpec.className || '',
+      specName: selectedDetail.specName || selectedSpec.specName || '',
+      role: selectedDetail.role || selectedSpec.role || '',
+      activeQueryKey: this.data.activeQueryKey,
+      activeQueryTitle: activeQuery.title || '',
+      sourceName: activeDetail.sourceName || selectedDetail.sourceName || '',
+      publishedAt: activeDetail.publishedAt || selectedDetail.publishedAt || '',
+      analysisWindow: activeDetail.analysisWindow || selectedDetail.analysisWindow || '',
+      sourceNote: activeDetail.sourceNote || selectedDetail.sourceNote || '',
+      details: selectedDetail.details || {}
+    }
+  },
+
+  openSimcWithBuildContext() {
+    if (!this.data.selectedDetail || !this.data.activeDetail) return
+    const context = this.buildSimcContext()
+    try {
+      wx.setStorageSync(SIMC_BUILD_CONTEXT_STORAGE_KEY, context)
+    } catch (error) {
+      console.error('Failed to store SimC build context', error)
+      wx.showToast({ title: '构筑上下文保存失败', icon: 'none' })
+      return
+    }
+    wx.navigateTo({
+      url: `/pages/simulator/simc?from=builds&spec=${encodeURIComponent(context.specId || '')}`,
+      fail: (error) => {
+        console.error('Failed to open SimC page', error)
+        wx.showToast({ title: '无法打开 SimC 页面', icon: 'none' })
+      }
     })
   }
 })

@@ -54,6 +54,22 @@ test('simc quick replies are sent immediately and clear stale suggestions', () =
   assert.doesNotMatch(js, /useQuickReply\(event\)[\s\S]{0,180}setData\(\{\s*chatInput:\s*reply\s*\}\)/)
 })
 
+test('simc page loads build context from specialization detail and confirms it', () => {
+  const js = fs.readFileSync('pages/simulator/simc.js', 'utf8')
+  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
+
+  assert.match(js, /SIMC_BUILD_CONTEXT_STORAGE_KEY/)
+  assert.match(js, /onLoad\(options\)/)
+  assert.match(js, /loadBuildContext\(options\)/)
+  assert.match(js, /wx\.getStorageSync\(SIMC_BUILD_CONTEXT_STORAGE_KEY\)/)
+  assert.match(js, /buildPromptFromContext\(context\)/)
+  assert.match(js, /this\.sendChatContent\(prompt,\s*\{ buildContext: context \}\)/)
+  assert.match(js, /pendingBuildContext/)
+  assert.match(js, /buildContext:\s*this\.data\.pendingBuildContext/)
+  assert.match(wxml, /context-source/)
+  assert.match(wxml, /buildContextTitle/)
+})
+
 test('simulator page renders simc agent clarification and summary cards', () => {
   const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
   const css = fs.readFileSync('pages/simulator/simc.wxss', 'utf8')
@@ -135,6 +151,7 @@ test('simulator task detail page renders saved task analysis', () => {
   assert.match(wxml, /detail\.recommendations/)
   assert.match(wxml, /detail\.mythicPlusReference/)
   assert.match(wxml, /detail\.mythicPlusReferenceText/)
+  assert.match(wxml, /detail\.buildContextText/)
   assert.match(wxml, /detail\.stages/)
   assert.doesNotMatch(wxml, /detail\.draftProfile/)
   assert.doesNotMatch(wxml, /detail\.simulationSummary/)
@@ -144,6 +161,7 @@ test('simulator task detail page renders saved task analysis', () => {
   assert.match(wxml, /detail\.briefConclusion/)
   assert.match(api, /requestSimulatorTaskDetail\(taskId\)/)
   assert.match(css, /\.task-detail-hero/)
+  assert.match(css, /\.build-context-box/)
   assert.doesNotMatch(css, /\.detail-code/)
 })
 

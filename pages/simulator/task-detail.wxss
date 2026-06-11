@@ -64,6 +64,10 @@
   color: #d9dadd;
 }
 
+.build-context-box {
+  border-color: rgba(248, 183, 0, 0.18);
+}
+
 .benchmark-grid {
   display: flex;
   gap: 14rpx;

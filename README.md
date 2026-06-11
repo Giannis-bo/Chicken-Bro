@@ -19,8 +19,8 @@
 | --- | --- | --- |
 | 最新资讯 | `pages/news/news` | 由 Lighthouse 轻量后端提供正式服、测试服、职业强度动态与来源记录 |
 | 职业专精 | `pages/builds/builds` | 高端玩家构筑、天赋构筑、装备获取、属性权重与输出循环 |
-| 副本 | `pages/pve/pve` | 当前赛季大秘境专区、团队 raid 专区、来源和分析窗口 |
-| 模拟器 | `pages/simulator/simulator` | SimCraft、WCL、配装对比、AI 分析建议 |
+| PVE专区 | `pages/pve/pve` | 当前赛季大秘境专区、团队 raid 专区、来源和分析窗口 |
+| 智能分析 | `pages/simulator/simulator` | SimCraft、WCL、配装对比、AI 分析建议；职业专精详情可带入天赋/装备上下文生成 SimC 任务 |
 | 我的 | `pages/profile/profile` | 角色偏好、收藏职业、订阅与数据源设置 |
 
 ## 目录结构
@@ -72,6 +72,8 @@ WOW_NEWS_PORT=8787 python3 server/news_backend.py
 - `GET /api/pve/module?key=bossGuides`
 - `GET /api/simulator/home`
 - `POST /api/simulator/analyze`
+- `GET /api/simulator/tasks?guest=1`
+- `GET /api/simulator/task?id=...&guest=1`
 
 小程序默认在开发版访问 `http://124.223.51.33`。体验版/正式版需要通过 `getApp().globalData.backendApiBaseUrl`、本地缓存 `wow_backend_api_base_url`，或构建环境变量 `WOW_BACKEND_API_BASE_URL` 配置 HTTPS 合法域名；未配置时会使用本地 fallback payload，避免空屏。
 
