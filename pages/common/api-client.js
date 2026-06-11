@@ -44,12 +44,12 @@ function requestJson(path, options) {
       resolve({ payload: requestOptions.fallback(), fromFallback: true, error: 'missing api base url' })
       return
     }
-    if (requestOptions.auth && isInsecureHttpUrl(url)) {
+    if (requestOptions.auth && isInsecureHttpUrl(url) && !requestOptions.allowInsecureGuestRequest) {
       resolve({ payload: requestOptions.fallback(), fromFallback: true, error: 'insecure api base url for authenticated request' })
       return
     }
     const header = Object.assign({}, requestOptions.header || {})
-    if (requestOptions.auth && typeof wx !== 'undefined' && typeof wx.getStorageSync === 'function') {
+    if (requestOptions.auth && !isInsecureHttpUrl(url) && typeof wx !== 'undefined' && typeof wx.getStorageSync === 'function') {
       const token = wx.getStorageSync(AUTH_TOKEN_STORAGE_KEY)
       if (token) header.Authorization = `Bearer ${token}`
     }

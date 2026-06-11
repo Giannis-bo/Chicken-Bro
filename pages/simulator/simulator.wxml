@@ -8,122 +8,36 @@
         <text class="hero-desc">{{desc}}</text>
       </view>
 
-      <view class="metrics">
-        <view class="metric-card" wx:for="{{metrics}}" wx:key="label">
-          <text class="metric-value">{{item.value}}</text>
-          <text class="metric-label">{{item.label}}</text>
-        </view>
-      </view>
-
-      <view class="section sim-panel">
-        <view class="section-header">
-          <text class="section-title">SimC Agent</text>
-          <text class="section-action">{{loading ? '运行中' : '可提交'}}</text>
-        </view>
-        <textarea
-          class="sim-input"
-          value="{{simPrompt}}"
-          maxlength="6000"
-          auto-height="{{false}}"
-          bindinput="updateSimPrompt"
-          placeholder="粘贴 SimCraft profile 或输入你想比较的问题"
-        />
-        <button class="submit-button" loading="{{loading}}" disabled="{{loading}}" bindtap="submitSimulation">提交模拟</button>
-      </view>
-
-      <view class="section">
-        <view class="section-header">
-          <text class="section-title">高级工具</text>
-          <text class="section-action">新建</text>
-        </view>
-        <view class="quick-grid">
-          <view class="quick-item" wx:for="{{quickActions}}" wx:key="title" data-key="{{item.key}}" bindtap="openTool">
-            <text class="quick-title">{{item.title}}</text>
-            <text class="quick-desc">{{item.desc}}</text>
+      <view class="analysis-modules">
+        <view
+          class="analysis-module-card module-{{item.key}}"
+          wx:for="{{analysisModules}}"
+          wx:key="key"
+          data-key="{{item.key}}"
+          bindtap="openAnalysisModule"
+        >
+          <view class="module-heading">
+            <text class="module-badge">{{item.badge}}</text>
+            <text class="module-action">{{item.action}}</text>
           </view>
+          <text class="module-title">{{item.title}}</text>
+          <text class="module-desc">{{item.desc}}</text>
         </view>
       </view>
 
-      <view class="section" wx:if="{{latestAnalysis}}">
+      <view class="section task-section">
         <view class="section-header">
-          <text class="section-title">分析结果</text>
-          <text class="section-action">{{latestAnalysis.mode}}</text>
+          <text class="section-title">任务列表</text>
+          <text class="section-action">最近记录</text>
         </view>
         <view class="task-list">
-          <view class="task-card agent-card" wx:if="{{latestAnalysis.agent}}">
-            <view class="task-row">
-              <text class="task-title">SimC Agent</text>
-              <text class="task-status">{{latestAnalysis.agent.status}}</text>
-            </view>
-            <text class="task-desc" wx:if="{{latestAnalysis.agent.question}}" user-select="{{true}}">{{latestAnalysis.agent.question}}</text>
-            <view class="quick-reply-list" wx:if="{{latestAnalysis.agent.quickReplies && latestAnalysis.agent.quickReplies.length}}">
-              <button
-                class="quick-reply"
-                wx:for="{{latestAnalysis.agent.quickReplies}}"
-                wx:key="*this"
-                data-reply="{{item}}"
-                bindtap="useQuickReply"
-              >{{item}}</button>
-            </view>
-          </view>
-          <view class="task-card agent-card" wx:if="{{latestAnalysis.agent && latestAnalysis.agent.summaryCards && latestAnalysis.agent.summaryCards.length}}">
-            <text class="task-title">简化结论</text>
-            <view class="agent-summary-list">
-              <view class="agent-summary-row" wx:for="{{latestAnalysis.agent.summaryCards}}" wx:key="title">
-                <text class="stage-title">{{item.title}}</text>
-                <text class="task-desc" user-select="{{true}}">{{item.text}}</text>
-              </view>
-            </view>
-          </view>
-          <view class="task-card stage-card" wx:if="{{latestAnalysis.stages && latestAnalysis.stages.length}}">
-            <text class="task-title">执行路径</text>
-            <text class="task-desc">Profile 检查 / SimC 执行 / AI 解读</text>
-            <view class="stage-list">
-              <view class="stage-row" wx:for="{{latestAnalysis.stages}}" wx:key="key">
-                <view class="stage-main">
-                  <text class="stage-title">{{item.title}}</text>
-                  <text class="stage-executor">{{item.executor}}</text>
-                </view>
-                <text class="stage-status">{{item.status}}</text>
-                <text class="task-desc" user-select="{{true}}">{{item.summary}}</text>
-              </view>
-            </view>
-          </view>
-          <view class="task-card ai-advice-card" wx:if="{{latestAnalysis.llm && latestAnalysis.llm.content}}">
-            <text class="task-title">AI 建议</text>
-            <text class="task-desc ai-advice-text" user-select="{{true}}">{{latestAnalysis.llm.content}}</text>
-          </view>
-          <view class="task-card" wx:if="{{latestAnalysis.simulation && (latestAnalysis.simulation.ran || latestAnalysis.simulation.error)}}">
-            <text class="task-title">SimC 状态</text>
-            <text class="task-desc" user-select="{{true}}">{{latestAnalysis.simulation.ran ? '已执行成功' : latestAnalysis.simulation.error}}</text>
-          </view>
-          <view class="task-card" wx:if="{{latestAnalysis.codex}}">
-            <text class="task-title">Codex Worker</text>
-            <text class="task-desc" user-select="{{true}}">{{latestAnalysis.codex.called ? latestAnalysis.codex.status : '未调用'}}</text>
-            <text class="task-desc" wx:if="{{latestAnalysis.codex.lastMessage}}" user-select="{{true}}">{{latestAnalysis.codex.lastMessage}}</text>
-            <text class="task-desc" wx:if="{{latestAnalysis.codex.error && latestAnalysis.codex.called}}" user-select="{{true}}">{{latestAnalysis.codex.error}}</text>
-          </view>
-          <view class="task-card" wx:if="{{latestAnalysis.simulation && latestAnalysis.simulation.summary}}">
-            <text class="task-title">SimC 摘要</text>
-            <text class="task-desc" user-select="{{true}}">{{latestAnalysis.simulation.summary}}</text>
-          </view>
-          <view class="task-card agent-card" wx:if="{{latestAnalysis.agent && latestAnalysis.agent.draftProfile}}">
-            <text class="task-title">生成的 SimC 模板</text>
-            <text class="task-desc agent-template" user-select="{{true}}">{{latestAnalysis.agent.draftProfile}}</text>
-          </view>
-          <view class="task-card" wx:for="{{latestAnalysis.recommendations}}" wx:key="*this">
-            <text class="task-desc" user-select="{{true}}">{{item}}</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="section">
-        <view class="section-header">
-          <text class="section-title">最近分析</text>
-          <text class="section-action">历史</text>
-        </view>
-        <view class="task-list">
-          <view class="task-card" wx:for="{{tasks}}" wx:key="title">
+          <view
+            class="task-card"
+            wx:for="{{tasks}}"
+            wx:key="taskId"
+            data-task-id="{{item.taskId}}"
+            bindtap="openTaskDetail"
+          >
             <view class="task-row">
               <text class="task-title">{{item.title}}</text>
               <text class="task-status">{{item.status}}</text>

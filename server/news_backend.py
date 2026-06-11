@@ -31,6 +31,7 @@ PORT = int(os.environ.get("WOW_NEWS_PORT", "8787"))
 ENABLE_COLLECTORS = os.environ.get("WOW_NEWS_ENABLE_COLLECTORS", "0") == "1"
 PUBLIC_REFRESH_MODES = {"manual", "scheduled"}
 AUTH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
+GUEST_SIMULATOR_OPENID = "guest-simulator"
 
 CHANNELS = [
     {"id": "retail", "title": "正式服动态", "desc": "官方公告、热修、活动与正式服版本内容"},
@@ -460,6 +461,10 @@ def authenticate_token(token):
     return public_user_from_row(row)
 
 
+def guest_simulator_user():
+    return upsert_wechat_user(GUEST_SIMULATOR_OPENID)
+
+
 def clean_text(value, limit):
     return str(value or "").strip()[:limit]
 
@@ -502,6 +507,8 @@ def update_user_profile(access_token, profile):
 def analyze_and_store_simulator_task(request_data, access_token=""):
     analysis = analyze_simulator_request(request_data)
     user = authenticate_token(access_token)
+    if not user and (request_data or {}).get("saveTask"):
+        user = guest_simulator_user()
     if not user:
         return analysis
 
@@ -536,8 +543,10 @@ def analyze_and_store_simulator_task(request_data, access_token=""):
     return analysis
 
 
-def list_simulator_tasks(access_token):
+def list_simulator_tasks(access_token, allow_guest=False):
     user = authenticate_token(access_token)
+    if not user and allow_guest:
+        user = guest_simulator_user()
     if not user:
         raise PermissionError("invalid auth token")
 
@@ -556,18 +565,67 @@ def list_simulator_tasks(access_token):
     for row in rows:
         request_payload = safe_json_loads(row[3], {}, f"simulator task request {row[0]}")
         analysis_payload = safe_json_loads(row[4], {}, f"simulator task analysis {row[0]}")
+        question = (
+            request_payload.get("question")
+            or request_payload.get("prompt")
+            or request_payload.get("message")
+            or ""
+        )
         tasks.append(
             {
                 "taskId": row[0],
                 "mode": row[1],
                 "status": row[2],
-                "question": request_payload.get("question", ""),
+                "question": question,
                 "recommendations": analysis_payload.get("recommendations", []),
                 "createdAt": row[5],
                 "updatedAt": row[6],
             }
         )
     return {"user": user, "tasks": tasks}
+
+
+def get_simulator_task(access_token, task_id, allow_guest=False):
+    user = authenticate_token(access_token)
+    if not user and allow_guest:
+        user = guest_simulator_user()
+    if not user:
+        raise PermissionError("invalid auth token")
+
+    with db_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT id, mode, status, request_json, analysis_json, created_at, updated_at
+            FROM simulator_tasks
+            WHERE user_id = ? AND id = ?
+            """,
+            (user["id"], task_id),
+        ).fetchone()
+    if not row:
+        raise KeyError("simulator task not found")
+
+    request_payload = safe_json_loads(row[3], {}, f"simulator task request {row[0]}")
+    analysis_payload = safe_json_loads(row[4], {}, f"simulator task analysis {row[0]}")
+    question = (
+        request_payload.get("question")
+        or request_payload.get("prompt")
+        or request_payload.get("message")
+        or ""
+    )
+    return {
+        "user": user,
+        "task": {
+            "taskId": row[0],
+            "mode": row[1],
+            "status": row[2],
+            "question": question,
+            "recommendations": analysis_payload.get("recommendations", []),
+            "request": request_payload,
+            "analysis": analysis_payload,
+            "createdAt": row[5],
+            "updatedAt": row[6],
+        },
+    }
 
 
 def load_articles():
@@ -834,10 +892,35 @@ class Handler(BaseHTTPRequestHandler):
             json_response(self, 200, build_simulator_home_payload())
             return
         if path == "/api/simulator/tasks":
+            query = parse_qs(urlparse(self.path).query)
             try:
-                json_response(self, 200, list_simulator_tasks(bearer_token_from_headers(self.headers)))
+                json_response(
+                    self,
+                    200,
+                    list_simulator_tasks(
+                        bearer_token_from_headers(self.headers),
+                        allow_guest=query.get("guest", ["0"])[0] == "1",
+                    ),
+                )
             except PermissionError:
                 json_response(self, 401, {"error": "unauthorized"})
+            return
+        if path == "/api/simulator/task":
+            query = parse_qs(urlparse(self.path).query)
+            try:
+                json_response(
+                    self,
+                    200,
+                    get_simulator_task(
+                        bearer_token_from_headers(self.headers),
+                        query.get("id", [""])[0],
+                        allow_guest=query.get("guest", ["0"])[0] == "1",
+                    ),
+                )
+            except PermissionError:
+                json_response(self, 401, {"error": "unauthorized"})
+            except KeyError:
+                json_response(self, 404, {"error": "simulator_task_not_found"})
             return
         if path == "/api/news/article":
             query = parse_qs(urlparse(self.path).query)

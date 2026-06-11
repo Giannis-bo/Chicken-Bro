@@ -1,31 +1,83 @@
 const { requestJson } = require('../common/api-client')
 
+function fallbackAgentQuickReplies(request) {
+  const prompt = String((request && (request.message || request.prompt)) || '')
+  if (/术士|warlock/i.test(prompt)) {
+    return ['我是痛苦术，看大秘境 AOE', '我是恶魔术，看大秘境 AOE', '我是毁灭术，看大秘境 AOE']
+  }
+  if (/法师|mage/i.test(prompt)) {
+    return ['我是冰法，看单体属性收益', '我是火法，看大秘境 AOE', '我是奥法，看单体 DPS']
+  }
+  if (/萨满|shaman/i.test(prompt)) {
+    return ['我是元素萨，看大秘境 AOE', '我是增强萨，看大秘境 AOE']
+  }
+  return ['我是冰法，看单体属性收益', '我是元素萨，看大秘境 AOE', '我是恶魔术，看大秘境 AOE']
+}
+
 function fallbackSimulatorHome() {
   return {
-    navTitle: '模拟器',
+    navTitle: '智能分析',
     kicker: '能力 04',
-    title: 'SimC Agent 与构筑分析',
-    desc: '用普通语言描述模拟目标，后端负责澄清需求、生成 SimC 模板、执行模拟并总结结论。',
-    metrics: [
-      { value: 'Prompt', label: 'LLM' },
-      { value: '待安装', label: 'SimCraft' },
-      { value: 'WCL', label: '日志复盘' }
+    title: '智能分析',
+    desc: '把模拟、日志复盘和历史任务收束到同一个入口，先选择分析类型，再进入对应工作台。',
+    analysisModules: [
+      {
+        key: 'simc',
+        badge: '01',
+        title: '模拟 SimC',
+        desc: '用中文描述职业专精、装等和目标场景，进入专属工作台生成模拟结论。',
+        action: '进入模拟'
+      },
+      {
+        key: 'wcl',
+        badge: '02',
+        title: '分析 WCL',
+        desc: '提交战斗日志链接和问题，复盘输出、爆发、覆盖率与关键失误。',
+        action: '进入分析'
+      },
+      {
+        key: 'tasks',
+        badge: '03',
+        title: '任务列表',
+        desc: '查看最近提交过的模拟和日志分析任务，继续追踪结果。',
+        action: '查看记录'
+      }
     ],
     quickActions: [
-      { key: 'simcraft', title: 'SimC Agent', desc: '普通话描述需求，自动生成模拟模板' },
-      { key: 'wcl', title: '分析 WCL', desc: '定位循环、爆发和减员问题' },
-      { key: 'gearCompare', title: '配装对比', desc: '多套装备收益横向比较' },
-      { key: 'llmAdvice', title: 'AI 建议', desc: '生成可执行优化建议' }
+      { key: 'simc', title: '模拟 SimC', desc: '进入 SimC 工作台' },
+      { key: 'wcl', title: '分析 WCL', desc: '进入 WCL 工作台' },
+      { key: 'tasks', title: '任务列表', desc: '查看最近任务' }
     ],
     tasks: [
-      { title: '导入角色构筑', status: '可提交', desc: '粘贴角色数据，生成 SimCraft 和 AI 分析请求。' },
-      { title: 'WCL 战斗日志分析', status: 'LLM', desc: '用 AI 总结输出差距、技能覆盖和关键失误。' }
+      { title: 'SimC 智能模拟', status: '可提交', desc: '描述职业专精、装等和目标场景，生成 SimCraft 和 AI 分析请求。' },
+      { title: 'WCL 战斗日志分析', status: '可分析', desc: '用 AI 总结输出差距、技能覆盖和关键失误。' }
     ],
     capabilities: {
       simcraft: false,
       llm: false,
       wcl: true
     }
+  }
+}
+
+function defaultAnalysisModules() {
+  return fallbackSimulatorHome().analysisModules
+}
+
+function normalizeSimulatorHomePayload(payload) {
+  const home = payload || fallbackSimulatorHome()
+  return {
+    ...home,
+    navTitle: '智能分析',
+    title: home.title === 'SimC Agent 与构筑分析' ? '智能分析' : (home.title || '智能分析'),
+    desc: home.desc || fallbackSimulatorHome().desc,
+    analysisModules: Array.isArray(home.analysisModules) && home.analysisModules.length
+      ? home.analysisModules
+      : defaultAnalysisModules(),
+    quickActions: Array.isArray(home.quickActions) && home.quickActions.length
+      ? home.quickActions
+      : fallbackSimulatorHome().quickActions,
+    metrics: undefined
   }
 }
 
@@ -42,13 +94,13 @@ function fallbackSimulatorAnalysis(request) {
       status: 'needs_clarification',
       round: (request && request.round) || 1,
       intent: 'baseline',
-      missingSlots: ['character_source'],
-      question: '要做准确 SimC，请粘贴游戏内 /simc 插件导出，或提供角色名、服务器和地区。',
-      quickReplies: ['粘贴 /simc 导出', '提供角色名服务器', '只生成待补齐模板'],
+      missingSlots: ['specialization'],
+      question: '先告诉我职业和专精，再说想看单体、AOE、属性收益、天赋还是装备对比。',
+      quickReplies: fallbackAgentQuickReplies(request),
       draftProfile: '',
       validation: {
         passed: false,
-        errors: ['missing character source'],
+        errors: ['missing specialization'],
         warnings: []
       },
       summaryCards: []
@@ -89,7 +141,7 @@ function fallbackSimulatorAnalysis(request) {
       llm: false
     },
     recommendations: [
-      '先补充角色、专精、目标场景和 SimCraft profile，后端可据此生成更准确的分析。',
+      '先补充职业专精、装等、目标场景和想解决的问题，后端会据此生成模板。',
       '如果是 WCL 复盘，请补充具体战斗链接、难度、boss 和想解决的问题。'
     ],
     llm: {
@@ -124,18 +176,18 @@ function agentClarificationPayload(request) {
       status: 'needs_clarification',
       round: (request && request.round) || 1,
       intent: 'baseline',
-      missingSlots: ['character_source'],
-      question: '要做准确 SimC，需要角色数据来源。请粘贴游戏内 /simc 插件导出，或提供角色名、服务器和地区。',
-      quickReplies: ['粘贴 /simc 导出', '提供角色名服务器', '只生成待补齐模板'],
+      missingSlots: ['specialization'],
+      question: '先告诉我职业和专精，再说想看单体、AOE、属性收益、天赋还是装备对比。',
+      quickReplies: fallbackAgentQuickReplies(request),
       draftProfile: '',
       validation: {
         passed: false,
-        errors: ['missing character source'],
+        errors: ['missing specialization'],
         warnings: []
       },
       summaryCards: [
-        { title: '结论', text: '本次没有执行真实 SimC：缺少角色数据来源。' },
-        { title: '下一步', text: '请补充 /simc 导出或角色名、服务器和地区。' }
+        { title: '结论', text: '本次没有执行真实 SimC：缺少职业专精。' },
+        { title: '下一步', text: '请补充职业专精、装等和目标场景。' }
       ]
     },
     stages: [
@@ -144,14 +196,14 @@ function agentClarificationPayload(request) {
         title: 'Profile 检查',
         status: 'blocked',
         executor: 'backend',
-        summary: '缺少角色数据来源'
+        summary: '缺少职业专精'
       },
       {
         key: 'simc_execution',
         title: 'SimC 执行',
         status: 'skipped',
         executor: 'simcraft',
-        summary: 'missing character source',
+        summary: 'missing specialization',
         metric: ''
       },
       {
@@ -159,14 +211,14 @@ function agentClarificationPayload(request) {
         title: 'AI 解读',
         status: 'skipped',
         executor: 'llm',
-        summary: '等待补充角色数据'
+        summary: '等待补充职业专精和目标场景'
       }
     ],
     simulation: {
       ran: false,
       available: false,
       summary: '',
-      error: 'missing character source'
+      error: 'missing specialization'
     },
     capabilities: {
       simcraft: false,
@@ -174,7 +226,7 @@ function agentClarificationPayload(request) {
       llm: false
     },
     recommendations: [
-      '要做准确 SimC，需要角色数据来源。请粘贴游戏内 /simc 插件导出，或提供角色名、服务器和地区。'
+      '先告诉我职业和专精，再说想看单体、AOE、属性收益、天赋还是装备对比。'
     ],
     llm: {
       prompt: '',
@@ -189,7 +241,7 @@ function agentClarificationPayload(request) {
       status: 'skipped',
       jobId: '',
       lastMessage: '',
-      error: 'missing character source'
+      error: 'missing specialization'
     }
   }
 }
@@ -202,8 +254,15 @@ function isLegacyEmptyProfileAgentResponse(request, payload) {
   return simulationError === 'empty profile' || (simcStage && simcStage.summary === 'empty profile')
 }
 
+function isLegacyMissingAgentResponse(request, payload) {
+  if (!request || request.mode !== 'simcraft_agent') return false
+  if (!payload || payload.agent) return false
+  if (payload.taskId) return false
+  return true
+}
+
 function normalizeSimulatorAnalysisPayload(request, payload) {
-  if (isLegacyEmptyProfileAgentResponse(request, payload)) {
+  if (isLegacyEmptyProfileAgentResponse(request, payload) || isLegacyMissingAgentResponse(request, payload)) {
     return agentClarificationPayload(request)
   }
   return payload
@@ -213,13 +272,21 @@ function requestSimulatorHome() {
   return requestJson('/api/simulator/home', {
     fallback: fallbackSimulatorHome,
     validate: (data) => data && data.navTitle && data.quickActions
+  }).then((result) => {
+    return {
+      ...result,
+      payload: normalizeSimulatorHomePayload(result.payload)
+    }
   })
 }
 
-function requestSimulatorAnalysis(request) {
+function requestSimulatorAnalysis(request, options) {
+  const requestOptions = options || {}
   return requestJson('/api/simulator/analyze', {
     method: 'POST',
     data: request || {},
+    auth: !!requestOptions.auth,
+    allowInsecureGuestRequest: !!requestOptions.allowInsecureGuestRequest,
     timeout: 90000,
     fallback: () => fallbackSimulatorAnalysis(request),
     validate: (data) => data && data.status && data.recommendations
@@ -232,10 +299,21 @@ function requestSimulatorAnalysis(request) {
 }
 
 function requestSimulatorTasks() {
-  return requestJson('/api/simulator/tasks', {
+  return requestJson('/api/simulator/tasks?guest=1', {
     auth: true,
+    allowInsecureGuestRequest: true,
     fallback: () => ({ tasks: [] }),
     validate: (data) => data && Array.isArray(data.tasks)
+  })
+}
+
+function requestSimulatorTaskDetail(taskId) {
+  const encodedTaskId = encodeURIComponent(taskId || '')
+  return requestJson(`/api/simulator/task?id=${encodedTaskId}&guest=1`, {
+    auth: true,
+    allowInsecureGuestRequest: true,
+    fallback: () => ({ task: null }),
+    validate: (data) => data && data.task && data.task.taskId
   })
 }
 
@@ -246,5 +324,6 @@ module.exports = {
   normalizeSimulatorAnalysisPayload,
   requestSimulatorAnalysis,
   requestSimulatorHome,
+  requestSimulatorTaskDetail,
   requestSimulatorTasks
 }

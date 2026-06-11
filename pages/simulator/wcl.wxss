@@ -1,0 +1,51 @@
+.wcl-hero {
+  border-color: rgba(248, 183, 0, 0.42);
+  background: linear-gradient(135deg, #3a2a0b 0%, #18130a 56%, #060606 100%);
+  box-shadow: 0 18rpx 44rpx rgba(248, 183, 0, 0.14);
+}
+
+.wcl-panel {
+  gap: 18rpx;
+  border-color: rgba(248, 183, 0, 0.18);
+}
+
+.wcl-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 240rpx;
+  padding: 22rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.26);
+  border-radius: 16rpx;
+  background: #101010;
+  color: #e1e2e5;
+  font-size: 25rpx;
+  line-height: 1.55;
+}
+
+.submit-button {
+  width: 100%;
+  min-height: 84rpx;
+  border-radius: 16rpx;
+  background: #f8b700;
+  color: #17120a;
+  font-size: 28rpx;
+  font-weight: 900;
+  line-height: 84rpx;
+}
+
+.submit-button[disabled] {
+  background: #4c3a14;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.submit-button::after {
+  border: 0;
+}
+
+.ai-advice-card {
+  border-color: rgba(248, 183, 0, 0.22);
+}
+
+.ai-advice-text {
+  white-space: pre-wrap;
+}

@@ -9,6 +9,9 @@
     "pages/pve/pve",
     "pages/pve/detail",
     "pages/simulator/simulator",
+    "pages/simulator/simc",
+    "pages/simulator/wcl",
+    "pages/simulator/task-detail",
     "pages/profile/profile"
   ],
   "window": {
@@ -36,7 +39,7 @@
       },
       {
         "pagePath": "pages/simulator/simulator",
-        "text": "模拟器"
+        "text": "智能分析"
       },
       {
         "pagePath": "pages/profile/profile",

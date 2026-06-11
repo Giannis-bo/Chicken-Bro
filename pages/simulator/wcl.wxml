@@ -1,0 +1,44 @@
+<view class="page-shell">
+  <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
+  <scroll-view class="page-scroll" scroll-y type="list">
+    <view class="page-content">
+      <view class="hero wcl-hero">
+        <text class="hero-kicker">{{kicker}}</text>
+        <text class="hero-title">{{title}}</text>
+        <text class="hero-desc">{{desc}}</text>
+      </view>
+
+      <view class="section wcl-panel">
+        <view class="section-header">
+          <text class="section-title">WCL 复盘</text>
+          <text class="section-action">{{loading ? '分析中' : '可提交'}}</text>
+        </view>
+        <textarea
+          class="wcl-input"
+          value="{{wclPrompt}}"
+          maxlength="4000"
+          auto-height="{{false}}"
+          bindinput="updateWclPrompt"
+          placeholder="粘贴 WCL 链接，并写清楚 Boss、难度、职业专精和你想分析的问题"
+        />
+        <button class="submit-button" loading="{{loading}}" disabled="{{loading}}" bindtap="submitWclAnalysis">提交分析</button>
+      </view>
+
+      <view class="section" wx:if="{{latestAnalysis}}">
+        <view class="section-header">
+          <text class="section-title">分析结果</text>
+          <text class="section-action">{{latestAnalysis.mode}}</text>
+        </view>
+        <view class="task-list">
+          <view class="task-card ai-advice-card" wx:if="{{latestAnalysis.llm && latestAnalysis.llm.content}}">
+            <text class="task-title">AI 建议</text>
+            <text class="task-desc ai-advice-text" user-select="{{true}}">{{latestAnalysis.llm.content}}</text>
+          </view>
+          <view class="task-card" wx:for="{{latestAnalysis.recommendations}}" wx:key="*this">
+            <text class="task-desc" user-select="{{true}}">{{item}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</view>

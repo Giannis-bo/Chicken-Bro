@@ -21,3 +21,10 @@ test('pve tab is named PVE zone', () => {
 
   assert.equal(tab.text, 'PVE专区')
 })
+
+test('simulator tab is renamed to smart analysis', () => {
+  const app = JSON.parse(fs.readFileSync('app.json', 'utf8'))
+  const tab = app.tabBar.list.find((item) => item.pagePath === 'pages/simulator/simulator')
+
+  assert.equal(tab.text, '智能分析')
+})

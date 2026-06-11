@@ -1,0 +1,100 @@
+<view class="page-shell">
+  <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
+  <scroll-view class="page-scroll" scroll-y type="list">
+    <view class="page-content task-detail-content">
+      <view wx:if="{{loading}}" class="section loading-section">
+        <text class="loading-text">加载中</text>
+      </view>
+
+      <view wx:elif="{{detail}}">
+        <view class="task-detail-hero">
+          <text class="detail-kicker">任务详情</text>
+          <text class="detail-title">{{detail.question}}</text>
+          <text class="detail-summary" user-select="{{true}}">{{detail.briefConclusion}}</text>
+          <view class="detail-meta-row">
+            <text>{{detail.statusText}}</text>
+            <text>{{detail.createdAtText}}</text>
+          </view>
+        </view>
+
+        <view class="section">
+          <view class="section-header">
+            <text class="section-title">玩家问题</text>
+            <text class="section-action">{{detail.mode}}</text>
+          </view>
+          <text class="task-desc detail-text" user-select="{{true}}">{{detail.question}}</text>
+        </view>
+
+        <view class="section" wx:if="{{detail.recommendations.length}}">
+          <view class="section-header">
+            <text class="section-title">AI 结论</text>
+            <text class="section-action">{{detail.recommendations.length}} 条</text>
+          </view>
+          <view class="detail-list">
+            <view class="detail-list-item" wx:for="{{detail.recommendations}}" wx:key="*this">
+              <text user-select="{{true}}">{{item}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="section">
+          <view class="section-header">
+            <text class="section-title">SimC 结果</text>
+            <text class="section-action">{{detail.simcStatusText}}</text>
+          </view>
+          <view class="result-strip">
+            <view class="result-cell">
+              <text class="benchmark-label">DPS</text>
+              <text class="benchmark-value">{{detail.simcDps || '未解析'}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="section" wx:if="{{detail.mythicPlusReference}}">
+          <view class="section-header">
+            <text class="section-title">真实大秘境对标</text>
+            <text class="section-action">{{detail.mythicPlusReferenceText}}</text>
+          </view>
+          <view class="benchmark-grid">
+            <view class="benchmark-cell">
+              <text class="benchmark-label">专精</text>
+              <text class="benchmark-value">{{detail.mythicPlusReference.specName}}</text>
+            </view>
+            <view class="benchmark-cell">
+              <text class="benchmark-label">最高钥石</text>
+              <text class="benchmark-value">{{detail.mythicPlusReference.maxKey}}</text>
+            </view>
+          </view>
+          <text class="task-desc detail-text" user-select="{{true}}">{{detail.mythicPlusReference.sampleWindow}}</text>
+          <view class="detail-list">
+            <view class="detail-list-item" wx:for="{{detail.mythicPlusReference.sources}}" wx:key="name">
+              <text user-select="{{true}}">{{item.name}}：{{item.evidence}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="section" wx:if="{{detail.stages.length}}">
+          <view class="section-header">
+            <text class="section-title">执行阶段</text>
+            <text class="section-action">Pipeline</text>
+          </view>
+          <view class="detail-list">
+            <view class="stage-row" wx:for="{{detail.stages}}" wx:key="key">
+              <view>
+                <text class="stage-title">{{item.title}}</text>
+                <text class="stage-summary">{{item.summary}}</text>
+              </view>
+              <text class="task-status">{{item.status}}</text>
+            </view>
+          </view>
+        </view>
+
+      </view>
+
+      <view wx:else class="section loading-section">
+        <text class="loading-text">未找到这个任务</text>
+        <text wx:if="{{requestError}}" class="detail-warning-text">{{requestError}}</text>
+      </view>
+    </view>
+  </scroll-view>
+</view>
