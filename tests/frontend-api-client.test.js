@@ -376,6 +376,34 @@ test('authorized requests attach bearer token from storage', async () => {
   assert.equal(authorization, 'Bearer token-2')
 })
 
+test('shared api client attaches anonymous analytics headers to backend requests', async () => {
+  const storage = {
+    wow_backend_api_base_url: 'https://api.example.test'
+  }
+  let headers = null
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: (key) => storage[key] || '',
+    setStorageSync: (key, value) => {
+      storage[key] = value
+    },
+    request: ({ header, success }) => {
+      headers = header
+      success({ statusCode: 200, data: { ok: true } })
+    }
+  }
+
+  const client = resetModule('../pages/common/api-client')
+  await client.requestJson('/health', {
+    fallback: () => ({ ok: false })
+  })
+
+  assert.match(headers['X-Wow-Client-Id'], /^mp-/)
+  assert.match(headers['X-Wow-Session-Id'], /^session-/)
+  assert.equal(headers['X-Wow-Platform'], 'miniprogram')
+  assert.equal(storage.wow_analytics_client_id, headers['X-Wow-Client-Id'])
+})
+
 test('authorized requests do not send bearer token over insecure http base url', async () => {
   const storage = {
     wow_backend_api_base_url: 'http://api.example.test',
@@ -508,6 +536,89 @@ test('simulator task detail can read a saved guest task over insecure http', asy
   assert.equal(result.payload.task.taskId, 'guest-task-1')
   assert.match(captured.url, /^http:\/\/api\.example\.test\/api\/simulator\/task\?id=guest-task-1&guest=1&guestId=guest-device-a$/)
   assert.equal(captured.header.Authorization, undefined)
+})
+
+test('analytics client posts batches with bearer only on https', async () => {
+  const storage = {
+    wow_backend_api_base_url: 'https://api.example.test',
+    wow_backend_auth_token: 'token-analytics'
+  }
+  let captured = null
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: (key) => storage[key] || '',
+    setStorageSync: (key, value) => {
+      storage[key] = value
+    },
+    request: (options) => {
+      captured = options
+      options.success({ statusCode: 200, data: { ok: true } })
+    }
+  }
+  global.getCurrentPages = () => [{ route: 'pages/news/news' }]
+
+  resetModule('../pages/common/api-client')
+  const analytics = resetModule('../pages/common/analytics-client')
+  const ok = await analytics.trackEvent('news_home_view', { source: 'tab' })
+
+  assert.equal(ok, true)
+  assert.match(captured.url, /^https:\/\/api\.example\.test\/api\/analytics\/events$/)
+  assert.equal(captured.method, 'POST')
+  assert.equal(captured.header.Authorization, 'Bearer token-analytics')
+  assert.match(captured.header['X-Wow-Client-Id'], /^mp-/)
+  assert.equal(captured.data.events[0].eventName, 'news_home_view')
+  assert.equal(JSON.parse(storage.wow_analytics_event_queue).length, 0)
+  delete global.getCurrentPages
+})
+
+test('analytics client keeps bearer token local for insecure http analytics posts', async () => {
+  const storage = {
+    wow_backend_api_base_url: 'http://api.example.test',
+    wow_backend_auth_token: 'token-analytics'
+  }
+  let captured = null
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: (key) => storage[key] || '',
+    setStorageSync: (key, value) => {
+      storage[key] = value
+    },
+    request: (options) => {
+      captured = options
+      options.success({ statusCode: 200, data: { ok: true } })
+    }
+  }
+
+  resetModule('../pages/common/api-client')
+  const analytics = resetModule('../pages/common/analytics-client')
+  await analytics.trackEvent('pve_home_view', { source: 'tab' })
+
+  assert.match(captured.url, /^http:\/\/api\.example\.test\/api\/analytics\/events$/)
+  assert.equal(captured.header.Authorization, undefined)
+})
+
+test('analytics client stores at most 200 offline events', async () => {
+  const storage = {}
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'release' } }),
+    getStorageSync: (key) => storage[key] || '',
+    setStorageSync: (key, value) => {
+      storage[key] = value
+    },
+    request: () => {
+      throw new Error('request should not run without api base url')
+    }
+  }
+
+  resetModule('../pages/common/api-client')
+  const analytics = resetModule('../pages/common/analytics-client')
+  for (let index = 0; index < 205; index += 1) {
+    await analytics.trackEvent('page_view', { index }, { page: 'pages/news/news' })
+  }
+
+  const queue = JSON.parse(storage.wow_analytics_event_queue)
+  assert.equal(queue.length, 200)
+  assert.equal(queue[0].properties.index, 5)
 })
 
 test('profile drafts persist locally even when remote auth endpoint is unavailable', async () => {

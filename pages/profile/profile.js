@@ -1,4 +1,5 @@
 const { currentProfile, saveProfileDraft } = require('../common/auth-client')
+const { trackPageLeave, trackPageView } = require('../common/analytics-client')
 
 Page({
   data: {
@@ -28,11 +29,33 @@ Page({
   },
 
   onLoad() {
+    this.analyticsStartedAt = Date.now()
+    this.analyticsVisible = true
+    trackPageView('pages/profile/profile', { source: 'tab' })
     this.hydrateUser()
   },
 
+  onUnload() {
+    if (this.analyticsVisible !== false) {
+      trackPageLeave('pages/profile/profile', this.analyticsStartedAt)
+      this.analyticsVisible = false
+    }
+  },
+
   onShow() {
+    if (this.analyticsVisible === false) {
+      this.analyticsStartedAt = Date.now()
+      this.analyticsVisible = true
+      trackPageView('pages/profile/profile', { source: 'tab_resume' })
+    }
     this.hydrateUser()
+  },
+
+  onHide() {
+    if (this.analyticsVisible !== false) {
+      trackPageLeave('pages/profile/profile', this.analyticsStartedAt)
+      this.analyticsVisible = false
+    }
   },
 
   hydrateUser() {

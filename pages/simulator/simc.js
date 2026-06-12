@@ -2,8 +2,10 @@ const { loginWithWechat } = require('../common/auth-client')
 const {
   requestSimulatorAnalysis
 } = require('./simulator-api')
+const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
 const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
+const SIMC_PAGE_ROUTE = ['pages', 'simulator', 'simc'].join('/')
 
 Page({
   data: {
@@ -36,7 +38,19 @@ Page({
   },
 
   onLoad(options) {
+    this.analyticsStartedAt = Date.now()
+    trackPageView(SIMC_PAGE_ROUTE, {
+      source: options && options.from ? options.from : 'simulator',
+      specId: options && options.spec ? decodeURIComponent(options.spec) : ''
+    })
     this.loadBuildContext(options || {})
+  },
+
+  onUnload() {
+    trackPageLeave(SIMC_PAGE_ROUTE, this.analyticsStartedAt, {
+      taskSubmitted: this.data.taskSubmitted,
+      taskId: this.data.submittedTaskId || ''
+    })
   },
 
   loadBuildContext(options) {
@@ -195,8 +209,25 @@ Page({
     if (requestOptions.buildContext) requestPayload.buildContext = requestOptions.buildContext
     if (!requestPayload.buildContext) delete requestPayload.buildContext
 
+    trackEvent('simc_chat_submit', {
+      round: nextRound,
+      hasBuildContext: !!requestPayload.buildContext,
+      specId: (requestPayload.buildContext && requestPayload.buildContext.specId) || ''
+    }, { page: SIMC_PAGE_ROUTE })
+
     requestSimulatorAnalysis(requestPayload).then(({ payload, fromFallback, error }) => {
       const ready = this.isTaskReady(payload)
+      const agent = (payload && payload.agent) || {}
+      const request = (payload && payload.request) || {}
+      const buildContext = request.buildContext || requestPayload.buildContext || {}
+      trackEvent('simc_confirm_result', {
+        round: nextRound,
+        ready,
+        agentStatus: agent.status || '',
+        profileSource: request.profileSource || '',
+        specId: buildContext.specId || '',
+        scenarioKey: (buildContext.simulatorState && buildContext.simulatorState.talent && buildContext.simulatorState.talent.scenarioKey) || ''
+      }, { page: SIMC_PAGE_ROUTE })
       this.appendMessages([
         { role: 'ai', text: this.aiTextFromAnalysis(payload) }
       ], {
@@ -215,6 +246,11 @@ Page({
   submitConfirmedTask() {
     if (!this.data.canSubmitTask || this.data.submittingTask || this.data.taskSubmitted) return
     this.setData({ submittingTask: true })
+    trackEvent('simc_task_submit', {
+      round: this.data.conversationRound,
+      hasBuildContext: !!this.data.pendingBuildContext,
+      specId: (this.data.pendingBuildContext && this.data.pendingBuildContext.specId) || ''
+    }, { page: SIMC_PAGE_ROUTE })
     loginWithWechat().catch(() => null).then(() => {
       return requestSimulatorAnalysis({
         mode: 'simcraft_agent',
@@ -227,6 +263,19 @@ Page({
       }, { auth: true, allowInsecureGuestRequest: true })
     }).then(({ payload, fromFallback, error }) => {
       const saved = !!(payload && payload.taskId)
+      const agent = (payload && payload.agent) || {}
+      const request = (payload && payload.request) || {}
+      const simulation = (payload && payload.simulation) || {}
+      const buildContext = request.buildContext || this.data.pendingBuildContext || {}
+      trackEvent('simc_task_saved', {
+        saved,
+        taskId: (payload && payload.taskId) || '',
+        agentStatus: agent.status || '',
+        profileSource: request.profileSource || '',
+        specId: buildContext.specId || '',
+        scenarioKey: (buildContext.simulatorState && buildContext.simulatorState.talent && buildContext.simulatorState.talent.scenarioKey) || '',
+        simulationRan: !!simulation.ran
+      }, { page: SIMC_PAGE_ROUTE })
       this.appendMessages([
         { role: 'ai', text: saved ? '任务已提交，结果会保存到任务列表。' : '提交失败，未保存到任务列表。请稍后重试。' }
       ], {

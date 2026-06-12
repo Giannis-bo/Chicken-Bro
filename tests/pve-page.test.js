@@ -36,7 +36,11 @@ test('pve backend payload exposes mythic plus and raid zones', () => {
   assert.equal(payload.metrics, undefined)
   assert.equal(payload.title, '大秘境与团队 Raid')
   assert.match(payload.desc, /当前赛季/)
-  assert.equal(payload.currentSeason, '至暗之夜 Season 1')
+  assert.equal(payload.currentSeason.seasonLabel, '至暗之夜 Season 1')
+  assert.equal(payload.seasonLabel, '至暗之夜 Season 1')
+  assert.match(payload.seasonRevision, /^season-midnight-season-1-/)
+  assert.equal(payload.dataStatus, 'verified')
+  assert.equal(payload.currentSeason.dungeons.length, 8)
   assert.doesNotMatch(JSON.stringify(payload), /The War Within/)
   assert.doesNotMatch(JSON.stringify(payload), /season-tww/)
   assert.deepEqual(
@@ -68,6 +72,8 @@ test('every pve zone module exposes real source-backed records', () => {
     const detail = getPveModuleDetail(module.key)
     assert.equal(detail.key, module.key)
     assert.deepEqual(detail.items, module.items)
+    assert.equal(detail.seasonRevision, payload.seasonRevision)
+    assert.equal(detail.currentSeason.seasonRevision, payload.seasonRevision)
 
     for (const item of module.items) {
       assert.match(item.title, /\S/, `${module.title} item should have title`)

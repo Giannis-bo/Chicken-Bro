@@ -5,6 +5,7 @@ const {
   requestNewsHome,
   shouldRefreshToday
 } = require('./news-api')
+const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
 Page({
   data: {
@@ -21,8 +22,35 @@ Page({
   },
 
   onLoad() {
+    this.analyticsStartedAt = Date.now()
+    this.analyticsVisible = true
+    trackPageView('pages/news/news', { source: 'tab' })
+    trackEvent('news_home_view', { source: 'tab' }, { page: 'pages/news/news' })
     this.applyPayload(fallbackPayload('bootstrap'), true)
     this.loadNews(shouldRefreshToday() ? 'scheduled' : 'cached')
+  },
+
+  onShow() {
+    if (this.analyticsVisible === false) {
+      this.analyticsStartedAt = Date.now()
+      this.analyticsVisible = true
+      trackPageView('pages/news/news', { source: 'tab_resume' })
+      trackEvent('news_home_view', { source: 'tab_resume' }, { page: 'pages/news/news' })
+    }
+  },
+
+  onHide() {
+    if (this.analyticsVisible !== false) {
+      trackPageLeave('pages/news/news', this.analyticsStartedAt)
+      this.analyticsVisible = false
+    }
+  },
+
+  onUnload() {
+    if (this.analyticsVisible !== false) {
+      trackPageLeave('pages/news/news', this.analyticsStartedAt)
+      this.analyticsVisible = false
+    }
   },
 
   onPullDownRefresh() {
@@ -32,6 +60,7 @@ Page({
   openArticle(event) {
     const { id } = event.currentTarget.dataset
     if (!id) return
+    trackEvent('news_article_open', { articleId: id, source: 'home' }, { page: 'pages/news/news' })
     wx.navigateTo({
       url: `/pages/news/detail?id=${encodeURIComponent(id)}`
     })
@@ -39,6 +68,7 @@ Page({
 
   openMetric(event) {
     const { key } = event.currentTarget.dataset
+    trackEvent('news_list_view', { type: 'metric', key: key || 'today', source: 'metric_card' }, { page: 'pages/news/news' })
     wx.navigateTo({
       url: `/pages/news/list?type=metric&key=${encodeURIComponent(key || 'today')}`
     })
@@ -46,6 +76,7 @@ Page({
 
   openChannel(event) {
     const { value } = event.currentTarget.dataset
+    trackEvent('news_list_view', { type: 'channel', value: value || '', source: 'channel_item' }, { page: 'pages/news/news' })
     wx.navigateTo({
       url: `/pages/news/list?type=channel&value=${encodeURIComponent(value || '')}`
     })
@@ -63,6 +94,7 @@ Page({
 
   handleRefresh() {
     if (this.data.loading) return
+    trackEvent('news_refresh', { trigger: 'manual' }, { page: 'pages/news/news' })
     this.setData({ loading: true })
     requestManualRefresh().then(({ payload, fromFallback, error }) => {
       this.applyPayload(payload, fromFallback, error)

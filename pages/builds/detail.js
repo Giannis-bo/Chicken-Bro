@@ -4,6 +4,7 @@ const {
   requestBuildsDetail,
   requestBuildsHome
 } = require('./builds-api')
+const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
 const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
 const fallbackPayload = fallbackBuildsHome()
@@ -178,6 +179,11 @@ Page({
   onLoad(options) {
     const queryKey = options.query || 'talents'
     const specId = options.spec ? decodeURIComponent(options.spec) : defaultSpecId
+    this.analyticsStartedAt = Date.now()
+    this.analyticsQueryKey = queryKey
+    this.analyticsSpecId = specId
+    trackPageView('pages/builds/detail', { queryKey, specId })
+    trackEvent('builds_detail_view', { queryKey, specId }, { page: 'pages/builds/detail' })
     const selection = findSpecSelection(specId)
     const selectionState = createSelectionState(selection.classIndex, selection.specIndex, queryKey)
     this.setData({
@@ -189,9 +195,21 @@ Page({
     this.loadSelectedDetail(selectionState.selectedSpec && selectionState.selectedSpec.id)
   },
 
+  onUnload() {
+    trackPageLeave('pages/builds/detail', this.analyticsStartedAt, {
+      queryKey: this.data.activeQueryKey || this.analyticsQueryKey || '',
+      specId: (this.data.selectedSpec && this.data.selectedSpec.id) || this.analyticsSpecId || ''
+    })
+  },
+
   selectClass(event) {
     const classIndex = Number(event.detail.value)
     const selectionState = createSelectionState(classIndex, 0, this.data.activeQueryKey)
+    trackEvent('builds_class_select', {
+      queryKey: this.data.activeQueryKey,
+      className: (selectionState.selectedClass && selectionState.selectedClass.name) || '',
+      specId: (selectionState.selectedSpec && selectionState.selectedSpec.id) || ''
+    }, { page: 'pages/builds/detail' })
     this.setData(selectionState)
     this.loadSelectedDetail(selectionState.selectedSpec && selectionState.selectedSpec.id)
   },
@@ -199,6 +217,12 @@ Page({
   selectSpec(event) {
     const specIndex = Number(event.detail.value)
     const selectionState = createSelectionState(this.data.selectedClassIndex, specIndex, this.data.activeQueryKey)
+    trackEvent('builds_spec_select', {
+      queryKey: this.data.activeQueryKey,
+      className: (selectionState.selectedClass && selectionState.selectedClass.name) || '',
+      specName: (selectionState.selectedSpec && selectionState.selectedSpec.title) || '',
+      specId: (selectionState.selectedSpec && selectionState.selectedSpec.id) || ''
+    }, { page: 'pages/builds/detail' })
     this.setData(selectionState)
     this.loadSelectedDetail(selectionState.selectedSpec && selectionState.selectedSpec.id)
   },
@@ -278,6 +302,10 @@ Page({
 
   setTalentScenario(event) {
     const key = event.currentTarget.dataset.key || talentScenarios[0].key
+    trackEvent('builds_talent_scenario_select', {
+      scenarioKey: key,
+      specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
+    }, { page: 'pages/builds/detail' })
     this.refreshDerivedState({ activeTalentScenarioKey: key })
   },
 
@@ -290,6 +318,12 @@ Page({
     } else {
       selectedSet.add(node)
     }
+    trackEvent('builds_talent_node_toggle', {
+      node,
+      selected: selectedSet.has(node),
+      scenarioKey: this.data.activeTalentScenarioKey,
+      specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
+    }, { page: 'pages/builds/detail' })
     this.refreshDerivedState({ selectedTalentNodes: Array.from(selectedSet) })
   },
 
@@ -302,6 +336,12 @@ Page({
     } else {
       acquiredSet.add(key)
     }
+    const gearRow = (this.data.gearAcquisitionRows || []).find((row) => row.key === key) || {}
+    trackEvent('builds_gear_toggle', {
+      gearSlot: gearRow.slot || '',
+      selected: acquiredSet.has(key),
+      specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
+    }, { page: 'pages/builds/detail' })
     this.refreshDerivedState({ gearAcquiredKeys: Array.from(acquiredSet) })
   },
 
@@ -312,6 +352,13 @@ Page({
   openSimcWithBuildContext() {
     if (!this.data.selectedDetail || !this.data.activeDetail) return
     const context = this.buildSimcContext()
+    trackEvent('builds_simc_entry_click', {
+      queryKey: context.activeQueryKey || '',
+      specId: context.specId || '',
+      className: context.className || '',
+      specName: context.specName || '',
+      scenarioKey: (context.simulatorState && context.simulatorState.talent && context.simulatorState.talent.scenarioKey) || ''
+    }, { page: 'pages/builds/detail' })
     try {
       wx.setStorageSync(SIMC_BUILD_CONTEXT_STORAGE_KEY, context)
     } catch (error) {

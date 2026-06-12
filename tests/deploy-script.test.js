@@ -1,16 +1,21 @@
 const fs = require('node:fs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { execFileSync } = require('node:child_process')
+const { execFileSync, spawnSync } = require('node:child_process')
 
 const scriptPath = 'server/deploy_lighthouse.sh'
 
 test('lighthouse deploy script supports a no-download hot deploy mode', () => {
   const script = fs.readFileSync(scriptPath, 'utf8')
 
-  assert.doesNotThrow(() => execFileSync('bash', ['-n', scriptPath]))
+  const bashProbe = spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', ['bash'], { stdio: 'ignore' })
+  if (bashProbe.status === 0) {
+    assert.doesNotThrow(() => execFileSync('bash', ['-n', scriptPath]))
+  }
   assert.match(script, /WOW_DEPLOY_SKIP_BOOTSTRAP/)
   assert.match(script, /Skipping remote bootstrap/)
+  assert.match(script, /systemctl start --no-block wow-websim-sync\.service/)
+  assert.doesNotMatch(script, /systemctl start wow-websim-sync\.service \|\|/)
 
   const skipBranch = script.indexOf('if [[ "${SKIP_BOOTSTRAP}" == "1" ]]')
   const bootstrapBranch = script.indexOf('else # full remote bootstrap')

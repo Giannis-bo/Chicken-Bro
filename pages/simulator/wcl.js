@@ -2,6 +2,7 @@ const { loginWithWechat } = require('../common/auth-client')
 const {
   requestSimulatorAnalysis
 } = require('./simulator-api')
+const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
 Page({
   data: {
@@ -16,6 +17,15 @@ Page({
     latestAnalysis: null
   },
 
+  onLoad() {
+    this.analyticsStartedAt = Date.now()
+    trackPageView('pages/simulator/wcl', { source: 'simulator' })
+  },
+
+  onUnload() {
+    trackPageLeave('pages/simulator/wcl', this.analyticsStartedAt)
+  },
+
   updateWclPrompt(event) {
     this.setData({ wclPrompt: event.detail.value || '' })
   },
@@ -23,6 +33,7 @@ Page({
   submitWclAnalysis() {
     const prompt = (this.data.wclPrompt || '').trim()
     this.setData({ loading: true })
+    trackEvent('wcl_submit', { hasPrompt: !!prompt }, { page: 'pages/simulator/wcl' })
     loginWithWechat().catch(() => null).then(() => {
       return requestSimulatorAnalysis({
         mode: 'wcl',

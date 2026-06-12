@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import hashlib
 import json
+import mimetypes
 import os
 import secrets
 import sqlite3
@@ -15,16 +16,59 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import urlopen
 
 try:
+    from .analytics import (
+        analytics_events,
+        analytics_features,
+        analytics_pages,
+        analytics_simulator,
+        analytics_summary,
+        analytics_users,
+        ensure_analytics_tables,
+        record_events,
+        rollup_daily_metrics,
+    )
     from .news_collector import canonical_article_key, collect_feed_articles, merge_articles
     from .news_translator import localize_article, visible_translation_issues
     from .simulator_payload import analyze_simulator_request, build_simulator_home_payload
+    from .websim_payload import (
+        build_websim_profile,
+        build_websim_simulator_request,
+        ensure_websim_tables,
+        get_websim_bootstrap,
+        get_websim_gear,
+        get_websim_loot,
+        get_websim_talents,
+        get_active_season_payload,
+    )
 except ImportError:
+    from analytics import (
+        analytics_events,
+        analytics_features,
+        analytics_pages,
+        analytics_simulator,
+        analytics_summary,
+        analytics_users,
+        ensure_analytics_tables,
+        record_events,
+        rollup_daily_metrics,
+    )
     from news_collector import canonical_article_key, collect_feed_articles, merge_articles
     from news_translator import localize_article, visible_translation_issues
     from simulator_payload import analyze_simulator_request, build_simulator_home_payload
+    from websim_payload import (
+        build_websim_profile,
+        build_websim_simulator_request,
+        ensure_websim_tables,
+        get_websim_bootstrap,
+        get_websim_gear,
+        get_websim_loot,
+        get_websim_talents,
+        get_active_season_payload,
+    )
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
+WEBSIM_DIR = PROJECT_DIR / "websim"
 SEED_PATH = BASE_DIR / "news" / "articles.seed.json"
 DB_PATH = Path(os.environ.get("WOW_NEWS_DB", BASE_DIR / "data" / "wow_news.sqlite3"))
 HOST = os.environ.get("WOW_NEWS_HOST", "0.0.0.0")
@@ -152,6 +196,8 @@ def init_db():
             """
         )
         ensure_auth_token_columns(conn)
+        ensure_websim_tables(conn)
+        ensure_analytics_tables(conn)
         prune_expired_auth_tokens(conn)
 
 
@@ -834,30 +880,235 @@ process.stdout.write(JSON.stringify(result))
         export_name,
         *[json.dumps(arg, ensure_ascii=False) for arg in args],
     ]
-    completed = subprocess.run(command, capture_output=True, text=True, cwd=PROJECT_DIR, check=False, timeout=15)
+    completed = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=PROJECT_DIR,
+        check=False,
+        timeout=15,
+    )
     if completed.returncode != 0:
         raise RuntimeError((completed.stderr or completed.stdout or "node payload failed").strip())
     return json.loads(completed.stdout)
 
 
 def get_builds_home_payload():
-    return load_js_payload("server/builds/home-payload.js", "buildSpecializationHomePayload")
+    return apply_runtime_season_gate(load_js_payload("server/builds/home-payload.js", "buildSpecializationHomePayload"), "builds_home")
 
 
 def get_builds_intel_payload():
-    return load_js_payload("server/builds/home-payload.js", "buildSpecializationIntelPayload")
+    return apply_runtime_season_gate(load_js_payload("server/builds/home-payload.js", "buildSpecializationIntelPayload"), "builds_intel")
 
 
 def get_builds_detail_payload(spec_id):
-    return load_js_payload("server/builds/home-payload.js", "getSpecializationDetail", spec_id)
+    payload = load_js_payload("server/builds/home-payload.js", "getSpecializationDetail", spec_id)
+    return apply_runtime_season_gate(payload, "builds_detail") if payload else payload
 
 
 def get_pve_home_payload():
-    return load_js_payload("server/pve/home-payload.js", "buildPveHomePayload")
+    return apply_runtime_season_gate(load_js_payload("server/pve/home-payload.js", "buildPveHomePayload"), "pve_home")
 
 
 def get_pve_module_payload(module_key):
-    return load_js_payload("server/pve/home-payload.js", "getPveModuleDetail", module_key)
+    return apply_runtime_season_gate(load_js_payload("server/pve/home-payload.js", "getPveModuleDetail", module_key), "pve_module")
+
+
+def runtime_season_payload():
+    init_db()
+    with db_connection() as conn:
+        return get_active_season_payload(conn)
+
+
+def apply_runtime_season_gate(payload, payload_type):
+    if not isinstance(payload, dict):
+        return payload
+    season = runtime_season_payload()
+    gated = dict(payload)
+    gated.update(
+        {
+            "currentSeason": season,
+            "seasonId": season.get("seasonId") or season.get("id") or "",
+            "seasonLabel": season.get("seasonLabel") or season.get("label") or "",
+            "seasonRevision": season.get("seasonRevision") or season.get("revision") or "",
+            "verifiedAt": season.get("verifiedAt") or "",
+            "expiresAt": season.get("expiresAt") or "",
+            "locale": season.get("locale") or "",
+            "dataStatus": season.get("dataStatus") or "blocked",
+            "sourceRefs": season.get("sourceRefs") or [],
+        }
+    )
+    if gated["dataStatus"] == "verified":
+        return gated
+
+    gated["blockedReason"] = "赛季数据尚未通过暴雪官方 API 校验，暂不返回可能过期的天赋、装备或副本数据。"
+    if payload_type == "pve_home":
+        gated["zones"] = []
+    elif payload_type == "pve_module":
+        gated["items"] = []
+        gated["itemCount"] = 0
+    elif payload_type == "builds_home":
+        gated["featuredSpecializations"] = []
+        gated["specializations"] = []
+    elif payload_type == "builds_intel":
+        gated["items"] = []
+        gated["count"] = 0
+    elif payload_type == "builds_detail":
+        gated["details"] = {}
+    return gated
+
+
+def analytics_admin_authorized(headers):
+    expected = os.environ.get("WOW_ANALYTICS_ADMIN_TOKEN", "").strip()
+    if not expected:
+        return False
+    token = bearer_token_from_headers(headers)
+    return secrets.compare_digest(token, expected)
+
+
+def analytics_admin_page():
+    return """<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WOW Analytics</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #111; color: #eee; }
+    header { padding: 24px; border-bottom: 1px solid #333; }
+    main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+    input, button, select { background: #181818; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 9px 10px; }
+    button { cursor: pointer; background: #f8b700; color: #151515; border-color: #f8b700; font-weight: 700; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+    .card { background: #181818; border: 1px solid #333; border-radius: 8px; padding: 16px; }
+    .metric { font-size: 28px; font-weight: 700; margin-top: 6px; color: #f8b700; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+    th, td { border-bottom: 1px solid #2b2b2b; padding: 8px; text-align: left; vertical-align: top; }
+    th { color: #c7b077; font-weight: 700; }
+    code { color: #f8b700; }
+    .section { margin-top: 18px; }
+    .muted { color: #aaa; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>WOW 用户行为统计</h1>
+    <p class="muted">输入管理员 token 后查看自建事件统计。openid 已脱敏，事件属性已过滤敏感正文。</p>
+  </header>
+  <main>
+    <div class="toolbar">
+      <input id="token" type="password" placeholder="WOW_ANALYTICS_ADMIN_TOKEN">
+      <input id="from" type="date">
+      <input id="to" type="date">
+      <button id="load">加载统计</button>
+    </div>
+    <div id="summary" class="grid"></div>
+    <div class="section grid">
+      <div class="card"><h2>功能事件</h2><table id="features"></table></div>
+      <div class="card"><h2>页面排行</h2><table id="pages"></table></div>
+    </div>
+    <div class="section card">
+      <h2>SimC / WCL</h2>
+      <table id="simulator"></table>
+    </div>
+    <div class="section card">
+      <h2>最近事件</h2>
+      <table id="events"></table>
+    </div>
+  </main>
+  <script>
+    const today = new Date().toISOString().slice(0, 10);
+    const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+    document.getElementById('from').value = weekAgo;
+    document.getElementById('to').value = today;
+    async function api(path) {
+      const token = document.getElementById('token').value.trim();
+      const from = document.getElementById('from').value;
+      const to = document.getElementById('to').value;
+      const sep = path.includes('?') ? '&' : '?';
+      const res = await fetch(`${path}${sep}from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[ch]));
+    }
+    function table(id, headers, rows) {
+      document.getElementById(id).innerHTML = '<tr>' + headers.map(h => `<th>${escapeHtml(h)}</th>`).join('') + '</tr>' +
+        rows.map(row => '<tr>' + row.map(value => `<td>${escapeHtml(value)}</td>`).join('') + '</tr>').join('');
+    }
+    async function load() {
+      const [summary, features, pages, simulator, events] = await Promise.all([
+        api('/api/admin/analytics/summary'),
+        api('/api/admin/analytics/features'),
+        api('/api/admin/analytics/pages'),
+        api('/api/admin/analytics/simulator'),
+        api('/api/admin/analytics/events')
+      ]);
+      const s = summary.summary;
+      document.getElementById('summary').innerHTML = [
+        ['PV', s.pv], ['UV', s.uv], ['登录 UV', s.loginUv], ['访客 UV', s.guestUv], ['会话', s.sessions], ['活跃用户', s.activeUsers]
+      ].map(item => `<div class="card"><div>${item[0]}</div><div class="metric">${item[1]}</div></div>`).join('');
+      table('features', ['分组/事件', '次数'], features.events.slice(0, 20).map(item => [`${item.group} / ${item.eventName}`, item.count]));
+      table('pages', ['页面', 'PV', 'UV'], pages.pages.slice(0, 20).map(item => [item.page, item.pv, item.uv]));
+      table('simulator', ['Mode', 'Status', 'Spec', 'Ran', 'DPS', '时间'], simulator.tasks.slice(0, 30).map(item => [item.mode, item.agentStatus || item.status, item.specId, item.simulationRan, item.dps, item.createdAt]));
+      table('events', ['事件', '用户', '页面', '时间', '属性'], events.events.slice(0, 50).map(item => [item.eventName, item.userId || item.clientHash, item.page, item.occurredAt, JSON.stringify(item.properties)]));
+    }
+    document.getElementById('load').addEventListener('click', () => load().catch(error => alert(error.message || error)));
+  </script>
+</body>
+</html>"""
+
+
+def admin_analytics_response(handler, path, query):
+    if not analytics_admin_authorized(handler.headers):
+        json_response(handler, 401, {"error": "unauthorized"})
+        return
+    init_db()
+    with db_connection() as conn:
+        if path == "/api/admin/analytics/summary":
+            json_response(handler, 200, analytics_summary(conn, query))
+            return
+        if path == "/api/admin/analytics/pages":
+            json_response(handler, 200, analytics_pages(conn, query))
+            return
+        if path == "/api/admin/analytics/features":
+            json_response(handler, 200, analytics_features(conn, query))
+            return
+        if path == "/api/admin/analytics/simulator":
+            json_response(handler, 200, analytics_simulator(conn, query))
+            return
+        if path == "/api/admin/analytics/events":
+            json_response(handler, 200, analytics_events(conn, query))
+            return
+        if path == "/api/admin/analytics/users":
+            json_response(handler, 200, analytics_users(conn, query))
+            return
+    json_response(handler, 404, {"error": "not_found"})
+
+
+def record_analytics_request(handler, payload):
+    access_token = bearer_token_from_headers(handler.headers)
+    user = authenticate_token(access_token) if access_token else None
+    init_db()
+    with db_connection() as conn:
+        return record_events(
+            conn,
+            payload,
+            user_id=user["id"] if user else None,
+            client_id=handler.headers.get("X-Wow-Client-Id", ""),
+            session_id=handler.headers.get("X-Wow-Session-Id", ""),
+            platform=handler.headers.get("X-Wow-Platform", "miniprogram"),
+        )
 
 
 def json_response(handler, status, payload):
@@ -866,7 +1117,44 @@ def json_response(handler, status, payload):
     handler.send_header("Content-Type", "application/json; charset=utf-8")
     handler.send_header("Access-Control-Allow-Origin", "*")
     handler.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    handler.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    handler.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Wow-Client-Id, X-Wow-Session-Id, X-Wow-Platform")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
+def text_response(handler, status, body, content_type="text/plain; charset=utf-8"):
+    body_bytes = str(body or "").encode("utf-8")
+    handler.send_response(status)
+    handler.send_header("Content-Type", content_type)
+    handler.send_header("Content-Length", str(len(body_bytes)))
+    handler.end_headers()
+    handler.wfile.write(body_bytes)
+
+
+def static_response(handler, path):
+    if path in {"/websim", "/websim/"}:
+        target = WEBSIM_DIR / "index.html"
+    else:
+        relative = path.removeprefix("/websim/").strip("/")
+        target = WEBSIM_DIR / relative
+    try:
+        resolved = target.resolve()
+        root = WEBSIM_DIR.resolve()
+        resolved.relative_to(root)
+    except (OSError, ValueError):
+        json_response(handler, 404, {"error": "not_found"})
+        return
+    if not resolved.is_file():
+        json_response(handler, 404, {"error": "not_found"})
+        return
+    content_type = mimetypes.guess_type(str(resolved))[0] or "application/octet-stream"
+    if content_type.startswith("text/") or resolved.suffix in {".js", ".json", ".css"}:
+        content_type = f"{content_type}; charset=utf-8"
+    body = resolved.read_bytes()
+    handler.send_response(200)
+    handler.send_header("Content-Type", content_type)
+    handler.send_header("Cache-Control", "no-cache")
     handler.send_header("Content-Length", str(len(body)))
     handler.end_headers()
     handler.wfile.write(body)
@@ -889,8 +1177,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlparse(self.path).path
+        query = parse_qs(urlparse(self.path).query)
         if path == "/health":
             json_response(self, 200, {"ok": True, "service": "wow-backend"})
+            return
+        if path == "/admin/analytics":
+            text_response(self, 200, analytics_admin_page(), "text/html; charset=utf-8")
+            return
+        if path.startswith("/api/admin/analytics/"):
+            admin_analytics_response(self, path, query)
+            return
+        if path == "/websim" or path.startswith("/websim/"):
+            static_response(self, path)
             return
         if path == "/api/news/home":
             json_response(self, 200, build_home_payload())
@@ -912,6 +1210,11 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 json_response(self, 404, {"error": "specialization_not_found"})
             return
+        if path == "/api/game/season":
+            init_db()
+            with db_connection() as conn:
+                json_response(self, 200, get_active_season_payload(conn))
+            return
         if path == "/api/pve/home":
             json_response(self, 200, get_pve_home_payload())
             return
@@ -921,6 +1224,51 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/simulator/home":
             json_response(self, 200, build_simulator_home_payload())
+            return
+        if path == "/api/websim/bootstrap":
+            init_db()
+            with db_connection() as conn:
+                json_response(self, 200, get_websim_bootstrap(conn))
+            return
+        if path == "/api/websim/talents":
+            query = parse_qs(urlparse(self.path).query)
+            init_db()
+            with db_connection() as conn:
+                json_response(
+                    self,
+                    200,
+                    get_websim_talents(
+                        conn,
+                        query.get("class", query.get("classKey", ["mage"]))[0],
+                        query.get("spec", query.get("specKey", ["arcane"]))[0],
+                    ),
+                )
+            return
+        if path == "/api/websim/gear":
+            query = parse_qs(urlparse(self.path).query)
+            init_db()
+            with db_connection() as conn:
+                json_response(
+                    self,
+                    200,
+                    get_websim_gear(
+                        conn,
+                        query.get("class", query.get("classKey", ["mage"]))[0],
+                        query.get("spec", query.get("specKey", ["arcane"]))[0],
+                    ),
+                )
+            return
+        if path == "/api/websim/loot":
+            query = parse_qs(urlparse(self.path).query)
+            filters = {
+                "instanceId": query.get("instanceId", [""])[0],
+                "encounterId": query.get("encounterId", [""])[0],
+                "slot": query.get("slot", [""])[0],
+                "q": query.get("q", [""])[0],
+            }
+            init_db()
+            with db_connection() as conn:
+                json_response(self, 200, get_websim_loot(conn, filters))
             return
         if path == "/api/simulator/tasks":
             query = parse_qs(urlparse(self.path).query)
@@ -976,6 +1324,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/analytics/events":
+            try:
+                json_response(self, 200, record_analytics_request(self, read_json_body(self)))
+            except Exception as error:
+                json_response(self, 400, {"error": "analytics_record_failed", "message": str(error)})
+            return
+        if parsed.path == "/api/admin/analytics/rollup":
+            if not analytics_admin_authorized(self.headers):
+                json_response(self, 401, {"error": "unauthorized"})
+                return
+            payload = read_json_body(self)
+            init_db()
+            with db_connection() as conn:
+                json_response(self, 200, rollup_daily_metrics(conn, payload.get("date", "")))
+            return
         if parsed.path == "/api/auth/wechat-login":
             try:
                 json_response(self, 200, login_with_wechat_code(read_json_body(self).get("code", "")))
@@ -998,6 +1361,21 @@ class Handler(BaseHTTPRequestHandler):
                 200,
                 analyze_and_store_simulator_task(
                     read_json_body(self),
+                    access_token=bearer_token_from_headers(self.headers),
+                ),
+            )
+            return
+        if parsed.path == "/api/websim/profile":
+            json_response(self, 200, {"profile": build_websim_profile(read_json_body(self))})
+            return
+        if parsed.path == "/api/websim/simulate":
+            payload = read_json_body(self)
+            request_payload = build_websim_simulator_request(payload, guest_id=payload.get("guestId", ""))
+            json_response(
+                self,
+                200,
+                analyze_and_store_simulator_task(
+                    request_payload,
                     access_token=bearer_token_from_headers(self.headers),
                 ),
             )

@@ -9,7 +9,7 @@
       </view>
 
       <view class="detail-source-strip">
-        <text>{{activeModule.currentSeason}}</text>
+        <text>{{activeModule.seasonLabel}}</text>
         <text>{{activeModule.itemCount}} 条数据</text>
         <text>{{activeModule.lastAnalyzedAt}}</text>
       </view>

@@ -1,4 +1,5 @@
 const { fallbackPveModule, requestPveModule } = require('./pve-api')
+const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
 Page({
   data: {
@@ -10,10 +11,18 @@ Page({
 
   onLoad(options) {
     const moduleKey = options.module || 'teamLadder'
+    this.analyticsStartedAt = Date.now()
+    this.analyticsModuleKey = moduleKey
+    trackPageView('pages/pve/detail', { moduleKey })
+    trackEvent('pve_module_view', { moduleKey }, { page: 'pages/pve/detail' })
     this.setData({
       activeModule: fallbackPveModule(moduleKey)
     })
     this.loadModule(moduleKey)
+  },
+
+  onUnload() {
+    trackPageLeave('pages/pve/detail', this.analyticsStartedAt, { moduleKey: this.analyticsModuleKey || '' })
   },
 
   loadModule(moduleKey) {

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebSim - SimC 构筑工坊</title>
+  <link rel="stylesheet" href="/websim/app.css?v=20260612-cn-season">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">WOW 小程序后端</p>
+        <h1>SimC 构筑工坊</h1>
+      </div>
+      <div class="status-strip">
+        <span id="syncStatus">加载中</span>
+        <span id="seasonStatus">赛季校验中</span>
+        <span id="simcVersion">SimC</span>
+      </div>
+    </header>
+
+    <section class="control-row" aria-label="角色选择">
+      <label>
+        <span>职业</span>
+        <select id="classSelect"></select>
+      </label>
+      <label>
+        <span>专精</span>
+        <select id="specSelect"></select>
+      </label>
+      <label>
+        <span>场景</span>
+        <select id="scenarioSelect"></select>
+      </label>
+      <label>
+        <span>天赋导入码</span>
+        <input id="talentInput" autocomplete="off" spellcheck="false" placeholder="粘贴 talents= 导入码">
+      </label>
+    </section>
+
+    <nav class="workspace-tabs" aria-label="WebSim modules">
+      <button class="tab-button active" data-tab="talents">天赋模拟器</button>
+      <button class="tab-button" data-tab="gear">装备模拟器</button>
+      <button class="tab-button" data-tab="loot">装备查询</button>
+    </nav>
+
+    <section class="workspace-grid">
+      <article id="talentsPanel" class="workspace-panel active">
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">天赋计算器</p>
+            <h2>天赋树</h2>
+          </div>
+          <button id="loadPresetButton" class="secondary-button">载入预设</button>
+        </div>
+        <div id="talentTree" class="talent-tree"></div>
+      </article>
+
+      <article id="gearPanel" class="workspace-panel">
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">角色装备栏</p>
+            <h2>装备栏</h2>
+          </div>
+          <button id="clearGearButton" class="secondary-button">清空装备</button>
+        </div>
+        <div class="armory-layout">
+          <div id="leftSlots" class="slot-column"></div>
+          <div class="character-core">
+            <div class="crest">SIMC</div>
+            <p id="characterLabel">法师 奥术</p>
+            <div class="stat-stack">
+              <span>已选装备</span>
+              <strong id="selectedCount">0</strong>
+            </div>
+          </div>
+          <div id="rightSlots" class="slot-column"></div>
+        </div>
+      </article>
+
+      <article id="lootPanel" class="workspace-panel">
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">地下城手册</p>
+            <h2>首领掉落</h2>
+          </div>
+          <label class="search-box">
+            <span>搜索</span>
+            <input id="lootSearch" autocomplete="off" spellcheck="false" placeholder="装备、首领、副本">
+          </label>
+        </div>
+        <div class="journal-layout">
+          <div id="instanceList" class="journal-list"></div>
+          <div id="encounterList" class="journal-list"></div>
+          <div id="lootList" class="loot-list"></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="result-dock" aria-label="配置与模拟结果">
+      <div id="gateNotice" class="gate-notice"></div>
+      <div class="profile-tools">
+        <button id="profileButton" class="secondary-button">生成配置</button>
+        <button id="simulateButton" class="primary-button">提交 SimC</button>
+      </div>
+      <pre id="profilePreview"></pre>
+      <div id="simulationResult" class="simulation-result"></div>
+    </section>
+  </main>
+  <script src="/websim/app.js?v=20260612-cn-season"></script>
+</body>
+</html>

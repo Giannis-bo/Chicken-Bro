@@ -1,4 +1,5 @@
 const { requestArticleList } = require('./news-api')
+const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
 Page({
   data: {
@@ -12,11 +13,20 @@ Page({
   },
 
   onLoad(options) {
-    this.loadArticles({
+    this.analyticsStartedAt = Date.now()
+    const query = {
       type: options.type || 'metric',
       key: options.key || 'today',
       value: options.value ? decodeURIComponent(options.value) : ''
-    })
+    }
+    this.analyticsQuery = query
+    trackPageView('pages/news/list', query)
+    trackEvent('news_list_view', query, { page: 'pages/news/list' })
+    this.loadArticles(query)
+  },
+
+  onUnload() {
+    trackPageLeave('pages/news/list', this.analyticsStartedAt, this.analyticsQuery || {})
   },
 
   loadArticles(query) {
@@ -36,6 +46,7 @@ Page({
   openArticle(event) {
     const { id } = event.currentTarget.dataset
     if (!id) return
+    trackEvent('news_article_open', { articleId: id, source: 'list' }, { page: 'pages/news/list' })
     wx.navigateTo({
       url: `/pages/news/detail?id=${encodeURIComponent(id)}`
     })
