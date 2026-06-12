@@ -27,6 +27,9 @@ test('builds the specialization tab payload without legacy BD metrics', () => {
   assert.equal(payload.featuredSpecializations.length, 3)
   assert.equal(payload.classOptions.length, 13)
   assert.equal(payload.classOptions.flatMap((item) => item.specializations).length, 39)
+  assert.equal(payload.currentSeason.seasonLabel, '至暗之夜 Season 1')
+  assert.match(payload.seasonRevision, /^season-midnight-season-1-/)
+  assert.equal(payload.dataStatus, 'verified')
 })
 
 test('builds a complete specialization intel payload for the view-all page', () => {
@@ -37,6 +40,7 @@ test('builds a complete specialization intel payload for the view-all page', () 
   assert.equal(intelPayload.title, '热门专精资讯')
   assert.equal(intelPayload.items.length, 5)
   assert.ok(intelPayload.items.length > homePayload.featuredSpecializations.length)
+  assert.equal(intelPayload.seasonRevision, homePayload.seasonRevision)
 
   for (const item of intelPayload.items) {
     assert.match(item.id, /\S/)
@@ -76,6 +80,8 @@ test('details expose all query types for every specialization', () => {
     const detail = getSpecializationDetail(specialization.id)
 
     assert.equal(detail.id, specialization.id)
+    assert.equal(detail.seasonRevision, payload.seasonRevision)
+    assert.equal(detail.currentSeason.seasonRevision, payload.seasonRevision)
     assert.deepEqual(Object.keys(detail.details).sort(), queryTypes.map((item) => item.key).sort())
 
     for (const queryType of queryTypes) {

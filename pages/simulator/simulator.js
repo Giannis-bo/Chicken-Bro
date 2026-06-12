@@ -3,6 +3,7 @@ const {
   requestSimulatorHome,
   requestSimulatorTasks
 } = require('./simulator-api')
+const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
 Page({
   data: {
@@ -15,16 +16,41 @@ Page({
   },
 
   onLoad() {
+    this.analyticsStartedAt = Date.now()
+    this.analyticsVisible = true
+    trackPageView('pages/simulator/simulator', { source: 'tab' })
+    trackEvent('simulator_home_view', { source: 'tab' }, { page: 'pages/simulator/simulator' })
     this.loadSimulatorHome()
     this.loadSimulatorTasks()
   },
 
+  onUnload() {
+    if (this.analyticsVisible !== false) {
+      trackPageLeave('pages/simulator/simulator', this.analyticsStartedAt)
+      this.analyticsVisible = false
+    }
+  },
+
   onShow() {
     this.loadSimulatorTasks()
+    if (this.analyticsVisible === false) {
+      this.analyticsStartedAt = Date.now()
+      this.analyticsVisible = true
+      trackPageView('pages/simulator/simulator', { source: 'tab_resume' })
+      trackEvent('simulator_home_view', { source: 'tab_resume' }, { page: 'pages/simulator/simulator' })
+    }
+  },
+
+  onHide() {
+    if (this.analyticsVisible !== false) {
+      trackPageLeave('pages/simulator/simulator', this.analyticsStartedAt)
+      this.analyticsVisible = false
+    }
   },
 
   openAnalysisModule(event) {
     const mode = event.currentTarget.dataset.key || 'simcraft'
+    trackEvent('simulator_module_open', { mode }, { page: 'pages/simulator/simulator' })
     if (mode === 'simc') {
       wx.navigateTo({ url: '/pages/simulator/simc' })
       return
@@ -43,6 +69,7 @@ Page({
   openTaskDetail(event) {
     const taskId = event.currentTarget.dataset.taskId || ''
     if (!taskId) return
+    trackEvent('task_detail_view', { taskId, source: 'simulator_home' }, { page: 'pages/simulator/simulator' })
     wx.navigateTo({ url: `/pages/simulator/task-detail?id=${encodeURIComponent(taskId)}` })
   },
 

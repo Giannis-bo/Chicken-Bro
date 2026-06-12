@@ -82,6 +82,9 @@ LLM 和 SimCraft 由服务器环境控制：
 - `WOW_LLM_API_URL`：OpenAI-compatible chat completions endpoint。
 - `WOW_LLM_API_KEY`：LLM API key，不提交到仓库。
 - `WOW_LLM_MODEL`：默认 `deepseek-v4-flash`。
+- `WOW_BLIZZARD_CLIENT_ID` / `WOW_BLIZZARD_CLIENT_SECRET`：Battle.net API client credentials，仅放服务器；缺失时 WebSim 赛季、装备和天赋数据会进入 `blocked` 状态，不展示可能过期的副本池。
+- `WOW_BLIZZARD_REGION`：默认 `us`。
+- `WOW_BLIZZARD_LOCALE`：默认 `zh_CN`；`WOW_BLIZZARD_LOCALES` 默认 `zh_CN,zh_TW,en_US`，用于官方中文优先、本地化缺失时回退。
 - `WOW_SIMC_BIN`：默认 `/opt/wow-simc/current/simc`，部署脚本会从官方源码构建 CLI。
 - `WOW_SIMC_VERSION_FILE`：默认 `/var/lib/wow-backend/simc-version.json`，由定时任务写入当前镜像 tag 与最新 tag。
 - `WOW_CODEX_BIN`：默认 `/usr/local/bin/codex`，用于低频 Agent Worker。
@@ -95,6 +98,9 @@ LLM 和 SimCraft 由服务器环境控制：
 WOW_LLM_API_URL=https://api.deepseek.com/chat/completions
 WOW_LLM_MODEL=deepseek-v4-flash
 WOW_LLM_API_KEY=...
+WOW_BLIZZARD_CLIENT_ID=...
+WOW_BLIZZARD_CLIENT_SECRET=...
+WOW_BLIZZARD_LOCALE=zh_CN
 ```
 
 Codex CLI 认证也只放服务器本地。推荐两种方式：
@@ -122,6 +128,8 @@ printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
 ```bash
 WOW_LIGHTHOUSE_HOST=124.223.51.33 WOW_LIGHTHOUSE_USER=ubuntu ./server/deploy_lighthouse.sh
 ```
+
+远程调试登录、常用路径和运维命令见 [docs/remote-debugging.md](docs/remote-debugging.md)。
 
 部署后在服务器上验证 Codex：
 

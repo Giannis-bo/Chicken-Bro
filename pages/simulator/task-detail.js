@@ -1,4 +1,5 @@
 const { requestSimulatorTaskDetail } = require('./simulator-api')
+const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
 Page({
   data: {
@@ -10,7 +11,16 @@ Page({
   },
 
   onLoad(options) {
+    const taskId = options.id || ''
+    this.analyticsStartedAt = Date.now()
+    this.analyticsTaskId = taskId
+    trackPageView('pages/simulator/task-detail', { taskId })
+    trackEvent('task_detail_view', { taskId, source: 'detail_page' }, { page: 'pages/simulator/task-detail' })
     this.loadTaskDetail(options.id || '')
+  },
+
+  onUnload() {
+    trackPageLeave('pages/simulator/task-detail', this.analyticsStartedAt, { taskId: this.analyticsTaskId || '' })
   },
 
   loadTaskDetail(taskId) {

@@ -7,6 +7,7 @@ import unittest
 from contextlib import closing
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 
@@ -67,6 +68,13 @@ class NewsBackendTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
         os.environ.pop("WOW_NEWS_DB", None)
+
+    def seed_verified_season(self):
+        from server.websim_payload import current_season_payload, save_active_season_payload
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            save_active_season_payload(conn, current_season_payload())
+            conn.commit()
 
     def patch_simc_confirmation_llm(self, response):
         import server.simulator_payload as simulator_payload
@@ -212,8 +220,19 @@ class NewsBackendTest(unittest.TestCase):
         detail = self.backend.get_builds_detail_payload("法师-冰霜")
 
         self.assertEqual(home["navTitle"], "职业专精")
+        self.assertEqual(home["dataStatus"], "blocked")
         self.assertEqual([item["key"] for item in home["quickActions"]], ["talents", "gear", "statWeights", "rotation"])
         self.assertEqual(len(home["classOptions"]), 13)
+        self.assertEqual(intel["items"], [])
+        self.assertEqual(detail["details"], {})
+
+        self.seed_verified_season()
+        home = self.backend.get_builds_home_payload()
+        intel = self.backend.get_builds_intel_payload()
+        detail = self.backend.get_builds_detail_payload("法师-冰霜")
+
+        self.assertEqual(home["dataStatus"], "verified")
+        self.assertEqual(home["seasonRevision"], detail["seasonRevision"])
         self.assertGreaterEqual(len(intel["items"]), 5)
         self.assertEqual(detail["id"], "法师-冰霜")
         self.assertIn("talents", detail["details"])
@@ -224,8 +243,19 @@ class NewsBackendTest(unittest.TestCase):
         module = self.backend.get_pve_module_payload("bossGuides")
 
         self.assertEqual(home["navTitle"], "副本")
+        self.assertEqual(home["dataStatus"], "blocked")
+        self.assertEqual(home["zones"], [])
+        self.assertEqual(module["items"], [])
+        self.assertEqual(module["itemCount"], 0)
+
+        self.seed_verified_season()
+        home = self.backend.get_pve_home_payload()
+        module = self.backend.get_pve_module_payload("bossGuides")
+
+        self.assertEqual(home["dataStatus"], "verified")
         self.assertEqual([zone["title"] for zone in home["zones"]], ["大秘境专区", "团队 raid 专区"])
         self.assertEqual(module["key"], "bossGuides")
+        self.assertEqual(module["seasonRevision"], home["seasonRevision"])
         self.assertEqual(module["navTitle"], "boss攻略")
         self.assertGreater(len(module["items"]), 0)
         self.assertRegex(module["items"][0]["sourceUrl"], r"^https://")
@@ -1797,6 +1827,158 @@ class NewsBackendTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+
+    def test_analytics_event_recording_dedupes_and_sanitizes_properties(self):
+        with self.backend.db_connection() as conn:
+            result = self.backend.record_events(
+                conn,
+                {
+                    "events": [
+                        {
+                            "eventId": "evt-analytics-1",
+                            "eventName": "page_view",
+                            "occurredAt": "2026-06-12T01:00:00+00:00",
+                            "page": "pages/news/news",
+                            "properties": {
+                                "source": "tab",
+                                "prompt": "should not be stored",
+                                "profile": "mage=\"secret\"",
+                                "profileSource": "generated",
+                            },
+                        },
+                        {
+                            "eventId": "evt-analytics-1",
+                            "eventName": "page_view",
+                            "occurredAt": "2026-06-12T01:00:01+00:00",
+                            "page": "pages/news/news",
+                        },
+                    ]
+                },
+                client_id="client-a",
+                session_id="session-a",
+            )
+
+            self.assertEqual(result["inserted"], 1)
+            row = conn.execute(
+                "SELECT user_id, client_id_hash, session_id_hash, properties_json FROM analytics_events WHERE event_id = ?",
+                ("evt-analytics-1",),
+            ).fetchone()
+            summary = self.backend.analytics_summary(conn, {"from": ["2026-06-12"], "to": ["2026-06-12"]})
+
+        properties = json.loads(row[3])
+        self.assertIsNone(row[0])
+        self.assertTrue(row[1])
+        self.assertTrue(row[2])
+        self.assertNotIn("prompt", properties)
+        self.assertNotIn("profile", properties)
+        self.assertEqual(properties["profileSource"], "generated")
+        self.assertEqual(summary["summary"]["pv"], 1)
+        self.assertEqual(summary["summary"]["uv"], 1)
+
+    def test_analytics_route_links_authenticated_user_without_openid_in_event_body(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-analytics",
+            exchange_code=lambda code: {"openid": "openid-analytics"},
+        )
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/analytics/events",
+                data=json.dumps(
+                    {
+                        "events": [
+                            {
+                                "eventId": "evt-auth-1",
+                                "eventName": "simc_task_saved",
+                                "occurredAt": "2026-06-12T02:00:00+00:00",
+                                "page": "pages/simulator/simc",
+                                "properties": {"taskId": "task-1", "openid": "openid-analytics"},
+                            }
+                        ]
+                    },
+                    ensure_ascii=False,
+                ).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {login['accessToken']}",
+                    "X-Wow-Client-Id": "client-auth",
+                    "X-Wow-Session-Id": "session-auth",
+                    "X-Wow-Platform": "miniprogram",
+                },
+                method="POST",
+            )
+            with urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            row = conn.execute(
+                """
+                SELECT e.user_id, u.openid, e.properties_json
+                FROM analytics_events e
+                JOIN wechat_users u ON u.id = e.user_id
+                WHERE e.event_id = ?
+                """,
+                ("evt-auth-1",),
+            ).fetchone()
+            link_count = conn.execute("SELECT COUNT(*) FROM analytics_user_links").fetchone()[0]
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(payload["inserted"], 1)
+        self.assertEqual(row[1], "openid-analytics")
+        self.assertNotIn("openid", json.loads(row[2]))
+        self.assertEqual(link_count, 1)
+
+    def test_admin_analytics_requires_token_and_returns_summary(self):
+        os.environ["WOW_ANALYTICS_ADMIN_TOKEN"] = "admin-token"
+        with self.backend.db_connection() as conn:
+            self.backend.record_events(
+                conn,
+                {
+                    "events": [
+                        {
+                            "eventId": "evt-admin-1",
+                            "eventName": "page_view",
+                            "occurredAt": "2026-06-12T03:00:00+00:00",
+                            "page": "pages/pve/pve",
+                        }
+                    ]
+                },
+                client_id="client-admin",
+                session_id="session-admin",
+            )
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/api/admin/analytics/summary?from=2026-06-12&to=2026-06-12"
+            with self.assertRaises(HTTPError) as raised:
+                urlopen(url, timeout=5)
+            self.assertEqual(raised.exception.code, 401)
+
+            request = Request(url, headers={"Authorization": "Bearer admin-token"})
+            with urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+            os.environ.pop("WOW_ANALYTICS_ADMIN_TOKEN", None)
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(payload["summary"]["pv"], 1)
+        self.assertEqual(payload["summary"]["uv"], 1)
+
+    def test_admin_analytics_page_escapes_event_table_values(self):
+        html = self.backend.analytics_admin_page()
+
+        self.assertIn("function escapeHtml(value)", html)
+        self.assertIn("<td>${escapeHtml(value)}</td>", html)
+        self.assertNotIn("<td>${String(value ?? '')}</td>", html)
+        self.assertNotIn("<code>${JSON.stringify(item.properties)}</code>", html)
 
 
 if __name__ == "__main__":

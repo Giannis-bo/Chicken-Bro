@@ -1,3 +1,5 @@
+const { buildCurrentSeasonPayload, seasonMetadataFields } = require('../game-season')
+
 const latestPveAnalysis = {
   currentSeason: '至暗之夜 Season 1',
   seasonLabel: '当前赛季：至暗之夜 Season 1',
@@ -266,6 +268,7 @@ const pveZones = [
 ]
 
 function buildPveHomePayload() {
+  const season = buildCurrentSeasonPayload()
   return {
     navTitle: '副本',
     kicker: '能力 03',
@@ -273,13 +276,14 @@ function buildPveHomePayload() {
     desc: `${latestPveAnalysis.seasonLabel}。聚合大秘境队伍、职业专精、赛季副本和团队 raid 战报攻略，所有数据结论都保留来源与分析窗口。`,
     zones: pveZones,
     trustedSources: trustedPveSources,
-    currentSeason: latestPveAnalysis.currentSeason,
+    ...seasonMetadataFields(season),
     lastAnalyzedAt: latestPveAnalysis.publishedAt,
     analysisWindow: latestPveAnalysis.analysisWindow
   }
 }
 
 function getPveModuleDetail(moduleKey) {
+  const season = buildCurrentSeasonPayload()
   const fallback = pveZones[0].modules[0]
   const module = pveZones
     .flatMap((zone) =>
@@ -308,7 +312,7 @@ function getPveModuleDetail(moduleKey) {
   return {
     ...module,
     navTitle: module.title,
-    currentSeason: latestPveAnalysis.currentSeason,
+    ...seasonMetadataFields(season),
     lastAnalyzedAt: latestPveAnalysis.publishedAt
   }
 }

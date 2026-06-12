@@ -1,4 +1,5 @@
 const { requestArticleDetail } = require('./news-api')
+const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
 Page({
   data: {
@@ -11,7 +12,16 @@ Page({
   },
 
   onLoad(options) {
-    this.loadArticle(options.id || '')
+    const articleId = options.id || ''
+    this.analyticsStartedAt = Date.now()
+    this.analyticsArticleId = articleId
+    trackPageView('pages/news/detail', { articleId })
+    trackEvent('news_article_view', { articleId }, { page: 'pages/news/detail' })
+    this.loadArticle(articleId)
+  },
+
+  onUnload() {
+    trackPageLeave('pages/news/detail', this.analyticsStartedAt, { articleId: this.analyticsArticleId || '' })
   },
 
   onShow() {
@@ -69,6 +79,7 @@ Page({
 
   copySourceUrl() {
     if (!this.data.article || !this.data.article.sourceUrl) return
+    trackEvent('news_source_copy', { articleId: this.data.article.id || this.analyticsArticleId || '' }, { page: 'pages/news/detail' })
     wx.setClipboardData({
       data: this.data.article.sourceUrl
     })

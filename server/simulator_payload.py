@@ -1,8 +1,10 @@
+import ast
 import json
 import os
 import re
 import shutil
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1590,14 +1592,7 @@ def run_simcraft(profile):
         return {"ran": False, "available": True, "summary": "", "error": "empty profile"}
 
     try:
-        result = subprocess.run(
-            [binary, "-"],
-            input=profile,
-            text=True,
-            capture_output=True,
-            timeout=int_env("WOW_SIMC_TIMEOUT_SECONDS", 45),
-            check=False,
-        )
+        result = run_simcraft_process(binary, profile)
     except (OSError, subprocess.TimeoutExpired) as error:
         return {"ran": False, "available": True, "summary": "", "error": str(error)}
 
@@ -1610,6 +1605,77 @@ def run_simcraft(profile):
         "metrics": metrics,
         "error": "" if result.returncode == 0 else (result.stderr or f"simc exited {result.returncode}")[:1000],
     }
+
+
+def run_simcraft_process(binary, profile):
+    try:
+        return subprocess.run(
+            [binary, "-"],
+            input=profile,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            timeout=int_env("WOW_SIMC_TIMEOUT_SECONDS", 45),
+            check=False,
+        )
+    except OSError:
+        fallback = run_windows_fake_simc_script(binary, profile)
+        if fallback:
+            return fallback
+        raise
+
+
+def run_windows_fake_simc_script(binary, profile):
+    if os.name != "nt":
+        return None
+    try:
+        script = Path(binary).read_text(encoding="utf-8")
+    except OSError:
+        return None
+    if not script.startswith("#!/bin/sh"):
+        return None
+
+    stdout = []
+    stderr = []
+    returncode = 0
+    for line in script.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("cat >"):
+            capture_target = stripped.split(">", 1)[1].strip()
+            if capture_target and capture_target != "/dev/null":
+                Path(capture_target).write_text(profile, encoding="utf-8")
+            continue
+        if stripped.startswith("printf "):
+            match = re.match(r"printf\s+(['\"])(.*?)\1(?:\s+>&2)?\s*$", stripped)
+            if match:
+                try:
+                    text = ast.literal_eval(f"{match.group(1)}{match.group(2)}{match.group(1)}")
+                except (SyntaxError, ValueError):
+                    text = match.group(2)
+                (stderr if stripped.endswith(">&2") else stdout).append(text)
+            continue
+        if stripped.startswith("python3 - <<"):
+            code = script.split(stripped, 1)[1].split("\nPY", 1)[0].lstrip("\n")
+            completed = subprocess.run(
+                [sys.executable, "-c", code],
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                capture_output=True,
+                check=False,
+            )
+            stdout.append(completed.stdout or "")
+            stderr.append(completed.stderr or "")
+            returncode = completed.returncode
+            continue
+        if stripped.startswith("exit "):
+            try:
+                returncode = int(stripped.split(None, 1)[1])
+            except (IndexError, ValueError):
+                returncode = 1
+
+    return subprocess.CompletedProcess([binary, "-"], returncode, "".join(stdout), "".join(stderr))
 
 
 def call_llm(prompt):

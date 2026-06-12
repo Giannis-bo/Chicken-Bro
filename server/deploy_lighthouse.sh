@@ -438,6 +438,8 @@ fi
 sudo mkdir -p "${REMOTE_DIR}/server/data"
 sudo chown -R "$(id -un):$(id -gn)" "${REMOTE_DIR}/server/data"
 sudo cp "${REMOTE_DIR}/server/wow-backend.service" "/etc/systemd/system/${SERVICE_NAME}.service"
+sudo cp "${REMOTE_DIR}/server/wow-websim-sync.service" "/etc/systemd/system/wow-websim-sync.service"
+sudo cp "${REMOTE_DIR}/server/wow-websim-sync.timer" "/etc/systemd/system/wow-websim-sync.timer"
 
 sudo tee /etc/nginx/sites-available/wow-backend >/dev/null <<'NGINX'
 server {
@@ -485,6 +487,9 @@ if [[ "${SKIP_BOOTSTRAP}" != "1" ]]; then
   sudo systemctl enable --now wow-simc-version-check.timer
   sudo systemctl start wow-simc-version-check.service
 fi
+sudo systemctl enable --now wow-websim-sync.timer
+sudo systemctl reset-failed wow-websim-sync.service >/dev/null 2>&1 || true
+sudo systemctl start --no-block wow-websim-sync.service || sudo journalctl -u wow-websim-sync.service -n 80 --no-pager
 sudo systemctl enable --now "${SERVICE_NAME}"
 sudo systemctl restart "${SERVICE_NAME}"
 sudo systemctl restart nginx
@@ -500,6 +505,8 @@ curl -fsS http://127.0.0.1:8787/health
 curl -fsS http://127.0.0.1/api/builds/home >/dev/null
 curl -fsS http://127.0.0.1/api/pve/home >/dev/null
 curl -fsS http://127.0.0.1/api/simulator/home >/dev/null
+curl -fsS http://127.0.0.1/api/websim/bootstrap >/dev/null
+curl -fsS http://127.0.0.1/websim/ >/dev/null
 "${SIMC_BIN}" iterations=1 max_time=1 >/dev/null
 REMOTE
 

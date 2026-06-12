@@ -1,3 +1,5 @@
+const { buildCurrentSeasonPayload, seasonMetadataFields } = require('../game-season')
+
 const queryTypes = [
   {
     key: 'talents',
@@ -842,13 +844,16 @@ function makeDetails(specialization) {
 function getSpecializationDetail(id) {
   const specialization = specializations.find((item) => item.id === id)
   if (!specialization) return null
+  const season = buildCurrentSeasonPayload()
   return {
     ...specialization,
-    details: makeDetails(specialization)
+    details: makeDetails(specialization),
+    ...seasonMetadataFields(season)
   }
 }
 
 function buildSpecializationHomePayload() {
+  const season = buildCurrentSeasonPayload()
   const featuredSpecializations = buildFeaturedSpecializations()
 
   return {
@@ -862,7 +867,8 @@ function buildSpecializationHomePayload() {
     specializations,
     trustedSources: trustedBuildSources,
     lastAnalyzedAt: latestAnalysis.publishedAt,
-    analysisWindow: latestAnalysis.analysisWindow
+    analysisWindow: latestAnalysis.analysisWindow,
+    ...seasonMetadataFields(season)
   }
 }
 
@@ -877,6 +883,7 @@ function buildFeaturedSpecializations() {
 }
 
 function buildSpecializationIntelPayload() {
+  const season = buildCurrentSeasonPayload()
   const items = buildFeaturedSpecializations()
 
   return {
@@ -887,7 +894,8 @@ function buildSpecializationIntelPayload() {
     items,
     trustedSources: trustedBuildSources,
     lastAnalyzedAt: latestAnalysis.publishedAt,
-    analysisWindow: latestAnalysis.analysisWindow
+    analysisWindow: latestAnalysis.analysisWindow,
+    ...seasonMetadataFields(season)
   }
 }
 
