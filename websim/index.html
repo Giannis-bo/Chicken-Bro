@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>WebSim - SimC 构筑工坊</title>
-  <link rel="stylesheet" href="/websim/app.css?v=20260612-cn-season">
+  <link rel="stylesheet" href="/websim/app.css?v=20260613-selector-focus-return">
 </head>
 <body>
   <main class="app-shell">
@@ -20,26 +20,38 @@
       </div>
     </header>
 
-    <section class="control-row" aria-label="角色选择">
-      <label>
-        <span>职业</span>
-        <select id="classSelect"></select>
-      </label>
-      <label>
-        <span>专精</span>
-        <select id="specSelect"></select>
-      </label>
-      <label>
-        <span>场景</span>
-        <select id="scenarioSelect"></select>
-      </label>
-      <label>
-        <span>天赋导入码</span>
+    <section class="control-row wowhead-selector-strip" aria-label="角色选择">
+      <div class="selector-card selector-card-class" data-selector-card="class">
+        <span class="selector-card-kicker">职业</span>
+        <button id="classSelectPreview" class="selector-card-value selector-card-button" data-selector-button="class" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="classSelectorMenu"></button>
+        <select id="classSelect" class="native-selector" aria-label="职业"></select>
+        <div id="classSelectorMenu" class="selector-menu" role="listbox" aria-label="职业选项"></div>
+      </div>
+      <div class="selector-card selector-card-spec" data-selector-card="spec">
+        <span class="selector-card-kicker">专精</span>
+        <button id="specSelectPreview" class="selector-card-value selector-card-button" data-selector-button="spec" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="specSelectorMenu"></button>
+        <select id="specSelect" class="native-selector" aria-label="专精"></select>
+        <div id="specSelectorMenu" class="selector-menu" role="listbox" aria-label="专精选项"></div>
+      </div>
+      <div class="selector-card selector-card-hero" data-selector-card="hero">
+        <span class="selector-card-kicker">英雄天赋</span>
+        <button id="heroSelectPreview" class="selector-card-value selector-card-button" data-selector-button="hero" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="heroSelectorMenu"></button>
+        <select id="heroSelect" class="native-selector" aria-label="英雄天赋"></select>
+        <div id="heroSelectorMenu" class="selector-menu" role="listbox" aria-label="英雄天赋选项"></div>
+      </div>
+      <div class="selector-card selector-card-scenario" data-selector-card="scenario">
+        <span class="selector-card-kicker">场景</span>
+        <button id="scenarioSelectPreview" class="selector-card-value selector-card-button" data-selector-button="scenario" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="scenarioSelectorMenu"></button>
+        <select id="scenarioSelect" class="native-selector" aria-label="场景"></select>
+        <div id="scenarioSelectorMenu" class="selector-menu" role="listbox" aria-label="场景选项"></div>
+      </div>
+      <label class="selector-card selector-card-import">
+        <span class="selector-card-kicker">天赋导入码</span>
         <input id="talentInput" autocomplete="off" spellcheck="false" placeholder="粘贴 talents= 导入码">
       </label>
     </section>
 
-    <nav class="workspace-tabs" aria-label="WebSim modules">
+    <nav class="workspace-tabs" aria-label="WebSim 模块">
       <button class="tab-button active" data-tab="talents">天赋模拟器</button>
       <button class="tab-button" data-tab="gear">装备模拟器</button>
       <button class="tab-button" data-tab="loot">装备查询</button>
@@ -48,11 +60,24 @@
     <section class="workspace-grid">
       <article id="talentsPanel" class="workspace-panel active">
         <div class="panel-title">
-          <div>
-            <p class="eyebrow">天赋计算器</p>
-            <h2>天赋树</h2>
+          <div class="talent-panel-heading-copy">
+            <p id="talentPanelEyebrow" class="eyebrow">天赋计算器</p>
+            <h2 id="talentPanelHeading">天赋模拟器</h2>
           </div>
-          <button id="loadPresetButton" class="secondary-button">载入预设</button>
+          <div class="talent-actions" aria-label="天赋构筑工具">
+            <span id="talentActionStatus" class="talent-action-status" aria-live="polite"></span>
+            <button id="showTalentNamesButton" class="secondary-button talent-action-button" data-action-icon="名" aria-pressed="false">显示名称</button>
+            <button id="annotateTalentsButton" class="secondary-button talent-action-button" data-action-icon="记" aria-pressed="false">标记模式</button>
+            <button id="resetTalentsButton" class="secondary-button talent-action-button" data-action-icon="重">重置</button>
+            <button id="copyTalentsButton" class="secondary-button talent-action-button" data-action-icon="链">复制链接</button>
+            <button id="talentHelpButton" class="secondary-button talent-action-button" data-action-icon="?" aria-expanded="false" aria-controls="talentHelpPanel">帮助</button>
+            <div id="talentHelpPanel" class="talent-help-popover" aria-hidden="true">
+              <strong>天赋模拟器</strong>
+              <span>左键为节点加 1 点。</span>
+              <span>右键或 Shift+左键移除 1 点。</span>
+              <span>标记模式只做备注，不消耗点数。</span>
+            </div>
+          </div>
         </div>
         <div id="talentTree" class="talent-tree"></div>
       </article>
@@ -108,6 +133,7 @@
       <div id="simulationResult" class="simulation-result"></div>
     </section>
   </main>
-  <script src="/websim/app.js?v=20260612-cn-season"></script>
+  <div id="talentTooltip" class="talent-tooltip" aria-hidden="true"></div>
+  <script src="/websim/app.js?v=20260613-selector-focus-return"></script>
 </body>
 </html>

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import base64
+import csv
 import hashlib
+import io
 import json
 import os
 import re
@@ -23,6 +25,20 @@ DEFAULT_LOCALE_FALLBACKS = [
 ]
 DEFAULT_SIMC_ROOT = Path(os.environ.get("WOW_SIMC_ROOT", "/opt/wow-simc"))
 DEFAULT_SIMC_VERSION_FILE = Path(os.environ.get("WOW_SIMC_VERSION_FILE", "/var/lib/wow-backend/simc-version.json"))
+DEFAULT_SIMC_BRANCH = os.environ.get("WOW_SIMC_GITHUB_BRANCH", "midnight").strip() or "midnight"
+DEFAULT_SIMC_TRAIT_DATA_URL = os.environ.get(
+    "WOW_SIMC_TRAIT_DATA_URL",
+    f"https://raw.githubusercontent.com/simulationcraft/simc/{DEFAULT_SIMC_BRANCH}/engine/dbc/generated/trait_data.inc",
+).strip()
+DEFAULT_SIMC_SPELLTEXT_DATA_URL = os.environ.get(
+    "WOW_SIMC_SPELLTEXT_DATA_URL",
+    f"https://raw.githubusercontent.com/simulationcraft/simc/{DEFAULT_SIMC_BRANCH}/engine/dbc/generated/spelltext_data.inc",
+).strip()
+DEFAULT_SIMC_REMOTE_ENABLED = os.environ.get("WOW_WEBSIM_FETCH_SIMC_REMOTE", "1").strip() != "0"
+DEFAULT_WAGO_DB2_BASE_URL = os.environ.get("WOW_WAGO_DB2_BASE_URL", "https://wago.tools/db2").strip().rstrip("/")
+DEFAULT_WAGO_DB2_ENABLED = (
+    os.environ.get("WOW_WEBSIM_FETCH_WAGO_DB2", os.environ.get("WOW_WEBSIM_FETCH_SIMC_REMOTE", "1")).strip() != "0"
+)
 SEASON_TTL_HOURS = int(os.environ.get("WOW_SEASON_TTL_HOURS", "24"))
 MIDNIGHT_SEASON_ONE_DUNGEONS = [
     "Magisters' Terrace",
@@ -55,11 +71,18 @@ OFFICIAL_SEASON_SOURCE_REFS = [
         "note": "Authoritative WoW Game Data API for season, dungeon, journal, item, spell and media data.",
     },
 ]
+SIMC_TALENT_SOURCE_REFS = [
+    {
+        "name": "SimulationCraft generated trait data",
+        "url": DEFAULT_SIMC_TRAIT_DATA_URL,
+        "note": "Generated SimC trait_data.inc used for class, specialization and hero talent node layout.",
+    }
+]
 
 
 WOW_CLASSES = [
     {"key": "deathknight", "label": "Death Knight", "specs": ["blood", "frost", "unholy"]},
-    {"key": "demonhunter", "label": "Demon Hunter", "specs": ["havoc", "vengeance"]},
+    {"key": "demonhunter", "label": "Demon Hunter", "specs": ["havoc", "vengeance", "devourer"]},
     {"key": "druid", "label": "Druid", "specs": ["balance", "feral", "guardian", "restoration"]},
     {"key": "evoker", "label": "Evoker", "specs": ["devastation", "preservation", "augmentation"]},
     {"key": "hunter", "label": "Hunter", "specs": ["beast_mastery", "marksmanship", "survival"]},
@@ -89,6 +112,7 @@ SPEC_LABELS = {
     "unholy": "Unholy",
     "havoc": "Havoc",
     "vengeance": "Vengeance",
+    "devourer": "Devourer",
     "balance": "Balance",
     "feral": "Feral",
     "guardian": "Guardian",
@@ -165,6 +189,225 @@ SPEC_LABELS_ZH = {
     "destruction": "毁灭",
 }
 
+CLASS_COLORS = {
+    "deathknight": "#c41e3a",
+    "demonhunter": "#a330c9",
+    "druid": "#ff7c0a",
+    "evoker": "#33937f",
+    "hunter": "#aad372",
+    "mage": "#3fc7eb",
+    "monk": "#00ff98",
+    "paladin": "#f48cba",
+    "priest": "#ffffff",
+    "rogue": "#fff468",
+    "shaman": "#0070dd",
+    "warlock": "#8788ee",
+    "warrior": "#c69b6d",
+}
+
+CLASS_ICON_NAMES = {
+    "deathknight": "classicon_deathknight",
+    "demonhunter": "classicon_demonhunter",
+    "druid": "classicon_druid",
+    "evoker": "classicon_evoker",
+    "hunter": "classicon_hunter",
+    "mage": "classicon_mage",
+    "monk": "classicon_monk",
+    "paladin": "classicon_paladin",
+    "priest": "classicon_priest",
+    "rogue": "classicon_rogue",
+    "shaman": "classicon_shaman",
+    "warlock": "classicon_warlock",
+    "warrior": "classicon_warrior",
+}
+
+SPEC_ICON_NAMES = {
+    "arcane": "spell_holy_magicalsentry",
+    "fire": "spell_fire_firebolt02",
+    "frost": "spell_frost_frostbolt02",
+    "holy": "spell_holy_holybolt",
+    "protection": "ability_warrior_defensivestance",
+    "retribution": "spell_holy_auraoflight",
+    "elemental": "spell_nature_lightning",
+    "enhancement": "spell_shaman_improvedstormstrike",
+    "restoration": "spell_nature_magicimmunity",
+    "arms": "ability_warrior_savageblow",
+    "fury": "ability_warrior_innerrage",
+    "blood": "spell_deathknight_bloodpresence",
+    "unholy": "spell_deathknight_unholypresence",
+    "havoc": "ability_demonhunter_specdps",
+    "vengeance": "ability_demonhunter_spectank",
+    "devourer": "ability_demonhunter_specdevourer",
+    "balance": "spell_nature_starfall",
+    "feral": "ability_druid_catform",
+    "guardian": "ability_racial_bearform",
+    "devastation": "classicon_evoker_devastation",
+    "preservation": "classicon_evoker_preservation",
+    "augmentation": "classicon_evoker_augmentation",
+    "beast_mastery": "ability_hunter_bestialdiscipline",
+    "marksmanship": "ability_hunter_focusedaim",
+    "survival": "ability_hunter_camouflage",
+    "brewmaster": "spell_monk_brewmaster_spec",
+    "mistweaver": "spell_monk_mistweaver_spec",
+    "windwalker": "spell_monk_windwalker_spec",
+    "discipline": "spell_holy_powerwordshield",
+    "shadow": "spell_shadow_shadowwordpain",
+    "assassination": "ability_rogue_eviscerate",
+    "outlaw": "ability_rogue_waylay",
+    "subtlety": "ability_stealth",
+    "affliction": "spell_shadow_deathcoil",
+    "demonology": "spell_shadow_metamorphosis",
+    "destruction": "spell_shadow_rainoffire",
+}
+
+HERO_TREE_LABELS = {
+    "deathbringer": "Deathbringer",
+    "rider_of_the_apocalypse": "Rider of the Apocalypse",
+    "sanlayn": "San'layn",
+    "aldrachi_reaver": "Aldrachi Reaver",
+    "fel_scarred": "Fel-Scarred",
+    "annihilator": "Annihilator",
+    "void_scarred": "Void-Scarred",
+    "keeper_of_the_grove": "Keeper of the Grove",
+    "wildstalker": "Wildstalker",
+    "elunes_chosen": "Elune's Chosen",
+    "druid_of_the_claw": "Druid of the Claw",
+    "flameshaper": "Flameshaper",
+    "scalecommander": "Scalecommander",
+    "chronowarden": "Chronowarden",
+    "dark_ranger": "Dark Ranger",
+    "pack_leader": "Pack Leader",
+    "sentinel": "Sentinel",
+    "spellslinger": "Spellslinger",
+    "sunfury": "Sunfury",
+    "frostfire": "Frostfire",
+    "conduit_of_the_celestials": "Conduit of the Celestials",
+    "master_of_harmony": "Master of Harmony",
+    "shado_pan": "Shado-Pan",
+    "herald_of_the_sun": "Herald of the Sun",
+    "lightsmith": "Lightsmith",
+    "templar": "Templar",
+    "oracle": "Oracle",
+    "voidweaver": "Voidweaver",
+    "archon": "Archon",
+    "deathstalker": "Deathstalker",
+    "fatebound": "Fatebound",
+    "trickster": "Trickster",
+    "farseer": "Farseer",
+    "stormbringer": "Stormbringer",
+    "totemic": "Totemic",
+    "hellcaller": "Hellcaller",
+    "soul_harvester": "Soul Harvester",
+    "diabolist": "Diabolist",
+    "colossus": "Colossus",
+    "mountain_thane": "Mountain Thane",
+    "slayer": "Slayer",
+}
+
+HERO_TREE_LABELS_ZH = {
+    "deathbringer": "死亡使者",
+    "rider_of_the_apocalypse": "天启骑士",
+    "sanlayn": "萨莱茵",
+    "aldrachi_reaver": "奥达奇掠夺者",
+    "fel_scarred": "邪痕者",
+    "annihilator": "歼灭者",
+    "void_scarred": "虚痕者",
+    "keeper_of_the_grove": "丛林守护者",
+    "wildstalker": "野性追猎者",
+    "elunes_chosen": "艾露恩钦选者",
+    "druid_of_the_claw": "利爪德鲁伊",
+    "flameshaper": "塑焰者",
+    "scalecommander": "鳞长",
+    "chronowarden": "时空守卫",
+    "dark_ranger": "黑暗游侠",
+    "pack_leader": "兽群领袖",
+    "sentinel": "哨兵",
+    "spellslinger": "法术投射者",
+    "sunfury": "日怒",
+    "frostfire": "霜火",
+    "conduit_of_the_celestials": "天神御师",
+    "master_of_harmony": "和谐宗师",
+    "shado_pan": "影踪派",
+    "herald_of_the_sun": "旭日使者",
+    "lightsmith": "铸光者",
+    "templar": "圣殿骑士",
+    "oracle": "神谕者",
+    "voidweaver": "虚空编织者",
+    "archon": "执政官",
+    "deathstalker": "死亡猎手",
+    "fatebound": "命缚者",
+    "trickster": "欺诈者",
+    "farseer": "先知",
+    "stormbringer": "风暴使者",
+    "totemic": "图腾祭司",
+    "hellcaller": "地狱召唤者",
+    "soul_harvester": "灵魂收割者",
+    "diabolist": "恶魔学家",
+    "colossus": "巨像",
+    "mountain_thane": "山丘领主",
+    "slayer": "屠戮者",
+}
+
+HERO_BY_CLASS = {
+    "deathknight": ["deathbringer", "rider_of_the_apocalypse", "sanlayn"],
+    "demonhunter": ["aldrachi_reaver", "fel_scarred", "annihilator", "void_scarred"],
+    "druid": ["keeper_of_the_grove", "wildstalker", "elunes_chosen", "druid_of_the_claw"],
+    "evoker": ["flameshaper", "scalecommander", "chronowarden"],
+    "hunter": ["dark_ranger", "pack_leader", "sentinel"],
+    "mage": ["spellslinger", "sunfury", "frostfire"],
+    "monk": ["conduit_of_the_celestials", "master_of_harmony", "shado_pan"],
+    "paladin": ["herald_of_the_sun", "lightsmith", "templar"],
+    "priest": ["oracle", "voidweaver", "archon"],
+    "rogue": ["deathstalker", "fatebound", "trickster"],
+    "shaman": ["farseer", "stormbringer", "totemic"],
+    "warlock": ["hellcaller", "soul_harvester", "diabolist"],
+    "warrior": ["colossus", "mountain_thane", "slayer"],
+}
+
+HERO_BY_SPEC = {
+    ("deathknight", "blood"): ["deathbringer", "sanlayn"],
+    ("deathknight", "frost"): ["deathbringer", "rider_of_the_apocalypse"],
+    ("deathknight", "unholy"): ["rider_of_the_apocalypse", "sanlayn"],
+    ("demonhunter", "havoc"): ["aldrachi_reaver", "fel_scarred"],
+    ("demonhunter", "vengeance"): ["aldrachi_reaver", "annihilator"],
+    ("demonhunter", "devourer"): ["annihilator", "void_scarred"],
+    ("druid", "balance"): ["elunes_chosen", "keeper_of_the_grove"],
+    ("druid", "feral"): ["wildstalker", "druid_of_the_claw"],
+    ("druid", "guardian"): ["druid_of_the_claw", "elunes_chosen"],
+    ("druid", "restoration"): ["keeper_of_the_grove", "wildstalker"],
+    ("evoker", "devastation"): ["flameshaper", "scalecommander"],
+    ("evoker", "preservation"): ["flameshaper", "chronowarden"],
+    ("evoker", "augmentation"): ["scalecommander", "chronowarden"],
+    ("hunter", "beast_mastery"): ["dark_ranger", "pack_leader"],
+    ("hunter", "marksmanship"): ["dark_ranger", "sentinel"],
+    ("hunter", "survival"): ["pack_leader", "sentinel"],
+    ("mage", "arcane"): ["spellslinger", "sunfury"],
+    ("mage", "fire"): ["sunfury", "frostfire"],
+    ("mage", "frost"): ["frostfire", "spellslinger"],
+    ("monk", "brewmaster"): ["master_of_harmony", "shado_pan"],
+    ("monk", "mistweaver"): ["conduit_of_the_celestials", "master_of_harmony"],
+    ("monk", "windwalker"): ["shado_pan", "conduit_of_the_celestials"],
+    ("paladin", "holy"): ["herald_of_the_sun", "lightsmith"],
+    ("paladin", "protection"): ["lightsmith", "templar"],
+    ("paladin", "retribution"): ["herald_of_the_sun", "templar"],
+    ("priest", "discipline"): ["oracle", "voidweaver"],
+    ("priest", "holy"): ["oracle", "archon"],
+    ("priest", "shadow"): ["voidweaver", "archon"],
+    ("rogue", "assassination"): ["deathstalker", "fatebound"],
+    ("rogue", "outlaw"): ["fatebound", "trickster"],
+    ("rogue", "subtlety"): ["deathstalker", "trickster"],
+    ("shaman", "elemental"): ["farseer", "stormbringer"],
+    ("shaman", "enhancement"): ["stormbringer", "totemic"],
+    ("shaman", "restoration"): ["farseer", "totemic"],
+    ("warlock", "affliction"): ["hellcaller", "soul_harvester"],
+    ("warlock", "demonology"): ["soul_harvester", "diabolist"],
+    ("warlock", "destruction"): ["hellcaller", "diabolist"],
+    ("warrior", "arms"): ["colossus", "slayer"],
+    ("warrior", "fury"): ["slayer", "mountain_thane"],
+    ("warrior", "protection"): ["mountain_thane", "colossus"],
+}
+
+
 GAME_CLASS_ID_TO_KEY = {
     1: "warrior",
     2: "paladin",
@@ -218,6 +461,7 @@ SPEC_ID_TO_KEY = {
     270: ("monk", "mistweaver"),
     577: ("demonhunter", "havoc"),
     581: ("demonhunter", "vengeance"),
+    1480: ("demonhunter", "devourer"),
     1467: ("evoker", "devastation"),
     1468: ("evoker", "preservation"),
     1473: ("evoker", "augmentation"),
@@ -1199,6 +1443,9 @@ def sync_blizzard_spell_details(conn, token, region=DEFAULT_REGION, locale=DEFAU
                 ),
             )
             counts["media"] += 1
+        if counts["spells"] % 25 == 0:
+            conn.commit()
+    conn.commit()
     return counts
 
 
@@ -1209,6 +1456,7 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
     item_limit = int_env("WOW_WEBSIM_SYNC_ITEM_LIMIT", 300)
     season = resolve_current_mythic_season(token, region, locale)
     save_active_season_payload(conn, season)
+    conn.commit()
     dungeons = (season.get("dungeons") or [])[:instance_limit]
     counts = {
         "instances": 0,
@@ -1224,6 +1472,7 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
     conn.execute("DELETE FROM websim_loot")
     conn.execute("DELETE FROM websim_encounters")
     conn.execute("DELETE FROM websim_instances")
+    conn.commit()
 
     for dungeon in dungeons:
         instance_id = str(dungeon.get("instanceId") or "")
@@ -1357,6 +1606,8 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
                     ),
                 )
                 counts["loot"] += 1
+        conn.commit()
+    conn.commit()
     return counts
 
 
@@ -1403,6 +1654,62 @@ def current_simc_source_tar():
     return candidates[0] if candidates else None
 
 
+def current_simc_trait_data_file():
+    explicit = os.environ.get("WOW_SIMC_TRAIT_DATA_FILE", "").strip()
+    if explicit and Path(explicit).exists():
+        return Path(explicit)
+    generated = DEFAULT_SIMC_ROOT / "current" / "engine" / "dbc" / "generated" / "trait_data.inc"
+    if generated.exists():
+        return generated
+    return None
+
+
+def current_simc_spelltext_data_file():
+    explicit = os.environ.get("WOW_SIMC_SPELLTEXT_DATA_FILE", "").strip()
+    if explicit and Path(explicit).exists():
+        return Path(explicit)
+    trait_explicit = os.environ.get("WOW_SIMC_TRAIT_DATA_FILE", "").strip()
+    if trait_explicit:
+        sibling = Path(trait_explicit).with_name("spelltext_data.inc")
+        if sibling.exists():
+            return sibling
+    generated = DEFAULT_SIMC_ROOT / "current" / "engine" / "dbc" / "generated" / "spelltext_data.inc"
+    if generated.exists():
+        return generated
+    return None
+
+
+def download_simc_text(url):
+    if not DEFAULT_SIMC_REMOTE_ENABLED or not url:
+        return "", ""
+    request = Request(url, headers={"User-Agent": "wow-websim-sync"})
+    with urlopen(request, timeout=int_env("WOW_SIMC_FETCH_TIMEOUT_SECONDS", 30)) as response:
+        return response.read().decode("utf-8", errors="ignore"), url
+
+
+def download_simc_trait_data_text():
+    return download_simc_text(DEFAULT_SIMC_TRAIT_DATA_URL)
+
+
+def download_simc_spelltext_data_text():
+    return download_simc_text(DEFAULT_SIMC_SPELLTEXT_DATA_URL)
+
+
+def simc_build_from_text(text):
+    match = re.search(r"wow build(?: level)?\s+([0-9.]+)", str(text or ""), re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
+def download_wago_db2_csv(table, build):
+    if not DEFAULT_WAGO_DB2_ENABLED or not DEFAULT_WAGO_DB2_BASE_URL or not table or not build:
+        return "", ""
+    query = urlencode({"build": build, "locale": "enUS"})
+    url = f"{DEFAULT_WAGO_DB2_BASE_URL}/{table}/csv?{query}"
+    request = Request(url, headers={"User-Agent": "Mozilla/5.0 wow-websim-sync"})
+    with urlopen(request, timeout=int_env("WOW_WAGO_DB2_FETCH_TIMEOUT_SECONDS", 30)) as response:
+        return response.read().decode("utf-8", errors="ignore"), url
+
+
 def tar_member_suffix(tar, suffix):
     for member in tar.getmembers():
         if member.name.endswith(suffix):
@@ -1414,13 +1721,136 @@ def parse_ints(value):
     return [int(item) for item in re.findall(r"-?\d+", str(value or ""))]
 
 
-def parse_trait_data_text(text, limit=6000):
-    talents = []
+SIMC_C_STRING_TOKEN = r'(?:0|"(?:\\.|[^"\\])*")'
+SIMC_SPELLTEXT_RECORD_RE = re.compile(
+    r"\{\s*(?P<spell_id>\d+)\s*,\s*"
+    rf"(?P<desc>{SIMC_C_STRING_TOKEN})\s*,\s*"
+    rf"(?P<tooltip>{SIMC_C_STRING_TOKEN})\s*,\s*"
+    rf"(?P<rank>{SIMC_C_STRING_TOKEN})\s*\}},?"
+)
+
+
+def parse_simc_c_string(value):
+    value = str(value or "").strip()
+    if value == "0" or not value:
+        return ""
+    if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
+        value = value[1:-1]
+    try:
+        return bytes(value, "utf-8").decode("unicode_escape", errors="ignore")
+    except Exception:
+        return value.replace(r"\r", "\r").replace(r"\n", "\n").replace(r"\"", '"').replace(r"\\", "\\")
+
+
+def clean_simc_spell_text(value):
+    text = parse_simc_c_string(value)
+    text = re.sub(r"\|[cC][0-9A-Fa-f]{8}", "", text)
+    text = text.replace("|r", "").replace("|R", "")
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"\$@spellicon\d+", "", text)
+    text = re.sub(r"\$@spellname\d+:?", "", text)
+    text = re.sub(r"\$@spelldesc\d+", "", text)
+    text = re.sub(r"\$l([^:;\s]+):([^;]+);", r"\1/\2", text)
+    conditional = re.compile(r"\$\?[^[]+\[([^\[\]]*)\]\[([^\[\]]*)\]")
+    for _ in range(8):
+        updated = conditional.sub(
+            lambda match: " / ".join(part.strip() for part in match.groups() if part.strip()),
+            text,
+        )
+        if updated == text:
+            break
+        text = updated
+    text = re.sub(r"\$\?[^[]+\[", "", text)
+    text = text.replace("][", " / ")
+    text = text.replace("[", "").replace("]", "")
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    return text.strip()
+
+
+def simc_spell_description(desc, tooltip):
+    desc_text = clean_simc_spell_text(desc)
+    tooltip_text = clean_simc_spell_text(tooltip)
+    if desc_text and tooltip_text and tooltip_text not in desc_text:
+        return f"{desc_text}\n\n{tooltip_text}"
+    return desc_text or tooltip_text
+
+
+def parse_spelltext_data_text(text, spell_ids=None, limit=50000):
+    wanted = {int(spell_id) for spell_id in spell_ids or [] if int(spell_id or 0) > 0}
+    details = []
+    seen = set()
     for line in str(text or "").splitlines():
         stripped = line.strip()
         if not stripped.startswith("{"):
             continue
-        name_match = re.search(r'"([^"]+)"', stripped)
+        match = SIMC_SPELLTEXT_RECORD_RE.match(stripped)
+        if not match:
+            continue
+        spell_id = int(match.group("spell_id"))
+        if wanted and spell_id not in wanted:
+            continue
+        if spell_id in seen:
+            continue
+        description = simc_spell_description(match.group("desc"), match.group("tooltip"))
+        rank = clean_simc_spell_text(match.group("rank"))
+        if not description and not rank:
+            continue
+        seen.add(spell_id)
+        details.append(
+            {
+                "spellId": spell_id,
+                "name": "",
+                "description": description,
+                "rank": rank,
+                "tooltip": clean_simc_spell_text(match.group("tooltip")),
+                "iconUrl": "",
+                "locale": "en_US",
+                "source": "simulationcraft",
+            }
+        )
+        if len(details) >= limit:
+            break
+    return details
+
+
+SIMC_TRAIT_TREE_TYPES = {
+    1: "class",
+    2: "spec",
+    3: "hero",
+}
+
+
+def simc_hero_key(label):
+    return slugify(str(label or "").replace("'", ""), "hero")
+
+
+def parse_trait_sub_tree_data(text):
+    block_start = str(text or "").find("__trait_sub_tree_data")
+    block = str(text or "")[block_start:] if block_start >= 0 else str(text or "")
+    subtrees = {}
+    for match in re.finditer(r'\{\s*(\d+),\s*"([^"]+)",\s*(\d+)\s*\}', block):
+        hero_id = int(match.group(1))
+        label = match.group(2).strip()
+        class_id = int(match.group(3))
+        key = simc_hero_key(label)
+        subtrees[hero_id] = {
+            "id": hero_id,
+            "key": key,
+            "label": label,
+            "classId": class_id,
+            "classKey": GAME_CLASS_ID_TO_KEY.get(class_id, ""),
+        }
+    return subtrees
+
+
+def iter_trait_data_records(text):
+    for line in str(text or "").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("{"):
+            continue
+        name_match = re.search(r'"([^"]*)"', stripped)
         if name_match:
             name = name_match.group(1).strip()
             before = stripped[:name_match.start()] + stripped[name_match.end():]
@@ -1429,51 +1859,268 @@ def parse_trait_data_text(text, limit=6000):
             before = stripped.split("//", 1)[0]
         else:
             continue
-        if not name or name == "0":
-            continue
         fields = parse_ints(before)
-        if len(fields) < 17:
+        if len(fields) < 23:
             continue
-        game_class_id = fields[0]
-        tree_id = fields[1]
-        trait_id = fields[2]
-        spell_id = fields[7]
-        if spell_id <= 0:
+        yield {
+            "treeIndex": fields[0],
+            "classId": fields[1],
+            "traitId": fields[2],
+            "nodeId": fields[3],
+            "rank": fields[4],
+            "pointRequirement": fields[5],
+            "traitDefinitionId": fields[6],
+            "spellId": fields[7],
+            "replaceSpellId": fields[8],
+            "overrideSpellId": fields[9],
+            "row": fields[10],
+            "col": fields[11],
+            "selectionIndex": fields[12],
+            "name": name,
+            "specIds": [value for value in fields[13:17] if value > 0],
+            "starterSpecIds": [value for value in fields[17:21] if value > 0],
+            "heroId": fields[21],
+            "nodeType": fields[22],
+        }
+
+
+def specs_for_class(class_key):
+    klass = next((item for item in WOW_CLASSES if item["key"] == class_key), None)
+    return list(klass.get("specs", [])) if klass else []
+
+
+def spec_ids_for_class(class_key):
+    return [
+        spec_id
+        for spec_id, (mapped_class, _spec_key) in SPEC_ID_TO_KEY.items()
+        if mapped_class == class_key
+    ]
+
+
+def target_spec_ids_for_record(record, selection_specs_by_hero):
+    class_key = GAME_CLASS_ID_TO_KEY.get(record["classId"], "")
+    if not class_key:
+        return []
+    if record["treeIndex"] == 3:
+        hero_specs = sorted(selection_specs_by_hero.get(record["heroId"]) or [])
+        spec_ids = hero_specs or record["specIds"] or spec_ids_for_class(class_key)
+    elif record["specIds"]:
+        spec_ids = record["specIds"]
+    else:
+        spec_ids = spec_ids_for_class(class_key)
+    return [
+        spec_id
+        for spec_id in spec_ids
+        if SPEC_ID_TO_KEY.get(spec_id, ("", ""))[0] == class_key
+    ]
+
+
+def simc_shape_for(record):
+    if record["nodeType"] == 2:
+        return "choice"
+    if record["treeIndex"] == 3 and record["row"] in {1, 5}:
+        return "circle"
+    if record["row"] == 1 or record["row"] >= 8:
+        return "circle"
+    return "square"
+
+
+def simc_tree_id(record, tree_type, class_key, spec_key, hero_key):
+    if tree_type == "class":
+        return f"class:{class_key}"
+    if tree_type == "hero":
+        return f"hero:{hero_key}"
+    return f"spec:{class_key}:{spec_key}"
+
+
+def parse_trait_data_text(text, limit=20000):
+    subtrees = parse_trait_sub_tree_data(text)
+    records = list(iter_trait_data_records(text))
+    selection_specs_by_hero = {}
+    for record in records:
+        if record["treeIndex"] != 4 or not record["heroId"]:
             continue
-        row_index = fields[10]
-        col_index = fields[11]
-        req_specs = []
-        for value in fields[13:21]:
-            if value > 0 and value not in req_specs:
-                req_specs.append(value)
-        base_class_key = GAME_CLASS_ID_TO_KEY.get(game_class_id, "")
-        target_specs = []
-        for spec_id in req_specs:
+        selection_specs_by_hero.setdefault(record["heroId"], set()).update(record["specIds"])
+
+    talents = []
+    seen = set()
+    for record in records:
+        tree_type = SIMC_TRAIT_TREE_TYPES.get(record["treeIndex"])
+        if not tree_type or record["spellId"] <= 0 or not record["name"] or record["name"] == "0":
+            continue
+        class_key = GAME_CLASS_ID_TO_KEY.get(record["classId"], "")
+        if not class_key:
+            continue
+        hero = subtrees.get(record["heroId"], {})
+        hero_key = hero.get("key", "")
+        hero_label = hero.get("label", "")
+        for spec_id in target_spec_ids_for_record(record, selection_specs_by_hero):
             spec_info = SPEC_ID_TO_KEY.get(spec_id)
-            if spec_info:
-                target = (spec_info[0], spec_info[1])
-                if target not in target_specs:
-                    target_specs.append(target)
-        if not target_specs and base_class_key:
-            target_specs = [(base_class_key, "class")]
-        for class_key, spec_key in target_specs:
+            if not spec_info:
+                continue
+            _mapped_class, spec_key = spec_info
+            node_key = (
+                record["treeIndex"],
+                record["traitId"],
+                record["nodeId"],
+                class_key,
+                spec_key,
+                hero_key,
+            )
+            if node_key in seen:
+                continue
+            seen.add(node_key)
+            choice_group = ""
+            if record["nodeType"] == 2:
+                choice_group = ":".join(
+                    [
+                        "simc-choice",
+                        tree_type,
+                        class_key,
+                        spec_key,
+                        hero_key or "none",
+                        str(record["nodeId"]),
+                    ]
+                )
+            selected_rank = 1 if spec_id in record["starterSpecIds"] else 0
+            if tree_type == "hero" and record["row"] == 1 and record["col"] == 1:
+                selected_rank = max(selected_rank, 1)
+            node_id_parts = ["simc", tree_type, str(record["traitId"]), class_key, spec_key]
+            if hero_key:
+                node_id_parts.append(hero_key)
+            payload = {
+                "treeType": tree_type,
+                "treeIndex": record["treeIndex"],
+                "classId": record["classId"],
+                "specId": spec_id,
+                "traitId": record["traitId"],
+                "nodeId": record["nodeId"],
+                "traitDefinitionId": record["traitDefinitionId"],
+                "replaceSpellId": record["replaceSpellId"],
+                "overrideSpellId": record["overrideSpellId"],
+                "selectionIndex": record["selectionIndex"],
+                "idSpecs": record["specIds"],
+                "starterSpecIds": record["starterSpecIds"],
+                "heroId": record["heroId"],
+                "heroKey": hero_key,
+                "heroLabel": hero_label,
+                "nodeType": record["nodeType"],
+                "rank": max(1, record["rank"]),
+                "selectedRank": selected_rank,
+                "choiceGroup": choice_group,
+                "shape": simc_shape_for(record),
+                "pointRequirement": max(0, record["pointRequirement"]),
+                "source": "simulationcraft",
+            }
             talents.append(
                 {
-                    "id": f"{trait_id}:{class_key}:{spec_key}",
-                    "traitId": trait_id,
+                    "id": "-".join(node_id_parts),
+                    "traitId": record["traitId"],
                     "classKey": class_key,
                     "specKey": spec_key,
-                    "treeId": str(tree_id),
-                    "row": row_index,
-                    "col": col_index,
-                    "spellId": spell_id,
-                    "name": name,
-                    "rank": fields[4],
+                    "treeId": simc_tree_id(record, tree_type, class_key, spec_key, hero_key),
+                    "treeType": tree_type,
+                    "row": record["row"],
+                    "col": record["col"],
+                    "spellId": record["spellId"],
+                    "name": record["name"],
+                    "rank": max(1, record["rank"]),
+                    "selectedRank": selected_rank,
+                    "payload": payload,
                 }
             )
             if len(talents) >= limit:
                 return talents
     return talents
+
+
+def parse_trait_edge_data_text(text):
+    edges = []
+    if not text:
+        return edges
+    try:
+        rows = csv.DictReader(io.StringIO(str(text or "")))
+        for row in rows:
+            left = int(row.get("LeftTraitNodeID") or 0)
+            right = int(row.get("RightTraitNodeID") or 0)
+            if left <= 0 or right <= 0 or left == right:
+                continue
+            edges.append(
+                {
+                    "leftNodeId": left,
+                    "rightNodeId": right,
+                    "type": int(row.get("Type") or 0),
+                    "visualStyle": int(row.get("VisualStyle") or 0),
+                }
+            )
+    except (csv.Error, TypeError, ValueError):
+        return []
+    return edges
+
+
+def talent_edge_parent_child(left, right):
+    left_pos = (int(left.get("row") or 0), int(left.get("col") or 0), str(left.get("id") or ""))
+    right_pos = (int(right.get("row") or 0), int(right.get("col") or 0), str(right.get("id") or ""))
+    return (left, right) if left_pos <= right_pos else (right, left)
+
+
+def apply_trait_edges_to_talents(talents, edges, source="wago-db2-traitedge"):
+    if not talents or not edges:
+        return 0
+    by_context_and_node = {}
+    for talent in talents:
+        payload = talent.get("payload") or {}
+        node_id = int(payload.get("nodeId") or 0)
+        if node_id <= 0:
+            continue
+        context = (
+            talent.get("treeId"),
+            talent.get("classKey"),
+            talent.get("specKey"),
+            payload.get("heroKey", ""),
+        )
+        by_context_and_node.setdefault((context, node_id), []).append(talent)
+
+    added = 0
+    for edge in edges:
+        left_node_id = int(edge.get("leftNodeId") or 0)
+        right_node_id = int(edge.get("rightNodeId") or 0)
+        contexts = {
+            context
+            for context, node_id in by_context_and_node
+            if node_id in {left_node_id, right_node_id}
+        }
+        for tree_id in contexts:
+            left_nodes = by_context_and_node.get((tree_id, left_node_id), [])
+            right_nodes = by_context_and_node.get((tree_id, right_node_id), [])
+            for left in left_nodes:
+                for right in right_nodes:
+                    if left.get("treeId") != right.get("treeId"):
+                        continue
+                    parent, child = talent_edge_parent_child(left, right)
+                    payload = child.setdefault("payload", {})
+                    parent_ids = list(payload.get("parentIds") or [])
+                    if parent["id"] in parent_ids:
+                        continue
+                    parent_ids.append(parent["id"])
+                    payload["parentIds"] = parent_ids
+                    payload["dependencySource"] = source
+                    added += 1
+    for talent in talents:
+        payload = talent.get("payload") or {}
+        parent_ids = list(payload.get("parentIds") or [])
+        if len(parent_ids) < 2:
+            continue
+        by_id = {item["id"]: item for item in talents if item.get("id") in parent_ids}
+        payload["parentIds"] = sorted(
+            parent_ids,
+            key=lambda parent_id: (
+                int((by_id.get(parent_id) or {}).get("row") or 0),
+                int((by_id.get(parent_id) or {}).get("col") or 0),
+                parent_id,
+            ),
+        )
+    return added
 
 
 def parse_profile_preset(path, text):
@@ -1505,16 +2152,62 @@ def parse_profile_preset(path, text):
     }
 
 
+def simc_talent_spell_ids(talents):
+    return sorted({int(talent.get("spellId") or 0) for talent in talents if int(talent.get("spellId") or 0) > 0})
+
+
+def attach_trait_edges_to_data(data, trait_text):
+    build = simc_build_from_text(trait_text)
+    data["build"] = build
+    data.setdefault("dependencies", 0)
+    data.setdefault("traitEdgeSource", "")
+    if not data.get("talents") or not build:
+        return data
+    try:
+        edge_text, edge_source = download_wago_db2_csv("TraitEdge", build)
+    except Exception:
+        edge_text, edge_source = "", ""
+    edges = parse_trait_edge_data_text(edge_text)
+    if edges:
+        data["dependencies"] = apply_trait_edges_to_talents(data["talents"], edges)
+        data["traitEdgeSource"] = edge_source
+    return data
+
+
 def extract_simc_data_from_tar(tar_path):
-    result = {"talents": [], "presets": [], "source": str(tar_path or "")}
+    result = {
+        "talents": [],
+        "presets": [],
+        "spellDetails": [],
+        "source": str(tar_path or ""),
+        "spellTextSource": "",
+        "spellIcons": 0,
+        "spellIconSource": "",
+        "dependencies": 0,
+        "traitEdgeSource": "",
+        "build": "",
+    }
     if not tar_path or not Path(tar_path).exists():
         return result
     with tarfile.open(tar_path, "r:gz") as tar:
+        trait_text = ""
         trait_member = tar_member_suffix(tar, "engine/dbc/generated/trait_data.inc")
         if trait_member:
             extracted = tar.extractfile(trait_member)
             if extracted:
-                result["talents"] = parse_trait_data_text(extracted.read().decode("utf-8", errors="ignore"))
+                trait_text = extracted.read().decode("utf-8", errors="ignore")
+                result["talents"] = parse_trait_data_text(trait_text)
+        spelltext_member = tar_member_suffix(tar, "engine/dbc/generated/spelltext_data.inc")
+        if spelltext_member and result["talents"]:
+            extracted = tar.extractfile(spelltext_member)
+            if extracted:
+                result["spellDetails"] = parse_spelltext_data_text(
+                    extracted.read().decode("utf-8", errors="ignore"),
+                    simc_talent_spell_ids(result["talents"]),
+                )
+                result["spellTextSource"] = f"{tar_path}:engine/dbc/generated/spelltext_data.inc"
+        attach_wago_spell_icons_to_data(result, trait_text)
+        attach_trait_edges_to_data(result, trait_text)
         preset_limit = int_env("WOW_WEBSIM_SIMC_PRESET_LIMIT", 80)
         for member in tar.getmembers():
             if len(result["presets"]) >= preset_limit:
@@ -1530,14 +2223,74 @@ def extract_simc_data_from_tar(tar_path):
     return result
 
 
+def extract_simc_data_from_trait_text(text, source, spelltext_text="", spelltext_source=""):
+    talents = parse_trait_data_text(text)
+    data = {
+        "talents": talents,
+        "presets": [],
+        "spellDetails": parse_spelltext_data_text(spelltext_text, simc_talent_spell_ids(talents)) if spelltext_text else [],
+        "source": source,
+        "spellTextSource": spelltext_source,
+        "dependencies": 0,
+        "traitEdgeSource": "",
+        "build": "",
+        "spellIcons": 0,
+        "spellIconSource": "",
+    }
+    attach_wago_spell_icons_to_data(data, text)
+    return attach_trait_edges_to_data(data, text)
+
+
+def extract_simc_generated_data():
+    tar_path = current_simc_source_tar()
+    if tar_path:
+        data = extract_simc_data_from_tar(tar_path)
+        if data["talents"]:
+            return data
+
+    trait_file = current_simc_trait_data_file()
+    if trait_file:
+        text = trait_file.read_text(encoding="utf-8", errors="ignore")
+        spelltext_file = current_simc_spelltext_data_file()
+        spelltext_text = spelltext_file.read_text(encoding="utf-8", errors="ignore") if spelltext_file else ""
+        return extract_simc_data_from_trait_text(
+            text,
+            str(trait_file),
+            spelltext_text,
+            str(spelltext_file) if spelltext_file else "",
+        )
+
+    try:
+        text, source = download_simc_trait_data_text()
+    except Exception:
+        text, source = "", ""
+    if text:
+        try:
+            spelltext_text, spelltext_source = download_simc_spelltext_data_text()
+        except Exception:
+            spelltext_text, spelltext_source = "", ""
+        return extract_simc_data_from_trait_text(text, source, spelltext_text, spelltext_source)
+
+    return {
+        "talents": [],
+        "presets": [],
+        "spellDetails": [],
+        "source": str(tar_path or trait_file or ""),
+        "spellTextSource": "",
+        "dependencies": 0,
+        "traitEdgeSource": "",
+        "build": "",
+    }
+
+
 def sync_simc_generated_data(conn):
     now = utc_now()
-    data = extract_simc_data_from_tar(current_simc_source_tar())
+    data = extract_simc_generated_data()
     if data["source"]:
         conn.execute("DELETE FROM websim_talents")
         conn.execute("DELETE FROM websim_profile_presets")
     for talent in data["talents"]:
-        payload = dict(talent)
+        payload = dict(talent.get("payload") or talent)
         conn.execute(
             """
             INSERT INTO websim_talents (
@@ -1591,14 +2344,112 @@ def sync_simc_generated_data(conn):
                 now,
             ),
         )
-    return {"talents": len(data["talents"]), "presets": len(data["presets"]), "source": data["source"]}
+    for detail in data.get("spellDetails", []):
+        spell_id = int(detail.get("spellId") or 0)
+        if spell_id <= 0:
+            continue
+        payload = {
+            "source": "simulationcraft",
+            "spellId": spell_id,
+            "rank": detail.get("rank", ""),
+            "tooltip": detail.get("tooltip", ""),
+            "spellTextSource": data.get("spellTextSource", ""),
+        }
+        conn.execute(
+            """
+            INSERT INTO websim_spell_details (
+                id, spell_id, name, description, icon_url, locale, payload_json, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                name=CASE
+                    WHEN websim_spell_details.name = ''
+                      OR websim_spell_details.payload_json LIKE '%simulationcraft%'
+                    THEN excluded.name
+                    ELSE websim_spell_details.name
+                END,
+                description=CASE
+                    WHEN websim_spell_details.description = ''
+                      OR websim_spell_details.payload_json LIKE '%simulationcraft%'
+                    THEN excluded.description
+                    ELSE websim_spell_details.description
+                END,
+                icon_url=CASE
+                    WHEN websim_spell_details.icon_url = ''
+                      OR websim_spell_details.payload_json LIKE '%simulationcraft%'
+                    THEN excluded.icon_url
+                    ELSE websim_spell_details.icon_url
+                END,
+                locale=CASE
+                    WHEN websim_spell_details.payload_json LIKE '%simulationcraft%'
+                    THEN excluded.locale
+                    ELSE websim_spell_details.locale
+                END,
+                payload_json=CASE
+                    WHEN websim_spell_details.description = ''
+                      OR websim_spell_details.payload_json LIKE '%simulationcraft%'
+                    THEN excluded.payload_json
+                    ELSE websim_spell_details.payload_json
+                END,
+                updated_at=CASE
+                    WHEN websim_spell_details.description = ''
+                      OR websim_spell_details.payload_json LIKE '%simulationcraft%'
+                    THEN excluded.updated_at
+                    ELSE websim_spell_details.updated_at
+                END
+            """,
+            (
+                str(spell_id),
+                spell_id,
+                detail.get("name", ""),
+                detail.get("description", ""),
+                detail.get("iconUrl", ""),
+                detail.get("locale", "en_US"),
+                json.dumps(payload, ensure_ascii=False),
+                now,
+            ),
+        )
+    return {
+        "talents": len(data["talents"]),
+        "presets": len(data["presets"]),
+        "spellDetails": len(data.get("spellDetails", [])),
+        "spellIcons": int(data.get("spellIcons", 0) or 0),
+        "dependencies": int(data.get("dependencies", 0) or 0),
+        "build": data.get("build", ""),
+        "source": data["source"],
+        "spellTextSource": data.get("spellTextSource", ""),
+        "spellIconSource": data.get("spellIconSource", ""),
+        "traitEdgeSource": data.get("traitEdgeSource", ""),
+    }
 
 
 def sync_websim_cache(db_path, include_blizzard=True):
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=30, isolation_level=None)
     try:
+        conn.execute("PRAGMA busy_timeout = 30000")
+        conn.execute("PRAGMA journal_mode = WAL")
         ensure_websim_tables(conn)
         simc_counts = sync_simc_generated_data(conn)
+        conn.commit()
+        simc_season = get_active_season_payload(conn)
+        set_sync_state(
+            conn,
+            "websim_sync",
+            {
+                "ok": False,
+                "stage": "simc",
+                "checkedAt": utc_now(),
+                "region": DEFAULT_REGION,
+                "locale": DEFAULT_LOCALE,
+                "simc": simc_counts,
+                "blizzard": {"instances": 0, "encounters": 0, "loot": 0, "items": 0},
+                "spells": {"spells": 0, "media": 0},
+                "currentSeason": simc_season,
+                "dataStatus": simc_season.get("dataStatus") or "blocked",
+                "seasonRevision": simc_season.get("seasonRevision") or "",
+                "errors": [],
+            },
+        )
+        conn.commit()
         blizzard_counts = {"instances": 0, "encounters": 0, "loot": 0, "items": 0}
         spell_counts = {"spells": 0, "media": 0}
         errors = []
@@ -1636,11 +2487,19 @@ def classes_payload():
             "key": item["key"],
             "label": CLASS_LABELS_ZH.get(item["key"], item["label"]),
             "labelEn": item["label"],
+            "color": CLASS_COLORS.get(item["key"], "#f1b94c"),
+            "iconUrl": wow_icon_url(CLASS_ICON_NAMES.get(item["key"], "inv_misc_questionmark")),
+            "heroTrees": [
+                hero_tree_payload(hero)
+                for hero in HERO_BY_CLASS.get(item["key"], [])
+            ],
             "specs": [
                 {
                     "key": spec,
                     "label": SPEC_LABELS_ZH.get(spec, SPEC_LABELS.get(spec, spec.replace("_", " ").title())),
                     "labelEn": SPEC_LABELS.get(spec, spec.replace("_", " ").title()),
+                    "iconUrl": wow_icon_url(SPEC_ICON_NAMES.get(spec, CLASS_ICON_NAMES.get(item["key"], "inv_misc_questionmark"))),
+                    "heroTrees": [hero_tree_payload(hero) for hero in hero_trees_for_spec(item["key"], spec)],
                 }
                 for spec in item["specs"]
             ],
@@ -1668,36 +2527,381 @@ def fallback_instances():
     return list(instances.values())
 
 
-def fallback_talents(class_key="mage", spec_key="arcane"):
-    names = [
-        "Arcane Missiles",
-        "Arcane Surge",
-        "Clearcasting",
-        "Touch of the Magi",
-        "Nether Precision",
-        "Presence of Mind",
-        "Arcane Echo",
-        "Siphon Storm",
-        "Shifting Power",
-        "Aether Attunement",
-        "High Voltage",
-        "Leydrinker",
-    ]
+def wow_icon_url(icon_name):
+    normalized = re.sub(r"[^a-z0-9_]+", "", str(icon_name or "").lower()) or "inv_misc_questionmark"
+    return f"https://render.worldofwarcraft.com/us/icons/56/{normalized}.jpg"
+
+
+def parse_wago_int(value):
+    match = re.search(r"-?\d+", str(value or ""))
+    return int(match.group(0)) if match else 0
+
+
+def parse_spell_misc_icon_file_ids_csv(text, spell_ids=None, limit=50000):
+    wanted = {int(spell_id) for spell_id in spell_ids or [] if int(spell_id or 0) > 0}
+    icon_file_ids = {}
+    if not text:
+        return icon_file_ids
+    try:
+        rows = csv.DictReader(io.StringIO(str(text or "")))
+        for row in rows:
+            spell_id = parse_wago_int(row.get("SpellID"))
+            if spell_id <= 0 or (wanted and spell_id not in wanted) or spell_id in icon_file_ids:
+                continue
+            active_icon = parse_wago_int(row.get("ActiveIconFileDataID"))
+            spell_icon = parse_wago_int(row.get("SpellIconFileDataID"))
+            icon_file_id = active_icon or spell_icon
+            if icon_file_id > 0:
+                icon_file_ids[spell_id] = icon_file_id
+            if len(icon_file_ids) >= limit:
+                break
+    except (csv.Error, TypeError, ValueError):
+        return {}
+    return icon_file_ids
+
+
+def icon_name_from_manifest_file(file_name):
+    name = str(file_name or "").rsplit("\\", 1)[-1].rsplit("/", 1)[-1].strip()
+    name = re.sub(r"\.[A-Za-z0-9]+$", "", name)
+    return re.sub(r"[^a-z0-9_]+", "", name.lower())
+
+
+def parse_manifest_interface_icon_names_csv(text, file_data_ids=None, limit=50000):
+    wanted = {int(file_id) for file_id in file_data_ids or [] if int(file_id or 0) > 0}
+    icon_names = {}
+    if not text:
+        return icon_names
+    try:
+        rows = csv.DictReader(io.StringIO(str(text or "")))
+        for row in rows:
+            file_id = parse_wago_int(row.get("ID"))
+            if file_id <= 0 or (wanted and file_id not in wanted) or file_id in icon_names:
+                continue
+            file_path = str(row.get("FilePath") or "")
+            file_name = str(row.get("FileName") or "")
+            if "icons" not in file_path.lower() and "icons" not in file_name.lower():
+                continue
+            icon_name = icon_name_from_manifest_file(file_name)
+            if icon_name:
+                icon_names[file_id] = icon_name
+            if len(icon_names) >= limit:
+                break
+    except (csv.Error, TypeError, ValueError):
+        return {}
+    return icon_names
+
+
+def spell_icon_urls_from_wago_db2(build, spell_ids):
+    if not build or not spell_ids:
+        return {}, {}
+    spell_misc_text, spell_misc_source = download_wago_db2_csv("SpellMisc", build)
+    icon_file_ids = parse_spell_misc_icon_file_ids_csv(spell_misc_text, spell_ids)
+    if not icon_file_ids:
+        return {}, {"spellMisc": spell_misc_source}
+    manifest_text, manifest_source = download_wago_db2_csv("ManifestInterfaceData", build)
+    icon_names = parse_manifest_interface_icon_names_csv(manifest_text, icon_file_ids.values())
+    icon_urls = {
+        spell_id: wow_icon_url(icon_names[file_id])
+        for spell_id, file_id in icon_file_ids.items()
+        if icon_names.get(file_id)
+    }
+    return icon_urls, {"spellMisc": spell_misc_source, "manifest": manifest_source}
+
+
+def attach_wago_spell_icons_to_data(data, trait_text):
+    details = data.get("spellDetails") or []
+    build = data.get("build") or simc_build_from_text(trait_text)
+    data["build"] = build
+    if not details or not build:
+        return data
+    spell_ids = [int(detail.get("spellId") or 0) for detail in details if int(detail.get("spellId") or 0) > 0]
+    try:
+        icon_urls, sources = spell_icon_urls_from_wago_db2(build, spell_ids)
+    except Exception:
+        icon_urls, sources = {}, {}
+    for detail in details:
+        spell_id = int(detail.get("spellId") or 0)
+        if icon_urls.get(spell_id):
+            detail["iconUrl"] = icon_urls[spell_id]
+    if icon_urls:
+        data["spellIcons"] = len(icon_urls)
+        data["spellIconSource"] = "; ".join(value for value in sources.values() if value)
+    else:
+        data.setdefault("spellIcons", 0)
+        data.setdefault("spellIconSource", "")
+    return data
+
+
+def hero_tree_label(hero_key):
+    fallback = str(hero_key or "").replace("_", " ").title()
+    return HERO_TREE_LABELS_ZH.get(hero_key) or HERO_TREE_LABELS.get(hero_key, fallback)
+
+
+def hero_tree_payload(hero_key):
+    return {
+        "key": hero_key,
+        "label": hero_tree_label(hero_key),
+        "labelEn": HERO_TREE_LABELS.get(hero_key, hero_key.replace("_", " ").title()),
+    }
+
+
+def hero_trees_for_spec(class_key, spec_key):
+    return list(HERO_BY_SPEC.get((class_key, spec_key)) or HERO_BY_CLASS.get(class_key) or ["websim_hero"])
+
+
+def hero_tree_for(class_key, spec_key, hero_key=""):
+    heroes = hero_trees_for_spec(class_key, spec_key)
+    if hero_key in heroes:
+        return hero_key
+    return heroes[0]
+
+
+def talent_tree_sections(class_key="mage", spec_key="arcane", hero_key=""):
+    klass = next((item for item in classes_payload() if item["key"] == class_key), {})
+    spec = next((item for item in klass.get("specs", []) if item["key"] == spec_key), {})
+    hero_key = hero_tree_for(class_key, spec_key, hero_key)
+    hero_label = hero_tree_label(hero_key)
     return [
         {
-            "id": f"fallback-{class_key}-{spec_key}-{index}",
-            "classKey": class_key,
-            "specKey": spec_key,
-            "treeId": "fallback",
-            "row": index // 3 + 1,
-            "col": index % 3 + 2,
-            "spellId": 0,
-            "name": name,
-            "rank": 1,
-            "selected": index < 5,
-        }
-        for index, name in enumerate(names)
+            "key": "class",
+            "title": klass.get("label") or class_key.title(),
+            "titleEn": klass.get("labelEn") or class_key.title(),
+            "pointCap": 34,
+            "reqLevel": 10,
+            "accent": CLASS_COLORS.get(class_key, "#f1b94c"),
+        },
+        {
+            "key": "spec",
+            "title": spec.get("label") or SPEC_LABELS_ZH.get(spec_key, SPEC_LABELS.get(spec_key, spec_key.title())),
+            "titleEn": spec.get("labelEn") or SPEC_LABELS.get(spec_key, spec_key.title()),
+            "pointCap": 34,
+            "reqLevel": 11,
+            "accent": CLASS_COLORS.get(class_key, "#f1b94c"),
+        },
+        {
+            "key": "hero",
+            "title": hero_label,
+            "titleEn": hero_label,
+            "pointCap": 13,
+            "reqLevel": 71,
+            "accent": "#58d3ff",
+        },
     ]
+
+
+def fallback_point_requirement(tree_type, row):
+    if tree_type == "hero":
+        if row >= 5:
+            return 6
+        if row >= 4:
+            return 4
+        if row >= 3:
+            return 2
+        if row >= 2:
+            return 1
+        return 0
+    if row >= 7:
+        return 20
+    if row >= 6:
+        return 14
+    if row >= 5:
+        return 8
+    return 0
+
+
+def fallback_node(
+    class_key,
+    spec_key,
+    tree_type,
+    key,
+    row,
+    col,
+    name,
+    icon_name,
+    parents=None,
+    max_rank=1,
+    selected_rank=0,
+    shape="square",
+    choice_group="",
+):
+    node_id = f"fallback-{class_key}-{spec_key}-{tree_type}-{key}"
+    parent_ids = [f"fallback-{class_key}-{spec_key}-{tree_type}-{parent}" for parent in parents or []]
+    return {
+        "id": node_id,
+        "classKey": class_key,
+        "specKey": spec_key if tree_type != "class" else "class",
+        "treeId": tree_type,
+        "treeType": tree_type,
+        "row": row,
+        "col": col,
+        "spellId": 0,
+        "name": name,
+        "rank": max_rank,
+        "maxRank": max_rank,
+        "selectedRank": selected_rank,
+        "selected": selected_rank > 0,
+        "parentIds": parent_ids,
+        "shape": shape,
+        "choiceGroup": choice_group,
+        "pointRequirement": fallback_point_requirement(tree_type, row),
+        "description": f"WebSim 可交互占位{tree_type}天赋；同步到 Blizzard / SimC 校验数据后会替换为真实节点。",
+        "iconUrl": wow_icon_url(icon_name),
+        "source": "websim-fallback",
+    }
+
+
+def fallback_talents(class_key="mage", spec_key="arcane", hero_key=""):
+    spec_label = SPEC_LABELS_ZH.get(spec_key, SPEC_LABELS.get(spec_key, spec_key.replace("_", " ").title()))
+    hero_key = hero_tree_for(class_key, spec_key, hero_key)
+    hero_label = hero_tree_label(hero_key)
+    class_icon = CLASS_ICON_NAMES.get(class_key, "inv_misc_questionmark")
+    spec_icon = SPEC_ICON_NAMES.get(spec_key, class_icon)
+    hero_icon = SPEC_ICON_NAMES.get(spec_key, class_icon)
+    class_nodes = [
+        ("class-core", 1, 2, "职业核心", class_icon, [], 1, 1, "circle"),
+        ("mobility", 1, 4, "机动能力", class_icon, [], 1, 1, "square"),
+        ("survival", 1, 6, "生存能力", class_icon, [], 1, 1, "square"),
+        ("class-training", 1, 7, "职业训练", class_icon, [], 1, 1, "circle"),
+        ("resource", 2, 2, "资源循环", class_icon, ["class-core"], 2, 1, "square"),
+        ("tempo", 2, 3, "节奏控制", class_icon, ["class-core", "mobility"], 1, 0, "square"),
+        ("interrupt", 2, 4, "打断控制", class_icon, ["mobility"], 1, 1, "choice"),
+        ("cleanse", 2, 5, "驱散工具", class_icon, ["mobility", "survival"], 1, 0, "square"),
+        ("defense", 2, 6, "防御层级", class_icon, ["survival"], 2, 0, "square"),
+        ("raid-buff", 2, 7, "团队增益", class_icon, ["class-training"], 1, 0, "square"),
+        ("utility", 3, 3, "功能选择", class_icon, ["resource", "interrupt"], 1, 0, "choice", "class-mid-choice"),
+        ("sustain", 3, 5, "续航选择", class_icon, ["interrupt", "defense"], 1, 0, "choice", "class-mid-choice"),
+        ("control-suite", 3, 1, "控制组合", class_icon, ["resource"], 1, 0, "square"),
+        ("throughput-a", 3, 2, "输出强化 A", class_icon, ["resource"], 2, 0, "square"),
+        ("throughput-b", 3, 4, "输出强化 B", class_icon, ["interrupt"], 2, 0, "square"),
+        ("group-guard", 3, 6, "团队守护", class_icon, ["defense"], 1, 0, "square"),
+        ("support-node", 3, 7, "辅助节点", class_icon, ["raid-buff"], 1, 0, "square"),
+        ("capstone-a", 4, 2, "职业终点 A", class_icon, ["utility", "throughput-a"], 1, 0, "circle"),
+        ("class-capstone", 4, 4, "职业终点", class_icon, ["utility", "sustain", "throughput-b"], 2, 0, "circle"),
+        ("capstone-b", 4, 6, "职业终点 B", class_icon, ["sustain", "group-guard"], 1, 0, "circle"),
+        ("recovery", 4, 1, "恢复路径", class_icon, ["control-suite"], 1, 0, "square"),
+        ("amplifier", 4, 3, "职业增幅", class_icon, ["throughput-a", "throughput-b"], 1, 0, "square"),
+        ("bulwark", 4, 5, "防线强化", class_icon, ["group-guard"], 1, 0, "square"),
+        ("teamwork", 4, 7, "团队协作", class_icon, ["support-node"], 1, 0, "square"),
+        ("keystone-a", 5, 2, "职业关键 A", class_icon, ["capstone-a", "amplifier"], 1, 0, "circle"),
+        ("keystone-b", 5, 4, "职业关键", class_icon, ["class-capstone"], 2, 0, "circle"),
+        ("keystone-c", 5, 6, "职业关键 B", class_icon, ["capstone-b", "bulwark"], 1, 0, "circle"),
+        ("final-utility", 6, 1, "最终功能", class_icon, ["recovery", "keystone-a"], 1, 0, "square"),
+        ("final-power", 6, 4, "最终强化", class_icon, ["keystone-b"], 1, 0, "circle"),
+        ("final-defense", 6, 7, "最终防御", class_icon, ["teamwork", "keystone-c"], 1, 0, "square"),
+    ]
+    spec_nodes = [
+        ("opener", 1, 2, f"{spec_label} 起手", spec_icon, [], 1, 1, "circle"),
+        ("core", 1, 4, f"{spec_label} 核心", spec_icon, [], 1, 1, "circle"),
+        ("control", 1, 6, f"{spec_label} 控制", spec_icon, [], 1, 1, "square"),
+        ("identity", 1, 7, f"{spec_label} 标识", spec_icon, [], 1, 1, "circle"),
+        ("builder", 2, 2, "主要构筑点", spec_icon, ["opener"], 2, 1, "square"),
+        ("proc", 2, 3, "触发引擎", spec_icon, ["opener", "core"], 1, 0, "square"),
+        ("spender", 2, 4, "标志消耗", spec_icon, ["core"], 2, 1, "square"),
+        ("haste-sync", 2, 5, "急速联动", spec_icon, ["core", "control"], 1, 0, "square"),
+        ("cooldown", 2, 6, "冷却同步", spec_icon, ["control"], 1, 0, "square"),
+        ("identity-passive", 2, 7, "标识被动", spec_icon, ["identity"], 1, 0, "square"),
+        ("aoe", 3, 1, "范围选项", spec_icon, ["builder"], 1, 0, "choice", "spec-output-choice"),
+        ("single", 3, 3, "单体选项", spec_icon, ["spender"], 1, 0, "choice", "spec-output-choice"),
+        ("def-tech", 3, 5, "防御技巧", spec_icon, ["cooldown"], 1, 0, "choice", "spec-tech-choice"),
+        ("utility-tech", 3, 7, "功能技巧", spec_icon, ["cooldown"], 1, 0, "choice", "spec-tech-choice"),
+        ("cleave", 3, 2, "顺劈模板", spec_icon, ["builder", "proc"], 1, 0, "square"),
+        ("priority", 3, 4, "优先级模板", spec_icon, ["proc", "spender"], 1, 0, "square"),
+        ("surge", 3, 6, "爆发窗口", spec_icon, ["haste-sync", "cooldown"], 1, 0, "square"),
+        ("engine", 4, 2, f"{spec_label} 引擎", spec_icon, ["aoe", "single", "cleave"], 2, 0, "square"),
+        ("mastery", 4, 4, f"{spec_label} 精通", spec_icon, ["single", "priority", "def-tech"], 2, 0, "circle"),
+        ("capstone", 4, 6, f"{spec_label} 终点", spec_icon, ["def-tech", "utility-tech", "surge"], 1, 0, "circle"),
+        ("rotation-a", 4, 1, "循环分支 A", spec_icon, ["aoe"], 1, 0, "square"),
+        ("rotation-b", 4, 3, "循环分支 B", spec_icon, ["cleave", "priority"], 1, 0, "square"),
+        ("rotation-c", 4, 5, "循环分支 C", spec_icon, ["surge"], 1, 0, "square"),
+        ("rotation-d", 4, 7, "循环分支 D", spec_icon, ["utility-tech", "identity-passive"], 1, 0, "square"),
+        ("finisher-a", 5, 2, f"{spec_label} 收尾 A", spec_icon, ["engine", "rotation-b"], 1, 0, "circle"),
+        ("finisher-b", 5, 4, f"{spec_label} 收尾", spec_icon, ["mastery"], 2, 0, "circle"),
+        ("finisher-c", 5, 6, f"{spec_label} 收尾 B", spec_icon, ["capstone", "rotation-c"], 1, 0, "circle"),
+        ("deep-a", 6, 1, "深层天赋 A", spec_icon, ["rotation-a", "finisher-a"], 1, 0, "square"),
+        ("deep-b", 6, 3, "深层天赋 B", spec_icon, ["finisher-a", "finisher-b"], 1, 0, "square"),
+        ("deep-c", 6, 5, "深层天赋 C", spec_icon, ["finisher-b", "finisher-c"], 1, 0, "square"),
+        ("deep-d", 6, 7, "深层天赋 D", spec_icon, ["rotation-d", "finisher-c"], 1, 0, "square"),
+        ("final-left", 7, 2, f"{spec_label} 顶点左", spec_icon, ["deep-a", "deep-b"], 1, 0, "circle"),
+        ("final", 7, 4, f"{spec_label} 顶点", spec_icon, ["deep-b", "deep-c"], 1, 0, "circle"),
+        ("final-right", 7, 6, f"{spec_label} 顶点右", spec_icon, ["deep-c", "deep-d"], 1, 0, "circle"),
+    ]
+    hero_nodes = [
+        ("calling", 1, 2, f"{hero_label} 号召", hero_icon, [], 1, 1, "circle"),
+        ("strike", 2, 1, "英雄打击", hero_icon, ["calling"], 1, 1, "square"),
+        ("ward", 2, 3, "英雄结界", hero_icon, ["calling"], 1, 0, "square"),
+        ("choice-a", 3, 1, "英雄选择 A", hero_icon, ["strike"], 1, 0, "choice", "hero-keystone-choice"),
+        ("choice-b", 3, 3, "英雄选择 B", hero_icon, ["ward"], 1, 0, "choice", "hero-keystone-choice"),
+        ("keystone", 4, 2, f"{hero_label} 关键", hero_icon, ["choice-a", "choice-b"], 2, 0, "circle"),
+        ("hero-focus", 2, 2, "英雄专注", hero_icon, ["calling"], 2, 0, "square"),
+        ("hero-tech-a", 3, 2, "英雄技巧", hero_icon, ["hero-focus"], 1, 0, "square"),
+        ("hero-tech-b", 4, 1, "英雄技巧 A", hero_icon, ["choice-a", "hero-tech-a"], 1, 0, "square"),
+        ("hero-tech-c", 4, 3, "英雄技巧 B", hero_icon, ["choice-b", "hero-tech-a"], 1, 0, "square"),
+        ("apex", 5, 2, f"{hero_label} 顶点", hero_icon, ["keystone", "hero-tech-b", "hero-tech-c"], 2, 0, "circle"),
+    ]
+    nodes = []
+    for tree_type, rows in [("class", class_nodes), ("spec", spec_nodes), ("hero", hero_nodes)]:
+        for row_data in rows:
+            key, row, col, name, icon, parents, max_rank, selected_rank, shape = row_data[:9]
+            choice_group = row_data[9] if len(row_data) > 9 else ""
+            nodes.append(
+                fallback_node(
+                    class_key,
+                    spec_key,
+                    tree_type,
+                    key,
+                    row,
+                    col,
+                    name,
+                    icon,
+                    parents,
+                    max_rank,
+                    selected_rank,
+                    shape,
+                    choice_group,
+                )
+            )
+    return nodes
+
+
+def decorate_real_talent_node(row, season):
+    payload = safe_json_loads(row[8], {})
+    tree_type = payload.get("treeType") or ("class" if row[2] == "class" else "spec")
+    max_rank = int(payload.get("rank", 1) or 1)
+    icon_name = CLASS_ICON_NAMES.get(row[1], "inv_misc_questionmark")
+    if tree_type in {"spec", "hero"}:
+        icon_name = SPEC_ICON_NAMES.get(row[2], icon_name)
+    description = row[9] or payload.get("description") or (
+        f"SimulationCraft {tree_type} talent node for "
+        f"{SPEC_LABELS.get(row[2], row[2].replace('_', ' ').title())}."
+    )
+    icon_url = row[10] or wow_icon_url(icon_name)
+    return {
+        "id": row[0],
+        "classKey": row[1],
+        "specKey": row[2],
+        "treeId": row[3],
+        "treeType": tree_type,
+        "row": row[4],
+        "col": row[5],
+        "spellId": row[6],
+        "name": row[7],
+        "rank": max_rank,
+        "maxRank": max_rank,
+        "selectedRank": int(payload.get("selectedRank", 0) or 0),
+        "selected": int(payload.get("selectedRank", 0) or 0) > 0,
+        "parentIds": payload.get("parentIds", []),
+        "shape": payload.get("shape", "square"),
+        "choiceGroup": payload.get("choiceGroup", ""),
+        "pointRequirement": int(payload.get("pointRequirement", 0) or 0),
+        "description": description,
+        "iconUrl": icon_url,
+        "source": payload.get("source", "simulationcraft"),
+        "traitId": payload.get("traitId"),
+        "nodeId": payload.get("nodeId"),
+        "heroKey": payload.get("heroKey", ""),
+        "heroLabel": payload.get("heroLabel", ""),
+        "sourceRefs": SIMC_TALENT_SOURCE_REFS + (season.get("sourceRefs") or []),
+    }
 
 
 def fallback_presets(class_key="mage", spec_key="arcane"):
@@ -1712,7 +2916,7 @@ def fallback_presets(class_key="mage", spec_key="arcane"):
             "talents=C4DAAAAAAAAAAAAAAAAAAAAAAYGGLzMzswMzQzMzAAAwAAgAmZmZZZmZYBAgtxMzMmtFLzMzYmxYMzMGLMzMjZAAGAAAzsAAmBADD",
         ]
     )
-    return [{"id": f"fallback-{class_key}-{spec_key}", "classKey": class_key, "specKey": spec_key, "name": "WebSim starter", "profile": profile}]
+    return [{"id": f"fallback-{class_key}-{spec_key}", "classKey": class_key, "specKey": spec_key, "name": "WebSim 入门构筑", "profile": profile}]
 
 
 def get_websim_bootstrap(conn):
@@ -1786,58 +2990,48 @@ def get_websim_instances(conn):
     ]
 
 
-def get_websim_talents(conn, class_key="mage", spec_key="arcane"):
+def get_websim_talents(conn, class_key="mage", spec_key="arcane", hero_key=""):
     ensure_websim_tables(conn)
     season = get_active_season_payload(conn)
     class_key = slugify(class_key, "mage")
     spec_key = slugify(spec_key, "arcane")
-    if season.get("dataStatus") != "verified":
-        return {
-            "classKey": class_key,
-            "specKey": spec_key,
-            "nodes": [],
-            "presets": get_websim_presets(conn, class_key, spec_key),
-            **season_metadata_fields(season),
-        }
+    hero_key = hero_tree_for(class_key, spec_key, slugify(hero_key, ""))
     rows = conn.execute(
         """
         SELECT t.id, t.class_key, t.spec_key, t.tree_id, t.row_index, t.col_index,
                t.spell_id, COALESCE(NULLIF(s.name, ''), t.name) AS name, t.payload_json,
                s.description, s.icon_url
         FROM websim_talents t
-        JOIN websim_spell_details s ON s.spell_id = t.spell_id
+        LEFT JOIN websim_spell_details s ON s.spell_id = t.spell_id
         WHERE t.class_key = ?
           AND (t.spec_key = ? OR t.spec_key = 'class')
           AND t.spell_id > 0
-          AND s.description != ''
-          AND s.icon_url != ''
         ORDER BY row_index, col_index, name
-        LIMIT 180
+        LIMIT 320
         """,
         (class_key, spec_key),
     ).fetchall()
-    nodes = [
-        {
-            "id": row[0],
-            "classKey": row[1],
-            "specKey": row[2],
-            "treeId": row[3],
-            "row": row[4],
-            "col": row[5],
-            "spellId": row[6],
-            "name": row[7],
-            "rank": safe_json_loads(row[8], {}).get("rank", 1),
-            "description": row[9],
-            "iconUrl": row[10],
-            "sourceRefs": season.get("sourceRefs") or [],
-        }
-        for row in rows
-    ]
+    filtered_rows = []
+    for row in rows:
+        payload = safe_json_loads(row[8], {})
+        tree_type = payload.get("treeType") or ("class" if row[2] == "class" else "spec")
+        if tree_type == "hero" and payload.get("heroKey") != hero_key:
+            continue
+        filtered_rows.append(row)
+    nodes = [decorate_real_talent_node(row, season) for row in filtered_rows]
+    has_spell_details = any(row[9] and row[10] for row in filtered_rows)
+    talent_status = "verified" if nodes and season.get("dataStatus") == "verified" and has_spell_details else "simc"
+    if not nodes:
+        nodes = fallback_talents(class_key, spec_key, hero_key)
+        talent_status = "fallback"
     return {
         "classKey": class_key,
         "specKey": spec_key,
+        "heroKey": hero_key,
         "nodes": nodes,
         "presets": get_websim_presets(conn, class_key, spec_key),
+        "treeSections": talent_tree_sections(class_key, spec_key, hero_key),
+        "talentStatus": talent_status,
         **season_metadata_fields(season),
     }
 
@@ -2020,6 +3214,7 @@ def build_websim_simulator_request(payload, guest_id=""):
     source = payload if isinstance(payload, dict) else {}
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(source.get("heroKey"), ""))
     return {
         "mode": "simcraft",
         "profile": profile,
@@ -2032,6 +3227,8 @@ def build_websim_simulator_request(payload, guest_id=""):
             "specId": f"{class_key}-{spec_key}",
             "className": class_key,
             "specName": spec_key,
+            "heroTalentKey": hero_key,
+            "heroTalent": hero_tree_label(hero_key),
             "activeQueryKey": "websim",
             "sourceName": "WebSim",
             "details": {
