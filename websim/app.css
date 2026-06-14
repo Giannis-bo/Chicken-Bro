@@ -4447,6 +4447,11 @@ button:focus-visible {
   font-size: 12px;
 }
 
+.loot-original {
+  color: #a9937e;
+  font-size: 12px;
+}
+
 .result-dock {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr) minmax(260px, 380px);

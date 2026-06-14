@@ -7,6 +7,7 @@ import json
 import os
 import re
 import sqlite3
+import subprocess
 import tarfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -45,6 +46,7 @@ DEFAULT_WAGO_DB2_TRAIT_EDGE_ENABLED = (
 DEFAULT_WAGO_DB2_LOCALIZATION_ENABLED = (
     os.environ.get("WOW_WEBSIM_FETCH_WAGO_DB2_LOCALIZATION", "0").strip() == "1"
 )
+ITEM_METADATA_SOURCE = "Battle.net Game Data API"
 SEASON_TTL_HOURS = int(os.environ.get("WOW_SEASON_TTL_HOURS", "24"))
 MIDNIGHT_SEASON_ONE_DUNGEONS = [
     "Magisters' Terrace",
@@ -642,6 +644,10 @@ def slugify(value, fallback="item"):
     return text[:80] if text else fallback
 
 
+def normalized_item_alias(value):
+    return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
+
+
 def safe_json_loads(value, fallback=None):
     try:
         return json.loads(value or "")
@@ -694,6 +700,23 @@ def ensure_websim_tables(conn):
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS websim_item_aliases (
+            id TEXT PRIMARY KEY,
+            alias_key TEXT NOT NULL,
+            alias_text TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            icon_url TEXT NOT NULL,
+            source_locale TEXT NOT NULL,
+            target_locale TEXT NOT NULL,
+            source TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_websim_item_aliases_alias_key ON websim_item_aliases(alias_key)")
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS websim_loot (
@@ -1079,6 +1102,13 @@ def get_blizzard_access_token(region=DEFAULT_REGION):
     return access_token
 
 
+def blizzard_credentials_configured():
+    return bool(
+        (os.environ.get("WOW_BLIZZARD_CLIENT_ID") or os.environ.get("WOW_BNET_CLIENT_ID"))
+        and (os.environ.get("WOW_BLIZZARD_CLIENT_SECRET") or os.environ.get("WOW_BNET_CLIENT_SECRET"))
+    )
+
+
 def blizzard_get(path, token, region=DEFAULT_REGION, locale=DEFAULT_LOCALE, params=None, namespace=None):
     query = {
         "namespace": namespace or blizzard_namespace(region),
@@ -1108,6 +1138,51 @@ def extract_id_from_ref(value):
         href = str(value or "")
     match = re.search(r"/(\d+)(?:\?|$)", href)
     return match.group(1) if match else ""
+
+
+def exact_item_name_key(value):
+    return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
+
+
+def search_result_item_name(payload):
+    name = payload.get("name") if isinstance(payload, dict) else ""
+    if isinstance(name, dict):
+        return name.get("en_US") or name.get("en_GB") or next((str(value) for value in name.values() if value), "")
+    return str(name or "")
+
+
+def search_blizzard_item_id_by_english_name(token, item_name, region=DEFAULT_REGION):
+    target = exact_item_name_key(item_name)
+    if not target:
+        return ""
+    page_size = int_env("WOW_WEBSIM_ITEM_SEARCH_PAGE_SIZE", 1000)
+    queries = [str(item_name or "").strip()]
+    quoted = f'"{queries[0]}"'
+    if quoted not in queries:
+        queries.append(quoted)
+    for query_name in queries:
+        payload = blizzard_get(
+            "/data/wow/search/item",
+            token,
+            region,
+            "en_US",
+            params={
+                "name.en_US": query_name,
+                "_pageSize": page_size,
+            },
+            namespace=blizzard_namespace(region, "static"),
+        )
+        matches = []
+        for row in payload.get("results") or []:
+            data = row.get("data") if isinstance(row, dict) else {}
+            if exact_item_name_key(search_result_item_name(data)) != target:
+                continue
+            item_id = str(data.get("id") or "").strip()
+            if item_id:
+                matches.append(item_id)
+        if matches:
+            return sorted(matches, key=lambda value: int(value) if value.isdigit() else 0, reverse=True)[0]
+    return ""
 
 
 def gear_slot_payload():
@@ -1167,6 +1242,187 @@ def icon_url_from_media(media_payload):
     return ""
 
 
+def split_item_name_parts(value):
+    text = str(value or "").strip()
+    if not text:
+        return []
+    parts = [part.strip() for part in re.split(r"\s*(?:/|;|\bor\b)\s*", text) if part.strip()]
+    return parts if len(parts) > 1 else [text]
+
+
+def item_alias_candidates(*values):
+    aliases = []
+    seen = set()
+    for value in values:
+        text = str(value or "").strip()
+        if not text:
+            continue
+        variants = [
+            text,
+            text.replace("_", " "),
+            text.replace("'", ""),
+            slugify(text, ""),
+        ]
+        variants.extend(split_item_name_parts(text))
+        variants.extend(part.strip() for part in re.split(r"\s*,\s*", text) if part.strip())
+        for variant in variants:
+            alias_key = normalized_item_alias(variant)
+            if not alias_key or alias_key in seen:
+                continue
+            seen.add(alias_key)
+            aliases.append(variant)
+    return aliases
+
+
+def save_item_aliases(
+    conn,
+    item_id,
+    aliases,
+    display_name,
+    icon_url="",
+    source_locale="en_US",
+    target_locale=DEFAULT_LOCALE,
+    source=ITEM_METADATA_SOURCE,
+    now=None,
+):
+    now = now or utc_now()
+    alias_values = list(aliases or [])
+    alias_values.append(display_name)
+    for alias in item_alias_candidates(*alias_values):
+        alias_key = normalized_item_alias(alias)
+        if not alias_key:
+            continue
+        alias_id = f"{target_locale}:{alias_key}"
+        conn.execute(
+            """
+            INSERT INTO websim_item_aliases (
+                id, alias_key, alias_text, item_id, display_name, icon_url,
+                source_locale, target_locale, source, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                item_id=excluded.item_id,
+                display_name=excluded.display_name,
+                icon_url=excluded.icon_url,
+                source_locale=excluded.source_locale,
+                target_locale=excluded.target_locale,
+                source=excluded.source,
+                updated_at=excluded.updated_at
+            """,
+            (
+                alias_id,
+                alias_key,
+                str(alias)[:220],
+                str(item_id),
+                str(display_name or f"Item {item_id}")[:220],
+                str(icon_url or "")[:260],
+                str(source_locale or "en_US")[:20],
+                str(target_locale or DEFAULT_LOCALE)[:20],
+                str(source or ITEM_METADATA_SOURCE)[:120],
+                now,
+            ),
+        )
+        translation_id = f"item:{target_locale}:{alias_key}"
+        conn.execute(
+            """
+            INSERT INTO websim_translations (
+                id, source_locale, target_locale, source_text, translated_text, source, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                translated_text=excluded.translated_text,
+                source=excluded.source,
+                updated_at=excluded.updated_at
+            """,
+            (
+                translation_id,
+                str(source_locale or "en_US")[:20],
+                str(target_locale or DEFAULT_LOCALE)[:20],
+                str(alias)[:220],
+                str(display_name or f"Item {item_id}")[:220],
+                str(source or ITEM_METADATA_SOURCE)[:120],
+                now,
+            ),
+        )
+
+
+def save_websim_item_metadata(
+    conn,
+    item_id,
+    item_payload,
+    media_payload=None,
+    *,
+    fallback_slot="",
+    fallback_name="",
+    english_payload=None,
+    locale=DEFAULT_LOCALE,
+    source=ITEM_METADATA_SOURCE,
+):
+    now = utc_now()
+    item_id = str(item_id or extract_id_from_ref(item_payload) or "").strip()
+    if not item_id:
+        return None
+    item_payload = item_payload if isinstance(item_payload, dict) else {}
+    english_payload = english_payload if isinstance(english_payload, dict) else {}
+    media_payload = media_payload if isinstance(media_payload, dict) else {}
+    display_name = item_payload.get("name") or fallback_name or english_payload.get("name") or f"Item {item_id}"
+    english_name = english_payload.get("name") or fallback_name or display_name
+    slot = item_slot_from_payload(item_payload) or fallback_slot or "trinket1"
+    quality = (item_payload.get("quality") or {}).get("name") or ""
+    icon_url = icon_url_from_media(media_payload)
+    metadata_payload = dict(item_payload)
+    metadata_payload["_metadata"] = {
+        "source": source,
+        "itemId": item_id,
+        "locale": locale,
+        "englishName": english_name,
+        "fallbackName": fallback_name,
+        "iconUrl": icon_url,
+    }
+    conn.execute(
+        """
+        INSERT INTO websim_items (id, name, slot, quality, icon_url, payload_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            name=excluded.name,
+            slot=excluded.slot,
+            quality=excluded.quality,
+            icon_url=excluded.icon_url,
+            payload_json=excluded.payload_json,
+            updated_at=excluded.updated_at
+        """,
+        (
+            item_id,
+            str(display_name)[:220],
+            slot,
+            str(quality)[:80],
+            str(icon_url)[:260],
+            json.dumps(metadata_payload, ensure_ascii=False),
+            now,
+        ),
+    )
+    save_item_aliases(
+        conn,
+        item_id,
+        item_alias_candidates(fallback_name, english_name, display_name),
+        display_name,
+        icon_url,
+        source_locale="en_US",
+        target_locale=locale,
+        source=source,
+        now=now,
+    )
+    return {
+        "itemId": item_id,
+        "displayName": display_name,
+        "englishName": english_name,
+        "slot": slot,
+        "quality": quality,
+        "iconUrl": icon_url,
+        "metadataStatus": "verified",
+        "metadataSource": source,
+        "metadataLocale": locale,
+    }
+
+
 def unique_locale_preferences(locale=DEFAULT_LOCALE):
     values = [locale, *DEFAULT_LOCALE_FALLBACKS, "en_US"]
     result = []
@@ -1184,6 +1440,49 @@ def blizzard_get_localized(path, token, region=DEFAULT_REGION, locale=DEFAULT_LO
         except Exception as error:
             errors.append(f"{locale_key}: {error}")
     raise RuntimeError("; ".join(errors))
+
+
+def fetch_blizzard_item_metadata(token, item_id, region=DEFAULT_REGION, locale=DEFAULT_LOCALE, fallback_name="", fallback_slot=""):
+    item_path = f"/data/wow/item/{item_id}"
+    item_payload, item_locale = blizzard_get_localized(
+        item_path,
+        token,
+        region,
+        locale,
+        namespace=blizzard_namespace(region, "static"),
+    )
+    try:
+        english_payload, _ = blizzard_get_localized(
+            item_path,
+            token,
+            region,
+            "en_US",
+            namespace=blizzard_namespace(region, "static"),
+        )
+    except Exception:
+        english_payload = {}
+    try:
+        media_payload, _ = blizzard_get_localized(
+            f"/data/wow/media/item/{item_id}",
+            token,
+            region,
+            item_locale or locale,
+            namespace=blizzard_namespace(region, "static"),
+        )
+    except Exception:
+        media_payload = {}
+    if fallback_slot and not item_slot_from_payload(item_payload):
+        item_payload = dict(item_payload)
+        item_payload["_fallback_slot"] = fallback_slot
+    return {
+        "itemId": str(item_id),
+        "payload": item_payload,
+        "media": media_payload,
+        "englishPayload": english_payload,
+        "locale": item_locale or locale,
+        "fallbackName": fallback_name,
+        "fallbackSlot": fallback_slot,
+    }
 
 
 def current_season_ref_from_index(payload):
@@ -1642,23 +1941,24 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
                 item_payload = {}
                 media_payload = {}
                 if item_id not in fetched_items:
-                    item_payload = blizzard_get(
-                        f"/data/wow/item/{item_id}",
+                    item_metadata = fetch_blizzard_item_metadata(
                         token,
+                        item_id,
                         region,
                         season.get("locale") or locale,
-                        namespace=blizzard_namespace(region, "static"),
+                        fallback_name=(item_ref or {}).get("name") if isinstance(item_ref, dict) else "",
                     )
-                    try:
-                        media_payload = blizzard_get(
-                            f"/data/wow/media/item/{item_id}",
-                            token,
-                            region,
-                            season.get("locale") or locale,
-                            namespace=blizzard_namespace(region, "static"),
-                        )
-                    except Exception:
-                        media_payload = {}
+                    item_payload = item_metadata.get("payload") or {}
+                    media_payload = item_metadata.get("media") or {}
+                    save_websim_item_metadata(
+                        conn,
+                        item_id,
+                        item_payload,
+                        media_payload,
+                        fallback_name=item_metadata.get("fallbackName") or "",
+                        english_payload=item_metadata.get("englishPayload") or {},
+                        locale=item_metadata.get("locale") or season.get("locale") or locale,
+                    )
                     fetched_items.add(item_id)
                     counts["items"] += 1
                 item_name = item_payload.get("name") or (item_ref or {}).get("name") or f"Item {item_id}"
@@ -2628,6 +2928,256 @@ def sync_simc_generated_data(conn):
     }
 
 
+def websim_item_metadata_is_complete(row):
+    if not row:
+        return False
+    return bool(str(row.get("displayName") or "").strip() and str(row.get("iconUrl") or "").strip())
+
+
+def existing_websim_item_metadata(conn, item_id):
+    row = conn.execute(
+        "SELECT id, name, slot, quality, icon_url, payload_json FROM websim_items WHERE id = ?",
+        (str(item_id),),
+    ).fetchone()
+    if not row:
+        return None
+    payload = safe_json_loads(row[5], {})
+    metadata = payload.get("_metadata") if isinstance(payload, dict) else {}
+    return {
+        "itemId": str(row[0]),
+        "displayName": row[1] or f"Item {row[0]}",
+        "slot": row[2] or "",
+        "quality": row[3] or "",
+        "iconUrl": row[4] or "",
+        "metadataStatus": "verified",
+        "metadataSource": (metadata or {}).get("source") or ITEM_METADATA_SOURCE,
+        "metadataLocale": (metadata or {}).get("locale") or DEFAULT_LOCALE,
+        "englishName": (metadata or {}).get("englishName") or "",
+    }
+
+
+def preset_item_refs(conn):
+    rows = conn.execute(
+        """
+        SELECT id, class_key, spec_key, name, profile
+        FROM websim_profile_presets
+        ORDER BY class_key, spec_key, name
+        """
+    ).fetchall()
+    refs = {}
+    for row in rows:
+        preset = {"id": row[0], "classKey": row[1], "specKey": row[2], "name": row[3], "profile": row[4]}
+        for item in preset_gear_items(preset):
+            item_id = str(item.get("itemId") or item.get("id") or "").strip()
+            if not item_id:
+                continue
+            refs.setdefault(item_id, {"itemId": item_id, "aliases": set(), "slot": item.get("slot") or ""})
+            refs[item_id]["aliases"].update(item_alias_candidates(item.get("displayName"), item.get("name")))
+            if not refs[item_id].get("slot") and item.get("slot"):
+                refs[item_id]["slot"] = item.get("slot")
+    return list(refs.values())
+
+
+def load_build_gear_item_refs():
+    module_path = PROJECT_DIR / "server" / "builds" / "home-payload.js"
+    script = r"""
+const mod = require(process.argv[1])
+const refs = []
+const home = mod.buildSpecializationHomePayload()
+for (const spec of home.specializations || []) {
+  const detail = mod.getSpecializationDetail(spec.id)
+  const rows = (((detail || {}).details || {}).gear || {}).gear || []
+  rows.forEach((row, index) => {
+    if (!row || typeof row !== 'object') return
+    refs.push({
+      specId: spec.id || '',
+      specTitle: spec.title || '',
+      slot: row.slot || '',
+      name: row.name || '',
+      displayName: row.displayName || '',
+      englishName: row.englishName || '',
+      source: row.source || '',
+      itemId: row.itemId || row.item_id || row.id || '',
+      isReference: Boolean(row.isReference || row.metadataStatus === 'source_reference'),
+      index
+    })
+  })
+}
+console.log(JSON.stringify(refs))
+"""
+    completed = subprocess.run(
+        ["node", "-e", script, str(module_path)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=PROJECT_DIR,
+        check=False,
+        timeout=int_env("WOW_WEBSIM_BUILD_GEAR_LOAD_TIMEOUT_SECONDS", 20),
+    )
+    if completed.returncode != 0:
+        raise RuntimeError((completed.stderr or completed.stdout or "build gear payload load failed").strip())
+    payload = json.loads(completed.stdout or "[]")
+    return payload if isinstance(payload, list) else []
+
+
+def merge_item_metadata_counts(*values):
+    merged = {"items": 0, "aliases": 0, "skipped": 0, "searched": 0, "resolved": 0, "references": 0, "errors": []}
+    for value in values:
+        if not isinstance(value, dict):
+            continue
+        for key in ("items", "aliases", "skipped", "searched", "resolved", "references"):
+            merged[key] += int(value.get(key) or 0)
+        merged["errors"].extend(value.get("errors") or [])
+    return merged
+
+
+def sync_blizzard_build_gear_item_metadata(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOCALE):
+    limit = int_env("WOW_WEBSIM_SYNC_BUILD_ITEM_LIMIT", 200)
+    counts = {"items": 0, "aliases": 0, "skipped": 0, "searched": 0, "resolved": 0, "references": 0, "errors": []}
+    try:
+        refs = load_build_gear_item_refs()
+    except Exception as error:
+        counts["errors"].append(f"build gear refs: {error}")
+        return counts
+
+    seen = set()
+    for ref in refs:
+        if counts["searched"] >= limit:
+            break
+        if not isinstance(ref, dict):
+            continue
+        name = str(ref.get("name") or ref.get("englishName") or ref.get("displayName") or "").strip()
+        if not name:
+            continue
+        if ref.get("isReference"):
+            counts["references"] += 1
+            continue
+        for item_name in split_item_name_parts(name):
+            if counts["searched"] >= limit:
+                break
+            aliases = item_alias_candidates(item_name, ref.get("displayName"), ref.get("englishName"))
+            alias_key = normalized_item_alias(item_name)
+            if not alias_key or alias_key in seen:
+                continue
+            seen.add(alias_key)
+
+            existing = None
+            for alias in aliases:
+                existing = websim_item_metadata_by_aliases(conn, [alias]).get(normalized_item_alias(alias))
+                if existing:
+                    break
+            if existing and websim_item_metadata_is_complete(existing):
+                save_item_aliases(
+                    conn,
+                    existing.get("itemId"),
+                    aliases,
+                    existing.get("displayName") or item_name,
+                    existing.get("iconUrl") or "",
+                    target_locale=existing.get("metadataLocale") or locale,
+                )
+                counts["aliases"] += len(item_alias_candidates(*aliases))
+                counts["skipped"] += 1
+                continue
+
+            item_id = str(ref.get("itemId") or "").strip() if exact_item_name_key(item_name) == exact_item_name_key(name) else ""
+            try:
+                if not item_id:
+                    counts["searched"] += 1
+                    item_id = search_blizzard_item_id_by_english_name(token, item_name, region)
+                if not item_id:
+                    counts["errors"].append(f"{item_name}: exact item search did not return a match")
+                    continue
+                counts["resolved"] += 1
+                item_metadata = fetch_blizzard_item_metadata(
+                    token,
+                    item_id,
+                    region,
+                    locale,
+                    fallback_name=item_name,
+                    fallback_slot=ref.get("slot") or "",
+                )
+                saved = save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    item_metadata.get("payload") or {},
+                    item_metadata.get("media") or {},
+                    fallback_slot=item_metadata.get("fallbackSlot") or ref.get("slot") or "",
+                    fallback_name=item_metadata.get("fallbackName") or item_name,
+                    english_payload=item_metadata.get("englishPayload") or {"name": item_name},
+                    locale=item_metadata.get("locale") or locale,
+                )
+                if saved:
+                    save_item_aliases(
+                        conn,
+                        item_id,
+                        aliases,
+                        saved.get("displayName") or item_name,
+                        saved.get("iconUrl") or "",
+                        target_locale=saved.get("metadataLocale") or locale,
+                    )
+                    counts["aliases"] += len(item_alias_candidates(*aliases))
+                    counts["items"] += 1
+            except Exception as error:
+                counts["errors"].append(f"{item_name}: {error}")
+    return counts
+
+
+def sync_blizzard_preset_item_metadata(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOCALE):
+    limit = int_env("WOW_WEBSIM_SYNC_PRESET_ITEM_LIMIT", 500)
+    counts = {"items": 0, "aliases": 0, "skipped": 0, "errors": []}
+    for ref in preset_item_refs(conn)[:limit]:
+        item_id = ref["itemId"]
+        aliases = list(ref.get("aliases") or [])
+        existing = existing_websim_item_metadata(conn, item_id)
+        if websim_item_metadata_is_complete(existing):
+            save_item_aliases(
+                conn,
+                item_id,
+                aliases,
+                existing.get("displayName") or f"Item {item_id}",
+                existing.get("iconUrl") or "",
+                target_locale=existing.get("metadataLocale") or locale,
+            )
+            counts["aliases"] += len(item_alias_candidates(*aliases))
+            counts["skipped"] += 1
+            continue
+        try:
+            item_metadata = fetch_blizzard_item_metadata(
+                token,
+                item_id,
+                region,
+                locale,
+                fallback_name=aliases[0] if aliases else "",
+                fallback_slot=ref.get("slot") or "",
+            )
+        except Exception as error:
+            counts["errors"].append(f"{item_id}: {error}")
+            continue
+        saved = save_websim_item_metadata(
+            conn,
+            item_id,
+            item_metadata.get("payload") or {},
+            item_metadata.get("media") or {},
+            fallback_slot=item_metadata.get("fallbackSlot") or ref.get("slot") or "",
+            fallback_name=item_metadata.get("fallbackName") or "",
+            english_payload=item_metadata.get("englishPayload") or {},
+            locale=item_metadata.get("locale") or locale,
+        )
+        if saved:
+            save_item_aliases(
+                conn,
+                item_id,
+                aliases,
+                saved.get("displayName") or f"Item {item_id}",
+                saved.get("iconUrl") or "",
+                target_locale=saved.get("metadataLocale") or locale,
+            )
+            counts["aliases"] += len(item_alias_candidates(*aliases))
+            counts["items"] += 1
+    return counts
+
+
 def sync_websim_cache(db_path, include_blizzard=True):
     conn = sqlite3.connect(db_path, timeout=30, isolation_level=None)
     try:
@@ -2648,6 +3198,15 @@ def sync_websim_cache(db_path, include_blizzard=True):
                 "locale": DEFAULT_LOCALE,
                 "simc": simc_counts,
                 "blizzard": {"instances": 0, "encounters": 0, "loot": 0, "items": 0},
+                "itemMetadata": {
+                    "items": 0,
+                    "aliases": 0,
+                    "skipped": 0,
+                    "searched": 0,
+                    "resolved": 0,
+                    "references": 0,
+                    "errors": [],
+                },
                 "spells": {"spells": 0, "media": 0},
                 "currentSeason": simc_season,
                 "dataStatus": simc_season.get("dataStatus") or "blocked",
@@ -2657,6 +3216,15 @@ def sync_websim_cache(db_path, include_blizzard=True):
         )
         conn.commit()
         blizzard_counts = {"instances": 0, "encounters": 0, "loot": 0, "items": 0}
+        item_metadata_counts = {
+            "items": 0,
+            "aliases": 0,
+            "skipped": 0,
+            "searched": 0,
+            "resolved": 0,
+            "references": 0,
+            "errors": [],
+        }
         spell_counts = {"spells": 0, "media": 0}
         errors = []
         blizzard_skipped = ""
@@ -2664,10 +3232,26 @@ def sync_websim_cache(db_path, include_blizzard=True):
             refresh_always = os.environ.get("WOW_WEBSIM_REFRESH_BLIZZARD_ALWAYS", "0").strip() == "1"
             if simc_season.get("dataStatus") == "verified" and not refresh_always:
                 blizzard_skipped = "fresh-season-cache"
+                if (
+                    os.environ.get("WOW_WEBSIM_SYNC_ITEM_METADATA_ON_FRESH", "1").strip() != "0"
+                    and blizzard_credentials_configured()
+                ):
+                    try:
+                        token = get_blizzard_access_token(DEFAULT_REGION)
+                        item_metadata_counts = merge_item_metadata_counts(
+                            sync_blizzard_preset_item_metadata(conn, token, DEFAULT_REGION, DEFAULT_LOCALE),
+                            sync_blizzard_build_gear_item_metadata(conn, token, DEFAULT_REGION, DEFAULT_LOCALE),
+                        )
+                    except Exception as error:
+                        item_metadata_counts["errors"].append(str(error))
             else:
                 try:
                     token = get_blizzard_access_token(DEFAULT_REGION)
                     blizzard_counts = sync_blizzard_journal(conn, token, DEFAULT_REGION, DEFAULT_LOCALE)
+                    item_metadata_counts = merge_item_metadata_counts(
+                        sync_blizzard_preset_item_metadata(conn, token, DEFAULT_REGION, DEFAULT_LOCALE),
+                        sync_blizzard_build_gear_item_metadata(conn, token, DEFAULT_REGION, DEFAULT_LOCALE),
+                    )
                     spell_counts = sync_blizzard_spell_details(conn, token, DEFAULT_REGION, DEFAULT_LOCALE)
                 except Exception as error:
                     errors.append(str(error))
@@ -2679,6 +3263,7 @@ def sync_websim_cache(db_path, include_blizzard=True):
             "locale": DEFAULT_LOCALE,
             "simc": simc_counts,
             "blizzard": blizzard_counts,
+            "itemMetadata": item_metadata_counts,
             "spells": spell_counts,
             "currentSeason": active_season,
             "dataStatus": active_season.get("dataStatus") or "blocked",
@@ -3475,6 +4060,226 @@ def get_websim_presets(conn, class_key="mage", spec_key="arcane"):
     return [{"id": row[0], "classKey": row[1], "specKey": row[2], "name": row[3], "profile": row[4]} for row in rows]
 
 
+def websim_item_metadata_by_ids(conn, item_ids):
+    values = sorted({str(item_id or "").strip() for item_id in item_ids or [] if str(item_id or "").strip()})
+    if not values:
+        return {}
+    placeholders = ",".join("?" for _ in values)
+    rows = conn.execute(
+        f"""
+        SELECT id, name, slot, quality, icon_url, payload_json
+        FROM websim_items
+        WHERE id IN ({placeholders})
+        """,
+        values,
+    ).fetchall()
+    result = {}
+    for row in rows:
+        payload = safe_json_loads(row[5], {})
+        metadata = payload.get("_metadata") if isinstance(payload, dict) else {}
+        result[str(row[0])] = {
+            "itemId": str(row[0]),
+            "displayName": row[1] or f"Item {row[0]}",
+            "slot": row[2] or "",
+            "quality": row[3] or "",
+            "iconUrl": row[4] or "",
+            "payload": payload,
+            "metadataStatus": "verified",
+            "metadataSource": (metadata or {}).get("source") or ITEM_METADATA_SOURCE,
+            "metadataLocale": (metadata or {}).get("locale") or DEFAULT_LOCALE,
+            "englishName": (metadata or {}).get("englishName") or "",
+        }
+    return result
+
+
+def websim_item_metadata_by_aliases(conn, aliases):
+    alias_keys = sorted({normalized_item_alias(alias) for alias in aliases or [] if normalized_item_alias(alias)})
+    if not alias_keys:
+        return {}
+    placeholders = ",".join("?" for _ in alias_keys)
+    rows = conn.execute(
+        f"""
+        SELECT a.alias_key, a.item_id, a.display_name, a.icon_url, a.source, a.target_locale,
+               i.slot, i.quality, i.payload_json
+        FROM websim_item_aliases a
+        LEFT JOIN websim_items i ON i.id = a.item_id
+        WHERE a.alias_key IN ({placeholders})
+        ORDER BY a.updated_at DESC
+        """,
+        alias_keys,
+    ).fetchall()
+    result = {}
+    for row in rows:
+        if row[0] in result:
+            continue
+        payload = safe_json_loads(row[8], {})
+        metadata = payload.get("_metadata") if isinstance(payload, dict) else {}
+        result[row[0]] = {
+            "itemId": str(row[1]),
+            "displayName": row[2] or f"Item {row[1]}",
+            "slot": row[6] or "",
+            "quality": row[7] or "",
+            "iconUrl": row[3] or "",
+            "payload": payload,
+            "metadataStatus": "verified",
+            "metadataSource": row[4] or ITEM_METADATA_SOURCE,
+            "metadataLocale": row[5] or (metadata or {}).get("locale") or DEFAULT_LOCALE,
+            "englishName": (metadata or {}).get("englishName") or "",
+        }
+    return result
+
+
+def apply_item_metadata(item, metadata=None):
+    if not isinstance(item, dict):
+        return item
+    enriched = dict(item)
+    if enriched.get("isReference") or enriched.get("metadataStatus") == "source_reference":
+        enriched.setdefault("displayName", enriched.get("name") or "")
+        enriched.setdefault("iconUrl", "")
+        enriched["metadataStatus"] = "source_reference"
+        enriched["metadataSource"] = enriched.get("metadataSource") or enriched.get("sourceName") or ""
+        enriched["metadataLocale"] = ""
+        return enriched
+    item_id = str(enriched.get("itemId") or enriched.get("item_id") or enriched.get("id") or "").strip()
+    if metadata:
+        enriched["itemId"] = metadata.get("itemId") or item_id
+        if not enriched.get("id") or str(enriched.get("id")) == item_id:
+            enriched["id"] = enriched["itemId"]
+        enriched["displayName"] = metadata.get("displayName") or enriched.get("displayName") or enriched.get("name")
+        enriched["localizedName"] = enriched["displayName"]
+        enriched["iconUrl"] = metadata.get("iconUrl") or enriched.get("iconUrl") or enriched.get("icon_url") or ""
+        enriched["quality"] = metadata.get("quality") or enriched.get("quality") or ""
+        enriched["metadataStatus"] = "verified"
+        enriched["metadataSource"] = metadata.get("metadataSource") or ITEM_METADATA_SOURCE
+        enriched["metadataLocale"] = metadata.get("metadataLocale") or DEFAULT_LOCALE
+        if metadata.get("englishName"):
+            enriched["englishName"] = metadata.get("englishName")
+        return enriched
+    enriched.setdefault("displayName", enriched.get("name") or (f"Item {item_id}" if item_id else ""))
+    enriched.setdefault("iconUrl", enriched.get("icon_url") or "")
+    enriched["metadataStatus"] = "pending_sync" if item_id else "missing_item_id"
+    enriched["metadataSource"] = ""
+    enriched["metadataLocale"] = ""
+    return enriched
+
+
+def hydrate_gear_items_from_metadata(conn, items):
+    if not items:
+        return []
+    ids = [item.get("itemId") or item.get("item_id") or item.get("id") for item in items if isinstance(item, dict)]
+    metadata_by_id = websim_item_metadata_by_ids(conn, ids)
+    hydrated = []
+    for item in items:
+        if not isinstance(item, dict):
+            hydrated.append(item)
+            continue
+        item_id = str(item.get("itemId") or item.get("item_id") or item.get("id") or "").strip()
+        hydrated.append(apply_item_metadata(item, metadata_by_id.get(item_id)))
+    return hydrated
+
+
+def build_related_item_metadata(row, metadata_by_alias):
+    parts = split_item_name_parts(row.get("name") if isinstance(row, dict) else "")
+    if len(parts) <= 1:
+        return []
+    related = []
+    seen = set()
+    for part in parts:
+        metadata = None
+        for alias in item_alias_candidates(part):
+            metadata = metadata_by_alias.get(normalized_item_alias(alias))
+            if metadata:
+                break
+        if not metadata:
+            continue
+        item_id = str(metadata.get("itemId") or "")
+        if item_id in seen:
+            continue
+        seen.add(item_id)
+        related.append(metadata)
+    return related
+
+
+def apply_related_item_metadata(row, related_items):
+    if not related_items:
+        return row
+    enriched = dict(row)
+    enriched["relatedItems"] = [
+        {
+            "itemId": item.get("itemId") or "",
+            "displayName": item.get("displayName") or "",
+            "englishName": item.get("englishName") or "",
+            "iconUrl": item.get("iconUrl") or "",
+            "quality": item.get("quality") or "",
+            "metadataStatus": item.get("metadataStatus") or "verified",
+            "metadataLocale": item.get("metadataLocale") or DEFAULT_LOCALE,
+        }
+        for item in related_items
+    ]
+    display_names = [item.get("displayName") for item in enriched["relatedItems"] if item.get("displayName")]
+    if display_names:
+        enriched["displayName"] = " / ".join(display_names)
+        enriched["localizedName"] = enriched["displayName"]
+    if row.get("name"):
+        enriched["englishName"] = row.get("name")
+    return enriched
+
+
+def enrich_build_gear_payload(conn, payload):
+    if not isinstance(payload, dict):
+        return payload
+    details = payload.get("details") if isinstance(payload.get("details"), dict) else {}
+    gear_detail = details.get("gear") if isinstance(details.get("gear"), dict) else {}
+    rows = gear_detail.get("gear") if isinstance(gear_detail.get("gear"), list) else []
+    if not rows:
+        return payload
+    ids = [row.get("itemId") or row.get("item_id") or row.get("id") for row in rows if isinstance(row, dict)]
+    aliases = []
+    for row in rows:
+        if isinstance(row, dict):
+            aliases.extend(item_alias_candidates(row.get("name"), row.get("displayName"), row.get("englishName")))
+    metadata_by_id = websim_item_metadata_by_ids(conn, ids)
+    metadata_by_alias = websim_item_metadata_by_aliases(conn, aliases)
+    enriched_rows = []
+    verified_count = 0
+    reference_count = 0
+    for row in rows:
+        if not isinstance(row, dict):
+            enriched_rows.append(row)
+            continue
+        item_id = str(row.get("itemId") or row.get("item_id") or row.get("id") or "").strip()
+        metadata = metadata_by_id.get(item_id)
+        if not metadata:
+            for alias in item_alias_candidates(row.get("name"), row.get("displayName"), row.get("englishName")):
+                metadata = metadata_by_alias.get(normalized_item_alias(alias))
+                if metadata:
+                    break
+        enriched = apply_item_metadata(row, metadata)
+        related_items = build_related_item_metadata(row, metadata_by_alias)
+        if len(related_items) > 1:
+            enriched = apply_related_item_metadata(enriched, related_items)
+        if metadata:
+            verified_count += 1
+        if enriched.get("metadataStatus") == "source_reference":
+            reference_count += 1
+        enriched_rows.append(enriched)
+    next_payload = dict(payload)
+    next_details = dict(details)
+    next_gear_detail = dict(gear_detail)
+    next_gear_detail["gear"] = enriched_rows
+    next_gear_detail["metadataSummary"] = {
+        "verifiedCount": verified_count,
+        "totalCount": len(enriched_rows),
+        "itemCount": len(enriched_rows) - reference_count,
+        "referenceCount": reference_count,
+        "source": ITEM_METADATA_SOURCE,
+        "locale": DEFAULT_LOCALE,
+    }
+    next_details["gear"] = next_gear_detail
+    next_payload["details"] = next_details
+    return next_payload
+
+
 def get_websim_gear(conn, class_key="mage", spec_key="arcane"):
     season = get_active_season_payload(conn)
     class_key = slugify(class_key, "mage")
@@ -3488,6 +4293,9 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane"):
         if item.get("slot") not in {entry.get("slot") for entry in baseline_set}:
             baseline_set.append(item)
     candidate_items = get_websim_loot(conn, {}, limit=120)["items"]
+    baseline_set = hydrate_gear_items_from_metadata(conn, baseline_set)
+    preset_items = hydrate_gear_items_from_metadata(conn, preset_items)
+    candidate_items = hydrate_gear_items_from_metadata(conn, candidate_items)
     grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
     for item in [*baseline_set, *preset_items, *candidate_items]:
         normalized = normalize_gear_item(item, class_key, spec_key, item.get("sourceType") if isinstance(item, dict) else "")
@@ -3673,9 +4481,15 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         "name": slugify(value.get("name"), f"item_{item_id}"),
         "id": item_id,
         "displayName": str(value.get("displayName") or value.get("name") or f"Item {item_id}")[:160],
+        "localizedName": str(value.get("localizedName") or value.get("displayName") or "")[:160],
+        "englishName": str(value.get("englishName") or "")[:160],
         "iconUrl": str(value.get("iconUrl") or value.get("icon_url") or "")[:260],
+        "quality": str(value.get("quality") or "")[:80],
         "sourceType": source_type,
         "source": str(first_matching_value(value, ["source", "sourceName", "encounterName", "instanceName"], ""))[:220],
+        "metadataStatus": str(value.get("metadataStatus") or "")[:40],
+        "metadataSource": str(value.get("metadataSource") or "")[:120],
+        "metadataLocale": str(value.get("metadataLocale") or "")[:20],
         "classKey": slugify(class_key, "") if class_key else str(value.get("classKey") or ""),
         "specKey": slugify(spec_key, "") if spec_key else str(value.get("specKey") or ""),
     }

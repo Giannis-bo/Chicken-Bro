@@ -34,7 +34,8 @@ function detailForQuery(selectedDetail, queryKey) {
 }
 
 function gearKey(row, index) {
-  return `${row.slot || '装备'}-${row.name || index}-${index}`
+  const itemId = row.itemId || row.item_id || row.id || ''
+  return itemId ? `${row.slot || '装备'}-${itemId}` : `${row.slot || '装备'}-${row.name || index}-${index}`
 }
 
 function inferGearSourceType(source) {
@@ -48,31 +49,54 @@ function inferGearSourceType(source) {
   return '来源待核'
 }
 
+function gearDisplayName(row) {
+  return row.displayName || row.localizedName || row.name || '候选装备'
+}
+
+function gearMetadataLabel(row) {
+  if (!row || !row.metadataStatus) return '待同步'
+  if (row.metadataStatus === 'verified') return '官方中文'
+  if (row.metadataStatus === 'source_reference') return '参考来源'
+  if (row.metadataStatus === 'missing_item_id') return '缺 itemId'
+  return '待同步'
+}
+
 function buildGearAcquisitionRows(activeDetail, acquiredKeys) {
   const acquiredSet = new Set(Array.isArray(acquiredKeys) ? acquiredKeys : [])
   const gearRows = activeDetail && Array.isArray(activeDetail.gear) ? activeDetail.gear : []
   return gearRows.map((row, index) => {
     const key = gearKey(row, index)
+    const metadataVerified = row.metadataStatus === 'verified'
+    const isReference = row.isReference || row.metadataStatus === 'source_reference'
+    const acquired = !isReference && acquiredSet.has(key)
     return {
       ...row,
       key,
-      priorityLabel: `优先级 ${index + 1}`,
-      sourceType: inferGearSourceType(row.source),
-      acquired: acquiredSet.has(key)
+      isReference,
+      displayName: gearDisplayName(row),
+      originalName: row.englishName || (row.displayName && row.name && row.displayName !== row.name ? row.name : ''),
+      iconUrl: row.iconUrl || '',
+      priorityLabel: isReference ? '参考' : `优先级 ${index + 1}`,
+      sourceType: isReference ? '来源参考' : (metadataVerified ? '官方物品库' : inferGearSourceType(row.source)),
+      metadataLabel: gearMetadataLabel(row),
+      metadataVerified,
+      acquired,
+      checkLabel: isReference ? '查看来源' : (acquired ? '已获取' : '待获取')
     }
   })
 }
 
 function buildGearProgressText(rows) {
-  if (!rows.length) return '暂无装备候选'
-  const acquiredCount = rows.filter((row) => row.acquired).length
-  return `已获取 ${acquiredCount}/${rows.length} 件`
+  const itemRows = rows.filter((row) => !row.isReference)
+  if (!itemRows.length) return '暂无装备候选'
+  const acquiredCount = itemRows.filter((row) => row.acquired).length
+  return `已获取 ${acquiredCount}/${itemRows.length} 件`
 }
 
 function buildGearNextAction(rows) {
-  const nextRow = rows.find((row) => !row.acquired)
+  const nextRow = rows.find((row) => !row.isReference && !row.acquired)
   if (!nextRow) return rows.length ? '当前候选已全部标记获取，下一步进入 SimC 做真实收益校验。' : '等待装备数据刷新后再规划获取顺序。'
-  return `下一件：${nextRow.slot || '装备'} ${nextRow.name || '候选装备'} · ${nextRow.sourceType}`
+  return `下一件：${nextRow.slot || '装备'} ${gearDisplayName(nextRow)} · ${nextRow.sourceType}`
 }
 
 function buildTalentNodeRows(activeDetail, selectedNodes) {
@@ -330,13 +354,14 @@ Page({
   toggleGearAcquired(event) {
     const key = event.currentTarget.dataset.key || ''
     if (!key) return
+    const gearRow = (this.data.gearAcquisitionRows || []).find((row) => row.key === key) || {}
+    if (gearRow.isReference) return
     const acquiredSet = new Set(this.data.gearAcquiredKeys || [])
     if (acquiredSet.has(key)) {
       acquiredSet.delete(key)
     } else {
       acquiredSet.add(key)
     }
-    const gearRow = (this.data.gearAcquisitionRows || []).find((row) => row.key === key) || {}
     trackEvent('builds_gear_toggle', {
       gearSlot: gearRow.slot || '',
       selected: acquiredSet.has(key),

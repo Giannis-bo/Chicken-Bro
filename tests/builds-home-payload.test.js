@@ -174,6 +174,7 @@ test('non-featured specializations use retrieved Archon snapshot data', () => {
     ['Intellect', 'Haste', 'Mastery', 'Vers', 'Crit']
   )
   assert.ok(fireMage.details.gear.gear.some((item) => item.name === "Voidbreaker's Veil"))
+  assert.ok(fireMage.details.gear.gear.some((item) => item.metadataStatus === 'source_reference' && item.isReference))
   assert.match(fireMage.details.talents.analysisWindow, /推荐树热度 10\.8%/)
   assert.match(fireMage.details.talents.analysisWindow, /最高样本 \+21/)
 

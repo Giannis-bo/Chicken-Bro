@@ -736,8 +736,8 @@ function genericGearRows(specialization) {
   })) : []
   return [
     ...snapshotRows,
-    { slot: '武器/饰品', name: `${label} Archon 武器与饰品表`, source: `Archon weapons and trinkets table: ${archonUrl}` },
-    { slot: '制作', name: `${label} 制造与低保优先级`, source: `Wowhead gearing guide: ${wowheadGuideUrl(specialization, 'bis-gear')}` }
+    { slot: '武器/饰品', name: `${label} Archon 武器与饰品表`, source: `Archon weapons and trinkets table: ${archonUrl}`, isReference: true, metadataStatus: 'source_reference' },
+    { slot: '制作', name: `${label} 制造与低保优先级`, source: `Wowhead gearing guide: ${wowheadGuideUrl(specialization, 'bis-gear')}`, isReference: true, metadataStatus: 'source_reference' }
   ].slice(0, Math.max(4, snapshotRows.length + 2))
 }
 

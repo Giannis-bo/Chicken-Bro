@@ -3129,9 +3129,52 @@
       if (filters && filters.encounterId && item.encounterId !== filters.encounterId) return false
       if (filters && filters.slot && item.slot !== filters.slot) return false
       if (!query) return true
-      return [item.name, item.instanceName, item.encounterName, item.itemId]
+      return [item.displayName, item.localizedName, item.name, item.instanceName, item.encounterName, item.itemId]
         .some((value) => String(value || '').toLowerCase().includes(query))
     })
+  }
+
+  function looksLikeGenericItemName(value, itemId) {
+    const raw = String(value || '').trim()
+    const id = String(itemId || '').trim()
+    if (!raw) return true
+    if (id && raw === id) return true
+    return /^item[_ -]?\d+$/i.test(raw)
+  }
+
+  function lootOriginalName(item) {
+    if (!item) return ''
+    const explicitName = String(item.englishName || '').trim()
+    if (explicitName && !looksLikeGenericItemName(explicitName, item.itemId)) return explicitName
+    const rawName = String(item.name || '').trim()
+    const displayName = String(item.displayName || item.localizedName || '').trim()
+    if (!rawName || looksLikeGenericItemName(rawName, item.itemId)) return ''
+    if (displayName && rawName === displayName) return ''
+    return rawName
+  }
+
+  function firstLootScope(instances, loot, preferredInstanceId = '', preferredEncounterId = '') {
+    const instanceRows = Array.isArray(instances) ? instances : []
+    const lootRows = Array.isArray(loot) ? loot : []
+    const selectedInstance = instanceRows.find((item) => String(item.id) === String(preferredInstanceId))
+    if (selectedInstance && preferredEncounterId && filterLootRows(lootRows, {
+      instanceId: selectedInstance.id,
+      encounterId: preferredEncounterId
+    }).length) {
+      return { instanceId: selectedInstance.id, encounterId: preferredEncounterId }
+    }
+    if (selectedInstance) {
+      const encounterWithLoot = (selectedInstance.encounters || []).find((encounter) =>
+        filterLootRows(lootRows, { instanceId: selectedInstance.id, encounterId: encounter.id }).length
+      )
+      const fallbackEncounter = encounterWithLoot || (selectedInstance.encounters || [])[0] || {}
+      return { instanceId: selectedInstance.id, encounterId: fallbackEncounter.id || '' }
+    }
+    const firstLoot = lootRows.find((item) => item.instanceId && item.encounterId)
+    if (firstLoot) return { instanceId: firstLoot.instanceId, encounterId: firstLoot.encounterId }
+    const firstInstance = instanceRows[0] || {}
+    const firstEncounter = ((firstInstance.encounters || [])[0]) || {}
+    return { instanceId: firstInstance.id || '', encounterId: firstEncounter.id || '' }
   }
 
   function buildProfilePayload() {
@@ -4226,22 +4269,27 @@
       encounterId: state.selectedEncounterId,
       q: query
     })
-    lootList.innerHTML = visibleLoot.map((item) => {
+    lootList.innerHTML = visibleLoot.length ? visibleLoot.map((item) => {
       const icon = item.iconUrl ? `<img class="loot-icon" src="${escapeHtml(item.iconUrl)}" alt="">` : '<div class="loot-icon"></div>'
+      const name = item.displayName || item.localizedName || item.name || `Item ${item.itemId || ''}`
+      const englishName = lootOriginalName(item)
+      const englishHtml = englishName ? `<p class="loot-original">${escapeHtml(englishName)}</p>` : ''
       return `<button class="loot-row" data-item-id="${escapeHtml(item.itemId)}">
         ${icon}
         <span class="loot-copy">
-          <p class="loot-name">${escapeHtml(item.name)}</p>
+          <p class="loot-name">${escapeHtml(name)}</p>
+          ${englishHtml}
           <p class="loot-source">${escapeHtml(item.encounterName)} · ${escapeHtml(item.instanceName)}</p>
         </span>
-        <span class="loot-meta">${escapeHtml(item.slot || '物品')}</span>
+        <span class="loot-meta">${escapeHtml(slotLabel(item.slot) || '物品')}</span>
       </button>`
-    }).join('')
+    }).join('') : `<div class="blocked-state">${escapeHtml(query ? '没有匹配的装备，换个关键词试试。' : '当前首领暂无已同步掉落，切换副本或首领查看其他装备。')}</div>`
     instanceList.querySelectorAll('.journal-row').forEach((button) => {
       button.addEventListener('click', () => {
         state.selectedInstanceId = button.dataset.id
         const instance = state.instances.find((item) => item.id === state.selectedInstanceId)
-        state.selectedEncounterId = ((instance && instance.encounters) || [])[0]?.id || ''
+        const scope = firstLootScope(state.instances, state.loot, state.selectedInstanceId, '')
+        state.selectedEncounterId = scope.encounterId || (((instance && instance.encounters) || [])[0]?.id || '')
         renderJournal()
       })
     })
@@ -4313,9 +4361,9 @@
     state.dataStatus = payload.dataStatus || state.dataStatus
     state.instances = payload.instances || []
     state.loot = payload.items || []
-    state.selectedInstanceId = state.selectedInstanceId || (state.instances[0] && state.instances[0].id) || ''
-    const instance = state.instances.find((item) => item.id === state.selectedInstanceId) || state.instances[0]
-    state.selectedEncounterId = state.selectedEncounterId || (((instance && instance.encounters) || [])[0] && instance.encounters[0].id) || ''
+    const scope = firstLootScope(state.instances, state.loot, state.selectedInstanceId, state.selectedEncounterId)
+    state.selectedInstanceId = scope.instanceId
+    state.selectedEncounterId = scope.encounterId
     renderJournal()
   }
 
@@ -4795,6 +4843,9 @@
     selectedSimcReadyItems,
     gearReadinessFromState,
     filterLootRows,
+    lootOriginalName,
+    firstLootScope,
+    slotLabel,
     buildProfilePayload,
     addGearItem,
     groupTalentsByTree,

@@ -777,14 +777,36 @@ test('websim frontend helpers normalize gear and filter dungeon loot', () => {
 
   const rows = helpers.filterLootRows(
     [
-      { instanceId: 'a', encounterId: 'boss-1', name: 'Gaze of the Alnseer', encounterName: 'Chimaerus' },
+      { instanceId: 'a', encounterId: 'boss-1', name: 'Gaze of the Alnseer', displayName: '艾林先知的凝视', encounterName: 'Chimaerus' },
       { instanceId: 'b', encounterId: 'boss-2', name: 'Skybreaker Blade', encounterName: 'Zuraal' }
     ],
-    { instanceId: 'a', q: 'gaze' }
+    { instanceId: 'a', q: '艾林' }
   )
 
   assert.equal(rows.length, 1)
   assert.equal(rows[0].encounterName, 'Chimaerus')
+  assert.equal(helpers.lootOriginalName({
+    itemId: 251162,
+    name: 'item_251162',
+    displayName: '叛徒之爪'
+  }), '')
+  assert.equal(helpers.lootOriginalName({
+    itemId: 249343,
+    name: 'Gaze of the Alnseer',
+    displayName: '艾林先知的凝视'
+  }), 'Gaze of the Alnseer')
+  assert.equal(helpers.slotLabel('trinket1'), '饰品 1')
+
+  const scope = helpers.firstLootScope(
+    [
+      { id: 'empty-instance', encounters: [{ id: 'empty-boss' }] },
+      { id: 'loot-instance', encounters: [{ id: 'loot-boss' }] }
+    ],
+    [
+      { instanceId: 'loot-instance', encounterId: 'loot-boss', displayName: '叛徒之爪' }
+    ]
+  )
+  assert.deepEqual(scope, { instanceId: 'loot-instance', encounterId: 'loot-boss' })
 })
 
 test('websim build helpers encode pvp slots without losing slot order', () => {

@@ -75,15 +75,23 @@
         </view>
         <view class="gear-list">
           <view class="gear-row gear-acquisition-row {{item.acquired ? 'acquired' : ''}}" wx:for="{{gearAcquisitionRows}}" wx:key="key" data-key="{{item.key}}" bindtap="toggleGearAcquired">
-            <text class="gear-slot">{{item.slot}}</text>
+            <view class="gear-icon-frame {{item.metadataVerified ? 'verified' : ''}}">
+              <image wx:if="{{item.iconUrl}}" class="gear-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
+              <text wx:else class="gear-icon-fallback">{{item.slot}}</text>
+            </view>
             <view class="gear-copy">
-              <text class="gear-name">{{item.name}}</text>
+              <view class="gear-title-row">
+                <text class="gear-slot">{{item.slot}}</text>
+                <text class="gear-name">{{item.displayName}}</text>
+              </view>
+              <text wx:if="{{item.originalName}}" class="gear-original">{{item.originalName}}</text>
               <text class="gear-source">{{item.source}}</text>
             </view>
             <view class="gear-meta">
               <text class="gear-priority">{{item.priorityLabel}}</text>
               <text class="gear-source-type">{{item.sourceType}}</text>
-              <text class="gear-check">{{item.acquired ? '已获取' : '待获取'}}</text>
+              <text class="gear-metadata {{item.metadataVerified ? 'verified' : ''}}">{{item.metadataLabel}}</text>
+              <text class="gear-check">{{item.checkLabel}}</text>
             </view>
           </view>
         </view>

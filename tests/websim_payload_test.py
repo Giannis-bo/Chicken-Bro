@@ -911,6 +911,252 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(any(item["itemId"] == "250111" for item in wrist_group["items"]))
         self.assertGreaterEqual(payload["readiness"]["simcReadyCount"], 2)
 
+    def test_websim_gear_payload_enriches_preset_items_with_localized_metadata(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250111",
+                {
+                    "id": 250111,
+                    "name": "预设护腕",
+                    "inventory_type": {"name": "Wrist"},
+                    "quality": {"name": "史诗"},
+                },
+                {"assets": [{"value": "https://render.example/item-250111.jpg"}]},
+                fallback_name="Preset Bracers",
+                english_payload={"name": "Preset Bracers"},
+                locale="zh_CN",
+            )
+            profile = "\n".join(
+                [
+                    'mage="Preset_Mage"',
+                    "spec=arcane",
+                    "wrist=preset_bracers,id=250111,ilevel=289,bonus_id=13534",
+                ]
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('preset-mage-arcane', 'mage', 'arcane', 'Preset Mage', ?, '{}', 'now')
+                """,
+                (profile,),
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane")
+        finally:
+            conn.close()
+
+        wrist_item = payload["baselineSet"][0]
+        self.assertEqual(wrist_item["displayName"], "预设护腕")
+        self.assertEqual(wrist_item["iconUrl"], "https://render.example/item-250111.jpg")
+        self.assertEqual(wrist_item["metadataStatus"], "verified")
+        self.assertEqual(wrist_item["name"], "preset_bracers")
+
+    def test_build_gear_payload_enriches_rows_by_item_alias(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250060",
+                {
+                    "id": 250060,
+                    "name": "虚空破坏者的面纱",
+                    "inventory_type": {"name": "Head"},
+                    "quality": {"name": "史诗"},
+                },
+                {"assets": [{"value": "https://render.example/item-250060.jpg"}]},
+                fallback_name="Voidbreaker's Veil",
+                english_payload={"name": "Voidbreaker's Veil"},
+                locale="zh_CN",
+            )
+            conn.commit()
+            payload = {
+                "details": {
+                    "gear": {
+                        "gear": [
+                            {
+                                "slot": "头部",
+                                "name": "Voidbreaker's Veil",
+                                "source": "Archon gear overview",
+                            },
+                            {
+                                "slot": "武器/饰品",
+                                "name": "奥术法师 Archon 武器与饰品表",
+                                "source": "Archon weapons and trinkets table",
+                                "isReference": True,
+                                "metadataStatus": "source_reference",
+                            }
+                        ]
+                    }
+                }
+            }
+            enriched = self.websim_payload.enrich_build_gear_payload(conn, payload)
+        finally:
+            conn.close()
+
+        row = enriched["details"]["gear"]["gear"][0]
+        self.assertEqual(row["itemId"], "250060")
+        self.assertEqual(row["displayName"], "虚空破坏者的面纱")
+        self.assertEqual(row["iconUrl"], "https://render.example/item-250060.jpg")
+        self.assertEqual(row["metadataStatus"], "verified")
+        reference_row = enriched["details"]["gear"]["gear"][1]
+        self.assertEqual(reference_row["metadataStatus"], "source_reference")
+        self.assertEqual(reference_row["displayName"], "奥术法师 Archon 武器与饰品表")
+        self.assertEqual(enriched["details"]["gear"]["metadataSummary"]["verifiedCount"], 1)
+        self.assertEqual(enriched["details"]["gear"]["metadataSummary"]["itemCount"], 1)
+        self.assertEqual(enriched["details"]["gear"]["metadataSummary"]["referenceCount"], 1)
+
+    def test_build_gear_payload_combines_compound_item_rows(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "249342",
+                {
+                    "id": 249342,
+                    "name": "上古饥渴之心",
+                    "inventory_type": {"name": "Trinket"},
+                    "quality": {"name": "史诗"},
+                },
+                {"assets": [{"value": "https://render.example/item-249342.jpg"}]},
+                fallback_name="Heart of Ancient Hunger",
+                english_payload={"name": "Heart of Ancient Hunger"},
+                locale="zh_CN",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "249343",
+                {
+                    "id": 249343,
+                    "name": "艾林先知的凝视",
+                    "inventory_type": {"name": "Trinket"},
+                    "quality": {"name": "史诗"},
+                },
+                {"assets": [{"value": "https://render.example/item-249343.jpg"}]},
+                fallback_name="Gaze of the Alnseer",
+                english_payload={"name": "Gaze of the Alnseer"},
+                locale="zh_CN",
+            )
+            conn.commit()
+            payload = {
+                "details": {
+                    "gear": {
+                        "gear": [
+                            {
+                                "slot": "饰品",
+                                "name": "Heart of Ancient Hunger / Gaze of the Alnseer",
+                                "source": "Archon trinket usage",
+                            }
+                        ]
+                    }
+                }
+            }
+            enriched = self.websim_payload.enrich_build_gear_payload(conn, payload)
+        finally:
+            conn.close()
+
+        row = enriched["details"]["gear"]["gear"][0]
+        self.assertEqual(row["displayName"], "上古饥渴之心 / 艾林先知的凝视")
+        self.assertEqual(row["englishName"], "Heart of Ancient Hunger / Gaze of the Alnseer")
+        self.assertEqual(len(row["relatedItems"]), 2)
+        self.assertEqual([item["itemId"] for item in row["relatedItems"]], ["249342", "249343"])
+
+    def test_blizzard_item_search_requires_exact_english_name(self):
+        captured = []
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            captured.append({"path": path, "locale": locale, "params": params, "namespace": namespace})
+            return {
+                "results": [
+                    {"data": {"id": 537, "name": {"en_US": "Dull Frenzy Scale"}}},
+                    {"data": {"id": 249317, "name": {"en_US": "Frenzy's Rebuke"}}},
+                ]
+            }
+
+        original = self.websim_payload.blizzard_get
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original)
+        self.websim_payload.blizzard_get = fake_blizzard_get
+
+        item_id = self.websim_payload.search_blizzard_item_id_by_english_name("token", "Frenzy's Rebuke", "us")
+
+        self.assertEqual(item_id, "249317")
+        self.assertEqual(captured[0]["path"], "/data/wow/search/item")
+        self.assertEqual(captured[0]["locale"], "en_US")
+        self.assertEqual(captured[0]["params"]["name.en_US"], "Frenzy's Rebuke")
+
+    def test_sync_blizzard_build_gear_item_metadata_resolves_build_names(self):
+        conn = sqlite3.connect(self.db_path)
+        original_refs = self.websim_payload.load_build_gear_item_refs
+        original_search = self.websim_payload.search_blizzard_item_id_by_english_name
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "load_build_gear_item_refs", original_refs)
+        self.addCleanup(setattr, self.websim_payload, "search_blizzard_item_id_by_english_name", original_search)
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        self.websim_payload.load_build_gear_item_refs = lambda: [
+            {
+                "slot": "头部",
+                "name": "Frenzy's Rebuke",
+                "source": "Archon gear overview",
+            },
+            {
+                "slot": "制作",
+                "name": "增辉唤魔师 制造与低保优先级",
+                "source": "Wowhead gearing guide",
+                "isReference": True,
+            },
+        ]
+        self.websim_payload.search_blizzard_item_id_by_english_name = lambda token, name, region="us": "249317"
+
+        def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
+            return {
+                "itemId": item_id,
+                "payload": {
+                    "id": int(item_id),
+                    "name": "狂热斥责",
+                    "inventory_type": {"name": "Head"},
+                    "quality": {"name": "史诗"},
+                },
+                "media": {"assets": [{"value": "https://render.example/item-249317.jpg"}]},
+                "englishPayload": {"name": "Frenzy's Rebuke"},
+                "locale": locale,
+                "fallbackName": fallback_name,
+                "fallbackSlot": fallback_slot,
+            }
+
+        self.websim_payload.fetch_blizzard_item_metadata = fake_fetch
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            counts = self.websim_payload.sync_blizzard_build_gear_item_metadata(conn, "token", "us", "zh_CN")
+            conn.commit()
+            payload = {
+                "details": {
+                    "gear": {
+                        "gear": [
+                            {"slot": "头部", "name": "Frenzy's Rebuke", "source": "Archon gear overview"}
+                        ]
+                    }
+                }
+            }
+            enriched = self.websim_payload.enrich_build_gear_payload(conn, payload)
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["searched"], 1)
+        self.assertEqual(counts["resolved"], 1)
+        self.assertEqual(counts["items"], 1)
+        self.assertEqual(counts["references"], 1)
+        row = enriched["details"]["gear"]["gear"][0]
+        self.assertEqual(row["itemId"], "249317")
+        self.assertEqual(row["displayName"], "狂热斥责")
+        self.assertEqual(row["iconUrl"], "https://render.example/item-249317.jpg")
+
     def test_websim_simulate_request_uses_canonical_websim_profile(self):
         request = self.websim_payload.build_websim_simulator_request(
             {

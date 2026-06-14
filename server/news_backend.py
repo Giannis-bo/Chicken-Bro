@@ -34,6 +34,7 @@ try:
         build_websim_profile,
         build_websim_profile_response,
         build_websim_simulator_request,
+        enrich_build_gear_payload,
         ensure_websim_tables,
         get_websim_bootstrap,
         get_websim_gear,
@@ -60,6 +61,7 @@ except ImportError:
         build_websim_profile,
         build_websim_profile_response,
         build_websim_simulator_request,
+        enrich_build_gear_payload,
         ensure_websim_tables,
         get_websim_bootstrap,
         get_websim_gear,
@@ -909,7 +911,17 @@ def get_builds_intel_payload():
 
 def get_builds_detail_payload(spec_id):
     payload = load_js_payload("server/builds/home-payload.js", "getSpecializationDetail", spec_id)
-    return apply_runtime_season_gate(payload, "builds_detail") if payload else payload
+    payload = apply_runtime_season_gate(payload, "builds_detail") if payload else payload
+    if not payload:
+        return payload
+    try:
+        init_db()
+        with db_connection() as conn:
+            ensure_websim_tables(conn)
+            return enrich_build_gear_payload(conn, payload)
+    except Exception as error:
+        payload["gearMetadataError"] = str(error)
+        return payload
 
 
 def get_pve_home_payload():
