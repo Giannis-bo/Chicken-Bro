@@ -28,7 +28,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 完整梳理本地讨论过的产品方向和功能灵感 | 本地讨论，待补录证据 | 很多想法散落在对话中，后续容易遗失或重复讨论。 | 形成统一上下文，让 roadmap 能持续继承讨论成果。 | 需要逐步补录，不能凭记忆伪造细节。 | Roadmap 与想法池常态化 | 待补录 |
 | 明确项目对外定位和一句话表达 | 当前 roadmap 讨论 | README 和产品方向已有多条能力线，但对外主叙事仍需收束。 | 帮助后续决定首页、tab 权重、文案和优先级。 | 需要在“资讯工具”“构筑模拟器”“玩家分析工作台”之间取舍。 | 产品定位命名 | 待确认 |
-| 将 WebSim 作为构筑到模拟的主入口 | 当前代码演进，待补录更多讨论 | 玩家从天赋/装备选择到 SimC 模拟仍有手动拼接成本。 | 降低模拟门槛，让构筑验证更直观。 | 数据 freshness、天赋编码准确性和装备字段完整度必须可解释。 | WebSim 到 SimC 的可提交闭环 | 候选 |
+| 将 WebSim 作为构筑到模拟的主入口 | 当前代码演进、2026-06-14 阶段验收 | 玩家从天赋/装备选择到 SimC 模拟仍有手动拼接成本。 | 降低模拟门槛，让构筑验证更直观。 | 数据 freshness、天赋编码准确性、装备字段完整度和外部 benchmark 覆盖仍需继续产品化。 | WebSim 到 SimC 的可提交闭环 | 已完成 |
 | 建立数据可信度分层 | 当前代码演进，待补录更多讨论 | 官方、SimC、Wago、日志站和 fallback 数据混用时，用户难判断可信程度。 | 避免展示过期或未经验证的赛季数据。 | 需要统一状态字段和页面表达，避免 UI 噪音。 | 数据可信度与赛季同步完善 | 候选 |
 | 正式域名、HTTPS 和微信 request 合法域名 | README、news 架构文档 | 当前开发联调用 HTTP/IP，体验版和正式版需要合法域名与 HTTPS。 | 让小程序发布链路稳定，减少环境差异导致的空屏或请求失败。 | 需要域名、证书、Nginx、微信后台配置协同完成。 | 正式发布与刷新可观测 | 候选 |
 | 刷新 run 错误记录和管理端查看 | news 架构文档 | 定时刷新失败或源站异常时，当前排查依赖日志和人工检查。 | 运营上能看到何时刷新、是否失败、失败原因和数据新鲜度。 | 管理端鉴权、限流和可见范围需要先定义。 | 正式发布与刷新可观测 | 候选 |
@@ -39,8 +39,8 @@
 | WebSim 角色档案同步 / 载入角色 | WebSim 前端占位 | 页面已有“载入角色”入口，但账号数据可用前只能提示等待同步。 | 让玩家围绕自己的角色构筑和装备直接模拟。 | 账号授权、角色来源、隐私边界和缓存策略待设计。 | 角色绑定与个人化工作台 | 待确认 |
 | 官方 SimulationCraft addon `/simc` 导出作为最高保真输入 | 本地记忆、SimC 文档 | 生成模板和展示型构筑上下文不足以代表玩家真实角色。 | 明确告诉用户最可靠的模拟输入是什么。 | 需要把导入体验做顺，避免只服务熟悉 SimC 的玩家。 | SimC 输入契约产品化 | 已采纳 |
 | confirmOnly 与 final submit 复用同一 payload | 本地记忆、SimC flow | 确认阶段和提交阶段如果字段不一致，可能确认通过但真实提交失败。 | 降低“看起来能跑、提交却不跑”的体验问题。 | 前端状态和后端请求 builder 必须共用同一数据契约。 | SimC 输入契约产品化 | 已采纳 |
-| 展示型 gear 与可执行 SimC gear 严格分离 | 本地记忆、SimC 文档 | 构筑页装备候选常常缺少 bonus、gem、enchant 等 SimC 字段。 | 避免候选装备被误写入 profile，产生虚假的模拟结论。 | 需要在 UI 中解释为什么某些装备只是候选、不能提交。 | WebSim 到 SimC 的可提交闭环 | 已采纳 |
-| 规范化 SimC slot keys | 本地记忆、WebSim 改动 | plural/alias slot 名如果进入最终 profile，会造成装备导入不稳定。 | 提高 WebSim、构筑页和 SimC 之间的装备序列化可靠性。 | 前后端都要使用同一套 canonical slot。 | SimC 输入契约产品化 | 已采纳 |
+| 展示型 gear 与可执行 SimC gear 严格分离 | 本地记忆、SimC 文档 | 构筑页装备候选常常缺少 bonus、gem、enchant 等 SimC 字段。 | 避免候选装备被误写入 profile，产生虚假的模拟结论。 | 需要在 UI 中解释为什么某些装备只是候选、不能提交。 | WebSim 到 SimC 的可提交闭环 | 已完成 |
+| 规范化 SimC slot keys | 本地记忆、WebSim 改动 | plural/alias slot 名如果进入最终 profile，会造成装备导入不稳定。 | 提高 WebSim、构筑页和 SimC 之间的装备序列化可靠性。 | 前后端都要使用同一套 canonical slot。 | SimC 输入契约产品化 | 已完成 |
 | SimC 证据状态机 | SimC 风险规避文档 | 用户需要明确看到确认中、执行中、失败、已跑通、需要 `/simc` 的不同状态。 | 减少“后端做了但前端看不出来”的误解。 | 需要统一后端 stage、前端卡片和任务详情文案。 | SimC 输入契约产品化 | 候选 |
 | LLM evidence JSON 与 report schema | SimC 风险规避文档 | 自由文本 prompt/report 容易让模型编数字或误读进度行。 | AI 报告可校验、可回退、可解释。 | Schema、allowedNumbers 和 fallback 策略需要先稳定。 | LLM 报告 schema 化 | 候选 |
 | 网络、代理、SimC、LLM、参考数据 health check | SimC 风险规避文档 | 服务器网络、代理、SimC 二进制和 LLM 配置是独立漂移面。 | 部署后能快速定位是哪一层坏了。 | 需要避免 health check 本身过重或依赖不稳定外部调用。 | 正式发布与刷新可观测 | 候选 |
@@ -57,6 +57,7 @@
 | 用 roadmap 作为长期推进控制台 | [roadmap.md](../roadmap.md) | 当前文档体系 |
 | 保留 `docs/plans/` 作为历史执行计划 | [roadmap.md](../roadmap.md) | `docs/plans/*.md` |
 | 用户确认 OK 后主动纳入 roadmap 或提醒纳入 | [roadmap.md](../roadmap.md) | 当前维护规则 |
+| WebSim 到 SimC 的可提交闭环 | [roadmap.md](../roadmap.md) | `server/websim_payload.py`, `tests/websim_payload_test.py`, `tests/news_backend_test.py`, [simulator-simc-end-to-end.md](../simulator-simc-end-to-end.md) |
 
 ## 补录模板
 
