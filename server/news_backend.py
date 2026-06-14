@@ -32,6 +32,7 @@ try:
     from .simulator_payload import analyze_simulator_request, build_simulator_home_payload
     from .websim_payload import (
         build_websim_profile,
+        build_websim_profile_response,
         build_websim_simulator_request,
         ensure_websim_tables,
         get_websim_bootstrap,
@@ -57,6 +58,7 @@ except ImportError:
     from simulator_payload import analyze_simulator_request, build_simulator_home_payload
     from websim_payload import (
         build_websim_profile,
+        build_websim_profile_response,
         build_websim_simulator_request,
         ensure_websim_tables,
         get_websim_bootstrap,
@@ -1173,6 +1175,121 @@ def read_json_body(handler):
         return {}
 
 
+def websim_encoding_blocked_response(request_payload):
+    encoding = request_payload.get("talentEncoding") if isinstance(request_payload, dict) else {}
+    errors = encoding.get("errors") if isinstance(encoding, dict) else []
+    error_text = "; ".join(str(item) for item in errors if item) or "WebSim talent encoding failed"
+    return {
+        "mode": "simcraft",
+        "status": "blocked",
+        "createdAt": utc_now(),
+        "request": request_payload,
+        "talentEncoding": encoding,
+        "stages": [
+            {
+                "key": "websim_talent_encoding",
+                "title": "WebSim talent encoding",
+                "status": "failed",
+                "executor": "backend",
+                "summary": error_text,
+            },
+            {
+                "key": "simc_execution",
+                "title": "SimC execution",
+                "status": "skipped",
+                "executor": "simcraft",
+                "summary": "SimC was not started because WebSim talents could not be encoded.",
+                "metric": "",
+            },
+        ],
+        "simulation": {
+            "ran": False,
+            "available": False,
+            "summary": "",
+            "error": error_text,
+            "metrics": {},
+        },
+        "recommendations": [error_text],
+    }
+
+
+def websim_submission_blockers(request_payload):
+    if not isinstance(request_payload, dict):
+        return [{"key": "request", "summary": "WebSim request payload is invalid."}]
+    build_context = request_payload.get("buildContext") if isinstance(request_payload.get("buildContext"), dict) else {}
+    details = build_context.get("details") if isinstance(build_context.get("details"), dict) else {}
+    talents = details.get("talents") if isinstance(details.get("talents"), dict) else {}
+    simc_lines = talents.get("simcLines") if isinstance(talents.get("simcLines"), list) else []
+    has_talents = bool(str(talents.get("importCode") or "").strip() or any(str(line or "").strip() for line in simc_lines))
+    gear = details.get("gear") if isinstance(details.get("gear"), dict) else {}
+    readiness = gear.get("readiness") if isinstance(gear.get("readiness"), dict) else {}
+    try:
+        ready_count = int(readiness.get("simcReadyCount") or 0)
+    except (TypeError, ValueError):
+        ready_count = 0
+    simc_items = gear.get("simcItems") if isinstance(gear.get("simcItems"), list) else []
+    blockers = []
+    if not has_talents:
+        blockers.append({
+            "key": "talents",
+            "summary": "WebSim needs a talent import code or server-encoded SimC talent lines before submission.",
+        })
+    if ready_count < 1 or not simc_items:
+        blockers.append({
+            "key": "gear",
+            "summary": "WebSim needs at least one SimC-ready gear item before submission.",
+        })
+    return blockers
+
+
+def websim_submission_blocked_response(request_payload, blockers):
+    blocker_list = blockers or [{"key": "request", "summary": "WebSim submission is not ready."}]
+    missing_slots = [str(item.get("key") or "request") for item in blocker_list]
+    summary = "; ".join(str(item.get("summary") or item.get("key") or "WebSim submission is not ready.") for item in blocker_list)
+    return {
+        "mode": "simcraft_agent",
+        "status": "blocked",
+        "createdAt": utc_now(),
+        "request": request_payload,
+        "talentEncoding": request_payload.get("talentEncoding") if isinstance(request_payload, dict) else {},
+        "agent": {
+            "status": "needs_clarification",
+            "missingSlots": missing_slots,
+            "filledSlots": {},
+            "question": summary,
+            "quickReplies": [],
+            "draftProfile": "",
+            "validation": {"passed": False, "errors": missing_slots, "warnings": []},
+            "canSubmitTask": False,
+        },
+        "stages": [
+            {
+                "key": "websim_readiness",
+                "title": "WebSim readiness",
+                "status": "blocked",
+                "executor": "backend",
+                "summary": summary,
+            },
+            {
+                "key": "simc_execution",
+                "title": "SimC execution",
+                "status": "skipped",
+                "executor": "simcraft",
+                "summary": "SimC was not started because WebSim gear or talents are not ready.",
+                "metric": "",
+            },
+        ],
+        "simulation": {
+            "ran": False,
+            "available": False,
+            "summary": "",
+            "error": summary,
+            "metrics": {},
+        },
+        "recommendations": [summary],
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         json_response(self, 200, {"ok": True})
@@ -1369,18 +1486,32 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         if parsed.path == "/api/websim/profile":
-            json_response(self, 200, {"profile": build_websim_profile(read_json_body(self))})
+            init_db()
+            with db_connection() as conn:
+                json_response(self, 200, build_websim_profile_response(read_json_body(self), conn=conn))
             return
         if parsed.path == "/api/websim/simulate":
             payload = read_json_body(self)
-            request_payload = build_websim_simulator_request(payload, guest_id=payload.get("guestId", ""))
+            init_db()
+            with db_connection() as conn:
+                request_payload = build_websim_simulator_request(payload, guest_id=payload.get("guestId", ""), conn=conn)
+            if request_payload.get("talentEncoding", {}).get("status") == "failed":
+                json_response(self, 200, websim_encoding_blocked_response(request_payload))
+                return
+            blockers = websim_submission_blockers(request_payload)
+            if blockers:
+                json_response(self, 200, websim_submission_blocked_response(request_payload, blockers))
+                return
+            analysis = analyze_and_store_simulator_task(
+                request_payload,
+                access_token=bearer_token_from_headers(self.headers),
+            )
+            analysis = dict(analysis)
+            analysis["talentEncoding"] = request_payload.get("talentEncoding")
             json_response(
                 self,
                 200,
-                analyze_and_store_simulator_task(
-                    request_payload,
-                    access_token=bearer_token_from_headers(self.headers),
-                ),
+                analysis,
             )
             return
         if parsed.path == "/api/news/refresh":

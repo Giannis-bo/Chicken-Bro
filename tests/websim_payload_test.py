@@ -32,9 +32,108 @@ class WebSimPayloadTest(unittest.TestCase):
     def tearDown(self):
         os.environ.pop("WOW_NEWS_DB", None)
         os.environ.pop("WOW_WEBSIM_FETCH_SIMC_REMOTE", None)
+        os.environ.pop("WOW_WEBSIM_FETCH_WAGO_DB2_TRAIT_EDGE", None)
         os.environ.pop("WOW_SIMC_TRAIT_DATA_FILE", None)
         os.environ.pop("WOW_SIMC_SPELLTEXT_DATA_FILE", None)
+        os.environ.pop("WOW_SIMC_BIN", None)
         self.tmp.cleanup()
+
+    def insert_websim_talent(
+        self,
+        conn,
+        node_id,
+        tree_type,
+        trait_id,
+        row,
+        col,
+        name,
+        *,
+        rank=1,
+        granted_rank=0,
+        parent_ids=None,
+        choice_group="",
+        hero_key="",
+        spell_id=None,
+    ):
+        spell_id = spell_id or trait_id + 100000
+        payload = {
+            "treeType": tree_type,
+            "treeIndex": {"class": 1, "spec": 2, "hero": 3}.get(tree_type, 2),
+            "classId": 8,
+            "specId": 62,
+            "traitId": trait_id,
+            "nodeId": trait_id + 500000,
+            "selectionIndex": row * 10 + col,
+            "rank": rank,
+            "maxRank": rank,
+            "selectedRank": granted_rank,
+            "grantedRank": granted_rank,
+            "granted": granted_rank > 0,
+            "parentIds": parent_ids or [],
+            "choiceGroup": choice_group,
+            "shape": "choice" if choice_group else "square",
+            "pointRequirement": 0,
+            "source": "simulationcraft",
+        }
+        if tree_type == "hero":
+            payload["heroKey"] = hero_key or "spellslinger"
+            payload["heroLabel"] = "Spellslinger"
+        conn.execute(
+            """
+            INSERT INTO websim_talents
+            (id, class_key, spec_key, tree_id, row_index, col_index, spell_id, name, payload_json, updated_at)
+            VALUES (?, 'mage', ?, ?, ?, ?, ?, ?, ?, 'now')
+            """,
+            (
+                node_id,
+                "arcane",
+                f"{tree_type}:mage:arcane" if tree_type != "hero" else f"hero:{payload.get('heroKey')}",
+                row,
+                col,
+                spell_id,
+                name,
+                json.dumps(payload),
+            ),
+        )
+
+    def seed_websim_encoder_nodes(self, conn):
+        self.websim_payload.ensure_websim_tables(conn)
+        self.insert_websim_talent(conn, "simc-class-1001-mage-arcane", "class", 1001, 1, 1, "Class Talent")
+        self.insert_websim_talent(conn, "simc-spec-2001-mage-arcane", "spec", 2001, 1, 2, "Spec Talent")
+        self.insert_websim_talent(conn, "simc-hero-3001-mage-arcane-spellslinger", "hero", 3001, 2, 1, "Hero Talent")
+        conn.commit()
+
+    def websim_encoder_payload(self, extra=None):
+        payload = {
+            "classKey": "mage",
+            "specKey": "arcane",
+            "heroKey": "spellslinger",
+            "scenarioKey": "single",
+            "talents": "websim:mage:arcane:spellslinger:simc-class-1001-mage-arcane:1",
+            "talentState": {
+                "selectedNodes": [
+                    {"id": "simc-class-1001-mage-arcane", "rank": 1},
+                    {"id": "simc-spec-2001-mage-arcane", "rank": 1},
+                    {"id": "simc-hero-3001-mage-arcane-spellslinger", "rank": 1},
+                ]
+            },
+            "gearSelection": {
+                "items": [
+                    {
+                        "slot": "head",
+                        "itemId": 250060,
+                        "name": "Voidbreaker's Veil",
+                        "ilevel": 289,
+                        "bonus_id": "13534",
+                    }
+                ]
+            },
+            "guestId": "websim-test-guest",
+            "saveTask": True,
+        }
+        if extra:
+            payload.update(extra)
+        return payload
 
     def test_parse_simc_trait_data_into_nodes(self):
         sample = """
@@ -54,6 +153,27 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(nodes[0]["row"], 1)
         self.assertEqual(nodes[0]["col"], 2)
         self.assertEqual(nodes[0]["name"], "Frostbolt")
+
+    def test_parse_simc_trait_data_groups_multi_rank_apex_nodes(self):
+        sample = """
+        // Player trait definitions, wow build 12.0.5.67823
+        static constexpr std::array<trait_data_t, 3> __trait_data_data { {
+          { 2,  7, 136974, 110402, 1, 20, 141737, 1270061,      0,      0, 11,  4, 300, "Feedback Loop", {  262,    0,    0,    0 }, {    0,    0,    0,    0 },   0, 1 },
+          { 2,  7, 136973, 110402, 2, 20, 141736, 1270062,      0,      0, 11,  4, 400, "Feedback Loop", {  262,    0,    0,    0 }, {    0,    0,    0,    0 },   0, 1 },
+          { 2,  7, 136972, 110402, 1, 20, 141735, 1270064,      0,      0, 11,  4, 500, "Feedback Loop", {  262,    0,    0,    0 }, {    0,    0,    0,    0 },   0, 1 },
+        } };
+        """
+        nodes = self.websim_payload.parse_trait_data_text(sample)
+
+        self.assertEqual(len(nodes), 1)
+        self.assertEqual(nodes[0]["name"], "Feedback Loop")
+        self.assertEqual(nodes[0]["payload"]["shape"], "apex")
+        self.assertEqual(nodes[0]["rank"], 4)
+        self.assertEqual(nodes[0]["payload"]["maxRank"], 4)
+        self.assertEqual([entry["rank"] for entry in nodes[0]["payload"]["rankEntries"]], [1, 2, 3])
+        self.assertEqual([entry["points"] for entry in nodes[0]["payload"]["rankEntries"]], [1, 2, 1])
+        self.assertEqual([entry["spellId"] for entry in nodes[0]["payload"]["rankEntries"]], [1270061, 1270062, 1270064])
+        self.assertEqual(self.websim_payload.simc_talent_spell_ids(nodes), [1270061, 1270062, 1270064])
 
     def test_parse_simc_trait_data_expands_class_and_hero_nodes_by_spec(self):
         sample = """
@@ -115,8 +235,94 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertEqual(icon_file_ids[100002], 136022)
         self.assertEqual(icon_names[136022], "spell_nature_earthbind")
-        self.assertEqual(icon_urls[100002], "https://render.worldofwarcraft.com/us/icons/56/spell_nature_earthbind.jpg")
-        self.assertEqual(icon_urls[100004], "https://render.worldofwarcraft.com/us/icons/56/spell_nature_swiftness.jpg")
+        self.assertEqual(icon_urls[100002], "https://wow.zamimg.com/images/wow/icons/large/spell_nature_earthbind.jpg")
+        self.assertEqual(icon_urls[100004], "https://wow.zamimg.com/images/wow/icons/large/spell_nature_swiftness.jpg")
+
+    def test_wago_icon_sync_creates_details_for_talent_spell_ids(self):
+        original_wago = self.websim_payload.download_wago_db2_csv
+        self.addCleanup(setattr, self.websim_payload, "download_wago_db2_csv", original_wago)
+
+        def fake_wago_csv(table, build):
+            self.assertEqual(build, "12.0.5.67823")
+            if table == "SpellMisc":
+                return (
+                    "SpellID,SpellIconFileDataID,ActiveIconFileDataID\n"
+                    "100002,136022,0\n",
+                    "wago://SpellMisc",
+                )
+            if table == "ManifestInterfaceData":
+                return (
+                    "ID,FilePath,FileName\n"
+                    "136022,Interface\\ICONS\\,Spell_Nature_EarthBind.blp\n",
+                    "wago://ManifestInterfaceData",
+                )
+            return "", "wago://empty"
+
+        self.websim_payload.download_wago_db2_csv = fake_wago_csv
+        data = {
+            "talents": [{"spellId": 100002, "name": "Earthbind Talent"}],
+            "spellDetails": [],
+        }
+
+        self.websim_payload.attach_wago_spell_icons_to_data(data, "// wow build 12.0.5.67823")
+
+        self.assertEqual(data["spellIcons"], 1)
+        self.assertEqual(len(data["spellDetails"]), 1)
+        self.assertEqual(data["spellDetails"][0]["name"], "Earthbind Talent")
+        self.assertEqual(
+            data["spellDetails"][0]["iconUrl"],
+            "https://wow.zamimg.com/images/wow/icons/large/spell_nature_earthbind.jpg",
+        )
+
+    def test_wago_localization_replaces_simc_spell_text(self):
+        original_wago = self.websim_payload.download_wago_db2_csv
+        self.addCleanup(setattr, self.websim_payload, "download_wago_db2_csv", original_wago)
+        original_localization = self.websim_payload.DEFAULT_WAGO_DB2_LOCALIZATION_ENABLED
+        self.addCleanup(
+            setattr,
+            self.websim_payload,
+            "DEFAULT_WAGO_DB2_LOCALIZATION_ENABLED",
+            original_localization,
+        )
+        self.websim_payload.DEFAULT_WAGO_DB2_LOCALIZATION_ENABLED = True
+
+        def fake_wago_csv(table, build, locale="enUS"):
+            self.assertEqual(build, "12.0.5.67823")
+            if table == "SpellName":
+                self.assertEqual(locale, "zh_CN")
+                return "ID,Name_lang\n100002,大地之缚\n", "wago://SpellName"
+            if table == "Spell":
+                self.assertEqual(locale, "zh_CN")
+                return (
+                    "ID,NameSubtext_lang,Description_lang,AuraDescription_lang\n"
+                    "100002,被动,使目标减速。,移动速度降低。\n"
+                ), "wago://Spell"
+            return "", f"wago://{table}"
+
+        self.websim_payload.download_wago_db2_csv = fake_wago_csv
+        data = {
+            "talents": [{"spellId": 100002, "name": "Earthbind Talent"}],
+            "spellDetails": [
+                {
+                    "spellId": 100002,
+                    "name": "Earthbind Talent",
+                    "description": "English description.",
+                    "tooltip": "",
+                    "rank": "",
+                    "iconUrl": "",
+                    "locale": "en_US",
+                    "source": "simulationcraft",
+                }
+            ],
+        }
+
+        self.websim_payload.attach_wago_spell_icons_to_data(data, "// wow build 12.0.5.67823")
+
+        self.assertEqual(data["spellLocalizations"], 1)
+        self.assertEqual(data["spellDetails"][0]["name"], "大地之缚")
+        self.assertEqual(data["spellDetails"][0]["description"], "使目标减速。\n\n移动速度降低。")
+        self.assertEqual(data["spellDetails"][0]["rank"], "被动")
+        self.assertEqual(data["spellDetails"][0]["locale"], "zh_CN")
 
     def test_apply_trait_edges_to_simc_nodes(self):
         sample = """
@@ -140,6 +346,99 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(added, 2)
         self.assertTrue(all(child["payload"]["parentIds"] == [root_id] for child in children))
         self.assertTrue(all(child["payload"]["dependencySource"] == "test" for child in children))
+
+    def test_trait_edge_sync_works_when_wago_heavy_tables_are_disabled(self):
+        sample = """
+        // Player trait definitions, wow build 12.0.5.67823
+        static constexpr std::array<trait_data_t, 2> __trait_data_data { {
+          { 2,  8, 111111,  90001, 1,  0, 117111,  100001,      0,      0,  1,  1, 100, "Root", {   62,    0,    0,    0 }, {   62,    0,    0,    0 },   0, 0 },
+          { 2,  8, 111112,  90002, 1,  0, 117112,  100002,      0,      0,  2,  1, 100, "Child", {   62,    0,    0,    0 }, {    0,    0,    0,    0 },   0, 0 },
+        } };
+        """
+        original_wago_enabled = self.websim_payload.DEFAULT_WAGO_DB2_ENABLED
+        original_trait_edge = self.websim_payload.download_wago_trait_edge_csv
+        original_wago = self.websim_payload.download_wago_db2_csv
+        self.addCleanup(setattr, self.websim_payload, "DEFAULT_WAGO_DB2_ENABLED", original_wago_enabled)
+        self.addCleanup(setattr, self.websim_payload, "download_wago_trait_edge_csv", original_trait_edge)
+        self.addCleanup(setattr, self.websim_payload, "download_wago_db2_csv", original_wago)
+        self.websim_payload.DEFAULT_WAGO_DB2_ENABLED = False
+        generic_tables = []
+
+        def fake_wago_csv(table, build, locale="enUS"):
+            generic_tables.append(table)
+            return "", f"wago://{table}"
+
+        def fake_trait_edge_csv(build):
+            self.assertEqual(build, "12.0.5.67823")
+            return (
+                "ID,VisualStyle,LeftTraitNodeID,RightTraitNodeID,Type\n"
+                "1,1,90001,90002,2\n",
+                "wago://TraitEdge",
+            )
+
+        self.websim_payload.download_wago_db2_csv = fake_wago_csv
+        self.websim_payload.download_wago_trait_edge_csv = fake_trait_edge_csv
+
+        data = self.websim_payload.extract_simc_data_from_trait_text(sample, "sample")
+
+        self.assertEqual(data["dependencies"], 1)
+        self.assertEqual(data["traitEdgeSource"], "wago://TraitEdge")
+        self.assertNotIn("TraitEdge", generic_tables)
+
+    def test_trait_edge_fetch_can_be_disabled_without_network(self):
+        original_enabled = self.websim_payload.DEFAULT_WAGO_DB2_TRAIT_EDGE_ENABLED
+        original_urlopen = self.websim_payload.urlopen
+        self.addCleanup(setattr, self.websim_payload, "DEFAULT_WAGO_DB2_TRAIT_EDGE_ENABLED", original_enabled)
+        self.addCleanup(setattr, self.websim_payload, "urlopen", original_urlopen)
+        self.websim_payload.DEFAULT_WAGO_DB2_TRAIT_EDGE_ENABLED = False
+
+        def fail_urlopen(*_args, **_kwargs):
+            raise AssertionError("TraitEdge fetch should not hit the network when disabled")
+
+        self.websim_payload.urlopen = fail_urlopen
+
+        self.assertEqual(self.websim_payload.download_wago_trait_edge_csv("12.0.5.67823"), ("", ""))
+
+    def test_sync_simc_generated_data_reports_trait_edge_dependencies(self):
+        sample = """
+        // Player trait definitions, wow build 12.0.5.67823
+        static constexpr std::array<trait_data_t, 2> __trait_data_data { {
+          { 2,  8, 111111,  90001, 1,  0, 117111,  100001,      0,      0,  1,  1, 100, "Root", {   62,    0,    0,    0 }, {   62,    0,    0,    0 },   0, 0 },
+          { 2,  8, 111112,  90002, 1,  0, 117112,  100002,      0,      0,  2,  1, 100, "Child", {   62,    0,    0,    0 }, {    0,    0,    0,    0 },   0, 0 },
+        } };
+        """
+        trait_file = Path(self.tmp.name) / "trait_data_edges.inc"
+        trait_file.write_text(sample, encoding="utf-8")
+        os.environ["WOW_SIMC_TRAIT_DATA_FILE"] = str(trait_file)
+        original_trait_edge = self.websim_payload.download_wago_trait_edge_csv
+        self.addCleanup(setattr, self.websim_payload, "download_wago_trait_edge_csv", original_trait_edge)
+
+        def fake_trait_edge_csv(build):
+            self.assertEqual(build, "12.0.5.67823")
+            return (
+                "ID,VisualStyle,LeftTraitNodeID,RightTraitNodeID,Type\n"
+                "1,1,90001,90002,2\n",
+                "wago://TraitEdge",
+            )
+
+        self.websim_payload.download_wago_trait_edge_csv = fake_trait_edge_csv
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            counts = self.websim_payload.sync_simc_generated_data(conn)
+            rows = conn.execute("SELECT id, payload_json FROM websim_talents").fetchall()
+        finally:
+            conn.close()
+
+        parent_payloads = {
+            row_id: json.loads(payload_json)
+            for row_id, payload_json in rows
+            if json.loads(payload_json).get("parentIds")
+        }
+        self.assertEqual(counts["dependencies"], 1)
+        self.assertEqual(counts["traitEdgeSource"], "wago://TraitEdge")
+        self.assertEqual(len(parent_payloads), 1)
+        self.assertTrue(next(iter(parent_payloads.values()))["parentIds"])
 
     def test_default_selection_prefers_playable_preset_over_class_tree(self):
         conn = sqlite3.connect(self.db_path)
@@ -211,6 +510,9 @@ class WebSimPayloadTest(unittest.TestCase):
                         max_points = sum(node.get("maxRank", node.get("rank", 1)) for node in nodes_by_tree[section["key"]])
                         self.assertGreaterEqual(max_points, section["pointCap"])
                     self.assertTrue(any(node.get("selectedRank", 0) > 0 for node in payload["nodes"]))
+                    granted_nodes = [node for node in payload["nodes"] if node.get("grantedRank", 0) > 0]
+                    self.assertTrue(granted_nodes)
+                    self.assertTrue(all(node.get("granted") for node in granted_nodes))
                     self.assertTrue(all(node.get("iconUrl") for node in payload["nodes"]))
                     self.assertTrue(all("pointRequirement" in node for node in payload["nodes"]))
                     self.assertTrue(any(node.get("pointRequirement", 0) >= 8 for node in nodes_by_tree["class"]))
@@ -271,7 +573,9 @@ class WebSimPayloadTest(unittest.TestCase):
         os.environ["WOW_SIMC_TRAIT_DATA_FILE"] = str(trait_file)
         os.environ["WOW_SIMC_SPELLTEXT_DATA_FILE"] = str(spelltext_file)
         original_wago = self.websim_payload.download_wago_db2_csv
+        original_trait_edge = self.websim_payload.download_wago_trait_edge_csv
         self.addCleanup(setattr, self.websim_payload, "download_wago_db2_csv", original_wago)
+        self.addCleanup(setattr, self.websim_payload, "download_wago_trait_edge_csv", original_trait_edge)
 
         def fake_wago_csv(table, build):
             self.assertEqual(build, "12.0.5.67823")
@@ -293,7 +597,16 @@ class WebSimPayloadTest(unittest.TestCase):
                 )
             return "ID,VisualStyle,LeftTraitNodeID,RightTraitNodeID,Type\n", "wago://TraitEdge"
 
+        def fake_trait_edge_csv(build):
+            self.assertEqual(build, "12.0.5.67823")
+            return (
+                "ID,VisualStyle,LeftTraitNodeID,RightTraitNodeID,Type\n"
+                "1,1,90001,90001,0\n",
+                "wago://TraitEdge",
+            )
+
         self.websim_payload.download_wago_db2_csv = fake_wago_csv
+        self.websim_payload.download_wago_trait_edge_csv = fake_trait_edge_csv
 
         conn = sqlite3.connect(self.db_path)
         try:
@@ -310,6 +623,8 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(counts["spellIcons"], 3)
         self.assertEqual(counts["spellTextSource"], str(spelltext_file))
         self.assertIn("ManifestInterfaceData", counts["spellIconSource"])
+        self.assertEqual(counts["dependencies"], 0)
+        self.assertEqual(counts["traitEdgeSource"], "")
         self.assertEqual(payload["dataStatus"], "blocked")
         self.assertEqual(payload["talentStatus"], "simc")
         self.assertEqual(payload["heroKey"], "spellslinger")
@@ -318,6 +633,104 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("Arcane tooltip from SimC.", {node["description"] for node in payload["nodes"]})
         self.assertTrue(all(node["iconUrl"] for node in payload["nodes"]))
         self.assertIn("spell_frost_frostbolt02.jpg", {node["iconUrl"].rsplit("/", 1)[-1] for node in payload["nodes"]})
+
+    def test_talent_payload_dedupes_cached_non_choice_nodes_and_marks_apex(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            payload_json = json.dumps(
+                {
+                    "treeType": "spec",
+                    "nodeId": 90001,
+                    "traitId": 111111,
+                    "rank": 1,
+                    "shape": "circle",
+                    "source": "simulationcraft",
+                }
+            )
+            duplicate_payload_json = json.dumps(
+                {
+                    "treeType": "spec",
+                    "nodeId": 90001,
+                    "traitId": 111112,
+                    "rank": 1,
+                    "shape": "circle",
+                    "source": "simulationcraft",
+                }
+            )
+            conn.executemany(
+                """
+                INSERT INTO websim_talents
+                (id, class_key, spec_key, tree_id, row_index, col_index, spell_id, name, payload_json, updated_at)
+                VALUES (?, 'mage', 'arcane', 'spec:mage:arcane', 11, 3, ?, ?, ?, 'now')
+                """,
+                [
+                    ("simc-spec-111111-mage-arcane", 100001, "Apex Talent", payload_json),
+                    ("simc-spec-111112-mage-arcane", 100002, "Apex Talent Rank", duplicate_payload_json),
+                ],
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_talents(conn, "mage", "arcane", "spellslinger")
+        finally:
+            conn.close()
+
+        self.assertEqual(len(payload["nodes"]), 1)
+        self.assertEqual(payload["nodes"][0]["shape"], "apex")
+        self.assertEqual(payload["nodes"][0]["nodeId"], 90001)
+
+    def test_talent_payload_enriches_multi_rank_tooltip_entries(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            payload_json = json.dumps(
+                {
+                    "treeType": "spec",
+                    "nodeId": 110402,
+                    "traitId": 136974,
+                    "rank": 4,
+                    "maxRank": 4,
+                    "shape": "apex",
+                    "source": "simulationcraft",
+                    "rankEntries": [
+                        {"rank": 1, "points": 1, "pointStart": 1, "pointEnd": 1, "traitId": 136974, "spellId": 1270061, "selectionIndex": 300},
+                        {"rank": 2, "points": 2, "pointStart": 2, "pointEnd": 3, "traitId": 136973, "spellId": 1270062, "selectionIndex": 400},
+                        {"rank": 3, "points": 1, "pointStart": 4, "pointEnd": 4, "traitId": 136972, "spellId": 1270064, "selectionIndex": 500},
+                    ],
+                }
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_talents
+                (id, class_key, spec_key, tree_id, row_index, col_index, spell_id, name, payload_json, updated_at)
+                VALUES ('simc-spec-136974-shaman-elemental', 'shaman', 'elemental', 'spec:shaman:elemental', 11, 4, 1270061, 'Feedback Loop', ?, 'now')
+                """,
+                (payload_json,),
+            )
+            conn.executemany(
+                """
+                INSERT INTO websim_spell_details
+                (id, spell_id, name, description, icon_url, locale, payload_json, updated_at)
+                VALUES (?, ?, ?, ?, '', 'en_US', '{}', 'now')
+                """,
+                [
+                    ("1270061", 1270061, "Feedback Loop", "Rank one description."),
+                    ("1270062", 1270062, "Feedback Loop", "Rank two description."),
+                    ("1270064", 1270064, "Feedback Loop", "Rank three description."),
+                ],
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_talents(conn, "shaman", "elemental")
+        finally:
+            conn.close()
+
+        node = payload["nodes"][0]
+        self.assertEqual(node["maxRank"], 4)
+        self.assertEqual(node["rankCount"], 3)
+        self.assertEqual([entry["description"] for entry in node["rankEntries"]], [
+            "Rank one description.",
+            "Rank two description.",
+            "Rank three description.",
+        ])
 
     def test_talent_payload_default_hero_matches_spec_picker_order(self):
         conn = sqlite3.connect(self.db_path)
@@ -330,6 +743,37 @@ class WebSimPayloadTest(unittest.TestCase):
                     self.assertEqual(payload["heroKey"], first_hero)
         finally:
             conn.close()
+
+    def test_talent_payload_marks_hero_first_row_as_granted_for_cached_nodes(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            payload_json = json.dumps(
+                {
+                    "treeType": "hero",
+                    "heroKey": "deathbringer",
+                    "rank": 1,
+                    "selectedRank": 0,
+                    "source": "simulationcraft",
+                }
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_talents
+                (id, class_key, spec_key, tree_id, row_index, col_index, spell_id, name, payload_json, updated_at)
+                VALUES (?, 'deathknight', 'blood', 'hero:deathbringer', 1, 2, 434765, 'Reaper Mark', ?, 'now')
+                """,
+                ("simc-hero-123-deathknight-blood-deathbringer", payload_json),
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_talents(conn, "deathknight", "blood", "deathbringer")
+        finally:
+            conn.close()
+
+        hero = next(node for node in payload["nodes"] if node["treeType"] == "hero")
+        self.assertEqual(hero["selectedRank"], 1)
+        self.assertEqual(hero["grantedRank"], 1)
+        self.assertTrue(hero["granted"])
 
     def test_spell_sync_prioritizes_configured_class_and_spec(self):
         conn = sqlite3.connect(self.db_path)
@@ -385,6 +829,308 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("head=voidbreaker_s_veil,id=250060,ilevel=289,bonus_id=13534,gem_id=240983,enchant_id=8017", profile)
         self.assertIn("fight_style=Patchwerk", profile)
 
+    def test_websim_gear_canonicalizes_slots_and_skips_incomplete_loot(self):
+        preset_item = self.websim_payload.normalize_gear_item(
+            {"slot": "wrists", "itemId": 250111, "name": "Preset Bracers", "sourceType": "simcPreset"},
+            "mage",
+            "arcane",
+        )
+        self.assertEqual(preset_item["slot"], "wrist")
+        self.assertTrue(preset_item["simcReady"])
+
+        loot_item = self.websim_payload.normalize_gear_item(
+            {"slot": "wrist", "itemId": 250222, "name": "Loot Bracers", "sourceType": "verifiedLoot"},
+            "mage",
+            "arcane",
+        )
+        self.assertFalse(loot_item["simcReady"])
+        self.assertIn("ilevel", loot_item["missingFields"])
+
+        profile = self.websim_payload.build_websim_profile(
+            {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "talents": "C4DA",
+                "gearSelection": {"items": [loot_item]},
+            }
+        )
+        self.assertNotIn("loot_bracers", profile)
+        self.assertNotIn("id=250222", profile)
+
+    def test_websim_gear_payload_includes_preset_baseline_and_slot_groups(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            profile = "\n".join(
+                [
+                    'mage="Preset_Mage"',
+                    "spec=arcane",
+                    "talents=C4DA",
+                    "wrist=preset_bracers,id=250111,ilevel=289,bonus_id=13534",
+                    "trinket1=preset_trinket,id=250222",
+                ]
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('preset-mage-arcane', 'mage', 'arcane', 'Preset Mage', ?, '{}', 'now')
+                """,
+                (profile,),
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane")
+        finally:
+            conn.close()
+
+        self.assertIsInstance(payload["slots"][0], dict)
+        self.assertEqual(payload["baselineSet"][0]["slot"], "wrist")
+        self.assertTrue(payload["baselineSet"][0]["simcReady"])
+        wrist_group = next(group for group in payload["slotGroups"] if group["slot"] == "wrist")
+        self.assertTrue(any(item["itemId"] == "250111" for item in wrist_group["items"]))
+        self.assertGreaterEqual(payload["readiness"]["simcReadyCount"], 2)
+
+    def test_websim_simulate_request_uses_assembled_context_without_explicit_profile(self):
+        request = self.websim_payload.build_websim_simulator_request(
+            {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "talents": "C4DA",
+                "scenarioKey": "single",
+                "gearSelection": {
+                    "items": [
+                        {
+                            "slot": "head",
+                            "itemId": 250060,
+                            "name": "Voidbreaker's Veil",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                        },
+                        {
+                            "slot": "trinket1",
+                            "itemId": 249343,
+                            "name": "Gaze of the Alnseer",
+                            "sourceType": "verifiedLoot",
+                        },
+                    ]
+                },
+            },
+            guest_id="guest-1",
+        )
+
+        self.assertEqual(request["mode"], "simcraft_agent")
+        self.assertNotIn("profile", request)
+        gear = request["buildContext"]["details"]["gear"]
+        self.assertEqual(len(gear["simcItems"]), 1)
+        self.assertEqual(gear["simcItems"][0]["slot"], "head")
+        self.assertEqual(len(gear["gear"]), 2)
+
+    def test_encode_websim_talents_writes_tree_specific_lines(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+            payload = self.websim_encoder_payload()
+            profile_response = self.websim_payload.build_websim_profile_response(payload, conn=conn)
+        finally:
+            conn.close()
+
+        profile = profile_response["profile"]
+        self.assertEqual(profile_response["talentEncoding"]["status"], "encoded")
+        self.assertIn("class_talents=1001:1", profile)
+        self.assertIn("spec_talents=2001:1", profile)
+        self.assertIn("hero_talents=3001:1", profile)
+        self.assertNotIn("talents=websim:", profile)
+        self.assertIn("head=voidbreaker_s_veil,id=250060,ilevel=289,bonus_id=13534", profile)
+
+    def test_websim_talent_encoding_rejects_invalid_or_fallback_nodes(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            fallback = self.websim_payload.encode_websim_talents(
+                conn,
+                self.websim_encoder_payload({
+                    "talentState": {"selectedNodes": [{"id": "fallback-mage-arcane-class-class-core", "rank": 1}]}
+                }),
+            )
+            self.seed_websim_encoder_nodes(conn)
+            unknown = self.websim_payload.encode_websim_talents(
+                conn,
+                self.websim_encoder_payload({
+                    "talentState": {"selectedNodes": [{"id": "missing-node", "rank": 1}]}
+                }),
+            )
+            overrank = self.websim_payload.encode_websim_talents(
+                conn,
+                self.websim_encoder_payload({
+                    "talentState": {"selectedNodes": [{"id": "simc-class-1001-mage-arcane", "rank": 2}]}
+                }),
+            )
+            self.insert_websim_talent(conn, "simc-spec-2101-mage-arcane", "spec", 2101, 2, 1, "Choice A", choice_group="choice-a")
+            self.insert_websim_talent(conn, "simc-spec-2102-mage-arcane", "spec", 2102, 2, 2, "Choice B", choice_group="choice-a")
+            conn.commit()
+            choice = self.websim_payload.encode_websim_talents(
+                conn,
+                self.websim_encoder_payload({
+                    "talentState": {
+                        "selectedNodes": [
+                            {"id": "simc-spec-2101-mage-arcane", "rank": 1},
+                            {"id": "simc-spec-2102-mage-arcane", "rank": 1},
+                        ]
+                    }
+                }),
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(fallback["status"], "failed")
+        self.assertIn("fallback", fallback["errors"][0])
+        self.assertEqual(unknown["status"], "failed")
+        self.assertIn("unknown talent node", unknown["errors"][0])
+        self.assertEqual(overrank["status"], "failed")
+        self.assertTrue(any("exceeds max rank" in error for error in overrank["errors"]))
+        self.assertEqual(choice["status"], "failed")
+        self.assertTrue(any("multiple talents selected" in error for error in choice["errors"]))
+
+    def test_http_websim_simulate_runs_encoded_profile_through_fake_simc(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+        finally:
+            conn.close()
+        simc_bin = Path(self.tmp.name) / "fake-websim-simc"
+        captured_profile = Path(self.tmp.name) / "captured-websim-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'DPS Ranking:\\n1. WebSim_Arcane 123456 dps\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = Request(
+                f"{base}/api/websim/simulate",
+                data=json.dumps(self.websim_encoder_payload()).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        executed_profile = captured_profile.read_text(encoding="utf-8")
+        self.assertTrue(result["simulation"]["ran"])
+        self.assertEqual(result["simulation"]["metrics"]["dps"], "123456")
+        self.assertEqual(result["talentEncoding"]["status"], "encoded")
+        self.assertIn("class_talents=1001:1", executed_profile)
+        self.assertIn("spec_talents=2001:1", executed_profile)
+        self.assertIn("hero_talents=3001:1", executed_profile)
+        self.assertNotIn("talents=websim:", executed_profile)
+        self.assertTrue(result.get("taskId"))
+
+    def test_http_websim_simulate_blocks_encoding_failures_without_running_or_saving(self):
+        simc_bin = Path(self.tmp.name) / "fake-blocked-websim-simc"
+        captured_profile = Path(self.tmp.name) / "blocked-websim-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'DPS Ranking:\\n1. Should_Not_Run 999999 dps\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = Request(
+                f"{base}/api/websim/simulate",
+                data=json.dumps(self.websim_encoder_payload({
+                    "talentState": {"selectedNodes": [{"id": "missing-node", "rank": 1}]}
+                })).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            task_count = conn.execute("SELECT COUNT(*) FROM simulator_tasks").fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["talentEncoding"]["status"], "failed")
+        self.assertFalse(result["simulation"]["ran"])
+        self.assertFalse(captured_profile.exists())
+        self.assertEqual(task_count, 0)
+
+    def test_http_websim_simulate_blocks_candidate_gear_without_running_or_saving(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+        finally:
+            conn.close()
+        simc_bin = Path(self.tmp.name) / "fake-candidate-gear-websim-simc"
+        captured_profile = Path(self.tmp.name) / "candidate-gear-websim-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'DPS Ranking:\\n1. Should_Not_Run 999999 dps\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = Request(
+                f"{base}/api/websim/simulate",
+                data=json.dumps(self.websim_encoder_payload({
+                    "gearSelection": {
+                        "items": [
+                            {
+                                "slot": "head",
+                                "itemId": 250060,
+                                "name": "Voidbreaker's Veil",
+                                "sourceType": "verifiedLoot",
+                            }
+                        ]
+                    }
+                })).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            task_count = conn.execute("SELECT COUNT(*) FROM simulator_tasks").fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["agent"]["status"], "needs_clarification")
+        self.assertEqual(result["agent"]["missingSlots"], ["gear"])
+        self.assertEqual(result["talentEncoding"]["status"], "encoded")
+        self.assertFalse(result["simulation"]["ran"])
+        self.assertFalse(captured_profile.exists())
+        self.assertEqual(task_count, 0)
+
     def test_sync_reports_missing_blizzard_credentials_without_failing_simc_cache(self):
         payload = self.websim_payload.sync_websim_cache(self.db_path, include_blizzard=True)
 
@@ -402,6 +1148,38 @@ class WebSimPayloadTest(unittest.TestCase):
             self.assertEqual(loot["dataStatus"], "blocked")
         finally:
             conn.close()
+
+    def test_sync_skips_blizzard_when_active_season_cache_is_fresh(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_active_season_payload(
+                conn,
+                self.websim_payload.current_season_payload(
+                    season_id="17",
+                    season_label="Fresh Season",
+                    dungeons=[
+                        {
+                            "id": "558",
+                            "dungeonId": "558",
+                            "instanceId": "1300",
+                            "name": "Magisters' Terrace",
+                            "shortName": "Magisters' Terrace",
+                            "timerSeconds": 2040,
+                        }
+                    ],
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        payload = self.websim_payload.sync_websim_cache(self.db_path, include_blizzard=True)
+
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["dataStatus"], "verified")
+        self.assertEqual(payload["blizzardSkipped"], "fresh-season-cache")
+        self.assertEqual(payload["errors"], [])
 
     def test_blizzard_get_uses_bearer_header_not_query_token(self):
         captured = {}
@@ -464,6 +1242,7 @@ class WebSimPayloadTest(unittest.TestCase):
             with urlopen(request) as response:
                 profile_payload = json.loads(response.read().decode("utf-8"))
             self.assertIn("profile", profile_payload)
+            self.assertIn("talentEncoding", profile_payload)
             self.assertIn("spec=arcane", profile_payload["profile"])
         finally:
             server.shutdown()

@@ -488,6 +488,7 @@ if [[ "${SKIP_BOOTSTRAP}" != "1" ]]; then
   sudo systemctl start wow-simc-version-check.service
 fi
 sudo systemctl enable --now wow-websim-sync.timer
+sudo systemctl stop wow-websim-sync.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-websim-sync.service >/dev/null 2>&1 || true
 sudo systemctl start --no-block wow-websim-sync.service || sudo journalctl -u wow-websim-sync.service -n 80 --no-pager
 sudo systemctl enable --now "${SERVICE_NAME}"

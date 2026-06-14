@@ -39,6 +39,12 @@ DEFAULT_WAGO_DB2_BASE_URL = os.environ.get("WOW_WAGO_DB2_BASE_URL", "https://wag
 DEFAULT_WAGO_DB2_ENABLED = (
     os.environ.get("WOW_WEBSIM_FETCH_WAGO_DB2", os.environ.get("WOW_WEBSIM_FETCH_SIMC_REMOTE", "1")).strip() != "0"
 )
+DEFAULT_WAGO_DB2_TRAIT_EDGE_ENABLED = (
+    os.environ.get("WOW_WEBSIM_FETCH_WAGO_DB2_TRAIT_EDGE", "1").strip() != "0"
+)
+DEFAULT_WAGO_DB2_LOCALIZATION_ENABLED = (
+    os.environ.get("WOW_WEBSIM_FETCH_WAGO_DB2_LOCALIZATION", "0").strip() == "1"
+)
 SEASON_TTL_HOURS = int(os.environ.get("WOW_SEASON_TTL_HOURS", "24"))
 MIDNIGHT_SEASON_ONE_DUNGEONS = [
     "Magisters' Terrace",
@@ -483,13 +489,13 @@ DEFAULT_RACE_BY_CLASS = {
     "warrior": "orc",
 }
 
-GEAR_SLOTS = [
+CANONICAL_GEAR_SLOTS = [
     "head",
     "neck",
     "shoulder",
     "back",
     "chest",
-    "wrists",
+    "wrist",
     "hands",
     "waist",
     "legs",
@@ -501,6 +507,76 @@ GEAR_SLOTS = [
     "main_hand",
     "off_hand",
 ]
+
+GEAR_SLOTS = CANONICAL_GEAR_SLOTS
+
+GEAR_SLOT_LABELS = {
+    "head": "头部",
+    "neck": "颈部",
+    "shoulder": "肩部",
+    "back": "背部",
+    "chest": "胸部",
+    "wrist": "腕部",
+    "hands": "手部",
+    "waist": "腰部",
+    "legs": "腿部",
+    "feet": "脚部",
+    "finger1": "戒指 1",
+    "finger2": "戒指 2",
+    "trinket1": "饰品 1",
+    "trinket2": "饰品 2",
+    "main_hand": "主手",
+    "off_hand": "副手",
+}
+
+GEAR_SLOT_ALIASES = {
+    "wrist": "wrist",
+    "wrists": "wrist",
+    "bracer": "wrist",
+    "bracers": "wrist",
+    "shoulder": "shoulder",
+    "shoulders": "shoulder",
+    "cloak": "back",
+    "weapon": "main_hand",
+    "mainhand": "main_hand",
+    "offhand": "off_hand",
+    "ring1": "finger1",
+    "ring2": "finger2",
+    "trinket_1": "trinket1",
+    "trinket_2": "trinket2",
+}
+
+SIMC_GEAR_OPTION_ALIASES = [
+    ("ilevel", ["ilevel", "itemLevel", "item_level"]),
+    ("bonus_id", ["bonus_id", "bonusId", "bonusIds", "bonusListIDs"]),
+    ("gem_id", ["gem_id", "gemId", "gemIds"]),
+    ("gem_bonus_id", ["gem_bonus_id", "gemBonusId", "gemBonusIds"]),
+    ("gem_ilevel", ["gem_ilevel", "gemIlevel", "gemItemLevel", "gemItemLevels"]),
+    ("enchant_id", ["enchant_id", "enchantId", "enchant"]),
+    ("crafted_stats", ["crafted_stats", "craftedStats"]),
+]
+
+SIMC_GEAR_OPTION_KEYS = {key for key, _ in SIMC_GEAR_OPTION_ALIASES}
+SIMC_READY_SOURCE_TYPES = {"simcPreset"}
+ENRICHABLE_SOURCE_TYPES = {"manual", "enriched", "manual/enriched", "custom"}
+
+CLASS_ARMOR_TYPES = {
+    "deathknight": "Plate",
+    "demonhunter": "Leather",
+    "druid": "Leather",
+    "evoker": "Mail",
+    "hunter": "Mail",
+    "mage": "Cloth",
+    "monk": "Leather",
+    "paladin": "Plate",
+    "priest": "Cloth",
+    "rogue": "Leather",
+    "shaman": "Mail",
+    "warlock": "Cloth",
+    "warrior": "Plate",
+}
+
+ARMOR_SLOTS = {"head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"}
 
 SCENARIOS = [
     {"key": "single", "title": "单体", "fightStyle": "Patchwerk", "targets": 1, "durationSeconds": 300},
@@ -1029,6 +1105,26 @@ def extract_id_from_ref(value):
     return match.group(1) if match else ""
 
 
+def gear_slot_payload():
+    return [
+        {
+            "key": slot,
+            "slot": slot,
+            "simcSlot": slot,
+            "label": GEAR_SLOT_LABELS.get(slot, slot),
+        }
+        for slot in CANONICAL_GEAR_SLOTS
+    ]
+
+
+def canonical_gear_slot(value):
+    slot = re.sub(r"[^a-z0-9_]+", "_", str(value or "").lower()).strip("_")
+    if not slot:
+        return ""
+    slot = GEAR_SLOT_ALIASES.get(slot, slot)
+    return slot if slot in CANONICAL_GEAR_SLOTS else ""
+
+
 def item_slot_from_payload(payload):
     inventory_type = payload.get("inventory_type") or {}
     item_class = payload.get("item_class") or {}
@@ -1040,7 +1136,7 @@ def item_slot_from_payload(payload):
         ("cloak", "back"),
         ("chest", "chest"),
         ("robe", "chest"),
-        ("wrist", "wrists"),
+        ("wrist", "wrist"),
         ("hand", "hands"),
         ("waist", "waist"),
         ("leg", "legs"),
@@ -1700,13 +1796,28 @@ def simc_build_from_text(text):
     return match.group(1) if match else ""
 
 
-def download_wago_db2_csv(table, build):
+def wago_db2_locale(locale=DEFAULT_LOCALE):
+    normalized = str(locale or "en_US").replace("_", "")
+    return normalized or "enUS"
+
+
+def download_wago_db2_csv(table, build, locale="enUS"):
     if not DEFAULT_WAGO_DB2_ENABLED or not DEFAULT_WAGO_DB2_BASE_URL or not table or not build:
         return "", ""
-    query = urlencode({"build": build, "locale": "enUS"})
+    query = urlencode({"build": build, "locale": wago_db2_locale(locale)})
     url = f"{DEFAULT_WAGO_DB2_BASE_URL}/{table}/csv?{query}"
     request = Request(url, headers={"User-Agent": "Mozilla/5.0 wow-websim-sync"})
     with urlopen(request, timeout=int_env("WOW_WAGO_DB2_FETCH_TIMEOUT_SECONDS", 30)) as response:
+        return response.read().decode("utf-8", errors="ignore"), url
+
+
+def download_wago_trait_edge_csv(build):
+    if not DEFAULT_WAGO_DB2_TRAIT_EDGE_ENABLED or not DEFAULT_WAGO_DB2_BASE_URL or not build:
+        return "", ""
+    query = urlencode({"build": build, "locale": "enUS"})
+    url = f"{DEFAULT_WAGO_DB2_BASE_URL}/TraitEdge/csv?{query}"
+    request = Request(url, headers={"User-Agent": "Mozilla/5.0 wow-websim-sync"})
+    with urlopen(request, timeout=int_env("WOW_WAGO_DB2_TRAIT_EDGE_TIMEOUT_SECONDS", 20)) as response:
         return response.read().decode("utf-8", errors="ignore"), url
 
 
@@ -1916,6 +2027,8 @@ def target_spec_ids_for_record(record, selection_specs_by_hero):
 
 
 def simc_shape_for(record):
+    if record["row"] >= 11:
+        return "apex"
     if record["nodeType"] == 2:
         return "choice"
     if record["treeIndex"] == 3 and record["row"] in {1, 5}:
@@ -1933,6 +2046,69 @@ def simc_tree_id(record, tree_type, class_key, spec_key, hero_key):
     return f"spec:{class_key}:{spec_key}"
 
 
+def simc_rank_entry_for(record):
+    return {
+        "rank": 0,
+        "points": max(1, int(record.get("rank") or 1)),
+        "pointStart": 0,
+        "pointEnd": 0,
+        "traitId": record["traitId"],
+        "traitDefinitionId": record["traitDefinitionId"],
+        "spellId": record["spellId"],
+        "selectionIndex": record["selectionIndex"],
+        "name": record["name"],
+        "description": "",
+    }
+
+
+def normalize_simc_rank_entries(entries):
+    normalized = []
+    total_points = 0
+    seen_spells = set()
+    for entry in sorted(
+        entries or [],
+        key=lambda item: (
+            int(item.get("selectionIndex") or 0),
+            int(item.get("traitId") or 0),
+            int(item.get("spellId") or 0),
+        ),
+    ):
+        spell_id = int(entry.get("spellId") or 0)
+        if spell_id in seen_spells:
+            continue
+        seen_spells.add(spell_id)
+        points = max(1, int(entry.get("points") or 1))
+        total_points += points
+        next_entry = dict(entry)
+        next_entry["rank"] = len(normalized) + 1
+        next_entry["points"] = points
+        next_entry["pointStart"] = total_points - points + 1
+        next_entry["pointEnd"] = total_points
+        normalized.append(next_entry)
+    return normalized, total_points
+
+
+def refresh_simc_rank_payload(talent):
+    payload = talent.setdefault("payload", {})
+    entries, total_points = normalize_simc_rank_entries(payload.get("rankEntries") or [])
+    if not entries:
+        return talent
+    payload["rankEntries"] = entries
+    payload["rankCount"] = len(entries)
+    payload["rank"] = max(1, total_points)
+    payload["maxRank"] = max(1, total_points)
+    first = entries[0]
+    talent["rank"] = payload["rank"]
+    talent["maxRank"] = payload["maxRank"]
+    talent["spellId"] = int(first.get("spellId") or talent.get("spellId") or 0)
+    talent["traitId"] = int(first.get("traitId") or talent.get("traitId") or 0)
+    payload["spellId"] = talent["spellId"]
+    payload["traitId"] = talent["traitId"]
+    payload["traitDefinitionId"] = int(first.get("traitDefinitionId") or payload.get("traitDefinitionId") or 0)
+    payload["selectionIndex"] = int(first.get("selectionIndex") or payload.get("selectionIndex") or 0)
+    return talent
+
+
 def parse_trait_data_text(text, limit=20000):
     subtrees = parse_trait_sub_tree_data(text)
     records = list(iter_trait_data_records(text))
@@ -1944,6 +2120,7 @@ def parse_trait_data_text(text, limit=20000):
 
     talents = []
     seen = set()
+    grouped = {}
     for record in records:
         tree_type = SIMC_TRAIT_TREE_TYPES.get(record["treeIndex"])
         if not tree_type or record["spellId"] <= 0 or not record["name"] or record["name"] == "0":
@@ -1961,13 +2138,16 @@ def parse_trait_data_text(text, limit=20000):
             _mapped_class, spec_key = spec_info
             node_key = (
                 record["treeIndex"],
-                record["traitId"],
+                record["traitId"] if record["nodeType"] == 2 else record["nodeId"],
                 record["nodeId"],
                 class_key,
                 spec_key,
                 hero_key,
             )
             if node_key in seen:
+                if record["nodeType"] != 2 and node_key in grouped:
+                    grouped[node_key]["payload"].setdefault("rankEntries", []).append(simc_rank_entry_for(record))
+                    refresh_simc_rank_payload(grouped[node_key])
                 continue
             seen.add(node_key)
             choice_group = ""
@@ -1983,8 +2163,9 @@ def parse_trait_data_text(text, limit=20000):
                     ]
                 )
             selected_rank = 1 if spec_id in record["starterSpecIds"] else 0
-            if tree_type == "hero" and record["row"] == 1 and record["col"] == 1:
+            if tree_type == "hero" and record["row"] == 1:
                 selected_rank = max(selected_rank, 1)
+            granted_rank = selected_rank
             node_id_parts = ["simc", tree_type, str(record["traitId"]), class_key, spec_key]
             if hero_key:
                 node_id_parts.append(hero_key)
@@ -2007,28 +2188,35 @@ def parse_trait_data_text(text, limit=20000):
                 "nodeType": record["nodeType"],
                 "rank": max(1, record["rank"]),
                 "selectedRank": selected_rank,
+                "grantedRank": granted_rank,
+                "granted": granted_rank > 0,
+                "rankEntries": [simc_rank_entry_for(record)],
                 "choiceGroup": choice_group,
                 "shape": simc_shape_for(record),
                 "pointRequirement": max(0, record["pointRequirement"]),
                 "source": "simulationcraft",
             }
-            talents.append(
-                {
-                    "id": "-".join(node_id_parts),
-                    "traitId": record["traitId"],
-                    "classKey": class_key,
-                    "specKey": spec_key,
-                    "treeId": simc_tree_id(record, tree_type, class_key, spec_key, hero_key),
-                    "treeType": tree_type,
-                    "row": record["row"],
-                    "col": record["col"],
-                    "spellId": record["spellId"],
-                    "name": record["name"],
-                    "rank": max(1, record["rank"]),
-                    "selectedRank": selected_rank,
-                    "payload": payload,
-                }
-            )
+            talent = {
+                "id": "-".join(node_id_parts),
+                "traitId": record["traitId"],
+                "classKey": class_key,
+                "specKey": spec_key,
+                "treeId": simc_tree_id(record, tree_type, class_key, spec_key, hero_key),
+                "treeType": tree_type,
+                "row": record["row"],
+                "col": record["col"],
+                "spellId": record["spellId"],
+                "name": record["name"],
+                "rank": max(1, record["rank"]),
+                "selectedRank": selected_rank,
+                "grantedRank": granted_rank,
+                "granted": granted_rank > 0,
+                "payload": payload,
+            }
+            refresh_simc_rank_payload(talent)
+            talents.append(talent)
+            if record["nodeType"] != 2:
+                grouped[node_key] = talent
             if len(talents) >= limit:
                 return talents
     return talents
@@ -2153,7 +2341,17 @@ def parse_profile_preset(path, text):
 
 
 def simc_talent_spell_ids(talents):
-    return sorted({int(talent.get("spellId") or 0) for talent in talents if int(talent.get("spellId") or 0) > 0})
+    spell_ids = set()
+    for talent in talents or []:
+        spell_id = int(talent.get("spellId") or 0)
+        if spell_id > 0:
+            spell_ids.add(spell_id)
+        payload = talent.get("payload") or {}
+        for entry in payload.get("rankEntries") or talent.get("rankEntries") or []:
+            entry_spell_id = int(entry.get("spellId") or 0)
+            if entry_spell_id > 0:
+                spell_ids.add(entry_spell_id)
+    return sorted(spell_ids)
 
 
 def attach_trait_edges_to_data(data, trait_text):
@@ -2164,7 +2362,7 @@ def attach_trait_edges_to_data(data, trait_text):
     if not data.get("talents") or not build:
         return data
     try:
-        edge_text, edge_source = download_wago_db2_csv("TraitEdge", build)
+        edge_text, edge_source = download_wago_trait_edge_csv(build)
     except Exception:
         edge_text, edge_source = "", ""
     edges = parse_trait_edge_data_text(edge_text)
@@ -2349,11 +2547,12 @@ def sync_simc_generated_data(conn):
         if spell_id <= 0:
             continue
         payload = {
-            "source": "simulationcraft",
+            "source": detail.get("source", "simulationcraft"),
             "spellId": spell_id,
             "rank": detail.get("rank", ""),
             "tooltip": detail.get("tooltip", ""),
             "spellTextSource": data.get("spellTextSource", ""),
+            "spellLocalizationSource": data.get("spellLocalizationSource", ""),
         }
         conn.execute(
             """
@@ -2413,11 +2612,13 @@ def sync_simc_generated_data(conn):
         "presets": len(data["presets"]),
         "spellDetails": len(data.get("spellDetails", [])),
         "spellIcons": int(data.get("spellIcons", 0) or 0),
+        "spellLocalizations": int(data.get("spellLocalizations", 0) or 0),
         "dependencies": int(data.get("dependencies", 0) or 0),
         "build": data.get("build", ""),
         "source": data["source"],
         "spellTextSource": data.get("spellTextSource", ""),
         "spellIconSource": data.get("spellIconSource", ""),
+        "spellLocalizationSource": data.get("spellLocalizationSource", ""),
         "traitEdgeSource": data.get("traitEdgeSource", ""),
     }
 
@@ -2453,13 +2654,18 @@ def sync_websim_cache(db_path, include_blizzard=True):
         blizzard_counts = {"instances": 0, "encounters": 0, "loot": 0, "items": 0}
         spell_counts = {"spells": 0, "media": 0}
         errors = []
+        blizzard_skipped = ""
         if include_blizzard:
-            try:
-                token = get_blizzard_access_token(DEFAULT_REGION)
-                blizzard_counts = sync_blizzard_journal(conn, token, DEFAULT_REGION, DEFAULT_LOCALE)
-                spell_counts = sync_blizzard_spell_details(conn, token, DEFAULT_REGION, DEFAULT_LOCALE)
-            except Exception as error:
-                errors.append(str(error))
+            refresh_always = os.environ.get("WOW_WEBSIM_REFRESH_BLIZZARD_ALWAYS", "0").strip() == "1"
+            if simc_season.get("dataStatus") == "verified" and not refresh_always:
+                blizzard_skipped = "fresh-season-cache"
+            else:
+                try:
+                    token = get_blizzard_access_token(DEFAULT_REGION)
+                    blizzard_counts = sync_blizzard_journal(conn, token, DEFAULT_REGION, DEFAULT_LOCALE)
+                    spell_counts = sync_blizzard_spell_details(conn, token, DEFAULT_REGION, DEFAULT_LOCALE)
+                except Exception as error:
+                    errors.append(str(error))
         active_season = get_active_season_payload(conn)
         payload = {
             "ok": not errors and active_season.get("dataStatus") == "verified",
@@ -2474,6 +2680,8 @@ def sync_websim_cache(db_path, include_blizzard=True):
             "seasonRevision": active_season.get("seasonRevision") or "",
             "errors": errors,
         }
+        if blizzard_skipped:
+            payload["blizzardSkipped"] = blizzard_skipped
         set_sync_state(conn, "websim_sync", payload)
         conn.commit()
         return payload
@@ -2529,7 +2737,7 @@ def fallback_instances():
 
 def wow_icon_url(icon_name):
     normalized = re.sub(r"[^a-z0-9_]+", "", str(icon_name or "").lower()) or "inv_misc_questionmark"
-    return f"https://render.worldofwarcraft.com/us/icons/56/{normalized}.jpg"
+    return f"https://wow.zamimg.com/images/wow/icons/large/{normalized}.jpg"
 
 
 def parse_wago_int(value):
@@ -2608,27 +2816,151 @@ def spell_icon_urls_from_wago_db2(build, spell_ids):
     return icon_urls, {"spellMisc": spell_misc_source, "manifest": manifest_source}
 
 
+def normalize_wago_spell_text(value):
+    text = str(value or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    return re.sub(r"\n{3,}", "\n\n", text)
+
+
+def parse_wago_spell_names_csv(text, spell_ids=None, limit=50000):
+    wanted = {int(spell_id) for spell_id in spell_ids or [] if int(spell_id or 0) > 0}
+    names = {}
+    if not text:
+        return names
+    try:
+        rows = csv.DictReader(io.StringIO(str(text or "")))
+        for row in rows:
+            spell_id = parse_wago_int(row.get("ID"))
+            if spell_id <= 0 or (wanted and spell_id not in wanted) or spell_id in names:
+                continue
+            name = normalize_wago_spell_text(row.get("Name_lang"))
+            if name:
+                names[spell_id] = name
+            if len(names) >= limit:
+                break
+    except (csv.Error, TypeError, ValueError):
+        return {}
+    return names
+
+
+def parse_wago_spell_texts_csv(text, spell_ids=None, limit=50000):
+    wanted = {int(spell_id) for spell_id in spell_ids or [] if int(spell_id or 0) > 0}
+    details = {}
+    if not text:
+        return details
+    try:
+        rows = csv.DictReader(io.StringIO(str(text or "")))
+        for row in rows:
+            spell_id = parse_wago_int(row.get("ID"))
+            if spell_id <= 0 or (wanted and spell_id not in wanted) or spell_id in details:
+                continue
+            description = normalize_wago_spell_text(row.get("Description_lang"))
+            aura = normalize_wago_spell_text(row.get("AuraDescription_lang"))
+            if aura and aura not in description:
+                description = f"{description}\n\n{aura}".strip()
+            details[spell_id] = {
+                "description": description,
+                "tooltip": aura,
+                "rank": normalize_wago_spell_text(row.get("NameSubtext_lang")),
+            }
+            if len(details) >= limit:
+                break
+    except (csv.Error, TypeError, ValueError):
+        return {}
+    return details
+
+
+def spell_localizations_from_wago_db2(build, spell_ids, locale=DEFAULT_LOCALE):
+    if not build or not spell_ids:
+        return {}, {}
+    if not DEFAULT_WAGO_DB2_LOCALIZATION_ENABLED:
+        return {}, {}
+    if wago_db2_locale(locale).lower() in {"enus", "en"}:
+        return {}, {}
+    name_text, name_source = download_wago_db2_csv("SpellName", build, locale)
+    names = parse_wago_spell_names_csv(name_text, spell_ids)
+    spell_text, spell_source = download_wago_db2_csv("Spell", build, locale)
+    texts = parse_wago_spell_texts_csv(spell_text, spell_ids)
+    localized = {}
+    for spell_id in sorted({*names.keys(), *texts.keys()}):
+        detail = dict(texts.get(spell_id) or {})
+        if names.get(spell_id):
+            detail["name"] = names[spell_id]
+        if detail:
+            localized[spell_id] = detail
+    return localized, {"spellName": name_source, "spell": spell_source}
+
+
 def attach_wago_spell_icons_to_data(data, trait_text):
-    details = data.get("spellDetails") or []
+    details = data.setdefault("spellDetails", [])
     build = data.get("build") or simc_build_from_text(trait_text)
     data["build"] = build
-    if not details or not build:
+    talent_names_by_spell = {}
+    for talent in data.get("talents") or []:
+        spell_id = int(talent.get("spellId") or 0)
+        if spell_id > 0 and spell_id not in talent_names_by_spell:
+            talent_names_by_spell[spell_id] = talent.get("name", "")
+    detail_ids = [int(detail.get("spellId") or 0) for detail in details if int(detail.get("spellId") or 0) > 0]
+    spell_ids = sorted({*detail_ids, *talent_names_by_spell.keys()})
+    if not spell_ids or not build:
         return data
-    spell_ids = [int(detail.get("spellId") or 0) for detail in details if int(detail.get("spellId") or 0) > 0]
     try:
         icon_urls, sources = spell_icon_urls_from_wago_db2(build, spell_ids)
     except Exception:
         icon_urls, sources = {}, {}
+    try:
+        localizations, localization_sources = spell_localizations_from_wago_db2(build, spell_ids, DEFAULT_LOCALE)
+    except Exception:
+        localizations, localization_sources = {}, {}
+    details_by_spell = {
+        int(detail.get("spellId") or 0): detail
+        for detail in details
+        if int(detail.get("spellId") or 0) > 0
+    }
+    for spell_id, icon_url in icon_urls.items():
+        detail = details_by_spell.get(spell_id)
+        if detail:
+            detail["iconUrl"] = icon_url
+            continue
+        detail = {
+            "spellId": spell_id,
+            "name": talent_names_by_spell.get(spell_id, ""),
+            "description": "",
+            "tooltip": "",
+            "rank": "",
+            "iconUrl": icon_url,
+            "locale": "en_US",
+            "source": "wago-db2",
+        }
+        details.append(detail)
+        details_by_spell[spell_id] = detail
     for detail in details:
         spell_id = int(detail.get("spellId") or 0)
         if icon_urls.get(spell_id):
             detail["iconUrl"] = icon_urls[spell_id]
+        localization = localizations.get(spell_id) or {}
+        if localization.get("name"):
+            detail["name"] = localization["name"]
+        if localization.get("description"):
+            detail["description"] = localization["description"]
+        if localization.get("tooltip"):
+            detail["tooltip"] = localization["tooltip"]
+        if localization.get("rank"):
+            detail["rank"] = localization["rank"]
+        if localization:
+            detail["locale"] = DEFAULT_LOCALE
+            detail["source"] = "wago-db2"
     if icon_urls:
         data["spellIcons"] = len(icon_urls)
         data["spellIconSource"] = "; ".join(value for value in sources.values() if value)
     else:
         data.setdefault("spellIcons", 0)
         data.setdefault("spellIconSource", "")
+    if localizations:
+        data["spellLocalizations"] = len(localizations)
+        data["spellLocalizationSource"] = "; ".join(value for value in localization_sources.values() if value)
+    else:
+        data.setdefault("spellLocalizations", 0)
+        data.setdefault("spellLocalizationSource", "")
     return data
 
 
@@ -2739,6 +3071,8 @@ def fallback_node(
         "rank": max_rank,
         "maxRank": max_rank,
         "selectedRank": selected_rank,
+        "grantedRank": selected_rank,
+        "granted": selected_rank > 0,
         "selected": selected_rank > 0,
         "parentIds": parent_ids,
         "shape": shape,
@@ -2863,10 +3197,23 @@ def fallback_talents(class_key="mage", spec_key="arcane", hero_key=""):
     return nodes
 
 
+def real_talent_shape(payload, row_index):
+    if int(row_index or 0) >= 11:
+        return "apex"
+    return payload.get("shape", "square")
+
+
 def decorate_real_talent_node(row, season):
     payload = safe_json_loads(row[8], {})
     tree_type = payload.get("treeType") or ("class" if row[2] == "class" else "spec")
-    max_rank = int(payload.get("rank", 1) or 1)
+    rank_entries, rank_entry_points = normalize_simc_rank_entries(payload.get("rankEntries") or [])
+    max_rank = int(payload.get("maxRank") or payload.get("rank") or rank_entry_points or 1)
+    selected_rank = int(payload.get("selectedRank", 0) or 0)
+    if tree_type == "hero" and int(row[4] or 0) == 1:
+        selected_rank = max(selected_rank, 1)
+    granted_rank = int(payload.get("grantedRank", selected_rank) or 0)
+    if tree_type == "hero" and int(row[4] or 0) == 1:
+        granted_rank = max(granted_rank, 1)
     icon_name = CLASS_ICON_NAMES.get(row[1], "inv_misc_questionmark")
     if tree_type in {"spec", "hero"}:
         icon_name = SPEC_ICON_NAMES.get(row[2], icon_name)
@@ -2887,21 +3234,89 @@ def decorate_real_talent_node(row, season):
         "name": row[7],
         "rank": max_rank,
         "maxRank": max_rank,
-        "selectedRank": int(payload.get("selectedRank", 0) or 0),
-        "selected": int(payload.get("selectedRank", 0) or 0) > 0,
+        "selectedRank": selected_rank,
+        "grantedRank": granted_rank,
+        "granted": bool(payload.get("granted") or granted_rank > 0),
+        "selected": selected_rank > 0,
         "parentIds": payload.get("parentIds", []),
-        "shape": payload.get("shape", "square"),
+        "shape": real_talent_shape(payload, row[4]),
         "choiceGroup": payload.get("choiceGroup", ""),
+        "rankEntries": rank_entries,
+        "rankCount": len(rank_entries),
         "pointRequirement": int(payload.get("pointRequirement", 0) or 0),
         "description": description,
         "iconUrl": icon_url,
         "source": payload.get("source", "simulationcraft"),
         "traitId": payload.get("traitId"),
         "nodeId": payload.get("nodeId"),
+        "selectionIndex": payload.get("selectionIndex"),
         "heroKey": payload.get("heroKey", ""),
         "heroLabel": payload.get("heroLabel", ""),
         "sourceRefs": SIMC_TALENT_SOURCE_REFS + (season.get("sourceRefs") or []),
     }
+
+
+def dedupe_real_talent_nodes(nodes):
+    deduped = []
+    seen = set()
+    for node in nodes:
+        choice_group = node.get("choiceGroup") or ""
+        if choice_group or node.get("shape") == "choice":
+            key = ("choice", node.get("id"))
+        else:
+            key = (
+                node.get("classKey"),
+                node.get("specKey"),
+                node.get("treeId"),
+                node.get("treeType"),
+                node.get("heroKey", ""),
+                node.get("nodeId") or node.get("id"),
+            )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(node)
+    return deduped
+
+
+def enrich_talent_rank_entries(conn, nodes):
+    spell_ids = sorted(
+        {
+            int(entry.get("spellId") or 0)
+            for node in nodes or []
+            for entry in node.get("rankEntries") or []
+            if int(entry.get("spellId") or 0) > 0
+        }
+    )
+    if not spell_ids:
+        return nodes
+    placeholders = ",".join("?" for _ in spell_ids)
+    rows = conn.execute(
+        f"""
+        SELECT spell_id, name, description
+        FROM websim_spell_details
+        WHERE spell_id IN ({placeholders})
+        """,
+        spell_ids,
+    ).fetchall()
+    details = {
+        int(row[0]): {"name": row[1] or "", "description": row[2] or ""}
+        for row in rows
+    }
+    for node in nodes or []:
+        next_entries = []
+        for entry in node.get("rankEntries") or []:
+            spell_id = int(entry.get("spellId") or 0)
+            detail = details.get(spell_id, {})
+            next_entry = dict(entry)
+            if detail.get("description"):
+                next_entry["description"] = detail["description"]
+            if detail.get("name"):
+                next_entry["spellName"] = detail["name"]
+            next_entries.append(next_entry)
+        if next_entries:
+            node["rankEntries"] = next_entries
+    return nodes
 
 
 def fallback_presets(class_key="mage", spec_key="arcane"):
@@ -2931,7 +3346,7 @@ def get_websim_bootstrap(conn):
         "locale": season_fields["locale"],
         "localeFallbacks": unique_locale_preferences(season_fields["locale"]),
         "classes": classes_payload(),
-        "gearSlots": GEAR_SLOTS,
+        "gearSlots": gear_slot_payload(),
         "scenarios": SCENARIOS,
         "instances": instances,
         "syncState": get_sync_state(conn, "websim_sync") or {"ok": False, "errors": ["websim cache has not been synced"]},
@@ -3018,7 +3433,10 @@ def get_websim_talents(conn, class_key="mage", spec_key="arcane", hero_key=""):
         if tree_type == "hero" and payload.get("heroKey") != hero_key:
             continue
         filtered_rows.append(row)
-    nodes = [decorate_real_talent_node(row, season) for row in filtered_rows]
+    nodes = enrich_talent_rank_entries(
+        conn,
+        dedupe_real_talent_nodes([decorate_real_talent_node(row, season) for row in filtered_rows]),
+    )
     has_spell_details = any(row[9] and row[10] for row in filtered_rows)
     talent_status = "verified" if nodes and season.get("dataStatus") == "verified" and has_spell_details else "simc"
     if not nodes:
@@ -3054,12 +3472,40 @@ def get_websim_presets(conn, class_key="mage", spec_key="arcane"):
 
 def get_websim_gear(conn, class_key="mage", spec_key="arcane"):
     season = get_active_season_payload(conn)
+    class_key = slugify(class_key, "mage")
+    spec_key = slugify(spec_key, "arcane")
+    presets = get_websim_presets(conn, class_key, spec_key)
+    preset_items = []
+    for preset in presets:
+        preset_items.extend(preset_gear_items(preset))
+    baseline_set = []
+    for item in preset_gear_items(presets[0] if presets else {}):
+        if item.get("slot") not in {entry.get("slot") for entry in baseline_set}:
+            baseline_set.append(item)
+    candidate_items = get_websim_loot(conn, {}, limit=120)["items"]
+    grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
+    for item in [*baseline_set, *preset_items, *candidate_items]:
+        normalized = normalize_gear_item(item, class_key, spec_key, item.get("sourceType") if isinstance(item, dict) else "")
+        if normalized and normalized.get("slot") in grouped:
+            grouped[normalized["slot"]].append(normalized)
+    slot_groups = [
+        {
+            "slot": slot,
+            "simcSlot": slot,
+            "label": GEAR_SLOT_LABELS.get(slot, slot),
+            "items": grouped.get(slot, [])[:12],
+        }
+        for slot in CANONICAL_GEAR_SLOTS
+    ]
     return {
-        "classKey": slugify(class_key, "mage"),
-        "specKey": slugify(spec_key, "arcane"),
-        "slots": GEAR_SLOTS,
-        "presets": get_websim_presets(conn, class_key, spec_key),
-        "candidateItems": get_websim_loot(conn, {}, limit=24)["items"],
+        "classKey": class_key,
+        "specKey": spec_key,
+        "slots": gear_slot_payload(),
+        "slotGroups": slot_groups,
+        "baselineSet": baseline_set,
+        "presets": presets,
+        "candidateItems": candidate_items[:24],
+        "readiness": gear_readiness(baseline_set),
         **season_metadata_fields(season),
     }
 
@@ -3072,29 +3518,50 @@ def get_websim_loot(conn, filters=None, limit=120):
         return {"items": [], "instances": [], **season_metadata_fields(season)}
     rows = conn.execute(
         """
-        SELECT l.id, l.instance_id, i.name, l.encounter_id, e.name, l.item_id, l.name, l.slot, l.quality, l.icon_url
+        SELECT l.id, l.instance_id, i.name, l.encounter_id, e.name, l.item_id, l.name, l.slot, l.quality, l.icon_url, wi.payload_json
         FROM websim_loot l
         LEFT JOIN websim_instances i ON i.id = l.instance_id
         LEFT JOIN websim_encounters e ON e.id = l.encounter_id
+        LEFT JOIN websim_items wi ON wi.id = l.item_id
         ORDER BY i.name, e.name, l.name
         LIMIT 500
         """
     ).fetchall()
-    items = [
-        {
+    items = []
+    for row in rows:
+        try:
+            item_payload = json.loads(row[10] or "{}")
+        except Exception:
+            item_payload = {}
+        item = normalize_gear_item(
+            {
+                "id": row[5],
+                "itemId": row[5],
+                "name": row[6],
+                "displayName": row[6],
+                "slot": row[7],
+                "quality": row[8],
+                "iconUrl": row[9],
+                "sourceType": "verifiedLoot",
+                "source": f"{row[4] or 'Unknown Encounter'} · {row[2] or 'Unknown Instance'}",
+                "payload": item_payload,
+            },
+            default_source_type="verifiedLoot",
+        )
+        if not item:
+            continue
+        item.update({
             "id": row[0],
             "instanceId": row[1],
             "instanceName": row[2] or "Unknown Instance",
             "encounterId": row[3],
             "encounterName": row[4] or "Unknown Encounter",
             "itemId": row[5],
-            "name": row[6],
-            "slot": row[7],
             "quality": row[8],
             "iconUrl": row[9],
-        }
-        for row in rows
-    ]
+            "sourceType": "verifiedLoot",
+        })
+        items.append(item)
     if not items:
         items = []
     instance_id = str(filters.get("instanceId") or "")
@@ -3123,45 +3590,194 @@ def normalize_option_value(value):
     return re.sub(r"[^A-Za-z0-9_:/.-]+", "", str(value or "").strip())[:240]
 
 
+def first_matching_value(source, keys, default=""):
+    if not isinstance(source, dict):
+        return default
+    for key in keys:
+        if key in source and source.get(key) not in (None, ""):
+            return source.get(key)
+    return default
+
+
 def normalize_slot(value):
-    slot = re.sub(r"[^a-z0-9_]+", "_", str(value or "").lower()).strip("_")
-    slot_aliases = {"wrist": "wrists", "shoulders": "shoulder", "cloak": "back", "weapon": "main_hand"}
-    return slot_aliases.get(slot, slot)
+    return canonical_gear_slot(value)
 
 
-def normalize_gear_item(value):
+def simc_option_value(source, aliases):
+    return normalize_option_value(first_matching_value(source, aliases))
+
+
+def raw_source_type(value, default=""):
+    return re.sub(r"[^A-Za-z0-9_/-]+", "", str(value or default or "").strip())[:40]
+
+
+def gear_item_missing_fields(item):
+    source_type = item.get("sourceType") or ""
+    if item.get("id") and source_type in SIMC_READY_SOURCE_TYPES:
+        return []
+    missing = []
+    if not item.get("slot"):
+        missing.append("slot")
+    if not item.get("id"):
+        missing.append("itemId")
+    if source_type in {"verifiedLoot", "loot"}:
+        missing.extend(["ilevel", "bonus_id/gem_id/enchant_id"])
+        return missing
+    if item.get("id") and item.get("ilevel") and any(item.get(key) for key in ("bonus_id", "gem_id", "enchant_id", "crafted_stats")):
+        return missing
+    if not item.get("ilevel"):
+        missing.append("ilevel")
+    if not any(item.get(key) for key in ("bonus_id", "gem_id", "enchant_id", "crafted_stats")):
+        missing.append("bonus_id/gem_id/enchant_id")
+    return missing
+
+
+def gear_item_simc_ready(item):
+    return bool(item.get("slot") and item.get("id") and not gear_item_missing_fields(item))
+
+
+def gear_compatibility_from_payload(payload, class_key, simc_slot):
+    if not isinstance(payload, dict) or not class_key or simc_slot not in ARMOR_SLOTS:
+        return "unknown"
+    item_class = payload.get("item_class") or {}
+    item_subclass = payload.get("item_subclass") or {}
+    item_class_name = str(item_class.get("name") or "").lower()
+    subclass_name = str(item_subclass.get("name") or "")
+    expected_armor = CLASS_ARMOR_TYPES.get(class_key)
+    if "armor" not in item_class_name or not expected_armor or not subclass_name:
+        return "unknown"
+    if subclass_name.lower() in {"miscellaneous", "cosmetic"}:
+        return "unknown"
+    return "compatible" if subclass_name.lower() == expected_armor.lower() else "incompatible"
+
+
+def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""):
     if not isinstance(value, dict):
         return None
-    slot = normalize_slot(value.get("slot") or value.get("slotKey"))
-    item_id = normalize_option_value(value.get("id") or value.get("itemId") or value.get("item_id"))
+    slot = normalize_slot(first_matching_value(value, ["simcSlot", "slot", "slotKey", "equipmentSlot"]))
+    item_id = normalize_option_value(first_matching_value(value, ["itemId", "item_id", "id"]))
     if not slot or not item_id:
         return None
+    source_type = raw_source_type(first_matching_value(value, ["sourceType", "type"], default_source_type))
+    if not source_type:
+        source_type = "manual" if value.get("ilevel") else "candidate"
     item = {
         "slot": slot,
+        "simcSlot": slot,
+        "itemId": item_id,
         "name": slugify(value.get("name"), f"item_{item_id}"),
         "id": item_id,
+        "displayName": str(value.get("displayName") or value.get("name") or f"Item {item_id}")[:160],
+        "iconUrl": str(value.get("iconUrl") or value.get("icon_url") or "")[:260],
+        "sourceType": source_type,
+        "source": str(first_matching_value(value, ["source", "sourceName", "encounterName", "instanceName"], ""))[:220],
+        "classKey": slugify(class_key, "") if class_key else str(value.get("classKey") or ""),
+        "specKey": slugify(spec_key, "") if spec_key else str(value.get("specKey") or ""),
     }
-    for key in ["ilevel", "bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats"]:
-        value_text = normalize_option_value(value.get(key) or value.get(key.replace("_", "")))
+    for key, aliases in SIMC_GEAR_OPTION_ALIASES:
+        value_text = simc_option_value(value, aliases)
         if value_text:
             item[key] = value_text
+    payload = value.get("payload") if isinstance(value.get("payload"), dict) else {}
+    item["compatibility"] = str(value.get("compatibility") or gear_compatibility_from_payload(payload, item["classKey"], slot) or "unknown")
+    item["missingFields"] = gear_item_missing_fields(item)
+    item["simcReady"] = gear_item_simc_ready(item)
     return item
+
+
+def normalize_websim_gear_items(items, class_key="", spec_key="", default_source_type=""):
+    normalized = []
+    seen = set()
+    for raw_item in items or []:
+        item = normalize_gear_item(raw_item, class_key, spec_key, default_source_type)
+        if not item or item["slot"] in seen:
+            continue
+        seen.add(item["slot"])
+        normalized.append(item)
+    return normalized
 
 
 def build_websim_gear_lines(items):
     lines = []
-    seen = set()
-    for raw_item in items or []:
-        item = normalize_gear_item(raw_item)
-        if not item or item["slot"] in seen:
+    for item in normalize_websim_gear_items(items):
+        if not item.get("simcReady"):
             continue
-        seen.add(item["slot"])
         parts = [f'{item["slot"]}={item["name"]}', f'id={item["id"]}']
         for key in ["ilevel", "bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats"]:
             if item.get(key):
                 parts.append(f"{key}={item[key]}")
         lines.append(",".join(parts))
     return lines
+
+
+def parse_simc_gear_line(line, class_key="", spec_key="", source_name="", source_profile_id=""):
+    stripped = str(line or "").strip()
+    if not stripped or stripped.startswith("#") or "=" not in stripped:
+        return None
+    head, *option_parts = [part.strip() for part in stripped.split(",") if part.strip()]
+    slot, name = head.split("=", 1)
+    slot = normalize_slot(slot)
+    if not slot:
+        return None
+    options = {}
+    for part in option_parts:
+        if "=" not in part:
+            continue
+        key, value = part.split("=", 1)
+        options[key.strip()] = value.strip()
+    item_id = normalize_option_value(options.get("id"))
+    if not item_id:
+        return None
+    raw_item = {
+        "slot": slot,
+        "name": name.strip().strip('"'),
+        "id": item_id,
+        "sourceType": "simcPreset",
+        "source": source_name,
+        "sourceProfileId": source_profile_id,
+    }
+    for key in SIMC_GEAR_OPTION_KEYS:
+        if options.get(key):
+            raw_item[key] = options[key]
+    item = normalize_gear_item(raw_item, class_key, spec_key, "simcPreset")
+    if item:
+        item["sourceProfileId"] = source_profile_id
+        item["simcLine"] = ",".join([head, *option_parts])
+    return item
+
+
+def preset_gear_items(preset):
+    if not isinstance(preset, dict):
+        return []
+    items = []
+    for line in str(preset.get("profile") or "").splitlines():
+        item = parse_simc_gear_line(
+            line,
+            preset.get("classKey") or "",
+            preset.get("specKey") or "",
+            preset.get("name") or "SimC preset",
+            preset.get("id") or "",
+        )
+        if item:
+            items.append(item)
+    return items
+
+
+def gear_readiness(items):
+    ready_slots = {item["slot"] for item in items if item.get("simcReady")}
+    warnings = []
+    candidate_count = len([item for item in items if item and not item.get("simcReady")])
+    if candidate_count:
+        warnings.append(f"{candidate_count} selected candidate item(s) are missing SimC fields and will not be written to the profile.")
+    if not ready_slots:
+        warnings.append("No SimC-ready gear selected; add a SimC preset item or enrich selected loot with item level and bonus/gem/enchant data.")
+    return {
+        "simcReadyCount": len(ready_slots),
+        "selectedCount": len(items),
+        "candidateCount": candidate_count,
+        "missingRequiredSlots": [slot for slot in CANONICAL_GEAR_SLOTS if slot not in ready_slots],
+        "warnings": warnings,
+    }
 
 
 def selected_scenario(value):
@@ -3172,7 +3788,229 @@ def selected_scenario(value):
     return SCENARIOS[0]
 
 
-def build_websim_profile(payload):
+def blank_talent_encoding(status="skipped", source="none"):
+    return {
+        "status": status,
+        "source": source,
+        "errors": [],
+        "warnings": [],
+        "lines": [],
+        "selectedCounts": {"class": 0, "spec": 0, "hero": 0},
+    }
+
+
+def websim_selected_talent_nodes(payload):
+    if not isinstance(payload, dict):
+        return []
+    talent_state = payload.get("talentState") if isinstance(payload.get("talentState"), dict) else {}
+    selected_nodes = talent_state.get("selectedNodes")
+    if not isinstance(selected_nodes, list):
+        return []
+    normalized = []
+    for item in selected_nodes:
+        if isinstance(item, dict):
+            node_id = str(item.get("id") or "").strip()
+            raw_rank = item.get("rank")
+        else:
+            node_id = str(item or "").strip()
+            raw_rank = 1
+        if not node_id:
+            continue
+        try:
+            rank = int(raw_rank)
+        except (TypeError, ValueError):
+            rank = 0
+        normalized.append({"id": node_id, "rank": max(0, rank)})
+    return normalized[:400]
+
+
+def external_talent_import_code(payload):
+    if not isinstance(payload, dict):
+        return ""
+    value = str(payload.get("talents") or payload.get("talentImport") or "").strip()
+    if not value or value.startswith("websim:"):
+        return ""
+    if value.startswith("talents="):
+        value = value.split("=", 1)[1].strip()
+    if value.startswith("websim:"):
+        return ""
+    return normalize_option_value(value)
+
+
+def websim_tree_line_key(tree_type):
+    return {
+        "class": "class_talents",
+        "spec": "spec_talents",
+        "hero": "hero_talents",
+    }.get(str(tree_type or ""))
+
+
+def websim_node_entry_id(node):
+    for key in ("traitId", "entryId", "entryID"):
+        try:
+            value = int(node.get(key) or 0)
+        except (AttributeError, TypeError, ValueError):
+            value = 0
+        if value > 0:
+            return value
+    for entry in node.get("rankEntries") or []:
+        try:
+            value = int(entry.get("traitId") or entry.get("entryId") or 0)
+        except (AttributeError, TypeError, ValueError):
+            value = 0
+        if value > 0:
+            return value
+    return 0
+
+
+def build_websim_authority_nodes(conn, class_key, spec_key, hero_key):
+    payload = get_websim_talents(conn, class_key, spec_key, hero_key)
+    nodes = payload.get("nodes") or []
+    return payload, {str(node.get("id") or ""): node for node in nodes if node.get("id")}
+
+
+def validate_websim_talent_selection(nodes_by_id, selected_rows, tree_sections):
+    errors = []
+    warnings = []
+    selected_by_id = {}
+    for row in selected_rows:
+        node_id = row["id"]
+        if node_id not in nodes_by_id:
+            errors.append(f"unknown talent node: {node_id}")
+            continue
+        selected_by_id[node_id] = max(selected_by_id.get(node_id, 0), row["rank"])
+
+    tree_points = {"class": 0, "spec": 0, "hero": 0}
+    purchased_counts = {"class": 0, "spec": 0, "hero": 0}
+    selected_choice_groups = {}
+    encoded = {"class": [], "spec": [], "hero": []}
+
+    for node_id, selected_rank in selected_by_id.items():
+        node = nodes_by_id[node_id]
+        tree_type = node.get("treeType") or ("class" if node.get("specKey") == "class" else "spec")
+        max_rank = max(1, int(node.get("maxRank") or node.get("rank") or 1))
+        granted_rank = max(0, min(max_rank, int(node.get("grantedRank") or 0)))
+        if selected_rank < granted_rank:
+            errors.append(f"talent rank below granted floor: {node_id}")
+            selected_rank = granted_rank
+        if selected_rank > max_rank:
+            errors.append(f"talent rank exceeds max rank: {node_id}")
+            selected_rank = max_rank
+        tree_points[tree_type] = tree_points.get(tree_type, 0) + selected_rank
+        purchased_rank = max(0, selected_rank - granted_rank)
+        if purchased_rank <= 0:
+            continue
+        entry_id = websim_node_entry_id(node)
+        if entry_id <= 0:
+            errors.append(f"talent node has no SimC entry id: {node_id}")
+            continue
+        if not websim_tree_line_key(tree_type):
+            errors.append(f"unsupported talent tree type: {node_id}")
+            continue
+        purchased_counts[tree_type] = purchased_counts.get(tree_type, 0) + purchased_rank
+        encoded[tree_type].append({
+            "nodeId": node_id,
+            "entryId": entry_id,
+            "rank": purchased_rank,
+            "row": int(node.get("row") or 0),
+            "col": int(node.get("col") or 0),
+            "selectionIndex": int(node.get("selectionIndex") or 0),
+        })
+        choice_group = str(node.get("choiceGroup") or "")
+        if choice_group:
+            selected_choice_groups.setdefault((tree_type, choice_group), []).append(node_id)
+
+    for (_tree_type, choice_group), node_ids in selected_choice_groups.items():
+        if len(node_ids) > 1:
+            errors.append(f"multiple talents selected in choice group {choice_group}: {', '.join(node_ids)}")
+
+    for node_id, selected_rank in selected_by_id.items():
+        if selected_rank <= 0:
+            continue
+        node = nodes_by_id[node_id]
+        parent_ids = [parent_id for parent_id in node.get("parentIds") or [] if parent_id in nodes_by_id]
+        if parent_ids and not any(selected_by_id.get(parent_id, 0) > 0 for parent_id in parent_ids):
+            errors.append(f"missing parent talent for {node_id}")
+        requirement = max(0, int(node.get("pointRequirement") or 0))
+        tree_type = node.get("treeType") or ("class" if node.get("specKey") == "class" else "spec")
+        points_before_node = tree_points.get(tree_type, 0) - selected_rank
+        if requirement and points_before_node < requirement:
+            errors.append(f"talent point gate not satisfied for {node_id}: requires {requirement}")
+
+    point_caps = {}
+    for section in tree_sections or []:
+        key = section.get("key")
+        try:
+            cap = int(section.get("pointCap") or 0)
+        except (AttributeError, TypeError, ValueError):
+            cap = 0
+        if key and cap > 0:
+            point_caps[key] = cap
+    for tree_type, points in tree_points.items():
+        if point_caps.get(tree_type) and points > point_caps[tree_type]:
+            errors.append(f"{tree_type} talent points exceed cap: {points}/{point_caps[tree_type]}")
+
+    return encoded, purchased_counts, errors, warnings
+
+
+def encode_websim_talents(conn, payload):
+    source = payload if isinstance(payload, dict) else {}
+    selected_rows = websim_selected_talent_nodes(source)
+    encoding = blank_talent_encoding()
+    external_code = external_talent_import_code(source)
+    if not selected_rows:
+        if external_code:
+            encoding.update({
+                "status": "external",
+                "source": "talents",
+                "lines": [f"talents={external_code}"],
+            })
+        else:
+            encoding["status"] = "failed"
+            encoding["errors"].append("no WebSim talent nodes selected")
+        return encoding
+
+    class_key = slugify(source.get("classKey"), "mage")
+    spec_key = slugify(source.get("specKey"), "arcane")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(source.get("heroKey"), ""))
+    talent_payload, nodes_by_id = build_websim_authority_nodes(conn, class_key, spec_key, hero_key)
+    encoding["source"] = talent_payload.get("talentStatus") or "unknown"
+    if talent_payload.get("talentStatus") == "fallback":
+        encoding["status"] = "failed"
+        encoding["errors"].append("WebSim talent cache is fallback; sync SimulationCraft talent data before running SimC")
+        return encoding
+
+    encoded, selected_counts, errors, warnings = validate_websim_talent_selection(
+        nodes_by_id,
+        selected_rows,
+        talent_payload.get("treeSections") or talent_tree_sections(class_key, spec_key, hero_key),
+    )
+    encoding["errors"].extend(errors)
+    encoding["warnings"].extend(warnings)
+    encoding["selectedCounts"] = selected_counts
+    if encoding["errors"]:
+        encoding["status"] = "failed"
+        return encoding
+
+    lines = []
+    for tree_type in ("class", "spec", "hero"):
+        entries = sorted(
+            encoded.get(tree_type) or [],
+            key=lambda item: (item["row"], item["col"], item["selectionIndex"], item["entryId"]),
+        )
+        if not entries:
+            continue
+        lines.append(f"{websim_tree_line_key(tree_type)}=" + "/".join(f"{item['entryId']}:{item['rank']}" for item in entries))
+    if not lines:
+        encoding["status"] = "failed"
+        encoding["errors"].append("selected WebSim talents did not produce any purchasable SimC talent entries")
+        return encoding
+    encoding["status"] = "encoded"
+    encoding["lines"] = lines
+    return encoding
+
+
+def build_websim_profile(payload, conn=None):
     source = payload if isinstance(payload, dict) else {}
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
@@ -3188,12 +4026,16 @@ def build_websim_profile(payload):
         f"role={role}",
         "position=back",
     ]
-    talents = normalize_option_value(source.get("talents") or source.get("talentImport"))
-    if talents:
-        lines.append(f"talents={talents}")
+    talent_encoding = encode_websim_talents(conn, source) if conn is not None else blank_talent_encoding()
+    if talent_encoding.get("status") in {"encoded", "external"}:
+        lines.extend(talent_encoding.get("lines") or [])
+    elif conn is None:
+        talents = external_talent_import_code(source)
+        if talents:
+            lines.append(f"talents={talents}")
     gear_selection = source.get("gearSelection") if isinstance(source.get("gearSelection"), dict) else {}
     gear_items = gear_selection.get("items") or source.get("gearItems") or []
-    lines.extend(build_websim_gear_lines(gear_items))
+    lines.extend(build_websim_gear_lines(normalize_websim_gear_items(gear_items, class_key, spec_key)))
     scenario = selected_scenario(source.get("scenarioKey"))
     lines.extend(
         [
@@ -3209,20 +4051,53 @@ def build_websim_profile(payload):
     return "\n".join(lines).strip()
 
 
-def build_websim_simulator_request(payload, guest_id=""):
-    profile = build_websim_profile(payload)
+def build_websim_profile_response(payload, conn=None):
+    source = payload if isinstance(payload, dict) else {}
+    class_key = slugify(source.get("classKey"), "mage")
+    spec_key = slugify(source.get("specKey"), "arcane")
+    gear_payload = websim_selected_gear_payload(source, class_key, spec_key)
+    response = {
+        "profile": build_websim_profile(payload, conn=conn),
+        "gearItems": gear_payload["items"],
+        "simcItems": gear_payload["simcItems"],
+        "readiness": gear_payload["readiness"],
+    }
+    if conn is not None:
+        response["talentEncoding"] = encode_websim_talents(conn, source)
+    return response
+
+
+def websim_selected_gear_payload(source, class_key, spec_key):
+    gear_selection = source.get("gearSelection") if isinstance(source.get("gearSelection"), dict) else {}
+    raw_items = gear_selection.get("items") or source.get("gearItems") or source.get("simcGearItems") or []
+    items = normalize_websim_gear_items(raw_items, class_key, spec_key)
+    ready_items = [item for item in items if item.get("simcReady")]
+    return {
+        "items": items,
+        "simcItems": ready_items,
+        "readiness": gear_readiness(items),
+    }
+
+
+def build_websim_simulator_request(payload, guest_id="", conn=None):
     source = payload if isinstance(payload, dict) else {}
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
     hero_key = hero_tree_for(class_key, spec_key, slugify(source.get("heroKey"), ""))
+    talent_encoding = encode_websim_talents(conn, source) if conn is not None else blank_talent_encoding()
+    talents = external_talent_import_code(source)[:400]
+    scenario = selected_scenario(source.get("scenarioKey"))
+    gear_payload = websim_selected_gear_payload(source, class_key, spec_key)
+    message = f"WebSim {class_key} {spec_key} {scenario.get('fightStyle') or ''} gear simulation"
     return {
-        "mode": "simcraft",
-        "profile": profile,
-        "prompt": f"WebSim {class_key} {spec_key} simulation",
+        "mode": "simcraft_agent",
+        "message": message,
+        "prompt": message,
         "question": "WebSim gear and talent simulation",
         "runSimulation": True,
         "saveTask": bool(source.get("saveTask", True)),
         "guestId": guest_id or str(source.get("guestId") or ""),
+        "talentEncoding": talent_encoding,
         "buildContext": {
             "specId": f"{class_key}-{spec_key}",
             "className": class_key,
@@ -3230,10 +4105,34 @@ def build_websim_simulator_request(payload, guest_id=""):
             "heroTalentKey": hero_key,
             "heroTalent": hero_tree_label(hero_key),
             "activeQueryKey": "websim",
+            "activeQueryTitle": "WebSim gear simulator",
             "sourceName": "WebSim",
+            "analysisWindow": "Selected WebSim gear and talent state",
             "details": {
-                "talents": {"importCode": str(source.get("talents") or source.get("talentImport") or "")[:400]},
-                "gear": {"simcItems": source.get("gearItems") or ((source.get("gearSelection") or {}).get("items") if isinstance(source.get("gearSelection"), dict) else []) or []},
+                "talents": {
+                    "importCode": talents,
+                    "simcLines": talent_encoding.get("lines") or [],
+                    "encodingStatus": talent_encoding.get("status", ""),
+                },
+                "gear": {
+                    "gear": [
+                        {
+                            "slot": item.get("slot"),
+                            "name": item.get("displayName") or item.get("name"),
+                            "source": item.get("source") or item.get("sourceType"),
+                        }
+                        for item in gear_payload["items"]
+                    ],
+                    "simcItems": gear_payload["simcItems"],
+                    "readiness": gear_payload["readiness"],
+                },
+            },
+            "simulatorState": {
+                "gear": {
+                    "selectedItems": gear_payload["simcItems"],
+                    "progressText": f"{gear_payload['readiness']['simcReadyCount']} SimC-ready item(s)",
+                    "nextAction": "Fill item level and bonus/gem/enchant fields for candidate loot.",
+                }
             },
         },
     }

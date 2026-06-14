@@ -42,6 +42,10 @@
     talentActionTimer: 0,
     talentActionButtonTimer: 0,
     gear: {},
+    gearScope: '',
+    slotGroups: [],
+    baselineSet: [],
+    gearReadiness: null,
     presets: [],
     currentSeason: null,
     dataStatus: 'blocked'
@@ -53,6 +57,7 @@
     shoulder: '肩部',
     back: '背部',
     chest: '胸部',
+    wrist: '腕部',
     wrists: '腕部',
     hands: '手部',
     waist: '腰部',
@@ -272,28 +277,64 @@
     return Math.max(1, Number(node.maxRank || node.rank || 1))
   }
 
+  function talentById(id) {
+    return state.talents.find((item) => item.id === id) || null
+  }
+
+  function grantedRankFor(nodeOrId) {
+    const node = typeof nodeOrId === 'string' ? talentById(nodeOrId) : nodeOrId
+    const id = typeof nodeOrId === 'string' ? nodeOrId : (nodeOrId && nodeOrId.id)
+    if (!id) return 0
+    const stored = Math.max(0, Number(state.baseTalentRanks[id] || 0))
+    const payload = (node && node.payload) || {}
+    const explicit = Math.max(
+      stored,
+      Number((node && (node.grantedRank ?? node.freeRank ?? node.baselineRank)) || 0),
+      Number(payload.grantedRank || payload.freeRank || payload.baselineRank || 0)
+    )
+    const legacySelected = (node && (node.granted || node.free || payload.granted || payload.free))
+      ? Number((node && node.selectedRank) || payload.selectedRank || 0)
+      : 0
+    const next = Math.max(explicit, legacySelected)
+    return node ? Math.min(maxRankFor(node), next) : next
+  }
+
+  function isGrantedTalent(nodeOrId) {
+    return grantedRankFor(nodeOrId) > 0
+  }
+
+  function fixedTalentMessage(node) {
+    return node && isGrantedTalent(node)
+      ? '这是专精默认赠送天赋，不能修改'
+      : ''
+  }
+
   function rankFor(nodeOrId) {
     const id = typeof nodeOrId === 'string' ? nodeOrId : nodeOrId.id
-    return Math.max(0, Number(state.talentRanks[id] || 0))
+    const node = typeof nodeOrId === 'string' ? talentById(id) : nodeOrId
+    const rank = Math.max(0, Number(state.talentRanks[id] || 0), grantedRankFor(node || id))
+    return node ? Math.min(maxRankFor(node), rank) : rank
   }
 
   function setTalentRank(id, rank) {
-    const node = state.talents.find((item) => item.id === id)
+    const node = talentById(id)
     if (!node) return 0
-    const next = Math.max(0, Math.min(maxRankFor(node), Number(rank || 0)))
+    const next = Math.max(grantedRankFor(node), Math.min(maxRankFor(node), Number(rank || 0)))
     if (next) state.talentRanks[id] = next
     else delete state.talentRanks[id]
     return next
   }
 
   function adjustTalentRank(id, delta) {
-    const node = state.talents.find((item) => item.id === id)
+    const node = talentById(id)
     if (!node) return 0
+    if (isGrantedTalent(node)) return rankFor(id)
     if (delta > 0 && !canIncreaseTalent(node)) return rankFor(id)
+    if (delta < 0 && rankFor(id) <= grantedRankFor(node)) return rankFor(id)
     if (delta > 0 && node.choiceGroup) {
       state.talents
         .filter((item) => item.id !== id && item.choiceGroup === node.choiceGroup && talentTreeKey(item) === talentTreeKey(node))
-        .forEach((item) => delete state.talentRanks[item.id])
+        .forEach((item) => setTalentRank(item.id, grantedRankFor(item)))
     }
     setTalentRank(id, rankFor(id) + delta)
     clearInvalidTalentRanks(id)
@@ -325,7 +366,7 @@
   }
 
   function loadStarterTalentRanks() {
-    state.talentRanks = { ...state.starterTalentRanks }
+    state.talentRanks = { ...state.baseTalentRanks, ...state.starterTalentRanks }
     clearInvalidTalentRanks()
     markRecentTalent('')
   }
@@ -353,8 +394,10 @@
   }
 
   function cloneRankMap(ranks = state.talentRanks) {
-    return Object.keys(ranks || {}).sort().reduce((copy, id) => {
-      const rank = Number(ranks[id] || 0)
+    const ids = new Set([...Object.keys(state.baseTalentRanks || {}), ...Object.keys(ranks || {})])
+    return Array.from(ids).sort().reduce((copy, id) => {
+      const node = talentById(id)
+      const rank = Math.max(Number(ranks[id] || 0), grantedRankFor(node || id))
       if (rank > 0) copy[id] = rank
       return copy
     }, {})
@@ -567,6 +610,10 @@
     if (!node) return ''
     const rank = rankFor(node)
     const maxRank = maxRankFor(node)
+    const fixedMessage = fixedTalentMessage(node)
+    if (fixedMessage) return fixedMessage
+    const grantedPeer = grantedChoicePeerFor(node)
+    if (grantedPeer) return `${grantedPeer.name} 是默认赠送天赋，不能切换`
     if (rank >= maxRank) return ''
     const missingParents = missingParentNodesFor(node)
     if (missingParents.length) {
@@ -707,7 +754,7 @@
     const rank = rankFor(node)
     const maxRank = maxRankFor(node)
     return {
-      canAdd: true,
+      canAdd: !isGrantedTalent(node),
       detail: `${talentTreeTitleForNode(node)} ${rank}/${maxRank}`,
       key: `next:${node.id}`,
       state: 'next',
@@ -988,7 +1035,13 @@
     return pointCap > 0 && talentPoints(talentTreeKey(node)) >= pointCap
   }
 
+  function grantedChoicePeerFor(node) {
+    if (!node || !node.choiceGroup) return null
+    return choiceGroupNodes(node).find((item) => item.id !== node.id && isGrantedTalent(item) && rankFor(item) > 0) || null
+  }
+
   function canIncreaseTalent(node) {
+    if (isGrantedTalent(node) || grantedChoicePeerFor(node)) return false
     const pointCap = pointCapFor(node)
     const underCap = pointCap <= 0 || talentPoints(talentTreeKey(node)) < pointCap
     const selectedChoicePeer = node.choiceGroup && rankFor(node) <= 0 ? selectedChoicePeerFor(node) : null
@@ -1000,9 +1053,11 @@
     while (changed) {
       changed = false
       state.talents.forEach((node) => {
-        if (rankFor(node) > 0 && (!parentsSatisfied(node) || !pointRequirementSatisfied(node))) {
-          delete state.talentRanks[node.id]
-          changed = true
+        const floor = grantedRankFor(node)
+        if (rankFor(node) > floor && (!parentsSatisfied(node) || !pointRequirementSatisfied(node))) {
+          const before = rankFor(node)
+          setTalentRank(node.id, floor)
+          if (rankFor(node) !== before) changed = true
         }
       })
       const selectedChoiceGroups = new Map()
@@ -1014,13 +1069,22 @@
           selectedChoiceGroups.set(key, node.id)
           return
         }
-        const dropId = preferredId && node.id === preferredId ? existingId : node.id
+        const existingNode = state.talents.find((item) => item.id === existingId)
+        const existingGranted = existingNode && isGrantedTalent(existingNode)
+        const nodeGranted = isGrantedTalent(node)
+        const dropId = existingGranted && !nodeGranted
+          ? node.id
+          : nodeGranted && !existingGranted
+            ? existingId
+            : (preferredId && node.id === preferredId ? existingId : node.id)
         const keepId = dropId === existingId ? node.id : existingId
-        delete state.talentRanks[dropId]
+        const beforeDrop = rankFor(dropId)
+        setTalentRank(dropId, grantedRankFor(dropId))
         selectedChoiceGroups.set(key, keepId)
-        changed = true
+        if (rankFor(dropId) !== beforeDrop) changed = true
       })
     }
+    Object.keys(state.baseTalentRanks || {}).forEach((id) => setTalentRank(id, state.baseTalentRanks[id]))
   }
 
   function selectedTalentEntries() {
@@ -1177,7 +1241,7 @@
     })
     const pvpPayload = metadata.find((entry) => entry.startsWith('pvp='))
     setPvpSelectionsForCurrentSpec(pvpPayload ? decodePvpBuildSelections(pvpPayload.slice(4)) : ['', '', ''])
-    state.talentRanks = ranks
+    state.talentRanks = cloneRankMap(ranks)
     clearInvalidTalentRanks()
     return true
   }
@@ -1399,13 +1463,26 @@
     </span>`
   }
 
-  function focusTalentNodeById(id) {
+  function focusTalentNodeById(id, options = {}) {
     if (!root.document || !id) return
     const node = Array.from(root.document.querySelectorAll('.talent-node'))
       .find((item) => item.dataset.talentId === id)
     if (!node) return
-    if (node.scrollIntoView) node.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' })
-    if (node.focus) node.focus({ preventScroll: true })
+    const reveal = Boolean(options.reveal)
+    if (reveal && node.scrollIntoView) {
+      node.scrollIntoView({
+        block: options.block || 'center',
+        inline: options.inline || 'center',
+        behavior: options.behavior || 'smooth'
+      })
+    }
+    if (node.focus) {
+      try {
+        node.focus({ preventScroll: true })
+      } catch (_error) {
+        node.focus()
+      }
+    }
   }
 
   function markTalentUnlockStepFocus(id) {
@@ -1524,7 +1601,7 @@
   }
 
   function focusTalentSearchNode(id) {
-    focusTalentNodeById(id)
+    focusTalentNodeById(id, { reveal: true })
   }
 
   function restoreTalentNodeFocus(id) {
@@ -1930,25 +2007,32 @@
     const blockedRequiredIds = blockedNode ? missingRequiredTalentIdsFor(blockedNode) : new Set()
     const blockedPathContext = blockedNode ? talentBlockingContextFor(blockedNode) : null
     const blockedUnlockLinks = blockedPathContext ? blockedPathContext.links : new Set()
+    const renderedLinks = new Set()
     const lineFor = (from, to) => {
-      const endpoints = talentLinkEndpoints(from, to, metrics)
-      const parentSelected = rankFor(from) > 0
-      const childSelected = rankFor(to) > 0
-      const parentReady = parentsSatisfied(to)
-      const pointReady = pointRequirementSatisfied(to)
-      const childAvailable = parentSelected && (childSelected || canIncreaseTalent(to))
+      const visualFrom = visualTalentNodeFor(from)
+      const visualTo = visualTalentNodeFor(to)
+      if (!visualFrom || !visualTo || visualFrom.id === visualTo.id) return ''
+      const renderedKey = `${visualFrom.id}->${visualTo.id}`
+      if (renderedLinks.has(renderedKey)) return ''
+      renderedLinks.add(renderedKey)
+      const endpoints = talentLinkEndpoints(visualFrom, visualTo, metrics)
+      const parentSelected = rankFor(visualFrom) > 0
+      const childSelected = rankFor(visualTo) > 0
+      const parentReady = parentsSatisfied(visualTo)
+      const pointReady = pointRequirementSatisfied(visualTo)
+      const childAvailable = parentSelected && (childSelected || canIncreaseTalent(visualTo))
       const linkState = parentSelected && childSelected ? 'active'
         : childAvailable ? 'available'
           : parentSelected && parentReady && !pointReady ? 'gate-locked'
             : parentReady ? 'idle'
               : 'locked'
-      const attentionClass = blockedNode && blockedNode.id === to.id
-        ? (!pointReady ? 'blocked-path' : (blockedRequiredIds.has(from.id) ? 'required-missing' : ''))
+      const attentionClass = blockedNode && visualTalentNodeFor(blockedNode).id === visualTo.id
+        ? (!pointReady ? 'blocked-path' : (blockedRequiredIds.has(visualFrom.id) ? 'required-missing' : ''))
         : ''
-      const unlockClass = blockedNode && blockedUnlockLinks.has(`${from.id}->${to.id}`) ? 'unlock-path' : ''
-      const recent = state.recentTalentId && (from.id === state.recentTalentId || to.id === state.recentTalentId)
+      const unlockClass = blockedNode && blockedUnlockLinks.has(`${visualFrom.id}->${visualTo.id}`) ? 'unlock-path' : ''
+      const recent = state.recentTalentId && (visualFrom.id === state.recentTalentId || visualTo.id === state.recentTalentId)
       const d = `M ${endpoints.x1.toFixed(2)} ${endpoints.y1.toFixed(2)} L ${endpoints.x2.toFixed(2)} ${endpoints.y2.toFixed(2)}`
-      return `<path class="talent-link ${escapeHtml(linkState)} ${attentionClass} ${unlockClass} ${recent ? 'recent' : ''}" data-link-state="${escapeHtml(linkState)}" data-link-shape="edge" data-from="${escapeHtml(from.id)}" data-to="${escapeHtml(to.id)}" d="${d}"></path>`
+      return `<path class="talent-link ${escapeHtml(linkState)} ${attentionClass} ${unlockClass} ${recent ? 'recent' : ''}" data-link-state="${escapeHtml(linkState)}" data-link-shape="edge" data-from="${escapeHtml(visualFrom.id)}" data-to="${escapeHtml(visualTo.id)}" d="${d}"></path>`
     }
     return nodes.flatMap((node) =>
       (node.parentIds || []).map((parentId) => byId.get(parentId)).filter(Boolean).map((parent) => lineFor(parent, node))
@@ -2040,6 +2124,8 @@
   function talentRankChangeMessage(node, delta, before, next) {
     if (!node) return ''
     const maxRank = maxRankFor(node)
+    const fixedMessage = fixedTalentMessage(node)
+    if (next === before && fixedMessage) return fixedMessage
     if (next === before) {
       if (delta > 0 && before >= maxRank) return `已达满级（${before}/${maxRank}）`
       return delta < 0 ? '没有可移除的点数' : (talentDisabledReason(node) || '点数未变化')
@@ -2113,43 +2199,14 @@
   function setTalentHoverState(node, active) {
     const tree = $('talentTree')
     if (!tree) return
-    const focusNodes = active && node && node.choiceGroup ? choiceGroupNodes(node) : (active && node ? [node] : [])
-    const related = new Set()
-    const ancestors = new Set()
-    const choiceRelated = new Set()
-    const descendants = new Set()
-    const downstreamLinks = new Set()
-    const upstreamLinks = new Set()
-    focusNodes.forEach((focusNode) => {
-      const context = talentPathContextFor(focusNode)
-      context.related.forEach((id) => related.add(id))
-      context.ancestors.forEach((id) => ancestors.add(id))
-      context.descendants.forEach((id) => descendants.add(id))
-      context.upstreamLinks.forEach((id) => upstreamLinks.add(id))
-      context.downstreamLinks.forEach((id) => downstreamLinks.add(id))
-      if (node && node.choiceGroup && focusNode.id !== node.id) choiceRelated.add(focusNode.id)
-    })
+    const hoveredId = active && node ? node.id : ''
     tree.querySelectorAll('.talent-node').forEach((button) => {
       const id = button.dataset.id || ''
-      const isRelated = related.has(button.dataset.id || '')
-      button.classList.toggle('hovered', active && id === node.id)
-      button.classList.toggle('ancestor-related', active && ancestors.has(id) && id !== node.id)
-      button.classList.toggle('choice-related', active && choiceRelated.has(id))
-      button.classList.toggle('descendant-related', active && descendants.has(id) && id !== node.id)
-      button.classList.toggle('related', active && isRelated && id !== node.id)
-      button.classList.toggle('dimmed', active && !isRelated)
+      button.classList.toggle('hovered', Boolean(hoveredId && id === hoveredId))
+      button.classList.remove('ancestor-related', 'choice-related', 'descendant-related', 'related', 'dimmed')
     })
     tree.querySelectorAll('.talent-link').forEach((line) => {
-      const from = line.getAttribute('data-from') || ''
-      const to = line.getAttribute('data-to') || ''
-      const linkId = `${from}->${to}`
-      const upstream = upstreamLinks.has(linkId)
-      const downstream = downstreamLinks.has(linkId)
-      const inPath = upstream || downstream
-      line.classList.toggle('hover-path', active && inPath)
-      line.classList.toggle('upstream-path', active && upstream)
-      line.classList.toggle('downstream-path', active && downstream)
-      line.classList.toggle('dimmed', active && !inPath)
+      line.classList.remove('hover-path', 'upstream-path', 'downstream-path', 'dimmed')
     })
   }
 
@@ -2192,8 +2249,29 @@
       .filter((item) => item.choiceGroup === node.choiceGroup && talentTreeKey(item) === talentTreeKey(node))
       .sort((a, b) => Number(a.row || 0) - Number(b.row || 0)
         || Number(a.col || 0) - Number(b.col || 0)
+        || Number((a.payload && a.payload.selectionIndex) || a.selectionIndex || 0) - Number((b.payload && b.payload.selectionIndex) || b.selectionIndex || 0)
         || Number(a.traitId || 0) - Number(b.traitId || 0)
         || String(a.name || '').localeCompare(String(b.name || '')))
+  }
+
+  function visualTalentNodeFor(node) {
+    if (!node || !node.choiceGroup) return node
+    const group = choiceGroupNodes(node)
+    return selectedChoicePeerFor(node) || group[0] || node
+  }
+
+  function visualTalentNodes(nodes) {
+    const seen = new Set()
+    return (nodes || []).filter((node) => {
+      const visual = visualTalentNodeFor(node)
+      if (!visual || visual.id !== node.id || seen.has(visual.id)) return false
+      seen.add(visual.id)
+      return true
+    })
+  }
+
+  function choiceGroupMatchesSearch(node) {
+    return Boolean(node && node.choiceGroup && choiceGroupNodes(node).some((item) => talentMatchesSearch(item)))
   }
 
   function choiceGroupLabel(node, group = choiceGroupNodes(node)) {
@@ -2203,16 +2281,7 @@
   function choiceNodeSpread(node, group = choiceGroupNodes(node)) {
     if (!node || group.length < 2) return { index: 0, x: 0, y: 0 }
     const index = Math.max(0, group.findIndex((item) => item.id === node.id))
-    const sameCell = group.every((item) =>
-      Number(item.row || 0) === Number(node.row || 0)
-      && Number(item.col || 0) === Number(node.col || 0))
-    if (!sameCell) return { index, x: 0, y: 0 }
-    const gap = group.length === 2 ? 30 : 24
-    return {
-      index,
-      x: (index - ((group.length - 1) / 2)) * gap,
-      y: group.length > 2 ? (index % 2 ? 5 : -5) : 0
-    }
+    return { index, x: 0, y: 0 }
   }
 
   function choiceNodeBadgeMarkup(node, group = choiceGroupNodes(node)) {
@@ -2222,6 +2291,7 @@
   }
 
   function talentChoiceGroupMarkup(nodes, metrics) {
+    return ''
     const groups = new Map()
     ;(nodes || []).forEach((node) => {
       if (!node.choiceGroup) return
@@ -2347,6 +2417,10 @@
   }
 
   function choiceDisabledReason(node) {
+    const fixedMessage = fixedTalentMessage(node)
+    if (fixedMessage) return fixedMessage
+    const grantedPeer = grantedChoicePeerFor(node)
+    if (grantedPeer) return `${grantedPeer.name} 是默认赠送天赋，不能切换`
     if (rankFor(node) > 0) return ''
     const parents = parentNodesFor(node)
     if (!parentsSatisfied(node)) {
@@ -2363,6 +2437,7 @@
 
   function choiceDisabledState(node) {
     if (!choiceDisabledReason(node)) return ''
+    if (isGrantedTalent(node) || grantedChoicePeerFor(node)) return 'fixed'
     if (!parentsSatisfied(node)) return 'missing-parent'
     if (!pointRequirementSatisfied(node)) return 'gate-locked'
     if (pointCapReached(node)) return 'capped'
@@ -2373,6 +2448,7 @@
     const rank = rankFor(node)
     const maxRank = maxRankFor(node)
     const selected = rank > 0
+    const granted = isGrantedTalent(node)
     const disabledReason = choiceDisabledReason(node)
     const disabled = Boolean(disabledReason)
     const disabledState = choiceDisabledState(node)
@@ -2383,10 +2459,11 @@
     const rankLine = maxRank > 1 || rank > 0
       ? `<span class="tooltip-rank-line">等级 ${escapeHtml(rank)}/${escapeHtml(maxRank)}</span>`
       : ''
-    const status = selected ? '已选择'
+    const status = granted ? '默认赠送'
+      : selected ? '已选择'
       : disabled ? disabledReason
         : '点击选择'
-    return `<button type="button" class="talent-choice-option ${selected ? 'selected' : ''} ${disabled ? 'disabled' : ''} ${disabledState}" data-choice-option="${escapeHtml(node.id)}" data-choice-option-state="${escapeHtml(optionState)}" role="menuitem" aria-pressed="${selected ? 'true' : 'false'}" aria-disabled="${disabled ? 'true' : 'false'}">
+    return `<button type="button" class="talent-choice-option ${selected ? 'selected' : ''} ${granted ? 'granted fixed' : ''} ${disabled ? 'disabled' : ''} ${disabledState}" data-choice-option="${escapeHtml(node.id)}" data-choice-option-state="${escapeHtml(optionState)}" role="menuitem" aria-pressed="${selected ? 'true' : 'false'}" aria-disabled="${disabled ? 'true' : 'false'}">
       ${icon}
       <span class="tooltip-title">${escapeHtml(node.name)}</span>
       <span class="tooltip-topline"><span>天赋</span>${rankLine}</span>
@@ -2742,6 +2819,47 @@
     hidePvpTalentPicker()
   }
 
+  function talentRankEntries(node) {
+    const entries = Array.isArray(node && node.rankEntries) ? node.rankEntries : []
+    return entries
+      .map((entry, index) => ({
+        description: String(entry.description || '').trim(),
+        pointEnd: Math.max(0, Number(entry.pointEnd || 0)),
+        pointStart: Math.max(0, Number(entry.pointStart || 0)),
+        points: Math.max(1, Number(entry.points || 1)),
+        rank: Math.max(1, Number(entry.rank || index + 1)),
+        spellId: Number(entry.spellId || 0)
+      }))
+      .filter((entry) => entry.description || entry.spellId)
+      .sort((a, b) => a.rank - b.rank || a.pointStart - b.pointStart || a.spellId - b.spellId)
+  }
+
+  function talentHasRankDetails(node) {
+    return maxRankFor(node) > 1 && talentRankEntries(node).length > 1
+  }
+
+  function talentTooltipTitleText(node) {
+    const title = node.name || ''
+    return talentHasRankDetails(node) ? `${title} (${rankFor(node)}/${maxRankFor(node)})` : title
+  }
+
+  function talentRankDetailHtml(node) {
+    if (!talentHasRankDetails(node)) return ''
+    const entries = talentRankEntries(node)
+    return `<div class="tooltip-rank-details">
+      ${entries.map((entry) => {
+        const pointRange = entry.points > 1 && entry.pointStart && entry.pointEnd
+          ? `<em>${escapeHtml(entry.pointStart)}-${escapeHtml(entry.pointEnd)} pts</em>`
+          : ''
+        const description = entry.description || node.description || '暂未同步法术说明。'
+        return `<section class="tooltip-rank-detail">
+          <strong>Rank ${escapeHtml(entry.rank)}</strong>${pointRange}
+          <p>${escapeHtml(description)}</p>
+        </section>`
+      }).join('')}
+    </div>`
+  }
+
   function talentTooltipHtml(node) {
     const rank = rankFor(node)
     const maxRank = maxRankFor(node)
@@ -2754,10 +2872,12 @@
     const pointCap = pointCapFor(node)
     const treePoints = talentPoints(talentTreeKey(node))
     const capped = pointCapReached(node) && rank < maxRank
+    const granted = isGrantedTalent(node)
     const parentNames = parents.map((parent) => parent.name).join(' / ')
     const choices = choiceGroupNodes(node).filter((item) => item.id !== node.id).map((item) => item.name).join(' / ')
     const learned = rank >= maxRank
-    const status = learned ? '已点满'
+    const status = granted ? '默认赠送，不能修改'
+      : learned ? '已点满'
       : capped ? '点数上限已满'
         : rank > 0 ? '已投入部分点数'
           : locked || gated ? '未解锁'
@@ -2771,16 +2891,18 @@
     if (locked && parentNames) notes.push(`<div class="tooltip-note warning">需要 ${escapeHtml(parentNames)}</div>`)
     if (gated) notes.push(`<div class="tooltip-note warning">需要先在 ${escapeHtml(section.title || section.titleEn || talentTreeKey(node))} 投入 ${escapeHtml(requirement)} 点（当前计入 ${escapeHtml(availablePoints)} 点）</div>`)
     if (capped) notes.push(`<div class="tooltip-note cap">本树最多投入 ${escapeHtml(pointCap)} 点。</div>`)
+    if (granted) notes.push('<div class="tooltip-note granted">该节点由当前职业/专精默认赠送。</div>')
     if (choices) notes.push(`<div class="tooltip-note choice">选择节点：${escapeHtml(choices)}</div>`)
     const unlockGuide = locked || gated || capped ? talentTooltipUnlockGuideHtml(node) : ''
-    const rankLine = maxRank > 1 || rank > 0 || capped
+    const rankDetails = talentRankDetailHtml(node)
+    const rankLine = !rankDetails && (maxRank > 1 || rank > 0 || capped)
       ? `<div class="tooltip-rank-line">等级 ${escapeHtml(rank)}/${escapeHtml(maxRank)}</div>`
       : ''
-    const statusLine = status && !learned
+    const statusLine = status && (!learned || granted)
       ? `<div class="tooltip-status-line">${escapeHtml(status)}</div>`
       : ''
     return `${icon}
-      <div class="tooltip-title">${escapeHtml(node.name)}</div>
+      <div class="tooltip-title">${escapeHtml(talentTooltipTitleText(node))}</div>
       <div class="tooltip-topline">
         <span>天赋</span>
         ${rankLine}
@@ -2789,7 +2911,7 @@
         <span>瞬发</span>
       </div>
       <div class="tooltip-requires">需要 ${escapeHtml(requires)}</div>
-      <p class="tooltip-description">${escapeHtml(node.description || '暂未同步法术说明。')}</p>
+      ${rankDetails || `<p class="tooltip-description">${escapeHtml(node.description || '暂未同步法术说明。')}</p>`}
       ${statusLine}
       ${notes.join('')}
       ${unlockGuide}`
@@ -2803,6 +2925,7 @@
     tooltip.innerHTML = talentTooltipHtml(node)
     tooltip.classList.toggle('locked', !parentsSatisfied(node) || !pointRequirementSatisfied(node))
     tooltip.classList.toggle('selected', rankFor(node) > 0)
+    tooltip.classList.toggle('granted', isGrantedTalent(node))
     tooltip.classList.toggle('capped', pointCapReached(node) && rankFor(node) < maxRankFor(node))
     tooltip.classList.toggle('choice', Boolean(node.choiceGroup))
     tooltip.setAttribute('aria-hidden', 'false')
@@ -2868,42 +2991,129 @@
     hideTalentTooltip()
   }
 
-  function normalizeGearItem(item) {
+  function canonicalGearSlot(value) {
+    const raw = String(value || '').trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '')
+    const aliases = {
+      wrists: 'wrist',
+      wrist: 'wrist',
+      bracer: 'wrist',
+      bracers: 'wrist',
+      shoulders: 'shoulder',
+      shoulder: 'shoulder',
+      cloak: 'back',
+      weapon: 'main_hand',
+      mainhand: 'main_hand',
+      offhand: 'off_hand',
+      ring1: 'finger1',
+      ring2: 'finger2',
+      trinket_1: 'trinket1',
+      trinket_2: 'trinket2'
+    }
+    return aliases[raw] || raw
+  }
+
+  function slotKey(slot) {
+    if (slot && typeof slot === 'object') return canonicalGearSlot(slot.key || slot.slot || slot.simcSlot)
+    return canonicalGearSlot(slot)
+  }
+
+  function slotLabel(slot) {
+    if (slot && typeof slot === 'object' && slot.label) return slot.label
+    const key = slotKey(slot)
+    return slotLabels[key] || key
+  }
+
+  function selectedGearItems() {
+    return Object.values(state.gear).filter(Boolean)
+  }
+
+  function selectedSimcReadyItems() {
+    return selectedGearItems().filter((item) => item.simcReady)
+  }
+
+  function localGearMissingFields(item) {
+    if (!item) return ['itemId']
+    if (item.sourceType === 'simcPreset' && (item.itemId || item.id)) return []
+    const missing = []
+    if (!(item.itemId || item.id)) missing.push('itemId')
+    if (item.sourceType === 'verifiedLoot') {
+      missing.push('ilevel', 'bonus_id/gem_id/enchant_id')
+      return missing
+    }
+    if (!item.ilevel) missing.push('ilevel')
+    if (!(item.bonus_id || item.gem_id || item.enchant_id || item.crafted_stats)) missing.push('bonus_id/gem_id/enchant_id')
+    return missing
+  }
+
+  function normalizeGearItem(item, fallbackSlot) {
     const id = item && (item.itemId || item.item_id || item.id)
-    const slot = item && (item.slot || item.slotKey)
+    const slot = canonicalGearSlot(item && (item.simcSlot || item.slot || item.slotKey || fallbackSlot))
     if (!id || !slot) return null
-    return {
+    const sourceType = item.sourceType || item.type || 'candidate'
+    const normalized = {
       slot,
+      simcSlot: slot,
       id: String(id),
       itemId: String(id),
-      name: item.name || `物品 ${id}`,
+      name: item.name || item.displayName || `物品 ${id}`,
+      displayName: item.displayName || item.name || `物品 ${id}`,
       iconUrl: item.iconUrl || '',
       ilevel: item.ilevel || item.itemLevel || '',
       bonus_id: item.bonus_id || item.bonusId || '',
       gem_id: item.gem_id || item.gemId || '',
-      enchant_id: item.enchant_id || item.enchantId || ''
+      gem_bonus_id: item.gem_bonus_id || item.gemBonusId || '',
+      gem_ilevel: item.gem_ilevel || item.gemIlevel || '',
+      enchant_id: item.enchant_id || item.enchantId || '',
+      crafted_stats: item.crafted_stats || item.craftedStats || '',
+      sourceType,
+      source: item.source || item.sourceName || item.encounterName || item.instanceName || '',
+      compatibility: item.compatibility || 'unknown',
+      missingFields: Array.isArray(item.missingFields) ? item.missingFields.slice() : []
+    }
+    if (!normalized.missingFields.length) normalized.missingFields = localGearMissingFields(normalized)
+    normalized.simcReady = Boolean(item.simcReady) || normalized.missingFields.length === 0
+    if (sourceType === 'verifiedLoot') normalized.simcReady = Boolean(item.simcReady) && normalized.missingFields.length === 0
+    return normalized
+  }
+
+  function gearReadinessFromState() {
+    const items = selectedGearItems()
+    const ready = selectedSimcReadyItems()
+    const readySlots = new Set(ready.map((item) => item.slot))
+    return {
+      simcReadyCount: ready.length,
+      selectedCount: items.length,
+      candidateCount: items.length - ready.length,
+      missingRequiredSlots: (state.gearSlots || []).map(slotKey).filter((slot) => slot && !readySlots.has(slot)),
+      warnings: items.filter((item) => !item.simcReady).map((item) => `${slotLabel(item.slot)} ${item.displayName || item.name} missing ${item.missingFields.join(', ')}`)
     }
   }
 
   function pairedSlot(slot) {
-    if (slot === 'finger1' && state.gear.finger1) return 'finger2'
-    if (slot === 'trinket1' && state.gear.trinket1) return 'trinket2'
-    return slot
+    const key = canonicalGearSlot(slot)
+    if (key === 'finger1' && state.gear.finger1) return 'finger2'
+    if (key === 'trinket1' && state.gear.trinket1) return 'trinket2'
+    return key
   }
 
-  function addGearItem(item) {
-    const normalized = normalizeGearItem(item)
+  function addGearItem(item, fallbackSlot) {
+    const normalized = normalizeGearItem(item, fallbackSlot)
     if (!normalized) return
     normalized.slot = pairedSlot(normalized.slot)
+    normalized.simcSlot = normalized.slot
     state.gear[normalized.slot] = normalized
+    state.gearReadiness = gearReadinessFromState()
     trackWebsimEvent('websim_gear_add', {
       classKey: state.classKey,
       specKey: state.specKey,
       slot: normalized.slot,
-      itemId: normalized.itemId || normalized.id || ''
+      itemId: normalized.itemId || normalized.id || '',
+      simcReady: !!normalized.simcReady
     })
     renderGear()
+    renderGearCandidates()
     renderProfilePreview()
+    updateSimulateButtonState()
   }
 
   function filterLootRows(items, filters) {
@@ -2934,11 +3144,25 @@
         simcHint: buildTalentExportCode()
       },
       gearSelection: {
-        items: Object.values(state.gear).filter(Boolean)
+        items: selectedGearItems(),
+        readiness: gearReadinessFromState()
       },
       saveTask: true,
       guestId: getGuestId()
     }
+  }
+
+  function talentEncodingErrorText(result) {
+    const encoding = result && result.talentEncoding
+    const errors = encoding && Array.isArray(encoding.errors) ? encoding.errors : []
+    return errors.filter(Boolean).join('；')
+  }
+
+  function hasSubmittableTalentSelection(payload) {
+    const selectedNodes = payload && payload.talentState && Array.isArray(payload.talentState.selectedNodes)
+      ? payload.talentState.selectedNodes
+      : []
+    return Boolean(payload && (payload.talents || selectedNodes.length > 0))
   }
 
   function getGuestId() {
@@ -3558,6 +3782,7 @@
       return {
         section,
         nodes,
+        visualNodes: visualTalentNodes(nodes),
         metrics: talentGridMetrics(nodes),
         treeImage: talentTreeImage(section.key)
       }
@@ -3581,8 +3806,9 @@
     const blockedUnlockIds = blockedUnlockContext ? blockedUnlockContext.nodeIds : new Set()
     const blockedGuide = talentUnlockGuideMarkup(blockedNode)
     tree.innerHTML = `${fallbackNotice}<div class="talent-calculator-frame" style="--talent-zoom:${escapeHtml(normalizeTalentZoom(state.talentZoom).toFixed(2))};">${buildChrome}${talentViewControlsMarkup()}${headerBand}${blockedGuide}<div class="wowhead-talent-board">
-      ${sectionData.map(({ section, nodes, metrics, treeImage }) => {
-        const treeStyle = `--tree-accent:${escapeHtml(section.accent || currentAccent())};${treeImage ? `--tree-image:url('${escapeHtml(treeImage)}');` : ''}`
+      ${sectionData.map(({ section, nodes, visualNodes, metrics, treeImage }) => {
+        const treeMinHeight = Math.max(section.key === 'hero' ? 650 : 720, Number(metrics.rows || 1) * 70 + 110)
+        const treeStyle = `--tree-accent:${escapeHtml(section.accent || currentAccent())};--tree-min-height:${treeMinHeight}px;${treeImage ? `--tree-image:url('${escapeHtml(treeImage)}');` : ''}`
         return `<section class="talent-column talent-column-${escapeHtml(section.key)}" style="${treeStyle}">
           <div class="talent-canvas">
             ${heroFeatureMarkup(section)}
@@ -3590,10 +3816,12 @@
             <svg class="talent-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${talentLineMarkup(nodes, metrics)}</svg>
             <div class="talent-choice-groups" aria-hidden="true">${talentChoiceGroupMarkup(nodes, metrics)}</div>
             <div class="talent-grid-inner" style="--talent-cols:${metrics.cols};--talent-rows:${metrics.rows};">
-              ${nodes.map((node) => {
+              ${visualNodes.map((node) => {
                 const rank = rankFor(node)
                 const maxRank = maxRankFor(node)
                 const selected = rank > 0
+                const granted = isGrantedTalent(node)
+                const grantedRank = grantedRankFor(node)
                 const locked = !parentsSatisfied(node) || !pointRequirementSatisfied(node)
                 const capped = !locked && pointCapReached(node) && rank < maxRank
                 const available = !selected && canIncreaseTalent(node)
@@ -3609,10 +3837,10 @@
                 const choiceSelected = choice && selected
                 const choiceAlternate = choice && selectedChoicePeer && selectedChoicePeer.id !== node.id
                 const choiceState = choiceSelected ? 'selected' : (choiceAlternate ? 'alternate' : '')
-                const ariaDisabled = interactiveChoice ? false : (locked || capped)
+                const ariaDisabled = granted || (interactiveChoice ? false : (locked || capped))
                 const annotated = Boolean(state.talentAnnotations && state.talentAnnotations[node.id])
-                const searchMatch = talentMatchesSearch(node)
-                const searchCurrent = searchActive && activeSearchId === node.id
+                const searchMatch = talentMatchesSearch(node) || choiceGroupMatchesSearch(node)
+                const searchCurrent = searchActive && (activeSearchId === node.id || choiceGroupNodes(node).some((item) => item.id === activeSearchId))
                 const blockedAttempt = state.blockedTalentId === node.id
                 const requiredMissing = blockedRequiredIds.has(node.id)
                 const unlockRoute = blockedUnlockIds.has(node.id)
@@ -3621,7 +3849,34 @@
                 const choiceData = choice && node.choiceGroup ? ` data-choice-group="${escapeHtml(node.choiceGroup)}" data-choice-state="${escapeHtml(choiceState || 'open')}"` : ''
                 const nodeStyle = `grid-column:${Math.max(1, Number(node.col || 1))};grid-row:${Math.max(1, Number(node.row || 1))};--choice-offset-x:${choiceSpread.x}px;--choice-offset-y:${choiceSpread.y}px;--choice-index:${choiceSpread.index};`
                 const labelSuffix = `${choiceLabel ? ` ${choiceLabel}` : ''}${choiceState ? ` ${choiceState === 'selected' ? '已选选择节点' : '可替换选择节点'}` : ''}`
-                return `<button class="talent-node ${selected ? 'selected' : ''} ${available ? 'available' : ''} ${maxed ? 'maxed' : ''} ${recent ? 'recent' : ''} ${recentToneClass} ${locked ? 'locked' : ''} ${capped ? 'capped' : ''} ${choice ? 'choice' : ''} ${interactiveChoice ? 'choice-split' : ''} ${choiceSelected ? 'choice-selected' : ''} ${choiceAlternate ? 'choice-alternate' : ''} ${annotated ? 'annotated' : ''} ${blockedAttempt ? 'blocked-attempt' : ''} ${requiredMissing ? 'required-missing' : ''} ${unlockRoute ? 'unlock-route' : ''} ${unlockReady ? 'unlock-route-ready' : ''} ${unlockMissing ? 'unlock-route-missing' : ''} ${searchActive && searchMatch ? 'search-match' : ''} ${searchCurrent ? 'search-current' : ''} ${searchActive && !searchMatch ? 'search-dimmed' : ''} shape-${escapeHtml(node.shape || 'square')}" data-id="${escapeHtml(node.id)}" data-talent-id="${escapeHtml(node.id)}" data-tree-key="${escapeHtml(talentTreeKey(node))}" data-row="${escapeHtml(Math.max(1, Number(node.row || 1)))}" data-col="${escapeHtml(Math.max(1, Number(node.col || 1)))}"${choiceData} style="${nodeStyle}" aria-disabled="${ariaDisabled ? 'true' : 'false'}" aria-label="${escapeHtml(node.name)} ${rank}/${maxRank}${capped ? ' 点数上限已满' : ''}${blockedAttempt ? ' 刚才尝试被锁定' : ''}${requiredMissing ? ' 需要前置' : ''}${unlockRoute ? ' 解锁路径' : ''}${annotated ? ' 已标记' : ''}${searchActive && searchMatch ? ' 搜索匹配' : ''}${searchCurrent ? ' 当前搜索结果' : ''}${escapeHtml(labelSuffix)}">
+                const nodeClasses = [
+                  'talent-node',
+                  selected ? 'selected' : '',
+                  granted ? 'granted fixed' : '',
+                  available ? 'available' : '',
+                  maxed ? 'maxed' : '',
+                  recent ? 'recent' : '',
+                  recentToneClass,
+                  locked ? 'locked' : '',
+                  capped ? 'capped' : '',
+                  choice ? 'choice' : '',
+                  interactiveChoice ? 'choice-split' : '',
+                  choiceSelected ? 'choice-selected' : '',
+                  choiceAlternate ? 'choice-alternate' : '',
+                  annotated ? 'annotated' : '',
+                  blockedAttempt ? 'blocked-attempt' : '',
+                  requiredMissing ? 'required-missing' : '',
+                  unlockRoute ? 'unlock-route' : '',
+                  unlockReady ? 'unlock-route-ready' : '',
+                  unlockMissing ? 'unlock-route-missing' : '',
+                  searchActive && searchMatch ? 'search-match' : '',
+                  searchCurrent ? 'search-current' : '',
+                  searchActive && !searchMatch ? 'search-dimmed' : '',
+                  `shape-${node.shape || 'square'}`
+                ].filter(Boolean).join(' ')
+                const grantedData = granted ? ` data-granted-rank="${escapeHtml(grantedRank)}"` : ''
+                const grantedLabel = granted ? ' 默认赠送，不能修改' : ''
+                return `<button class="${escapeHtml(nodeClasses)}" data-id="${escapeHtml(node.id)}" data-talent-id="${escapeHtml(node.id)}" data-tree-key="${escapeHtml(talentTreeKey(node))}" data-row="${escapeHtml(Math.max(1, Number(node.row || 1)))}" data-col="${escapeHtml(Math.max(1, Number(node.col || 1)))}"${grantedData}${choiceData} style="${nodeStyle}" aria-disabled="${ariaDisabled ? 'true' : 'false'}" aria-label="${escapeHtml(node.name)} ${rank}/${maxRank}${grantedLabel}${capped ? ' 点数上限已满' : ''}${blockedAttempt ? ' 刚才尝试被锁定' : ''}${requiredMissing ? ' 需要前置' : ''}${unlockRoute ? ' 解锁路径' : ''}${annotated ? ' 已标记' : ''}${searchActive && searchMatch ? ' 搜索匹配' : ''}${searchCurrent ? ' 当前搜索结果' : ''}${escapeHtml(labelSuffix)}">
                   ${annotated ? '<span class="talent-annotation" aria-hidden="true">!</span>' : ''}
                   ${choiceNodeBadgeMarkup(node, choiceGroup)}
                   <span class="talent-hit-target" aria-hidden="true"></span>
@@ -3699,6 +3954,18 @@
           flashTalentAction('annotateTalentsButton', annotated ? '已标记' : '已取消标记')
           return
         }
+        if (isGrantedTalent(node)) {
+          event.preventDefault()
+          event.stopPropagation()
+          applyTalentRankDelta(node, event.shiftKey ? -1 : 1, { restoreFocus: true })
+          trackWebsimEvent('websim_talent_granted_blocked', {
+            classKey: state.classKey,
+            specKey: state.specKey,
+            heroKey: state.heroKey,
+            talentId: id
+          })
+          return
+        }
         if (!event.shiftKey && node.choiceGroup && choiceGroupNodes(node).length > 1) {
           event.preventDefault()
           event.stopPropagation()
@@ -3773,13 +4040,18 @@
     bindTalentViewControls(tree)
   }
 
-  function gearSlotHtml(slot) {
+  function gearSlotHtml(slotOption) {
+    const slot = slotKey(slotOption)
     const item = state.gear[slot]
     const icon = item && item.iconUrl ? `<img class="slot-icon" src="${escapeHtml(item.iconUrl)}" alt="">` : '<div class="slot-icon"></div>'
-    return `<button class="gear-slot" data-slot="${escapeHtml(slot)}">
+    const status = item
+      ? (item.simcReady ? '可 Sim' : `候选 · 缺 ${item.missingFields.join('/') || '字段'}`)
+      : '空栏位'
+    const stateClass = item ? (item.simcReady ? 'ready' : 'candidate') : 'empty'
+    return `<button class="gear-slot ${stateClass}" data-slot="${escapeHtml(slot)}">
       ${icon}
       <span class="slot-copy">
-        <p class="${item ? 'slot-name' : 'slot-empty'}">${escapeHtml(item ? item.name : slotLabels[slot] || slot)}</p>
+        <p class="${item ? 'slot-name' : 'slot-empty'}">${escapeHtml(item ? (item.displayName || item.name) : slotLabel(slotOption))}</p>
         <p class="slot-empty">${escapeHtml(item ? `物品 ID=${item.itemId || item.id}` : '空栏位')}</p>
       </span>
       <span class="slot-meta">${escapeHtml(slotLabels[slot] || slot)}</span>
@@ -3813,6 +4085,114 @@
       })
     })
     if (count) count.textContent = String(Object.keys(state.gear).length)
+  }
+
+  function gearSlotHtmlV2(slotOption) {
+    const slot = slotKey(slotOption)
+    const item = state.gear[slot]
+    const icon = item && item.iconUrl ? `<img class="slot-icon" src="${escapeHtml(item.iconUrl)}" alt="">` : '<div class="slot-icon"></div>'
+    const status = item ? (item.simcReady ? '可 Sim' : `候选 · 缺 ${(item.missingFields || []).join('/') || '字段'}`) : '空栏位'
+    const stateClass = item ? (item.simcReady ? 'ready' : 'candidate') : 'empty'
+    return `<button class="gear-slot ${stateClass}" data-slot="${escapeHtml(slot)}">
+      ${icon}
+      <span class="slot-copy">
+        <p class="${item ? 'slot-name' : 'slot-empty'}">${escapeHtml(item ? (item.displayName || item.name) : slotLabel(slotOption))}</p>
+        <p class="slot-empty">${escapeHtml(item ? `${status} · item=${item.itemId || item.id}` : '空栏位')}</p>
+      </span>
+      <span class="slot-meta">${escapeHtml(slotLabel(slotOption))}</span>
+    </button>`
+  }
+
+  gearSlotHtml = gearSlotHtmlV2
+
+  function renderGearV2() {
+    const left = $('leftSlots')
+    const right = $('rightSlots')
+    const count = $('selectedCount')
+    if (!left || !right) return
+    const split = Math.ceil(state.gearSlots.length / 2)
+    left.innerHTML = state.gearSlots.slice(0, split).map(gearSlotHtmlV2).join('')
+    right.innerHTML = state.gearSlots.slice(split).map(gearSlotHtmlV2).join('')
+    ;[left, right].forEach((column) => {
+      column.querySelectorAll('.gear-slot').forEach((button) => {
+        button.addEventListener('click', () => {
+          const item = state.gear[button.dataset.slot]
+          delete state.gear[button.dataset.slot]
+          if (item) {
+            trackWebsimEvent('websim_gear_remove', {
+              classKey: state.classKey,
+              specKey: state.specKey,
+              slot: button.dataset.slot,
+              itemId: item.itemId || item.id || '',
+              simcReady: !!item.simcReady
+            })
+          }
+          state.gearReadiness = gearReadinessFromState()
+          renderGear()
+          renderGearCandidates()
+          renderProfilePreview()
+          updateSimulateButtonState()
+        })
+      })
+    })
+    state.gearReadiness = gearReadinessFromState()
+    if (count) count.textContent = `${state.gearReadiness.simcReadyCount}/${state.gearReadiness.selectedCount}`
+  }
+
+  renderGear = renderGearV2
+
+  function gearCandidateHtml(item, slot) {
+    const normalized = normalizeGearItem(item, slot)
+    if (!normalized) return ''
+    const icon = normalized.iconUrl ? `<img class="loot-icon" src="${escapeHtml(normalized.iconUrl)}" alt="">` : '<div class="loot-icon"></div>'
+    const status = normalized.simcReady ? '可 Sim' : `候选 · 缺 ${(normalized.missingFields || []).join('/') || '字段'}`
+    return `<button class="gear-candidate ${normalized.simcReady ? 'ready' : 'candidate'}" data-slot="${escapeHtml(slot)}" data-item-id="${escapeHtml(normalized.itemId)}">
+      ${icon}
+      <span class="loot-copy">
+        <p class="loot-name">${escapeHtml(normalized.displayName || normalized.name)}</p>
+        <p class="loot-source">${escapeHtml(status)}</p>
+      </span>
+      <span class="loot-meta">${escapeHtml(normalized.sourceType || 'item')}</span>
+    </button>`
+  }
+
+  function renderGearCandidates() {
+    const target = $('gearCandidates')
+    if (!target) return
+    const groups = Array.isArray(state.slotGroups) ? state.slotGroups : []
+    const html = groups
+      .filter((group) => Array.isArray(group.items) && group.items.length)
+      .map((group) => {
+        const slot = slotKey(group)
+        const items = group.items.slice(0, 4).map((item) => gearCandidateHtml(item, slot)).join('')
+        return `<section class="gear-candidate-group">
+          <h3>${escapeHtml(slotLabel(group))}</h3>
+          <div class="gear-candidate-list">${items}</div>
+        </section>`
+      })
+      .join('')
+    target.innerHTML = html || '<div class="blocked-state">当前专精暂无可展示装备候选。</div>'
+    target.querySelectorAll('.gear-candidate').forEach((button) => {
+      button.addEventListener('click', () => {
+        const group = groups.find((item) => slotKey(item) === button.dataset.slot)
+        const item = ((group && group.items) || []).find((row) => String(row.itemId || row.id) === String(button.dataset.itemId))
+        addGearItem(item, button.dataset.slot)
+      })
+    })
+  }
+
+  function updateSimulateButtonState() {
+    const button = $('simulateButton')
+    if (!button) return
+    const payload = buildProfilePayload()
+    const readiness = gearReadinessFromState()
+    const hasTalentSelection = hasSubmittableTalentSelection(payload)
+    const canSubmit = hasTalentSelection && readiness.simcReadyCount > 0
+    button.disabled = !canSubmit
+    button.classList.toggle('disabled', !canSubmit)
+    button.title = canSubmit
+      ? '提交 SimC'
+      : (!hasTalentSelection ? '需要天赋导入码或 WebSim 天赋选择' : '需要至少 1 件可 Sim 装备')
   }
 
   function renderJournal() {
@@ -3886,19 +4266,39 @@
     state.baseTalentRanks = {}
     state.starterTalentRanks = {}
     ;(state.talents || []).forEach((node) => {
-      const rank = Math.max(0, Number(node.selectedRank || (node.selected ? 1 : 0)))
-      if (rank) state.starterTalentRanks[node.id] = Math.min(maxRankFor(node), rank)
+      const grantedRank = Math.min(maxRankFor(node), Math.max(0, Number(node.grantedRank || node.freeRank || node.baselineRank || 0)))
+      const selectedRank = Math.min(maxRankFor(node), Math.max(grantedRank, Number(node.selectedRank || (node.selected ? 1 : 0))))
+      if (grantedRank) state.baseTalentRanks[node.id] = grantedRank
+      if (selectedRank) state.starterTalentRanks[node.id] = selectedRank
     })
     resetTalentRanks()
     renderTalents()
   }
 
   async function loadGear() {
+    const nextScope = `${state.classKey}:${state.specKey}`
+    const scopeChanged = state.gearScope && state.gearScope !== nextScope
     const payload = await apiJson(`/api/websim/gear?class=${encodeURIComponent(state.classKey)}&spec=${encodeURIComponent(state.specKey)}`)
+    state.gearScope = nextScope
     state.currentSeason = payload.currentSeason || state.currentSeason
     state.dataStatus = payload.dataStatus || state.dataStatus
     state.gearSlots = payload.slots || state.gearSlots
+    state.slotGroups = payload.slotGroups || []
+    state.baselineSet = payload.baselineSet || []
+    state.presets = payload.presets || []
+    state.gearReadiness = payload.readiness || null
+    if (scopeChanged) state.gear = {}
+    if (!Object.keys(state.gear).length && state.baselineSet.length) {
+      state.baselineSet.forEach((item) => {
+        const normalized = normalizeGearItem(item, item.slot)
+        if (normalized && !state.gear[normalized.slot]) state.gear[normalized.slot] = normalized
+      })
+    }
+    state.gearReadiness = gearReadinessFromState()
     renderGear()
+    renderGearCandidates()
+    renderProfilePreview()
+    updateSimulateButtonState()
   }
 
   async function loadLoot() {
@@ -3935,18 +4335,34 @@
     if (!preview) return
     if (profile) {
       preview.textContent = profile
+      updateSimulateButtonState()
       return
     }
     const payload = buildProfilePayload()
+    const readyItems = payload.gearSelection.items.filter((item) => item.simcReady)
+    const candidateItems = payload.gearSelection.items.filter((item) => !item.simcReady)
+    const simcGearLines = readyItems.map((item) => {
+      const parts = [`${item.slot}=${item.name}`, `id=${item.itemId || item.id}`]
+      ;['ilevel', 'bonus_id', 'gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'crafted_stats'].forEach((key) => {
+        if (item[key]) parts.push(`${key}=${item[key]}`)
+      })
+      return parts.join(',')
+    })
+    const candidateLines = candidateItems.map((item) => {
+      const missing = (item.missingFields || []).join('/') || 'simc_fields'
+      return `# candidate ${item.slot}=${item.name},id=${item.itemId || item.id},missing=${missing}`
+    })
     const lines = [
       `${payload.classKey}="WebSim_${payload.specKey}"`,
       `spec=${payload.specKey}`,
       'level=90',
       payload.talents ? `talents=${payload.talents}` : '# talents=',
       payload.talents ? '' : `# websim_talents=${payload.talentState.simcHint}`,
-      ...payload.gearSelection.items.map((item) => `${item.slot}=${item.name},id=${item.itemId || item.id}`)
+      ...simcGearLines,
+      ...candidateLines
     ].filter((line) => line !== '')
     preview.textContent = lines.join('\n')
+    updateSimulateButtonState()
   }
 
   async function generateProfile() {
@@ -3960,27 +4376,45 @@
       body: JSON.stringify(buildProfilePayload())
     })
     renderProfilePreview(result.profile || '')
+    const encodingError = talentEncodingErrorText(result)
+    const resultBox = $('simulationResult')
+    if (resultBox && encodingError) {
+      resultBox.innerHTML = `<strong>天赋编码未通过</strong><span>${escapeHtml(encodingError)}</span>`
+    }
     return result.profile
   }
 
   async function simulate() {
     const resultBox = $('simulationResult')
+    const payload = buildProfilePayload()
+    const readiness = gearReadinessFromState()
+    const hasTalentSelection = hasSubmittableTalentSelection(payload)
+    if (!hasTalentSelection || readiness.simcReadyCount < 1) {
+      if (resultBox) {
+        const reason = !hasTalentSelection ? '需要天赋选择或 talents= 导入码' : '需要至少 1 件可 Sim 装备'
+        resultBox.innerHTML = `<strong>暂未提交</strong><span>${escapeHtml(reason)}</span>`
+      }
+      updateSimulateButtonState()
+      return null
+    }
     if (resultBox) resultBox.textContent = 'SimC 模拟运行中...'
     trackWebsimEvent('websim_simulate_submit', {
       classKey: state.classKey,
       specKey: state.specKey,
       scenarioKey: state.scenarioKey,
-      selectedGearCount: Object.keys(state.gear).length
+      selectedGearCount: Object.keys(state.gear).length,
+      simcReadyGearCount: readiness.simcReadyCount
     })
     const result = await apiJson('/api/websim/simulate', {
       method: 'POST',
-      body: JSON.stringify(buildProfilePayload())
+      body: JSON.stringify(payload)
     })
     const dps = result.simulation && result.simulation.metrics && result.simulation.metrics.dps
+    const encodingError = talentEncodingErrorText(result)
     if (resultBox) {
-      resultBox.innerHTML = dps
+      resultBox.innerHTML = encodingError ? `<strong>天赋编码未通过</strong><span>${escapeHtml(encodingError)}</span>` : dps
         ? `<strong>${escapeHtml(dps)} DPS</strong><span>${escapeHtml(result.status || '已完成')}</span>`
-        : `<strong>${result.simulation && result.simulation.ran ? '已完成' : '已阻断'}</strong><span>${escapeHtml((result.simulation && result.simulation.error) || result.status || '未解析到 DPS')}</span>`
+        : `<strong>${result.simulation && result.simulation.ran ? '已完成' : '已阻断'}</strong><span>${escapeHtml((result.simulation && result.simulation.error) || result.status || '未解析到 DPS；候选装备不会写入 SimC')}</span>`
     }
     if (result.request && result.request.profile) renderProfilePreview(result.request.profile)
     trackWebsimEvent('websim_simulate_result', {
@@ -4160,7 +4594,9 @@
     $('clearGearButton')?.addEventListener('click', () => {
       state.gear = {}
       renderGear()
+      renderGearCandidates()
       renderProfilePreview()
+      updateSimulateButtonState()
     })
     $('loadPresetButton')?.addEventListener('click', () => {
       loadPresetBuild()
@@ -4347,6 +4783,10 @@
 
   const publicApi = {
     normalizeGearItem,
+    canonicalGearSlot,
+    selectedGearItems,
+    selectedSimcReadyItems,
+    gearReadinessFromState,
     filterLootRows,
     buildProfilePayload,
     addGearItem,

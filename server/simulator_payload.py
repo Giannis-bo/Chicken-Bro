@@ -41,10 +41,10 @@ SIMC_AGENT_GEAR_SLOT_ALIASES = {
     "头部": "head",
     "neck": "neck",
     "项链": "neck",
-    "肩": "shoulders",
-    "肩膀": "shoulders",
-    "shoulder": "shoulders",
-    "shoulders": "shoulders",
+    "肩": "shoulder",
+    "肩膀": "shoulder",
+    "shoulder": "shoulder",
+    "shoulders": "shoulder",
     "back": "back",
     "cloak": "back",
     "披风": "back",
@@ -55,10 +55,10 @@ SIMC_AGENT_GEAR_SLOT_ALIASES = {
     "衬衣": "shirt",
     "tabard": "tabard",
     "战袍": "tabard",
-    "wrist": "wrists",
-    "wrists": "wrists",
-    "bracer": "wrists",
-    "护腕": "wrists",
+    "wrist": "wrist",
+    "wrists": "wrist",
+    "bracer": "wrist",
+    "护腕": "wrist",
     "hands": "hands",
     "hand": "hands",
     "gloves": "hands",
@@ -398,6 +398,7 @@ SIMC_AGENT_SPEC_BY_KEY = {
         "spec": spec["key"],
         "specLabel": spec["label"],
         "role": spec["role"],
+        "actor": simc_agent_actor_name(entry["key"], spec["key"]),
     }
     for entry in SIMC_AGENT_CLASS_REGISTRY
     for spec in entry["specs"]
@@ -825,6 +826,8 @@ def normalize_build_context(value):
         "details": {
             "talents": {
                 "importCode": clean_context_value(talents.get("importCode"), 400),
+                "simcLines": clean_context_list(talents.get("simcLines"), 6),
+                "encodingStatus": clean_context_value(talents.get("encodingStatus"), 40),
                 "sourceName": clean_context_value(talents.get("sourceName"), 80),
                 "sourceUrl": clean_context_value(talents.get("sourceUrl"), 180),
                 "coreTalents": clean_context_list(talents.get("coreTalents"), 8),
@@ -853,6 +856,12 @@ def spec_info_from_build_context(context):
     spec_id = context.get("specId", "")
     class_label = context.get("className", "")
     spec_label = context.get("specName", "")
+    for key in {
+        spec_id,
+        f"{class_label}-{spec_label}" if class_label and spec_label else "",
+    }:
+        if key in SIMC_AGENT_SPEC_BY_KEY:
+            return SIMC_AGENT_SPEC_BY_KEY[key]
     for entry in SIMC_AGENT_SPEC_PATTERNS:
         if class_label and spec_label and entry["classLabel"] == class_label and entry["specLabel"] == spec_label:
             return entry
@@ -865,6 +874,17 @@ def build_context_talent_import_code(context):
     if not context:
         return ""
     return (((context.get("details") or {}).get("talents") or {}).get("importCode") or "").strip()
+
+
+def build_context_talent_simc_lines(context):
+    if not context:
+        return []
+    values = (((context.get("details") or {}).get("talents") or {}).get("simcLines") or [])
+    return [str(line).strip() for line in values if str(line or "").strip() and "=" in str(line)]
+
+
+def build_context_has_talents(context):
+    return bool(build_context_talent_import_code(context) or build_context_talent_simc_lines(context))
 
 
 def build_context_gear_items(context):
@@ -896,7 +916,7 @@ def build_simc_agent_missing_slots(source_profile, generated_profile, spec_info,
         missing_slots.append("itemLevel")
     if generated_profile and not has_explicit_simc_agent_scenario(message):
         missing_slots.append("scenario")
-    if generated_profile and not build_context_talent_import_code(build_context):
+    if generated_profile and not build_context_has_talents(build_context):
         missing_slots.append("talents")
     if generated_profile and not (gear_items or []):
         missing_slots.append("gear")
@@ -913,11 +933,14 @@ def build_generated_simc_profile(spec_info, item_level, build_context=None, gear
         f"race={default_race}",
         f'role={spec_info["role"]}',
         f'spec={spec_info["spec"]}',
-        f"scale_to_itemlevel={item_level}",
     ]
+    if item_level:
+        lines.append(f"scale_to_itemlevel={item_level}")
     talent_code = build_context_talent_import_code(build_context)
     if talent_code:
         lines.append(f"talents={talent_code}")
+    else:
+        lines.extend(build_context_talent_simc_lines(build_context))
     lines.extend(build_simc_gear_lines(gear_items or build_context_gear_items(build_context)))
     return "\n".join(lines)
 
@@ -1848,7 +1871,7 @@ def analyze_simc_agent_request(payload, codex_runner=None):
     source_profile = explicit_profile or extracted_profile
     gear_items = request_gear_items(source, build_context)
     generated_profile = "" if source_profile else build_generated_simc_profile(spec_info, item_level, build_context, gear_items)
-    assembled_profile = bool(generated_profile and build_context_talent_import_code(build_context) and gear_items)
+    assembled_profile = bool(generated_profile and build_context_has_talents(build_context) and gear_items)
     profile_source = "explicit" if explicit_profile else ("prompt" if extracted_profile else ("assembled" if assembled_profile else ("generated" if generated_profile else "none")))
     missing_slots = build_simc_agent_missing_slots(source_profile, generated_profile, spec_info, message, build_context, gear_items)
 
