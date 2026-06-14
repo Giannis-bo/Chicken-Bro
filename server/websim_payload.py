@@ -508,6 +508,11 @@ CANONICAL_GEAR_SLOTS = [
     "off_hand",
 ]
 
+CORE_SIMC_GEAR_SLOTS = [
+    slot for slot in CANONICAL_GEAR_SLOTS
+    if slot != "off_hand"
+]
+
 GEAR_SLOTS = CANONICAL_GEAR_SLOTS
 
 GEAR_SLOT_LABELS = {
@@ -3767,15 +3772,21 @@ def gear_readiness(items):
     ready_slots = {item["slot"] for item in items if item.get("simcReady")}
     warnings = []
     candidate_count = len([item for item in items if item and not item.get("simcReady")])
+    missing_core_slots = [slot for slot in CORE_SIMC_GEAR_SLOTS if slot not in ready_slots]
     if candidate_count:
         warnings.append(f"{candidate_count} selected candidate item(s) are missing SimC fields and will not be written to the profile.")
     if not ready_slots:
         warnings.append("No SimC-ready gear selected; add a SimC preset item or enrich selected loot with item level and bonus/gem/enchant data.")
+    if missing_core_slots:
+        warnings.append(f"Missing core SimC gear slots: {', '.join(missing_core_slots)}.")
     return {
         "simcReadyCount": len(ready_slots),
         "selectedCount": len(items),
         "candidateCount": candidate_count,
         "missingRequiredSlots": [slot for slot in CANONICAL_GEAR_SLOTS if slot not in ready_slots],
+        "missingCoreSlots": missing_core_slots,
+        "requiredReadyCount": len(CORE_SIMC_GEAR_SLOTS),
+        "fullReady": not missing_core_slots and candidate_count == 0,
         "warnings": warnings,
     }
 
@@ -4039,7 +4050,6 @@ def build_websim_profile(payload, conn=None):
     scenario = selected_scenario(source.get("scenarioKey"))
     lines.extend(
         [
-            "",
             f"iterations={int_env('WOW_WEBSIM_SIMC_ITERATIONS', 1000)}",
             f"fight_style={scenario['fightStyle']}",
             f"desired_targets={scenario['targets']}",
@@ -4088,8 +4098,15 @@ def build_websim_simulator_request(payload, guest_id="", conn=None):
     talents = external_talent_import_code(source)[:400]
     scenario = selected_scenario(source.get("scenarioKey"))
     gear_payload = websim_selected_gear_payload(source, class_key, spec_key)
+    readiness = gear_payload["readiness"]
+    has_talent_lines = talent_encoding.get("status") in {"encoded", "external"} or bool(talents)
+    canonical_profile = (
+        build_websim_profile(source, conn=conn)
+        if has_talent_lines and readiness.get("fullReady")
+        else ""
+    )
     message = f"WebSim {class_key} {spec_key} {scenario.get('fightStyle') or ''} gear simulation"
-    return {
+    request = {
         "mode": "simcraft_agent",
         "message": message,
         "prompt": message,
@@ -4136,3 +4153,7 @@ def build_websim_simulator_request(payload, guest_id="", conn=None):
             },
         },
     }
+    if canonical_profile:
+        request["profile"] = canonical_profile
+        request["profileSource"] = "websim"
+    return request

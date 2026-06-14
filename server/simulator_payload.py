@@ -929,7 +929,7 @@ def build_generated_simc_profile(spec_info, item_level, build_context=None, gear
     default_race = SIMC_AGENT_DEFAULT_RACE_BY_CLASS.get(spec_info["class"], "troll")
     lines = [
         f'{spec_info["class"]}="{spec_info["actor"]}"',
-        "level=80",
+        f"level={int_env('WOW_SIMC_AGENT_DEFAULT_LEVEL', 90)}",
         f"race={default_race}",
         f'role={spec_info["role"]}',
         f'spec={spec_info["spec"]}',
@@ -1015,6 +1015,77 @@ def build_mythic_plus_reference(profile, scenario):
             "sources": GENERIC_MYTHIC_PLUS_REFERENCE_SOURCES,
         }
     return json.loads(json.dumps(reference, ensure_ascii=False))
+
+
+def parse_reference_dps_value(value):
+    text = str(value or "").strip().upper().replace(",", "")
+    match = re.match(r"^(\d+(?:\.\d+)?)(K?)$", text)
+    if not match:
+        return 0.0
+    number = float(match.group(1))
+    return number * 1000 if match.group(2) == "K" else number
+
+
+def build_simc_benchmark(request_data, simulation):
+    metrics = simulation.get("metrics") or {}
+    dps_text = metrics.get("dps")
+    if not dps_text:
+        return None
+    try:
+        dps = float(str(dps_text).replace(",", ""))
+    except (TypeError, ValueError):
+        return None
+    reference = request_data.get("mythicPlusReference") if isinstance(request_data, dict) else None
+    if not reference:
+        return {
+            "status": "unverified",
+            "summary": "No external reference is attached for this SimC scenario.",
+            "warnings": ["Do not treat this SimC number as externally benchmarked until a same-spec reference window is attached."],
+        }
+    avg_dps = parse_reference_dps_value(reference.get("avgDps"))
+    max_dps = parse_reference_dps_value(reference.get("maxDps"))
+    if avg_dps <= 0 and max_dps <= 0:
+        return {
+            "status": "unverified",
+            "specKey": reference.get("specKey", ""),
+            "source": (reference.get("sources") or [{}])[0].get("name", ""),
+            "summary": "External reference is attached but has no numeric DPS window.",
+            "warnings": ["Refresh the external reference before making a pass/fail DPS claim."],
+        }
+    high_limit = max(max_dps * 1.35, avg_dps * 1.75)
+    low_limit = avg_dps * 0.35 if avg_dps else max_dps * 0.2
+    if high_limit and dps > high_limit:
+        status = "outlier_high"
+        summary = "SimC DPS is far above the attached external Mythic+ window; verify profile, fight style, targets, item level, and SimC version before calling it reasonable."
+    elif low_limit and dps < low_limit:
+        status = "outlier_low"
+        summary = "SimC DPS is far below the attached external Mythic+ window; verify profile completeness, talents, gear, and scenario settings."
+    else:
+        status = "reasonable"
+        summary = "SimC DPS falls within a broad sanity window around the attached external Mythic+ reference."
+    benchmark = {
+        "status": status,
+        "specKey": reference.get("specKey", ""),
+        "specName": reference.get("specName", ""),
+        "simcDps": f"{dps:.3f}".rstrip("0").rstrip("."),
+        "referenceAvgDps": reference.get("avgDps", ""),
+        "referenceMaxDps": reference.get("maxDps", ""),
+        "ratioToAvg": round(dps / avg_dps, 3) if avg_dps else None,
+        "sampleWindow": reference.get("sampleWindow", ""),
+        "source": (reference.get("sources") or [{}])[0].get("name", ""),
+        "summary": summary,
+        "warnings": [],
+    }
+    if status != "reasonable":
+        benchmark["warnings"].append(summary)
+    return benchmark
+
+
+def apply_simc_benchmark(request_data, simulation):
+    benchmark = build_simc_benchmark(request_data, simulation)
+    if benchmark:
+        simulation["benchmark"] = benchmark
+    return simulation
 
 
 def build_mythic_plus_reference_from_slots(filled_slots, scenario):
@@ -1516,6 +1587,7 @@ def normalize_analysis_request(payload):
 def build_llm_prompt(request_data, simulation):
     mythic_plus_reference = request_data.get("mythicPlusReference") if isinstance(request_data, dict) else None
     build_context = request_data.get("buildContext") if isinstance(request_data, dict) else None
+    benchmark = simulation.get("benchmark") if isinstance(simulation, dict) else None
     sections = [
         "你是魔兽世界构筑与日志分析助手，请给玩家可执行、可复核的建议。",
         f"分析模式：{request_data['mode']}",
@@ -1533,6 +1605,14 @@ def build_llm_prompt(request_data, simulation):
         sections.append(f"SimCraft 执行错误：\n{simulation['error']}")
     if mythic_plus_reference:
         sections.append(f"真实大秘境对标：\n{format_mythic_plus_reference_for_prompt(mythic_plus_reference)}")
+    if benchmark:
+        sections.append(
+            "SimC 横向合理性判定：\n"
+            f"状态：{benchmark.get('status', '')}\n"
+            f"说明：{benchmark.get('summary', '')}\n"
+            f"SimC DPS：{benchmark.get('simcDps', '')}\n"
+            f"参考窗口：Avg {benchmark.get('referenceAvgDps', '')}, Max {benchmark.get('referenceMaxDps', '')}"
+        )
     if build_context:
         sections.append(f"构筑上下文：\n{format_build_context_for_prompt(build_context)}")
     if request_data["mode"] in {"simcraft", "simcraft_agent"} and not request_data["profile"]:
@@ -1721,6 +1801,7 @@ def skipped_llm_result(reason):
 def heuristic_recommendations(request_data, simulation):
     recommendations = []
     mythic_reference = request_data.get("mythicPlusReference") if isinstance(request_data, dict) else None
+    benchmark = simulation.get("benchmark") if isinstance(simulation, dict) else None
     if request_data["mode"] in {"simcraft", "simcraft_agent"}:
         dps = simulation.get("metrics", {}).get("dps")
         if request_data.get("profileSource") == "generated":
@@ -1737,6 +1818,10 @@ def heuristic_recommendations(request_data, simulation):
             recommendations.append(
                 f"真实大秘境对标：{mythic_reference['specName']} 当前样本为 {mythic_reference.get('comparisonText') or mythic_plus_reference_comparison_text(mythic_reference)}；最终报告必须先和这个来源区间比较。"
             )
+        if benchmark and str(benchmark.get("status", "")).startswith("outlier"):
+            recommendations.append(f"横向校验异常：{benchmark.get('summary')}。先复核 profile、装备完整性和 SimC 版本。")
+        elif benchmark and benchmark.get("status") == "reasonable":
+            recommendations.append("横向校验：本次 SimC 数字落在外部参考的宽松合理区间内。")
         recommendations.append("下一步只补充最影响结果的变量：天赋、饰品、武器或目标数量。")
         return recommendations[:3]
     if request_data["wclUrl"]:
@@ -1750,6 +1835,7 @@ def build_pipeline_stages(request_data, simulation, llm_result):
     profile_source = request_data.get("profileSource") or "none"
     dps = (simulation.get("metrics") or {}).get("dps", "")
     mythic_reference = request_data.get("mythicPlusReference") if isinstance(request_data, dict) else None
+    benchmark = simulation.get("benchmark") if isinstance(simulation, dict) else None
     is_preview = profile_source == "generated"
 
     if has_profile:
@@ -1826,6 +1912,15 @@ def build_pipeline_stages(request_data, simulation, llm_result):
             "summary": f"{mythic_reference['specName']}：{mythic_reference.get('comparisonText') or mythic_plus_reference_comparison_text(mythic_reference)}，来源 {mythic_reference['sources'][0]['name']}",
             "metric": mythic_reference["avgDps"],
         })
+    if benchmark and benchmark.get("status") != "unverified":
+        stages.append({
+            "key": "simc_benchmark",
+            "title": "SimC 横向合理性",
+            "status": "completed" if benchmark.get("status") == "reasonable" else "blocked" if str(benchmark.get("status", "")).startswith("outlier") else "skipped",
+            "executor": "backend",
+            "summary": benchmark.get("summary", ""),
+            "metric": benchmark.get("simcDps", ""),
+        })
     stages.append(ai_stage)
     return stages
 
@@ -1867,12 +1962,17 @@ def analyze_simc_agent_request(payload, codex_runner=None):
     item_level = infer_simc_agent_item_level(message)
     filled_slots = build_agent_filled_slots(message, spec_info, scenario, item_level)
     explicit_profile = str(source.get("profile") or "").strip()
+    explicit_profile_source = str(source.get("profileSource") or "").strip()
     extracted_profile = extract_simc_profile_from_prompt(message)
     source_profile = explicit_profile or extracted_profile
     gear_items = request_gear_items(source, build_context)
     generated_profile = "" if source_profile else build_generated_simc_profile(spec_info, item_level, build_context, gear_items)
     assembled_profile = bool(generated_profile and build_context_has_talents(build_context) and gear_items)
-    profile_source = "explicit" if explicit_profile else ("prompt" if extracted_profile else ("assembled" if assembled_profile else ("generated" if generated_profile else "none")))
+    profile_source = (
+        explicit_profile_source
+        if explicit_profile and explicit_profile_source in {"websim", "explicit"}
+        else ("explicit" if explicit_profile else ("prompt" if extracted_profile else ("assembled" if assembled_profile else ("generated" if generated_profile else "none"))))
+    )
     missing_slots = build_simc_agent_missing_slots(source_profile, generated_profile, spec_info, message, build_context, gear_items)
 
     request_data = {
@@ -1981,6 +2081,7 @@ def analyze_simc_agent_request(payload, codex_runner=None):
     simulation = dict(simulation)
     simulation["metrics"] = simulation.get("metrics") or parse_simcraft_metrics(simulation.get("summary", ""))
     simulation = apply_simulation_metric_metadata(request_data, simulation)
+    simulation = apply_simc_benchmark(request_data, simulation)
     status = "template_ready" if validation["passed"] and confirm_only else (
         "template_preview" if validation["passed"] and is_generated_profile else
         "simc_completed" if simulation.get("ran") else ("template_invalid" if not validation["passed"] else "simc_failed")
@@ -2075,6 +2176,7 @@ def analyze_simulator_request(payload, codex_runner=None):
     simulation = dict(simulation)
     simulation["metrics"] = simulation.get("metrics") or parse_simcraft_metrics(simulation.get("summary", ""))
     simulation = apply_simulation_metric_metadata(request_data, simulation)
+    simulation = apply_simc_benchmark(request_data, simulation)
     prompt = build_llm_prompt(request_data, simulation)
     llm_result = call_llm(prompt)
     guarded_llm_content = build_guarded_llm_content(request_data, simulation, llm_result)

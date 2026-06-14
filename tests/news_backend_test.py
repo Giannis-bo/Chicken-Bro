@@ -1497,9 +1497,47 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["agent"]["status"], "simc_completed")
         self.assertEqual(analysis["simulation"]["metrics"]["dps"], "185432")
         self.assertIn("mythic_plus_reference", [stage["key"] for stage in analysis["stages"]])
+        self.assertIn("simc_benchmark", [stage["key"] for stage in analysis["stages"]])
+        self.assertEqual(analysis["simulation"]["benchmark"]["status"], "reasonable")
+        self.assertAlmostEqual(analysis["simulation"]["benchmark"]["ratioToAvg"], 0.997)
         self.assertLessEqual(len(analysis["recommendations"]), 3)
         self.assertLessEqual(len(analysis["agent"]["summaryCards"]), 3)
         self.assertIn("真实大秘境对标", json.dumps(analysis["agent"]["summaryCards"], ensure_ascii=False))
+
+    def test_simc_agent_marks_extreme_completed_dps_as_external_outlier(self):
+        simc_bin = Path(self.tmp.name) / "fake-outlier-report-simc"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            "cat >/dev/null\n"
+            "printf 'Player: RetPlayer\\n  DPS=999999 DPS-Error=0/0.00%%\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft_agent",
+                    "round": 2,
+                    "message": (
+                        "我是285惩戒圣骑士，大秘境AOE是否合格\n"
+                        "```simc\n"
+                        "paladin=\"RetPlayer\"\n"
+                        "spec=retribution\n"
+                        "talents=CAE\n"
+                        "```\n"
+                    ),
+                }
+            )
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        benchmark = analysis["simulation"]["benchmark"]
+        stage = next(stage for stage in analysis["stages"] if stage["key"] == "simc_benchmark")
+        self.assertEqual(analysis["agent"]["status"], "simc_completed")
+        self.assertEqual(benchmark["status"], "outlier_high")
+        self.assertEqual(stage["status"], "blocked")
+        self.assertIn("far above", benchmark["summary"])
 
     def test_guarded_llm_content_keeps_completed_simc_report_state(self):
         from server.simulator_payload import build_guarded_llm_content

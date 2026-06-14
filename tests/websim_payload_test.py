@@ -103,6 +103,35 @@ class WebSimPayloadTest(unittest.TestCase):
         self.insert_websim_talent(conn, "simc-hero-3001-mage-arcane-spellslinger", "hero", 3001, 2, 1, "Hero Talent")
         conn.commit()
 
+    def full_core_simc_gear_items(self):
+        slots = [
+            "head",
+            "neck",
+            "shoulder",
+            "back",
+            "chest",
+            "wrist",
+            "hands",
+            "waist",
+            "legs",
+            "feet",
+            "finger1",
+            "finger2",
+            "trinket1",
+            "trinket2",
+            "main_hand",
+        ]
+        return [
+            {
+                "slot": slot,
+                "itemId": 250000 + index,
+                "name": f"Verified {slot.title()}",
+                "ilevel": 289,
+                "bonus_id": "13534",
+            }
+            for index, slot in enumerate(slots, start=1)
+        ]
+
     def websim_encoder_payload(self, extra=None):
         payload = {
             "classKey": "mage",
@@ -118,15 +147,7 @@ class WebSimPayloadTest(unittest.TestCase):
                 ]
             },
             "gearSelection": {
-                "items": [
-                    {
-                        "slot": "head",
-                        "itemId": 250060,
-                        "name": "Voidbreaker's Veil",
-                        "ilevel": 289,
-                        "bonus_id": "13534",
-                    }
-                ]
+                "items": self.full_core_simc_gear_items()
             },
             "guestId": "websim-test-guest",
             "saveTask": True,
@@ -890,7 +911,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(any(item["itemId"] == "250111" for item in wrist_group["items"]))
         self.assertGreaterEqual(payload["readiness"]["simcReadyCount"], 2)
 
-    def test_websim_simulate_request_uses_assembled_context_without_explicit_profile(self):
+    def test_websim_simulate_request_uses_canonical_websim_profile(self):
         request = self.websim_payload.build_websim_simulator_request(
             {
                 "classKey": "mage",
@@ -898,32 +919,22 @@ class WebSimPayloadTest(unittest.TestCase):
                 "talents": "C4DA",
                 "scenarioKey": "single",
                 "gearSelection": {
-                    "items": [
-                        {
-                            "slot": "head",
-                            "itemId": 250060,
-                            "name": "Voidbreaker's Veil",
-                            "ilevel": 289,
-                            "bonus_id": "13534",
-                        },
-                        {
-                            "slot": "trinket1",
-                            "itemId": 249343,
-                            "name": "Gaze of the Alnseer",
-                            "sourceType": "verifiedLoot",
-                        },
-                    ]
+                    "items": self.full_core_simc_gear_items()
                 },
             },
             guest_id="guest-1",
         )
 
         self.assertEqual(request["mode"], "simcraft_agent")
-        self.assertNotIn("profile", request)
+        self.assertEqual(request["profileSource"], "websim")
+        self.assertIn("profile", request)
+        self.assertIn("level=90", request["profile"])
+        self.assertIn("talents=C4DA", request["profile"])
         gear = request["buildContext"]["details"]["gear"]
-        self.assertEqual(len(gear["simcItems"]), 1)
+        self.assertTrue(gear["readiness"]["fullReady"])
+        self.assertEqual(len(gear["simcItems"]), 15)
         self.assertEqual(gear["simcItems"][0]["slot"], "head")
-        self.assertEqual(len(gear["gear"]), 2)
+        self.assertEqual(len(gear["gear"]), 15)
 
     def test_encode_websim_talents_writes_tree_specific_lines(self):
         conn = sqlite3.connect(self.db_path)
@@ -940,7 +951,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("spec_talents=2001:1", profile)
         self.assertIn("hero_talents=3001:1", profile)
         self.assertNotIn("talents=websim:", profile)
-        self.assertIn("head=voidbreaker_s_veil,id=250060,ilevel=289,bonus_id=13534", profile)
+        self.assertIn("head=verified_head,id=250001,ilevel=289,bonus_id=13534", profile)
 
     def test_websim_talent_encoding_rejects_invalid_or_fallback_nodes(self):
         conn = sqlite3.connect(self.db_path)
@@ -991,9 +1002,11 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(any("multiple talents selected" in error for error in choice["errors"]))
 
     def test_http_websim_simulate_runs_encoded_profile_through_fake_simc(self):
+        payload = self.websim_encoder_payload()
         conn = sqlite3.connect(self.db_path)
         try:
             self.seed_websim_encoder_nodes(conn)
+            profile_response = self.websim_payload.build_websim_profile_response(payload, conn=conn)
         finally:
             conn.close()
         simc_bin = Path(self.tmp.name) / "fake-websim-simc"
@@ -1013,7 +1026,7 @@ class WebSimPayloadTest(unittest.TestCase):
             base = f"http://127.0.0.1:{server.server_port}"
             request = Request(
                 f"{base}/api/websim/simulate",
-                data=json.dumps(self.websim_encoder_payload()).encode("utf-8"),
+                data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
@@ -1027,6 +1040,9 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(result["simulation"]["ran"])
         self.assertEqual(result["simulation"]["metrics"]["dps"], "123456")
         self.assertEqual(result["talentEncoding"]["status"], "encoded")
+        self.assertEqual(result["request"]["profileSource"], "websim")
+        self.assertEqual(result["request"]["profile"], profile_response["profile"])
+        self.assertEqual(executed_profile, profile_response["profile"])
         self.assertIn("class_talents=1001:1", executed_profile)
         self.assertIn("spec_talents=2001:1", executed_profile)
         self.assertIn("hero_talents=3001:1", executed_profile)

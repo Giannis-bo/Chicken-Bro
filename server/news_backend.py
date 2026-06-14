@@ -1227,6 +1227,8 @@ def websim_submission_blockers(request_payload):
         ready_count = int(readiness.get("simcReadyCount") or 0)
     except (TypeError, ValueError):
         ready_count = 0
+    missing_core_slots = readiness.get("missingCoreSlots") if isinstance(readiness.get("missingCoreSlots"), list) else []
+    full_ready = bool(readiness.get("fullReady"))
     simc_items = gear.get("simcItems") if isinstance(gear.get("simcItems"), list) else []
     blockers = []
     if not has_talents:
@@ -1234,10 +1236,11 @@ def websim_submission_blockers(request_payload):
             "key": "talents",
             "summary": "WebSim needs a talent import code or server-encoded SimC talent lines before submission.",
         })
-    if ready_count < 1 or not simc_items:
+    if not full_ready or ready_count < 1 or not simc_items:
+        missing_text = f" Missing core slots: {', '.join(str(slot) for slot in missing_core_slots)}." if missing_core_slots else ""
         blockers.append({
             "key": "gear",
-            "summary": "WebSim needs at least one SimC-ready gear item before submission.",
+            "summary": "WebSim needs a complete core SimC-ready gear set before submission." + missing_text,
         })
     return blockers
 

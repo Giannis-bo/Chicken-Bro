@@ -3080,12 +3080,18 @@
     const items = selectedGearItems()
     const ready = selectedSimcReadyItems()
     const readySlots = new Set(ready.map((item) => item.slot))
+    const coreSlots = (state.gearSlots || []).map(slotKey).filter((slot) => slot && slot !== 'off_hand')
+    const missingCoreSlots = coreSlots.filter((slot) => !readySlots.has(slot))
+    const candidateItems = items.filter((item) => !item.simcReady)
     return {
       simcReadyCount: ready.length,
       selectedCount: items.length,
-      candidateCount: items.length - ready.length,
+      candidateCount: candidateItems.length,
       missingRequiredSlots: (state.gearSlots || []).map(slotKey).filter((slot) => slot && !readySlots.has(slot)),
-      warnings: items.filter((item) => !item.simcReady).map((item) => `${slotLabel(item.slot)} ${item.displayName || item.name} missing ${item.missingFields.join(', ')}`)
+      missingCoreSlots,
+      requiredReadyCount: coreSlots.length,
+      fullReady: coreSlots.length > 0 && missingCoreSlots.length === 0 && candidateItems.length === 0,
+      warnings: candidateItems.map((item) => `${slotLabel(item.slot)} ${item.displayName || item.name} missing ${item.missingFields.join(', ')}`)
     }
   }
 
@@ -4187,12 +4193,12 @@
     const payload = buildProfilePayload()
     const readiness = gearReadinessFromState()
     const hasTalentSelection = hasSubmittableTalentSelection(payload)
-    const canSubmit = hasTalentSelection && readiness.simcReadyCount > 0
+    const canSubmit = hasTalentSelection && readiness.fullReady
     button.disabled = !canSubmit
     button.classList.toggle('disabled', !canSubmit)
     button.title = canSubmit
       ? '提交 SimC'
-      : (!hasTalentSelection ? '需要天赋导入码或 WebSim 天赋选择' : '需要至少 1 件可 Sim 装备')
+      : (!hasTalentSelection ? '需要天赋导入码或 WebSim 天赋选择' : '需要核心装备栏位全部可 Sim')
   }
 
   function renderJournal() {
@@ -4389,9 +4395,10 @@
     const payload = buildProfilePayload()
     const readiness = gearReadinessFromState()
     const hasTalentSelection = hasSubmittableTalentSelection(payload)
-    if (!hasTalentSelection || readiness.simcReadyCount < 1) {
+    if (!hasTalentSelection || !readiness.fullReady) {
       if (resultBox) {
-        const reason = !hasTalentSelection ? '需要天赋选择或 talents= 导入码' : '需要至少 1 件可 Sim 装备'
+        const missingSlots = (readiness.missingCoreSlots || []).map(slotLabel).join('、')
+        const reason = !hasTalentSelection ? '需要天赋选择或 talents= 导入码' : `需要核心装备栏位全部可 Sim${missingSlots ? `：${missingSlots}` : ''}`
         resultBox.innerHTML = `<strong>暂未提交</strong><span>${escapeHtml(reason)}</span>`
       }
       updateSimulateButtonState()
