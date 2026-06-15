@@ -29,6 +29,11 @@
 | 完整梳理本地讨论过的产品方向和功能灵感 | 本地讨论，待补录证据 | 很多想法散落在对话中，后续容易遗失或重复讨论。 | 形成统一上下文，让 roadmap 能持续继承讨论成果。 | 需要逐步补录，不能凭记忆伪造细节。 | Roadmap 与想法池常态化 | 待补录 |
 | 明确项目对外定位和一句话表达 | 当前 roadmap 讨论 | README 和产品方向已有多条能力线，但对外主叙事仍需收束。 | 帮助后续决定首页、tab 权重、文案和优先级。 | 需要在“资讯工具”“构筑模拟器”“玩家分析工作台”之间取舍。 | 产品定位命名 | 待确认 |
 | 将 WebSim 作为构筑到模拟的主入口 | 当前代码演进、2026-06-14 阶段验收 | 玩家从天赋/装备选择到 SimC 模拟仍有手动拼接成本。 | 降低模拟门槛，让构筑验证更直观。 | 数据 freshness、天赋编码准确性、装备字段完整度和外部 benchmark 覆盖仍需继续产品化。 | WebSim 到 SimC 的可提交闭环 | 已完成 |
+| 小程序原生 WebSim 天赋模拟器 | 当前代码演进，2026-06-15 本地变更 | 职业专精的“天赋构筑”如果只停留在详情展示，玩家仍需要跳转或手动整理天赋上下文。 | 在小程序内完成职业/专精/英雄天赋选择、导入导出和 SimC handoff，让构筑到模拟链路更短。 | WebSim 天赋数据、装备完整性和外部 benchmark 仍要继续维持可信状态；无完整装备时必须阻断真实提交。 | 小程序原生天赋模拟器 | 已完成 |
+| 天赋/装备模拟器保存模板 | 当前对话，2026-06-15 用户框架想法 | 天赋和装备模拟器当前更像一次性编辑状态，字符串如果不能保存，后续快速 SimC 仍要重复导入或重新选择。 | 将天赋字符串和装备字符串保存为个人模板，后续可一键带入 SimC，提高复用效率。 | 需要定义模板类型、版本、职业/专精/场景、raw string、解析结果、验证状态和本地/服务端存储边界；展示型装备不能伪装成可执行装备。 | 模板化构筑与固定 SimC 输入 | 已采纳 |
+| SimC 从 LLM 对话引导转为固定输入流程 | 当前对话，2026-06-15 用户框架想法 | 聊天式补槽容易让用户不确定到底缺什么，也容易把 LLM 放在输入契约前面。 | 用职业/角色选择、天赋字符串导入、装备字符串导入和确定性校验替代对话引导，让 SimC 提交流程更稳定。 | LLM 仍可用于结果解释和日志复盘，但不能负责判断输入是否可执行；固定表单要兼容官方 `/simc` 完整 profile 和 WebSim 拆分输入。 | 模板化构筑与固定 SimC 输入 | 已采纳 |
+| 天赋模拟器加载个人和社区经典模板 | 当前对话，2026-06-15 用户框架想法 | 新用户不知道如何从零点天赋，老用户也需要快速套用自己常用或社区大神构筑。 | 天赋模拟器能加载个人保存模板和社区经典模板，再按当前角色/场景微调后进入 SimC。 | 社区模板必须标注作者/来源、适用赛季、更新时间、职业/专精/英雄天赋和数据可信状态；需要处理过期版本和天赋树变更导致的不可导入。 | 模板化构筑与固定 SimC 输入 / 数据可信度与赛季同步完善 | 已采纳 |
+| 数据与模拟健康哨兵 | 当前对话，2026-06-15 用户确认 | 只知道后端 alive 或 SimC 有新 commit，不足以判断赛季、天赋、装备、模板和 SimC 是否彼此兼容。 | 形成统一巡检：SimC 版本、Battle.net 赛季/天赋/装备 revision、模板漂移和端到端 profile smoke 都有明确状态。 | 需要控制巡检成本；外部 API 失败时应区分网络错误、凭据错误、数据过期和真实不兼容；巡检结果不能替代真实模拟输出。 | 数据与模拟健康哨兵 / 正式发布与刷新可观测 | 已采纳 |
 | 建立数据可信度分层 | 当前代码演进，待补录更多讨论 | 官方、SimC、Wago、日志站和 fallback 数据混用时，用户难判断可信程度。 | 避免展示过期或未经验证的赛季数据。 | 需要统一状态字段和页面表达，避免 UI 噪音。 | 数据可信度与赛季同步完善 | 候选 |
 | 装备物品元数据中文化与图标补全 | 当前对话，2026-06-14 已实现 | 装备模拟器和装备查询中存在英文装备名、缺图标、以及展示装备与可执行 SimC 装备来源不清的问题。 | 带 itemId 的装备可通过 Battle.net Game Data API 显示官方中文名、图标和核验状态；职业装备页也能通过别名映射和官方英文名精确检索复用同一份物品元数据。 | 依赖服务器 Battle.net API 凭据；构筑页的 Archon/Wowhead 链接参考必须标记为 `source_reference`，不能伪装成已核验装备。 | 数据可信度与赛季同步完善 / SimC 输入契约产品化 | 已完成 |
 | 正式域名、HTTPS 和微信 request 合法域名 | README、news 架构文档 | 当前开发联调用 HTTP/IP，体验版和正式版需要合法域名与 HTTPS。 | 让小程序发布链路稳定，减少环境差异导致的空屏或请求失败。 | 需要域名、证书、Nginx、微信后台配置协同完成。 | 正式发布与刷新可观测 | 候选 |
@@ -61,6 +66,9 @@
 | WebSim 到 SimC 的可提交闭环 | [roadmap.md](../roadmap.md) | `server/websim_payload.py`, `tests/websim_payload_test.py`, `tests/news_backend_test.py`, [simulator-simc-end-to-end.md](../simulator-simc-end-to-end.md) |
 | SimC 输入契约产品化 | [roadmap.md](../roadmap.md) | `websim/app.js`, `server/news_backend.py`, `server/websim_payload.py`, `tests/websim-page.test.js`, `tests/websim_payload_test.py`, [simulator-simc-end-to-end.md](../simulator-simc-end-to-end.md) |
 | 装备中文名与官方图标补全 | [roadmap.md](../roadmap.md) | `server/websim_payload.py`, `server/builds/home-payload.js`, `server/news_backend.py`, `pages/builds/detail.*`, `websim/app.js`, `websim/app.css`, `tests/websim_payload_test.py`, `tests/builds-home-payload.test.js`, `tests/builds-page.test.js`, `tests/websim-page.test.js` |
+| 小程序原生 WebSim 天赋模拟器 | [roadmap.md](../roadmap.md) | `app.json`, `pages/builds/talent-simulator.*`, `pages/builds/websim-api.js`, `server/builds/home-payload.js`, `server/simulator_payload.py`, `tests/talent-simulator-core.test.js`, `tests/builds-page.test.js`, `tests/frontend-api-client.test.js`, `tests/news_backend_test.py`, `tests/simulator-page.test.js` |
+| 模板化构筑与固定 SimC 输入 | [roadmap.md](../roadmap.md) | 当前对话确认；后续围绕 `pages/builds/talent-simulator.*`, `websim/`, `pages/simulator/simc.*`, `server/simulator_payload.py`, `simulator_tasks` 设计 |
+| 数据与模拟健康哨兵 | [roadmap.md](../roadmap.md) | 当前对话确认；后续围绕 `server/deploy_lighthouse.sh`, `server/websim_payload.py`, `server/game-season.js`, `pages/simulator/simc.*` 设计 |
 
 ## 补录模板
 

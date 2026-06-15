@@ -208,6 +208,12 @@ Page({
     this.analyticsSpecId = specId
     trackPageView('pages/builds/detail', { queryKey, specId })
     trackEvent('builds_detail_view', { queryKey, specId }, { page: 'pages/builds/detail' })
+    if (queryKey === 'talents' && typeof wx !== 'undefined' && typeof wx.redirectTo === 'function') {
+      wx.redirectTo({
+        url: `/pages/builds/talent-simulator?spec=${encodeURIComponent(specId)}`
+      })
+      return
+    }
     const selection = findSpecSelection(specId)
     const selectionState = createSelectionState(selection.classIndex, selection.specIndex, queryKey)
     this.setData({

@@ -807,6 +807,7 @@ def normalize_build_context(value):
     gear = details.get("gear") if isinstance(details.get("gear"), dict) else {}
     stat_weights = details.get("statWeights") if isinstance(details.get("statWeights"), dict) else {}
     simulator_state = value.get("simulatorState") if isinstance(value.get("simulatorState"), dict) else {}
+    simulator_talent = simulator_state.get("talent") if isinstance(simulator_state.get("talent"), dict) else {}
     simulator_gear = simulator_state.get("gear") if isinstance(simulator_state.get("gear"), dict) else {}
     gear_items = clean_simc_gear_items(
         first_present(gear, ["simcItems", "selectedItems", "items"], [])
@@ -841,6 +842,17 @@ def normalize_build_context(value):
             },
         },
         "simulatorState": {
+            "talent": {
+                "selectedNodes": clean_context_rows(simulator_talent.get("selectedNodes"), ["id", "rank", "tree", "name"], 120),
+                "websimExportCode": clean_context_value(simulator_talent.get("websimExportCode"), 1200),
+                "heroKey": clean_context_value(simulator_talent.get("heroKey"), 80),
+                "scenarioKey": clean_context_value(simulator_talent.get("scenarioKey"), 80),
+                "encodingStatus": clean_context_value(simulator_talent.get("encodingStatus"), 40),
+                "simcLines": clean_context_list(simulator_talent.get("simcLines"), 8),
+                "importCode": clean_context_value(simulator_talent.get("importCode"), 400),
+                "summary": clean_context_value(simulator_talent.get("summary"), 260),
+                "simcHint": clean_context_value(simulator_talent.get("simcHint"), 80),
+            },
             "gear": {
                 "selectedItems": gear_items,
                 "progressText": clean_context_value(simulator_gear.get("progressText"), 120),

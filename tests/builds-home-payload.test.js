@@ -66,6 +66,20 @@ test('every featured specialization keeps strict source evidence', () => {
   }
 })
 
+test('specialization payload exposes WebSim class and spec keys', () => {
+  const payload = buildSpecializationHomePayload()
+  const byId = Object.fromEntries(payload.specializations.map((item) => [item.id, item]))
+
+  assert.equal(byId['死亡骑士-冰霜'].websimClassKey, 'deathknight')
+  assert.equal(byId['死亡骑士-冰霜'].websimSpecKey, 'frost')
+  assert.equal(byId['猎人-野兽控制'].websimClassKey, 'hunter')
+  assert.equal(byId['猎人-野兽控制'].websimSpecKey, 'beast_mastery')
+
+  const frostMage = getSpecializationDetail('法师-冰霜')
+  assert.equal(frostMage.websimClassKey, 'mage')
+  assert.equal(frostMage.websimSpecKey, 'frost')
+})
+
 test('trusted source allowlist covers high-end mythic plus raid and WCL analysis', () => {
   assert.ok(trustedBuildSources.some((source) => source.name === 'Raider.IO'))
   assert.ok(trustedBuildSources.some((source) => source.name === 'Warcraft Logs'))

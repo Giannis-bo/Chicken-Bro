@@ -5,6 +5,7 @@
     "pages/news/detail",
     "pages/builds/builds",
     "pages/builds/intel",
+    "pages/builds/talent-simulator",
     "pages/builds/detail",
     "pages/pve/pve",
     "pages/pve/detail",

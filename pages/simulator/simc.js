@@ -7,6 +7,13 @@ const { trackEvent, trackPageLeave, trackPageView } = require('../common/analyti
 const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
 const SIMC_PAGE_ROUTE = ['pages', 'simulator', 'simc'].join('/')
 
+function formatTalentNodeLabel(node) {
+  if (!node || typeof node !== 'object') return String(node || '').trim()
+  const name = node.name || node.id || ''
+  const rank = Number(node.rank || 0)
+  return rank > 1 ? `${name} x${rank}` : name
+}
+
 Page({
   data: {
     navTitle: '模拟 SimC',
@@ -83,7 +90,12 @@ Page({
     const simulatorState = context.simulatorState || {}
     const talentState = simulatorState.talent || {}
     const gearState = simulatorState.gear || {}
-    const selectedTalentNodes = Array.isArray(talentState.selectedNodes) ? talentState.selectedNodes.join('、') : ''
+    const selectedTalentNodes = Array.isArray(talentState.selectedNodes)
+      ? talentState.selectedNodes.map(formatTalentNodeLabel).filter(Boolean).join('、')
+      : ''
+    const simcTalentLines = Array.isArray(talents.simcLines) ? talents.simcLines.filter(Boolean).join('；') : ''
+    const websimExportCode = talentState.websimExportCode || talents.websimExportCode || ''
+    const encodingStatus = talentState.encodingStatus || talents.encodingStatus || ''
     const gearNames = gearRows.slice(0, 4).map((item) => `${item.slot || '装备'}：${item.name}`).join('；')
     const stats = statRows.slice(0, 4).map((item) => item.name).join(' > ')
     return [
@@ -91,6 +103,9 @@ Page({
       talentState.simcHint ? `请按${talentState.simcHint}场景，先确认这个方案能否生成 SimC 任务。` : '请按大秘境多目标场景，先确认这个方案能否生成 SimC 任务。',
       talents.importCode ? `天赋导入代码：${talents.importCode}` : '',
       selectedTalentNodes ? `前端天赋模拟器已选择节点：${selectedTalentNodes}` : '',
+      websimExportCode ? `WebSim 导出码：${websimExportCode}` : '',
+      encodingStatus ? `WebSim 天赋编码：${encodingStatus}` : '',
+      simcTalentLines ? `SimC 天赋行：${simcTalentLines}` : '',
       talentState.summary ? `天赋模拟摘要：${talentState.summary}` : '',
       gearNames ? `装备候选：${gearNames}` : '',
       gearState.progressText ? `装备获取进度：${gearState.progressText}` : '',

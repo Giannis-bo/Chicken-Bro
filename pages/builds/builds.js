@@ -43,6 +43,12 @@ Page({
   openQueryPage(event) {
     const queryKey = event.currentTarget.dataset.key
     trackEvent('builds_query_open', { queryKey: queryKey || '' }, { page: 'pages/builds/builds' })
+    if (queryKey === 'talents') {
+      wx.navigateTo({
+        url: '/pages/builds/talent-simulator'
+      })
+      return
+    }
     wx.navigateTo({
       url: `/pages/builds/detail?query=${encodeURIComponent(queryKey || '')}`
     })

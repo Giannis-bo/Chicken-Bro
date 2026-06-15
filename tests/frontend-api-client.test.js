@@ -46,6 +46,74 @@ test('builds api returns fallback without an API base and remote payload when re
   assert.equal(result.payload.navTitle, '远端职业专精')
 })
 
+test('websim mini api wraps bootstrap talents and profile endpoints', async () => {
+  const captured = []
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    request: (options) => {
+      captured.push(options)
+      if (/\/api\/websim\/bootstrap$/.test(options.url)) {
+        options.success({
+          statusCode: 200,
+          data: {
+            navTitle: 'WebSim',
+            classes: [{ key: 'mage', name: '法师', specs: [{ key: 'frost', name: '冰霜' }] }],
+            scenarios: [{ key: 'mythic_plus', name: '大秘境' }],
+            defaultSelection: { classKey: 'mage', specKey: 'frost' }
+          }
+        })
+        return
+      }
+      if (/\/api\/websim\/talents\?class=mage&spec=frost&hero=spellslinger$/.test(options.url)) {
+        options.success({
+          statusCode: 200,
+          data: {
+            classKey: 'mage',
+            specKey: 'frost',
+            heroKey: 'spellslinger',
+            nodes: [{ id: 'n1', tree: 'class', name: 'Ice Lance', maxRank: 1 }],
+            treeSections: [{ key: 'class', title: '职业天赋' }],
+            talentStatus: 'simc'
+          }
+        })
+        return
+      }
+      if (/\/api\/websim\/profile$/.test(options.url)) {
+        options.success({
+          statusCode: 200,
+          data: {
+            profile: 'mage="Generated_Frost_Mage"\nclass_talents=1001:1',
+            talentEncoding: {
+              status: 'encoded',
+              lines: ['class_talents=1001:1']
+            }
+          }
+        })
+      }
+    }
+  }
+
+  const api = resetModule('../pages/builds/websim-api')
+  const bootstrap = await api.requestWebsimBootstrap()
+  const talents = await api.requestWebsimTalents({ classKey: 'mage', specKey: 'frost', heroKey: 'spellslinger' })
+  const profile = await api.requestWebsimProfile({
+    classKey: 'mage',
+    specKey: 'frost',
+    heroKey: 'spellslinger',
+    talentState: { selectedNodes: [{ id: 'n1', rank: 1 }] }
+  })
+
+  assert.equal(bootstrap.fromFallback, false)
+  assert.equal(talents.payload.nodes[0].name, 'Ice Lance')
+  assert.equal(profile.payload.talentEncoding.status, 'encoded')
+  assert.deepEqual(profile.payload.talentEncoding.lines, ['class_talents=1001:1'])
+  assert.equal(captured[0].method || 'GET', 'GET')
+  assert.equal(captured[1].method || 'GET', 'GET')
+  assert.equal(captured[2].method, 'POST')
+  assert.deepEqual(captured[2].data.talentState.selectedNodes, [{ id: 'n1', rank: 1 }])
+})
+
 test('pve and simulator apis expose fallback payloads', async () => {
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'release' } }),

@@ -543,6 +543,59 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("Gaze of the Alnseer=", analysis["agent"]["draftProfile"])
         self.assertTrue(analysis["llm"]["called"])
 
+    def test_simc_agent_preserves_websim_talent_state_but_still_requires_gear(self):
+        self.patch_simc_confirmation_llm(
+            self.confirmation_response(
+                missing_slots=["gear"],
+                question="已读取 WebSim 天赋编码；还差手选装备数据。",
+            )
+        )
+
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "simcraft_agent",
+                "round": 1,
+                "confirmOnly": True,
+                "message": "请按这套冰法 WebSim 天赋，确认大秘境 AOE 是否能提交",
+                "buildContext": {
+                    "specId": "法师-冰霜",
+                    "className": "法师",
+                    "specName": "冰霜",
+                    "role": "远程输出",
+                    "activeQueryKey": "talents",
+                    "activeQueryTitle": "天赋构筑",
+                    "details": {
+                        "talents": {
+                            "importCode": "CAE_CONTEXT",
+                            "simcLines": ["class_talents=1001:1", "spec_talents=2001:2"],
+                            "encodingStatus": "encoded",
+                        }
+                    },
+                    "simulatorState": {
+                        "talent": {
+                            "selectedNodes": [
+                                {"id": "n1", "rank": 2, "tree": "spec", "name": "Ice Lance"},
+                                {"id": "n2", "rank": 1, "tree": "hero", "name": "Spellslinger"},
+                            ],
+                            "websimExportCode": "websim:mage:frost:spellslinger:n1:2,n2:1",
+                            "heroKey": "spellslinger",
+                            "scenarioKey": "mythic_plus",
+                            "encodingStatus": "encoded",
+                        }
+                    },
+                },
+            }
+        )
+
+        build_context = analysis["request"]["buildContext"]
+        self.assertEqual(build_context["details"]["talents"]["simcLines"], ["class_talents=1001:1", "spec_talents=2001:2"])
+        self.assertEqual(build_context["simulatorState"]["talent"]["websimExportCode"], "websim:mage:frost:spellslinger:n1:2,n2:1")
+        self.assertEqual(build_context["simulatorState"]["talent"]["selectedNodes"][0]["name"], "Ice Lance")
+        self.assertEqual(analysis["request"]["profileSource"], "generated")
+        self.assertIn("gear", analysis["agent"]["missingSlots"])
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
+        self.assertFalse(analysis["simulation"]["ran"])
+
     def test_simc_agent_builds_assembled_profile_from_selected_gear(self):
         self.patch_simc_confirmation_llm(
             self.confirmation_response(status="template_ready", missing_slots=[], question="")

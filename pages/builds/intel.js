@@ -24,7 +24,7 @@ Page({
     if (!specId) return
     trackEvent('builds_query_open', { queryKey: 'talents', specId, source: 'intel' }, { page: 'pages/builds/intel' })
     wx.navigateTo({
-      url: `/pages/builds/detail?query=talents&spec=${encodeURIComponent(specId)}`
+      url: `/pages/builds/talent-simulator?spec=${encodeURIComponent(specId)}`
     })
   },
 

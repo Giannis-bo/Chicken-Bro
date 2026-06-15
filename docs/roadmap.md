@@ -13,22 +13,22 @@
 | 能力 | 当前状态 | 说明 | 关联文档 / 区域 |
 | --- | --- | --- | --- |
 | 资讯追踪 | 已完成基础版 | 后端提供新闻首页、列表、详情、刷新任务和来源记录。 | [news-architecture.md](news-architecture.md), `pages/news/`, `server/news_backend.py` |
-| 职业专精 | 已完成基础版 | 职业、专精、天赋、装备、属性权重和循环的结构化展示已建立。 | [builds-architecture.md](builds-architecture.md), `pages/builds/` |
+| 职业专精 | 已完成基础版 | 职业、专精、装备、属性权重和循环的结构化展示已建立；天赋构筑已接入小程序原生 WebSim 天赋模拟器，可从职业专精入口和热门专精卡片进入。 | [builds-architecture.md](builds-architecture.md), `pages/builds/` |
 | PVE 专区 | 已完成基础版 | 当前赛季大秘境、团队 raid、boss 攻略入口和分析窗口已接入统一后端。 | `pages/pve/`, `server/news_backend.py` |
-| 智能分析 / SimC | 已完成 | SimC 输入框架已阶段性完成：已有 SimCraft agent、confirm-only、任务保存、真实执行、阶段输出和防误导策略。 | [simulator-simc-end-to-end.md](simulator-simc-end-to-end.md), [2026-06-11-simc-flow-risk-avoidance.md](plans/2026-06-11-simc-flow-risk-avoidance.md) |
+| 智能分析 / SimC | 已完成 | SimC 输入框架已阶段性完成：已有 SimCraft agent、confirm-only、任务保存、真实执行、阶段输出和防误导策略，并能保留 WebSim 天赋节点、导出码和 SimC talent lines。 | [simulator-simc-end-to-end.md](simulator-simc-end-to-end.md), [2026-06-11-simc-flow-risk-avoidance.md](plans/2026-06-11-simc-flow-risk-avoidance.md) |
 | WebSim 工作台 | 已完成 | 已把天赋编码、完整核心装备 SimC-ready 校验、canonical WebSim profile、任务保存、真实 SimC 执行、装备中文名/图标和掉落查询体验连成基础闭环。 | `websim/`, `server/websim_payload.py` |
 | 后端与部署 | 已完成基础版 | 统一 Python 后端、SQLite、Lighthouse 部署脚本、systemd 服务和同步任务已建立。 | [remote-debugging.md](remote-debugging.md), [2026-06-09-unified-backend-cloud-deploy.md](plans/2026-06-09-unified-backend-cloud-deploy.md) |
-| 个人化工作台 | 规划中 | README 已预留“我的”tab，WebSim 也已有角色载入占位，后续需要角色绑定、收藏、订阅和数据源设置。 | `pages/profile/`, `websim/app.js` |
+| 个人化工作台 | 规划中 | README 已预留“我的”tab，WebSim 也已有角色载入占位，后续需要角色绑定、构筑模板库、收藏、订阅和数据源设置。 | `pages/profile/`, `websim/app.js` |
 
 ## 路线主题
 
 | 主题 | 方向 |
 | --- | --- |
 | 数据可信与新鲜度 | 所有玩家可见结论都应带来源、时间窗口、验证状态和 fallback 边界；赛季未验证时宁可阻断，也不展示可能过期数据。 |
-| 构筑到模拟闭环 | 职业专精、WebSim、SimC 和任务详情要形成一条链：选择构筑、补齐可执行输入、提交模拟、保存和复盘结果。 |
+| 构筑到模拟闭环 | 职业专精、WebSim、SimC 和任务详情要形成一条链：选择构筑、保存/加载模板、补齐可执行输入、提交模拟、保存和复盘结果。 |
 | 证据化 AI 报告 | LLM 只做解释和表达，数字事实必须来自 SimC runner、日志解析或可信参考源；未来报告应逐步 schema 化。 |
 | 个人化角色体验 | 从通用查询推进到角色档案、收藏专精、订阅提醒、任务历史和个人数据源配置。 |
-| 运维与可观测 | 正式域名、HTTPS、合法域名、刷新记录、health check、smoke 和部署状态要成为稳定发布链路的一部分。 |
+| 运维与可观测 | 正式域名、HTTPS、合法域名、刷新记录、SimC / 游戏数据 / 模板健康检测、smoke 和部署状态要成为稳定发布链路的一部分。 |
 
 ## 里程碑
 
@@ -38,10 +38,13 @@
 | 已完成 | 职业专精基础体验 | 将原 BD tab 重构为职业专精查询入口。 | 玩家能从职业/专精维度查看天赋、装备、属性和循环。 | 重构 tab；建立职业专精数据契约；新增详情页和架构文档。 | 入口与详情页可用；职业专精覆盖完整；文档记录数据源和扩展方式。 | [职业专精计划](plans/2026-06-09-specializations-tab.md) |
 | 已完成 | SimC 风险边界收敛 | 防止空 profile、模板 profile 和 LLM 误导性 DPS 输出。 | 玩家不会把模板、空输入或模型猜测误认为真实模拟结论。 | 区分 explicit / prompt / generated；限制真实执行；补齐阶段输出和防护文档。 | SimC 执行前校验清晰；generated 只作为预览；文档列出已知风险和规避原则。 | [SimC 风险规避](plans/2026-06-11-simc-flow-risk-avoidance.md) |
 | 已完成 | WebSim 到 SimC 的可提交闭环 | 让 WebSim 选择的天赋和装备能安全生成 SimC profile 并提交模拟。 | 玩家可以从可视化构筑直接进入可信模拟，而不是手动拼 profile。 | 天赋节点编码；完整核心装备 SimC-ready 校验；canonical WebSim profile；候选装备提示；阻断不可提交状态。 | 预览、提交、保存任务和 SimC 执行复用同一份 profile；核心装备栏位完整；有天赋编码结果、装备 readiness、阻断原因、成功执行测试和 benchmark 状态；候选装备不会误写入 SimC；无外部参考窗口时明确标为 unverified。 | `websim/`, `server/websim_payload.py`, `tests/websim_payload_test.py`, `tests/news_backend_test.py`, [SimC 端到端](simulator-simc-end-to-end.md) |
+| 已完成 | 小程序原生天赋模拟器 | 将 WebSim 天赋树移植到职业专精 tab 的“天赋构筑”入口。 | 玩家可以在小程序内直接点选职业、专精和英雄天赋，并把编码后的构筑带入 SimC 确认流程。 | 新增天赋模拟器页；接入 WebSim bootstrap/talents/profile；暴露职业/专精 WebSim key；实现点数、前置、choice、搜索、导入导出和 SimC 上下文保留。 | `pages/builds/talent-simulator` 可从天赋构筑和热门专精进入；payload 暴露 WebSim class/spec key；SimC build context 保留 selectedNodes、websimExportCode、hero/scenario、encodingStatus 和 simcLines；无完整装备时仍要求补装备；相关前后端契约测试覆盖。 | `app.json`, `pages/builds/talent-simulator.*`, `pages/builds/talent-simulator-core.js`, `pages/builds/websim-api.js`, `server/builds/home-payload.js`, `server/simulator_payload.py`, `tests/talent-simulator-core.test.js`, `tests/builds-page.test.js`, `tests/frontend-api-client.test.js`, `tests/news_backend_test.py`, `tests/simulator-page.test.js` |
 | 已完成 | SimC 输入契约产品化 | 把可执行 `/simc`、WebSim profile、confirm-only、submit、gear readiness、profileSource 和外部 benchmark 规则固化成用户可理解的流程。 | 玩家知道什么时候只是预览、什么时候可以真实模拟、缺哪些输入，以及模拟结果是否落在外部数据的合理区间。 | 强化 `/simc` 导入；确认与提交复用 payload；规范 SimC slot；区分展示 gear 与可执行 gear；标注 reasonable / outlier / unverified；补齐更多场景的外部参考窗口。 | 任意模拟提交前都能说明输入来源、是否可执行、缺失字段、是否保存任务和横向合理性状态；外部数据缺席时不得把 DPS 称为已横向验证。 | `websim/app.js`, `server/news_backend.py`, `server/websim_payload.py`, `tests/websim-page.test.js`, `tests/websim_payload_test.py`, [simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) |
 | 已完成 | 装备元数据与查询体验补全 | 用官方物品数据补齐装备中文名、图标、来源状态和掉落查询默认视图。 | 玩家在装备模拟器、职业装备页和装备查询里看到真实中文装备与图标，不再被英文名、空白掉落或展示型参考误导。 | 接入 Battle.net Game Data API 缓存；补齐别名映射、官方英文名精确检索、复合装备行拆分；区分 verified item、source_reference 和 fallback；装备查询优先定位有掉落的首领。 | WebSim 装备候选、地下城掉落和职业装备页均显示中文名/图标；Archon/Wowhead 参考行标记为 source_reference；空掉落首领不会作为默认空白结果；相关测试和远端 smoke 通过。 | `server/websim_payload.py`, `server/builds/home-payload.js`, `server/news_backend.py`, `pages/builds/detail.*`, `websim/app.js`, `websim/app.css`, `tests/websim_payload_test.py`, `tests/builds-page.test.js`, `tests/websim-page.test.js` |
+| 后续 | 模板化构筑与固定 SimC 输入 | 将天赋字符串、装备字符串和角色/职业选择沉淀为可保存、可加载、可验证的构筑模板，并把 SimC 入口从 LLM 对话引导转为固定表单。 | 玩家可以保存自己的天赋/装备模板，也能加载社区经典模板，后续快速组合并提交可信 SimC，不必每次从聊天或手动拼接开始。 | 定义模板数据模型；支持天赋模拟器和装备模拟器保存字符串；支持个人模板和社区模板加载；SimC 页面改为职业/角色选择、天赋字符串导入、装备字符串导入和固定校验流程；LLM 退到结果解释/复盘层。 | 模板记录包含类型、职业/专精/英雄天赋、场景、版本、来源、raw string、解析状态和验证状态；SimC 提交不依赖对话补槽；缺少角色、天赋或装备时有确定性阻断原因；社区模板标注来源和适用赛季；保存模板能进入后续快速导入。 | `pages/builds/talent-simulator.*`, `websim/`, `pages/simulator/simc.*`, `server/simulator_payload.py`, `simulator_tasks`, [ideas.md](roadmap/ideas.md) |
 | 下一步 | Roadmap 与想法池常态化 | 把项目目标、已完成动作、下一步和讨论想法放到同一套文档体系。 | 后续迭代有稳定上下文，减少反复解释和方向漂移。 | 维护本文件；新增想法池；定期把完成项和新想法同步进 roadmap。 | `docs/roadmap.md` 能回答目标、现状和下一步；`docs/roadmap/ideas.md` 能收纳待确认想法。 | [ideas.md](roadmap/ideas.md) |
 | 正在推进 | 数据可信度与赛季同步完善 | 明确哪些数据来自官方、SimC、Wago、日志站或本地 fallback。 | 玩家能知道数据是否新鲜、可信，避免看到过期赛季内容。 | 已完成装备物品官方元数据和 source_reference 分层；下一步继续完善赛季同步、刷新记录和更多外部数据源状态。 | 关键页面展示数据状态；过期或未验证数据不会伪装成当前赛季。 | `server/websim_payload.py`, `server/news_backend.py`, `docs/roadmap/ideas.md` |
+| 后续 | 数据与模拟健康哨兵 | 把 SimC 程序版本、Battle.net 赛季/天赋/装备数据、社区模板和端到端 SimC 兼容性纳入统一巡检。 | 玩家和维护者能知道当前模拟结果是否建立在最新且兼容的数据面上，避免 SimC 版本、天赋树、装备字段或模板过期时继续给出可信结论。 | 复用现有 `wow-simc-version-check`；新增游戏数据 revision 检测；对核心职业/专精跑兼容性 smoke；模板在赛季或天赋树变更后重新解析；在 health/admin surface 展示 blocked / stale / verified / incompatible。 | 每次巡检记录 checkedAt、SimC local/latest commit、seasonRevision、talentSchemaRevision、itemMetadataRevision、templateRevision 和 compatibility status；不兼容或过期时阻断真实 SimC 提交并给出确定性原因。 | `server/deploy_lighthouse.sh`, `server/websim_payload.py`, `server/game-season.js`, `pages/simulator/simc.*`, `docs/roadmap/ideas.md` |
 | 下一步 | 正式发布与刷新可观测 | 补齐 HTTPS、微信合法域名、443、刷新 run 管理和 health check。 | 体验版/正式版能稳定访问，刷新失败和环境问题可被定位。 | 配置正式域名；限制手动刷新；记录刷新错误；拆分网络、SimC、LLM、参考数据探测。 | 正式环境不依赖 HTTP IP；刷新记录可查；部署后 smoke 有明确步骤。 | [news-architecture.md](news-architecture.md), [remote-debugging.md](remote-debugging.md) |
 | 后续 | 职业 / PVE 数据采集自动化 | 将当前结构化 payload 逐步替换为定时采集、校验和数据库化数据。 | 构筑、PVE 和资讯能跟随版本、热修、赛季和日志样本更新。 | 接入 Raider.IO、Warcraft Logs、Archon、Subcreation 等可信源；保留样本窗口和低样本状态。 | 人工种子不再承担“最新结论”；每条结论都有来源和分析窗口。 | [builds-architecture.md](builds-architecture.md), `server/pve/` |
 | 后续 | 角色绑定与个人化工作台 | 从通用查询推进到玩家自己的角色、收藏、订阅和任务记录。 | 玩家能围绕自己的角色持续分析，而不是每次从零开始。 | 设计角色资料、订阅、收藏、历史任务和权限边界。 | 角色数据模型和隐私边界明确；至少一个个人化场景可用。 | `pages/profile/`, `simulator_tasks` |

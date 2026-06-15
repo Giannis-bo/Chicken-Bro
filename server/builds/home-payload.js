@@ -112,6 +112,22 @@ const classSlugByName = {
   '战士': 'warrior'
 }
 
+const websimClassKeyByName = {
+  '死亡骑士': 'deathknight',
+  '恶魔猎手': 'demonhunter',
+  '德鲁伊': 'druid',
+  '唤魔师': 'evoker',
+  '猎人': 'hunter',
+  '法师': 'mage',
+  '武僧': 'monk',
+  '圣骑士': 'paladin',
+  '牧师': 'priest',
+  '潜行者': 'rogue',
+  '萨满祭司': 'shaman',
+  '术士': 'warlock',
+  '战士': 'warrior'
+}
+
 const specSlugByName = {
   '鲜血': 'blood',
   '冰霜': 'frost',
@@ -126,6 +142,44 @@ const specSlugByName = {
   '恩护': 'preservation',
   '增辉': 'augmentation',
   '野兽控制': 'beast-mastery',
+  '射击': 'marksmanship',
+  '生存': 'survival',
+  '奥术': 'arcane',
+  '火焰': 'fire',
+  '酒仙': 'brewmaster',
+  '织雾': 'mistweaver',
+  '踏风': 'windwalker',
+  '神圣': 'holy',
+  '防护': 'protection',
+  '惩戒': 'retribution',
+  '戒律': 'discipline',
+  '暗影': 'shadow',
+  '刺杀': 'assassination',
+  '狂徒': 'outlaw',
+  '敏锐': 'subtlety',
+  '元素': 'elemental',
+  '增强': 'enhancement',
+  '痛苦': 'affliction',
+  '恶魔学识': 'demonology',
+  '毁灭': 'destruction',
+  '武器': 'arms',
+  '狂怒': 'fury'
+}
+
+const websimSpecKeyByName = {
+  '鲜血': 'blood',
+  '冰霜': 'frost',
+  '邪恶': 'unholy',
+  '浩劫': 'havoc',
+  '复仇': 'vengeance',
+  '平衡': 'balance',
+  '野性': 'feral',
+  '守护': 'guardian',
+  '恢复': 'restoration',
+  '湮灭': 'devastation',
+  '恩护': 'preservation',
+  '增辉': 'augmentation',
+  '野兽控制': 'beast_mastery',
   '射击': 'marksmanship',
   '生存': 'survival',
   '奥术': 'arcane',
@@ -238,6 +292,10 @@ function makeSpecialization(className, specName) {
     role,
     title: `${specName}${className}`,
     status: role,
+    classSlug: classSlugByName[className] || '',
+    specSlug: specSlugByName[specName] || '',
+    websimClassKey: websimClassKeyByName[className] || '',
+    websimSpecKey: websimSpecKeyByName[specName] || '',
     desc: `${role}专精，详情页覆盖天赋构筑、装备获取、属性权重和输出循环。`,
     sourceName: 'Archon',
     sourceUrl: 'https://www.archon.gg/wow',

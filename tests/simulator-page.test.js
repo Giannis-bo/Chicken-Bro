@@ -100,8 +100,54 @@ test('simc prompt includes front-end talent and gear simulator state', () => {
   assert.match(js, /context\.simulatorState \|\| \{\}/)
   assert.match(js, /talentState\.selectedNodes/)
   assert.match(js, /talentState\.simcHint/)
+  assert.match(js, /formatTalentNodeLabel/)
+  assert.match(js, /talentState\.websimExportCode/)
+  assert.match(js, /talentState\.encodingStatus/)
   assert.match(js, /gearState\.progressText/)
   assert.match(js, /gearState\.nextAction/)
+})
+
+test('simc prompt formats WebSim talent node objects and encoding lines', () => {
+  let pageDefinition = null
+  const originalPage = global.Page
+  global.Page = (definition) => {
+    pageDefinition = definition
+  }
+  delete require.cache[require.resolve('../pages/simulator/simc.js')]
+  require('../pages/simulator/simc.js')
+  global.Page = originalPage
+
+  const prompt = pageDefinition.buildPromptFromContext({
+    specId: '法师-冰霜',
+    className: '法师',
+    specName: '冰霜',
+    activeQueryTitle: '天赋构筑',
+    details: {
+      talents: {
+        importCode: 'CAE_CONTEXT',
+        simcLines: ['class_talents=1001:1', 'spec_talents=2001:2'],
+        encodingStatus: 'encoded'
+      }
+    },
+    simulatorState: {
+      talent: {
+        selectedNodes: [
+          { id: 'n1', name: 'Ice Lance', rank: 2, tree: 'spec' },
+          { id: 'n2', name: 'Spellslinger', rank: 1, tree: 'hero' }
+        ],
+        websimExportCode: 'websim:mage:frost:spellslinger:n1:2,n2:1',
+        heroKey: 'spellslinger',
+        scenarioKey: 'mythic_plus',
+        encodingStatus: 'encoded'
+      }
+    }
+  })
+
+  assert.match(prompt, /前端天赋模拟器已选择节点：Ice Lance x2、Spellslinger/)
+  assert.match(prompt, /WebSim 导出码：websim:mage:frost:spellslinger:n1:2,n2:1/)
+  assert.match(prompt, /WebSim 天赋编码：encoded/)
+  assert.match(prompt, /SimC 天赋行：class_talents=1001:1；spec_talents=2001:2/)
+  assert.doesNotMatch(prompt, /\[object Object\]/)
 })
 
 test('simulator page renders simc agent clarification and summary cards', () => {

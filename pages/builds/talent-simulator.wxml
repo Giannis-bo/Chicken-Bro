@@ -1,0 +1,151 @@
+<view class="talent-simulator-page">
+  <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
+
+  <scroll-view class="page-scroll" scroll-y type="list">
+    <view class="talent-page-content">
+      <view class="talent-header">
+        <view class="talent-title-row">
+          <view>
+            <text class="talent-kicker">职业专精</text>
+            <text class="talent-title">{{selectedSpec.title || '天赋构筑'}}</text>
+          </view>
+          <text class="talent-status {{talentStatus}}">{{talentStatus}}</text>
+        </view>
+        <text class="talent-desc">{{statusText}}</text>
+      </view>
+
+      <view class="talent-toolbar">
+        <picker mode="selector" range="{{classOptions}}" range-key="name" value="{{selectedClassIndex}}" bindchange="selectClass">
+          <view class="toolbar-picker">
+            <text class="picker-label">职业</text>
+            <text class="picker-value">{{selectedClass.name}}</text>
+          </view>
+        </picker>
+        <picker mode="selector" range="{{specOptions}}" range-key="title" value="{{selectedSpecIndex}}" bindchange="selectSpec">
+          <view class="toolbar-picker">
+            <text class="picker-label">专精</text>
+            <text class="picker-value">{{selectedSpec.title}}</text>
+          </view>
+        </picker>
+        <picker mode="selector" range="{{heroOptions}}" range-key="label" value="{{selectedHeroIndex}}" bindchange="selectHero">
+          <view class="toolbar-picker">
+            <text class="picker-label">英雄天赋</text>
+            <text class="picker-value">{{selectedHeroLabel}}</text>
+          </view>
+        </picker>
+        <picker mode="selector" range="{{scenarioOptions}}" range-key="title" value="{{selectedScenarioIndex}}" bindchange="selectScenario">
+          <view class="toolbar-picker">
+            <text class="picker-label">场景</text>
+            <text class="picker-value">{{selectedScenarioTitle}}</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="talent-actions">
+        <view class="search-box">
+          <input class="talent-search-input" value="{{searchTerm}}" placeholder="搜索天赋" placeholder-class="search-placeholder" bindinput="updateTalentSearch" />
+          <text class="search-count">{{searchCountText}}</text>
+        </view>
+        <button class="icon-button" bindtap="clearTalentSearch">清空</button>
+        <button class="icon-button" bindtap="resetTalents">重置</button>
+        <button class="icon-button" bindtap="openTalentImport">导入</button>
+        <button class="icon-button" bindtap="copyTalentExport">复制</button>
+      </view>
+
+      <scroll-view class="talent-board-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="talent-board">
+          <view class="talent-column class">
+            <view class="column-header">
+              <text class="column-title">{{classSection.title}}</text>
+              <text class="column-points">{{classSection.pointLabel}}</text>
+            </view>
+            <view class="talent-grid">
+              <view class="talent-link" wx:for="{{classSection.links}}" wx:key="to" style="{{item.lineStyle}}"></view>
+              <view class="{{item.nodeClass}}" wx:for="{{classSection.nodes}}" wx:key="id" style="{{item.nodeStyle}}" data-id="{{item.id}}" bindtap="tapTalentNode" bindlongpress="openNodeDetail">
+                <image wx:if="{{item.iconUrl}}" class="talent-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
+                <text wx:else class="talent-icon-fallback">{{item.firstLetter}}</text>
+                <text class="talent-rank">{{item.rankLabel}}</text>
+              </view>
+            </view>
+          </view>
+
+          <view class="talent-column spec">
+            <view class="column-header">
+              <text class="column-title">{{specSection.title}}</text>
+              <text class="column-points">{{specSection.pointLabel}}</text>
+            </view>
+            <view class="talent-grid">
+              <view class="talent-link" wx:for="{{specSection.links}}" wx:key="to" style="{{item.lineStyle}}"></view>
+              <view class="{{item.nodeClass}}" wx:for="{{specSection.nodes}}" wx:key="id" style="{{item.nodeStyle}}" data-id="{{item.id}}" bindtap="tapTalentNode" bindlongpress="openNodeDetail">
+                <image wx:if="{{item.iconUrl}}" class="talent-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
+                <text wx:else class="talent-icon-fallback">{{item.firstLetter}}</text>
+                <text class="talent-rank">{{item.rankLabel}}</text>
+              </view>
+            </view>
+          </view>
+
+          <view class="talent-column hero">
+            <view class="column-header">
+              <text class="column-title">{{heroSection.title}}</text>
+              <text class="column-points">{{heroSection.pointLabel}}</text>
+            </view>
+            <view class="talent-grid hero-grid">
+              <view class="talent-link" wx:for="{{heroSection.links}}" wx:key="to" style="{{item.lineStyle}}"></view>
+              <view class="{{item.nodeClass}}" wx:for="{{heroSection.nodes}}" wx:key="id" style="{{item.nodeStyle}}" data-id="{{item.id}}" bindtap="tapTalentNode" bindlongpress="openNodeDetail">
+                <image wx:if="{{item.iconUrl}}" class="talent-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
+                <text wx:else class="talent-icon-fallback">{{item.firstLetter}}</text>
+                <text class="talent-rank">{{item.rankLabel}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="talent-export-panel">
+        <view class="export-copy">
+          <text class="export-title">WebSim 导出码</text>
+          <text class="export-code">{{websimExportCode}}</text>
+        </view>
+        <button class="simc-button" loading="{{simcSubmitting}}" bindtap="openTalentSimc">带去 SimC</button>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="sheet-mask" wx:if="{{choiceSheet.visible}}" catchtap="closeChoiceSheet"></view>
+  <view class="talent-choice-sheet" wx:if="{{choiceSheet.visible}}">
+    <view class="sheet-handle"></view>
+    <text class="sheet-title">{{choiceSheet.title}}</text>
+    <view class="choice-option {{item.selected ? 'selected' : ''}}" wx:for="{{choiceSheet.options}}" wx:key="id" data-id="{{item.id}}" bindtap="selectChoiceTalent">
+      <image wx:if="{{item.iconUrl}}" class="sheet-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
+      <view class="sheet-copy">
+        <text class="sheet-option-title">{{item.name}}</text>
+        <text class="sheet-option-desc">{{item.description}}</text>
+      </view>
+      <text class="sheet-rank">{{item.rankLabel}}</text>
+    </view>
+  </view>
+
+  <view class="sheet-mask" wx:if="{{nodeDetailSheet.visible}}" catchtap="closeNodeDetail"></view>
+  <view class="talent-detail-sheet" wx:if="{{nodeDetailSheet.visible}}">
+    <view class="sheet-handle"></view>
+    <view class="detail-sheet-head">
+      <text class="sheet-title">{{nodeDetailSheet.node.name}}</text>
+      <text class="sheet-rank">{{nodeDetailSheet.node.rankLabel}}</text>
+    </view>
+    <text class="sheet-option-desc">{{nodeDetailSheet.node.description}}</text>
+    <text class="lock-reason" wx:if="{{nodeDetailSheet.reason}}">{{nodeDetailSheet.reason}}</text>
+    <view class="rank-stepper">
+      <button class="rank-button" data-id="{{nodeDetailSheet.node.id}}" data-delta="-1" bindtap="changeDetailRank">-</button>
+      <text class="rank-current">{{nodeDetailSheet.node.rankLabel}}</text>
+      <button class="rank-button" data-id="{{nodeDetailSheet.node.id}}" data-delta="1" bindtap="changeDetailRank">+</button>
+    </view>
+  </view>
+
+  <view class="sheet-mask" wx:if="{{importSheet.visible}}" catchtap="closeTalentImport"></view>
+  <view class="talent-import-sheet" wx:if="{{importSheet.visible}}">
+    <view class="sheet-handle"></view>
+    <text class="sheet-title">导入 WebSim 构筑</text>
+    <textarea class="import-input" value="{{importSheet.code}}" maxlength="2000" bindinput="updateImportCode"></textarea>
+    <button class="simc-button" bindtap="applyTalentImport">应用导入码</button>
+  </view>
+</view>
