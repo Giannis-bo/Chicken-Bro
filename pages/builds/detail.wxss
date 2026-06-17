@@ -481,6 +481,379 @@
   color: #58c98e;
 }
 
+.gear-status-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-top: 20rpx;
+  padding: 16rpx 0;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
+  color: #f8b700;
+  font-size: 21rpx;
+  font-weight: 900;
+}
+
+.gear-status-strip text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.gear-template-actions {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-top: 18rpx;
+}
+
+.gear-template-actions picker {
+  flex: 1;
+  min-width: 0;
+}
+
+.gear-template-picker,
+.gear-template-save-button {
+  min-height: 62rpx;
+  border-radius: 14rpx;
+  font-size: 22rpx;
+  font-weight: 900;
+  line-height: 62rpx;
+}
+
+.gear-template-picker {
+  padding: 0 18rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  background: #101010;
+  color: #f8b700;
+  overflow-wrap: anywhere;
+}
+
+.gear-template-save-button {
+  flex: none;
+  min-width: 178rpx;
+  margin: 0;
+  padding: 0 18rpx;
+  background: #8b3ff5;
+  color: #ffffff;
+}
+
+.gear-template-save-button::after {
+  border: 0;
+}
+
+.gear-stat-panel {
+  margin-top: 22rpx;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.gear-stat-state {
+  min-width: 0;
+}
+
+.gear-stat-state.verified {
+  border-color: rgba(88, 201, 142, 0.32);
+}
+
+.gear-stat-state.blocked {
+  border-color: rgba(248, 183, 0, 0.22);
+}
+
+.gear-stat-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16rpx;
+  align-items: baseline;
+}
+
+.gear-stat-title,
+.gear-stat-note {
+  display: block;
+}
+
+.gear-stat-title {
+  flex: 1;
+  min-width: 0;
+  color: #ffffff;
+  font-size: 26rpx;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.gear-stat-note {
+  flex: none;
+  max-width: 220rpx;
+  color: #8e8e8e;
+  font-size: 20rpx;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.gear-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.gear-stat-cell {
+  min-width: 0;
+  min-height: 78rpx;
+  padding: 14rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 12rpx;
+  background: #101010;
+}
+
+.gear-stat-label,
+.gear-stat-value {
+  display: block;
+}
+
+.gear-stat-label {
+  color: #a7a7a7;
+  font-size: 20rpx;
+  line-height: 1.2;
+}
+
+.gear-stat-value {
+  margin-top: 6rpx;
+  color: #f8b700;
+  font-size: 28rpx;
+  font-weight: 900;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.gear-blocked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  margin-top: 16rpx;
+  padding: 16rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.2);
+  border-radius: 12rpx;
+  background: rgba(248, 183, 0, 0.08);
+}
+
+.gear-blocked-title,
+.gear-blocked-item {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.gear-blocked-title {
+  color: #f8b700;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.gear-blocked-item {
+  color: #e1d6b8;
+  font-size: 21rpx;
+  line-height: 1.4;
+}
+
+.gear-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12rpx;
+  margin-top: 22rpx;
+}
+
+.gear-slot-card {
+  min-width: 0;
+  min-height: 210rpx;
+  padding: 14rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 14rpx;
+  background: #101010;
+}
+
+.gear-slot-card.verified {
+  border-color: rgba(248, 183, 0, 0.42);
+}
+
+.gear-slot-card.partial {
+  border-color: rgba(248, 183, 0, 0.22);
+}
+
+.gear-slot-card.blocked {
+  opacity: 0.78;
+}
+
+.gear-slot-topline,
+.gear-slot-footer,
+.gear-slot-body {
+  display: flex;
+  gap: 12rpx;
+}
+
+.gear-slot-topline,
+.gear-slot-footer {
+  justify-content: space-between;
+}
+
+.gear-slot-body {
+  align-items: center;
+  margin-top: 12rpx;
+}
+
+.gear-slot-label,
+.gear-slot-status,
+.gear-slot-footer text {
+  display: block;
+  min-width: 0;
+  font-size: 19rpx;
+  font-weight: 900;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.gear-slot-label {
+  color: #f8b700;
+}
+
+.gear-slot-status {
+  color: #a7a7a7;
+  text-align: right;
+}
+
+.gear-slot-footer {
+  margin-top: 12rpx;
+  color: #7f7f7f;
+}
+
+.gear-icon-frame.partial {
+  border-color: rgba(248, 183, 0, 0.38);
+}
+
+.gear-icon-frame.blocked {
+  opacity: 0.62;
+}
+
+.gear-empty-state {
+  margin-top: 20rpx;
+  color: #a7a7a7;
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+
+.gear-slot-sheet-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.gear-slot-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  max-height: 78vh;
+  padding: 16rpx 22rpx 34rpx;
+  border-radius: 28rpx 28rpx 0 0;
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  background: #111111;
+  box-shadow: 0 -20rpx 48rpx rgba(0, 0, 0, 0.42);
+}
+
+.gear-sheet-handle {
+  width: 86rpx;
+  height: 8rpx;
+  margin: 0 auto 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.gear-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.gear-sheet-kicker,
+.gear-sheet-title {
+  display: block;
+}
+
+.gear-sheet-kicker {
+  color: #f8b700;
+  font-size: 21rpx;
+  font-weight: 900;
+}
+
+.gear-sheet-title {
+  margin-top: 6rpx;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.gear-sheet-close {
+  flex: none;
+  min-width: 104rpx;
+  min-height: 58rpx;
+  margin: 0;
+  padding: 0 18rpx;
+  border-radius: 14rpx;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 22rpx;
+  font-weight: 900;
+  line-height: 58rpx;
+}
+
+.gear-sheet-close::after {
+  border: 0;
+}
+
+.gear-candidate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  max-height: 56vh;
+  margin-top: 18rpx;
+  overflow-y: auto;
+}
+
+.gear-candidate-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  padding: 14rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 14rpx;
+  background: #181818;
+}
+
+.gear-candidate-row.selected {
+  border-color: rgba(248, 183, 0, 0.5);
+  background: rgba(248, 183, 0, 0.1);
+}
+
+.gear-candidate-meta {
+  flex: none;
+  width: 118rpx;
+  color: #8e8e8e;
+  font-size: 19rpx;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.gear-candidate-meta text {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
 .stat-copy {
   display: flex;
   justify-content: space-between;

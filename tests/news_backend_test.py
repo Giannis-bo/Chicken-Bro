@@ -9,6 +9,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+from unittest.mock import patch
 
 
 SIMC_AGENT_SPEC_CASES = [
@@ -110,8 +111,12 @@ class NewsBackendTest(unittest.TestCase):
                 INSERT INTO news_articles (
                     id, title, summary, channel, category, tags_json, importance,
                     source_name, source_url, published_at, source_note,
-                    body_zh, original_title, original_summary, original_body, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    body_zh, original_title, original_summary, original_body,
+                    translation_status, content_status, tag_items_json, blocked_reason,
+                    source_id, source_tier, license_status, verification_status,
+                    source_badges_json, body_blocks_zh_json, canonical_topic_id,
+                    reading_meta_json, translation_fidelity, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     "article-1",
@@ -129,6 +134,19 @@ class NewsBackendTest(unittest.TestCase):
                     "Hotfixes: June 3, 2026",
                     "Here you will find a list of hotfixes.",
                     "Original excerpt: Here you will find a list of hotfixes that address various issues related to World of Warcraft: Midnight.",
+                    "llm",
+                    "ready",
+                    '[{"id":"hotfix","label":"热修"},{"id":"class-change","label":"职业调整"}]',
+                    "",
+                    "blizzard",
+                    "official",
+                    "approved",
+                    "official_verified",
+                    '["官方已核验","全文翻译"]',
+                    '[{"type":"paragraph","text":"中文正文：这条官方热修资讯汇总了《魔兽世界》近期问题修正，适合关注职业调整和正式服改动的玩家查看。"}]',
+                    "news:24276957",
+                    '{"bodyBlockCount":1,"estimatedReadingMinutes":1}',
+                    "source_translation",
                     "2026-06-09T03:33:40+00:00",
                 ),
             )
@@ -140,7 +158,15 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(detail["title"], "官方热修：2026 年 6 月 3 日")
         self.assertIn("中文正文", detail["bodyZh"])
         self.assertEqual(detail["originalTitle"], "Hotfixes: June 3, 2026")
-        self.assertIn("Here you will find", detail["originalBody"])
+        self.assertNotIn("originalBody", detail)
+        self.assertNotIn("originalSummary", detail)
+        self.assertEqual(detail["contentStatus"], "ready")
+        self.assertEqual(detail["translationStatus"], "llm")
+        self.assertEqual(detail["verificationStatus"], "official_verified")
+        self.assertEqual(detail["licenseStatus"], "approved")
+        self.assertEqual(detail["sourceBadges"], ["官方已核验", "全文翻译"])
+        self.assertEqual(detail["bodyBlocksZh"][0]["type"], "paragraph")
+        self.assertEqual(detail["tagItems"][0]["label"], "热修")
         self.assertEqual(detail["sourceName"], "Blizzard News")
         self.assertEqual(detail["publishedAt"], "2026-06-06")
         self.assertEqual(detail["sourceUrl"], "https://worldofwarcraft.blizzard.com/news/24276957/hotfixes-june-3-2026")
@@ -149,12 +175,12 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIsNone(self.backend.get_article_detail("missing"))
 
     def test_refresh_mode_validation_accepts_only_known_public_modes(self):
-        self.assertEqual(self.backend.normalize_refresh_mode("manual"), "manual")
+        self.assertIsNone(self.backend.normalize_refresh_mode("manual"))
         self.assertEqual(self.backend.normalize_refresh_mode("scheduled"), "scheduled")
         self.assertIsNone(self.backend.normalize_refresh_mode("unexpected"))
 
     def test_refresh_run_records_visible_translation_quality_summary(self):
-        self.backend.refresh_articles("manual")
+        self.backend.refresh_articles("scheduled")
 
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
             row = conn.execute(
@@ -170,16 +196,417 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIsInstance(message["translationIssues"], list)
 
     def test_latest_refresh_run_payload_exposes_translation_quality_summary(self):
-        self.backend.refresh_articles("manual")
+        self.backend.refresh_articles("scheduled")
 
         payload = self.backend.latest_refresh_run_payload()
 
-        self.assertEqual(payload["refreshMode"], "manual")
-        self.assertGreater(payload["acceptedCount"], 0)
+        self.assertEqual(payload["refreshMode"], "scheduled")
+        self.assertEqual(payload["acceptedCount"], 0)
         self.assertIn("refreshedAt", payload)
         self.assertIn("translationIssueCount", payload)
         self.assertIn("translationIssues", payload)
         self.assertIsInstance(payload["translationIssues"], list)
+        self.assertIn("blockedArticleCount", payload)
+        self.assertIn("blockedArticles", payload)
+        self.assertGreater(payload["blockedArticleCount"], 0)
+        self.assertTrue(
+            {"not_source_translation", "translated_body_is_not_a_source_translation"}.intersection(
+                {article["reason"] for article in payload["blockedArticles"]}
+            )
+        )
+        self.assertIn("collectorLimit", payload)
+        self.assertIn("collectedDiscoveredCount", payload)
+        self.assertIn("collectorDuplicateSeedSkippedCount", payload)
+
+    def test_news_source_registry_seeds_license_and_fetch_policy(self):
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            rows = conn.execute(
+                """
+                SELECT source_id, source_name, tier, fetch_mode, retail_only, license_status, enabled
+                FROM news_sources
+                ORDER BY source_id
+                """
+            ).fetchall()
+
+        by_id = {row[0]: row for row in rows}
+        self.assertEqual(by_id["blizzard"][1], "Blizzard News")
+        self.assertEqual(by_id["blizzard"][2], "official")
+        self.assertEqual(by_id["blizzard"][5], "approved")
+        self.assertEqual(by_id["blizzard"][6], 1)
+        self.assertEqual(by_id["wowhead"][2], "trusted_media")
+        self.assertEqual(by_id["wowhead"][5], "reference_only")
+        self.assertEqual(by_id["wowhead"][6], 0)
+
+    def test_refresh_accepts_only_official_verified_llm_articles(self):
+        collected = [
+            {
+                "id": "auto-blizzard-ready",
+                "title": "Hotfixes: June 3, 2026",
+                "summary": "Blizzard has posted hotfixes.",
+                "channel": "职业强度变化",
+                "category": "正式服",
+                "tags": ["hotfix"],
+                "importance": 96,
+                "sourceId": "blizzard",
+                "sourceName": "Blizzard News",
+                "sourceUrl": "https://worldofwarcraft.blizzard.com/news/24276957/hotfixes-june-3-2026",
+                "publishedAt": "2026-06-06",
+                "sourceNote": "暴雪官方 World of Warcraft 新闻详情页自动采集。",
+                "originalTitle": "Hotfixes: June 3, 2026",
+                "originalSummary": "Blizzard has posted hotfixes.",
+                "originalBody": "Blizzard has posted hotfixes.\n\nClasses\n\nDruid fixed issue.",
+                "bodyBlocks": [
+                    {"type": "paragraph", "text": "Blizzard has posted hotfixes."},
+                    {"type": "heading", "text": "Classes"},
+                    {"type": "paragraph", "text": "Druid fixed issue."},
+                ],
+                "requiresLlmTranslation": True,
+            }
+        ]
+        translated = dict(
+            collected[0],
+            title="官方热修：2026 年 6 月 3 日",
+            summary="暴雪发布新的《魔兽世界》官方热修说明，覆盖职业问题修正。",
+            bodyZh="中文正文：暴雪发布新的官方热修说明，覆盖正式服近期问题修正。\n\n职业\n\n德鲁伊问题已修正。",
+            bodyBlocksZh=[
+                {"type": "paragraph", "text": "暴雪发布新的官方热修说明，覆盖正式服近期问题修正。"},
+                {"type": "heading", "text": "职业"},
+                {"type": "paragraph", "text": "德鲁伊问题已修正。"},
+            ],
+            tagItems=[{"id": "hotfix", "label": "热修"}],
+            tags=["hotfix"],
+            translationStatus="llm",
+            translationFidelity="source_translation",
+            contentStatus="ready",
+        )
+
+        with patch.object(self.backend, "ENABLE_COLLECTORS", True), patch.object(self.backend, "load_seed_articles", return_value=[]), patch.object(
+            self.backend,
+            "collect_feed_articles",
+            return_value=(collected, []),
+        ), patch.object(self.backend, "localize_article", return_value=translated):
+            self.backend.refresh_articles("scheduled")
+
+        detail = self.backend.get_article_detail("auto-blizzard-ready")
+        latest = self.backend.latest_refresh_run_payload()
+
+        self.assertEqual(detail["verificationStatus"], "official_verified")
+        self.assertEqual(detail["licenseStatus"], "approved")
+        self.assertEqual(detail["sourceTier"], "official")
+        self.assertEqual(detail["translationStatus"], "llm")
+        self.assertEqual(detail["sourceBadges"], ["官方已核验", "全文翻译"])
+        self.assertEqual(detail["bodyBlocksZh"][1], {"type": "heading", "text": "职业"})
+        self.assertNotIn("originalBody", detail)
+        self.assertEqual(latest["verificationCounts"]["official_verified"], 1)
+
+    def test_refresh_skips_collected_seed_duplicates_before_llm_translation(self):
+        seed = dict(self.backend.load_seed_articles()[0])
+        seed["translationFidelity"] = "source_translation"
+        duplicate = dict(
+            seed,
+            id="collected-duplicate",
+            title=seed.get("originalTitle", seed["title"]),
+            summary=seed.get("originalSummary", seed["summary"]),
+            bodyZh="",
+            bodyBlocksZh=[],
+            translationStatus="",
+            contentStatus="discovered",
+            requiresLlmTranslation=True,
+        )
+        localized_ids = []
+
+        def localize(article, require_llm=False):
+            localized_ids.append(article["id"])
+            return article
+
+        with patch.object(self.backend, "ENABLE_COLLECTORS", True), patch.object(self.backend, "load_seed_articles", return_value=[seed]), patch.object(
+            self.backend,
+            "collect_feed_articles",
+            return_value=([duplicate], []),
+        ), patch.object(self.backend, "localize_article", side_effect=localize):
+            self.backend.refresh_articles("scheduled")
+
+        latest = self.backend.latest_refresh_run_payload()
+
+        self.assertEqual(localized_ids, [seed["id"]])
+        self.assertEqual(latest["collectedDiscoveredCount"], 1)
+        self.assertEqual(latest["collectedCount"], 0)
+        self.assertEqual(latest["collectorDuplicateSeedSkippedCount"], 1)
+
+    def test_refresh_retranslates_seed_duplicate_when_seed_is_not_source_translation(self):
+        seed = dict(self.backend.load_seed_articles()[0])
+        seed.pop("translationFidelity", None)
+        duplicate = dict(
+            seed,
+            id="collected-duplicate",
+            title=seed.get("originalTitle", seed["title"]),
+            summary=seed.get("originalSummary", seed["summary"]),
+            originalBody="This official source paragraph should be translated directly.",
+            bodyBlocks=[{"type": "paragraph", "text": "This official source paragraph should be translated directly."}],
+            bodyZh="",
+            bodyBlocksZh=[],
+            translationStatus="",
+            contentStatus="discovered",
+            requiresLlmTranslation=True,
+        )
+        localized_ids = []
+
+        def localize(article, require_llm=False):
+            localized_ids.append(article["id"])
+            if article["id"] == "collected-duplicate":
+                return dict(
+                    article,
+                    title="官方来源段落直译",
+                    summary="这是一段官方来源正文的中文翻译。",
+                    bodyZh="中文正文：这段官方来源段落应该被直接翻译。",
+                    bodyBlocksZh=[{"type": "paragraph", "text": "这段官方来源段落应该被直接翻译。"}],
+                    tagItems=[{"id": "content-update", "label": "内容更新"}],
+                    translationStatus="llm",
+                    translationFidelity="source_translation",
+                    contentStatus="ready",
+                )
+            return article
+
+        with patch.object(self.backend, "ENABLE_COLLECTORS", True), patch.object(self.backend, "load_seed_articles", return_value=[seed]), patch.object(
+            self.backend,
+            "collect_feed_articles",
+            return_value=([duplicate], []),
+        ), patch.object(self.backend, "localize_article", side_effect=localize):
+            self.backend.refresh_articles("scheduled")
+
+        latest = self.backend.latest_refresh_run_payload()
+        detail = self.backend.get_article_detail("collected-duplicate")
+
+        self.assertEqual(localized_ids, ["collected-duplicate"])
+        self.assertEqual(latest["collectedDiscoveredCount"], 1)
+        self.assertEqual(latest["collectedCount"], 1)
+        self.assertEqual(latest["collectorDuplicateSeedSkippedCount"], 0)
+        self.assertEqual(detail["translationFidelity"], "source_translation")
+
+    def test_publication_gate_blocks_llm_summary_without_source_translation_fidelity(self):
+        reviewed = self.backend.apply_publication_gates(
+            {
+                "id": "summary-like",
+                "title": "Midnight: Revelations 内容更新将于 6 月 16 日上线",
+                "summary": "官方公布 Midnight: Revelations 更新。",
+                "bodyZh": "中文正文：暴雪公布了 Midnight: Revelations 内容更新的上线安排，玩家可以提前了解主要游玩目标。",
+                "bodyBlocksZh": [
+                    {
+                        "type": "paragraph",
+                        "text": "中文正文：暴雪公布了 Midnight: Revelations 内容更新的上线安排，玩家可以提前了解主要游玩目标。",
+                    }
+                ],
+                "channel": "正式服动态",
+                "category": "正式服",
+                "tags": ["content-update"],
+                "tagItems": [{"id": "content-update", "label": "内容更新"}],
+                "sourceName": "Blizzard News",
+                "sourceId": "blizzard",
+                "sourceTier": "official",
+                "licenseStatus": "approved",
+                "sourceUrl": "https://worldofwarcraft.blizzard.com/en-us/news/24266797/the-midnight-revelations-content-update-goes-live-17-june",
+                "sourceNote": "官方来源。",
+                "publishedAt": "2026-06-03",
+                "originalTitle": "The Midnight: Revelations Content Update Goes Live 17 June",
+                "translationStatus": "llm",
+                "contentStatus": "ready",
+            }
+        )
+
+        self.assertEqual(reviewed["contentStatus"], "blocked")
+        self.assertEqual(reviewed["blockedReason"], "not_source_translation")
+
+    def test_refresh_blocks_third_party_without_approved_license_even_when_translated(self):
+        collected = [
+            {
+                "id": "wowhead-reference-only",
+                "title": "More Class Tuning for Druids and Warriors",
+                "summary": "Wowhead summarized PTR notes.",
+                "channel": "测试服前瞻",
+                "category": "测试服",
+                "tags": ["ptr", "class-change"],
+                "importance": 72,
+                "sourceId": "wowhead",
+                "sourceName": "Wowhead",
+                "sourceTier": "trusted_media",
+                "licenseStatus": "reference_only",
+                "sourceUrl": "https://www.wowhead.com/news/more-class-tuning-381217",
+                "publishedAt": "2026-04-13",
+                "sourceNote": "Wowhead RSS discovery.",
+                "originalTitle": "More Class Tuning for Druids and Warriors",
+                "originalSummary": "Wowhead summarized PTR notes.",
+                "originalBody": "Third-party article body should not be publicly translated.",
+                "requiresLlmTranslation": True,
+            }
+        ]
+        translated = dict(
+            collected[0],
+            title="PTR 德鲁伊与战士职业调整记录",
+            summary="第三方站点整理了 PTR 开发说明。",
+            bodyZh="中文正文：第三方站点整理了 PTR 开发说明，但未确认授权时不能公开全文翻译。",
+            bodyBlocksZh=[{"type": "paragraph", "text": "第三方站点整理了 PTR 开发说明，但未确认授权时不能公开全文翻译。"}],
+            tagItems=[{"id": "ptr", "label": "测试服"}],
+            translationStatus="llm",
+            translationFidelity="source_translation",
+            contentStatus="ready",
+        )
+
+        with patch.object(self.backend, "ENABLE_COLLECTORS", True), patch.object(self.backend, "load_seed_articles", return_value=[]), patch.object(
+            self.backend,
+            "collect_feed_articles",
+            return_value=(collected, []),
+        ), patch.object(self.backend, "localize_article", return_value=translated):
+            self.backend.refresh_articles("scheduled")
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            public_count = conn.execute("SELECT COUNT(*) FROM news_articles").fetchone()[0]
+            raw_count = conn.execute("SELECT COUNT(*) FROM news_raw_articles").fetchone()[0]
+            evidence_count = conn.execute("SELECT COUNT(*) FROM news_article_evidence").fetchone()[0]
+
+        latest = self.backend.latest_refresh_run_payload()
+
+        self.assertEqual(public_count, 0)
+        self.assertEqual(raw_count, 1)
+        self.assertEqual(evidence_count, 1)
+        self.assertEqual(latest["licenseBlockedCount"], 1)
+        self.assertEqual(latest["blockedArticles"][0]["reason"], "license_blocked")
+        self.assertEqual(latest["verificationCounts"]["license_blocked"], 1)
+
+    def test_load_articles_does_not_publish_seed_without_source_translation_when_collectors_are_missing(self):
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            conn.execute(
+                """
+                INSERT INTO news_articles (
+                    id, title, summary, channel, category, tags_json, importance,
+                    source_name, source_url, published_at, source_note,
+                    body_zh, original_title, original_summary, original_body,
+                    translation_status, content_status, tag_items_json, blocked_reason, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "legacy-short-body",
+                    "前往 Val 和 Naigtal 平息虚空领袖",
+                    "与伊利达雷恶魔猎手和光铸军团一同冒险，前往两个全新区域——Val…",
+                    "职业强度变化",
+                    "正式服",
+                    '["class-change"]',
+                    100,
+                    "Blizzard News",
+                    "https://worldofwarcraft.blizzard.com/news/24270001/travel-to-val-and-naigtal",
+                    "2026-06-03",
+                    "旧版采集数据。",
+                    "中文正文：与伊利达雷恶魔猎手和光铸军团一同冒险，前往两个全新区域——Val…",
+                    "Travel to Val and Naigtal to Quell Leaders of the Void",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "2026-06-17T00:00:00+00:00",
+                ),
+            )
+            conn.commit()
+
+        with patch.object(self.backend, "ENABLE_COLLECTORS", True), patch.object(
+            self.backend,
+            "collect_feed_articles",
+            side_effect=AssertionError("bootstrap should not run collectors"),
+        ):
+            articles = self.backend.load_articles()
+
+        self.assertEqual(articles, [])
+        self.assertNotIn("legacy-short-body", {article["id"] for article in articles})
+
+    def test_load_articles_returns_empty_for_legacy_ready_rows_missing_source_translation(self):
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            conn.execute(
+                """
+                INSERT INTO news_articles (
+                    id, title, summary, channel, category, tags_json, importance,
+                    source_name, source_url, published_at, source_note,
+                    body_zh, original_title, original_summary, original_body,
+                    translation_status, content_status, tag_items_json, blocked_reason,
+                    source_id, source_tier, license_status, verification_status,
+                    source_badges_json, body_blocks_zh_json, canonical_topic_id,
+                    reading_meta_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "legacy-ready-missing-fidelity",
+                    "旧版摘要型正文",
+                    "旧版摘要。",
+                    "正式服动态",
+                    "正式服",
+                    '["content-update"]',
+                    90,
+                    "Blizzard News",
+                    "https://worldofwarcraft.blizzard.com/news/24266797/the-midnight-revelations-content-update-is-now-live",
+                    "2026-06-16",
+                    "旧版来源。",
+                    "中文正文：这是一段旧版摘要型正文。",
+                    "The Midnight: Revelations Content Update is Now Live!",
+                    "",
+                    "",
+                    "llm",
+                    "ready",
+                    '[{"id":"content-update","label":"内容更新"}]',
+                    "",
+                    "blizzard",
+                    "official",
+                    "approved",
+                    "official_verified",
+                    '["官方已核验","全文翻译"]',
+                    '[{"type":"paragraph","text":"这是一段旧版摘要型正文。"}]',
+                    "news:24266797",
+                    '{"bodyBlockCount":1,"estimatedReadingMinutes":1}',
+                    "2026-06-17T00:00:00+00:00",
+                ),
+            )
+            conn.commit()
+
+        with patch.object(self.backend, "refresh_articles", return_value={"refreshMode": "bootstrap", "lastRefreshedAt": "now"}):
+            articles = self.backend.load_articles()
+
+        self.assertEqual(articles, [])
+
+    def test_refresh_blocks_collected_articles_when_llm_translation_is_unavailable(self):
+        collected = [
+            {
+                "id": "auto-blizzard",
+                "title": "Travel to Val and Naigtal to Quell Leaders of the Void",
+                "summary": "Join the fight against the Void in a new World of Warcraft update.",
+                "channel": "正式服动态",
+                "category": "正式服",
+                "tags": ["content-update"],
+                "importance": 91,
+                "sourceName": "Blizzard News",
+                "sourceUrl": "https://worldofwarcraft.blizzard.com/news/24270001/travel-to-val-and-naigtal",
+                "publishedAt": "2026-06-08",
+                "sourceNote": "暴雪官方 World of Warcraft 新闻详情页自动采集。",
+                "originalTitle": "Travel to Val and Naigtal to Quell Leaders of the Void",
+                "originalSummary": "Join the fight against the Void in a new World of Warcraft update.",
+                "originalBody": "Join the fight against the Void in a new World of Warcraft update.\n\nThis full body needs LLM translation before public release.",
+                "requiresLlmTranslation": True,
+            }
+        ]
+
+        with patch.object(self.backend, "ENABLE_COLLECTORS", True), patch.object(self.backend, "load_seed_articles", return_value=[]), patch.object(
+            self.backend,
+            "collect_feed_articles",
+            return_value=(collected, []),
+        ):
+            self.backend.refresh_articles("scheduled")
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            article_count = conn.execute("SELECT COUNT(*) FROM news_articles").fetchone()[0]
+            row = conn.execute("SELECT message FROM news_refresh_runs ORDER BY id DESC LIMIT 1").fetchone()
+
+        message = json.loads(row[0])
+        self.assertEqual(article_count, 0)
+        self.assertEqual(message["blockedArticleCount"], 1)
+        self.assertEqual(message["blockedArticles"][0]["id"], "auto-blizzard")
+        self.assertEqual(message["blockedArticles"][0]["reason"], "llm_not_configured")
 
     def test_list_articles_supports_metric_and_channel_filters_without_duplicates(self):
         articles = [
@@ -195,10 +622,44 @@ class NewsBackendTest(unittest.TestCase):
                     """
                     INSERT INTO news_articles (
                         id, title, summary, channel, category, tags_json, importance,
-                        source_name, source_url, published_at, source_note, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        source_name, source_url, published_at, source_note,
+                        body_zh, original_title, original_summary, original_body,
+                        translation_status, content_status, tag_items_json, blocked_reason,
+                        source_id, source_tier, license_status, verification_status,
+                        source_badges_json, body_blocks_zh_json, canonical_topic_id,
+                        reading_meta_json, translation_fidelity, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (*article, "2026-06-09T03:33:40+00:00"),
+                    (
+                        *article,
+                        f"中文正文：{article[2]} 这是一段用于列表筛选测试的完整中文正文，包含足够信息，不能被当作一句摘要。\n\n第二段确认详情页有完整正文。",
+                        article[1],
+                        article[2],
+                        article[2],
+                        "llm",
+                        "ready",
+                        '[{"id":"content-update","label":"内容更新"}]',
+                        "",
+                        "blizzard",
+                        "official",
+                        "approved",
+                        "official_verified",
+                        '["官方已核验","全文翻译"]',
+                        json.dumps(
+                            [
+                                {
+                                    "type": "paragraph",
+                                    "text": f"中文正文：{article[2]} 这是一段用于列表筛选测试的完整中文正文，包含足够信息，不能被当作一句摘要。",
+                                },
+                                {"type": "paragraph", "text": "第二段确认详情页有完整正文。"},
+                            ],
+                            ensure_ascii=False,
+                        ),
+                        "news:1000",
+                        '{"bodyBlockCount":2,"estimatedReadingMinutes":1}',
+                        "source_translation",
+                        "2026-06-09T03:33:40+00:00",
+                    ),
                 )
             conn.commit()
 
@@ -1902,7 +2363,7 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn('mage="路由测试"', captured_profile.read_text(encoding="utf-8"))
 
     def test_http_get_latest_news_refresh_run_route_returns_quality_summary(self):
-        self.backend.refresh_articles("manual")
+        self.backend.refresh_articles("scheduled")
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -1912,9 +2373,38 @@ class NewsBackendTest(unittest.TestCase):
                 payload = json.loads(response.read().decode("utf-8"))
 
             self.assertEqual(response.status, 200)
-            self.assertEqual(payload["refreshMode"], "manual")
+            self.assertEqual(payload["refreshMode"], "scheduled")
             self.assertIn("translationIssueCount", payload)
             self.assertIn("translationIssues", payload)
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_http_news_refresh_requires_explicit_scheduled_mode(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}/api/news/refresh"
+            for url in (base_url, f"{base_url}?mode=manual"):
+                request = Request(url, data=b"", method="POST")
+                with self.assertRaises(HTTPError) as context:
+                    urlopen(request, timeout=5)
+                self.assertEqual(context.exception.code, 400)
+                payload = json.loads(context.exception.read().decode("utf-8"))
+                self.assertEqual(payload["error"], "invalid_refresh_mode")
+                self.assertEqual(payload["allowedModes"], ["scheduled"])
+
+            with patch.object(self.backend, "refresh_articles", return_value={}), patch.object(
+                self.backend,
+                "build_home_payload",
+                return_value={"heroNews": [], "highlights": []},
+            ):
+                request = Request(f"{base_url}?mode=scheduled", data=b"", method="POST")
+                with urlopen(request, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertEqual(payload["heroNews"], [])
         finally:
             server.shutdown()
             server.server_close()

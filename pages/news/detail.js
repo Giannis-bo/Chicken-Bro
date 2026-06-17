@@ -1,6 +1,24 @@
 const { requestArticleDetail } = require('./news-api')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
+function stripBodyLabel(value) {
+  return typeof value === 'string' ? value.replace(/^中文正文\s*[:：]\s*/, '') : value
+}
+
+function cleanBodyBlock(block) {
+  if (!block || typeof block !== 'object') return block
+  if (block.type === 'list') {
+    return {
+      ...block,
+      items: Array.isArray(block.items) ? block.items.map(stripBodyLabel) : []
+    }
+  }
+  return {
+    ...block,
+    text: stripBodyLabel(block.text || '')
+  }
+}
+
 Page({
   data: {
     navTitle: '资讯详情',
@@ -58,21 +76,27 @@ Page({
 
   normalizeArticle(article) {
     if (!article) return null
-    const tags = article.tags || []
-    const tagsText = tags.length ? tags.join(' / ') : '无'
-    const bodyZh = article.bodyZh || article.summary || ''
+    const tagItems = Array.isArray(article.tagItems) && article.tagItems.length
+      ? article.tagItems
+      : (article.tags || []).map((tag) => ({ id: tag, label: tag }))
+    const bodyZh = article.bodyZh || ''
+    const bodyBlocksZh = Array.isArray(article.bodyBlocksZh) && article.bodyBlocksZh.length
+      ? article.bodyBlocksZh.map(cleanBodyBlock)
+      : bodyZh.split(/\n\s*\n/).filter(Boolean).map((text) => ({ type: 'paragraph', text: stripBodyLabel(text) }))
     const originalTitle = article.originalTitle || article.title || ''
-    const originalBody = article.originalBody || article.originalSummary || article.summary || ''
+    const sourceBadges = Array.isArray(article.sourceBadges) && article.sourceBadges.length
+      ? article.sourceBadges
+      : ['官方已核验', '全文翻译']
     return {
       ...article,
-      tagsText,
+      tagItems,
       bodyZh,
+      bodyBlocksZh,
       originalTitle,
-      originalBody,
+      sourceBadges,
       metaChips: [
         { label: '分类', value: article.category || '未分类' },
-        { label: '频道', value: article.channel || '资讯' },
-        { label: '标签', value: tagsText }
+        { label: '频道', value: article.channel || '资讯' }
       ]
     }
   },

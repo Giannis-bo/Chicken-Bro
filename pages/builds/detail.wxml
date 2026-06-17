@@ -66,35 +66,85 @@
 
       <view class="module-panel gear-panel" wx:if="{{activeQueryKey == 'gear'}}">
         <view class="panel-header">
-          <text class="panel-title">{{activeDetail.title}}</text>
-          <text class="panel-subtitle">按部位展示装备、掉落来源和替代选择</text>
+          <text class="panel-title">装备模拟</text>
+          <text class="panel-subtitle">查看满级属性、替换装备并校验 SimC-ready 状态</text>
         </view>
-        <view class="gear-progress-panel">
-          <text class="gear-progress-main">{{gearProgressText}}</text>
-          <text class="gear-progress-next">{{gearNextAction}}</text>
+
+        <view class="gear-status-strip">
+          <text>{{gearPayload.maxLevel ? '满级 ' + gearPayload.maxLevel : '满级配置待返回'}}</text>
+          <text>{{gearReadiness.fullReady ? '装备 ready' : '装备待补齐'}}</text>
+          <text>{{gearStatsLoading ? '属性刷新中' : gearStatSnapshot.statStatus}}</text>
         </view>
-        <view class="gear-list">
-          <view class="gear-row gear-acquisition-row {{item.acquired ? 'acquired' : ''}}" wx:for="{{gearAcquisitionRows}}" wx:key="key" data-key="{{item.key}}" bindtap="toggleGearAcquired">
-            <view class="gear-icon-frame {{item.metadataVerified ? 'verified' : ''}}">
-              <image wx:if="{{item.iconUrl}}" class="gear-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
-              <text wx:else class="gear-icon-fallback">{{item.slot}}</text>
+
+        <view class="gear-template-actions">
+          <picker mode="selector" range="{{gearTemplateScenarios}}" range-key="title" value="{{selectedGearTemplateScenarioIndex}}" bindchange="selectGearTemplateScenario">
+            <view class="gear-template-picker">场景：{{gearTemplateScenarios[selectedGearTemplateScenarioIndex] ? gearTemplateScenarios[selectedGearTemplateScenarioIndex].title : '未选择'}}</view>
+          </picker>
+          <button class="gear-template-save-button" loading="{{gearTemplateSaving}}" bindtap="saveGearTemplate">保存装备模板</button>
+        </view>
+
+        <view class="gear-stat-panel">
+          <view class="gear-stat-state {{gearStatSnapshot.statStatus == 'verified' ? 'verified' : 'blocked'}}">
+            <view class="gear-stat-heading">
+              <text class="gear-stat-title">{{gearStatStatusText}}</text>
+              <text class="gear-stat-note">{{gearStatSnapshot.checkedAt}}</text>
             </view>
-            <view class="gear-copy">
-              <view class="gear-title-row">
-                <text class="gear-slot">{{item.slot}}</text>
-                <text class="gear-name">{{item.displayName}}</text>
+            <view wx:if="{{gearStatSnapshot.statStatus == 'verified'}}" class="gear-stat-grid">
+              <view class="gear-stat-cell" wx:if="{{gearStatSnapshot.primary}}">
+                <text class="gear-stat-label">{{gearStatSnapshot.primary.label}}</text>
+                <text class="gear-stat-value">{{gearStatSnapshot.primary.value}}</text>
               </view>
-              <text wx:if="{{item.originalName}}" class="gear-original">{{item.originalName}}</text>
-              <text class="gear-source">{{item.source}}</text>
+              <view class="gear-stat-cell" wx:if="{{gearStatSnapshot.stamina}}">
+                <text class="gear-stat-label">{{gearStatSnapshot.stamina.label}}</text>
+                <text class="gear-stat-value">{{gearStatSnapshot.stamina.value}}</text>
+              </view>
+              <view class="gear-stat-cell" wx:for="{{gearStatSnapshot.secondary}}" wx:key="key">
+                <text class="gear-stat-label">{{item.label}}</text>
+                <text class="gear-stat-value">{{item.value}}</text>
+              </view>
+              <view class="gear-stat-cell" wx:if="{{gearStatSnapshot.armor}}">
+                <text class="gear-stat-label">{{gearStatSnapshot.armor.label}}</text>
+                <text class="gear-stat-value">{{gearStatSnapshot.armor.value}}</text>
+              </view>
+              <view class="gear-stat-cell" wx:if="{{gearStatSnapshot.weaponDps}}">
+                <text class="gear-stat-label">{{gearStatSnapshot.weaponDps.label}}</text>
+                <text class="gear-stat-value">{{gearStatSnapshot.weaponDps.value}}</text>
+              </view>
             </view>
-            <view class="gear-meta">
-              <text class="gear-priority">{{item.priorityLabel}}</text>
-              <text class="gear-source-type">{{item.sourceType}}</text>
-              <text class="gear-metadata {{item.metadataVerified ? 'verified' : ''}}">{{item.metadataLabel}}</text>
-              <text class="gear-check">{{item.checkLabel}}</text>
+            <view wx:else class="gear-blocked-list">
+              <text class="gear-blocked-title">暂不能显示已验证属性</text>
+              <text class="gear-blocked-item" wx:for="{{gearStatBlockers}}" wx:key="*this">{{item}}</text>
             </view>
           </view>
         </view>
+
+        <view class="gear-slot-grid">
+          <view class="gear-slot-card {{item.statusClass}}" wx:for="{{gearSlotRows}}" wx:key="slot" data-slot="{{item.slot}}" bindtap="openGearSlotSheet">
+            <view class="gear-slot-topline">
+              <text class="gear-slot-label">{{item.label}}</text>
+              <text class="gear-slot-status">{{item.statusLabel}}</text>
+            </view>
+            <view class="gear-slot-body">
+              <view class="gear-icon-frame {{item.statusClass}}">
+                <image wx:if="{{item.iconUrl}}" class="gear-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
+                <text wx:else class="gear-icon-fallback">{{item.label}}</text>
+              </view>
+              <view class="gear-copy">
+                <text class="gear-name">{{item.displayName}}</text>
+                <text class="gear-source">{{item.ilevel ? '装等 ' + item.ilevel : item.reason}}</text>
+              </view>
+            </view>
+            <view class="gear-slot-footer">
+              <text>{{item.candidateCount}} 个候选</text>
+              <text>{{item.itemId || '未选择'}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="gear-empty-state" wx:if="{{!gearLoading && !gearSlotRows.length}}">
+          <text>装备模拟数据暂不可用，等待后端返回槽位结构。</text>
+        </view>
+
         <view class="insight-list">
           <text class="insight-item" wx:for="{{activeDetail.items}}" wx:key="*this">{{item}}</text>
         </view>
@@ -152,4 +202,32 @@
       </view>
     </view>
   </scroll-view>
+
+  <view class="gear-slot-sheet-mask" wx:if="{{gearSlotSheet.visible}}" bindtap="closeGearSlotSheet"></view>
+  <view class="gear-slot-sheet" wx:if="{{gearSlotSheet.visible}}">
+    <view class="gear-sheet-handle"></view>
+    <view class="gear-sheet-header">
+      <view>
+        <text class="gear-sheet-kicker">{{gearSlotSheet.label}}</text>
+        <text class="gear-sheet-title">替换装备</text>
+      </view>
+      <button class="gear-sheet-close" bindtap="closeGearSlotSheet">关闭</button>
+    </view>
+    <view class="gear-candidate-list">
+      <view class="gear-candidate-row {{item.selected ? 'selected' : ''}}" wx:for="{{gearSlotSheet.candidates}}" wx:for-index="candidateIndex" wx:key="key" data-index="{{candidateIndex}}" data-slot="{{gearSlotSheet.slot}}" bindtap="selectGearCandidate">
+        <view class="gear-icon-frame {{item.statusClass}}">
+          <image wx:if="{{item.iconUrl}}" class="gear-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
+          <text wx:else class="gear-icon-fallback">{{gearSlotSheet.label}}</text>
+        </view>
+        <view class="gear-copy">
+          <text class="gear-name">{{item.displayName}}</text>
+          <text class="gear-source">{{item.source || item.reason}}</text>
+        </view>
+        <view class="gear-candidate-meta">
+          <text class="gear-slot-status">{{item.statusLabel}}</text>
+          <text>{{item.ilevel ? '装等 ' + item.ilevel : item.itemId}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
 </view>

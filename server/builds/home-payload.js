@@ -8,8 +8,8 @@ const queryTypes = [
   },
   {
     key: 'gear',
-    title: '装备获取',
-    desc: '整理套装、饰品、武器和关键装备的来源优先级。'
+    title: '装备模拟',
+    desc: '查看满级属性、替换装备并校验 SimC-ready 状态。'
   },
   {
     key: 'statWeights',
@@ -296,7 +296,7 @@ function makeSpecialization(className, specName) {
     specSlug: specSlugByName[specName] || '',
     websimClassKey: websimClassKeyByName[className] || '',
     websimSpecKey: websimSpecKeyByName[specName] || '',
-    desc: `${role}专精，详情页覆盖天赋构筑、装备获取、属性权重和输出循环。`,
+    desc: `${role}专精，详情页覆盖天赋构筑、装备模拟、属性权重和输出循环。`,
     sourceName: 'Archon',
     sourceUrl: 'https://www.archon.gg/wow',
     publishedAt: latestAnalysis.publishedAt,

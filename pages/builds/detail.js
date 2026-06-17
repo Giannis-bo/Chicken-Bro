@@ -4,7 +4,12 @@ const {
   requestBuildsDetail,
   requestBuildsHome
 } = require('./builds-api')
+const {
+  requestWebsimGear,
+  requestWebsimGearStats
+} = require('./websim-api')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
+const { saveBuildTemplate } = require('../common/build-template-storage')
 
 const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
 const fallbackPayload = fallbackBuildsHome()
@@ -22,6 +27,17 @@ const simulatorDefaults = {
   ]
 }
 const talentScenarios = simulatorDefaults.talentScenarios
+const gearTemplateScenarios = [
+  { key: 'single', title: '单体' },
+  { key: 'mythic_plus', title: '大秘境' },
+  { key: 'raid', title: '团本' }
+]
+
+function showToast(title) {
+  if (typeof wx !== 'undefined' && typeof wx.showToast === 'function') {
+    wx.showToast({ title, icon: 'none' })
+  }
+}
 
 function findQuery(queryKey) {
   const actions = Array.isArray(payload.quickActions) ? payload.quickActions : []
@@ -33,70 +49,197 @@ function detailForQuery(selectedDetail, queryKey) {
   return details[queryKey] || null
 }
 
-function gearKey(row, index) {
-  const itemId = row.itemId || row.item_id || row.id || ''
-  return itemId ? `${row.slot || '装备'}-${itemId}` : `${row.slot || '装备'}-${row.name || index}-${index}`
+function defaultGearStatSnapshot(message) {
+  return {
+    statStatus: 'blocked',
+    blockers: [message || '等待装备模拟数据'],
+    primary: null,
+    stamina: null,
+    secondary: [],
+    armor: null,
+    weaponDps: null,
+    maxLevel: 0,
+    checkedAt: ''
+  }
 }
 
-function inferGearSourceType(source) {
-  const text = String(source || '').toLowerCase()
-  if (text.includes('dropped') || text.includes('drop') || text.includes('boss')) return '副本掉落'
-  if (text.includes('tier') || text.includes('set')) return '套装'
-  if (text.includes('crafted') || text.includes('craft')) return '制造'
-  if (text.includes('trinket')) return '饰品来源'
-  if (text.includes('archon') || text.includes('mythicstats')) return '样本热度'
-  if (text.includes('wowhead')) return '物品库'
-  return '来源待核'
+function specWebsimKeys(selectedSpec) {
+  const websimClassKey = (selectedSpec && (selectedSpec.websimClassKey || selectedSpec.classKey)) || 'mage'
+  const websimSpecKey = (selectedSpec && (selectedSpec.websimSpecKey || selectedSpec.specKey)) || 'frost'
+  return {
+    classKey: websimClassKey,
+    specKey: websimSpecKey
+  }
 }
 
-function gearDisplayName(row) {
-  return row.displayName || row.localizedName || row.name || '候选装备'
+function itemDisplayName(item) {
+  return (item && (item.displayName || item.localizedName || item.englishName || item.name)) || '待选择装备'
 }
 
-function gearMetadataLabel(row) {
-  if (!row || !row.metadataStatus) return '待同步'
-  if (row.metadataStatus === 'verified') return '官方中文'
-  if (row.metadataStatus === 'source_reference') return '参考来源'
-  if (row.metadataStatus === 'missing_item_id') return '缺 itemId'
-  return '待同步'
+function gearStatusLabel(status) {
+  if (status === 'verified') return 'SimC-ready'
+  if (status === 'partial') return '缺字段'
+  return '不可计算'
 }
 
-function buildGearAcquisitionRows(activeDetail, acquiredKeys) {
-  const acquiredSet = new Set(Array.isArray(acquiredKeys) ? acquiredKeys : [])
-  const gearRows = activeDetail && Array.isArray(activeDetail.gear) ? activeDetail.gear : []
-  return gearRows.map((row, index) => {
-    const key = gearKey(row, index)
-    const metadataVerified = row.metadataStatus === 'verified'
-    const isReference = row.isReference || row.metadataStatus === 'source_reference'
-    const acquired = !isReference && acquiredSet.has(key)
+function gearStatusClass(status) {
+  if (status === 'verified') return 'verified'
+  if (status === 'partial') return 'partial'
+  return 'blocked'
+}
+
+function selectedGearItems(selectedGearBySlot) {
+  return Object.keys(selectedGearBySlot || {})
+    .sort()
+    .map((slot) => selectedGearBySlot[slot])
+    .filter((item) => item && item.slot)
+}
+
+function selectedSimcItems(selectedGearBySlot) {
+  return selectedGearItems(selectedGearBySlot).filter((item) => item.simcReady)
+}
+
+function gearTemplateLine(item) {
+  const slot = item && (item.simcSlot || item.slot)
+  const itemId = item && (item.itemId || item.id)
+  if (!slot || !itemId) return ''
+  const fields = [
+    `${slot}=`,
+    `id=${itemId}`,
+    item.ilevel ? `ilevel=${item.ilevel}` : '',
+    item.bonus_id ? `bonus_id=${item.bonus_id}` : '',
+    item.gem_id ? `gem_id=${item.gem_id}` : '',
+    item.gem_bonus_id ? `gem_bonus_id=${item.gem_bonus_id}` : '',
+    item.gem_ilevel ? `gem_ilevel=${item.gem_ilevel}` : '',
+    item.enchant_id ? `enchant_id=${item.enchant_id}` : '',
+    item.crafted_stats ? `crafted_stats=${item.crafted_stats}` : ''
+  ].filter(Boolean)
+  return fields.join(',')
+}
+
+function canonicalGearTemplateLines(selectedGearBySlot) {
+  return selectedSimcItems(selectedGearBySlot).map(gearTemplateLine).filter(Boolean)
+}
+
+function gearTemplateStatus(selectedItems, simcLines) {
+  if (!selectedItems.length || !simcLines.length) {
+    return { status: 'blocked', statusLabel: '不可计算' }
+  }
+  if (simcLines.length === selectedItems.length) {
+    return { status: 'simc_ready', statusLabel: 'SimC-ready' }
+  }
+  return { status: 'partial', statusLabel: '缺字段' }
+}
+
+function gearTemplateTitle(className, specName, scenarioTitle) {
+  const specLabel = `${specName || ''}${className || ''}`.trim() || '装备模板'
+  return scenarioTitle ? `${specLabel} · ${scenarioTitle}` : specLabel
+}
+
+function gearScenarioAt(index) {
+  return gearTemplateScenarios[Math.max(0, Math.min(Number(index) || 0, gearTemplateScenarios.length - 1))] || gearTemplateScenarios[0]
+}
+
+function equippedSetToSelection(equippedSet) {
+  const selection = {}
+  Object.keys(equippedSet || {}).forEach((slot) => {
+    if (equippedSet[slot]) selection[slot] = equippedSet[slot]
+  })
+  return selection
+}
+
+function gearGroupsBySlot(payload) {
+  const groups = {}
+  const sourceGroups = (payload && (payload.replacementCandidates || payload.slotGroups)) || []
+  sourceGroups.forEach((group) => {
+    const slot = group.slot || group.simcSlot
+    if (slot) groups[slot] = group
+  })
+  return groups
+}
+
+function gearCandidateKey(item, slot, index) {
+  const itemId = item.itemId || item.id || item.name || index
+  return [
+    item.slot || slot,
+    itemId,
+    item.ilevel || '',
+    item.bonus_id || '',
+    item.gem_id || '',
+    item.gem_bonus_id || '',
+    item.gem_ilevel || '',
+    item.enchant_id || '',
+    item.crafted_stats || ''
+  ].join('-')
+}
+
+function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
+  const groups = gearGroupsBySlot(payload)
+  const group = groups[slot] || { items: [] }
+  const selected = (selectedGearBySlot || {})[slot]
+  const rawItems = Array.isArray(group.items) ? group.items.slice(0) : []
+  if (selected && !rawItems.some((item) => String(item.itemId || item.id || '') === String(selected.itemId || selected.id || ''))) {
+    rawItems.unshift(selected)
+  }
+  const seen = new Set()
+  return rawItems.map((item, index) => {
+    const key = gearCandidateKey(item, slot, index)
+    if (seen.has(key)) return null
+    seen.add(key)
+    const isSelected = selected && String(selected.itemId || selected.id || '') === String(item.itemId || item.id || '')
+    const missingFields = Array.isArray(item.missingFields) ? item.missingFields : []
     return {
-      ...row,
+      ...item,
       key,
-      isReference,
-      displayName: gearDisplayName(row),
-      originalName: row.englishName || (row.displayName && row.name && row.displayName !== row.name ? row.name : ''),
-      iconUrl: row.iconUrl || '',
-      priorityLabel: isReference ? '参考' : `优先级 ${index + 1}`,
-      sourceType: isReference ? '来源参考' : (metadataVerified ? '官方物品库' : inferGearSourceType(row.source)),
-      metadataLabel: gearMetadataLabel(row),
-      metadataVerified,
-      acquired,
-      checkLabel: isReference ? '查看来源' : (acquired ? '已获取' : '待获取')
+      slot: item.slot || slot,
+      displayName: itemDisplayName(item),
+      iconUrl: item.iconUrl || '',
+      statusLabel: gearStatusLabel(item.simcReady ? 'verified' : (missingFields.length ? 'partial' : 'blocked')),
+      statusClass: gearStatusClass(item.simcReady ? 'verified' : (missingFields.length ? 'partial' : 'blocked')),
+      reason: item.simcReady ? '可写入 SimC profile' : (missingFields.length ? `缺 ${missingFields.join(' / ')}` : '缺 SimC 字段'),
+      selected: !!isSelected
+    }
+  }).filter(Boolean).slice(0, 12)
+}
+
+function buildGearSlotRows(payload, selectedGearBySlot) {
+  const slots = payload && Array.isArray(payload.slots) ? payload.slots : []
+  const readiness = (payload && payload.slotReadiness) || {}
+  const groups = gearGroupsBySlot(payload)
+  const selection = selectedGearBySlot || {}
+  return slots.map((slotMeta) => {
+    const slot = slotMeta.slot || slotMeta.simcSlot || slotMeta.key
+    const item = selection[slot] || ((payload.equippedSet || {})[slot]) || {}
+    const slotState = readiness[slot] || {}
+    const status = item.simcReady ? 'verified' : (slotState.status || 'blocked')
+    return {
+      slot,
+      label: slotMeta.label || slot,
+      displayName: itemDisplayName(item),
+      iconUrl: item.iconUrl || '',
+      itemId: item.itemId || item.id || '',
+      ilevel: item.ilevel || '',
+      source: item.source || '',
+      sourceType: item.sourceType || '',
+      status,
+      statusLabel: gearStatusLabel(status),
+      statusClass: gearStatusClass(status),
+      reason: slotState.reason || (item.simcReady ? '可写入 SimC profile' : '等待 SimC 字段'),
+      candidateCount: buildGearCandidateRows(slot, payload, selection).length
     }
   })
 }
 
-function buildGearProgressText(rows) {
-  const itemRows = rows.filter((row) => !row.isReference)
-  if (!itemRows.length) return '暂无装备候选'
-  const acquiredCount = itemRows.filter((row) => row.acquired).length
-  return `已获取 ${acquiredCount}/${itemRows.length} 件`
+function buildGearStatBlockers(snapshot, readiness) {
+  const blockers = snapshot && Array.isArray(snapshot.blockers) ? snapshot.blockers : []
+  if (blockers.length) return blockers
+  const warnings = readiness && Array.isArray(readiness.warnings) ? readiness.warnings : []
+  return warnings
 }
 
-function buildGearNextAction(rows) {
-  const nextRow = rows.find((row) => !row.isReference && !row.acquired)
-  if (!nextRow) return rows.length ? '当前候选已全部标记获取，下一步进入 SimC 做真实收益校验。' : '等待装备数据刷新后再规划获取顺序。'
-  return `下一件：${nextRow.slot || '装备'} ${gearDisplayName(nextRow)} · ${nextRow.sourceType}`
+function gearStatStatusText(snapshot) {
+  if (snapshot && snapshot.statStatus === 'verified') return `已验证满级属性 · ${snapshot.maxLevel || ''}`
+  return '属性快照 blocked'
 }
 
 function buildTalentNodeRows(activeDetail, selectedNodes) {
@@ -121,18 +264,20 @@ function buildTalentSimulationSummary(activeDetail, scenarioKey, selectedNodes) 
 function createDetailDerivedState(selectedDetail, queryKey, state) {
   const activeDetail = detailForQuery(selectedDetail, queryKey)
   const talentDetail = detailForQuery(selectedDetail, 'talents')
-  const gearDetail = detailForQuery(selectedDetail, 'gear')
   const currentState = state || {}
   const baseTalents = talentDetail && Array.isArray(talentDetail.coreTalents) ? talentDetail.coreTalents : []
   const activeTalentScenarioKey = currentState.activeTalentScenarioKey || talentScenarios[0].key
   const selectedTalentNodes = Array.isArray(currentState.selectedTalentNodes)
     ? currentState.selectedTalentNodes.filter((name) => baseTalents.includes(name))
     : baseTalents.slice(0, 4)
-  const gearAcquiredKeys = Array.isArray(currentState.gearAcquiredKeys) ? currentState.gearAcquiredKeys : []
   const talentNodeRows = buildTalentNodeRows(talentDetail, selectedTalentNodes)
   const talentScenario = talentScenarios.find((item) => item.key === activeTalentScenarioKey) || talentScenarios[0]
   const talentSimulationSummary = buildTalentSimulationSummary(talentDetail, talentScenario.key, selectedTalentNodes)
-  const gearAcquisitionRows = buildGearAcquisitionRows(gearDetail, gearAcquiredKeys)
+  const gearPayload = currentState.gearPayload || null
+  const selectedGearBySlot = currentState.selectedGearBySlot || {}
+  const gearStatSnapshot = currentState.gearStatSnapshot || (gearPayload && gearPayload.statSnapshot) || defaultGearStatSnapshot()
+  const gearReadiness = currentState.gearReadiness || (gearPayload && gearPayload.readiness) || {}
+  const gearSlotRows = buildGearSlotRows(gearPayload, selectedGearBySlot)
 
   return {
     activeDetail,
@@ -148,10 +293,14 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
       importCode: (talentDetail && talentDetail.importCode) || '',
       summary: talentSimulationSummary
     },
-    gearAcquiredKeys,
-    gearAcquisitionRows,
-    gearProgressText: buildGearProgressText(gearAcquisitionRows),
-    gearNextAction: buildGearNextAction(gearAcquisitionRows)
+    gearPayload,
+    selectedGearBySlot,
+    gearSlotRows,
+    gearReadiness,
+    gearStatSnapshot,
+    gearStatBlockers: buildGearStatBlockers(gearStatSnapshot, gearReadiness),
+    gearStatStatusText: gearStatStatusText(gearStatSnapshot),
+    gearSimcItems: selectedSimcItems(selectedGearBySlot)
   }
 }
 
@@ -194,8 +343,22 @@ Page({
     activeQueryKey: 'talents',
     activeQuery: findQuery('talents'),
     talentScenarios,
+    gearTemplateScenarios,
+    selectedGearTemplateScenarioIndex: 0,
     ...createSelectionState(defaultSelection.classIndex, defaultSelection.specIndex, 'talents'),
     loading: false,
+    gearLoading: false,
+    gearStatsLoading: false,
+    gearTemplateSaving: false,
+    gearRequestError: '',
+    gearSelectionKey: '',
+    gearSlotSheet: {
+      visible: false,
+      slot: '',
+      label: '',
+      item: null,
+      candidates: []
+    },
     fromFallback: true,
     requestError: ''
   },
@@ -223,6 +386,9 @@ Page({
     })
     this.loadRemoteHome()
     this.loadSelectedDetail(selectionState.selectedSpec && selectionState.selectedSpec.id)
+    if (queryKey === 'gear') {
+      this.loadWebsimGearForSelection(selectionState)
+    }
   },
 
   onUnload() {
@@ -242,6 +408,9 @@ Page({
     }, { page: 'pages/builds/detail' })
     this.setData(selectionState)
     this.loadSelectedDetail(selectionState.selectedSpec && selectionState.selectedSpec.id)
+    if (this.data.activeQueryKey === 'gear') {
+      this.loadWebsimGearForSelection(selectionState)
+    }
   },
 
   selectSpec(event) {
@@ -255,6 +424,9 @@ Page({
     }, { page: 'pages/builds/detail' })
     this.setData(selectionState)
     this.loadSelectedDetail(selectionState.selectedSpec && selectionState.selectedSpec.id)
+    if (this.data.activeQueryKey === 'gear') {
+      this.loadWebsimGearForSelection(selectionState)
+    }
   },
 
   loadRemoteHome() {
@@ -290,6 +462,96 @@ Page({
     })
   },
 
+  loadWebsimGearForSelection(selectionState) {
+    const selectedSpec = (selectionState && selectionState.selectedSpec) || this.data.selectedSpec || {}
+    const keys = specWebsimKeys(selectedSpec)
+    const selectionKey = `${keys.classKey}:${keys.specKey}`
+    const existingSelection = this.data.gearSelectionKey === selectionKey ? (this.data.selectedGearBySlot || {}) : {}
+    this.setData({
+      gearLoading: true,
+      gearRequestError: '',
+      gearSelectionKey: selectionKey,
+      gearSlotSheet: {
+        visible: false,
+        slot: '',
+        label: '',
+        item: null,
+        candidates: []
+      }
+    })
+    requestWebsimGear(keys).then(({ payload, error }) => {
+      if (this.data.gearSelectionKey !== selectionKey) return
+      const baselineSelection = equippedSetToSelection(payload.equippedSet || {})
+      const selectedGearBySlot = {
+        ...baselineSelection,
+        ...existingSelection
+      }
+      const gearStatSnapshot = payload.statSnapshot || defaultGearStatSnapshot()
+      const gearReadiness = payload.readiness || {}
+      const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
+        ...this.data,
+        gearPayload: payload,
+        selectedGearBySlot,
+        gearReadiness,
+        gearStatSnapshot
+      })
+      this.setData({
+        ...derivedState,
+        gearLoading: false,
+        gearRequestError: error || ''
+      })
+      this.refreshGearStats()
+    }).catch((error) => {
+      this.setData({
+        gearLoading: false,
+        gearRequestError: error.message || String(error)
+      })
+    })
+  },
+
+  refreshGearStats() {
+    const keys = specWebsimKeys(this.data.selectedSpec || {})
+    const gearItems = selectedGearItems(this.data.selectedGearBySlot || {})
+    const talentState = this.data.websimTalentState || {}
+    const talentImport = (this.data.talentSimulatorState && this.data.talentSimulatorState.importCode) || ''
+    const scenario = gearScenarioAt(this.data.selectedGearTemplateScenarioIndex)
+    this.setData({ gearStatsLoading: true })
+    requestWebsimGearStats({
+      classKey: keys.classKey,
+      specKey: keys.specKey,
+      talents: talentImport,
+      talentState,
+      scenarioKey: scenario.key,
+      level: (this.data.gearPayload && this.data.gearPayload.maxLevel) || undefined,
+      gearSelection: {
+        items: gearItems
+      }
+    }).then(({ payload, error }) => {
+      const gearReadiness = payload.gearReadiness || this.data.gearReadiness || {}
+      const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
+        ...this.data,
+        gearStatSnapshot: payload,
+        gearReadiness
+      })
+      this.setData({
+        ...derivedState,
+        gearStatsLoading: false,
+        gearRequestError: error || this.data.gearRequestError || ''
+      })
+    }).catch((error) => {
+      const gearStatSnapshot = defaultGearStatSnapshot(error.message || String(error))
+      const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
+        ...this.data,
+        gearStatSnapshot
+      })
+      this.setData({
+        ...derivedState,
+        gearStatsLoading: false,
+        gearRequestError: error.message || String(error)
+      })
+    })
+  },
+
   buildSimcContext() {
     const selectedDetail = this.data.selectedDetail || {}
     const selectedSpec = this.data.selectedSpec || {}
@@ -310,9 +572,11 @@ Page({
       simulatorState: {
         talent: this.data.talentSimulatorState || {},
         gear: {
-          progressText: this.data.gearProgressText || '',
-          nextAction: this.data.gearNextAction || '',
-          acquiredKeys: this.data.gearAcquiredKeys || []
+          selectedGearBySlot: this.data.selectedGearBySlot || {},
+          selectedItems: selectedGearItems(this.data.selectedGearBySlot || {}),
+          simcItems: this.data.gearSimcItems || [],
+          readiness: this.data.gearReadiness || {},
+          statSnapshot: this.data.gearStatSnapshot || defaultGearStatSnapshot()
         }
       }
     }
@@ -328,6 +592,129 @@ Page({
       }
     )
     this.setData(nextState)
+  },
+
+  openGearSlotSheet(event) {
+    const slot = event.currentTarget.dataset.slot || ''
+    if (!slot) return
+    const row = (this.data.gearSlotRows || []).find((item) => item.slot === slot) || {}
+    const candidates = buildGearCandidateRows(slot, this.data.gearPayload || {}, this.data.selectedGearBySlot || {})
+    this.setData({
+      gearSlotSheet: {
+        visible: true,
+        slot,
+        label: row.label || slot,
+        item: row,
+        candidates
+      }
+    })
+  },
+
+  closeGearSlotSheet() {
+    this.setData({
+      gearSlotSheet: {
+        visible: false,
+        slot: '',
+        label: '',
+        item: null,
+        candidates: []
+      }
+    })
+  },
+
+  selectGearCandidate(event) {
+    const index = Number(event.currentTarget.dataset.index || 0)
+    const slot = this.data.gearSlotSheet.slot || event.currentTarget.dataset.slot || ''
+    const candidate = (this.data.gearSlotSheet.candidates || [])[index]
+    if (!slot || !candidate) return
+    const selectedGearBySlot = {
+      ...(this.data.selectedGearBySlot || {}),
+      [slot]: {
+        ...candidate,
+        selected: undefined,
+        statusClass: undefined,
+        statusLabel: undefined,
+        reason: undefined
+      }
+    }
+    trackEvent('builds_gear_candidate_select', {
+      gearSlot: slot,
+      itemId: candidate.itemId || candidate.id || '',
+      simcReady: !!candidate.simcReady,
+      specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
+    }, { page: 'pages/builds/detail' })
+    const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
+      ...this.data,
+      selectedGearBySlot
+    })
+    this.setData({
+      ...derivedState,
+      gearSlotSheet: {
+        visible: false,
+        slot: '',
+        label: '',
+        item: null,
+        candidates: []
+      }
+    })
+    this.refreshGearStats()
+  },
+
+  selectGearTemplateScenario(event) {
+    const index = Number(event.detail.value) || 0
+    this.setData({
+      selectedGearTemplateScenarioIndex: Math.max(0, Math.min(index, gearTemplateScenarios.length - 1))
+    }, () => {
+      this.refreshGearStats()
+    })
+  },
+
+  saveGearTemplate() {
+    const selectedItems = selectedGearItems(this.data.selectedGearBySlot || {})
+    const simcLines = canonicalGearTemplateLines(this.data.selectedGearBySlot || {})
+    const status = gearTemplateStatus(selectedItems, simcLines)
+    if (!selectedItems.length) {
+      showToast('暂无可保存的装备')
+      return
+    }
+    if (!simcLines.length) {
+      showToast('缺少 SimC-ready 装备')
+      return
+    }
+    const scenario = gearScenarioAt(this.data.selectedGearTemplateScenarioIndex)
+    const selectedDetail = this.data.selectedDetail || {}
+    const selectedSpec = this.data.selectedSpec || {}
+    const keys = specWebsimKeys(selectedSpec)
+    const saved = saveBuildTemplate({
+      type: 'gear',
+      title: gearTemplateTitle(
+        selectedDetail.className || selectedSpec.className || '',
+        selectedDetail.specName || selectedSpec.title || selectedSpec.specName || '',
+        scenario.title
+      ),
+      classKey: keys.classKey,
+      className: selectedDetail.className || selectedSpec.className || '',
+      specKey: keys.specKey,
+      specName: selectedDetail.specName || selectedSpec.title || selectedSpec.specName || '',
+      scenarioKey: scenario.key,
+      scenarioTitle: scenario.title,
+      rawString: simcLines.join('\n'),
+      simcLines,
+      status: status.status,
+      statusLabel: status.statusLabel,
+      source: '装备模拟器',
+      metadata: {
+        selectedGearSnapshot: this.data.selectedGearBySlot || {},
+        selectedItems,
+        simcReadyCount: simcLines.length,
+        selectedItemCount: selectedItems.length,
+        readiness: this.data.gearReadiness || {},
+        statSnapshot: this.data.gearStatSnapshot || defaultGearStatSnapshot(),
+        gearSchemaRevision: this.data.gearPayload && this.data.gearPayload.gearSchemaRevision,
+        maxLevel: this.data.gearPayload && this.data.gearPayload.maxLevel
+      }
+    })
+    showToast(saved ? '装备模板已保存' : '装备模板保存失败')
   },
 
   setTalentScenario(event) {
@@ -355,25 +742,6 @@ Page({
       specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
     }, { page: 'pages/builds/detail' })
     this.refreshDerivedState({ selectedTalentNodes: Array.from(selectedSet) })
-  },
-
-  toggleGearAcquired(event) {
-    const key = event.currentTarget.dataset.key || ''
-    if (!key) return
-    const gearRow = (this.data.gearAcquisitionRows || []).find((row) => row.key === key) || {}
-    if (gearRow.isReference) return
-    const acquiredSet = new Set(this.data.gearAcquiredKeys || [])
-    if (acquiredSet.has(key)) {
-      acquiredSet.delete(key)
-    } else {
-      acquiredSet.add(key)
-    }
-    trackEvent('builds_gear_toggle', {
-      gearSlot: gearRow.slot || '',
-      selected: acquiredSet.has(key),
-      specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
-    }, { page: 'pages/builds/detail' })
-    this.refreshDerivedState({ gearAcquiredKeys: Array.from(acquiredSet) })
   },
 
   openTalentSimc() {

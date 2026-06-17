@@ -1,7 +1,6 @@
 const {
   fallbackPayload,
   rememberRefreshTime,
-  requestManualRefresh,
   requestNewsHome,
   shouldRefreshToday
 } = require('./news-api')
@@ -53,10 +52,6 @@ Page({
     }
   },
 
-  onPullDownRefresh() {
-    this.handleRefresh()
-  },
-
   openArticle(event) {
     const { id } = event.currentTarget.dataset
     if (!id) return
@@ -88,23 +83,6 @@ Page({
       this.applyPayload(payload, fromFallback, error)
     }).finally(() => {
       this.setData({ loading: false })
-      wx.stopPullDownRefresh()
-    })
-  },
-
-  handleRefresh() {
-    if (this.data.loading) return
-    trackEvent('news_refresh', { trigger: 'manual' }, { page: 'pages/news/news' })
-    this.setData({ loading: true })
-    requestManualRefresh().then(({ payload, fromFallback, error }) => {
-      this.applyPayload(payload, fromFallback, error)
-      wx.showToast({
-        title: fromFallback ? '已显示本地缓存' : '刷新完成',
-        icon: 'none'
-      })
-    }).finally(() => {
-      this.setData({ loading: false })
-      wx.stopPullDownRefresh()
     })
   },
 

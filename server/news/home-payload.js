@@ -14,6 +14,39 @@ function isValidDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value || '')
 }
 
+function hasChinese(value) {
+  return /[\u4e00-\u9fff]/.test(value || '')
+}
+
+function hasCompleteChineseBody(story) {
+  const body = String(story.bodyZh || '').replace(/\s+/g, ' ').trim()
+  const summary = String(story.summary || '').replace(/\s+/g, ' ').trim()
+  if (body.length < 70) return false
+  if (!hasChinese(body)) return false
+  if (summary && (body === summary || body === `中文正文：${summary}`)) return false
+  return true
+}
+
+function blockText(block) {
+  if (!block || typeof block !== 'object') return ''
+  if (block.type === 'list') {
+    return Array.isArray(block.items) ? block.items.join(' ') : ''
+  }
+  return String(block.text || '').trim()
+}
+
+function hasCompleteBodyBlocks(story) {
+  if (!Array.isArray(story.bodyBlocksZh) || story.bodyBlocksZh.length === 0) return false
+  return story.bodyBlocksZh.every((block) => {
+    if (!block || typeof block !== 'object') return false
+    if (!['paragraph', 'heading', 'list', 'quote'].includes(block.type)) return false
+    if (block.type === 'list') {
+      return Array.isArray(block.items) && block.items.length > 0 && block.items.every((item) => hasChinese(item))
+    }
+    return hasChinese(blockText(block))
+  })
+}
+
 function hostnameFor(url) {
   const match = String(url || '').match(/^https?:\/\/([^/?#:]+)/i)
   return match ? match[1].toLowerCase() : ''
@@ -31,6 +64,19 @@ function isTrustedStory(story) {
     story.sourceName &&
     story.sourceUrl &&
     story.sourceNote &&
+    story.originalTitle &&
+    hasCompleteChineseBody(story) &&
+    hasCompleteBodyBlocks(story) &&
+    story.contentStatus === 'ready' &&
+    story.translationStatus === 'llm' &&
+    story.translationFidelity === 'source_translation' &&
+    story.verificationStatus === 'official_verified' &&
+    story.licenseStatus === 'approved' &&
+    story.sourceTier === 'official' &&
+    Array.isArray(story.sourceBadges) &&
+    story.sourceBadges.length > 0 &&
+    Array.isArray(story.tagItems) &&
+    story.tagItems.length > 0 &&
     isValidDate(story.publishedAt) &&
     source &&
     source.hostnames.includes(hostname)
@@ -57,10 +103,19 @@ function visibleStory(story) {
     sourceUrl: story.sourceUrl,
     publishedAt: story.publishedAt,
     sourceNote: story.sourceNote,
-    bodyZh: story.bodyZh || story.summary,
+    bodyZh: story.bodyZh,
+    bodyBlocksZh: story.bodyBlocksZh || [],
     originalTitle: story.originalTitle || story.title,
-    originalSummary: story.originalSummary || story.summary,
-    originalBody: story.originalBody || story.originalSummary || story.summary
+    tagItems: story.tagItems || [],
+    contentStatus: story.contentStatus || 'ready',
+    translationStatus: story.translationStatus || '',
+    translationFidelity: story.translationFidelity || '',
+    verificationStatus: story.verificationStatus || '',
+    licenseStatus: story.licenseStatus || '',
+    sourceTier: story.sourceTier || '',
+    sourceBadges: story.sourceBadges || [],
+    canonicalTopicId: story.canonicalTopicId || '',
+    readingMeta: story.readingMeta || {}
   }
 }
 
@@ -97,7 +152,7 @@ function shouldAutoRefresh(lastRefreshedAt, now = new Date().toISOString()) {
   return dateKey(lastRefreshedAt) !== dateKey(now)
 }
 
-function createRefreshState(refreshMode = 'manual', now = new Date().toISOString()) {
+function createRefreshState(refreshMode = 'scheduled', now = new Date().toISOString()) {
   return {
     refreshMode,
     lastRefreshedAt: now

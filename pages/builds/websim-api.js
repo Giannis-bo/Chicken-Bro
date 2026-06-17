@@ -51,6 +51,56 @@ function fallbackWebsimProfile() {
   }
 }
 
+function fallbackWebsimGear(params) {
+  const options = params || {}
+  return {
+    classKey: options.classKey || 'mage',
+    specKey: options.specKey || 'frost',
+    slots: [],
+    slotGroups: [],
+    baselineSet: [],
+    equippedSet: {},
+    slotReadiness: {},
+    replacementCandidates: [],
+    readiness: {
+      fullReady: false,
+      warnings: ['backend unavailable']
+    },
+    statSnapshot: fallbackWebsimGearStats(options),
+    gearSchemaRevision: 'websim-gear-simulator-v1',
+    maxLevel: 0,
+    checkedAt: '',
+    dataStatus: 'blocked'
+  }
+}
+
+function fallbackWebsimGearStats(params) {
+  const options = params || {}
+  return {
+    classKey: options.classKey || 'mage',
+    specKey: options.specKey || 'frost',
+    statStatus: 'blocked',
+    blockers: ['backend unavailable'],
+    primary: null,
+    stamina: null,
+    secondary: [],
+    armor: null,
+    weaponDps: null,
+    gearReadiness: {
+      fullReady: false,
+      warnings: ['backend unavailable']
+    },
+    talentEncoding: {
+      status: 'failed',
+      lines: [],
+      errors: ['backend unavailable']
+    },
+    gearSchemaRevision: 'websim-gear-simulator-v1',
+    maxLevel: 0,
+    checkedAt: ''
+  }
+}
+
 function requestWebsimBootstrap() {
   return requestJson('/api/websim/bootstrap', {
     fallback: fallbackWebsimBootstrap,
@@ -81,11 +131,38 @@ function requestWebsimProfile(payload) {
   })
 }
 
+function requestWebsimGear(params) {
+  const options = params || {}
+  const query = [
+    `class=${encodeURIComponent(options.classKey || '')}`,
+    `spec=${encodeURIComponent(options.specKey || '')}`
+  ]
+  return requestJson(`/api/websim/gear?${query.join('&')}`, {
+    fallback: () => fallbackWebsimGear(options),
+    validate: (data) => data && Array.isArray(data.slots) && data.equippedSet && data.readiness
+  })
+}
+
+function requestWebsimGearStats(payload) {
+  const source = payload || {}
+  return requestJson('/api/websim/gear/stats', {
+    method: 'POST',
+    data: source,
+    timeout: 60000,
+    fallback: () => fallbackWebsimGearStats(source),
+    validate: (data) => data && data.statStatus && Array.isArray(data.blockers)
+  })
+}
+
 module.exports = {
   fallbackWebsimBootstrap,
+  fallbackWebsimGear,
+  fallbackWebsimGearStats,
   fallbackWebsimProfile,
   fallbackWebsimTalents,
   requestWebsimBootstrap,
+  requestWebsimGear,
+  requestWebsimGearStats,
   requestWebsimProfile,
   requestWebsimTalents
 }

@@ -31,3 +31,19 @@ test('news page adopts a dark Wowhead-style news surface', () => {
   assert.doesNotMatch(css, /#fff7e5/i)
   assert.doesNotMatch(css, /#fffaf0/i)
 })
+
+test('news page does not expose manual refresh controls', () => {
+  const js = fs.readFileSync('pages/news/news.js', 'utf8')
+  const wxml = fs.readFileSync('pages/news/news.wxml', 'utf8')
+  const css = fs.readFileSync('pages/news/news.wxss', 'utf8')
+  const api = fs.readFileSync('pages/news/news-api.js', 'utf8')
+
+  assert.doesNotMatch(js, /requestManualRefresh/)
+  assert.doesNotMatch(js, /handleRefresh/)
+  assert.doesNotMatch(js, /news_refresh/)
+  assert.doesNotMatch(wxml, /bindtap="handleRefresh"/)
+  assert.doesNotMatch(wxml, />刷新</)
+  assert.doesNotMatch(css, /\.refresh-button/)
+  assert.doesNotMatch(api, /requestManualRefresh/)
+  assert.doesNotMatch(api, /mode=manual/)
+})

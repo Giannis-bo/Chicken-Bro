@@ -1,6 +1,6 @@
 import unittest
 
-from server.news_collector import merge_articles, parse_blizzard_news_html, parse_feed_articles
+from server.news_collector import merge_articles, parse_blizzard_article_html, parse_blizzard_news_html, parse_feed_articles
 
 
 RSS_SAMPLE = """<?xml version="1.0" encoding="UTF-8"?>
@@ -32,18 +32,80 @@ BLIZZARD_HTML_SAMPLE = """
 </article>
 """
 
+BLIZZARD_DETAIL_HTML_SAMPLE = """
+<html>
+  <head><title>Hotfixes: June 3, 2026 - WoW</title></head>
+  <body>
+    <main>
+      <h1>Hotfixes: June 3, 2026</h1>
+      <div class="ArticleDetail-date LocalizedDateMount" data-props="{&quot;iso8601&quot;:&quot;2026-06-06T00:45:17.264Z&quot;}"></div>
+      <article>
+        <p>Here you will find a list of hotfixes that address various issues related to World of Warcraft: Midnight.</p>
+        <h2>Classes</h2>
+        <ul>
+          <li>Druid: Fixed an issue with Guardian Druid Apex Talent interactions.</li>
+          <li>Warrior: Adjusted several class set bonuses.</li>
+        </ul>
+        <p>Some of the hotfixes below take effect the moment they were implemented, while others may require scheduled realm restarts.</p>
+      </article>
+    </main>
+    <script>window.__data = "ignored";</script>
+  </body>
+</html>
+"""
+
 
 class NewsCollectorTest(unittest.TestCase):
+    def test_parse_blizzard_article_html_extracts_complete_original_body(self):
+        detail = parse_blizzard_article_html(
+            BLIZZARD_DETAIL_HTML_SAMPLE,
+            "https://worldofwarcraft.blizzard.com/news/24276957/hotfixes-june-3-2026",
+        )
+
+        self.assertEqual(detail["originalTitle"], "Hotfixes: June 3, 2026")
+        self.assertEqual(detail["publishedAt"], "2026-06-06")
+        self.assertIn("Classes", detail["originalBody"])
+        self.assertIn("Guardian Druid", detail["originalBody"])
+        self.assertIn("scheduled realm restarts", detail["originalBody"])
+        self.assertNotIn("window.__data", detail["originalBody"])
+        self.assertEqual(
+            detail["bodyBlocks"],
+            [
+                {
+                    "type": "paragraph",
+                    "text": "Here you will find a list of hotfixes that address various issues related to World of Warcraft: Midnight.",
+                },
+                {"type": "heading", "text": "Classes"},
+                {
+                    "type": "list",
+                    "items": [
+                        "Druid: Fixed an issue with Guardian Druid Apex Talent interactions.",
+                        "Warrior: Adjusted several class set bonuses.",
+                    ],
+                },
+                {
+                    "type": "paragraph",
+                    "text": "Some of the hotfixes below take effect the moment they were implemented, while others may require scheduled realm restarts.",
+                },
+            ],
+        )
+
     def test_parse_blizzard_news_html_extracts_official_articles(self):
-        articles = parse_blizzard_news_html(BLIZZARD_HTML_SAMPLE)
+        articles = parse_blizzard_news_html(
+            BLIZZARD_HTML_SAMPLE,
+            detail_pages={
+                "https://worldofwarcraft.blizzard.com/news/24276957/hotfixes-june-3-2026": BLIZZARD_DETAIL_HTML_SAMPLE
+            },
+        )
 
         self.assertEqual(len(articles), 1)
-        self.assertIn("官方热修", articles[0]["title"])
-        self.assertIn("魔兽世界", articles[0]["summary"])
-        self.assertNotIn("Here you will find", articles[0]["summary"])
-        self.assertIn("中文正文", articles[0]["bodyZh"])
+        self.assertEqual(articles[0]["title"], "Hotfixes: June 3, 2026")
+        self.assertEqual(articles[0]["summary"], "Here you will find a list of hotfixes that address various issues related to World of Warcraft: Midnight.")
+        self.assertTrue(articles[0]["requiresLlmTranslation"])
         self.assertEqual(articles[0]["originalTitle"], "Hotfixes: June 3, 2026")
-        self.assertIn("Here you will find", articles[0]["originalBody"])
+        self.assertIn("Guardian Druid", articles[0]["originalBody"])
+        self.assertEqual(articles[0]["bodyBlocks"][1]["type"], "heading")
+        self.assertEqual(articles[0]["bodyBlocks"][2]["type"], "list")
         self.assertEqual(articles[0]["publishedAt"], "2026-06-06")
         self.assertEqual(articles[0]["sourceName"], "Blizzard News")
         self.assertEqual(
@@ -52,6 +114,12 @@ class NewsCollectorTest(unittest.TestCase):
         )
         self.assertEqual(articles[0]["channel"], "职业强度变化")
         self.assertIn("class-change", articles[0]["tags"])
+        self.assertIn("hotfix", articles[0]["tags"])
+
+    def test_parse_blizzard_news_html_honors_article_limit_before_detail_fetch(self):
+        articles = parse_blizzard_news_html(BLIZZARD_HTML_SAMPLE + BLIZZARD_HTML_SAMPLE, max_articles=1)
+
+        self.assertEqual(len(articles), 1)
 
     def test_classification_does_not_treat_classic_as_class_change(self):
         articles = parse_blizzard_news_html(
@@ -126,7 +194,7 @@ class NewsCollectorTest(unittest.TestCase):
         by_url = {article["sourceUrl"]: article for article in merged}
         self.assertEqual(
             by_url["https://www.wowhead.com/news/june-trading-post-rewards-999002"]["title"],
-            "六月 商栈 奖励 现已上线",
+            "June Trading Post Rewards Now Available",
         )
         self.assertEqual(
             by_url["https://www.wowhead.com/news/june-trading-post-rewards-999002"]["originalTitle"],
@@ -170,7 +238,7 @@ class NewsCollectorTest(unittest.TestCase):
         self.assertEqual(len(merged), 1)
         self.assertEqual(merged[0]["sourceUrl"], "https://worldofwarcraft.blizzard.com/news/24276957/hotfixes-june-3-2026")
 
-    def test_trading_post_title_translation_is_case_insensitive(self):
+    def test_trading_post_discovery_keeps_original_title_for_llm_translation(self):
         articles = parse_blizzard_news_html(
             """
             <article class="NewsBlog">
@@ -182,10 +250,11 @@ class NewsCollectorTest(unittest.TestCase):
             """
         )
 
-        self.assertIn("来一场", articles[0]["title"])
-        self.assertIn("前往", articles[0]["title"])
+        self.assertEqual(articles[0]["title"], "TAKE A Midsummer Stroll over to the June Trading Post")
+        self.assertEqual(articles[0]["originalTitle"], "TAKE A Midsummer Stroll over to the June Trading Post")
+        self.assertTrue(articles[0]["requiresLlmTranslation"])
 
-    def test_unknown_english_titles_use_chinese_display_fallback(self):
+    def test_unknown_english_titles_stay_original_until_translation_gate(self):
         articles = parse_blizzard_news_html(
             """
             <article class="NewsBlog">
@@ -197,9 +266,28 @@ class NewsCollectorTest(unittest.TestCase):
             """
         )
 
-        self.assertRegex(articles[0]["title"], r"[\u4e00-\u9fff]")
-        self.assertNotIn("Travel to Val", articles[0]["title"])
+        self.assertEqual(articles[0]["title"], "Travel to Val and Naigtal to Quell Leaders of the Void")
         self.assertEqual(articles[0]["originalTitle"], "Travel to Val and Naigtal to Quell Leaders of the Void")
+        self.assertTrue(articles[0]["requiresLlmTranslation"])
+
+    def test_parse_feed_articles_marks_third_party_as_reference_only_discovery(self):
+        articles = parse_feed_articles(
+            RSS_SAMPLE,
+            {
+                "sourceId": "wowhead",
+                "sourceName": "Wowhead",
+                "sourceUrl": "https://www.wowhead.com/news/rss/retail",
+                "sourceNote": "Wowhead Retail RSS feed.",
+                "sourceTier": "trusted_media",
+                "licenseStatus": "reference_only",
+                "baseImportance": 70,
+            },
+        )
+
+        self.assertEqual(articles[0]["sourceId"], "wowhead")
+        self.assertEqual(articles[0]["sourceTier"], "trusted_media")
+        self.assertEqual(articles[0]["licenseStatus"], "reference_only")
+        self.assertEqual(articles[0]["contentStatus"], "discovered")
 
 
 if __name__ == "__main__":

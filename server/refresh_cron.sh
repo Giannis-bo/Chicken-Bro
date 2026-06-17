@@ -3,7 +3,7 @@ set -u
 
 API_URL="${WOW_NEWS_REFRESH_URL:-http://127.0.0.1/api/news/refresh?mode=scheduled}"
 LOG_FILE="${WOW_NEWS_REFRESH_LOG:-/home/ubuntu/wow-news-backend/logs/refresh_cron.log}"
-TIMEOUT_SECONDS="${WOW_NEWS_REFRESH_TIMEOUT:-45}"
+TIMEOUT_SECONDS="${WOW_NEWS_REFRESH_TIMEOUT:-240}"
 
 mkdir -p "$(dirname "$LOG_FILE")"
 

@@ -8,6 +8,58 @@ function fallbackPayload(refreshMode) {
   return buildNewsHomePayload(seedArticles, createRefreshState(refreshMode || 'fallback'))
 }
 
+function cleanText(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function endsWithEllipsis(value) {
+  return /(?:…|\.{3}|．．．)$/.test(cleanText(value))
+}
+
+function hasCompleteTranslatedBody(article) {
+  const bodyZh = cleanText(article && article.bodyZh)
+  const summary = cleanText(article && article.summary)
+  const bodyBlocksZh = article && Array.isArray(article.bodyBlocksZh) ? article.bodyBlocksZh : []
+  if (bodyBlocksZh.length) {
+    const blockText = bodyBlocksZh.map((block) => {
+      if (!block || typeof block !== 'object') return ''
+      if (block.type === 'list') return Array.isArray(block.items) ? block.items.join(' ') : ''
+      return cleanText(block.text)
+    }).join(' ')
+    if (/[\u4e00-\u9fff]/.test(blockText) && blockText.length >= 30) return true
+  }
+  if (bodyZh.length < 80) return false
+  if (summary && (bodyZh === summary || bodyZh === `中文正文：${summary}`)) return false
+  if (summary && bodyZh.length <= summary.length + 20) return false
+  if (endsWithEllipsis(bodyZh)) return false
+  return true
+}
+
+function isReadyArticlePayload(article) {
+  if (!article || typeof article !== 'object') return false
+  if (article.contentStatus !== 'ready') return false
+  if (article.translationStatus !== 'llm') return false
+  if (article.translationFidelity !== 'source_translation') return false
+  if (article.verificationStatus !== 'official_verified') return false
+  if (article.licenseStatus !== 'approved') return false
+  if (article.sourceTier !== 'official') return false
+  if (!cleanText(article.id) || !cleanText(article.title) || !cleanText(article.summary)) return false
+  if (!cleanText(article.originalTitle) || !hasCompleteTranslatedBody(article)) return false
+  if (!cleanText(article.sourceName) || !cleanText(article.sourceUrl) || !cleanText(article.publishedAt)) return false
+  if (!Array.isArray(article.sourceBadges) || !article.sourceBadges.some((badge) => cleanText(badge))) return false
+  return Array.isArray(article.tagItems) && article.tagItems.some((item) => cleanText(item && item.label))
+}
+
+function articleListIsReady(articles) {
+  return Array.isArray(articles) && articles.every(isReadyArticlePayload)
+}
+
+function homePayloadIsReady(payload) {
+  if (!payload || !Array.isArray(payload.heroNews) || !Array.isArray(payload.highlights)) return false
+  const visibleArticles = [...payload.heroNews, ...payload.highlights]
+  return visibleArticles.length > 0 && visibleArticles.every(isReadyArticlePayload)
+}
+
 function requestNewsHome(refreshMode) {
   return new Promise((resolve) => {
     const url = apiUrl('/api/news/home')
@@ -20,39 +72,15 @@ function requestNewsHome(refreshMode) {
       method: 'GET',
       timeout: 6000,
       success: (res) => {
-        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.heroNews) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && homePayloadIsReady(res.data)) {
           resolve({ payload: res.data, fromFallback: false, error: '' })
           return
         }
-        resolve({ payload: fallbackPayload(refreshMode), fromFallback: true, error: `HTTP ${res.statusCode}` })
+        const error = res.statusCode >= 200 && res.statusCode < 300 ? 'incomplete article payload' : `HTTP ${res.statusCode}`
+        resolve({ payload: fallbackPayload(refreshMode), fromFallback: true, error })
       },
       fail: (error) => {
         resolve({ payload: fallbackPayload(refreshMode), fromFallback: true, error: error.errMsg || 'request failed' })
-      }
-    })
-  })
-}
-
-function requestManualRefresh() {
-  return new Promise((resolve) => {
-    const url = apiUrl('/api/news/refresh?mode=manual')
-    if (!url) {
-      resolve({ payload: fallbackPayload('manual-fallback'), fromFallback: true, error: 'missing api base url' })
-      return
-    }
-    wx.request({
-      url,
-      method: 'POST',
-      timeout: 8000,
-      success: (res) => {
-        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.heroNews) {
-          resolve({ payload: res.data, fromFallback: false, error: '' })
-          return
-        }
-        resolve({ payload: fallbackPayload('manual-fallback'), fromFallback: true, error: `HTTP ${res.statusCode}` })
-      },
-      fail: (error) => {
-        resolve({ payload: fallbackPayload('manual-fallback'), fromFallback: true, error: error.errMsg || 'request failed' })
       }
     })
   })
@@ -118,11 +146,12 @@ function requestArticleList(query) {
       method: 'GET',
       timeout: 6000,
       success: (res) => {
-        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.articles) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && articleListIsReady(res.data.articles)) {
           resolve({ payload: res.data, fromFallback: false, error: '' })
           return
         }
-        resolve({ payload: fallbackArticleList(query), fromFallback: true, error: `HTTP ${res.statusCode}` })
+        const error = res.statusCode >= 200 && res.statusCode < 300 ? 'incomplete article payload' : `HTTP ${res.statusCode}`
+        resolve({ payload: fallbackArticleList(query), fromFallback: true, error })
       },
       fail: (error) => {
         resolve({ payload: fallbackArticleList(query), fromFallback: true, error: error.errMsg || 'request failed' })
@@ -143,11 +172,12 @@ function requestArticleDetail(articleId) {
       method: 'GET',
       timeout: 6000,
       success: (res) => {
-        if (res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.id) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && isReadyArticlePayload(res.data)) {
           resolve({ article: res.data, fromFallback: false, error: '' })
           return
         }
-        resolve({ article: findFallbackArticle(articleId), fromFallback: true, error: `HTTP ${res.statusCode}` })
+        const error = res.statusCode >= 200 && res.statusCode < 300 ? 'incomplete article payload' : `HTTP ${res.statusCode}`
+        resolve({ article: findFallbackArticle(articleId), fromFallback: true, error })
       },
       fail: (error) => {
         resolve({ article: findFallbackArticle(articleId), fromFallback: true, error: error.errMsg || 'request failed' })
@@ -172,7 +202,6 @@ module.exports = {
   rememberRefreshTime,
   requestArticleDetail,
   requestArticleList,
-  requestManualRefresh,
   requestNewsHome,
   shouldRefreshToday
 }

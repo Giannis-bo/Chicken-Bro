@@ -18,20 +18,22 @@
 
 后端只允许进入首页展示的资讯满足这些条件：
 
-1. 有标题、摘要、频道、来源名、来源 URL、发布日期、来源说明。
+1. 有中文标题、原文标题、中文摘要、完整中文正文块、频道、来源名、来源 URL、发布日期、来源说明。
 2. 来源域名在可信来源白名单内。
 3. 频道只能是：
    - 正式服动态
    - 测试服前瞻
    - 职业强度变化
 4. 发布日期使用 `YYYY-MM-DD`。
-5. 每条前端可见新闻都必须携带 `sourceName`、`sourceUrl`、`publishedAt`、`sourceNote`。
+5. 每条前端可见新闻都必须携带 `sourceName`、`sourceUrl`、`publishedAt`、`sourceNote`、`originalTitle`、`bodyZh`、`bodyBlocksZh`、`tagItems`、`sourceBadges`、`contentStatus=ready`。
+6. 每条前端可见新闻必须同时满足 `licenseStatus=approved`、`verificationStatus=official_verified`、`translationStatus=llm`、`translationFidelity=source_translation`、`sourceTier=official`。未授权第三方全文翻译、未找到官方依据、冲突条目、summary-only 正文或 LLM 改写导读都必须 blocked。
+7. 自动采集文章如果正文抓取、LLM 翻译、授权门禁、官方校验或中文质检失败，必须进入 refresh run 的 blocked 记录，不发布到首页、列表或详情页。
 
 当前第一版可信来源：
 
-- Blizzard News：`worldofwarcraft.blizzard.com`、`news.blizzard.com`
-- Wowhead：`www.wowhead.com`
-- Icy Veins：`www.icy-veins.com`
+- Blizzard News：`worldofwarcraft.blizzard.com`、`news.blizzard.com`，`tier=official`，`licenseStatus=approved`，默认启用全文采集和发布。
+- Wowhead：`www.wowhead.com`，`tier=trusted_media`，`licenseStatus=reference_only`，默认不发布全文翻译，仅保留发现/佐证。
+- Icy Veins：`www.icy-veins.com`，`tier=trusted_media`，`licenseStatus=reference_only`，默认不发布全文翻译，仅保留发现/佐证。
 
 ## API
 
@@ -51,18 +53,48 @@
 }
 ```
 
-### `POST /api/news/refresh?mode=manual|scheduled`
+首页、列表和详情页的公共文章字段保持一致：
+
+```json
+{
+  "id": "article-id",
+  "title": "中文标题",
+  "summary": "中文摘要",
+  "bodyZh": "完整中文正文",
+  "bodyBlocksZh": [{ "type": "paragraph", "text": "中文正文段落" }],
+  "originalTitle": "Original source title",
+  "tags": ["content-update"],
+  "tagItems": [{ "id": "content-update", "label": "内容更新" }],
+  "contentStatus": "ready",
+  "translationStatus": "llm",
+  "translationFidelity": "source_translation",
+  "verificationStatus": "official_verified",
+  "licenseStatus": "approved",
+  "sourceTier": "official",
+  "sourceBadges": ["官方已核验", "全文翻译"],
+  "canonicalTopicId": "news:24276957",
+  "readingMeta": { "bodyBlockCount": 3, "estimatedReadingMinutes": 1 },
+  "sourceName": "Blizzard News",
+  "sourceUrl": "https://...",
+  "publishedAt": "2026-06-09",
+  "sourceNote": "来源说明"
+}
+```
+
+公共 API 不返回 `originalBody` 或 `originalSummary`。原文正文只作为后端重翻译、审计和 blocked 归因的内部材料。
+
+### `POST /api/news/refresh?mode=scheduled`
 
 触发刷新并返回同结构首页 payload。
 
-- `mode=manual`：前端手动刷新按钮触发。
-- `mode=scheduled`：服务器定时任务触发。
-- `mode` 只能使用上述两个值；其他值返回：
+- `mode=scheduled`：服务器定时任务或运维手动触发。
+- 小程序首页不提供手动刷新按钮，也不通过下拉刷新直接触发源站采集。
+- `mode` 只能使用上述值；其他值返回：
 
 ```json
 {
   "error": "invalid_refresh_mode",
-  "allowedModes": ["manual", "scheduled"]
+  "allowedModes": ["scheduled"]
 }
 ```
 
@@ -75,27 +107,39 @@
 }
 ```
 
-当前开发联调环境允许小程序直接调用 `manual` 刷新。生产环境在接入 HTTPS 域名后，需要增加服务端鉴权或网关策略：`scheduled` 只允许 localhost / 授权 IP 调用，`manual` 建议增加限流，例如每用户每小时 5 次，避免用户连续点击导致源站压力。
+生产环境在接入 HTTPS 域名后，需要增加服务端鉴权或网关策略：`scheduled` 只允许服务器定时任务、localhost 或授权 IP 调用，避免用户端连续触发源站采集。
 
 ## 后端实现
 
 当前为了适配新服务器的最小环境，后端使用 Python 标准库：
 
-- `server/news_backend.py`：HTTP API、SQLite 初始化、刷新记录、payload 构建。
-- `server/news_collector.py`：无依赖 RSS / Atom 采集器，负责解析条目、标准化日期、频道分类、来源证据和去重。
+- `server/news_backend.py`：HTTP API、SQLite 初始化、来源注册表、raw/evidence 记录、可信发布门禁、刷新记录、payload 构建。
+- `server/news_collector.py`：无依赖 RSS / Atom / HTML 采集器，负责列表发现、Blizzard 官方详情页正文块抽取、标准化日期、频道分类、来源证据和去重。
+- `server/news_translator.py`：负责 LLM 中文化 schema、tag 白名单、逐块原文直译、完整正文质检、`translationFidelity=source_translation` 和 `ready / blocked` 发布状态。
 - `server/news/articles.seed.json`：第一版已核验来源的新闻种子。
 - `server/news/home-payload.js`：前后端共享契约的 JS 实现，用于本地 Node 测试和小程序 fallback。
 
-线上自动采集源当前收敛为暴雪官方 World of Warcraft 新闻列表页。Wowhead 仍可作为可信来源保存已核验条目，但不作为当前定时抓取源，避免其 RSS 反爬返回 403 时污染每日刷新结果。
+线上自动采集源当前收敛为暴雪官方 World of Warcraft 新闻列表页，并对 Blizzard 官方详情页做二段式正文抽取。Wowhead / Icy Veins 仍可作为 reference-only 来源保存发现和佐证，但未确认授权前不进入自动全文采集，也不公开展示第三方全文翻译。
+
+刷新链路分五层：
+
+1. 列表发现：发现可信来源 URL、标题、摘要、日期和频道。
+2. 详情抽取：Blizzard 官方文章抓取正文块，保留 `originalTitle`、内部 `originalBody` 和 `bodyBlocks`。
+3. LLM 加工：输出中文标题、中文摘要、逐块 `bodyBlocksZh`、`translationFidelity=source_translation` 和白名单 tag；不得把正文改写成导读、摘要或阅读建议。
+4. 来源与事实门禁：`news_sources` 控制授权状态，`news_raw_articles` 记录原文内部材料，`news_article_evidence` 记录官方/第三方证据；非 approved、非 official verified 或冲突条目 blocked。
+5. 发布质检：只有 `contentStatus=ready` 且通过四重门禁的文章进入公共 API；失败原因写入 `news_refresh_runs.message.blockedArticles`。
 
 采集器通过环境变量控制：
 
 ```text
 WOW_NEWS_ENABLE_COLLECTORS=0  # 默认，仅读取已核验种子
 WOW_NEWS_ENABLE_COLLECTORS=1  # 启用 RSS / Atom 采集并写入 SQLite
+WOW_NEWS_MAX_COLLECTED_ARTICLES=1  # 每个来源每次最多处理的新采集条数
+WOW_LLM_TIMEOUT_SECONDS=45  # 单次 LLM 翻译请求超时
 ```
 
 当前 Lighthouse 服务器已启用 `WOW_NEWS_ENABLE_COLLECTORS=1`。
+V1 只会跳过已经具备 `translationFidelity=source_translation` 的官方 seed 重复条目，避免同一篇合格文章反复送入 LLM；旧的 summary-only / 导读式 seed 即使命中同一 canonical topic，也必须由新采集到的官方全文重新翻译并重新通过发布门禁。
 
 服务器侧定时刷新使用可执行脚本，避免 inline crontab 静默失败：
 
@@ -108,18 +152,20 @@ WOW_NEWS_ENABLE_COLLECTORS=1  # 启用 RSS / Atom 采集并写入 SQLite
 ```text
 WOW_NEWS_REFRESH_URL=http://127.0.0.1/api/news/refresh?mode=scheduled
 WOW_NEWS_REFRESH_LOG=/home/ubuntu/wow-news-backend/logs/refresh_cron.log
-WOW_NEWS_REFRESH_TIMEOUT=45
+WOW_NEWS_REFRESH_TIMEOUT=240
 ```
 
 每次执行会记录开始/结束时间、HTTP 状态和错误退出码，便于排查定时刷新失败。
+`WOW_NEWS_MAX_COLLECTED_ARTICLES` 是源站与 LLM 保护阀。V1 默认每次只处理 1 篇新官方文章，优先保证逐块直译完整性；后续可以在异步 refresh worker 和管理面板就绪后再提高吞吐。
 
 ## 前端实现
 
 - `app.json`：第一个 tab 文案改为 `最新资讯`。
 - `pages/news/news-api.js`：请求后端 API，失败时回落到本地同结构 payload。
-- `pages/news/news.js`：页面加载时判断是否跨天，支持自动刷新；按钮和下拉触发手动刷新。
+- `pages/news/news.js`：页面加载时判断是否跨天，自动消费最新 ready payload；小程序端不再提供手动刷新入口。
 - `pages/news/news.wxml`：顶部 `swiper` 展示最重要 3 条新闻。
 - `pages/news/news.wxss`：整体改为 WoW 风格深色金边、羊皮纸底色和高对比信息卡。
+- `pages/news/detail.*`：详情页中文标题为主、原文标题作为副标题；顶部展示 `官方已核验` / `全文翻译` badge；正文只按 `bodyBlocksZh` 渲染中文翻译块；tag 使用中文 chip；来源缩小为底部复制链接按钮。
 
 ## 后续演进
 

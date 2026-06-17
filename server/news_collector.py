@@ -7,11 +7,6 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from xml.etree import ElementTree
 
-try:
-    from .news_translator import localize_article
-except ImportError:
-    from news_translator import localize_article
-
 CHANNEL_RETAIL = "正式服动态"
 CHANNEL_PTR = "测试服前瞻"
 CHANNEL_CLASS = "职业强度变化"
@@ -51,7 +46,89 @@ def strip_html(value):
     return re.sub(r"\s+", " ", text).strip()
 
 
-def summarize(value, limit=96):
+def strip_unwanted_html(value):
+    text = re.sub(r"<script\b.*?</script>", " ", value or "", flags=re.S | re.I)
+    text = re.sub(r"<style\b.*?</style>", " ", text, flags=re.S | re.I)
+    text = re.sub(r"<nav\b.*?</nav>", " ", text, flags=re.S | re.I)
+    text = re.sub(r"<aside\b.*?</aside>", " ", text, flags=re.S | re.I)
+    text = re.sub(r"<footer\b.*?</footer>", " ", text, flags=re.S | re.I)
+    return text
+
+
+def html_blocks_to_text(value):
+    return body_blocks_to_text(html_blocks_to_body_blocks(value))
+
+
+def clean_block_text(value):
+    text = re.sub(r"<(br|br/|br /)>", "\n", value or "", flags=re.I)
+    text = strip_html(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def body_blocks_to_text(blocks):
+    lines = []
+    for block in blocks or []:
+        block_type = block.get("type")
+        if block_type == "list":
+            lines.extend(item for item in block.get("items", []) if item)
+            continue
+        text = clean_block_text(block.get("text", ""))
+        if text:
+            lines.append(text)
+    deduped = []
+    seen = set()
+    for line in lines:
+        key = line.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(line)
+    return "\n\n".join(deduped)
+
+
+def html_blocks_to_body_blocks(value):
+    text = strip_unwanted_html(value)
+    blocks = []
+    pattern = re.compile(
+        r"<(h1|h2|h3|p|blockquote)\b[^>]*>(.*?)</\1>|<(ul|ol)\b[^>]*>(.*?)</\3>",
+        flags=re.S | re.I,
+    )
+    for match in pattern.finditer(text or ""):
+        tag = (match.group(1) or match.group(3) or "").lower()
+        content = match.group(2) if match.group(1) else match.group(4)
+        if tag in {"h1", "h2", "h3"}:
+            block_text = clean_block_text(content)
+            if block_text:
+                blocks.append({"type": "heading", "text": block_text})
+        elif tag == "p":
+            block_text = clean_block_text(content)
+            if block_text:
+                blocks.append({"type": "paragraph", "text": block_text})
+        elif tag == "blockquote":
+            block_text = clean_block_text(content)
+            if block_text:
+                blocks.append({"type": "quote", "text": block_text})
+        elif tag in {"ul", "ol"}:
+            items = [
+                clean_block_text(item_match.group(1))
+                for item_match in re.finditer(r"<li\b[^>]*>(.*?)</li>", content or "", flags=re.S | re.I)
+            ]
+            items = [item for item in items if item]
+            if items:
+                blocks.append({"type": "list", "items": items})
+
+    if blocks:
+        return blocks
+
+    fallback = strip_html(text)
+    return [
+        {"type": "paragraph", "text": line.strip(" -\t")}
+        for line in re.split(r"\n+", fallback)
+        if line.strip(" -\t")
+    ]
+
+
+def summarize(value, limit=140):
     text = strip_html(value)
     if len(text) <= limit:
         return text
@@ -87,7 +164,20 @@ def classify(title, summary):
         if channel != CHANNEL_PTR:
             channel = CHANNEL_CLASS
 
-    return channel, category, tags
+    if "hotfix" in text:
+        tags.append("hotfix")
+    if "trading post" in text or "traveler's log" in text:
+        tags.append("trading-post")
+    if "content update" in text or "update" in text:
+        tags.append("content-update")
+    if "raid" in text:
+        tags.append("raid")
+    if "reward" in text:
+        tags.append("rewards")
+    if "this week in wow" in text or "weekly" in text:
+        tags.append("weekly")
+
+    return channel, category, list(dict.fromkeys(tags))
 
 
 def article_id(source_name, url):
@@ -174,8 +264,7 @@ def parse_feed_articles(feed_text, source):
             importance += 6
 
         articles.append(
-            localize_article(
-                {
+            {
                 "id": article_id(source["sourceName"], url),
                 "title": strip_html(title),
                 "summary": clean_summary,
@@ -184,14 +273,19 @@ def parse_feed_articles(feed_text, source):
                 "tags": tags,
                 "importance": importance,
                 "sourceName": source["sourceName"],
+                "sourceId": source.get("sourceId", source["sourceName"].lower().replace(" ", "-")),
+                "sourceTier": source.get("sourceTier", "trusted_media"),
+                "licenseStatus": source.get("licenseStatus", "reference_only"),
                 "sourceUrl": url,
                 "publishedAt": published_at,
                 "sourceNote": f"{source['sourceNote']} 原始条目：{source.get('sourceUrl', url)}",
                 "originalTitle": strip_html(title),
                 "originalSummary": clean_summary,
                 "originalBody": clean_summary,
-                }
-            )
+                "bodyBlocks": [{"type": "paragraph", "text": clean_summary}],
+                "requiresLlmTranslation": True,
+                "contentStatus": "discovered",
+            }
         )
 
     return articles
@@ -212,7 +306,46 @@ def absolute_blizzard_url(url):
     return f"https://worldofwarcraft.blizzard.com/{url}"
 
 
-def parse_blizzard_news_html(page_text):
+def parse_blizzard_article_html(page_text, source_url=""):
+    title_match = re.search(r"<h1[^>]*>(.*?)</h1>", page_text or "", flags=re.S | re.I)
+    if not title_match:
+        title_match = re.search(r"<title[^>]*>(.*?)</title>", page_text or "", flags=re.S | re.I)
+    title = strip_html(title_match.group(1)) if title_match else ""
+    title = re.sub(r"\s+-\s+WoW.*$", "", title).strip()
+
+    data_props = ""
+    date_match = re.search(r'data-props="([^"]*iso8601[^"]*)"', page_text or "", flags=re.S | re.I)
+    if date_match:
+        data_props = html.unescape(date_match.group(1))
+    published_at = ""
+    iso_match = re.search(r'"iso8601"\s*:\s*"([^"]+)"', data_props)
+    if iso_match:
+        published_at = parse_date(iso_match.group(1))
+
+    article_match = re.search(r"<article\b[^>]*>(.*?)</article>", page_text or "", flags=re.S | re.I)
+    if article_match:
+        body_html = article_match.group(1)
+    else:
+        main_match = re.search(r"<main\b[^>]*>(.*?)</main>", page_text or "", flags=re.S | re.I)
+        body_html = main_match.group(1) if main_match else page_text
+    body_blocks = html_blocks_to_body_blocks(body_html)
+    if title and body_blocks:
+        first = body_blocks[0]
+        first_text = first.get("text", "") if first.get("type") != "list" else " ".join(first.get("items", []))
+        if clean_block_text(first_text).lower() == title.lower():
+            body_blocks = body_blocks[1:]
+    original_body = body_blocks_to_text(body_blocks)
+
+    return {
+        "originalTitle": title,
+        "originalBody": original_body,
+        "bodyBlocks": body_blocks,
+        "publishedAt": published_at,
+        "sourceUrl": source_url,
+    }
+
+
+def parse_blizzard_news_html(page_text, detail_pages=None, max_articles=None):
     articles = []
     for match in re.finditer(r'<article class="NewsBlog".*?</article>', page_text, flags=re.S):
         block = match.group(0)
@@ -234,6 +367,9 @@ def parse_blizzard_news_html(page_text):
             continue
 
         url = absolute_blizzard_url(html.unescape(link_match.group(1)))
+        detail = {}
+        if detail_pages and url in detail_pages:
+            detail = parse_blizzard_article_html(detail_pages[url], url)
         channel, category, tags = classify(title, summary)
         importance = 86
         if channel == CHANNEL_PTR:
@@ -242,8 +378,7 @@ def parse_blizzard_news_html(page_text):
             importance += 6
 
         articles.append(
-            localize_article(
-                {
+            {
                 "id": article_id("Blizzard News", url),
                 "title": title,
                 "summary": summary,
@@ -252,29 +387,57 @@ def parse_blizzard_news_html(page_text):
                 "tags": tags,
                 "importance": importance,
                 "sourceName": "Blizzard News",
+                "sourceId": "blizzard",
+                "sourceTier": "official",
+                "licenseStatus": "approved",
                 "sourceUrl": url,
-                "publishedAt": published_at,
+                "publishedAt": detail.get("publishedAt") or published_at,
                 "sourceNote": "暴雪官方 World of Warcraft 新闻列表页自动采集，保留原文链接和页面发布日期。",
-                "originalTitle": title,
+                "originalTitle": detail.get("originalTitle") or title,
                 "originalSummary": summary,
-                "originalBody": summary,
-                }
-            )
+                "originalBody": detail.get("originalBody") or summary,
+                "bodyBlocks": detail.get("bodyBlocks") or [{"type": "paragraph", "text": summary}],
+                "requiresLlmTranslation": True,
+                "contentStatus": "discovered",
+            }
         )
+        if max_articles is not None and len(articles) >= max_articles:
+            break
     return articles
 
 
-def fetch_blizzard_news_articles(source, timeout=15):
+def fetch_url(url, accept, timeout=15):
     request = Request(
-        source["sourceUrl"],
+        url,
         headers={
             "User-Agent": "Mozilla/5.0 wow-mini-program-news-backend/0.1",
-            "Accept": "text/html,*/*",
+            "Accept": accept,
         },
     )
     with urlopen(request, timeout=timeout) as response:
-        body = response.read().decode("utf-8", errors="replace")
-    return parse_blizzard_news_html(body)
+        return response.read().decode("utf-8", errors="replace")
+
+
+def fetch_blizzard_news_articles(source, timeout=15, max_articles=None):
+    body = fetch_url(source["sourceUrl"], "text/html,*/*", timeout=timeout)
+    articles = parse_blizzard_news_html(body, max_articles=max_articles)
+    enriched = []
+    for article in articles:
+        try:
+            detail_body = fetch_url(article["sourceUrl"], "text/html,*/*", timeout=timeout)
+            detail = parse_blizzard_article_html(detail_body, article["sourceUrl"])
+            article.update(
+                {
+                    "originalTitle": detail.get("originalTitle") or article.get("originalTitle", ""),
+                    "originalBody": detail.get("originalBody") or article.get("originalBody", ""),
+                    "bodyBlocks": detail.get("bodyBlocks") or article.get("bodyBlocks", []),
+                    "publishedAt": detail.get("publishedAt") or article.get("publishedAt", ""),
+                }
+            )
+        except Exception as error:  # detail fetch must not abort the whole list
+            article["detailError"] = str(error)
+        enriched.append(article)
+    return enriched
 
 
 def merge_articles(seed_articles, collected_articles):
@@ -290,28 +453,21 @@ def merge_articles(seed_articles, collected_articles):
     )
 
 
-def fetch_feed_articles(source, timeout=15):
-    request = Request(
-        source["sourceUrl"],
-        headers={
-            "User-Agent": "wow-mini-program-news-backend/0.1",
-            "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
-        },
-    )
-    with urlopen(request, timeout=timeout) as response:
-        body = response.read().decode("utf-8", errors="replace")
-    return parse_feed_articles(body, source)
+def fetch_feed_articles(source, timeout=15, max_articles=None):
+    body = fetch_url(source["sourceUrl"], "application/rss+xml, application/atom+xml, application/xml, text/xml, */*", timeout=timeout)
+    articles = parse_feed_articles(body, source)
+    return articles[:max_articles] if max_articles is not None else articles
 
 
-def collect_feed_articles(sources, timeout=15):
+def collect_feed_articles(sources, timeout=15, max_articles_per_source=None):
     articles = []
     errors = []
     for source in sources:
         try:
             if source.get("type") == "blizzard_html":
-                articles.extend(fetch_blizzard_news_articles(source, timeout=timeout))
+                articles.extend(fetch_blizzard_news_articles(source, timeout=timeout, max_articles=max_articles_per_source))
             else:
-                articles.extend(fetch_feed_articles(source, timeout=timeout))
+                articles.extend(fetch_feed_articles(source, timeout=timeout, max_articles=max_articles_per_source))
         except Exception as error:  # network collectors must fail soft
             errors.append({"sourceName": source.get("sourceName", ""), "sourceUrl": source.get("sourceUrl", ""), "error": str(error)})
     return articles, errors

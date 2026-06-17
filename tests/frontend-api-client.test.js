@@ -46,7 +46,7 @@ test('builds api returns fallback without an API base and remote payload when re
   assert.equal(result.payload.navTitle, '远端职业专精')
 })
 
-test('websim mini api wraps bootstrap talents and profile endpoints', async () => {
+test('websim mini api wraps bootstrap talents profile gear and gear stats endpoints', async () => {
   const captured = []
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
@@ -90,6 +90,42 @@ test('websim mini api wraps bootstrap talents and profile endpoints', async () =
             }
           }
         })
+        return
+      }
+      if (/\/api\/websim\/gear\?class=mage&spec=frost$/.test(options.url)) {
+        options.success({
+          statusCode: 200,
+          data: {
+            classKey: 'mage',
+            specKey: 'frost',
+            slots: [{ slot: 'head', label: '头部' }],
+            slotGroups: [{ slot: 'head', label: '头部', items: [] }],
+            equippedSet: {
+              head: { slot: 'head', itemId: '250101', displayName: 'Verified Hood' }
+            },
+            slotReadiness: {
+              head: { slot: 'head', status: 'verified', reason: 'SimC-ready item' }
+            },
+            replacementCandidates: [{ slot: 'head', label: '头部', items: [] }],
+            readiness: { fullReady: false },
+            gearSchemaRevision: 'websim-gear-simulator-v1',
+            maxLevel: 90
+          }
+        })
+        return
+      }
+      if (/\/api\/websim\/gear\/stats$/.test(options.url)) {
+        options.success({
+          statusCode: 200,
+          data: {
+            statStatus: 'verified',
+            primary: { key: 'intellect', label: '智力', value: '12345' },
+            stamina: { key: 'stamina', label: '耐力', value: '54321' },
+            secondary: [{ key: 'crit', label: '暴击', value: '2345' }],
+            blockers: [],
+            maxLevel: 90
+          }
+        })
       }
     }
   }
@@ -97,6 +133,12 @@ test('websim mini api wraps bootstrap talents and profile endpoints', async () =
   const api = resetModule('../pages/builds/websim-api')
   const bootstrap = await api.requestWebsimBootstrap()
   const talents = await api.requestWebsimTalents({ classKey: 'mage', specKey: 'frost', heroKey: 'spellslinger' })
+  const gear = await api.requestWebsimGear({ classKey: 'mage', specKey: 'frost' })
+  const stats = await api.requestWebsimGearStats({
+    classKey: 'mage',
+    specKey: 'frost',
+    gearSelection: { items: [{ slot: 'head', itemId: '250101' }] }
+  })
   const profile = await api.requestWebsimProfile({
     classKey: 'mage',
     specKey: 'frost',
@@ -106,12 +148,19 @@ test('websim mini api wraps bootstrap talents and profile endpoints', async () =
 
   assert.equal(bootstrap.fromFallback, false)
   assert.equal(talents.payload.nodes[0].name, 'Ice Lance')
+  assert.equal(gear.payload.gearSchemaRevision, 'websim-gear-simulator-v1')
+  assert.equal(gear.payload.equippedSet.head.itemId, '250101')
+  assert.equal(stats.payload.statStatus, 'verified')
+  assert.equal(stats.payload.primary.value, '12345')
   assert.equal(profile.payload.talentEncoding.status, 'encoded')
   assert.deepEqual(profile.payload.talentEncoding.lines, ['class_talents=1001:1'])
   assert.equal(captured[0].method || 'GET', 'GET')
   assert.equal(captured[1].method || 'GET', 'GET')
-  assert.equal(captured[2].method, 'POST')
-  assert.deepEqual(captured[2].data.talentState.selectedNodes, [{ id: 'n1', rank: 1 }])
+  assert.equal(captured[2].method || 'GET', 'GET')
+  assert.equal(captured[3].method, 'POST')
+  assert.deepEqual(captured[3].data.gearSelection.items, [{ slot: 'head', itemId: '250101' }])
+  assert.equal(captured[4].method, 'POST')
+  assert.deepEqual(captured[4].data.talentState.selectedNodes, [{ id: 'n1', rank: 1 }])
 })
 
 test('pve and simulator apis expose fallback payloads', async () => {

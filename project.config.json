@@ -17,7 +17,16 @@
     "compileType": "miniprogram",
     "simulatorPluginLibVersion": {},
     "packOptions": {
-        "ignore": [],
+        "ignore": [
+            {
+                "type": "glob",
+                "value": "**/__pycache__/**"
+            },
+            {
+                "type": "glob",
+                "value": "**/*.pyc"
+            }
+        ],
         "include": []
     },
     "appid": "wx17543b6fc4305479",

@@ -31,16 +31,36 @@
 
       <view class="section">
         <view class="section-header">
-          <text class="section-title">我的能力</text>
-          <text class="section-action">查看</text>
+          <text class="section-title">个人模板库</text>
         </view>
-        <view class="ability-list">
-          <view class="ability-row" wx:for="{{abilities}}" wx:key="name">
-            <view class="ability-main">
-              <text class="ability-name">{{item.name}}</text>
-              <text class="ability-desc">{{item.desc}}</text>
+        <view class="template-module-list">
+          <view class="template-module" wx:for="{{templateModules}}" wx:key="type">
+            <view class="template-module-head">
+              <view>
+                <text wx:if="{{item.type == 'talent'}}" class="template-module-title">天赋模板</text>
+                <text wx:elif="{{item.type == 'gear'}}" class="template-module-title">装备模板</text>
+                <text wx:else class="template-module-title">{{item.title}}</text>
+                <text class="template-module-desc">已保存 {{item.count}} 个模板</text>
+              </view>
+              <text class="template-module-count">{{item.count}}</text>
             </view>
-            <text class="ability-level">{{item.level}}</text>
+
+            <view class="template-empty" wx:if="{{item.count == 0}}">
+              <text>{{item.emptyText}}</text>
+            </view>
+
+            <view class="template-list" wx:else>
+              <view class="template-card" wx:for="{{item.recent}}" wx:for-item="template" wx:key="id">
+                <view class="template-card-main">
+                  <text class="template-title">{{template.title}}</text>
+                  <view class="template-meta-row">
+                    <text class="template-meta-chip" wx:for="{{template.metaChips}}" wx:for-item="chip" wx:key="*this">{{chip}}</text>
+                  </view>
+                  <text class="template-source">{{template.source}} · {{template.savedLabel}}</text>
+                </view>
+                <button class="template-delete-button" data-id="{{template.id}}" data-title="{{template.title}}" bindtap="deleteTemplate">删除</button>
+              </view>
+            </view>
           </view>
         </view>
       </view>

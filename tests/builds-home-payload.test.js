@@ -22,7 +22,7 @@ test('builds the specialization tab payload without legacy BD metrics', () => {
   )
   assert.deepEqual(
     payload.quickActions.map((action) => action.title),
-    ['天赋构筑', '装备获取', '属性权重', '输出循环']
+    ['天赋构筑', '装备模拟', '属性权重', '输出循环']
   )
   assert.equal(payload.featuredSpecializations.length, 3)
   assert.equal(payload.classOptions.length, 13)

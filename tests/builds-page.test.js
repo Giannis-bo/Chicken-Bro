@@ -1,7 +1,66 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
+const vm = require('node:vm')
 const { buildSpecializationHomePayload } = require('../server/builds/home-payload')
+
+function loadBuildsDetailPageConfig() {
+  const source = fs.readFileSync('pages/builds/detail.js', 'utf8')
+  const sandbox = {
+    console,
+    Page(config) {
+      sandbox.pageConfig = config
+    },
+    wx: {
+      navigateTo() {},
+      redirectTo() {},
+      setStorageSync() {},
+      showToast() {}
+    },
+    require(modulePath) {
+      if (modulePath === './builds-api') {
+        return {
+          fallbackBuildsHome: () => ({
+            quickActions: [{ key: 'gear', title: '装备模拟', desc: '' }],
+            classOptions: [],
+            trustedSources: []
+          }),
+          fallbackBuildsDetail: () => ({
+            details: {
+              talents: { coreTalents: [], importCode: '' },
+              gear: {}
+            }
+          }),
+          requestBuildsDetail: () => Promise.resolve({ payload: null }),
+          requestBuildsHome: () => Promise.resolve({ payload: null })
+        }
+      }
+      if (modulePath === './websim-api') {
+        return {
+          requestWebsimGear: () => Promise.resolve({ payload: {} }),
+          requestWebsimGearStats: () => Promise.resolve({ payload: {} })
+        }
+      }
+      if (modulePath === '../common/analytics-client') {
+        return {
+          trackEvent() {},
+          trackPageLeave() {},
+          trackPageView() {}
+        }
+      }
+      if (modulePath === '../common/build-template-storage') {
+        return {
+          saveBuildTemplate() {
+            return {}
+          }
+        }
+      }
+      throw new Error(`Unexpected require: ${modulePath}`)
+    }
+  }
+  vm.runInNewContext(source, sandbox, { filename: 'pages/builds/detail.js' })
+  return sandbox.pageConfig
+}
 
 test('builds tab is renamed to specialization and removes legacy metrics row', () => {
   const app = JSON.parse(fs.readFileSync('app.json', 'utf8'))
@@ -20,7 +79,7 @@ test('builds page focuses on four query entries and opens talents in the native 
 
   assert.deepEqual(
     payload.quickActions.map((item) => item.title),
-    ['天赋构筑', '装备获取', '属性权重', '输出循环']
+    ['天赋构筑', '装备模拟', '属性权重', '输出循环']
   )
   assert.match(wxml, /bindtap="openQueryPage"/)
   assert.match(js, /openQueryPage\(event\)/)
@@ -41,6 +100,7 @@ test('query detail page is registered and uses dropdown pickers', () => {
   const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
 
   assert.ok(app.pages.includes('pages/builds/detail'))
+  assert.doesNotMatch(app.pages.join('\n'), /gear-simulator/)
   assert.match(wxml, /picker[\s\S]*range="\{\{classOptions\}\}"/)
   assert.match(wxml, /picker[\s\S]*range="\{\{specOptions\}\}"/)
   assert.match(wxml, /bindchange="selectClass"/)
@@ -60,7 +120,8 @@ test('query detail page has module-specific UI sections', () => {
   assert.match(wxml, /class="talent-chip-list"/)
   assert.match(wxml, /activeDetail\.coreTalents/)
   assert.match(wxml, /wx:if="\{\{activeQueryKey == 'gear'\}\}"/)
-  assert.match(wxml, /class="gear-list"/)
+  assert.match(wxml, /class="gear-stat-panel"/)
+  assert.match(wxml, /class="gear-slot-grid"/)
   assert.match(wxml, /wx:if="\{\{activeQueryKey == 'statWeights'\}\}"/)
   assert.match(wxml, /class="stat-bars"/)
   assert.match(wxml, /wx:if="\{\{activeQueryKey == 'rotation'\}\}"/)
@@ -143,6 +204,9 @@ test('query detail page can pass current talent and gear context to simc', () =>
   assert.match(js, /SIMC_BUILD_CONTEXT_STORAGE_KEY/)
   assert.match(js, /buildSimcContext\(\)/)
   assert.match(js, /details:\s*selectedDetail\.details \|\| \{\}/)
+  assert.match(js, /selectedGearBySlot:\s*this\.data\.selectedGearBySlot/)
+  assert.match(js, /statSnapshot:\s*this\.data\.gearStatSnapshot/)
+  assert.match(js, /simcItems:\s*this\.data\.gearSimcItems/)
   assert.match(js, /wx\.setStorageSync\(SIMC_BUILD_CONTEXT_STORAGE_KEY/)
   assert.match(js, /\/pages\/simulator\/simc\?from=builds/)
   assert.match(js, /fail:\s*\(error\) =>/)
@@ -167,6 +231,8 @@ test('native talent simulator page exposes WebSim tree controls and SimC handoff
   assert.match(js, /applyTalentImport\(\)/)
   assert.match(js, /copyTalentExport\(\)/)
   assert.match(js, /openTalentSimc\(\)/)
+  assert.match(js, /saveTalentTemplate\(\)/)
+  assert.match(js, /saveBuildTemplate/)
   assert.match(js, /SIMC_BUILD_CONTEXT_STORAGE_KEY/)
   assert.match(js, /talentEncoding\.lines/)
   assert.match(js, /activeTreeKey:\s*'class'/)
@@ -182,6 +248,7 @@ test('native talent simulator page exposes WebSim tree controls and SimC handoff
   assert.match(wxml, /bindinput="updateTalentSearch"/)
   assert.match(wxml, /bindtap="resetTalents"/)
   assert.match(wxml, /bindtap="openTalentImport"/)
+  assert.match(wxml, /bindtap="saveTalentTemplate"/)
   assert.match(wxml, /bindtap="copyTalentExport"/)
   assert.match(wxml, /bindtap="openTalentSimc"/)
   assert.match(wxml, /choiceSheet/)
@@ -235,39 +302,107 @@ test('native talent simulator page exposes community template import sheet', () 
   assert.match(css, /\.community-template-card\.external/)
 })
 
-test('gear detail page exposes acquisition progress and next item actions', () => {
+test('gear detail page exposes inline equipment simulator state and replacement sheet', () => {
   const js = fs.readFileSync('pages/builds/detail.js', 'utf8')
   const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
   const css = fs.readFileSync('pages/builds/detail.wxss', 'utf8')
 
-  assert.match(js, /gearAcquisitionRows/)
-  assert.match(js, /gearProgressText/)
-  assert.match(js, /gearNextAction/)
-  assert.match(js, /source_reference/)
-  assert.match(js, /checkLabel/)
-  assert.match(js, /toggleGearAcquired\(event\)/)
-  assert.match(js, /buildGearAcquisitionRows/)
-  assert.match(wxml, /class="gear-progress-panel"/)
-  assert.match(wxml, /gearProgressText/)
-  assert.match(wxml, /gearNextAction/)
-  assert.match(wxml, /wx:for="\{\{gearAcquisitionRows\}\}"/)
+  assert.match(js, /requestWebsimGear/)
+  assert.match(js, /requestWebsimGearStats/)
+  assert.match(js, /selectedGearBySlot/)
+  assert.match(js, /gearSlotRows/)
+  assert.match(js, /gearStatSnapshot/)
+  assert.match(js, /gearStatBlockers/)
+  assert.match(js, /loadWebsimGearForSelection/)
+  assert.match(js, /refreshGearStats/)
+  assert.match(js, /openGearSlotSheet\(event\)/)
+  assert.match(js, /selectGearCandidate\(event\)/)
+  assert.match(js, /gearTemplateScenarios/)
+  assert.match(js, /selectGearTemplateScenario\(event\)/)
+  assert.doesNotMatch(js, /scenarioKey:\s*'single'/)
+  assert.match(js, /selectedGearTemplateScenarioIndex/)
+  assert.match(js, /this\.refreshGearStats\(\)/)
+  assert.match(js, /saveGearTemplate\(\)/)
+  assert.match(js, /canonicalGearTemplateLines/)
+  assert.match(js, /saveBuildTemplate/)
+  assert.match(wxml, />装备模拟</)
+  assert.match(wxml, /查看满级属性、替换装备并校验 SimC-ready 状态/)
+  assert.match(wxml, /class="gear-stat-panel"/)
+  assert.match(wxml, /gearStatSnapshot\.statStatus/)
+  assert.match(wxml, /gearStatBlockers/)
+  assert.match(wxml, /class="gear-slot-grid"/)
+  assert.match(wxml, /wx:for="\{\{gearSlotRows\}\}"/)
   assert.match(wxml, /class="gear-icon"/)
   assert.match(wxml, /item\.displayName/)
-  assert.match(wxml, /item\.metadataLabel/)
-  assert.match(wxml, /item\.checkLabel/)
-  assert.match(wxml, /bindtap="toggleGearAcquired"/)
-  assert.match(wxml, /item\.priorityLabel/)
-  assert.match(wxml, /item\.sourceType/)
-  assert.match(css, /\.gear-progress-panel/)
-  assert.match(css, /\.gear-acquisition-row\.acquired/)
-  assert.match(css, /\.gear-check/)
+  assert.match(wxml, /item\.statusLabel/)
+  assert.match(wxml, /bindtap="openGearSlotSheet"/)
+  assert.match(wxml, /gearSlotSheet\.visible/)
+  assert.match(wxml, /wx:for="\{\{gearSlotSheet\.candidates\}\}"/)
+  assert.match(wxml, /bindtap="selectGearCandidate"/)
+  assert.match(wxml, /range="\{\{gearTemplateScenarios\}\}"/)
+  assert.match(wxml, /bindchange="selectGearTemplateScenario"/)
+  assert.match(wxml, /bindtap="saveGearTemplate"/)
+  assert.match(css, /\.gear-stat-panel/)
+  assert.match(css, /\.gear-slot-grid/)
+  assert.match(css, /\.gear-slot-card/)
+  assert.match(css, /\.gear-slot-sheet/)
+  assert.match(css, /\.gear-template-actions/)
+})
+
+test('gear slot candidate count matches selectable deduped equipment rows', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const item = {
+    slot: 'head',
+    simcSlot: 'head',
+    itemId: '250060',
+    id: '250060',
+    displayName: '虚空粉碎者的面纱',
+    ilevel: '289',
+    bonus_id: '1808/13575',
+    simcReady: true
+  }
+  const gearPayload = {
+    slots: [{ slot: 'head', simcSlot: 'head', label: '头部' }],
+    replacementCandidates: [{
+      slot: 'head',
+      simcSlot: 'head',
+      label: '头部',
+      items: [
+        { ...item, source: 'MID1_Mage_Frost_Frostfire' },
+        { ...item, source: 'MID1_Mage_Frost_Spellslinger' },
+        { ...item, source: 'MID1_Mage_Frost_Frostfire_Copy' }
+      ]
+    }],
+    equippedSet: { head: item },
+    slotReadiness: { head: { status: 'verified', reason: '可写入 SimC profile' } },
+    readiness: {},
+    statSnapshot: { statStatus: 'blocked', blockers: [] }
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot: { head: item }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+
+  assert.equal(page.data.gearSlotSheet.candidates.length, 1)
+  assert.equal(page.data.gearSlotRows[0].candidateCount, page.data.gearSlotSheet.candidates.length)
 })
 
 test('simc linkage derives talent and gear state from full specialization details', () => {
   const js = fs.readFileSync('pages/builds/detail.js', 'utf8')
 
   assert.match(js, /const talentDetail = detailForQuery\(selectedDetail,\s*'talents'\)/)
-  assert.match(js, /const gearDetail = detailForQuery\(selectedDetail,\s*'gear'\)/)
   assert.match(js, /buildTalentNodeRows\(talentDetail/)
-  assert.match(js, /buildGearAcquisitionRows\(gearDetail/)
+  assert.match(js, /buildGearSlotRows/)
+  assert.match(js, /websimClassKey/)
+  assert.match(js, /websimSpecKey/)
 })

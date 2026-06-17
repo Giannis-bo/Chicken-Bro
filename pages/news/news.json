@@ -1,5 +1,5 @@
 {
-  "enablePullDownRefresh": true,
+  "enablePullDownRefresh": false,
   "usingComponents": {
     "navigation-bar": "/components/navigation-bar/navigation-bar"
   }

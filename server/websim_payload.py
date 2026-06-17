@@ -6,6 +6,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import tarfile
@@ -88,6 +89,7 @@ SIMC_TALENT_SOURCE_REFS = [
 ]
 COMMUNITY_TALENT_SYNC_KEY = "community_talent_templates"
 TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
+GEAR_SCHEMA_REVISION = "websim-gear-simulator-v1"
 
 
 WOW_CLASSES = [
@@ -639,6 +641,22 @@ def int_env(name, default):
         return int(os.environ.get(name, str(default)))
     except (TypeError, ValueError):
         return default
+
+
+def websim_max_level():
+    return int_env("WOW_WEBSIM_MAX_LEVEL", 90)
+
+
+def clamp(value, minimum, maximum):
+    return max(minimum, min(value, maximum))
+
+
+def normalized_websim_level(value=None):
+    try:
+        text = normalize_option_value(value) if value not in (None, "") else ""
+        return clamp(int(text or websim_max_level()), 1, websim_max_level())
+    except (TypeError, ValueError):
+        return clamp(websim_max_level(), 1, websim_max_level())
 
 
 def slugify(value, fallback="item"):
@@ -4769,6 +4787,9 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane"):
     baseline_set = hydrate_gear_items_from_metadata(conn, baseline_set)
     preset_items = hydrate_gear_items_from_metadata(conn, preset_items)
     candidate_items = hydrate_gear_items_from_metadata(conn, candidate_items)
+    baseline_set = normalize_websim_gear_items(baseline_set, class_key, spec_key)
+    preset_items = normalize_gear_item_list(preset_items, class_key, spec_key)
+    candidate_items = normalize_gear_item_list(candidate_items, class_key, spec_key)
     grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
     for item in [*baseline_set, *preset_items, *candidate_items]:
         normalized = normalize_gear_item(item, class_key, spec_key, item.get("sourceType") if isinstance(item, dict) else "")
@@ -4779,19 +4800,33 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane"):
             "slot": slot,
             "simcSlot": slot,
             "label": GEAR_SLOT_LABELS.get(slot, slot),
-            "items": grouped.get(slot, [])[:12],
+            "items": unique_gear_candidates(grouped.get(slot, []), limit=12),
         }
         for slot in CANONICAL_GEAR_SLOTS
     ]
+    equipped_set = gear_items_by_slot(baseline_set, class_key, spec_key)
+    readiness = gear_readiness(baseline_set)
     return {
         "classKey": class_key,
         "specKey": spec_key,
         "slots": gear_slot_payload(),
         "slotGroups": slot_groups,
+        "replacementCandidates": slot_groups,
+        "equippedSet": equipped_set,
+        "slotReadiness": gear_slot_readiness(baseline_set, class_key, spec_key),
         "baselineSet": baseline_set,
         "presets": presets,
         "candidateItems": candidate_items[:24],
-        "readiness": gear_readiness(baseline_set),
+        "readiness": readiness,
+        "statSnapshot": blocked_stat_snapshot(
+            ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
+            class_key=class_key,
+            spec_key=spec_key,
+            gear_readiness_payload=readiness,
+        ),
+        "gearSchemaRevision": GEAR_SCHEMA_REVISION,
+        "maxLevel": websim_max_level(),
+        "checkedAt": utc_now(),
         **season_metadata_fields(season),
     }
 
@@ -4989,6 +5024,49 @@ def normalize_websim_gear_items(items, class_key="", spec_key="", default_source
     return normalized
 
 
+def normalize_gear_item_list(items, class_key="", spec_key="", default_source_type=""):
+    normalized = []
+    for raw_item in items or []:
+        item = normalize_gear_item(raw_item, class_key, spec_key, default_source_type)
+        if item:
+            normalized.append(item)
+    return normalized
+
+
+def gear_candidate_key(item):
+    if not isinstance(item, dict):
+        return ("",)
+    item_id = item.get("itemId") or item.get("id") or item.get("name") or ""
+    return tuple(
+        str(value or "")
+        for value in [
+            item.get("slot"),
+            item_id,
+            item.get("ilevel"),
+            item.get("bonus_id"),
+            item.get("gem_id"),
+            item.get("gem_bonus_id"),
+            item.get("gem_ilevel"),
+            item.get("enchant_id"),
+            item.get("crafted_stats"),
+        ]
+    )
+
+
+def unique_gear_candidates(items, limit=None):
+    unique_items = []
+    seen = set()
+    for item in items or []:
+        key = gear_candidate_key(item)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_items.append(item)
+        if limit and len(unique_items) >= limit:
+            break
+    return unique_items
+
+
 def build_websim_gear_lines(items):
     lines = []
     for item in normalize_websim_gear_items(items):
@@ -5075,6 +5153,168 @@ def gear_readiness(items):
         "requiredReadyCount": len(CORE_SIMC_GEAR_SLOTS),
         "fullReady": not missing_core_slots and candidate_count == 0,
         "warnings": warnings,
+    }
+
+
+def gear_items_by_slot(items, class_key="", spec_key=""):
+    result = {}
+    for item in normalize_websim_gear_items(items or [], class_key, spec_key):
+        if item.get("slot") and item["slot"] not in result:
+            result[item["slot"]] = item
+    return result
+
+
+def gear_slot_readiness(items, class_key="", spec_key=""):
+    by_slot = gear_items_by_slot(items, class_key, spec_key)
+    readiness = {}
+    for slot in CANONICAL_GEAR_SLOTS:
+        item = by_slot.get(slot)
+        if not item:
+            readiness[slot] = {
+                "slot": slot,
+                "label": GEAR_SLOT_LABELS.get(slot, slot),
+                "status": "blocked",
+                "simcReady": False,
+                "missingFields": ["item"],
+                "reason": "missing item",
+            }
+            continue
+        missing = item.get("missingFields") or []
+        compatibility = item.get("compatibility") or "unknown"
+        if compatibility == "incompatible":
+            status = "blocked"
+            reason = "incompatible item"
+        elif item.get("simcReady"):
+            status = "verified"
+            reason = "SimC-ready item"
+        else:
+            status = "partial"
+            reason = f"missing {', '.join(missing)}" if missing else "missing SimC fields"
+        readiness[slot] = {
+            "slot": slot,
+            "label": GEAR_SLOT_LABELS.get(slot, slot),
+            "status": status,
+            "simcReady": bool(item.get("simcReady")),
+            "missingFields": missing,
+            "reason": reason,
+            "itemId": item.get("itemId") or item.get("id") or "",
+        }
+    return readiness
+
+
+def blocked_stat_snapshot(blockers, *, class_key="", spec_key="", level=None, gear_readiness_payload=None, talent_encoding=None):
+    return {
+        "statStatus": "blocked",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "maxLevel": normalized_websim_level(level),
+        "checkedAt": utc_now(),
+        "blockers": [str(item) for item in blockers or [] if str(item or "").strip()],
+        "primary": None,
+        "stamina": None,
+        "secondary": [],
+        "armor": None,
+        "weaponDps": None,
+        "gearReadiness": gear_readiness_payload or {},
+        "talentEncoding": talent_encoding or blank_talent_encoding(),
+        "gearSchemaRevision": GEAR_SCHEMA_REVISION,
+    }
+
+
+def simc_stat_value(output, names):
+    text = str(output or "")
+    for name in names:
+        match = re.search(rf"\b{re.escape(name)}\b\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)", text, re.IGNORECASE)
+        if match:
+            return f"{float(match.group(1)):.3f}".rstrip("0").rstrip(".")
+    return ""
+
+
+def simc_stat_number(output, names):
+    value = simc_stat_value(output, names)
+    try:
+        return float(value), value
+    except (TypeError, ValueError):
+        return 0.0, ""
+
+
+def parse_simcraft_stat_snapshot(output):
+    primary_candidates = [
+        ("intellect", "智力", ["intellect", "int"]),
+        ("strength", "力量", ["strength", "str"]),
+        ("agility", "敏捷", ["agility", "agi"]),
+    ]
+    primary = None
+    primary_values = []
+    for key, label, aliases in primary_candidates:
+        number, value = simc_stat_number(output, aliases)
+        if value:
+            primary_values.append((number, key, label, value))
+    positive_primary_values = [item for item in primary_values if item[0] > 0]
+    if positive_primary_values:
+        _, key, label, value = max(positive_primary_values, key=lambda item: item[0])
+        primary = {"key": key, "label": label, "value": value}
+    stamina_value = simc_stat_value(output, ["stamina", "sta"])
+    secondary = []
+    for key, label, aliases in [
+        ("crit", "暴击", ["crit", "critical strike", "critical_strike"]),
+        ("haste", "急速", ["haste"]),
+        ("mastery", "精通", ["mastery"]),
+        ("versatility", "全能", ["versatility", "vers"]),
+    ]:
+        value = simc_stat_value(output, aliases)
+        if value:
+            secondary.append({"key": key, "label": label, "value": value})
+    armor_value = simc_stat_value(output, ["armor", "armour"])
+    weapon_dps_value = simc_stat_value(output, ["weaponDps", "weapon dps", "weapon_dps"])
+    if not primary or not stamina_value or len(secondary) < 4:
+        return blocked_stat_snapshot(["SimC output did not include a parseable stat snapshot"])
+    return {
+        "statStatus": "verified",
+        "checkedAt": utc_now(),
+        "blockers": [],
+        "primary": primary,
+        "stamina": {"key": "stamina", "label": "耐力", "value": stamina_value},
+        "secondary": secondary,
+        "armor": {"key": "armor", "label": "护甲", "value": armor_value} if armor_value else None,
+        "weaponDps": {"key": "weaponDps", "label": "武器 DPS", "value": weapon_dps_value} if weapon_dps_value else None,
+        "gearSchemaRevision": GEAR_SCHEMA_REVISION,
+    }
+
+
+def websim_simc_binary():
+    configured = os.environ.get("WOW_SIMC_BIN")
+    if configured:
+        return configured if os.path.exists(configured) else ""
+    return shutil.which("simc") or shutil.which("simulationcraft") or ""
+
+
+def run_websim_stat_simcraft(profile):
+    binary = websim_simc_binary()
+    if not binary:
+        return {"ran": False, "available": False, "summary": "", "error": "simcraft binary not found"}
+    if not str(profile or "").strip():
+        return {"ran": False, "available": True, "summary": "", "error": "empty profile"}
+    try:
+        result = subprocess.run(
+            [binary, "-"],
+            input=profile,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            timeout=int_env("WOW_WEBSIM_GEAR_STATS_TIMEOUT_SECONDS", 45),
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return {"ran": False, "available": True, "summary": "", "error": str(error)}
+    output = (result.stdout or result.stderr or "").strip()
+    return {
+        "ran": result.returncode == 0,
+        "available": True,
+        "rawOutput": output,
+        "summary": output[:4000],
+        "error": "" if result.returncode == 0 else (result.stderr or f"simc exited {result.returncode}")[:1000],
     }
 
 
@@ -5487,7 +5727,7 @@ def build_websim_profile(payload, conn=None):
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
     race = normalize_option_value(source.get("race") or DEFAULT_RACE_BY_CLASS.get(class_key, "troll"))
-    level = normalize_option_value(source.get("level") or "90")
+    level = str(normalized_websim_level(source.get("level")))
     actor_name = slugify(source.get("name") or f"WebSim {SPEC_LABELS.get(spec_key, spec_key)}", "WebSim")
     role = "spell" if class_key in {"mage", "warlock", "priest", "evoker", "shaman", "druid"} else "attack"
     lines = [
@@ -5548,6 +5788,67 @@ def websim_selected_gear_payload(source, class_key, spec_key):
         "simcItems": ready_items,
         "readiness": gear_readiness(items),
     }
+
+
+def websim_gear_stats_blockers(readiness, talent_encoding):
+    blockers = []
+    if talent_encoding.get("status") not in {"encoded", "external"}:
+        blockers.extend(talent_encoding.get("errors") or [])
+        if not blockers:
+            blockers.append("talent encoding failed")
+    if not readiness.get("fullReady"):
+        blockers.extend(readiness.get("warnings") or [])
+        if not readiness.get("warnings"):
+            blockers.append("selected gear is not fully SimC-ready")
+    return [blocker for blocker in blockers if str(blocker or "").strip()]
+
+
+def build_websim_gear_stats_response(payload, conn=None):
+    source = payload if isinstance(payload, dict) else {}
+    class_key = slugify(source.get("classKey"), "mage")
+    spec_key = slugify(source.get("specKey"), "arcane")
+    level = normalized_websim_level(source.get("level"))
+    request_source = {**source, "classKey": class_key, "specKey": spec_key, "level": level}
+    gear_payload = websim_selected_gear_payload(request_source, class_key, spec_key)
+    readiness = gear_payload["readiness"]
+    talent_encoding = encode_websim_talents(conn, request_source) if conn is not None else blank_talent_encoding("failed", "none")
+    blockers = websim_gear_stats_blockers(readiness, talent_encoding)
+    if blockers:
+        return blocked_stat_snapshot(
+            blockers,
+            class_key=class_key,
+            spec_key=spec_key,
+            level=level,
+            gear_readiness_payload=readiness,
+            talent_encoding=talent_encoding,
+        )
+
+    profile = build_websim_profile(request_source, conn=conn)
+    simc_result = run_websim_stat_simcraft(profile)
+    if not simc_result.get("ran"):
+        return blocked_stat_snapshot(
+            [simc_result.get("error") or "SimC stat snapshot could not run"],
+            class_key=class_key,
+            spec_key=spec_key,
+            level=level,
+            gear_readiness_payload=readiness,
+            talent_encoding=talent_encoding,
+        )
+
+    snapshot = parse_simcraft_stat_snapshot(simc_result.get("rawOutput") or simc_result.get("summary") or "")
+    snapshot.update({
+        "classKey": class_key,
+        "specKey": spec_key,
+        "maxLevel": level,
+        "gearReadiness": readiness,
+        "talentEncoding": talent_encoding,
+        "gearItems": gear_payload["items"],
+        "simcItems": gear_payload["simcItems"],
+        "gearSchemaRevision": GEAR_SCHEMA_REVISION,
+    })
+    if snapshot.get("statStatus") != "verified":
+        snapshot["blockers"] = snapshot.get("blockers") or ["SimC output did not include a parseable stat snapshot"]
+    return snapshot
 
 
 def build_websim_simulator_request(payload, guest_id="", conn=None):

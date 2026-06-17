@@ -3,6 +3,7 @@ import hashlib
 import json
 import mimetypes
 import os
+import re
 import secrets
 import sqlite3
 import subprocess
@@ -28,10 +29,11 @@ try:
         rollup_daily_metrics,
     )
     from .news_collector import canonical_article_key, collect_feed_articles, merge_articles
-    from .news_translator import localize_article, visible_translation_issues
+    from .news_translator import body_blocks_text, localize_article, normalize_body_blocks, visible_translation_issues
     from .simulator_payload import analyze_simulator_request, build_simulator_home_payload
     from .websim_payload import (
         build_websim_profile,
+        build_websim_gear_stats_response,
         build_websim_profile_response,
         build_websim_simulator_request,
         enrich_build_gear_payload,
@@ -58,10 +60,11 @@ except ImportError:
         rollup_daily_metrics,
     )
     from news_collector import canonical_article_key, collect_feed_articles, merge_articles
-    from news_translator import localize_article, visible_translation_issues
+    from news_translator import body_blocks_text, localize_article, normalize_body_blocks, visible_translation_issues
     from simulator_payload import analyze_simulator_request, build_simulator_home_payload
     from websim_payload import (
         build_websim_profile,
+        build_websim_gear_stats_response,
         build_websim_profile_response,
         build_websim_simulator_request,
         enrich_build_gear_payload,
@@ -84,7 +87,7 @@ DB_PATH = Path(os.environ.get("WOW_NEWS_DB", BASE_DIR / "data" / "wow_news.sqlit
 HOST = os.environ.get("WOW_NEWS_HOST", "0.0.0.0")
 PORT = int(os.environ.get("WOW_NEWS_PORT", "8787"))
 ENABLE_COLLECTORS = os.environ.get("WOW_NEWS_ENABLE_COLLECTORS", "0") == "1"
-PUBLIC_REFRESH_MODES = {"manual", "scheduled"}
+PUBLIC_REFRESH_MODES = {"scheduled"}
 AUTH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
 GUEST_SIMULATOR_OPENID = "guest-simulator"
 
@@ -100,10 +103,55 @@ TRUSTED_SOURCES = {
     "Icy Veins": {"www.icy-veins.com"},
 }
 
+NEWS_SOURCE_REGISTRY = [
+    {
+        "sourceId": "blizzard",
+        "sourceName": "Blizzard News",
+        "tier": "official",
+        "fetchMode": "html_detail",
+        "retailOnly": True,
+        "licenseStatus": "approved",
+        "rateLimit": "polite:15s-timeout",
+        "enabled": True,
+        "hostnames": ["worldofwarcraft.blizzard.com", "news.blizzard.com"],
+        "sourceUrl": "https://worldofwarcraft.blizzard.com/en-us/news",
+    },
+    {
+        "sourceId": "wowhead",
+        "sourceName": "Wowhead",
+        "tier": "trusted_media",
+        "fetchMode": "rss_reference",
+        "retailOnly": True,
+        "licenseStatus": "reference_only",
+        "rateLimit": "disabled-until-approved",
+        "enabled": False,
+        "hostnames": ["www.wowhead.com"],
+        "sourceUrl": "https://www.wowhead.com/news/rss/retail",
+    },
+    {
+        "sourceId": "icy-veins",
+        "sourceName": "Icy Veins",
+        "tier": "trusted_media",
+        "fetchMode": "reference_link",
+        "retailOnly": True,
+        "licenseStatus": "reference_only",
+        "rateLimit": "disabled-until-approved",
+        "enabled": False,
+        "hostnames": ["www.icy-veins.com"],
+        "sourceUrl": "https://www.icy-veins.com/wow/news",
+    },
+]
+
+NEWS_SOURCES_BY_NAME = {source["sourceName"]: source for source in NEWS_SOURCE_REGISTRY}
+NEWS_SOURCES_BY_ID = {source["sourceId"]: source for source in NEWS_SOURCE_REGISTRY}
+
 FEED_SOURCES = [
     {
         "type": "blizzard_html",
+        "sourceId": "blizzard",
         "sourceName": "Blizzard News",
+        "sourceTier": "official",
+        "licenseStatus": "approved",
         "sourceUrl": "https://worldofwarcraft.blizzard.com/en-us/news",
         "sourceNote": "Blizzard official World of Warcraft news listing.",
         "baseImportance": 86,
@@ -156,6 +204,61 @@ def init_db():
             """
         )
         ensure_article_columns(conn)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS news_sources (
+                source_id TEXT PRIMARY KEY,
+                source_name TEXT NOT NULL,
+                tier TEXT NOT NULL,
+                fetch_mode TEXT NOT NULL,
+                retail_only INTEGER NOT NULL,
+                license_status TEXT NOT NULL,
+                rate_limit TEXT NOT NULL,
+                enabled INTEGER NOT NULL,
+                hostnames_json TEXT NOT NULL,
+                source_url TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS news_raw_articles (
+                id TEXT PRIMARY KEY,
+                source_id TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                source_tier TEXT NOT NULL,
+                canonical_url TEXT NOT NULL,
+                original_title TEXT NOT NULL,
+                original_summary TEXT NOT NULL,
+                original_body TEXT NOT NULL,
+                body_blocks_json TEXT NOT NULL,
+                published_at TEXT NOT NULL,
+                fetched_at TEXT NOT NULL,
+                fetch_error TEXT NOT NULL,
+                license_status TEXT NOT NULL,
+                verification_status TEXT NOT NULL,
+                canonical_topic_id TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS news_article_evidence (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                article_id TEXT NOT NULL,
+                canonical_topic_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                source_tier TEXT NOT NULL,
+                evidence_url TEXT NOT NULL,
+                verification_status TEXT NOT NULL,
+                conflict_reason TEXT NOT NULL,
+                checked_at TEXT NOT NULL
+            )
+            """
+        )
+        seed_news_sources(conn)
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS news_refresh_runs (
@@ -215,9 +318,65 @@ def init_db():
 
 def ensure_article_columns(conn):
     columns = {row[1] for row in conn.execute("PRAGMA table_info(news_articles)").fetchall()}
-    for name in ("body_zh", "original_title", "original_summary", "original_body"):
+    text_columns = (
+        "body_zh",
+        "original_title",
+        "original_summary",
+        "original_body",
+        "translation_status",
+        "content_status",
+        "tag_items_json",
+        "blocked_reason",
+        "source_id",
+        "source_tier",
+        "license_status",
+        "verification_status",
+        "source_badges_json",
+        "body_blocks_zh_json",
+        "canonical_topic_id",
+        "reading_meta_json",
+        "translation_fidelity",
+    )
+    for name in text_columns:
         if name not in columns:
             conn.execute(f"ALTER TABLE news_articles ADD COLUMN {name} TEXT NOT NULL DEFAULT ''")
+
+
+def seed_news_sources(conn):
+    updated_at = utc_now()
+    for source in NEWS_SOURCE_REGISTRY:
+        conn.execute(
+            """
+            INSERT INTO news_sources (
+                source_id, source_name, tier, fetch_mode, retail_only, license_status,
+                rate_limit, enabled, hostnames_json, source_url, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(source_id) DO UPDATE SET
+                source_name=excluded.source_name,
+                tier=excluded.tier,
+                fetch_mode=excluded.fetch_mode,
+                retail_only=excluded.retail_only,
+                license_status=excluded.license_status,
+                rate_limit=excluded.rate_limit,
+                enabled=excluded.enabled,
+                hostnames_json=excluded.hostnames_json,
+                source_url=excluded.source_url,
+                updated_at=excluded.updated_at
+            """,
+            (
+                source["sourceId"],
+                source["sourceName"],
+                source["tier"],
+                source["fetchMode"],
+                1 if source.get("retailOnly") else 0,
+                source["licenseStatus"],
+                source["rateLimit"],
+                1 if source.get("enabled") else 0,
+                json.dumps(source.get("hostnames", []), ensure_ascii=False),
+                source.get("sourceUrl", ""),
+                updated_at,
+            ),
+        )
 
 
 def ensure_auth_token_columns(conn):
@@ -255,13 +414,214 @@ def hostname_for(url):
     return parsed.hostname or ""
 
 
+def source_config_for_article(article):
+    source_id = article.get("sourceId", "")
+    if source_id and source_id in NEWS_SOURCES_BY_ID:
+        return NEWS_SOURCES_BY_ID[source_id]
+    return NEWS_SOURCES_BY_NAME.get(article.get("sourceName", ""), {})
+
+
+def canonical_topic_id(article):
+    url = article.get("sourceUrl", "")
+    match = re.search(r"/(?:news|article)/(\d+)", url)
+    if match:
+        return f"news:{match.group(1)}"
+    key = canonical_article_key(article)
+    return re.sub(r"[^a-zA-Z0-9:_-]+", "-", key).strip("-")
+
+
+def translated_body_blocks_for_article(article):
+    return normalize_body_blocks(article.get("bodyBlocksZh"), article.get("bodyZh", ""))
+
+
+def is_source_translation(article):
+    return article.get("translationFidelity") == "source_translation"
+
+
+def reading_meta_for_article(article):
+    blocks = translated_body_blocks_for_article(article)
+    text = body_blocks_text(blocks) or article.get("bodyZh", "")
+    cjk_chars = len(re.findall(r"[\u4e00-\u9fff]", text or ""))
+    estimated_minutes = max(1, round(cjk_chars / 450)) if cjk_chars else 1
+    return {
+        "bodyBlockCount": len(blocks),
+        "estimatedReadingMinutes": estimated_minutes,
+    }
+
+
+def publication_block(article, reason, verification_status=None):
+    blocked = dict(article)
+    blocked.update(
+        {
+            "contentStatus": "blocked",
+            "blockedReason": reason,
+            "verificationStatus": verification_status or reason,
+        }
+    )
+    return blocked
+
+
+def apply_publication_gates(article):
+    reviewed = dict(article)
+    source = source_config_for_article(reviewed)
+    source_id = reviewed.get("sourceId") or source.get("sourceId") or reviewed.get("sourceName", "").lower().replace(" ", "-")
+    source_tier = reviewed.get("sourceTier") or source.get("tier", "")
+    license_status = reviewed.get("licenseStatus") or source.get("licenseStatus", "")
+    canonical_id = reviewed.get("canonicalTopicId") or canonical_topic_id(reviewed)
+    translation_fidelity = reviewed.get("translationFidelity", "")
+    body_blocks_zh = translated_body_blocks_for_article(reviewed)
+    if body_blocks_zh and not reviewed.get("bodyZh"):
+        reviewed["bodyZh"] = body_blocks_text(body_blocks_zh)
+    source_badges = list(reviewed.get("sourceBadges") or [])
+    if source_tier == "official" and "官方已核验" not in source_badges:
+        source_badges.append("官方已核验")
+    if reviewed.get("translationStatus") == "llm" and translation_fidelity == "source_translation" and "全文翻译" not in source_badges:
+        source_badges.append("全文翻译")
+
+    reviewed.update(
+        {
+            "sourceId": source_id,
+            "sourceTier": source_tier,
+            "licenseStatus": license_status,
+            "canonicalTopicId": canonical_id,
+            "sourceBadges": source_badges,
+            "bodyBlocksZh": body_blocks_zh,
+            "readingMeta": reading_meta_for_article({**reviewed, "bodyBlocksZh": body_blocks_zh}),
+            "translationFidelity": translation_fidelity,
+        }
+    )
+
+    if reviewed.get("contentStatus") != "ready":
+        if not reviewed.get("verificationStatus"):
+            reviewed["verificationStatus"] = reviewed.get("blockedReason") or "translation_blocked"
+        return reviewed
+
+    if license_status != "approved":
+        return publication_block(reviewed, "license_blocked", "license_blocked")
+
+    conflict_reason = reviewed.get("conflictReason") or reviewed.get("sourceConflictReason")
+    if conflict_reason:
+        reviewed["conflictReason"] = conflict_reason
+        return publication_block(reviewed, "source_conflict", "conflict_blocked")
+
+    if source_tier == "official":
+        reviewed["verificationStatus"] = "official_verified"
+    elif reviewed.get("verificationStatus") != "official_verified":
+        return publication_block(reviewed, "official_not_found", "unverified_blocked")
+
+    if reviewed.get("translationStatus") != "llm":
+        return publication_block(reviewed, "invalid_translation", reviewed.get("verificationStatus"))
+
+    if not is_source_translation(reviewed):
+        return publication_block(reviewed, "not_source_translation", reviewed.get("verificationStatus"))
+
+    if not body_blocks_zh or not reviewed.get("bodyZh") or reviewed.get("bodyZh") == reviewed.get("summary"):
+        return publication_block(reviewed, "summary_only_body", reviewed.get("verificationStatus"))
+
+    reviewed["contentStatus"] = "ready"
+    reviewed["blockedReason"] = ""
+    return reviewed
+
+
+def verification_counts(articles):
+    counts = {}
+    for article in articles:
+        key = article.get("verificationStatus") or article.get("blockedReason") or "unknown"
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def persist_news_raw_article(conn, article, fetched_at):
+    blocks = normalize_body_blocks(article.get("bodyBlocks"))
+    conn.execute(
+        """
+        INSERT INTO news_raw_articles (
+            id, source_id, source_name, source_tier, canonical_url,
+            original_title, original_summary, original_body, body_blocks_json,
+            published_at, fetched_at, fetch_error, license_status,
+            verification_status, canonical_topic_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            source_id=excluded.source_id,
+            source_name=excluded.source_name,
+            source_tier=excluded.source_tier,
+            canonical_url=excluded.canonical_url,
+            original_title=excluded.original_title,
+            original_summary=excluded.original_summary,
+            original_body=excluded.original_body,
+            body_blocks_json=excluded.body_blocks_json,
+            published_at=excluded.published_at,
+            fetched_at=excluded.fetched_at,
+            fetch_error=excluded.fetch_error,
+            license_status=excluded.license_status,
+            verification_status=excluded.verification_status,
+            canonical_topic_id=excluded.canonical_topic_id
+        """,
+        (
+            article.get("id", ""),
+            article.get("sourceId", ""),
+            article.get("sourceName", ""),
+            article.get("sourceTier", ""),
+            article.get("sourceUrl", ""),
+            article.get("originalTitle", ""),
+            article.get("originalSummary", ""),
+            article.get("originalBody", ""),
+            json.dumps(blocks, ensure_ascii=False),
+            article.get("publishedAt", ""),
+            fetched_at,
+            article.get("detailError", "") or article.get("fetchError", ""),
+            article.get("licenseStatus", ""),
+            article.get("verificationStatus", ""),
+            article.get("canonicalTopicId", ""),
+        ),
+    )
+
+
+def persist_news_evidence(conn, article, checked_at):
+    conn.execute(
+        """
+        INSERT INTO news_article_evidence (
+            article_id, canonical_topic_id, source_id, source_name, source_tier,
+            evidence_url, verification_status, conflict_reason, checked_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            article.get("id", ""),
+            article.get("canonicalTopicId", ""),
+            article.get("sourceId", ""),
+            article.get("sourceName", ""),
+            article.get("sourceTier", ""),
+            article.get("sourceUrl", ""),
+            article.get("verificationStatus", ""),
+            article.get("conflictReason", ""),
+            checked_at,
+        ),
+    )
+
+
 def is_valid_article(article):
     if article.get("channel") not in {channel["title"] for channel in CHANNELS}:
         return False
     source_name = article.get("sourceName")
     if hostname_for(article.get("sourceUrl")) not in TRUSTED_SOURCES.get(source_name, set()):
         return False
-    required = ["id", "title", "summary", "sourceName", "sourceUrl", "publishedAt", "sourceNote"]
+    if article.get("contentStatus") != "ready":
+        return False
+    if article.get("licenseStatus") != "approved":
+        return False
+    if article.get("verificationStatus") != "official_verified":
+        return False
+    if article.get("translationStatus") != "llm":
+        return False
+    if not is_source_translation(article):
+        return False
+    if not article.get("tagItems"):
+        return False
+    if not article.get("bodyBlocksZh"):
+        return False
+    if not article.get("bodyZh") or article.get("bodyZh") == article.get("summary"):
+        return False
+    required = ["id", "title", "summary", "sourceName", "sourceUrl", "publishedAt", "sourceNote", "originalTitle"]
     return all(article.get(key) for key in required)
 
 
@@ -269,35 +629,92 @@ def normalize_refresh_mode(value):
     return value if value in PUBLIC_REFRESH_MODES else None
 
 
-def refresh_articles(refresh_mode):
+def collector_article_limit():
+    return max(0, int_env("WOW_NEWS_MAX_COLLECTED_ARTICLES", 3))
+
+
+def refresh_articles(refresh_mode, collector_enabled=None):
     init_db()
     seed_articles = load_seed_articles()
     collected_articles = []
+    discovered_collected_count = 0
+    skipped_seed_duplicate_count = 0
     collector_errors = []
-    if ENABLE_COLLECTORS:
-        collected_articles, collector_errors = collect_feed_articles(FEED_SOURCES)
+    collector_limit = collector_article_limit()
+    should_collect = ENABLE_COLLECTORS if collector_enabled is None else bool(collector_enabled)
+    if should_collect and collector_limit > 0:
+        collected_articles, collector_errors = collect_feed_articles(FEED_SOURCES, max_articles_per_source=collector_limit)
+        discovered_collected_count = len(collected_articles)
+        seed_by_key = {canonical_article_key(article): article for article in seed_articles}
+        collected_keys = set()
+        fresh_collected_articles = []
+        for article in collected_articles:
+            key = canonical_article_key(article)
+            collected_keys.add(key)
+            if key in seed_by_key and is_source_translation(seed_by_key[key]):
+                skipped_seed_duplicate_count += 1
+                continue
+            fresh_collected_articles.append(article)
+        collected_articles = fresh_collected_articles
+        seed_articles = [article for article in seed_articles if canonical_article_key(article) not in collected_keys or is_source_translation(article)]
 
     accepted = []
+    blocked = []
+    processed = []
     rejected = 0
     for article in merge_articles(seed_articles, collected_articles):
-        localized_article = localize_article(article)
-        if is_valid_article(localized_article):
-            accepted.append(localized_article)
+        localized_article = localize_article(article, require_llm=bool(article.get("requiresLlmTranslation")))
+        reviewed_article = apply_publication_gates(localized_article)
+        processed.append(reviewed_article)
+        if is_valid_article(reviewed_article):
+            accepted.append(reviewed_article)
         else:
+            blocked.append(
+                {
+                    "id": reviewed_article.get("id", ""),
+                    "title": reviewed_article.get("originalTitle") or reviewed_article.get("title", ""),
+                    "sourceName": reviewed_article.get("sourceName", ""),
+                    "reason": reviewed_article.get("blockedReason") or "invalid_article",
+                    "translationStatus": reviewed_article.get("translationStatus", ""),
+                    "contentStatus": reviewed_article.get("contentStatus", ""),
+                    "verificationStatus": reviewed_article.get("verificationStatus", ""),
+                    "licenseStatus": reviewed_article.get("licenseStatus", ""),
+                    "sourceTier": reviewed_article.get("sourceTier", ""),
+                }
+            )
             rejected += 1
 
     refreshed_at = utc_now()
     accepted_ids = [article["id"] for article in accepted]
     translation_issues = visible_translation_issues(accepted)
+    counts = verification_counts(processed)
+    conflict_articles = [article for article in blocked if article.get("reason") == "source_conflict"]
+    source_fetch_errors = [
+        {
+            "id": article.get("id", ""),
+            "sourceName": article.get("sourceName", ""),
+            "sourceUrl": article.get("sourceUrl", ""),
+            "error": article.get("detailError") or article.get("fetchError", ""),
+        }
+        for article in processed
+        if article.get("detailError") or article.get("fetchError")
+    ]
     with db_connection() as conn:
+        for article in processed:
+            persist_news_raw_article(conn, article, refreshed_at)
+            persist_news_evidence(conn, article, refreshed_at)
         for article in accepted:
             conn.execute(
                 """
                 INSERT INTO news_articles (
                     id, title, summary, channel, category, tags_json, importance,
                     source_name, source_url, published_at, source_note,
-                    body_zh, original_title, original_summary, original_body, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    body_zh, original_title, original_summary, original_body,
+                    translation_status, content_status, tag_items_json, blocked_reason,
+                    source_id, source_tier, license_status, verification_status,
+                    source_badges_json, body_blocks_zh_json, canonical_topic_id,
+                    reading_meta_json, translation_fidelity, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     title=excluded.title,
                     summary=excluded.summary,
@@ -313,6 +730,19 @@ def refresh_articles(refresh_mode):
                     original_title=excluded.original_title,
                     original_summary=excluded.original_summary,
                     original_body=excluded.original_body,
+                    translation_status=excluded.translation_status,
+                    content_status=excluded.content_status,
+                    tag_items_json=excluded.tag_items_json,
+                    blocked_reason=excluded.blocked_reason,
+                    source_id=excluded.source_id,
+                    source_tier=excluded.source_tier,
+                    license_status=excluded.license_status,
+                    verification_status=excluded.verification_status,
+                    source_badges_json=excluded.source_badges_json,
+                    body_blocks_zh_json=excluded.body_blocks_zh_json,
+                    canonical_topic_id=excluded.canonical_topic_id,
+                    reading_meta_json=excluded.reading_meta_json,
+                    translation_fidelity=excluded.translation_fidelity,
                     updated_at=excluded.updated_at
                 """,
                 (
@@ -331,6 +761,19 @@ def refresh_articles(refresh_mode):
                     article.get("originalTitle", ""),
                     article.get("originalSummary", ""),
                     article.get("originalBody", ""),
+                    article.get("translationStatus", ""),
+                    article.get("contentStatus", ""),
+                    json.dumps(article.get("tagItems", []), ensure_ascii=False),
+                    article.get("blockedReason", ""),
+                    article.get("sourceId", ""),
+                    article.get("sourceTier", ""),
+                    article.get("licenseStatus", ""),
+                    article.get("verificationStatus", ""),
+                    json.dumps(article.get("sourceBadges", []), ensure_ascii=False),
+                    json.dumps(article.get("bodyBlocksZh", []), ensure_ascii=False),
+                    article.get("canonicalTopicId", ""),
+                    json.dumps(article.get("readingMeta", {}), ensure_ascii=False),
+                    article.get("translationFidelity", ""),
                     refreshed_at,
                 ),
             )
@@ -350,11 +793,20 @@ def refresh_articles(refresh_mode):
                 json.dumps(
                     {
                         "seedCount": len(seed_articles),
-                        "collectorEnabled": ENABLE_COLLECTORS,
+                        "collectorEnabled": should_collect,
+                        "collectorLimit": collector_limit,
+                        "collectedDiscoveredCount": discovered_collected_count,
                         "collectedCount": len(collected_articles),
+                        "collectorDuplicateSeedSkippedCount": skipped_seed_duplicate_count,
                         "collectorErrors": collector_errors,
+                        "sourceFetchErrors": collector_errors + source_fetch_errors,
                         "translationIssueCount": len(translation_issues),
                         "translationIssues": translation_issues[:20],
+                        "blockedArticleCount": len(blocked),
+                        "blockedArticles": blocked[:20],
+                        "verificationCounts": counts,
+                        "licenseBlockedCount": counts.get("license_blocked", 0),
+                        "conflictArticles": conflict_articles[:20],
                     },
                     ensure_ascii=False,
                 ),
@@ -373,7 +825,7 @@ def latest_refresh_state():
             """
         ).fetchone()
     if not row:
-        return refresh_articles("bootstrap")
+        return refresh_articles("bootstrap", collector_enabled=False)
     return {"refreshMode": row[0], "lastRefreshedAt": row[1]}
 
 
@@ -398,10 +850,19 @@ def latest_refresh_run_payload():
         "acceptedCount": row[2],
         "rejectedCount": row[3],
         "collectorEnabled": bool(message.get("collectorEnabled")),
+        "collectorLimit": int(message.get("collectorLimit", 0) or 0),
+        "collectedDiscoveredCount": int(message.get("collectedDiscoveredCount", message.get("collectedCount", 0)) or 0),
         "collectedCount": int(message.get("collectedCount", 0) or 0),
+        "collectorDuplicateSeedSkippedCount": int(message.get("collectorDuplicateSeedSkippedCount", 0) or 0),
         "collectorErrors": message.get("collectorErrors", []),
+        "sourceFetchErrors": message.get("sourceFetchErrors", message.get("collectorErrors", [])),
         "translationIssueCount": int(message.get("translationIssueCount", 0) or 0),
         "translationIssues": message.get("translationIssues", []),
+        "blockedArticleCount": int(message.get("blockedArticleCount", 0) or 0),
+        "blockedArticles": message.get("blockedArticles", []),
+        "verificationCounts": message.get("verificationCounts", {}),
+        "licenseBlockedCount": int(message.get("licenseBlockedCount", 0) or 0),
+        "conflictArticles": message.get("conflictArticles", []),
     }
 
 
@@ -724,14 +1185,33 @@ def load_articles():
             """
             SELECT id, title, summary, channel, category, tags_json, importance,
                    source_name, source_url, published_at, source_note,
-                   body_zh, original_title, original_summary, original_body
+                   body_zh, original_title, translation_status, content_status,
+                   tag_items_json, blocked_reason, source_id, source_tier,
+                   license_status, verification_status, source_badges_json,
+                   body_blocks_zh_json, canonical_topic_id, reading_meta_json,
+                   translation_fidelity
             FROM news_articles
+            WHERE content_status = 'ready'
             ORDER BY importance DESC, published_at DESC
             """
         ).fetchall()
     if not rows:
-        refresh_articles("bootstrap")
-        return load_articles()
+        refresh_articles("bootstrap", collector_enabled=False)
+        with db_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, title, summary, channel, category, tags_json, importance,
+                       source_name, source_url, published_at, source_note,
+                       body_zh, original_title, translation_status, content_status,
+                       tag_items_json, blocked_reason, source_id, source_tier,
+                       license_status, verification_status, source_badges_json,
+                       body_blocks_zh_json, canonical_topic_id, reading_meta_json,
+                       translation_fidelity
+                FROM news_articles
+                WHERE content_status = 'ready'
+                ORDER BY importance DESC, published_at DESC
+                """
+            ).fetchall()
     articles = []
     for row in rows:
         articles.append(
@@ -749,10 +1229,23 @@ def load_articles():
                 "sourceNote": row[10],
                 "bodyZh": row[11],
                 "originalTitle": row[12],
-                "originalSummary": row[13],
-                "originalBody": row[14],
+                "translationStatus": row[13],
+                "contentStatus": row[14],
+                "tagItems": safe_json_loads(row[15], [], "news article tag items"),
+                "blockedReason": row[16],
+                "sourceId": row[17],
+                "sourceTier": row[18],
+                "licenseStatus": row[19],
+                "verificationStatus": row[20],
+                "sourceBadges": safe_json_loads(row[21], [], "news article source badges"),
+                "bodyBlocksZh": safe_json_loads(row[22], [], "news article translated body blocks"),
+                "canonicalTopicId": row[23],
+                "readingMeta": safe_json_loads(row[24], {}, "news article reading meta"),
+                "translationFidelity": row[25],
             }
         )
+    if rows and not any(is_valid_article(article) for article in articles):
+        return []
     return articles
 
 
@@ -785,8 +1278,19 @@ def row_to_article(row):
         "sourceNote": row[10],
         "bodyZh": row[11],
         "originalTitle": row[12],
-        "originalSummary": row[13],
-        "originalBody": row[14],
+        "translationStatus": row[13],
+        "contentStatus": row[14],
+        "tagItems": safe_json_loads(row[15], [], "news article tag items"),
+        "blockedReason": row[16],
+        "sourceId": row[17],
+        "sourceTier": row[18],
+        "licenseStatus": row[19],
+        "verificationStatus": row[20],
+        "sourceBadges": safe_json_loads(row[21], [], "news article source badges"),
+        "bodyBlocksZh": safe_json_loads(row[22], [], "news article translated body blocks"),
+        "canonicalTopicId": row[23],
+        "readingMeta": safe_json_loads(row[24], {}, "news article reading meta"),
+        "translationFidelity": row[25],
     }
 
 
@@ -799,7 +1303,11 @@ def get_article_detail(article_id):
             """
             SELECT id, title, summary, channel, category, tags_json, importance,
                    source_name, source_url, published_at, source_note,
-                   body_zh, original_title, original_summary, original_body
+                   body_zh, original_title, translation_status, content_status,
+                   tag_items_json, blocked_reason, source_id, source_tier,
+                   license_status, verification_status, source_badges_json,
+                   body_blocks_zh_json, canonical_topic_id, reading_meta_json,
+                   translation_fidelity
             FROM news_articles
             WHERE id = ?
             """,
@@ -1525,6 +2033,11 @@ class Handler(BaseHTTPRequestHandler):
             with db_connection() as conn:
                 json_response(self, 200, build_websim_profile_response(read_json_body(self), conn=conn))
             return
+        if parsed.path == "/api/websim/gear/stats":
+            init_db()
+            with db_connection() as conn:
+                json_response(self, 200, build_websim_gear_stats_response(read_json_body(self), conn=conn))
+            return
         if parsed.path == "/api/talents/validate":
             payload = read_json_body(self)
             init_db()
@@ -1569,7 +2082,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/news/refresh":
             query = parse_qs(parsed.query)
-            mode = normalize_refresh_mode(query.get("mode", ["manual"])[0])
+            mode = normalize_refresh_mode(query.get("mode", [""])[0])
             if not mode:
                 json_response(self, 400, {"error": "invalid_refresh_mode", "allowedModes": sorted(PUBLIC_REFRESH_MODES)})
                 return

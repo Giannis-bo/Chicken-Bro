@@ -22,6 +22,7 @@ const {
   templatesForScenario
 } = require('./talent-simulator-core')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
+const { saveBuildTemplate } = require('../common/build-template-storage')
 
 const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
 const PAGE_ROUTE = 'pages/builds/talent-simulator'
@@ -224,6 +225,11 @@ function talentSummary(selectedNodes, scenario) {
   return `${scenarioTitle}：已选择 ${count} 个天赋节点，进入 SimC 前会由后端重新编码校验。`
 }
 
+function talentTemplateTitle(className, specName, scenarioTitle) {
+  const specLabel = `${specName || ''}${className || ''}`.trim() || '天赋模板'
+  return scenarioTitle ? `${specLabel} · ${scenarioTitle}` : specLabel
+}
+
 function shortDate(value) {
   const text = String(value || '').trim()
   if (!text) return ''
@@ -318,7 +324,8 @@ Page({
     choiceSheet: { visible: false, title: '', options: [] },
     nodeDetailSheet: { visible: false, node: null },
     importSheet: { visible: false, code: '' },
-    simcSubmitting: false
+    simcSubmitting: false,
+    templateSaving: false
   },
 
   onLoad(options) {
@@ -721,6 +728,74 @@ Page({
     if (typeof wx !== 'undefined' && typeof wx.setClipboardData === 'function') {
       wx.setClipboardData({ data: code })
     }
+  },
+
+  saveTalentTemplate() {
+    const code = this.data.websimExportCode || ''
+    if (!code) {
+      safeToast('暂无可保存的天赋导出码')
+      return
+    }
+    if (this.data.templateSaving) return
+    const scenario = this.data.scenarioOptions[this.data.selectedScenarioIndex] || {}
+    const selectedDetail = this.data.selectedDetail || {}
+    const selectedSpec = this.data.selectedSpec || {}
+    const selectedCommunityTemplate = communityTemplateContext(this.data.selectedCommunityTemplate)
+    const payload = {
+      classKey: this.data.classKey,
+      specKey: this.data.specKey,
+      heroKey: this.data.heroKey,
+      scenarioKey: this.data.scenarioKey,
+      talents: code,
+      talentState: {
+        selectedNodes: this.data.selectedNodes,
+        websimExportCode: code,
+        communityTemplate: selectedCommunityTemplate,
+        heroKey: this.data.heroKey,
+        scenarioKey: this.data.scenarioKey
+      }
+    }
+    this.setData({ templateSaving: true, statusText: '正在保存天赋模板' })
+    requestWebsimProfile(payload).then(({ payload: profilePayload }) => {
+      const talentEncoding = (profilePayload && profilePayload.talentEncoding) || { status: 'failed', lines: [] }
+      const simcLines = Array.isArray(talentEncoding.lines) ? talentEncoding.lines : []
+      const encodingStatus = talentEncoding.status || 'failed'
+      const saved = saveBuildTemplate({
+        type: 'talent',
+        title: talentTemplateTitle(
+          selectedDetail.className || selectedSpec.className || '',
+          selectedDetail.specName || selectedSpec.title || selectedSpec.specName || '',
+          scenario.title || this.data.selectedScenarioTitle || ''
+        ),
+        classKey: this.data.classKey,
+        className: selectedDetail.className || selectedSpec.className || '',
+        specKey: this.data.specKey,
+        specName: selectedDetail.specName || selectedSpec.title || selectedSpec.specName || '',
+        heroKey: this.data.heroKey || '',
+        heroLabel: this.data.selectedHeroLabel || '',
+        scenarioKey: this.data.scenarioKey || '',
+        scenarioTitle: scenario.title || this.data.selectedScenarioTitle || '',
+        rawString: code,
+        simcLines,
+        status: encodingStatus === 'encoded' ? 'encoded' : 'blocked',
+        statusLabel: encodingStatus === 'encoded' ? '已编码' : '不可计算',
+        source: selectedCommunityTemplate && selectedCommunityTemplate.sourceName ? selectedCommunityTemplate.sourceName : 'WebSim 天赋模拟器',
+        metadata: {
+          selectedNodes: this.data.selectedNodes || [],
+          selectedNodeCount: (this.data.selectedNodes || []).length,
+          communityTemplate: selectedCommunityTemplate,
+          encodingStatus,
+          encodingErrors: talentEncoding.errors || [],
+          summary: talentSummary(this.data.selectedNodes || [], scenario)
+        }
+      })
+      safeToast(saved ? '天赋模板已保存' : '天赋模板保存失败')
+    }).catch((error) => {
+      safeToast((error && error.message) || '天赋模板保存失败')
+    }).finally(() => {
+      this.setData({ templateSaving: false })
+      this.renderTalentView()
+    })
   },
 
   buildSimcContext(encoding) {

@@ -91,6 +91,7 @@
     <button class="action-icon-button" bindtap="resetTalents">重置</button>
     <button class="action-icon-button" bindtap="openTalentImport">导入</button>
     <button class="action-icon-button community-button" bindtap="openCommunityTemplates">社区模板</button>
+    <button class="action-icon-button" loading="{{templateSaving}}" bindtap="saveTalentTemplate">保存</button>
     <button class="action-icon-button" bindtap="copyTalentExport">复制</button>
     <button class="simc-button action-primary-button" loading="{{simcSubmitting}}" bindtap="openTalentSimc">带去 SimC</button>
   </view>

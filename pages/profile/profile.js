@@ -1,5 +1,37 @@
 const { currentProfile, saveProfileDraft } = require('../common/auth-client')
 const { trackPageLeave, trackPageView } = require('../common/analytics-client')
+const { buildTemplateSummary, deleteBuildTemplate } = require('../common/build-template-storage')
+
+function shortDate(value) {
+  const text = String(value || '').trim()
+  if (!text) return '刚刚'
+  return text.includes('T') ? text.split('T')[0] : text.slice(0, 10)
+}
+
+function templateMetaChips(template) {
+  const chips = []
+  const specLabel = `${template.specName || ''}${template.className || ''}`.trim()
+  if (specLabel) chips.push(specLabel)
+  if (template.heroLabel) chips.push(template.heroLabel)
+  if (template.scenarioTitle) chips.push(template.scenarioTitle)
+  chips.push(template.statusLabel || '待校验')
+  return chips
+}
+
+function decorateTemplate(template) {
+  return {
+    ...(template || {}),
+    metaChips: templateMetaChips(template || {}),
+    savedLabel: shortDate((template && template.updatedAt) || (template && template.createdAt))
+  }
+}
+
+function decorateTemplateModules() {
+  return buildTemplateSummary().map((module) => ({
+    ...module,
+    recent: (module.recent || []).map(decorateTemplate)
+  }))
+}
 
 Page({
   data: {
@@ -14,12 +46,7 @@ Page({
       { value: '2', label: '关注角色' },
       { value: '12', label: '订阅词条' }
     ],
-    abilities: [
-      { name: '资讯订阅', desc: '关注正式服、测试服、玩法与职业强度变化。', level: '已开启' },
-      { name: '职业专精 BD', desc: '收藏天赋搭配、毕业装备和常用构筑。', level: '已开启' },
-      { name: '大秘境与团本', desc: '追踪榜单阵容、玩家数据和副本热点。', level: '已开启' },
-      { name: '构筑模拟器', desc: '用 AI 辅助 SimCraft 与 WCL 数据分析。', level: '已开启' }
-    ],
+    templateModules: [],
     settings: [
       { title: '角色与服务器' },
       { title: '职业偏好' },
@@ -33,6 +60,7 @@ Page({
     this.analyticsVisible = true
     trackPageView('pages/profile/profile', { source: 'tab' })
     this.hydrateUser()
+    this.hydrateTemplates()
   },
 
   onUnload() {
@@ -49,6 +77,7 @@ Page({
       trackPageView('pages/profile/profile', { source: 'tab_resume' })
     }
     this.hydrateUser()
+    this.hydrateTemplates()
   },
 
   onHide() {
@@ -68,6 +97,12 @@ Page({
         avatarUrl: user.avatarUrl || ''
       },
       nicknameDraft: nickname
+    })
+  },
+
+  hydrateTemplates() {
+    this.setData({
+      templateModules: decorateTemplateModules()
     })
   },
 
@@ -114,5 +149,28 @@ Page({
     }).finally(() => {
       this.setData({ savingProfile: false })
     })
+  },
+
+  deleteTemplate(event) {
+    const id = event.currentTarget.dataset.id || ''
+    const title = event.currentTarget.dataset.title || '这个模板'
+    if (!id) return
+    const remove = () => {
+      deleteBuildTemplate(id)
+      this.hydrateTemplates()
+    }
+    if (typeof wx !== 'undefined' && typeof wx.showModal === 'function') {
+      wx.showModal({
+        title: '删除模板',
+        content: `确定删除「${title}」吗？`,
+        confirmText: '删除',
+        confirmColor: '#d9534f',
+        success: (res) => {
+          if (res && res.confirm) remove()
+        }
+      })
+      return
+    }
+    remove()
   }
 })

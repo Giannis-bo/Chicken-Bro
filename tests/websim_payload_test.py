@@ -187,6 +187,24 @@ class WebSimPayloadTest(unittest.TestCase):
             payload.update(extra)
         return payload
 
+    def post_backend_json(self, path, payload):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = Request(
+                f"{base}{path}",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request) as response:
+                return json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_parse_simc_trait_data_into_nodes(self):
         sample = """
         // Player trait definitions, wow build 12.0.5.67823
@@ -979,6 +997,146 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(any(item["itemId"] == "250111" for item in wrist_group["items"]))
         self.assertGreaterEqual(payload["readiness"]["simcReadyCount"], 2)
 
+    def test_websim_gear_payload_dedupes_repeated_preset_candidates(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            first_profile = "\n".join(
+                [
+                    'mage="Preset_Mage_Frostfire"',
+                    "spec=arcane",
+                    "head=voidbreakers_veil,id=250060,ilevel=289,bonus_id=1808/13575,gem_id=240983",
+                ]
+            )
+            second_profile = "\n".join(
+                [
+                    'mage="Preset_Mage_Spellslinger"',
+                    "spec=arcane",
+                    "head=voidbreakers_veil,id=250060,ilevel=289,bonus_id=1808/13575,gem_id=240983",
+                ]
+            )
+            conn.executemany(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES (?, 'mage', 'arcane', ?, ?, '{}', 'now')
+                """,
+                [
+                    ("preset-mage-frostfire", "Preset Mage Frostfire", first_profile),
+                    ("preset-mage-spellslinger", "Preset Mage Spellslinger", second_profile),
+                ],
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane")
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        head_candidates = [item for item in head_group["items"] if item["itemId"] == "250060"]
+        self.assertEqual(len(head_candidates), 1)
+
+    def test_websim_gear_payload_exposes_inline_simulator_contract(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            profile = "\n".join(
+                [
+                    'mage="Preset_Mage"',
+                    "spec=arcane",
+                    "head=preset_helm,id=250101,ilevel=289,bonus_id=13534",
+                    "trinket1=preset_trinket,id=250202",
+                ]
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('preset-mage-arcane', 'mage', 'arcane', 'Preset Mage', ?, '{}', 'now')
+                """,
+                (profile,),
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane")
+        finally:
+            conn.close()
+
+        self.assertEqual(payload["gearSchemaRevision"], "websim-gear-simulator-v1")
+        self.assertEqual(payload["maxLevel"], 90)
+        self.assertTrue(payload["checkedAt"])
+        self.assertIn("head", payload["equippedSet"])
+        self.assertEqual(payload["equippedSet"]["head"]["itemId"], "250101")
+        self.assertEqual(payload["slotReadiness"]["head"]["status"], "verified")
+        self.assertEqual(payload["slotReadiness"]["neck"]["status"], "blocked")
+        self.assertIn("missing item", payload["slotReadiness"]["neck"]["reason"])
+        self.assertTrue(any(group["slot"] == "head" for group in payload["replacementCandidates"]))
+
+    def test_websim_gear_payload_smoke_covers_every_class_spec(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            seen = 0
+            for class_meta in self.websim_payload.WOW_CLASSES:
+                for spec_key in class_meta["specs"]:
+                    payload = self.websim_payload.get_websim_gear(conn, class_meta["key"], spec_key)
+                    seen += 1
+                    self.assertEqual(payload["classKey"], class_meta["key"])
+                    self.assertEqual(payload["specKey"], spec_key)
+                    self.assertEqual(payload["gearSchemaRevision"], "websim-gear-simulator-v1")
+                    self.assertEqual(len(payload["slots"]), len(self.websim_payload.CANONICAL_GEAR_SLOTS))
+                    self.assertEqual(len(payload["slotGroups"]), len(self.websim_payload.CANONICAL_GEAR_SLOTS))
+                    self.assertIsInstance(payload["equippedSet"], dict)
+                    self.assertIsInstance(payload["slotReadiness"], dict)
+                    self.assertIn("fullReady", payload["readiness"])
+            self.assertEqual(seen, 40)
+        finally:
+            conn.close()
+
+    def test_parse_simcraft_stat_snapshot_extracts_real_stats_and_ignores_dps(self):
+        output = (
+            "DPS Ranking:\n"
+            "1. WebSim_Arcane 999999 dps\n"
+            "STAT SNAPSHOT: Intellect=12345 Stamina=54321 Crit=2345 Haste=3456 "
+            "Mastery=4567 Versatility=5678 Armor=6789 WeaponDps=789.5\n"
+        )
+
+        snapshot = self.websim_payload.parse_simcraft_stat_snapshot(output)
+
+        self.assertEqual(snapshot["statStatus"], "verified")
+        self.assertEqual(snapshot["primary"]["label"], "智力")
+        self.assertEqual(snapshot["primary"]["value"], "12345")
+        self.assertEqual(snapshot["stamina"]["value"], "54321")
+        self.assertEqual(snapshot["secondary"][0]["key"], "crit")
+        self.assertEqual(snapshot["secondary"][0]["value"], "2345")
+        self.assertEqual(snapshot["weaponDps"]["value"], "789.5")
+        self.assertNotIn("999999", json.dumps(snapshot, ensure_ascii=False))
+
+    def test_parse_simcraft_stat_snapshot_blocks_when_stats_are_missing(self):
+        snapshot = self.websim_payload.parse_simcraft_stat_snapshot(
+            "Generating Baseline: 50/100\nDPS Ranking:\n1. WebSim_Arcane 999999 dps\n"
+        )
+
+        self.assertEqual(snapshot["statStatus"], "blocked")
+        self.assertIn("SimC output did not include a parseable stat snapshot", snapshot["blockers"])
+
+    def test_normalized_websim_level_clamps_to_supported_range(self):
+        os.environ["WOW_WEBSIM_MAX_LEVEL"] = "90"
+
+        self.assertEqual(self.websim_payload.normalized_websim_level("-5"), 1)
+        self.assertEqual(self.websim_payload.normalized_websim_level("999"), 90)
+        self.assertEqual(self.websim_payload.normalized_websim_level("bad"), 90)
+
+    def test_parse_simcraft_stat_snapshot_selects_highest_positive_primary_stat(self):
+        output = (
+            "STAT SNAPSHOT: Intellect=0 Strength=43210 Agility=12 Stamina=54321 "
+            "Crit=2345 Haste=3456 Mastery=4567 Versatility=5678\n"
+        )
+
+        snapshot = self.websim_payload.parse_simcraft_stat_snapshot(output)
+
+        self.assertEqual(snapshot["statStatus"], "verified")
+        self.assertEqual(snapshot["primary"]["key"], "strength")
+        self.assertEqual(snapshot["primary"]["value"], "43210")
+
     def test_websim_gear_payload_enriches_preset_items_with_localized_metadata(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -1547,6 +1705,196 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertFalse(result["simulation"]["ran"])
         self.assertFalse(captured_profile.exists())
         self.assertEqual(task_count, 0)
+
+    def test_http_websim_gear_stats_runs_fake_simc_for_verified_snapshot(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+        finally:
+            conn.close()
+        simc_bin = Path(self.tmp.name) / "fake-gear-stats-simc"
+        captured_profile = Path(self.tmp.name) / "captured-gear-stats-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'Player: WebSim_Arcane\\n"
+            "STAT SNAPSHOT: Intellect=12345 Stamina=54321 Crit=2345 Haste=3456 Mastery=4567 Versatility=5678 Armor=6789 WeaponDps=789.5\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = Request(
+                f"{base}/api/websim/gear/stats",
+                data=json.dumps(self.websim_encoder_payload()).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        executed_profile = captured_profile.read_text(encoding="utf-8")
+        self.assertEqual(result["statStatus"], "verified")
+        self.assertEqual(result["maxLevel"], 90)
+        self.assertEqual(result["primary"]["value"], "12345")
+        self.assertEqual(result["secondary"][1]["key"], "haste")
+        self.assertEqual(result["gearReadiness"]["fullReady"], True)
+        self.assertIn("class_talents=1001:1", executed_profile)
+        self.assertIn("calculate_scale_factors=0", executed_profile)
+
+    def test_http_websim_gear_stats_fake_snapshot_smoke_for_core_specs(self):
+        specs = [
+            ("mage", "frost", "Intellect", "intellect"),
+            ("paladin", "retribution", "Strength", "strength"),
+            ("shaman", "elemental", "Intellect", "intellect"),
+        ]
+        for index, (class_key, spec_key, primary_name, primary_key) in enumerate(specs, start=1):
+            simc_bin = Path(self.tmp.name) / f"fake-{class_key}-{spec_key}-gear-stats-simc"
+            simc_bin.write_text(
+                "#!/bin/sh\n"
+                "cat >/dev/null\n"
+                f"printf 'STAT SNAPSHOT: {primary_name}={index}2345 Stamina=54321 Crit=2345 Haste=3456 Mastery=4567 Versatility=5678 Armor=6789 WeaponDps=789.5\\n'\n",
+                encoding="utf-8",
+            )
+            simc_bin.chmod(0o755)
+            os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+
+            result = self.post_backend_json(
+                "/api/websim/gear/stats",
+                self.websim_encoder_payload({
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "heroKey": "",
+                    "talents": f"{class_key}_{spec_key}_external_import",
+                    "talentState": {"selectedNodes": []},
+                    "gearSelection": {"items": self.full_core_simc_gear_items()},
+                }),
+            )
+
+            self.assertEqual(result["statStatus"], "verified")
+            self.assertEqual(result["classKey"], class_key)
+            self.assertEqual(result["specKey"], spec_key)
+            self.assertEqual(result["primary"]["key"], primary_key)
+            self.assertEqual(result["gearReadiness"]["fullReady"], True)
+
+    def test_http_websim_gear_stats_blocks_without_talent_nodes(self):
+        simc_bin = Path(self.tmp.name) / "fake-gear-stats-should-not-run"
+        captured_profile = Path(self.tmp.name) / "missing-talent-gear-stats-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'STAT SNAPSHOT: Intellect=1 Stamina=1 Crit=1 Haste=1 Mastery=1 Versatility=1\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+
+        result = self.post_backend_json(
+            "/api/websim/gear/stats",
+            self.websim_encoder_payload({"talentState": {"selectedNodes": []}, "talents": ""}),
+        )
+
+        self.assertEqual(result["statStatus"], "blocked")
+        self.assertIn("no WebSim talent nodes selected", result["blockers"])
+        self.assertFalse(captured_profile.exists())
+
+    def test_http_websim_gear_stats_blocks_missing_core_gear_without_running(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+        finally:
+            conn.close()
+        simc_bin = Path(self.tmp.name) / "fake-missing-core-gear-stats-simc"
+        captured_profile = Path(self.tmp.name) / "missing-core-gear-stats-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'STAT SNAPSHOT: Intellect=1 Stamina=1 Crit=1 Haste=1 Mastery=1 Versatility=1\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        partial_items = [item for item in self.full_core_simc_gear_items() if item["slot"] != "trinket2"]
+
+        result = self.post_backend_json(
+            "/api/websim/gear/stats",
+            self.websim_encoder_payload({"gearSelection": {"items": partial_items}}),
+        )
+
+        self.assertEqual(result["statStatus"], "blocked")
+        self.assertFalse(result["gearReadiness"]["fullReady"])
+        self.assertTrue(any("Missing core SimC gear slots" in blocker for blocker in result["blockers"]))
+        self.assertFalse(captured_profile.exists())
+
+    def test_http_websim_gear_stats_blocks_when_simc_is_unavailable(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+        finally:
+            conn.close()
+        os.environ["WOW_SIMC_BIN"] = str(Path(self.tmp.name) / "missing-simc-bin")
+
+        result = self.post_backend_json("/api/websim/gear/stats", self.websim_encoder_payload())
+
+        self.assertEqual(result["statStatus"], "blocked")
+        self.assertIn("simcraft binary not found", result["blockers"])
+
+    def test_http_websim_gear_stats_blocks_when_simc_output_cannot_be_parsed(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+        finally:
+            conn.close()
+        simc_bin = Path(self.tmp.name) / "fake-unparseable-gear-stats-simc"
+        captured_profile = Path(self.tmp.name) / "unparseable-gear-stats-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'DPS Ranking:\\n1. WebSim_Arcane 999999 dps\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+
+        result = self.post_backend_json("/api/websim/gear/stats", self.websim_encoder_payload())
+
+        self.assertEqual(result["statStatus"], "blocked")
+        self.assertIn("SimC output did not include a parseable stat snapshot", result["blockers"])
+        self.assertTrue(captured_profile.exists())
+        self.assertNotIn("999999", json.dumps(result))
+
+    def test_http_websim_gear_stats_parses_snapshot_after_truncated_summary(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+        finally:
+            conn.close()
+        simc_bin = Path(self.tmp.name) / "fake-long-gear-stats-simc"
+        captured_profile = Path(self.tmp.name) / "long-gear-stats-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "python3 - <<'PY'\n"
+            "print('A' * 4500)\n"
+            "print('STAT SNAPSHOT: Intellect=12345 Stamina=54321 Crit=2345 Haste=3456 Mastery=4567 Versatility=5678 Armor=6789 WeaponDps=789.5')\n"
+            "PY\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+
+        result = self.post_backend_json("/api/websim/gear/stats", self.websim_encoder_payload())
+
+        self.assertEqual(result["statStatus"], "verified")
+        self.assertEqual(result["primary"]["value"], "12345")
+        self.assertTrue(captured_profile.exists())
 
     def test_http_websim_simulate_blocks_candidate_gear_without_running_or_saving(self):
         conn = sqlite3.connect(self.db_path)

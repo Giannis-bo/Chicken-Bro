@@ -34,7 +34,9 @@
 - `slotReadiness`：每个槽位是否合法、是否缺字段、是否可用于 SimC。
 - `statSnapshot`：满级属性快照，包含 `verified` / `partial` / `blocked` 状态。
 - `replacementCandidates`：按槽位返回候选装备，包含来源、装等、图标、中文名、缺失字段和替换 delta。
-- `gearSchemaRevision`、`itemMetadataRevision`、`checkedAt`：用于后续健康哨兵和数据漂移追踪。
+- `gearSchemaRevision`：标识当前装备模拟 payload 契约版本。
+
+后续健康哨兵和数据漂移追踪再补 `itemMetadataRevision`、`checkedAt` 等字段；V1 公共契约暂不把这些字段作为必填。
 
 装备实例必须至少表达 `slot`、`itemId`、`ilevel`、`bonusIds`、`gems`、`enchants`、`craftedStats`、`sockets`、`sourceRefs`、`metadataStatus`、`simcReady` 和 `statStatus`。
 

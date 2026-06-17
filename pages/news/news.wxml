@@ -21,15 +21,6 @@
         </swiper-item>
       </swiper>
 
-      <view class="refresh-strip">
-        <view class="refresh-copy">
-          <text class="refresh-label">最近刷新</text>
-          <text class="refresh-time">{{lastRefreshedAt}}</text>
-          <text wx:if="{{fromFallback && requestError}}" class="refresh-error">后端请求未成功：{{requestError}}</text>
-        </view>
-        <button class="refresh-button" loading="{{loading}}" bindtap="handleRefresh">刷新</button>
-      </view>
-
       <view class="metrics news-metrics">
         <view class="metric-card news-metric-card" wx:for="{{metrics}}" wx:key="label" data-key="{{item.key}}" bindtap="openMetric">
           <text class="metric-value news-metric-value">{{item.value}}</text>
