@@ -36,11 +36,14 @@ try:
         build_websim_simulator_request,
         enrich_build_gear_payload,
         ensure_websim_tables,
+        export_talent_api_payload,
         get_websim_bootstrap,
         get_websim_gear,
         get_websim_loot,
         get_websim_talents,
         get_active_season_payload,
+        import_talent_api_payload,
+        validate_talent_api_payload,
     )
 except ImportError:
     from analytics import (
@@ -63,11 +66,14 @@ except ImportError:
         build_websim_simulator_request,
         enrich_build_gear_payload,
         ensure_websim_tables,
+        export_talent_api_payload,
         get_websim_bootstrap,
         get_websim_gear,
         get_websim_loot,
         get_websim_talents,
         get_active_season_payload,
+        import_talent_api_payload,
+        validate_talent_api_payload,
     )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -1364,6 +1370,20 @@ class Handler(BaseHTTPRequestHandler):
             with db_connection() as conn:
                 json_response(self, 200, get_websim_bootstrap(conn))
             return
+        if path == "/api/talents/tree":
+            init_db()
+            with db_connection() as conn:
+                json_response(
+                    self,
+                    200,
+                    get_websim_talents(
+                        conn,
+                        query.get("class", query.get("classKey", ["mage"]))[0],
+                        query.get("spec", query.get("specKey", ["arcane"]))[0],
+                        query.get("hero", query.get("heroKey", [""]))[0],
+                    ),
+                )
+            return
         if path == "/api/websim/talents":
             query = parse_qs(urlparse(self.path).query)
             init_db()
@@ -1504,6 +1524,24 @@ class Handler(BaseHTTPRequestHandler):
             init_db()
             with db_connection() as conn:
                 json_response(self, 200, build_websim_profile_response(read_json_body(self), conn=conn))
+            return
+        if parsed.path == "/api/talents/validate":
+            payload = read_json_body(self)
+            init_db()
+            with db_connection() as conn:
+                json_response(self, 200, validate_talent_api_payload(conn, payload))
+            return
+        if parsed.path == "/api/talents/export":
+            payload = read_json_body(self)
+            init_db()
+            with db_connection() as conn:
+                json_response(self, 200, export_talent_api_payload(conn, payload))
+            return
+        if parsed.path == "/api/talents/import":
+            payload = read_json_body(self)
+            init_db()
+            with db_connection() as conn:
+                json_response(self, 200, import_talent_api_payload(conn, payload))
             return
         if parsed.path == "/api/websim/simulate":
             payload = read_json_body(self)

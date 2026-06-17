@@ -12,11 +12,14 @@ const {
   adjustTalentRank,
   buildTalentViewModel,
   choiceGroupNodes,
+  communityTemplateApplyMode,
+  communityTemplateStatusText,
   initialTalentRanks,
   maxRankFor,
   parseTalentExportCode,
   rankFor,
-  tapTalentNode
+  tapTalentNode,
+  templatesForScenario
 } = require('./talent-simulator-core')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
@@ -29,6 +32,17 @@ const defaultScenarios = [
   { key: 'single', title: '单体', fightStyle: 'Patchwerk', targets: 1, durationSeconds: 300 },
   { key: 'cleave', title: '顺劈', fightStyle: 'HecticAddCleave', targets: 3, durationSeconds: 300 }
 ]
+const TREE_ORDER = ['class', 'hero', 'spec']
+const TREE_LABELS = {
+  class: '通用',
+  hero: '英雄',
+  spec: '专精'
+}
+const TREE_DEFAULT_TITLES = {
+  class: '通用天赋',
+  hero: '英雄天赋',
+  spec: '专精天赋'
+}
 
 function safeToast(title) {
   if (typeof wx !== 'undefined' && typeof wx.showToast === 'function') {
@@ -128,6 +142,73 @@ function decorateSection(section) {
   }
 }
 
+function treeLabel(key) {
+  return TREE_LABELS[key] || '天赋'
+}
+
+function treeTitle(key, section) {
+  if (key === 'class') return '通用天赋树'
+  if (key === 'hero') return section.title ? `${section.title} · 英雄天赋树` : '英雄天赋树'
+  if (key === 'spec') return section.title ? `${section.title} · 专精天赋树` : '专精天赋树'
+  return section.title || '天赋树'
+}
+
+function treeSubtitle(key, section) {
+  const title = section && section.title
+  if (!title || title === TREE_DEFAULT_TITLES[key]) return TREE_DEFAULT_TITLES[key] || ''
+  return title
+}
+
+function sectionProgressStyle(section) {
+  const pointCap = Number(section && section.pointCap) || 0
+  const pointCount = Number(section && section.pointCount) || 0
+  const progress = pointCap > 0 ? Math.max(0, Math.min(100, (pointCount / pointCap) * 100)) : 0
+  return `width:${progress.toFixed(2)}%;`
+}
+
+function sectionPanelClass(key) {
+  return `active-tree-${key || 'class'}`
+}
+
+function sectionGridClass(key) {
+  return ['talent-grid', 'active-tree-grid', `active-tree-grid-${key || 'class'}`, key === 'hero' ? 'hero-grid' : ''].filter(Boolean).join(' ')
+}
+
+function decorateActiveSection(section) {
+  const next = decorateSection(section || { key: 'class', title: TREE_DEFAULT_TITLES.class })
+  const key = next.key || 'class'
+  return {
+    ...next,
+    displayLabel: treeLabel(key),
+    displayTitle: treeTitle(key, next),
+    subtitle: treeSubtitle(key, next),
+    progressStyle: sectionProgressStyle(next),
+    panelClass: sectionPanelClass(key),
+    gridClass: sectionGridClass(key)
+  }
+}
+
+function buildTreeNavItems(sectionsByKey, activeTreeKey, searchTerm) {
+  const hasSearch = Boolean(String(searchTerm || '').trim())
+  return TREE_ORDER.map((key) => {
+    const section = decorateSection((sectionsByKey && sectionsByKey[key]) || { key, title: TREE_DEFAULT_TITLES[key] })
+    const matchCount = Number(section.searchMatchCount) || 0
+    const hasMatch = hasSearch && matchCount > 0
+    return {
+      key,
+      label: treeLabel(key),
+      subtitle: treeSubtitle(key, section),
+      pointLabel: section.pointLabel,
+      matchLabel: hasMatch ? `${matchCount} 命中` : '',
+      tabClass: ['tree-tab', activeTreeKey === key ? 'active' : '', hasMatch ? 'has-match' : ''].filter(Boolean).join(' ')
+    }
+  })
+}
+
+function exportStatusText(code) {
+  return code ? '导出码已生成，复制或带去 SimC 时会重新校验。' : '导出码待生成，请先加载天赋树。'
+}
+
 function reasonText(reason) {
   if (reason === 'missing_parent') return '需要先点亮前置节点'
   if (reason === 'point_requirement') return '当前树点数还未达到门槛'
@@ -141,6 +222,48 @@ function talentSummary(selectedNodes, scenario) {
   const count = (selectedNodes || []).length
   const scenarioTitle = (scenario && scenario.title) || '大秘境'
   return `${scenarioTitle}：已选择 ${count} 个天赋节点，进入 SimC 前会由后端重新编码校验。`
+}
+
+function shortDate(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  return text.includes('T') ? text.split('T')[0] : text.slice(0, 10)
+}
+
+function decorateCommunityTemplate(template) {
+  const mode = communityTemplateApplyMode(template)
+  const sampleCount = Number(template && template.sampleCount) || 0
+  const maxKeyLevel = Number(template && template.maxKeyLevel) || 0
+  return {
+    ...(template || {}),
+    applyMode: mode,
+    sampleLabel: sampleCount > 0 ? `样本 ${sampleCount}` : '样本待补',
+    keyLabel: maxKeyLevel > 0 ? `最高 +${maxKeyLevel}` : '',
+    updatedLabel: shortDate((template && template.updatedAt) || ''),
+    actionLabel: mode === 'visual' ? '应用' : '带去 SimC',
+    cardClass: ['community-template-card', mode === 'simc_only' ? 'external' : '', mode === 'blocked' ? 'blocked' : ''].filter(Boolean).join(' ')
+  }
+}
+
+function communityTemplateContext(template) {
+  if (!template) return null
+  return {
+    id: template.id || '',
+    name: template.name || '',
+    flowLabel: template.flowLabel || '',
+    scenarioKey: template.scenarioKey || '',
+    sourceKey: template.sourceKey || '',
+    sourceName: template.sourceName || '',
+    sourceUrl: template.sourceUrl || '',
+    sampleCount: template.sampleCount || 0,
+    maxKeyLevel: template.maxKeyLevel || 0,
+    analysisWindow: template.analysisWindow || '',
+    updatedAt: template.updatedAt || '',
+    rawImportCode: template.rawImportCode || '',
+    websimExportCode: template.websimExportCode || '',
+    canApplyVisual: !!template.canApplyVisual,
+    canUseInSimc: !!template.canUseInSimc
+  }
 }
 
 Page({
@@ -161,6 +284,16 @@ Page({
     selectedHeroIndex: 0,
     selectedHeroLabel: '默认',
     currentSeason: null,
+    communityTemplates: [],
+    communityTemplateSync: {
+      sourceStatus: 'missing_credentials',
+      sources: {},
+      templates: { total: 0, verified: 0, blocked: 0 }
+    },
+    activeCommunityTemplates: [],
+    communityTemplateStatusText: '缺少社区模板 API 凭据',
+    communityTemplateSheet: { visible: false },
+    selectedCommunityTemplate: null,
     talentStatus: 'loading',
     nodes: [],
     treeSections: [],
@@ -170,10 +303,14 @@ Page({
     classSection: decorateSection({ key: 'class', title: '职业天赋' }),
     specSection: decorateSection({ key: 'spec', title: '专精天赋' }),
     heroSection: decorateSection({ key: 'hero', title: '英雄天赋' }),
+    activeTreeKey: 'class',
+    treeNavItems: [],
+    activeSection: decorateActiveSection({ key: 'class', title: '职业天赋' }),
     selectedNodes: [],
     searchTerm: '',
     searchCountText: '',
     websimExportCode: '',
+    exportStatusText: exportStatusText(''),
     statusText: '正在读取 WebSim 天赋树',
     loading: false,
     fromFallback: true,
@@ -249,7 +386,7 @@ Page({
       heroOptions: heroes,
       selectedHeroIndex: heroIndex,
       selectedHeroLabel: currentHero.label || currentHero.title || currentHero.key || '默认',
-      statusText: '正在加载三列天赋树'
+      statusText: '正在加载天赋树'
     })
     requestWebsimTalents({
       classKey: keys.classKey,
@@ -261,6 +398,13 @@ Page({
       this.setData({
         nodes: payload.nodes || [],
         treeSections: payload.treeSections || [],
+        communityTemplates: payload.communityTemplates || [],
+        communityTemplateSync: payload.communityTemplateSync || {
+          sourceStatus: 'missing_credentials',
+          sources: {},
+          templates: { total: 0, verified: 0, blocked: 0 }
+        },
+        selectedCommunityTemplate: null,
         talentStatus: payload.talentStatus || 'blocked',
         currentSeason: payload.currentSeason || this.data.currentSeason,
         heroKey: payload.heroKey || currentHero.key || '',
@@ -294,13 +438,30 @@ Page({
       acc[section.key] = decorateSection(section)
       return acc
     }, {})
+    const classSection = byKey.class || decorateSection({ key: 'class', title: '职业天赋' })
+    const specSection = byKey.spec || decorateSection({ key: 'spec', title: '专精天赋' })
+    const heroSection = byKey.hero || decorateSection({ key: 'hero', title: '英雄天赋' })
+    const sectionsByKey = { class: classSection, spec: specSection, hero: heroSection }
+    const activeTreeKey = sectionsByKey[this.data.activeTreeKey] ? this.data.activeTreeKey : 'class'
+    const activeSection = decorateActiveSection(sectionsByKey[activeTreeKey])
     const scenario = this.data.scenarioOptions[this.data.selectedScenarioIndex] || this.data.scenarioOptions[0]
+    const sourceStatus = (this.data.communityTemplateSync && this.data.communityTemplateSync.sourceStatus) || 'missing_credentials'
+    const canShowTemplates = sourceStatus === 'synced' || sourceStatus === 'partial'
+    const activeCommunityTemplates = canShowTemplates
+      ? templatesForScenario(this.data.communityTemplates, this.data.scenarioKey).map(decorateCommunityTemplate)
+      : []
     this.setData({
-      classSection: byKey.class || decorateSection({ key: 'class', title: '职业天赋' }),
-      specSection: byKey.spec || decorateSection({ key: 'spec', title: '专精天赋' }),
-      heroSection: byKey.hero || decorateSection({ key: 'hero', title: '英雄天赋' }),
+      classSection,
+      specSection,
+      heroSection,
+      activeTreeKey,
+      treeNavItems: buildTreeNavItems(sectionsByKey, activeTreeKey, this.data.searchTerm),
+      activeSection,
       selectedNodes: viewModel.selectedNodes,
       websimExportCode: viewModel.websimExportCode,
+      exportStatusText: exportStatusText(viewModel.websimExportCode),
+      activeCommunityTemplates,
+      communityTemplateStatusText: communityTemplateStatusText(this.data.communityTemplateSync),
       searchCountText: this.data.searchTerm ? `${viewModel.searchMatches.length} 个匹配` : '',
       statusText: talentSummary(viewModel.selectedNodes, scenario)
     })
@@ -308,12 +469,12 @@ Page({
 
   selectClass(event) {
     const selection = selectedState(Number(event.detail.value), 0, this.data.classOptions)
-    this.setData({ ...selection, heroKey: '' }, () => this.loadTalentsForSelection())
+    this.setData({ ...selection, heroKey: '', activeTreeKey: 'class' }, () => this.loadTalentsForSelection())
   },
 
   selectSpec(event) {
     const selection = selectedState(this.data.selectedClassIndex, Number(event.detail.value), this.data.classOptions)
-    this.setData({ ...selection, heroKey: '' }, () => this.loadTalentsForSelection())
+    this.setData({ ...selection, heroKey: '', activeTreeKey: 'class' }, () => this.loadTalentsForSelection())
   },
 
   selectHero(event) {
@@ -322,7 +483,8 @@ Page({
     this.setData({
       selectedHeroIndex: index,
       selectedHeroLabel: hero.label || hero.title || hero.key || '默认',
-      heroKey: hero.key || ''
+      heroKey: hero.key || '',
+      activeTreeKey: 'hero'
     }, () => this.loadTalentsForSelection())
   },
 
@@ -332,7 +494,8 @@ Page({
     this.setData({
       selectedScenarioIndex: index,
       scenarioKey: scenario.key || 'mythic_plus',
-      selectedScenarioTitle: scenario.title || '大秘境'
+      selectedScenarioTitle: scenario.title || '大秘境',
+      selectedCommunityTemplate: null
     }, () => this.renderTalentView())
   },
 
@@ -342,6 +505,12 @@ Page({
 
   clearTalentSearch() {
     this.setData({ searchTerm: '' }, () => this.renderTalentView())
+  },
+
+  selectTalentTree(event) {
+    const key = event.currentTarget.dataset.key || 'class'
+    const nextKey = TREE_ORDER.includes(key) ? key : 'class'
+    this.setData({ activeTreeKey: nextKey }, () => this.renderTalentView())
   },
 
   tapTalentNode(event) {
@@ -496,7 +665,53 @@ Page({
     this.setData({
       talentRanks: rankState.talentRanks,
       baseTalentRanks: rankState.baseTalentRanks,
+      selectedCommunityTemplate: null,
       importSheet: { visible: false, code: '' }
+    }, () => this.renderTalentView())
+  },
+
+  openCommunityTemplates() {
+    this.setData({ communityTemplateSheet: { visible: true } }, () => this.renderTalentView())
+  },
+
+  closeCommunityTemplates() {
+    this.setData({ communityTemplateSheet: { visible: false } })
+  },
+
+  applyCommunityTemplate(event) {
+    const id = event.currentTarget.dataset.id || ''
+    const template = (this.data.activeCommunityTemplates || []).find((item) => item.id === id)
+    if (!template) return
+    const mode = communityTemplateApplyMode(template)
+    if (mode === 'simc_only') {
+      this.setData({
+        selectedCommunityTemplate: template,
+        communityTemplateSheet: { visible: false },
+        statusText: `已选择社区模板：${template.name}，可带去 SimC。`
+      })
+      safeToast('此模板可带去 SimC')
+      return
+    }
+    if (mode !== 'visual') {
+      safeToast('模板暂不可用')
+      return
+    }
+    const parsed = parseTalentExportCode(template.websimExportCode || '')
+    if (!parsed) {
+      safeToast('模板导入码不可用')
+      return
+    }
+    const rankState = initialTalentRanks(this.data.nodes, { pointCaps: this.data.pointCaps })
+    const allowedIds = new Set(this.data.nodes.map((node) => node.id))
+    Object.keys(parsed.talentRanks).forEach((nodeId) => {
+      if (allowedIds.has(nodeId)) rankState.talentRanks[nodeId] = parsed.talentRanks[nodeId]
+    })
+    this.setData({
+      talentRanks: rankState.talentRanks,
+      baseTalentRanks: rankState.baseTalentRanks,
+      selectedCommunityTemplate: template,
+      communityTemplateSheet: { visible: false },
+      statusText: `已应用社区模板：${template.name}`
     }, () => this.renderTalentView())
   },
 
@@ -517,6 +732,8 @@ Page({
     const simcLines = Array.isArray(talentEncoding.lines) ? talentEncoding.lines : []
     const encodingStatus = talentEncoding.status || 'failed'
     const scenario = this.data.scenarioOptions[this.data.selectedScenarioIndex] || {}
+    const selectedCommunityTemplate = communityTemplateContext(this.data.selectedCommunityTemplate)
+    const communityImportCode = selectedCommunityTemplate && selectedCommunityTemplate.rawImportCode ? selectedCommunityTemplate.rawImportCode : ''
     return {
       specId: selectedDetail.id || selectedSpec.id || '',
       className: selectedDetail.className || selectedSpec.className || '',
@@ -524,7 +741,7 @@ Page({
       role: selectedDetail.role || selectedSpec.role || '',
       activeQueryKey: 'talents',
       activeQueryTitle: '天赋构筑',
-      sourceName: talents.sourceName || selectedDetail.sourceName || 'WebSim',
+      sourceName: (selectedCommunityTemplate && selectedCommunityTemplate.sourceName) || talents.sourceName || selectedDetail.sourceName || 'WebSim',
       publishedAt: talents.publishedAt || selectedDetail.publishedAt || '',
       analysisWindow: talents.analysisWindow || selectedDetail.analysisWindow || '',
       sourceNote: talents.sourceNote || selectedDetail.sourceNote || '',
@@ -532,6 +749,8 @@ Page({
         ...details,
         talents: {
           ...talents,
+          importCode: communityImportCode || talents.importCode || '',
+          communityTemplate: selectedCommunityTemplate,
           websimExportCode: this.data.websimExportCode || '',
           simcLines,
           encodingStatus
@@ -541,12 +760,13 @@ Page({
         talent: {
           selectedNodes: this.data.selectedNodes || [],
           websimExportCode: this.data.websimExportCode || '',
+          communityTemplate: selectedCommunityTemplate,
           heroKey: this.data.heroKey || '',
           scenarioKey: this.data.scenarioKey || '',
           scenarioTitle: scenario.title || '',
           encodingStatus,
           simcLines,
-          importCode: talents.importCode || '',
+          importCode: communityImportCode || talents.importCode || '',
           summary: talentSummary(this.data.selectedNodes || [], scenario)
         }
       }
@@ -565,6 +785,7 @@ Page({
       talentState: {
         selectedNodes: this.data.selectedNodes,
         websimExportCode: this.data.websimExportCode,
+        communityTemplate: communityTemplateContext(this.data.selectedCommunityTemplate),
         heroKey: this.data.heroKey,
         scenarioKey: this.data.scenarioKey
       }

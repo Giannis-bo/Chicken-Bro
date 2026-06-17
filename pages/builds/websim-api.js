@@ -24,6 +24,12 @@ function fallbackWebsimTalents(params) {
     nodes: [],
     treeSections: [],
     presets: [],
+    communityTemplates: [],
+    communityTemplateSync: {
+      sourceStatus: 'missing_credentials',
+      sources: {},
+      templates: { total: 0, verified: 0, blocked: 0 }
+    },
     talentStatus: 'blocked',
     currentSeason: {
       dataStatus: 'blocked',

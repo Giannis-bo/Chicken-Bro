@@ -9,13 +9,15 @@
 }
 
 .talent-page-content {
-  padding: 24rpx 24rpx 88rpx;
+  padding: 24rpx 24rpx 188rpx;
 }
 
 .talent-header,
 .talent-toolbar,
-.talent-actions,
-.talent-export-panel {
+.talent-search-panel,
+.tree-tabs,
+.active-tree-panel,
+.talent-export-summary {
   border: 1rpx solid rgba(255, 255, 255, 0.08);
   border-radius: 16rpx;
   background: #121212;
@@ -107,10 +109,10 @@
   line-height: 1.25;
 }
 
-.talent-actions {
+.talent-search-panel {
   display: flex;
   align-items: center;
-  gap: 10rpx;
+  gap: 12rpx;
   margin-top: 18rpx;
   padding: 14rpx;
 }
@@ -142,8 +144,9 @@
   line-height: 20rpx;
 }
 
-.icon-button {
-  width: 86rpx;
+.search-clear-button {
+  flex-shrink: 0;
+  width: 92rpx;
   height: 68rpx;
   padding: 0;
   border: 1rpx solid rgba(248, 183, 0, 0.24);
@@ -155,64 +158,159 @@
   line-height: 68rpx;
 }
 
-.talent-board-scroll {
+.tree-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10rpx;
   margin-top: 18rpx;
-  border: 1rpx solid rgba(248, 183, 0, 0.18);
-  border-radius: 16rpx;
-  background: #090909;
+  padding: 12rpx;
 }
 
-.talent-board {
-  display: flex;
-  gap: 18rpx;
-  min-width: 1500rpx;
-  padding: 18rpx;
-}
-
-.talent-column {
-  width: 480rpx;
-  min-height: 820rpx;
+.tree-tab {
+  position: relative;
+  min-height: 116rpx;
+  padding: 14rpx 12rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.08);
-  border-radius: 14rpx;
+  border-radius: 12rpx;
+  background: #0c0c0c;
+  overflow: hidden;
+}
+
+.tree-tab.active {
+  border-color: rgba(248, 183, 0, 0.58);
+  background: #191815;
+  box-shadow: inset 0 0 0 1rpx rgba(248, 183, 0, 0.14);
+}
+
+.tree-tab.has-match {
+  border-color: rgba(84, 192, 255, 0.4);
+}
+
+.tree-tab-label {
+  display: block;
+  color: #ffffff;
+  font-size: 25rpx;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.tree-tab-points {
+  display: block;
+  margin-top: 8rpx;
+  color: #f8b700;
+  font-size: 24rpx;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.tree-tab-subtitle,
+.tree-tab-match {
+  display: block;
+  margin-top: 6rpx;
+  color: #8f8f8f;
+  font-size: 18rpx;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-tab-match {
+  color: #54c0ff;
+  font-weight: 800;
+}
+
+.active-tree-panel {
+  margin-top: 18rpx;
+  border-color: rgba(248, 183, 0, 0.2);
   background: radial-gradient(circle at 50% 0%, rgba(248, 183, 0, 0.1), transparent 34%), #101010;
+  overflow: hidden;
 }
 
-.talent-column.spec {
-  background: radial-gradient(circle at 50% 0%, rgba(84, 192, 255, 0.1), transparent 34%), #101010;
-}
-
-.talent-column.hero {
+.active-tree-hero {
+  border-color: rgba(96, 232, 196, 0.22);
   background: radial-gradient(circle at 50% 0%, rgba(96, 232, 196, 0.12), transparent 34%), #101010;
 }
 
-.column-header {
+.active-tree-spec {
+  border-color: rgba(84, 192, 255, 0.22);
+  background: radial-gradient(circle at 50% 0%, rgba(84, 192, 255, 0.1), transparent 34%), #101010;
+}
+
+.active-tree-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  height: 84rpx;
-  padding: 0 20rpx;
+  gap: 18rpx;
+  padding: 22rpx 22rpx 18rpx;
   border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
 }
 
-.column-title {
-  color: #ffffff;
-  font-size: 26rpx;
-  font-weight: 900;
+.active-tree-title-wrap {
+  flex: 1;
+  min-width: 0;
 }
 
-.column-points {
+.active-tree-kicker {
+  display: block;
   color: #f8b700;
-  font-size: 23rpx;
+  font-size: 20rpx;
   font-weight: 900;
+  line-height: 1.2;
+}
+
+.active-tree-title {
+  display: block;
+  margin-top: 8rpx;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 900;
+  line-height: 1.24;
+}
+
+.active-tree-subtitle {
+  display: block;
+  margin-top: 8rpx;
+  color: #9c9c9c;
+  font-size: 21rpx;
+  line-height: 1.3;
+}
+
+.active-tree-points {
+  flex-shrink: 0;
+  color: #f8b700;
+  font-size: 28rpx;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.tree-progress {
+  height: 8rpx;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tree-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999rpx;
+  background: #f8b700;
 }
 
 .talent-grid {
   position: relative;
-  height: 736rpx;
+  height: 960rpx;
 }
 
-.hero-grid {
-  height: 650rpx;
+.active-tree-grid {
+  margin: 18rpx 8rpx 22rpx;
+}
+
+.active-tree-grid-hero {
+  height: 760rpx;
+}
+
+.active-tree-grid-spec {
+  height: 960rpx;
 }
 
 .talent-link {
@@ -225,10 +323,10 @@
 
 .talent-node {
   position: absolute;
-  width: 78rpx;
-  height: 78rpx;
-  margin-left: -39rpx;
-  margin-top: -39rpx;
+  width: 82rpx;
+  height: 82rpx;
+  margin-left: -41rpx;
+  margin-top: -41rpx;
   border: 3rpx solid rgba(255, 255, 255, 0.16);
   border-radius: 50%;
   background: #1a1a1a;
@@ -299,9 +397,9 @@
   text-align: center;
 }
 
-.talent-export-panel {
+.talent-export-summary {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16rpx;
   margin-top: 18rpx;
   padding: 18rpx;
@@ -341,6 +439,45 @@
   line-height: 72rpx;
 }
 
+.mobile-action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  display: grid;
+  grid-template-columns: 88rpx 88rpx 124rpx 88rpx minmax(0, 1fr);
+  gap: 10rpx;
+  padding: 14rpx 24rpx calc(18rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid rgba(255, 255, 255, 0.1);
+  background: rgba(8, 8, 8, 0.96);
+}
+
+.action-icon-button {
+  height: 68rpx;
+  padding: 0;
+  border: 1rpx solid rgba(248, 183, 0, 0.28);
+  border-radius: 12rpx;
+  background: #191815;
+  color: #f8b700;
+  font-size: 21rpx;
+  font-weight: 900;
+  line-height: 68rpx;
+}
+
+.action-icon-button.community-button {
+  font-size: 20rpx;
+}
+
+.action-primary-button {
+  min-width: 0;
+  width: 100%;
+  height: 68rpx;
+  padding: 0 16rpx;
+  font-size: 22rpx;
+  line-height: 68rpx;
+}
+
 .sheet-mask {
   position: fixed;
   left: 0;
@@ -353,7 +490,8 @@
 
 .talent-choice-sheet,
 .talent-detail-sheet,
-.talent-import-sheet {
+.talent-import-sheet,
+.community-template-sheet {
   position: fixed;
   left: 0;
   right: 0;
@@ -364,6 +502,10 @@
   border-radius: 28rpx 28rpx 0 0;
   background: #121212;
   color: #ffffff;
+}
+
+.community-template-sheet {
+  max-height: 72vh;
 }
 
 .sheet-handle {
@@ -487,4 +629,120 @@
   color: #ffffff;
   font-size: 22rpx;
   line-height: 1.45;
+}
+
+.community-status {
+  margin-top: 10rpx;
+}
+
+.community-template-empty {
+  margin-top: 20rpx;
+  padding: 28rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 14rpx;
+  background: #0c0c0c;
+  color: #a9a9a9;
+  font-size: 24rpx;
+  text-align: center;
+}
+
+.community-template-list {
+  max-height: 52vh;
+  margin-top: 16rpx;
+}
+
+.community-template-card {
+  margin-bottom: 14rpx;
+  padding: 18rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.24);
+  border-radius: 14rpx;
+  background: #0c0c0c;
+}
+
+.community-template-card.external {
+  border-color: rgba(84, 192, 255, 0.3);
+}
+
+.community-template-card.blocked {
+  opacity: 0.6;
+}
+
+.template-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.template-title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.template-name {
+  display: block;
+  color: #ffffff;
+  font-size: 27rpx;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.template-source {
+  display: block;
+  margin-top: 8rpx;
+  color: #a9a9a9;
+  font-size: 21rpx;
+  line-height: 1.3;
+}
+
+.template-mode {
+  flex-shrink: 0;
+  padding: 6rpx 12rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.34);
+  border-radius: 999rpx;
+  color: #f8b700;
+  font-size: 20rpx;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.community-template-card.external .template-mode {
+  border-color: rgba(84, 192, 255, 0.34);
+  color: #54c0ff;
+}
+
+.template-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 16rpx;
+}
+
+.template-meta {
+  padding: 6rpx 10rpx;
+  border-radius: 8rpx;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d8d8d8;
+  font-size: 20rpx;
+  line-height: 1.2;
+}
+
+.template-note {
+  display: block;
+  margin-top: 12rpx;
+  color: #8f8f8f;
+  font-size: 21rpx;
+  line-height: 1.38;
+}
+
+.template-apply-button {
+  height: 66rpx;
+  margin-top: 16rpx;
+  border: 0;
+  border-radius: 12rpx;
+  background: #f8b700;
+  color: #111111;
+  font-size: 23rpx;
+  font-weight: 900;
+  line-height: 66rpx;
 }

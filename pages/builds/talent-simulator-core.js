@@ -3,6 +3,7 @@ const DEFAULT_POINT_CAPS = {
   spec: 34,
   hero: 13
 }
+const TALENT_SCHEMA_REVISION = 'websim-talent-rules-v1'
 
 function numberValue(value, fallback) {
   const next = Number(value)
@@ -54,6 +55,14 @@ function rankFor(nodeOrId, talentRanks, nodes, baseTalentRanks) {
   return node ? clamp(rank, 0, maxRankFor(node)) : rank
 }
 
+function purchasedRankFor(nodeOrId, talentRanks, nodes, baseTalentRanks) {
+  const id = nodeId(nodeOrId)
+  if (!id) return 0
+  const node = typeof nodeOrId === 'string' ? nodeById(nodes, id) : nodeOrId
+  const selectedRank = rankFor(nodeOrId, talentRanks, nodes, baseTalentRanks)
+  return Math.max(0, selectedRank - grantedRankFor(node, baseTalentRanks))
+}
+
 function initialTalentRanks(nodes, options) {
   const talentRanks = {}
   const baseTalentRanks = {}
@@ -86,18 +95,39 @@ function talentPoints(treeKey, nodes, talentRanks, baseTalentRanks, exceptIds) {
     .reduce((total, node) => total + rankFor(node, talentRanks, nodes, baseTalentRanks), 0)
 }
 
+function talentPurchasedPoints(treeKey, nodes, talentRanks, baseTalentRanks, exceptIds) {
+  const excluded = new Set(exceptIds || [])
+  return (nodes || [])
+    .filter((node) => treeKeyFor(node) === treeKey && !excluded.has(node.id))
+    .reduce((total, node) => total + purchasedRankFor(node, talentRanks, nodes, baseTalentRanks), 0)
+}
+
 function parentIdsFor(node) {
   const ids = node && (node.parentIds || node.requiredIds || node.parents)
   return Array.isArray(ids) ? ids.filter(Boolean) : []
 }
 
+function parentModeFor(node) {
+  const payload = (node && node.payload) || {}
+  const mode = String((node && (node.parentMode || node.dependencyMode)) || payload.parentMode || payload.dependencyMode || '').toLowerCase()
+  return mode === 'all' ? 'all' : 'any'
+}
+
+function missingParentIdsFor(node, nodes, talentRanks, baseTalentRanks) {
+  const parentIds = parentIdsFor(node)
+  if (!parentIds.length) return []
+  const selected = parentIds.filter((id) => rankFor(id, talentRanks, nodes, baseTalentRanks) > 0)
+  if (parentModeFor(node) === 'all') return parentIds.filter((id) => !selected.includes(id))
+  return selected.length ? [] : parentIds
+}
+
 function parentsSatisfied(node, nodes, talentRanks, baseTalentRanks) {
-  return parentIdsFor(node).every((id) => rankFor(id, talentRanks, nodes, baseTalentRanks) > 0)
+  return missingParentIdsFor(node, nodes, talentRanks, baseTalentRanks).length === 0
 }
 
 function pointRequirementSatisfied(node, nodes, talentRanks, baseTalentRanks) {
   const requirement = pointRequirementFor(node)
-  return requirement <= 0 || talentPoints(treeKeyFor(node), nodes, talentRanks, baseTalentRanks, [node.id]) >= requirement
+  return requirement <= 0 || talentPurchasedPoints(treeKeyFor(node), nodes, talentRanks, baseTalentRanks, [node.id]) >= requirement
 }
 
 function choiceGroupNodes(node, nodes) {
@@ -129,7 +159,7 @@ function pointCapFor(node, pointCaps) {
 
 function pointCapReached(node, nodes, talentRanks, baseTalentRanks, pointCaps) {
   const cap = pointCapFor(node, pointCaps)
-  return cap > 0 && talentPoints(treeKeyFor(node), nodes, talentRanks, baseTalentRanks, [node.id]) >= cap
+  return cap > 0 && talentPurchasedPoints(treeKeyFor(node), nodes, talentRanks, baseTalentRanks) >= cap
 }
 
 function pruneInvalidRanks(nodes, talentRanks, baseTalentRanks, preferredId) {
@@ -172,7 +202,9 @@ function pruneInvalidRanks(nodes, talentRanks, baseTalentRanks, preferredId) {
   }
   Object.keys(baseTalentRanks || {}).forEach((id) => {
     const node = nodeById(nodes, id)
-    if (node) setRank(nextRanks, node, baseTalentRanks[id], baseTalentRanks)
+    if (node && numberValue(nextRanks[id], 0) < numberValue(baseTalentRanks[id], 0)) {
+      setRank(nextRanks, node, baseTalentRanks[id], baseTalentRanks)
+    }
   })
   return nextRanks
 }
@@ -190,7 +222,6 @@ function adjustTalentRank(context, id, delta) {
   if (delta < 0 && current <= floor) {
     return { changed: false, reason: floor > 0 ? 'granted' : 'min_rank', talentRanks }
   }
-  if (delta > 0 && floor > 0) return { changed: false, reason: 'granted', talentRanks }
   if (delta > 0 && current >= maxRankFor(node)) return { changed: false, reason: 'max_rank', talentRanks }
   if (delta > 0 && !parentsSatisfied(node, nodes, talentRanks, baseTalentRanks)) return { changed: false, reason: 'missing_parent', talentRanks }
   if (delta > 0 && !pointRequirementSatisfied(node, nodes, talentRanks, baseTalentRanks)) return { changed: false, reason: 'point_requirement', talentRanks }
@@ -263,6 +294,42 @@ function parseTalentExportCode(value) {
   }
 }
 
+function templatesForScenario(templates, scenarioKey) {
+  const key = scenarioKey || 'mythic_plus'
+  return (Array.isArray(templates) ? templates : []).filter((template) => {
+    if (!template) return false
+    const templateScenario = template.scenarioKey || template.scenario || 'mythic_plus'
+    return templateScenario === key
+  })
+}
+
+function communityTemplateApplyMode(template) {
+  if (!template) return 'blocked'
+  if (template.canApplyVisual && template.websimExportCode) return 'visual'
+  if (template.rawImportCode || template.canUseInSimc) return 'simc_only'
+  return 'blocked'
+}
+
+function communityTemplateStatusText(syncState) {
+  const status = (syncState && syncState.sourceStatus) || 'missing_credentials'
+  if (status === 'synced') return '社区模板已同步'
+  if (status === 'partial') {
+    const sources = (syncState && syncState.sources) || {}
+    const missing = Object.keys(sources)
+      .filter((key) => sources[key] && sources[key].status === 'missing_credentials')
+      .map((key) => {
+        if (key === 'raiderio') return 'Raider.IO'
+        if (key === 'warcraftlogs') return 'Warcraft Logs'
+        return key
+      })
+    return missing.length
+      ? `待补齐 ${missing.join('、')}，当前展示已验证样本`
+      : '社区模板已部分同步'
+  }
+  if (status === 'blocked') return '社区模板同步被阻断'
+  return '缺少社区模板 API 凭据'
+}
+
 function treeMetrics(nodes) {
   return {
     cols: Math.max(4, ...(nodes || []).map((node) => numberValue(node.col, 1))),
@@ -291,9 +358,57 @@ function defaultTreeSections() {
   ]
 }
 
+function pointRequirementProgress(node, nodes, talentRanks, baseTalentRanks) {
+  const requirement = pointRequirementFor(node)
+  const available = talentPurchasedPoints(treeKeyFor(node), nodes, talentRanks, baseTalentRanks, [node.id])
+  return {
+    available,
+    remaining: Math.max(0, requirement - available),
+    requirement
+  }
+}
+
+function unlockStepsFor(node, nodes, talentRanks, baseTalentRanks, pointCaps) {
+  if (!node || rankFor(node, talentRanks, nodes, baseTalentRanks) >= maxRankFor(node)) return []
+  const missingParents = missingParentIdsFor(node, nodes, talentRanks, baseTalentRanks)
+  if (missingParents.length) {
+    return missingParents.map((id) => {
+      const parent = nodeById(nodes, id) || { id, name: id }
+      return {
+        key: `parent:${id}`,
+        state: 'required',
+        targetId: id,
+        title: `先点亮 ${parent.name || id}`,
+        detail: parentModeFor(node) === 'all' ? '需要同时满足此前置节点' : '满足任一前置路径即可'
+      }
+    })
+  }
+  if (!pointRequirementSatisfied(node, nodes, talentRanks, baseTalentRanks)) {
+    const progress = pointRequirementProgress(node, nodes, talentRanks, baseTalentRanks)
+    return [{
+      key: `gate:${node.id}`,
+      state: 'gate',
+      targetId: '',
+      title: '补足点数门槛',
+      detail: `还差 ${progress.remaining} 点`,
+      value: `${Math.min(progress.available, progress.requirement)}/${progress.requirement}`
+    }]
+  }
+  if (pointCapReached(node, nodes, talentRanks, baseTalentRanks, pointCaps) && !selectedChoicePeerFor(node, nodes, talentRanks, baseTalentRanks)) {
+    const cap = pointCapFor(node, pointCaps)
+    return [{
+      key: `cap:${treeKeyFor(node)}`,
+      state: 'locked',
+      targetId: '',
+      title: '本树点数已达上限',
+      detail: `${cap}/${cap}`
+    }]
+  }
+  return []
+}
+
 function nodeReason(node, nodes, talentRanks, baseTalentRanks, pointCaps) {
   if (rankFor(node, talentRanks, nodes, baseTalentRanks) >= maxRankFor(node)) return ''
-  if (grantedRankFor(node, baseTalentRanks) > 0) return 'granted'
   if (!parentsSatisfied(node, nodes, talentRanks, baseTalentRanks)) return 'missing_parent'
   if (!pointRequirementSatisfied(node, nodes, talentRanks, baseTalentRanks)) return 'point_requirement'
   if (pointCapReached(node, nodes, talentRanks, baseTalentRanks, pointCaps) && !selectedChoicePeerFor(node, nodes, talentRanks, baseTalentRanks)) return 'point_cap'
@@ -325,13 +440,19 @@ function buildTalentViewModel(options) {
     const metrics = treeMetrics(sectionNodes)
     const nodeMap = new Map(sectionNodes.map((node) => [node.id, node]))
     const links = []
+    let searchMatchCount = 0
     const visualNodes = sectionNodes.map((node) => {
       const rank = rankFor(node, talentRanks, nodes, baseTalentRanks)
       const maxRank = maxRankFor(node)
       const reason = nodeReason(node, nodes, talentRanks, baseTalentRanks, pointCaps)
+      const nextUnlockSteps = unlockStepsFor(node, nodes, talentRanks, baseTalentRanks, pointCaps)
+      const canSelect = rank < maxRank && !reason
       const searchText = `${node.name || ''} ${node.id || ''}`.toLowerCase()
       const searchMatch = Boolean(searchTerm && searchText.includes(searchTerm))
-      if (searchMatch) searchMatches.push(node.id)
+      if (searchMatch) {
+        searchMatches.push(node.id)
+        searchMatchCount += 1
+      }
       return {
         ...node,
         tree: key,
@@ -339,8 +460,11 @@ function buildTalentViewModel(options) {
         maxRank,
         selected: rank > 0,
         granted: grantedRankFor(node, baseTalentRanks) > 0,
+        purchasedRank: purchasedRankFor(node, talentRanks, nodes, baseTalentRanks),
+        canSelect,
         locked: Boolean(reason && reason !== 'granted'),
         lockReason: reason,
+        nextUnlockSteps,
         choice: Boolean(node.choiceGroup),
         firstLetter: String(node.name || node.id || '?').slice(0, 1).toUpperCase(),
         leftPercent: ((numberValue(node.col, 1) - 0.5) / metrics.cols) * 100,
@@ -359,7 +483,10 @@ function buildTalentViewModel(options) {
       ...section,
       key,
       pointCap: pointCaps[key] || section.pointCap || 0,
-      pointCount: talentPoints(key, nodes, talentRanks, baseTalentRanks),
+      pointCount: talentPurchasedPoints(key, nodes, talentRanks, baseTalentRanks),
+      selectedPointCount: talentPoints(key, nodes, talentRanks, baseTalentRanks),
+      schemaRevision: TALENT_SCHEMA_REVISION,
+      searchMatchCount,
       metrics,
       nodes: visualNodes,
       links
@@ -381,22 +508,29 @@ function buildTalentViewModel(options) {
 
 module.exports = {
   DEFAULT_POINT_CAPS,
+  TALENT_SCHEMA_REVISION,
   adjustTalentRank,
   buildTalentExportCode,
   buildTalentViewModel,
   choiceGroupNodes,
+  communityTemplateApplyMode,
+  communityTemplateStatusText,
   defaultTreeSections,
   grantedRankFor,
   initialTalentRanks,
   maxRankFor,
+  parentModeFor,
   parentsSatisfied,
   parseTalentExportCode,
   pointCapReached,
   pointRequirementSatisfied,
+  purchasedRankFor,
   rankFor,
   selectedChoicePeerFor,
   selectedTalentEntries,
   tapTalentNode,
+  talentPurchasedPoints,
+  templatesForScenario,
   talentPoints,
   treeKeyFor
 }

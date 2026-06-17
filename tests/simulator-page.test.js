@@ -150,6 +150,46 @@ test('simc prompt formats WebSim talent node objects and encoding lines', () => 
   assert.doesNotMatch(prompt, /\[object Object\]/)
 })
 
+test('simc prompt preserves community talent template evidence', () => {
+  let pageDefinition = null
+  const originalPage = global.Page
+  global.Page = (definition) => {
+    pageDefinition = definition
+  }
+  delete require.cache[require.resolve('../pages/simulator/simc.js')]
+  require('../pages/simulator/simc.js')
+  global.Page = originalPage
+
+  const prompt = pageDefinition.buildPromptFromContext({
+    specId: '法师-奥术',
+    className: '法师',
+    specName: '奥术',
+    activeQueryTitle: '天赋构筑',
+    details: {
+      talents: {
+        importCode: 'C4DA'
+      }
+    },
+    simulatorState: {
+      talent: {
+        communityTemplate: {
+          name: '高层大秘 · 主流AOE',
+          flowLabel: '主流AOE',
+          sourceName: 'Manual Fixture',
+          sampleCount: 3,
+          maxKeyLevel: 12,
+          analysisWindow: '2026 S1 高分样本'
+        }
+      }
+    }
+  })
+
+  assert.match(prompt, /社区模板：高层大秘 · 主流AOE/)
+  assert.match(prompt, /模板来源：Manual Fixture/)
+  assert.match(prompt, /样本证据：3 个样本，最高 \+12/)
+  assert.match(prompt, /模板窗口：2026 S1 高分样本/)
+})
+
 test('simulator page renders simc agent clarification and summary cards', () => {
   const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
   const css = fs.readFileSync('pages/simulator/simc.wxss', 'utf8')

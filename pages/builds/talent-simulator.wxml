@@ -41,75 +41,59 @@
         </picker>
       </view>
 
-      <view class="talent-actions">
+      <view class="talent-search-panel">
         <view class="search-box">
           <input class="talent-search-input" value="{{searchTerm}}" placeholder="搜索天赋" placeholder-class="search-placeholder" bindinput="updateTalentSearch" />
           <text class="search-count">{{searchCountText}}</text>
         </view>
-        <button class="icon-button" bindtap="clearTalentSearch">清空</button>
-        <button class="icon-button" bindtap="resetTalents">重置</button>
-        <button class="icon-button" bindtap="openTalentImport">导入</button>
-        <button class="icon-button" bindtap="copyTalentExport">复制</button>
+        <button class="search-clear-button" wx:if="{{searchTerm}}" bindtap="clearTalentSearch">清空</button>
       </view>
 
-      <scroll-view class="talent-board-scroll" scroll-x enhanced show-scrollbar="{{false}}">
-        <view class="talent-board">
-          <view class="talent-column class">
-            <view class="column-header">
-              <text class="column-title">{{classSection.title}}</text>
-              <text class="column-points">{{classSection.pointLabel}}</text>
-            </view>
-            <view class="talent-grid">
-              <view class="talent-link" wx:for="{{classSection.links}}" wx:key="to" style="{{item.lineStyle}}"></view>
-              <view class="{{item.nodeClass}}" wx:for="{{classSection.nodes}}" wx:key="id" style="{{item.nodeStyle}}" data-id="{{item.id}}" bindtap="tapTalentNode" bindlongpress="openNodeDetail">
-                <image wx:if="{{item.iconUrl}}" class="talent-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
-                <text wx:else class="talent-icon-fallback">{{item.firstLetter}}</text>
-                <text class="talent-rank">{{item.rankLabel}}</text>
-              </view>
-            </view>
-          </view>
+      <view class="tree-tabs">
+        <view class="{{item.tabClass}}" wx:for="{{treeNavItems}}" wx:key="key" data-key="{{item.key}}" bindtap="selectTalentTree">
+          <text class="tree-tab-label">{{item.label}}</text>
+          <text class="tree-tab-points">{{item.pointLabel}}</text>
+          <text class="tree-tab-subtitle">{{item.subtitle}}</text>
+          <text class="tree-tab-match" wx:if="{{item.matchLabel}}">{{item.matchLabel}}</text>
+        </view>
+      </view>
 
-          <view class="talent-column spec">
-            <view class="column-header">
-              <text class="column-title">{{specSection.title}}</text>
-              <text class="column-points">{{specSection.pointLabel}}</text>
-            </view>
-            <view class="talent-grid">
-              <view class="talent-link" wx:for="{{specSection.links}}" wx:key="to" style="{{item.lineStyle}}"></view>
-              <view class="{{item.nodeClass}}" wx:for="{{specSection.nodes}}" wx:key="id" style="{{item.nodeStyle}}" data-id="{{item.id}}" bindtap="tapTalentNode" bindlongpress="openNodeDetail">
-                <image wx:if="{{item.iconUrl}}" class="talent-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
-                <text wx:else class="talent-icon-fallback">{{item.firstLetter}}</text>
-                <text class="talent-rank">{{item.rankLabel}}</text>
-              </view>
-            </view>
+      <view class="active-tree-panel {{activeSection.panelClass}}">
+        <view class="active-tree-head">
+          <view class="active-tree-title-wrap">
+            <text class="active-tree-kicker">{{activeSection.displayLabel}}</text>
+            <text class="active-tree-title">{{activeSection.displayTitle}}</text>
+            <text class="active-tree-subtitle">{{activeSection.subtitle}}</text>
           </view>
-
-          <view class="talent-column hero">
-            <view class="column-header">
-              <text class="column-title">{{heroSection.title}}</text>
-              <text class="column-points">{{heroSection.pointLabel}}</text>
-            </view>
-            <view class="talent-grid hero-grid">
-              <view class="talent-link" wx:for="{{heroSection.links}}" wx:key="to" style="{{item.lineStyle}}"></view>
-              <view class="{{item.nodeClass}}" wx:for="{{heroSection.nodes}}" wx:key="id" style="{{item.nodeStyle}}" data-id="{{item.id}}" bindtap="tapTalentNode" bindlongpress="openNodeDetail">
-                <image wx:if="{{item.iconUrl}}" class="talent-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
-                <text wx:else class="talent-icon-fallback">{{item.firstLetter}}</text>
-                <text class="talent-rank">{{item.rankLabel}}</text>
-              </view>
-            </view>
+          <text class="active-tree-points">{{activeSection.pointLabel}}</text>
+        </view>
+        <view class="tree-progress">
+          <view class="tree-progress-fill" style="{{activeSection.progressStyle}}"></view>
+        </view>
+        <view class="{{activeSection.gridClass}}">
+          <view class="talent-link" wx:for="{{activeSection.links}}" wx:key="to" style="{{item.lineStyle}}"></view>
+          <view class="{{item.nodeClass}}" wx:for="{{activeSection.nodes}}" wx:key="id" style="{{item.nodeStyle}}" data-id="{{item.id}}" bindtap="tapTalentNode" bindlongpress="openNodeDetail">
+            <image wx:if="{{item.iconUrl}}" class="talent-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
+            <text wx:else class="talent-icon-fallback">{{item.firstLetter}}</text>
+            <text class="talent-rank">{{item.rankLabel}}</text>
           </view>
         </view>
-      </scroll-view>
+      </view>
 
-      <view class="talent-export-panel">
-        <view class="export-copy">
-          <text class="export-title">WebSim 导出码</text>
-          <text class="export-code">{{websimExportCode}}</text>
-        </view>
-        <button class="simc-button" loading="{{simcSubmitting}}" bindtap="openTalentSimc">带去 SimC</button>
+      <view class="talent-export-summary">
+        <text class="export-title">WebSim 构筑</text>
+        <text class="export-code">{{exportStatusText}}</text>
       </view>
     </view>
   </scroll-view>
+
+  <view class="mobile-action-bar">
+    <button class="action-icon-button" bindtap="resetTalents">重置</button>
+    <button class="action-icon-button" bindtap="openTalentImport">导入</button>
+    <button class="action-icon-button community-button" bindtap="openCommunityTemplates">社区模板</button>
+    <button class="action-icon-button" bindtap="copyTalentExport">复制</button>
+    <button class="simc-button action-primary-button" loading="{{simcSubmitting}}" bindtap="openTalentSimc">带去 SimC</button>
+  </view>
 
   <view class="sheet-mask" wx:if="{{choiceSheet.visible}}" catchtap="closeChoiceSheet"></view>
   <view class="talent-choice-sheet" wx:if="{{choiceSheet.visible}}">
@@ -147,5 +131,33 @@
     <text class="sheet-title">导入 WebSim 构筑</text>
     <textarea class="import-input" value="{{importSheet.code}}" maxlength="2000" bindinput="updateImportCode"></textarea>
     <button class="simc-button" bindtap="applyTalentImport">应用导入码</button>
+  </view>
+
+  <view class="sheet-mask" wx:if="{{communityTemplateSheet.visible}}" catchtap="closeCommunityTemplates"></view>
+  <view class="community-template-sheet" wx:if="{{communityTemplateSheet.visible}}">
+    <view class="sheet-handle"></view>
+    <text class="sheet-title">社区模板</text>
+    <text class="sheet-option-desc community-status">{{communityTemplateStatusText}}</text>
+    <view class="community-template-empty" wx:if="{{activeCommunityTemplates.length == 0}}">
+      <text>暂无可用社区模板</text>
+    </view>
+    <scroll-view class="community-template-list" wx:else scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="{{item.cardClass}}" wx:for="{{activeCommunityTemplates}}" wx:key="id">
+        <view class="template-card-head">
+          <view class="template-title-wrap">
+            <text class="template-name">{{item.name}}</text>
+            <text class="template-source">{{item.sourceName}}</text>
+          </view>
+          <text class="template-mode">{{item.canApplyVisual ? '可编辑' : 'SimC'}}</text>
+        </view>
+        <view class="template-meta-row">
+          <text class="template-meta">{{item.sampleLabel}}</text>
+          <text class="template-meta" wx:if="{{item.keyLabel}}">{{item.keyLabel}}</text>
+          <text class="template-meta" wx:if="{{item.updatedLabel}}">{{item.updatedLabel}}</text>
+        </view>
+        <text class="template-note" wx:if="{{item.analysisWindow}}">{{item.analysisWindow}}</text>
+        <button class="template-apply-button" data-id="{{item.id}}" bindtap="applyCommunityTemplate">{{item.actionLabel}}</button>
+      </view>
+    </scroll-view>
   </view>
 </view>

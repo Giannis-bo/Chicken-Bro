@@ -14,6 +14,16 @@ function formatTalentNodeLabel(node) {
   return rank > 1 ? `${name} x${rank}` : name
 }
 
+function formatCommunityTemplateEvidence(template) {
+  if (!template) return ''
+  const sampleCount = Number(template.sampleCount || 0)
+  const maxKeyLevel = Number(template.maxKeyLevel || 0)
+  const parts = []
+  if (sampleCount > 0) parts.push(`${sampleCount} 个样本`)
+  if (maxKeyLevel > 0) parts.push(`最高 +${maxKeyLevel}`)
+  return parts.join('，')
+}
+
 Page({
   data: {
     navTitle: '模拟 SimC',
@@ -90,6 +100,8 @@ Page({
     const simulatorState = context.simulatorState || {}
     const talentState = simulatorState.talent || {}
     const gearState = simulatorState.gear || {}
+    const communityTemplate = talentState.communityTemplate || talents.communityTemplate || null
+    const communityEvidence = formatCommunityTemplateEvidence(communityTemplate)
     const selectedTalentNodes = Array.isArray(talentState.selectedNodes)
       ? talentState.selectedNodes.map(formatTalentNodeLabel).filter(Boolean).join('、')
       : ''
@@ -104,6 +116,10 @@ Page({
       talents.importCode ? `天赋导入代码：${talents.importCode}` : '',
       selectedTalentNodes ? `前端天赋模拟器已选择节点：${selectedTalentNodes}` : '',
       websimExportCode ? `WebSim 导出码：${websimExportCode}` : '',
+      communityTemplate && communityTemplate.name ? `社区模板：${communityTemplate.name}` : '',
+      communityTemplate && communityTemplate.sourceName ? `模板来源：${communityTemplate.sourceName}` : '',
+      communityEvidence ? `样本证据：${communityEvidence}` : '',
+      communityTemplate && communityTemplate.analysisWindow ? `模板窗口：${communityTemplate.analysisWindow}` : '',
       encodingStatus ? `WebSim 天赋编码：${encodingStatus}` : '',
       simcTalentLines ? `SimC 天赋行：${simcTalentLines}` : '',
       talentState.summary ? `天赋模拟摘要：${talentState.summary}` : '',

@@ -86,6 +86,8 @@ SIMC_TALENT_SOURCE_REFS = [
         "note": "Generated SimC trait_data.inc used for class, specialization and hero talent node layout.",
     }
 ]
+COMMUNITY_TALENT_SYNC_KEY = "community_talent_templates"
+TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
 
 
 WOW_CLASSES = [
@@ -760,6 +762,39 @@ def ensure_websim_tables(conn):
             payload_json TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS websim_community_talent_templates (
+            id TEXT PRIMARY KEY,
+            class_key TEXT NOT NULL,
+            spec_key TEXT NOT NULL,
+            hero_key TEXT NOT NULL,
+            scenario_key TEXT NOT NULL,
+            name TEXT NOT NULL,
+            flow_label TEXT NOT NULL,
+            source_key TEXT NOT NULL,
+            source_name TEXT NOT NULL,
+            source_url TEXT NOT NULL,
+            raw_import_code TEXT NOT NULL,
+            websim_export_code TEXT NOT NULL,
+            talent_state_json TEXT NOT NULL,
+            sample_count INTEGER NOT NULL DEFAULT 0,
+            max_key_level INTEGER NOT NULL DEFAULT 0,
+            analysis_window TEXT NOT NULL,
+            source_status TEXT NOT NULL,
+            status TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_websim_community_talent_templates_selection
+        ON websim_community_talent_templates (class_key, spec_key, hero_key, scenario_key, status)
         """
     )
     conn.execute(
@@ -2597,6 +2632,7 @@ def apply_trait_edges_to_talents(talents, edges, source="wago-db2-traitedge"):
                         continue
                     parent_ids.append(parent["id"])
                     payload["parentIds"] = parent_ids
+                    payload.setdefault("parentMode", "any")
                     payload["dependencySource"] = source
                     added += 1
     for talent in talents:
@@ -3187,6 +3223,14 @@ def sync_websim_cache(db_path, include_blizzard=True):
         simc_counts = sync_simc_generated_data(conn)
         conn.commit()
         simc_season = get_active_season_payload(conn)
+        simc_talent_health = {
+            "schemaRevision": TALENT_SCHEMA_REVISION,
+            "simcBuild": simc_counts.get("build") or "",
+            "traitEdgeSource": simc_counts.get("traitEdgeSource") or "",
+            "officialRevision": "",
+            "diffStatus": "pending_official_audit" if simc_counts.get("talents") else "blocked",
+            "checkedAt": utc_now(),
+        }
         set_sync_state(
             conn,
             "websim_sync",
@@ -3211,6 +3255,8 @@ def sync_websim_cache(db_path, include_blizzard=True):
                 "currentSeason": simc_season,
                 "dataStatus": simc_season.get("dataStatus") or "blocked",
                 "seasonRevision": simc_season.get("seasonRevision") or "",
+                "talentSchemaRevision": TALENT_SCHEMA_REVISION,
+                "talentHealth": simc_talent_health,
                 "errors": [],
             },
         )
@@ -3256,6 +3302,14 @@ def sync_websim_cache(db_path, include_blizzard=True):
                 except Exception as error:
                     errors.append(str(error))
         active_season = get_active_season_payload(conn)
+        talent_health = {
+            "schemaRevision": TALENT_SCHEMA_REVISION,
+            "simcBuild": simc_counts.get("build") or "",
+            "traitEdgeSource": simc_counts.get("traitEdgeSource") or "",
+            "officialRevision": active_season.get("seasonRevision") or "",
+            "diffStatus": "pending_official_audit" if simc_counts.get("talents") else "blocked",
+            "checkedAt": utc_now(),
+        }
         payload = {
             "ok": not errors and active_season.get("dataStatus") == "verified",
             "checkedAt": utc_now(),
@@ -3268,6 +3322,8 @@ def sync_websim_cache(db_path, include_blizzard=True):
             "currentSeason": active_season,
             "dataStatus": active_season.get("dataStatus") or "blocked",
             "seasonRevision": active_season.get("seasonRevision") or "",
+            "talentSchemaRevision": TALENT_SCHEMA_REVISION,
+            "talentHealth": talent_health,
             "errors": errors,
         }
         if blizzard_skipped:
@@ -3665,9 +3721,13 @@ def fallback_node(
         "granted": selected_rank > 0,
         "selected": selected_rank > 0,
         "parentIds": parent_ids,
+        "parentMode": "any",
         "shape": shape,
         "choiceGroup": choice_group,
         "pointRequirement": fallback_point_requirement(tree_type, row),
+        "entryId": 0,
+        "dependencySource": "websim-fallback",
+        "schemaRevision": TALENT_SCHEMA_REVISION,
         "description": f"WebSim 可交互占位{tree_type}天赋；同步到 Blizzard / SimC 校验数据后会替换为真实节点。",
         "iconUrl": wow_icon_url(icon_name),
         "source": "websim-fallback",
@@ -3829,11 +3889,15 @@ def decorate_real_talent_node(row, season):
         "granted": bool(payload.get("granted") or granted_rank > 0),
         "selected": selected_rank > 0,
         "parentIds": payload.get("parentIds", []),
+        "parentMode": "all" if str(payload.get("parentMode") or "").lower() == "all" else "any",
         "shape": real_talent_shape(payload, row[4]),
         "choiceGroup": payload.get("choiceGroup", ""),
         "rankEntries": rank_entries,
         "rankCount": len(rank_entries),
         "pointRequirement": int(payload.get("pointRequirement", 0) or 0),
+        "entryId": websim_node_entry_id({"traitId": payload.get("traitId"), "rankEntries": rank_entries}),
+        "dependencySource": payload.get("dependencySource", ""),
+        "schemaRevision": TALENT_SCHEMA_REVISION,
         "description": description,
         "iconUrl": icon_url,
         "source": payload.get("source", "simulationcraft"),
@@ -3997,6 +4061,7 @@ def get_websim_instances(conn):
 
 def get_websim_talents(conn, class_key="mage", spec_key="arcane", hero_key=""):
     ensure_websim_tables(conn)
+    ensure_community_talent_templates(conn)
     season = get_active_season_payload(conn)
     class_key = slugify(class_key, "mage")
     spec_key = slugify(spec_key, "arcane")
@@ -4032,12 +4097,17 @@ def get_websim_talents(conn, class_key="mage", spec_key="arcane", hero_key=""):
     if not nodes:
         nodes = fallback_talents(class_key, spec_key, hero_key)
         talent_status = "fallback"
+    talent_authority = talent_authority_payload(conn, talent_status, season, nodes)
     return {
         "classKey": class_key,
         "specKey": spec_key,
         "heroKey": hero_key,
+        "talentSchemaRevision": TALENT_SCHEMA_REVISION,
+        "talentAuthority": talent_authority,
         "nodes": nodes,
         "presets": get_websim_presets(conn, class_key, spec_key),
+        "communityTemplates": get_websim_community_talent_templates(conn, class_key, spec_key, hero_key),
+        "communityTemplateSync": community_talent_sync_state(conn),
         "treeSections": talent_tree_sections(class_key, spec_key, hero_key),
         "talentStatus": talent_status,
         **season_metadata_fields(season),
@@ -4058,6 +4128,409 @@ def get_websim_presets(conn, class_key="mage", spec_key="arcane"):
     if not rows:
         return fallback_presets(class_key, spec_key)
     return [{"id": row[0], "classKey": row[1], "specKey": row[2], "name": row[3], "profile": row[4]} for row in rows]
+
+
+def ensure_community_talent_templates(conn):
+    if get_sync_state(conn, COMMUNITY_TALENT_SYNC_KEY):
+        return
+    try:
+        sync_community_talent_templates(conn)
+    except Exception as error:
+        set_sync_state(conn, COMMUNITY_TALENT_SYNC_KEY, {
+            "sourceStatus": "blocked",
+            "sources": {
+                "manual_fixture": {"status": "blocked", "sourceName": "Manual Fixture", "errors": [str(error)]},
+                "raiderio": {"status": "missing_credentials", "sourceName": "Raider.IO", "errors": []},
+                "warcraftlogs": {"status": "missing_credentials", "sourceName": "Warcraft Logs", "errors": []},
+            },
+            "templates": {"total": 0, "verified": 0, "blocked": 0},
+            "checkedAt": utc_now(),
+        })
+
+
+def community_talent_sync_state(conn):
+    state = get_sync_state(conn, COMMUNITY_TALENT_SYNC_KEY)
+    if state:
+        return state
+    return {
+        "sourceStatus": "missing_credentials",
+        "sources": {
+            "manual_fixture": {"status": "missing_credentials", "sourceName": "Manual Fixture", "errors": []},
+            "raiderio": {"status": "missing_credentials", "sourceName": "Raider.IO", "errors": []},
+            "warcraftlogs": {"status": "missing_credentials", "sourceName": "Warcraft Logs", "errors": []},
+        },
+        "templates": {"total": 0, "verified": 0, "blocked": 0},
+        "checkedAt": "",
+    }
+
+
+def community_talent_selected_nodes(template):
+    state = template.get("talentState") if isinstance(template, dict) else {}
+    if not isinstance(state, dict):
+        state = {}
+    selected = state.get("selectedNodes") or template.get("selectedNodes") or []
+    if not isinstance(selected, list):
+        selected = []
+    normalized = []
+    for item in selected:
+        if not isinstance(item, dict):
+            continue
+        node_id = str(item.get("id") or "").strip()
+        if not node_id:
+            continue
+        try:
+            rank = int(item.get("rank") or 1)
+        except (TypeError, ValueError):
+            rank = 1
+        normalized.append({"id": node_id, "rank": max(1, rank)})
+    return normalized[:400]
+
+
+def community_talent_state(template):
+    state = template.get("talentState") if isinstance(template, dict) else {}
+    if not isinstance(state, dict):
+        state = {}
+    return {
+        **state,
+        "selectedNodes": community_talent_selected_nodes(template),
+    }
+
+
+def community_talent_export_code(template):
+    websim_code = str(template.get("websimExportCode") or "").strip()
+    if websim_code.startswith("websim:"):
+        return websim_code
+    selected = community_talent_selected_nodes(template)
+    if not selected:
+        return ""
+    class_key = slugify(template.get("classKey"), "mage")
+    spec_key = slugify(template.get("specKey"), "arcane")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(template.get("heroKey"), ""))
+    entries = ",".join(
+        f"{item['id']}:{item['rank']}"
+        for item in sorted(selected, key=lambda row: row["id"])
+    )
+    return f"websim:{class_key}:{spec_key}:{hero_key}:{entries}"
+
+
+def community_talent_default_state_from_db(conn, class_key, spec_key, hero_key):
+    rows = conn.execute(
+        """
+        SELECT id, spec_key, row_index, col_index, payload_json
+        FROM websim_talents
+        WHERE class_key = ?
+          AND (spec_key = ? OR spec_key = 'class')
+          AND spell_id > 0
+        ORDER BY row_index, col_index, id
+        LIMIT 320
+        """,
+        (class_key, spec_key),
+    ).fetchall()
+    selected = []
+    selected_ids = set()
+    by_tree = {"class": [], "spec": [], "hero": []}
+    for row in rows:
+        payload = safe_json_loads(row[4], {})
+        if not isinstance(payload, dict):
+            payload = {}
+        tree_type = payload.get("treeType") or ("class" if row[1] == "class" else "spec")
+        if tree_type == "hero" and payload.get("heroKey") != hero_key:
+            continue
+        if tree_type not in by_tree:
+            continue
+        node = {
+            "id": row[0],
+            "treeType": tree_type,
+            "row": int(row[2] or 0),
+            "col": int(row[3] or 0),
+            "rank": max(1, int(payload.get("selectedRank") or payload.get("grantedRank") or 1)),
+            "selectedRank": int(payload.get("selectedRank") or 0),
+            "grantedRank": int(payload.get("grantedRank") or 0),
+            "parentIds": payload.get("parentIds") if isinstance(payload.get("parentIds"), list) else [],
+            "pointRequirement": int(payload.get("pointRequirement") or 0),
+        }
+        by_tree[tree_type].append(node)
+        if node["selectedRank"] > 0 or node["grantedRank"] > 0:
+            selected.append({"id": node["id"], "rank": node["rank"]})
+            selected_ids.add(node["id"])
+
+    for tree_type in ("class", "spec", "hero"):
+        if any(item["id"] in selected_ids for item in by_tree[tree_type]):
+            continue
+        roots = [node for node in by_tree[tree_type] if not node["parentIds"] and node["pointRequirement"] <= 0]
+        node = (roots or by_tree[tree_type] or [None])[0]
+        if node and node["id"] not in selected_ids:
+            selected.append({"id": node["id"], "rank": 1})
+            selected_ids.add(node["id"])
+    return {"selectedNodes": selected}
+
+
+def normalize_community_talent_template(template, source_key="manual_fixture", source_status="partial"):
+    source = template if isinstance(template, dict) else {}
+    class_key = slugify(source.get("classKey"), "mage")
+    spec_key = slugify(source.get("specKey"), "arcane")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(source.get("heroKey"), ""))
+    scenario_key = slugify(source.get("scenarioKey"), "mythic_plus")
+    raw_import_code = external_talent_import_code({
+        "talents": source.get("rawImportCode") or source.get("talents") or source.get("talentImport") or ""
+    })
+    state = community_talent_state(source)
+    websim_export_code = community_talent_export_code({
+        **source,
+        "classKey": class_key,
+        "specKey": spec_key,
+        "heroKey": hero_key,
+        "talentState": state,
+    })
+    now = utc_now()
+    payload = dict(source.get("payload") or {})
+    payload.update({
+        "sourceKey": source_key,
+        "sourceStatus": source.get("sourceStatus") or source_status,
+    })
+    return {
+        "id": slugify(source.get("id"), f"{source_key}-{class_key}-{spec_key}-{hero_key or 'default'}-{scenario_key}"),
+        "classKey": class_key,
+        "specKey": spec_key,
+        "heroKey": hero_key,
+        "scenarioKey": scenario_key,
+        "name": str(source.get("name") or "高层大秘 · 主流").strip(),
+        "flowLabel": str(source.get("flowLabel") or "主流").strip(),
+        "sourceKey": source_key,
+        "sourceName": str(source.get("sourceName") or source_key).strip(),
+        "sourceUrl": str(source.get("sourceUrl") or "").strip(),
+        "rawImportCode": raw_import_code,
+        "websimExportCode": websim_export_code,
+        "talentState": state,
+        "sampleCount": int(source.get("sampleCount") or 0),
+        "maxKeyLevel": int(source.get("maxKeyLevel") or 0),
+        "analysisWindow": str(source.get("analysisWindow") or "").strip(),
+        "sourceStatus": str(source.get("sourceStatus") or source_status or "partial").strip(),
+        "status": str(source.get("status") or "blocked").strip(),
+        "payload": payload,
+        "updatedAt": str(source.get("updatedAt") or now).strip(),
+        "expiresAt": str(source.get("expiresAt") or season_expires_at()).strip(),
+    }
+
+
+def encoding_has_unknown_talent_nodes(encoding):
+    return any(str(error).startswith("unknown talent node:") for error in (encoding or {}).get("errors") or [])
+
+
+def validate_community_talent_template(conn, template):
+    normalized = normalize_community_talent_template(template, template.get("sourceKey", "manual_fixture"), template.get("sourceStatus", "partial"))
+    if community_talent_selected_nodes(normalized):
+        encoding = encode_websim_talents(conn, {
+            "classKey": normalized["classKey"],
+            "specKey": normalized["specKey"],
+            "heroKey": normalized["heroKey"],
+            "talentState": normalized["talentState"],
+        })
+        if normalized["sourceKey"] == "manual_fixture" and encoding_has_unknown_talent_nodes(encoding):
+            normalized["talentState"] = community_talent_default_state_from_db(
+                conn,
+                normalized["classKey"],
+                normalized["specKey"],
+                normalized["heroKey"],
+            )
+            normalized["websimExportCode"] = community_talent_export_code({**normalized, "websimExportCode": ""})
+            encoding = encode_websim_talents(conn, {
+                "classKey": normalized["classKey"],
+                "specKey": normalized["specKey"],
+                "heroKey": normalized["heroKey"],
+                "talentState": normalized["talentState"],
+            })
+        normalized["payload"]["talentEncoding"] = encoding
+        normalized["status"] = "verified" if encoding.get("status") == "encoded" else "blocked"
+        if encoding.get("errors"):
+            normalized["payload"]["errors"] = encoding.get("errors")
+    elif normalized["rawImportCode"]:
+        normalized["status"] = "verified"
+    else:
+        normalized["status"] = "blocked"
+        normalized["payload"]["errors"] = ["missing WebSim talent state or external talents import code"]
+    return normalized
+
+
+def upsert_community_talent_template(conn, template):
+    ensure_websim_tables(conn)
+    normalized = normalize_community_talent_template(
+        template,
+        template.get("sourceKey", "manual_fixture") if isinstance(template, dict) else "manual_fixture",
+        template.get("sourceStatus", "partial") if isinstance(template, dict) else "partial",
+    )
+    conn.execute(
+        """
+        INSERT INTO websim_community_talent_templates (
+            id, class_key, spec_key, hero_key, scenario_key, name, flow_label,
+            source_key, source_name, source_url, raw_import_code, websim_export_code,
+            talent_state_json, sample_count, max_key_level, analysis_window,
+            source_status, status, payload_json, updated_at, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            class_key=excluded.class_key,
+            spec_key=excluded.spec_key,
+            hero_key=excluded.hero_key,
+            scenario_key=excluded.scenario_key,
+            name=excluded.name,
+            flow_label=excluded.flow_label,
+            source_key=excluded.source_key,
+            source_name=excluded.source_name,
+            source_url=excluded.source_url,
+            raw_import_code=excluded.raw_import_code,
+            websim_export_code=excluded.websim_export_code,
+            talent_state_json=excluded.talent_state_json,
+            sample_count=excluded.sample_count,
+            max_key_level=excluded.max_key_level,
+            analysis_window=excluded.analysis_window,
+            source_status=excluded.source_status,
+            status=excluded.status,
+            payload_json=excluded.payload_json,
+            updated_at=excluded.updated_at,
+            expires_at=excluded.expires_at
+        """,
+        (
+            normalized["id"],
+            normalized["classKey"],
+            normalized["specKey"],
+            normalized["heroKey"],
+            normalized["scenarioKey"],
+            normalized["name"],
+            normalized["flowLabel"],
+            normalized["sourceKey"],
+            normalized["sourceName"],
+            normalized["sourceUrl"],
+            normalized["rawImportCode"],
+            normalized["websimExportCode"],
+            json.dumps(normalized["talentState"], ensure_ascii=False),
+            normalized["sampleCount"],
+            normalized["maxKeyLevel"],
+            normalized["analysisWindow"],
+            normalized["sourceStatus"],
+            normalized["status"],
+            json.dumps(normalized["payload"], ensure_ascii=False),
+            normalized["updatedAt"],
+            normalized["expiresAt"],
+        ),
+    )
+    return normalized
+
+
+def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arcane", hero_key=""):
+    ensure_websim_tables(conn)
+    class_key = slugify(class_key, "mage")
+    spec_key = slugify(spec_key, "arcane")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(hero_key, ""))
+    rows = conn.execute(
+        """
+        SELECT id, class_key, spec_key, hero_key, scenario_key, name, flow_label,
+               source_key, source_name, source_url, raw_import_code, websim_export_code,
+               talent_state_json, sample_count, max_key_level, analysis_window,
+               source_status, status, payload_json, updated_at, expires_at
+        FROM websim_community_talent_templates
+        WHERE class_key = ?
+          AND spec_key = ?
+          AND hero_key = ?
+          AND status = 'verified'
+        ORDER BY scenario_key, sample_count DESC, max_key_level DESC, name
+        LIMIT 12
+        """,
+        (class_key, spec_key, hero_key),
+    ).fetchall()
+    templates = []
+    for row in rows:
+        talent_state = safe_json_loads(row[12], {"selectedNodes": []})
+        if not isinstance(talent_state, dict):
+            talent_state = {"selectedNodes": []}
+        payload = safe_json_loads(row[18], {})
+        websim_export_code = row[11] or ""
+        raw_import_code = row[10] or ""
+        selected_nodes = talent_state.get("selectedNodes") if isinstance(talent_state.get("selectedNodes"), list) else []
+        can_apply_visual = bool(websim_export_code.startswith("websim:") and selected_nodes)
+        templates.append({
+            "id": row[0],
+            "classKey": row[1],
+            "specKey": row[2],
+            "heroKey": row[3],
+            "scenarioKey": row[4],
+            "name": row[5],
+            "flowLabel": row[6],
+            "sourceKey": row[7],
+            "sourceName": row[8],
+            "sourceUrl": row[9],
+            "rawImportCode": raw_import_code,
+            "websimExportCode": websim_export_code,
+            "talentState": talent_state,
+            "sampleCount": int(row[13] or 0),
+            "maxKeyLevel": int(row[14] or 0),
+            "analysisWindow": row[15],
+            "sourceStatus": row[16],
+            "status": row[17],
+            "payload": payload,
+            "updatedAt": row[19],
+            "expiresAt": row[20],
+            "canApplyVisual": can_apply_visual,
+            "canUseInSimc": bool(can_apply_visual or raw_import_code),
+        })
+    return templates
+
+
+def sync_community_talent_templates(conn):
+    ensure_websim_tables(conn)
+    try:
+        from .community_talent_sources import manual_fixture, raiderio, warcraftlogs
+    except ImportError:
+        from community_talent_sources import manual_fixture, raiderio, warcraftlogs
+
+    adapters = {
+        "manual_fixture": manual_fixture.load_templates,
+        "raiderio": raiderio.load_templates,
+        "warcraftlogs": warcraftlogs.load_templates,
+    }
+    sources = {}
+    verified = 0
+    blocked = 0
+    total = 0
+    for source_key, loader in adapters.items():
+        try:
+            result = loader()
+        except Exception as error:
+            result = {"status": "blocked", "sourceName": source_key, "templates": [], "errors": [str(error)]}
+        sources[source_key] = {
+            "status": result.get("status") or "blocked",
+            "sourceName": result.get("sourceName") or source_key,
+            "errors": result.get("errors") or [],
+        }
+        for raw_template in result.get("templates") or []:
+            template = validate_community_talent_template(conn, {
+                **raw_template,
+                "sourceKey": source_key,
+                "sourceStatus": "partial" if result.get("status") == "synced" and source_key == "manual_fixture" else result.get("status"),
+            })
+            upsert_community_talent_template(conn, template)
+            total += 1
+            if template["status"] == "verified":
+                verified += 1
+            else:
+                blocked += 1
+
+    missing_external = any(sources[key]["status"] == "missing_credentials" for key in ("raiderio", "warcraftlogs"))
+    if verified and missing_external:
+        source_status = "partial"
+    elif verified:
+        source_status = "synced"
+    elif missing_external:
+        source_status = "missing_credentials"
+    else:
+        source_status = "blocked"
+    payload = {
+        "sourceStatus": source_status,
+        "sources": sources,
+        "templates": {"total": total, "verified": verified, "blocked": blocked},
+        "checkedAt": utc_now(),
+    }
+    set_sync_state(conn, COMMUNITY_TALENT_SYNC_KEY, payload)
+    return payload
 
 
 def websim_item_metadata_by_ids(conn, item_ids):
@@ -4617,6 +5090,7 @@ def blank_talent_encoding(status="skipped", source="none"):
     return {
         "status": status,
         "source": source,
+        "schemaRevision": TALENT_SCHEMA_REVISION,
         "errors": [],
         "warnings": [],
         "lines": [],
@@ -4662,6 +5136,53 @@ def external_talent_import_code(payload):
     return normalize_option_value(value)
 
 
+def parse_websim_talent_export_code(value):
+    text = str(value or "").strip()
+    if text.startswith("talents="):
+        text = text.split("=", 1)[1].strip()
+    if not text.startswith("websim:"):
+        return None
+    parts = text.split(":")
+    if len(parts) < 5:
+        return None
+    rank_payload = ":".join(parts[4:]).split(";", 1)[0]
+    selected_nodes = []
+    for entry in rank_payload.split(","):
+        if not entry:
+            continue
+        node_id, _, raw_rank = entry.partition(":")
+        node_id = node_id.strip()
+        if not node_id:
+            continue
+        try:
+            rank = int(raw_rank or 1)
+        except (TypeError, ValueError):
+            rank = 1
+        selected_nodes.append({"id": node_id, "rank": max(1, rank)})
+    return {
+        "classKey": parts[1] or "",
+        "specKey": parts[2] or "",
+        "heroKey": parts[3] or "",
+        "talentState": {"selectedNodes": selected_nodes},
+    }
+
+
+def build_websim_talent_export_code(payload):
+    source = payload if isinstance(payload, dict) else {}
+    parsed = parse_websim_talent_export_code(source.get("websimExportCode") or source.get("talents") or "")
+    if parsed:
+        return str(source.get("websimExportCode") or source.get("talents") or "").replace("talents=", "", 1).strip()
+    class_key = slugify(source.get("classKey"), "mage")
+    spec_key = slugify(source.get("specKey"), "arcane")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(source.get("heroKey"), ""))
+    entries = sorted(
+        websim_selected_talent_nodes(source),
+        key=lambda item: item["id"],
+    )
+    rank_payload = ",".join(f"{item['id']}:{max(1, int(item.get('rank') or 1))}" for item in entries if item.get("rank", 0) > 0)
+    return f"websim:{class_key}:{spec_key}:{hero_key}:{rank_payload}"
+
+
 def websim_tree_line_key(tree_type):
     return {
         "class": "class_talents",
@@ -4688,10 +5209,60 @@ def websim_node_entry_id(node):
     return 0
 
 
+def websim_parent_mode(node):
+    try:
+        value = str(node.get("parentMode") or "").strip().lower()
+    except AttributeError:
+        value = ""
+    return "all" if value == "all" else "any"
+
+
 def build_websim_authority_nodes(conn, class_key, spec_key, hero_key):
     payload = get_websim_talents(conn, class_key, spec_key, hero_key)
     nodes = payload.get("nodes") or []
     return payload, {str(node.get("id") or ""): node for node in nodes if node.get("id")}
+
+
+def talent_dependency_source(nodes):
+    sources = sorted({
+        str(node.get("dependencySource") or "").strip()
+        for node in nodes or []
+        if str(node.get("dependencySource") or "").strip()
+    })
+    return ", ".join(sources)
+
+
+def talent_authority_payload(conn, talent_status, season, nodes):
+    sync_state = get_sync_state(conn, "websim_sync") or {}
+    simc_state = sync_state.get("simc") if isinstance(sync_state.get("simc"), dict) else {}
+    runtime_source = "fallback" if talent_status == "fallback" else ("simc" if talent_status in {"simc", "verified"} else str(talent_status or "unknown"))
+    official_configured = blizzard_credentials_configured()
+    official_status = "pending_audit" if official_configured else "not_configured"
+    if talent_status == "fallback":
+        diff_status = "blocked"
+    elif official_status == "not_configured":
+        diff_status = "pending_official_audit"
+    else:
+        diff_status = "verified" if talent_status == "verified" else "pending_official_audit"
+    trait_edge_source = str(simc_state.get("traitEdgeSource") or "").strip() or talent_dependency_source(nodes)
+    return {
+        "schemaRevision": TALENT_SCHEMA_REVISION,
+        "runtimeSource": runtime_source,
+        "diffStatus": diff_status,
+        "checkedAt": sync_state.get("checkedAt") or utc_now(),
+        "runtime": {
+            "status": talent_status,
+            "source": runtime_source,
+            "simcBuild": simc_state.get("build") or "",
+            "traitEdgeSource": trait_edge_source,
+            "nodeCount": len(nodes or []),
+        },
+        "official": {
+            "status": official_status,
+            "revision": (season.get("seasonRevision") or season.get("revision") or "") if official_configured else "",
+            "source": "blizzard-game-data-api",
+        },
+    }
 
 
 def validate_websim_talent_selection(nodes_by_id, selected_rows, tree_sections):
@@ -4705,7 +5276,7 @@ def validate_websim_talent_selection(nodes_by_id, selected_rows, tree_sections):
             continue
         selected_by_id[node_id] = max(selected_by_id.get(node_id, 0), row["rank"])
 
-    tree_points = {"class": 0, "spec": 0, "hero": 0}
+    active_counts = {"class": 0, "spec": 0, "hero": 0}
     purchased_counts = {"class": 0, "spec": 0, "hero": 0}
     selected_choice_groups = {}
     encoded = {"class": [], "spec": [], "hero": []}
@@ -4721,7 +5292,7 @@ def validate_websim_talent_selection(nodes_by_id, selected_rows, tree_sections):
         if selected_rank > max_rank:
             errors.append(f"talent rank exceeds max rank: {node_id}")
             selected_rank = max_rank
-        tree_points[tree_type] = tree_points.get(tree_type, 0) + selected_rank
+        active_counts[tree_type] = active_counts.get(tree_type, 0) + selected_rank
         purchased_rank = max(0, selected_rank - granted_rank)
         if purchased_rank <= 0:
             continue
@@ -4753,12 +5324,23 @@ def validate_websim_talent_selection(nodes_by_id, selected_rows, tree_sections):
         if selected_rank <= 0:
             continue
         node = nodes_by_id[node_id]
+        max_rank = max(1, int(node.get("maxRank") or node.get("rank") or 1))
+        granted_rank = max(0, min(max_rank, int(node.get("grantedRank") or 0)))
+        if selected_rank <= granted_rank:
+            continue
         parent_ids = [parent_id for parent_id in node.get("parentIds") or [] if parent_id in nodes_by_id]
-        if parent_ids and not any(selected_by_id.get(parent_id, 0) > 0 for parent_id in parent_ids):
-            errors.append(f"missing parent talent for {node_id}")
+        if parent_ids:
+            selected_parent_ids = [parent_id for parent_id in parent_ids if selected_by_id.get(parent_id, 0) > 0]
+            if websim_parent_mode(node) == "all":
+                missing_parent_ids = [parent_id for parent_id in parent_ids if parent_id not in selected_parent_ids]
+                if missing_parent_ids:
+                    errors.append(f"missing parent talent for {node_id}: {', '.join(missing_parent_ids)}")
+            elif not selected_parent_ids:
+                errors.append(f"missing parent talent for {node_id}")
         requirement = max(0, int(node.get("pointRequirement") or 0))
         tree_type = node.get("treeType") or ("class" if node.get("specKey") == "class" else "spec")
-        points_before_node = tree_points.get(tree_type, 0) - selected_rank
+        purchased_rank = max(0, selected_rank - granted_rank)
+        points_before_node = purchased_counts.get(tree_type, 0) - purchased_rank
         if requirement and points_before_node < requirement:
             errors.append(f"talent point gate not satisfied for {node_id}: requires {requirement}")
 
@@ -4771,7 +5353,7 @@ def validate_websim_talent_selection(nodes_by_id, selected_rows, tree_sections):
             cap = 0
         if key and cap > 0:
             point_caps[key] = cap
-    for tree_type, points in tree_points.items():
+    for tree_type, points in purchased_counts.items():
         if point_caps.get(tree_type) and points > point_caps[tree_type]:
             errors.append(f"{tree_type} talent points exceed cap: {points}/{point_caps[tree_type]}")
 
@@ -4833,6 +5415,71 @@ def encode_websim_talents(conn, payload):
     encoding["status"] = "encoded"
     encoding["lines"] = lines
     return encoding
+
+
+def validate_talent_api_payload(conn, payload):
+    source = payload if isinstance(payload, dict) else {}
+    parsed = parse_websim_talent_export_code(source.get("code") or source.get("talents") or source.get("websimExportCode") or "")
+    request_payload = {**source, **parsed} if parsed else dict(source)
+    class_key = slugify(request_payload.get("classKey"), "mage")
+    spec_key = slugify(request_payload.get("specKey"), "arcane")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(request_payload.get("heroKey"), ""))
+    request_payload.update({"classKey": class_key, "specKey": spec_key, "heroKey": hero_key})
+    talent_payload = get_websim_talents(conn, class_key, spec_key, hero_key)
+    encoding = encode_websim_talents(conn, request_payload)
+    return {
+        **encoding,
+        "classKey": class_key,
+        "specKey": spec_key,
+        "heroKey": hero_key,
+        "talentState": {"selectedNodes": websim_selected_talent_nodes(request_payload)},
+        "talentSchemaRevision": TALENT_SCHEMA_REVISION,
+        "talentAuthority": talent_payload.get("talentAuthority"),
+    }
+
+
+def export_talent_api_payload(conn, payload):
+    source = payload if isinstance(payload, dict) else {}
+    validation = validate_talent_api_payload(conn, source)
+    export_source = {
+        **source,
+        "classKey": validation["classKey"],
+        "specKey": validation["specKey"],
+        "heroKey": validation["heroKey"],
+        "talentState": validation["talentState"],
+    }
+    return {
+        "classKey": validation["classKey"],
+        "specKey": validation["specKey"],
+        "heroKey": validation["heroKey"],
+        "talentState": validation["talentState"],
+        "websimExportCode": build_websim_talent_export_code(export_source),
+        "validation": validation,
+        "talentSchemaRevision": TALENT_SCHEMA_REVISION,
+    }
+
+
+def import_talent_api_payload(conn, payload):
+    source = payload if isinstance(payload, dict) else {}
+    code = source.get("code") or source.get("talents") or source.get("websimExportCode") or ""
+    parsed = parse_websim_talent_export_code(code)
+    if parsed:
+        validation = validate_talent_api_payload(conn, parsed)
+        return {
+            **parsed,
+            "validation": validation,
+            "talentSchemaRevision": TALENT_SCHEMA_REVISION,
+        }
+    raw_import_code = external_talent_import_code({"talents": code})
+    return {
+        "classKey": slugify(source.get("classKey"), ""),
+        "specKey": slugify(source.get("specKey"), ""),
+        "heroKey": slugify(source.get("heroKey"), ""),
+        "rawImportCode": raw_import_code,
+        "talentState": {"selectedNodes": []},
+        "validation": validate_talent_api_payload(conn, {"talents": raw_import_code} if raw_import_code else {}),
+        "talentSchemaRevision": TALENT_SCHEMA_REVISION,
+    }
 
 
 def build_websim_profile(payload, conn=None):
