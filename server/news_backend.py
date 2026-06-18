@@ -39,6 +39,7 @@ try:
         enrich_build_gear_payload,
         ensure_websim_tables,
         export_talent_api_payload,
+        get_websim_assets,
         get_websim_bootstrap,
         get_websim_gear,
         get_websim_loot,
@@ -70,6 +71,7 @@ except ImportError:
         enrich_build_gear_payload,
         ensure_websim_tables,
         export_talent_api_payload,
+        get_websim_assets,
         get_websim_bootstrap,
         get_websim_gear,
         get_websim_loot,
@@ -1452,6 +1454,62 @@ def runtime_season_payload():
         return get_active_season_payload(conn)
 
 
+def safe_positive_int(value):
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def has_verified_external_pve_sources(payload):
+    if not isinstance(payload, dict) or payload.get("key") != "specLadder":
+        return False
+    source_checks = payload.get("sourceChecks")
+    if not isinstance(source_checks, list):
+        return False
+    required_sources = {"archon", "warcraftlogs"}
+    verified_sources = {
+        source.get("key")
+        for source in source_checks
+        if source.get("status") == "verified" and safe_positive_int(source.get("sampleCount")) > 0
+    }
+    return required_sources.issubset(verified_sources)
+
+
+def has_source_backed_pve_items(payload):
+    if not isinstance(payload, dict):
+        return False
+    items = payload.get("items")
+    if not isinstance(items, list) or not items:
+        return False
+    for item in items:
+        if not isinstance(item, dict):
+            return False
+        if not str(item.get("sourceUrl") or "").startswith("https://"):
+            return False
+        if not str(item.get("sourceName") or "").strip():
+            return False
+        if not str(item.get("analysisWindow") or "").strip():
+            return False
+    return True
+
+
+def has_source_backed_pve_home(payload):
+    if not isinstance(payload, dict):
+        return False
+    zones = payload.get("zones")
+    if not isinstance(zones, list) or not zones:
+        return False
+    for zone in zones:
+        modules = zone.get("modules") if isinstance(zone, dict) else None
+        if not isinstance(modules, list):
+            continue
+        for module in modules:
+            if has_verified_external_pve_sources(module) or has_source_backed_pve_items(module):
+                return True
+    return False
+
+
 def apply_runtime_season_gate(payload, payload_type):
     if not isinstance(payload, dict):
         return payload
@@ -1474,6 +1532,17 @@ def apply_runtime_season_gate(payload, payload_type):
         return gated
 
     gated["blockedReason"] = "赛季数据尚未通过暴雪官方 API 校验，暂不返回可能过期的天赋、装备或副本数据。"
+    if payload_type == "pve_home" and has_source_backed_pve_home(gated):
+        gated["runtimeSeasonGate"] = "external_sources_available"
+        return gated
+
+    if payload_type == "pve_module" and has_verified_external_pve_sources(gated):
+        gated["runtimeSeasonGate"] = "external_sources_verified"
+        return gated
+    if payload_type == "pve_module" and has_source_backed_pve_items(gated):
+        gated["runtimeSeasonGate"] = "external_sources_available"
+        return gated
+
     if payload_type == "pve_home":
         gated["zones"] = []
     elif payload_type == "pve_module":
@@ -1877,6 +1946,20 @@ class Handler(BaseHTTPRequestHandler):
             init_db()
             with db_connection() as conn:
                 json_response(self, 200, get_websim_bootstrap(conn))
+            return
+        if path == "/api/websim/assets":
+            query = parse_qs(urlparse(self.path).query)
+            filters = {
+                "entityType": query.get("entityType", [""])[0],
+                "entityId": query.get("entityId", [""])[0],
+                "context": query.get("context", query.get("contextKey", [""]))[0],
+                "status": query.get("status", [""])[0],
+                "source": query.get("source", [""])[0],
+                "limit": query.get("limit", [""])[0],
+            }
+            init_db()
+            with db_connection() as conn:
+                json_response(self, 200, get_websim_assets(conn, filters))
             return
         if path == "/api/talents/tree":
             init_db()

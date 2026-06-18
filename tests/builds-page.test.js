@@ -55,6 +55,9 @@ function loadBuildsDetailPageConfig() {
           }
         }
       }
+      if (modulePath === '../common/game-asset') {
+        return require('../pages/common/game-asset')
+      }
       throw new Error(`Unexpected require: ${modulePath}`)
     }
   }
@@ -221,6 +224,7 @@ test('native talent simulator page exposes WebSim tree controls and SimC handoff
   const css = fs.readFileSync('pages/builds/talent-simulator.wxss', 'utf8')
 
   assert.ok(app.pages.includes('pages/builds/talent-simulator'))
+  assert.match(js, /game-asset/)
   assert.match(js, /requestWebsimBootstrap/)
   assert.match(js, /requestWebsimTalents/)
   assert.match(js, /requestWebsimProfile/)
@@ -240,6 +244,8 @@ test('native talent simulator page exposes WebSim tree controls and SimC handoff
   assert.match(js, /activeSection/)
   assert.match(js, /selectTalentTree\(event\)/)
   assert.match(wxml, /class="talent-simulator-page"/)
+  assert.match(wxml, /item\.gameAsset\.iconUrl/)
+  assert.doesNotMatch(wxml, /item\.iconUrl/)
   assert.match(wxml, /wx:for="\{\{treeNavItems\}\}"/)
   assert.match(wxml, /class="\{\{item\.tabClass\}\}"/)
   assert.match(wxml, /class="active-tree-panel/)
@@ -307,6 +313,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
   const css = fs.readFileSync('pages/builds/detail.wxss', 'utf8')
 
+  assert.match(js, /game-asset/)
   assert.match(js, /requestWebsimGear/)
   assert.match(js, /requestWebsimGearStats/)
   assert.match(js, /selectedGearBySlot/)
@@ -333,6 +340,8 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(wxml, /class="gear-slot-grid"/)
   assert.match(wxml, /wx:for="\{\{gearSlotRows\}\}"/)
   assert.match(wxml, /class="gear-icon"/)
+  assert.match(wxml, /item\.gameAsset\.iconUrl/)
+  assert.doesNotMatch(wxml, /item\.iconUrl/)
   assert.match(wxml, /item\.displayName/)
   assert.match(wxml, /item\.statusLabel/)
   assert.match(wxml, /bindtap="openGearSlotSheet"/)
@@ -357,6 +366,7 @@ test('gear slot candidate count matches selectable deduped equipment rows', () =
     itemId: '250060',
     id: '250060',
     displayName: '虚空粉碎者的面纱',
+    iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_helm_cloth_raidmage_j_01.jpg',
     ilevel: '289',
     bonus_id: '1808/13575',
     simcReady: true
@@ -395,6 +405,8 @@ test('gear slot candidate count matches selectable deduped equipment rows', () =
 
   assert.equal(page.data.gearSlotSheet.candidates.length, 1)
   assert.equal(page.data.gearSlotRows[0].candidateCount, page.data.gearSlotSheet.candidates.length)
+  assert.equal(page.data.gearSlotRows[0].gameAsset.iconUrl, item.iconUrl)
+  assert.equal(page.data.gearSlotSheet.candidates[0].gameAsset.iconUrl, item.iconUrl)
 })
 
 test('simc linkage derives talent and gear state from full specialization details', () => {

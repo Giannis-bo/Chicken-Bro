@@ -14,7 +14,146 @@
         <text>{{activeModule.lastAnalyzedAt}}</text>
       </view>
 
-      <view class="record-list">
+      <view class="spec-ladder-panel" wx:if="{{isSpecLadder}}">
+        <view class="role-tabs">
+          <view
+            class="{{item.tabClass}}"
+            wx:for="{{specLadderRoles}}"
+            wx:key="key"
+            data-role="{{item.key}}"
+            bindtap="selectSpecLadderRole"
+          >
+            <text class="role-title">{{item.title}}</text>
+            <text class="role-count">{{item.count}} 个专精</text>
+          </view>
+        </view>
+
+        <view class="ladder-filter-strip">
+          <text>高层大秘境</text>
+          <text>全副本</text>
+          <text>近14天</text>
+          <text wx:if="{{activeRoleMeta.updatedAt}}">{{activeRoleMeta.updatedAt}}</text>
+        </view>
+
+        <view class="archon-tier-board">
+          <view class="board-header">
+            <view>
+              <text class="board-title">Archon 强度概览</text>
+              <text class="board-subtitle">按 M+ Score 分层，点击专精查看 WCL 明细</text>
+            </view>
+            <text class="board-source">Archon</text>
+          </view>
+
+          <view class="tier-row" wx:for="{{activeArchonTiers}}" wx:for-item="tier" wx:key="tier">
+            <view class="{{tier.tierClass}}">
+              <text>{{tier.tier}}</text>
+            </view>
+            <view class="tier-specs">
+              <view
+                class="{{item.pillClass}}"
+                wx:for="{{tier.items}}"
+                wx:key="specId"
+                data-spec="{{item.specId}}"
+                bindtap="selectSpecLadderSpec"
+              >
+                <view class="spec-icon" style="{{item.iconStyle}}">
+                  <image wx:if="{{item.gameAsset.iconUrl}}" src="{{item.gameAsset.iconUrl}}" mode="aspectFill"></image>
+                  <text>{{item.gameAsset.fallbackText}}</text>
+                </view>
+                <view class="spec-pill-body">
+                  <text class="spec-name">{{item.fullName}}</text>
+                  <view class="spec-score-row">
+                    <text>{{item.score}}</text>
+                    <text>{{item.scoreLabel}}</text>
+                  </view>
+                  <text class="spec-sample">{{item.sampleText}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="wcl-stat-board" wx:if="{{activeWclRows.length}}">
+          <view class="wcl-header">
+            <view>
+              <text class="wcl-title">WCL 统计分布</text>
+              <text class="wcl-subtitle">{{activeRoleMeta.title}} · {{selectedWclDetail.metricLabel}} · 当前选中 {{selectedWclDetail.fullName}}</text>
+            </view>
+            <text class="wcl-status">{{selectedWclDetail.sourceStatusLabel}}</text>
+          </view>
+
+          <view class="wcl-filter-bars">
+            <view class="wcl-filter-row primary">
+              <text>Points</text>
+              <text>All Dungeons</text>
+              <text>{{activeRoleMeta.title}}</text>
+              <text>All Keystone Levels</text>
+            </view>
+            <view class="wcl-filter-row secondary">
+              <text>All Percentiles</text>
+              <text>2 Weeks</text>
+              <text>Current Standings</text>
+              <text>Normalized Scores</text>
+            </view>
+          </view>
+
+          <view class="wcl-chart-table">
+            <view class="wcl-chart-head">
+              <text class="wcl-head-spec">Spec</text>
+              <text class="wcl-head-chart">Percentile Range</text>
+            </view>
+            <view
+              class="wcl-chart-row {{item.rowClass}}"
+              wx:for="{{activeWclRows}}"
+              wx:key="specId"
+              data-spec="{{item.specId}}"
+              bindtap="selectSpecLadderSpec"
+            >
+              <view class="wcl-spec-cell">
+                <text class="wcl-row-rank">#{{item.rank}}</text>
+                <view class="wcl-row-name">
+                  <text class="wcl-row-title" style="color: {{item.classColor}};">{{item.fullName}}</text>
+                  <text class="wcl-row-subtitle">Tier {{item.tier}} · {{item.sourceStatusLabel}}</text>
+                </view>
+              </view>
+
+              <view class="wcl-chart-cell">
+                <view class="wcl-range-track">
+                  <view class="wcl-range-line" style="{{item.wclRangeStyle}}"></view>
+                  <view class="wcl-range-box" style="{{item.wclBoxStyle}}"></view>
+                  <view class="wcl-median-mark" style="{{item.wclMedianStyle}}"></view>
+                  <view class="wcl-score-dot" style="{{item.wclScoreDotStyle}}"></view>
+                </view>
+                <view class="wcl-range-labels">
+                  <text>P50 {{item.distribution.p50}}</text>
+                  <text>P75 {{item.distribution.p75}}</text>
+                  <text>P95 {{item.distribution.p95}}</text>
+                </view>
+              </view>
+
+              <view class="wcl-row-metrics">
+                <text>Score {{item.scoreText}}</text>
+                <text>Max {{item.maxText}}</text>
+                <text>Parses {{item.parsesText}}</text>
+              </view>
+            </view>
+            <text class="wcl-chart-footnote">同一角色分组内展示 WCL 明细；点击任一行会同步选中 Archon 专精。</text>
+          </view>
+        </view>
+
+        <view class="source-check-list">
+          <view class="source-check" wx:for="{{activeModule.sourceChecks}}" wx:key="key">
+            <view class="source-check-row">
+              <text class="source-check-name">{{item.name}}</text>
+              <text class="source-check-status">{{item.statusLabel}}</text>
+            </view>
+            <text class="source-check-text">{{item.domain}} · {{item.analysisWindow}}</text>
+            <text class="source-check-text">{{item.checkedAt}} · {{item.sampleCount}} samples</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="record-list" wx:if="{{!isSpecLadder}}">
         <view class="record-card" wx:for="{{activeModule.items}}" wx:for-item="record" wx:for-index="recordIndex" wx:key="recordIndex">
           <view class="record-row">
             <text class="record-title">{{record.title}}</text>
@@ -29,7 +168,7 @@
         </view>
       </view>
 
-      <view class="source-box">
+      <view class="source-box" wx:if="{{!isSpecLadder}}">
         <text class="source-box-title">专区来源</text>
         <text class="source-box-text">{{activeModule.sourceName}}</text>
         <text class="source-box-text">{{activeModule.analysisWindow}}</text>

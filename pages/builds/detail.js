@@ -10,6 +10,7 @@ const {
 } = require('./websim-api')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 const { saveBuildTemplate } = require('../common/build-template-storage')
+const { attachGameAsset } = require('../common/game-asset')
 
 const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
 const fallbackPayload = fallbackBuildsHome()
@@ -74,6 +75,21 @@ function specWebsimKeys(selectedSpec) {
 
 function itemDisplayName(item) {
   return (item && (item.displayName || item.localizedName || item.englishName || item.name)) || '待选择装备'
+}
+
+function attachGearGameAsset(row, contextKey) {
+  const slot = row && (row.slot || row.simcSlot || '')
+  const displayName = itemDisplayName(row)
+  return attachGameAsset(row || {}, {
+    entityType: 'item',
+    entityId: (row && String(row.itemId || row.id || displayName)) || displayName,
+    contextKey,
+    source: (row && (row.metadataSource || row.sourceType || row.source)) || 'game_asset_fallback',
+    status: row && (row.simcReady || row.metadataStatus === 'verified') ? 'verified' : ((row && row.iconUrl) ? 'partial' : 'missing'),
+    semanticTags: ['game', 'gear', 'item', slot],
+    usage: ['builds_detail', contextKey],
+    fallbackText: displayName
+  })
 }
 
 function gearStatusLabel(status) {
@@ -188,7 +204,7 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
     seen.add(key)
     const isSelected = selected && String(selected.itemId || selected.id || '') === String(item.itemId || item.id || '')
     const missingFields = Array.isArray(item.missingFields) ? item.missingFields : []
-    return {
+    return attachGearGameAsset({
       ...item,
       key,
       slot: item.slot || slot,
@@ -198,7 +214,7 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
       statusClass: gearStatusClass(item.simcReady ? 'verified' : (missingFields.length ? 'partial' : 'blocked')),
       reason: item.simcReady ? '可写入 SimC profile' : (missingFields.length ? `缺 ${missingFields.join(' / ')}` : '缺 SimC 字段'),
       selected: !!isSelected
-    }
+    }, 'gear-candidate')
   }).filter(Boolean).slice(0, 12)
 }
 
@@ -212,7 +228,7 @@ function buildGearSlotRows(payload, selectedGearBySlot) {
     const item = selection[slot] || ((payload.equippedSet || {})[slot]) || {}
     const slotState = readiness[slot] || {}
     const status = item.simcReady ? 'verified' : (slotState.status || 'blocked')
-    return {
+    return attachGearGameAsset({
       slot,
       label: slotMeta.label || slot,
       displayName: itemDisplayName(item),
@@ -226,7 +242,7 @@ function buildGearSlotRows(payload, selectedGearBySlot) {
       statusClass: gearStatusClass(status),
       reason: slotState.reason || (item.simcReady ? '可写入 SimC profile' : '等待 SimC 字段'),
       candidateCount: buildGearCandidateRows(slot, payload, selection).length
-    }
+    }, 'gear-slot')
   })
 }
 

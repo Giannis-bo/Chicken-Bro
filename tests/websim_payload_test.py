@@ -588,6 +588,9 @@ class WebSimPayloadTest(unittest.TestCase):
                     self.assertTrue(granted_nodes)
                     self.assertTrue(all(node.get("granted") for node in granted_nodes))
                     self.assertTrue(all(node.get("iconUrl") for node in payload["nodes"]))
+                    self.assertTrue(all(node.get("gameAsset", {}).get("iconUrl") == node.get("iconUrl") for node in payload["nodes"]))
+                    self.assertTrue(all(node.get("gameAsset", {}).get("entityType") == "talent" for node in payload["nodes"]))
+                    self.assertTrue(all(node.get("gameAsset", {}).get("resolutionTier") == "icon_56" for node in payload["nodes"]))
                     self.assertTrue(all("pointRequirement" in node for node in payload["nodes"]))
                     self.assertTrue(all(node.get("schemaRevision") == self.websim_payload.TALENT_SCHEMA_REVISION for node in payload["nodes"]))
                     self.assertTrue(all(node.get("parentMode") in {"any", "all"} for node in payload["nodes"]))
@@ -736,10 +739,156 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual({node["name"] for node in payload["nodes"]}, {"Mage Class Node", "Arcane Spec Node", "Spellslinger Node"})
         self.assertIn("Arcane tooltip from SimC.", {node["description"] for node in payload["nodes"]})
         self.assertTrue(all(node["iconUrl"] for node in payload["nodes"]))
+        self.assertTrue(all(node["gameAsset"]["iconUrl"] == node["iconUrl"] for node in payload["nodes"]))
+        self.assertTrue(all(node["gameAsset"]["entityType"] == "talent" for node in payload["nodes"]))
+        self.assertTrue(all("talent_simulator" in node["gameAsset"]["usage"] for node in payload["nodes"]))
+        self.assertTrue(all(node["gameAsset"]["source"] == "simulationcraft" for node in payload["nodes"]))
+        self.assertTrue(all(node["gameAsset"]["status"] == "partial" for node in payload["nodes"]))
         self.assertTrue(all(node["entryId"] for node in payload["nodes"]))
         self.assertTrue(all(node["parentMode"] in {"any", "all"} for node in payload["nodes"]))
         self.assertTrue(all(node["schemaRevision"] == self.websim_payload.TALENT_SCHEMA_REVISION for node in payload["nodes"]))
         self.assertIn("spell_frost_frostbolt02.jpg", {node["iconUrl"].rsplit("/", 1)[-1] for node in payload["nodes"]})
+
+    def test_asset_registry_records_and_queries_item_metadata(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            saved = self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250111",
+                {
+                    "name": "虚空粉碎者的面纱",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.worldofwarcraft.com/us/icons/56/inv_helm_cloth_raidmage_j_01.jpg"}]},
+                fallback_name="Voidshredder Hood",
+                fallback_slot="head",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250111",
+                {
+                    "name": "虚空粉碎者的面纱",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.worldofwarcraft.com/us/icons/56/inv_helm_cloth_raidmage_j_01.jpg"}]},
+                fallback_name="Voidshredder Hood",
+                fallback_slot="head",
+            )
+            conn.commit()
+
+            assets = self.websim_payload.get_websim_assets(
+                conn,
+                {"entityType": "item", "entityId": "250111", "context": "websim-item-metadata"},
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(saved["gameAsset"]["id"], "item:250111:websim-item-metadata")
+        self.assertEqual(len(assets["assets"]), 1)
+        asset = assets["assets"][0]
+        self.assertEqual(asset["entityType"], "item")
+        self.assertEqual(asset["entityId"], "250111")
+        self.assertEqual(asset["contextKey"], "websim-item-metadata")
+        self.assertEqual(asset["iconUrl"], "https://render.worldofwarcraft.com/us/icons/56/inv_helm_cloth_raidmage_j_01.jpg")
+        self.assertEqual(asset["resolutionTier"], "icon_56")
+        self.assertEqual(asset["source"], "blizzard")
+        self.assertEqual(asset["status"], "verified")
+        self.assertIn("gear", asset["semanticTags"])
+        self.assertIn("websim_gear", asset["usage"])
+        self.assertEqual(assets["counts"]["byStatus"]["verified"], 1)
+
+    def test_asset_registry_does_not_downgrade_verified_assets(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            verified = self.websim_payload.game_asset_from_icon_url(
+                "spell",
+                "123",
+                "websim-spell-details",
+                "https://render.worldofwarcraft.com/us/icons/56/spell_frost_frostbolt02.jpg",
+                source="blizzard",
+                status="verified",
+                semantic_tags=["game", "spell"],
+                usage=["talent_simulator"],
+                fallback_text="FB",
+            )
+            partial = self.websim_payload.game_asset_from_icon_url(
+                "spell",
+                "123",
+                "websim-spell-details",
+                "https://cdn.example.test/frostbolt.jpg",
+                source="simulationcraft",
+                status="partial",
+                semantic_tags=["game", "spell"],
+                usage=["talent_simulator"],
+                fallback_text="FB",
+            )
+
+            self.websim_payload.upsert_websim_asset(conn, verified)
+            self.websim_payload.upsert_websim_asset(conn, partial)
+            conn.commit()
+            assets = self.websim_payload.get_websim_assets(
+                conn,
+                {"entityType": "spell", "entityId": "123", "context": "websim-spell-details"},
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(len(assets["assets"]), 1)
+        self.assertEqual(assets["assets"][0]["source"], "blizzard")
+        self.assertEqual(assets["assets"][0]["status"], "verified")
+        self.assertEqual(
+            assets["assets"][0]["iconUrl"],
+            "https://render.worldofwarcraft.com/us/icons/56/spell_frost_frostbolt02.jpg",
+        )
+
+    def test_asset_upsert_initializes_registry_table(self):
+        conn = sqlite3.connect(":memory:")
+        try:
+            asset = self.websim_payload.game_asset_from_icon_url(
+                "spell",
+                "456",
+                "websim-spell-details",
+                "https://render.worldofwarcraft.com/us/icons/56/spell_arcane_blast.jpg",
+                source="blizzard",
+                status="verified",
+                semantic_tags=["game", "spell"],
+                usage=["talent_simulator"],
+                fallback_text="AB",
+            )
+
+            self.websim_payload.upsert_websim_asset(conn, asset)
+            conn.commit()
+            assets = self.websim_payload.get_websim_assets(
+                conn,
+                {"entityType": "spell", "entityId": "456", "context": "websim-spell-details"},
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(len(assets["assets"]), 1)
+        self.assertEqual(assets["assets"][0]["source"], "blizzard")
+        self.assertEqual(assets["assets"][0]["status"], "verified")
+
+    def test_blizzard_icon_url_requires_exact_allowed_host(self):
+        self.assertTrue(
+            self.websim_payload.is_blizzard_icon_url(
+                "https://render.worldofwarcraft.com/us/icons/56/spell_arcane_blast.jpg"
+            )
+        )
+        self.assertFalse(
+            self.websim_payload.is_blizzard_icon_url(
+                "https://evil.example.test/render.worldofwarcraft.com/us/icons/56/spell_arcane_blast.jpg"
+            )
+        )
+        self.assertFalse(
+            self.websim_payload.is_blizzard_icon_url(
+                "https://render.worldofwarcraft.com.evil.example.test/us/icons/56/spell_arcane_blast.jpg"
+            )
+        )
 
     def test_talent_payload_dedupes_cached_non_choice_nodes_and_marks_apex(self):
         conn = sqlite3.connect(self.db_path)
@@ -963,6 +1112,29 @@ class WebSimPayloadTest(unittest.TestCase):
         )
         self.assertNotIn("loot_bracers", profile)
         self.assertNotIn("id=250222", profile)
+
+    def test_websim_gear_ignores_client_supplied_game_asset_provenance(self):
+        item = self.websim_payload.normalize_gear_item(
+            {
+                "slot": "head",
+                "itemId": 250333,
+                "name": "Manual Hood",
+                "iconUrl": "https://cdn.example.test/manual-hood.jpg",
+                "sourceType": "manual",
+                "gameAsset": {
+                    "id": "item:250333:websim-gear-item",
+                    "iconUrl": "https://render.worldofwarcraft.com/us/icons/56/spoofed.jpg",
+                    "source": "blizzard",
+                    "status": "verified",
+                },
+            },
+            "mage",
+            "arcane",
+        )
+
+        self.assertEqual(item["gameAsset"]["iconUrl"], "https://cdn.example.test/manual-hood.jpg")
+        self.assertEqual(item["gameAsset"]["source"], "manual")
+        self.assertNotEqual(item["iconUrl"], "https://render.worldofwarcraft.com/us/icons/56/spoofed.jpg")
 
     def test_websim_gear_payload_includes_preset_baseline_and_slot_groups(self):
         conn = sqlite3.connect(self.db_path)
@@ -2043,6 +2215,74 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_verified_loot_payload_includes_game_asset(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_active_season_payload(
+                conn,
+                self.websim_payload.current_season_payload(
+                    season_id="17",
+                    season_label="Fresh Season",
+                    dungeons=[
+                        {
+                            "id": "558",
+                            "dungeonId": "558",
+                            "instanceId": "1300",
+                            "name": "Magisters' Terrace",
+                            "shortName": "Magisters' Terrace",
+                            "timerSeconds": 2040,
+                        }
+                    ],
+                ),
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250222",
+                {
+                    "name": "裂隙护腕",
+                    "inventory_type": {"type": "WRIST", "name": "Wrist"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.worldofwarcraft.com/us/icons/56/inv_bracer_cloth_raidmage_j_01.jpg"}]},
+                fallback_name="Rift Bindings",
+                fallback_slot="wrist",
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('1300', 'Magisters Terrace', 'Dungeon', '{}', 'now')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_encounters (id, instance_id, name, payload_json, updated_at)
+                VALUES ('9001', '1300', 'Arcane Warden', '{}', 'now')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_loot (
+                    id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                ) VALUES (
+                    'loot-250222', '1300', '9001', '250222', '裂隙护腕', 'wrist', 'Epic',
+                    'https://render.worldofwarcraft.com/us/icons/56/inv_bracer_cloth_raidmage_j_01.jpg',
+                    '{}', 'now'
+                )
+                """
+            )
+            conn.commit()
+            loot = self.websim_payload.get_websim_loot(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(len(loot["items"]), 1)
+        self.assertEqual(loot["items"][0]["gameAsset"]["entityType"], "item")
+        self.assertEqual(loot["items"][0]["gameAsset"]["entityId"], "250222")
+        self.assertEqual(loot["items"][0]["gameAsset"]["contextKey"], "websim-loot")
+        self.assertEqual(loot["items"][0]["gameAsset"]["iconUrl"], loot["items"][0]["iconUrl"])
+        self.assertIn("loot", loot["items"][0]["gameAsset"]["semanticTags"])
+
     def test_sync_skips_blizzard_when_active_season_cache_is_fresh(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -2122,6 +2362,11 @@ class WebSimPayloadTest(unittest.TestCase):
             self.assertEqual(bootstrap["defaultSelection"], {"classKey": "mage", "specKey": "arcane"})
             self.assertEqual(bootstrap["dataStatus"], "blocked")
             self.assertIn("currentSeason", bootstrap)
+
+            with urlopen(f"{base}/api/websim/assets") as response:
+                assets = json.loads(response.read().decode("utf-8"))
+            self.assertEqual(assets["assets"], [])
+            self.assertEqual(assets["counts"]["byStatus"], {})
 
             with urlopen(f"{base}/api/game/season") as response:
                 season = json.loads(response.read().decode("utf-8"))

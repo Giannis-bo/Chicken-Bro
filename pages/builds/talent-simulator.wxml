@@ -73,8 +73,8 @@
         <view class="{{activeSection.gridClass}}">
           <view class="talent-link" wx:for="{{activeSection.links}}" wx:key="to" style="{{item.lineStyle}}"></view>
           <view class="{{item.nodeClass}}" wx:for="{{activeSection.nodes}}" wx:key="id" style="{{item.nodeStyle}}" data-id="{{item.id}}" bindtap="tapTalentNode" bindlongpress="openNodeDetail">
-            <image wx:if="{{item.iconUrl}}" class="talent-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
-            <text wx:else class="talent-icon-fallback">{{item.firstLetter}}</text>
+            <image wx:if="{{item.gameAsset.iconUrl}}" class="talent-icon" src="{{item.gameAsset.iconUrl}}" mode="aspectFill"></image>
+            <text wx:else class="talent-icon-fallback">{{item.gameAsset.fallbackText}}</text>
             <text class="talent-rank">{{item.rankLabel}}</text>
           </view>
         </view>
@@ -101,7 +101,8 @@
     <view class="sheet-handle"></view>
     <text class="sheet-title">{{choiceSheet.title}}</text>
     <view class="choice-option {{item.selected ? 'selected' : ''}}" wx:for="{{choiceSheet.options}}" wx:key="id" data-id="{{item.id}}" bindtap="selectChoiceTalent">
-      <image wx:if="{{item.iconUrl}}" class="sheet-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
+      <image wx:if="{{item.gameAsset.iconUrl}}" class="sheet-icon" src="{{item.gameAsset.iconUrl}}" mode="aspectFill"></image>
+      <text wx:else class="sheet-icon">{{item.gameAsset.fallbackText}}</text>
       <view class="sheet-copy">
         <text class="sheet-option-title">{{item.name}}</text>
         <text class="sheet-option-desc">{{item.description}}</text>

@@ -67,7 +67,11 @@ test('every pve zone module exposes real source-backed records', () => {
   for (const module of modules) {
     assert.ok(Array.isArray(module.items), `${module.title} should expose records`)
     assert.ok(module.items.length > 0, `${module.title} should not be an empty entry`)
-    assert.equal(module.itemCount, module.items.length)
+    if (module.key === 'specLadder') {
+      assert.ok(module.itemCount > module.items.length)
+    } else {
+      assert.equal(module.itemCount, module.items.length)
+    }
 
     const detail = getPveModuleDetail(module.key)
     assert.equal(detail.key, module.key)
@@ -84,6 +88,82 @@ test('every pve zone module exposes real source-backed records', () => {
       assert.match(item.publishedAt, /^\d{4}-\d{2}-\d{2}$/, `${module.title} item should have publishedAt`)
       assert.match(item.analysisWindow, /\S/, `${module.title} item should have analysisWindow`)
     }
+  }
+})
+
+test('spec ladder payload exposes role-based Archon tiers and WCL details', () => {
+  const { getPveModuleDetail } = require('../server/pve/home-payload')
+  const detail = getPveModuleDetail('specLadder')
+
+  assert.deepEqual(
+    detail.roles.map((role) => role.key),
+    ['dps', 'tank', 'healer']
+  )
+  assert.equal(detail.defaultRole, 'dps')
+  assert.equal(detail.sourceName, 'Archon / Warcraft Logs')
+  assert.equal(
+    detail.itemCount,
+    detail.roles.reduce((sum, role) => sum + role.count, 0)
+  )
+  assert.equal(detail.roles.find((role) => role.key === 'dps').active, true)
+  assert.ok(detail.roles.every((role) => role.count > 0))
+  assert.ok(detail.roles.every((role) => /^\d{4}-\d{2}-\d{2}$/.test(role.updatedAt)))
+
+  for (const role of detail.roles) {
+    const summary = detail.archonTierSummary[role.key]
+    assert.equal(summary.sourceName, 'Archon')
+    assert.match(summary.sourceUrl, /^https:\/\/www\.archon\.gg\/wow\/tier-list\//)
+    assert.match(summary.analysisWindow, /\S/)
+    assert.ok(summary.tiers.length > 0)
+
+    for (const tier of summary.tiers) {
+      assert.match(tier.tier, /^[SABC]$/)
+      assert.ok(tier.items.length > 0)
+      for (const item of tier.items) {
+        assert.match(item.specId, /^[a-z]+-[a-z_]+$/)
+        assert.match(item.className, /\S/)
+        assert.match(item.specName, /\S/)
+        assert.equal(item.gameAsset.entityType, 'playable_spec')
+        assert.equal(item.gameAsset.entityId, item.specId)
+        assert.equal(item.gameAsset.iconUrl, item.iconUrl)
+        assert.equal(item.gameAsset.resolutionTier, 'icon_56')
+        assert.equal(item.gameAsset.source, 'static_icon_name')
+        assert.equal(item.gameAsset.status, 'fallback')
+        assert.ok(item.gameAsset.semanticTags.includes('pve'))
+        assert.ok(item.gameAsset.usage.includes('pve_spec_ladder'))
+        assert.match(item.scoreLabel, /M\+ Score/)
+        assert.ok(item.score > 0)
+        assert.ok(item.sampleCount > 0)
+        assert.equal(item.sourceName, 'Archon')
+        assert.match(item.sourceUrl, /^https:\/\/www\.archon\.gg\/wow\/builds\//)
+        assert.ok(Object.prototype.hasOwnProperty.call(detail.wclDetailsBySpec, item.specId))
+        assert.equal(detail.wclDetailsBySpec[item.specId].role, role.key)
+        assert.equal(detail.wclDetailsBySpec[item.specId].specId, item.specId)
+      }
+    }
+  }
+
+  const firstDps = detail.archonTierSummary.dps.tiers[0].items[0]
+  const wcl = detail.wclDetailsBySpec[firstDps.specId]
+  assert.equal(detail.selectedSpecId, firstDps.specId)
+  assert.equal(wcl.sourceName, 'Warcraft Logs')
+  assert.match(wcl.sourceUrl, /^https:\/\/www\.warcraftlogs\.com\/zone\/statistics\/47/)
+  assert.equal(wcl.sourceStatus, 'verified')
+  assert.ok(wcl.score > 0)
+  assert.ok(wcl.max >= wcl.score)
+  assert.ok(wcl.parses > 0)
+  assert.ok(wcl.distribution.p95 >= wcl.distribution.p50)
+
+  assert.deepEqual(
+    detail.sourceChecks.map((source) => source.key),
+    ['archon', 'warcraftlogs']
+  )
+  for (const source of detail.sourceChecks) {
+    assert.match(source.domain, /^(archon\.gg|warcraftlogs\.com)$/)
+    assert.match(source.checkedAt, /^\d{4}-\d{2}-\d{2}/)
+    assert.match(source.analysisWindow, /\S/)
+    assert.equal(source.status, 'verified')
+    assert.ok(source.sampleCount > 0)
   }
 })
 
@@ -108,6 +188,69 @@ test('pve detail page renders the selected module records and source evidence', 
   assert.match(wxml, /record\.analysisWindow/)
 })
 
+test('spec ladder detail page renders role tabs, Archon board, WCL statistics rows, and source checks', () => {
+  const js = fs.readFileSync('pages/pve/detail.js', 'utf8')
+  const wxml = fs.readFileSync('pages/pve/detail.wxml', 'utf8')
+  const css = fs.readFileSync('pages/pve/detail.wxss', 'utf8')
+
+  assert.match(js, /selectSpecLadderRole\(event\)/)
+  assert.match(js, /selectSpecLadderSpec\(event\)/)
+  assert.match(js, /prepareSpecLadderState/)
+  assert.match(js, /activeWclRows/)
+  assert.match(js, /wclRangeStyle/)
+  assert.match(js, /wclBoxStyle/)
+  assert.match(js, /wclScoreDotStyle/)
+  assert.match(wxml, /wx:if="\{\{isSpecLadder\}\}"/)
+  assert.match(wxml, /class="role-tabs"/)
+  assert.match(wxml, /bindtap="selectSpecLadderRole"/)
+  assert.match(wxml, /wx:if="\{\{activeRoleMeta\.updatedAt\}\}"/)
+  assert.match(wxml, /class="archon-tier-board"/)
+  assert.match(wxml, /activeArchonTiers/)
+  assert.match(wxml, /bindtap="selectSpecLadderSpec"/)
+  assert.match(wxml, /item\.gameAsset\.iconUrl/)
+  assert.doesNotMatch(wxml, /item\.iconUrl/)
+  assert.match(wxml, /class="wcl-stat-board"/)
+  assert.match(wxml, /class="wcl-filter-bars"/)
+  assert.match(wxml, /class="wcl-filter-row primary"/)
+  assert.match(wxml, /class="wcl-filter-row secondary"/)
+  assert.match(wxml, /class="wcl-chart-table"/)
+  assert.match(wxml, /class="wcl-chart-head"/)
+  assert.match(wxml, /class="wcl-chart-row \{\{item\.rowClass\}\}"/)
+  assert.match(wxml, /wx:for="\{\{activeWclRows\}\}"/)
+  assert.match(wxml, /item\.wclRangeStyle/)
+  assert.match(wxml, /item\.wclBoxStyle/)
+  assert.match(wxml, /item\.wclMedianStyle/)
+  assert.match(wxml, /item\.wclScoreDotStyle/)
+  assert.match(wxml, /item\.scoreText/)
+  assert.match(wxml, /item\.maxText/)
+  assert.match(wxml, /item\.parsesText/)
+  assert.match(wxml, /Points/)
+  assert.match(wxml, /Normalized Scores/)
+  assert.doesNotMatch(wxml, /class="wcl-detail-panel"/)
+  assert.doesNotMatch(wxml, /wcl-filter-grid/)
+  assert.doesNotMatch(wxml, /wcl-stat-row/)
+  assert.match(wxml, /class="source-check-list"/)
+  assert.match(wxml, /activeModule\.sourceChecks/)
+  assert.match(wxml, /class="source-box" wx:if="\{\{!isSpecLadder\}\}"/)
+
+  assert.match(css, /\.role-tabs/)
+  assert.match(css, /\.archon-tier-board/)
+  assert.match(css, /\.tier-label\.tier-s/)
+  assert.match(css, /\.spec-pill\.active/)
+  assert.match(css, /\.wcl-stat-board/)
+  assert.match(css, /\.wcl-filter-bars/)
+  assert.match(css, /\.wcl-filter-row\.primary/)
+  assert.match(css, /\.wcl-chart-table/)
+  assert.match(css, /\.wcl-chart-row/)
+  assert.doesNotMatch(css, /\.wcl-filter-grid/)
+  assert.doesNotMatch(css, /\.wcl-stat-row/)
+  assert.match(css, /\.wcl-range-track/)
+  assert.match(css, /\.wcl-range-line/)
+  assert.match(css, /\.wcl-range-box/)
+  assert.match(css, /\.wcl-score-dot/)
+  assert.match(css, /\.source-check-list/)
+})
+
 test('pve home and detail pages use a dark competitive dungeon palette', () => {
   const homeWxml = fs.readFileSync('pages/pve/pve.wxml', 'utf8')
   const homeCss = fs.readFileSync('pages/pve/pve.wxss', 'utf8')
@@ -127,4 +270,17 @@ test('pve home and detail pages use a dark competitive dungeon palette', () => {
   assert.match(homeCss, /\.zone-item[\s\S]*border-radius:\s*16rpx;/)
   assert.doesNotMatch(combined, /#214f57/i)
   assert.doesNotMatch(combined, /#2f6b64/i)
+})
+
+test('mini program game image entries render through gameAsset while avatars stay user media', () => {
+  const gameWxml = [
+    'pages/builds/detail.wxml',
+    'pages/builds/talent-simulator.wxml',
+    'pages/pve/detail.wxml'
+  ].map((file) => fs.readFileSync(file, 'utf8')).join('\n')
+  const profileWxml = fs.readFileSync('pages/profile/profile.wxml', 'utf8')
+
+  assert.match(gameWxml, /item\.gameAsset\.iconUrl/)
+  assert.doesNotMatch(gameWxml, /<image[^>]+item\.iconUrl/)
+  assert.match(profileWxml, /user\.avatarUrl/)
 })

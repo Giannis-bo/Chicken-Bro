@@ -12,7 +12,7 @@ import subprocess
 import tarfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 
@@ -48,6 +48,8 @@ DEFAULT_WAGO_DB2_LOCALIZATION_ENABLED = (
     os.environ.get("WOW_WEBSIM_FETCH_WAGO_DB2_LOCALIZATION", "0").strip() == "1"
 )
 ITEM_METADATA_SOURCE = "Battle.net Game Data API"
+GAME_ASSET_RESOLUTION_TIER = "icon_56"
+BLIZZARD_ICON_HOSTS = {"render.worldofwarcraft.com"}
 SEASON_TTL_HOURS = int(os.environ.get("WOW_SEASON_TTL_HOURS", "24"))
 MIDNIGHT_SEASON_ONE_DUNGEONS = [
     "Magisters' Terrace",
@@ -675,6 +677,231 @@ def safe_json_loads(value, fallback=None):
         return fallback if fallback is not None else {}
 
 
+def unique_text_list(values):
+    result = []
+    seen = set()
+    for value in values or []:
+        text = str(value or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+    return result
+
+
+def fallback_text_for(value, fallback="?"):
+    text = str(value or "").strip()
+    if not text:
+        return fallback
+    if re.match(r"^[A-Za-z]{2,}$", text):
+        return text[:2].upper()
+    return text[:1].upper()
+
+
+def normalize_game_asset_source(source):
+    text = str(source or "").strip()
+    if text == ITEM_METADATA_SOURCE or "battle.net" in text.lower() or "blizzard" in text.lower():
+        return "blizzard"
+    normalized = re.sub(r"[^a-z0-9_]+", "_", text.lower()).strip("_")
+    return normalized or "unknown"
+
+
+def is_blizzard_icon_url(icon_url):
+    try:
+        hostname = (urlparse(str(icon_url or "")).hostname or "").lower()
+    except ValueError:
+        return False
+    return hostname in BLIZZARD_ICON_HOSTS
+
+
+def spell_icon_asset_source_status(icon_url, spell_detail_payload=None, fallback_source="simulationcraft"):
+    detail_payload = spell_detail_payload if isinstance(spell_detail_payload, dict) else {}
+    detail_source = str(detail_payload.get("source") or "").strip()
+    if detail_source:
+        normalized = normalize_game_asset_source(detail_source)
+        return detail_source, "verified" if normalized == "blizzard" else "partial"
+    if is_blizzard_icon_url(icon_url):
+        return "blizzard", "verified"
+    return fallback_source or "simulationcraft", "partial" if icon_url else "fallback"
+
+
+def game_asset_id(entity_type, entity_id, context_key):
+    return f"{entity_type}:{entity_id}:{context_key or 'default'}"
+
+
+def game_asset_from_icon_url(
+    entity_type,
+    entity_id,
+    context_key,
+    icon_url,
+    *,
+    asset_type="icon",
+    source="unknown",
+    status="fallback",
+    semantic_tags=None,
+    usage=None,
+    fallback_text="?",
+):
+    entity_type = re.sub(r"[^a-z0-9_]+", "_", str(entity_type or "unknown").lower()).strip("_") or "unknown"
+    entity_id = str(entity_id or "unknown").strip() or "unknown"
+    context_key = str(context_key or "default").strip() or "default"
+    icon_url = str(icon_url or "").strip()
+    return {
+        "id": game_asset_id(entity_type, entity_id, context_key),
+        "entityType": entity_type,
+        "entityId": entity_id,
+        "contextKey": context_key,
+        "assetType": str(asset_type or "icon"),
+        "iconUrl": icon_url,
+        "resolutionTier": GAME_ASSET_RESOLUTION_TIER,
+        "source": normalize_game_asset_source(source),
+        "status": status if icon_url else "missing",
+        "semanticTags": unique_text_list(semantic_tags or []),
+        "usage": unique_text_list(usage or []),
+        "fallbackText": str(fallback_text or "?")[:12],
+    }
+
+
+def normalize_game_asset(value, fallback):
+    asset = dict(value) if isinstance(value, dict) else {}
+    base = dict(fallback or {})
+    if not asset:
+        return base
+    for key, fallback_value in base.items():
+        if key not in asset or asset.get(key) in (None, ""):
+            asset[key] = fallback_value
+    asset["semanticTags"] = unique_text_list(asset.get("semanticTags") or base.get("semanticTags") or [])
+    asset["usage"] = unique_text_list(asset.get("usage") or base.get("usage") or [])
+    asset["source"] = normalize_game_asset_source(asset.get("source") or base.get("source"))
+    asset["resolutionTier"] = asset.get("resolutionTier") or GAME_ASSET_RESOLUTION_TIER
+    asset["status"] = asset.get("status") or ("fallback" if asset.get("iconUrl") else "missing")
+    return asset
+
+
+def upsert_websim_asset(conn, asset):
+    if not isinstance(asset, dict) or not asset.get("id"):
+        return None
+    ensure_websim_tables(conn)
+    now = utc_now()
+    conn.execute(
+        """
+        INSERT INTO websim_asset_registry (
+            id, entity_type, entity_id, context_key, asset_type, icon_url, resolution_tier,
+            source, status, semantic_tags_json, usage_json, fallback_text, payload_json, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            entity_type=excluded.entity_type,
+            entity_id=excluded.entity_id,
+            context_key=excluded.context_key,
+            asset_type=excluded.asset_type,
+            icon_url=excluded.icon_url,
+            resolution_tier=excluded.resolution_tier,
+            source=excluded.source,
+            status=excluded.status,
+            semantic_tags_json=excluded.semantic_tags_json,
+            usage_json=excluded.usage_json,
+            fallback_text=excluded.fallback_text,
+            payload_json=excluded.payload_json,
+            updated_at=excluded.updated_at
+        WHERE
+            CASE excluded.status
+                WHEN 'verified' THEN 4
+                WHEN 'partial' THEN 3
+                WHEN 'source_reference' THEN 2
+                WHEN 'fallback' THEN 1
+                ELSE 0
+            END >=
+            CASE websim_asset_registry.status
+                WHEN 'verified' THEN 4
+                WHEN 'partial' THEN 3
+                WHEN 'source_reference' THEN 2
+                WHEN 'fallback' THEN 1
+                ELSE 0
+            END
+        """,
+        (
+            asset["id"],
+            asset.get("entityType") or "",
+            asset.get("entityId") or "",
+            asset.get("contextKey") or "",
+            asset.get("assetType") or "icon",
+            asset.get("iconUrl") or "",
+            asset.get("resolutionTier") or GAME_ASSET_RESOLUTION_TIER,
+            asset.get("source") or "unknown",
+            asset.get("status") or "missing",
+            json.dumps(asset.get("semanticTags") or [], ensure_ascii=False),
+            json.dumps(asset.get("usage") or [], ensure_ascii=False),
+            asset.get("fallbackText") or "?",
+            json.dumps(asset, ensure_ascii=False),
+            now,
+        ),
+    )
+    return asset
+
+
+def game_asset_from_registry_row(row):
+    payload = safe_json_loads(row[12], {}) if len(row) > 12 else {}
+    asset = {
+        "id": row[0],
+        "entityType": row[1],
+        "entityId": row[2],
+        "contextKey": row[3],
+        "assetType": row[4],
+        "iconUrl": row[5],
+        "resolutionTier": row[6],
+        "source": row[7],
+        "status": row[8],
+        "semanticTags": safe_json_loads(row[9], []),
+        "usage": safe_json_loads(row[10], []),
+        "fallbackText": row[11],
+    }
+    if isinstance(payload, dict):
+        asset.update({key: value for key, value in payload.items() if key not in asset or asset.get(key) in (None, "")})
+        asset["semanticTags"] = unique_text_list(asset.get("semanticTags") or [])
+        asset["usage"] = unique_text_list(asset.get("usage") or [])
+    return asset
+
+
+def get_websim_assets(conn, filters=None):
+    ensure_websim_tables(conn)
+    filters = filters or {}
+    where = []
+    params = []
+    mapping = {
+        "entityType": "entity_type",
+        "entityId": "entity_id",
+        "context": "context_key",
+        "contextKey": "context_key",
+        "status": "status",
+        "source": "source",
+    }
+    for key, column in mapping.items():
+        value = filters.get(key)
+        if value in (None, ""):
+            continue
+        where.append(f"{column} = ?")
+        params.append(str(value))
+    query = """
+        SELECT id, entity_type, entity_id, context_key, asset_type, icon_url, resolution_tier,
+               source, status, semantic_tags_json, usage_json, fallback_text, payload_json
+        FROM websim_asset_registry
+    """
+    if where:
+        query += " WHERE " + " AND ".join(where)
+    query += " ORDER BY entity_type, entity_id, context_key LIMIT ?"
+    try:
+        limit = max(1, min(int(filters.get("limit") or 200), 1000))
+    except (TypeError, ValueError):
+        limit = 200
+    rows = conn.execute(query, [*params, limit]).fetchall()
+    assets = [game_asset_from_registry_row(row) for row in rows]
+    counts = {"byStatus": {}, "bySource": {}}
+    for asset in assets:
+        counts["byStatus"][asset["status"]] = counts["byStatus"].get(asset["status"], 0) + 1
+        counts["bySource"][asset["source"]] = counts["bySource"].get(asset["source"], 0) + 1
+    return {"assets": assets, "counts": counts}
+
+
 def ensure_websim_tables(conn):
     conn.execute(
         """
@@ -873,6 +1100,38 @@ def ensure_websim_tables(conn):
             payload_json TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS websim_asset_registry (
+            id TEXT PRIMARY KEY,
+            entity_type TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            context_key TEXT NOT NULL,
+            asset_type TEXT NOT NULL,
+            icon_url TEXT NOT NULL,
+            resolution_tier TEXT NOT NULL,
+            source TEXT NOT NULL,
+            status TEXT NOT NULL,
+            semantic_tags_json TEXT NOT NULL,
+            usage_json TEXT NOT NULL,
+            fallback_text TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_websim_asset_registry_entity
+        ON websim_asset_registry (entity_type, entity_id, context_key)
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_websim_asset_registry_status
+        ON websim_asset_registry (status, source)
         """
     )
     conn.execute(
@@ -1421,6 +1680,17 @@ def save_websim_item_metadata(
     slot = item_slot_from_payload(item_payload) or fallback_slot or "trinket1"
     quality = (item_payload.get("quality") or {}).get("name") or ""
     icon_url = icon_url_from_media(media_payload)
+    game_asset = game_asset_from_icon_url(
+        "item",
+        item_id,
+        "websim-item-metadata",
+        icon_url,
+        source=source,
+        status="verified",
+        semantic_tags=["game", "gear", "item", slot],
+        usage=["websim_gear", "builds_detail", "websim_loot"],
+        fallback_text=fallback_text_for(display_name),
+    )
     metadata_payload = dict(item_payload)
     metadata_payload["_metadata"] = {
         "source": source,
@@ -1429,6 +1699,7 @@ def save_websim_item_metadata(
         "englishName": english_name,
         "fallbackName": fallback_name,
         "iconUrl": icon_url,
+        "gameAsset": game_asset,
     }
     conn.execute(
         """
@@ -1463,6 +1734,7 @@ def save_websim_item_metadata(
         source=source,
         now=now,
     )
+    upsert_websim_asset(conn, game_asset)
     return {
         "itemId": item_id,
         "displayName": display_name,
@@ -1470,6 +1742,7 @@ def save_websim_item_metadata(
         "slot": slot,
         "quality": quality,
         "iconUrl": icon_url,
+        "gameAsset": game_asset,
         "metadataStatus": "verified",
         "metadataSource": source,
         "metadataLocale": locale,
@@ -1878,6 +2151,17 @@ def sync_blizzard_spell_details(conn, token, region=DEFAULT_REGION, locale=DEFAU
         )
         counts["spells"] += 1
         if icon_url:
+            spell_asset = game_asset_from_icon_url(
+                "spell",
+                spell_id,
+                "websim-spell-details",
+                icon_url,
+                source="blizzard",
+                status="verified",
+                semantic_tags=["game", "spell", "talent"],
+                usage=["talent_simulator", "websim_spell_details"],
+                fallback_text=fallback_text_for(spell_payload.get("name") or f"Spell {spell_id}"),
+            )
             conn.execute(
                 """
                 INSERT INTO websim_media_assets (id, media_type, media_id, url, payload_json, updated_at)
@@ -1895,6 +2179,7 @@ def sync_blizzard_spell_details(conn, token, region=DEFAULT_REGION, locale=DEFAU
                     now,
                 ),
             )
+            upsert_websim_asset(conn, spell_asset)
             counts["media"] += 1
         if counts["spells"] % 25 == 0:
             conn.commit()
@@ -2018,6 +2303,17 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
                 slot = item_slot_from_payload(item_payload)
                 quality = (item_payload.get("quality") or {}).get("name") or ""
                 icon_url = icon_url_from_media(media_payload)
+                loot_asset = game_asset_from_icon_url(
+                    "item",
+                    item_id,
+                    "websim-loot",
+                    icon_url,
+                    source="blizzard",
+                    status="verified",
+                    semantic_tags=["game", "gear", "item", "loot", slot],
+                    usage=["websim_loot", "builds_detail"],
+                    fallback_text=fallback_text_for(item_name),
+                )
                 conn.execute(
                     """
                     INSERT INTO websim_items (id, name, slot, quality, icon_url, payload_json, updated_at)
@@ -2059,6 +2355,7 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
                         now,
                     ),
                 )
+                upsert_websim_asset(conn, loot_asset)
                 counts["loot"] += 1
         conn.commit()
     conn.commit()
@@ -2905,6 +3202,7 @@ def sync_simc_generated_data(conn):
         spell_id = int(detail.get("spellId") or 0)
         if spell_id <= 0:
             continue
+        icon_url = detail.get("iconUrl", "")
         payload = {
             "source": detail.get("source", "simulationcraft"),
             "spellId": spell_id,
@@ -2960,12 +3258,27 @@ def sync_simc_generated_data(conn):
                 spell_id,
                 detail.get("name", ""),
                 detail.get("description", ""),
-                detail.get("iconUrl", ""),
+                icon_url,
                 detail.get("locale", "en_US"),
                 json.dumps(payload, ensure_ascii=False),
                 now,
             ),
         )
+        if icon_url:
+            upsert_websim_asset(
+                conn,
+                game_asset_from_icon_url(
+                    "spell",
+                    spell_id,
+                    "websim-spell-details",
+                    icon_url,
+                    source=detail.get("source", "simulationcraft"),
+                    status="partial" if normalize_game_asset_source(detail.get("source")) != "blizzard" else "verified",
+                    semantic_tags=["game", "spell", "talent"],
+                    usage=["talent_simulator", "websim_spell_details"],
+                    fallback_text=fallback_text_for(detail.get("name") or f"Spell {spell_id}"),
+                ),
+            )
     return {
         "talents": len(data["talents"]),
         "presets": len(data["presets"]),
@@ -2997,12 +3310,27 @@ def existing_websim_item_metadata(conn, item_id):
         return None
     payload = safe_json_loads(row[5], {})
     metadata = payload.get("_metadata") if isinstance(payload, dict) else {}
+    game_asset = normalize_game_asset(
+        (metadata or {}).get("gameAsset") if isinstance(metadata, dict) else {},
+        game_asset_from_icon_url(
+            "item",
+            row[0],
+            "websim-item-metadata",
+            row[4] or "",
+            source=(metadata or {}).get("source") or ITEM_METADATA_SOURCE,
+            status="verified",
+            semantic_tags=["game", "gear", "item", row[2] or ""],
+            usage=["websim_gear", "builds_detail", "websim_loot"],
+            fallback_text=fallback_text_for(row[1]),
+        ),
+    )
     return {
         "itemId": str(row[0]),
         "displayName": row[1] or f"Item {row[0]}",
         "slot": row[2] or "",
         "quality": row[3] or "",
         "iconUrl": row[4] or "",
+        "gameAsset": game_asset,
         "metadataStatus": "verified",
         "metadataSource": (metadata or {}).get("source") or ITEM_METADATA_SOURCE,
         "metadataLocale": (metadata or {}).get("locale") or DEFAULT_LOCALE,
@@ -3354,30 +3682,59 @@ def sync_websim_cache(db_path, include_blizzard=True):
 
 
 def classes_payload():
-    return [
-        {
-            "key": item["key"],
-            "label": CLASS_LABELS_ZH.get(item["key"], item["label"]),
+    payload = []
+    for item in WOW_CLASSES:
+        class_key = item["key"]
+        class_label = CLASS_LABELS_ZH.get(class_key, item["label"])
+        class_icon_url = wow_icon_url(CLASS_ICON_NAMES.get(class_key, "inv_misc_questionmark"))
+        class_asset = game_asset_from_icon_url(
+            "playable_class",
+            class_key,
+            "websim-bootstrap-class",
+            class_icon_url,
+            source="static_icon_name",
+            status="fallback",
+            semantic_tags=["game", "class", class_key],
+            usage=["websim_bootstrap", "talent_simulator"],
+            fallback_text=fallback_text_for(class_label),
+        )
+        specs = []
+        for spec in item["specs"]:
+            spec_label = SPEC_LABELS_ZH.get(spec, SPEC_LABELS.get(spec, spec.replace("_", " ").title()))
+            spec_icon_url = wow_icon_url(SPEC_ICON_NAMES.get(spec, CLASS_ICON_NAMES.get(class_key, "inv_misc_questionmark")))
+            spec_asset = game_asset_from_icon_url(
+                "playable_spec",
+                f"{class_key}:{spec}",
+                "websim-bootstrap-spec",
+                spec_icon_url,
+                source="static_icon_name",
+                status="fallback",
+                semantic_tags=["game", "class", "spec", class_key, spec],
+                usage=["websim_bootstrap", "talent_simulator"],
+                fallback_text=fallback_text_for(spec_label),
+            )
+            specs.append({
+                "key": spec,
+                "label": spec_label,
+                "labelEn": SPEC_LABELS.get(spec, spec.replace("_", " ").title()),
+                "iconUrl": spec_icon_url,
+                "gameAsset": spec_asset,
+                "heroTrees": [hero_tree_payload(hero) for hero in hero_trees_for_spec(class_key, spec)],
+            })
+        payload.append({
+            "key": class_key,
+            "label": class_label,
             "labelEn": item["label"],
-            "color": CLASS_COLORS.get(item["key"], "#f1b94c"),
-            "iconUrl": wow_icon_url(CLASS_ICON_NAMES.get(item["key"], "inv_misc_questionmark")),
+            "color": CLASS_COLORS.get(class_key, "#f1b94c"),
+            "iconUrl": class_icon_url,
+            "gameAsset": class_asset,
             "heroTrees": [
                 hero_tree_payload(hero)
-                for hero in HERO_BY_CLASS.get(item["key"], [])
+                for hero in HERO_BY_CLASS.get(class_key, [])
             ],
-            "specs": [
-                {
-                    "key": spec,
-                    "label": SPEC_LABELS_ZH.get(spec, SPEC_LABELS.get(spec, spec.replace("_", " ").title())),
-                    "labelEn": SPEC_LABELS.get(spec, spec.replace("_", " ").title()),
-                    "iconUrl": wow_icon_url(SPEC_ICON_NAMES.get(spec, CLASS_ICON_NAMES.get(item["key"], "inv_misc_questionmark"))),
-                    "heroTrees": [hero_tree_payload(hero) for hero in hero_trees_for_spec(item["key"], spec)],
-                }
-                for spec in item["specs"]
-            ],
-        }
-        for item in WOW_CLASSES
-    ]
+            "specs": specs,
+        })
+    return payload
 
 
 def simc_version_payload():
@@ -3722,6 +4079,18 @@ def fallback_node(
 ):
     node_id = f"fallback-{class_key}-{spec_key}-{tree_type}-{key}"
     parent_ids = [f"fallback-{class_key}-{spec_key}-{tree_type}-{parent}" for parent in parents or []]
+    icon_url = wow_icon_url(icon_name)
+    game_asset = game_asset_from_icon_url(
+        "talent",
+        node_id,
+        "websim-fallback-talent",
+        icon_url,
+        source="static_icon_name",
+        status="fallback",
+        semantic_tags=["game", "talent", tree_type, class_key, spec_key],
+        usage=["talent_simulator"],
+        fallback_text=fallback_text_for(name),
+    )
     return {
         "id": node_id,
         "classKey": class_key,
@@ -3747,7 +4116,8 @@ def fallback_node(
         "dependencySource": "websim-fallback",
         "schemaRevision": TALENT_SCHEMA_REVISION,
         "description": f"WebSim 可交互占位{tree_type}天赋；同步到 Blizzard / SimC 校验数据后会替换为真实节点。",
-        "iconUrl": wow_icon_url(icon_name),
+        "iconUrl": icon_url,
+        "gameAsset": game_asset,
         "source": "websim-fallback",
     }
 
@@ -3890,6 +4260,23 @@ def decorate_real_talent_node(row, season):
         f"{SPEC_LABELS.get(row[2], row[2].replace('_', ' ').title())}."
     )
     icon_url = row[10] or wow_icon_url(icon_name)
+    spell_detail_payload = safe_json_loads(row[11] if len(row) > 11 else "", {})
+    icon_source, icon_status = spell_icon_asset_source_status(
+        row[10],
+        spell_detail_payload,
+        payload.get("source", "simulationcraft"),
+    ) if row[10] else ("static_icon_name", "fallback")
+    game_asset = game_asset_from_icon_url(
+        "talent",
+        row[0],
+        "websim-talent-node",
+        icon_url,
+        source=icon_source,
+        status=icon_status,
+        semantic_tags=["game", "talent", tree_type, row[1], row[2]],
+        usage=["talent_simulator"],
+        fallback_text=fallback_text_for(row[7]),
+    )
     return {
         "id": row[0],
         "classKey": row[1],
@@ -3918,6 +4305,7 @@ def decorate_real_talent_node(row, season):
         "schemaRevision": TALENT_SCHEMA_REVISION,
         "description": description,
         "iconUrl": icon_url,
+        "gameAsset": game_asset,
         "source": payload.get("source", "simulationcraft"),
         "traitId": payload.get("traitId"),
         "nodeId": payload.get("nodeId"),
@@ -4088,7 +4476,7 @@ def get_websim_talents(conn, class_key="mage", spec_key="arcane", hero_key=""):
         """
         SELECT t.id, t.class_key, t.spec_key, t.tree_id, t.row_index, t.col_index,
                t.spell_id, COALESCE(NULLIF(s.name, ''), t.name) AS name, t.payload_json,
-               s.description, s.icon_url
+               s.description, s.icon_url, s.payload_json
         FROM websim_talents t
         LEFT JOIN websim_spell_details s ON s.spell_id = t.spell_id
         WHERE t.class_key = ?
@@ -4568,12 +4956,27 @@ def websim_item_metadata_by_ids(conn, item_ids):
     for row in rows:
         payload = safe_json_loads(row[5], {})
         metadata = payload.get("_metadata") if isinstance(payload, dict) else {}
+        game_asset = normalize_game_asset(
+            (metadata or {}).get("gameAsset") if isinstance(metadata, dict) else {},
+            game_asset_from_icon_url(
+                "item",
+                row[0],
+                "websim-item-metadata",
+                row[4] or "",
+                source=(metadata or {}).get("source") or ITEM_METADATA_SOURCE,
+                status="verified",
+                semantic_tags=["game", "gear", "item", row[2] or ""],
+                usage=["websim_gear", "builds_detail", "websim_loot"],
+                fallback_text=fallback_text_for(row[1]),
+            ),
+        )
         result[str(row[0])] = {
             "itemId": str(row[0]),
             "displayName": row[1] or f"Item {row[0]}",
             "slot": row[2] or "",
             "quality": row[3] or "",
             "iconUrl": row[4] or "",
+            "gameAsset": game_asset,
             "payload": payload,
             "metadataStatus": "verified",
             "metadataSource": (metadata or {}).get("source") or ITEM_METADATA_SOURCE,
@@ -4605,12 +5008,27 @@ def websim_item_metadata_by_aliases(conn, aliases):
             continue
         payload = safe_json_loads(row[8], {})
         metadata = payload.get("_metadata") if isinstance(payload, dict) else {}
+        game_asset = normalize_game_asset(
+            (metadata or {}).get("gameAsset") if isinstance(metadata, dict) else {},
+            game_asset_from_icon_url(
+                "item",
+                row[1],
+                "websim-item-metadata",
+                row[3] or "",
+                source=row[4] or (metadata or {}).get("source") or ITEM_METADATA_SOURCE,
+                status="verified",
+                semantic_tags=["game", "gear", "item", row[6] or ""],
+                usage=["websim_gear", "builds_detail", "websim_loot"],
+                fallback_text=fallback_text_for(row[2]),
+            ),
+        )
         result[row[0]] = {
             "itemId": str(row[1]),
             "displayName": row[2] or f"Item {row[1]}",
             "slot": row[6] or "",
             "quality": row[7] or "",
             "iconUrl": row[3] or "",
+            "gameAsset": game_asset,
             "payload": payload,
             "metadataStatus": "verified",
             "metadataSource": row[4] or ITEM_METADATA_SOURCE,
@@ -4627,6 +5045,20 @@ def apply_item_metadata(item, metadata=None):
     if enriched.get("isReference") or enriched.get("metadataStatus") == "source_reference":
         enriched.setdefault("displayName", enriched.get("name") or "")
         enriched.setdefault("iconUrl", "")
+        enriched["gameAsset"] = normalize_game_asset(
+            enriched.get("gameAsset"),
+            game_asset_from_icon_url(
+                "item",
+                enriched.get("itemId") or enriched.get("id") or slugify(enriched.get("displayName"), "reference"),
+                "source-reference",
+                enriched.get("iconUrl") or "",
+                source=enriched.get("sourceName") or enriched.get("metadataSource") or "source_reference",
+                status="missing",
+                semantic_tags=["game", "gear", "item", "reference"],
+                usage=["builds_detail"],
+                fallback_text=fallback_text_for(enriched.get("displayName")),
+            ),
+        )
         enriched["metadataStatus"] = "source_reference"
         enriched["metadataSource"] = enriched.get("metadataSource") or enriched.get("sourceName") or ""
         enriched["metadataLocale"] = ""
@@ -4638,7 +5070,22 @@ def apply_item_metadata(item, metadata=None):
             enriched["id"] = enriched["itemId"]
         enriched["displayName"] = metadata.get("displayName") or enriched.get("displayName") or enriched.get("name")
         enriched["localizedName"] = enriched["displayName"]
-        enriched["iconUrl"] = metadata.get("iconUrl") or enriched.get("iconUrl") or enriched.get("icon_url") or ""
+        game_asset = normalize_game_asset(
+            metadata.get("gameAsset"),
+            game_asset_from_icon_url(
+                "item",
+                enriched["itemId"],
+                "websim-item-metadata",
+                metadata.get("iconUrl") or enriched.get("iconUrl") or enriched.get("icon_url") or "",
+                source=metadata.get("metadataSource") or ITEM_METADATA_SOURCE,
+                status="verified",
+                semantic_tags=["game", "gear", "item", metadata.get("slot") or enriched.get("slot") or ""],
+                usage=["websim_gear", "builds_detail", "websim_loot"],
+                fallback_text=fallback_text_for(enriched["displayName"]),
+            ),
+        )
+        enriched["gameAsset"] = game_asset
+        enriched["iconUrl"] = game_asset.get("iconUrl") or metadata.get("iconUrl") or enriched.get("iconUrl") or enriched.get("icon_url") or ""
         enriched["quality"] = metadata.get("quality") or enriched.get("quality") or ""
         enriched["metadataStatus"] = "verified"
         enriched["metadataSource"] = metadata.get("metadataSource") or ITEM_METADATA_SOURCE
@@ -4648,6 +5095,20 @@ def apply_item_metadata(item, metadata=None):
         return enriched
     enriched.setdefault("displayName", enriched.get("name") or (f"Item {item_id}" if item_id else ""))
     enriched.setdefault("iconUrl", enriched.get("icon_url") or "")
+    enriched["gameAsset"] = normalize_game_asset(
+        enriched.get("gameAsset"),
+        game_asset_from_icon_url(
+            "item",
+            item_id or slugify(enriched.get("displayName"), "item"),
+            "websim-item-metadata",
+            enriched.get("iconUrl") or "",
+            source=enriched.get("metadataSource") or "pending_sync",
+            status="pending_sync" if item_id else "missing",
+            semantic_tags=["game", "gear", "item", enriched.get("slot") or ""],
+            usage=["websim_gear", "builds_detail"],
+            fallback_text=fallback_text_for(enriched.get("displayName")),
+        ),
+    )
     enriched["metadataStatus"] = "pending_sync" if item_id else "missing_item_id"
     enriched["metadataSource"] = ""
     enriched["metadataLocale"] = ""
@@ -4701,6 +5162,17 @@ def apply_related_item_metadata(row, related_items):
             "displayName": item.get("displayName") or "",
             "englishName": item.get("englishName") or "",
             "iconUrl": item.get("iconUrl") or "",
+            "gameAsset": item.get("gameAsset") or game_asset_from_icon_url(
+                "item",
+                item.get("itemId") or "",
+                "websim-item-metadata",
+                item.get("iconUrl") or "",
+                source=item.get("metadataSource") or ITEM_METADATA_SOURCE,
+                status="verified",
+                semantic_tags=["game", "gear", "item"],
+                usage=["builds_detail"],
+                fallback_text=fallback_text_for(item.get("displayName")),
+            ),
             "quality": item.get("quality") or "",
             "metadataStatus": item.get("metadataStatus") or "verified",
             "metadataLocale": item.get("metadataLocale") or DEFAULT_LOCALE,
@@ -4871,6 +5343,17 @@ def get_websim_loot(conn, filters=None, limit=120):
         )
         if not item:
             continue
+        loot_asset = game_asset_from_icon_url(
+            "item",
+            row[5],
+            "websim-loot",
+            row[9],
+            source="blizzard",
+            status="verified",
+            semantic_tags=["game", "gear", "item", "loot", row[7]],
+            usage=["websim_loot", "builds_detail"],
+            fallback_text=fallback_text_for(row[6]),
+        )
         item.update({
             "id": row[0],
             "instanceId": row[1],
@@ -4880,6 +5363,7 @@ def get_websim_loot(conn, filters=None, limit=120):
             "itemId": row[5],
             "quality": row[8],
             "iconUrl": row[9],
+            "gameAsset": loot_asset,
             "sourceType": "verifiedLoot",
         })
         items.append(item)
@@ -5001,6 +5485,22 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         "classKey": slugify(class_key, "") if class_key else str(value.get("classKey") or ""),
         "specKey": slugify(spec_key, "") if spec_key else str(value.get("specKey") or ""),
     }
+    game_asset = normalize_game_asset(
+        {},
+        game_asset_from_icon_url(
+            "item",
+            item_id,
+            "websim-gear-item",
+            item["iconUrl"],
+            source=value.get("metadataSource") or value.get("sourceName") or value.get("sourceType") or "websim",
+            status="verified" if item["iconUrl"] else (value.get("metadataStatus") or "pending_sync"),
+            semantic_tags=["game", "gear", "item", slot, item["classKey"], item["specKey"]],
+            usage=["websim_gear", "builds_detail"],
+            fallback_text=fallback_text_for(item["displayName"] or item_id),
+        ),
+    )
+    item["gameAsset"] = game_asset
+    item["iconUrl"] = game_asset.get("iconUrl") or item["iconUrl"]
     for key, aliases in SIMC_GEAR_OPTION_ALIASES:
         value_text = simc_option_value(value, aliases)
         if value_text:

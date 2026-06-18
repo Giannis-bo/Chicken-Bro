@@ -126,8 +126,8 @@
             </view>
             <view class="gear-slot-body">
               <view class="gear-icon-frame {{item.statusClass}}">
-                <image wx:if="{{item.iconUrl}}" class="gear-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
-                <text wx:else class="gear-icon-fallback">{{item.label}}</text>
+                <image wx:if="{{item.gameAsset.iconUrl}}" class="gear-icon" src="{{item.gameAsset.iconUrl}}" mode="aspectFill"></image>
+                <text wx:else class="gear-icon-fallback">{{item.gameAsset.fallbackText}}</text>
               </view>
               <view class="gear-copy">
                 <text class="gear-name">{{item.displayName}}</text>
@@ -216,8 +216,8 @@
     <view class="gear-candidate-list">
       <view class="gear-candidate-row {{item.selected ? 'selected' : ''}}" wx:for="{{gearSlotSheet.candidates}}" wx:for-index="candidateIndex" wx:key="key" data-index="{{candidateIndex}}" data-slot="{{gearSlotSheet.slot}}" bindtap="selectGearCandidate">
         <view class="gear-icon-frame {{item.statusClass}}">
-          <image wx:if="{{item.iconUrl}}" class="gear-icon" src="{{item.iconUrl}}" mode="aspectFill"></image>
-          <text wx:else class="gear-icon-fallback">{{gearSlotSheet.label}}</text>
+          <image wx:if="{{item.gameAsset.iconUrl}}" class="gear-icon" src="{{item.gameAsset.iconUrl}}" mode="aspectFill"></image>
+          <text wx:else class="gear-icon-fallback">{{item.gameAsset.fallbackText}}</text>
         </view>
         <view class="gear-copy">
           <text class="gear-name">{{item.displayName}}</text>

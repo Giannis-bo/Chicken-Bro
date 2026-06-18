@@ -23,6 +23,7 @@ const {
 } = require('./talent-simulator-core')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 const { saveBuildTemplate } = require('../common/build-template-storage')
+const { attachGameAsset } = require('../common/game-asset')
 
 const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
 const PAGE_ROUTE = 'pages/builds/talent-simulator'
@@ -125,17 +126,33 @@ function nodeClass(node) {
   ].filter(Boolean).join(' ')
 }
 
+function attachTalentGameAsset(item, contextKey) {
+  return attachGameAsset(item || {}, {
+    entityType: 'talent',
+    entityId: (item && String(item.id || item.spellId || item.name || '')) || 'talent',
+    contextKey,
+    source: (item && (item.source || item.metadataSource)) || 'game_asset_fallback',
+    status: item && item.iconUrl ? 'fallback' : 'missing',
+    semanticTags: ['game', 'talent', item && item.treeType],
+    usage: ['talent_simulator', contextKey],
+    fallbackText: (item && (item.name || item.label || item.firstLetter)) || '?'
+  })
+}
+
 function decorateSection(section) {
   if (!section) return { key: '', title: '', pointCount: 0, pointCap: 0, nodes: [], links: [] }
   return {
     ...section,
     pointLabel: `${section.pointCount || 0}/${section.pointCap || 0}`,
-    nodes: (section.nodes || []).map((node) => ({
-      ...node,
-      nodeStyle: nodeStyle(node),
-      nodeClass: nodeClass(node),
-      rankLabel: `${node.rank || 0}/${node.maxRank || 1}`
-    })),
+    nodes: (section.nodes || []).map((node) => {
+      const next = attachTalentGameAsset(node, 'talent-simulator-node')
+      return {
+        ...next,
+        nodeStyle: nodeStyle(next),
+        nodeClass: nodeClass(next),
+        rankLabel: `${next.rank || 0}/${next.maxRank || 1}`
+      }
+    }),
     links: (section.links || []).map((line) => ({
       ...line,
       lineStyle: lineStyle(line)
@@ -551,15 +568,18 @@ Page({
   openChoiceSheet(node) {
     const options = choiceGroupNodes(node, this.data.nodes).map((item) => {
       const itemRank = rankFor(item, this.data.talentRanks, this.data.nodes, this.data.baseTalentRanks)
-      return {
+      return attachTalentGameAsset({
         id: item.id,
         name: item.name,
         description: item.description || '',
         iconUrl: item.iconUrl || '',
+        gameAsset: item.gameAsset,
+        source: item.source || '',
+        treeType: item.treeType || '',
         rank: itemRank,
         rankLabel: `${itemRank}/${maxRankFor(item)}`,
         selected: itemRank > 0
-      }
+      }, 'talent-choice-sheet')
     })
     this.setData({
       choiceSheet: {

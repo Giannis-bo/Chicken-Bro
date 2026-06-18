@@ -705,9 +705,36 @@ class NewsBackendTest(unittest.TestCase):
 
         self.assertEqual(home["navTitle"], "副本")
         self.assertEqual(home["dataStatus"], "blocked")
-        self.assertEqual(home["zones"], [])
-        self.assertEqual(module["items"], [])
-        self.assertEqual(module["itemCount"], 0)
+        self.assertEqual(home["runtimeSeasonGate"], "external_sources_available")
+        self.assertGreater(len(home["zones"]), 0)
+        self.assertTrue(any(
+            item["key"] == "specLadder"
+            for zone in home["zones"]
+            for item in zone["modules"]
+        ))
+        self.assertEqual(module["runtimeSeasonGate"], "external_sources_available")
+        self.assertGreater(len(module["items"]), 0)
+        self.assertEqual(module["itemCount"], len(module["items"]))
+
+        spec_ladder = self.backend.get_pve_module_payload("specLadder")
+        self.assertEqual(spec_ladder["key"], "specLadder")
+        self.assertEqual(
+            spec_ladder["itemCount"],
+            sum(role["count"] for role in spec_ladder["roles"]),
+        )
+        self.assertGreater(len(spec_ladder["items"]), 0)
+        self.assertEqual([role["key"] for role in spec_ladder["roles"]], ["dps", "tank", "healer"])
+        self.assertEqual(
+            [source["status"] for source in spec_ladder["sourceChecks"]],
+            ["verified", "verified"],
+        )
+
+        malformed_spec_ladder = dict(spec_ladder)
+        malformed_spec_ladder["sourceChecks"] = [
+            {"key": "archon", "status": "verified", "sampleCount": "not-a-number"},
+            {"key": "warcraftlogs", "status": "verified", "sampleCount": 10},
+        ]
+        self.assertFalse(self.backend.has_verified_external_pve_sources(malformed_spec_ladder))
 
         self.seed_verified_season()
         home = self.backend.get_pve_home_payload()

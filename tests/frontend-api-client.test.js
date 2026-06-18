@@ -22,6 +22,13 @@ test('shared api client uses the Lighthouse backend in develop and no implicit U
   assert.equal(client.apiUrl('/health'), '')
 })
 
+test('game asset fallback text uppercases both one-letter and multi-letter labels', () => {
+  const { fallbackTextFor } = resetModule('../pages/common/game-asset')
+
+  assert.equal(fallbackTextFor('dk'), 'DK')
+  assert.equal(fallbackTextFor('m'), 'M')
+})
+
 test('builds api returns fallback without an API base and remote payload when request succeeds', async () => {
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'release' } }),
@@ -189,6 +196,77 @@ test('pve and simulator apis expose fallback payloads', async () => {
   assert.equal(simulatorHome.payload.metrics, undefined)
   assert.equal(analysis.fromFallback, true)
   assert.equal(analysis.payload.mode, 'simcraft')
+})
+
+test('pve home rejects remote payloads with empty zones and falls back to local modules', async () => {
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    request: (options) => {
+      options.success({
+        statusCode: 200,
+        data: {
+          navTitle: '副本',
+          title: '大秘境与团队 Raid',
+          zones: [],
+          dataStatus: 'blocked'
+        }
+      })
+    }
+  }
+
+  const pveApi = resetModule('../pages/pve/pve-api')
+  const result = await pveApi.requestPveHome()
+
+  assert.equal(result.fromFallback, true)
+  assert.equal(result.payload.navTitle, '副本')
+  assert.deepEqual(
+    result.payload.zones.map((zone) => zone.title),
+    ['大秘境专区', '团队 raid 专区']
+  )
+  assert.ok(result.payload.zones[0].modules.some((module) => module.key === 'specLadder'))
+})
+
+test('pve spec ladder rejects legacy remote payload and falls back to the complete ladder contract', async () => {
+  let captured = null
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    request: (options) => {
+      captured = options
+      options.success({
+        statusCode: 200,
+        data: {
+          key: 'specLadder',
+          title: '职业天梯',
+          items: [
+            {
+              title: '旧职业天梯',
+              value: '4 条数据',
+              desc: '旧版记录列表',
+              sourceName: 'Icy Veins / Raider.IO / Wowhead'
+            }
+          ]
+        }
+      })
+    }
+  }
+
+  const pveApi = resetModule('../pages/pve/pve-api')
+  const result = await pveApi.requestPveModule('specLadder')
+
+  assert.match(captured.url, /\/api\/pve\/module\?key=specLadder$/)
+  assert.equal(result.fromFallback, true)
+  assert.deepEqual(
+    result.payload.roles.map((role) => role.key),
+    ['dps', 'tank', 'healer']
+  )
+  assert.ok(result.payload.archonTierSummary.dps.tiers.length > 0)
+  assert.ok(Object.keys(result.payload.wclDetailsBySpec).length > 0)
+  assert.deepEqual(
+    result.payload.sourceChecks.map((source) => source.key),
+    ['archon', 'warcraftlogs']
+  )
 })
 
 test('simulator analysis posts prompt to backend without requiring authenticated https', async () => {

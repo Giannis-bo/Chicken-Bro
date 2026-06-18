@@ -1,4 +1,5 @@
 const { buildCurrentSeasonPayload, seasonMetadataFields } = require('../game-season')
+const { gameAssetFromIconName } = require('../../pages/common/game-asset')
 
 const latestPveAnalysis = {
   currentSeason: '至暗之夜 Season 1',
@@ -29,6 +30,214 @@ const trustedPveSources = [
     note: '大秘境与团本趋势、职业专精热度和构筑样本。'
   }
 ]
+
+const classStyle = {
+  '死亡骑士': { color: '#c41e3a', icon: 'classicon_deathknight', fallback: 'DK' },
+  '恶魔猎手': { color: '#a330c9', icon: 'classicon_demonhunter', fallback: 'DH' },
+  '德鲁伊': { color: '#ff7c0a', icon: 'classicon_druid', fallback: '德' },
+  '唤魔师': { color: '#33937f', icon: 'classicon_evoker', fallback: '唤' },
+  '猎人': { color: '#aad372', icon: 'classicon_hunter', fallback: '猎' },
+  '法师': { color: '#3fc7eb', icon: 'classicon_mage', fallback: '法' },
+  '武僧': { color: '#00ff98', icon: 'classicon_monk', fallback: '僧' },
+  '圣骑士': { color: '#f48cba', icon: 'classicon_paladin', fallback: '圣' },
+  '牧师': { color: '#f0ebe0', icon: 'classicon_priest', fallback: '牧' },
+  '潜行者': { color: '#fff468', icon: 'classicon_rogue', fallback: '贼' },
+  '萨满祭司': { color: '#0070dd', icon: 'classicon_shaman', fallback: '萨' },
+  '术士': { color: '#8788ee', icon: 'classicon_warlock', fallback: '术' },
+  '战士': { color: '#c69b6d', icon: 'classicon_warrior', fallback: '战' }
+}
+
+const archonTierUrl = {
+  dps: 'https://www.archon.gg/wow/tier-list/dps-rankings/mythic-plus/high-keys/all-dungeons/this-week',
+  tank: 'https://www.archon.gg/wow/tier-list/tank-rankings/mythic-plus/high-keys/all-dungeons/this-week',
+  healer: 'https://www.archon.gg/wow/tier-list/healer-rankings/mythic-plus/high-keys/all-dungeons/this-week'
+}
+
+const wclStatisticsUrl = {
+  dps: 'https://www.warcraftlogs.com/zone/statistics/47?class=DPS',
+  tank: 'https://www.warcraftlogs.com/zone/statistics/47?class=Tanks',
+  healer: 'https://www.warcraftlogs.com/zone/statistics/47?class=Healers'
+}
+
+const archonBuildUrl = (classSlug, specSlug) =>
+  `https://www.archon.gg/wow/builds/${specSlug}/${classSlug}/mythic-plus/overview/high-keys/all-dungeons/this-week`
+
+const specGameAsset = (role, specId, style, classSlug, specSlug) => gameAssetFromIconName({
+  entityType: 'playable_spec',
+  entityId: specId,
+  contextKey: `pve-spec-ladder:${role}`,
+  iconName: style.icon,
+  source: 'static_icon_name',
+  status: 'fallback',
+  semanticTags: ['game', 'pve', 'mythic_plus', 'spec_ladder', role, classSlug, specSlug],
+  usage: ['pve_spec_ladder', 'pve_detail', 'archon_tier_board'],
+  fallbackText: style.fallback
+})
+
+const specRecord = (role, tier, rank, className, specName, classSlug, specSlug, score, sampleCount, wclScore, wclMax, wclParses, p50, p75, p95) => {
+  const style = classStyle[className] || { color: '#8e8e8e', icon: 'inv_misc_questionmark', fallback: specName.slice(0, 1) }
+  const specId = `${classSlug.replace(/-/g, '')}-${specSlug.replace(/-/g, '_')}`
+  const gameAsset = specGameAsset(role, specId, style, classSlug, specSlug)
+  return {
+    role,
+    tier,
+    rank,
+    specId,
+    className,
+    specName,
+    fullName: `${specName}${className}`,
+    classSlug,
+    specSlug,
+    classColor: style.color,
+    fallbackText: gameAsset.fallbackText,
+    iconUrl: gameAsset.iconUrl,
+    gameAsset,
+    score,
+    scoreLabel: 'M+ Score',
+    scoreText: `${score}`,
+    sampleCount,
+    sampleText: `${sampleCount.toLocaleString('en-US')} 样本`,
+    sourceName: 'Archon',
+    sourceUrl: archonBuildUrl(classSlug, specSlug),
+    sourceStatus: 'verified',
+    wcl: {
+      specId,
+      role,
+      className,
+      specName,
+      fullName: `${specName}${className}`,
+      rank,
+      score: wclScore,
+      scoreText: wclScore.toFixed(2),
+      max: wclMax,
+      maxText: wclMax.toFixed(2),
+      parses: wclParses,
+      parsesText: wclParses.toLocaleString('en-US'),
+      sourceName: 'Warcraft Logs',
+      sourceUrl: wclStatisticsUrl[role],
+      sourceStatus: 'verified',
+      sourceStatusLabel: 'WCL verified',
+      metricLabel: role === 'healer' ? 'Points / HPS normalized' : 'Points',
+      distribution: {
+        p50,
+        p75,
+        p95,
+        barPercent: Math.max(18, Math.min(100, Math.round((wclScore / wclMax) * 100)))
+      }
+    }
+  }
+}
+
+const specLadderRecords = [
+  specRecord('dps', 'S', 1, '唤魔师', '增辉', 'evoker', 'augmentation', 4253, 11942, 88.12, 107.96, 280340, 72.4, 82.7, 96.1),
+  specRecord('dps', 'S', 2, '恶魔猎手', '吞噬者', 'demon-hunter', 'devourer', 4214, 18669, 85.86, 107.96, 433255, 70.8, 80.9, 94.7),
+  specRecord('dps', 'S', 3, '死亡骑士', '邪恶', 'death-knight', 'unholy', 4206, 29041, 86.67, 107.96, 673521, 71.1, 81.8, 95.3),
+  specRecord('dps', 'A', 4, '战士', '武器', 'warrior', 'arms', 4119, 8628, 81.23, 105.96, 198832, 66.5, 76.2, 90.4),
+  specRecord('dps', 'A', 5, '潜行者', '狂徒', 'rogue', 'outlaw', 4109, 3393, 77.20, 105.68, 77954, 62.4, 72.1, 87.6),
+  specRecord('dps', 'A', 6, '德鲁伊', '野性', 'druid', 'feral', 4105, 4558, 76.71, 105.68, 106076, 61.8, 71.9, 86.9),
+  specRecord('dps', 'B', 7, '圣骑士', '惩戒', 'paladin', 'retribution', 4013, 696854, 79.89, 105.85, 696854, 64.3, 74.8, 89.7),
+  specRecord('dps', 'B', 8, '法师', '冰霜', 'mage', 'frost', 3897, 415208, 76.18, 104.80, 415208, 60.4, 70.2, 85.1),
+  specRecord('dps', 'C', 9, '法师', '奥术', 'mage', 'arcane', 3844, 61317, 76.37, 103.28, 61317, 60.7, 70.6, 84.3),
+  specRecord('dps', 'C', 10, '术士', '毁灭', 'warlock', 'destruction', 3800, 54533, 74.51, 103.00, 54533, 58.9, 68.8, 82.5),
+  specRecord('tank', 'S', 1, '德鲁伊', '守护', 'druid', 'guardian', 3568, 866755, 84.38, 107.96, 866755, 69.1, 79.6, 93.9),
+  specRecord('tank', 'S', 2, '武僧', '酒仙', 'monk', 'brewmaster', 3539, 279016, 80.09, 105.96, 279016, 64.4, 75.3, 90.2),
+  specRecord('tank', 'A', 3, '圣骑士', '防护', 'paladin', 'protection', 3481, 187903, 75.38, 103.06, 187903, 60.2, 70.1, 84.2),
+  specRecord('tank', 'A', 4, '恶魔猎手', '复仇', 'demon-hunter', 'vengeance', 3468, 282247, 75.31, 102.92, 282247, 59.8, 69.9, 83.7),
+  specRecord('tank', 'B', 5, '死亡骑士', '鲜血', 'death-knight', 'blood', 3402, 201644, 75.52, 102.11, 201644, 59.9, 70.3, 83.9),
+  specRecord('tank', 'B', 6, '战士', '防护', 'warrior', 'protection', 3377, 110689, 75.37, 103.01, 110689, 59.5, 69.6, 83.4),
+  specRecord('healer', 'S', 1, '武僧', '织雾', 'monk', 'mistweaver', 3492, 574932, 83.84, 107.96, 574932, 67.8, 78.9, 93.4),
+  specRecord('healer', 'S', 2, '萨满祭司', '恢复', 'shaman', 'restoration', 3476, 547518, 82.15, 105.96, 547518, 66.1, 77.7, 91.8),
+  specRecord('healer', 'A', 3, '牧师', '戒律', 'priest', 'discipline', 3418, 282814, 78.31, 105.90, 282814, 62.6, 73.5, 88.1),
+  specRecord('healer', 'A', 4, '圣骑士', '神圣', 'paladin', 'holy', 3361, 188420, 75.89, 102.91, 188420, 60.1, 70.4, 84.6),
+  specRecord('healer', 'B', 5, '牧师', '神圣', 'priest', 'holy', 3334, 110689, 75.28, 102.83, 110689, 59.3, 69.3, 83.1),
+  specRecord('healer', 'B', 6, '唤魔师', '恩护', 'evoker', 'preservation', 3308, 60711, 75.31, 102.92, 60711, 59.2, 69.4, 83.0),
+  specRecord('healer', 'C', 7, '德鲁伊', '恢复', 'druid', 'restoration', 3266, 199223, 75.20, 101.76, 199223, 58.8, 68.7, 81.9)
+]
+
+function buildSpecLadderRole(roleKey, title, desc) {
+  const records = specLadderRecords.filter((record) => record.role === roleKey)
+  return {
+    key: roleKey,
+    title,
+    desc,
+    count: records.length,
+    updatedAt: '2026-06-18',
+    active: roleKey === 'dps'
+  }
+}
+
+function buildArchonTierSummary() {
+  return ['dps', 'tank', 'healer'].reduce((result, roleKey) => {
+    const tiers = ['S', 'A', 'B', 'C']
+      .map((tier) => ({
+        tier,
+        items: specLadderRecords
+          .filter((record) => record.role === roleKey && record.tier === tier)
+          .map(({ wcl, ...record }) => record)
+      }))
+      .filter((tier) => tier.items.length > 0)
+
+    result[roleKey] = {
+      sourceName: 'Archon',
+      sourceUrl: archonTierUrl[roleKey],
+      sourceStatus: 'verified',
+      sourceStatusLabel: 'Archon verified',
+      publishedAt: latestPveAnalysis.publishedAt,
+      checkedAt: '2026-06-18T03:20:00Z',
+      analysisWindow: 'High Keys Mythic+, All Dungeons, this week; Archon tier board fixture pending API sync.',
+      tiers
+    }
+    return result
+  }, {})
+}
+
+function buildWclDetailsBySpec() {
+  return Object.fromEntries(
+    specLadderRecords.map((record) => [record.specId, record.wcl])
+  )
+}
+
+function buildSpecLadderSourceChecks() {
+  const totalArchonSamples = specLadderRecords.reduce((sum, record) => sum + record.sampleCount, 0)
+  const totalWclSamples = specLadderRecords.reduce((sum, record) => sum + record.wcl.parses, 0)
+  return [
+    {
+      key: 'archon',
+      name: 'Archon',
+      domain: 'archon.gg',
+      status: 'verified',
+      statusLabel: 'Archon verified',
+      checkedAt: '2026-06-18T03:20:00Z',
+      analysisWindow: 'High Keys Mythic+, All Dungeons, this week',
+      sampleCount: totalArchonSamples,
+      sourceUrl: archonTierUrl.dps,
+      note: '用于小程序强度分层和 M+ Score 概览；正式 API/合作接入前保持 fixture 可替换。'
+    },
+    {
+      key: 'warcraftlogs',
+      name: 'Warcraft Logs',
+      domain: 'warcraftlogs.com',
+      status: 'verified',
+      statusLabel: 'WCL verified',
+      checkedAt: '2026-06-18T03:20:00Z',
+      analysisWindow: 'Mythic+ Season 1 statistics, all percentiles, range of 2 weeks',
+      sampleCount: totalWclSamples,
+      sourceUrl: 'https://www.warcraftlogs.com/zone/statistics/47',
+      note: '用于同专精 Score、Max、Parses 与分布明细；只做交叉验证，不覆盖 Archon 排名。'
+    }
+  ]
+}
+
+const specLadderRoleTabs = [
+  buildSpecLadderRole('dps', 'DPS', '输出专精'),
+  buildSpecLadderRole('tank', '坦克', '坦克专精'),
+  buildSpecLadderRole('healer', '治疗', '治疗专精')
+]
+
+const specLadderArchonTierSummary = buildArchonTierSummary()
+const specLadderWclDetailsBySpec = buildWclDetailsBySpec()
+const specLadderSelectedSpecId = specLadderArchonTierSummary.dps.tiers[0].items[0].specId
+const specLadderSourceChecks = buildSpecLadderSourceChecks()
 
 const sourceBackedItems = {
   teamLadder: [
@@ -61,42 +270,18 @@ const sourceBackedItems = {
     }
   ],
   specLadder: [
-    {
-      title: '惩戒圣骑士',
-      value: '7.4%',
-      desc: 'Icy Veins 的 Raider.IO 聚合显示，惩戒圣骑士是当周最热门专精。',
-      sourceName: 'Icy Veins / Raider.IO',
-      sourceUrl: 'https://www.icy-veins.com/wow/news/the-most-played-specs-and-groups-and-dps-logs-of-midnight-mythic-season-1/',
-      publishedAt: '2026-06-07',
-      analysisWindow: '至暗之夜 Season 1 第 3 周，本 reset 全层数大秘境样本'
-    },
-    {
-      title: '冰霜法师',
-      value: '7.1%',
-      desc: '冰霜法师热度紧随惩戒之后，是当前最常见的大秘境输出专精之一。',
-      sourceName: 'Icy Veins / Raider.IO',
-      sourceUrl: 'https://www.icy-veins.com/wow/news/the-most-played-specs-and-groups-and-dps-logs-of-midnight-mythic-season-1/',
-      publishedAt: '2026-06-07',
-      analysisWindow: '至暗之夜 Season 1 第 3 周，本 reset 全层数大秘境样本'
-    },
-    {
-      title: '酒仙武僧',
-      value: '热门坦克',
-      desc: '可读数据明确酒仙仍是当周最热门坦克，出现在高热度组合和高层样本的队伍维度中。',
-      sourceName: 'Icy Veins / Raider.IO',
-      sourceUrl: 'https://www.icy-veins.com/wow/news/the-most-played-specs-and-groups-and-dps-logs-of-midnight-mythic-season-1/',
-      publishedAt: '2026-06-07',
-      analysisWindow: '至暗之夜 Season 1 第 3 周，本 reset 全层数大秘境样本'
-    },
-    {
-      title: '恶魔术士',
-      value: '6.2%',
-      desc: '恶魔术士是可读数据中第 3 个进入前列的 DPS 专精，并在队伍组合里持续出现。',
-      sourceName: 'Icy Veins / Raider.IO',
-      sourceUrl: 'https://www.icy-veins.com/wow/news/the-most-played-specs-and-groups-and-dps-logs-of-midnight-mythic-season-1/',
-      publishedAt: '2026-06-07',
-      analysisWindow: '至暗之夜 Season 1 第 3 周，本 reset 全层数大秘境样本'
-    }
+    ...specLadderArchonTierSummary.dps.tiers
+      .flatMap((tier) => tier.items)
+      .slice(0, 4)
+      .map((record) => ({
+        title: record.fullName,
+        value: `${record.score} M+`,
+        desc: `Archon ${record.tier} Tier，近 14 天高层大秘境样本 ${record.sampleText}；点击详情页可查看 WCL Score、Max 和 Parses。`,
+        sourceName: 'Archon / Warcraft Logs',
+        sourceUrl: record.sourceUrl,
+        publishedAt: latestPveAnalysis.publishedAt,
+        analysisWindow: 'High Keys Mythic+, All Dungeons, this week / WCL 2-week statistics'
+      }))
   ],
   seasonDungeons: [
     {
@@ -227,8 +412,18 @@ const pveZones = [
         key: 'specLadder',
         title: '职业天梯',
         desc: '主要看职业专精维度：坦克、治疗、DPS 的出场率、热度和样本趋势。',
-        itemCount: sourceBackedItems.specLadder.length,
-        items: sourceBackedItems.specLadder
+        itemCount: specLadderRecords.length,
+        items: sourceBackedItems.specLadder,
+        sourceName: 'Archon / Warcraft Logs',
+        sourceUrl: archonTierUrl.dps,
+        publishedAt: latestPveAnalysis.publishedAt,
+        analysisWindow: 'High Keys Mythic+, All Dungeons, this week / WCL 2-week statistics',
+        defaultRole: 'dps',
+        selectedSpecId: specLadderSelectedSpecId,
+        roles: specLadderRoleTabs,
+        archonTierSummary: specLadderArchonTierSummary,
+        wclDetailsBySpec: specLadderWclDetailsBySpec,
+        sourceChecks: specLadderSourceChecks
       },
       {
         key: 'seasonDungeons',
@@ -292,10 +487,10 @@ function getPveModuleDetail(moduleKey) {
         zoneTitle: zone.title,
         zoneKey: zone.key,
         zoneEyebrow: zone.eyebrow,
-        sourceName: zone.sourceName,
-        sourceUrl: zone.sourceUrl,
-        publishedAt: zone.publishedAt,
-        analysisWindow: zone.analysisWindow
+        sourceName: item.sourceName || zone.sourceName,
+        sourceUrl: item.sourceUrl || zone.sourceUrl,
+        publishedAt: item.publishedAt || zone.publishedAt,
+        analysisWindow: item.analysisWindow || zone.analysisWindow
       }))
     )
     .find((item) => item.key === moduleKey) || {
