@@ -32,6 +32,7 @@
 当前第一版可信来源：
 
 - Blizzard News：`worldofwarcraft.blizzard.com`、`news.blizzard.com`，`tier=official`，`licenseStatus=approved`，默认启用全文采集和发布。
+- Blizzard Forums：`us.forums.blizzard.com`，`tier=official`，`licenseStatus=approved`，默认启用 PTR / 开发说明 / Raid Testing 主题发现；通过翻译和发布质检后才可公开。
 - Wowhead：`www.wowhead.com`，`tier=trusted_media`，`licenseStatus=reference_only`，默认不发布全文翻译，仅保留发现/佐证。
 - Icy Veins：`www.icy-veins.com`，`tier=trusted_media`，`licenseStatus=reference_only`，默认不发布全文翻译，仅保留发现/佐证。
 
@@ -113,28 +114,29 @@
 
 当前为了适配新服务器的最小环境，后端使用 Python 标准库：
 
-- `server/news_backend.py`：HTTP API、SQLite 初始化、来源注册表、raw/evidence 记录、可信发布门禁、刷新记录、payload 构建。
-- `server/news_collector.py`：无依赖 RSS / Atom / HTML 采集器，负责列表发现、Blizzard 官方详情页正文块抽取、标准化日期、频道分类、来源证据和去重。
+- `server/news_backend.py`：HTTP API、SQLite 初始化、来源注册表、discovery queue、raw/evidence 记录、可信发布门禁、刷新记录、payload 构建。
+- `server/news_collector.py`：无依赖 RSS / Atom / HTML / Blizzard Forums 采集器，负责列表发现、Blizzard 官方详情页正文块抽取、官方论坛主题发现、标准化日期、版本事件识别、频道分类、来源证据和去重。
 - `server/news_translator.py`：负责 LLM 中文化 schema、tag 白名单、逐块原文直译、完整正文质检、`translationFidelity=source_translation` 和 `ready / blocked` 发布状态。
 - `server/news/articles.seed.json`：第一版已核验来源的新闻种子。
 - `server/news/home-payload.js`：前后端共享契约的 JS 实现，用于本地 Node 测试和小程序 fallback。
 
-线上自动采集源当前收敛为暴雪官方 World of Warcraft 新闻列表页，并对 Blizzard 官方详情页做二段式正文抽取。Wowhead / Icy Veins 仍可作为 reference-only 来源保存发现和佐证，但未确认授权前不进入自动全文采集，也不公开展示第三方全文翻译。
+线上自动采集采用 `discovery -> processing queue -> publication` 三段式。Discovery 覆盖 Blizzard News、Blizzard 官方论坛 PTR / 开发说明主题，以及可用 reference-only 第三方来源；processing queue 持久保存所有发现条目并按批次处理，单条 LLM 或正文抓取失败不会阻塞后续条目；publication 仍只发布 `official + approved + official_verified + source_translation` 的文章。Wowhead / Icy Veins 仍只作为 reference-only 来源保存发现和佐证，未确认授权前不公开展示第三方全文翻译。
 
-刷新链路分五层：
+刷新链路分层：
 
-1. 列表发现：发现可信来源 URL、标题、摘要、日期和频道。
-2. 详情抽取：Blizzard 官方文章抓取正文块，保留 `originalTitle`、内部 `originalBody` 和 `bodyBlocks`。
-3. LLM 加工：输出中文标题、中文摘要、逐块 `bodyBlocksZh`、`translationFidelity=source_translation` 和白名单 tag；不得把正文改写成导读、摘要或阅读建议。
-4. 来源与事实门禁：`news_sources` 控制授权状态，`news_raw_articles` 记录原文内部材料，`news_article_evidence` 记录官方/第三方证据；非 approved、非 official verified 或冲突条目 blocked。
-5. 发布质检：只有 `contentStatus=ready` 且通过四重门禁的文章进入公共 API；失败原因写入 `news_refresh_runs.message.blockedArticles`。
+1. 发现：按来源抓取 URL、标题、摘要、日期、source tier 和 `versionEvent`，并写入 `news_discovery_queue`。`versionEvent` 从标题、摘要、URL 和正文中抽取 `patchVersion`、`productPhase`、`sourceIntent`、`contentType`；`12.1`、`12.0.5 PTR`、`13.0 PTR`、`Midnight Beta` 等未来版本靠结构化正则识别，不依赖写死版本关键词。
+2. 队列处理：每轮发现至少 10 条，每轮默认处理 3-5 条；`queued`、`retryable`、`blocked`、`published` 状态会保留到下轮，backlog 可续跑。
+3. 详情抽取：Blizzard 官方文章抓取正文块，Blizzard Forums 主题保存官方论坛题目/摘要/链接，保留 `originalTitle`、内部 `originalBody` 和 `bodyBlocks`。
+4. LLM 加工：仅对可发布的官方 approved 来源请求全文直译，输出中文标题、中文摘要、逐块 `bodyBlocksZh`、`translationFidelity=source_translation` 和白名单 tag；不得把正文改写成导读、摘要或阅读建议。
+5. 来源与发布门禁：`news_sources` 控制授权状态，`news_raw_articles` 记录原文内部材料，`news_article_evidence` 记录官方/第三方证据；只有 `contentStatus=ready` 且通过四重门禁的文章进入公共 API；失败原因写入 `news_refresh_runs.message.blockedArticles`。
 
 采集器通过环境变量控制：
 
 ```text
 WOW_NEWS_ENABLE_COLLECTORS=0  # 默认，仅读取已核验种子
 WOW_NEWS_ENABLE_COLLECTORS=1  # 启用 RSS / Atom 采集并写入 SQLite
-WOW_NEWS_MAX_COLLECTED_ARTICLES=1  # 每个来源每次最多处理的新采集条数
+WOW_NEWS_DISCOVERY_LIMIT=10  # 每个来源每轮至少发现的条数；旧 WOW_NEWS_MAX_COLLECTED_ARTICLES 会被视为下限输入
+WOW_NEWS_PROCESS_LIMIT=5  # 每轮从 discovery queue 处理的条数，建议 3-5
 WOW_LLM_TIMEOUT_SECONDS=45  # 单次 LLM 翻译请求超时
 ```
 
@@ -156,7 +158,9 @@ WOW_NEWS_REFRESH_TIMEOUT=240
 ```
 
 每次执行会记录开始/结束时间、HTTP 状态和错误退出码，便于排查定时刷新失败。
-`WOW_NEWS_MAX_COLLECTED_ARTICLES` 是源站与 LLM 保护阀。V1 默认每次只处理 1 篇新官方文章，优先保证逐块直译完整性；后续可以在异步 refresh worker 和管理面板就绪后再提高吞吐。
+`WOW_NEWS_DISCOVERY_LIMIT` 控制每源发现规模，后端会保证至少 10 条，避免 12.1 PTR 这类爆发更新被旧的 `WOW_NEWS_MAX_COLLECTED_ARTICLES=1` 截断。`WOW_NEWS_PROCESS_LIMIT` 控制每轮 LLM / 正文处理吞吐，未处理和 retryable 条目会留在 `news_discovery_queue` 供下轮继续。
+
+`GET /api/news/refresh-runs/latest` 会暴露 `discoveredCount`、`queuedCount`、`processedCount`、`publishedCount`、`blockedCount`、`retryableCount`、`sourceCoverage` 和 `oldestBacklogAge`。`/api/data/health` 的 news 组件会把 backlog 视为可解释的 partial 状态，而不是把“发现数大于发布数”误报为整轮失败。
 
 ## 前端实现
 

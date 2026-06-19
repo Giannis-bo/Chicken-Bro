@@ -4,6 +4,17 @@ const DEFAULT_POINT_CAPS = {
   hero: 13
 }
 const TALENT_SCHEMA_REVISION = 'websim-talent-rules-v1'
+const TALENT_GRID_WIDTH_RPX = 660
+const TALENT_GRID_HEIGHTS_RPX = {
+  class: 1080,
+  spec: 1080,
+  hero: 820
+}
+const TALENT_NODE_RADIUS_RPX = 32
+const LINK_NODE_VISIBLE_GAP_RPX = 8
+const LINK_ARROW_HEAD_RPX = 12
+const LINK_NODE_START_CLEARANCE_RPX = TALENT_NODE_RADIUS_RPX + LINK_NODE_VISIBLE_GAP_RPX
+const LINK_NODE_END_CLEARANCE_RPX = TALENT_NODE_RADIUS_RPX + LINK_NODE_VISIBLE_GAP_RPX + LINK_ARROW_HEAD_RPX
 
 function numberValue(value, fallback) {
   const next = Number(value)
@@ -113,10 +124,16 @@ function parentModeFor(node) {
   return mode === 'all' ? 'all' : 'any'
 }
 
+function parentRequirementSatisfied(parentId, nodes, talentRanks, baseTalentRanks) {
+  const parent = nodeById(nodes, parentId)
+  if (!parent) return false
+  return rankFor(parent, talentRanks, nodes, baseTalentRanks) >= maxRankFor(parent)
+}
+
 function missingParentIdsFor(node, nodes, talentRanks, baseTalentRanks) {
   const parentIds = parentIdsFor(node)
   if (!parentIds.length) return []
-  const selected = parentIds.filter((id) => rankFor(id, talentRanks, nodes, baseTalentRanks) > 0)
+  const selected = parentIds.filter((id) => parentRequirementSatisfied(id, nodes, talentRanks, baseTalentRanks))
   if (parentModeFor(node) === 'all') return parentIds.filter((id) => !selected.includes(id))
   return selected.length ? [] : parentIds
 }
@@ -303,6 +320,14 @@ function templatesForScenario(templates, scenarioKey) {
   })
 }
 
+function templatesForClass(templates, classKey) {
+  const key = String(classKey || '').trim()
+  return (Array.isArray(templates) ? templates : []).filter((template) => {
+    if (!template) return false
+    return !key || (template.classKey || '') === key
+  })
+}
+
 function communityTemplateApplyMode(template) {
   if (!template) return 'blocked'
   if (template.canApplyVisual && template.websimExportCode) return 'visual'
@@ -330,24 +355,90 @@ function communityTemplateStatusText(syncState) {
   return '缺少社区模板 API 凭据'
 }
 
-function treeMetrics(nodes) {
+function gridHeightForKey(key) {
+  return TALENT_GRID_HEIGHTS_RPX[key] || TALENT_GRID_HEIGHTS_RPX.spec
+}
+
+function treeMetrics(nodes, key) {
   return {
     cols: Math.max(4, ...(nodes || []).map((node) => numberValue(node.col, 1))),
-    rows: Math.max(4, ...(nodes || []).map((node) => numberValue(node.row, 1)))
+    rows: Math.max(4, ...(nodes || []).map((node) => numberValue(node.row, 1))),
+    widthRpx: TALENT_GRID_WIDTH_RPX,
+    heightRpx: gridHeightForKey(key)
+  }
+}
+
+function nodeCenterFor(node, metrics) {
+  const xRpx = ((numberValue(node.col, 1) - 0.5) / metrics.cols) * metrics.widthRpx
+  const yRpx = ((numberValue(node.row, 1) - 0.5) / metrics.rows) * metrics.heightRpx
+  return {
+    xRpx,
+    yRpx,
+    xPercent: (xRpx / metrics.widthRpx) * 100,
+    yPercent: (yRpx / metrics.heightRpx) * 100
   }
 }
 
 function linkFor(from, to, metrics) {
-  const cols = Math.max(1, metrics.cols)
-  const rows = Math.max(1, metrics.rows)
+  const fromCenter = nodeCenterFor(from, metrics)
+  const toCenter = nodeCenterFor(to, metrics)
+  const dx = toCenter.xRpx - fromCenter.xRpx
+  const dy = toCenter.yRpx - fromCenter.yRpx
+  const distance = Math.sqrt(dx * dx + dy * dy) || 1
+  const ux = dx / distance
+  const uy = dy / distance
+  let startClearance = LINK_NODE_START_CLEARANCE_RPX
+  let endClearance = LINK_NODE_END_CLEARANCE_RPX
+  if (distance <= startClearance + endClearance + 1) {
+    const scale = Math.max(0, distance - 1) / (startClearance + endClearance)
+    startClearance *= scale
+    endClearance *= scale
+  }
+  const x1Rpx = fromCenter.xRpx + (ux * startClearance)
+  const y1Rpx = fromCenter.yRpx + (uy * startClearance)
+  const x2Rpx = toCenter.xRpx - (ux * endClearance)
+  const y2Rpx = toCenter.yRpx - (uy * endClearance)
   return {
     from: from.id,
     to: to.id,
-    x1: ((numberValue(from.col, 1) - 0.5) / cols) * 100,
-    y1: ((numberValue(from.row, 1) - 0.5) / rows) * 100,
-    x2: ((numberValue(to.col, 1) - 0.5) / cols) * 100,
-    y2: ((numberValue(to.row, 1) - 0.5) / rows) * 100
+    x1: (x1Rpx / metrics.widthRpx) * 100,
+    y1: (y1Rpx / metrics.heightRpx) * 100,
+    x2: (x2Rpx / metrics.widthRpx) * 100,
+    y2: (y2Rpx / metrics.heightRpx) * 100,
+    x1Rpx,
+    y1Rpx,
+    x2Rpx,
+    y2Rpx,
+    lengthRpx: Math.sqrt((x2Rpx - x1Rpx) ** 2 + (y2Rpx - y1Rpx) ** 2),
+    angleDeg: Math.atan2(y2Rpx - y1Rpx, x2Rpx - x1Rpx) * 180 / Math.PI
   }
+}
+
+function choiceSlotKey(node) {
+  if (!node || !node.choiceGroup) return ''
+  return [
+    treeKeyFor(node),
+    node.choiceGroup,
+    numberValue(node.row, 0),
+    numberValue(node.col, 0)
+  ].join(':')
+}
+
+function visualNodesForSection(sectionNodes, nodes, talentRanks, baseTalentRanks) {
+  const usedChoiceSlots = new Set()
+  return (sectionNodes || []).reduce((acc, node) => {
+    const slotKey = choiceSlotKey(node)
+    if (!slotKey) {
+      acc.push(node)
+      return acc
+    }
+    if (usedChoiceSlots.has(slotKey)) return acc
+    usedChoiceSlots.add(slotKey)
+    const slotPeers = sectionNodes.filter((item) => choiceSlotKey(item) === slotKey)
+    const selectedPeer = slotPeers.find((item) => rankFor(item, talentRanks, nodes, baseTalentRanks) > 0)
+    acc.push(selectedPeer || node)
+    return acc
+  }, [])
 }
 
 function defaultTreeSections() {
@@ -437,11 +528,12 @@ function buildTalentViewModel(options) {
       || numberValue(left.col, 0) - numberValue(right.col, 0)
       || String(left.id || '').localeCompare(String(right.id || ''))
     )
-    const metrics = treeMetrics(sectionNodes)
-    const nodeMap = new Map(sectionNodes.map((node) => [node.id, node]))
+    const metrics = treeMetrics(sectionNodes, key)
+    const visualSectionNodes = visualNodesForSection(sectionNodes, nodes, talentRanks, baseTalentRanks)
+    const nodeMap = new Map(visualSectionNodes.map((node) => [node.id, node]))
     const links = []
     let searchMatchCount = 0
-    const visualNodes = sectionNodes.map((node, nodeIndex) => {
+    const visualNodes = visualSectionNodes.map((node, nodeIndex) => {
       const rank = rankFor(node, talentRanks, nodes, baseTalentRanks)
       const maxRank = maxRankFor(node)
       const reason = nodeReason(node, nodes, talentRanks, baseTalentRanks, pointCaps)
@@ -453,6 +545,7 @@ function buildTalentViewModel(options) {
         searchMatches.push(node.id)
         searchMatchCount += 1
       }
+      const center = nodeCenterFor(node, metrics)
       return {
         ...node,
         renderKey: `${key}:${node.id || 'node'}:${nodeIndex}`,
@@ -468,18 +561,27 @@ function buildTalentViewModel(options) {
         nextUnlockSteps,
         choice: Boolean(node.choiceGroup),
         firstLetter: String(node.name || node.id || '?').slice(0, 1).toUpperCase(),
-        leftPercent: ((numberValue(node.col, 1) - 0.5) / metrics.cols) * 100,
-        topPercent: ((numberValue(node.row, 1) - 0.5) / metrics.rows) * 100,
+        leftPercent: center.xPercent,
+        topPercent: center.yPercent,
+        leftRpx: center.xRpx,
+        topRpx: center.yRpx,
         searchMatch,
         searchDimmed: Boolean(searchTerm && !searchMatch)
       }
     })
-    sectionNodes.forEach((node) => {
+    const visualStateById = new Map(visualNodes.map((node) => [node.id, node]))
+    visualSectionNodes.forEach((node) => {
       parentIdsFor(node).forEach((parentId) => {
         const parent = nodeMap.get(parentId)
         if (parent) {
+          const parentRank = rankFor(parent, talentRanks, nodes, baseTalentRanks)
+          const nodeRank = rankFor(node, talentRanks, nodes, baseTalentRanks)
+          const visualNode = visualStateById.get(node.id) || {}
+          const active = parentRank > 0 && nodeRank > 0
           links.push({
             ...linkFor(parent, node, metrics),
+            active,
+            available: !active && parentRank > 0 && Boolean(visualNode.canSelect),
             renderKey: `${key}:${parentId}:${node.id}:${links.length}`
           })
         }
@@ -514,7 +616,11 @@ function buildTalentViewModel(options) {
 
 module.exports = {
   DEFAULT_POINT_CAPS,
+  LINK_NODE_END_CLEARANCE_RPX,
+  LINK_NODE_START_CLEARANCE_RPX,
   TALENT_SCHEMA_REVISION,
+  TALENT_GRID_HEIGHTS_RPX,
+  TALENT_GRID_WIDTH_RPX,
   adjustTalentRank,
   buildTalentExportCode,
   buildTalentViewModel,
@@ -536,6 +642,7 @@ module.exports = {
   selectedTalentEntries,
   tapTalentNode,
   talentPurchasedPoints,
+  templatesForClass,
   templatesForScenario,
   talentPoints,
   treeKeyFor

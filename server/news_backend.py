@@ -29,7 +29,7 @@ try:
         rollup_daily_metrics,
     )
     from .news_collector import canonical_article_key, collect_feed_articles, merge_articles
-    from .news_translator import body_blocks_text, localize_article, normalize_body_blocks, visible_translation_issues
+    from .news_translator import body_blocks_text, localize_article, normalize_body_blocks, source_body_quality_issue, visible_translation_issues
     from .simulator_payload import (
         analyze_simulator_request,
         build_simulator_home_payload,
@@ -82,7 +82,7 @@ except ImportError:
         rollup_daily_metrics,
     )
     from news_collector import canonical_article_key, collect_feed_articles, merge_articles
-    from news_translator import body_blocks_text, localize_article, normalize_body_blocks, visible_translation_issues
+    from news_translator import body_blocks_text, localize_article, normalize_body_blocks, source_body_quality_issue, visible_translation_issues
     from simulator_payload import (
         analyze_simulator_request,
         build_simulator_home_payload,
@@ -149,6 +149,7 @@ CHANNELS = [
 
 TRUSTED_SOURCES = {
     "Blizzard News": {"worldofwarcraft.blizzard.com", "news.blizzard.com"},
+    "Blizzard Forums": {"us.forums.blizzard.com"},
     "Wowhead": {"www.wowhead.com"},
     "Icy Veins": {"www.icy-veins.com"},
 }
@@ -179,6 +180,18 @@ NEWS_SOURCE_REGISTRY = [
         "sourceUrl": "https://www.wowhead.com/news/rss/retail",
     },
     {
+        "sourceId": "blizzard-forums",
+        "sourceName": "Blizzard Forums",
+        "tier": "official",
+        "fetchMode": "forum_topics",
+        "retailOnly": True,
+        "licenseStatus": "approved",
+        "rateLimit": "polite:15s-timeout",
+        "enabled": True,
+        "hostnames": ["us.forums.blizzard.com"],
+        "sourceUrl": "https://us.forums.blizzard.com/en/wow/c/in-development",
+    },
+    {
         "sourceId": "icy-veins",
         "sourceName": "Icy Veins",
         "tier": "trusted_media",
@@ -205,6 +218,16 @@ FEED_SOURCES = [
         "sourceUrl": "https://worldofwarcraft.blizzard.com/en-us/news",
         "sourceNote": "Blizzard official World of Warcraft news listing.",
         "baseImportance": 86,
+    },
+    {
+        "type": "blizzard_forum",
+        "sourceId": "blizzard-forums",
+        "sourceName": "Blizzard Forums",
+        "sourceTier": "official",
+        "licenseStatus": "approved",
+        "sourceUrl": "https://us.forums.blizzard.com/en/wow/c/in-development",
+        "sourceNote": "Blizzard official PTR and development forum topic list.",
+        "baseImportance": 84,
     },
 ]
 
@@ -308,6 +331,39 @@ def init_db():
                 conflict_reason TEXT NOT NULL,
                 checked_at TEXT NOT NULL
             )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS news_discovery_queue (
+                id TEXT PRIMARY KEY,
+                canonical_topic_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                source_tier TEXT NOT NULL,
+                source_url TEXT NOT NULL,
+                original_title TEXT NOT NULL,
+                published_at TEXT NOT NULL,
+                status TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                last_error TEXT NOT NULL DEFAULT '',
+                payload_json TEXT NOT NULL,
+                discovered_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                processed_at TEXT NOT NULL DEFAULT ''
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_news_discovery_queue_status_updated
+            ON news_discovery_queue (status, updated_at)
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_news_discovery_queue_source_status
+            ON news_discovery_queue (source_id, status)
             """
         )
         seed_news_sources(conn)
@@ -580,6 +636,18 @@ def publication_block(article, reason, verification_status=None):
     return blocked
 
 
+def translation_block(article, reason):
+    blocked = dict(article)
+    blocked.update(
+        {
+            "contentStatus": "blocked",
+            "translationStatus": "blocked",
+            "blockedReason": reason,
+        }
+    )
+    return blocked
+
+
 def apply_publication_gates(article):
     reviewed = dict(article)
     source = source_config_for_article(reviewed)
@@ -633,6 +701,10 @@ def apply_publication_gates(article):
 
     if not is_source_translation(reviewed):
         return publication_block(reviewed, "not_source_translation", reviewed.get("verificationStatus"))
+
+    source_issue = source_body_quality_issue(reviewed)
+    if source_issue:
+        return publication_block(reviewed, source_issue, reviewed.get("verificationStatus"))
 
     if not body_blocks_zh or not reviewed.get("bodyZh") or reviewed.get("bodyZh") == reviewed.get("summary"):
         return publication_block(reviewed, "summary_only_body", reviewed.get("verificationStatus"))
@@ -748,21 +820,380 @@ def normalize_refresh_mode(value):
     return value if value in PUBLIC_REFRESH_MODES else None
 
 
+RETRYABLE_NEWS_BLOCK_REASONS = {
+    "llm_not_configured",
+    "invalid_llm_translation",
+    "translation_blocked",
+    "invalid_translation",
+    "not_source_translation",
+    "source_body_missing",
+    "summary_only_body",
+}
+
+
 def collector_article_limit():
-    return max(0, int_env("WOW_NEWS_MAX_COLLECTED_ARTICLES", 3))
+    return collector_discovery_limit()
+
+
+def collector_discovery_limit():
+    legacy_limit = int_env("WOW_NEWS_MAX_COLLECTED_ARTICLES", 10)
+    configured_limit = int_env("WOW_NEWS_DISCOVERY_LIMIT", legacy_limit)
+    return max(10, configured_limit)
+
+
+def collector_process_limit():
+    return max(1, min(5, int_env("WOW_NEWS_PROCESS_LIMIT", 5)))
+
+
+def parse_iso_datetime(value):
+    try:
+        parsed = datetime.fromisoformat((value or "").replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
+    except (TypeError, ValueError):
+        return None
+
+
+def queue_payload_for_article(article):
+    queued = dict(article)
+    queued["canonicalTopicId"] = queued.get("canonicalTopicId") or canonical_topic_id(queued)
+    return queued
+
+
+def enqueue_discovered_articles(conn, articles, discovered_at):
+    for article in articles:
+        queued = queue_payload_for_article(article)
+        conn.execute(
+            """
+            INSERT INTO news_discovery_queue (
+                id, canonical_topic_id, source_id, source_name, source_tier,
+                source_url, original_title, published_at, status, attempts,
+                last_error, payload_json, discovered_at, updated_at, processed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', 0, '', ?, ?, ?, '')
+            ON CONFLICT(id) DO UPDATE SET
+                canonical_topic_id=excluded.canonical_topic_id,
+                source_id=excluded.source_id,
+                source_name=excluded.source_name,
+                source_tier=excluded.source_tier,
+                source_url=excluded.source_url,
+                original_title=excluded.original_title,
+                published_at=excluded.published_at,
+                status=CASE
+                    WHEN news_discovery_queue.status = 'published'
+                         AND EXISTS (
+                             SELECT 1 FROM news_articles
+                             WHERE news_articles.id = excluded.id
+                               AND news_articles.content_status = 'ready'
+                         )
+                    THEN news_discovery_queue.status
+                    ELSE 'queued'
+                END,
+                last_error=CASE
+                    WHEN news_discovery_queue.status = 'published'
+                         AND EXISTS (
+                             SELECT 1 FROM news_articles
+                             WHERE news_articles.id = excluded.id
+                               AND news_articles.content_status = 'ready'
+                         )
+                    THEN news_discovery_queue.last_error
+                    ELSE ''
+                END,
+                payload_json=excluded.payload_json,
+                updated_at=excluded.updated_at
+            """,
+            (
+                queued.get("id", ""),
+                queued.get("canonicalTopicId", ""),
+                queued.get("sourceId", ""),
+                queued.get("sourceName", ""),
+                queued.get("sourceTier", ""),
+                queued.get("sourceUrl", ""),
+                queued.get("originalTitle") or queued.get("title", ""),
+                queued.get("publishedAt", ""),
+                json.dumps(queued, ensure_ascii=False),
+                discovered_at,
+                discovered_at,
+            ),
+        )
+
+
+def mark_queue_article(conn, article, status, error="", processed_at=None, increment_attempts=True):
+    now = processed_at or utc_now()
+    attempts_sql = "attempts + 1" if increment_attempts else "attempts"
+    conn.execute(
+        f"""
+        UPDATE news_discovery_queue
+        SET status = ?, last_error = ?, processed_at = ?, updated_at = ?,
+            attempts = {attempts_sql}
+        WHERE id = ?
+        """,
+        (status, error or "", now, now, article.get("id", "")),
+    )
+
+
+def load_queued_articles(conn, limit):
+    rows = conn.execute(
+        """
+        SELECT payload_json
+        FROM news_discovery_queue
+        WHERE status IN ('queued', 'retryable')
+        ORDER BY published_at DESC, rowid ASC
+        LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+    articles = []
+    for row in rows:
+        article = safe_json_loads(row[0], {}, "news discovery queue payload")
+        if article:
+            articles.append(article)
+    return articles
+
+
+def queue_status_for_reviewed_article(article):
+    if is_valid_article(article):
+        return "published", ""
+    reason = article.get("blockedReason") or article.get("verificationStatus") or "invalid_article"
+    if article.get("sourceTier") == "official" and reason in RETRYABLE_NEWS_BLOCK_REASONS:
+        return "retryable", reason
+    return "blocked", reason
+
+
+def reference_only_audit_article(article):
+    audited = dict(article)
+    audited.update(
+        {
+            "contentStatus": "ready",
+            "translationStatus": "reference_only",
+            "translationFidelity": "",
+            "bodyZh": article.get("summary", ""),
+            "bodyBlocksZh": [{"type": "paragraph", "text": article.get("summary", "")}],
+        }
+    )
+    return audited
+
+
+def should_request_public_translation(article):
+    source = source_config_for_article(article)
+    license_status = article.get("licenseStatus") or source.get("licenseStatus", "")
+    return bool(article.get("requiresLlmTranslation")) and license_status == "approved"
+
+
+def queue_summary(conn, collector_errors=None):
+    status_counts = {
+        row[0]: row[1]
+        for row in conn.execute(
+            """
+            SELECT status, COUNT(*)
+            FROM news_discovery_queue
+            GROUP BY status
+            """
+        ).fetchall()
+    }
+    coverage = {}
+    rows = conn.execute(
+        """
+        SELECT source_id, source_name, source_tier, status, COUNT(*)
+        FROM news_discovery_queue
+        GROUP BY source_id, source_name, source_tier, status
+        """
+    ).fetchall()
+    for source_id, source_name, source_tier, status, count in rows:
+        key = source_id or source_name
+        item = coverage.setdefault(
+            key,
+            {
+                "sourceName": source_name,
+                "sourceTier": source_tier,
+                "discovered": 0,
+                "queued": 0,
+                "processed": 0,
+                "published": 0,
+                "blocked": 0,
+                "retryable": 0,
+                "errors": 0,
+            },
+        )
+        item["discovered"] += count
+        if status in item:
+            item[status] += count
+        if status in {"published", "blocked", "retryable"}:
+            item["processed"] += count
+
+    for error in collector_errors or []:
+        source_name = error.get("sourceName", "")
+        source = NEWS_SOURCES_BY_NAME.get(source_name, {})
+        key = source.get("sourceId") or source_name or "unknown"
+        item = coverage.setdefault(
+            key,
+            {
+                "sourceName": source_name,
+                "sourceTier": source.get("tier", ""),
+                "discovered": 0,
+                "queued": 0,
+                "processed": 0,
+                "published": 0,
+                "blocked": 0,
+                "retryable": 0,
+                "errors": 0,
+            },
+        )
+        item["errors"] += 1
+
+    oldest = conn.execute(
+        """
+        SELECT MIN(discovered_at)
+        FROM news_discovery_queue
+        WHERE status IN ('queued', 'retryable')
+        """
+    ).fetchone()[0]
+    oldest_age = 0
+    oldest_dt = parse_iso_datetime(oldest)
+    if oldest_dt:
+        oldest_age = max(0, int((datetime.now(timezone.utc) - oldest_dt).total_seconds()))
+
+    return {
+        "queuedCount": int(status_counts.get("queued", 0) or 0),
+        "retryableCount": int(status_counts.get("retryable", 0) or 0),
+        "publishedQueueCount": int(status_counts.get("published", 0) or 0),
+        "blockedQueueCount": int(status_counts.get("blocked", 0) or 0),
+        "oldestBacklogAge": oldest_age,
+        "sourceCoverage": coverage,
+    }
+
+
+def blocked_article_entry(reviewed_article):
+    return {
+        "id": reviewed_article.get("id", ""),
+        "title": reviewed_article.get("originalTitle") or reviewed_article.get("title", ""),
+        "sourceName": reviewed_article.get("sourceName", ""),
+        "reason": reviewed_article.get("blockedReason") or "invalid_article",
+        "translationStatus": reviewed_article.get("translationStatus", ""),
+        "contentStatus": reviewed_article.get("contentStatus", ""),
+        "verificationStatus": reviewed_article.get("verificationStatus", ""),
+        "licenseStatus": reviewed_article.get("licenseStatus", ""),
+        "sourceTier": reviewed_article.get("sourceTier", ""),
+    }
+
+
+def compact_public_text(value):
+    return re.sub(r"[\W_]+", "", re.sub(r"^中文正文\s*[:：]\s*", "", str(value or "").strip()).lower(), flags=re.UNICODE)
+
+
+def public_body_quality_issue(article):
+    original_body = article.get("originalBody", "")
+    original_summary = article.get("originalSummary", "") or article.get("summary", "")
+    if original_body:
+        source_probe = {
+            **article,
+            "bodyBlocks": [{"type": "paragraph", "text": original_body}],
+            "originalSummary": original_summary,
+        }
+        source_issue = source_body_quality_issue(source_probe)
+        if source_issue:
+            return source_issue
+
+    body_blocks = translated_body_blocks_for_article(article)
+    body_text = body_blocks_text(body_blocks) or article.get("bodyZh", "")
+    body_key = compact_public_text(body_text)
+    summary_key = compact_public_text(article.get("summary", ""))
+    if not body_blocks or not body_key:
+        return "summary_only_body"
+    if summary_key and body_key == summary_key:
+        return "summary_only_body"
+    if len(body_blocks) == 1 and re.search(r"(?:…|\.{3}|．．．)$", str(body_text or "").strip()):
+        return "summary_only_body"
+    return ""
+
+
+def article_from_public_row(row):
+    return {
+        "id": row[0],
+        "title": row[1],
+        "summary": row[2],
+        "channel": row[3],
+        "category": row[4],
+        "tags": safe_json_loads(row[5], [], "news article tags"),
+        "importance": row[6],
+        "sourceName": row[7],
+        "sourceUrl": row[8],
+        "publishedAt": row[9],
+        "sourceNote": row[10],
+        "bodyZh": row[11],
+        "originalTitle": row[12],
+        "originalSummary": row[13],
+        "originalBody": row[14],
+        "translationStatus": row[15],
+        "contentStatus": row[16],
+        "tagItems": safe_json_loads(row[17], [], "news article tag items"),
+        "blockedReason": row[18],
+        "sourceId": row[19],
+        "sourceTier": row[20],
+        "licenseStatus": row[21],
+        "verificationStatus": row[22],
+        "sourceBadges": safe_json_loads(row[23], [], "news article source badges"),
+        "bodyBlocksZh": safe_json_loads(row[24], [], "news article translated body blocks"),
+        "canonicalTopicId": row[25],
+        "readingMeta": safe_json_loads(row[26], {}, "news article reading meta"),
+        "translationFidelity": row[27],
+    }
+
+
+def audit_existing_public_articles(conn):
+    rows = conn.execute(
+        """
+        SELECT id, title, summary, channel, category, tags_json, importance,
+               source_name, source_url, published_at, source_note,
+               body_zh, original_title, original_summary, original_body,
+               translation_status, content_status, tag_items_json, blocked_reason,
+               source_id, source_tier, license_status, verification_status,
+               source_badges_json, body_blocks_zh_json, canonical_topic_id,
+               reading_meta_json, translation_fidelity
+        FROM news_articles
+        WHERE content_status = 'ready'
+        """
+    ).fetchall()
+    blocked = []
+    delete_ids = []
+    queue_updates = []
+    for row in rows:
+        article = article_from_public_row(row)
+        reason = public_body_quality_issue(article)
+        if not reason:
+            continue
+        delete_ids.append(article["id"])
+        queue_updates.append((reason, utc_now(), article["id"]))
+        blocked.append(blocked_article_entry(translation_block(article, reason)))
+    if delete_ids:
+        conn.executemany("DELETE FROM news_articles WHERE id = ?", [(article_id,) for article_id in delete_ids])
+    if queue_updates:
+        conn.executemany(
+            """
+            UPDATE news_discovery_queue
+            SET status = 'retryable', last_error = ?, updated_at = ?
+            WHERE id = ? AND status = 'published'
+            """,
+            queue_updates,
+        )
+    return blocked
 
 
 def refresh_articles(refresh_mode, collector_enabled=None):
     init_db()
     seed_articles = load_seed_articles()
     collected_articles = []
+    discovered_articles = []
+    duplicate_seed_articles = []
     discovered_collected_count = 0
     skipped_seed_duplicate_count = 0
     collector_errors = []
-    collector_limit = collector_article_limit()
+    collector_limit = collector_discovery_limit()
+    process_limit = collector_process_limit()
     should_collect = ENABLE_COLLECTORS if collector_enabled is None else bool(collector_enabled)
     if should_collect and collector_limit > 0:
         collected_articles, collector_errors = collect_feed_articles(FEED_SOURCES, max_articles_per_source=collector_limit)
+        discovered_articles = list(collected_articles)
         discovered_collected_count = len(collected_articles)
         seed_by_key = {canonical_article_key(article): article for article in seed_articles}
         collected_keys = set()
@@ -772,38 +1203,43 @@ def refresh_articles(refresh_mode, collector_enabled=None):
             collected_keys.add(key)
             if key in seed_by_key and is_source_translation(seed_by_key[key]):
                 skipped_seed_duplicate_count += 1
+                duplicate_seed_articles.append(article)
                 continue
             fresh_collected_articles.append(article)
         collected_articles = fresh_collected_articles
         seed_articles = [article for article in seed_articles if canonical_article_key(article) not in collected_keys or is_source_translation(article)]
 
+    refreshed_at = utc_now()
+    with db_connection() as conn:
+        if should_collect and discovered_collected_count:
+            enqueue_discovered_articles(conn, discovered_articles, refreshed_at)
+            for article in duplicate_seed_articles:
+                mark_queue_article(conn, article, "blocked", "duplicate_seed_source_translation", refreshed_at, increment_attempts=False)
+        queued_articles = load_queued_articles(conn, process_limit) if should_collect else []
+
     accepted = []
     blocked = []
     processed = []
     rejected = 0
-    for article in merge_articles(seed_articles, collected_articles):
-        localized_article = localize_article(article, require_llm=bool(article.get("requiresLlmTranslation")))
+    for article in merge_articles(seed_articles, queued_articles):
+        if article.get("contentStatus") == "ready":
+            localized_article = article
+        elif should_request_public_translation(article):
+            source_issue = source_body_quality_issue(article)
+            if source_issue:
+                localized_article = translation_block(article, source_issue)
+            else:
+                localized_article = localize_article(article, require_llm=True)
+        else:
+            localized_article = reference_only_audit_article(article)
         reviewed_article = apply_publication_gates(localized_article)
         processed.append(reviewed_article)
         if is_valid_article(reviewed_article):
             accepted.append(reviewed_article)
         else:
-            blocked.append(
-                {
-                    "id": reviewed_article.get("id", ""),
-                    "title": reviewed_article.get("originalTitle") or reviewed_article.get("title", ""),
-                    "sourceName": reviewed_article.get("sourceName", ""),
-                    "reason": reviewed_article.get("blockedReason") or "invalid_article",
-                    "translationStatus": reviewed_article.get("translationStatus", ""),
-                    "contentStatus": reviewed_article.get("contentStatus", ""),
-                    "verificationStatus": reviewed_article.get("verificationStatus", ""),
-                    "licenseStatus": reviewed_article.get("licenseStatus", ""),
-                    "sourceTier": reviewed_article.get("sourceTier", ""),
-                }
-            )
+            blocked.append(blocked_article_entry(reviewed_article))
             rejected += 1
 
-    refreshed_at = utc_now()
     accepted_ids = [article["id"] for article in accepted]
     translation_issues = visible_translation_issues(accepted)
     counts = verification_counts(processed)
@@ -822,6 +1258,9 @@ def refresh_articles(refresh_mode, collector_enabled=None):
         for article in processed:
             persist_news_raw_article(conn, article, refreshed_at)
             persist_news_evidence(conn, article, refreshed_at)
+            if should_collect and article.get("id"):
+                queue_status, queue_error = queue_status_for_reviewed_article(article)
+                mark_queue_article(conn, article, queue_status, queue_error, refreshed_at)
         for article in accepted:
             conn.execute(
                 """
@@ -896,9 +1335,14 @@ def refresh_articles(refresh_mode, collector_enabled=None):
                     refreshed_at,
                 ),
             )
-        if accepted_ids:
+        if accepted_ids and not should_collect:
             placeholders = ",".join("?" for _ in accepted_ids)
             conn.execute(f"DELETE FROM news_articles WHERE id NOT IN ({placeholders})", accepted_ids)
+        audited_blocked = audit_existing_public_articles(conn)
+        if audited_blocked:
+            blocked.extend(audited_blocked)
+            rejected += len(audited_blocked)
+        summary = queue_summary(conn, collector_errors)
         conn.execute(
             """
             INSERT INTO news_refresh_runs (refresh_mode, refreshed_at, accepted_count, rejected_count, message)
@@ -914,6 +1358,16 @@ def refresh_articles(refresh_mode, collector_enabled=None):
                         "seedCount": len(seed_articles),
                         "collectorEnabled": should_collect,
                         "collectorLimit": collector_limit,
+                        "discoveryLimit": collector_limit,
+                        "processLimit": process_limit,
+                        "discoveredCount": discovered_collected_count,
+                        "queuedCount": summary["queuedCount"],
+                        "processedCount": len(processed),
+                        "publishedCount": len(accepted),
+                        "blockedCount": len(blocked),
+                        "retryableCount": summary["retryableCount"],
+                        "oldestBacklogAge": summary["oldestBacklogAge"],
+                        "sourceCoverage": summary["sourceCoverage"],
                         "collectedDiscoveredCount": discovered_collected_count,
                         "collectedCount": len(collected_articles),
                         "collectorDuplicateSeedSkippedCount": skipped_seed_duplicate_count,
@@ -970,6 +1424,16 @@ def latest_refresh_run_payload():
         "rejectedCount": row[3],
         "collectorEnabled": bool(message.get("collectorEnabled")),
         "collectorLimit": int(message.get("collectorLimit", 0) or 0),
+        "discoveryLimit": int(message.get("discoveryLimit", message.get("collectorLimit", 0)) or 0),
+        "processLimit": int(message.get("processLimit", 0) or 0),
+        "discoveredCount": int(message.get("discoveredCount", message.get("collectedDiscoveredCount", 0)) or 0),
+        "queuedCount": int(message.get("queuedCount", 0) or 0),
+        "processedCount": int(message.get("processedCount", 0) or 0),
+        "publishedCount": int(message.get("publishedCount", message.get("acceptedCount", row[2])) or 0),
+        "blockedCount": int(message.get("blockedCount", message.get("blockedArticleCount", 0)) or 0),
+        "retryableCount": int(message.get("retryableCount", 0) or 0),
+        "oldestBacklogAge": int(message.get("oldestBacklogAge", 0) or 0),
+        "sourceCoverage": message.get("sourceCoverage", {}),
         "collectedDiscoveredCount": int(message.get("collectedDiscoveredCount", message.get("collectedCount", 0)) or 0),
         "collectedCount": int(message.get("collectedCount", 0) or 0),
         "collectorDuplicateSeedSkippedCount": int(message.get("collectorDuplicateSeedSkippedCount", 0) or 0),
@@ -985,7 +1449,15 @@ def latest_refresh_run_payload():
     }
 
 
-DATA_HEALTH_STATUSES = ["verified", "partial", "stale", "blocked", "missing_credentials", "pending_official_audit"]
+DATA_HEALTH_STATUSES = [
+    "verified",
+    "partial",
+    "stale",
+    "blocked",
+    "missing_credentials",
+    "pending_official_audit",
+    "source_reference",
+]
 
 
 def normalize_data_health_status(status):
@@ -994,7 +1466,7 @@ def normalize_data_health_status(status):
         return value
     if value in {"synced", "ok", "ready"}:
         return "verified"
-    if value in {"source_reference", "reference_only", "simc", "llm_reused"}:
+    if value in {"reference_only", "simc", "llm_reused"}:
         return "partial"
     if value in {"not_configured", "missing_credential", "missing_credentials"}:
         return "missing_credentials"
@@ -1022,13 +1494,16 @@ def sanitize_health_value(value):
 
 def data_health_component(key, title, status, *, checked_at="", details=None, blockers=None):
     normalized_status = normalize_data_health_status(status)
+    sanitized_blockers = sanitize_health_value(blockers or [])
+    if normalized_status == "verified" and sanitized_blockers:
+        normalized_status = "blocked"
     return {
         "key": key,
         "title": title,
         "status": normalized_status,
         "checkedAt": checked_at or "",
         "details": sanitize_health_value(details or {}),
-        "blockers": sanitize_health_value(blockers or []),
+        "blockers": sanitized_blockers,
     }
 
 
@@ -1036,7 +1511,7 @@ def data_health_overall_status(components):
     statuses = [component.get("status") for component in components]
     if statuses and all(status == "verified" for status in statuses):
         return "verified"
-    if any(status in {"verified", "partial", "stale", "pending_official_audit"} for status in statuses):
+    if any(status in {"verified", "partial", "stale", "pending_official_audit", "source_reference"} for status in statuses):
         return "partial"
     if any(status == "missing_credentials" for status in statuses):
         return "missing_credentials"
@@ -1080,10 +1555,14 @@ def news_health_component():
     latest = latest_refresh_run_payload()
     accepted = int(latest.get("acceptedCount") or 0)
     blocked = int(latest.get("blockedArticleCount") or latest.get("rejectedCount") or 0)
+    queued = int(latest.get("queuedCount") or 0)
+    retryable = int(latest.get("retryableCount") or 0)
+    discovered = int(latest.get("discoveredCount") or 0)
+    processed = int(latest.get("processedCount") or 0)
     errors = latest.get("sourceFetchErrors") or latest.get("collectorErrors") or []
-    if accepted and not blocked and not errors:
+    if accepted and not blocked and not errors and not queued and not retryable:
         status = "verified"
-    elif accepted:
+    elif accepted or queued or retryable or discovered or processed:
         status = "partial"
     else:
         status = "blocked"
@@ -1096,6 +1575,13 @@ def news_health_component():
             "refreshMode": latest.get("refreshMode") or "",
             "acceptedCount": accepted,
             "blockedArticleCount": blocked,
+            "discoveredCount": discovered,
+            "queuedCount": queued,
+            "processedCount": processed,
+            "publishedCount": latest.get("publishedCount") or 0,
+            "retryableCount": retryable,
+            "oldestBacklogAge": latest.get("oldestBacklogAge") or 0,
+            "sourceCoverage": latest.get("sourceCoverage") or {},
             "translationIssueCount": latest.get("translationIssueCount") or 0,
             "verificationCounts": latest.get("verificationCounts") or {},
         },

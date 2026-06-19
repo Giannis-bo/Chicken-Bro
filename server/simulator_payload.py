@@ -7,6 +7,8 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 try:
     from .llm_client import call_chat_completion, llm_configured, llm_model
@@ -1624,6 +1626,184 @@ def wcl_credentials_configured():
     return warcraftlogs_credentials_state()["configured"]
 
 
+def redact_wcl_secret(text):
+    value = str(text or "")
+    for name in (
+        "WOW_WARCRAFTLOGS_CLIENT_ID",
+        "WOW_WARCRAFTLOGS_CLIENT_SECRET",
+        "WOW_WARCRAFTLOGS_API_KEY",
+    ):
+        secret = os.environ.get(name, "").strip()
+        if secret:
+            value = value.replace(secret, "[redacted]")
+    value = re.sub(r"(?i)(Bearer\s+)[A-Za-z0-9._~+/=-]+", r"\1[redacted]", value)
+    value = re.sub(r"(?i)(client_secret=)[^&\s]+", r"\1[redacted]", value)
+    return value
+
+
+def warcraftlogs_oauth_token():
+    client_id = os.environ.get("WOW_WARCRAFTLOGS_CLIENT_ID", "").strip()
+    client_secret = os.environ.get("WOW_WARCRAFTLOGS_CLIENT_SECRET", "").strip()
+    if not client_id or not client_secret:
+        raise RuntimeError("Warcraft Logs v2 credentials are not configured")
+    token_url = os.environ.get("WOW_WARCRAFTLOGS_TOKEN_URL", "https://www.warcraftlogs.com/oauth/token").strip()
+    body = urlencode({"grant_type": "client_credentials"}).encode("utf-8")
+    request = Request(
+        token_url,
+        data=body,
+        headers={"User-Agent": "wow-mini-program-wcl-sync"},
+        method="POST",
+    )
+    import base64
+
+    raw_auth = f"{client_id}:{client_secret}".encode("utf-8")
+    request.add_header("Authorization", f"Basic {base64.b64encode(raw_auth).decode('ascii')}")
+    request.add_header("Content-Type", "application/x-www-form-urlencoded")
+    with urlopen(request, timeout=int_env("WOW_WARCRAFTLOGS_TIMEOUT_SECONDS", 15)) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    token = str(payload.get("access_token") or "").strip()
+    if not token:
+        raise RuntimeError("Warcraft Logs OAuth response did not include an access token")
+    return token
+
+
+def warcraftlogs_graphql(query, variables=None, token=None):
+    graphql_url = os.environ.get("WOW_WARCRAFTLOGS_GRAPHQL_URL", "https://www.warcraftlogs.com/api/v2/client").strip()
+    body = json.dumps({"query": query, "variables": variables or {}}).encode("utf-8")
+    request = Request(
+        graphql_url,
+        data=body,
+        headers={
+            "Authorization": f"Bearer {token or warcraftlogs_oauth_token()}",
+            "Content-Type": "application/json",
+            "User-Agent": "wow-mini-program-wcl-sync",
+        },
+        method="POST",
+    )
+    with urlopen(request, timeout=int_env("WOW_WARCRAFTLOGS_TIMEOUT_SECONDS", 15)) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    errors = payload.get("errors")
+    if errors:
+        message = "; ".join(str(item.get("message") if isinstance(item, dict) else item) for item in errors)
+        raise RuntimeError(redact_wcl_secret(message or "Warcraft Logs GraphQL returned errors"))
+    return payload.get("data") or {}
+
+
+WCL_REPORT_EVIDENCE_QUERY = """
+query WowMiniProgramReportEvidence($code: String!, $fightIds: [Int]) {
+  reportData {
+    report(code: $code) {
+      title
+      startTime
+      endTime
+      fights {
+        id
+        name
+        difficulty
+        kill
+        startTime
+        endTime
+      }
+      events(fightIDs: $fightIds, limit: 300) {
+        data
+      }
+    }
+  }
+}
+"""
+
+
+def summarize_wcl_events(events):
+    summary = {
+        "total": 0,
+        "casts": 0,
+        "buffEvents": 0,
+        "deaths": 0,
+        "damageEvents": 0,
+        "healingEvents": 0,
+        "mechanicEvents": 0,
+    }
+    for event in events or []:
+        if not isinstance(event, dict):
+            continue
+        summary["total"] += 1
+        event_type = str(event.get("type") or "").lower()
+        if event_type == "cast":
+            summary["casts"] += 1
+        elif "buff" in event_type:
+            summary["buffEvents"] += 1
+        elif event_type == "death":
+            summary["deaths"] += 1
+        elif event_type == "damage":
+            summary["damageEvents"] += 1
+        elif event_type in {"heal", "healing"}:
+            summary["healingEvents"] += 1
+        elif event_type:
+            summary["mechanicEvents"] += 1
+    return summary
+
+
+def normalize_wcl_fight(fight):
+    if not isinstance(fight, dict):
+        return {}
+    return {
+        "id": str(fight.get("id") or ""),
+        "name": str(fight.get("name") or ""),
+        "difficulty": fight.get("difficulty") or "",
+        "kill": bool(fight.get("kill")),
+        "startTime": fight.get("startTime") or 0,
+        "endTime": fight.get("endTime") or 0,
+    }
+
+
+def fetch_wcl_v2_evidence(reference, credential_state):
+    fight_id = str((reference or {}).get("fightId") or "").strip()
+    fight_ids = []
+    if fight_id.isdigit():
+        fight_ids = [int(fight_id)]
+    token = warcraftlogs_oauth_token()
+    data = warcraftlogs_graphql(
+        WCL_REPORT_EVIDENCE_QUERY,
+        {"code": reference["reportCode"], "fightIds": fight_ids or None},
+        token=token,
+    )
+    report = (((data.get("reportData") or {}).get("report")) or {})
+    if not report:
+        raise RuntimeError("Warcraft Logs GraphQL response did not include report data")
+    fights = [normalize_wcl_fight(item) for item in report.get("fights") or []]
+    selected_fight = {}
+    if fight_id:
+        selected_fight = next((item for item in fights if item.get("id") == fight_id), {})
+    if not selected_fight and fights:
+        selected_fight = fights[0]
+    events = (((report.get("events") or {}).get("data")) or [])
+    event_summary = summarize_wcl_events(events)
+    return {
+        "schemaRevision": "wcl-log-evidence-v1",
+        "status": "ready",
+        "sourceStatus": "verified",
+        "credentialMode": credential_state["mode"],
+        "api": credential_state["api"],
+        "reportCode": reference["reportCode"],
+        "sourceUrl": reference["sourceUrl"],
+        "fightId": selected_fight.get("id") or fight_id,
+        "reportTitle": str(report.get("title") or ""),
+        "reportWindow": {
+            "startTime": report.get("startTime") or 0,
+            "endTime": report.get("endTime") or 0,
+        },
+        "fight": selected_fight,
+        "eventSummary": event_summary,
+        "missingInputs": [],
+        "blockers": [],
+        "evidenceRefs": ["wcl.report", "wcl.fight", "wcl.events"],
+        "nextActions": [
+            "Use this parsed WCL evidence together with the SimC result before making rotation or performance conclusions.",
+            "Compare casts, buff uptime, deaths, damage and healing events against a matched sample window before ranking the player.",
+        ],
+    }
+
+
 def extract_wcl_reference(request_data):
     parts = [
         str((request_data or {}).get("wclUrl") or ""),
@@ -1693,6 +1873,27 @@ def build_wcl_log_evidence(request_data):
                 "Do not infer rankings, parses, DPS, HPS, or cooldown mistakes until log evidence is fetched.",
             ],
         }
+    if credential_state["mode"] == "v2_oauth":
+        try:
+            return fetch_wcl_v2_evidence(reference, credential_state)
+        except Exception as error:
+            return {
+                "schemaRevision": "wcl-log-evidence-v1",
+                "status": "blocked",
+                "sourceStatus": "blocked",
+                "credentialMode": credential_state["mode"],
+                "api": credential_state["api"],
+                "reportCode": reference["reportCode"],
+                "sourceUrl": reference["sourceUrl"],
+                "fightId": reference["fightId"],
+                "missingInputs": ["wcl.graphql_fetch"],
+                "blockers": [redact_wcl_secret(error)],
+                "evidenceRefs": ["wcl.reportCode", "wcl.credentials"],
+                "nextActions": [
+                    "Retry the Warcraft Logs GraphQL fetch after checking report visibility, fight id and API credentials.",
+                    "Do not infer rankings, parses, DPS, HPS, casts, deaths or cooldown mistakes until log evidence is fetched.",
+                ],
+            }
     return {
         "schemaRevision": "wcl-log-evidence-v1",
         "status": "pending_fetch",
@@ -1717,11 +1918,26 @@ def build_wcl_report(log_evidence):
         text = "No Warcraft Logs report was provided, so personal log analysis cannot start."
     elif source_status == "missing_credentials":
         text = "Warcraft Logs credentials are missing, so the backend cannot fetch report evidence yet."
+    elif source_status == "blocked":
+        text = "Warcraft Logs evidence fetch failed, so no log-derived conclusion is available yet."
+    elif source_status == "verified":
+        summary = (log_evidence or {}).get("eventSummary") or {}
+        fight = (log_evidence or {}).get("fight") or {}
+        text = (
+            f"Warcraft Logs evidence is parsed for {fight.get('name') or 'the selected fight'}: "
+            f"{summary.get('casts', 0)} casts, {summary.get('buffEvents', 0)} buff events, "
+            f"{summary.get('deaths', 0)} deaths, {summary.get('damageEvents', 0)} damage events, "
+            f"and {summary.get('healingEvents', 0)} healing events."
+        )
     else:
         text = "Warcraft Logs report metadata is ready for a credentialed fetch, but no log evidence has been parsed yet."
     return {
         "schemaRevision": "wcl-report-v1",
-        "source": "deterministic_blocked" if source_status in {"missing_report", "missing_credentials"} else "deterministic_pending",
+        "source": (
+            "deterministic_evidence"
+            if source_status == "verified"
+            else ("deterministic_blocked" if source_status in {"missing_report", "missing_credentials", "blocked"} else "deterministic_pending")
+        ),
         "topFindings": [
             {
                 "text": text,
@@ -1730,7 +1946,7 @@ def build_wcl_report(log_evidence):
         ],
         "nextActions": list((log_evidence or {}).get("nextActions") or []),
         "limitations": [
-            "No rankings, percentiles, DPS, HPS, casts, deaths, or cooldown conclusions are available until WCL evidence is fetched.",
+            "No rankings, percentiles, DPS, HPS, casts, deaths, or cooldown conclusions are available until WCL evidence is fetched." if source_status != "verified" else "Parsed events are evidence, but rankings and percentiles still need a matched sample window.",
             "LLM output is disabled for this WCL bootstrap state to avoid inventing log facts.",
         ],
     }
@@ -1749,16 +1965,16 @@ def build_wcl_stages(log_evidence):
         {
             "key": "wcl_credentials",
             "title": "WCL credentials",
-            "status": "completed" if source_status == "credentials_configured" else "blocked",
+            "status": "completed" if source_status in {"credentials_configured", "verified", "blocked"} else "blocked",
             "executor": "backend",
             "summary": source_status,
         },
         {
             "key": "wcl_evidence",
             "title": "WCL evidence fetch",
-            "status": "skipped",
+            "status": "completed" if source_status == "verified" else ("blocked" if source_status == "blocked" else "skipped"),
             "executor": "warcraftlogs",
-            "summary": "credentialed GraphQL fetch is not part of this bootstrap response",
+            "summary": "parsed GraphQL evidence" if source_status == "verified" else ("GraphQL fetch failed" if source_status == "blocked" else "credentialed GraphQL fetch pending"),
         },
     ]
 
@@ -1767,7 +1983,7 @@ def build_wcl_analysis_payload(request_data):
     log_evidence = build_wcl_log_evidence(request_data)
     report = build_wcl_report(log_evidence)
     llm_result = skipped_llm_result("wcl log evidence unavailable")
-    status = "ready" if log_evidence["status"] == "pending_fetch" else "blocked"
+    status = "ready" if log_evidence["status"] in {"pending_fetch", "ready"} else "blocked"
     return {
         "mode": "wcl",
         "status": status,

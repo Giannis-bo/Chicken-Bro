@@ -33,20 +33,6 @@
             <text class="picker-value">{{selectedHeroLabel}}</text>
           </view>
         </picker>
-        <picker mode="selector" range="{{scenarioOptions}}" range-key="title" value="{{selectedScenarioIndex}}" bindchange="selectScenario">
-          <view class="toolbar-picker">
-            <text class="picker-label">场景</text>
-            <text class="picker-value">{{selectedScenarioTitle}}</text>
-          </view>
-        </picker>
-      </view>
-
-      <view class="talent-search-panel">
-        <view class="search-box">
-          <input class="talent-search-input" value="{{searchTerm}}" placeholder="搜索天赋" placeholder-class="search-placeholder" bindinput="updateTalentSearch" />
-          <text class="search-count">{{searchCountText}}</text>
-        </view>
-        <button class="search-clear-button" wx:if="{{searchTerm}}" bindtap="clearTalentSearch">清空</button>
       </view>
 
       <view class="tree-tabs">
@@ -54,7 +40,6 @@
           <text class="tree-tab-label">{{item.label}}</text>
           <text class="tree-tab-points">{{item.pointLabel}}</text>
           <text class="tree-tab-subtitle">{{item.subtitle}}</text>
-          <text class="tree-tab-match" wx:if="{{item.matchLabel}}">{{item.matchLabel}}</text>
         </view>
       </view>
 
@@ -62,7 +47,9 @@
         <view class="active-tree-head">
           <view class="active-tree-title-wrap">
             <text class="active-tree-kicker">{{activeSection.displayLabel}}</text>
+            <text class="active-tree-separator">·</text>
             <text class="active-tree-title">{{activeSection.displayTitle}}</text>
+            <text class="active-tree-separator">·</text>
             <text class="active-tree-subtitle">{{activeSection.subtitle}}</text>
           </view>
           <text class="active-tree-points">{{activeSection.pointLabel}}</text>
@@ -71,7 +58,7 @@
           <view class="tree-progress-fill" style="{{activeSection.progressStyle}}"></view>
         </view>
         <view class="{{activeSection.gridClass}}">
-          <view class="talent-link" wx:for="{{activeSection.links}}" wx:key="renderKey" style="{{item.lineStyle}}"></view>
+          <view class="{{item.linkClass}}" wx:for="{{activeSection.links}}" wx:key="renderKey" style="{{item.lineStyle}}"></view>
           <view class="{{item.nodeClass}}" wx:for="{{activeSection.nodes}}" wx:key="renderKey" style="{{item.nodeStyle}}" data-id="{{item.id}}" bindtap="tapTalentNode" bindlongpress="openNodeDetail">
             <image wx:if="{{item.gameAsset.iconUrl}}" class="talent-icon" src="{{item.gameAsset.iconUrl}}" mode="aspectFill"></image>
             <text wx:else class="talent-icon-fallback">{{item.gameAsset.fallbackText}}</text>
@@ -88,12 +75,9 @@
   </scroll-view>
 
   <view class="mobile-action-bar">
-    <button class="action-icon-button" bindtap="resetTalents">重置</button>
-    <button class="action-icon-button" bindtap="openTalentImport">导入</button>
-    <button class="action-icon-button community-button" bindtap="openCommunityTemplates">社区模板</button>
-    <button class="action-icon-button" loading="{{templateSaving}}" bindtap="saveTalentTemplate">保存</button>
-    <button class="action-icon-button" bindtap="copyTalentExport">复制</button>
-    <button class="simc-button action-primary-button" loading="{{simcSubmitting}}" bindtap="openTalentSimc">带去 SimC</button>
+    <button class="action-primary-button" loading="{{templateSaving}}" disabled="{{!canSaveTalentTemplate || templateSaving}}" bindtap="saveTalentTemplate">保存模板</button>
+    <button class="action-secondary-button community-action-button" bindtap="openCommunityTemplates">导入社区推荐</button>
+    <button class="action-secondary-button reset-action-button" bindtap="resetTalents">重置</button>
   </view>
 
   <view class="sheet-mask" wx:if="{{choiceSheet.visible}}" catchtap="closeChoiceSheet"></view>
@@ -127,18 +111,29 @@
     </view>
   </view>
 
-  <view class="sheet-mask" wx:if="{{importSheet.visible}}" catchtap="closeTalentImport"></view>
-  <view class="talent-import-sheet" wx:if="{{importSheet.visible}}">
+  <view class="sheet-mask" wx:if="{{saveTemplateSheet.visible}}" catchtap="closeSaveTemplateSheet"></view>
+  <view class="template-save-sheet" wx:if="{{saveTemplateSheet.visible}}">
     <view class="sheet-handle"></view>
-    <text class="sheet-title">导入 WebSim 构筑</text>
-    <textarea class="import-input" value="{{importSheet.code}}" maxlength="2000" bindinput="updateImportCode"></textarea>
-    <button class="simc-button" bindtap="applyTalentImport">应用导入码</button>
+    <text class="sheet-title">保存天赋模板</text>
+    <input
+      class="template-name-input"
+      value="{{saveTemplateSheet.name}}"
+      placeholder="{{saveTemplateSheet.defaultName}}"
+      maxlength="28"
+      bindinput="updateTemplateName"
+      confirm-type="done"
+      bindconfirm="confirmSaveTalentTemplate"
+    />
+    <view class="save-sheet-actions">
+      <button class="save-sheet-secondary" bindtap="closeSaveTemplateSheet">取消</button>
+      <button class="save-sheet-primary" loading="{{templateSaving}}" disabled="{{!canSaveTalentTemplate || templateSaving}}" bindtap="confirmSaveTalentTemplate">保存</button>
+    </view>
   </view>
 
   <view class="sheet-mask" wx:if="{{communityTemplateSheet.visible}}" catchtap="closeCommunityTemplates"></view>
   <view class="community-template-sheet" wx:if="{{communityTemplateSheet.visible}}">
     <view class="sheet-handle"></view>
-    <text class="sheet-title">社区模板</text>
+    <text class="sheet-title">导入社区推荐</text>
     <text class="sheet-option-desc community-status">{{communityTemplateStatusText}}</text>
     <view class="community-template-empty" wx:if="{{activeCommunityTemplates.length == 0}}">
       <text>暂无可用社区模板</text>
@@ -150,9 +145,10 @@
             <text class="template-name">{{item.name}}</text>
             <text class="template-source">{{item.sourceName}}</text>
           </view>
-          <text class="template-mode">{{item.canApplyVisual ? '可编辑' : 'SimC'}}</text>
+          <text class="template-mode">{{item.canApplyVisual ? '可编辑' : '外部码'}}</text>
         </view>
         <view class="template-meta-row">
+          <text class="template-meta" wx:if="{{item.detailLabel}}">{{item.detailLabel}}</text>
           <text class="template-meta">{{item.sampleLabel}}</text>
           <text class="template-meta" wx:if="{{item.keyLabel}}">{{item.keyLabel}}</text>
           <text class="template-meta" wx:if="{{item.updatedLabel}}">{{item.updatedLabel}}</text>

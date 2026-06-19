@@ -59,6 +59,23 @@ const wclStatisticsUrl = {
   healer: 'https://www.warcraftlogs.com/zone/statistics/47?class=Healers'
 }
 
+const specLadderReferenceBlockers = [
+  'Spec ladder uses replaceable fixture values until an authorized Archon or Warcraft Logs statistics API is connected.',
+  'Treat these rows as source_reference only; Raider.IO samples may inform M+ trends but do not replace WCL log statistics.'
+]
+const specLadderDataTrust = {
+  status: 'source_reference',
+  statusLabel: 'Reference only',
+  blockers: specLadderReferenceBlockers,
+  evidenceRefs: ['pve.specLadder.fixture', 'pve.sourcePolicy.authorizedApiRequired']
+}
+
+const cloneSpecLadderTrust = () => ({
+  ...specLadderDataTrust,
+  blockers: [...specLadderReferenceBlockers],
+  evidenceRefs: [...specLadderDataTrust.evidenceRefs]
+})
+
 const archonBuildUrl = (classSlug, specSlug) =>
   `https://www.archon.gg/wow/builds/${specSlug}/${classSlug}/mythic-plus/overview/high-keys/all-dungeons/this-week`
 
@@ -99,7 +116,9 @@ const specRecord = (role, tier, rank, className, specName, classSlug, specSlug, 
     sampleText: `${sampleCount.toLocaleString('en-US')} 样本`,
     sourceName: 'Archon',
     sourceUrl: archonBuildUrl(classSlug, specSlug),
-    sourceStatus: 'verified',
+    sourceStatus: 'source_reference',
+    dataTrust: cloneSpecLadderTrust(),
+    blockers: [...specLadderReferenceBlockers],
     wcl: {
       specId,
       role,
@@ -115,8 +134,10 @@ const specRecord = (role, tier, rank, className, specName, classSlug, specSlug, 
       parsesText: wclParses.toLocaleString('en-US'),
       sourceName: 'Warcraft Logs',
       sourceUrl: wclStatisticsUrl[role],
-      sourceStatus: 'verified',
-      sourceStatusLabel: 'WCL verified',
+      sourceStatus: 'source_reference',
+      sourceStatusLabel: 'Reference only',
+      dataTrust: cloneSpecLadderTrust(),
+      blockers: [...specLadderReferenceBlockers],
       metricLabel: role === 'healer' ? 'Points / HPS normalized' : 'Points',
       distribution: {
         p50,
@@ -180,8 +201,10 @@ function buildArchonTierSummary() {
     result[roleKey] = {
       sourceName: 'Archon',
       sourceUrl: archonTierUrl[roleKey],
-      sourceStatus: 'verified',
-      sourceStatusLabel: 'Archon verified',
+      sourceStatus: 'source_reference',
+      sourceStatusLabel: 'Reference only',
+      dataTrust: cloneSpecLadderTrust(),
+      blockers: [...specLadderReferenceBlockers],
       publishedAt: latestPveAnalysis.publishedAt,
       checkedAt: '2026-06-18T03:20:00Z',
       analysisWindow: 'High Keys Mythic+, All Dungeons, this week; Archon tier board fixture pending API sync.',
@@ -205,24 +228,28 @@ function buildSpecLadderSourceChecks() {
       key: 'archon',
       name: 'Archon',
       domain: 'archon.gg',
-      status: 'verified',
-      statusLabel: 'Archon verified',
+      status: 'source_reference',
+      statusLabel: 'Reference only',
       checkedAt: '2026-06-18T03:20:00Z',
       analysisWindow: 'High Keys Mythic+, All Dungeons, this week',
       sampleCount: totalArchonSamples,
       sourceUrl: archonTierUrl.dps,
+      blockers: [...specLadderReferenceBlockers],
+      evidenceRefs: ['pve.specLadder.archonFixture'],
       note: '用于小程序强度分层和 M+ Score 概览；正式 API/合作接入前保持 fixture 可替换。'
     },
     {
       key: 'warcraftlogs',
       name: 'Warcraft Logs',
       domain: 'warcraftlogs.com',
-      status: 'verified',
-      statusLabel: 'WCL verified',
+      status: 'source_reference',
+      statusLabel: 'Reference only',
       checkedAt: '2026-06-18T03:20:00Z',
       analysisWindow: 'Mythic+ Season 1 statistics, all percentiles, range of 2 weeks',
       sampleCount: totalWclSamples,
       sourceUrl: 'https://www.warcraftlogs.com/zone/statistics/47',
+      blockers: [...specLadderReferenceBlockers],
+      evidenceRefs: ['pve.specLadder.wclFixture'],
       note: '用于同专精 Score、Max、Parses 与分布明细；只做交叉验证，不覆盖 Archon 排名。'
     }
   ]
@@ -416,6 +443,9 @@ const pveZones = [
         items: sourceBackedItems.specLadder,
         sourceName: 'Archon / Warcraft Logs',
         sourceUrl: archonTierUrl.dps,
+        sourceStatus: 'source_reference',
+        dataTrust: cloneSpecLadderTrust(),
+        blockers: [...specLadderReferenceBlockers],
         publishedAt: latestPveAnalysis.publishedAt,
         analysisWindow: 'High Keys Mythic+, All Dungeons, this week / WCL 2-week statistics',
         defaultRole: 'dps',

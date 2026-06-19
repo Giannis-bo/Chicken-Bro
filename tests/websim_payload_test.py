@@ -66,7 +66,11 @@ class WebSimPayloadTest(unittest.TestCase):
         granted_rank=0,
         parent_ids=None,
         choice_group="",
+        class_key="mage",
+        spec_key="arcane",
         hero_key="",
+        class_id=8,
+        spec_id=62,
         spell_id=None,
         point_requirement=0,
     ):
@@ -74,8 +78,8 @@ class WebSimPayloadTest(unittest.TestCase):
         payload = {
             "treeType": tree_type,
             "treeIndex": {"class": 1, "spec": 2, "hero": 3}.get(tree_type, 2),
-            "classId": 8,
-            "specId": 62,
+            "classId": class_id,
+            "specId": spec_id,
             "traitId": trait_id,
             "nodeId": trait_id + 500000,
             "selectionIndex": row * 10 + col,
@@ -97,12 +101,13 @@ class WebSimPayloadTest(unittest.TestCase):
             """
             INSERT INTO websim_talents
             (id, class_key, spec_key, tree_id, row_index, col_index, spell_id, name, payload_json, updated_at)
-            VALUES (?, 'mage', ?, ?, ?, ?, ?, ?, ?, 'now')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'now')
             """,
             (
                 node_id,
-                "arcane",
-                f"{tree_type}:mage:arcane" if tree_type != "hero" else f"hero:{payload.get('heroKey')}",
+                class_key,
+                spec_key,
+                f"{tree_type}:{class_key}:{spec_key}" if tree_type != "hero" else f"hero:{payload.get('heroKey')}",
                 row,
                 col,
                 spell_id,
@@ -1701,6 +1706,199 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(encoded["selectedCounts"]["class"], 3)
         self.assertIn("class_talents=2302:1/2303:1/2304:1", encoded["lines"])
 
+    def test_raiderio_player_template_requires_parsed_visual_loadout(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.insert_websim_talent(
+                conn,
+                "simc-class-91001-mage-frost",
+                "class",
+                91001,
+                1,
+                1,
+                "Frost Class",
+                spec_key="frost",
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-spec-91002-mage-frost",
+                "spec",
+                91002,
+                1,
+                2,
+                "Frost Spec",
+                spec_key="frost",
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-91003-mage-frost-frostfire",
+                "hero",
+                91003,
+                1,
+                3,
+                "Frostfire Hero",
+                spec_key="frost",
+                hero_key="frostfire",
+            )
+            parsed = self.websim_payload.validate_community_talent_template(conn, {
+                "id": "raiderio-rioone-frost",
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "sourceName": "Raider.IO",
+                "rawImportCode": "CAEAAAAAAAAAAAAAAAAAAAAA",
+                "playerId": "Rioone",
+                "payload": {
+                    "raiderio": {
+                        "characterName": "Rioone",
+                        "realmSlug": "isillien",
+                        "loadout": [
+                            {"traitId": 91001, "rank": 1},
+                            {"traitId": 91002, "rank": 1},
+                            {"traitId": 91003, "rank": 1},
+                        ],
+                    }
+                },
+            })
+            blocked = self.websim_payload.validate_community_talent_template(conn, {
+                "id": "raiderio-rioone-unparsed",
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "sourceName": "Raider.IO",
+                "rawImportCode": "CAEAAAAAAAAAAAAAAAAAAAAA",
+                "playerId": "Rioone",
+            })
+        finally:
+            conn.close()
+
+        expected_name = "-".join([
+            "Rioone",
+            self.websim_payload.CLASS_LABELS_ZH["mage"],
+            self.websim_payload.hero_tree_label("frostfire"),
+            self.websim_payload.SPEC_LABELS_ZH["frost"],
+            self.websim_payload.scenario_title("mythic_plus"),
+        ])
+        self.assertEqual(parsed["status"], "verified")
+        self.assertEqual(parsed["name"], expected_name)
+        self.assertEqual(parsed["playerId"], "Rioone")
+        self.assertEqual(parsed["heroLabel"], self.websim_payload.hero_tree_label("frostfire"))
+        self.assertTrue(parsed["websimExportCode"].startswith("websim:mage:frost:frostfire:"))
+        selected_ids = [node["id"] for node in parsed["talentState"]["selectedNodes"]]
+        self.assertIn("simc-class-91001-mage-frost", selected_ids)
+        self.assertIn("simc-spec-91002-mage-frost", selected_ids)
+        self.assertIn("simc-hero-91003-mage-frost-frostfire", selected_ids)
+        self.assertEqual(blocked["status"], "blocked")
+        self.assertIn("errors", blocked["payload"])
+
+    def test_raiderio_player_template_parses_nested_loadout_entries(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.insert_websim_talent(
+                conn,
+                "simc-class-detox-monk-mistweaver",
+                "class",
+                124866,
+                1,
+                1,
+                "Improved Detox",
+                class_key="monk",
+                spec_key="mistweaver",
+                class_id=10,
+                spec_id=270,
+                spell_id=388874,
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-celestial-monk-mistweaver",
+                "hero",
+                124900,
+                1,
+                2,
+                "Celestial Hero",
+                class_key="monk",
+                spec_key="mistweaver",
+                hero_key="conduit_of_the_celestials",
+                class_id=10,
+                spec_id=270,
+                spell_id=443028,
+            )
+            parsed = self.websim_payload.validate_community_talent_template(conn, {
+                "id": "raiderio-monk-mistweaver-real-shape",
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "classKey": "monk",
+                "specKey": "mistweaver",
+                "heroKey": "master_of_harmony",
+                "scenarioKey": "mythic_plus",
+                "sourceName": "Raider.IO",
+                "rawImportCode": "CEQAAAAAAAAAAAAAAAAAAAAA",
+                "playerId": "Riohealer",
+                "payload": {
+                    "raiderio": {
+                        "characterName": "Riohealer",
+                        "realmSlug": "isillien",
+                        "loadout": [
+                            {
+                                "node": {
+                                    "id": 101089,
+                                    "entries": [{
+                                        "id": 124866,
+                                        "traitDefinitionId": 129704,
+                                        "spell": {"id": 388874, "name": "Improved Detox"},
+                                    }],
+                                },
+                                "entryIndex": 0,
+                                "rank": 1,
+                            },
+                            {
+                                "node": {
+                                    "id": 101400,
+                                    "entries": [{
+                                        "id": 124900,
+                                        "traitDefinitionId": 129900,
+                                        "spell": {"id": 443028, "name": "Celestial Hero"},
+                                    }],
+                                },
+                                "entryIndex": 0,
+                                "rank": 1,
+                            },
+                            {
+                                "node": {
+                                    "id": 101401,
+                                    "type": 3,
+                                    "entries": [{
+                                        "id": 124901,
+                                        "traitDefinitionId": 0,
+                                        "traitSubTreeId": 25,
+                                        "spell": None,
+                                    }],
+                                },
+                                "entryIndex": 0,
+                                "rank": 1,
+                            },
+                        ],
+                    }
+                },
+            })
+        finally:
+            conn.close()
+
+        self.assertEqual(parsed["status"], "verified")
+        self.assertEqual(parsed["heroKey"], "conduit_of_the_celestials")
+        self.assertEqual(
+            [node["id"] for node in parsed["talentState"]["selectedNodes"]],
+            ["simc-class-detox-monk-mistweaver", "simc-hero-celestial-monk-mistweaver"],
+        )
+
     def test_community_talent_fixture_sync_validates_and_returns_current_selection(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -1730,7 +1928,81 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(templates[0]["websimExportCode"].startswith("websim:mage:arcane:spellslinger:"))
         self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
         self.assertEqual(payload["communityTemplateSync"]["sources"]["raiderio"]["status"], "missing_credentials")
-        self.assertEqual(other_payload["communityTemplates"], [])
+        self.assertEqual([item["id"] for item in other_payload["communityTemplates"]], [templates[0]["id"]])
+
+    def test_websim_talents_returns_verified_community_templates_by_class_only(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            now = self.websim_payload.utc_now()
+            for template in [
+                {
+                    "id": "mage-arcane-template",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "heroKey": "spellslinger",
+                    "scenarioKey": "mythic_plus",
+                    "name": "Mage Arcane",
+                    "flowLabel": "M+",
+                    "sourceName": "Fixture",
+                    "sourceUrl": "",
+                    "talentState": {"selectedNodes": [{"id": "arcane-node", "rank": 1}]},
+                    "sampleCount": 2,
+                    "maxKeyLevel": 20,
+                    "analysisWindow": "fixture",
+                    "sourceStatus": "synced",
+                    "status": "verified",
+                    "updatedAt": now,
+                    "expiresAt": now,
+                },
+                {
+                    "id": "mage-fire-template",
+                    "classKey": "mage",
+                    "specKey": "fire",
+                    "heroKey": "sunfury",
+                    "scenarioKey": "single",
+                    "name": "Mage Fire",
+                    "flowLabel": "Single",
+                    "sourceName": "Fixture",
+                    "sourceUrl": "",
+                    "talentState": {"selectedNodes": [{"id": "fire-node", "rank": 1}]},
+                    "sampleCount": 1,
+                    "maxKeyLevel": 18,
+                    "analysisWindow": "fixture",
+                    "sourceStatus": "synced",
+                    "status": "verified",
+                    "updatedAt": now,
+                    "expiresAt": now,
+                },
+                {
+                    "id": "warrior-template",
+                    "classKey": "warrior",
+                    "specKey": "protection",
+                    "heroKey": "mountain_thane",
+                    "scenarioKey": "mythic_plus",
+                    "name": "Warrior Protection",
+                    "flowLabel": "M+",
+                    "sourceName": "Fixture",
+                    "sourceUrl": "",
+                    "talentState": {"selectedNodes": [{"id": "warrior-node", "rank": 1}]},
+                    "sampleCount": 9,
+                    "maxKeyLevel": 25,
+                    "analysisWindow": "fixture",
+                    "sourceStatus": "synced",
+                    "status": "verified",
+                    "updatedAt": now,
+                    "expiresAt": now,
+                },
+            ]:
+                self.websim_payload.upsert_community_talent_template(conn, template)
+            payload = self.websim_payload.get_websim_talents(conn, "mage", "arcane", "spellslinger")
+        finally:
+            conn.close()
+
+        template_ids = [item["id"] for item in payload["communityTemplates"]]
+        self.assertEqual(template_ids, ["mage_arcane_template", "mage_fire_template"])
+        self.assertEqual(payload["communityTemplates"][0]["classLabel"], self.websim_payload.CLASS_LABELS_ZH["mage"])
+        self.assertEqual(payload["communityTemplates"][1]["specLabel"], self.websim_payload.SPEC_LABELS_ZH["fire"])
 
     def test_websim_talents_bootstraps_fixture_community_templates(self):
         conn = sqlite3.connect(self.db_path)
@@ -1763,7 +2035,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("simc-class-1001-mage-arcane", selected_ids)
         self.assertTrue(template["canApplyVisual"])
 
-    def test_community_talent_external_import_is_simc_only_not_visual(self):
+    def test_community_talent_external_import_without_parsed_state_is_hidden(self):
         conn = sqlite3.connect(self.db_path)
         try:
             self.seed_websim_encoder_nodes(conn)
@@ -1794,12 +2066,10 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        external = next(item for item in payload["communityTemplates"] if item["id"] == "external_mage_arcane_spellslinger")
-        self.assertEqual(external["rawImportCode"], "C4DA")
-        self.assertEqual(external["websimExportCode"], "")
-        self.assertEqual(external["talentState"]["selectedNodes"], [])
-        self.assertFalse(external["canApplyVisual"])
-        self.assertTrue(external["canUseInSimc"])
+        self.assertNotIn(
+            "external_mage_arcane_spellslinger",
+            [item["id"] for item in payload["communityTemplates"]],
+        )
 
     def test_http_websim_simulate_runs_encoded_profile_through_fake_simc(self):
         payload = self.websim_encoder_payload()

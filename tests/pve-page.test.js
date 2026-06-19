@@ -113,6 +113,9 @@ test('spec ladder payload exposes role-based Archon tiers and WCL details', () =
     const summary = detail.archonTierSummary[role.key]
     assert.equal(summary.sourceName, 'Archon')
     assert.match(summary.sourceUrl, /^https:\/\/www\.archon\.gg\/wow\/tier-list\//)
+    assert.equal(summary.sourceStatus, 'source_reference')
+    assert.equal(summary.dataTrust.status, 'source_reference')
+    assert.ok(summary.blockers.some((item) => /fixture/i.test(item)))
     assert.match(summary.analysisWindow, /\S/)
     assert.ok(summary.tiers.length > 0)
 
@@ -135,6 +138,8 @@ test('spec ladder payload exposes role-based Archon tiers and WCL details', () =
         assert.ok(item.score > 0)
         assert.ok(item.sampleCount > 0)
         assert.equal(item.sourceName, 'Archon')
+        assert.equal(item.sourceStatus, 'source_reference')
+        assert.equal(item.dataTrust.status, 'source_reference')
         assert.match(item.sourceUrl, /^https:\/\/www\.archon\.gg\/wow\/builds\//)
         assert.ok(Object.prototype.hasOwnProperty.call(detail.wclDetailsBySpec, item.specId))
         assert.equal(detail.wclDetailsBySpec[item.specId].role, role.key)
@@ -148,7 +153,8 @@ test('spec ladder payload exposes role-based Archon tiers and WCL details', () =
   assert.equal(detail.selectedSpecId, firstDps.specId)
   assert.equal(wcl.sourceName, 'Warcraft Logs')
   assert.match(wcl.sourceUrl, /^https:\/\/www\.warcraftlogs\.com\/zone\/statistics\/47/)
-  assert.equal(wcl.sourceStatus, 'verified')
+  assert.equal(wcl.sourceStatus, 'source_reference')
+  assert.equal(wcl.dataTrust.status, 'source_reference')
   assert.ok(wcl.score > 0)
   assert.ok(wcl.max >= wcl.score)
   assert.ok(wcl.parses > 0)
@@ -162,7 +168,8 @@ test('spec ladder payload exposes role-based Archon tiers and WCL details', () =
     assert.match(source.domain, /^(archon\.gg|warcraftlogs\.com)$/)
     assert.match(source.checkedAt, /^\d{4}-\d{2}-\d{2}/)
     assert.match(source.analysisWindow, /\S/)
-    assert.equal(source.status, 'verified')
+    assert.equal(source.status, 'source_reference')
+    assert.ok(source.blockers.some((item) => /fixture|authorized API/i.test(item)))
     assert.ok(source.sampleCount > 0)
   }
 })

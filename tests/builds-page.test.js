@@ -65,6 +65,110 @@ function loadBuildsDetailPageConfig() {
   return sandbox.pageConfig
 }
 
+function loadTalentSimulatorPageConfig(options = {}) {
+  const source = fs.readFileSync('pages/builds/talent-simulator.js', 'utf8')
+  const mocks = {
+    profilePayload: null,
+    savedTemplate: null,
+    talentRequests: [],
+    toasts: []
+  }
+  const sandbox = {
+    console,
+    Page(config) {
+      sandbox.pageConfig = config
+    },
+    wx: {
+      showToast(options) {
+        mocks.toasts.push(options || {})
+      }
+    },
+    require(modulePath) {
+      if (modulePath === './builds-api') {
+        return {
+          fallbackBuildsHome: () => ({
+            quickActions: [],
+            classOptions: [{
+              name: '法师',
+              key: 'mage',
+              specializations: [{
+                id: '法师-冰霜',
+                title: '冰霜',
+                className: '法师',
+                specName: '冰霜',
+                websimClassKey: 'mage',
+                websimSpecKey: 'frost'
+              }]
+            }],
+            trustedSources: []
+          }),
+          fallbackBuildsDetail: () => ({
+            className: '法师',
+            specName: '冰霜',
+            details: {
+              talents: { coreTalents: [], importCode: '' },
+              gear: {}
+            }
+          }),
+          requestBuildsHome: () => Promise.resolve({ payload: null })
+        }
+      }
+      if (modulePath === './websim-api') {
+        return {
+          requestWebsimBootstrap: () => Promise.resolve({ payload: options.bootstrapPayload || {} }),
+          requestWebsimTalents: (params = {}) => {
+            mocks.talentRequests.push(params)
+            const key = `${params.classKey || ''}:${params.specKey || ''}:${params.heroKey || ''}`
+            const payload = (options.talentPayloads && options.talentPayloads[key]) || options.defaultTalentPayload || {}
+            return Promise.resolve({ payload })
+          },
+          requestWebsimProfile: (payload) => {
+            mocks.profilePayload = payload
+            return Promise.resolve({
+              payload: {
+                talentEncoding: {
+                  status: 'encoded',
+                  lines: ['talents=websim-code'],
+                  errors: []
+                }
+              }
+            })
+          }
+        }
+      }
+      if (modulePath === './talent-simulator-core') {
+        const core = require('../pages/builds/talent-simulator-core')
+        if (options.omitTemplatesForClass) {
+          const { templatesForClass, ...rest } = core
+          return rest
+        }
+        return core
+      }
+      if (modulePath === '../common/analytics-client') {
+        return {
+          trackEvent() {},
+          trackPageLeave() {},
+          trackPageView() {}
+        }
+      }
+      if (modulePath === '../common/build-template-storage') {
+        return {
+          syncBuildTemplate(record) {
+            mocks.savedTemplate = record
+            return Promise.resolve({ payload: { template: record } })
+          }
+        }
+      }
+      if (modulePath === '../common/game-asset') {
+        return require('../pages/common/game-asset')
+      }
+      throw new Error(`Unexpected require: ${modulePath}`)
+    }
+  }
+  vm.runInNewContext(source, sandbox, { filename: 'pages/builds/talent-simulator.js' })
+  return { pageConfig: sandbox.pageConfig, mocks }
+}
+
 test('builds tab is renamed to specialization and removes legacy metrics row', () => {
   const app = JSON.parse(fs.readFileSync('app.json', 'utf8'))
   const tab = app.tabBar.list.find((item) => item.pagePath === 'pages/builds/builds')
@@ -246,7 +350,7 @@ test('stat weights detail page exposes scenario state without strong claim copy'
   assert.match(css, /\.stat-simc-button/)
 })
 
-test('native talent simulator page exposes WebSim tree controls and SimC handoff', () => {
+test('native talent simulator page exposes WebSim tree controls and template persistence', () => {
   const app = JSON.parse(fs.readFileSync('app.json', 'utf8'))
   const js = fs.readFileSync('pages/builds/talent-simulator.js', 'utf8')
   const wxml = fs.readFileSync('pages/builds/talent-simulator.wxml', 'utf8')
@@ -261,46 +365,223 @@ test('native talent simulator page exposes WebSim tree controls and SimC handoff
   assert.match(js, /tapTalentNode\(event\)/)
   assert.match(js, /selectChoiceTalent\(event\)/)
   assert.match(js, /resetTalents\(\)/)
-  assert.match(js, /applyTalentImport\(\)/)
-  assert.match(js, /copyTalentExport\(\)/)
-  assert.match(js, /openTalentSimc\(\)/)
   assert.match(js, /saveTalentTemplate\(\)/)
+  assert.match(js, /confirmSaveTalentTemplate\(\)/)
+  assert.match(js, /saveTemplateSheet/)
+  assert.match(js, /defaultTalentTemplateTitle/)
   assert.match(js, /syncBuildTemplate/)
-  assert.match(js, /SIMC_BUILD_CONTEXT_STORAGE_KEY/)
+  assert.doesNotMatch(js, /openTalentImport\(\)/)
+  assert.doesNotMatch(js, /applyTalentImport\(\)/)
+  assert.doesNotMatch(js, /importSheet/)
+  assert.doesNotMatch(js, /copyTalentExport\(\)/)
+  assert.doesNotMatch(js, /openTalentSimc\(\)/)
+  assert.doesNotMatch(js, /buildSimcContext\(\)/)
+  assert.doesNotMatch(js, /SIMC_BUILD_CONTEXT_STORAGE_KEY/)
   assert.match(js, /talentEncoding\.lines/)
   assert.match(js, /activeTreeKey:\s*'class'/)
   assert.match(js, /treeNavItems/)
   assert.match(js, /activeSection/)
   assert.match(js, /selectTalentTree\(event\)/)
+  assert.match(js, /node\.canSelect \? 'selectable' : ''/)
+  assert.match(js, /line && line\.available \? 'available' : ''/)
+  assert.doesNotMatch(js, /selectScenario\(event\)/)
+  assert.doesNotMatch(js, /updateTalentSearch\(event\)/)
+  assert.doesNotMatch(js, /clearTalentSearch\(\)/)
+  assert.doesNotMatch(js, /searchTerm:\s*''/)
+  assert.doesNotMatch(js, /searchCountText:/)
   assert.match(wxml, /class="talent-simulator-page"/)
+  const toolbarMatch = wxml.match(/<view class="talent-toolbar">([\s\S]*?)<\/view>\s*<\/picker>\s*<\/view>/)
+  assert.ok(toolbarMatch)
+  assert.equal((toolbarMatch[1].match(/<picker/g) || []).length, 3)
+  assert.match(toolbarMatch[1], />职业</)
+  assert.match(toolbarMatch[1], />专精</)
+  assert.match(toolbarMatch[1], />英雄天赋</)
+  assert.doesNotMatch(toolbarMatch[1], />场景</)
+  assert.doesNotMatch(wxml, /bindchange="selectScenario"/)
+  assert.doesNotMatch(wxml, /range="\{\{scenarioOptions\}\}"/)
+  assert.doesNotMatch(wxml, /class="talent-search-panel"/)
+  assert.doesNotMatch(wxml, /class="talent-search-input"/)
+  assert.doesNotMatch(wxml, /placeholder="搜索天赋"/)
+  assert.doesNotMatch(wxml, /bindinput="updateTalentSearch"/)
+  assert.doesNotMatch(wxml, /bindtap="clearTalentSearch"/)
   assert.match(wxml, /item\.gameAsset\.iconUrl/)
   assert.doesNotMatch(wxml, /item\.iconUrl/)
   assert.match(wxml, /wx:for="\{\{treeNavItems\}\}"/)
   assert.match(wxml, /class="\{\{item\.tabClass\}\}"/)
   assert.match(wxml, /class="active-tree-panel/)
   assert.match(wxml, /activeSection\.nodes/)
+  assert.match(wxml, /class="\{\{item\.linkClass\}\}"/)
   assert.match(wxml, /bindtap="tapTalentNode"/)
-  assert.match(wxml, /bindinput="updateTalentSearch"/)
   assert.match(wxml, /bindtap="resetTalents"/)
-  assert.match(wxml, /bindtap="openTalentImport"/)
+  assert.match(wxml, /bindtap="openCommunityTemplates"/)
   assert.match(wxml, /bindtap="saveTalentTemplate"/)
-  assert.match(wxml, /bindtap="copyTalentExport"/)
-  assert.match(wxml, /bindtap="openTalentSimc"/)
+  assert.match(wxml, /saveTemplateSheet\.visible/)
+  assert.match(wxml, /bindinput="updateTemplateName"/)
+  assert.match(wxml, /bindtap="confirmSaveTalentTemplate"/)
+  assert.doesNotMatch(wxml, /bindtap="openTalentImport"/)
+  assert.doesNotMatch(wxml, /importSheet\.visible/)
+  assert.doesNotMatch(wxml, /bindtap="copyTalentExport"/)
+  assert.doesNotMatch(wxml, /bindtap="openTalentSimc"/)
+  assert.doesNotMatch(wxml, />复制</)
+  assert.doesNotMatch(wxml, /带去 SimC/)
   assert.match(wxml, /choiceSheet/)
   assert.match(wxml, /nodeDetailSheet/)
   assert.match(css, /\.tree-tabs/)
+  assert.match(css, /\.talent-toolbar\s*\{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/)
+  assert.match(css, /\.toolbar-picker\s*\{[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;[\s\S]*min-height:\s*58rpx;[\s\S]*\}/)
+  assert.match(css, /\.picker-label\s*\{[\s\S]*flex-shrink:\s*0;[\s\S]*\}/)
+  assert.match(css, /\.picker-value\s*\{[\s\S]*margin-top:\s*0;[\s\S]*text-overflow:\s*ellipsis;[\s\S]*\}/)
+  assert.match(css, /\.tree-tab\s*\{[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;[\s\S]*min-height:\s*68rpx;[\s\S]*\}/)
+  assert.match(css, /\.tree-tab-subtitle\s*\{[\s\S]*flex:\s*1;[\s\S]*text-overflow:\s*ellipsis;[\s\S]*\}/)
+  assert.match(wxml, /class="active-tree-separator"/)
+  assert.match(css, /\.active-tree-head\s*\{[\s\S]*align-items:\s*center;[\s\S]*padding:\s*14rpx 22rpx;[\s\S]*\}/)
+  assert.match(css, /\.active-tree-title-wrap\s*\{[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;[\s\S]*overflow:\s*hidden;[\s\S]*\}/)
+  assert.match(css, /\.active-tree-title\s*\{[\s\S]*margin-top:\s*0;[\s\S]*white-space:\s*nowrap;[\s\S]*text-overflow:\s*ellipsis;[\s\S]*\}/)
+  assert.match(css, /\.active-tree-subtitle\s*\{[\s\S]*margin-top:\s*0;[\s\S]*white-space:\s*nowrap;[\s\S]*text-overflow:\s*ellipsis;[\s\S]*\}/)
+  assert.doesNotMatch(css, /\.talent-search-panel/)
+  assert.doesNotMatch(css, /\.talent-search-input/)
+  assert.doesNotMatch(css, /\.search-clear-button/)
   assert.match(css, /\.active-tree-panel/)
   assert.match(css, /\.mobile-action-bar/)
   assert.match(css, /\.talent-node\.selected/)
   assert.match(css, /\.talent-node\.locked/)
+  assert.match(css, /\.talent-page-content\s*\{[\s\S]*padding:\s*24rpx 24rpx 230rpx;[\s\S]*\}/)
+  assert.match(css, /\.talent-grid\s*\{[\s\S]*height:\s*1080rpx;[\s\S]*\}/)
+  assert.match(css, /\.active-tree-grid-hero\s*\{[\s\S]*height:\s*820rpx;[\s\S]*\}/)
+  assert.match(css, /\.active-tree-grid-spec\s*\{[\s\S]*height:\s*1080rpx;[\s\S]*\}/)
+  assert.match(css, /\.talent-link::after\s*\{[\s\S]*border-left:\s*12rpx solid rgba\(150,\s*150,\s*150,\s*0\.62\);[\s\S]*\}/)
+  assert.match(css, /\.talent-link\.active\s*\{[\s\S]*background:\s*#f8b700;[\s\S]*\}/)
+  assert.match(css, /\.talent-link\.active::after\s*\{[\s\S]*border-left-color:\s*#f8b700;[\s\S]*\}/)
+  assert.match(css, /\.talent-link\.available\s*\{[\s\S]*background:\s*rgba\(248,\s*183,\s*0,\s*0\.72\);[\s\S]*\}/)
+  assert.match(css, /\.talent-node\s*\{[\s\S]*width:\s*64rpx;[\s\S]*height:\s*64rpx;[\s\S]*margin-left:\s*-32rpx;[\s\S]*margin-top:\s*-32rpx;[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.granted\s*\{[\s\S]*border-color:\s*#f8b700;[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.selectable:not\(\.selected\)\s*\{[\s\S]*border-color:\s*#24f05a;[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.selectable:not\(\.selected\)::after\s*\{[\s\S]*content:\s*'\+';[\s\S]*\}/)
+  assert.match(css, /\.rank-button\s*\{[\s\S]*width:\s*72rpx;[\s\S]*min-width:\s*72rpx;[\s\S]*max-width:\s*72rpx;[\s\S]*padding:\s*0;[\s\S]*margin:\s*0;[\s\S]*box-sizing:\s*border-box;[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;[\s\S]*line-height:\s*1;[\s\S]*\}/)
+  assert.match(css, /\.rank-button::after\s*\{\s*border:\s*0;\s*\}/)
   assert.match(css, /\.talent-choice-sheet/)
   assert.match(css, /\.talent-detail-sheet/)
+  assert.match(css, /\.template-save-sheet/)
   assert.doesNotMatch(wxml, /talent-board-scroll/)
   assert.doesNotMatch(wxml, /talent-column class/)
   assert.doesNotMatch(wxml, /talent-column spec/)
   assert.doesNotMatch(wxml, /talent-column hero/)
   assert.doesNotMatch(css, /min-width:\s*1500rpx/)
   assert.doesNotMatch(wxml, /class="talent-chip-list"/)
+})
+
+test('native talent simulator save flow names talent templates for the profile library', async () => {
+  const { pageConfig, mocks } = loadTalentSimulatorPageConfig()
+  const selectedNodes = [{ id: 'root', rank: 1 }]
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      websimExportCode: 'websim:mage:frost:frostfire:root:1',
+      classKey: 'mage',
+      specKey: 'frost',
+      heroKey: 'frostfire',
+      scenarioKey: 'mythic_plus',
+      selectedHeroLabel: '霜火',
+      selectedScenarioIndex: 0,
+      scenarioOptions: [{ key: 'mythic_plus', title: '大秘境' }],
+      selectedDetail: { className: '法师', specName: '冰霜' },
+      selectedSpec: { className: '法师', title: '冰霜', specName: '冰霜' },
+      selectedNodes,
+      classSection: { key: 'class', pointCount: 34, pointCap: 34 },
+      heroSection: { key: 'hero', pointCount: 13, pointCap: 13 },
+      specSection: { key: 'spec', pointCount: 34, pointCap: 34 },
+      canSaveTalentTemplate: true,
+      selectedCommunityTemplate: null,
+      saveTemplateSheet: { visible: false, name: '', defaultName: '' },
+      templateSaving: false
+    },
+    setData(update, callback) {
+      this.data = { ...this.data, ...update }
+      if (callback) callback()
+    },
+    renderTalentView() {}
+  }
+
+  pageConfig.saveTalentTemplate.call(page)
+
+  assert.equal(page.data.saveTemplateSheet.visible, true)
+  assert.match(page.data.saveTemplateSheet.name, /^法师-冰霜-霜火-\d{4} \d{4}$/)
+  assert.ok(page.data.saveTemplateSheet.name.length <= 28)
+
+  pageConfig.updateTemplateName.call(page, { detail: { value: '我的AOE模板' } })
+  await pageConfig.confirmSaveTalentTemplate.call(page)
+
+  assert.equal(page.data.saveTemplateSheet.visible, false)
+  assert.equal(mocks.profilePayload.talents, 'websim:mage:frost:frostfire:root:1')
+  assert.equal(mocks.savedTemplate.type, 'talent')
+  assert.equal(mocks.savedTemplate.title, '我的AOE模板')
+  assert.equal(mocks.savedTemplate.rawString, 'websim:mage:frost:frostfire:root:1')
+  assert.deepEqual(mocks.savedTemplate.metadata.selectedNodes, selectedNodes)
+})
+
+test('native talent simulator blocks template save until talent points are filled', () => {
+  const { pageConfig, mocks } = loadTalentSimulatorPageConfig()
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      websimExportCode: 'websim:mage:frost:frostfire:root:1',
+      classSection: { key: 'class', pointCount: 33, pointCap: 34 },
+      heroSection: { key: 'hero', pointCount: 13, pointCap: 13 },
+      specSection: { key: 'spec', pointCount: 34, pointCap: 34 },
+      canSaveTalentTemplate: false,
+      saveBlockReason: '请先点满天赋点：通用 33/34',
+      saveTemplateSheet: { visible: false, name: '', defaultName: '' },
+      templateSaving: false
+    },
+    setData(update, callback) {
+      this.data = { ...this.data, ...update }
+      if (callback) callback()
+    },
+    renderTalentView() {}
+  }
+
+  pageConfig.saveTalentTemplate.call(page)
+  pageConfig.confirmSaveTalentTemplate.call(page)
+
+  assert.equal(page.data.saveTemplateSheet.visible, false)
+  assert.equal(mocks.profilePayload, null)
+  assert.equal(mocks.savedTemplate, null)
+  assert.equal(mocks.toasts.at(-1).title, '请先点满天赋点：通用 33/34')
+})
+
+test('native talent simulator action bar keeps three clear actions on one row', () => {
+  const wxml = fs.readFileSync('pages/builds/talent-simulator.wxml', 'utf8')
+  const css = fs.readFileSync('pages/builds/talent-simulator.wxss', 'utf8')
+
+  const actionBarMatch = wxml.match(/<view class="mobile-action-bar">([\s\S]*?)<\/view>/)
+  assert.ok(actionBarMatch)
+  assert.equal((actionBarMatch[1].match(/<button/g) || []).length, 3)
+  assert.match(actionBarMatch[1], /保存模板/)
+  assert.match(actionBarMatch[1], /导入社区推荐/)
+  assert.match(actionBarMatch[1], /重置/)
+  assert.doesNotMatch(actionBarMatch[1], /openTalentImport/)
+  assert.match(css, /grid-template-columns:\s*minmax\(220rpx,\s*1\.15fr\) minmax\(220rpx,\s*1fr\) 132rpx;/)
+  assert.match(css, /\.mobile-action-bar button\s*\{[\s\S]*width:\s*100%;[\s\S]*margin:\s*0;[\s\S]*box-sizing:\s*border-box;[\s\S]*white-space:\s*nowrap;[\s\S]*\}/)
+  assert.match(css, /\.action-primary-button/)
+  assert.match(css, /\.action-secondary-button/)
+  assert.match(css, /\.mobile-action-bar button::after\s*\{\s*border:\s*0;\s*\}/)
+})
+
+test('native talent simulator save sheet keeps cancel and save on the same row', () => {
+  const wxml = fs.readFileSync('pages/builds/talent-simulator.wxml', 'utf8')
+  const css = fs.readFileSync('pages/builds/talent-simulator.wxss', 'utf8')
+
+  const saveSheetMatch = wxml.match(/<view class="save-sheet-actions">([\s\S]*?)<\/view>/)
+  assert.ok(saveSheetMatch)
+  assert.equal((saveSheetMatch[1].match(/<button/g) || []).length, 2)
+  assert.match(saveSheetMatch[1], /save-sheet-secondary[\s\S]*取消/)
+  assert.match(saveSheetMatch[1], /save-sheet-primary[\s\S]*保存/)
+  assert.match(wxml, /disabled="\{\{!canSaveTalentTemplate \|\| templateSaving\}\}"/)
+  assert.match(css, /\.template-save-sheet\s*\{[\s\S]*padding:\s*18rpx 24rpx calc\(42rpx \+ env\(safe-area-inset-bottom\)\);[\s\S]*box-sizing:\s*border-box;[\s\S]*\}/)
+  assert.match(css, /\.save-sheet-actions\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);[\s\S]*align-items:\s*center;[\s\S]*\}/)
+  assert.match(css, /\.save-sheet-actions button\s*\{[\s\S]*width:\s*100%;[\s\S]*min-width:\s*0;[\s\S]*margin:\s*0;[\s\S]*box-sizing:\s*border-box;[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;[\s\S]*line-height:\s*1;[\s\S]*white-space:\s*nowrap;[\s\S]*\}/)
 })
 
 test('native talent simulator page exposes community template import sheet', () => {
@@ -322,7 +603,7 @@ test('native talent simulator page exposes community template import sheet', () 
   assert.match(js, /communityTemplateStatusText/)
   assert.match(js, /communityTemplateApplyMode/)
   assert.match(wxml, /bindtap="openCommunityTemplates"/)
-  assert.match(wxml, />社区模板</)
+  assert.match(wxml, />导入社区推荐</)
   assert.match(wxml, /communityTemplateSheet\.visible/)
   assert.match(wxml, /wx:for="\{\{activeCommunityTemplates\}\}"/)
   assert.match(wxml, /item\.name/)
@@ -335,6 +616,127 @@ test('native talent simulator page exposes community template import sheet', () 
   assert.match(css, /\.community-template-sheet/)
   assert.match(css, /\.community-template-card/)
   assert.match(css, /\.community-template-card\.external/)
+})
+
+test('native talent simulator keeps rendering if the class template helper is not exported yet', () => {
+  const { pageConfig } = loadTalentSimulatorPageConfig({ omitTemplatesForClass: true })
+  const mageTemplate = {
+    id: 'mage-template',
+    classKey: 'mage',
+    name: 'Mage Template',
+    canApplyVisual: true,
+    websimExportCode: 'websim:mage:frost:frostfire:root:1'
+  }
+  const warriorTemplate = {
+    id: 'warrior-template',
+    classKey: 'warrior',
+    name: 'Warrior Template',
+    canApplyVisual: true,
+    websimExportCode: 'websim:warrior:protection:mountain_thane:root:1'
+  }
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      activeTreeKey: 'class',
+      classKey: 'mage',
+      specKey: 'frost',
+      heroKey: 'frostfire',
+      nodes: [{ id: 'root', treeType: 'class', row: 1, col: 1, maxRank: 1, granted: true }],
+      treeSections: [{ key: 'class', title: 'Class', tree: 'class', pointCap: 1 }],
+      talentRanks: { root: 1 },
+      baseTalentRanks: { root: 1 },
+      pointCaps: { class: 1 },
+      communityTemplates: [mageTemplate, warriorTemplate],
+      communityTemplateSync: { sourceStatus: 'synced', sources: {}, templates: { total: 2, verified: 2, blocked: 0 } },
+      scenarioOptions: [{ key: 'mythic_plus', title: 'Mythic+' }],
+      selectedScenarioIndex: 0
+    },
+    setData(update, callback) {
+      this.data = { ...this.data, ...update }
+      if (callback) callback()
+    }
+  }
+
+  assert.doesNotThrow(() => pageConfig.renderTalentView.call(page))
+  assert.deepEqual(page.data.activeCommunityTemplates.map((item) => item.id), ['mage-template'])
+})
+
+test('native talent simulator applies cross-spec community templates after switching target tree', async () => {
+  const classOptions = [{
+    name: 'Mage',
+    key: 'mage',
+    specializations: [
+      { id: 'mage-frost', title: 'Frost', className: 'Mage', specName: 'Frost', websimClassKey: 'mage', websimSpecKey: 'frost' },
+      { id: 'mage-arcane', title: 'Arcane', className: 'Mage', specName: 'Arcane', websimClassKey: 'mage', websimSpecKey: 'arcane' }
+    ]
+  }]
+  const websimClasses = [{
+    key: 'mage',
+    specs: [
+      { key: 'frost', heroTrees: [{ key: 'frostfire', label: 'Frostfire' }] },
+      { key: 'arcane', heroTrees: [{ key: 'spellslinger', label: 'Spellslinger' }] }
+    ]
+  }]
+  const template = {
+    id: 'rio-arcane',
+    classKey: 'mage',
+    specKey: 'arcane',
+    heroKey: 'spellslinger',
+    name: 'Rioone-Mage-Spellslinger-Arcane-Mythic+',
+    canApplyVisual: true,
+    websimExportCode: 'websim:mage:arcane:spellslinger:arcane-root:1'
+  }
+  const { pageConfig, mocks } = loadTalentSimulatorPageConfig({
+    talentPayloads: {
+      'mage:arcane:spellslinger': {
+        heroKey: 'spellslinger',
+        nodes: [{ id: 'arcane-root', treeType: 'class', rank: 1, maxRank: 1 }],
+        treeSections: [{ key: 'class', pointCap: 34 }],
+        communityTemplates: [template],
+        communityTemplateSync: { sourceStatus: 'synced', sources: {}, templates: { total: 1, verified: 1, blocked: 0 } },
+        talentStatus: 'verified'
+      }
+    }
+  })
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      classOptions,
+      websimClasses,
+      selectedClassIndex: 0,
+      selectedSpecIndex: 0,
+      selectedClass: classOptions[0],
+      specOptions: classOptions[0].specializations,
+      selectedSpec: classOptions[0].specializations[0],
+      classKey: 'mage',
+      specKey: 'frost',
+      heroKey: 'frostfire',
+      heroOptions: websimClasses[0].specs[0].heroTrees,
+      selectedHeroIndex: 0,
+      activeCommunityTemplates: [template],
+      nodes: [{ id: 'frost-root', treeType: 'class', rank: 1, maxRank: 1 }],
+      pointCaps: {}
+    },
+    setData(update, callback) {
+      this.data = { ...this.data, ...update }
+      if (callback) callback()
+    },
+    renderTalentView() {}
+  }
+
+  await pageConfig.applyCommunityTemplate.call(page, { currentTarget: { dataset: { id: 'rio-arcane' } } })
+
+  assert.equal(mocks.talentRequests.at(-1).classKey, 'mage')
+  assert.equal(mocks.talentRequests.at(-1).specKey, 'arcane')
+  assert.equal(mocks.talentRequests.at(-1).heroKey, 'spellslinger')
+  assert.equal(page.data.selectedSpecIndex, 1)
+  assert.equal(page.data.specKey, 'arcane')
+  assert.equal(page.data.heroKey, 'spellslinger')
+  assert.equal(page.data.talentRanks['arcane-root'], 1)
+  assert.equal(page.data.selectedCommunityTemplate.id, 'rio-arcane')
+  assert.equal(page.data.communityTemplateSheet.visible, false)
 })
 
 test('gear detail page exposes inline equipment simulator state and replacement sheet', () => {

@@ -93,6 +93,43 @@ class NewsTranslatorTest(unittest.TestCase):
         self.assertEqual(localized["contentStatus"], "blocked")
         self.assertEqual(localized["blockedReason"], "invalid_llm_translation")
 
+    def test_localize_article_blocks_llm_when_source_body_is_only_forum_excerpt(self):
+        calls = []
+
+        localized = localize_article(
+            dict(
+                ARTICLE,
+                sourceName="Blizzard Forums",
+                sourceUrl="https://us.forums.blizzard.com/en/wow/t/feedback-midnight-season-2-class-sets/2317455",
+                originalTitle="Feedback: Midnight Season 2 Class Sets",
+                originalSummary="We are excited to share the new set bonuses coming in Midnight Season 2.",
+                originalBody="We are excited to share the new set bonuses coming in Midnight Season 2.",
+                bodyBlocks=[
+                    {
+                        "type": "paragraph",
+                        "text": "We are excited to share the new set bonuses coming in Midnight Season 2.",
+                    }
+                ],
+                bodySourceKind="forum_excerpt",
+            ),
+            translate_with_llm=lambda article: calls.append(article) or {
+                "title": "反馈：Midnight 第二赛季职业套装",
+                "summary": "暴雪分享了 Midnight 第二赛季职业套装奖励。",
+                "bodyBlocksZh": [
+                    {
+                        "type": "paragraph",
+                        "text": "我们很高兴分享 Midnight 第二赛季即将推出的新套装奖励。",
+                    }
+                ],
+                "tagItems": [{"id": "ptr", "label": "测试服"}],
+            },
+            require_llm=True,
+        )
+
+        self.assertEqual(localized["contentStatus"], "blocked")
+        self.assertEqual(localized["blockedReason"], "source_body_missing")
+        self.assertEqual(calls, [])
+
     def test_localize_article_falls_back_when_llm_translation_is_not_chinese_enough(self):
         localized = localize_article(
             ARTICLE,

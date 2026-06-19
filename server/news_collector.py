@@ -1,11 +1,17 @@
 import hashlib
 import html
+import json
 import re
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from xml.etree import ElementTree
+
+try:
+    from .news_sources.version_classifier import classify_version_event
+except ImportError:
+    from news_sources.version_classifier import classify_version_event
 
 CHANNEL_RETAIL = "正式服动态"
 CHANNEL_PTR = "测试服前瞻"
@@ -180,6 +186,42 @@ def classify(title, summary):
     return channel, category, list(dict.fromkeys(tags))
 
 
+def classify(title, summary):
+    text = f"{title} {summary}".lower()
+    version_event = classify_version_event(title, summary)
+    tags = []
+    channel = CHANNEL_RETAIL
+    category = CHANNEL_RETAIL
+
+    if version_event["productPhase"] in {"ptr", "beta", "alpha"} or any(keyword in text for keyword in PTR_KEYWORDS):
+        channel = CHANNEL_PTR
+        category = CHANNEL_PTR
+        phase_tag = version_event["productPhase"] if version_event["productPhase"] in {"ptr", "beta", "alpha"} else "ptr"
+        tags.append(phase_tag)
+    if version_event["needsClassificationReview"]:
+        tags.append("needs_classification_review")
+
+    if any(keyword in text for keyword in CLASS_KEYWORDS) or version_event["contentType"] == "class_tuning":
+        tags.append("class-change")
+        if channel != CHANNEL_PTR:
+            channel = CHANNEL_CLASS
+
+    if version_event["contentType"] == "hotfix" or "hotfix" in text:
+        tags.append("hotfix")
+    if "trading post" in text or "traveler's log" in text:
+        tags.append("trading-post")
+    if version_event["contentType"] == "content_update" or "content update" in text or "update" in text:
+        tags.append("content-update")
+    if version_event["contentType"] == "raid_testing" or "raid" in text:
+        tags.append("raid")
+    if "reward" in text:
+        tags.append("rewards")
+    if "this week in wow" in text or "weekly" in text:
+        tags.append("weekly")
+
+    return channel, category, list(dict.fromkeys(tags))
+
+
 def article_id(source_name, url):
     digest = hashlib.sha1(f"{source_name}:{url}".encode("utf-8")).hexdigest()[:12]
     hostname = urlparse(url).hostname or "source"
@@ -257,6 +299,7 @@ def parse_feed_articles(feed_text, source):
 
         clean_summary = summarize(summary or title)
         channel, category, tags = classify(title, clean_summary)
+        version_event = classify_version_event(title, clean_summary, url)
         importance = int(source.get("baseImportance", 70))
         if channel == CHANNEL_PTR:
             importance += 8
@@ -283,6 +326,8 @@ def parse_feed_articles(feed_text, source):
                 "originalSummary": clean_summary,
                 "originalBody": clean_summary,
                 "bodyBlocks": [{"type": "paragraph", "text": clean_summary}],
+                "bodySourceKind": "feed_excerpt",
+                "versionEvent": version_event,
                 "requiresLlmTranslation": True,
                 "contentStatus": "discovered",
             }
@@ -304,6 +349,69 @@ def absolute_blizzard_url(url):
     if url.startswith("/"):
         return f"https://worldofwarcraft.blizzard.com{url}"
     return f"https://worldofwarcraft.blizzard.com/{url}"
+
+
+def absolute_blizzard_forum_url(url):
+    if url.startswith("https://"):
+        return url
+    if url.startswith("/"):
+        return f"https://us.forums.blizzard.com{url}"
+    return f"https://us.forums.blizzard.com/{url}"
+
+
+def blizzard_forum_json_url(url):
+    clean_url = (url or "").rstrip("/")
+    if clean_url.endswith(".json"):
+        return clean_url
+    return f"{clean_url}.json"
+
+
+def parse_blizzard_forum_topic_json(page_text, source_url=""):
+    payload = json.loads(page_text or "{}")
+    title = strip_html(payload.get("title") or payload.get("fancy_title") or "")
+    posts = payload.get("post_stream", {}).get("posts", [])
+    first_post = next((post for post in posts if int(post.get("post_number") or 0) == 1), posts[0] if posts else {})
+    body_html = first_post.get("cooked") or first_post.get("raw") or ""
+    body_blocks = html_blocks_to_body_blocks(body_html)
+    if title and body_blocks:
+        first = body_blocks[0]
+        first_text = first.get("text", "") if first.get("type") != "list" else " ".join(first.get("items", []))
+        if clean_block_text(first_text).lower() == title.lower():
+            body_blocks = body_blocks[1:]
+    original_body = body_blocks_to_text(body_blocks)
+    published_at = parse_date(first_post.get("created_at") or payload.get("created_at"))
+    return {
+        "originalTitle": title,
+        "originalBody": original_body,
+        "bodyBlocks": body_blocks,
+        "publishedAt": published_at,
+        "sourceUrl": source_url,
+        "bodySourceKind": "detail_body" if original_body and body_blocks else "forum_excerpt",
+    }
+
+
+def parse_blizzard_forum_topic_html(page_text, source_url=""):
+    title_match = re.search(r"<h1[^>]*>(.*?)</h1>", page_text or "", flags=re.S | re.I)
+    if not title_match:
+        title_match = re.search(r"<title[^>]*>(.*?)</title>", page_text or "", flags=re.S | re.I)
+    title = strip_html(title_match.group(1)) if title_match else ""
+    title = re.sub(r"\s+-\s+World of Warcraft Forums\s*$", "", title).strip()
+    post_match = re.search(r'<div\b[^>]*class="[^"]*\bcooked\b[^"]*"[^>]*>(.*?)</div>', page_text or "", flags=re.S | re.I)
+    body_html = post_match.group(1) if post_match else page_text
+    body_blocks = html_blocks_to_body_blocks(body_html)
+    original_body = body_blocks_to_text(body_blocks)
+    published_at = ""
+    date_match = re.search(r'(?:datetime|data-time)="([^"]+)"', page_text or "", flags=re.S | re.I)
+    if date_match:
+        published_at = parse_date(date_match.group(1))
+    return {
+        "originalTitle": title,
+        "originalBody": original_body,
+        "bodyBlocks": body_blocks,
+        "publishedAt": published_at,
+        "sourceUrl": source_url,
+        "bodySourceKind": "detail_body" if original_body and body_blocks else "forum_excerpt",
+    }
 
 
 def parse_blizzard_article_html(page_text, source_url=""):
@@ -342,6 +450,7 @@ def parse_blizzard_article_html(page_text, source_url=""):
         "bodyBlocks": body_blocks,
         "publishedAt": published_at,
         "sourceUrl": source_url,
+        "bodySourceKind": "detail_body" if original_body and body_blocks else "listing_excerpt",
     }
 
 
@@ -370,7 +479,10 @@ def parse_blizzard_news_html(page_text, detail_pages=None, max_articles=None):
         detail = {}
         if detail_pages and url in detail_pages:
             detail = parse_blizzard_article_html(detail_pages[url], url)
+        body_blocks = detail.get("bodyBlocks") or [{"type": "paragraph", "text": summary}]
+        body_source_kind = detail.get("bodySourceKind") if detail.get("bodyBlocks") else "listing_excerpt"
         channel, category, tags = classify(title, summary)
+        version_event = classify_version_event(title, summary, url)
         importance = 86
         if channel == CHANNEL_PTR:
             importance += 8
@@ -396,7 +508,132 @@ def parse_blizzard_news_html(page_text, detail_pages=None, max_articles=None):
                 "originalTitle": detail.get("originalTitle") or title,
                 "originalSummary": summary,
                 "originalBody": detail.get("originalBody") or summary,
-                "bodyBlocks": detail.get("bodyBlocks") or [{"type": "paragraph", "text": summary}],
+                "bodyBlocks": body_blocks,
+                "bodySourceKind": body_source_kind,
+                "versionEvent": version_event,
+                "requiresLlmTranslation": True,
+                "contentStatus": "discovered",
+            }
+        )
+        if max_articles is not None and len(articles) >= max_articles:
+            break
+    return articles
+
+
+def parse_blizzard_forum_html(page_text, source, max_articles=None):
+    articles = []
+    pattern = re.compile(
+        r'<a\b[^>]*(?:raw-topic-link|topic-link|title)[^>]*href="([^"]+/t/[^"]+)"[^>]*>(.*?)</a>(.*?)(?=<a\b[^>]*(?:raw-topic-link|topic-link|title)[^>]*href="[^"]+/t/|$)',
+        flags=re.S | re.I,
+    )
+    for match in pattern.finditer(page_text or ""):
+        url = absolute_blizzard_forum_url(html.unescape(match.group(1)))
+        title = strip_html(match.group(2))
+        tail = match.group(3) or ""
+        if not title or not url:
+            continue
+
+        date_match = re.search(r'(?:data-time|datetime)="([^"]+)"', tail, flags=re.S | re.I)
+        published_at = parse_date(date_match.group(1)) if date_match else ""
+        if not published_at:
+            published_at = parse_date(datetime.utcnow().isoformat())
+        excerpt_match = re.search(r'<div\b[^>]*class="[^"]*excerpt[^"]*"[^>]*>(.*?)</div>', tail, flags=re.S | re.I)
+        summary = summarize(excerpt_match.group(1) if excerpt_match else title)
+        channel, category, tags = classify(title, summary)
+        version_event = classify_version_event(title, summary, url)
+        importance = int(source.get("baseImportance", 84))
+        if channel == CHANNEL_PTR:
+            importance += 8
+        if "class-change" in tags:
+            importance += 6
+
+        articles.append(
+            {
+                "id": article_id(source.get("sourceName", "Blizzard Forums"), url),
+                "title": title,
+                "summary": summary,
+                "channel": channel,
+                "category": category,
+                "tags": tags,
+                "importance": importance,
+                "sourceName": source.get("sourceName", "Blizzard Forums"),
+                "sourceId": source.get("sourceId", "blizzard-forums"),
+                "sourceTier": source.get("sourceTier", "official"),
+                "licenseStatus": source.get("licenseStatus", "approved"),
+                "sourceUrl": url,
+                "publishedAt": published_at,
+                "sourceNote": f"{source.get('sourceNote', 'Blizzard official forum discovery.')} Original topic list: {source.get('sourceUrl', url)}",
+                "originalTitle": title,
+                "originalSummary": summary,
+                "originalBody": summary,
+                "bodyBlocks": [{"type": "paragraph", "text": summary}],
+                "bodySourceKind": "forum_excerpt",
+                "versionEvent": version_event,
+                "requiresLlmTranslation": True,
+                "contentStatus": "discovered",
+            }
+        )
+        if max_articles is not None and len(articles) >= max_articles:
+            break
+    return articles
+
+
+def parse_blizzard_forum_json(page_text, source, max_articles=None):
+    payload = json.loads(page_text or "{}")
+    users = {user.get("id"): user for user in payload.get("users", [])}
+    topics = payload.get("topic_list", {}).get("topics", [])
+    articles = []
+
+    for topic in topics:
+        posters = topic.get("posters", [])
+        original_poster = next((poster for poster in posters if "Original Poster" in (poster.get("description") or "")), None)
+        original_poster = original_poster or (posters[0] if posters else {})
+        user = users.get(original_poster.get("user_id"), {})
+        if not (user.get("admin") or user.get("moderator")):
+            continue
+
+        title = strip_html(topic.get("title") or topic.get("fancy_title") or "")
+        topic_id = topic.get("id")
+        slug = topic.get("slug") or re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+        if not title or not topic_id:
+            continue
+
+        url = absolute_blizzard_forum_url(f"/en/wow/t/{slug}/{topic_id}")
+        summary = summarize(topic.get("excerpt") or title)
+        classification_summary = f"{summary} {source.get('sourceUrl', '')}"
+        channel, category, tags = classify(title, classification_summary)
+        version_event = classify_version_event(title, classification_summary, url)
+        published_at = parse_date(topic.get("created_at") or topic.get("last_posted_at"))
+        if not published_at:
+            published_at = parse_date(datetime.utcnow().isoformat())
+        importance = int(source.get("baseImportance", 84))
+        if channel == CHANNEL_PTR:
+            importance += 8
+        if "class-change" in tags:
+            importance += 6
+
+        articles.append(
+            {
+                "id": article_id(source.get("sourceName", "Blizzard Forums"), url),
+                "title": title,
+                "summary": summary,
+                "channel": channel,
+                "category": category,
+                "tags": tags,
+                "importance": importance,
+                "sourceName": source.get("sourceName", "Blizzard Forums"),
+                "sourceId": source.get("sourceId", "blizzard-forums"),
+                "sourceTier": source.get("sourceTier", "official"),
+                "licenseStatus": source.get("licenseStatus", "approved"),
+                "sourceUrl": url,
+                "publishedAt": published_at,
+                "sourceNote": f"{source.get('sourceNote', 'Blizzard official forum discovery.')} Original topic list: {source.get('sourceUrl', url)}",
+                "originalTitle": title,
+                "originalSummary": summary,
+                "originalBody": summary,
+                "bodyBlocks": [{"type": "paragraph", "text": summary}],
+                "bodySourceKind": "forum_excerpt",
+                "versionEvent": version_event,
                 "requiresLlmTranslation": True,
                 "contentStatus": "discovered",
             }
@@ -431,6 +668,7 @@ def fetch_blizzard_news_articles(source, timeout=15, max_articles=None):
                     "originalTitle": detail.get("originalTitle") or article.get("originalTitle", ""),
                     "originalBody": detail.get("originalBody") or article.get("originalBody", ""),
                     "bodyBlocks": detail.get("bodyBlocks") or article.get("bodyBlocks", []),
+                    "bodySourceKind": detail.get("bodySourceKind") or article.get("bodySourceKind", ""),
                     "publishedAt": detail.get("publishedAt") or article.get("publishedAt", ""),
                 }
             )
@@ -438,6 +676,56 @@ def fetch_blizzard_news_articles(source, timeout=15, max_articles=None):
             article["detailError"] = str(error)
         enriched.append(article)
     return enriched
+
+
+def fetch_blizzard_forum_topic_detail(source_url, timeout=15):
+    try:
+        body = fetch_url(blizzard_forum_json_url(source_url), "application/json,*/*", timeout=timeout)
+        detail = parse_blizzard_forum_topic_json(body, source_url)
+        if detail.get("bodySourceKind") == "detail_body":
+            return detail
+    except Exception as json_error:
+        last_error = json_error
+    else:
+        last_error = ValueError("forum topic json did not include a publishable first post body")
+
+    try:
+        body = fetch_url(source_url, "text/html,*/*", timeout=timeout)
+        detail = parse_blizzard_forum_topic_html(body, source_url)
+        if detail.get("bodySourceKind") == "detail_body":
+            return detail
+        raise ValueError("forum topic html did not include a publishable first post body")
+    except Exception as html_error:
+        raise RuntimeError(f"{last_error}; {html_error}") from html_error
+
+
+def enrich_blizzard_forum_article(article, timeout=15):
+    enriched = dict(article)
+    try:
+        detail = fetch_blizzard_forum_topic_detail(article["sourceUrl"], timeout=timeout)
+        enriched.update(
+            {
+                "originalTitle": detail.get("originalTitle") or article.get("originalTitle", ""),
+                "originalBody": detail.get("originalBody") or article.get("originalBody", ""),
+                "bodyBlocks": detail.get("bodyBlocks") or article.get("bodyBlocks", []),
+                "bodySourceKind": detail.get("bodySourceKind") or article.get("bodySourceKind", ""),
+                "publishedAt": detail.get("publishedAt") or article.get("publishedAt", ""),
+            }
+        )
+    except Exception as error:
+        enriched["detailError"] = str(error)
+        enriched["bodySourceKind"] = enriched.get("bodySourceKind") or "forum_excerpt"
+    return enriched
+
+
+def fetch_blizzard_forum_articles(source, timeout=15, max_articles=None):
+    try:
+        body = fetch_url(blizzard_forum_json_url(source["sourceUrl"]), "application/json,*/*", timeout=timeout)
+        articles = parse_blizzard_forum_json(body, source, max_articles=max_articles)
+    except Exception:
+        body = fetch_url(source["sourceUrl"], "text/html,*/*", timeout=timeout)
+        articles = parse_blizzard_forum_html(body, source, max_articles=max_articles)
+    return [enrich_blizzard_forum_article(article, timeout=timeout) for article in articles]
 
 
 def merge_articles(seed_articles, collected_articles):
@@ -466,6 +754,8 @@ def collect_feed_articles(sources, timeout=15, max_articles_per_source=None):
         try:
             if source.get("type") == "blizzard_html":
                 articles.extend(fetch_blizzard_news_articles(source, timeout=timeout, max_articles=max_articles_per_source))
+            elif source.get("type") == "blizzard_forum":
+                articles.extend(fetch_blizzard_forum_articles(source, timeout=timeout, max_articles=max_articles_per_source))
             else:
                 articles.extend(fetch_feed_articles(source, timeout=timeout, max_articles=max_articles_per_source))
         except Exception as error:  # network collectors must fail soft

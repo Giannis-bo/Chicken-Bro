@@ -74,7 +74,11 @@ def sample_profile_payload(name="Rioone", class_slug="mage", spec_slug="frost"):
         "talentLoadout": {
             "loadout_text": "CAEAAAAAAAAAAAAAAAAAAAAA",
             "loadout_spec_id": 64,
-            "loadout": [{"node": 1, "rank": 1}],
+            "loadout": [
+                {"traitId": 91001, "rank": 1},
+                {"traitId": 91002, "rank": 1},
+                {"traitId": 91003, "rank": 1},
+            ],
         },
         "gear": {
             "item_level_equipped": 706.5,
@@ -134,6 +138,8 @@ class RaiderIOPayloadTest(unittest.TestCase):
                 self.assertEqual(params["season"], "season-mn-1")
                 return sample_runs_payload()
             if path == "/characters/profile":
+                self.assertIn("talents", params["fields"].split(","))
+                self.assertNotIn("talentLoadout", params["fields"].split(","))
                 if params["name"] == "Tankone":
                     return sample_profile_payload("Tankone", "warrior", "protection")
                 return sample_profile_payload()
@@ -156,7 +162,13 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(aggregate["sampleCount"], 1)
         self.assertEqual(aggregate["maxKeyLevel"], 24)
         self.assertEqual(aggregate["observedGear"][0]["name"], "Observed Hood")
-        self.assertTrue(cached["communityTemplates"][0]["rawImportCode"].startswith("CAE"))
+        mage_template = next(item for item in cached["communityTemplates"] if item["classKey"] == "mage")
+        self.assertTrue(mage_template["rawImportCode"].startswith("CAE"))
+        self.assertEqual(mage_template["playerId"], "Rioone")
+        self.assertEqual(mage_template["payload"]["raiderio"]["characterName"], "Rioone")
+        self.assertEqual(mage_template["payload"]["raiderio"]["realmSlug"], "isillien")
+        self.assertEqual(mage_template["payload"]["raiderio"]["loadout"][0]["traitId"], 91001)
+        self.assertEqual(mage_template["sourceUrl"], "https://raider.io/characters/cn/isillien/Rioone")
 
         detail = {
             "websimClassKey": "mage",
@@ -170,6 +182,14 @@ class RaiderIOPayloadTest(unittest.TestCase):
 
         spec_module = raiderio_payload.enrich_pve_module_payload({"key": "specLadder"}, cached)
         self.assertEqual(spec_module["sourceName"], "Raider.IO")
+        self.assertEqual(spec_module["sourceStatus"], "source_reference")
+        self.assertEqual(spec_module["dataTrust"]["status"], "source_reference")
+        self.assertTrue(any("Raider.IO" in blocker for blocker in spec_module["blockers"]))
+        self.assertTrue(all(item["sourceStatus"] == "source_reference" for item in spec_module["items"]))
+        self.assertEqual(spec_module["archonTierSummary"]["dps"]["sourceStatus"], "source_reference")
+        self.assertEqual(next(iter(spec_module["wclDetailsBySpec"].values()))["sourceStatus"], "source_reference")
+        raiderio_check = next(item for item in spec_module["sourceChecks"] if item["key"] == "raiderio")
+        self.assertEqual(raiderio_check["status"], "partial")
         self.assertIn("raiderio", [item["key"] for item in spec_module["sourceChecks"]])
         self.assertTrue(spec_module["archonTierSummary"]["dps"]["tiers"])
 
@@ -190,6 +210,33 @@ class RaiderIOPayloadTest(unittest.TestCase):
 
         self.assertEqual(payload["sourceStatus"], "stale")
         self.assertNotIn("fake-api-key", json.dumps(payload))
+
+    def test_sync_raiderio_cache_matches_real_profiles_that_omit_realm_slug(self):
+        def fake_api_get(path, params=None, api_key=None):
+            if path == "/mythic-plus/runs":
+                return sample_runs_payload()
+            if path == "/characters/profile":
+                return {
+                    "name": params["name"],
+                    "realm": "Isillien",
+                    "region": "cn",
+                    "class": "Mage",
+                    "active_spec_name": "Frost",
+                    "active_spec_role": "DPS",
+                    "profile_url": f"https://raider.io/characters/cn/isillien/{params['name']}",
+                    "talentLoadout": {
+                        "loadout_text": "CAEAAAAAAAAAAAAAAAAAAAAA",
+                        "loadout_spec_id": 64,
+                        "loadout": [{"node": {"id": 101089}, "rank": 1}],
+                    },
+                }
+            return {}
+
+        with closing(self.connection()) as conn, patch.object(raiderio_payload, "api_get", fake_api_get):
+            payload = raiderio_payload.sync_raiderio_cache(conn)
+
+        template = next(item for item in payload["communityTemplates"] if item["playerId"] == "Rioone")
+        self.assertEqual(template["rawImportCode"], "CAEAAAAAAAAAAAAAAAAAAAAA")
 
     def test_community_template_adapter_reads_raiderio_cache(self):
         payload = {
@@ -222,6 +269,27 @@ class RaiderIOPayloadTest(unittest.TestCase):
 
         self.assertEqual(result["status"], "synced")
         self.assertEqual(result["templates"][0]["sourceName"], "Raider.IO")
+
+    def test_profile_summary_accepts_real_api_class_and_active_spec_fields(self):
+        profile = raiderio_payload.profile_summary({
+            "name": "Riohealer",
+            "realm": {"name": "Isillien", "slug": "isillien"},
+            "region": "cn",
+            "class": "Monk",
+            "active_spec_name": "Mistweaver",
+            "active_spec_role": "HEALING",
+            "profile_url": "https://raider.io/characters/cn/isillien/Riohealer",
+            "talentLoadout": {
+                "loadout_text": "CEQAAAAAAAAAAAAAAAAAAAAA",
+                "loadout_spec_id": 270,
+                "loadout": [{"node": {"id": 101089}, "rank": 1}],
+            },
+        })
+
+        self.assertEqual(profile["classKey"], "monk")
+        self.assertEqual(profile["specKey"], "mistweaver")
+        self.assertEqual(profile["role"], "healer")
+        self.assertEqual(profile["talentLoadout"]["rawImportCode"], "CEQAAAAAAAAAAAAAAAAAAAAA")
 
 
 if __name__ == "__main__":

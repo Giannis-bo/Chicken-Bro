@@ -89,6 +89,7 @@ TAG_KEYWORDS = [
 MIN_BODY_ZH_CHARS = 50
 SOURCE_TRANSLATION_FIDELITY = "source_translation"
 BODY_BLOCK_CHUNK_SIZE = 6
+EXCERPT_BODY_SOURCE_KINDS = {"feed_excerpt", "forum_excerpt", "listing_excerpt"}
 
 
 def has_cjk(value):
@@ -253,6 +254,39 @@ def body_blocks_text(blocks):
         else:
             parts.append(block.get("text", ""))
     return "\n\n".join(part for part in parts if part)
+
+
+def ends_with_ellipsis(value):
+    return bool(re.search(r"(?:…|\.{3}|．．．)$", compact_space(value)))
+
+
+def comparable_text(value):
+    return re.sub(r"[\W_]+", "", compact_space(value).lower(), flags=re.UNICODE)
+
+
+def text_matches_or_contains_summary(body, summary):
+    body_key = comparable_text(body)
+    summary_key = comparable_text(summary)
+    if not body_key or not summary_key:
+        return False
+    return body_key == summary_key
+
+
+def source_body_quality_issue(article):
+    source_kind = compact_space(article.get("bodySourceKind", ""))
+    if source_kind in EXCERPT_BODY_SOURCE_KINDS:
+        return "source_body_missing"
+
+    source_blocks = normalize_body_blocks(article.get("bodyBlocks"))
+    original_body = compact_space(body_blocks_text(source_blocks)) or compact_space(article.get("originalBody", ""))
+    original_summary = compact_space(article.get("originalSummary", "")) or compact_space(article.get("summary", ""))
+    if not source_blocks or not original_body:
+        return "source_body_missing" if source_kind else ""
+    if original_summary and text_matches_or_contains_summary(original_body, original_summary):
+        return "summary_only_body"
+    if len(source_blocks) == 1 and ends_with_ellipsis(original_body):
+        return "summary_only_body"
+    return ""
 
 
 def split_translated_list_text(value):
@@ -671,6 +705,11 @@ def localize_article(article, translate_with_llm=None, require_llm=False):
             "blockedReason": "",
         }
     )
+
+    if require_llm:
+        source_issue = source_body_quality_issue(localized)
+        if source_issue:
+            return block_article(localized, source_issue)
 
     if translator:
         llm_translation = normalize_llm_translation(translator(localized), body_blocks)

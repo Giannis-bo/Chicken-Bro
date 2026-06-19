@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import hashlib
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -14,6 +15,13 @@ DEFAULT_REGION = "cn"
 DEFAULT_LOCALE = "cn"
 DEFAULT_SEASON_SLUG = "season-mn-1"
 DEFAULT_EXPANSION_ID = "11"
+SPEC_LADDER_REFERENCE_STATUS = "source_reference"
+SPEC_LADDER_REFERENCE_LABEL = "Reference only"
+SPEC_LADDER_REFERENCE_BLOCKERS = [
+    "Spec ladder remains source_reference until an authorized Archon or Warcraft Logs statistics API is connected.",
+    "Raider.IO samples may inform Mythic+ trends, but they do not replace WCL combat-log statistics.",
+]
+SPEC_LADDER_EVIDENCE_REFS = ["pve.specLadder.raiderioTrend", "pve.sourcePolicy.authorizedApiRequired"]
 
 CLASS_ALIASES = {
     "death_knight": "deathknight",
@@ -259,7 +267,12 @@ def simplify_character(raw):
     data = raw.get("character") if isinstance(raw.get("character"), dict) else raw
     realm = data.get("realm") if isinstance(data.get("realm"), dict) else {}
     class_name, class_slug = dict_name_slug(data.get("class") or data.get("class_name"))
-    spec_name, spec_slug = dict_name_slug(data.get("spec") or data.get("spec_name"))
+    spec_name, spec_slug = dict_name_slug(
+        data.get("spec")
+        or data.get("spec_name")
+        or data.get("active_spec_name")
+        or data.get("activeSpecName")
+    )
     class_key = normalize_class_key(class_slug or class_name)
     spec_key = normalize_spec_key(spec_slug or spec_name)
     region = data.get("region")
@@ -385,7 +398,7 @@ def fetch_profiles_for_runs(runs):
 
     profiles = {}
     errors = []
-    fields = "gear,talentLoadout,mythic_plus_recent_runs,mythic_plus_best_runs,mythic_plus_scores_by_season"
+    fields = "gear,talents,mythic_plus_recent_runs,mythic_plus_best_runs,mythic_plus_scores_by_season"
     for character in unique:
         try:
             raw = api_get("/characters/profile", {
@@ -395,6 +408,9 @@ def fetch_profiles_for_runs(runs):
                 "fields": fields,
             })
             summary = profile_summary(raw)
+            for key in ("region", "realm", "realmSlug", "className", "classKey", "specName", "specKey", "role"):
+                if not summary.get(key) and character.get(key):
+                    summary[key] = character.get(key)
             profiles[character_key(summary)] = summary
         except RaiderIOError as error:
             errors.append(str(error))
@@ -461,11 +477,13 @@ def aggregate_runs(runs, profiles):
         seen_loadouts = set()
         for loadout in aggregate["talentLoadouts"]:
             code = loadout.get("rawImportCode") or ""
-            if not code or code in seen_loadouts:
+            character = f"{loadout.get('characterName') or ''}:{loadout.get('realmSlug') or ''}".lower()
+            dedupe_key = f"{character}:{code}"
+            if not code or dedupe_key in seen_loadouts:
                 continue
-            seen_loadouts.add(code)
+            seen_loadouts.add(dedupe_key)
             unique_loadouts.append(loadout)
-        aggregate["talentLoadouts"] = unique_loadouts[:3]
+        aggregate["talentLoadouts"] = unique_loadouts[:5]
         aggregate["characterCount"] = max(aggregate["characterCount"], len(seen_loadouts) or aggregate["sampleCount"])
     return sorted(
         aggregates.values(),
@@ -481,9 +499,12 @@ def build_community_templates(aggregates, checked_at):
             raw_code = loadout.get("rawImportCode") or ""
             if not raw_code:
                 continue
+            player_id = str(loadout.get("characterName") or f"player-{index + 1}").strip()
+            player_slug = slugify(player_id, f"player-{index + 1}")
+            code_hash = hashlib.sha1(raw_code.encode("utf-8")).hexdigest()[:8]
             spec_label = aggregate.get("fullName") or f"{aggregate.get('specKey')} {aggregate.get('classKey')}"
             templates.append({
-                "id": f"raiderio-{aggregate.get('classKey')}-{aggregate.get('specKey')}-{index + 1}",
+                "id": f"raiderio-{aggregate.get('classKey')}-{aggregate.get('specKey')}-{player_slug}-{code_hash}",
                 "classKey": aggregate.get("classKey"),
                 "specKey": aggregate.get("specKey"),
                 "heroKey": "",
@@ -493,6 +514,7 @@ def build_community_templates(aggregates, checked_at):
                 "sourceName": RAIDERIO_SOURCE_NAME,
                 "sourceUrl": loadout.get("profileUrl") or "https://raider.io/mythic-plus-rankings",
                 "rawImportCode": raw_code,
+                "playerId": player_id,
                 "sampleCount": aggregate.get("sampleCount") or 0,
                 "maxKeyLevel": loadout.get("maxKeyLevel") or aggregate.get("maxKeyLevel") or 0,
                 "analysisWindow": f"{raiderio_region()} {raiderio_season_slug()} cached at {checked_at}",
@@ -502,6 +524,9 @@ def build_community_templates(aggregates, checked_at):
                     "raiderio": {
                         "characterName": loadout.get("characterName") or "",
                         "realmSlug": loadout.get("realmSlug") or "",
+                        "profileUrl": loadout.get("profileUrl") or "",
+                        "loadoutSpecId": loadout.get("loadoutSpecId") or "",
+                        "loadout": loadout.get("loadout") or [],
                     }
                 },
                 "updatedAt": checked_at,
@@ -669,7 +694,25 @@ def source_status_label(status):
         "stale": "Raider.IO stale",
         "missing_credentials": "Missing Raider.IO credentials",
         "blocked": "Raider.IO blocked",
+        "source_reference": SPEC_LADDER_REFERENCE_LABEL,
     }.get(status or "", "Raider.IO partial")
+
+
+def spec_ladder_data_trust():
+    return {
+        "status": SPEC_LADDER_REFERENCE_STATUS,
+        "statusLabel": SPEC_LADDER_REFERENCE_LABEL,
+        "blockers": list(SPEC_LADDER_REFERENCE_BLOCKERS),
+        "evidenceRefs": list(SPEC_LADDER_EVIDENCE_REFS),
+    }
+
+
+def raiderio_spec_ladder_check_status(status):
+    if status in {"synced", "verified", "partial"}:
+        return "partial"
+    if status in {"stale", "missing_credentials", "blocked"}:
+        return status
+    return "blocked"
 
 
 def aggregate_by_spec(payload):
@@ -920,6 +963,8 @@ def raiderio_spec_item(aggregate, rank, tier, max_score, status):
         "sourceUrl": "https://raider.io/mythic-plus-rankings",
         "sourceStatus": status,
         "sourceStatusLabel": source_status_label(status),
+        "dataTrust": spec_ladder_data_trust() if status == SPEC_LADDER_REFERENCE_STATUS else {},
+        "blockers": list(SPEC_LADDER_REFERENCE_BLOCKERS) if status == SPEC_LADDER_REFERENCE_STATUS else [],
         "maxKeyLevel": safe_int(aggregate.get("maxKeyLevel")),
         "topRuns": aggregate.get("topRuns") or [],
     }
@@ -927,6 +972,10 @@ def raiderio_spec_item(aggregate, rank, tier, max_score, status):
 
 def build_raiderio_spec_summary(raiderio, existing_module=None):
     status = raiderio.get("sourceStatus") or "blocked"
+    ladder_status = SPEC_LADDER_REFERENCE_STATUS
+    ladder_label = SPEC_LADDER_REFERENCE_LABEL
+    ladder_blockers = list(SPEC_LADDER_REFERENCE_BLOCKERS)
+    ladder_trust = spec_ladder_data_trust()
     aggregates = [item for item in (raiderio.get("specAggregates") or []) if safe_int(item.get("sampleCount")) > 0]
     if not aggregates:
         return None
@@ -951,8 +1000,10 @@ def build_raiderio_spec_summary(raiderio, existing_module=None):
         if not items and existing_summary.get("tiers"):
             summary[role] = {
                 **existing_summary,
-                "sourceStatus": "source_reference",
-                "sourceStatusLabel": "Reference only",
+                "sourceStatus": ladder_status,
+                "sourceStatusLabel": ladder_label,
+                "dataTrust": spec_ladder_data_trust(),
+                "blockers": list(SPEC_LADDER_REFERENCE_BLOCKERS),
                 "analysisWindow": "Compatibility fallback; Raider.IO cache has no samples for this role.",
             }
             roles.append({
@@ -970,8 +1021,10 @@ def build_raiderio_spec_summary(raiderio, existing_module=None):
                             **(((existing_module or {}).get("wclDetailsBySpec") or {}).get(spec["specId"]) or {}),
                             "specId": spec["specId"],
                             "role": role,
-                            "sourceStatus": "source_reference",
-                            "sourceStatusLabel": "Reference only",
+                            "sourceStatus": ladder_status,
+                            "sourceStatusLabel": ladder_label,
+                            "dataTrust": spec_ladder_data_trust(),
+                            "blockers": list(SPEC_LADDER_REFERENCE_BLOCKERS),
                         }
             continue
         roles.append({
@@ -986,7 +1039,7 @@ def build_raiderio_spec_summary(raiderio, existing_module=None):
         max_score = max_score_by_role.get(role) or 1
         for index, aggregate in enumerate(items):
             tier = tier_for_index(index)
-            spec = raiderio_spec_item(aggregate, index + 1, tier, max_score, status)
+            spec = raiderio_spec_item(aggregate, index + 1, tier, max_score, ladder_status)
             tier_map.setdefault(tier, []).append(spec)
             score = safe_float(aggregate.get("bestScore")) or safe_int(aggregate.get("maxKeyLevel"))
             wcl_details[spec["specId"]] = {
@@ -1004,8 +1057,10 @@ def build_raiderio_spec_summary(raiderio, existing_module=None):
                 "parsesText": str(safe_int(aggregate.get("sampleCount"))),
                 "sourceName": RAIDERIO_SOURCE_NAME,
                 "sourceUrl": "https://raider.io/mythic-plus-rankings",
-                "sourceStatus": status,
-                "sourceStatusLabel": source_status_label(status),
+                "sourceStatus": ladder_status,
+                "sourceStatusLabel": ladder_label,
+                "dataTrust": spec_ladder_data_trust(),
+                "blockers": list(SPEC_LADDER_REFERENCE_BLOCKERS),
                 "metricLabel": "Raider.IO run score",
                 "distribution": {
                     "p50": max(0, safe_int(aggregate.get("maxKeyLevel")) - 3),
@@ -1017,48 +1072,57 @@ def build_raiderio_spec_summary(raiderio, existing_module=None):
         summary[role] = {
             "sourceName": RAIDERIO_SOURCE_NAME,
             "sourceUrl": "https://raider.io/mythic-plus-rankings",
-            "sourceStatus": status,
-            "sourceStatusLabel": source_status_label(status),
+            "sourceStatus": ladder_status,
+            "sourceStatusLabel": ladder_label,
+            "dataTrust": spec_ladder_data_trust(),
+            "blockers": list(SPEC_LADDER_REFERENCE_BLOCKERS),
             "publishedAt": safe_date(raiderio.get("checkedAt")),
             "checkedAt": raiderio.get("checkedAt") or "",
             "analysisWindow": f"{raiderio.get('region')} {raiderio.get('seasonSlug')} cached CN runs",
             "tiers": [{"tier": tier, "items": tier_map[tier]} for tier in ("S", "A", "B", "C") if tier_map.get(tier)],
         }
+    raiderio_check_status = raiderio_spec_ladder_check_status(status)
     source_checks = [
         {
             "key": "raiderio",
             "name": RAIDERIO_SOURCE_NAME,
             "domain": "raider.io",
-            "status": status,
-            "statusLabel": source_status_label(status),
+            "status": raiderio_check_status,
+            "statusLabel": source_status_label(raiderio_check_status),
             "checkedAt": raiderio.get("checkedAt") or "",
             "analysisWindow": f"{raiderio.get('region')} {raiderio.get('seasonSlug')}",
             "sampleCount": sum(safe_int(item.get("sampleCount")) for item in aggregates),
             "sourceUrl": "https://raider.io/mythic-plus-rankings",
+            "blockers": [SPEC_LADDER_REFERENCE_BLOCKERS[1]],
+            "evidenceRefs": ["pve.specLadder.raiderioTrend"],
             "note": "Raider.IO cached CN Mythic+ run samples.",
         },
         {
             "key": "archon",
             "name": "Archon",
             "domain": "archon.gg",
-            "status": "source_reference",
-            "statusLabel": "Reference only",
+            "status": ladder_status,
+            "statusLabel": ladder_label,
             "checkedAt": raiderio.get("checkedAt") or "",
             "analysisWindow": "Retained compatibility field; not refreshed by Raider.IO.",
             "sampleCount": 0,
             "sourceUrl": "https://www.archon.gg/wow",
+            "blockers": ladder_blockers,
+            "evidenceRefs": ["pve.specLadder.archonFixture"],
             "note": "Kept for front-end compatibility until an authorized Archon data source is added.",
         },
         {
             "key": "warcraftlogs",
             "name": "Warcraft Logs",
             "domain": "warcraftlogs.com",
-            "status": "source_reference",
-            "statusLabel": "Reference only",
+            "status": ladder_status,
+            "statusLabel": ladder_label,
             "checkedAt": raiderio.get("checkedAt") or "",
             "analysisWindow": "Retained compatibility field; not refreshed by Raider.IO.",
             "sampleCount": 0,
             "sourceUrl": "https://www.warcraftlogs.com/zone/rankings/latest",
+            "blockers": ladder_blockers,
+            "evidenceRefs": ["pve.specLadder.wclFixture"],
             "note": "Raider.IO does not replace WCL combat-log statistics.",
         },
     ]
@@ -1068,6 +1132,10 @@ def build_raiderio_spec_summary(raiderio, existing_module=None):
         "wclDetailsBySpec": wcl_details,
         "sourceChecks": source_checks,
         "selectedSpecId": first_spec_id(summary),
+        "sourceStatus": ladder_status,
+        "sourceStatusLabel": ladder_label,
+        "dataTrust": ladder_trust,
+        "blockers": ladder_blockers,
         "items": [
             {
                 "title": item.get("fullName"),
@@ -1077,7 +1145,10 @@ def build_raiderio_spec_summary(raiderio, existing_module=None):
                 "sourceUrl": item.get("sourceUrl"),
                 "publishedAt": safe_date(raiderio.get("checkedAt")),
                 "analysisWindow": f"{raiderio.get('region')} {raiderio.get('seasonSlug')} cached CN runs",
-                "sourceStatus": status,
+                "sourceStatus": ladder_status,
+                "sourceStatusLabel": ladder_label,
+                "dataTrust": spec_ladder_data_trust(),
+                "blockers": list(SPEC_LADDER_REFERENCE_BLOCKERS),
             }
             for item in [spec for role in summary.values() for tier in role.get("tiers", []) for spec in tier.get("items", [])][:6]
         ],
@@ -1131,7 +1202,10 @@ def enrich_pve_module_payload(module, raiderio):
             result["sourceUrl"] = raiderio.get("leaderboardUrl") or "https://raider.io/mythic-plus-rankings"
             result["publishedAt"] = safe_date(raiderio.get("checkedAt"))
             result["analysisWindow"] = f"{raiderio.get('region')} {raiderio.get('seasonSlug')} cached CN runs"
-            result["sourceStatus"] = raiderio.get("sourceStatus") or "blocked"
+            result["sourceStatus"] = SPEC_LADDER_REFERENCE_STATUS
+            result["sourceStatusLabel"] = SPEC_LADDER_REFERENCE_LABEL
+            result["dataTrust"] = spec_ladder_data_trust()
+            result["blockers"] = list(SPEC_LADDER_REFERENCE_BLOCKERS)
     return result
 
 

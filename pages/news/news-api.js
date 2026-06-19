@@ -16,20 +16,40 @@ function endsWithEllipsis(value) {
   return /(?:…|\.{3}|．．．)$/.test(cleanText(value))
 }
 
+function stripBodyLabel(value) {
+  return cleanText(value).replace(/^中文正文\s*[:：]\s*/, '')
+}
+
+function bodyBlocksText(blocks) {
+  return (Array.isArray(blocks) ? blocks : []).map((block) => {
+    if (!block || typeof block !== 'object') return ''
+    if (block.type === 'list') return Array.isArray(block.items) ? block.items.map(stripBodyLabel).join(' ') : ''
+    return stripBodyLabel(block.text)
+  }).filter(Boolean).join(' ')
+}
+
+function textLooksLikeSummary(bodyText, summary) {
+  const body = stripBodyLabel(bodyText)
+  const summaryText = stripBodyLabel(summary)
+  if (!body || !summaryText) return false
+  if (body === summaryText) return true
+  return body.startsWith(summaryText) && body.length <= summaryText.length + 20
+}
+
 function hasCompleteTranslatedBody(article) {
-  const bodyZh = cleanText(article && article.bodyZh)
+  const bodyZh = stripBodyLabel(article && article.bodyZh)
   const summary = cleanText(article && article.summary)
   const bodyBlocksZh = article && Array.isArray(article.bodyBlocksZh) ? article.bodyBlocksZh : []
   if (bodyBlocksZh.length) {
-    const blockText = bodyBlocksZh.map((block) => {
-      if (!block || typeof block !== 'object') return ''
-      if (block.type === 'list') return Array.isArray(block.items) ? block.items.join(' ') : ''
-      return cleanText(block.text)
-    }).join(' ')
-    if (/[\u4e00-\u9fff]/.test(blockText) && blockText.length >= 30) return true
+    const blockText = bodyBlocksText(bodyBlocksZh)
+    if (!/[\u4e00-\u9fff]/.test(blockText) || blockText.length < 30) return false
+    if (summary && textLooksLikeSummary(blockText, summary)) return false
+    if (summary && bodyBlocksZh.length === 1 && blockText.length <= summary.length + 20) return false
+    if (endsWithEllipsis(blockText)) return false
+    return true
   }
   if (bodyZh.length < 80) return false
-  if (summary && (bodyZh === summary || bodyZh === `中文正文：${summary}`)) return false
+  if (summary && textLooksLikeSummary(bodyZh, summary)) return false
   if (summary && bodyZh.length <= summary.length + 20) return false
   if (endsWithEllipsis(bodyZh)) return false
   return true

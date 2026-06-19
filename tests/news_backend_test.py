@@ -12,6 +12,20 @@ from urllib.request import Request, urlopen
 from unittest.mock import patch
 
 
+class FakeHttpResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def read(self):
+        return json.dumps(self.payload).encode("utf-8")
+
+
 SIMC_AGENT_SPEC_CASES = [
     ("死亡骑士", "鲜血", "deathknight", "blood"),
     ("死亡骑士", "冰霜", "deathknight", "frost"),
@@ -109,6 +123,73 @@ class NewsBackendTest(unittest.TestCase):
         self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
         simulator_payload.call_chat_completion = fake_call_chat_completion
 
+    def test_blizzard_forum_source_uses_slug_url_without_stale_category_id(self):
+        forum_source = self.backend.NEWS_SOURCES_BY_ID["blizzard-forums"]
+        feed_source = next(source for source in self.backend.FEED_SOURCES if source["sourceId"] == "blizzard-forums")
+
+        self.assertEqual(forum_source["sourceUrl"], "https://us.forums.blizzard.com/en/wow/c/in-development")
+        self.assertEqual(feed_source["sourceUrl"], "https://us.forums.blizzard.com/en/wow/c/in-development")
+        self.assertNotIn("/253", forum_source["sourceUrl"])
+        self.assertNotIn("/253", feed_source["sourceUrl"])
+
+    def test_enqueue_requeues_published_discovery_when_public_row_is_missing(self):
+        article = {
+            "id": "forum-recovered-detail",
+            "canonicalTopicId": "Blizzard-Forums:url:https://us.forums.blizzard.com/en/wow/t/feedback-midnight-season-2-class-sets/2317455",
+            "sourceId": "blizzard-forums",
+            "sourceName": "Blizzard Forums",
+            "sourceTier": "official",
+            "sourceUrl": "https://us.forums.blizzard.com/en/wow/t/feedback-midnight-season-2-class-sets/2317455",
+            "title": "Feedback: Midnight Season 2 Class Sets",
+            "originalTitle": "Feedback: Midnight Season 2 Class Sets",
+            "publishedAt": "2026-06-18",
+            "summary": "We are excited to share the new set bonuses coming in Midnight Season 2.",
+            "originalSummary": "We are excited to share the new set bonuses coming in Midnight Season 2.",
+            "originalBody": "We are excited to share the new set bonuses coming in Midnight Season 2.\n\nFull detail body.",
+            "bodyBlocks": [
+                {"type": "paragraph", "text": "We are excited to share the new set bonuses coming in Midnight Season 2."},
+                {"type": "paragraph", "text": "Full detail body."},
+            ],
+            "bodySourceKind": "detail_body",
+            "requiresLlmTranslation": True,
+        }
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            conn.execute(
+                """
+                INSERT INTO news_discovery_queue (
+                    id, canonical_topic_id, source_id, source_name, source_tier,
+                    source_url, original_title, published_at, status, attempts,
+                    last_error, payload_json, discovered_at, updated_at, processed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    article["id"],
+                    article["canonicalTopicId"],
+                    article["sourceId"],
+                    article["sourceName"],
+                    article["sourceTier"],
+                    article["sourceUrl"],
+                    article["originalTitle"],
+                    article["publishedAt"],
+                    "published",
+                    1,
+                    "",
+                    json.dumps({**article, "bodySourceKind": "forum_excerpt"}, ensure_ascii=False),
+                    "2026-06-19T00:00:00+00:00",
+                    "2026-06-19T00:00:00+00:00",
+                    "2026-06-19T00:00:00+00:00",
+                ),
+            )
+            self.backend.enqueue_discovered_articles(conn, [article], "2026-06-19T01:00:00+00:00")
+            queue_row = conn.execute(
+                "SELECT status, last_error, payload_json FROM news_discovery_queue WHERE id = ?",
+                (article["id"],),
+            ).fetchone()
+
+        self.assertEqual(queue_row[0], "queued")
+        self.assertEqual(queue_row[1], "")
+        self.assertEqual(json.loads(queue_row[2])["bodySourceKind"], "detail_body")
+
     def confirmation_response(self, status="needs_clarification", missing_slots=None, question=""):
         return {
             "status": status,
@@ -118,6 +199,72 @@ class NewsBackendTest(unittest.TestCase):
             "question": question or "还差天赋导入码和手选装备数据。",
             "quickReplies": ["打开天赋模拟器补天赋", "继续补装备", "我先只看参考区间"],
         }
+
+    def official_discovered_article(self, article_id, day=19):
+        return {
+            "id": article_id,
+            "title": f"Patch 12.1 PTR Development Notes {article_id}",
+            "summary": "Public Test Realm development notes.",
+            "channel": self.backend.CHANNELS[1]["title"],
+            "category": self.backend.CHANNELS[1]["title"],
+            "tags": ["ptr"],
+            "importance": 94,
+            "sourceId": "blizzard",
+            "sourceName": "Blizzard News",
+            "sourceTier": "official",
+            "licenseStatus": "approved",
+            "sourceUrl": f"https://worldofwarcraft.blizzard.com/news/{article_id}",
+            "publishedAt": f"2026-06-{day:02d}",
+            "sourceNote": "Blizzard official discovery.",
+            "originalTitle": f"Patch 12.1 PTR Development Notes {article_id}",
+            "originalSummary": "Public Test Realm development notes.",
+            "originalBody": "Public Test Realm development notes for direct translation.",
+            "bodyBlocks": [{"type": "paragraph", "text": "Public Test Realm development notes for direct translation."}],
+            "requiresLlmTranslation": True,
+            "contentStatus": "discovered",
+        }
+
+    def reference_discovered_article(self, article_id="wowhead-reference"):
+        return {
+            "id": article_id,
+            "title": "Patch 12.1 PTR Notes Datamining",
+            "summary": "Third-party reference item for discovery coverage.",
+            "channel": self.backend.CHANNELS[1]["title"],
+            "category": self.backend.CHANNELS[1]["title"],
+            "tags": ["ptr"],
+            "importance": 72,
+            "sourceId": "wowhead",
+            "sourceName": "Wowhead",
+            "sourceTier": "trusted_media",
+            "licenseStatus": "reference_only",
+            "sourceUrl": f"https://www.wowhead.com/news/{article_id}-381217",
+            "publishedAt": "2026-06-19",
+            "sourceNote": "Wowhead reference discovery.",
+            "originalTitle": "Patch 12.1 PTR Notes Datamining",
+            "originalSummary": "Third-party reference item for discovery coverage.",
+            "originalBody": "Reference-only body should stay out of public translation.",
+            "bodyBlocks": [{"type": "paragraph", "text": "Reference-only body should stay out of public translation."}],
+            "requiresLlmTranslation": True,
+            "contentStatus": "discovered",
+        }
+
+    def translated_official_article(self, article):
+        return dict(
+            article,
+            title=f"Official translation {article['id']}",
+            summary="Official PTR development notes translated directly.",
+            bodyZh=f"Chinese full-body translation for {article['id']} from the official PTR source.",
+            bodyBlocksZh=[
+                {
+                    "type": "paragraph",
+                    "text": f"Chinese full-body translation for {article['id']} from the official PTR source.",
+                }
+            ],
+            tagItems=[{"id": "ptr", "label": "PTR"}],
+            translationStatus="llm",
+            translationFidelity="source_translation",
+            contentStatus="ready",
+        )
 
     def test_get_article_detail_by_id_returns_source_evidence(self):
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
@@ -310,6 +457,185 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("originalBody", detail)
         self.assertEqual(latest["verificationCounts"]["official_verified"], 1)
 
+    def test_refresh_blocks_forum_excerpt_before_llm_translation(self):
+        forum_excerpt = {
+            "id": "forum-summary-only",
+            "title": "Feedback: Midnight Season 2 Class Sets",
+            "summary": "We are excited to share the new set bonuses coming in Midnight Season 2.",
+            "channel": self.backend.CHANNELS[1]["title"],
+            "category": self.backend.CHANNELS[1]["title"],
+            "tags": ["ptr", "class-change"],
+            "importance": 98,
+            "sourceId": "blizzard-forums",
+            "sourceName": "Blizzard Forums",
+            "sourceTier": "official",
+            "licenseStatus": "approved",
+            "sourceUrl": "https://us.forums.blizzard.com/en/wow/t/feedback-midnight-season-2-class-sets/2317455",
+            "publishedAt": "2026-06-18",
+            "sourceNote": "Blizzard official PTR and development forum topic list.",
+            "originalTitle": "Feedback: Midnight Season 2 Class Sets",
+            "originalSummary": "We are excited to share the new set bonuses coming in Midnight Season 2.",
+            "originalBody": "We are excited to share the new set bonuses coming in Midnight Season 2.",
+            "bodyBlocks": [
+                {
+                    "type": "paragraph",
+                    "text": "We are excited to share the new set bonuses coming in Midnight Season 2.",
+                }
+            ],
+            "bodySourceKind": "forum_excerpt",
+            "requiresLlmTranslation": True,
+            "contentStatus": "discovered",
+        }
+        translated = dict(
+            forum_excerpt,
+            title="反馈：Midnight 第二赛季职业套装",
+            summary="暴雪分享了 Midnight 第二赛季职业套装奖励。",
+            bodyZh="我们很高兴分享 Midnight 第二赛季即将推出的新套装奖励。",
+            bodyBlocksZh=[
+                {
+                    "type": "paragraph",
+                    "text": "我们很高兴分享 Midnight 第二赛季即将推出的新套装奖励。",
+                }
+            ],
+            tagItems=[{"id": "ptr", "label": "PTR"}],
+            translationStatus="llm",
+            translationFidelity="source_translation",
+            contentStatus="ready",
+        )
+
+        with patch.object(self.backend, "ENABLE_COLLECTORS", True), patch.object(self.backend, "load_seed_articles", return_value=[]), patch.object(
+            self.backend,
+            "collect_feed_articles",
+            return_value=([forum_excerpt], []),
+        ), patch.object(self.backend, "localize_article", return_value=translated) as localize:
+            self.backend.refresh_articles("scheduled")
+
+        latest = self.backend.latest_refresh_run_payload()
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            queue_row = conn.execute(
+                "SELECT status, last_error FROM news_discovery_queue WHERE id = ?",
+                ("forum-summary-only",),
+            ).fetchone()
+
+        self.assertEqual(localize.call_count, 0)
+        self.assertIsNone(self.backend.get_article_detail("forum-summary-only"))
+        self.assertEqual(queue_row, ("retryable", "source_body_missing"))
+        self.assertEqual(latest["blockedArticles"][0]["id"], "forum-summary-only")
+        self.assertEqual(latest["blockedArticles"][0]["reason"], "source_body_missing")
+
+    def test_refresh_audits_existing_forum_summary_only_articles_out_of_public_payload(self):
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            conn.execute(
+                """
+                INSERT INTO news_articles (
+                    id, title, summary, channel, category, tags_json, importance,
+                    source_name, source_url, published_at, source_note,
+                    body_zh, original_title, original_summary, original_body,
+                    translation_status, content_status, tag_items_json, blocked_reason,
+                    source_id, source_tier, license_status, verification_status,
+                    source_badges_json, body_blocks_zh_json, canonical_topic_id,
+                    reading_meta_json, translation_fidelity, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "forum-stale-summary",
+                    "反馈：Midnight 第二赛季职业套装",
+                    "我们很高兴分享 Midnight 第二赛季即将推出的新套装奖励。",
+                    self.backend.CHANNELS[1]["title"],
+                    self.backend.CHANNELS[1]["title"],
+                    '["ptr","class-change"]',
+                    98,
+                    "Blizzard Forums",
+                    "https://us.forums.blizzard.com/en/wow/t/feedback-midnight-season-2-class-sets/2317455",
+                    "2026-06-18",
+                    "Blizzard official PTR and development forum topic list.",
+                    "我们很高兴分享 Midnight 第二赛季即将推出的新套装奖励。",
+                    "Feedback: Midnight Season 2 Class Sets",
+                    "We are excited to share the new set bonuses coming in Midnight Season 2.",
+                    "We are excited to share the new set bonuses coming in Midnight Season 2.",
+                    "llm",
+                    "ready",
+                    '[{"id":"ptr","label":"测试服"}]',
+                    "",
+                    "blizzard-forums",
+                    "official",
+                    "approved",
+                    "official_verified",
+                    '["官方已核验","全文翻译"]',
+                    '[{"type":"paragraph","text":"我们很高兴分享 Midnight 第二赛季即将推出的新套装奖励。"}]',
+                    "Blizzard-Forums:url:https://us.forums.blizzard.com/en/wow/t/feedback-midnight-season-2-class-sets/2317455",
+                    '{"bodyBlockCount":1,"estimatedReadingMinutes":1}',
+                    "source_translation",
+                    "2026-06-19T00:00:00+00:00",
+                ),
+            )
+            queued_payload = {
+                "id": "forum-stale-summary",
+                "canonicalTopicId": "Blizzard-Forums:url:https://us.forums.blizzard.com/en/wow/t/feedback-midnight-season-2-class-sets/2317455",
+                "sourceId": "blizzard-forums",
+                "sourceName": "Blizzard Forums",
+                "sourceTier": "official",
+                "sourceUrl": "https://us.forums.blizzard.com/en/wow/t/feedback-midnight-season-2-class-sets/2317455",
+                "title": "Feedback: Midnight Season 2 Class Sets",
+                "originalTitle": "Feedback: Midnight Season 2 Class Sets",
+                "publishedAt": "2026-06-18",
+                "summary": "We are excited to share the new set bonuses coming in Midnight Season 2.",
+                "originalSummary": "We are excited to share the new set bonuses coming in Midnight Season 2.",
+                "originalBody": "We are excited to share the new set bonuses coming in Midnight Season 2.\n\nFull forum detail body.",
+                "bodyBlocks": [
+                    {"type": "paragraph", "text": "We are excited to share the new set bonuses coming in Midnight Season 2."},
+                    {"type": "paragraph", "text": "Full forum detail body."},
+                ],
+                "bodySourceKind": "detail_body",
+                "requiresLlmTranslation": True,
+            }
+            conn.execute(
+                """
+                INSERT INTO news_discovery_queue (
+                    id, canonical_topic_id, source_id, source_name, source_tier,
+                    source_url, original_title, published_at, status, attempts,
+                    last_error, payload_json, discovered_at, updated_at, processed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "forum-stale-summary",
+                    queued_payload["canonicalTopicId"],
+                    "blizzard-forums",
+                    "Blizzard Forums",
+                    "official",
+                    queued_payload["sourceUrl"],
+                    queued_payload["originalTitle"],
+                    "2026-06-18",
+                    "published",
+                    1,
+                    "",
+                    json.dumps(queued_payload, ensure_ascii=False),
+                    "2026-06-19T00:00:00+00:00",
+                    "2026-06-19T00:00:00+00:00",
+                    "2026-06-19T00:00:00+00:00",
+                ),
+            )
+            conn.commit()
+
+        with patch.object(self.backend, "ENABLE_COLLECTORS", True), patch.object(self.backend, "load_seed_articles", return_value=[]), patch.object(
+            self.backend,
+            "collect_feed_articles",
+            return_value=([], []),
+        ):
+            self.backend.refresh_articles("scheduled")
+
+        latest = self.backend.latest_refresh_run_payload()
+
+        self.assertIsNone(self.backend.get_article_detail("forum-stale-summary"))
+        self.assertEqual(latest["blockedArticles"][0]["id"], "forum-stale-summary")
+        self.assertEqual(latest["blockedArticles"][0]["reason"], "summary_only_body")
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            queue_row = conn.execute(
+                "SELECT status, last_error FROM news_discovery_queue WHERE id = ?",
+                ("forum-stale-summary",),
+            ).fetchone()
+        self.assertEqual(queue_row, ("retryable", "summary_only_body"))
+
     def test_refresh_skips_collected_seed_duplicates_before_llm_translation(self):
         seed = dict(self.backend.load_seed_articles()[0])
         seed["translationFidelity"] = "source_translation"
@@ -338,8 +664,11 @@ class NewsBackendTest(unittest.TestCase):
             self.backend.refresh_articles("scheduled")
 
         latest = self.backend.latest_refresh_run_payload()
+        detail = self.backend.get_article_detail(seed["id"])
 
-        self.assertEqual(localized_ids, [seed["id"]])
+        self.assertEqual(localized_ids, [])
+        self.assertEqual(detail["id"], seed["id"])
+        self.assertEqual(detail["translationFidelity"], "source_translation")
         self.assertEqual(latest["collectedDiscoveredCount"], 1)
         self.assertEqual(latest["collectedCount"], 0)
         self.assertEqual(latest["collectorDuplicateSeedSkippedCount"], 1)
@@ -482,6 +811,133 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(latest["licenseBlockedCount"], 1)
         self.assertEqual(latest["blockedArticles"][0]["reason"], "license_blocked")
         self.assertEqual(latest["verificationCounts"]["license_blocked"], 1)
+
+    def test_refresh_queues_all_discovered_and_processes_limited_batch(self):
+        collected = [self.official_discovered_article(f"official-queued-{index}", day=19 - index) for index in range(6)]
+        observed_limits = []
+
+        def fake_collect(sources, timeout=15, max_articles_per_source=None):
+            observed_limits.append(max_articles_per_source)
+            return collected, []
+
+        def fake_localize(article, require_llm=False):
+            return self.translated_official_article(article)
+
+        with patch.dict(os.environ, {"WOW_NEWS_MAX_COLLECTED_ARTICLES": "1", "WOW_NEWS_PROCESS_LIMIT": "2"}), patch.object(
+            self.backend, "ENABLE_COLLECTORS", True
+        ), patch.object(self.backend, "load_seed_articles", return_value=[]), patch.object(
+            self.backend, "collect_feed_articles", side_effect=fake_collect
+        ), patch.object(
+            self.backend, "localize_article", side_effect=fake_localize
+        ):
+            self.backend.refresh_articles("scheduled")
+
+        latest = self.backend.latest_refresh_run_payload()
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            queue_statuses = conn.execute(
+                """
+                SELECT status, COUNT(*) FROM news_discovery_queue
+                GROUP BY status
+                """
+            ).fetchall()
+
+        self.assertGreaterEqual(observed_limits[0], 10)
+        self.assertEqual(latest["discoveredCount"], 6)
+        self.assertEqual(latest["processedCount"], 2)
+        self.assertEqual(latest["publishedCount"], 2)
+        self.assertEqual(latest["queuedCount"], 4)
+        self.assertGreaterEqual(latest["oldestBacklogAge"], 0)
+        self.assertEqual(latest["sourceCoverage"]["blizzard"]["discovered"], 6)
+        self.assertEqual(dict(queue_statuses), {"published": 2, "queued": 4})
+
+    def test_refresh_continues_after_first_llm_block_and_marks_retryable(self):
+        collected = [self.official_discovered_article("official-llm-fail"), self.official_discovered_article("official-after-fail")]
+        localized_ids = []
+
+        def fake_localize(article, require_llm=False):
+            localized_ids.append(article["id"])
+            if article["id"] == "official-llm-fail":
+                return dict(
+                    article,
+                    contentStatus="blocked",
+                    blockedReason="invalid_llm_translation",
+                    verificationStatus="invalid_llm_translation",
+                    translationStatus="llm",
+                )
+            return self.translated_official_article(article)
+
+        with patch.dict(os.environ, {"WOW_NEWS_PROCESS_LIMIT": "5"}), patch.object(
+            self.backend, "ENABLE_COLLECTORS", True
+        ), patch.object(self.backend, "load_seed_articles", return_value=[]), patch.object(
+            self.backend, "collect_feed_articles", return_value=(collected, [])
+        ), patch.object(
+            self.backend, "localize_article", side_effect=fake_localize
+        ):
+            self.backend.refresh_articles("scheduled")
+
+        latest = self.backend.latest_refresh_run_payload()
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            queue_statuses = conn.execute(
+                "SELECT id, status, last_error FROM news_discovery_queue ORDER BY id"
+            ).fetchall()
+
+        self.assertEqual(localized_ids, ["official-llm-fail", "official-after-fail"])
+        self.assertEqual(latest["processedCount"], 2)
+        self.assertEqual(latest["publishedCount"], 1)
+        self.assertEqual(latest["blockedArticleCount"], 1)
+        self.assertEqual(latest["retryableCount"], 1)
+        self.assertIn(("official-llm-fail", "retryable", "invalid_llm_translation"), queue_statuses)
+        self.assertIn(("official-after-fail", "published", ""), queue_statuses)
+
+    def test_reference_only_discovery_is_audited_without_public_translation(self):
+        collected = [self.reference_discovered_article()]
+
+        with patch.object(self.backend, "ENABLE_COLLECTORS", True), patch.object(
+            self.backend, "load_seed_articles", return_value=[]
+        ), patch.object(
+            self.backend, "collect_feed_articles", return_value=(collected, [])
+        ), patch.object(
+            self.backend,
+            "localize_article",
+            side_effect=AssertionError("reference-only discovery must not request public translation"),
+        ):
+            self.backend.refresh_articles("scheduled")
+
+        latest = self.backend.latest_refresh_run_payload()
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            public_count = conn.execute("SELECT COUNT(*) FROM news_articles").fetchone()[0]
+            raw_count = conn.execute("SELECT COUNT(*) FROM news_raw_articles").fetchone()[0]
+            queue_row = conn.execute(
+                "SELECT status, last_error FROM news_discovery_queue WHERE id = ?",
+                (collected[0]["id"],),
+            ).fetchone()
+
+        self.assertEqual(public_count, 0)
+        self.assertEqual(raw_count, 1)
+        self.assertEqual(queue_row, ("blocked", "license_blocked"))
+        self.assertEqual(latest["blockedArticles"][0]["reason"], "license_blocked")
+        self.assertEqual(latest["sourceCoverage"]["wowhead"]["discovered"], 1)
+        self.assertEqual(latest["sourceCoverage"]["wowhead"]["blocked"], 1)
+
+    def test_news_health_reports_backlog_without_marking_entire_news_blocked(self):
+        collected = [self.official_discovered_article(f"official-health-{index}") for index in range(3)]
+
+        with patch.dict(os.environ, {"WOW_NEWS_PROCESS_LIMIT": "1"}), patch.object(
+            self.backend, "ENABLE_COLLECTORS", True
+        ), patch.object(self.backend, "load_seed_articles", return_value=[]), patch.object(
+            self.backend, "collect_feed_articles", return_value=(collected, [])
+        ), patch.object(
+            self.backend, "localize_article", side_effect=lambda article, require_llm=False: self.translated_official_article(article)
+        ):
+            self.backend.refresh_articles("scheduled")
+
+        component = self.backend.news_health_component()
+
+        self.assertNotEqual(component["status"], "blocked")
+        self.assertEqual(component["details"]["discoveredCount"], 3)
+        self.assertEqual(component["details"]["processedCount"], 1)
+        self.assertEqual(component["details"]["queuedCount"], 2)
+        self.assertIn("sourceCoverage", component["details"])
 
     def test_load_articles_does_not_publish_seed_without_source_translation_when_collectors_are_missing(self):
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
@@ -743,8 +1199,9 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual([role["key"] for role in spec_ladder["roles"]], ["dps", "tank", "healer"])
         self.assertEqual(
             [source["status"] for source in spec_ladder["sourceChecks"]],
-            ["verified", "verified"],
+            ["source_reference", "source_reference"],
         )
+        self.assertTrue(all(source["blockers"] for source in spec_ladder["sourceChecks"]))
 
         malformed_spec_ladder = dict(spec_ladder)
         malformed_spec_ladder["sourceChecks"] = [
@@ -2453,7 +2910,7 @@ class NewsBackendTest(unittest.TestCase):
         with patch.object(self.backend, "sync_raiderio_cache", side_effect=AssertionError("health must be read-only")):
             payload = self.backend.build_data_health_payload()
 
-        allowed = {"verified", "partial", "stale", "blocked", "missing_credentials", "pending_official_audit"}
+        allowed = {"verified", "partial", "stale", "blocked", "missing_credentials", "pending_official_audit", "source_reference"}
         components = {item["key"]: item for item in payload["components"]}
 
         self.assertEqual(payload["schemaRevision"], "data-health-v1")
@@ -2475,6 +2932,23 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(components["wcl_credentials"]["details"]["api"], "warcraftlogs-v1-rest")
         self.assertTrue(components["wcl_credentials"]["details"]["configured"])
         self.assertNotIn("fake-wcl-v1-key", json.dumps(payload, ensure_ascii=False))
+
+    def test_data_health_component_with_blockers_cannot_remain_verified(self):
+        component = self.backend.data_health_component(
+            "fixture_source",
+            "Fixture source",
+            "verified",
+            blockers=["fixture data is not authorized API evidence"],
+        )
+        payload = {
+            "components": [
+                self.backend.data_health_component("backend", "Backend", "verified"),
+                component,
+            ]
+        }
+
+        self.assertEqual(component["status"], "blocked")
+        self.assertEqual(self.backend.data_health_overall_status(payload["components"]), "partial")
 
     def test_http_data_health_route_returns_read_only_status_payload(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
@@ -2539,6 +3013,100 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["logEvidence"]["fightId"], "7")
         self.assertIn("wcl.credentials", analysis["logEvidence"]["missingInputs"])
         self.assertEqual(analysis["report"]["schemaRevision"], "wcl-report-v1")
+        self.assertEqual(analysis["report"]["source"], "deterministic_blocked")
+        self.assertFalse(analysis["llm"]["called"])
+
+    def test_wcl_analysis_fetches_v2_graphql_evidence_before_reporting_ready(self):
+        os.environ["WOW_WARCRAFTLOGS_CLIENT_ID"] = "fake-client-id"
+        os.environ["WOW_WARCRAFTLOGS_CLIENT_SECRET"] = "fake-client-secret"
+
+        def fake_urlopen(request, timeout=0):
+            url = getattr(request, "full_url", str(request))
+            if "oauth/token" in url:
+                return FakeHttpResponse({"access_token": "fake-access-token"})
+            self.assertIn("api/v2/client", url)
+            return FakeHttpResponse(
+                {
+                    "data": {
+                        "reportData": {
+                            "report": {
+                                "title": "Mythic Pulls",
+                                "startTime": 1000,
+                                "endTime": 2000,
+                                "fights": [
+                                    {
+                                        "id": 7,
+                                        "name": "Nexus-Princess Ky'veza",
+                                        "difficulty": 5,
+                                        "kill": True,
+                                        "startTime": 1100,
+                                        "endTime": 1900,
+                                    }
+                                ],
+                                "events": {
+                                    "data": [
+                                        {"type": "cast", "ability": {"name": "Icy Veins"}},
+                                        {"type": "death", "target": {"name": "Mage"}},
+                                        {"type": "damage", "amount": 12345},
+                                        {"type": "heal", "amount": 2345},
+                                        {"type": "applybuff", "ability": {"name": "Icy Veins"}},
+                                    ]
+                                },
+                            }
+                        }
+                    }
+                }
+            )
+
+        from server import simulator_payload
+
+        with patch.object(simulator_payload, "urlopen", side_effect=fake_urlopen, create=True):
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "wcl",
+                    "wclUrl": "https://www.warcraftlogs.com/reports/V2Report123?fight=7",
+                    "question": "Check cooldown usage.",
+                }
+            )
+
+        self.assertEqual(analysis["logEvidence"]["status"], "ready")
+        self.assertEqual(analysis["logEvidence"]["sourceStatus"], "verified")
+        self.assertEqual(analysis["logEvidence"]["credentialMode"], "v2_oauth")
+        self.assertEqual(analysis["logEvidence"]["reportTitle"], "Mythic Pulls")
+        self.assertEqual(analysis["logEvidence"]["fight"]["id"], "7")
+        self.assertEqual(analysis["logEvidence"]["eventSummary"]["casts"], 1)
+        self.assertEqual(analysis["logEvidence"]["eventSummary"]["deaths"], 1)
+        self.assertEqual(analysis["logEvidence"]["eventSummary"]["damageEvents"], 1)
+        self.assertEqual(analysis["logEvidence"]["eventSummary"]["healingEvents"], 1)
+        self.assertEqual(analysis["report"]["source"], "deterministic_evidence")
+        self.assertFalse(analysis["llm"]["called"])
+        self.assertNotIn("fake-client-secret", json.dumps(analysis, ensure_ascii=False))
+
+    def test_wcl_analysis_reports_graphql_fetch_failure_without_llm_claims(self):
+        os.environ["WOW_WARCRAFTLOGS_CLIENT_ID"] = "fake-client-id"
+        os.environ["WOW_WARCRAFTLOGS_CLIENT_SECRET"] = "fake-client-secret"
+
+        def fake_urlopen(request, timeout=0):
+            url = getattr(request, "full_url", str(request))
+            if "oauth/token" in url:
+                return FakeHttpResponse({"access_token": "fake-access-token"})
+            return FakeHttpResponse({"errors": [{"message": "report not visible"}]})
+
+        from server import simulator_payload
+
+        with patch.object(simulator_payload, "urlopen", side_effect=fake_urlopen, create=True):
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "wcl",
+                    "wclUrl": "https://www.warcraftlogs.com/reports/HiddenReport?fight=3",
+                    "question": "Check cooldown usage.",
+                }
+            )
+
+        self.assertEqual(analysis["logEvidence"]["status"], "blocked")
+        self.assertEqual(analysis["logEvidence"]["sourceStatus"], "blocked")
+        self.assertIn("wcl.graphql_fetch", analysis["logEvidence"]["missingInputs"])
+        self.assertIn("report not visible", analysis["logEvidence"]["blockers"][0])
         self.assertEqual(analysis["report"]["source"], "deterministic_blocked")
         self.assertFalse(analysis["llm"]["called"])
 

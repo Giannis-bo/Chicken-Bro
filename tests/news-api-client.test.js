@@ -160,6 +160,87 @@ test('article detail request rejects payloads missing trusted publication gates'
   assert.match(result.error, /incomplete article payload/)
 })
 
+test('article detail request rejects verified payloads whose body block is only a summary', async () => {
+  const api = loadNewsApiWithWx({
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    request: ({ success }) => {
+      success({
+        statusCode: 200,
+        data: {
+          id: 'forum-summary-only',
+          title: '反馈：Midnight 第二赛季职业套装',
+          summary: '我们很高兴分享 Midnight 第二赛季即将推出的新套装奖励。',
+          bodyZh: '我们很高兴分享 Midnight 第二赛季即将推出的新套装奖励。',
+          bodyBlocksZh: [
+            { type: 'paragraph', text: '我们很高兴分享 Midnight 第二赛季即将推出的新套装奖励。' }
+          ],
+          contentStatus: 'ready',
+          translationStatus: 'llm',
+          translationFidelity: 'source_translation',
+          verificationStatus: 'official_verified',
+          licenseStatus: 'approved',
+          sourceTier: 'official',
+          sourceBadges: ['官方已核验', '全文翻译'],
+          sourceName: 'Blizzard Forums',
+          sourceUrl: 'https://us.forums.blizzard.com/en/wow/t/feedback-midnight-season-2-class-sets/2317455',
+          publishedAt: '2026-06-18',
+          originalTitle: 'Feedback: Midnight Season 2 Class Sets',
+          tagItems: [{ id: 'ptr', label: '测试服' }],
+          readingMeta: { bodyBlockCount: 1, estimatedReadingMinutes: 1 }
+        }
+      })
+    }
+  })
+
+  const result = await api.requestArticleDetail('forum-summary-only')
+
+  assert.equal(result.fromFallback, true)
+  assert.equal(result.article, null)
+  assert.match(result.error, /incomplete article payload/)
+})
+
+test('article detail request rejects verified payloads whose body block ends with ellipsis', async () => {
+  const ellipsisBody = '\u8fd9\u662f\u4e00\u6bb5\u5df2\u7ecf\u7ffb\u8bd1\u7684\u8bba\u575b\u6b63\u6587\u5185\u5bb9'.repeat(2) + '...'
+  const api = loadNewsApiWithWx({
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    request: ({ success }) => {
+      success({
+        statusCode: 200,
+        data: {
+          id: 'forum-ellipsis-body',
+          title: '\u8bba\u575b\u53cd\u9988\u6b63\u6587',
+          summary: '\u8fd9\u662f\u6458\u8981',
+          bodyZh: ellipsisBody,
+          bodyBlocksZh: [
+            { type: 'paragraph', text: ellipsisBody }
+          ],
+          contentStatus: 'ready',
+          translationStatus: 'llm',
+          translationFidelity: 'source_translation',
+          verificationStatus: 'official_verified',
+          licenseStatus: 'approved',
+          sourceTier: 'official',
+          sourceBadges: ['official verified', 'source translation'],
+          sourceName: 'Blizzard Forums',
+          sourceUrl: 'https://us.forums.blizzard.com/en/wow/t/example/123',
+          publishedAt: '2026-06-18',
+          originalTitle: 'Forum Feedback Body',
+          tagItems: [{ id: 'ptr', label: 'PTR' }],
+          readingMeta: { bodyBlockCount: 1, estimatedReadingMinutes: 1 }
+        }
+      })
+    }
+  })
+
+  const result = await api.requestArticleDetail('forum-ellipsis-body')
+
+  assert.equal(result.fromFallback, true)
+  assert.equal(result.article, null)
+  assert.match(result.error, /incomplete article payload/)
+})
+
 test('article detail request accepts verified body block payloads', async () => {
   const api = loadNewsApiWithWx({
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
