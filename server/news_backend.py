@@ -57,6 +57,7 @@ try:
         community_talent_sync_state,
         enrich_build_gear_payload,
         ensure_websim_tables,
+        gear_catalog_health_payload,
         export_talent_api_payload,
         get_active_season_payload,
         get_sync_state,
@@ -110,6 +111,7 @@ except ImportError:
         community_talent_sync_state,
         enrich_build_gear_payload,
         ensure_websim_tables,
+        gear_catalog_health_payload,
         export_talent_api_payload,
         get_active_season_payload,
         get_sync_state,
@@ -1646,6 +1648,18 @@ def build_data_health_payload():
                     "talentCount": websim_state.get("talentCount") or 0,
                 },
                 blockers=websim_state.get("errors") or ["websim cache has not been synced"],
+            )
+        )
+
+        gear_catalog = gear_catalog_health_payload(conn)
+        components.append(
+            data_health_component(
+                "gear_catalog",
+                "Authoritative gear catalog",
+                gear_catalog.get("status"),
+                checked_at=gear_catalog.get("checkedAt") or "",
+                details=gear_catalog.get("details") or {},
+                blockers=gear_catalog.get("blockers") or [],
             )
         )
 

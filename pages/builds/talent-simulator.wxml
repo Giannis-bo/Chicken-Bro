@@ -154,7 +154,9 @@
           <text class="template-meta" wx:if="{{item.updatedLabel}}">{{item.updatedLabel}}</text>
         </view>
         <text class="template-note" wx:if="{{item.analysisWindow}}">{{item.analysisWindow}}</text>
-        <button class="template-apply-button" data-id="{{item.id}}" bindtap="applyCommunityTemplate">{{item.actionLabel}}</button>
+        <view class="template-apply-row">
+          <button class="template-apply-button" data-id="{{item.id}}" bindtap="applyCommunityTemplate">{{item.actionLabel}}</button>
+        </view>
       </view>
     </scroll-view>
   </view>

@@ -42,6 +42,7 @@ class WebSimPayloadTest(unittest.TestCase):
         os.environ.pop("WOW_SIMC_TRAIT_DATA_FILE", None)
         os.environ.pop("WOW_SIMC_SPELLTEXT_DATA_FILE", None)
         os.environ.pop("WOW_SIMC_BIN", None)
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
         for attempt in range(5):
             try:
                 self.tmp.cleanup()
@@ -1259,6 +1260,206 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("missing item", payload["slotReadiness"]["neck"]["reason"])
         self.assertTrue(any(group["slot"] == "head" for group in payload["replacementCandidates"]))
 
+    def test_websim_gear_payload_exposes_catalog_sources_variants_and_mods(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Catalog Hood",
+                    "inventory_type": {"name": "Head"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
+                fallback_name="Catalog Hood",
+                english_payload={"name": "Catalog Hood"},
+                locale="en_US",
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_gear_sources
+                (id, item_id, source_type, source_label, instance_id, encounter_id,
+                 difficulty_key, season_revision, payload_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "source-250777-heroic",
+                    "250777",
+                    "raid",
+                    "Vault Mage - Arcane Vault",
+                    "arcane-vault",
+                    "vault-mage",
+                    "heroic",
+                    "season-test",
+                    json.dumps({"recommendationScore": 91}, ensure_ascii=False),
+                    "now",
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_gear_variants
+                (id, item_id, slot, variant_key, label, source_type, difficulty_key,
+                 item_level, simc_options_json, status, blockers_json, payload_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "variant-250777-heroic-707",
+                    "250777",
+                    "head",
+                    "heroic-707",
+                    "Heroic 707",
+                    "raid",
+                    "heroic",
+                    707,
+                    json.dumps({"bonus_id": "12345"}, ensure_ascii=False),
+                    "verified",
+                    "[]",
+                    json.dumps({"classKeys": ["mage"], "specKeys": ["arcane", "frost"]}, ensure_ascii=False),
+                    "now",
+                ),
+            )
+            conn.executemany(
+                """
+                INSERT INTO websim_gear_mod_options
+                (id, option_type, name, applicable_slots_json, simc_options_json,
+                 status, payload_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        "socket-gem-240983",
+                        "socket",
+                        "Quick Gem",
+                        json.dumps(["head"], ensure_ascii=False),
+                        json.dumps({"gem_id": "240983", "gem_ilevel": "707"}, ensure_ascii=False),
+                        "verified",
+                        "{}",
+                        "now",
+                    ),
+                    (
+                        "enchant-8017",
+                        "enchant",
+                        "Radiant Enchant",
+                        json.dumps(["head"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "8017"}, ensure_ascii=False),
+                        "verified",
+                        "{}",
+                        "now",
+                    ),
+                ],
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                {
+                    "status": "verified",
+                    "itemDatabaseRevision": "items-test-rev",
+                    "variantRevision": "variants-test-rev",
+                    "checkedAt": "2026-06-19T00:00:00+00:00",
+                    "itemCount": 1,
+                    "sourceCount": 1,
+                    "variantCount": 1,
+                    "verifiedCount": 1,
+                    "partialCount": 0,
+                    "blockedCount": 0,
+                    "blockers": [],
+                },
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane")
+        finally:
+            conn.close()
+
+        self.assertEqual(payload["catalogStatus"], "verified")
+        self.assertEqual(payload["itemDatabaseRevision"], "items-test-rev")
+        self.assertEqual(payload["variantRevision"], "variants-test-rev")
+        head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
+        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250777")
+        self.assertEqual(catalog_item["sources"][0]["label"], "Vault Mage - Arcane Vault")
+        self.assertEqual(catalog_item["sources"][0]["sourceType"], "raid")
+        self.assertEqual(catalog_item["variants"][0]["key"], "heroic-707")
+        self.assertEqual(catalog_item["variants"][0]["itemLevel"], 707)
+        self.assertEqual(catalog_item["variants"][0]["simcOptions"]["bonus_id"], "12345")
+        self.assertEqual(catalog_item["defaultVariantKey"], "heroic-707")
+        self.assertEqual(catalog_item["ilevel"], 707)
+        self.assertEqual(catalog_item["bonus_id"], "12345")
+        self.assertEqual(catalog_item["recommendationScore"], 91)
+        self.assertEqual(catalog_item["compatibility"]["status"], "compatible")
+        self.assertEqual(catalog_item["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
+        self.assertEqual(catalog_item["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
+
+    def test_gear_catalog_sync_loads_server_owned_mod_seed(self):
+        os.environ["WOW_WEBSIM_GEAR_MOD_SEED"] = json.dumps(
+            [
+                {
+                    "type": "socket",
+                    "name": "Quick Gem",
+                    "slots": ["head"],
+                    "simcOptions": {"gem_id": "240983", "gem_ilevel": "707"},
+                },
+                {
+                    "type": "enchant",
+                    "name": "Radiant Enchant",
+                    "slots": ["head"],
+                    "simcOptions": {"enchant_id": "8017"},
+                },
+            ],
+            ensure_ascii=False,
+        )
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Catalog Hood",
+                    "inventory_type": {"name": "Head"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
+                fallback_name="Catalog Hood",
+                english_payload={"name": "Catalog Hood"},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "manual-250777",
+                    "itemId": "250777",
+                    "sourceType": "raid",
+                    "sourceLabel": "Vault Mage - Arcane Vault",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "manual-250777-heroic",
+                    "itemId": "250777",
+                    "slot": "head",
+                    "variantKey": "heroic-707",
+                    "label": "Heroic 707",
+                    "sourceType": "raid",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.sync_websim_gear_catalog(conn, self.websim_payload.get_active_season_payload(conn))
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane")
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
+        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250777")
+        self.assertEqual(catalog_item["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
+        self.assertEqual(catalog_item["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
+        self.assertEqual(payload["catalogStatus"], "verified")
+
     def test_websim_gear_payload_smoke_covers_every_class_spec(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -2203,6 +2404,8 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(result["primary"]["value"], "12345")
         self.assertEqual(result["secondary"][1]["key"], "haste")
         self.assertEqual(result["gearReadiness"]["fullReady"], True)
+        self.assertEqual(result["itemLevel"]["value"], "289")
+        self.assertEqual(result["gearReadiness"]["itemLevel"]["rawValue"], 289)
         self.assertIn("class_talents=1001:1", executed_profile)
         self.assertIn("calculate_scale_factors=0", executed_profile)
 
@@ -2240,6 +2443,7 @@ class WebSimPayloadTest(unittest.TestCase):
             self.assertEqual(result["specKey"], spec_key)
             self.assertEqual(result["primary"]["key"], primary_key)
             self.assertEqual(result["gearReadiness"]["fullReady"], True)
+            self.assertEqual(result["itemLevel"]["value"], "289")
 
     def test_http_websim_gear_stats_blocks_without_talent_nodes(self):
         simc_bin = Path(self.tmp.name) / "fake-gear-stats-should-not-run"
@@ -2260,6 +2464,7 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertEqual(result["statStatus"], "blocked")
         self.assertIn("no WebSim talent nodes selected", result["blockers"])
+        self.assertEqual(result["itemLevel"]["value"], "289")
         self.assertFalse(captured_profile.exists())
 
     def test_http_websim_gear_stats_blocks_missing_core_gear_without_running(self):
@@ -2569,6 +2774,99 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(loot["items"][0]["gameAsset"]["contextKey"], "websim-loot")
         self.assertEqual(loot["items"][0]["gameAsset"]["iconUrl"], loot["items"][0]["iconUrl"])
         self.assertIn("loot", loot["items"][0]["gameAsset"]["semanticTags"])
+
+    def test_sync_blizzard_journal_includes_current_expansion_raid_loot(self):
+        conn = sqlite3.connect(self.db_path)
+        original_resolve = self.websim_payload.resolve_current_mythic_season
+        original_selected_refs = self.websim_payload.selected_journal_instance_refs
+        original_blizzard_get = self.websim_payload.blizzard_get
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "resolve_current_mythic_season", original_resolve)
+        self.addCleanup(setattr, self.websim_payload, "selected_journal_instance_refs", original_selected_refs)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        self.websim_payload.resolve_current_mythic_season = lambda token, region="us", locale="zh_CN": self.websim_payload.current_season_payload(
+            season_id="17",
+            season_label="Fresh Season",
+            dungeons=[
+                {
+                    "id": "558",
+                    "dungeonId": "558",
+                    "instanceId": "1300",
+                    "name": "Magisters' Terrace",
+                    "shortName": "Magisters' Terrace",
+                    "timerSeconds": 2040,
+                }
+            ],
+            locale=locale,
+        )
+        self.websim_payload.selected_journal_instance_refs = lambda token, region="us", locale="zh_CN": [
+            {"id": "1300", "name": "Magisters' Terrace", "category": "Dungeon"},
+            {"id": "1400", "name": "Arcane Vault", "category": "Raid"},
+        ]
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            if path == "/data/wow/journal-instance/1300":
+                return {
+                    "id": 1300,
+                    "name": "Magisters' Terrace",
+                    "category": {"name": "Dungeon"},
+                    "encounters": [{"key": {"href": "https://example.test/journal-encounter/9001"}, "name": "Arcane Warden"}],
+                }
+            if path == "/data/wow/journal-instance/1400":
+                return {
+                    "id": 1400,
+                    "name": "Arcane Vault",
+                    "category": {"name": "Raid"},
+                    "encounters": [{"key": {"href": "https://example.test/journal-encounter/9100"}, "name": "Vault Mage"}],
+                }
+            if path == "/data/wow/journal-encounter/9001":
+                return {
+                    "id": 9001,
+                    "name": "Arcane Warden",
+                    "items": [{"item": {"id": 250222, "name": "Rift Bindings"}}],
+                }
+            if path == "/data/wow/journal-encounter/9100":
+                return {
+                    "id": 9100,
+                    "name": "Vault Mage",
+                    "items": [{"item": {"id": 250777, "name": "Catalog Hood"}}],
+                }
+            return {}
+
+        def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
+            slot = "Head" if str(item_id) == "250777" else "Wrist"
+            return {
+                "payload": {
+                    "id": int(item_id),
+                    "name": fallback_name or f"Item {item_id}",
+                    "inventory_type": {"name": slot},
+                    "quality": {"name": "Epic"},
+                },
+                "media": {"assets": [{"value": f"https://render.example/item-{item_id}.jpg"}]},
+                "englishPayload": {"name": fallback_name or f"Item {item_id}"},
+                "locale": locale,
+                "fallbackName": fallback_name,
+            }
+
+        self.websim_payload.blizzard_get = fake_blizzard_get
+        self.websim_payload.fetch_blizzard_item_metadata = fake_fetch
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            counts = self.websim_payload.sync_blizzard_journal(conn, "token", "us", "zh_CN")
+            self.websim_payload.sync_websim_gear_catalog(conn, self.websim_payload.get_active_season_payload(conn))
+            conn.commit()
+            instances = conn.execute("SELECT id, category FROM websim_instances ORDER BY id").fetchall()
+            sources = conn.execute("SELECT item_id, source_type, source_label FROM websim_gear_sources ORDER BY item_id").fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["instances"], 2)
+        self.assertEqual(counts["loot"], 2)
+        self.assertEqual(instances, [("1300", "Dungeon"), ("1400", "Raid")])
+        self.assertIn(("250777", "raid", "Vault Mage - Arcane Vault"), sources)
 
     def test_sync_skips_blizzard_when_active_season_cache_is_fresh(self):
         conn = sqlite3.connect(self.db_path)

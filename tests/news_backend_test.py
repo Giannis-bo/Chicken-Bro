@@ -2922,6 +2922,40 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(components["wcl_credentials"]["status"], "missing_credentials")
         self.assertNotIn("fake-api-key", json.dumps(payload, ensure_ascii=False))
 
+    def test_data_health_payload_includes_gear_catalog_component(self):
+        import server.websim_payload as websim_payload
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            websim_payload.ensure_websim_tables(conn)
+            websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                {
+                    "status": "partial",
+                    "itemCount": 12,
+                    "sourceCount": 9,
+                    "variantCount": 21,
+                    "verifiedCount": 18,
+                    "partialCount": 2,
+                    "blockedCount": 1,
+                    "itemDatabaseRevision": "items-test-rev",
+                    "variantRevision": "variants-test-rev",
+                    "checkedAt": "2026-06-19T00:00:00+00:00",
+                    "blockers": ["1 catalog item missing selectable variant"],
+                },
+            )
+            conn.commit()
+
+        payload = self.backend.build_data_health_payload()
+        components = {item["key"]: item for item in payload["components"]}
+
+        self.assertIn("gear_catalog", components)
+        self.assertEqual(components["gear_catalog"]["status"], "partial")
+        self.assertEqual(components["gear_catalog"]["details"]["itemCount"], 12)
+        self.assertEqual(components["gear_catalog"]["details"]["variantCount"], 21)
+        self.assertEqual(components["gear_catalog"]["details"]["itemDatabaseRevision"], "items-test-rev")
+        self.assertIn("1 catalog item missing selectable variant", components["gear_catalog"]["blockers"])
+
     def test_data_health_accepts_warcraftlogs_v1_api_key_without_exposing_secret(self):
         os.environ["WOW_WARCRAFTLOGS_API_KEY"] = "fake-wcl-v1-key"
 

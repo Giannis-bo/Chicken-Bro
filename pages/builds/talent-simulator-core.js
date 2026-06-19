@@ -113,6 +113,14 @@ function talentPurchasedPoints(treeKey, nodes, talentRanks, baseTalentRanks, exc
     .reduce((total, node) => total + purchasedRankFor(node, talentRanks, nodes, baseTalentRanks), 0)
 }
 
+function pointsAvailableForRequirement(node, nodes, talentRanks, baseTalentRanks, exceptIds) {
+  const key = treeKeyFor(node)
+  if (key === 'hero') {
+    return talentPoints(key, nodes, talentRanks, baseTalentRanks, exceptIds)
+  }
+  return talentPurchasedPoints(key, nodes, talentRanks, baseTalentRanks, exceptIds)
+}
+
 function parentIdsFor(node) {
   const ids = node && (node.parentIds || node.requiredIds || node.parents)
   return Array.isArray(ids) ? ids.filter(Boolean) : []
@@ -144,7 +152,7 @@ function parentsSatisfied(node, nodes, talentRanks, baseTalentRanks) {
 
 function pointRequirementSatisfied(node, nodes, talentRanks, baseTalentRanks) {
   const requirement = pointRequirementFor(node)
-  return requirement <= 0 || talentPurchasedPoints(treeKeyFor(node), nodes, talentRanks, baseTalentRanks, [node.id]) >= requirement
+  return requirement <= 0 || pointsAvailableForRequirement(node, nodes, talentRanks, baseTalentRanks, [node.id]) >= requirement
 }
 
 function choiceGroupNodes(node, nodes) {
@@ -320,12 +328,74 @@ function templatesForScenario(templates, scenarioKey) {
   })
 }
 
+function talentRankSignature(ranks) {
+  return Object.keys(ranks || {})
+    .filter((id) => id && Number(ranks[id]) > 0)
+    .sort()
+    .map((id) => `${id}:${Math.max(1, Math.floor(Number(ranks[id]) || 1))}`)
+    .join(',')
+}
+
+function selectedNodeRankSignature(template) {
+  const state = template && typeof template.talentState === 'object' ? template.talentState : {}
+  const selectedNodes = Array.isArray(state.selectedNodes)
+    ? state.selectedNodes
+    : (Array.isArray(template && template.selectedNodes) ? template.selectedNodes : [])
+  const ranks = {}
+  selectedNodes.forEach((node) => {
+    const id = node && String(node.id || node.nodeId || node.key || '').trim()
+    if (!id) return
+    ranks[id] = Math.max(1, Math.floor(Number(node.rank || node.selectedRank || 1) || 1))
+  })
+  return talentRankSignature(ranks)
+}
+
+function communityTemplateSignature(template) {
+  if (!template) return ''
+  const parsed = parseTalentExportCode(template.websimExportCode)
+  const parsedRanks = parsed ? talentRankSignature(parsed.talentRanks) : ''
+  const selectedRanks = parsedRanks || selectedNodeRankSignature(template)
+  const classKey = String(template.classKey || (parsed && parsed.classKey) || '').trim()
+  const specKey = String(template.specKey || (parsed && parsed.specKey) || '').trim()
+  const heroKey = String(template.heroKey || (parsed && parsed.heroKey) || '').trim()
+  if (selectedRanks) return ['visual', classKey, specKey, heroKey, selectedRanks].join('|')
+  const rawImportCode = String(template.rawImportCode || '').replace(/\s+/g, '').trim()
+  if (rawImportCode) return ['raw', classKey, specKey, heroKey, rawImportCode].join('|')
+  return `id|${template.id || ''}`
+}
+
+function communityTemplateQuality(template) {
+  const updated = Date.parse((template && template.updatedAt) || '') || 0
+  return {
+    visual: template && template.canApplyVisual && template.websimExportCode ? 1 : 0,
+    maxKeyLevel: Number(template && template.maxKeyLevel) || 0,
+    sampleCount: Number(template && template.sampleCount) || 0,
+    updated
+  }
+}
+
+function compareCommunityTemplateQuality(left, right) {
+  const leftQuality = communityTemplateQuality(left)
+  const rightQuality = communityTemplateQuality(right)
+  return rightQuality.visual - leftQuality.visual
+    || rightQuality.maxKeyLevel - leftQuality.maxKeyLevel
+    || rightQuality.sampleCount - leftQuality.sampleCount
+    || rightQuality.updated - leftQuality.updated
+    || String(left && left.id || '').localeCompare(String(right && right.id || ''))
+}
+
 function templatesForClass(templates, classKey) {
   const key = String(classKey || '').trim()
-  return (Array.isArray(templates) ? templates : []).filter((template) => {
-    if (!template) return false
-    return !key || (template.classKey || '') === key
+  const bySignature = new Map()
+  ;(Array.isArray(templates) ? templates : []).forEach((template) => {
+    if (!template || (key && (template.classKey || '') !== key)) return
+    const signature = communityTemplateSignature(template)
+    const previous = bySignature.get(signature)
+    if (!previous || compareCommunityTemplateQuality(template, previous) < 0) {
+      bySignature.set(signature, template)
+    }
   })
+  return Array.from(bySignature.values()).sort(compareCommunityTemplateQuality)
 }
 
 function communityTemplateApplyMode(template) {
@@ -451,7 +521,7 @@ function defaultTreeSections() {
 
 function pointRequirementProgress(node, nodes, talentRanks, baseTalentRanks) {
   const requirement = pointRequirementFor(node)
-  const available = talentPurchasedPoints(treeKeyFor(node), nodes, talentRanks, baseTalentRanks, [node.id])
+  const available = pointsAvailableForRequirement(node, nodes, talentRanks, baseTalentRanks, [node.id])
   return {
     available,
     remaining: Math.max(0, requirement - available),

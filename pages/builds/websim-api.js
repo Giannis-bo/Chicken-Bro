@@ -64,10 +64,17 @@ function fallbackWebsimGear(params) {
     replacementCandidates: [],
     readiness: {
       fullReady: false,
+      itemLevel: { key: 'itemLevel', label: '装备等级', value: '0', rawValue: 0 },
       warnings: ['backend unavailable']
     },
     statSnapshot: fallbackWebsimGearStats(options),
     gearSchemaRevision: 'websim-gear-simulator-v1',
+    gearCatalogRevision: 'websim-gear-catalog-v1',
+    catalogStatus: 'blocked',
+    itemDatabaseRevision: '',
+    variantRevision: '',
+    catalogCheckedAt: '',
+    catalogBlockers: ['backend unavailable'],
     maxLevel: 0,
     checkedAt: '',
     dataStatus: 'blocked'
@@ -86,8 +93,10 @@ function fallbackWebsimGearStats(params) {
     secondary: [],
     armor: null,
     weaponDps: null,
+    itemLevel: { key: 'itemLevel', label: '装备等级', value: '0', rawValue: 0 },
     gearReadiness: {
       fullReady: false,
+      itemLevel: { key: 'itemLevel', label: '装备等级', value: '0', rawValue: 0 },
       warnings: ['backend unavailable']
     },
     talentEncoding: {

@@ -33,6 +33,13 @@ const gearTemplateScenarios = [
   { key: 'mythic_plus', title: '大秘境' },
   { key: 'raid', title: '团本' }
 ]
+const gearCandidateFilters = [
+  { key: 'recommended', label: '推荐' },
+  { key: 'all', label: '全部' },
+  { key: 'dungeon', label: '地下城' },
+  { key: 'raid', label: '团本' },
+  { key: 'crafted', label: '制造' }
+]
 
 function showToast(title) {
   if (typeof wx !== 'undefined' && typeof wx.showToast === 'function') {
@@ -59,6 +66,7 @@ function defaultGearStatSnapshot(message) {
     secondary: [],
     armor: null,
     weaponDps: null,
+    itemLevel: { key: 'itemLevel', label: '装备等级', value: '0', rawValue: 0 },
     maxLevel: 0,
     checkedAt: ''
   }
@@ -222,6 +230,7 @@ function gearCandidateKey(item, slot, index) {
   return [
     item.slot || slot,
     itemId,
+    item.variantKey || item.defaultVariantKey || '',
     item.ilevel || '',
     item.bonus_id || '',
     item.gem_id || '',
@@ -230,6 +239,195 @@ function gearCandidateKey(item, slot, index) {
     item.enchant_id || '',
     item.crafted_stats || ''
   ].join('-')
+}
+
+function gearCandidateSources(item) {
+  return item && Array.isArray(item.sources) ? item.sources : []
+}
+
+function gearCandidateSourceLabel(item) {
+  const sources = gearCandidateSources(item)
+  if (sources.length) return sources[0].label || sources[0].sourceLabel || ''
+  return (item && (item.source || item.sourceName || item.encounterName || item.instanceName)) || ''
+}
+
+function gearCandidateSourceType(item) {
+  const sources = gearCandidateSources(item)
+  const sourceType = (sources[0] && sources[0].sourceType) || (item && item.sourceType) || ''
+  const normalized = String(sourceType || '').toLowerCase()
+  if (normalized.includes('raid')) return 'raid'
+  if (normalized.includes('craft')) return 'crafted'
+  if (normalized.includes('dungeon') || normalized.includes('loot')) return 'dungeon'
+  return normalized || 'other'
+}
+
+function gearCandidateMatchesFilter(item, filterKey) {
+  if (!filterKey || filterKey === 'all') return true
+  if (filterKey === 'recommended') {
+    return Number(item.recommendationScore || 0) > 0 || !!item.selected || !!item.simcReady
+  }
+  return gearCandidateSourceType(item) === filterKey
+}
+
+function gearOptionKey(option, index) {
+  return (option && (option.id || option.key || option.name)) || `option-${index}`
+}
+
+function decorateVariantOptions(candidate, selectedKey) {
+  const variants = Array.isArray(candidate && candidate.variants) ? candidate.variants : []
+  return variants.map((variant, index) => {
+    const key = variant.key || variant.variantKey || `variant-${index}`
+    return {
+      ...variant,
+      key,
+      selected: key === selectedKey,
+      statusClass: gearStatusClass(variant.status || 'partial')
+    }
+  })
+}
+
+function decorateModOptions(options, selectedId) {
+  return (Array.isArray(options) ? options : []).map((option, index) => {
+    const id = gearOptionKey(option, index)
+    return {
+      ...option,
+      id,
+      selected: id === selectedId,
+      statusClass: gearStatusClass(option.status || 'partial')
+    }
+  })
+}
+
+function candidateVariant(candidate, variantKey) {
+  const variants = Array.isArray(candidate && candidate.variants) ? candidate.variants : []
+  if (!variants.length) return null
+  const defaultKey = variantKey || candidate.defaultVariantKey || candidate.variantKey || variants[0].key || variants[0].variantKey
+  return variants.find((variant) => (variant.key || variant.variantKey) === defaultKey) || variants[0]
+}
+
+function selectedGearModOption(options, selectedId) {
+  const normalized = Array.isArray(options) ? options : []
+  if (!normalized.length || !selectedId) return null
+  return normalized.find((option, index) => gearOptionKey(option, index) === selectedId) || null
+}
+
+function applySimcOptions(target, options) {
+  Object.keys(options || {}).forEach((key) => {
+    const value = options[key]
+    if (value !== undefined && value !== null && value !== '') {
+      target[key] = value
+    }
+  })
+}
+
+function appliedGearCandidate(candidate, variantKey, socketOptionId, enchantOptionId) {
+  if (!candidate) return null
+  const variant = candidateVariant(candidate, variantKey)
+  const socket = selectedGearModOption(candidate.socketOptions, socketOptionId)
+  const enchant = selectedGearModOption(candidate.enchantOptions, enchantOptionId)
+  const selected = {
+    ...candidate,
+    selected: undefined,
+    statusClass: undefined,
+    statusLabel: undefined,
+    reason: undefined
+  }
+  if (variant) {
+    selected.variantKey = variant.key || variant.variantKey || ''
+    selected.variantLabel = variant.label || ''
+    selected.difficultyKey = variant.difficultyKey || selected.difficultyKey || ''
+    selected.sourceType = variant.sourceType || selected.sourceType || ''
+    if (variant.itemLevel || variant.ilevel) selected.ilevel = variant.itemLevel || variant.ilevel
+    applySimcOptions(selected, variant.simcOptions)
+  }
+  if (socket) {
+    selected.socketOptionId = socket.id
+    selected.socketOptionLabel = socket.name || socket.label || ''
+    applySimcOptions(selected, socket.simcOptions)
+  }
+  if (enchant) {
+    selected.enchantOptionId = enchant.id
+    selected.enchantOptionLabel = enchant.name || enchant.label || ''
+    applySimcOptions(selected, enchant.simcOptions)
+  }
+  const hasSimcMod = !!(selected.bonus_id || selected.gem_id || selected.enchant_id || selected.crafted_stats)
+  selected.simcReady = !!(selected.slot && (selected.itemId || selected.id) && selected.ilevel && hasSimcMod)
+  selected.missingFields = selected.simcReady ? [] : [
+    !selected.ilevel ? 'ilevel' : '',
+    !hasSimcMod ? 'bonus_id/gem_id/enchant_id' : ''
+  ].filter(Boolean)
+  return selected
+}
+
+function gearModSummary(item) {
+  const parts = []
+  if (item && item.socketOptionLabel) parts.push(item.socketOptionLabel)
+  if (item && item.enchantOptionLabel) parts.push(item.enchantOptionLabel)
+  return parts.join(' / ')
+}
+
+function emptyGearSlotSheet() {
+  return {
+    visible: false,
+    slot: '',
+    label: '',
+    item: null,
+    filterKey: 'recommended',
+    filters: gearCandidateFilters,
+    candidates: [],
+    allCandidates: [],
+    selectedCandidateIndex: 0,
+    activeCandidate: null,
+    appliedCandidate: null,
+    variantKey: '',
+    socketOptionId: '',
+    enchantOptionId: '',
+    variantOptions: [],
+    socketOptions: [],
+    enchantOptions: []
+  }
+}
+
+function buildGearSlotSheet(slot, row, allCandidates, options) {
+  const config = options || {}
+  const filterKey = config.filterKey || 'recommended'
+  const filtered = allCandidates.filter((item) => gearCandidateMatchesFilter(item, filterKey))
+  const candidates = filtered.length || filterKey === 'all' ? filtered : allCandidates
+  const selectedCandidateIndex = Math.max(0, Math.min(Number(config.candidateIndex) || 0, Math.max(candidates.length - 1, 0)))
+  const activeCandidate = candidates[selectedCandidateIndex] || null
+  const defaultVariant = candidateVariant(activeCandidate, config.variantKey)
+  const variantKey = (defaultVariant && (defaultVariant.key || defaultVariant.variantKey)) || ''
+  const socketOptionId = config.socketOptionId || ''
+  const enchantOptionId = config.enchantOptionId || ''
+  const appliedCandidate = appliedGearCandidate(activeCandidate, variantKey, socketOptionId, enchantOptionId)
+  return {
+    visible: true,
+    slot,
+    label: (row && row.label) || slot,
+    item: row,
+    filterKey,
+    filters: gearCandidateFilters.map((filter) => ({
+      ...filter,
+      active: filter.key === filterKey,
+      count: filter.key === 'all'
+        ? allCandidates.length
+        : allCandidates.filter((item) => gearCandidateMatchesFilter(item, filter.key)).length
+    })),
+    candidates: candidates.map((candidate, index) => ({
+      ...candidate,
+      selected: index === selectedCandidateIndex
+    })),
+    allCandidates,
+    selectedCandidateIndex,
+    activeCandidate,
+    appliedCandidate,
+    variantKey,
+    socketOptionId,
+    enchantOptionId,
+    variantOptions: decorateVariantOptions(activeCandidate, variantKey),
+    socketOptions: decorateModOptions(activeCandidate && activeCandidate.socketOptions, socketOptionId),
+    enchantOptions: decorateModOptions(activeCandidate && activeCandidate.enchantOptions, enchantOptionId)
+  }
 }
 
 function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
@@ -253,12 +451,16 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
       slot: item.slot || slot,
       displayName: itemDisplayName(item),
       iconUrl: item.iconUrl || '',
+      source: gearCandidateSourceLabel(item),
+      sourceType: gearCandidateSourceType(item),
+      variantLabel: item.variantLabel || '',
+      modSummary: gearModSummary(item),
       statusLabel: gearStatusLabel(item.simcReady ? 'verified' : (missingFields.length ? 'partial' : 'blocked')),
       statusClass: gearStatusClass(item.simcReady ? 'verified' : (missingFields.length ? 'partial' : 'blocked')),
       reason: item.simcReady ? '可写入 SimC profile' : (missingFields.length ? `缺 ${missingFields.join(' / ')}` : '缺 SimC 字段'),
       selected: !!isSelected
     }, 'gear-candidate')
-  }).filter(Boolean).slice(0, 12)
+  }).filter(Boolean)
 }
 
 function buildGearSlotRows(payload, selectedGearBySlot) {
@@ -278,8 +480,10 @@ function buildGearSlotRows(payload, selectedGearBySlot) {
       iconUrl: item.iconUrl || '',
       itemId: item.itemId || item.id || '',
       ilevel: item.ilevel || '',
-      source: item.source || '',
+      source: gearCandidateSourceLabel(item),
       sourceType: item.sourceType || '',
+      variantLabel: item.variantLabel || '',
+      modSummary: gearModSummary(item),
       status,
       statusLabel: gearStatusLabel(status),
       statusClass: gearStatusClass(status),
@@ -429,13 +633,7 @@ Page({
     gearTemplateSaving: false,
     gearRequestError: '',
     gearSelectionKey: '',
-    gearSlotSheet: {
-      visible: false,
-      slot: '',
-      label: '',
-      item: null,
-      candidates: []
-    },
+    gearSlotSheet: emptyGearSlotSheet(),
     fromFallback: true,
     requestError: ''
   },
@@ -548,13 +746,7 @@ Page({
       gearLoading: true,
       gearRequestError: '',
       gearSelectionKey: selectionKey,
-      gearSlotSheet: {
-        visible: false,
-        slot: '',
-        label: '',
-        item: null,
-        candidates: []
-      }
+      gearSlotSheet: emptyGearSlotSheet()
     })
     requestWebsimGear(keys).then(({ payload, error }) => {
       if (this.data.gearSelectionKey !== selectionKey) return
@@ -593,7 +785,7 @@ Page({
     const talentImport = (this.data.talentSimulatorState && this.data.talentSimulatorState.importCode) || ''
     const scenario = gearScenarioAt(this.data.selectedGearTemplateScenarioIndex)
     this.setData({ gearStatsLoading: true })
-    requestWebsimGearStats({
+    return requestWebsimGearStats({
       classKey: keys.classKey,
       specKey: keys.specKey,
       talents: talentImport,
@@ -686,46 +878,98 @@ Page({
     const row = (this.data.gearSlotRows || []).find((item) => item.slot === slot) || {}
     const candidates = buildGearCandidateRows(slot, this.data.gearPayload || {}, this.data.selectedGearBySlot || {})
     this.setData({
-      gearSlotSheet: {
-        visible: true,
-        slot,
-        label: row.label || slot,
-        item: row,
-        candidates
-      }
+      gearSlotSheet: buildGearSlotSheet(slot, row, candidates, { filterKey: 'recommended' })
     })
   },
 
   closeGearSlotSheet() {
     this.setData({
-      gearSlotSheet: {
-        visible: false,
-        slot: '',
-        label: '',
-        item: null,
-        candidates: []
-      }
+      gearSlotSheet: emptyGearSlotSheet()
+    })
+  },
+
+  setGearCandidateFilter(event) {
+    const filterKey = event.currentTarget.dataset.key || 'all'
+    const sheet = this.data.gearSlotSheet || {}
+    if (!sheet.slot) return
+    this.setData({
+      gearSlotSheet: buildGearSlotSheet(sheet.slot, sheet.item || {}, sheet.allCandidates || sheet.candidates || [], {
+        filterKey,
+        candidateIndex: 0
+      })
     })
   },
 
   selectGearCandidate(event) {
     const index = Number(event.currentTarget.dataset.index || 0)
-    const slot = this.data.gearSlotSheet.slot || event.currentTarget.dataset.slot || ''
-    const candidate = (this.data.gearSlotSheet.candidates || [])[index]
-    if (!slot || !candidate) return
+    const sheet = this.data.gearSlotSheet || {}
+    if (!sheet.slot) return
+    this.setData({
+      gearSlotSheet: buildGearSlotSheet(sheet.slot, sheet.item || {}, sheet.allCandidates || sheet.candidates || [], {
+        filterKey: sheet.filterKey || 'all',
+        candidateIndex: index
+      })
+    })
+  },
+
+  selectGearVariant(event) {
+    const key = event.currentTarget.dataset.key || ''
+    const sheet = this.data.gearSlotSheet || {}
+    if (!sheet.slot) return
+    this.setData({
+      gearSlotSheet: buildGearSlotSheet(sheet.slot, sheet.item || {}, sheet.allCandidates || sheet.candidates || [], {
+        filterKey: sheet.filterKey || 'all',
+        candidateIndex: sheet.selectedCandidateIndex || 0,
+        variantKey: key,
+        socketOptionId: sheet.socketOptionId || '',
+        enchantOptionId: sheet.enchantOptionId || ''
+      })
+    })
+  },
+
+  selectGearSocketOption(event) {
+    const id = event.currentTarget.dataset.id || ''
+    const sheet = this.data.gearSlotSheet || {}
+    if (!sheet.slot) return
+    this.setData({
+      gearSlotSheet: buildGearSlotSheet(sheet.slot, sheet.item || {}, sheet.allCandidates || sheet.candidates || [], {
+        filterKey: sheet.filterKey || 'all',
+        candidateIndex: sheet.selectedCandidateIndex || 0,
+        variantKey: sheet.variantKey || '',
+        socketOptionId: id,
+        enchantOptionId: sheet.enchantOptionId || ''
+      })
+    })
+  },
+
+  selectGearEnchantOption(event) {
+    const id = event.currentTarget.dataset.id || ''
+    const sheet = this.data.gearSlotSheet || {}
+    if (!sheet.slot) return
+    this.setData({
+      gearSlotSheet: buildGearSlotSheet(sheet.slot, sheet.item || {}, sheet.allCandidates || sheet.candidates || [], {
+        filterKey: sheet.filterKey || 'all',
+        candidateIndex: sheet.selectedCandidateIndex || 0,
+        variantKey: sheet.variantKey || '',
+        socketOptionId: sheet.socketOptionId || '',
+        enchantOptionId: id
+      })
+    })
+  },
+
+  applyGearCandidate() {
+    const sheet = this.data.gearSlotSheet || {}
+    const slot = sheet.slot || ''
+    const candidate = sheet.appliedCandidate || appliedGearCandidate(sheet.activeCandidate, sheet.variantKey, sheet.socketOptionId, sheet.enchantOptionId)
+    if (!slot || !candidate) return Promise.resolve()
     const selectedGearBySlot = {
       ...(this.data.selectedGearBySlot || {}),
-      [slot]: {
-        ...candidate,
-        selected: undefined,
-        statusClass: undefined,
-        statusLabel: undefined,
-        reason: undefined
-      }
+      [slot]: candidate
     }
     trackEvent('builds_gear_candidate_select', {
       gearSlot: slot,
       itemId: candidate.itemId || candidate.id || '',
+      variantKey: candidate.variantKey || '',
       simcReady: !!candidate.simcReady,
       specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
     }, { page: 'pages/builds/detail' })
@@ -735,15 +979,9 @@ Page({
     })
     this.setData({
       ...derivedState,
-      gearSlotSheet: {
-        visible: false,
-        slot: '',
-        label: '',
-        item: null,
-        candidates: []
-      }
+      gearSlotSheet: emptyGearSlotSheet()
     })
-    this.refreshGearStats()
+    return this.refreshGearStats() || Promise.resolve()
   },
 
   selectGearTemplateScenario(event) {

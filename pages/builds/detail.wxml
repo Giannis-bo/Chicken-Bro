@@ -65,29 +65,17 @@
       </view>
 
       <view class="module-panel gear-panel" wx:if="{{activeQueryKey == 'gear'}}">
-        <view class="panel-header">
-          <text class="panel-title">装备模拟</text>
-          <text class="panel-subtitle">查看满级属性、替换装备并校验 SimC-ready 状态</text>
-        </view>
-
-        <view class="gear-status-strip">
-          <text>{{gearPayload.maxLevel ? '满级 ' + gearPayload.maxLevel : '满级配置待返回'}}</text>
-          <text>{{gearReadiness.fullReady ? '装备 ready' : '装备待补齐'}}</text>
-          <text>{{gearStatsLoading ? '属性刷新中' : gearStatSnapshot.statStatus}}</text>
-        </view>
-
-        <view class="gear-template-actions">
-          <picker mode="selector" range="{{gearTemplateScenarios}}" range-key="title" value="{{selectedGearTemplateScenarioIndex}}" bindchange="selectGearTemplateScenario">
-            <view class="gear-template-picker">场景：{{gearTemplateScenarios[selectedGearTemplateScenarioIndex] ? gearTemplateScenarios[selectedGearTemplateScenarioIndex].title : '未选择'}}</view>
-          </picker>
-          <button class="gear-template-save-button" loading="{{gearTemplateSaving}}" bindtap="saveGearTemplate">保存装备模板</button>
-        </view>
-
         <view class="gear-stat-panel">
           <view class="gear-stat-state {{gearStatSnapshot.statStatus == 'verified' ? 'verified' : 'blocked'}}">
             <view class="gear-stat-heading">
               <text class="gear-stat-title">{{gearStatStatusText}}</text>
               <text class="gear-stat-note">{{gearStatSnapshot.checkedAt}}</text>
+            </view>
+            <view class="gear-stat-grid gear-stat-summary-grid" wx:if="{{gearStatSnapshot.itemLevel}}">
+              <view class="gear-stat-cell">
+                <text class="gear-stat-label">{{gearStatSnapshot.itemLevel.label}}</text>
+                <text class="gear-stat-value">{{gearStatSnapshot.itemLevel.value}}</text>
+              </view>
             </view>
             <view wx:if="{{gearStatSnapshot.statStatus == 'verified'}}" class="gear-stat-grid">
               <view class="gear-stat-cell" wx:if="{{gearStatSnapshot.primary}}">
@@ -132,6 +120,8 @@
               <view class="gear-copy">
                 <text class="gear-name">{{item.displayName}}</text>
                 <text class="gear-source">{{item.ilevel ? '装等 ' + item.ilevel : item.reason}}</text>
+                <text class="gear-source" wx:if="{{item.source}}">{{item.source}}</text>
+                <text class="gear-source" wx:if="{{item.modSummary}}">{{item.modSummary}}</text>
               </view>
             </view>
             <view class="gear-slot-footer">
@@ -147,6 +137,10 @@
 
         <view class="insight-list">
           <text class="insight-item" wx:for="{{activeDetail.items}}" wx:key="*this">{{item}}</text>
+        </view>
+
+        <view class="gear-template-actions">
+          <button class="gear-template-save-button" loading="{{gearTemplateSaving}}" bindtap="saveGearTemplate">保存装备模板</button>
         </view>
       </view>
 
@@ -242,6 +236,12 @@
       </view>
       <button class="gear-sheet-close" bindtap="closeGearSlotSheet">关闭</button>
     </view>
+    <view class="gear-sheet-filter-row">
+      <view class="gear-sheet-filter {{item.active ? 'active' : ''}}" wx:for="{{gearSlotSheet.filters}}" wx:key="key" data-key="{{item.key}}" bindtap="setGearCandidateFilter">
+        <text>{{item.label}}</text>
+        <text class="gear-sheet-filter-count">{{item.count}}</text>
+      </view>
+    </view>
     <view class="gear-candidate-list">
       <view class="gear-candidate-row {{item.selected ? 'selected' : ''}}" wx:for="{{gearSlotSheet.candidates}}" wx:for-index="candidateIndex" wx:key="key" data-index="{{candidateIndex}}" data-slot="{{gearSlotSheet.slot}}" bindtap="selectGearCandidate">
         <view class="gear-icon-frame {{item.statusClass}}">
@@ -257,6 +257,38 @@
           <text>{{item.ilevel ? '装等 ' + item.ilevel : item.itemId}}</text>
         </view>
       </view>
+    </view>
+    <view class="gear-sheet-config" wx:if="{{gearSlotSheet.activeCandidate}}">
+      <view class="gear-sheet-active">
+        <text class="gear-sheet-active-name">{{gearSlotSheet.activeCandidate.displayName}}</text>
+        <text class="gear-sheet-active-source">{{gearSlotSheet.activeCandidate.source || gearSlotSheet.activeCandidate.reason}}</text>
+      </view>
+      <view class="gear-variant-section" wx:if="{{gearSlotSheet.variantOptions.length}}">
+        <text class="gear-sheet-section-title">难度 / 装等</text>
+        <view class="gear-variant-list">
+          <view class="gear-variant-chip {{item.selected ? 'active' : ''}} {{item.statusClass}}" wx:for="{{gearSlotSheet.variantOptions}}" wx:key="key" data-key="{{item.key}}" bindtap="selectGearVariant">
+            <text>{{item.label}}</text>
+            <text>{{item.itemLevel || item.ilevel}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="gear-mod-section" wx:if="{{gearSlotSheet.socketOptions.length}}">
+        <text class="gear-sheet-section-title">珠宝插槽</text>
+        <view class="gear-mod-list">
+          <view class="gear-mod-option {{item.selected ? 'active' : ''}} {{item.statusClass}}" wx:for="{{gearSlotSheet.socketOptions}}" wx:key="id" data-id="{{item.id}}" bindtap="selectGearSocketOption">
+            <text>{{item.name || item.label}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="gear-mod-section" wx:if="{{gearSlotSheet.enchantOptions.length}}">
+        <text class="gear-sheet-section-title">附魔</text>
+        <view class="gear-mod-list">
+          <view class="gear-mod-option {{item.selected ? 'active' : ''}} {{item.statusClass}}" wx:for="{{gearSlotSheet.enchantOptions}}" wx:key="id" data-id="{{item.id}}" bindtap="selectGearEnchantOption">
+            <text>{{item.name || item.label}}</text>
+          </view>
+        </view>
+      </view>
+      <button class="gear-apply-button" bindtap="applyGearCandidate">应用到该部位</button>
     </view>
   </view>
 </view>

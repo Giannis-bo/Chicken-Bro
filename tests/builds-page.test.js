@@ -612,10 +612,13 @@ test('native talent simulator page exposes community template import sheet', () 
   assert.match(wxml, /item\.keyLabel/)
   assert.match(wxml, /item\.updatedLabel/)
   assert.match(wxml, /item\.canApplyVisual/)
+  assert.match(wxml, /class="template-apply-row"/)
   assert.match(wxml, /bindtap="applyCommunityTemplate"/)
   assert.match(css, /\.community-template-sheet/)
   assert.match(css, /\.community-template-card/)
   assert.match(css, /\.community-template-card\.external/)
+  assert.match(css, /\.template-apply-row\s*\{[\s\S]*display:\s*flex;[\s\S]*justify-content:\s*center;[\s\S]*\}/)
+  assert.match(css, /\.template-apply-button\s*\{[\s\S]*width:\s*300rpx;[\s\S]*max-width:\s*100%;[\s\S]*margin:\s*0;[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;[\s\S]*line-height:\s*1;[\s\S]*\}/)
 })
 
 test('native talent simulator keeps rendering if the class template helper is not exported yet', () => {
@@ -660,6 +663,78 @@ test('native talent simulator keeps rendering if the class template helper is no
 
   assert.doesNotThrow(() => pageConfig.renderTalentView.call(page))
   assert.deepEqual(page.data.activeCommunityTemplates.map((item) => item.id), ['mage-template'])
+})
+
+test('native talent simulator filters duplicate community talent trees', () => {
+  const { pageConfig } = loadTalentSimulatorPageConfig()
+  const lowerTemplate = {
+    id: 'rio-frost-low',
+    classKey: 'mage',
+    specKey: 'frost',
+    heroKey: 'frostfire',
+    name: 'Same build +18',
+    canApplyVisual: true,
+    websimExportCode: 'websim:mage:frost:frostfire:root:1,ice:2',
+    talentState: {
+      selectedNodes: [
+        { id: 'ice', rank: 2 },
+        { id: 'root', rank: 1 }
+      ]
+    },
+    sampleCount: 60,
+    maxKeyLevel: 18
+  }
+  const strongerTemplate = {
+    ...lowerTemplate,
+    id: 'rio-frost-high',
+    name: 'Same build +24',
+    sampleCount: 42,
+    maxKeyLevel: 24
+  }
+  const distinctTemplate = {
+    id: 'rio-frost-other',
+    classKey: 'mage',
+    specKey: 'frost',
+    heroKey: 'frostfire',
+    name: 'Different build',
+    canApplyVisual: true,
+    websimExportCode: 'websim:mage:frost:frostfire:root:1,bolt:1',
+    talentState: {
+      selectedNodes: [
+        { id: 'bolt', rank: 1 },
+        { id: 'root', rank: 1 }
+      ]
+    },
+    sampleCount: 20,
+    maxKeyLevel: 20
+  }
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      activeTreeKey: 'class',
+      classKey: 'mage',
+      specKey: 'frost',
+      heroKey: 'frostfire',
+      nodes: [{ id: 'root', treeType: 'class', row: 1, col: 1, maxRank: 1, granted: true }],
+      treeSections: [{ key: 'class', title: 'Class', tree: 'class', pointCap: 1 }],
+      talentRanks: { root: 1 },
+      baseTalentRanks: { root: 1 },
+      pointCaps: { class: 1 },
+      communityTemplates: [lowerTemplate, distinctTemplate, strongerTemplate],
+      communityTemplateSync: { sourceStatus: 'synced', sources: {}, templates: { total: 3, verified: 3, blocked: 0 } },
+      scenarioOptions: [{ key: 'mythic_plus', title: 'Mythic+' }],
+      selectedScenarioIndex: 0
+    },
+    setData(update, callback) {
+      this.data = { ...this.data, ...update }
+      if (callback) callback()
+    }
+  }
+
+  pageConfig.renderTalentView.call(page)
+
+  assert.deepEqual(page.data.activeCommunityTemplates.map((item) => item.id), ['rio-frost-high', 'rio-frost-other'])
 })
 
 test('native talent simulator applies cross-spec community templates after switching target tree', async () => {
@@ -755,6 +830,11 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(js, /refreshGearStats/)
   assert.match(js, /openGearSlotSheet\(event\)/)
   assert.match(js, /selectGearCandidate\(event\)/)
+  assert.match(js, /setGearCandidateFilter\(event\)/)
+  assert.match(js, /selectGearVariant\(event\)/)
+  assert.match(js, /selectGearSocketOption\(event\)/)
+  assert.match(js, /selectGearEnchantOption\(event\)/)
+  assert.match(js, /applyGearCandidate\(\)/)
   assert.match(js, /gearTemplateScenarios/)
   assert.match(js, /selectGearTemplateScenario\(event\)/)
   assert.doesNotMatch(js, /scenarioKey:\s*'single'/)
@@ -763,8 +843,8 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(js, /saveGearTemplate\(\)/)
   assert.match(js, /canonicalGearTemplateLines/)
   assert.match(js, /syncBuildTemplate/)
-  assert.match(wxml, />装备模拟</)
-  assert.match(wxml, /查看满级属性、替换装备并校验 SimC-ready 状态/)
+  assert.doesNotMatch(wxml, /class="gear-status-strip"/)
+  assert.doesNotMatch(wxml, /class="gear-template-picker"/)
   assert.match(wxml, /class="gear-stat-panel"/)
   assert.match(wxml, /gearStatSnapshot\.statStatus/)
   assert.match(wxml, /gearStatBlockers/)
@@ -775,17 +855,28 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.doesNotMatch(wxml, /item\.iconUrl/)
   assert.match(wxml, /item\.displayName/)
   assert.match(wxml, /item\.statusLabel/)
+  assert.match(wxml, /gearStatSnapshot\.itemLevel\.value/)
   assert.match(wxml, /bindtap="openGearSlotSheet"/)
   assert.match(wxml, /gearSlotSheet\.visible/)
+  assert.match(wxml, /gearSlotSheet\.filters/)
   assert.match(wxml, /wx:for="\{\{gearSlotSheet\.candidates\}\}"/)
   assert.match(wxml, /bindtap="selectGearCandidate"/)
-  assert.match(wxml, /range="\{\{gearTemplateScenarios\}\}"/)
-  assert.match(wxml, /bindchange="selectGearTemplateScenario"/)
+  assert.match(wxml, /gearSlotSheet\.variantOptions/)
+  assert.match(wxml, /gearSlotSheet\.socketOptions/)
+  assert.match(wxml, /gearSlotSheet\.enchantOptions/)
+  assert.match(wxml, /bindtap="selectGearVariant"/)
+  assert.match(wxml, /bindtap="selectGearSocketOption"/)
+  assert.match(wxml, /bindtap="selectGearEnchantOption"/)
+  assert.match(wxml, /bindtap="applyGearCandidate"/)
   assert.match(wxml, /bindtap="saveGearTemplate"/)
+  assert.ok(wxml.indexOf('bindtap="saveGearTemplate"') > wxml.indexOf('class="gear-slot-grid"'))
   assert.match(css, /\.gear-stat-panel/)
   assert.match(css, /\.gear-slot-grid/)
   assert.match(css, /\.gear-slot-card/)
   assert.match(css, /\.gear-slot-sheet/)
+  assert.match(css, /\.gear-sheet-filter/)
+  assert.match(css, /\.gear-variant-chip/)
+  assert.match(css, /\.gear-mod-option/)
   assert.match(css, /\.gear-template-actions/)
 })
 
@@ -838,6 +929,95 @@ test('gear slot candidate count matches selectable deduped equipment rows', () =
   assert.equal(page.data.gearSlotRows[0].candidateCount, page.data.gearSlotSheet.candidates.length)
   assert.equal(page.data.gearSlotRows[0].gameAsset.iconUrl, item.iconUrl)
   assert.equal(page.data.gearSlotSheet.candidates[0].gameAsset.iconUrl, item.iconUrl)
+})
+
+test('gear slot sheet applies variant socket and enchant fields into selected gear', async () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const item = {
+    slot: 'head',
+    simcSlot: 'head',
+    itemId: '250777',
+    id: '250777',
+    displayName: 'Catalog Hood',
+    sourceType: 'raid',
+    sources: [{ label: 'Vault Mage - Arcane Vault', sourceType: 'raid' }],
+    defaultVariantKey: 'heroic-707',
+    variants: [
+      {
+        key: 'heroic-707',
+        label: 'Heroic 707',
+        itemLevel: 707,
+        simcOptions: { bonus_id: '12345' },
+        status: 'verified'
+      },
+      {
+        key: 'mythic-710',
+        label: 'Mythic 710',
+        itemLevel: 710,
+        simcOptions: { bonus_id: '67890' },
+        status: 'verified'
+      }
+    ],
+    socketOptions: [{
+      id: 'socket-gem-240983',
+      name: 'Quick Gem',
+      simcOptions: { gem_id: '240983', gem_ilevel: '710' },
+      status: 'verified'
+    }],
+    enchantOptions: [{
+      id: 'enchant-8017',
+      name: 'Radiant Enchant',
+      simcOptions: { enchant_id: '8017' },
+      status: 'verified'
+    }],
+    simcReady: true
+  }
+  const gearPayload = {
+    slots: [{ slot: 'head', simcSlot: 'head', label: 'Head' }],
+    replacementCandidates: [{
+      slot: 'head',
+      simcSlot: 'head',
+      label: 'Head',
+      items: [item]
+    }],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: {},
+    statSnapshot: { statStatus: 'blocked', blockers: [] }
+  }
+  let refreshCalls = 0
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    },
+    refreshGearStats() {
+      refreshCalls += 1
+      return Promise.resolve()
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+  pageConfig.selectGearVariant.call(page, { currentTarget: { dataset: { key: 'mythic-710' } } })
+  pageConfig.selectGearSocketOption.call(page, { currentTarget: { dataset: { id: 'socket-gem-240983' } } })
+  pageConfig.selectGearEnchantOption.call(page, { currentTarget: { dataset: { id: 'enchant-8017' } } })
+  await pageConfig.applyGearCandidate.call(page)
+
+  const selected = page.data.selectedGearBySlot.head
+  assert.equal(selected.variantKey, 'mythic-710')
+  assert.equal(selected.ilevel, 710)
+  assert.equal(selected.bonus_id, '67890')
+  assert.equal(selected.gem_id, '240983')
+  assert.equal(selected.gem_ilevel, '710')
+  assert.equal(selected.enchant_id, '8017')
+  assert.equal(page.data.gearSlotSheet.visible, false)
+  assert.equal(refreshCalls, 1)
 })
 
 test('simc linkage derives talent and gear state from full specialization details', () => {

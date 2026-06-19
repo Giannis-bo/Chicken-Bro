@@ -116,6 +116,35 @@ test('talent rank helper enforces parents point gates and point caps', () => {
   assert.equal(result.talentRanks.child, 1)
 })
 
+test('hero tree point gates count the granted root talent', () => {
+  const nodes = [
+    { id: 'hero-root', name: 'Hero Root', tree: 'hero', treeType: 'hero', row: 1, col: 2, maxRank: 1, granted: true },
+    { id: 'hero-child', name: 'Hero Child', tree: 'hero', treeType: 'hero', row: 2, col: 1, maxRank: 1, parentIds: ['hero-root'], requiredPoints: 1 }
+  ]
+  const rankState = core.initialTalentRanks(nodes, { pointCaps: { hero: 13 } })
+  const viewModel = core.buildTalentViewModel({
+    nodes,
+    treeSections: [{ key: 'hero', title: 'Hero', tree: 'hero', pointCap: 13 }],
+    talentRanks: rankState.talentRanks,
+    baseTalentRanks: rankState.baseTalentRanks,
+    pointCaps: rankState.pointCaps
+  })
+  const child = viewModel.sections[0].nodes.find((node) => node.id === 'hero-child')
+
+  assert.equal(child.canSelect, true)
+  assert.equal(child.lockReason, '')
+
+  const selected = core.adjustTalentRank({
+    nodes,
+    talentRanks: rankState.talentRanks,
+    baseTalentRanks: rankState.baseTalentRanks,
+    pointCaps: rankState.pointCaps
+  }, 'hero-child', 1)
+
+  assert.equal(selected.changed, true)
+  assert.equal(selected.talentRanks['hero-child'], 1)
+})
+
 test('talent dependencies treat multiple parents as any by default and support explicit all mode', () => {
   const nodes = sampleNodes()
   let rankState = core.initialTalentRanks(nodes)
