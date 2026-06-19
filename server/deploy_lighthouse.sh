@@ -440,6 +440,8 @@ sudo chown -R "$(id -un):$(id -gn)" "${REMOTE_DIR}/server/data"
 sudo cp "${REMOTE_DIR}/server/wow-backend.service" "/etc/systemd/system/${SERVICE_NAME}.service"
 sudo cp "${REMOTE_DIR}/server/wow-websim-sync.service" "/etc/systemd/system/wow-websim-sync.service"
 sudo cp "${REMOTE_DIR}/server/wow-websim-sync.timer" "/etc/systemd/system/wow-websim-sync.timer"
+sudo cp "${REMOTE_DIR}/server/wow-stat-weights-sync.service" "/etc/systemd/system/wow-stat-weights-sync.service"
+sudo cp "${REMOTE_DIR}/server/wow-stat-weights-sync.timer" "/etc/systemd/system/wow-stat-weights-sync.timer"
 
 sudo tee /etc/nginx/sites-available/wow-backend >/dev/null <<'NGINX'
 server {
@@ -491,6 +493,10 @@ sudo systemctl enable --now wow-websim-sync.timer
 sudo systemctl stop wow-websim-sync.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-websim-sync.service >/dev/null 2>&1 || true
 sudo systemctl start --no-block wow-websim-sync.service || sudo journalctl -u wow-websim-sync.service -n 80 --no-pager
+sudo systemctl enable --now wow-stat-weights-sync.timer
+sudo systemctl stop wow-stat-weights-sync.service >/dev/null 2>&1 || true
+sudo systemctl reset-failed wow-stat-weights-sync.service >/dev/null 2>&1 || true
+sudo systemctl start --no-block wow-stat-weights-sync.service || sudo journalctl -u wow-stat-weights-sync.service -n 80 --no-pager
 sudo systemctl enable --now "${SERVICE_NAME}"
 sudo systemctl restart "${SERVICE_NAME}"
 sudo systemctl restart nginx

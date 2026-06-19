@@ -1596,6 +1596,202 @@ def normalize_analysis_request(payload):
     }
 
 
+def warcraftlogs_credentials_state():
+    has_v2_credentials = bool(
+        os.environ.get("WOW_WARCRAFTLOGS_CLIENT_ID", "").strip()
+        and os.environ.get("WOW_WARCRAFTLOGS_CLIENT_SECRET", "").strip()
+    )
+    if has_v2_credentials:
+        return {
+            "configured": True,
+            "mode": "v2_oauth",
+            "api": "warcraftlogs-v2-graphql",
+        }
+    if os.environ.get("WOW_WARCRAFTLOGS_API_KEY", "").strip():
+        return {
+            "configured": True,
+            "mode": "v1_api_key",
+            "api": "warcraftlogs-v1-rest",
+        }
+    return {
+        "configured": False,
+        "mode": "none",
+        "api": "warcraftlogs-v2-graphql",
+    }
+
+
+def wcl_credentials_configured():
+    return warcraftlogs_credentials_state()["configured"]
+
+
+def extract_wcl_reference(request_data):
+    parts = [
+        str((request_data or {}).get("wclUrl") or ""),
+        str((request_data or {}).get("prompt") or ""),
+        str((request_data or {}).get("question") or ""),
+    ]
+    text = "\n".join(part for part in parts if part)
+    url_match = re.search(r"https?://(?:www\.)?warcraftlogs\.com/reports/([A-Za-z0-9]+)[^\s<>\"]*", text)
+    code = ""
+    source_url = ""
+    if url_match:
+        code = url_match.group(1)
+        source_url = url_match.group(0).rstrip(".,)")
+    if not code:
+        code_match = re.search(r"\b(?:wcl|report)\s*[:#= ]\s*([A-Za-z0-9]{6,})\b", text, re.IGNORECASE)
+        if code_match:
+            code = code_match.group(1)
+    fight_id = ""
+    if source_url:
+        fight_match = re.search(r"(?:[?#&]|&amp;)fight=([A-Za-z0-9_-]+)", source_url)
+        if fight_match:
+            fight_id = fight_match.group(1)
+    return {
+        "reportCode": code,
+        "sourceUrl": source_url,
+        "fightId": fight_id,
+    }
+
+
+def build_wcl_log_evidence(request_data):
+    reference = extract_wcl_reference(request_data)
+    credential_state = warcraftlogs_credentials_state()
+    missing_inputs = []
+    if not reference["reportCode"]:
+        missing_inputs.append("wcl.report")
+        return {
+            "schemaRevision": "wcl-log-evidence-v1",
+            "status": "missing_input",
+            "sourceStatus": "missing_report",
+            "credentialMode": credential_state["mode"],
+            "api": credential_state["api"],
+            "reportCode": "",
+            "sourceUrl": reference["sourceUrl"],
+            "fightId": reference["fightId"],
+            "missingInputs": missing_inputs,
+            "evidenceRefs": ["wcl.report"],
+            "nextActions": [
+                "Paste a Warcraft Logs report URL or report code before requesting log analysis.",
+                "Include fight id, boss, difficulty, class, spec, and the question you want answered.",
+            ],
+        }
+    if not credential_state["configured"]:
+        missing_inputs.append("wcl.credentials")
+        return {
+            "schemaRevision": "wcl-log-evidence-v1",
+            "status": "blocked",
+            "sourceStatus": "missing_credentials",
+            "credentialMode": credential_state["mode"],
+            "api": credential_state["api"],
+            "reportCode": reference["reportCode"],
+            "sourceUrl": reference["sourceUrl"],
+            "fightId": reference["fightId"],
+            "missingInputs": missing_inputs,
+            "evidenceRefs": ["wcl.reportCode", "wcl.credentials"],
+            "nextActions": [
+                "Configure Warcraft Logs API credentials before fetching report events.",
+                "Do not infer rankings, parses, DPS, HPS, or cooldown mistakes until log evidence is fetched.",
+            ],
+        }
+    return {
+        "schemaRevision": "wcl-log-evidence-v1",
+        "status": "pending_fetch",
+        "sourceStatus": "credentials_configured",
+        "credentialMode": credential_state["mode"],
+        "api": credential_state["api"],
+        "reportCode": reference["reportCode"],
+        "sourceUrl": reference["sourceUrl"],
+        "fightId": reference["fightId"],
+        "missingInputs": ["wcl.graphql_fetch"],
+        "evidenceRefs": ["wcl.reportCode", "wcl.credentials"],
+        "nextActions": [
+            "Fetch Warcraft Logs report metadata and fight events through the credentialed Warcraft Logs API.",
+            "Extract deterministic evidence before allowing player ranking or rotation conclusions.",
+        ],
+    }
+
+
+def build_wcl_report(log_evidence):
+    source_status = (log_evidence or {}).get("sourceStatus") or "missing_report"
+    if source_status == "missing_report":
+        text = "No Warcraft Logs report was provided, so personal log analysis cannot start."
+    elif source_status == "missing_credentials":
+        text = "Warcraft Logs credentials are missing, so the backend cannot fetch report evidence yet."
+    else:
+        text = "Warcraft Logs report metadata is ready for a credentialed fetch, but no log evidence has been parsed yet."
+    return {
+        "schemaRevision": "wcl-report-v1",
+        "source": "deterministic_blocked" if source_status in {"missing_report", "missing_credentials"} else "deterministic_pending",
+        "topFindings": [
+            {
+                "text": text,
+                "evidenceRefs": list((log_evidence or {}).get("evidenceRefs") or ["wcl.report"]),
+            }
+        ],
+        "nextActions": list((log_evidence or {}).get("nextActions") or []),
+        "limitations": [
+            "No rankings, percentiles, DPS, HPS, casts, deaths, or cooldown conclusions are available until WCL evidence is fetched.",
+            "LLM output is disabled for this WCL bootstrap state to avoid inventing log facts.",
+        ],
+    }
+
+
+def build_wcl_stages(log_evidence):
+    source_status = (log_evidence or {}).get("sourceStatus") or "missing_report"
+    return [
+        {
+            "key": "wcl_report_input",
+            "title": "WCL report input",
+            "status": "completed" if (log_evidence or {}).get("reportCode") else "blocked",
+            "executor": "backend",
+            "summary": (log_evidence or {}).get("reportCode") or "missing report URL or code",
+        },
+        {
+            "key": "wcl_credentials",
+            "title": "WCL credentials",
+            "status": "completed" if source_status == "credentials_configured" else "blocked",
+            "executor": "backend",
+            "summary": source_status,
+        },
+        {
+            "key": "wcl_evidence",
+            "title": "WCL evidence fetch",
+            "status": "skipped",
+            "executor": "warcraftlogs",
+            "summary": "credentialed GraphQL fetch is not part of this bootstrap response",
+        },
+    ]
+
+
+def build_wcl_analysis_payload(request_data):
+    log_evidence = build_wcl_log_evidence(request_data)
+    report = build_wcl_report(log_evidence)
+    llm_result = skipped_llm_result("wcl log evidence unavailable")
+    status = "ready" if log_evidence["status"] == "pending_fetch" else "blocked"
+    return {
+        "mode": "wcl",
+        "status": status,
+        "createdAt": utc_now(),
+        "capabilities": {
+            "simcraft": bool(simc_binary()),
+            "llm": llm_configured(),
+            "wcl": wcl_credentials_configured(),
+        },
+        "request": request_data,
+        "stages": build_wcl_stages(log_evidence),
+        "logEvidence": log_evidence,
+        "report": report,
+        "recommendations": report["nextActions"][:3],
+        "llm": {
+            "prompt": "",
+            "called": llm_result["called"],
+            "model": llm_result.get("model", llm_model()),
+            "content": "",
+            "error": llm_result["error"],
+        },
+    }
+
+
 def build_llm_prompt(request_data, simulation):
     mythic_plus_reference = request_data.get("mythicPlusReference") if isinstance(request_data, dict) else None
     build_context = request_data.get("buildContext") if isinstance(request_data, dict) else None
@@ -1950,6 +2146,204 @@ def parse_simcraft_metrics(output):
     return metrics
 
 
+def add_allowed_number(allowed, key, value):
+    text = str(value or "").strip()
+    if key and text:
+        entry = {"key": key, "value": text}
+        if entry not in allowed:
+            allowed.append(entry)
+
+
+def build_allowed_numbers(request_data, simulation):
+    allowed = []
+    metrics = (simulation or {}).get("metrics") or {}
+    add_allowed_number(allowed, "simc.dps", metrics.get("dps"))
+    benchmark = (simulation or {}).get("benchmark") or {}
+    add_allowed_number(allowed, "simc.benchmark.simcDps", benchmark.get("simcDps"))
+    add_allowed_number(allowed, "simc.benchmark.ratioToAvg", benchmark.get("ratioToAvg"))
+    add_allowed_number(allowed, "reference.avgDps", benchmark.get("referenceAvgDps"))
+    add_allowed_number(allowed, "reference.maxDps", benchmark.get("referenceMaxDps"))
+    reference = (request_data or {}).get("mythicPlusReference") or {}
+    add_allowed_number(allowed, "reference.maxKey", reference.get("maxKey"))
+    add_allowed_number(allowed, "reference.avgDps", reference.get("avgDps"))
+    add_allowed_number(allowed, "reference.maxDps", reference.get("maxDps"))
+    return allowed
+
+
+def allowed_number_tokens(allowed_numbers):
+    tokens = set()
+    for entry in allowed_numbers or []:
+        value = str((entry or {}).get("value") or "").strip()
+        if not value:
+            continue
+        tokens.add(value)
+        tokens.add(value.replace(",", ""))
+        for match in re.finditer(r"\d+(?:\.\d+)?", value.replace(",", "")):
+            tokens.add(match.group(0))
+    return tokens
+
+
+def text_uses_only_allowed_numbers(text, allowed_numbers):
+    allowed = allowed_number_tokens(allowed_numbers)
+    for match in re.finditer(r"\d[\d,]*(?:\.\d+)?", str(text or "")):
+        token = match.group(0).replace(",", "")
+        if len(token.split(".", 1)[0]) < 4:
+            continue
+        if token not in allowed:
+            return False
+    return True
+
+
+def clean_report_text(value, limit=220):
+    text = re.sub(r"\s+", " ", str(value or "").strip())
+    return text[:limit]
+
+
+def list_text_values(values, limit=160, count=4):
+    if not isinstance(values, list):
+        return []
+    result = []
+    for value in values[:count]:
+        text = clean_report_text(value, limit)
+        if text:
+            result.append(text)
+    return result
+
+
+def deterministic_simc_report(request_data, simulation, recommendations, allowed_numbers, reason="fallback"):
+    metrics = (simulation or {}).get("metrics") or {}
+    benchmark = (simulation or {}).get("benchmark") or {}
+    findings = []
+    dps = str(metrics.get("dps") or "").strip()
+    if dps:
+        findings.append({
+            "text": f"SimC completed with DPS {dps}.",
+            "evidenceRefs": ["simc.dps"],
+        })
+    elif (simulation or {}).get("error"):
+        findings.append({
+            "text": "SimC did not produce a parseable DPS result.",
+            "evidenceRefs": ["simc.error"],
+        })
+    else:
+        findings.append({
+            "text": "No completed SimC DPS result is available for this request.",
+            "evidenceRefs": ["simc.runPolicy"],
+        })
+    if benchmark.get("summary"):
+        findings.append({
+            "text": clean_report_text(benchmark.get("summary")),
+            "evidenceRefs": ["simc.benchmark"],
+        })
+    actions = list_text_values(recommendations, count=3) or [
+        "Provide a complete /simc profile before treating DPS as a real baseline."
+    ]
+    return {
+        "schemaRevision": "simc-report-v1",
+        "source": "deterministic_fallback",
+        "fallbackReason": reason,
+        "topFindings": findings[:3],
+        "nextActions": actions,
+        "limitations": [
+            "Only numbers listed in allowedNumbers are treated as evidence.",
+            "LLM prose is explanatory and cannot create new numeric facts.",
+        ],
+    }
+
+
+def normalize_llm_report(llm_result, allowed_numbers):
+    payload = extract_json_object((llm_result or {}).get("content") or "")
+    if not isinstance(payload, dict):
+        return None, "missing_schema_json"
+    raw_findings = payload.get("topFindings")
+    if not isinstance(raw_findings, list) or not raw_findings:
+        return None, "missing_top_findings"
+    findings = []
+    for item in raw_findings[:4]:
+        if not isinstance(item, dict):
+            return None, "invalid_finding"
+        text = clean_report_text(item.get("text"))
+        refs = item.get("evidenceRefs")
+        if not text or not isinstance(refs, list) or not refs:
+            return None, "missing_evidence_refs"
+        refs = [clean_report_text(ref, 80) for ref in refs if clean_report_text(ref, 80)]
+        if not refs:
+            return None, "missing_evidence_refs"
+        if not text_uses_only_allowed_numbers(text, allowed_numbers):
+            return None, "unsupported_number"
+        findings.append({"text": text, "evidenceRefs": refs[:5]})
+    next_actions = list_text_values(payload.get("nextActions"), count=5)
+    limitations = list_text_values(payload.get("limitations"), count=5)
+    for text in [item["text"] for item in findings] + next_actions + limitations:
+        if not text_uses_only_allowed_numbers(text, allowed_numbers):
+            return None, "unsupported_number"
+    return {
+        "schemaRevision": "simc-report-v1",
+        "source": "llm_schema",
+        "topFindings": findings,
+        "nextActions": next_actions,
+        "limitations": limitations,
+    }, ""
+
+
+def build_structured_report(request_data, simulation, llm_result, recommendations, allowed_numbers):
+    report, reason = normalize_llm_report(llm_result, allowed_numbers)
+    if report:
+        return report
+    return deterministic_simc_report(request_data, simulation, recommendations, allowed_numbers, reason)
+
+
+def build_run_policy(request_data, simulation, agent=None):
+    agent_status = (agent or {}).get("status", "")
+    validation = (agent or {}).get("validation") or {}
+    profile_source = (request_data or {}).get("profileSource") or "none"
+    did_run = bool((simulation or {}).get("ran"))
+    can_run = bool((request_data or {}).get("runSimulation") or did_run)
+    if agent_status == "template_ready":
+        policy = "confirm_only"
+    elif profile_source == "generated":
+        policy = "preview_only"
+    elif did_run:
+        policy = "full_simc"
+    elif can_run:
+        policy = "full_simc"
+    else:
+        policy = "blocked"
+    return {
+        "policy": policy,
+        "profileSource": profile_source,
+        "canRunSimc": can_run,
+        "didRunSimc": did_run,
+        "requiresFullProfile": profile_source in {"none", "generated"},
+        "validationPassed": bool(validation.get("passed", can_run or did_run)),
+        "reason": (simulation or {}).get("error") or agent_status or policy,
+    }
+
+
+def build_evidence_state(request_data, simulation, agent=None):
+    agent_status = (agent or {}).get("status", "")
+    metrics = (simulation or {}).get("metrics") or {}
+    if (simulation or {}).get("ran") and metrics.get("dps"):
+        phase = "report_ready"
+    elif agent_status in {"needs_clarification", "confirmation_failed"}:
+        phase = "clarifying"
+    elif agent_status == "template_ready":
+        phase = "ready_to_submit"
+    elif agent_status in {"template_invalid", "simc_failed", "off_topic"} or (simulation or {}).get("error"):
+        phase = "blocked"
+    elif (request_data or {}).get("profileSource") == "generated":
+        phase = "preview_only"
+    else:
+        phase = "collecting_evidence"
+    return {
+        "phase": phase,
+        "profileSource": (request_data or {}).get("profileSource") or "none",
+        "simcRan": bool((simulation or {}).get("ran")),
+        "hasDps": bool(metrics.get("dps")),
+        "blockers": ([str((simulation or {}).get("error"))] if (simulation or {}).get("error") else []),
+    }
+
+
 def apply_simulation_metric_metadata(request_data, simulation):
     if request_data.get("profileSource") == "generated":
         simulation["quality"] = "preview"
@@ -2142,6 +2536,8 @@ def build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_
             recommendations = ["需求、天赋和手选装备已确认，可以提交执行 SimC。"]
         else:
             recommendations = ["需求和 /simc 输入已确认，可以提交执行 SimC。"]
+    allowed_numbers = build_allowed_numbers(request_data, simulation)
+    report = build_structured_report(request_data, simulation, llm_result, recommendations, allowed_numbers)
     return {
         "mode": "simcraft_agent",
         "status": "ready",
@@ -2155,6 +2551,10 @@ def build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_
         "agent": agent,
         "stages": stages,
         "simulation": simulation,
+        "evidenceState": build_evidence_state(request_data, simulation, agent),
+        "runPolicy": build_run_policy(request_data, simulation, agent),
+        "allowedNumbers": allowed_numbers,
+        "report": report,
         "mythicPlusReference": request_data.get("mythicPlusReference"),
         "codex": codex_result,
         "recommendations": recommendations,
@@ -2174,6 +2574,8 @@ def analyze_simulator_request(payload, codex_runner=None):
         return analyze_simc_agent_request(source, codex_runner=codex_runner)
 
     request_data = normalize_analysis_request(payload)
+    if request_data["mode"] == "wcl":
+        return build_wcl_analysis_payload(request_data)
     scenario = infer_simc_agent_scenario(request_data["question"] or request_data["prompt"])
     request_data["mythicPlusReference"] = build_mythic_plus_reference(request_data["profile"], scenario)
     if request_data["runSimulation"]:
@@ -2194,6 +2596,9 @@ def analyze_simulator_request(payload, codex_runner=None):
     guarded_llm_content = build_guarded_llm_content(request_data, simulation, llm_result)
     codex_result = call_codex_worker(request_data, simulation, codex_runner=codex_runner)
     stages = build_pipeline_stages(request_data, simulation, llm_result)
+    recommendations = heuristic_recommendations(request_data, simulation)
+    allowed_numbers = build_allowed_numbers(request_data, simulation)
+    report = build_structured_report(request_data, simulation, llm_result, recommendations, allowed_numbers)
 
     return {
         "mode": request_data["mode"],
@@ -2207,9 +2612,13 @@ def analyze_simulator_request(payload, codex_runner=None):
         "request": request_data,
         "stages": stages,
         "simulation": simulation,
+        "evidenceState": build_evidence_state(request_data, simulation),
+        "runPolicy": build_run_policy(request_data, simulation),
+        "allowedNumbers": allowed_numbers,
+        "report": report,
         "mythicPlusReference": request_data.get("mythicPlusReference"),
         "codex": codex_result,
-        "recommendations": heuristic_recommendations(request_data, simulation),
+        "recommendations": recommendations,
         "llm": {
             "prompt": prompt,
             "called": llm_result["called"],

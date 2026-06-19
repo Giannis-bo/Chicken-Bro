@@ -71,8 +71,8 @@
           <view class="tree-progress-fill" style="{{activeSection.progressStyle}}"></view>
         </view>
         <view class="{{activeSection.gridClass}}">
-          <view class="talent-link" wx:for="{{activeSection.links}}" wx:key="to" style="{{item.lineStyle}}"></view>
-          <view class="{{item.nodeClass}}" wx:for="{{activeSection.nodes}}" wx:key="id" style="{{item.nodeStyle}}" data-id="{{item.id}}" bindtap="tapTalentNode" bindlongpress="openNodeDetail">
+          <view class="talent-link" wx:for="{{activeSection.links}}" wx:key="renderKey" style="{{item.lineStyle}}"></view>
+          <view class="{{item.nodeClass}}" wx:for="{{activeSection.nodes}}" wx:key="renderKey" style="{{item.nodeStyle}}" data-id="{{item.id}}" bindtap="tapTalentNode" bindlongpress="openNodeDetail">
             <image wx:if="{{item.gameAsset.iconUrl}}" class="talent-icon" src="{{item.gameAsset.iconUrl}}" mode="aspectFill"></image>
             <text wx:else class="talent-icon-fallback">{{item.gameAsset.fallbackText}}</text>
             <text class="talent-rank">{{item.rankLabel}}</text>

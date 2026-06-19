@@ -30,6 +30,19 @@
           <text class="section-action">{{latestAnalysis.mode}}</text>
         </view>
         <view class="task-list">
+          <view class="task-card wcl-evidence-card" wx:if="{{latestAnalysis.logEvidence}}">
+            <text class="task-title">WCL 证据状态</text>
+            <view class="wcl-evidence-grid">
+              <text>来源：{{latestAnalysis.logEvidence.sourceStatus}}</text>
+              <text>报告：{{latestAnalysis.logEvidence.reportCode || '未提供'}}</text>
+              <text>战斗：{{latestAnalysis.logEvidence.fightId || '待确认'}}</text>
+            </view>
+          </view>
+          <view class="task-card wcl-report-finding" wx:for="{{latestAnalysis.report.topFindings}}" wx:key="text">
+            <text class="task-title">报告结论</text>
+            <text class="task-desc" user-select="{{true}}">{{item.text}}</text>
+            <text class="wcl-evidence-refs" user-select="{{true}}">{{item.evidenceRefs}}</text>
+          </view>
           <view class="task-card ai-advice-card" wx:if="{{latestAnalysis.llm && latestAnalysis.llm.content}}">
             <text class="task-title">AI 建议</text>
             <text class="task-desc ai-advice-text" user-select="{{true}}">{{latestAnalysis.llm.content}}</text>

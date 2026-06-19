@@ -65,11 +65,20 @@ WOW_NEWS_PORT=8787 python3 server/news_backend.py
 - `POST /api/news/refresh?mode=scheduled`
 - `GET /api/news/list`
 - `GET /api/news/article?id=...`
+- `GET /api/data/health`
 - `GET /api/builds/home`
 - `GET /api/builds/intel`
 - `GET /api/builds/detail?id=法师-冰霜`
 - `GET /api/pve/home`
 - `GET /api/pve/module?key=bossGuides`
+- `POST /api/auth/wechat-login`
+- `POST /api/me/profile`
+- `GET /api/me/build-templates?type=talent`
+- `POST /api/me/build-templates`
+- `DELETE /api/me/build-templates?id=...`
+
+账号写接口统一使用 Bearer token。小程序 API client 在明文 HTTP + auth 场景会拒绝发送 token 并回退到本地数据；个人模板会先写入本地 `wow_build_templates_v1`，只有 HTTPS/合法域名可用时才同步到 `/api/me/build-templates`。
+
 - `GET /api/simulator/home`
 - `POST /api/simulator/analyze`
 - `GET /api/simulator/tasks?guest=1`
@@ -79,6 +88,8 @@ WOW_NEWS_PORT=8787 python3 server/news_backend.py
 
 资讯详情公共 payload 只发布同时满足 `contentStatus=ready`、`licenseStatus=approved`、`verificationStatus=official_verified`、`translationStatus=llm`、`translationFidelity=source_translation`、`sourceTier=official` 的文章：中文标题为主，保留 `originalTitle` 作为原题副标题，正文仅使用 `bodyBlocksZh` 块级渲染，tag 使用 `tagItems` 中文 chip，`sourceBadges` 与来源信息一并保留，公共 API 不返回原文正文。自动采集首版优先覆盖 Blizzard 官方文章；Wowhead / Icy Veins 等第三方来源未确认授权前只做 reference-only 发现/佐证，不进入公共 payload；正文抓取、LLM 逐块直译、授权门禁、官方校验或质检失败时记录在 refresh run 中，不发布给前端。
 
+SimC 分析返回 `evidenceState`、`runPolicy`、`allowedNumbers` 和结构化 `report`；LLM 报告只能引用 allowedNumbers 内的数字，否则回退后端 deterministic report。WCL 分析当前只完成 report URL/code/fight 解析和缺凭据阻断；没有 `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET` 时返回 `blocked/missing_credentials`，不会调用 LLM 伪造日志结论。
+
 LLM 和 SimCraft 由服务器环境控制：
 
 - `WOW_LLM_API_URL`：OpenAI-compatible chat completions endpoint。
@@ -87,6 +98,8 @@ LLM 和 SimCraft 由服务器环境控制：
 - `WOW_BLIZZARD_CLIENT_ID` / `WOW_BLIZZARD_CLIENT_SECRET`：Battle.net API client credentials，仅放服务器；缺失时 WebSim 赛季、装备和天赋数据会进入 `blocked` 状态，不展示可能过期的副本池。
 - `WOW_BLIZZARD_REGION`：默认 `us`。
 - `WOW_BLIZZARD_LOCALE`：默认 `zh_CN`；`WOW_BLIZZARD_LOCALES` 默认 `zh_CN,zh_TW,en_US`，用于官方中文优先、本地化缺失时回退。
+- `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET`：Warcraft Logs v2 API credentials；缺失时 WCL 分析和 data health 明确标为 `missing_credentials`。
+- `WOW_WARCRAFTLOGS_API_KEY`：Warcraft Logs v1 API key；可作为 v1 REST 凭据被 health/WCL 启动层识别，但完整日志 GraphQL 抽取仍需要后续实现或 v2 OAuth 凭据。
 - `WOW_SIMC_BIN`：默认 `/opt/wow-simc/current/simc`，部署脚本会从官方源码构建 CLI。
 - `WOW_SIMC_VERSION_FILE`：默认 `/var/lib/wow-backend/simc-version.json`，由定时任务写入当前镜像 tag 与最新 tag。
 - `WOW_CODEX_BIN`：默认 `/usr/local/bin/codex`，用于低频 Agent Worker。

@@ -209,6 +209,22 @@ test('talent view model returns three laid out trees selected nodes and search s
   assert.equal(viewModel.websimExportCode, 'websim:mage:frost:spellslinger:granted:1,granted-plus:1,hero-rank:2,parent:1')
 })
 
+test('talent view model provides unique render keys for duplicate node ids', () => {
+  const nodes = [
+    { id: 'duplicate', name: 'Duplicate A', tree: 'class', treeType: 'class', row: 1, col: 1 },
+    { id: 'duplicate', name: 'Duplicate B', tree: 'class', treeType: 'class', row: 2, col: 1, parentIds: ['duplicate'] }
+  ]
+  const viewModel = core.buildTalentViewModel({
+    nodes,
+    treeSections: [{ key: 'class', title: '职业天赋', tree: 'class' }]
+  })
+  const renderKeys = viewModel.sections[0].nodes.map((node) => node.renderKey)
+
+  assert.equal(new Set(renderKeys).size, renderKeys.length)
+  assert.equal(viewModel.sections[0].nodes[0].id, 'duplicate')
+  assert.ok(viewModel.sections[0].links.every((link) => link.renderKey))
+})
+
 test('community template helpers expose source status and scenario availability', () => {
   const templates = [
     {

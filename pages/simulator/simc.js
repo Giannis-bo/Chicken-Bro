@@ -1,4 +1,3 @@
-const { loginWithWechat } = require('../common/auth-client')
 const {
   requestSimulatorAnalysis
 } = require('./simulator-api')
@@ -282,44 +281,43 @@ Page({
       hasBuildContext: !!this.data.pendingBuildContext,
       specId: (this.data.pendingBuildContext && this.data.pendingBuildContext.specId) || ''
     }, { page: SIMC_PAGE_ROUTE })
-    loginWithWechat().catch(() => null).then(() => {
-      return requestSimulatorAnalysis({
-        mode: 'simcraft_agent',
-        message: this.data.confirmedPrompt,
-        prompt: this.data.confirmedPrompt,
-        round: this.data.conversationRound,
-        runSimulation: true,
-        saveTask: true,
-        buildContext: this.data.pendingBuildContext
-      }, { auth: true, allowInsecureGuestRequest: true })
-    }).then(({ payload, fromFallback, error }) => {
-      const saved = !!(payload && payload.taskId)
-      const agent = (payload && payload.agent) || {}
-      const request = (payload && payload.request) || {}
-      const simulation = (payload && payload.simulation) || {}
-      const buildContext = request.buildContext || this.data.pendingBuildContext || {}
-      trackEvent('simc_task_saved', {
-        saved,
-        taskId: (payload && payload.taskId) || '',
-        agentStatus: agent.status || '',
-        profileSource: request.profileSource || '',
-        specId: buildContext.specId || '',
-        scenarioKey: (buildContext.simulatorState && buildContext.simulatorState.talent && buildContext.simulatorState.talent.scenarioKey) || '',
-        simulationRan: !!simulation.ran
-      }, { page: SIMC_PAGE_ROUTE })
-      this.appendMessages([
+    requestSimulatorAnalysis({
+      mode: 'simcraft_agent',
+      message: this.data.confirmedPrompt,
+      prompt: this.data.confirmedPrompt,
+      round: this.data.conversationRound,
+      runSimulation: true,
+      saveTask: true,
+      buildContext: this.data.pendingBuildContext
+    }, { auth: true, allowInsecureGuestRequest: true })
+      .then(({ payload, fromFallback, error }) => {
+        const saved = !!(payload && payload.taskId)
+        const agent = (payload && payload.agent) || {}
+        const request = (payload && payload.request) || {}
+        const simulation = (payload && payload.simulation) || {}
+        const buildContext = request.buildContext || this.data.pendingBuildContext || {}
+        trackEvent('simc_task_saved', {
+          saved,
+          taskId: (payload && payload.taskId) || '',
+          agentStatus: agent.status || '',
+          profileSource: request.profileSource || '',
+          specId: buildContext.specId || '',
+          scenarioKey: (buildContext.simulatorState && buildContext.simulatorState.talent && buildContext.simulatorState.talent.scenarioKey) || '',
+          simulationRan: !!simulation.ran
+        }, { page: SIMC_PAGE_ROUTE })
+        this.appendMessages([
         { role: 'ai', text: saved ? '任务已提交，结果会保存到任务列表。' : '提交失败，未保存到任务列表。请稍后重试。' }
-      ], {
-        latestAnalysis: payload,
-        fromFallback,
-        requestError: error || '',
-        taskSubmitted: saved,
-        submittedTaskId: (payload && payload.taskId) || '',
-        canSubmitTask: !saved
-      })
+        ], {
+          latestAnalysis: payload,
+          fromFallback,
+          requestError: error || '',
+          taskSubmitted: saved,
+          submittedTaskId: (payload && payload.taskId) || '',
+          canSubmitTask: !saved
+        })
       wx.showToast({ title: saved ? '任务已提交' : '提交失败', icon: 'none' })
-    }).finally(() => {
-      this.setData({ submittingTask: false })
-    })
+      }).finally(() => {
+        this.setData({ submittingTask: false })
+      })
   }
 })

@@ -79,8 +79,9 @@ function defaultAnalysisModules() {
 
 function normalizeSimulatorHomePayload(payload) {
   const home = payload || fallbackSimulatorHome()
+  const { metrics, ...homeWithoutLegacyMetrics } = home
   return {
-    ...home,
+    ...homeWithoutLegacyMetrics,
     navTitle: '智能分析',
     title: home.title === 'SimC Agent 与构筑分析' ? '智能分析' : (home.title || '智能分析'),
     desc: home.desc || fallbackSimulatorHome().desc,
@@ -89,8 +90,7 @@ function normalizeSimulatorHomePayload(payload) {
       : defaultAnalysisModules(),
     quickActions: Array.isArray(home.quickActions) && home.quickActions.length
       ? home.quickActions
-      : fallbackSimulatorHome().quickActions,
-    metrics: undefined
+      : fallbackSimulatorHome().quickActions
   }
 }
 

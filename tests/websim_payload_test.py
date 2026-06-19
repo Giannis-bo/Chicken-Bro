@@ -1,9 +1,11 @@
 import json
 import io
+import gc
 import os
 import sqlite3
 import tempfile
 import threading
+import time
 import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -22,6 +24,7 @@ class WebSimPayloadTest(unittest.TestCase):
         os.environ.pop("WOW_RAIDERIO_API_KEY", None)
         os.environ.pop("WOW_WARCRAFTLOGS_CLIENT_ID", None)
         os.environ.pop("WOW_WARCRAFTLOGS_CLIENT_SECRET", None)
+        os.environ.pop("WOW_WARCRAFTLOGS_API_KEY", None)
         os.environ["WOW_WEBSIM_FETCH_SIMC_REMOTE"] = "0"
 
         import importlib
@@ -39,7 +42,15 @@ class WebSimPayloadTest(unittest.TestCase):
         os.environ.pop("WOW_SIMC_TRAIT_DATA_FILE", None)
         os.environ.pop("WOW_SIMC_SPELLTEXT_DATA_FILE", None)
         os.environ.pop("WOW_SIMC_BIN", None)
-        self.tmp.cleanup()
+        for attempt in range(5):
+            try:
+                self.tmp.cleanup()
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                gc.collect()
+                time.sleep(0.1)
 
     def insert_websim_talent(
         self,
@@ -204,6 +215,7 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+            thread.join(timeout=2)
 
     def test_parse_simc_trait_data_into_nodes(self):
         sample = """
@@ -1823,6 +1835,7 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+            thread.join(timeout=2)
 
         executed_profile = captured_profile.read_text(encoding="utf-8")
         self.assertTrue(result["simulation"]["ran"])
@@ -1866,6 +1879,7 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+            thread.join(timeout=2)
 
         conn = sqlite3.connect(self.db_path)
         try:
@@ -1911,6 +1925,7 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+            thread.join(timeout=2)
 
         executed_profile = captured_profile.read_text(encoding="utf-8")
         self.assertEqual(result["statStatus"], "verified")
@@ -2111,6 +2126,7 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+            thread.join(timeout=2)
 
         conn = sqlite3.connect(self.db_path)
         try:
@@ -2196,6 +2212,7 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+            thread.join(timeout=2)
 
     def test_sync_reports_missing_blizzard_credentials_without_failing_simc_cache(self):
         payload = self.websim_payload.sync_websim_cache(self.db_path, include_blizzard=True)
@@ -2386,6 +2403,7 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+            thread.join(timeout=2)
 
     def test_websim_static_response_rejects_prefix_sibling_traversal(self):
         root = Path(self.tmp.name) / "websim"

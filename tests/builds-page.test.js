@@ -50,8 +50,8 @@ function loadBuildsDetailPageConfig() {
       }
       if (modulePath === '../common/build-template-storage') {
         return {
-          saveBuildTemplate() {
-            return {}
+          syncBuildTemplate() {
+            return Promise.resolve({ payload: { template: {} } })
           }
         }
       }
@@ -127,6 +127,10 @@ test('query detail page has module-specific UI sections', () => {
   assert.match(wxml, /class="gear-slot-grid"/)
   assert.match(wxml, /wx:if="\{\{activeQueryKey == 'statWeights'\}\}"/)
   assert.match(wxml, /class="stat-bars"/)
+  assert.match(wxml, /class="stat-scenario-tabs"/)
+  assert.match(wxml, /activeStatRows/)
+  assert.match(wxml, /statWeightValidation\.simcSuccessCount/)
+  assert.match(wxml, /statWeightRecommendations/)
   assert.match(wxml, /wx:if="\{\{activeQueryKey == 'rotation'\}\}"/)
   assert.match(wxml, /class="rotation-timeline"/)
 })
@@ -210,11 +214,36 @@ test('query detail page can pass current talent and gear context to simc', () =>
   assert.match(js, /selectedGearBySlot:\s*this\.data\.selectedGearBySlot/)
   assert.match(js, /statSnapshot:\s*this\.data\.gearStatSnapshot/)
   assert.match(js, /simcItems:\s*this\.data\.gearSimcItems/)
+  assert.match(js, /statWeights:\s*\{/)
+  assert.match(js, /weights:\s*this\.data\.activeStatRows/)
   assert.match(js, /wx\.setStorageSync\(SIMC_BUILD_CONTEXT_STORAGE_KEY/)
   assert.match(js, /\/pages\/simulator\/simc\?from=builds/)
   assert.match(js, /fail:\s*\(error\) =>/)
   assert.match(css, /\.simc-link-panel/)
   assert.match(css, /\.simc-link-button/)
+})
+
+test('stat weights detail page exposes scenario state without strong claim copy', () => {
+  const js = fs.readFileSync('pages/builds/detail.js', 'utf8')
+  const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
+  const css = fs.readFileSync('pages/builds/detail.wxss', 'utf8')
+
+  assert.match(js, /statWeightScenarios\(activeDetail\)/)
+  assert.match(js, /selectedStatWeightScenario/)
+  assert.match(js, /setStatWeightScenario\(event\)/)
+  assert.match(js, /builds_stat_weight_scenario_select/)
+  assert.match(wxml, /wx:for="\{\{statWeightScenarios\}\}"/)
+  assert.match(wxml, /bindtap="setStatWeightScenario"/)
+  assert.match(wxml, /class="stat-source-state/)
+  assert.match(wxml, /样本 \{\{statWeightValidation\.sampleCount/)
+  assert.match(wxml, /Profile \{\{statWeightValidation\.profileCount/)
+  assert.match(wxml, /SimC \{\{statWeightValidation\.simcSuccessCount/)
+  assert.match(wxml, /当前不输出强结论/)
+  assert.doesNotMatch(wxml, /最优|毕业|必堆/)
+  assert.match(css, /\.stat-scenario-tab\.active/)
+  assert.match(css, /\.stat-source-state\.verified/)
+  assert.match(css, /\.stat-blocked-list/)
+  assert.match(css, /\.stat-simc-button/)
 })
 
 test('native talent simulator page exposes WebSim tree controls and SimC handoff', () => {
@@ -236,7 +265,7 @@ test('native talent simulator page exposes WebSim tree controls and SimC handoff
   assert.match(js, /copyTalentExport\(\)/)
   assert.match(js, /openTalentSimc\(\)/)
   assert.match(js, /saveTalentTemplate\(\)/)
-  assert.match(js, /saveBuildTemplate/)
+  assert.match(js, /syncBuildTemplate/)
   assert.match(js, /SIMC_BUILD_CONTEXT_STORAGE_KEY/)
   assert.match(js, /talentEncoding\.lines/)
   assert.match(js, /activeTreeKey:\s*'class'/)
@@ -331,7 +360,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(js, /this\.refreshGearStats\(\)/)
   assert.match(js, /saveGearTemplate\(\)/)
   assert.match(js, /canonicalGearTemplateLines/)
-  assert.match(js, /saveBuildTemplate/)
+  assert.match(js, /syncBuildTemplate/)
   assert.match(wxml, />装备模拟</)
   assert.match(wxml, /查看满级属性、替换装备并校验 SimC-ready 状态/)
   assert.match(wxml, /class="gear-stat-panel"/)

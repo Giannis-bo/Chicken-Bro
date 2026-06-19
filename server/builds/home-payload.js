@@ -26,7 +26,7 @@ const queryTypes = [
 const trustedBuildSources = [
   {
     name: 'Raider.IO',
-    url: 'https://raider.io/mythic-plus-rankings/season-tww-3/all/world/leaderboards',
+    url: 'https://raider.io/mythic-plus-rankings/season-mn-1/all/cn/leaderboards',
     note: '高层大秘境队伍、角色分数、专精占比和路线样本。'
   },
   {

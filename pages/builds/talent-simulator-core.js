@@ -441,7 +441,7 @@ function buildTalentViewModel(options) {
     const nodeMap = new Map(sectionNodes.map((node) => [node.id, node]))
     const links = []
     let searchMatchCount = 0
-    const visualNodes = sectionNodes.map((node) => {
+    const visualNodes = sectionNodes.map((node, nodeIndex) => {
       const rank = rankFor(node, talentRanks, nodes, baseTalentRanks)
       const maxRank = maxRankFor(node)
       const reason = nodeReason(node, nodes, talentRanks, baseTalentRanks, pointCaps)
@@ -455,6 +455,7 @@ function buildTalentViewModel(options) {
       }
       return {
         ...node,
+        renderKey: `${key}:${node.id || 'node'}:${nodeIndex}`,
         tree: key,
         rank,
         maxRank,
@@ -476,7 +477,12 @@ function buildTalentViewModel(options) {
     sectionNodes.forEach((node) => {
       parentIdsFor(node).forEach((parentId) => {
         const parent = nodeMap.get(parentId)
-        if (parent) links.push(linkFor(parent, node, metrics))
+        if (parent) {
+          links.push({
+            ...linkFor(parent, node, metrics),
+            renderKey: `${key}:${parentId}:${node.id}:${links.length}`
+          })
+        }
       })
     })
     return {

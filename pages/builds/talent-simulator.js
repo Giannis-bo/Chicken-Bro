@@ -22,7 +22,7 @@ const {
   templatesForScenario
 } = require('./talent-simulator-core')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
-const { saveBuildTemplate } = require('../common/build-template-storage')
+const { syncBuildTemplate } = require('../common/build-template-storage')
 const { attachGameAsset } = require('../common/game-asset')
 
 const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
@@ -780,7 +780,7 @@ Page({
       const talentEncoding = (profilePayload && profilePayload.talentEncoding) || { status: 'failed', lines: [] }
       const simcLines = Array.isArray(talentEncoding.lines) ? talentEncoding.lines : []
       const encodingStatus = talentEncoding.status || 'failed'
-      const saved = saveBuildTemplate({
+      return syncBuildTemplate({
         type: 'talent',
         title: talentTemplateTitle(
           selectedDetail.className || selectedSpec.className || '',
@@ -808,8 +808,9 @@ Page({
           encodingErrors: talentEncoding.errors || [],
           summary: talentSummary(this.data.selectedNodes || [], scenario)
         }
+      }).then(({ payload }) => {
+        safeToast(payload && payload.template ? '天赋模板已保存' : '天赋模板保存失败')
       })
-      safeToast(saved ? '天赋模板已保存' : '天赋模板保存失败')
     }).catch((error) => {
       safeToast((error && error.message) || '天赋模板保存失败')
     }).finally(() => {

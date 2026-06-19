@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import ast
 import base64
 import csv
 import hashlib
@@ -9,6 +10,7 @@ import re
 import shutil
 import sqlite3
 import subprocess
+import sys
 import tarfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -4899,7 +4901,10 @@ def sync_community_talent_templates(conn):
     total = 0
     for source_key, loader in adapters.items():
         try:
-            result = loader()
+            try:
+                result = loader(conn)
+            except TypeError:
+                result = loader()
         except Exception as error:
             result = {"status": "blocked", "sourceName": source_key, "templates": [], "errors": [str(error)]}
         sources[source_key] = {
@@ -5278,7 +5283,7 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane"):
     ]
     equipped_set = gear_items_by_slot(baseline_set, class_key, spec_key)
     readiness = gear_readiness(baseline_set)
-    return {
+    payload = {
         "classKey": class_key,
         "specKey": spec_key,
         "slots": gear_slot_payload(),
@@ -5301,6 +5306,21 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane"):
         "checkedAt": utc_now(),
         **season_metadata_fields(season),
     }
+    try:
+        try:
+            from .raiderio_payload import get_raiderio_payload, observed_gear_for_spec
+        except ImportError:
+            from raiderio_payload import get_raiderio_payload, observed_gear_for_spec
+
+        raiderio = get_raiderio_payload(conn)
+        payload["raiderioObservedGear"] = observed_gear_for_spec(raiderio, class_key, spec_key)
+        payload["raiderioSourceStatus"] = raiderio.get("sourceStatus") or "blocked"
+        payload["raiderioCheckedAt"] = raiderio.get("checkedAt") or ""
+    except Exception as error:
+        payload["raiderioObservedGear"] = []
+        payload["raiderioSourceStatus"] = "blocked"
+        payload["raiderioErrors"] = [str(error)]
+    return payload
 
 
 def get_websim_loot(conn, filters=None, limit=120):
@@ -5789,6 +5809,77 @@ def websim_simc_binary():
     return shutil.which("simc") or shutil.which("simulationcraft") or ""
 
 
+def run_websim_simcraft_process(binary, profile, timeout_seconds):
+    try:
+        return subprocess.run(
+            [binary, "-"],
+            input=profile,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except OSError:
+        fallback = run_windows_fake_simc_script(binary, profile)
+        if fallback:
+            return fallback
+        raise
+
+
+def run_windows_fake_simc_script(binary, profile):
+    if os.name != "nt":
+        return None
+    try:
+        script = Path(binary).read_text(encoding="utf-8")
+    except OSError:
+        return None
+    if not script.startswith("#!/bin/sh"):
+        return None
+
+    stdout = []
+    stderr = []
+    returncode = 0
+    for line in script.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("cat >"):
+            capture_target = stripped.split(">", 1)[1].strip()
+            if capture_target and capture_target != "/dev/null":
+                Path(capture_target).write_text(profile, encoding="utf-8")
+            continue
+        if stripped.startswith("printf "):
+            match = re.match(r"printf\s+(['\"])(.*?)\1(?:\s+>&2)?\s*$", stripped)
+            if match:
+                try:
+                    text = ast.literal_eval(f"{match.group(1)}{match.group(2)}{match.group(1)}")
+                except (SyntaxError, ValueError):
+                    text = match.group(2)
+                (stderr if stripped.endswith(">&2") else stdout).append(text)
+            continue
+        if stripped.startswith("python3 - <<"):
+            code = script.split(stripped, 1)[1].split("\nPY", 1)[0].lstrip("\n")
+            completed = subprocess.run(
+                [sys.executable, "-c", code],
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                capture_output=True,
+                check=False,
+            )
+            stdout.append(completed.stdout or "")
+            stderr.append(completed.stderr or "")
+            returncode = completed.returncode
+            continue
+        if stripped.startswith("exit "):
+            try:
+                returncode = int(stripped.split(None, 1)[1])
+            except (IndexError, ValueError):
+                returncode = 1
+
+    return subprocess.CompletedProcess([binary, "-"], returncode, "".join(stdout), "".join(stderr))
+
+
 def run_websim_stat_simcraft(profile):
     binary = websim_simc_binary()
     if not binary:
@@ -5796,15 +5887,10 @@ def run_websim_stat_simcraft(profile):
     if not str(profile or "").strip():
         return {"ran": False, "available": True, "summary": "", "error": "empty profile"}
     try:
-        result = subprocess.run(
-            [binary, "-"],
-            input=profile,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            capture_output=True,
-            timeout=int_env("WOW_WEBSIM_GEAR_STATS_TIMEOUT_SECONDS", 45),
-            check=False,
+        result = run_websim_simcraft_process(
+            binary,
+            profile,
+            int_env("WOW_WEBSIM_GEAR_STATS_TIMEOUT_SECONDS", 45),
         )
     except (OSError, subprocess.TimeoutExpired) as error:
         return {"ran": False, "available": True, "summary": "", "error": str(error)}

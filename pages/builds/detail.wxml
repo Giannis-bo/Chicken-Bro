@@ -153,10 +153,28 @@
       <view class="module-panel stats-panel" wx:if="{{activeQueryKey == 'statWeights'}}">
         <view class="panel-header">
           <text class="panel-title">{{activeDetail.title}}</text>
-          <text class="panel-subtitle">属性优先级、权重趋势和适用边界</text>
+          <text class="panel-subtitle">按 M+ 场景查看 Raider.IO 样本 + SimC scale factors 的参考方向</text>
         </view>
-        <view class="stat-bars">
-          <view class="stat-row" wx:for="{{activeDetail.stats}}" wx:key="name">
+        <view class="stat-scenario-tabs" wx:if="{{statWeightScenarios.length > 1}}">
+          <view class="stat-scenario-tab {{activeStatWeightScenarioKey == item.scenarioKey ? 'active' : ''}}" wx:for="{{statWeightScenarios}}" wx:key="scenarioKey" data-key="{{item.scenarioKey}}" bindtap="setStatWeightScenario">
+            <text class="stat-scenario-title">{{item.scenarioLabel || item.scenarioTitle}}</text>
+            <text class="stat-scenario-status">{{item.sourceStatus}}</text>
+          </view>
+        </view>
+        <view class="stat-source-state {{activeStatWeightScenario.sourceStatus}}">
+          <view class="stat-source-topline">
+            <text class="stat-source-badge">{{statWeightStatusLabel}}</text>
+            <text class="stat-source-scenario">{{activeStatWeightScenario.scenarioTitle}}</text>
+          </view>
+          <text class="stat-source-meta">{{activeStatWeightScenario.analysisWindow}}</text>
+          <view class="stat-validation-grid">
+            <text>样本 {{statWeightValidation.sampleCount || 0}}</text>
+            <text>Profile {{statWeightValidation.profileCount || 0}}</text>
+            <text>SimC {{statWeightValidation.simcSuccessCount || 0}}</text>
+          </view>
+        </view>
+        <view class="stat-bars" wx:if="{{activeStatRows.length}}">
+          <view class="stat-row {{item.kind == 'primary' ? 'primary' : ''}}" wx:for="{{activeStatRows}}" wx:key="key">
             <view class="stat-copy">
               <text class="stat-name">{{item.name}}</text>
               <text class="stat-value">{{item.value}}</text>
@@ -166,6 +184,17 @@
             </view>
           </view>
         </view>
+        <view class="stat-blocked-list" wx:if="{{!activeStatRows.length || statWeightBlockers.length}}">
+          <text class="stat-blocked-title">当前不输出强结论</text>
+          <text class="stat-blocked-item" wx:for="{{statWeightBlockers}}" wx:key="*this">{{item}}</text>
+        </view>
+        <view class="stat-advice-list" wx:if="{{statWeightRecommendations.length || statWeightWarnings.length}}">
+          <text class="stat-advice-title" wx:if="{{statWeightRecommendations.length}}">中文建议</text>
+          <text class="stat-advice-item" wx:for="{{statWeightRecommendations}}" wx:key="*this">{{item}}</text>
+          <text class="stat-advice-title warning" wx:if="{{statWeightWarnings.length}}">边界提示</text>
+          <text class="stat-advice-item warning" wx:for="{{statWeightWarnings}}" wx:key="*this">{{item}}</text>
+        </view>
+        <button class="stat-simc-button" bindtap="openSimcWithBuildContext">带当前构筑去 SimC</button>
         <view class="insight-list">
           <text class="insight-item" wx:for="{{activeDetail.items}}" wx:key="*this">{{item}}</text>
         </view>

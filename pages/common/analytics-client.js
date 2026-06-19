@@ -10,6 +10,7 @@ const {
 const ANALYTICS_QUEUE_STORAGE_KEY = 'wow_analytics_event_queue'
 const MAX_QUEUE_SIZE = 200
 const MAX_BATCH_SIZE = 20
+const ANALYTICS_REQUEST_TIMEOUT_MS = 15000
 
 let flushing = false
 
@@ -91,7 +92,7 @@ function sendBatch(events) {
         events
       },
       header,
-      timeout: 5000,
+      timeout: ANALYTICS_REQUEST_TIMEOUT_MS,
       success: (res) => resolve(res.statusCode >= 200 && res.statusCode < 300),
       fail: () => resolve(false)
     })
@@ -135,6 +136,7 @@ function trackPageLeave(page, startedAt, properties) {
 
 module.exports = {
   ANALYTICS_QUEUE_STORAGE_KEY,
+  ANALYTICS_REQUEST_TIMEOUT_MS,
   MAX_QUEUE_SIZE,
   currentPageRoute,
   flushAnalyticsEvents,

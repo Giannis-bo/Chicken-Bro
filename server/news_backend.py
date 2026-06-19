@@ -30,15 +30,36 @@ try:
     )
     from .news_collector import canonical_article_key, collect_feed_articles, merge_articles
     from .news_translator import body_blocks_text, localize_article, normalize_body_blocks, visible_translation_issues
-    from .simulator_payload import analyze_simulator_request, build_simulator_home_payload
+    from .simulator_payload import (
+        analyze_simulator_request,
+        build_simulator_home_payload,
+        warcraftlogs_credentials_state,
+    )
+    from .raiderio_payload import (
+        enrich_builds_detail_payload as enrich_raiderio_builds_detail_payload,
+        enrich_builds_home_payload as enrich_raiderio_builds_home_payload,
+        enrich_builds_intel_payload as enrich_raiderio_builds_intel_payload,
+        enrich_game_season_payload,
+        enrich_pve_home_payload as enrich_raiderio_pve_home_payload,
+        enrich_pve_module_payload as enrich_raiderio_pve_module_payload,
+        get_raiderio_payload,
+        sync_raiderio_cache,
+    )
+    from .stat_weights_payload import (
+        enrich_builds_detail_stat_weights,
+        latest_stat_weight_run_payload,
+    )
     from .websim_payload import (
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
         build_websim_simulator_request,
+        community_talent_sync_state,
         enrich_build_gear_payload,
         ensure_websim_tables,
         export_talent_api_payload,
+        get_active_season_payload,
+        get_sync_state,
         get_websim_assets,
         get_websim_bootstrap,
         get_websim_gear,
@@ -62,15 +83,36 @@ except ImportError:
     )
     from news_collector import canonical_article_key, collect_feed_articles, merge_articles
     from news_translator import body_blocks_text, localize_article, normalize_body_blocks, visible_translation_issues
-    from simulator_payload import analyze_simulator_request, build_simulator_home_payload
+    from simulator_payload import (
+        analyze_simulator_request,
+        build_simulator_home_payload,
+        warcraftlogs_credentials_state,
+    )
+    from raiderio_payload import (
+        enrich_builds_detail_payload as enrich_raiderio_builds_detail_payload,
+        enrich_builds_home_payload as enrich_raiderio_builds_home_payload,
+        enrich_builds_intel_payload as enrich_raiderio_builds_intel_payload,
+        enrich_game_season_payload,
+        enrich_pve_home_payload as enrich_raiderio_pve_home_payload,
+        enrich_pve_module_payload as enrich_raiderio_pve_module_payload,
+        get_raiderio_payload,
+        sync_raiderio_cache,
+    )
+    from stat_weights_payload import (
+        enrich_builds_detail_stat_weights,
+        latest_stat_weight_run_payload,
+    )
     from websim_payload import (
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
         build_websim_simulator_request,
+        community_talent_sync_state,
         enrich_build_gear_payload,
         ensure_websim_tables,
         export_talent_api_payload,
+        get_active_season_payload,
+        get_sync_state,
         get_websim_assets,
         get_websim_bootstrap,
         get_websim_gear,
@@ -92,6 +134,12 @@ ENABLE_COLLECTORS = os.environ.get("WOW_NEWS_ENABLE_COLLECTORS", "0") == "1"
 PUBLIC_REFRESH_MODES = {"scheduled"}
 AUTH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
 GUEST_SIMULATOR_OPENID = "guest-simulator"
+BUILD_TEMPLATE_SCHEMA_VERSION = 1
+VALID_BUILD_TEMPLATE_TYPES = {"talent", "gear"}
+SCHEMA_MIGRATIONS = [
+    ("core_schema_v1", "Core news, auth, simulator, WebSim, and analytics tables are initialized."),
+    ("user_build_templates_v1", "Authenticated user build template sync table is initialized."),
+]
 
 CHANNELS = [
     {"id": "retail", "title": "正式服动态", "desc": "官方公告、热修、活动与正式服版本内容"},
@@ -176,6 +224,7 @@ def int_env(name, default):
 def db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA busy_timeout = 30000")
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
     try:
         yield conn
@@ -187,6 +236,7 @@ def db_connection():
 def init_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with db_connection() as conn:
+        ensure_schema_migrations(conn)
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS news_articles (
@@ -312,10 +362,77 @@ def init_db():
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_build_templates (
+                id TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                client_id TEXT NOT NULL DEFAULT '',
+                template_type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                class_key TEXT NOT NULL DEFAULT '',
+                class_name TEXT NOT NULL DEFAULT '',
+                spec_key TEXT NOT NULL DEFAULT '',
+                spec_name TEXT NOT NULL DEFAULT '',
+                hero_key TEXT NOT NULL DEFAULT '',
+                hero_label TEXT NOT NULL DEFAULT '',
+                scenario_key TEXT NOT NULL DEFAULT '',
+                scenario_title TEXT NOT NULL DEFAULT '',
+                raw_string TEXT NOT NULL,
+                simc_lines_json TEXT NOT NULL,
+                status TEXT NOT NULL,
+                status_label TEXT NOT NULL,
+                source TEXT NOT NULL,
+                metadata_json TEXT NOT NULL,
+                schema_version INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES wechat_users(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_user_build_templates_owner_raw
+            ON user_build_templates (user_id, template_type, raw_string)
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_user_build_templates_owner_updated
+            ON user_build_templates (user_id, updated_at DESC)
+            """
+        )
         ensure_auth_token_columns(conn)
         ensure_websim_tables(conn)
         ensure_analytics_tables(conn)
         prune_expired_auth_tokens(conn)
+        record_schema_migrations(conn)
+
+
+def ensure_schema_migrations(conn):
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            id TEXT PRIMARY KEY,
+            description TEXT NOT NULL,
+            applied_at TEXT NOT NULL
+        )
+        """
+    )
+
+
+def record_schema_migrations(conn):
+    now = utc_now()
+    for migration_id, description in SCHEMA_MIGRATIONS:
+        conn.execute(
+            """
+            INSERT INTO schema_migrations (id, description, applied_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET description = excluded.description
+            """,
+            (migration_id, description, now),
+        )
 
 
 def ensure_article_columns(conn):
@@ -868,6 +985,232 @@ def latest_refresh_run_payload():
     }
 
 
+DATA_HEALTH_STATUSES = ["verified", "partial", "stale", "blocked", "missing_credentials", "pending_official_audit"]
+
+
+def normalize_data_health_status(status):
+    value = str(status or "").strip().lower()
+    if value in DATA_HEALTH_STATUSES:
+        return value
+    if value in {"synced", "ok", "ready"}:
+        return "verified"
+    if value in {"source_reference", "reference_only", "simc", "llm_reused"}:
+        return "partial"
+    if value in {"not_configured", "missing_credential", "missing_credentials"}:
+        return "missing_credentials"
+    if value in {"pending_audit", "pending_official_audit", "official_pending"}:
+        return "pending_official_audit"
+    return "blocked"
+
+
+def redact_health_text(value):
+    text = str(value or "")
+    text = re.sub(r"(?i)(access[_-]?key|api[_-]?key|token|secret)=([^&\s]+)", r"\1=<redacted>", text)
+    text = re.sub(r"(?i)(Bearer\s+)[A-Za-z0-9._~+/=-]+", r"\1<redacted>", text)
+    return text
+
+
+def sanitize_health_value(value):
+    if isinstance(value, dict):
+        return {key: sanitize_health_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [sanitize_health_value(item) for item in value]
+    if isinstance(value, str):
+        return redact_health_text(value)
+    return value
+
+
+def data_health_component(key, title, status, *, checked_at="", details=None, blockers=None):
+    normalized_status = normalize_data_health_status(status)
+    return {
+        "key": key,
+        "title": title,
+        "status": normalized_status,
+        "checkedAt": checked_at or "",
+        "details": sanitize_health_value(details or {}),
+        "blockers": sanitize_health_value(blockers or []),
+    }
+
+
+def data_health_overall_status(components):
+    statuses = [component.get("status") for component in components]
+    if statuses and all(status == "verified" for status in statuses):
+        return "verified"
+    if any(status in {"verified", "partial", "stale", "pending_official_audit"} for status in statuses):
+        return "partial"
+    if any(status == "missing_credentials" for status in statuses):
+        return "missing_credentials"
+    return "blocked"
+
+
+def blizzard_api_health_component():
+    configured = bool(
+        (os.environ.get("WOW_BLIZZARD_CLIENT_ID") or os.environ.get("WOW_BNET_CLIENT_ID"))
+        and (os.environ.get("WOW_BLIZZARD_CLIENT_SECRET") or os.environ.get("WOW_BNET_CLIENT_SECRET"))
+    )
+    return data_health_component(
+        "blizzard_api",
+        "Battle.net Game Data API",
+        "pending_official_audit" if configured else "missing_credentials",
+        details={
+            "configured": configured,
+            "region": os.environ.get("WOW_BLIZZARD_REGION", "us"),
+            "locale": os.environ.get("WOW_BLIZZARD_LOCALE", "zh_CN"),
+        },
+        blockers=[] if configured else ["Battle.net credentials are not configured."],
+    )
+
+
+def warcraftlogs_api_health_component():
+    credentials = warcraftlogs_credentials_state()
+    return data_health_component(
+        "wcl_credentials",
+        "Warcraft Logs API credentials",
+        "partial" if credentials["configured"] else "missing_credentials",
+        details={
+            "configured": credentials["configured"],
+            "credentialMode": credentials["mode"],
+            "api": credentials["api"],
+        },
+        blockers=[] if credentials["configured"] else ["Warcraft Logs API credentials are not configured."],
+    )
+
+
+def news_health_component():
+    latest = latest_refresh_run_payload()
+    accepted = int(latest.get("acceptedCount") or 0)
+    blocked = int(latest.get("blockedArticleCount") or latest.get("rejectedCount") or 0)
+    errors = latest.get("sourceFetchErrors") or latest.get("collectorErrors") or []
+    if accepted and not blocked and not errors:
+        status = "verified"
+    elif accepted:
+        status = "partial"
+    else:
+        status = "blocked"
+    return data_health_component(
+        "news",
+        "News publication gates",
+        status,
+        checked_at=latest.get("refreshedAt") or "",
+        details={
+            "refreshMode": latest.get("refreshMode") or "",
+            "acceptedCount": accepted,
+            "blockedArticleCount": blocked,
+            "translationIssueCount": latest.get("translationIssueCount") or 0,
+            "verificationCounts": latest.get("verificationCounts") or {},
+        },
+        blockers=errors[:5],
+    )
+
+
+def build_data_health_payload():
+    init_db()
+    components = [
+        data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
+        news_health_component(),
+    ]
+    with db_connection() as conn:
+        raiderio = get_raiderio_payload(conn, allow_sync=False)
+        components.append(
+            data_health_component(
+                "raiderio",
+                "Raider.IO cache",
+                raiderio.get("sourceStatus") or raiderio.get("status"),
+                checked_at=raiderio.get("checkedAt") or "",
+                details={
+                    "region": raiderio.get("region") or "",
+                    "seasonSlug": raiderio.get("seasonSlug") or "",
+                    "runCount": raiderio.get("runCount") or 0,
+                    "profileCount": raiderio.get("profileCount") or 0,
+                    "expiresAt": raiderio.get("expiresAt") or "",
+                    "staleAt": raiderio.get("staleAt") or "",
+                },
+                blockers=raiderio.get("errors") or [],
+            )
+        )
+
+        season = get_active_season_payload(conn)
+        components.append(
+            data_health_component(
+                "websim_season",
+                "WebSim active season",
+                season.get("dataStatus"),
+                checked_at=season.get("verifiedAt") or "",
+                details={
+                    "seasonId": season.get("seasonId") or season.get("id") or "",
+                    "seasonRevision": season.get("seasonRevision") or season.get("revision") or "",
+                    "locale": season.get("locale") or "",
+                    "expiresAt": season.get("expiresAt") or "",
+                    "sourceRefs": season.get("sourceRefs") or [],
+                },
+                blockers=season.get("errors") or [],
+            )
+        )
+
+        websim_state = get_sync_state(conn, "websim_sync") or {}
+        components.append(
+            data_health_component(
+                "websim_sync",
+                "WebSim sync state",
+                "verified" if websim_state.get("ok") else "blocked",
+                checked_at=websim_state.get("checkedAt") or websim_state.get("updatedAt") or "",
+                details={
+                    "simc": websim_state.get("simc") if isinstance(websim_state.get("simc"), dict) else {},
+                    "itemCount": websim_state.get("itemCount") or 0,
+                    "talentCount": websim_state.get("talentCount") or 0,
+                },
+                blockers=websim_state.get("errors") or ["websim cache has not been synced"],
+            )
+        )
+
+        community = community_talent_sync_state(conn)
+        components.append(
+            data_health_component(
+                "community_templates",
+                "Community talent templates",
+                community.get("sourceStatus"),
+                checked_at=community.get("checkedAt") or "",
+                details={
+                    "templates": community.get("templates") or {},
+                    "sources": community.get("sources") or {},
+                },
+                blockers=[
+                    error
+                    for source in (community.get("sources") or {}).values()
+                    for error in (source.get("errors") or [])
+                ][:8],
+            )
+        )
+
+        stat_weights = latest_stat_weight_run_payload(conn)
+        components.append(
+            data_health_component(
+                "stat_weights",
+                "Raider.IO + SimC stat weights",
+                stat_weights.get("sourceStatus") or stat_weights.get("status"),
+                checked_at=stat_weights.get("refreshedAt") or stat_weights.get("raiderioCheckedAt") or "",
+                details={
+                    "acceptedCount": stat_weights.get("acceptedCount") or 0,
+                    "blockedCount": stat_weights.get("blockedCount") or 0,
+                    "raiderioStatus": stat_weights.get("raiderioStatus") or "",
+                    "specCount": stat_weights.get("specCount") or 0,
+                    "scenarioCount": stat_weights.get("scenarioCount") or 0,
+                },
+                blockers=(stat_weights.get("errors") or stat_weights.get("message", {}).get("errors") or [])[:8],
+            )
+        )
+
+    components.append(warcraftlogs_api_health_component())
+    components.append(blizzard_api_health_component())
+    return {
+        "schemaRevision": "data-health-v1",
+        "checkedAt": utc_now(),
+        "allowedStatuses": DATA_HEALTH_STATUSES,
+        "overallStatus": data_health_overall_status(components),
+        "components": components,
+    }
+
+
 def public_user_from_row(row):
     if not row:
         return None
@@ -1053,6 +1396,225 @@ def update_user_profile(access_token, profile):
     return public_user_from_row(row)
 
 
+BUILD_TEMPLATE_SELECT_COLUMNS = """
+    id, client_id, template_type, title, class_key, class_name, spec_key, spec_name,
+    hero_key, hero_label, scenario_key, scenario_title, raw_string, simc_lines_json,
+    status, status_label, source, metadata_json, schema_version, created_at, updated_at
+"""
+
+
+def build_template_status_label(template_type, status):
+    if status == "encoded":
+        return "Encoded"
+    if status == "simc_ready":
+        return "SimC-ready"
+    if status == "partial":
+        return "Partial"
+    if status == "blocked":
+        return "Blocked"
+    return "Draft" if template_type == "talent" else "Blocked"
+
+
+def normalize_build_template_payload(record):
+    source = record if isinstance(record, dict) else {}
+    template_type = clean_text(source.get("type") or source.get("templateType"), 32)
+    if template_type not in VALID_BUILD_TEMPLATE_TYPES:
+        raise ValueError("invalid build template type")
+    raw_string = clean_text(source.get("rawString") or source.get("raw_string"), 20000)
+    if not raw_string:
+        raise ValueError("build template rawString is required")
+
+    simc_lines = source.get("simcLines") or source.get("simc_lines") or []
+    if not isinstance(simc_lines, list):
+        simc_lines = []
+    simc_lines = [clean_text(line, 2000) for line in simc_lines if clean_text(line, 2000)]
+    metadata = source.get("metadata") if isinstance(source.get("metadata"), dict) else {}
+    status = clean_text(source.get("status"), 64) or ("draft" if template_type == "talent" else "blocked")
+    title = clean_text(source.get("title"), 200) or ("Talent Template" if template_type == "talent" else "Gear Template")
+    now = utc_now()
+    return {
+        "client_id": clean_text(source.get("clientId") or source.get("id"), 128),
+        "template_type": template_type,
+        "title": title,
+        "class_key": clean_text(source.get("classKey") or source.get("class_key"), 64),
+        "class_name": clean_text(source.get("className") or source.get("class_name"), 100),
+        "spec_key": clean_text(source.get("specKey") or source.get("spec_key"), 64),
+        "spec_name": clean_text(source.get("specName") or source.get("spec_name"), 100),
+        "hero_key": clean_text(source.get("heroKey") or source.get("hero_key"), 64),
+        "hero_label": clean_text(source.get("heroLabel") or source.get("hero_label"), 100),
+        "scenario_key": clean_text(source.get("scenarioKey") or source.get("scenario_key"), 64),
+        "scenario_title": clean_text(source.get("scenarioTitle") or source.get("scenario_title"), 120),
+        "raw_string": raw_string,
+        "simc_lines_json": json.dumps(simc_lines, ensure_ascii=False),
+        "status": status,
+        "status_label": clean_text(source.get("statusLabel") or source.get("status_label"), 100)
+        or build_template_status_label(template_type, status),
+        "source": clean_text(source.get("source"), 120) or "local",
+        "metadata_json": json.dumps(metadata, ensure_ascii=False),
+        "schema_version": int(source.get("schemaVersion") or BUILD_TEMPLATE_SCHEMA_VERSION),
+        "created_at": clean_text(source.get("createdAt") or source.get("created_at"), 64) or now,
+        "updated_at": clean_text(source.get("updatedAt") or source.get("updated_at"), 64) or now,
+    }
+
+
+def public_build_template_from_row(row):
+    if not row:
+        return None
+    simc_lines = safe_json_loads(row[13], [], f"build template simc lines {row[0]}")
+    metadata = safe_json_loads(row[17], {}, f"build template metadata {row[0]}")
+    if not isinstance(simc_lines, list):
+        simc_lines = []
+    if not isinstance(metadata, dict):
+        metadata = {}
+    return {
+        "id": row[0],
+        "clientId": row[1],
+        "type": row[2],
+        "title": row[3],
+        "classKey": row[4],
+        "className": row[5],
+        "specKey": row[6],
+        "specName": row[7],
+        "heroKey": row[8],
+        "heroLabel": row[9],
+        "scenarioKey": row[10],
+        "scenarioTitle": row[11],
+        "rawString": row[12],
+        "simcLines": simc_lines,
+        "status": row[14],
+        "statusLabel": row[15],
+        "source": row[16],
+        "metadata": metadata,
+        "schemaVersion": row[18],
+        "createdAt": row[19],
+        "updatedAt": row[20],
+        "remote": True,
+    }
+
+
+def list_user_build_templates(access_token, template_type=""):
+    user = authenticate_token(access_token)
+    if not user:
+        raise PermissionError("invalid auth token")
+    normalized_type = clean_text(template_type, 32)
+    params = [user["id"]]
+    where = "WHERE user_id = ?"
+    if normalized_type in VALID_BUILD_TEMPLATE_TYPES:
+        where += " AND template_type = ?"
+        params.append(normalized_type)
+    with db_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT {BUILD_TEMPLATE_SELECT_COLUMNS}
+            FROM user_build_templates
+            {where}
+            ORDER BY updated_at DESC, created_at DESC
+            LIMIT 200
+            """,
+            tuple(params),
+        ).fetchall()
+    return {
+        "user": user,
+        "schemaVersion": BUILD_TEMPLATE_SCHEMA_VERSION,
+        "templates": [public_build_template_from_row(row) for row in rows],
+    }
+
+
+def save_user_build_template(access_token, record):
+    user = authenticate_token(access_token)
+    if not user:
+        raise PermissionError("invalid auth token")
+    normalized = normalize_build_template_payload(record)
+    with db_connection() as conn:
+        existing = conn.execute(
+            """
+            SELECT id, created_at FROM user_build_templates
+            WHERE user_id = ? AND template_type = ? AND raw_string = ?
+            """,
+            (user["id"], normalized["template_type"], normalized["raw_string"]),
+        ).fetchone()
+        template_id = existing[0] if existing else uuid.uuid4().hex
+        created_at = existing[1] if existing else normalized["created_at"]
+        conn.execute(
+            """
+            INSERT INTO user_build_templates (
+                id, user_id, client_id, template_type, title, class_key, class_name,
+                spec_key, spec_name, hero_key, hero_label, scenario_key, scenario_title,
+                raw_string, simc_lines_json, status, status_label, source, metadata_json,
+                schema_version, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, template_type, raw_string) DO UPDATE SET
+                client_id = excluded.client_id,
+                title = excluded.title,
+                class_key = excluded.class_key,
+                class_name = excluded.class_name,
+                spec_key = excluded.spec_key,
+                spec_name = excluded.spec_name,
+                hero_key = excluded.hero_key,
+                hero_label = excluded.hero_label,
+                scenario_key = excluded.scenario_key,
+                scenario_title = excluded.scenario_title,
+                simc_lines_json = excluded.simc_lines_json,
+                status = excluded.status,
+                status_label = excluded.status_label,
+                source = excluded.source,
+                metadata_json = excluded.metadata_json,
+                schema_version = excluded.schema_version,
+                updated_at = excluded.updated_at
+            """,
+            (
+                template_id,
+                user["id"],
+                normalized["client_id"],
+                normalized["template_type"],
+                normalized["title"],
+                normalized["class_key"],
+                normalized["class_name"],
+                normalized["spec_key"],
+                normalized["spec_name"],
+                normalized["hero_key"],
+                normalized["hero_label"],
+                normalized["scenario_key"],
+                normalized["scenario_title"],
+                normalized["raw_string"],
+                normalized["simc_lines_json"],
+                normalized["status"],
+                normalized["status_label"],
+                normalized["source"],
+                normalized["metadata_json"],
+                normalized["schema_version"],
+                created_at,
+                normalized["updated_at"],
+            ),
+        )
+        row = conn.execute(
+            f"""
+            SELECT {BUILD_TEMPLATE_SELECT_COLUMNS}
+            FROM user_build_templates
+            WHERE user_id = ? AND id = ?
+            """,
+            (user["id"], template_id),
+        ).fetchone()
+    return public_build_template_from_row(row)
+
+
+def delete_user_build_template(access_token, template_id):
+    user = authenticate_token(access_token)
+    if not user:
+        raise PermissionError("invalid auth token")
+    normalized_id = clean_text(template_id, 128)
+    if not normalized_id:
+        raise KeyError("build template not found")
+    with db_connection() as conn:
+        cursor = conn.execute(
+            "DELETE FROM user_build_templates WHERE user_id = ? AND id = ?",
+            (user["id"], normalized_id),
+        )
+    if cursor.rowcount <= 0:
+        raise KeyError("build template not found")
+    return {"id": normalized_id, "deleted": True}
+
+
 def analyze_and_store_simulator_task(request_data, access_token=""):
     request_payload = dict(request_data or {})
     analysis = analyze_simulator_request(request_payload)
@@ -1100,6 +1662,8 @@ def list_simulator_tasks(access_token, allow_guest=False, guest_id=""):
     if not user and allow_guest:
         user = find_guest_simulator_user(guest_id)
     if not user:
+        if allow_guest:
+            return {"user": None, "tasks": []}
         raise PermissionError("invalid auth token")
 
     with db_connection() as conn:
@@ -1418,11 +1982,27 @@ process.stdout.write(JSON.stringify(result))
 
 
 def get_builds_home_payload():
-    return apply_runtime_season_gate(load_js_payload("server/builds/home-payload.js", "buildSpecializationHomePayload"), "builds_home")
+    payload = apply_runtime_season_gate(load_js_payload("server/builds/home-payload.js", "buildSpecializationHomePayload"), "builds_home")
+    try:
+        init_db()
+        with db_connection() as conn:
+            return enrich_raiderio_builds_home_payload(payload, get_raiderio_payload(conn))
+    except Exception as error:
+        if isinstance(payload, dict):
+            payload["raiderioError"] = str(error)
+        return payload
 
 
 def get_builds_intel_payload():
-    return apply_runtime_season_gate(load_js_payload("server/builds/home-payload.js", "buildSpecializationIntelPayload"), "builds_intel")
+    payload = apply_runtime_season_gate(load_js_payload("server/builds/home-payload.js", "buildSpecializationIntelPayload"), "builds_intel")
+    try:
+        init_db()
+        with db_connection() as conn:
+            return enrich_raiderio_builds_intel_payload(payload, get_raiderio_payload(conn))
+    except Exception as error:
+        if isinstance(payload, dict):
+            payload["raiderioError"] = str(error)
+        return payload
 
 
 def get_builds_detail_payload(spec_id):
@@ -1434,24 +2014,48 @@ def get_builds_detail_payload(spec_id):
         init_db()
         with db_connection() as conn:
             ensure_websim_tables(conn)
-            return enrich_build_gear_payload(conn, payload)
+            payload = enrich_raiderio_builds_detail_payload(payload, get_raiderio_payload(conn))
+            payload = enrich_build_gear_payload(conn, payload)
+            return enrich_builds_detail_stat_weights(conn, payload)
     except Exception as error:
         payload["gearMetadataError"] = str(error)
         return payload
 
 
 def get_pve_home_payload():
-    return apply_runtime_season_gate(load_js_payload("server/pve/home-payload.js", "buildPveHomePayload"), "pve_home")
+    payload = apply_runtime_season_gate(load_js_payload("server/pve/home-payload.js", "buildPveHomePayload"), "pve_home")
+    try:
+        init_db()
+        with db_connection() as conn:
+            return enrich_raiderio_pve_home_payload(payload, get_raiderio_payload(conn))
+    except Exception as error:
+        if isinstance(payload, dict):
+            payload["raiderioError"] = str(error)
+        return payload
 
 
 def get_pve_module_payload(module_key):
-    return apply_runtime_season_gate(load_js_payload("server/pve/home-payload.js", "getPveModuleDetail", module_key), "pve_module")
+    payload = apply_runtime_season_gate(load_js_payload("server/pve/home-payload.js", "getPveModuleDetail", module_key), "pve_module")
+    try:
+        init_db()
+        with db_connection() as conn:
+            return enrich_raiderio_pve_module_payload(payload, get_raiderio_payload(conn))
+    except Exception as error:
+        if isinstance(payload, dict):
+            payload["raiderioError"] = str(error)
+        return payload
 
 
 def runtime_season_payload():
     init_db()
     with db_connection() as conn:
         return get_active_season_payload(conn)
+
+
+def runtime_season_payload_with_raiderio():
+    init_db()
+    with db_connection() as conn:
+        return enrich_game_season_payload(get_active_season_payload(conn), get_raiderio_payload(conn))
 
 
 def safe_positive_int(value):
@@ -1467,13 +2071,14 @@ def has_verified_external_pve_sources(payload):
     source_checks = payload.get("sourceChecks")
     if not isinstance(source_checks, list):
         return False
-    required_sources = {"archon", "warcraftlogs"}
     verified_sources = {
-        source.get("key")
+        source.get("key"): source
         for source in source_checks
-        if source.get("status") == "verified" and safe_positive_int(source.get("sampleCount")) > 0
+        if source.get("status") in {"verified", "synced", "partial", "stale"} and safe_positive_int(source.get("sampleCount")) > 0
     }
-    return required_sources.issubset(verified_sources)
+    if verified_sources.get("raiderio"):
+        return True
+    return {"archon", "warcraftlogs"}.issubset(set(verified_sources))
 
 
 def has_source_backed_pve_items(payload):
@@ -1715,7 +2320,7 @@ def json_response(handler, status, payload):
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")
     handler.send_header("Access-Control-Allow-Origin", "*")
-    handler.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    handler.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
     handler.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Wow-Client-Id, X-Wow-Session-Id, X-Wow-Platform")
     handler.send_header("Content-Length", str(len(body)))
     handler.end_headers()
@@ -1907,6 +2512,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/websim" or path.startswith("/websim/"):
             static_response(self, path)
             return
+        if path == "/api/data/health":
+            json_response(self, 200, build_data_health_payload())
+            return
         if path == "/api/news/home":
             json_response(self, 200, build_home_payload())
             return
@@ -1919,6 +2527,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/builds/intel":
             json_response(self, 200, get_builds_intel_payload())
             return
+        if path == "/api/builds/stat-weights/refresh-runs/latest":
+            init_db()
+            with db_connection() as conn:
+                json_response(self, 200, latest_stat_weight_run_payload(conn))
+            return
         if path == "/api/builds/detail":
             query = parse_qs(urlparse(self.path).query)
             detail = get_builds_detail_payload(query.get("id", [""])[0])
@@ -1928,9 +2541,7 @@ class Handler(BaseHTTPRequestHandler):
                 json_response(self, 404, {"error": "specialization_not_found"})
             return
         if path == "/api/game/season":
-            init_db()
-            with db_connection() as conn:
-                json_response(self, 200, get_active_season_payload(conn))
+            json_response(self, 200, runtime_season_payload_with_raiderio())
             return
         if path == "/api/pve/home":
             json_response(self, 200, get_pve_home_payload())
@@ -2031,6 +2642,19 @@ class Handler(BaseHTTPRequestHandler):
             except PermissionError:
                 json_response(self, 401, {"error": "unauthorized"})
             return
+        if path == "/api/me/build-templates":
+            try:
+                json_response(
+                    self,
+                    200,
+                    list_user_build_templates(
+                        bearer_token_from_headers(self.headers),
+                        template_type=query.get("type", query.get("templateType", [""]))[0],
+                    ),
+                )
+            except PermissionError:
+                json_response(self, 401, {"error": "unauthorized"})
+            return
         if path == "/api/simulator/task":
             query = parse_qs(urlparse(self.path).query)
             try:
@@ -2068,6 +2692,26 @@ class Handler(BaseHTTPRequestHandler):
             return
         json_response(self, 404, {"error": "not_found"})
 
+    def do_DELETE(self):
+        parsed = urlparse(self.path)
+        query = parse_qs(parsed.query)
+        if parsed.path == "/api/me/build-templates":
+            try:
+                json_response(
+                    self,
+                    200,
+                    delete_user_build_template(
+                        bearer_token_from_headers(self.headers),
+                        query.get("id", query.get("templateId", [""]))[0],
+                    ),
+                )
+            except PermissionError:
+                json_response(self, 401, {"error": "unauthorized"})
+            except KeyError:
+                json_response(self, 404, {"error": "build_template_not_found"})
+            return
+        json_response(self, 404, {"error": "not_found"})
+
     def do_POST(self):
         parsed = urlparse(self.path)
         if parsed.path == "/api/analytics/events":
@@ -2100,6 +2744,28 @@ class Handler(BaseHTTPRequestHandler):
                 )
             except PermissionError:
                 json_response(self, 401, {"error": "unauthorized"})
+            return
+        if parsed.path == "/api/me/build-templates":
+            payload = read_json_body(self)
+            try:
+                access_token = bearer_token_from_headers(self.headers)
+                template = save_user_build_template(
+                    access_token,
+                    payload.get("template") if isinstance(payload.get("template"), dict) else payload,
+                )
+                json_response(
+                    self,
+                    200,
+                    {
+                        "template": template,
+                        "templates": list_user_build_templates(access_token)["templates"],
+                        "schemaVersion": BUILD_TEMPLATE_SCHEMA_VERSION,
+                    },
+                )
+            except PermissionError:
+                json_response(self, 401, {"error": "unauthorized"})
+            except ValueError as error:
+                json_response(self, 400, {"error": "invalid_build_template", "message": str(error)})
             return
         if parsed.path == "/api/simulator/analyze":
             json_response(

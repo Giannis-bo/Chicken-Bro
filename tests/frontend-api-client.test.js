@@ -759,6 +759,7 @@ test('analytics client posts batches with bearer only on https', async () => {
   assert.equal(ok, true)
   assert.match(captured.url, /^https:\/\/api\.example\.test\/api\/analytics\/events$/)
   assert.equal(captured.method, 'POST')
+  assert.ok(captured.timeout >= 15000)
   assert.equal(captured.header.Authorization, 'Bearer token-analytics')
   assert.match(captured.header['X-Wow-Client-Id'], /^mp-/)
   assert.equal(captured.data.events[0].eventName, 'news_home_view')

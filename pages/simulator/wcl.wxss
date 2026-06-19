@@ -46,6 +46,30 @@
   border-color: rgba(248, 183, 0, 0.22);
 }
 
+.wcl-evidence-card {
+  border-color: rgba(112, 178, 255, 0.24);
+  background: rgba(12, 20, 32, 0.84);
+}
+
+.wcl-evidence-grid {
+  display: grid;
+  gap: 10rpx;
+  color: #cdd6e2;
+  font-size: 23rpx;
+  line-height: 1.45;
+}
+
+.wcl-report-finding {
+  border-color: rgba(248, 183, 0, 0.2);
+}
+
+.wcl-evidence-refs {
+  margin-top: 8rpx;
+  color: #8a96a8;
+  font-size: 21rpx;
+  line-height: 1.4;
+}
+
 .ai-advice-text {
   white-space: pre-wrap;
 }

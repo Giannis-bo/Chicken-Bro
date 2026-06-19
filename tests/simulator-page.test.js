@@ -2,6 +2,56 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 
+function flushPromises() {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+function loadPageModule(modulePath, stubs) {
+  let pageDefinition = null
+  const originalPage = global.Page
+  global.Page = (definition) => {
+    pageDefinition = definition
+  }
+  const stubbedPaths = Object.keys(stubs || {})
+  const previousCache = new Map()
+  for (const stubPath of stubbedPaths) {
+    const resolved = require.resolve(stubPath)
+    previousCache.set(resolved, require.cache[resolved])
+    require.cache[resolved] = {
+      id: resolved,
+      filename: resolved,
+      loaded: true,
+      exports: stubs[stubPath]
+    }
+  }
+  try {
+    delete require.cache[require.resolve(modulePath)]
+    require(modulePath)
+  } finally {
+    global.Page = originalPage
+    for (const stubPath of stubbedPaths) {
+      const resolved = require.resolve(stubPath)
+      const previous = previousCache.get(resolved)
+      if (previous) {
+        require.cache[resolved] = previous
+      } else {
+        delete require.cache[resolved]
+      }
+    }
+  }
+  return pageDefinition
+}
+
+function createPageInstance(pageDefinition) {
+  return {
+    ...pageDefinition,
+    data: { ...(pageDefinition.data || {}) },
+    setData(update) {
+      this.data = { ...this.data, ...(update || {}) }
+    }
+  }
+}
+
 test('simc page uses chat clarification before task submission', () => {
   const js = fs.readFileSync('pages/simulator/simc.js', 'utf8')
   const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
@@ -252,6 +302,8 @@ test('smart analysis tab is a three-module entry hub without metrics', () => {
   assert.match(js, /\/pages\/simulator\/task-detail\?id=/)
   assert.match(api, /navTitle:\s*'智能分析'/)
   assert.match(api, /analysisModules:\s*\[/)
+  assert.match(api, /homeWithoutLegacyMetrics/)
+  assert.doesNotMatch(api, /metrics:\s*undefined/)
   assert.match(api, /title:\s*'模拟 SimC'/)
   assert.match(api, /title:\s*'分析 WCL'/)
   assert.match(api, /title:\s*'任务列表'/)
@@ -401,4 +453,63 @@ test('wcl analysis page submits WCL questions through the simulator analyzer', (
   assert.match(js, /saveTask:\s*true/)
   assert.match(js, /auth:\s*true/)
   assert.match(js, /allowInsecureGuestRequest:\s*true/)
+})
+
+test('wcl result page renders deterministic log evidence and report findings', () => {
+  const wxml = fs.readFileSync('pages/simulator/wcl.wxml', 'utf8')
+  const css = fs.readFileSync('pages/simulator/wcl.wxss', 'utf8')
+
+  assert.match(wxml, /latestAnalysis\.logEvidence/)
+  assert.match(wxml, /latestAnalysis\.logEvidence\.sourceStatus/)
+  assert.match(wxml, /latestAnalysis\.logEvidence\.reportCode/)
+  assert.match(wxml, /latestAnalysis\.report\.topFindings/)
+  assert.match(wxml, /item\.evidenceRefs/)
+  assert.match(css, /\.wcl-evidence-card/)
+  assert.match(css, /\.wcl-report-finding/)
+})
+
+test('guest simulator submissions skip wechat login preflight', async () => {
+  let loginCalls = 0
+  let analysisOptions = null
+  const pageDefinition = loadPageModule('../pages/simulator/wcl.js', {
+    '../pages/common/auth-client.js': {
+      loginWithWechat: () => {
+        loginCalls += 1
+        return Promise.resolve(null)
+      }
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: (request, options) => {
+        analysisOptions = options
+        return Promise.resolve({
+          payload: { status: 'blocked', recommendations: [], report: { topFindings: [] } },
+          fromFallback: false,
+          error: ''
+        })
+      }
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const originalWx = global.wx
+  global.wx = { showToast() {} }
+  try {
+    const page = createPageInstance(pageDefinition)
+    page.submitWclAnalysis()
+    await flushPromises()
+    await flushPromises()
+  } finally {
+    global.wx = originalWx
+  }
+
+  assert.equal(loginCalls, 0)
+  assert.deepEqual(analysisOptions, { auth: true, allowInsecureGuestRequest: true })
+
+  const simcJs = fs.readFileSync('pages/simulator/simc.js', 'utf8')
+  const wclJs = fs.readFileSync('pages/simulator/wcl.js', 'utf8')
+  assert.doesNotMatch(simcJs, /loginWithWechat\(\)/)
+  assert.doesNotMatch(wclJs, /loginWithWechat\(\)/)
 })

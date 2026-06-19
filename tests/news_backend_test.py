@@ -59,6 +59,16 @@ class NewsBackendTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         os.environ["WOW_NEWS_DB"] = str(Path(self.tmp.name) / "news.sqlite3")
+        self._old_wcl_env = {
+            name: os.environ.get(name)
+            for name in (
+                "WOW_WARCRAFTLOGS_CLIENT_ID",
+                "WOW_WARCRAFTLOGS_CLIENT_SECRET",
+                "WOW_WARCRAFTLOGS_API_KEY",
+            )
+        }
+        for name in self._old_wcl_env:
+            os.environ.pop(name, None)
 
         import importlib
         import server.news_backend as backend
@@ -69,6 +79,11 @@ class NewsBackendTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
         os.environ.pop("WOW_NEWS_DB", None)
+        for name, value in self._old_wcl_env.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
     def seed_verified_season(self):
         from server.websim_payload import current_season_payload, save_active_season_payload
@@ -201,7 +216,7 @@ class NewsBackendTest(unittest.TestCase):
         payload = self.backend.latest_refresh_run_payload()
 
         self.assertEqual(payload["refreshMode"], "scheduled")
-        self.assertEqual(payload["acceptedCount"], 0)
+        self.assertGreater(payload["acceptedCount"], 0)
         self.assertIn("refreshedAt", payload)
         self.assertIn("translationIssueCount", payload)
         self.assertIn("translationIssues", payload)
@@ -209,11 +224,7 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("blockedArticleCount", payload)
         self.assertIn("blockedArticles", payload)
         self.assertGreater(payload["blockedArticleCount"], 0)
-        self.assertTrue(
-            {"not_source_translation", "translated_body_is_not_a_source_translation"}.intersection(
-                {article["reason"] for article in payload["blockedArticles"]}
-            )
-        )
+        self.assertIn("license_blocked", {article["reason"] for article in payload["blockedArticles"]})
         self.assertIn("collectorLimit", payload)
         self.assertIn("collectedDiscoveredCount", payload)
         self.assertIn("collectorDuplicateSeedSkippedCount", payload)
@@ -515,8 +526,10 @@ class NewsBackendTest(unittest.TestCase):
         ):
             articles = self.backend.load_articles()
 
-        self.assertEqual(articles, [])
         self.assertNotIn("legacy-short-body", {article["id"] for article in articles})
+        self.assertGreater(len(articles), 0)
+        self.assertTrue(all(article["translationFidelity"] == "source_translation" for article in articles))
+        self.assertTrue(all(article["contentStatus"] == "ready" for article in articles))
 
     def test_load_articles_returns_empty_for_legacy_ready_rows_missing_source_translation(self):
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
@@ -698,6 +711,10 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(detail["id"], "法师-冰霜")
         self.assertIn("talents", detail["details"])
         self.assertRegex(detail["details"]["talents"]["sourceUrl"], r"^https://")
+        self.assertIn("scenarioWeights", detail["details"]["statWeights"])
+        self.assertEqual(len(detail["details"]["statWeights"]["scenarioWeights"]), 3)
+        self.assertEqual(detail["details"]["statWeights"]["sourceStatus"], "blocked")
+        self.assertIn("validation", detail["details"]["statWeights"])
 
     def test_backend_exposes_pve_home_and_module_payloads_from_shared_data_modules(self):
         home = self.backend.get_pve_home_payload()
@@ -2045,6 +2062,92 @@ class NewsBackendTest(unittest.TestCase):
         self.assertLessEqual(len(analysis["agent"]["summaryCards"]), 3)
         self.assertIn("真实大秘境对标", json.dumps(analysis["agent"]["summaryCards"], ensure_ascii=False))
 
+    def test_simc_agent_completed_report_exposes_structured_evidence_schema(self):
+        simc_bin = Path(self.tmp.name) / "fake-evidence-report-simc"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            "cat >/dev/null\n"
+            "printf 'Player: RetPlayer\\n  DPS=185432 DPS-Error=0/0.00%%\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft_agent",
+                    "round": 2,
+                    "message": (
+                        "我是285惩戒圣骑士，大秘境AOE是否合格\n"
+                        "```simc\n"
+                        "paladin=\"RetPlayer\"\n"
+                        "spec=retribution\n"
+                        "talents=CAE\n"
+                        "```\n"
+                    ),
+                }
+            )
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        self.assertEqual(analysis["agent"]["status"], "simc_completed")
+        self.assertEqual(analysis["evidenceState"]["phase"], "report_ready")
+        self.assertTrue(analysis["runPolicy"]["didRunSimc"])
+        self.assertIn({"key": "simc.dps", "value": "185432"}, analysis["allowedNumbers"])
+        self.assertEqual(analysis["report"]["schemaRevision"], "simc-report-v1")
+        self.assertTrue(analysis["report"]["topFindings"][0]["evidenceRefs"])
+
+    def test_simc_report_schema_rejects_llm_numbers_outside_allowed_numbers(self):
+        import server.simulator_payload as simulator_payload
+
+        simc_bin = Path(self.tmp.name) / "fake-schema-report-simc"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            "cat >/dev/null\n"
+            "printf 'Player: RetPlayer\\n  DPS=185432 DPS-Error=0/0.00%%\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        original_call_chat_completion = simulator_payload.call_chat_completion
+        simulator_payload.call_chat_completion = lambda *args, **kwargs: {
+            "called": True,
+            "model": "fake",
+            "content": json.dumps(
+                {
+                    "topFindings": [
+                        {"text": "This profile is safely above 999999 DPS.", "evidenceRefs": ["simc.dps"]}
+                    ],
+                    "nextActions": ["Keep the setup."],
+                    "limitations": ["Synthetic test."],
+                }
+            ),
+            "error": "",
+        }
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "simcraft_agent",
+                    "round": 2,
+                    "message": (
+                        "我是285惩戒圣骑士，大秘境AOE是否合格\n"
+                        "```simc\n"
+                        "paladin=\"RetPlayer\"\n"
+                        "spec=retribution\n"
+                        "talents=CAE\n"
+                        "```\n"
+                    ),
+                }
+            )
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+            simulator_payload.call_chat_completion = original_call_chat_completion
+
+        self.assertEqual(analysis["simulation"]["metrics"]["dps"], "185432")
+        self.assertEqual(analysis["report"]["source"], "deterministic_fallback")
+        self.assertNotIn("999999", json.dumps(analysis["report"], ensure_ascii=False))
+        self.assertIn({"key": "simc.dps", "value": "185432"}, analysis["allowedNumbers"])
+
     def test_simc_agent_marks_extreme_completed_dps_as_external_outlier(self):
         simc_bin = Path(self.tmp.name) / "fake-outlier-report-simc"
         simc_bin.write_text(
@@ -2178,6 +2281,217 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(profile["avatarUrl"], "https://cdn.example/avatar.png")
         self.assertEqual(self.backend.authenticate_token(login["accessToken"])["nickname"], "冰法玩家")
 
+    def test_init_db_records_schema_migrations_and_enforces_foreign_keys(self):
+        self.backend.init_db()
+
+        with self.backend.db_connection() as conn:
+            foreign_keys = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+            migrations = {
+                row[0]: row[1]
+                for row in conn.execute(
+                    "SELECT id, description FROM schema_migrations ORDER BY id"
+                ).fetchall()
+            }
+            with self.assertRaises(sqlite3.IntegrityError):
+                conn.execute(
+                    """
+                    INSERT INTO user_build_templates (
+                        id, user_id, template_type, title, raw_string,
+                        simc_lines_json, status, status_label, source,
+                        metadata_json, schema_version, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        "orphan-template",
+                        404,
+                        "talent",
+                        "Orphan",
+                        "websim:orphan",
+                        "[]",
+                        "draft",
+                        "Draft",
+                        "test",
+                        "{}",
+                        1,
+                        "2026-06-19T00:00:00+00:00",
+                        "2026-06-19T00:00:00+00:00",
+                    ),
+                )
+
+        self.assertEqual(foreign_keys, 1)
+        self.assertIn("core_schema_v1", migrations)
+        self.assertIn("user_build_templates_v1", migrations)
+
+    def test_user_build_templates_are_synced_and_isolated_by_owner(self):
+        login_a = self.backend.login_with_wechat_code(
+            "wx-code-template-a",
+            exchange_code=lambda code: {"openid": "openid-template-a"},
+        )
+        login_b = self.backend.login_with_wechat_code(
+            "wx-code-template-b",
+            exchange_code=lambda code: {"openid": "openid-template-b"},
+        )
+
+        first = self.backend.save_user_build_template(
+            login_a["accessToken"],
+            {
+                "id": "local-talent-1",
+                "type": "talent",
+                "title": "Frost M+",
+                "classKey": "mage",
+                "specKey": "frost",
+                "scenarioKey": "mythic_plus",
+                "rawString": "websim:mage:frost:first",
+                "simcLines": ["class_talents=1001:1"],
+                "status": "encoded",
+                "statusLabel": "Encoded",
+                "metadata": {"sourcePage": "talent-simulator"},
+                "updatedAt": "2026-06-19T00:00:00+00:00",
+            },
+        )
+        duplicate = self.backend.save_user_build_template(
+            login_a["accessToken"],
+            {
+                "id": "local-talent-2",
+                "type": "talent",
+                "title": "Frost Raid",
+                "classKey": "mage",
+                "specKey": "frost",
+                "scenarioKey": "raid",
+                "rawString": "websim:mage:frost:first",
+                "simcLines": ["class_talents=1001:1"],
+                "status": "encoded",
+                "statusLabel": "Encoded",
+                "metadata": {"sourcePage": "talent-simulator"},
+                "updatedAt": "2026-06-19T01:00:00+00:00",
+            },
+        )
+        self.backend.save_user_build_template(
+            login_b["accessToken"],
+            {
+                "type": "gear",
+                "title": "Other User Gear",
+                "rawString": "head=,id=250001",
+                "status": "simc_ready",
+            },
+        )
+
+        list_a = self.backend.list_user_build_templates(login_a["accessToken"])
+        list_b = self.backend.list_user_build_templates(login_b["accessToken"])
+
+        self.assertEqual(first["id"], duplicate["id"])
+        self.assertEqual(duplicate["title"], "Frost Raid")
+        self.assertEqual(duplicate["clientId"], "local-talent-2")
+        self.assertEqual(duplicate["metadata"]["sourcePage"], "talent-simulator")
+        self.assertEqual([item["id"] for item in list_a["templates"]], [first["id"]])
+        self.assertEqual(list_b["templates"][0]["title"], "Other User Gear")
+        with self.assertRaises(KeyError):
+            self.backend.delete_user_build_template(login_b["accessToken"], first["id"])
+        self.assertTrue(self.backend.delete_user_build_template(login_a["accessToken"], first["id"])["deleted"])
+        self.assertEqual(self.backend.list_user_build_templates(login_a["accessToken"])["templates"], [])
+
+    def test_http_me_build_templates_requires_auth_and_supports_crud(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-template-http",
+            exchange_code=lambda code: {"openid": "openid-template-http"},
+        )
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/api/me/build-templates"
+            with self.assertRaises(HTTPError) as context:
+                urlopen(url, timeout=5)
+            self.assertEqual(context.exception.code, 401)
+
+            create_request = Request(
+                url,
+                data=json.dumps(
+                    {
+                        "template": {
+                            "type": "gear",
+                            "title": "HTTP Gear",
+                            "rawString": "head=,id=250777",
+                            "status": "simc_ready",
+                            "updatedAt": "2026-06-19T00:00:00+00:00",
+                        }
+                    },
+                    ensure_ascii=False,
+                ).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {login['accessToken']}",
+                },
+                method="POST",
+            )
+            with urlopen(create_request, timeout=5) as response:
+                created = json.loads(response.read().decode("utf-8"))
+            template_id = created["template"]["id"]
+
+            list_request = Request(url, headers={"Authorization": f"Bearer {login['accessToken']}"})
+            with urlopen(list_request, timeout=5) as response:
+                listed = json.loads(response.read().decode("utf-8"))
+
+            delete_request = Request(
+                f"{url}?id={template_id}",
+                headers={"Authorization": f"Bearer {login['accessToken']}"},
+                method="DELETE",
+            )
+            with urlopen(delete_request, timeout=5) as response:
+                deleted = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(created["template"]["title"], "HTTP Gear")
+        self.assertEqual(listed["templates"][0]["id"], template_id)
+        self.assertTrue(deleted["deleted"])
+
+    def test_data_health_payload_aggregates_trust_status_without_external_sync(self):
+        self.backend.refresh_articles("scheduled")
+
+        with patch.object(self.backend, "sync_raiderio_cache", side_effect=AssertionError("health must be read-only")):
+            payload = self.backend.build_data_health_payload()
+
+        allowed = {"verified", "partial", "stale", "blocked", "missing_credentials", "pending_official_audit"}
+        components = {item["key"]: item for item in payload["components"]}
+
+        self.assertEqual(payload["schemaRevision"], "data-health-v1")
+        self.assertIn(payload["overallStatus"], allowed)
+        self.assertEqual(set(payload["allowedStatuses"]), allowed)
+        self.assertTrue({"news", "raiderio", "websim_season", "community_templates", "stat_weights", "wcl_credentials"}.issubset(components))
+        self.assertTrue(all(item["status"] in allowed for item in payload["components"]))
+        self.assertEqual(components["raiderio"]["status"], "missing_credentials")
+        self.assertEqual(components["wcl_credentials"]["status"], "missing_credentials")
+        self.assertNotIn("fake-api-key", json.dumps(payload, ensure_ascii=False))
+
+    def test_data_health_accepts_warcraftlogs_v1_api_key_without_exposing_secret(self):
+        os.environ["WOW_WARCRAFTLOGS_API_KEY"] = "fake-wcl-v1-key"
+
+        payload = self.backend.build_data_health_payload()
+        components = {item["key"]: item for item in payload["components"]}
+
+        self.assertEqual(components["wcl_credentials"]["status"], "partial")
+        self.assertEqual(components["wcl_credentials"]["details"]["api"], "warcraftlogs-v1-rest")
+        self.assertTrue(components["wcl_credentials"]["details"]["configured"])
+        self.assertNotIn("fake-wcl-v1-key", json.dumps(payload, ensure_ascii=False))
+
+    def test_http_data_health_route_returns_read_only_status_payload(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with urlopen(f"http://127.0.0.1:{server.server_port}/api/data/health", timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(payload["schemaRevision"], "data-health-v1")
+        self.assertIn("components", payload)
+        self.assertTrue(any(item["key"] == "websim_season" for item in payload["components"]))
+
     def test_authenticated_simulator_analysis_is_saved_as_user_task(self):
         login = self.backend.login_with_wechat_code(
             "wx-code-3",
@@ -2195,6 +2509,87 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(len(tasks["tasks"]), 1)
         self.assertEqual(tasks["tasks"][0]["taskId"], analysis["taskId"])
         self.assertEqual(tasks["tasks"][0]["mode"], "wcl")
+
+    def test_wcl_analysis_extracts_report_code_and_blocks_without_credentials(self):
+        import server.simulator_payload as simulator_payload
+
+        original_call_chat_completion = simulator_payload.call_chat_completion
+        simulator_payload.call_chat_completion = lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("WCL evidence bootstrap must not call LLM without log evidence")
+        )
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "wcl",
+                    "prompt": (
+                        "Please review https://www.warcraftlogs.com/reports/AbC123xYz"
+                        "#fight=7&type=damage-done for my burst timing."
+                    ),
+                    "question": "Why is my damage low?",
+                }
+            )
+        finally:
+            simulator_payload.call_chat_completion = original_call_chat_completion
+
+        self.assertEqual(analysis["mode"], "wcl")
+        self.assertEqual(analysis["logEvidence"]["schemaRevision"], "wcl-log-evidence-v1")
+        self.assertEqual(analysis["logEvidence"]["status"], "blocked")
+        self.assertEqual(analysis["logEvidence"]["sourceStatus"], "missing_credentials")
+        self.assertEqual(analysis["logEvidence"]["reportCode"], "AbC123xYz")
+        self.assertEqual(analysis["logEvidence"]["fightId"], "7")
+        self.assertIn("wcl.credentials", analysis["logEvidence"]["missingInputs"])
+        self.assertEqual(analysis["report"]["schemaRevision"], "wcl-report-v1")
+        self.assertEqual(analysis["report"]["source"], "deterministic_blocked")
+        self.assertFalse(analysis["llm"]["called"])
+
+    def test_wcl_analysis_accepts_warcraftlogs_v1_api_key_as_configured(self):
+        os.environ["WOW_WARCRAFTLOGS_API_KEY"] = "fake-wcl-v1-key"
+
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "wcl",
+                "wclUrl": "https://www.warcraftlogs.com/reports/ApiKey123?fight=5",
+                "question": "Check cooldown usage.",
+            }
+        )
+
+        self.assertEqual(analysis["logEvidence"]["status"], "pending_fetch")
+        self.assertEqual(analysis["logEvidence"]["sourceStatus"], "credentials_configured")
+        self.assertEqual(analysis["logEvidence"]["credentialMode"], "v1_api_key")
+        self.assertEqual(analysis["logEvidence"]["api"], "warcraftlogs-v1-rest")
+        self.assertNotIn("fake-wcl-v1-key", json.dumps(analysis, ensure_ascii=False))
+
+    def test_wcl_analysis_requires_report_code_or_url(self):
+        analysis = self.backend.analyze_simulator_request(
+            {"mode": "wcl", "question": "Review my boss pull."}
+        )
+
+        self.assertEqual(analysis["logEvidence"]["status"], "missing_input")
+        self.assertEqual(analysis["logEvidence"]["sourceStatus"], "missing_report")
+        self.assertIn("wcl.report", analysis["logEvidence"]["missingInputs"])
+        self.assertFalse(analysis["llm"]["called"])
+        self.assertIn("wcl.report", analysis["report"]["topFindings"][0]["evidenceRefs"])
+
+    def test_saved_wcl_task_preserves_log_evidence_status(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-wcl-evidence",
+            exchange_code=lambda code: {"openid": "openid-wcl-evidence"},
+        )
+
+        analysis = self.backend.analyze_and_store_simulator_task(
+            {
+                "mode": "wcl",
+                "saveTask": True,
+                "wclUrl": "https://www.warcraftlogs.com/reports/WCLTask123?fight=last",
+                "question": "Check cooldown usage.",
+            },
+            access_token=login["accessToken"],
+        )
+        detail = self.backend.get_simulator_task(login["accessToken"], analysis["taskId"])
+
+        self.assertEqual(analysis["logEvidence"]["sourceStatus"], "missing_credentials")
+        self.assertEqual(detail["task"]["analysis"]["logEvidence"]["reportCode"], "WCLTask123")
+        self.assertEqual(detail["task"]["analysis"]["logEvidence"]["fightId"], "last")
 
     def test_guest_simulator_analysis_can_be_saved_without_auth_token(self):
         analysis = self.backend.analyze_and_store_simulator_task(
@@ -2266,18 +2661,20 @@ class NewsBackendTest(unittest.TestCase):
 
         with self.assertRaises(PermissionError):
             self.backend.list_simulator_tasks("")
-        with self.assertRaises(PermissionError):
-            self.backend.list_simulator_tasks("", allow_guest=True)
+        self.assertEqual(
+            self.backend.list_simulator_tasks("", allow_guest=True),
+            {"user": None, "tasks": []},
+        )
 
     def test_guest_simulator_read_does_not_create_user_for_unknown_guest_id(self):
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
             before = conn.execute("SELECT COUNT(*) FROM wechat_users").fetchone()[0]
 
-        with self.assertRaises(PermissionError):
-            self.backend.list_simulator_tasks("", allow_guest=True, guest_id="unknown-read")
+        result = self.backend.list_simulator_tasks("", allow_guest=True, guest_id="unknown-read")
 
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
             after = conn.execute("SELECT COUNT(*) FROM wechat_users").fetchone()[0]
+        self.assertEqual(result, {"user": None, "tasks": []})
         self.assertEqual(after, before)
 
     def test_simulator_task_detail_requires_owner_or_guest_flag(self):

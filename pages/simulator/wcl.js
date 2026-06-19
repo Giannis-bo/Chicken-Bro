@@ -1,4 +1,3 @@
-const { loginWithWechat } = require('../common/auth-client')
 const {
   requestSimulatorAnalysis
 } = require('./simulator-api')
@@ -34,24 +33,23 @@ Page({
     const prompt = (this.data.wclPrompt || '').trim()
     this.setData({ loading: true })
     trackEvent('wcl_submit', { hasPrompt: !!prompt }, { page: 'pages/simulator/wcl' })
-    loginWithWechat().catch(() => null).then(() => {
-      return requestSimulatorAnalysis({
-        mode: 'wcl',
-        prompt: this.data.wclPrompt,
-        saveTask: true
-      }, { auth: true, allowInsecureGuestRequest: true })
-    }).then(({ payload, fromFallback, error }) => {
-      this.setData({
-        latestAnalysis: payload,
-        fromFallback,
-        requestError: error || ''
-      })
-      wx.showToast({
+    requestSimulatorAnalysis({
+      mode: 'wcl',
+      prompt: this.data.wclPrompt,
+      saveTask: true
+    }, { auth: true, allowInsecureGuestRequest: true })
+      .then(({ payload, fromFallback, error }) => {
+        this.setData({
+          latestAnalysis: payload,
+          fromFallback,
+          requestError: error || ''
+        })
+        wx.showToast({
         title: prompt ? (fromFallback ? '已生成本地建议' : '分析已提交') : '已提交分析',
-        icon: 'none'
+          icon: 'none'
+        })
+      }).finally(() => {
+        this.setData({ loading: false })
       })
-    }).finally(() => {
-      this.setData({ loading: false })
-    })
   }
 })

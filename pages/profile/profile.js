@@ -1,6 +1,10 @@
 const { currentProfile, saveProfileDraft } = require('../common/auth-client')
 const { trackPageLeave, trackPageView } = require('../common/analytics-client')
-const { buildTemplateSummary, deleteBuildTemplate } = require('../common/build-template-storage')
+const {
+  buildTemplateSummary,
+  deleteBuildTemplateRemote,
+  fetchBuildTemplates
+} = require('../common/build-template-storage')
 
 function shortDate(value) {
   const text = String(value || '').trim()
@@ -104,6 +108,11 @@ Page({
     this.setData({
       templateModules: decorateTemplateModules()
     })
+    fetchBuildTemplates().then(() => {
+      this.setData({
+        templateModules: decorateTemplateModules()
+      })
+    }).catch(() => {})
   },
 
   onChooseAvatar(event) {
@@ -156,8 +165,9 @@ Page({
     const title = event.currentTarget.dataset.title || '这个模板'
     if (!id) return
     const remove = () => {
-      deleteBuildTemplate(id)
-      this.hydrateTemplates()
+      deleteBuildTemplateRemote(id).finally(() => {
+        this.hydrateTemplates()
+      })
     }
     if (typeof wx !== 'undefined' && typeof wx.showModal === 'function') {
       wx.showModal({

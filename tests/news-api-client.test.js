@@ -53,6 +53,9 @@ test('release builds fall back when no HTTPS API base URL is configured', async 
 
   assert.equal(result.fromFallback, true)
   assert.match(result.error, /missing api base url/)
+  assert.ok(result.payload.heroNews.length > 0)
+  assert.ok(result.payload.highlights.length > 0)
+  assert.equal(result.payload.heroNews[0].translationFidelity, 'source_translation')
 })
 
 test('news home falls back when backend returns stale summary-only article payloads', async () => {
@@ -86,8 +89,12 @@ test('news home falls back when backend returns stale summary-only article paylo
 
   assert.equal(result.fromFallback, true)
   assert.match(result.error, /incomplete article payload/)
-  assert.deepEqual(result.payload.heroNews, [])
-  assert.deepEqual(result.payload.highlights, [])
+  assert.ok(result.payload.heroNews.length > 0)
+  assert.ok(result.payload.highlights.length > 0)
+  assert.ok(
+    [...result.payload.heroNews, ...result.payload.highlights]
+      .every((article) => article.translationFidelity === 'source_translation')
+  )
 })
 
 test('article detail request rejects stale summary-only backend payloads', async () => {
@@ -193,7 +200,7 @@ test('article detail request accepts verified body block payloads', async () => 
   assert.equal(result.article.bodyBlocksZh[1].type, 'heading')
 })
 
-test('article detail fallback does not expose legacy seed without source translation fidelity', async () => {
+test('article detail fallback exposes trusted seed with source translation fidelity', async () => {
   const api = loadNewsApiWithWx({
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'release' } }),
     getStorageSync: () => '',
@@ -205,6 +212,8 @@ test('article detail fallback does not expose legacy seed without source transla
   const result = await api.requestArticleDetail('blizzard-midnight-revelations-2026-06-03')
 
   assert.equal(result.fromFallback, true)
-  assert.equal(result.article, null)
+  assert.equal(result.article.id, 'blizzard-midnight-revelations-2026-06-03')
+  assert.equal(result.article.translationFidelity, 'source_translation')
+  assert.equal(result.article.verificationStatus, 'official_verified')
   assert.match(result.error, /missing api base url/)
 })

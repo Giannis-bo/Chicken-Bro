@@ -29,7 +29,8 @@
     "canonicalTopicId": "news:24266797",
     "readingMeta": { "bodyBlockCount": 2, "estimatedReadingMinutes": 1 },
     "contentStatus": "ready",
-    "translationStatus": "llm"
+    "translationStatus": "llm",
+    "translationFidelity": "source_translation"
   },
   {
     "id": "blizzard-hotfixes-2026-06-03",
@@ -61,7 +62,8 @@
     "canonicalTopicId": "news:24276957",
     "readingMeta": { "bodyBlockCount": 2, "estimatedReadingMinutes": 1 },
     "contentStatus": "ready",
-    "translationStatus": "llm"
+    "translationStatus": "llm",
+    "translationFidelity": "source_translation"
   },
   {
     "id": "blizzard-wow-weekly-2026-05-29",
@@ -93,7 +95,8 @@
     "canonicalTopicId": "news:24244887",
     "readingMeta": { "bodyBlockCount": 2, "estimatedReadingMinutes": 1 },
     "contentStatus": "ready",
-    "translationStatus": "llm"
+    "translationStatus": "llm",
+    "translationFidelity": "source_translation"
   },
   {
     "id": "blizzard-june-trading-post-2026-05-28",
@@ -126,7 +129,8 @@
     "canonicalTopicId": "news:24271859",
     "readingMeta": { "bodyBlockCount": 2, "estimatedReadingMinutes": 1 },
     "contentStatus": "ready",
-    "translationStatus": "llm"
+    "translationStatus": "llm",
+    "translationFidelity": "source_translation"
   },
   {
     "id": "wowhead-ptr-class-tuning-2026-04-13",

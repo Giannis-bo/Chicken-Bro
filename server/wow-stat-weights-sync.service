@@ -1,0 +1,22 @@
+[Unit]
+Description=Refresh WOW specialization stat weight cache
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/wow-mini-program
+EnvironmentFile=-/etc/wow-backend.env
+Environment=WOW_NEWS_DB=/opt/wow-mini-program/server/data/wow_news.sqlite3
+Environment=WOW_SIMC_BIN=/opt/wow-simc/current/simc
+Environment=WOW_SIMC_VERSION_FILE=/var/lib/wow-backend/simc-version.json
+Environment=WOW_STAT_WEIGHTS_REFRESH_MODE=scheduled
+Environment=WOW_STAT_WEIGHTS_PROFILE_LIMIT=3
+Environment=WOW_STAT_WEIGHTS_SIMC_ITERATIONS=2000
+Environment=WOW_STAT_WEIGHTS_VERIFIED_MIN_SAMPLES=3
+Environment=WOW_STAT_WEIGHTS_VERIFIED_MIN_PROFILES=2
+Environment=WOW_STAT_WEIGHTS_TTL_HOURS=24
+Environment=WOW_STAT_WEIGHTS_STALE_HOURS=96
+TimeoutStartSec=90min
+ExecStart=/usr/bin/python3 /opt/wow-mini-program/server/stat_weights_sync.py

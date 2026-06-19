@@ -50,7 +50,8 @@ module.exports = [
       "estimatedReadingMinutes": 1
     },
     "contentStatus": "ready",
-    "translationStatus": "llm"
+    "translationStatus": "llm",
+    "translationFidelity": "source_translation"
   },
   {
     "id": "blizzard-hotfixes-2026-06-03",
@@ -103,7 +104,8 @@ module.exports = [
       "estimatedReadingMinutes": 1
     },
     "contentStatus": "ready",
-    "translationStatus": "llm"
+    "translationStatus": "llm",
+    "translationFidelity": "source_translation"
   },
   {
     "id": "blizzard-wow-weekly-2026-05-29",
@@ -156,7 +158,8 @@ module.exports = [
       "estimatedReadingMinutes": 1
     },
     "contentStatus": "ready",
-    "translationStatus": "llm"
+    "translationStatus": "llm",
+    "translationFidelity": "source_translation"
   },
   {
     "id": "blizzard-june-trading-post-2026-05-28",
@@ -214,7 +217,8 @@ module.exports = [
       "estimatedReadingMinutes": 1
     },
     "contentStatus": "ready",
-    "translationStatus": "llm"
+    "translationStatus": "llm",
+    "translationFidelity": "source_translation"
   },
   {
     "id": "wowhead-ptr-class-tuning-2026-04-13",

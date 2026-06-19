@@ -9,7 +9,7 @@ const {
   requestWebsimGearStats
 } = require('./websim-api')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
-const { saveBuildTemplate } = require('../common/build-template-storage')
+const { syncBuildTemplate } = require('../common/build-template-storage')
 const { attachGameAsset } = require('../common/game-asset')
 
 const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
@@ -102,6 +102,49 @@ function gearStatusClass(status) {
   if (status === 'verified') return 'verified'
   if (status === 'partial') return 'partial'
   return 'blocked'
+}
+
+function statWeightStatusLabel(status) {
+  if (status === 'verified') return '已验证'
+  if (status === 'partial') return '部分可用'
+  if (status === 'stale') return '缓存过期'
+  return '暂不可用'
+}
+
+function statWeightScenarios(activeDetail) {
+  const scenarios = activeDetail && Array.isArray(activeDetail.scenarioWeights) ? activeDetail.scenarioWeights : []
+  if (scenarios.length) return scenarios
+  const stats = activeDetail && Array.isArray(activeDetail.stats) ? activeDetail.stats : []
+  if (!stats.length) return []
+  return [{
+    scenarioKey: 'legacy',
+    scenarioTitle: activeDetail.title || '属性权重',
+    scenarioLabel: '默认',
+    sourceStatus: activeDetail.sourceStatus || 'source_reference',
+    weights: stats,
+    validation: activeDetail.validation || {},
+    recommendationsZh: activeDetail.recommendationsZh || [],
+    warningsZh: activeDetail.warningsZh || [],
+    blockers: activeDetail.blockers || [],
+    analysisWindow: activeDetail.analysisWindow || '',
+    sourceNote: activeDetail.sourceNote || ''
+  }]
+}
+
+function scenarioKeyOf(scenario) {
+  return (scenario && (scenario.scenarioKey || scenario.key)) || ''
+}
+
+function selectedStatWeightScenario(activeDetail, scenarioKey) {
+  const scenarios = statWeightScenarios(activeDetail)
+  if (!scenarios.length) return null
+  const defaultKey = scenarioKey || (activeDetail && activeDetail.defaultScenarioKey) || scenarioKeyOf(scenarios[0])
+  return scenarios.find((item) => scenarioKeyOf(item) === defaultKey) || scenarios[0]
+}
+
+function listFromScenario(scenario, key) {
+  const values = scenario && Array.isArray(scenario[key]) ? scenario[key] : []
+  return values.filter((item) => item)
 }
 
 function selectedGearItems(selectedGearBySlot) {
@@ -294,6 +337,15 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
   const gearStatSnapshot = currentState.gearStatSnapshot || (gearPayload && gearPayload.statSnapshot) || defaultGearStatSnapshot()
   const gearReadiness = currentState.gearReadiness || (gearPayload && gearPayload.readiness) || {}
   const gearSlotRows = buildGearSlotRows(gearPayload, selectedGearBySlot)
+  const statWeightScenario = selectedStatWeightScenario(activeDetail, currentState.activeStatWeightScenarioKey)
+  const activeStatRows = statWeightScenario && Array.isArray(statWeightScenario.weights)
+    ? statWeightScenario.weights
+    : ((activeDetail && Array.isArray(activeDetail.stats)) ? activeDetail.stats : [])
+  const statWeightValidation = (statWeightScenario && statWeightScenario.validation) || {}
+  const statWeightBlockers = [
+    ...listFromScenario(statWeightScenario, 'blockers'),
+    ...listFromScenario(statWeightValidation, 'blockers')
+  ].filter((item, index, list) => list.indexOf(item) === index)
 
   return {
     activeDetail,
@@ -316,7 +368,16 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
     gearStatSnapshot,
     gearStatBlockers: buildGearStatBlockers(gearStatSnapshot, gearReadiness),
     gearStatStatusText: gearStatStatusText(gearStatSnapshot),
-    gearSimcItems: selectedSimcItems(selectedGearBySlot)
+    gearSimcItems: selectedSimcItems(selectedGearBySlot),
+    statWeightScenarios: statWeightScenarios(activeDetail),
+    activeStatWeightScenario: statWeightScenario,
+    activeStatWeightScenarioKey: scenarioKeyOf(statWeightScenario),
+    activeStatRows,
+    statWeightStatusLabel: statWeightStatusLabel(statWeightScenario && statWeightScenario.sourceStatus),
+    statWeightValidation,
+    statWeightBlockers,
+    statWeightRecommendations: listFromScenario(statWeightScenario, 'recommendationsZh'),
+    statWeightWarnings: listFromScenario(statWeightScenario, 'warningsZh')
   }
 }
 
@@ -593,6 +654,15 @@ Page({
           simcItems: this.data.gearSimcItems || [],
           readiness: this.data.gearReadiness || {},
           statSnapshot: this.data.gearStatSnapshot || defaultGearStatSnapshot()
+        },
+        statWeights: {
+          scenarioKey: this.data.activeStatWeightScenarioKey || '',
+          scenarioTitle: (this.data.activeStatWeightScenario && this.data.activeStatWeightScenario.scenarioTitle) || '',
+          sourceStatus: (this.data.activeStatWeightScenario && this.data.activeStatWeightScenario.sourceStatus) || '',
+          validation: this.data.statWeightValidation || {},
+          weights: this.data.activeStatRows || [],
+          recommendationsZh: this.data.statWeightRecommendations || [],
+          warningsZh: this.data.statWeightWarnings || []
         }
       }
     }
@@ -701,7 +771,7 @@ Page({
     const selectedDetail = this.data.selectedDetail || {}
     const selectedSpec = this.data.selectedSpec || {}
     const keys = specWebsimKeys(selectedSpec)
-    const saved = saveBuildTemplate({
+    syncBuildTemplate({
       type: 'gear',
       title: gearTemplateTitle(
         selectedDetail.className || selectedSpec.className || '',
@@ -729,8 +799,11 @@ Page({
         gearSchemaRevision: this.data.gearPayload && this.data.gearPayload.gearSchemaRevision,
         maxLevel: this.data.gearPayload && this.data.gearPayload.maxLevel
       }
+    }).then(({ payload }) => {
+      showToast(payload && payload.template ? '装备模板已保存' : '装备模板保存失败')
+    }).catch(() => {
+      showToast('装备模板保存失败')
     })
-    showToast(saved ? '装备模板已保存' : '装备模板保存失败')
   },
 
   setTalentScenario(event) {
@@ -740,6 +813,16 @@ Page({
       specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
     }, { page: 'pages/builds/detail' })
     this.refreshDerivedState({ activeTalentScenarioKey: key })
+  },
+
+  setStatWeightScenario(event) {
+    const key = event.currentTarget.dataset.key || ''
+    if (!key) return
+    trackEvent('builds_stat_weight_scenario_select', {
+      scenarioKey: key,
+      specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
+    }, { page: 'pages/builds/detail' })
+    this.refreshDerivedState({ activeStatWeightScenarioKey: key })
   },
 
   toggleTalentNode(event) {

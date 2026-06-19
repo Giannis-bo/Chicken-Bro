@@ -82,6 +82,12 @@ python3 server/simulator_e2e_smoke.py --base-url http://124.223.51.33 --timeout 
 
 热部署优先复用远程已有依赖：
 
+账号表或 schema 变更上线前先备份 SQLite：
+
+```bash
+ssh wow-lighthouse 'sudo install -d -m 700 -o ubuntu -g ubuntu /opt/wow-mini-program/backups && sudo cp /opt/wow-mini-program/server/data/wow_news.sqlite3 /opt/wow-mini-program/backups/wow_news.sqlite3.$(date -u +%Y%m%dT%H%M%SZ)'
+```
+
 ```bash
 WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
 ```

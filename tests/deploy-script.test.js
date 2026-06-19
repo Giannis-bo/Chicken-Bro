@@ -15,7 +15,11 @@ test('lighthouse deploy script supports a no-download hot deploy mode', () => {
   assert.match(script, /WOW_DEPLOY_SKIP_BOOTSTRAP/)
   assert.match(script, /Skipping remote bootstrap/)
   assert.match(script, /systemctl start --no-block wow-websim-sync\.service/)
+  assert.match(script, /wow-stat-weights-sync\.service/)
+  assert.match(script, /wow-stat-weights-sync\.timer/)
+  assert.match(script, /systemctl start --no-block wow-stat-weights-sync\.service/)
   assert.doesNotMatch(script, /systemctl start wow-websim-sync\.service \|\|/)
+  assert.doesNotMatch(script, /systemctl start wow-stat-weights-sync\.service \|\|/)
 
   const skipBranch = script.indexOf('if [[ "${SKIP_BOOTSTRAP}" == "1" ]]')
   const bootstrapBranch = script.indexOf('else # full remote bootstrap')
