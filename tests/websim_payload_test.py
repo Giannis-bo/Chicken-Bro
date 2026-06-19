@@ -1460,6 +1460,21 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(catalog_item["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
         self.assertEqual(payload["catalogStatus"], "verified")
 
+    def test_gear_catalog_sync_loads_default_mod_seed_without_env(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            count = self.websim_payload.sync_websim_gear_mod_options(conn)
+            socket_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "socket")
+            enchant_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "enchant")
+        finally:
+            conn.close()
+
+        self.assertGreaterEqual(count, 2)
+        self.assertTrue(any(option["simcOptions"].get("gem_id") == "240983" for option in socket_options["head"]))
+        self.assertTrue(any(option["simcOptions"].get("enchant_id") == "8017" for option in enchant_options["head"]))
+
     def test_websim_gear_payload_smoke_covers_every_class_spec(self):
         conn = sqlite3.connect(self.db_path)
         try:

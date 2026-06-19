@@ -95,6 +95,32 @@ COMMUNITY_TALENT_SYNC_KEY = "community_talent_templates"
 TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
 GEAR_SCHEMA_REVISION = "websim-gear-simulator-v1"
 GEAR_CATALOG_REVISION = "websim-gear-catalog-v1"
+DEFAULT_GEAR_MOD_SEED = [
+    {
+        "id": "seed-socket-gem-240983",
+        "type": "socket",
+        "name": "Server seed gem 240983",
+        "slots": ["*"],
+        "simcOptions": {"gem_id": "240983"},
+        "status": "partial",
+        "payload": {
+            "source": "server_default_seed",
+            "blockers": ["official current-season gem label pending"],
+        },
+    },
+    {
+        "id": "seed-enchant-8017",
+        "type": "enchant",
+        "name": "Server seed enchant 8017",
+        "slots": ["head"],
+        "simcOptions": {"enchant_id": "8017"},
+        "status": "partial",
+        "payload": {
+            "source": "server_default_seed",
+            "blockers": ["official current-season enchant label pending"],
+        },
+    },
+]
 
 
 WOW_CLASSES = [
@@ -3675,11 +3701,14 @@ def crafted_gear_seed():
 
 
 def gear_mod_seed():
+    seeds = [dict(option) for option in DEFAULT_GEAR_MOD_SEED]
     raw = os.environ.get("WOW_WEBSIM_GEAR_MOD_SEED", "").strip()
     if not raw:
-        return []
+        return seeds
     parsed = safe_json_loads(raw, [])
-    return parsed if isinstance(parsed, list) else []
+    if isinstance(parsed, list):
+        seeds.extend(parsed)
+    return seeds
 
 
 def upsert_gear_source(conn, source):
