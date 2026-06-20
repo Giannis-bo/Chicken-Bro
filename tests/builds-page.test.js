@@ -891,6 +891,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(wxml, /wx:for="\{\{gearSlotRows\}\}"/)
   assert.doesNotMatch(wxml, /source-strip/)
   assert.match(wxml, /class="gear-loading-state" wx:if="\{\{gearInitialLoading\}\}"/)
+  assert.match(wxml, /class="detail-desc" wx:if="\{\{activeQuery\.desc && activeQueryKey != 'gear'\}\}"/)
   assert.match(wxml, /class="gear-icon"/)
   assert.match(wxml, /item\.gameAsset\.iconUrl/)
   assert.doesNotMatch(wxml, /item\.iconUrl/)
@@ -915,8 +916,14 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(wxml, /bindtap="saveGearTemplate"/)
   assert.match(wxml, /bindtap="openGearCommunityTemplates"/)
   assert.match(wxml, /bindtap="resetGearSelection"/)
+  assert.match(wxml, /gearDataWarningText/)
+  assert.match(wxml, /disabled="\{\{gearDataFallback \|\| gearTemplateSaving\}\}"/)
+  assert.match(wxml, /class="gear-template-action-button import"/)
+  assert.match(wxml, /disabled="\{\{gearDataFallback\}\}"/)
   assert.match(wxml, /gearCommunityTemplateSheet\.visible/)
   assert.match(wxml, /wx:for="\{\{activeGearCommunityTemplates\}\}"/)
+  assert.match(wxml, /gear-community-template-title">\{\{item\.displayName \|\| item\.name\}\}/)
+  assert.match(wxml, /\{\{item\.displaySourceName \|\| item\.sourceName\}\} · \{\{item\.slotCoverageLabel\}\}/)
   assert.match(wxml, /bindtap="applyGearCommunityTemplate"/)
   const gearPanelMarkup = wxml.match(/<view class="module-panel gear-panel"[\s\S]*?<view class="module-panel stats-panel"/)
   assert.ok(gearPanelMarkup)
@@ -927,14 +934,169 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.doesNotMatch(css, /\.gear-stat-panel/)
   assert.match(css, /\.gear-slot-grid/)
   assert.match(css, /\.gear-slot-card\s*\{[\s\S]*min-height:\s*176rpx;[\s\S]*padding:\s*12rpx;/)
+  assert.match(css, /\.gear-request-alert/)
   assert.match(css, /\.gear-loading-state/)
   assert.match(css, /\.gear-slot-sheet/)
   assert.match(css, /\.gear-sheet-filter/)
   assert.match(css, /\.gear-variant-chip/)
   assert.match(css, /\.gear-mod-option/)
-  assert.match(css, /\.gear-template-actions\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/)
+  assert.match(css, /\.gear-template-actions\s*\{[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;[\s\S]*gap:\s*8rpx;/)
+  assert.match(css, /\.gear-template-action-button\s*\{[\s\S]*width:\s*0;[\s\S]*box-sizing:\s*border-box;[\s\S]*display:\s*flex;[\s\S]*white-space:\s*nowrap;[\s\S]*overflow:\s*hidden;/)
+  assert.match(css, /\.gear-template-action-button\.import\s*\{[\s\S]*flex-grow:\s*1\.35;[\s\S]*\}/)
+  assert.match(css, /\.gear-template-action-button\[disabled\]/)
+  const gearActionsCss = css.match(/\.gear-template-actions\s*\{[^}]*\}/)
+  assert.ok(gearActionsCss)
+  assert.doesNotMatch(gearActionsCss[0], /grid-template-columns/)
   assert.match(css, /\.gear-community-template-sheet/)
-  assert.match(css, /\.gear-template-action-button\.primary\s*\{[\s\S]*grid-column:\s*1\s*\/\s*-1;/)
+  const gearCommunityCardCss = css.match(/\.gear-community-template-card\s*\{[^}]*\}/)
+  assert.ok(gearCommunityCardCss)
+  assert.match(gearCommunityCardCss[0], /display:\s*flex;/)
+  assert.match(gearCommunityCardCss[0], /flex-direction:\s*column;/)
+  assert.match(gearCommunityCardCss[0], /gap:\s*14rpx;/)
+  assert.doesNotMatch(gearCommunityCardCss[0], /grid-template-columns:/)
+  const gearCommunitySideCss = css.match(/\.gear-community-template-side\s*\{[^}]*\}/)
+  assert.ok(gearCommunitySideCss)
+  assert.match(gearCommunitySideCss[0], /min-width:\s*0;/)
+  assert.match(gearCommunitySideCss[0], /display:\s*flex;/)
+  assert.match(gearCommunitySideCss[0], /flex-direction:\s*column;/)
+  assert.match(gearCommunitySideCss[0], /gap:\s*10rpx;/)
+  assert.match(gearCommunitySideCss[0], /align-items:\s*stretch;/)
+  const gearCommunityApplyCss = css.match(/\.gear-community-template-apply\s*\{[^}]*\}/)
+  assert.ok(gearCommunityApplyCss)
+  assert.match(gearCommunityApplyCss[0], /width:\s*100%;/)
+  assert.match(gearCommunityApplyCss[0], /max-width:\s*100%;/)
+  assert.match(gearCommunityApplyCss[0], /box-sizing:\s*border-box;/)
+  assert.match(gearCommunityApplyCss[0], /display:\s*flex;/)
+  assert.match(gearCommunityApplyCss[0], /white-space:\s*nowrap;/)
+  assert.match(gearCommunityApplyCss[0], /overflow:\s*hidden;/)
+  const primaryGearActionCss = css.match(/\.gear-template-action-button\.primary\s*\{[^}]*\}/)
+  assert.ok(primaryGearActionCss)
+  assert.doesNotMatch(primaryGearActionCss[0], /grid-column/)
+})
+
+test('gear community templates derive readable names from class spec hero and source', async () => {
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear: () => Promise.resolve({
+      payload: {
+        classKey: 'mage',
+        specKey: 'frost',
+        slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+        replacementCandidates: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot, items: [] })),
+        equippedSet: {},
+        slotReadiness: {},
+        readiness: { fullReady: false },
+        communityTemplates: [{
+          id: 'simc-preset',
+          classKey: 'mage',
+          specKey: 'frost',
+          name: 'MID1_Mage_Frost_Spellslinger',
+          sourceKey: 'simc_preset',
+          sourceName: 'SimC preset',
+          status: 'complete',
+          readySlotCount: 16,
+          missingSlots: [],
+          canApplyGear: true,
+          gearItems: Object.values(completeGearSelection())
+        }, {
+          id: 'rio-observed',
+          classLabel: '法师',
+          specLabel: '冰霜',
+          name: 'Raider.IO 观测装备 · 法师冰霜',
+          sourceKey: 'observed_profile',
+          sourceName: 'Raider.IO observed gear',
+          status: 'partial',
+          readySlotCount: 6,
+          missingSlots: canonicalGearSlots.slice(6),
+          canApplyGear: true,
+          gearItems: Object.values(completeGearSelection(canonicalGearSlots.slice(0, 6)))
+        }],
+        communityTemplateSync: {
+          sourceStatus: 'partial',
+          sources: {},
+          templates: { total: 2, verified: 1, partial: 1, blocked: 0 }
+        }
+      }
+    })
+  })
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: {},
+      gearSelectionKey: '',
+      gearSlotRows: [],
+      gearSlotSheet: {},
+      gearCommunityTemplateSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.loadWebsimGearForSelection.call(page, {
+    selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' }
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(page.data.activeGearCommunityTemplates[0].displayName, '法师-冰霜-法术投射者 · SimC 预设')
+  assert.equal(page.data.activeGearCommunityTemplates[0].displaySourceName, 'SimC 预设')
+  assert.equal(page.data.activeGearCommunityTemplates[1].displayName, '法师-冰霜 · Raider.IO 观测')
+  assert.equal(page.data.activeGearCommunityTemplates[1].displaySourceName, 'Raider.IO 观测')
+})
+
+test('gear detail marks backend fallback and blocks empty community imports', async () => {
+  const toasts = []
+  const pageConfig = loadBuildsDetailPageConfig({
+    toasts,
+    requestWebsimGear: () => Promise.resolve({
+      fromFallback: true,
+      error: 'missing api base url',
+      payload: {
+        classKey: 'mage',
+        specKey: 'frost',
+        slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+        replacementCandidates: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot, items: [] })),
+        equippedSet: {},
+        slotReadiness: {},
+        readiness: { fullReady: false },
+        communityTemplates: [],
+        communityTemplateSync: {
+          sourceStatus: 'missing_credentials',
+          sources: {},
+          templates: { total: 0, verified: 0, partial: 0, blocked: 0 }
+        },
+        dataStatus: 'blocked'
+      }
+    })
+  })
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: {},
+      gearSelectionKey: '',
+      gearSlotRows: [],
+      gearSlotSheet: {},
+      gearCommunityTemplateSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.loadWebsimGearForSelection.call(page, {
+    selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' }
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  pageConfig.openGearCommunityTemplates.call(page)
+
+  assert.equal(page.data.gearDataFallback, true)
+  assert.equal(page.data.gearSlotRows.length, canonicalGearSlots.length)
+  assert.match(page.data.gearDataWarningText, /未连接后端 API/)
+  assert.equal(page.data.gearCommunityTemplateSheet.visible, false)
+  assert.match(toasts.at(-1).title, /未连接后端 API/)
 })
 
 test('gear detail hides fallback insight while first gear payload is loading', () => {
@@ -1200,6 +1362,7 @@ test('gear template save requires all canonical slots and stores neutral complet
   assert.equal(savedTemplates.length, 1)
   assert.equal(savedTemplates[0].status, 'complete')
   assert.equal(savedTemplates[0].statusLabel, '完整配置')
+  assert.match(savedTemplates[0].title, /^法师-冰霜-单体-\d{4} \d{4}$/)
   assert.equal(Array.isArray(savedTemplates[0].simcLines), true)
   assert.equal(savedTemplates[0].simcLines.length, 0)
   assert.equal(savedTemplates[0].rawString.split('\n').length, canonicalGearSlots.length)

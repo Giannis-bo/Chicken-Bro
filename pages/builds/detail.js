@@ -39,6 +39,108 @@ const gearCandidateFilters = [
   { key: 'raid', label: '团本' },
   { key: 'crafted', label: '制造' }
 ]
+const maxGearTemplateTitleLength = 28
+const gearClassLabels = {
+  deathknight: '死亡骑士',
+  demonhunter: '恶魔猎手',
+  druid: '德鲁伊',
+  evoker: '唤魔师',
+  hunter: '猎人',
+  mage: '法师',
+  monk: '武僧',
+  paladin: '圣骑士',
+  priest: '牧师',
+  rogue: '潜行者',
+  shaman: '萨满祭司',
+  warlock: '术士',
+  warrior: '战士'
+}
+const gearSpecLabels = {
+  arcane: '奥术',
+  fire: '火焰',
+  frost: '冰霜',
+  holy: '神圣',
+  protection: '防护',
+  retribution: '惩戒',
+  elemental: '元素',
+  enhancement: '增强',
+  restoration: '恢复',
+  arms: '武器',
+  fury: '狂怒',
+  blood: '鲜血',
+  unholy: '邪恶',
+  havoc: '浩劫',
+  vengeance: '复仇',
+  balance: '平衡',
+  feral: '野性',
+  guardian: '守护',
+  devastation: '湮灭',
+  preservation: '恩护',
+  augmentation: '增辉',
+  beast_mastery: '野兽控制',
+  marksmanship: '射击',
+  survival: '生存',
+  brewmaster: '酒仙',
+  mistweaver: '织雾',
+  windwalker: '踏风',
+  discipline: '戒律',
+  shadow: '暗影',
+  assassination: '奇袭',
+  outlaw: '狂徒',
+  subtlety: '敏锐',
+  affliction: '痛苦',
+  demonology: '恶魔学识',
+  destruction: '毁灭'
+}
+const gearHeroLabels = {
+  deathbringer: '死亡使者',
+  rider_of_the_apocalypse: '天启骑士',
+  sanlayn: '萨莱茵',
+  aldrachi_reaver: '奥达奇掠夺者',
+  fel_scarred: '邪痕者',
+  annihilator: '歼灭者',
+  void_scarred: '虚痕者',
+  keeper_of_the_grove: '丛林守护者',
+  wildstalker: '野性追猎者',
+  elunes_chosen: '艾露恩钦选者',
+  druid_of_the_claw: '利爪德鲁伊',
+  flameshaper: '塑焰者',
+  scalecommander: '鳞长',
+  chronowarden: '时空守卫',
+  dark_ranger: '黑暗游侠',
+  pack_leader: '兽群领袖',
+  sentinel: '哨兵',
+  spellslinger: '法术投射者',
+  sunfury: '日怒',
+  frostfire: '霜火',
+  conduit_of_the_celestials: '天神御师',
+  master_of_harmony: '和谐宗师',
+  shado_pan: '影踪派',
+  herald_of_the_sun: '旭日使者',
+  lightsmith: '铸光者',
+  templar: '圣殿骑士',
+  oracle: '神谕者',
+  voidweaver: '虚空编织者',
+  archon: '执政官',
+  deathstalker: '死亡猎手',
+  fatebound: '命缚者',
+  trickster: '欺诈者',
+  farseer: '先知',
+  stormbringer: '风暴使者',
+  totemic: '图腾祭司',
+  hellcaller: '地狱召唤者',
+  soul_harvester: '灵魂收割者',
+  diabolist: '恶魔学家',
+  colossus: '巨像',
+  mountain_thane: '山丘领主',
+  slayer: '屠戮者'
+}
+const gearCommunitySourceLabels = {
+  simc_preset: 'SimC 预设',
+  observed_profile: 'Raider.IO 观测',
+  raiderio_observed: 'Raider.IO 观测',
+  raiderio: 'Raider.IO 观测'
+}
 
 const requiredGearSlots = [
   'head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist',
@@ -217,9 +319,35 @@ function gearTemplateStatus(selectedGearBySlot) {
   return { status: 'complete', statusLabel: '完整配置', missingSlots: [] }
 }
 
+function cleanGearTemplateTitlePart(value, fallback, maxLength) {
+  const text = String(value || fallback || '')
+    .replace(/\s+/g, '')
+    .replace(/[·|｜]/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .trim()
+  if (!text) return ''
+  return text.length > maxLength ? text.slice(0, maxLength) : text
+}
+
+function compactGearTemplateTime(date) {
+  const current = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date()
+  const month = String(current.getMonth() + 1).padStart(2, '0')
+  const day = String(current.getDate()).padStart(2, '0')
+  const hour = String(current.getHours()).padStart(2, '0')
+  const minute = String(current.getMinutes()).padStart(2, '0')
+  return `${month}${day} ${hour}${minute}`
+}
+
 function gearTemplateTitle(className, specName, scenarioTitle) {
-  const specLabel = `${specName || ''}${className || ''}`.trim() || '装备模板'
-  return scenarioTitle ? `${specLabel} · ${scenarioTitle}` : specLabel
+  const time = compactGearTemplateTime()
+  const prefix = [
+    cleanGearTemplateTitlePart(className, '职业', 6),
+    cleanGearTemplateTitlePart(specName, '专精', 6),
+    cleanGearTemplateTitlePart(scenarioTitle, '场景', 8)
+  ].filter(Boolean).join('-') || '装备'
+  const maxPrefixLength = Math.max(4, maxGearTemplateTitleLength - time.length - 1)
+  const shortPrefix = prefix.length > maxPrefixLength ? prefix.slice(0, maxPrefixLength) : prefix
+  return `${shortPrefix}-${time}`
 }
 
 function gearScenarioAt(index) {
@@ -266,6 +394,50 @@ function gearCommunityTemplateCardClass(template) {
   return 'blocked'
 }
 
+function normalizeGearTemplateKey(value) {
+  return String(value || '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase()
+}
+
+function matchedGearLabel(template, labels, explicitKey) {
+  const key = normalizeGearTemplateKey(explicitKey)
+  if (key && labels[key]) return labels[key]
+  const haystack = normalizeGearTemplateKey([
+    template && template.id,
+    template && template.name,
+    template && template.sourceName
+  ].filter(Boolean).join('_'))
+  const matchedKey = Object.keys(labels)
+    .sort((left, right) => right.length - left.length)
+    .find((item) => haystack.includes(item))
+  return matchedKey ? labels[matchedKey] : ''
+}
+
+function gearCommunitySourceDisplayName(template) {
+  const sourceKey = normalizeGearTemplateKey(template && (template.sourceKey || template.sourceType || template.provider))
+  if (sourceKey && gearCommunitySourceLabels[sourceKey]) return gearCommunitySourceLabels[sourceKey]
+  const rawName = String((template && template.sourceName) || '').trim()
+  const normalizedName = rawName.toLowerCase()
+  if (normalizedName.includes('simc') && normalizedName.includes('preset')) return 'SimC 预设'
+  if (/raider\.?io/.test(normalizedName) && (normalizedName.includes('observed') || normalizedName.includes('gear'))) {
+    return 'Raider.IO 观测'
+  }
+  return rawName || '社区装备'
+}
+
+function gearCommunityTemplateDisplayName(template) {
+  const classLabel = (template && template.classLabel) || matchedGearLabel(template, gearClassLabels, template && template.classKey)
+  const specLabel = (template && template.specLabel) || matchedGearLabel(template, gearSpecLabels, template && template.specKey)
+  const heroLabel = (template && template.heroLabel) || matchedGearLabel(template, gearHeroLabels, template && template.heroKey)
+  const sourceName = gearCommunitySourceDisplayName(template)
+  const profileLabel = [classLabel, specLabel, heroLabel].filter(Boolean).join('-')
+  const rawName = String((template && template.name) || '').trim()
+  return [profileLabel || rawName || '社区装备模板', sourceName].filter(Boolean).join(' · ')
+}
+
 function decorateGearCommunityTemplate(template) {
   const gearSelection = gearItemsToSelection((template && template.gearItems) || [])
   const gearItems = requiredGearSlots.map((slot) => gearSelection[slot]).filter(Boolean)
@@ -276,6 +448,7 @@ function decorateGearCommunityTemplate(template) {
   const status = (template && template.status) || (missingSlots.length ? 'partial' : 'complete')
   const sourceStatus = (template && template.sourceStatus) || status
   const canApplyGear = !!(template && template.canApplyGear !== false && readySlotCount > 0)
+  const displaySourceName = gearCommunitySourceDisplayName(template)
   return {
     ...(template || {}),
     status,
@@ -284,6 +457,8 @@ function decorateGearCommunityTemplate(template) {
     readySlotCount,
     missingSlots,
     canApplyGear,
+    displayName: gearCommunityTemplateDisplayName(template),
+    displaySourceName,
     statusLabel: gearCommunityStatusLabel(status),
     sourceStatusLabel: gearCommunityStatusLabel(sourceStatus),
     slotCoverageLabel: `已覆盖 ${readySlotCount}/${requiredGearSlots.length} 槽`,
@@ -305,6 +480,19 @@ function gearCommunitySyncSummary(syncState, templates) {
     return `社区模板 ${templates.length} 个 · ${gearCommunityStatusLabel(status)}`
   }
   return '暂无可导入装备模板'
+}
+
+function gearDataWarningText(error, payload, fromFallback) {
+  if (error === 'missing api base url') {
+    return '未连接后端 API，当前只是空槽位兜底，无法读取真实装备和社区模板。'
+  }
+  if (error) {
+    return `装备接口请求失败：${error}。当前只是空槽位兜底。`
+  }
+  if (fromFallback || (payload && payload.dataStatus === 'blocked')) {
+    return '装备接口暂不可用，当前只是空槽位兜底。'
+  }
+  return ''
 }
 
 function gearGroupsBySlot(payload) {
@@ -617,6 +805,7 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
   const talentScenario = talentScenarios.find((item) => item.key === activeTalentScenarioKey) || talentScenarios[0]
   const talentSimulationSummary = buildTalentSimulationSummary(talentDetail, talentScenario.key, selectedTalentNodes)
   const gearPayload = currentState.gearPayload || null
+  const gearDataFallback = !!(currentState.gearDataFallback || (gearPayload && gearPayload.dataStatus === 'blocked'))
   const selectedGearBySlot = currentState.selectedGearBySlot || {}
   const gearReadiness = currentState.gearReadiness || (gearPayload && gearPayload.readiness) || {}
   const gearSlotRows = buildGearSlotRows(gearPayload, selectedGearBySlot)
@@ -648,6 +837,8 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
       summary: talentSimulationSummary
     },
     gearPayload,
+    gearDataFallback,
+    gearDataWarningText: gearDataWarningText(currentState.gearRequestError || '', gearPayload, gearDataFallback),
     selectedGearBySlot,
     gearSlotRows,
     gearInitialLoading,
@@ -715,6 +906,8 @@ Page({
     gearStatsLoading: false,
     gearTemplateSaving: false,
     gearRequestError: '',
+    gearDataFallback: false,
+    gearDataWarningText: '',
     gearSelectionKey: '',
     gearSlotSheet: emptyGearSlotSheet(),
     gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet(),
@@ -831,35 +1024,44 @@ Page({
       gearLoading: true,
       gearInitialLoading: !hasExistingRows,
       gearRequestError: '',
+      gearDataFallback: false,
+      gearDataWarningText: '',
       gearSelectionKey: selectionKey,
       gearSlotSheet: emptyGearSlotSheet(),
       gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
-    requestWebsimGear(keys).then(({ payload, error }) => {
+    requestWebsimGear(keys).then(({ payload, error, fromFallback }) => {
       if (this.data.gearSelectionKey !== selectionKey) return
       const baselineSelection = equippedSetToSelection(payload.equippedSet || {})
       const selectedGearBySlot = {
         ...baselineSelection,
         ...existingSelection
       }
+      const gearDataFallback = !!fromFallback
       const gearReadiness = payload.readiness || {}
       const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
         ...this.data,
         gearPayload: payload,
         selectedGearBySlot,
-        gearReadiness
+        gearReadiness,
+        gearDataFallback,
+        gearRequestError: error || ''
       })
       this.setData({
         ...derivedState,
         gearLoading: false,
         gearInitialLoading: false,
-        gearRequestError: error || ''
+        gearRequestError: error || '',
+        gearDataFallback,
+        gearDataWarningText: gearDataWarningText(error || '', payload, gearDataFallback)
       })
     }).catch((error) => {
       this.setData({
         gearLoading: false,
         gearInitialLoading: false,
-        gearRequestError: error.message || String(error)
+        gearRequestError: error.message || String(error),
+        gearDataFallback: true,
+        gearDataWarningText: gearDataWarningText(error.message || String(error), null, true)
       })
     })
   },
@@ -923,6 +1125,10 @@ Page({
   },
 
   openGearCommunityTemplates() {
+    if (this.data.gearDataFallback) {
+      showToast(this.data.gearDataWarningText || '装备接口暂不可用，无法导入社区模板')
+      return
+    }
     this.refreshDerivedState()
     this.setData({
       gearCommunityTemplateSheet: { visible: true },
@@ -1091,6 +1297,10 @@ Page({
   },
 
   saveGearTemplate() {
+    if (this.data.gearDataFallback) {
+      showToast(this.data.gearDataWarningText || '装备接口暂不可用，无法保存装备模板')
+      return
+    }
     const selectedItems = selectedGearItems(this.data.selectedGearBySlot || {})
     const configLines = canonicalGearTemplateLines(this.data.selectedGearBySlot || {})
     const status = gearTemplateStatus(this.data.selectedGearBySlot || {})

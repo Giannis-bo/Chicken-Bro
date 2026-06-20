@@ -18,8 +18,12 @@ test('lighthouse deploy script supports a no-download hot deploy mode', () => {
   assert.match(script, /wow-stat-weights-sync\.service/)
   assert.match(script, /wow-stat-weights-sync\.timer/)
   assert.match(script, /systemctl start --no-block wow-stat-weights-sync\.service/)
+  assert.match(script, /wow-community-template-sync\.service/)
+  assert.match(script, /wow-community-template-sync\.timer/)
+  assert.match(script, /systemctl start --no-block wow-community-template-sync\.service/)
   assert.doesNotMatch(script, /systemctl start wow-websim-sync\.service \|\|/)
   assert.doesNotMatch(script, /systemctl start wow-stat-weights-sync\.service \|\|/)
+  assert.doesNotMatch(script, /systemctl start wow-community-template-sync\.service \|\|/)
 
   const skipBranch = script.indexOf('if [[ "${SKIP_BOOTSTRAP}" == "1" ]]')
   const bootstrapBranch = script.indexOf('else # full remote bootstrap')
@@ -36,4 +40,15 @@ test('lighthouse deploy script supports a no-download hot deploy mode', () => {
     const commandIndex = script.indexOf(networkOrInstallCommand)
     assert.ok(commandIndex > bootstrapBranch, `${networkOrInstallCommand} must stay out of hot deploy mode`)
   }
+})
+
+test('community template sync has a six-hour persistent systemd timer', () => {
+  const service = fs.readFileSync('server/wow-community-template-sync.service', 'utf8')
+  const timer = fs.readFileSync('server/wow-community-template-sync.timer', 'utf8')
+
+  assert.match(service, /ExecStart=\/usr\/bin\/flock -w 7200 \/run\/lock\/wow-mini-program-sync\.lock \/usr\/bin\/python3 \/opt\/wow-mini-program\/server\/community_template_sync\.py/)
+  assert.match(service, /TimeoutStartSec=180min/)
+  assert.match(timer, /OnBootSec=12min/)
+  assert.match(timer, /OnUnitActiveSec=6h/)
+  assert.match(timer, /Persistent=true/)
 })

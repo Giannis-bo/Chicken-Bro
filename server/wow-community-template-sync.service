@@ -1,0 +1,17 @@
+[Unit]
+Description=WOW community template sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/wow-mini-program
+EnvironmentFile=-/etc/wow-backend.env
+Environment=WOW_NEWS_DB=/opt/wow-mini-program/server/data/wow_news.sqlite3
+Environment=WOW_COMMUNITY_TEMPLATE_SYNC_MODE=scheduled
+Environment=WOW_RAIDERIO_RUN_PAGES=25
+Environment=WOW_RAIDERIO_PROFILE_LIMIT=200
+Environment=WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC=5
+ExecStart=/usr/bin/flock -w 7200 /run/lock/wow-mini-program-sync.lock /usr/bin/python3 /opt/wow-mini-program/server/community_template_sync.py
+TimeoutStartSec=180min

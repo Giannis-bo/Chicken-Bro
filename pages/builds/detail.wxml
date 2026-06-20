@@ -5,7 +5,7 @@
       <view class="detail-hero">
         <text class="detail-kicker">职业专精查询</text>
         <text class="detail-title">{{activeQuery.title}}</text>
-        <text class="detail-desc">{{activeQuery.desc}}</text>
+        <text class="detail-desc" wx:if="{{activeQuery.desc && activeQueryKey != 'gear'}}">{{activeQuery.desc}}</text>
       </view>
 
       <view class="filter-panel">
@@ -58,6 +58,10 @@
       </view>
 
       <view class="module-panel gear-panel" wx:if="{{activeQueryKey == 'gear'}}">
+        <view class="gear-request-alert" wx:if="{{gearDataWarningText}}">
+          <text>{{gearDataWarningText}}</text>
+        </view>
+
         <view class="gear-slot-grid">
           <view class="gear-slot-card {{item.statusClass}}" wx:for="{{gearSlotRows}}" wx:key="slot" data-slot="{{item.slot}}" bindtap="openGearSlotSheet">
             <view class="gear-slot-topline">
@@ -90,8 +94,8 @@
         </view>
 
         <view class="gear-template-actions" wx:if="{{!gearInitialLoading}}">
-          <button class="gear-template-action-button primary" loading="{{gearTemplateSaving}}" bindtap="saveGearTemplate">保存模板</button>
-          <button class="gear-template-action-button" bindtap="openGearCommunityTemplates">导入社区推荐</button>
+          <button class="gear-template-action-button primary" loading="{{gearTemplateSaving}}" disabled="{{gearDataFallback || gearTemplateSaving}}" bindtap="saveGearTemplate">保存模板</button>
+          <button class="gear-template-action-button import" disabled="{{gearDataFallback}}" bindtap="openGearCommunityTemplates">导入社区推荐</button>
           <button class="gear-template-action-button muted" bindtap="resetGearSelection">重置</button>
         </view>
       </view>
@@ -248,8 +252,8 @@
     <view class="gear-community-template-list" wx:if="{{activeGearCommunityTemplates.length}}">
       <view class="gear-community-template-card {{item.cardClass}}" wx:for="{{activeGearCommunityTemplates}}" wx:key="id">
         <view class="gear-community-template-main">
-          <text class="gear-community-template-title">{{item.name}}</text>
-          <text class="gear-community-template-meta">{{item.sourceName}} · {{item.slotCoverageLabel}}</text>
+          <text class="gear-community-template-title">{{item.displayName || item.name}}</text>
+          <text class="gear-community-template-meta">{{item.displaySourceName || item.sourceName}} · {{item.slotCoverageLabel}}</text>
           <text class="gear-community-template-meta">{{item.statusLabel}} · {{item.updatedLabel || item.analysisWindow}}</text>
         </view>
         <view class="gear-community-template-side">

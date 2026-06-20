@@ -19,5 +19,5 @@ Environment=WOW_WEBSIM_SYNC_SPELL_LIMIT=40
 Environment=WOW_WEBSIM_SYNC_ITEM_LIMIT=80
 Environment=WOW_WEBSIM_SYNC_ENCOUNTER_LIMIT=50
 Environment=WOW_BLIZZARD_TIMEOUT_SECONDS=8
-TimeoutStartSec=10min
-ExecStart=/usr/bin/python3 /opt/wow-mini-program/server/websim_sync.py
+TimeoutStartSec=180min
+ExecStart=/usr/bin/flock -w 7200 /run/lock/wow-mini-program-sync.lock /usr/bin/python3 /opt/wow-mini-program/server/websim_sync.py

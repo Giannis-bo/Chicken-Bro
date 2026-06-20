@@ -3282,6 +3282,46 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(components["gear_catalog"]["details"]["itemDatabaseRevision"], "items-test-rev")
         self.assertIn("1 catalog item missing selectable variant", components["gear_catalog"]["blockers"])
 
+    def test_data_health_payload_includes_community_template_scan_coverage(self):
+        import server.websim_payload as websim_payload
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            websim_payload.ensure_websim_tables(conn)
+            websim_payload.set_sync_state(
+                conn,
+                websim_payload.COMMUNITY_TALENT_SYNC_KEY,
+                {
+                    "sourceStatus": "partial",
+                    "templateRevision": "community-template-v1-test",
+                    "scanCoverage": {
+                        "totalClassCount": 13,
+                        "totalSpecCount": 40,
+                        "coveredSpecCount": 38,
+                        "missingSpecs": ["rogue:subtlety", "shaman:restoration"],
+                    },
+                    "dedupedCount": 72,
+                    "hiddenDuplicateCount": 18,
+                    "sources": {
+                        "raiderio": {"status": "synced", "sourceName": "Raider.IO", "errors": []},
+                        "warcraftlogs": {"status": "missing_credentials", "sourceName": "Warcraft Logs", "errors": []},
+                    },
+                    "templates": {"total": 90, "verified": 80, "blocked": 10},
+                    "checkedAt": "2026-06-20T08:00:00+00:00",
+                },
+            )
+            conn.commit()
+
+        payload = self.backend.build_data_health_payload()
+        component = {item["key"]: item for item in payload["components"]}["community_templates"]
+
+        self.assertEqual(component["status"], "partial")
+        self.assertEqual(component["details"]["templateRevision"], "community-template-v1-test")
+        self.assertEqual(component["details"]["scanCoverage"]["totalSpecCount"], 40)
+        self.assertEqual(component["details"]["scanCoverage"]["coveredSpecCount"], 38)
+        self.assertEqual(component["details"]["dedupedCount"], 72)
+        self.assertEqual(component["details"]["hiddenDuplicateCount"], 18)
+        self.assertEqual(component["details"]["wclTemplateSource"]["status"], "missing_credentials")
+
     def test_data_health_websim_sync_uses_ok_state_without_legacy_counts(self):
         import server.websim_payload as websim_payload
 

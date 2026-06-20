@@ -92,6 +92,8 @@ SIMC_TALENT_SOURCE_REFS = [
     }
 ]
 COMMUNITY_TALENT_SYNC_KEY = "community_talent_templates"
+COMMUNITY_TEMPLATE_SYNC_RUN_KEY = "community_template_sync_latest"
+COMMUNITY_TEMPLATE_REVISION = "community-template-v1"
 TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
 GEAR_SCHEMA_REVISION = "websim-gear-simulator-v1"
 GEAR_CATALOG_REVISION = "websim-gear-catalog-v1"
@@ -544,6 +546,15 @@ CANONICAL_GEAR_SLOTS = [
     "main_hand",
     "off_hand",
 ]
+
+PORTABLE_GEAR_SLOTS = {"neck", "back", "finger1", "finger2", "trinket1", "trinket2"}
+
+EQUIVALENT_GEAR_SLOTS = {
+    "finger1": ["finger1", "finger2"],
+    "finger2": ["finger1", "finger2"],
+    "trinket1": ["trinket1", "trinket2"],
+    "trinket2": ["trinket1", "trinket2"],
+}
 
 CORE_SIMC_GEAR_SLOTS = [
     slot for slot in CANONICAL_GEAR_SLOTS
@@ -1146,6 +1157,66 @@ def ensure_websim_tables(conn):
         ON websim_community_talent_templates (class_key, status, max_key_level, sample_count)
         """
     )
+    ensure_table_columns(conn, "websim_community_talent_templates", {
+        "signature": "TEXT NOT NULL DEFAULT ''",
+        "source_refs_json": "TEXT NOT NULL DEFAULT '[]'",
+        "scan_run_id": "TEXT NOT NULL DEFAULT ''",
+    })
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_websim_community_talent_templates_signature
+        ON websim_community_talent_templates (class_key, spec_key, hero_key, signature, status)
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS websim_community_gear_templates (
+            id TEXT PRIMARY KEY,
+            class_key TEXT NOT NULL,
+            spec_key TEXT NOT NULL,
+            name TEXT NOT NULL,
+            source_key TEXT NOT NULL,
+            source_name TEXT NOT NULL,
+            source_url TEXT NOT NULL,
+            source_status TEXT NOT NULL,
+            status TEXT NOT NULL,
+            signature TEXT NOT NULL,
+            source_refs_json TEXT NOT NULL,
+            gear_items_json TEXT NOT NULL,
+            raw_string TEXT NOT NULL,
+            ready_slot_count INTEGER NOT NULL DEFAULT 0,
+            missing_slots_json TEXT NOT NULL,
+            analysis_window TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            scan_run_id TEXT NOT NULL DEFAULT ''
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_websim_community_gear_templates_lookup
+        ON websim_community_gear_templates (class_key, spec_key, status, signature)
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS community_template_sync_runs (
+            id TEXT PRIMARY KEY,
+            mode TEXT NOT NULL,
+            status TEXT NOT NULL,
+            source_status TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            finished_at TEXT NOT NULL,
+            scan_coverage_json TEXT NOT NULL,
+            talent_counts_json TEXT NOT NULL,
+            gear_counts_json TEXT NOT NULL,
+            source_refs_json TEXT NOT NULL,
+            payload_json TEXT NOT NULL
+        )
+        """
+    )
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS websim_season_state (
@@ -1264,6 +1335,14 @@ def set_sync_state(conn, key, value):
         """,
         (key, json.dumps(value, ensure_ascii=False), utc_now()),
     )
+
+
+def ensure_table_columns(conn, table_name, columns):
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()}
+    for column_name, definition in columns.items():
+        if column_name in existing:
+            continue
+        conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}")
 
 
 def get_sync_state(conn, key):
@@ -3927,6 +4006,12 @@ def observed_gear_spec_entries(raiderio):
         gear = aggregate.get("observedGear") if isinstance(aggregate.get("observedGear"), list) else []
         if class_key and spec_key and gear:
             entries.append((class_key, spec_key, aggregate, gear))
+        for profile in aggregate.get("observedGearProfiles") or []:
+            if not isinstance(profile, dict):
+                continue
+            profile_gear = profile.get("gear") if isinstance(profile.get("gear"), list) else []
+            if class_key and spec_key and profile_gear:
+                entries.append((class_key, spec_key, {**aggregate, **profile}, profile_gear))
     specs = raiderio.get("specs") if isinstance(raiderio.get("specs"), dict) else {}
     for spec_id, aggregate in specs.items():
         if not isinstance(aggregate, dict):
@@ -3940,6 +4025,12 @@ def observed_gear_spec_entries(raiderio):
         gear = aggregate.get("observedGear") if isinstance(aggregate.get("observedGear"), list) else []
         if class_key and spec_key and gear:
             entries.append((class_key, spec_key, aggregate, gear))
+        for profile in aggregate.get("observedGearProfiles") or []:
+            if not isinstance(profile, dict):
+                continue
+            profile_gear = profile.get("gear") if isinstance(profile.get("gear"), list) else []
+            if class_key and spec_key and profile_gear:
+                entries.append((class_key, spec_key, {**aggregate, **profile}, profile_gear))
     return entries
 
 
@@ -5329,9 +5420,59 @@ def ensure_community_talent_templates(conn):
         })
 
 
+def community_talent_template_stats(conn):
+    ensure_websim_tables(conn)
+    rows = conn.execute(
+        """
+        SELECT class_key, spec_key, hero_key, status, signature, talent_state_json,
+               raw_import_code, websim_export_code
+        FROM websim_community_talent_templates
+        WHERE status = 'verified'
+        """
+    ).fetchall()
+    signatures = set()
+    covered = set()
+    raw_count = 0
+    for row in rows:
+        template = {
+            "classKey": row[0],
+            "specKey": row[1],
+            "heroKey": row[2],
+            "status": row[3],
+            "signature": row[4],
+            "talentState": safe_json_loads(row[5], {"selectedNodes": []}),
+            "rawImportCode": row[6] or "",
+            "websimExportCode": row[7] or "",
+        }
+        signature = row[4] or community_talent_signature(template)
+        signatures.add(signature)
+        covered.add(f"{row[0]}:{row[1]}")
+        raw_count += 1
+    expected = set(expected_spec_pairs())
+    total_specs = len(expected) or len(covered)
+    missing = sorted(expected - covered) if expected else []
+    return {
+        "templateRevision": community_template_revision_from_signatures(signatures),
+        "dedupedCount": len(signatures),
+        "hiddenDuplicateCount": max(0, raw_count - len(signatures)),
+        "scanCoverage": {
+            "totalClassCount": len(WOW_CLASSES),
+            "totalSpecCount": total_specs,
+            "coveredSpecCount": len(covered & expected) if expected else len(covered),
+            "missingSpecs": missing,
+        },
+    }
+
+
 def community_talent_sync_state(conn):
     state = get_sync_state(conn, COMMUNITY_TALENT_SYNC_KEY)
+    stats = community_talent_template_stats(conn)
     if state:
+        state = {**state}
+        state.setdefault("templateRevision", stats["templateRevision"])
+        state.setdefault("scanCoverage", stats["scanCoverage"])
+        state.setdefault("dedupedCount", stats["dedupedCount"])
+        state.setdefault("hiddenDuplicateCount", stats["hiddenDuplicateCount"])
         return state
     return {
         "sourceStatus": "missing_credentials",
@@ -5341,6 +5482,10 @@ def community_talent_sync_state(conn):
             "warcraftlogs": {"status": "missing_credentials", "sourceName": "Warcraft Logs", "errors": []},
         },
         "templates": {"total": 0, "verified": 0, "blocked": 0},
+        "templateRevision": stats["templateRevision"],
+        "scanCoverage": stats["scanCoverage"],
+        "dedupedCount": stats["dedupedCount"],
+        "hiddenDuplicateCount": stats["hiddenDuplicateCount"],
         "checkedAt": "",
     }
 
@@ -5392,6 +5537,129 @@ def community_talent_export_code(template):
         for item in sorted(selected, key=lambda row: row["id"])
     )
     return f"websim:{class_key}:{spec_key}:{hero_key}:{entries}"
+
+
+def stable_digest(value):
+    return hashlib.sha1(
+        json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()[:16]
+
+
+def expected_spec_pairs():
+    pairs = []
+    for klass in WOW_CLASSES:
+        class_key = slugify(klass.get("key"), "")
+        for spec in klass.get("specs") or []:
+            spec_key = slugify(spec.get("key") if isinstance(spec, dict) else spec, "")
+            if class_key and spec_key:
+                pairs.append(f"{class_key}:{spec_key}")
+    return pairs
+
+
+def community_template_revision_from_signatures(signatures):
+    values = sorted(str(item or "") for item in signatures or [] if str(item or ""))
+    if not values:
+        return COMMUNITY_TEMPLATE_REVISION
+    return f"{COMMUNITY_TEMPLATE_REVISION}-{hashlib.sha1('|'.join(values).encode('utf-8')).hexdigest()[:10]}"
+
+
+def normalize_source_refs(refs):
+    normalized = []
+    seen = set()
+    for ref in refs or []:
+        if not isinstance(ref, dict):
+            continue
+        item = {
+            "id": str(ref.get("id") or "").strip(),
+            "sourceKey": str(ref.get("sourceKey") or "").strip(),
+            "sourceName": str(ref.get("sourceName") or "").strip(),
+            "sourceUrl": str(ref.get("sourceUrl") or "").strip(),
+            "sourceStatus": str(ref.get("sourceStatus") or "").strip(),
+            "status": str(ref.get("status") or "").strip(),
+            "sampleCount": int(ref.get("sampleCount") or 0),
+            "maxKeyLevel": int(ref.get("maxKeyLevel") or 0),
+            "updatedAt": str(ref.get("updatedAt") or "").strip(),
+            "analysisWindow": str(ref.get("analysisWindow") or "").strip(),
+        }
+        key = "|".join([item["id"], item["sourceKey"], item["sourceUrl"]])
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(item)
+    return normalized
+
+
+def community_talent_signature(template):
+    class_key = slugify(template.get("classKey"), "mage")
+    spec_key = slugify(template.get("specKey"), "arcane")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(template.get("heroKey"), ""))
+    selected = community_talent_selected_nodes(template)
+    if selected:
+        nodes = sorted(
+            [{"id": str(item.get("id") or ""), "rank": int(item.get("rank") or 1)} for item in selected],
+            key=lambda item: (item["id"], item["rank"]),
+        )
+        return f"talent:{class_key}:{spec_key}:{hero_key}:{stable_digest(nodes)}"
+    raw_code = external_talent_import_code({
+        "talents": template.get("rawImportCode") or template.get("raw_import_code") or ""
+    })
+    normalized_raw = re.sub(r"\s+", "", raw_code)
+    if normalized_raw:
+        return f"talent:{class_key}:{spec_key}:{hero_key}:raw:{hashlib.sha1(normalized_raw.encode('utf-8')).hexdigest()[:16]}"
+    return f"talent:{class_key}:{spec_key}:{hero_key}:empty"
+
+
+def community_talent_source_ref(template):
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    return {
+        "id": str(template.get("id") or "").strip(),
+        "sourceKey": str(template.get("sourceKey") or payload.get("sourceKey") or "").strip(),
+        "sourceName": str(template.get("sourceName") or "").strip(),
+        "sourceUrl": str(template.get("sourceUrl") or "").strip(),
+        "sourceStatus": str(template.get("sourceStatus") or "").strip(),
+        "status": str(template.get("status") or "").strip(),
+        "sampleCount": int(template.get("sampleCount") or 0),
+        "maxKeyLevel": int(template.get("maxKeyLevel") or 0),
+        "updatedAt": str(template.get("updatedAt") or "").strip(),
+        "analysisWindow": str(template.get("analysisWindow") or "").strip(),
+    }
+
+
+def community_talent_template_sort_key(template):
+    return (
+        1 if template.get("canApplyVisual") else 0,
+        1 if template.get("status") == "verified" else 0,
+        1 if template.get("sourceStatus") in {"synced", "verified"} else 0,
+        int(template.get("maxKeyLevel") or 0),
+        int(template.get("sampleCount") or 0),
+        str(template.get("updatedAt") or ""),
+    )
+
+
+def dedupe_templates_by_signature(templates, signature_getter, sort_key_getter):
+    groups = {}
+    for template in templates or []:
+        signature = template.get("signature") or signature_getter(template)
+        if not signature:
+            continue
+        template["signature"] = signature
+        refs = normalize_source_refs(template.get("sourceRefs") or [])
+        if not refs:
+            refs = normalize_source_refs([community_talent_source_ref(template)])
+        template["sourceRefs"] = refs
+        groups.setdefault(signature, []).append(template)
+    deduped = []
+    for signature, grouped in groups.items():
+        winner = sorted(grouped, key=sort_key_getter, reverse=True)[0]
+        merged_refs = []
+        for item in grouped:
+            merged_refs.extend(item.get("sourceRefs") or [])
+        winner = {**winner}
+        winner["signature"] = signature
+        winner["sourceRefs"] = normalize_source_refs(merged_refs)
+        winner["dedupedCount"] = sum(max(1, int(item.get("dedupedCount") or 1)) for item in grouped)
+        deduped.append(winner)
+    return sorted(deduped, key=sort_key_getter, reverse=True)
 
 
 def community_talent_default_state_from_db(conn, class_key, spec_key, hero_key):
@@ -5730,7 +5998,7 @@ def normalize_community_talent_template(template, source_key="manual_fixture", s
         "sourceStatus": source.get("sourceStatus") or source_status,
         **{key: value for key, value in labels.items() if value},
     })
-    return {
+    normalized = {
         "id": slugify(source.get("id"), f"{source_key}-{class_key}-{spec_key}-{hero_key or 'default'}-{scenario_key}"),
         "classKey": class_key,
         "specKey": spec_key,
@@ -5758,6 +6026,10 @@ def normalize_community_talent_template(template, source_key="manual_fixture", s
         "updatedAt": str(source.get("updatedAt") or now).strip(),
         "expiresAt": str(source.get("expiresAt") or season_expires_at()).strip(),
     }
+    normalized["signature"] = str(source.get("signature") or community_talent_signature(normalized)).strip()
+    normalized["sourceRefs"] = normalize_source_refs(source.get("sourceRefs") or [community_talent_source_ref(normalized)])
+    normalized["scanRunId"] = str(source.get("scanRunId") or source.get("scan_run_id") or "").strip()
+    return normalized
 
 
 def refresh_community_talent_identity(template):
@@ -5789,6 +6061,8 @@ def refresh_community_talent_identity(template):
             labels["specLabel"],
             labels["scenarioTitle"],
         ])
+    template["signature"] = community_talent_signature(template)
+    template["sourceRefs"] = normalize_source_refs(template.get("sourceRefs") or [community_talent_source_ref(template)])
     return template
 
 
@@ -5867,8 +6141,9 @@ def upsert_community_talent_template(conn, template):
             id, class_key, spec_key, hero_key, scenario_key, name, flow_label,
             source_key, source_name, source_url, raw_import_code, websim_export_code,
             talent_state_json, sample_count, max_key_level, analysis_window,
-            source_status, status, payload_json, updated_at, expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            source_status, status, payload_json, updated_at, expires_at,
+            signature, source_refs_json, scan_run_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             class_key=excluded.class_key,
             spec_key=excluded.spec_key,
@@ -5889,7 +6164,10 @@ def upsert_community_talent_template(conn, template):
             status=excluded.status,
             payload_json=excluded.payload_json,
             updated_at=excluded.updated_at,
-            expires_at=excluded.expires_at
+            expires_at=excluded.expires_at,
+            signature=excluded.signature,
+            source_refs_json=excluded.source_refs_json,
+            scan_run_id=excluded.scan_run_id
         """,
         (
             normalized["id"],
@@ -5913,6 +6191,9 @@ def upsert_community_talent_template(conn, template):
             json.dumps(normalized["payload"], ensure_ascii=False),
             normalized["updatedAt"],
             normalized["expiresAt"],
+            normalized["signature"],
+            json.dumps(normalized["sourceRefs"], ensure_ascii=False),
+            normalized["scanRunId"],
         ),
     )
     return normalized
@@ -5926,12 +6207,13 @@ def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arca
         SELECT id, class_key, spec_key, hero_key, scenario_key, name, flow_label,
                source_key, source_name, source_url, raw_import_code, websim_export_code,
                talent_state_json, sample_count, max_key_level, analysis_window,
-               source_status, status, payload_json, updated_at, expires_at
+               source_status, status, payload_json, updated_at, expires_at,
+               signature, source_refs_json, scan_run_id
         FROM websim_community_talent_templates
         WHERE class_key = ?
           AND status = 'verified'
         ORDER BY max_key_level DESC, sample_count DESC, spec_key, hero_key, name
-        LIMIT 60
+        LIMIT 240
         """,
         (class_key,),
     ).fetchall()
@@ -5967,6 +6249,9 @@ def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arca
             "sourceStatus": row[16],
             "status": row[17],
             "payload": payload,
+            "signature": row[21] or "",
+            "sourceRefs": normalize_source_refs(safe_json_loads(row[22], []) or []),
+            "scanRunId": row[23] or "",
             "playerId": player_id,
             "classLabel": payload.get("classLabel") or class_label(row[1]),
             "specLabel": payload.get("specLabel") or spec_label(row[2]),
@@ -5977,7 +6262,12 @@ def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arca
             "canApplyVisual": can_apply_visual,
             "canUseInSimc": bool(can_apply_visual or raw_import_code),
         })
-    return templates
+    deduped = dedupe_templates_by_signature(
+        templates,
+        community_talent_signature,
+        community_talent_template_sort_key,
+    )
+    return deduped[:60]
 
 
 def sync_community_talent_templates(conn):
@@ -6031,10 +6321,15 @@ def sync_community_talent_templates(conn):
         source_status = "missing_credentials"
     else:
         source_status = "blocked"
+    stats = community_talent_template_stats(conn)
     payload = {
         "sourceStatus": source_status,
         "sources": sources,
         "templates": {"total": total, "verified": verified, "blocked": blocked},
+        "templateRevision": stats["templateRevision"],
+        "scanCoverage": stats["scanCoverage"],
+        "dedupedCount": stats["dedupedCount"],
+        "hiddenDuplicateCount": stats["hiddenDuplicateCount"],
         "checkedAt": utc_now(),
     }
     set_sync_state(conn, COMMUNITY_TALENT_SYNC_KEY, payload)
@@ -6662,8 +6957,14 @@ def gear_catalog_mod_options_by_slot(conn, option_type):
     return result
 
 
-def catalog_variant_compatible(variant, class_key, spec_key):
-    payload = variant.get("payload") if isinstance(variant, dict) else {}
+def portable_gear_slot(slot):
+    return normalize_slot(slot) in PORTABLE_GEAR_SLOTS
+
+
+def catalog_context_compatible(row, class_key, spec_key, slot=""):
+    if portable_gear_slot(slot):
+        return True
+    payload = row.get("payload") if isinstance(row, dict) else {}
     if not isinstance(payload, dict):
         return True
     class_keys = payload.get("classKeys") or payload.get("classes") or []
@@ -6681,12 +6982,23 @@ def catalog_variant_compatible(variant, class_key, spec_key):
     return True
 
 
-def catalog_compatibility(item, variants, class_key, spec_key):
+def catalog_variant_compatible(variant, class_key, spec_key, item_slot=""):
+    slot = normalize_slot((variant or {}).get("slot") or item_slot)
+    return catalog_context_compatible(variant, class_key, spec_key, slot)
+
+
+def catalog_source_compatible(source, class_key, spec_key, item_slot=""):
+    return catalog_context_compatible(source, class_key, spec_key, item_slot)
+
+
+def catalog_compatibility(item, sources, variants, class_key, spec_key):
     armor_status = item.get("compatibility") or "unknown"
-    compatible_variants = [variant for variant in variants if catalog_variant_compatible(variant, class_key, spec_key)]
-    if armor_status == "incompatible" or (variants and not compatible_variants):
+    item_slot = item.get("slot") or ""
+    compatible_sources = [source for source in sources if catalog_source_compatible(source, class_key, spec_key, item_slot)]
+    compatible_variants = [variant for variant in variants if catalog_variant_compatible(variant, class_key, spec_key, item_slot)]
+    if armor_status == "incompatible" or (variants and not compatible_variants) or (sources and not compatible_sources):
         status = "incompatible"
-    elif compatible_variants:
+    elif compatible_sources or compatible_variants:
         status = "compatible"
     else:
         status = "unknown"
@@ -6742,20 +7054,19 @@ def observed_profile_refs_from_catalog(sources, variants):
 def enrich_catalog_item(item, sources, variants, socket_options, enchant_options, class_key, spec_key):
     if not item:
         return None
-    compatible_variants = [variant for variant in variants if catalog_variant_compatible(variant, class_key, spec_key)]
-    item["sources"] = sources
-    item["sourceRefs"] = sources
+    item_slot = item.get("slot") or ""
+    compatible_sources = [source for source in sources if catalog_source_compatible(source, class_key, spec_key, item_slot)]
+    compatible_variants = [variant for variant in variants if catalog_variant_compatible(variant, class_key, spec_key, item_slot)]
+    item["sources"] = compatible_sources
+    item["sourceRefs"] = compatible_sources
     item["variants"] = compatible_variants
-    item["observedProfileRefs"] = observed_profile_refs_from_catalog(sources, compatible_variants)
+    item["observedProfileRefs"] = observed_profile_refs_from_catalog(compatible_sources, compatible_variants)
     item["socketOptions"] = socket_options
     item["enchantOptions"] = enchant_options
-    item["recommendationScore"] = max([int(source.get("recommendationScore") or 0) for source in sources] + [0])
-    item["compatibility"] = catalog_compatibility(item, variants, class_key, spec_key)
+    item["recommendationScore"] = max([int(source.get("recommendationScore") or 0) for source in compatible_sources] + [0])
+    item["compatibility"] = catalog_compatibility(item, sources, variants, class_key, spec_key)
     if item["compatibility"]["status"] == "incompatible":
-        item["missingFields"] = sorted(set((item.get("missingFields") or []) + ["compatibility"]))
-        item["simcReady"] = False
-        item["blockers"] = sorted(set(item.get("missingFields") or []))
-        return item
+        return None
     apply_default_catalog_variant(item, compatible_variants)
     item["blockers"] = sorted(set([*(item.get("variantBlockers") or []), *(item.get("missingFields") or [])]))
     return item
@@ -6818,6 +7129,66 @@ def get_websim_gear_catalog_items(conn, class_key, spec_key):
     return catalog_items
 
 
+def gear_template_signature(template):
+    class_key = slugify(template.get("classKey"), "mage")
+    spec_key = slugify(template.get("specKey"), "arcane")
+    by_slot = gear_items_by_slot(template.get("gearItems") or [], class_key, spec_key)
+    parts = []
+    for slot in CANONICAL_GEAR_SLOTS:
+        item = by_slot.get(slot)
+        if not item:
+            continue
+        parts.append({
+            "slot": slot,
+            "itemId": str(item.get("itemId") or item.get("id") or ""),
+            "ilevel": str(item.get("ilevel") or item.get("itemLevel") or ""),
+            "bonus_id": str(item.get("bonus_id") or ""),
+            "gem_id": str(item.get("gem_id") or ""),
+            "gem_bonus_id": str(item.get("gem_bonus_id") or ""),
+            "gem_ilevel": str(item.get("gem_ilevel") or ""),
+            "enchant_id": str(item.get("enchant_id") or ""),
+            "crafted_stats": str(item.get("crafted_stats") or ""),
+        })
+    return f"gear:{class_key}:{spec_key}:{stable_digest(parts)}"
+
+
+def gear_template_source_ref(template):
+    return {
+        "id": str(template.get("id") or "").strip(),
+        "sourceKey": str(template.get("sourceKey") or "").strip(),
+        "sourceName": str(template.get("sourceName") or "").strip(),
+        "sourceUrl": str(template.get("sourceUrl") or "").strip(),
+        "sourceStatus": str(template.get("sourceStatus") or "").strip(),
+        "status": str(template.get("status") or "").strip(),
+        "sampleCount": int(template.get("sampleCount") or 0),
+        "maxKeyLevel": int(template.get("maxKeyLevel") or 0),
+        "updatedAt": str(template.get("updatedAt") or "").strip(),
+        "analysisWindow": str(template.get("analysisWindow") or "").strip(),
+    }
+
+
+def gear_template_sort_key(template):
+    return (
+        1 if template.get("status") == "complete" else 0,
+        1 if template.get("sourceStatus") in {"synced", "verified"} else 0,
+        int(template.get("readySlotCount") or 0),
+        str(template.get("updatedAt") or ""),
+        str(template.get("name") or ""),
+    )
+
+
+def dedupe_gear_community_templates(templates):
+    prepared = []
+    for template in templates or []:
+        if not isinstance(template, dict):
+            continue
+        template = {**template}
+        template["signature"] = template.get("signature") or gear_template_signature(template)
+        template["sourceRefs"] = normalize_source_refs(template.get("sourceRefs") or [gear_template_source_ref(template)])
+        prepared.append(template)
+    return dedupe_templates_by_signature(prepared, gear_template_signature, gear_template_sort_key)
+
+
 def gear_community_template_from_preset(preset, class_key, spec_key):
     if not isinstance(preset, dict):
         return None
@@ -6836,12 +7207,14 @@ def gear_community_template_from_preset(preset, class_key, spec_key):
     status = "complete" if not missing_slots else "partial"
     source_status = "synced" if status == "complete" else "partial"
     ready_count = len(gear_items)
-    return {
+    template = {
         "id": str(preset.get("id") or f"preset-{class_key}-{spec_key}"),
         "name": str(preset.get("name") or "SimC preset"),
         "classKey": class_key,
         "specKey": spec_key,
+        "sourceKey": "simc_preset",
         "sourceName": "SimC preset",
+        "sourceUrl": "",
         "sourceStatus": source_status,
         "status": status,
         "updatedAt": str(preset.get("updatedAt") or ""),
@@ -6852,6 +7225,82 @@ def gear_community_template_from_preset(preset, class_key, spec_key):
         "missingSlots": missing_slots,
         "canApplyGear": bool(gear_items),
     }
+    template["signature"] = gear_template_signature(template)
+    template["sourceRefs"] = normalize_source_refs([gear_template_source_ref(template)])
+    template["templateRevision"] = COMMUNITY_TEMPLATE_REVISION
+    return template
+
+
+def observed_item_matches_spec(item, class_key, spec_key):
+    if not isinstance(item, dict):
+        return False
+    for ref in item.get("observedProfileRefs") or []:
+        if not isinstance(ref, dict):
+            continue
+        if slugify(ref.get("classKey"), "") == class_key and slugify(ref.get("specKey"), "") == spec_key:
+            return True
+    return False
+
+
+def observed_profile_baseline_items(catalog_items, class_key, spec_key):
+    by_slot = {}
+    for item in catalog_items or []:
+        if not isinstance(item, dict) or not item.get("simcReady"):
+            continue
+        if item.get("variantSource") != "observed_profile":
+            continue
+        if not observed_item_matches_spec(item, class_key, spec_key):
+            continue
+        slot = item.get("slot")
+        if slot in CANONICAL_GEAR_SLOTS and slot not in by_slot:
+            by_slot[slot] = {
+                **item,
+                "sourceType": "observed_profile",
+                "source": item.get("source") or "Raider.IO observed gear",
+            }
+    return [by_slot[slot] for slot in CANONICAL_GEAR_SLOTS if slot in by_slot]
+
+
+def gear_community_template_from_observed_items(items, class_key, spec_key):
+    ready_by_slot = gear_items_by_slot(
+        [item for item in items or [] if isinstance(item, dict) and item.get("simcReady")],
+        class_key,
+        spec_key,
+    )
+    gear_items = [ready_by_slot[slot] for slot in CANONICAL_GEAR_SLOTS if slot in ready_by_slot]
+    if not gear_items:
+        return None
+    raw_lines = build_websim_gear_lines(gear_items)
+    if not raw_lines:
+        return None
+    missing_slots = [slot for slot in CANONICAL_GEAR_SLOTS if slot not in ready_by_slot]
+    status = "complete" if not missing_slots else "partial"
+    source_status = "synced" if status == "complete" else "partial"
+    ready_count = len(gear_items)
+    class_label = CLASS_LABELS_ZH.get(class_key, class_key)
+    spec_label = SPEC_LABELS_ZH.get(spec_key, SPEC_LABELS.get(spec_key, spec_key.replace("_", " ").title()))
+    template = {
+        "id": f"observed-profile-{class_key}-{spec_key}",
+        "name": f"Raider.IO 观测装备 · {class_label}{spec_label}",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "sourceKey": "raiderio_observed_profile",
+        "sourceName": "Raider.IO observed gear",
+        "sourceUrl": "",
+        "sourceStatus": source_status,
+        "status": status,
+        "updatedAt": utc_now(),
+        "analysisWindow": f"Raider.IO observed profile gear; {ready_count}/{len(CANONICAL_GEAR_SLOTS)} canonical gear slots ready.",
+        "gearItems": gear_items,
+        "rawString": "\n".join(raw_lines),
+        "readySlotCount": ready_count,
+        "missingSlots": missing_slots,
+        "canApplyGear": bool(gear_items),
+    }
+    template["signature"] = gear_template_signature(template)
+    template["sourceRefs"] = normalize_source_refs([gear_template_source_ref(template)])
+    template["templateRevision"] = COMMUNITY_TEMPLATE_REVISION
+    return template
 
 
 def websim_gear_community_templates(presets, class_key, spec_key):
@@ -6861,7 +7310,7 @@ def websim_gear_community_templates(presets, class_key, spec_key):
         if template:
             templates.append(template)
     return sorted(
-        templates,
+        dedupe_gear_community_templates(templates),
         key=lambda item: (
             0 if item.get("status") == "complete" else 1,
             -int(item.get("readySlotCount") or 0),
@@ -6872,6 +7321,8 @@ def websim_gear_community_templates(presets, class_key, spec_key):
 
 def websim_gear_community_template_sync_state(templates):
     templates = templates or []
+    hidden_duplicate_count = sum(max(0, int(item.get("dedupedCount") or 1) - 1) for item in templates)
+    signatures = [item.get("signature") for item in templates if item.get("signature")]
     complete_count = len([item for item in templates if item.get("status") == "complete"])
     partial_count = len([item for item in templates if item.get("status") == "partial"])
     if not templates:
@@ -6880,17 +7331,36 @@ def websim_gear_community_template_sync_state(templates):
         source_status = "partial"
     else:
         source_status = "synced"
+    simc_templates = [item for item in templates if item.get("sourceName") == "SimC preset"]
+    observed_templates = [item for item in templates if item.get("sourceName") == "Raider.IO observed gear"]
+    sources = {}
+    if simc_templates:
+        sources["simc_presets"] = {
+            "status": "partial" if any(item.get("status") == "partial" for item in simc_templates) else "synced",
+            "sourceName": "SimC preset",
+            "errors": [],
+        }
+    if observed_templates:
+        sources["observed_profile"] = {
+            "status": "partial" if any(item.get("status") == "partial" for item in observed_templates) else "synced",
+            "sourceName": "Raider.IO observed gear",
+            "errors": [],
+        }
+    if not sources:
+        sources["simc_presets"] = {
+            "status": source_status,
+            "sourceName": "SimC preset",
+            "errors": ["no importable SimC gear presets"],
+        }
     return {
         "sourceStatus": source_status,
-        "sources": {
-            "simc_presets": {
-                "status": source_status,
-                "sourceName": "SimC preset",
-                "errors": [] if templates else ["no importable SimC gear presets"],
-            }
-        },
+        "sources": sources,
+        "templateRevision": community_template_revision_from_signatures(signatures),
+        "dedupedCount": len(templates),
+        "hiddenDuplicateCount": hidden_duplicate_count,
         "templates": {
             "total": len(templates),
+            "rawTotal": len(templates) + hidden_duplicate_count,
             "verified": complete_count,
             "partial": partial_count,
             "blocked": 0,
@@ -6899,13 +7369,247 @@ def websim_gear_community_template_sync_state(templates):
     }
 
 
-def get_websim_gear(conn, class_key="mage", spec_key="arcane"):
+def normalize_community_gear_template(template, class_key="", spec_key=""):
+    source = template if isinstance(template, dict) else {}
+    class_key = slugify(source.get("classKey") or class_key, "mage")
+    spec_key = slugify(source.get("specKey") or spec_key, "arcane")
+    gear_items = normalize_websim_gear_items(source.get("gearItems") or [], class_key, spec_key)
+    if not gear_items and source.get("rawString"):
+        gear_items = [
+            item
+            for item in (
+                parse_simc_gear_line(line, class_key, spec_key, source.get("sourceName") or "", source.get("id") or "")
+                for line in str(source.get("rawString") or "").splitlines()
+            )
+            if item
+        ]
+    ready_by_slot = gear_items_by_slot(gear_items, class_key, spec_key)
+    gear_items = [ready_by_slot[slot] for slot in CANONICAL_GEAR_SLOTS if slot in ready_by_slot]
+    raw_lines = build_websim_gear_lines(gear_items)
+    missing_slots = [slot for slot in CANONICAL_GEAR_SLOTS if slot not in ready_by_slot]
+    status = str(source.get("status") or ("complete" if not missing_slots and gear_items else "partial")).strip()
+    if status == "complete" and missing_slots:
+        status = "partial"
+    source_status = str(source.get("sourceStatus") or ("synced" if status == "complete" else "partial")).strip()
+    normalized = {
+        "id": slugify(source.get("id"), f"gear-{class_key}-{spec_key}-{stable_digest(raw_lines)}"),
+        "name": str(source.get("name") or "Community gear template").strip(),
+        "classKey": class_key,
+        "specKey": spec_key,
+        "sourceKey": str(source.get("sourceKey") or "community_gear").strip(),
+        "sourceName": str(source.get("sourceName") or "Community gear").strip(),
+        "sourceUrl": str(source.get("sourceUrl") or "").strip(),
+        "sourceStatus": source_status,
+        "status": status,
+        "updatedAt": str(source.get("updatedAt") or utc_now()).strip(),
+        "expiresAt": str(source.get("expiresAt") or season_expires_at()).strip(),
+        "analysisWindow": str(source.get("analysisWindow") or "").strip(),
+        "gearItems": gear_items,
+        "rawString": str(source.get("rawString") or "\n".join(raw_lines)).strip(),
+        "readySlotCount": len(gear_items),
+        "missingSlots": missing_slots,
+        "canApplyGear": bool(gear_items),
+        "payload": source.get("payload") if isinstance(source.get("payload"), dict) else {},
+        "scanRunId": str(source.get("scanRunId") or source.get("scan_run_id") or "").strip(),
+    }
+    normalized["signature"] = str(source.get("signature") or gear_template_signature(normalized)).strip()
+    normalized["sourceRefs"] = normalize_source_refs(source.get("sourceRefs") or [gear_template_source_ref(normalized)])
+    normalized["templateRevision"] = COMMUNITY_TEMPLATE_REVISION
+    return normalized
+
+
+def upsert_community_gear_template(conn, template):
+    ensure_websim_tables(conn)
+    normalized = normalize_community_gear_template(template)
+    conn.execute(
+        """
+        INSERT INTO websim_community_gear_templates (
+            id, class_key, spec_key, name, source_key, source_name, source_url,
+            source_status, status, signature, source_refs_json, gear_items_json,
+            raw_string, ready_slot_count, missing_slots_json, analysis_window,
+            payload_json, updated_at, expires_at, scan_run_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            class_key=excluded.class_key,
+            spec_key=excluded.spec_key,
+            name=excluded.name,
+            source_key=excluded.source_key,
+            source_name=excluded.source_name,
+            source_url=excluded.source_url,
+            source_status=excluded.source_status,
+            status=excluded.status,
+            signature=excluded.signature,
+            source_refs_json=excluded.source_refs_json,
+            gear_items_json=excluded.gear_items_json,
+            raw_string=excluded.raw_string,
+            ready_slot_count=excluded.ready_slot_count,
+            missing_slots_json=excluded.missing_slots_json,
+            analysis_window=excluded.analysis_window,
+            payload_json=excluded.payload_json,
+            updated_at=excluded.updated_at,
+            expires_at=excluded.expires_at,
+            scan_run_id=excluded.scan_run_id
+        """,
+        (
+            normalized["id"],
+            normalized["classKey"],
+            normalized["specKey"],
+            normalized["name"],
+            normalized["sourceKey"],
+            normalized["sourceName"],
+            normalized["sourceUrl"],
+            normalized["sourceStatus"],
+            normalized["status"],
+            normalized["signature"],
+            json.dumps(normalized["sourceRefs"], ensure_ascii=False),
+            json.dumps(normalized["gearItems"], ensure_ascii=False),
+            normalized["rawString"],
+            normalized["readySlotCount"],
+            json.dumps(normalized["missingSlots"], ensure_ascii=False),
+            normalized["analysisWindow"],
+            json.dumps(normalized["payload"], ensure_ascii=False),
+            normalized["updatedAt"],
+            normalized["expiresAt"],
+            normalized["scanRunId"],
+        ),
+    )
+    return normalized
+
+
+def get_persisted_community_gear_templates(conn, class_key, spec_key):
+    ensure_websim_tables(conn)
+    rows = conn.execute(
+        """
+        SELECT id, class_key, spec_key, name, source_key, source_name, source_url,
+               source_status, status, signature, source_refs_json, gear_items_json,
+               raw_string, ready_slot_count, missing_slots_json, analysis_window,
+               payload_json, updated_at, expires_at, scan_run_id
+        FROM websim_community_gear_templates
+        WHERE class_key = ? AND spec_key = ? AND status IN ('complete', 'partial')
+        ORDER BY status, ready_slot_count DESC, updated_at DESC, name
+        LIMIT 80
+        """,
+        (slugify(class_key, "mage"), slugify(spec_key, "arcane")),
+    ).fetchall()
+    templates = []
+    for row in rows:
+        templates.append({
+            "id": row[0],
+            "classKey": row[1],
+            "specKey": row[2],
+            "name": row[3],
+            "sourceKey": row[4],
+            "sourceName": row[5],
+            "sourceUrl": row[6],
+            "sourceStatus": row[7],
+            "status": row[8],
+            "signature": row[9],
+            "sourceRefs": normalize_source_refs(safe_json_loads(row[10], []) or []),
+            "gearItems": safe_json_loads(row[11], []) or [],
+            "rawString": row[12],
+            "readySlotCount": int(row[13] or 0),
+            "missingSlots": safe_json_loads(row[14], []) or [],
+            "analysisWindow": row[15],
+            "payload": safe_json_loads(row[16], {}) or {},
+            "updatedAt": row[17],
+            "expiresAt": row[18],
+            "scanRunId": row[19],
+            "canApplyGear": bool(row[12]),
+            "templateRevision": COMMUNITY_TEMPLATE_REVISION,
+        })
+    return dedupe_gear_community_templates(templates)
+
+
+def sync_community_gear_templates(conn, scan_run_id=""):
+    ensure_websim_tables(conn)
+    total = 0
+    complete = 0
+    partial = 0
+    blocked = 0
+    signatures = set()
+    for klass in WOW_CLASSES:
+        class_key = klass["key"]
+        for spec in klass.get("specs") or []:
+            spec_key = spec.get("key") if isinstance(spec, dict) else spec
+            rows = conn.execute(
+                """
+                SELECT id, class_key, spec_key, name, profile, updated_at
+                FROM websim_profile_presets
+                WHERE class_key = ? AND spec_key = ?
+                ORDER BY name
+                LIMIT 12
+                """,
+                (class_key, spec_key),
+            ).fetchall()
+            presets = [
+                {
+                    "id": row[0],
+                    "classKey": row[1],
+                    "specKey": row[2],
+                    "name": row[3],
+                    "profile": row[4],
+                    "updatedAt": row[5],
+                }
+                for row in rows
+            ]
+            templates = websim_gear_community_templates(presets, class_key, spec_key)
+            catalog_items = get_websim_gear_catalog_items(conn, class_key, spec_key)
+            observed_template = gear_community_template_from_observed_items(
+                observed_profile_baseline_items(catalog_items, class_key, spec_key),
+                class_key,
+                spec_key,
+            )
+            if observed_template:
+                templates.append(observed_template)
+            for template in dedupe_gear_community_templates(templates):
+                template["scanRunId"] = scan_run_id
+                saved = upsert_community_gear_template(conn, template)
+                total += 1
+                signatures.add(saved["signature"])
+                if saved["status"] == "complete":
+                    complete += 1
+                elif saved["status"] == "partial":
+                    partial += 1
+                else:
+                    blocked += 1
+    hidden = 0
+    rows = conn.execute(
+        """
+        SELECT signature, COUNT(*)
+        FROM websim_community_gear_templates
+        WHERE status IN ('complete', 'partial')
+        GROUP BY signature
+        """
+    ).fetchall()
+    for _, count in rows:
+        hidden += max(0, int(count or 0) - 1)
+    source_status = "synced" if complete and not partial else ("partial" if total else "blocked")
+    return {
+        "sourceStatus": source_status,
+        "templateRevision": community_template_revision_from_signatures(signatures),
+        "templates": {
+            "total": total,
+            "verified": complete,
+            "partial": partial,
+            "blocked": blocked,
+        },
+        "dedupedCount": len(signatures),
+        "hiddenDuplicateCount": hidden,
+        "checkedAt": utc_now(),
+    }
+
+
+def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
     season = get_active_season_payload(conn)
     class_key = slugify(class_key, "mage")
     spec_key = slugify(spec_key, "arcane")
+    compact = bool(compact)
     catalog_state = gear_catalog_sync_state(conn)
     presets = get_websim_presets(conn, class_key, spec_key)
-    community_templates = websim_gear_community_templates(presets, class_key, spec_key)
+    community_templates = dedupe_gear_community_templates([
+        *websim_gear_community_templates(presets, class_key, spec_key),
+        *get_persisted_community_gear_templates(conn, class_key, spec_key),
+    ])
     preset_items = []
     for preset in presets:
         preset_items.extend(preset_gear_items(preset))
@@ -6921,6 +7625,13 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane"):
     baseline_set = normalize_websim_gear_items(baseline_set, class_key, spec_key)
     preset_items = normalize_gear_item_list(preset_items, class_key, spec_key)
     candidate_items = normalize_gear_item_list(candidate_items, class_key, spec_key)
+    observed_baseline_set = observed_profile_baseline_items(catalog_items, class_key, spec_key)
+    if not baseline_set and observed_baseline_set:
+        baseline_set = observed_baseline_set
+    if not community_templates and observed_baseline_set:
+        observed_template = gear_community_template_from_observed_items(observed_baseline_set, class_key, spec_key)
+        if observed_template:
+            community_templates = dedupe_gear_community_templates([observed_template])
     grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
     for item in [*baseline_set, *preset_items, *catalog_items, *candidate_items]:
         if isinstance(item, dict) and ("variants" in item or "sources" in item):
@@ -6928,13 +7639,16 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane"):
         else:
             normalized = normalize_gear_item(item, class_key, spec_key, item.get("sourceType") if isinstance(item, dict) else "")
         if normalized and normalized.get("slot") in grouped:
-            grouped[normalized["slot"]].append(normalized)
+            for candidate_slot in gear_candidate_slots(normalized):
+                if candidate_slot in grouped:
+                    grouped[candidate_slot].append(gear_candidate_for_slot(normalized, candidate_slot))
+    candidate_limit = 24 if compact else None
     slot_groups = [
         {
             "slot": slot,
             "simcSlot": slot,
             "label": GEAR_SLOT_LABELS.get(slot, slot),
-            "items": unique_gear_candidates(grouped.get(slot, []), limit=None),
+            "items": unique_gear_candidates(grouped.get(slot, []), limit=candidate_limit),
         }
         for slot in CANONICAL_GEAR_SLOTS
     ]
@@ -6944,16 +7658,12 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane"):
         "classKey": class_key,
         "specKey": spec_key,
         "slots": gear_slot_payload(),
-        "slotGroups": slot_groups,
         "replacementCandidates": slot_groups,
         "equippedSet": equipped_set,
         "slotReadiness": gear_slot_readiness(baseline_set, class_key, spec_key),
         "baselineSet": baseline_set,
-        "presets": presets,
         "communityTemplates": community_templates,
         "communityTemplateSync": websim_gear_community_template_sync_state(community_templates),
-        "candidateItems": candidate_items[:24],
-        "catalogItems": catalog_items[:120],
         "readiness": readiness,
         "statSnapshot": blocked_stat_snapshot(
             ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
@@ -6981,20 +7691,25 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane"):
         "checkedAt": utc_now(),
         **season_metadata_fields(season),
     }
-    try:
+    if not compact:
+        payload["slotGroups"] = slot_groups
+        payload["presets"] = presets
+        payload["candidateItems"] = candidate_items[:24]
+        payload["catalogItems"] = catalog_items[:120]
         try:
-            from .raiderio_payload import get_raiderio_payload, observed_gear_for_spec
-        except ImportError:
-            from raiderio_payload import get_raiderio_payload, observed_gear_for_spec
+            try:
+                from .raiderio_payload import get_raiderio_payload, observed_gear_for_spec
+            except ImportError:
+                from raiderio_payload import get_raiderio_payload, observed_gear_for_spec
 
-        raiderio = get_raiderio_payload(conn)
-        payload["raiderioObservedGear"] = observed_gear_for_spec(raiderio, class_key, spec_key)
-        payload["raiderioSourceStatus"] = raiderio.get("sourceStatus") or "blocked"
-        payload["raiderioCheckedAt"] = raiderio.get("checkedAt") or ""
-    except Exception as error:
-        payload["raiderioObservedGear"] = []
-        payload["raiderioSourceStatus"] = "blocked"
-        payload["raiderioErrors"] = [str(error)]
+            raiderio = get_raiderio_payload(conn)
+            payload["raiderioObservedGear"] = observed_gear_for_spec(raiderio, class_key, spec_key)
+            payload["raiderioSourceStatus"] = raiderio.get("sourceStatus") or "blocked"
+            payload["raiderioCheckedAt"] = raiderio.get("checkedAt") or ""
+        except Exception as error:
+            payload["raiderioObservedGear"] = []
+            payload["raiderioSourceStatus"] = "blocked"
+            payload["raiderioErrors"] = [str(error)]
     return payload
 
 
@@ -7232,6 +7947,25 @@ def normalize_gear_item_list(items, class_key="", spec_key="", default_source_ty
         if item:
             normalized.append(item)
     return normalized
+
+
+def gear_candidate_slots(item):
+    slot = (item or {}).get("slot") or ""
+    return EQUIVALENT_GEAR_SLOTS.get(slot, [slot])
+
+
+def gear_candidate_for_slot(item, slot):
+    if not isinstance(item, dict) or item.get("slot") == slot:
+        return item
+    cloned = dict(item)
+    cloned["slot"] = slot
+    cloned["simcSlot"] = slot
+    game_asset = dict(cloned.get("gameAsset") or {})
+    if game_asset:
+        tags = [tag for tag in game_asset.get("semanticTags") or [] if tag not in CANONICAL_GEAR_SLOTS]
+        game_asset["semanticTags"] = [*tags, slot]
+        cloned["gameAsset"] = game_asset
+    return cloned
 
 
 def gear_candidate_key(item):

@@ -38,12 +38,20 @@ function iconUrlFromIconName(iconName) {
   return `${RENDER_ICON_56_BASE}${cleanIconName(iconName)}.jpg`
 }
 
+function normalizeIconUrl(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  if (/^https?:\/\//i.test(text)) return text
+  if (/^[a-z0-9_]+$/i.test(text)) return iconUrlFromIconName(text)
+  return text
+}
+
 function gameAssetFromIconUrl(options) {
   const opts = options || {}
   const entityType = String(opts.entityType || 'unknown')
   const entityId = String(opts.entityId || 'unknown')
   const contextKey = String(opts.contextKey || 'default')
-  const iconUrl = String(opts.iconUrl || '')
+  const iconUrl = normalizeIconUrl(opts.iconUrl)
   return {
     id: opts.id || assetId(entityType, entityId, contextKey),
     entityType,

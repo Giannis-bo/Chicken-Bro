@@ -263,6 +263,83 @@ def character_key(character):
     ])
 
 
+def expected_spec_pairs():
+    try:
+        from .websim_payload import WOW_CLASSES
+    except ImportError:
+        try:
+            from websim_payload import WOW_CLASSES
+        except ImportError:
+            WOW_CLASSES = []
+    pairs = []
+    for klass in WOW_CLASSES:
+        class_key = normalize_class_key(klass.get("key"))
+        for spec in klass.get("specs") or []:
+            spec_key = normalize_spec_key(spec.get("key") if isinstance(spec, dict) else spec)
+            if class_key and spec_key:
+                pairs.append(f"{class_key}:{spec_key}")
+    return pairs
+
+
+def spec_pair_key(character):
+    class_key = normalize_class_key(character.get("classKey") or character.get("classSlug") or character.get("className"))
+    spec_key = normalize_spec_key(character.get("specKey") or character.get("specSlug") or character.get("specName"))
+    return f"{class_key}:{spec_key}" if class_key and spec_key else ""
+
+
+def profile_total_limit():
+    per_spec_limit = max(1, int_env("WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC", 5))
+    default_total = per_spec_limit * max(1, len(expected_spec_pairs()) or 40)
+    return max(1, int_env("WOW_RAIDERIO_PROFILE_LIMIT", default_total))
+
+
+def select_profile_candidates_for_runs(runs):
+    total_limit = profile_total_limit()
+    per_spec_limit = max(1, int_env("WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC", 5))
+    unique = []
+    seen_characters = set()
+    per_spec_counts = {}
+    for run in runs:
+        for character in run.get("roster") or []:
+            key = character_key(character)
+            if key in seen_characters:
+                continue
+            spec_key = spec_pair_key(character)
+            if spec_key and per_spec_counts.get(spec_key, 0) >= per_spec_limit:
+                continue
+            seen_characters.add(key)
+            unique.append(character)
+            if spec_key:
+                per_spec_counts[spec_key] = per_spec_counts.get(spec_key, 0) + 1
+            if len(unique) >= total_limit:
+                return unique
+    return unique
+
+
+def spec_coverage_from_runs(runs):
+    expected = set(expected_spec_pairs())
+    covered = set()
+    samples = {}
+    for run in runs or []:
+        for character in run.get("roster") or []:
+            spec_key = spec_pair_key(character)
+            if not spec_key:
+                continue
+            covered.add(spec_key)
+            samples[spec_key] = samples.get(spec_key, 0) + 1
+    total = len(expected) or len(covered)
+    missing = sorted(expected - covered) if expected else []
+    return {
+        "totalClassCount": 13 if expected else 0,
+        "totalSpecCount": total,
+        "coveredSpecCount": len(covered & expected) if expected else len(covered),
+        "missingSpecs": missing,
+        "sampleCounts": samples,
+        "profileLimitPerSpec": max(1, int_env("WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC", 5)),
+        "profileRequestLimit": profile_total_limit(),
+    }
+
+
 def simplify_character(raw):
     data = raw.get("character") if isinstance(raw.get("character"), dict) else raw
     realm = data.get("realm") if isinstance(data.get("realm"), dict) else {}
@@ -381,20 +458,7 @@ def profile_summary(profile):
 
 
 def fetch_profiles_for_runs(runs):
-    limit = int_env("WOW_RAIDERIO_PROFILE_LIMIT", 40)
-    unique = []
-    seen = set()
-    for run in runs:
-        for character in run.get("roster") or []:
-            key = character_key(character)
-            if key in seen:
-                continue
-            seen.add(key)
-            unique.append(character)
-            if len(unique) >= limit:
-                break
-        if len(unique) >= limit:
-            break
+    unique = select_profile_candidates_for_runs(runs)
 
     profiles = {}
     errors = []
@@ -441,6 +505,7 @@ def aggregate_runs(runs, profiles):
                 "topRuns": [],
                 "talentLoadouts": [],
                 "observedGear": [],
+                "observedGearProfiles": [],
             })
             aggregate["sampleCount"] += 1
             aggregate["maxKeyLevel"] = max(aggregate["maxKeyLevel"], safe_int(run.get("mythicLevel")))
@@ -464,8 +529,17 @@ def aggregate_runs(runs, profiles):
                         "profileUrl": profile.get("profileUrl"),
                         "maxKeyLevel": run.get("mythicLevel"),
                     })
-                if profile.get("gear") and not aggregate["observedGear"]:
-                    aggregate["observedGear"] = profile.get("gear")
+                if profile.get("gear"):
+                    observed_profile = {
+                        "characterName": profile.get("name"),
+                        "realmSlug": profile.get("realmSlug"),
+                        "profileUrl": profile.get("profileUrl"),
+                        "maxKeyLevel": run.get("mythicLevel"),
+                        "gear": profile.get("gear"),
+                    }
+                    aggregate["observedGearProfiles"].append(observed_profile)
+                    if not aggregate["observedGear"]:
+                        aggregate["observedGear"] = profile.get("gear")
 
     for aggregate in aggregates.values():
         aggregate["topRuns"] = sorted(
@@ -484,6 +558,15 @@ def aggregate_runs(runs, profiles):
             seen_loadouts.add(dedupe_key)
             unique_loadouts.append(loadout)
         aggregate["talentLoadouts"] = unique_loadouts[:5]
+        unique_gear_profiles = []
+        seen_gear_profiles = set()
+        for gear_profile in aggregate.get("observedGearProfiles") or []:
+            character = f"{gear_profile.get('characterName') or ''}:{gear_profile.get('realmSlug') or ''}".lower()
+            if not character or character in seen_gear_profiles:
+                continue
+            seen_gear_profiles.add(character)
+            unique_gear_profiles.append(gear_profile)
+        aggregate["observedGearProfiles"] = unique_gear_profiles[:5]
         aggregate["characterCount"] = max(aggregate["characterCount"], len(seen_loadouts) or aggregate["sampleCount"])
     return sorted(
         aggregates.values(),
@@ -555,7 +638,7 @@ def sync_raiderio_cache(conn, force=False):
     errors = []
     rankings = []
     leaderboard_url = ""
-    pages = max(1, int_env("WOW_RAIDERIO_RUN_PAGES", 3))
+    pages = max(1, int_env("WOW_RAIDERIO_RUN_PAGES", 8))
     for page in range(pages):
         response = api_get("/mythic-plus/runs", {
             "season": season_slug,
@@ -568,11 +651,16 @@ def sync_raiderio_cache(conn, force=False):
         if not isinstance(page_rankings, list):
             page_rankings = []
         rankings.extend(page_rankings)
+        runs_preview = [simplify_run(item, leaderboard_url) for item in rankings]
+        coverage_preview = spec_coverage_from_runs([run for run in runs_preview if run.get("roster")])
+        if coverage_preview.get("totalSpecCount") and coverage_preview.get("coveredSpecCount") >= coverage_preview.get("totalSpecCount"):
+            break
         if len(page_rankings) < 20:
             break
 
     runs = [simplify_run(item, leaderboard_url) for item in rankings]
     runs = [run for run in runs if run.get("roster")]
+    spec_coverage = spec_coverage_from_runs(runs)
     profiles, profile_errors = fetch_profiles_for_runs(runs)
     errors.extend(profile_errors[:8])
     static_data = optional_api_get(
@@ -601,8 +689,10 @@ def sync_raiderio_cache(conn, force=False):
         "errors": errors[:12],
         "runCount": len(runs),
         "profileCount": len(profiles),
+        "profileLimitPerSpec": max(1, int_env("WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC", 5)),
+        "specCoverage": spec_coverage,
         "runs": runs[:200],
-        "profiles": list(profiles.values())[:80],
+        "profiles": list(profiles.values())[:profile_total_limit()],
         "specAggregates": aggregates,
         "communityTemplates": build_community_templates(aggregates, checked_at),
         "staticData": static_data,
@@ -629,6 +719,8 @@ def missing_credentials_payload():
         "errors": ["WOW_RAIDERIO_API_KEY is not configured"],
         "runCount": 0,
         "profileCount": 0,
+        "profileLimitPerSpec": max(1, int_env("WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC", 5)),
+        "specCoverage": spec_coverage_from_runs([]),
         "runs": [],
         "profiles": [],
         "specAggregates": [],

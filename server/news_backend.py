@@ -1698,6 +1698,11 @@ def build_data_health_payload():
                 details={
                     "templates": community.get("templates") or {},
                     "sources": community.get("sources") or {},
+                    "templateRevision": community.get("templateRevision") or "",
+                    "scanCoverage": community.get("scanCoverage") or {},
+                    "dedupedCount": community.get("dedupedCount") or 0,
+                    "hiddenDuplicateCount": community.get("hiddenDuplicateCount") or 0,
+                    "wclTemplateSource": (community.get("sources") or {}).get("warcraftlogs") or {},
                 },
                 blockers=[
                     error
@@ -3391,6 +3396,11 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/websim/gear":
             query = parse_qs(urlparse(self.path).query)
+            platform = str(self.headers.get("X-Wow-Platform", "")).lower()
+            compact = (
+                str(query.get("compact", [""])[0]).lower() in {"1", "true", "yes"}
+                or platform == "miniprogram"
+            )
             init_db()
             with db_connection() as conn:
                 json_response(
@@ -3400,6 +3410,7 @@ class Handler(BaseHTTPRequestHandler):
                         conn,
                         query.get("class", query.get("classKey", ["mage"]))[0],
                         query.get("spec", query.get("specKey", ["arcane"]))[0],
+                        compact=compact,
                     ),
                 )
             return

@@ -238,6 +238,55 @@ class RaiderIOPayloadTest(unittest.TestCase):
         template = next(item for item in payload["communityTemplates"] if item["playerId"] == "Rioone")
         self.assertEqual(template["rawImportCode"], "CAEAAAAAAAAAAAAAAAAAAAAA")
 
+    def test_fetch_profiles_samples_each_spec_with_per_spec_cap(self):
+        os.environ["WOW_RAIDERIO_PROFILE_LIMIT"] = "4"
+        os.environ["WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC"] = "2"
+        roster = []
+        for index in range(1, 7):
+            roster.append({
+                "name": f"Mage{index}",
+                "realmSlug": "isillien",
+                "region": "cn",
+                "className": "Mage",
+                "classKey": "mage",
+                "specName": "Frost",
+                "specKey": "frost",
+                "role": "dps",
+            })
+        for index in range(1, 4):
+            roster.append({
+                "name": f"Tank{index}",
+                "realmSlug": "isillien",
+                "region": "cn",
+                "className": "Warrior",
+                "classKey": "warrior",
+                "specName": "Protection",
+                "specKey": "protection",
+                "role": "tank",
+            })
+        runs = [{"roster": roster}]
+        fetched_names = []
+
+        def fake_api_get(path, params=None, api_key=None):
+            self.assertEqual(path, "/characters/profile")
+            fetched_names.append(params["name"])
+            if str(params["name"]).startswith("Tank"):
+                return sample_profile_payload(params["name"], "warrior", "protection")
+            return sample_profile_payload(params["name"], "mage", "frost")
+
+        with patch.object(raiderio_payload, "api_get", fake_api_get):
+            profiles, errors = raiderio_payload.fetch_profiles_for_runs(runs)
+
+        self.assertEqual(errors, [])
+        self.assertEqual(len(profiles), 4)
+        spec_counts = {}
+        for profile in profiles.values():
+            key = f"{profile['classKey']}:{profile['specKey']}"
+            spec_counts[key] = spec_counts.get(key, 0) + 1
+        self.assertEqual(spec_counts, {"mage:frost": 2, "warrior:protection": 2})
+        self.assertEqual(fetched_names[:2], ["Mage1", "Mage2"])
+        self.assertIn("Tank1", fetched_names)
+
     def test_community_template_adapter_reads_raiderio_cache(self):
         payload = {
             **raiderio_payload.missing_credentials_payload(),

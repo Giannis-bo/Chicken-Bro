@@ -22,11 +22,52 @@ test('shared api client uses the Lighthouse backend in develop and no implicit U
   assert.equal(client.apiUrl('/health'), '')
 })
 
+test('app config publishes the backend API base for release websim reads', () => {
+  let appConfig = null
+  global.App = (config) => {
+    appConfig = config
+  }
+  global.wx = {
+    getStorageSync: () => '',
+    setStorageSync: () => {}
+  }
+  delete global.getApp
+  delete require.cache[require.resolve('../app.js')]
+
+  require('../app.js')
+
+  assert.ok(appConfig)
+  assert.equal(appConfig.globalData.backendApiBaseUrl, 'http://124.223.51.33')
+  delete global.App
+  delete global.wx
+})
+
 test('game asset fallback text uppercases both one-letter and multi-letter labels', () => {
   const { fallbackTextFor } = resetModule('../pages/common/game-asset')
 
   assert.equal(fallbackTextFor('dk'), 'DK')
   assert.equal(fallbackTextFor('m'), 'M')
+})
+
+test('game asset normalizes wow icon names into render URLs', () => {
+  const { attachGameAsset } = resetModule('../pages/common/game-asset')
+
+  const item = attachGameAsset({
+    itemId: '249914',
+    displayName: 'Oblivion Guise',
+    iconUrl: 'inv_helm_mail_raidshamanmidnight_d_01'
+  }, {
+    entityType: 'item',
+    entityId: '249914',
+    contextKey: 'gear-candidate',
+    fallbackText: 'Oblivion Guise'
+  })
+
+  assert.equal(
+    item.iconUrl,
+    'https://render.worldofwarcraft.com/us/icons/56/inv_helm_mail_raidshamanmidnight_d_01.jpg'
+  )
+  assert.equal(item.gameAsset.status, 'fallback')
 })
 
 test('builds api returns fallback without an API base and remote payload when request succeeds', async () => {
@@ -99,7 +140,7 @@ test('websim mini api wraps bootstrap talents profile gear and gear stats endpoi
         })
         return
       }
-      if (/\/api\/websim\/gear\?class=mage&spec=frost$/.test(options.url)) {
+      if (/\/api\/websim\/gear\?class=mage&spec=frost(?:&compact=1)?$/.test(options.url)) {
         options.success({
           statusCode: 200,
           data: {
@@ -190,6 +231,56 @@ test('websim mini api wraps bootstrap talents profile gear and gear stats endpoi
   assert.deepEqual(captured[3].data.gearSelection.items, [{ slot: 'head', itemId: '250101' }])
   assert.equal(captured[4].method, 'POST')
   assert.deepEqual(captured[4].data.talentState.selectedNodes, [{ id: 'n1', rank: 1 }])
+})
+
+test('websim gear request uses the compact mobile payload with an explicit long timeout', async () => {
+  const captured = []
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    request: (options) => {
+      captured.push(options)
+      options.success({
+        statusCode: 200,
+        data: {
+          classKey: 'mage',
+          specKey: 'frost',
+          slots: [{ slot: 'head', label: '头部' }],
+          replacementCandidates: [{ slot: 'head', label: '头部', items: [] }],
+          equippedSet: {},
+          readiness: { fullReady: false }
+        }
+      })
+    }
+  }
+
+  const api = resetModule('../pages/builds/websim-api')
+  const gear = await api.requestWebsimGear({ classKey: 'mage', specKey: 'frost' })
+
+  assert.equal(gear.fromFallback, false)
+  assert.match(captured[0].url, /\/api\/websim\/gear\?class=mage&spec=frost&compact=1$/)
+  assert.equal(captured[0].timeout, 30000)
+})
+
+test('websim gear fallback keeps canonical slots visible when backend is unavailable', async () => {
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'release' } }),
+    getStorageSync: () => '',
+    request: () => {
+      throw new Error('request should not run without an api base url')
+    }
+  }
+
+  const api = resetModule('../pages/builds/websim-api')
+  const gear = await api.requestWebsimGear({ classKey: 'mage', specKey: 'frost' })
+
+  assert.equal(gear.fromFallback, true)
+  assert.equal(gear.error, 'missing api base url')
+  assert.equal(gear.payload.slots.length, 16)
+  assert.equal(gear.payload.replacementCandidates.length, 16)
+  assert.equal(Object.keys(gear.payload.slotReadiness).length, 16)
+  assert.equal(gear.payload.slotReadiness.head.status, 'blocked')
+  assert.equal(gear.payload.readiness.fullReady, false)
 })
 
 test('pve and simulator apis expose fallback payloads', async () => {

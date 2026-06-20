@@ -442,6 +442,8 @@ sudo cp "${REMOTE_DIR}/server/wow-websim-sync.service" "/etc/systemd/system/wow-
 sudo cp "${REMOTE_DIR}/server/wow-websim-sync.timer" "/etc/systemd/system/wow-websim-sync.timer"
 sudo cp "${REMOTE_DIR}/server/wow-stat-weights-sync.service" "/etc/systemd/system/wow-stat-weights-sync.service"
 sudo cp "${REMOTE_DIR}/server/wow-stat-weights-sync.timer" "/etc/systemd/system/wow-stat-weights-sync.timer"
+sudo cp "${REMOTE_DIR}/server/wow-community-template-sync.service" "/etc/systemd/system/wow-community-template-sync.service"
+sudo cp "${REMOTE_DIR}/server/wow-community-template-sync.timer" "/etc/systemd/system/wow-community-template-sync.timer"
 
 sudo tee /etc/nginx/sites-available/wow-backend >/dev/null <<'NGINX'
 server {
@@ -497,6 +499,10 @@ sudo systemctl enable --now wow-stat-weights-sync.timer
 sudo systemctl stop wow-stat-weights-sync.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-stat-weights-sync.service >/dev/null 2>&1 || true
 sudo systemctl start --no-block wow-stat-weights-sync.service || sudo journalctl -u wow-stat-weights-sync.service -n 80 --no-pager
+sudo systemctl enable --now wow-community-template-sync.timer
+sudo systemctl stop wow-community-template-sync.service >/dev/null 2>&1 || true
+sudo systemctl reset-failed wow-community-template-sync.service >/dev/null 2>&1 || true
+sudo systemctl start --no-block wow-community-template-sync.service || sudo journalctl -u wow-community-template-sync.service -n 80 --no-pager
 sudo systemctl enable --now "${SERVICE_NAME}"
 sudo systemctl restart "${SERVICE_NAME}"
 sudo systemctl restart nginx

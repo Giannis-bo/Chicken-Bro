@@ -18,5 +18,5 @@ Environment=WOW_STAT_WEIGHTS_VERIFIED_MIN_SAMPLES=3
 Environment=WOW_STAT_WEIGHTS_VERIFIED_MIN_PROFILES=2
 Environment=WOW_STAT_WEIGHTS_TTL_HOURS=24
 Environment=WOW_STAT_WEIGHTS_STALE_HOURS=96
-TimeoutStartSec=90min
-ExecStart=/usr/bin/python3 /opt/wow-mini-program/server/stat_weights_sync.py
+TimeoutStartSec=180min
+ExecStart=/usr/bin/flock -w 7200 /run/lock/wow-mini-program-sync.lock /usr/bin/python3 /opt/wow-mini-program/server/stat_weights_sync.py

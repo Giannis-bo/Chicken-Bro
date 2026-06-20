@@ -1,5 +1,58 @@
 const { requestJson } = require('../common/api-client')
 
+const canonicalGearSlots = [
+  'head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist',
+  'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand', 'off_hand'
+]
+
+const gearSlotLabels = {
+  head: '头部',
+  neck: '颈部',
+  shoulder: '肩部',
+  back: '披风',
+  chest: '胸部',
+  wrist: '手腕',
+  hands: '手',
+  waist: '腰部',
+  legs: '腿部',
+  feet: '脚',
+  finger1: '戒指 1',
+  finger2: '戒指 2',
+  trinket1: '饰品 1',
+  trinket2: '饰品 2',
+  main_hand: '主手',
+  off_hand: '副手'
+}
+
+function fallbackGearSlots() {
+  return canonicalGearSlots.map((slot) => ({
+    slot,
+    simcSlot: slot,
+    label: gearSlotLabels[slot] || slot
+  }))
+}
+
+function fallbackGearSlotGroups() {
+  return fallbackGearSlots().map((slot) => ({
+    ...slot,
+    items: []
+  }))
+}
+
+function fallbackGearSlotReadiness() {
+  return canonicalGearSlots.reduce((readiness, slot) => {
+    readiness[slot] = {
+      slot,
+      label: gearSlotLabels[slot] || slot,
+      status: 'blocked',
+      simcReady: false,
+      missingFields: ['backend'],
+      reason: 'backend unavailable'
+    }
+    return readiness
+  }, {})
+}
+
 function fallbackWebsimBootstrap() {
   return {
     navTitle: 'WebSim',
@@ -53,15 +106,17 @@ function fallbackWebsimProfile() {
 
 function fallbackWebsimGear(params) {
   const options = params || {}
+  const slots = fallbackGearSlots()
+  const slotGroups = fallbackGearSlotGroups()
   return {
     classKey: options.classKey || 'mage',
     specKey: options.specKey || 'frost',
-    slots: [],
-    slotGroups: [],
+    slots,
+    slotGroups,
     baselineSet: [],
     equippedSet: {},
-    slotReadiness: {},
-    replacementCandidates: [],
+    slotReadiness: fallbackGearSlotReadiness(),
+    replacementCandidates: slotGroups,
     communityTemplates: [],
     communityTemplateSync: {
       sourceStatus: 'missing_credentials',
@@ -71,6 +126,12 @@ function fallbackWebsimGear(params) {
     },
     readiness: {
       fullReady: false,
+      simcReadyCount: 0,
+      selectedCount: 0,
+      candidateCount: 0,
+      missingRequiredSlots: canonicalGearSlots,
+      missingCoreSlots: canonicalGearSlots.filter((slot) => slot !== 'off_hand'),
+      requiredReadyCount: canonicalGearSlots.length - 1,
       itemLevel: { key: 'itemLevel', label: '装备等级', value: '0', rawValue: 0 },
       warnings: ['backend unavailable']
     },
@@ -153,7 +214,9 @@ function requestWebsimGear(params) {
     `class=${encodeURIComponent(options.classKey || '')}`,
     `spec=${encodeURIComponent(options.specKey || '')}`
   ]
+  if (options.compact !== false) query.push('compact=1')
   return requestJson(`/api/websim/gear?${query.join('&')}`, {
+    timeout: 30000,
     fallback: () => fallbackWebsimGear(options),
     validate: (data) => data && Array.isArray(data.slots) && data.equippedSet && data.readiness
   })

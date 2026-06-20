@@ -223,6 +223,20 @@ class WebSimPayloadTest(unittest.TestCase):
             server.server_close()
             thread.join(timeout=2)
 
+    def get_backend_json(self, path, headers=None):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            request = Request(f"{base}{path}", headers=headers or {})
+            with urlopen(request) as response:
+                return json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
     def test_parse_simc_trait_data_into_nodes(self):
         sample = """
         // Player trait definitions, wow build 12.0.5.67823
@@ -1269,6 +1283,45 @@ class WebSimPayloadTest(unittest.TestCase):
         head_candidates = [item for item in head_group["items"] if item["itemId"] == "250060"]
         self.assertEqual(len(head_candidates), 1)
 
+    def test_websim_gear_payload_dedupes_same_community_template_and_merges_sources(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            profile = "\n".join(
+                [
+                    'mage="Preset_Mage"',
+                    "spec=arcane",
+                    "head=voidbreakers_veil,id=250060,ilevel=289,bonus_id=1808/13575,gem_id=240983",
+                ]
+            )
+            conn.executemany(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES (?, 'mage', 'arcane', ?, ?, '{}', ?)
+                """,
+                [
+                    ("preset-mage-a", "Preset Mage A", profile, "2026-06-20T00:00:00Z"),
+                    ("preset-mage-b", "Preset Mage B", profile, "2026-06-20T01:00:00Z"),
+                ],
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane")
+        finally:
+            conn.close()
+
+        self.assertEqual(len(payload["communityTemplates"]), 1)
+        template = payload["communityTemplates"][0]
+        self.assertTrue(template["signature"].startswith("gear:mage:arcane:"))
+        self.assertEqual(template["dedupedCount"], 2)
+        self.assertEqual(len(template["sourceRefs"]), 2)
+        self.assertEqual(
+            [ref["id"] for ref in template["sourceRefs"]],
+            ["preset-mage-a", "preset-mage-b"],
+        )
+        self.assertEqual(payload["communityTemplateSync"]["dedupedCount"], 1)
+        self.assertEqual(payload["communityTemplateSync"]["hiddenDuplicateCount"], 1)
+
     def test_websim_gear_payload_exposes_inline_simulator_contract(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -1303,6 +1356,99 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["slotReadiness"]["neck"]["status"], "blocked")
         self.assertIn("missing item", payload["slotReadiness"]["neck"]["reason"])
         self.assertTrue(any(group["slot"] == "head" for group in payload["replacementCandidates"]))
+
+    def test_websim_gear_compact_payload_omits_duplicate_and_heavy_fields(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            profile = "\n".join(
+                [
+                    'mage="Preset_Mage"',
+                    "spec=arcane",
+                    "head=preset_helm,id=250101,ilevel=289,bonus_id=13534",
+                ]
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('preset-mage-arcane', 'mage', 'arcane', 'Preset Mage', ?, '{}', 'now')
+                """,
+                (profile,),
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane", compact=True)
+        finally:
+            conn.close()
+
+        self.assertIn("replacementCandidates", payload)
+        self.assertNotIn("slotGroups", payload)
+        self.assertNotIn("catalogItems", payload)
+
+    def test_http_websim_gear_miniprogram_header_uses_compact_payload(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            profile = "\n".join(
+                [
+                    'mage="Preset_Mage"',
+                    "spec=arcane",
+                    "head=preset_helm,id=250101,ilevel=289,bonus_id=13534",
+                ]
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('preset-mage-arcane', 'mage', 'arcane', 'Preset Mage', ?, '{}', 'now')
+                """,
+                (profile,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        payload = self.get_backend_json(
+            "/api/websim/gear?class=mage&spec=arcane",
+            headers={"X-Wow-Platform": "miniprogram"},
+        )
+
+        self.assertIn("replacementCandidates", payload)
+        self.assertNotIn("slotGroups", payload)
+        self.assertNotIn("catalogItems", payload)
+        self.assertNotIn("candidateItems", payload)
+        self.assertNotIn("presets", payload)
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        self.assertTrue(any(item["itemId"] == "250101" for item in head_group["items"]))
+
+    def test_http_websim_gear_compact_query_uses_compact_payload(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            profile = "\n".join(
+                [
+                    'mage="Preset_Mage"',
+                    "spec=arcane",
+                    "head=preset_helm,id=250101,ilevel=289,bonus_id=13534",
+                ]
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('preset-mage-arcane', 'mage', 'arcane', 'Preset Mage', ?, '{}', 'now')
+                """,
+                (profile,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        payload = self.get_backend_json("/api/websim/gear?class=mage&spec=arcane&compact=1")
+
+        self.assertIn("replacementCandidates", payload)
+        self.assertNotIn("slotGroups", payload)
+        self.assertNotIn("catalogItems", payload)
 
     def test_websim_gear_payload_exposes_importable_community_templates(self):
         conn = sqlite3.connect(self.db_path)
@@ -1546,6 +1692,133 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(catalog_item["simcReady"])
         self.assertEqual(catalog_item["variantSource"], "observed_profile")
         self.assertEqual(catalog_item["observedProfileRefs"][0]["sourceName"], "Raider.IO CN profile gear")
+        self.assertEqual(payload["baselineSet"][0]["itemId"], "250777")
+        self.assertEqual(payload["equippedSet"]["head"]["itemId"], "250777")
+        self.assertEqual(payload["communityTemplates"][0]["sourceName"], "Raider.IO observed gear")
+        self.assertEqual(payload["communityTemplates"][0]["readySlotCount"], 1)
+        self.assertEqual(payload["communityTemplates"][0]["status"], "partial")
+        self.assertTrue(payload["communityTemplates"][0]["canApplyGear"])
+        self.assertEqual(payload["communityTemplateSync"]["sources"]["observed_profile"]["status"], "partial")
+
+    def test_websim_gear_filters_incompatible_observed_profile_candidates(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            raiderio = {
+                "sourceStatus": "verified",
+                "checkedAt": "2026-06-20T00:00:00+00:00",
+                "region": "cn",
+                "seasonSlug": "season-mn-1",
+                "specs": {
+                    "monk:brewmaster": {
+                        "observedGear": [
+                            {
+                                "slot": "head",
+                                "name": "Brewmaster Hood",
+                                "itemId": 250777,
+                                "itemLevel": 707,
+                                "bonuses": [12345],
+                                "sourceName": "Raider.IO CN profile gear",
+                            }
+                        ],
+                    },
+                    "hunter:beast_mastery": {
+                        "observedGear": [
+                            {
+                                "slot": "head",
+                                "name": "Sharpeye Gleam",
+                                "itemId": 258585,
+                                "itemLevel": 707,
+                                "bonuses": [67890],
+                                "sourceName": "Raider.IO CN profile gear",
+                            }
+                        ],
+                    },
+                },
+            }
+            self.websim_payload.sync_observed_gear_variants(conn, raiderio, {"seasonRevision": "season-test"})
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "monk", "brewmaster")
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        item_ids = [item["itemId"] for item in head_group["items"]]
+        self.assertIn("250777", item_ids)
+        self.assertNotIn("258585", item_ids)
+        self.assertFalse(any((item.get("compatibility") or {}).get("status") == "incompatible" for item in head_group["items"]))
+
+    def test_websim_gear_reuses_portable_observed_candidates_across_specs(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            raiderio = {
+                "sourceStatus": "verified",
+                "checkedAt": "2026-06-20T00:00:00+00:00",
+                "region": "cn",
+                "seasonSlug": "season-mn-1",
+                "specs": {
+                    "mage:frost": {
+                        "observedGear": [
+                            {
+                                "slot": "neck",
+                                "name": "Observed Pendant",
+                                "itemId": 251000,
+                                "itemLevel": 707,
+                                "bonuses": [11111],
+                                "sourceName": "Raider.IO CN profile gear",
+                            },
+                            {
+                                "slot": "finger1",
+                                "name": "Observed Band",
+                                "itemId": 251001,
+                                "itemLevel": 707,
+                                "bonuses": [22222],
+                                "sourceName": "Raider.IO CN profile gear",
+                            },
+                            {
+                                "slot": "trinket1",
+                                "name": "Observed Charm",
+                                "itemId": 251002,
+                                "itemLevel": 707,
+                                "bonuses": [33333],
+                                "sourceName": "Raider.IO CN profile gear",
+                            },
+                            {
+                                "slot": "head",
+                                "name": "Mage Only Hood",
+                                "itemId": 251003,
+                                "itemLevel": 707,
+                                "bonuses": [44444],
+                                "sourceName": "Raider.IO CN profile gear",
+                            },
+                        ],
+                    },
+                },
+            }
+            self.websim_payload.sync_observed_gear_variants(conn, raiderio, {"seasonRevision": "season-test"})
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "druid", "restoration")
+        finally:
+            conn.close()
+
+        groups = {group["slot"]: group for group in payload["replacementCandidates"]}
+        self.assertIn("251000", [item["itemId"] for item in groups["neck"]["items"]])
+        self.assertIn("251001", [item["itemId"] for item in groups["finger1"]["items"]])
+        self.assertIn("251001", [item["itemId"] for item in groups["finger2"]["items"]])
+        self.assertIn("251002", [item["itemId"] for item in groups["trinket1"]["items"]])
+        self.assertIn("251002", [item["itemId"] for item in groups["trinket2"]["items"]])
+        self.assertNotIn("251003", [item["itemId"] for item in groups["head"]["items"]])
 
     def test_observed_profile_variant_stays_partial_without_deterministic_simc_options(self):
         conn = sqlite3.connect(self.db_path)
@@ -2522,6 +2795,105 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(template_ids, ["mage_arcane_template", "mage_fire_template"])
         self.assertEqual(payload["communityTemplates"][0]["classLabel"], self.websim_payload.CLASS_LABELS_ZH["mage"])
         self.assertEqual(payload["communityTemplates"][1]["specLabel"], self.websim_payload.SPEC_LABELS_ZH["fire"])
+
+    def test_websim_talents_dedupes_same_template_signature_and_merges_sources(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            now = self.websim_payload.utc_now()
+            shared_nodes = [
+                {"id": "arcane-node", "rank": 1},
+                {"id": "hero-node", "rank": 2},
+            ]
+            for template in [
+                {
+                    "id": "raiderio-shared",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "heroKey": "spellslinger",
+                    "scenarioKey": "mythic_plus",
+                    "name": "Raider.IO shared",
+                    "flowLabel": "M+",
+                    "sourceName": "Raider.IO",
+                    "sourceUrl": "https://raider.io/shared",
+                    "talentState": {"selectedNodes": shared_nodes},
+                    "sampleCount": 5,
+                    "maxKeyLevel": 24,
+                    "analysisWindow": "fixture",
+                    "sourceStatus": "synced",
+                    "status": "verified",
+                    "updatedAt": now,
+                    "expiresAt": now,
+                },
+                {
+                    "id": "wcl-shared",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "heroKey": "spellslinger",
+                    "scenarioKey": "mythic_plus",
+                    "name": "WCL shared",
+                    "flowLabel": "M+",
+                    "sourceName": "Warcraft Logs",
+                    "sourceUrl": "https://www.warcraftlogs.com/reports/shared",
+                    "talentState": {"selectedNodes": list(reversed(shared_nodes))},
+                    "sampleCount": 30,
+                    "maxKeyLevel": 20,
+                    "analysisWindow": "fixture",
+                    "sourceStatus": "partial",
+                    "status": "verified",
+                    "updatedAt": now,
+                    "expiresAt": now,
+                },
+                {
+                    "id": "raiderio-other",
+                    "classKey": "mage",
+                    "specKey": "fire",
+                    "heroKey": "sunfury",
+                    "scenarioKey": "mythic_plus",
+                    "name": "Raider.IO other",
+                    "flowLabel": "M+",
+                    "sourceName": "Raider.IO",
+                    "sourceUrl": "https://raider.io/other",
+                    "talentState": {"selectedNodes": [{"id": "fire-node", "rank": 1}]},
+                    "sampleCount": 4,
+                    "maxKeyLevel": 21,
+                    "analysisWindow": "fixture",
+                    "sourceStatus": "synced",
+                    "status": "verified",
+                    "updatedAt": now,
+                    "expiresAt": now,
+                },
+            ]:
+                self.websim_payload.upsert_community_talent_template(conn, template)
+            self.websim_payload.set_sync_state(
+                conn,
+                self.websim_payload.COMMUNITY_TALENT_SYNC_KEY,
+                {
+                    "sourceStatus": "synced",
+                    "sources": {
+                        "raiderio": {"status": "synced", "sourceName": "Raider.IO", "errors": []},
+                        "warcraftlogs": {"status": "partial", "sourceName": "Warcraft Logs", "errors": []},
+                    },
+                    "templates": {"total": 3, "verified": 3, "blocked": 0},
+                    "checkedAt": now,
+                },
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_talents(conn, "mage", "arcane", "spellslinger")
+        finally:
+            conn.close()
+
+        self.assertEqual(len(payload["communityTemplates"]), 2)
+        shared = payload["communityTemplates"][0]
+        self.assertEqual(shared["id"], "raiderio_shared")
+        self.assertTrue(shared["signature"].startswith("talent:mage:arcane:spellslinger:"))
+        self.assertEqual(shared["dedupedCount"], 2)
+        self.assertEqual(
+            {ref["sourceName"] for ref in shared["sourceRefs"]},
+            {"Raider.IO", "Warcraft Logs"},
+        )
+        self.assertEqual(payload["communityTemplateSync"]["dedupedCount"], 2)
+        self.assertEqual(payload["communityTemplateSync"]["hiddenDuplicateCount"], 1)
 
     def test_websim_talents_bootstraps_fixture_community_templates(self):
         conn = sqlite3.connect(self.db_path)
