@@ -5,8 +5,7 @@ const {
   requestBuildsHome
 } = require('./builds-api')
 const {
-  requestWebsimGear,
-  requestWebsimGearStats
+  requestWebsimGear
 } = require('./websim-api')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 const { syncBuildTemplate } = require('../common/build-template-storage')
@@ -39,6 +38,11 @@ const gearCandidateFilters = [
   { key: 'dungeon', label: '地下城' },
   { key: 'raid', label: '团本' },
   { key: 'crafted', label: '制造' }
+]
+
+const requiredGearSlots = [
+  'head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist',
+  'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand', 'off_hand'
 ]
 
 function showToast(title) {
@@ -101,7 +105,7 @@ function attachGearGameAsset(row, contextKey) {
 }
 
 function gearStatusLabel(status) {
-  if (status === 'verified') return 'SimC-ready'
+  if (status === 'verified') return '已配置'
   if (status === 'partial') return '缺字段'
   return '不可计算'
 }
@@ -162,10 +166,6 @@ function selectedGearItems(selectedGearBySlot) {
     .filter((item) => item && item.slot)
 }
 
-function selectedSimcItems(selectedGearBySlot) {
-  return selectedGearItems(selectedGearBySlot).filter((item) => item.simcReady)
-}
-
 function gearTemplateLine(item) {
   const slot = item && (item.simcSlot || item.slot)
   const itemId = item && (item.itemId || item.id)
@@ -184,18 +184,37 @@ function gearTemplateLine(item) {
   return fields.join(',')
 }
 
-function canonicalGearTemplateLines(selectedGearBySlot) {
-  return selectedSimcItems(selectedGearBySlot).map(gearTemplateLine).filter(Boolean)
+function selectedGearByCanonicalSlot(selectedGearBySlot) {
+  const indexed = {}
+  Object.keys(selectedGearBySlot || {}).forEach((slotKey) => {
+    const item = selectedGearBySlot[slotKey]
+    const slot = item && (item.simcSlot || item.slot || slotKey)
+    if (!slot || !item) return
+    indexed[slot] = {
+      ...item,
+      slot: item.slot || slot,
+      simcSlot: item.simcSlot || slot
+    }
+  })
+  return indexed
 }
 
-function gearTemplateStatus(selectedItems, simcLines) {
-  if (!selectedItems.length || !simcLines.length) {
-    return { status: 'blocked', statusLabel: '不可计算' }
+function canonicalGearTemplateLines(selectedGearBySlot) {
+  const indexed = selectedGearByCanonicalSlot(selectedGearBySlot)
+  return requiredGearSlots.map((slot) => gearTemplateLine(indexed[slot])).filter(Boolean)
+}
+
+function missingGearConfigSlots(selectedGearBySlot) {
+  const indexed = selectedGearByCanonicalSlot(selectedGearBySlot)
+  return requiredGearSlots.filter((slot) => !gearTemplateLine(indexed[slot]))
+}
+
+function gearTemplateStatus(selectedGearBySlot) {
+  const missingSlots = missingGearConfigSlots(selectedGearBySlot)
+  if (missingSlots.length) {
+    return { status: 'partial', statusLabel: '缺字段', missingSlots }
   }
-  if (simcLines.length === selectedItems.length) {
-    return { status: 'simc_ready', statusLabel: 'SimC-ready' }
-  }
-  return { status: 'partial', statusLabel: '缺字段' }
+  return { status: 'complete', statusLabel: '完整配置', missingSlots: [] }
 }
 
 function gearTemplateTitle(className, specName, scenarioTitle) {
@@ -213,6 +232,79 @@ function equippedSetToSelection(equippedSet) {
     if (equippedSet[slot]) selection[slot] = equippedSet[slot]
   })
   return selection
+}
+
+function emptyGearCommunityTemplateSheet() {
+  return { visible: false }
+}
+
+function gearItemsToSelection(items) {
+  const selection = {}
+  ;(items || []).forEach((item) => {
+    const slot = item && (item.simcSlot || item.slot)
+    if (!slot || !requiredGearSlots.includes(slot)) return
+    selection[slot] = {
+      ...item,
+      slot: item.slot || slot,
+      simcSlot: item.simcSlot || slot
+    }
+  })
+  return selection
+}
+
+function gearCommunityStatusLabel(status) {
+  if (status === 'complete' || status === 'synced' || status === 'verified') return '已同步'
+  if (status === 'partial') return '部分可用'
+  if (status === 'blocked' || status === 'missing_credentials') return '暂不可用'
+  return '待同步'
+}
+
+function gearCommunityTemplateCardClass(template) {
+  const status = template && (template.status || template.sourceStatus)
+  if (status === 'complete' || status === 'synced' || status === 'verified') return 'complete'
+  if (status === 'partial') return 'partial'
+  return 'blocked'
+}
+
+function decorateGearCommunityTemplate(template) {
+  const gearSelection = gearItemsToSelection((template && template.gearItems) || [])
+  const gearItems = requiredGearSlots.map((slot) => gearSelection[slot]).filter(Boolean)
+  const readySlotCount = Number((template && template.readySlotCount) || gearItems.length || 0)
+  const missingSlots = Array.isArray(template && template.missingSlots)
+    ? template.missingSlots
+    : requiredGearSlots.filter((slot) => !gearSelection[slot])
+  const status = (template && template.status) || (missingSlots.length ? 'partial' : 'complete')
+  const sourceStatus = (template && template.sourceStatus) || status
+  const canApplyGear = !!(template && template.canApplyGear !== false && readySlotCount > 0)
+  return {
+    ...(template || {}),
+    status,
+    sourceStatus,
+    gearItems,
+    readySlotCount,
+    missingSlots,
+    canApplyGear,
+    statusLabel: gearCommunityStatusLabel(status),
+    sourceStatusLabel: gearCommunityStatusLabel(sourceStatus),
+    slotCoverageLabel: `已覆盖 ${readySlotCount}/${requiredGearSlots.length} 槽`,
+    missingSlotLabel: missingSlots.length ? `缺 ${missingSlots.length} 槽` : '16 槽完整',
+    updatedLabel: (template && template.updatedAt) || '',
+    actionLabel: canApplyGear ? '应用' : '不可导入',
+    cardClass: gearCommunityTemplateCardClass({ status, sourceStatus })
+  }
+}
+
+function gearCommunityTemplatesForPayload(payload) {
+  const templates = payload && Array.isArray(payload.communityTemplates) ? payload.communityTemplates : []
+  return templates.map(decorateGearCommunityTemplate)
+}
+
+function gearCommunitySyncSummary(syncState, templates) {
+  const status = syncState && syncState.sourceStatus
+  if (Array.isArray(templates) && templates.length) {
+    return `社区模板 ${templates.length} 个 · ${gearCommunityStatusLabel(status)}`
+  }
+  return '暂无可导入装备模板'
 }
 
 function gearGroupsBySlot(payload) {
@@ -457,7 +549,7 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
       modSummary: gearModSummary(item),
       statusLabel: gearStatusLabel(item.simcReady ? 'verified' : (missingFields.length ? 'partial' : 'blocked')),
       statusClass: gearStatusClass(item.simcReady ? 'verified' : (missingFields.length ? 'partial' : 'blocked')),
-      reason: item.simcReady ? '可写入 SimC profile' : (missingFields.length ? `缺 ${missingFields.join(' / ')}` : '缺 SimC 字段'),
+      reason: item.simcReady ? '可保存为配置' : (missingFields.length ? `缺 ${missingFields.join(' / ')}` : '缺装备配置字段'),
       selected: !!isSelected
     }, 'gear-candidate')
   }).filter(Boolean)
@@ -487,22 +579,10 @@ function buildGearSlotRows(payload, selectedGearBySlot) {
       status,
       statusLabel: gearStatusLabel(status),
       statusClass: gearStatusClass(status),
-      reason: slotState.reason || (item.simcReady ? '可写入 SimC profile' : '等待 SimC 字段'),
+      reason: slotState.reason || (item.simcReady ? '可保存为配置' : '等待装备配置字段'),
       candidateCount: buildGearCandidateRows(slot, payload, selection).length
     }, 'gear-slot')
   })
-}
-
-function buildGearStatBlockers(snapshot, readiness) {
-  const blockers = snapshot && Array.isArray(snapshot.blockers) ? snapshot.blockers : []
-  if (blockers.length) return blockers
-  const warnings = readiness && Array.isArray(readiness.warnings) ? readiness.warnings : []
-  return warnings
-}
-
-function gearStatStatusText(snapshot) {
-  if (snapshot && snapshot.statStatus === 'verified') return `已验证满级属性 · ${snapshot.maxLevel || ''}`
-  return '属性快照 blocked'
 }
 
 function buildTalentNodeRows(activeDetail, selectedNodes) {
@@ -538,9 +618,11 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
   const talentSimulationSummary = buildTalentSimulationSummary(talentDetail, talentScenario.key, selectedTalentNodes)
   const gearPayload = currentState.gearPayload || null
   const selectedGearBySlot = currentState.selectedGearBySlot || {}
-  const gearStatSnapshot = currentState.gearStatSnapshot || (gearPayload && gearPayload.statSnapshot) || defaultGearStatSnapshot()
   const gearReadiness = currentState.gearReadiness || (gearPayload && gearPayload.readiness) || {}
   const gearSlotRows = buildGearSlotRows(gearPayload, selectedGearBySlot)
+  const gearInitialLoading = !!(currentState.gearLoading && !gearSlotRows.length)
+  const activeGearCommunityTemplates = gearCommunityTemplatesForPayload(gearPayload)
+  const gearCommunityTemplateSync = (gearPayload && gearPayload.communityTemplateSync) || {}
   const statWeightScenario = selectedStatWeightScenario(activeDetail, currentState.activeStatWeightScenarioKey)
   const activeStatRows = statWeightScenario && Array.isArray(statWeightScenario.weights)
     ? statWeightScenario.weights
@@ -568,11 +650,11 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
     gearPayload,
     selectedGearBySlot,
     gearSlotRows,
+    gearInitialLoading,
     gearReadiness,
-    gearStatSnapshot,
-    gearStatBlockers: buildGearStatBlockers(gearStatSnapshot, gearReadiness),
-    gearStatStatusText: gearStatStatusText(gearStatSnapshot),
-    gearSimcItems: selectedSimcItems(selectedGearBySlot),
+    activeGearCommunityTemplates,
+    gearCommunityTemplateSync,
+    gearCommunityTemplateStatusText: gearCommunitySyncSummary(gearCommunityTemplateSync, activeGearCommunityTemplates),
     statWeightScenarios: statWeightScenarios(activeDetail),
     activeStatWeightScenario: statWeightScenario,
     activeStatWeightScenarioKey: scenarioKeyOf(statWeightScenario),
@@ -629,11 +711,13 @@ Page({
     ...createSelectionState(defaultSelection.classIndex, defaultSelection.specIndex, 'talents'),
     loading: false,
     gearLoading: false,
+    gearInitialLoading: false,
     gearStatsLoading: false,
     gearTemplateSaving: false,
     gearRequestError: '',
     gearSelectionKey: '',
     gearSlotSheet: emptyGearSlotSheet(),
+    gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet(),
     fromFallback: true,
     requestError: ''
   },
@@ -742,11 +826,14 @@ Page({
     const keys = specWebsimKeys(selectedSpec)
     const selectionKey = `${keys.classKey}:${keys.specKey}`
     const existingSelection = this.data.gearSelectionKey === selectionKey ? (this.data.selectedGearBySlot || {}) : {}
+    const hasExistingRows = Array.isArray(this.data.gearSlotRows) && this.data.gearSlotRows.length > 0
     this.setData({
       gearLoading: true,
+      gearInitialLoading: !hasExistingRows,
       gearRequestError: '',
       gearSelectionKey: selectionKey,
-      gearSlotSheet: emptyGearSlotSheet()
+      gearSlotSheet: emptyGearSlotSheet(),
+      gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
     requestWebsimGear(keys).then(({ payload, error }) => {
       if (this.data.gearSelectionKey !== selectionKey) return
@@ -755,67 +842,23 @@ Page({
         ...baselineSelection,
         ...existingSelection
       }
-      const gearStatSnapshot = payload.statSnapshot || defaultGearStatSnapshot()
       const gearReadiness = payload.readiness || {}
       const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
         ...this.data,
         gearPayload: payload,
         selectedGearBySlot,
-        gearReadiness,
-        gearStatSnapshot
-      })
-      this.setData({
-        ...derivedState,
-        gearLoading: false,
-        gearRequestError: error || ''
-      })
-      this.refreshGearStats()
-    }).catch((error) => {
-      this.setData({
-        gearLoading: false,
-        gearRequestError: error.message || String(error)
-      })
-    })
-  },
-
-  refreshGearStats() {
-    const keys = specWebsimKeys(this.data.selectedSpec || {})
-    const gearItems = selectedGearItems(this.data.selectedGearBySlot || {})
-    const talentState = this.data.websimTalentState || {}
-    const talentImport = (this.data.talentSimulatorState && this.data.talentSimulatorState.importCode) || ''
-    const scenario = gearScenarioAt(this.data.selectedGearTemplateScenarioIndex)
-    this.setData({ gearStatsLoading: true })
-    return requestWebsimGearStats({
-      classKey: keys.classKey,
-      specKey: keys.specKey,
-      talents: talentImport,
-      talentState,
-      scenarioKey: scenario.key,
-      level: (this.data.gearPayload && this.data.gearPayload.maxLevel) || undefined,
-      gearSelection: {
-        items: gearItems
-      }
-    }).then(({ payload, error }) => {
-      const gearReadiness = payload.gearReadiness || this.data.gearReadiness || {}
-      const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
-        ...this.data,
-        gearStatSnapshot: payload,
         gearReadiness
       })
       this.setData({
         ...derivedState,
-        gearStatsLoading: false,
-        gearRequestError: error || this.data.gearRequestError || ''
+        gearLoading: false,
+        gearInitialLoading: false,
+        gearRequestError: error || ''
       })
     }).catch((error) => {
-      const gearStatSnapshot = defaultGearStatSnapshot(error.message || String(error))
-      const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
-        ...this.data,
-        gearStatSnapshot
-      })
       this.setData({
-        ...derivedState,
-        gearStatsLoading: false,
+        gearLoading: false,
+        gearInitialLoading: false,
         gearRequestError: error.message || String(error)
       })
     })
@@ -837,16 +880,7 @@ Page({
       publishedAt: activeDetail.publishedAt || selectedDetail.publishedAt || '',
       analysisWindow: activeDetail.analysisWindow || selectedDetail.analysisWindow || '',
       sourceNote: activeDetail.sourceNote || selectedDetail.sourceNote || '',
-      details: selectedDetail.details || {},
       simulatorState: {
-        talent: this.data.talentSimulatorState || {},
-        gear: {
-          selectedGearBySlot: this.data.selectedGearBySlot || {},
-          selectedItems: selectedGearItems(this.data.selectedGearBySlot || {}),
-          simcItems: this.data.gearSimcItems || [],
-          readiness: this.data.gearReadiness || {},
-          statSnapshot: this.data.gearStatSnapshot || defaultGearStatSnapshot()
-        },
         statWeights: {
           scenarioKey: this.data.activeStatWeightScenarioKey || '',
           scenarioTitle: (this.data.activeStatWeightScenario && this.data.activeStatWeightScenario.scenarioTitle) || '',
@@ -886,6 +920,71 @@ Page({
     this.setData({
       gearSlotSheet: emptyGearSlotSheet()
     })
+  },
+
+  openGearCommunityTemplates() {
+    this.refreshDerivedState()
+    this.setData({
+      gearCommunityTemplateSheet: { visible: true },
+      gearSlotSheet: emptyGearSlotSheet()
+    })
+  },
+
+  closeGearCommunityTemplates() {
+    this.setData({
+      gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
+    })
+  },
+
+  resetGearSelection() {
+    const gearPayload = this.data.gearPayload
+    if (!gearPayload) {
+      this.loadWebsimGearForSelection()
+      return
+    }
+    const selectedGearBySlot = equippedSetToSelection(gearPayload.equippedSet || {})
+    const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
+      ...this.data,
+      selectedGearBySlot
+    })
+    this.setData({
+      ...derivedState,
+      gearSlotSheet: emptyGearSlotSheet(),
+      gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
+    })
+    trackEvent('builds_gear_selection_reset', {
+      specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
+    }, { page: 'pages/builds/detail' })
+  },
+
+  applyGearCommunityTemplate(event) {
+    const templateId = event.currentTarget.dataset.id || ''
+    const templates = this.data.activeGearCommunityTemplates || gearCommunityTemplatesForPayload(this.data.gearPayload || {})
+    const template = templates.find((item) => item.id === templateId)
+    if (!template || !template.canApplyGear) {
+      showToast('当前模板暂不可导入')
+      return
+    }
+    const baselineSelection = equippedSetToSelection((this.data.gearPayload && this.data.gearPayload.equippedSet) || {})
+    const templateSelection = gearItemsToSelection(template.gearItems || [])
+    const selectedGearBySlot = {
+      ...baselineSelection,
+      ...templateSelection
+    }
+    const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
+      ...this.data,
+      selectedGearBySlot
+    })
+    this.setData({
+      ...derivedState,
+      gearSlotSheet: emptyGearSlotSheet(),
+      gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
+    })
+    trackEvent('builds_gear_community_template_apply', {
+      templateId,
+      readySlotCount: template.readySlotCount || Object.keys(templateSelection).length,
+      specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
+    }, { page: 'pages/builds/detail' })
   },
 
   setGearCandidateFilter(event) {
@@ -970,7 +1069,7 @@ Page({
       gearSlot: slot,
       itemId: candidate.itemId || candidate.id || '',
       variantKey: candidate.variantKey || '',
-      simcReady: !!candidate.simcReady,
+      configReady: !!gearTemplateLine(candidate),
       specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
     }, { page: 'pages/builds/detail' })
     const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
@@ -981,28 +1080,22 @@ Page({
       ...derivedState,
       gearSlotSheet: emptyGearSlotSheet()
     })
-    return this.refreshGearStats() || Promise.resolve()
+    return Promise.resolve()
   },
 
   selectGearTemplateScenario(event) {
     const index = Number(event.detail.value) || 0
     this.setData({
       selectedGearTemplateScenarioIndex: Math.max(0, Math.min(index, gearTemplateScenarios.length - 1))
-    }, () => {
-      this.refreshGearStats()
     })
   },
 
   saveGearTemplate() {
     const selectedItems = selectedGearItems(this.data.selectedGearBySlot || {})
-    const simcLines = canonicalGearTemplateLines(this.data.selectedGearBySlot || {})
-    const status = gearTemplateStatus(selectedItems, simcLines)
-    if (!selectedItems.length) {
-      showToast('暂无可保存的装备')
-      return
-    }
-    if (!simcLines.length) {
-      showToast('缺少 SimC-ready 装备')
+    const configLines = canonicalGearTemplateLines(this.data.selectedGearBySlot || {})
+    const status = gearTemplateStatus(this.data.selectedGearBySlot || {})
+    if (status.missingSlots.length || configLines.length !== requiredGearSlots.length) {
+      showToast('请补齐 16 个装备槽位后再保存')
       return
     }
     const scenario = gearScenarioAt(this.data.selectedGearTemplateScenarioIndex)
@@ -1022,18 +1115,17 @@ Page({
       specName: selectedDetail.specName || selectedSpec.title || selectedSpec.specName || '',
       scenarioKey: scenario.key,
       scenarioTitle: scenario.title,
-      rawString: simcLines.join('\n'),
-      simcLines,
+      rawString: configLines.join('\n'),
+      simcLines: [],
       status: status.status,
       statusLabel: status.statusLabel,
       source: '装备模拟器',
       metadata: {
         selectedGearSnapshot: this.data.selectedGearBySlot || {},
         selectedItems,
-        simcReadyCount: simcLines.length,
+        configLineCount: configLines.length,
+        missingSlots: [],
         selectedItemCount: selectedItems.length,
-        readiness: this.data.gearReadiness || {},
-        statSnapshot: this.data.gearStatSnapshot || defaultGearStatSnapshot(),
         gearSchemaRevision: this.data.gearPayload && this.data.gearPayload.gearSchemaRevision,
         maxLevel: this.data.gearPayload && this.data.gearPayload.maxLevel
       }
@@ -1081,10 +1173,6 @@ Page({
     this.refreshDerivedState({ selectedTalentNodes: Array.from(selectedSet) })
   },
 
-  openTalentSimc() {
-    this.openSimcWithBuildContext()
-  },
-
   openSimcWithBuildContext() {
     if (!this.data.selectedDetail || !this.data.activeDetail) return
     const context = this.buildSimcContext()
@@ -1093,7 +1181,7 @@ Page({
       specId: context.specId || '',
       className: context.className || '',
       specName: context.specName || '',
-      scenarioKey: (context.simulatorState && context.simulatorState.talent && context.simulatorState.talent.scenarioKey) || ''
+      scenarioKey: (context.simulatorState && context.simulatorState.statWeights && context.simulatorState.statWeights.scenarioKey) || ''
     }, { page: 'pages/builds/detail' })
     try {
       wx.setStorageSync(SIMC_BUILD_CONTEXT_STORAGE_KEY, context)

@@ -23,12 +23,6 @@
         </view>
       </view>
 
-      <view class="source-strip" wx:if="{{activeDetail}}">
-        <text>{{selectedSpec.role}}</text>
-        <text>{{activeDetail.sourceName}}</text>
-        <text>{{activeDetail.publishedAt}}</text>
-      </view>
-
       <view class="module-panel talent-panel" wx:if="{{activeQueryKey == 'talents'}}">
         <view class="panel-header">
           <text class="panel-title">{{activeDetail.title}}</text>
@@ -57,7 +51,6 @@
           <view class="talent-sim-summary">
             <text>{{talentSimulationSummary}}</text>
           </view>
-          <button class="talent-simc-button" bindtap="openTalentSimc">模拟这套天赋</button>
         </view>
         <view class="insight-list">
           <text class="insight-item" wx:for="{{activeDetail.items}}" wx:key="*this">{{item}}</text>
@@ -65,47 +58,6 @@
       </view>
 
       <view class="module-panel gear-panel" wx:if="{{activeQueryKey == 'gear'}}">
-        <view class="gear-stat-panel">
-          <view class="gear-stat-state {{gearStatSnapshot.statStatus == 'verified' ? 'verified' : 'blocked'}}">
-            <view class="gear-stat-heading">
-              <text class="gear-stat-title">{{gearStatStatusText}}</text>
-              <text class="gear-stat-note">{{gearStatSnapshot.checkedAt}}</text>
-            </view>
-            <view class="gear-stat-grid gear-stat-summary-grid" wx:if="{{gearStatSnapshot.itemLevel}}">
-              <view class="gear-stat-cell">
-                <text class="gear-stat-label">{{gearStatSnapshot.itemLevel.label}}</text>
-                <text class="gear-stat-value">{{gearStatSnapshot.itemLevel.value}}</text>
-              </view>
-            </view>
-            <view wx:if="{{gearStatSnapshot.statStatus == 'verified'}}" class="gear-stat-grid">
-              <view class="gear-stat-cell" wx:if="{{gearStatSnapshot.primary}}">
-                <text class="gear-stat-label">{{gearStatSnapshot.primary.label}}</text>
-                <text class="gear-stat-value">{{gearStatSnapshot.primary.value}}</text>
-              </view>
-              <view class="gear-stat-cell" wx:if="{{gearStatSnapshot.stamina}}">
-                <text class="gear-stat-label">{{gearStatSnapshot.stamina.label}}</text>
-                <text class="gear-stat-value">{{gearStatSnapshot.stamina.value}}</text>
-              </view>
-              <view class="gear-stat-cell" wx:for="{{gearStatSnapshot.secondary}}" wx:key="key">
-                <text class="gear-stat-label">{{item.label}}</text>
-                <text class="gear-stat-value">{{item.value}}</text>
-              </view>
-              <view class="gear-stat-cell" wx:if="{{gearStatSnapshot.armor}}">
-                <text class="gear-stat-label">{{gearStatSnapshot.armor.label}}</text>
-                <text class="gear-stat-value">{{gearStatSnapshot.armor.value}}</text>
-              </view>
-              <view class="gear-stat-cell" wx:if="{{gearStatSnapshot.weaponDps}}">
-                <text class="gear-stat-label">{{gearStatSnapshot.weaponDps.label}}</text>
-                <text class="gear-stat-value">{{gearStatSnapshot.weaponDps.value}}</text>
-              </view>
-            </view>
-            <view wx:else class="gear-blocked-list">
-              <text class="gear-blocked-title">暂不能显示已验证属性</text>
-              <text class="gear-blocked-item" wx:for="{{gearStatBlockers}}" wx:key="*this">{{item}}</text>
-            </view>
-          </view>
-        </view>
-
         <view class="gear-slot-grid">
           <view class="gear-slot-card {{item.statusClass}}" wx:for="{{gearSlotRows}}" wx:key="slot" data-slot="{{item.slot}}" bindtap="openGearSlotSheet">
             <view class="gear-slot-topline">
@@ -119,28 +71,28 @@
               </view>
               <view class="gear-copy">
                 <text class="gear-name">{{item.displayName}}</text>
-                <text class="gear-source">{{item.ilevel ? '装等 ' + item.ilevel : item.reason}}</text>
-                <text class="gear-source" wx:if="{{item.source}}">{{item.source}}</text>
-                <text class="gear-source" wx:if="{{item.modSummary}}">{{item.modSummary}}</text>
+                <text class="gear-source" wx:if="{{item.ilevel}}">装等 {{item.ilevel}}</text>
               </view>
             </view>
             <view class="gear-slot-footer">
               <text>{{item.candidateCount}} 个候选</text>
-              <text>{{item.itemId || '未选择'}}</text>
             </view>
           </view>
+        </view>
+
+        <view class="gear-loading-state" wx:if="{{gearInitialLoading}}">
+          <text class="gear-loading-title">正在加载真实装备槽位</text>
+          <text class="gear-loading-copy">等待后端返回当前赛季装备库。</text>
         </view>
 
         <view class="gear-empty-state" wx:if="{{!gearLoading && !gearSlotRows.length}}">
           <text>装备模拟数据暂不可用，等待后端返回槽位结构。</text>
         </view>
 
-        <view class="insight-list">
-          <text class="insight-item" wx:for="{{activeDetail.items}}" wx:key="*this">{{item}}</text>
-        </view>
-
-        <view class="gear-template-actions">
-          <button class="gear-template-save-button" loading="{{gearTemplateSaving}}" bindtap="saveGearTemplate">保存装备模板</button>
+        <view class="gear-template-actions" wx:if="{{!gearInitialLoading}}">
+          <button class="gear-template-action-button primary" loading="{{gearTemplateSaving}}" bindtap="saveGearTemplate">保存模板</button>
+          <button class="gear-template-action-button" bindtap="openGearCommunityTemplates">导入社区推荐</button>
+          <button class="gear-template-action-button muted" bindtap="resetGearSelection">重置</button>
         </view>
       </view>
 
@@ -210,15 +162,7 @@
         </view>
       </view>
 
-      <view class="simc-link-panel" wx:if="{{activeDetail}}">
-        <view class="simc-link-copy">
-          <text class="simc-link-title">用 SimC 校验当前方案</text>
-          <text class="simc-link-desc">带入当前专精、天赋、装备列表、属性趋势和来源证据，进入模拟器生成可提交任务。</text>
-        </view>
-        <button class="simc-link-button" bindtap="openSimcWithBuildContext">带当前构筑去 SimC</button>
-      </view>
-
-      <view class="source-box" wx:if="{{activeDetail}}">
+      <view class="source-box" wx:if="{{activeDetail && activeQueryKey != 'gear'}}">
         <text class="source-box-title">来源与样本窗口</text>
         <text class="source-box-text">{{activeDetail.analysisWindow}}</text>
         <text class="source-box-text">{{activeDetail.sourceNote}}</text>
@@ -250,18 +194,17 @@
         </view>
         <view class="gear-copy">
           <text class="gear-name">{{item.displayName}}</text>
-          <text class="gear-source">{{item.source || item.reason}}</text>
+          <text class="gear-source" wx:if="{{item.ilevel}}">装等 {{item.ilevel}}</text>
         </view>
         <view class="gear-candidate-meta">
           <text class="gear-slot-status">{{item.statusLabel}}</text>
-          <text>{{item.ilevel ? '装等 ' + item.ilevel : item.itemId}}</text>
+          <text wx:if="{{item.ilevel}}">装等 {{item.ilevel}}</text>
         </view>
       </view>
     </view>
     <view class="gear-sheet-config" wx:if="{{gearSlotSheet.activeCandidate}}">
       <view class="gear-sheet-active">
         <text class="gear-sheet-active-name">{{gearSlotSheet.activeCandidate.displayName}}</text>
-        <text class="gear-sheet-active-source">{{gearSlotSheet.activeCandidate.source || gearSlotSheet.activeCandidate.reason}}</text>
       </view>
       <view class="gear-variant-section" wx:if="{{gearSlotSheet.variantOptions.length}}">
         <text class="gear-sheet-section-title">难度 / 装等</text>
@@ -289,6 +232,34 @@
         </view>
       </view>
       <button class="gear-apply-button" bindtap="applyGearCandidate">应用到该部位</button>
+    </view>
+  </view>
+
+  <view class="gear-slot-sheet-mask gear-community-template-sheet-mask" wx:if="{{gearCommunityTemplateSheet.visible}}" bindtap="closeGearCommunityTemplates"></view>
+  <view class="gear-community-template-sheet" wx:if="{{gearCommunityTemplateSheet.visible}}">
+    <view class="gear-sheet-handle"></view>
+    <view class="gear-sheet-header">
+      <view>
+        <text class="gear-sheet-kicker">{{gearCommunityTemplateStatusText}}</text>
+        <text class="gear-sheet-title">社区装备模板</text>
+      </view>
+      <button class="gear-sheet-close" bindtap="closeGearCommunityTemplates">关闭</button>
+    </view>
+    <view class="gear-community-template-list" wx:if="{{activeGearCommunityTemplates.length}}">
+      <view class="gear-community-template-card {{item.cardClass}}" wx:for="{{activeGearCommunityTemplates}}" wx:key="id">
+        <view class="gear-community-template-main">
+          <text class="gear-community-template-title">{{item.name}}</text>
+          <text class="gear-community-template-meta">{{item.sourceName}} · {{item.slotCoverageLabel}}</text>
+          <text class="gear-community-template-meta">{{item.statusLabel}} · {{item.updatedLabel || item.analysisWindow}}</text>
+        </view>
+        <view class="gear-community-template-side">
+          <text class="gear-community-template-state">{{item.missingSlotLabel}}</text>
+          <button class="gear-community-template-apply" disabled="{{!item.canApplyGear}}" data-id="{{item.id}}" bindtap="applyGearCommunityTemplate">{{item.actionLabel}}</button>
+        </view>
+      </view>
+    </view>
+    <view class="gear-community-template-empty" wx:else>
+      <text>暂无可导入装备模板</text>
     </view>
   </view>
 </view>

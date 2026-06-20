@@ -44,6 +44,8 @@ function normalizeArray(value) {
 }
 
 function templateStatusLabel(type, status) {
+  if (status === 'saved') return '已保存'
+  if (status === 'complete') return '完整配置'
   if (status === 'encoded') return '已编码'
   if (status === 'simc_ready') return 'SimC-ready'
   if (status === 'partial') return '缺字段'
@@ -58,7 +60,7 @@ function normalizeTemplate(record, existing) {
   const now = new Date().toISOString()
   const rawString = normalizeString(source.rawString)
   if (!rawString) return null
-  const status = normalizeString(source.status) || (type === 'gear' ? 'blocked' : 'draft')
+  const status = normalizeString(source.status) || (type === 'gear' ? 'complete' : 'saved')
   const createdAt = normalizeString(existing && existing.createdAt) || normalizeString(source.createdAt) || now
   const updatedAt = normalizeString(source.updatedAt) || now
   const className = normalizeString(source.className)

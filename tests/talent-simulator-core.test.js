@@ -293,6 +293,26 @@ test('talent view model returns three laid out trees selected nodes and search s
   assert.equal(viewModel.websimExportCode, 'websim:mage:frost:spellslinger:granted:1,granted-plus:1,hero-rank:2,parent:1')
 })
 
+test('talent view model normalizes node shapes for passive active and choice talents', () => {
+  const nodes = [
+    { id: 'passive', name: 'Passive', tree: 'class', treeType: 'class', row: 1, col: 1, maxRank: 1, shape: 'circle' },
+    { id: 'active', name: 'Active', tree: 'class', treeType: 'class', row: 1, col: 2, maxRank: 1, shape: 'square' },
+    { id: 'choice-a', name: 'Choice A', tree: 'class', treeType: 'class', row: 2, col: 1, maxRank: 1, shape: 'square', choiceGroup: 'choice-slot' },
+    { id: 'payload-passive', name: 'Payload Passive', tree: 'class', treeType: 'class', row: 2, col: 2, maxRank: 1, payload: { shape: 'circle' } }
+  ]
+  const viewModel = core.buildTalentViewModel({
+    nodes,
+    treeSections: [{ key: 'class', title: 'Class', tree: 'class' }]
+  })
+  const byId = new Map(viewModel.sections[0].nodes.map((node) => [node.id, node]))
+
+  assert.equal(byId.get('passive').shape, 'circle')
+  assert.equal(byId.get('active').shape, 'square')
+  assert.equal(byId.get('choice-a').shape, 'choice')
+  assert.equal(byId.get('choice-a').choice, true)
+  assert.equal(byId.get('payload-passive').shape, 'circle')
+})
+
 test('talent view model renders selected choice peers and active arrows for shared choice slots', () => {
   const nodes = [
     { id: 'root', name: 'Root', tree: 'class', treeType: 'class', row: 1, col: 1, maxRank: 1, granted: true },

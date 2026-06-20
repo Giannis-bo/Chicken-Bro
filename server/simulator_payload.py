@@ -884,6 +884,10 @@ def spec_info_from_build_context(context):
     return None
 
 
+def spec_info_from_keys(class_key, spec_key):
+    return SIMC_AGENT_SPEC_BY_KEY.get(f"{str(class_key or '').strip()}-{str(spec_key or '').strip()}")
+
+
 def build_context_talent_import_code(context):
     if not context:
         return ""
@@ -1435,7 +1439,12 @@ def validate_agent_simc_profile(profile):
         key = stripped.split("=", 1)[0].strip().lower()
         if key in SIMC_AGENT_FORBIDDEN_KEYS:
             errors.append(f"forbidden simc output option: {key}")
-    if text and "talents=" not in text:
+    has_talent_input = any(
+        line.strip().split("=", 1)[0].strip().lower() in {"talents", "class_talents", "spec_talents", "hero_talents"}
+        for line in text.splitlines()
+        if "=" in line
+    )
+    if text and not has_talent_input:
         warnings.append("缺少 talents，模拟可信度会下降")
     if text and not any(looks_like_simc_profile_line(line) for line in text.splitlines()):
         errors.append("profile is not a recognizable SimC template")
@@ -2039,9 +2048,9 @@ def build_llm_prompt(request_data, simulation):
         )
     if build_context:
         sections.append(f"构筑上下文：\n{format_build_context_for_prompt(build_context)}")
-    if request_data["mode"] in {"simcraft", "simcraft_agent"} and not request_data["profile"]:
+    if request_data["mode"] in {"simcraft", "simcraft_agent", "simcraft_template"} and not request_data["profile"]:
         sections.append("缺少可模拟模板：本次只可做输入说明和模板补全建议，不能声称已经完成 SimC 模拟。")
-    if request_data["mode"] in {"simcraft", "simcraft_agent"}:
+    if request_data["mode"] in {"simcraft", "simcraft_agent", "simcraft_template"}:
         sections.append("数值规则：不得从 Generating Baseline、迭代进度、耗时或中间估算行推断 DPS；只有后端 metrics.dps 或明确 DPS= / DPS Ranking 行才可作为 SimC DPS。真实大秘境结论必须先和对标区间比较，禁止输出数百万级这类与日志量级冲突的结论。")
     sections.append("如果模拟失败或未执行，请直接说明服务器返回的原因，不要把它描述成无法访问本地工具。")
     sections.append("输出格式：先给 3 条优先级最高的结论，再列验证方式和下一步需要补充的数据。")
@@ -2248,6 +2257,9 @@ def heuristic_recommendations(request_data, simulation):
             recommendations.append("横向校验：本次 SimC 数字落在外部参考的宽松合理区间内。")
         recommendations.append("下一步只补充最影响结果的变量：天赋、饰品、武器或目标数量。")
         return recommendations[:3]
+    if request_data.get("mode") == "simcraft_template":
+        recommendations.append("请选择同职业专精的完整天赋模板和 16 槽装备模板后再提交。")
+        return recommendations[:3]
     if request_data["wclUrl"]:
         recommendations.append("把 WCL 链接与具体 boss、难度、尝试编号一起提交，才能对齐技能覆盖和死亡时间线。")
     recommendations.append("下一步建议补充职业专精、目标场景、可替换装备列表和当前痛点。")
@@ -2300,7 +2312,7 @@ def build_pipeline_stages(request_data, simulation, llm_result):
             "summary": simc_summary,
             "metric": dps,
         }
-    elif request_data.get("mode") in {"simcraft", "simcraft_agent"} and not has_profile:
+    elif request_data.get("mode") in {"simcraft", "simcraft_agent", "simcraft_template"} and not has_profile:
         simc_stage = {
             "key": "simc_execution",
             "title": "SimC 执行",
@@ -2573,6 +2585,174 @@ def apply_simulation_metric_metadata(request_data, simulation):
     return simulation
 
 
+SIMCRAFT_TEMPLATE_SCENARIOS = {
+    "single": {
+        "fightStyle": "Patchwerk",
+        "durationSeconds": 300,
+        "targets": 1,
+        "label": "单体基准",
+    },
+    "mythic_plus": {
+        "fightStyle": "DungeonSlice",
+        "durationSeconds": 360,
+        "targets": 5,
+        "label": "大秘境基准",
+    },
+}
+
+
+def simcraft_template_scenario(source):
+    key = str((source or {}).get("scenarioKey") or "single").strip()
+    return SIMCRAFT_TEMPLATE_SCENARIOS.get(key) or SIMCRAFT_TEMPLATE_SCENARIOS["single"]
+
+
+def simcraft_template_intent(source):
+    value = str((source or {}).get("analysisType") or "baseline").strip()
+    return "stat_weights" if value == "stat_weights" else "baseline"
+
+
+def simcraft_template_filled_slots(source, spec_info, scenario):
+    context = source.get("templateContext") if isinstance(source.get("templateContext"), dict) else {}
+    talent = context.get("talent") if isinstance(context.get("talent"), dict) else {}
+    return {
+        "class": (spec_info or {}).get("class") or str(talent.get("classKey") or "").strip(),
+        "classLabel": (spec_info or {}).get("classLabel") or str(talent.get("className") or "").strip(),
+        "spec": (spec_info or {}).get("spec") or str(talent.get("specKey") or "").strip(),
+        "specLabel": (spec_info or {}).get("specLabel") or str(talent.get("specName") or "").strip(),
+        "scenario": scenario.get("label", ""),
+        "fightStyle": scenario.get("fightStyle", ""),
+        "targets": scenario.get("targets", 1),
+        "durationSeconds": scenario.get("durationSeconds", 300),
+    }
+
+
+def simcraft_template_blocked_payload(source, request_data, errors, scenario, spec_info):
+    error_text = "; ".join(errors or ["template validation failed"])
+    simulation = {
+        "ran": False,
+        "available": bool(simc_binary()),
+        "summary": "",
+        "error": error_text,
+        "metrics": {},
+    }
+    agent = {
+        "status": "template_blocked",
+        "round": 1,
+        "intent": simcraft_template_intent(source),
+        "confidence": 1.0,
+        "missingSlots": [],
+        "filledSlots": simcraft_template_filled_slots(source, spec_info, scenario),
+        "question": "",
+        "quickReplies": [],
+        "draftProfile": "",
+        "validation": {"passed": False, "errors": errors or [error_text], "warnings": []},
+        "canSubmitTask": False,
+        "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
+        "scenario": scenario,
+    }
+    llm_result = skipped_llm_result("template validation blocked")
+    codex_result = skipped_codex_worker_result(error_text)
+    return build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result)
+
+
+def analyze_simcraft_template_request(payload, codex_runner=None):
+    source = payload if isinstance(payload, dict) else {}
+    build_context = normalize_build_context(source.get("buildContext"))
+    scenario = simcraft_template_scenario(source)
+    intent = simcraft_template_intent(source)
+    template_context = source.get("templateContext") if isinstance(source.get("templateContext"), dict) else {}
+    talent_template = template_context.get("talent") if isinstance(template_context.get("talent"), dict) else {}
+    gear_template = template_context.get("gear") if isinstance(template_context.get("gear"), dict) else {}
+    spec_info = spec_info_from_keys(talent_template.get("classKey"), talent_template.get("specKey")) or spec_info_from_build_context(build_context)
+    validation_source = source.get("templateValidation") if isinstance(source.get("templateValidation"), dict) else {}
+    validation_errors = [str(item) for item in validation_source.get("errors") or [] if str(item or "").strip()]
+    message = simc_agent_message(source) or "SimC 模板组合基准"
+
+    request_data = {
+        "mode": "simcraft_template",
+        "character": str(source.get("character") or "").strip() or (
+            f"{talent_template.get('specName', '')}{talent_template.get('className', '')}".strip()
+        ),
+        "prompt": message,
+        "profile": "",
+        "profileSource": "template",
+        "wclUrl": "",
+        "question": message,
+        "runSimulation": False,
+        "buildContext": build_context,
+        "templateContext": template_context,
+        "scenarioKey": str(source.get("scenarioKey") or "single").strip() or "single",
+        "analysisType": intent,
+    }
+
+    if validation_errors:
+        return simcraft_template_blocked_payload(source, request_data, validation_errors, scenario, spec_info)
+    if not spec_info:
+        return simcraft_template_blocked_payload(source, request_data, ["unknown template class/spec"], scenario, spec_info)
+    if not build_context_has_talents(build_context):
+        return simcraft_template_blocked_payload(source, request_data, ["missing talent template SimC input"], scenario, spec_info)
+    gear_items = request_gear_items(source, build_context)
+    if not gear_items:
+        return simcraft_template_blocked_payload(source, request_data, ["missing gear template SimC items"], scenario, spec_info)
+
+    base_profile = build_generated_simc_profile(spec_info, None, build_context, gear_items)
+    draft_profile = build_agent_simc_profile(base_profile, intent, scenario, "template")
+    validation = validate_agent_simc_profile(draft_profile)
+    request_data["profile"] = draft_profile
+    request_data["mythicPlusReference"] = build_mythic_plus_reference(draft_profile, scenario)
+    confirm_only = bool(source.get("confirmOnly"))
+    request_data["runSimulation"] = validation["passed"] and not confirm_only
+
+    if validation["passed"] and confirm_only:
+        simulation = {
+            "ran": False,
+            "available": bool(simc_binary()),
+            "summary": "",
+            "error": "",
+            "metrics": {},
+        }
+    elif validation["passed"]:
+        simulation = run_simcraft(draft_profile)
+    else:
+        simulation = {
+            "ran": False,
+            "available": bool(simc_binary()),
+            "summary": "",
+            "error": "; ".join(validation["errors"]) or "template invalid",
+            "metrics": {},
+        }
+    simulation = dict(simulation)
+    simulation["metrics"] = simulation.get("metrics") or parse_simcraft_metrics(simulation.get("summary", ""))
+    simulation = apply_simulation_metric_metadata(request_data, simulation)
+    simulation = apply_simc_benchmark(request_data, simulation)
+    status = "template_ready" if validation["passed"] and confirm_only else (
+        "simc_completed" if simulation.get("ran") else ("template_invalid" if not validation["passed"] else "simc_failed")
+    )
+    agent = {
+        "status": status,
+        "round": 1,
+        "intent": intent,
+        "confidence": 1.0,
+        "missingSlots": [],
+        "filledSlots": simcraft_template_filled_slots(source, spec_info, scenario),
+        "question": "",
+        "quickReplies": [],
+        "draftProfile": draft_profile,
+        "validation": validation,
+        "canSubmitTask": validation["passed"],
+        "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
+        "scenario": scenario,
+    }
+    if confirm_only:
+        llm_result = skipped_llm_result("template confirm only")
+    elif validation["passed"]:
+        llm_result = call_llm(build_llm_prompt(request_data, simulation))
+    else:
+        llm_result = skipped_llm_result("template invalid")
+    codex_result = call_codex_worker(request_data, simulation, codex_runner=codex_runner) if validation["passed"] and not confirm_only else skipped_codex_worker_result("template confirmation" if confirm_only else "template invalid")
+    return build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result)
+
+
 def analyze_simc_agent_request(payload, codex_runner=None):
     source = payload if isinstance(payload, dict) else {}
     build_context = normalize_build_context(source.get("buildContext"))
@@ -2745,8 +2925,12 @@ def build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_
         recommendations = [agent["question"]]
     elif agent["status"] == "off_topic":
         recommendations = [agent["question"]]
+    elif agent["status"] == "template_blocked":
+        recommendations = list((agent.get("validation") or {}).get("errors") or recommendations)[:3]
     elif agent["status"] == "template_ready":
-        if request_data.get("profileSource") == "generated":
+        if request_data.get("mode") == "simcraft_template":
+            recommendations = ["模板组合已确认，可以提交执行 SimC。"]
+        elif request_data.get("profileSource") == "generated":
             recommendations = ["需求已确认，当前只能保存 SimC 模板预览；需要天赋导入码和手选装备数据或完整 SimC profile 后才会执行正式 DPS 模拟。"]
         elif request_data.get("profileSource") == "assembled":
             recommendations = ["需求、天赋和手选装备已确认，可以提交执行 SimC。"]
@@ -2755,7 +2939,7 @@ def build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_
     allowed_numbers = build_allowed_numbers(request_data, simulation)
     report = build_structured_report(request_data, simulation, llm_result, recommendations, allowed_numbers)
     return {
-        "mode": "simcraft_agent",
+        "mode": request_data.get("mode") or "simcraft_agent",
         "status": "ready",
         "createdAt": utc_now(),
         "capabilities": {
@@ -2786,6 +2970,8 @@ def build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_
 
 def analyze_simulator_request(payload, codex_runner=None):
     source = payload if isinstance(payload, dict) else {}
+    if (source.get("mode") or "") == "simcraft_template":
+        return analyze_simcraft_template_request(source, codex_runner=codex_runner)
     if (source.get("mode") or "") == "simcraft_agent":
         return analyze_simc_agent_request(source, codex_runner=codex_runner)
 

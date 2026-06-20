@@ -40,6 +40,7 @@ test('build template storage saves sorts dedupes and deletes local templates', (
     specName: '冰霜',
     scenarioTitle: '大秘境',
     rawString: 'websim:mage:frost:first',
+    status: 'saved',
     updatedAt: '2026-06-16T00:00:00.000Z'
   })
   const second = api.saveBuildTemplate({
@@ -49,6 +50,7 @@ test('build template storage saves sorts dedupes and deletes local templates', (
     specName: '冰霜',
     scenarioTitle: '单体',
     rawString: 'head=,id=250060',
+    status: 'complete',
     updatedAt: '2026-06-17T00:00:00.000Z'
   })
   const duplicate = api.saveBuildTemplate({
@@ -64,6 +66,8 @@ test('build template storage saves sorts dedupes and deletes local templates', (
   assert.equal(duplicate.id, first.id)
   assert.equal(api.listBuildTemplates('talent').length, 1)
   assert.equal(api.listBuildTemplates('talent')[0].scenarioTitle, '团本')
+  assert.equal(api.listBuildTemplates('talent')[0].statusLabel, '已保存')
+  assert.equal(api.listBuildTemplates('gear')[0].statusLabel, '完整配置')
   assert.deepEqual(api.listBuildTemplates().map((item) => item.id), [first.id, second.id])
   assert.deepEqual(api.buildTemplateSummary().map((item) => item.type), ['talent', 'gear'])
   assert.equal(api.buildTemplateSummary()[0].count, 1)
@@ -71,6 +75,26 @@ test('build template storage saves sorts dedupes and deletes local templates', (
   assert.equal(api.deleteBuildTemplate(first.id), true)
   assert.deepEqual(api.listBuildTemplates('talent'), [])
   assert.equal(api.deleteBuildTemplate('missing'), false)
+})
+
+test('build template storage keeps simcLines empty for string-only templates', () => {
+  const { api } = loadStorageModule()
+
+  const talent = api.saveBuildTemplate({
+    type: 'talent',
+    rawString: 'websim:mage:frost:saved',
+    status: 'saved'
+  })
+  const gear = api.saveBuildTemplate({
+    type: 'gear',
+    rawString: 'head=,id=250060,ilevel=707',
+    status: 'complete'
+  })
+
+  assert.deepEqual(talent.simcLines, [])
+  assert.deepEqual(gear.simcLines, [])
+  assert.equal(talent.statusLabel, '已保存')
+  assert.equal(gear.statusLabel, '完整配置')
 })
 
 test('build template sync saves locally and falls back before sending auth over insecure http', async () => {

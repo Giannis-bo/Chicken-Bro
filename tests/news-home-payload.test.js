@@ -58,6 +58,10 @@ test('builds the news home payload expected by the first tab', () => {
     ['正式服动态', '测试服前瞻', '职业强度变化']
   )
   assert.deepEqual(
+    payload.channels.map((channel) => channel.updateCount),
+    [2, 1, 1]
+  )
+  assert.deepEqual(
     payload.metrics.map((metric) => metric.label),
     ['今日更新', '职业变动', '测试服重点']
   )
@@ -112,6 +116,7 @@ test('drops stories from untrusted, incomplete, or not-ready source records', ()
   ])
 
   assert.deepEqual(payload.highlights.map((story) => story.id), ['trusted'])
+  assert.deepEqual(payload.channels.map((channel) => channel.updateCount), [1, 0, 0])
 })
 
 test('keeps trusted stories when URL constructor is unavailable in webview runtime', () => {

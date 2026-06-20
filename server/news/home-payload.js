@@ -123,6 +123,17 @@ function countByTag(stories, tag) {
   return stories.filter((story) => (story.tags || []).includes(tag)).length
 }
 
+function countByChannel(stories, channelTitle) {
+  return stories.filter((story) => story.channel === channelTitle).length
+}
+
+function channelsWithCounts(stories) {
+  return CHANNELS.map((channel) => ({
+    ...channel,
+    updateCount: countByChannel(stories, channel.title)
+  }))
+}
+
 function buildNewsHomePayload(articles, refreshState = {}) {
   const stories = sortStories((articles || []).filter(isTrustedStory)).map(visibleStory)
 
@@ -134,7 +145,7 @@ function buildNewsHomePayload(articles, refreshState = {}) {
       { key: 'class-change', value: String(countByTag(stories, 'class-change')), label: '职业变动' },
       { key: 'ptr', value: String(stories.filter((story) => story.channel === '测试服前瞻').length), label: '测试服重点' }
     ],
-    channels: CHANNELS,
+    channels: channelsWithCounts(stories),
     highlights: stories.slice(0, 6),
     lastRefreshedAt: refreshState.lastRefreshedAt || '',
     refreshMode: refreshState.refreshMode || 'bootstrap'

@@ -1,7 +1,7 @@
 <view class="page-shell">
   <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
   <view class="simc-page">
-    <view class="chat-context">
+    <view class="template-hero">
       <view>
         <text class="context-kicker">{{kicker}}</text>
         <text class="context-title">{{title}}</text>
@@ -9,53 +9,137 @@
       <text class="context-desc">{{desc}}</text>
     </view>
 
-    <view class="context-source" wx:if="{{buildContextTitle}}">
-      <text class="context-source-label">已带入</text>
-      <text class="context-source-title">{{buildContextTitle}}</text>
-    </view>
-
-    <view class="chat-panel">
-      <view class="chat-header">
-        <text class="chat-title">SimC 需求确认</text>
-        <text class="chat-round">已交流 {{conversationRound}} 轮</text>
-      </view>
-
-      <scroll-view class="chat-messages" scroll-y scroll-into-view="{{chatAnchor}}" type="list">
-        <view
-          class="chat-row chat-row-{{item.role}}"
-          wx:for="{{messages}}"
-          wx:key="id"
-        >
-          <view class="chat-bubble">
-            <text user-select="{{true}}">{{item.text}}</text>
-          </view>
+    <scroll-view class="template-workspace" scroll-y type="list">
+      <view class="template-selector class-selector">
+        <view class="section-header">
+          <text class="section-title">选择职业</text>
+          <text class="section-meta">{{classOptions.length}} 个</text>
         </view>
-        <view id="chat-bottom"></view>
-      </scroll-view>
-
-      <view class="quick-reply-list" wx:if="{{latestAnalysis.agent && latestAnalysis.agent.quickReplies && latestAnalysis.agent.quickReplies.length && !canSubmitTask && !taskSubmitted}}">
-        <button
-          class="quick-reply"
-          wx:for="{{latestAnalysis.agent.quickReplies}}"
-          wx:key="*this"
-          data-reply="{{item}}"
-          bindtap="useQuickReply"
-        >{{item}}</button>
+        <view class="empty-state" wx:if="{{emptyState.class}}">
+          <text>{{emptyState.class}}</text>
+        </view>
+        <picker mode="selector" range="{{classOptions}}" range-key="name" value="{{selectedClassIndex}}" bindchange="selectClass" disabled="{{!classOptions.length}}">
+          <view class="toolbar-picker">
+            <text class="picker-label">职业</text>
+            <text class="picker-value">{{selectedClassName || '请选择职业'}}</text>
+          </view>
+        </picker>
       </view>
 
-      <view class="chat-composer">
-        <textarea
-          class="chat-input"
-          value="{{chatInput}}"
-          maxlength="6000"
-          auto-height="{{false}}"
-          disabled="{{canSubmitTask || loadingChat || taskSubmitted}}"
-          bindinput="updateChatInput"
-          placeholder="输入职业专精、装等、目标场景，例如：290元素萨大秘境AOE"
-        />
-        <button class="send-button" loading="{{loadingChat}}" disabled="{{canSubmitTask || loadingChat || taskSubmitted}}" bindtap="sendChatMessage">发送</button>
+      <view class="template-selector">
+        <view class="section-header">
+          <text class="section-title">天赋模板</text>
+          <text class="section-meta">{{talentTemplates.length}} 个</text>
+        </view>
+        <view class="empty-state" wx:if="{{emptyState.talent}}">
+          <text>{{emptyState.talent}}</text>
+        </view>
+        <picker wx:if="{{talentTemplates.length}}" mode="selector" range="{{talentTemplates}}" range-key="title" value="{{selectedTalentTemplateIndex}}" bindchange="selectTalentTemplate">
+          <view class="toolbar-picker">
+            <text class="picker-label">天赋</text>
+            <text class="picker-value">{{selectedTalentTemplate ? selectedTalentTemplate.title : '尚未保存天赋模板'}}</text>
+          </view>
+        </picker>
       </view>
 
+      <view class="template-selector">
+        <view class="section-header">
+          <text class="section-title">装备模板</text>
+          <text class="section-meta">{{gearTemplates.length}} 个</text>
+        </view>
+        <view class="empty-state" wx:if="{{emptyState.gear}}">
+          <text>{{emptyState.gear}}</text>
+        </view>
+        <picker wx:if="{{gearTemplates.length}}" mode="selector" range="{{gearTemplates}}" range-key="title" value="{{selectedGearTemplateIndex}}" bindchange="selectGearTemplate">
+          <view class="toolbar-picker">
+            <text class="picker-label">装备</text>
+            <text class="picker-value">{{selectedGearTemplate ? selectedGearTemplate.title : '尚未保存装备模板'}}</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="template-selector">
+        <view class="section-header">
+          <text class="section-title">场景预设</text>
+        </view>
+        <view class="segmented-row">
+          <button
+            class="segment-button {{selectedScenarioKey === item.key ? 'segment-selected' : ''}}"
+            wx:for="{{scenarioOptions}}"
+            wx:key="key"
+            data-key="{{item.key}}"
+            bindtap="selectScenario"
+          >
+            <text class="segment-title">{{item.title}}</text>
+            <text class="segment-desc">{{item.desc}}</text>
+          </button>
+        </view>
+      </view>
+
+      <view class="template-selector">
+        <view class="section-header">
+          <text class="section-title">分析类型</text>
+        </view>
+        <view class="segmented-row">
+          <button
+            class="segment-button {{selectedAnalysisType === item.key ? 'segment-selected' : ''}}"
+            wx:for="{{analysisTypeOptions}}"
+            wx:key="key"
+            data-key="{{item.key}}"
+            bindtap="selectAnalysisType"
+          >
+            <text class="segment-title">{{item.title}}</text>
+            <text class="segment-desc">{{item.desc}}</text>
+          </button>
+        </view>
+      </view>
+
+      <view class="confirm-summary">
+        <view class="section-header">
+          <text class="section-title">确认摘要</text>
+        </view>
+        <view class="summary-row">
+          <text class="summary-label">职业</text>
+          <text class="summary-value">{{selectedClassName || '未选择'}}</text>
+        </view>
+        <view class="summary-row">
+          <text class="summary-label">天赋</text>
+          <text class="summary-value">{{selectedTalentTemplate ? selectedTalentTemplate.title : '未选择'}}</text>
+        </view>
+        <view class="summary-row">
+          <text class="summary-label">装备</text>
+          <text class="summary-value">{{selectedGearTemplate ? selectedGearTemplate.title : '未选择'}}</text>
+        </view>
+        <view class="summary-row">
+          <text class="summary-label">场景</text>
+          <text class="summary-value">{{selectedScenarioKey}}</text>
+        </view>
+        <view class="summary-row">
+          <text class="summary-label">类型</text>
+          <text class="summary-value">{{selectedAnalysisType}}</text>
+        </view>
+      </view>
+
+      <view class="blocked-panel" wx:if="{{blockedReasons.length}}">
+        <text class="blocked-title">暂不能提交</text>
+        <view class="blocked-reason" wx:for="{{blockedReasons}}" wx:key="*this">
+          <text>{{item}}</text>
+        </view>
+      </view>
+
+      <view class="result-panel" wx:if="{{latestAnalysis && latestAnalysis.agent && !blockedReasons.length}}">
+        <text class="result-title">{{latestAnalysis.agent.status}}</text>
+        <text class="result-desc">{{latestAnalysis.recommendations[0]}}</text>
+      </view>
+    </scroll-view>
+
+    <view class="action-bar">
+      <button
+        class="confirm-button"
+        loading="{{confirming}}"
+        disabled="{{!canConfirm || confirming || submittingTask}}"
+        bindtap="confirmTemplateSimulation"
+      >校验组合</button>
       <button
         class="submit-button task-submit-button {{canSubmitTask ? 'submit-ready' : ''}}"
         loading="{{submittingTask}}"

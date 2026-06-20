@@ -1131,6 +1131,50 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("loot_bracers", profile)
         self.assertNotIn("id=250222", profile)
 
+    def test_item_slot_from_payload_uses_inventory_type_type_for_localized_payload(self):
+        cases = [
+            ({"inventory_type": {"type": "HEAD", "name": "头部"}}, "head"),
+            ({"inventory_type": {"type": "INVTYPE_WRIST", "name": "手腕"}}, "wrist"),
+            ({"inventory_type": {"type": "FINGER", "name": "手指"}}, "finger1"),
+            ({"inventory_type": {"type": "TRINKET", "name": "饰品"}}, "trinket1"),
+            ({"inventory_type": {"type": "WEAPON", "name": "武器"}}, "main_hand"),
+            ({"inventory_type": {"type": "SHIELD", "name": "盾牌"}}, "off_hand"),
+        ]
+
+        for payload, expected_slot in cases:
+            with self.subTest(payload=payload):
+                self.assertEqual(self.websim_payload.item_slot_from_payload(payload), expected_slot)
+
+    def test_save_websim_item_metadata_uses_english_payload_slot_when_localized_name_is_not_mapped(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            saved = self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250888",
+                {
+                    "id": 250888,
+                    "name": "裂隙护腕",
+                    "inventory_type": {"name": "手腕"},
+                    "quality": {"name": "史诗"},
+                },
+                {"assets": [{"value": "https://render.example/item-250888.jpg"}]},
+                fallback_name="Rift Bindings",
+                english_payload={
+                    "id": 250888,
+                    "name": "Rift Bindings",
+                    "inventory_type": {"name": "Wrist"},
+                },
+                locale="zh_CN",
+            )
+            conn.commit()
+            row = conn.execute("SELECT slot FROM websim_items WHERE id = '250888'").fetchone()
+        finally:
+            conn.close()
+
+        self.assertEqual(saved["slot"], "wrist")
+        self.assertEqual(row[0], "wrist")
+
     def test_websim_gear_ignores_client_supplied_game_asset_provenance(self):
         item = self.websim_payload.normalize_gear_item(
             {
@@ -1259,6 +1303,50 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["slotReadiness"]["neck"]["status"], "blocked")
         self.assertIn("missing item", payload["slotReadiness"]["neck"]["reason"])
         self.assertTrue(any(group["slot"] == "head" for group in payload["replacementCandidates"]))
+
+    def test_websim_gear_payload_exposes_importable_community_templates(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            profile = "\n".join(
+                [
+                    'mage="Preset_Mage"',
+                    "spec=arcane",
+                    "head=preset_helm,id=250101,ilevel=289,bonus_id=13534",
+                    "neck=display_only_neck",
+                ]
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('preset-mage-arcane', 'mage', 'arcane', 'Preset Mage', ?, '{}', '2026-06-20T00:00:00Z')
+                """,
+                (profile,),
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane")
+        finally:
+            conn.close()
+
+        self.assertIn("communityTemplates", payload)
+        self.assertIn("communityTemplateSync", payload)
+        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
+        templates = payload["communityTemplates"]
+        self.assertEqual(len(templates), 1)
+        template = templates[0]
+        self.assertEqual(template["id"], "preset-mage-arcane")
+        self.assertEqual(template["name"], "Preset Mage")
+        self.assertEqual(template["sourceName"], "SimC preset")
+        self.assertEqual(template["sourceStatus"], "partial")
+        self.assertEqual(template["status"], "partial")
+        self.assertTrue(template["canApplyGear"])
+        self.assertEqual(template["readySlotCount"], 1)
+        self.assertIn("neck", template["missingSlots"])
+        self.assertEqual(template["updatedAt"], "2026-06-20T00:00:00Z")
+        self.assertEqual([item["slot"] for item in template["gearItems"]], ["head"])
+        self.assertIn("head=", template["rawString"])
+        self.assertNotIn("display_only_neck", template["rawString"])
 
     def test_websim_gear_payload_exposes_catalog_sources_variants_and_mods(self):
         conn = sqlite3.connect(self.db_path)
@@ -1390,6 +1478,221 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(catalog_item["compatibility"]["status"], "compatible")
         self.assertEqual(catalog_item["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
         self.assertEqual(catalog_item["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
+
+    def test_gear_catalog_sync_adds_observed_profile_variants_from_raiderio(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "观测兜帽",
+                    "inventory_type": {"type": "HEAD", "name": "头部"},
+                    "quality": {"name": "史诗"},
+                },
+                {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
+                fallback_name="Observed Hood",
+                english_payload={"name": "Observed Hood", "inventory_type": {"name": "Head"}},
+                locale="zh_CN",
+            )
+            raiderio = {
+                "sourceStatus": "verified",
+                "checkedAt": "2026-06-20T00:00:00+00:00",
+                "region": "cn",
+                "seasonSlug": "season-mn-1",
+                "specs": {
+                    "mage:frost": {
+                        "observedGear": [
+                            {
+                                "slot": "head",
+                                "name": "Observed Hood",
+                                "itemId": 250777,
+                                "itemLevel": 707,
+                                "quality": "史诗",
+                                "icon": "https://render.example/item-250777.jpg",
+                                "bonuses": [12345, 67890],
+                                "gems": [{"itemId": 240983}],
+                                "enchants": [{"spellId": 8017}],
+                                "sourceName": "Raider.IO CN profile gear",
+                            }
+                        ],
+                    }
+                },
+            }
+
+            counts = self.websim_payload.sync_observed_gear_variants(conn, raiderio, {"seasonRevision": "season-test"})
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            conn.commit()
+            variants = self.websim_payload.gear_catalog_variants_by_item(conn)
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost")
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["observedVariants"], 1)
+        variant = variants["250777"][0]
+        self.assertEqual(variant["sourceType"], "observed_profile")
+        self.assertEqual(variant["status"], "verified")
+        self.assertEqual(variant["simcOptions"]["bonus_id"], "12345/67890")
+        self.assertEqual(variant["simcOptions"]["gem_id"], "240983")
+        self.assertEqual(variant["simcOptions"]["enchant_id"], "8017")
+        head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
+        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250777")
+        self.assertTrue(catalog_item["simcReady"])
+        self.assertEqual(catalog_item["variantSource"], "observed_profile")
+        self.assertEqual(catalog_item["observedProfileRefs"][0]["sourceName"], "Raider.IO CN profile gear")
+
+    def test_observed_profile_variant_stays_partial_without_deterministic_simc_options(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250778",
+                {
+                    "id": 250778,
+                    "name": "观测护腕",
+                    "inventory_type": {"type": "WRIST", "name": "手腕"},
+                    "quality": {"name": "史诗"},
+                },
+                fallback_name="Observed Bracers",
+                english_payload={"name": "Observed Bracers", "inventory_type": {"name": "Wrist"}},
+                locale="zh_CN",
+            )
+            counts = self.websim_payload.sync_observed_gear_variants(
+                conn,
+                {
+                    "sourceStatus": "verified",
+                    "checkedAt": "2026-06-20T00:00:00+00:00",
+                    "specs": {
+                        "mage:frost": {
+                            "observedGear": [
+                                {
+                                    "slot": "wrist",
+                                    "name": "Observed Bracers",
+                                    "itemId": 250778,
+                                    "itemLevel": 707,
+                                    "bonuses": [],
+                                    "gems": [],
+                                    "enchants": [],
+                                }
+                            ],
+                        }
+                    },
+                },
+                {"seasonRevision": "season-test"},
+            )
+            variants = self.websim_payload.gear_catalog_variants_by_item(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["observedVariants"], 1)
+        self.assertEqual(counts["verifiedObservedVariants"], 0)
+        variant = variants["250778"][0]
+        self.assertEqual(variant["status"], "partial")
+        self.assertIn("missing deterministic SimC variant preset", variant["blockers"])
+
+    def test_observed_profile_item_metadata_remains_source_reference_without_blizzard_metadata(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.sync_observed_gear_variants(
+                conn,
+                {
+                    "sourceStatus": "verified",
+                    "checkedAt": "2026-06-20T00:00:00+00:00",
+                    "specs": {
+                        "mage:frost": {
+                            "observedGear": [
+                                {
+                                    "slot": "head",
+                                    "name": "Observed Only Hood",
+                                    "itemId": 250779,
+                                    "itemLevel": 707,
+                                    "bonuses": [12345],
+                                    "sourceName": "Raider.IO CN profile gear",
+                                }
+                            ],
+                        }
+                    },
+                },
+                {"seasonRevision": "season-test"},
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost")
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
+        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250779")
+        self.assertTrue(catalog_item["simcReady"])
+        self.assertEqual(catalog_item["variantStatus"], "verified")
+        self.assertEqual(catalog_item["metadataStatus"], "source_reference")
+        self.assertEqual(catalog_item["metadataSource"], "raiderio_observed_profile")
+
+    def test_gear_catalog_health_payload_includes_slot_source_and_observed_variant_coverage(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Observed Hood",
+                    "inventory_type": {"name": "Head"},
+                    "quality": {"name": "Epic"},
+                },
+                fallback_name="Observed Hood",
+                english_payload={"name": "Observed Hood", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "observed-source-250777",
+                    "itemId": "250777",
+                    "sourceType": "observed_profile",
+                    "sourceLabel": "Raider.IO CN observed mage frost",
+                    "seasonRevision": "season-test",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-250777-head",
+                    "itemId": "250777",
+                    "slot": "head",
+                    "variantKey": "observed-707",
+                    "label": "Observed 707",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(payload["details"]["observedVariantCount"], 1)
+        self.assertEqual(payload["details"]["slotCoverage"]["coveredSlotCount"], 1)
+        self.assertIn("head", payload["details"]["slotCoverage"]["coveredSlots"])
+        self.assertEqual(payload["details"]["sourceCoverage"]["observed_profile"], 1)
 
     def test_gear_catalog_sync_loads_server_owned_mod_seed(self):
         os.environ["WOW_WEBSIM_GEAR_MOD_SEED"] = json.dumps(
@@ -2816,10 +3119,13 @@ class WebSimPayloadTest(unittest.TestCase):
             ],
             locale=locale,
         )
-        self.websim_payload.selected_journal_instance_refs = lambda token, region="us", locale="zh_CN": [
-            {"id": "1300", "name": "Magisters' Terrace", "category": "Dungeon"},
-            {"id": "1400", "name": "Arcane Vault", "category": "Raid"},
-        ]
+        self.websim_payload.selected_journal_instance_refs = lambda token, region="us", locale="zh_CN": (
+            [
+                ({"id": "1300", "name": "Magisters' Terrace"}, "Dungeon"),
+                ({"id": "1400", "name": "Arcane Vault"}, "Raid"),
+            ],
+            "Current Expansion",
+        )
 
         def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
             if path == "/data/wow/journal-instance/1300":
@@ -2904,6 +3210,44 @@ class WebSimPayloadTest(unittest.TestCase):
                     ],
                 ),
             )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Catalog Hood",
+                    "inventory_type": {"name": "Head"},
+                    "quality": {"name": "Epic"},
+                },
+                fallback_name="Catalog Hood",
+                english_payload={"name": "Catalog Hood", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {"id": "manual-250777", "itemId": "250777", "sourceType": "raid", "sourceLabel": "Arcane Vault"},
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "manual-250777-heroic",
+                    "itemId": "250777",
+                    "slot": "head",
+                    "variantKey": "heroic-707",
+                    "label": "Heroic 707",
+                    "sourceType": "raid",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(
+                    conn, self.websim_payload.get_active_season_payload(conn)
+                ),
+            )
             conn.commit()
         finally:
             conn.close()
@@ -2913,6 +3257,92 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["dataStatus"], "verified")
         self.assertEqual(payload["blizzardSkipped"], "fresh-season-cache")
+        self.assertEqual(payload["errors"], [])
+
+    def test_sync_refreshes_blizzard_when_gear_catalog_is_partial_even_if_season_cache_is_fresh(self):
+        conn = sqlite3.connect(self.db_path)
+        original_sync_simc = self.websim_payload.sync_simc_generated_data
+        original_credentials = self.websim_payload.blizzard_credentials_configured
+        original_token = self.websim_payload.get_blizzard_access_token
+        original_journal = self.websim_payload.sync_blizzard_journal
+        original_preset_metadata = self.websim_payload.sync_blizzard_preset_item_metadata
+        original_build_metadata = self.websim_payload.sync_blizzard_build_gear_item_metadata
+        original_spells = self.websim_payload.sync_blizzard_spell_details
+        self.addCleanup(setattr, self.websim_payload, "sync_simc_generated_data", original_sync_simc)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_credentials_configured", original_credentials)
+        self.addCleanup(setattr, self.websim_payload, "get_blizzard_access_token", original_token)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_journal", original_journal)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_preset_item_metadata", original_preset_metadata)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_build_gear_item_metadata", original_build_metadata)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_spell_details", original_spells)
+        calls = {"journal": 0}
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_active_season_payload(
+                conn,
+                self.websim_payload.current_season_payload(
+                    season_id="17",
+                    season_label="Fresh Season",
+                    dungeons=[
+                        {
+                            "id": "558",
+                            "dungeonId": "558",
+                            "instanceId": "1300",
+                            "name": "Magisters' Terrace",
+                            "shortName": "Magisters' Terrace",
+                            "timerSeconds": 2040,
+                        }
+                    ],
+                ),
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                {
+                    "status": "partial",
+                    "itemCount": 40,
+                    "sourceCount": 40,
+                    "variantCount": 40,
+                    "verifiedCount": 0,
+                    "partialCount": 40,
+                    "blockedCount": 0,
+                    "blockers": ["missing deterministic SimC variant preset"],
+                },
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        self.websim_payload.sync_simc_generated_data = lambda conn: {"talents": 1, "profiles": 1, "build": "test"}
+        self.websim_payload.blizzard_credentials_configured = lambda: True
+        self.websim_payload.get_blizzard_access_token = lambda region="us": "token"
+
+        def fake_sync_journal(conn, token, region="us", locale="zh_CN"):
+            calls["journal"] += 1
+            return {"instances": 0, "encounters": 0, "loot": 0, "items": 0}
+
+        self.websim_payload.sync_blizzard_journal = fake_sync_journal
+        self.websim_payload.sync_blizzard_preset_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 0,
+            "aliases": 0,
+            "skipped": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_build_gear_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 0,
+            "aliases": 0,
+            "skipped": 0,
+            "searched": 0,
+            "resolved": 0,
+            "references": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_spell_details = lambda conn, token, region="us", locale="zh_CN": {"spells": 0, "media": 0}
+
+        payload = self.websim_payload.sync_websim_cache(self.db_path, include_blizzard=True)
+
+        self.assertEqual(calls["journal"], 1)
+        self.assertNotEqual(payload.get("blizzardSkipped"), "fresh-season-cache")
         self.assertEqual(payload["errors"], [])
 
     def test_blizzard_get_uses_bearer_header_not_query_token(self):

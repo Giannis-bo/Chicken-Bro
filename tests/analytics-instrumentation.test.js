@@ -44,10 +44,8 @@ test('mini program pages emit the first-pass analytics event surface', () => {
     'pve_module_view',
     'simulator_home_view',
     'simulator_module_open',
-    'simc_chat_submit',
-    'simc_confirm_result',
-    'simc_task_submit',
-    'simc_task_saved',
+    'simc_template_confirm',
+    'simc_template_submit',
     'wcl_submit',
     'task_detail_view'
   ].forEach((eventName) => {

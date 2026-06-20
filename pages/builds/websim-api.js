@@ -62,6 +62,13 @@ function fallbackWebsimGear(params) {
     equippedSet: {},
     slotReadiness: {},
     replacementCandidates: [],
+    communityTemplates: [],
+    communityTemplateSync: {
+      sourceStatus: 'missing_credentials',
+      sources: {},
+      templates: { total: 0, verified: 0, partial: 0, blocked: 0 },
+      checkedAt: ''
+    },
     readiness: {
       fullReady: false,
       itemLevel: { key: 'itemLevel', label: '装备等级', value: '0', rawValue: 0 },

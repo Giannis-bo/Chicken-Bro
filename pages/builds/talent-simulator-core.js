@@ -38,6 +38,24 @@ function maxRankFor(node) {
   return Math.max(1, numberValue(node && (node.maxRank || node.rank), 1))
 }
 
+function normalizeTalentNodeShape(node) {
+  if (!node) return 'square'
+  const payload = node.payload || {}
+  if (node.choiceGroup || payload.choiceGroup || node.nodeType === 2 || payload.nodeType === 2) return 'choice'
+  const shape = String(
+    node.shape ||
+    payload.shape ||
+    node.nodeShape ||
+    payload.nodeShape ||
+    ''
+  ).trim().toLowerCase()
+  if (shape === 'passive' || shape === 'round') return 'circle'
+  if (shape === 'active' || shape === 'rect' || shape === 'rectangle') return 'square'
+  if (shape === 'octagon') return 'choice'
+  if (['circle', 'square', 'choice', 'apex'].includes(shape)) return shape
+  return 'square'
+}
+
 function nodeById(nodes, id) {
   return (nodes || []).find((item) => item && item.id === id) || null
 }
@@ -609,6 +627,7 @@ function buildTalentViewModel(options) {
       const reason = nodeReason(node, nodes, talentRanks, baseTalentRanks, pointCaps)
       const nextUnlockSteps = unlockStepsFor(node, nodes, talentRanks, baseTalentRanks, pointCaps)
       const canSelect = rank < maxRank && !reason
+      const shape = normalizeTalentNodeShape(node)
       const searchText = `${node.name || ''} ${node.id || ''}`.toLowerCase()
       const searchMatch = Boolean(searchTerm && searchText.includes(searchTerm))
       if (searchMatch) {
@@ -622,6 +641,7 @@ function buildTalentViewModel(options) {
         tree: key,
         rank,
         maxRank,
+        shape,
         selected: rank > 0,
         granted: grantedRankFor(node, baseTalentRanks) > 0,
         purchasedRank: purchasedRankFor(node, talentRanks, nodes, baseTalentRanks),
@@ -629,7 +649,7 @@ function buildTalentViewModel(options) {
         locked: Boolean(reason && reason !== 'granted'),
         lockReason: reason,
         nextUnlockSteps,
-        choice: Boolean(node.choiceGroup),
+        choice: shape === 'choice',
         firstLetter: String(node.name || node.id || '?').slice(0, 1).toUpperCase(),
         leftPercent: center.xPercent,
         topPercent: center.yPercent,

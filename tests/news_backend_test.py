@@ -200,6 +200,143 @@ class NewsBackendTest(unittest.TestCase):
             "quickReplies": ["打开天赋模拟器补天赋", "继续补装备", "我先只看参考区间"],
         }
 
+    def insert_websim_talent(
+        self,
+        conn,
+        node_id,
+        tree_type,
+        trait_id,
+        row,
+        col,
+        name,
+        *,
+        rank=1,
+        granted_rank=0,
+        class_key="mage",
+        spec_key="arcane",
+        hero_key="spellslinger",
+        class_id=8,
+        spec_id=62,
+    ):
+        payload = {
+            "treeType": tree_type,
+            "treeIndex": {"class": 1, "spec": 2, "hero": 3}.get(tree_type, 2),
+            "classId": class_id,
+            "specId": spec_id,
+            "traitId": trait_id,
+            "nodeId": trait_id + 500000,
+            "selectionIndex": row * 10 + col,
+            "rank": rank,
+            "maxRank": rank,
+            "selectedRank": granted_rank,
+            "grantedRank": granted_rank,
+            "granted": granted_rank > 0,
+            "parentIds": [],
+            "choiceGroup": "",
+            "shape": "square",
+            "pointRequirement": 0,
+            "source": "simulationcraft",
+        }
+        if tree_type == "hero":
+            payload["heroKey"] = hero_key
+            payload["heroLabel"] = "Spellslinger"
+        conn.execute(
+            """
+            INSERT INTO websim_talents
+            (id, class_key, spec_key, tree_id, row_index, col_index, spell_id, name, payload_json, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'now')
+            """,
+            (
+                node_id,
+                class_key,
+                spec_key,
+                f"{tree_type}:{class_key}:{spec_key}" if tree_type != "hero" else f"hero:{hero_key}",
+                row,
+                col,
+                trait_id + 100000,
+                name,
+                json.dumps(payload, ensure_ascii=False),
+            ),
+        )
+
+    def seed_simc_template_websim_nodes(self):
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            self.backend.ensure_websim_tables(conn)
+            self.insert_websim_talent(conn, "simc-class-1001-mage-arcane", "class", 1001, 1, 1, "Class Talent")
+            self.insert_websim_talent(conn, "simc-spec-2001-mage-arcane", "spec", 2001, 1, 2, "Spec Talent")
+            self.insert_websim_talent(conn, "simc-hero-3001-mage-arcane-spellslinger", "hero", 3001, 2, 1, "Hero Talent")
+            conn.commit()
+
+    def simc_template_full_gear_raw(self):
+        slots = [
+            "head",
+            "neck",
+            "shoulder",
+            "back",
+            "chest",
+            "wrist",
+            "hands",
+            "waist",
+            "legs",
+            "feet",
+            "finger1",
+            "finger2",
+            "trinket1",
+            "trinket2",
+            "main_hand",
+            "off_hand",
+        ]
+        lines = []
+        for index, slot in enumerate(slots, start=1):
+            parts = [
+                f"{slot}=template_{slot}",
+                f"id={250000 + index}",
+                "ilevel=289",
+                "bonus_id=13534/6652",
+            ]
+            if slot == "finger1":
+                parts.append("gem_id=213743")
+                parts.append("enchant_id=7334")
+            if slot == "main_hand":
+                parts.append("crafted_stats=32/49")
+            lines.append(",".join(parts))
+        return "\n".join(lines)
+
+    def simc_template_payload(self, *, talent_raw=None, gear_raw=None, talent_spec="arcane", gear_spec="arcane", scenario="single", analysis_type="baseline"):
+        return {
+            "mode": "simcraft_template",
+            "confirmOnly": True,
+            "saveTask": False,
+            "scenarioKey": scenario,
+            "analysisType": analysis_type,
+            "templateContext": {
+                "talent": {
+                    "id": "talent-template-1",
+                    "type": "talent",
+                    "title": "奥法 WebSim 天赋",
+                    "rawString": talent_raw
+                    or "websim:mage:arcane:spellslinger:simc-class-1001-mage-arcane:1,simc-spec-2001-mage-arcane:1,simc-hero-3001-mage-arcane-spellslinger:1",
+                    "classKey": "mage",
+                    "className": "法师",
+                    "specKey": talent_spec,
+                    "specName": "奥术",
+                    "heroKey": "spellslinger",
+                    "status": "saved",
+                },
+                "gear": {
+                    "id": "gear-template-1",
+                    "type": "gear",
+                    "title": "奥法完整装备",
+                    "rawString": gear_raw or self.simc_template_full_gear_raw(),
+                    "classKey": "mage",
+                    "className": "法师",
+                    "specKey": gear_spec,
+                    "specName": "奥术",
+                    "status": "complete",
+                },
+            },
+        }
+
     def official_discovered_article(self, article_id, day=19):
         return {
             "id": article_id,
@@ -939,6 +1076,59 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(component["details"]["queuedCount"], 2)
         self.assertIn("sourceCoverage", component["details"])
 
+    def test_news_home_channels_include_visible_article_counts(self):
+        def article(article_id, channel, tags):
+            return {
+                "id": article_id,
+                "title": f"官方资讯 {article_id}",
+                "summary": "暴雪发布了新的正式服与测试服资讯。",
+                "channel": channel,
+                "category": channel,
+                "tags": tags,
+                "importance": 90,
+                "sourceName": "Blizzard News",
+                "sourceUrl": f"https://worldofwarcraft.blizzard.com/news/{article_id}",
+                "publishedAt": "2026-06-19",
+                "sourceNote": "暴雪官方 World of Warcraft 新闻详情页。",
+                "bodyZh": "中文正文：暴雪发布了完整资讯正文，覆盖版本变化、活动内容和玩家需要关注的后续时间点。",
+                "bodyBlocksZh": [
+                    {
+                        "type": "paragraph",
+                        "text": "中文正文：暴雪发布了完整资讯正文，覆盖版本变化、活动内容和玩家需要关注的后续时间点。",
+                    }
+                ],
+                "originalTitle": f"Official News {article_id}",
+                "tagItems": [{"id": tags[0], "label": tags[0]}],
+                "contentStatus": "ready",
+                "licenseStatus": "approved",
+                "verificationStatus": "official_verified",
+                "translationStatus": "llm",
+                "translationFidelity": "source_translation",
+                "sourceTier": "official",
+                "sourceBadges": ["官方已核验", "全文翻译"],
+            }
+
+        with patch.object(
+            self.backend,
+            "load_articles",
+            return_value=[
+                article("retail-one", "正式服动态", ["content-update"]),
+                article("retail-two", "正式服动态", ["hotfix"]),
+                article("ptr-one", "测试服前瞻", ["ptr"]),
+                article("class-one", "职业强度变化", ["class-change"]),
+            ],
+        ), patch.object(
+            self.backend,
+            "latest_refresh_state",
+            return_value={"lastRefreshedAt": "2026-06-19T08:00:00+08:00", "refreshMode": "scheduled"},
+        ):
+            payload = self.backend.build_home_payload()
+
+        self.assertEqual(
+            [channel["updateCount"] for channel in payload["channels"]],
+            [2, 1, 1],
+        )
+
     def test_load_articles_does_not_publish_seed_without_source_translation_when_collectors_are_missing(self):
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
             conn.execute(
@@ -1345,6 +1535,112 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("missing simcraft profile", analysis["stages"][1]["summary"])
         self.assertIn(analysis["stages"][2]["status"], {"completed", "skipped"})
         self.assertEqual(analysis["stages"][2]["executor"], "llm")
+
+    def test_simcraft_template_confirm_encodes_websim_talent_and_parses_complete_gear_without_llm(self):
+        self.seed_simc_template_websim_nodes()
+        simc_bin = Path(self.tmp.name) / "fake-simc-template-confirm"
+        captured_profile = Path(self.tmp.name) / "unexpected-template-confirm-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'DPS=999999\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+
+        import server.simulator_payload as simulator_payload
+
+        original_call_chat_completion = simulator_payload.call_chat_completion
+        simulator_payload.call_chat_completion = lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("simcraft_template confirm must not call LLM")
+        )
+        self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
+        try:
+            analysis = self.backend.analyze_and_store_simulator_task(self.simc_template_payload())
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        draft_profile = analysis["agent"]["draftProfile"]
+        self.assertEqual(analysis["mode"], "simcraft_template")
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertTrue(analysis["agent"]["canSubmitTask"])
+        self.assertFalse(analysis["simulation"]["ran"])
+        self.assertFalse(captured_profile.exists())
+        self.assertFalse(analysis["llm"]["called"])
+        self.assertEqual(analysis["request"]["profileSource"], "template")
+        self.assertIn("class_talents=1001:1", draft_profile)
+        self.assertIn("spec_talents=2001:1", draft_profile)
+        self.assertIn("hero_talents=3001:1", draft_profile)
+        self.assertNotIn("talents=websim:", draft_profile)
+        self.assertIn("head=template_head,id=250001,ilevel=289,bonus_id=13534/6652", draft_profile)
+        self.assertIn("finger1=template_finger1,id=250011,ilevel=289,bonus_id=13534/6652,gem_id=213743,enchant_id=7334", draft_profile)
+        self.assertIn("main_hand=template_main_hand,id=250015,ilevel=289,bonus_id=13534/6652,crafted_stats=32/49", draft_profile)
+        self.assertEqual(len(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]), 16)
+
+    def test_simcraft_template_confirm_accepts_official_talent_import_code(self):
+        analysis = self.backend.analyze_and_store_simulator_task(
+            self.simc_template_payload(talent_raw="talents=CAE_OFFICIAL_IMPORT_CODE")
+        )
+
+        draft_profile = analysis["agent"]["draftProfile"]
+        self.assertEqual(analysis["mode"], "simcraft_template")
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertIn("talents=CAE_OFFICIAL_IMPORT_CODE", draft_profile)
+        self.assertNotIn("class_talents=", draft_profile)
+
+    def test_simcraft_template_blocks_mismatched_class_spec(self):
+        analysis = self.backend.analyze_and_store_simulator_task(
+            self.simc_template_payload(talent_spec="arcane", gear_spec="frost")
+        )
+
+        self.assertEqual(analysis["mode"], "simcraft_template")
+        self.assertEqual(analysis["agent"]["status"], "template_blocked")
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
+        self.assertIn("template class/spec mismatch", analysis["simulation"]["error"])
+        self.assertIn("template class/spec mismatch", analysis["agent"]["validation"]["errors"])
+        self.assertFalse(analysis["simulation"]["ran"])
+
+    def test_simcraft_template_blocks_incomplete_gear_template(self):
+        gear_raw = "\n".join(self.simc_template_full_gear_raw().splitlines()[:15])
+        analysis = self.backend.analyze_and_store_simulator_task(
+            self.simc_template_payload(gear_raw=gear_raw)
+        )
+
+        self.assertEqual(analysis["agent"]["status"], "template_blocked")
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
+        self.assertIn("missing gear slots: off_hand", analysis["simulation"]["error"])
+        self.assertEqual(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"], [])
+
+    def test_simcraft_template_final_submit_reuses_template_payload_runs_simc_and_saves_task(self):
+        self.seed_simc_template_websim_nodes()
+        simc_bin = Path(self.tmp.name) / "fake-simc-template-final"
+        captured_profile = Path(self.tmp.name) / "captured-template-final-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'Player: TemplateArcaneMage\\n  DPS=654321 DPS-Error=0/0.00%%\\nScale Factors:\\nintellect=9.1 haste=6.4\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        request_payload = self.simc_template_payload(scenario="mythic_plus", analysis_type="stat_weights")
+        request_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device"})
+        try:
+            analysis = self.backend.analyze_and_store_simulator_task(request_payload)
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        executed_profile = captured_profile.read_text(encoding="utf-8")
+        self.assertTrue(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["simulation"]["metrics"]["dps"], "654321")
+        self.assertEqual(analysis["agent"]["status"], "simc_completed")
+        self.assertTrue(analysis["taskId"])
+        self.assertIn("fight_style=DungeonSlice", executed_profile)
+        self.assertIn("desired_targets=5", executed_profile)
+        self.assertIn("calculate_scale_factors=1", executed_profile)
+        self.assertEqual(analysis["request"]["profile"], executed_profile.strip())
+        self.assertEqual(analysis["request"]["templateContext"]["talent"]["id"], "talent-template-1")
 
     def test_simc_agent_generates_template_from_natural_language(self):
         self.patch_simc_confirmation_llm(
@@ -2847,6 +3143,36 @@ class NewsBackendTest(unittest.TestCase):
         self.assertTrue(self.backend.delete_user_build_template(login_a["accessToken"], first["id"])["deleted"])
         self.assertEqual(self.backend.list_user_build_templates(login_a["accessToken"])["templates"], [])
 
+    def test_user_build_templates_accept_string_only_talent_and_gear_templates(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-template-string-only",
+            exchange_code=lambda code: {"openid": "openid-template-string-only"},
+        )
+
+        talent = self.backend.save_user_build_template(
+            login["accessToken"],
+            {
+                "type": "talent",
+                "rawString": "websim:mage:frost:saved",
+            },
+        )
+        gear = self.backend.save_user_build_template(
+            login["accessToken"],
+            {
+                "type": "gear",
+                "rawString": "head=,id=250060,ilevel=707",
+            },
+        )
+        listed = self.backend.list_user_build_templates(login["accessToken"])["templates"]
+
+        self.assertEqual(talent["status"], "saved")
+        self.assertEqual(talent["statusLabel"], "已保存")
+        self.assertEqual(talent["simcLines"], [])
+        self.assertEqual(gear["status"], "complete")
+        self.assertEqual(gear["statusLabel"], "完整配置")
+        self.assertEqual(gear["simcLines"], [])
+        self.assertEqual({item["rawString"] for item in listed}, {talent["rawString"], gear["rawString"]})
+
     def test_http_me_build_templates_requires_auth_and_supports_crud(self):
         login = self.backend.login_with_wechat_code(
             "wx-code-template-http",
@@ -2955,6 +3281,40 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(components["gear_catalog"]["details"]["variantCount"], 21)
         self.assertEqual(components["gear_catalog"]["details"]["itemDatabaseRevision"], "items-test-rev")
         self.assertIn("1 catalog item missing selectable variant", components["gear_catalog"]["blockers"])
+
+    def test_data_health_websim_sync_uses_ok_state_without_legacy_counts(self):
+        import server.websim_payload as websim_payload
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            websim_payload.ensure_websim_tables(conn)
+            websim_payload.set_sync_state(
+                conn,
+                "websim_sync",
+                {
+                    "ok": True,
+                    "dataStatus": "verified",
+                    "checkedAt": "2026-06-20T06:05:08+00:00",
+                    "errors": [],
+                    "simc": {"talents": 5246, "presets": 50},
+                    "gearCatalog": {
+                        "status": "partial",
+                        "itemCount": 114,
+                        "verifiedCount": 93,
+                        "observedVariantCount": 93,
+                    },
+                    "currentSeason": {"dataStatus": "verified", "seasonRevision": "season-test"},
+                },
+            )
+            conn.commit()
+
+        payload = self.backend.build_data_health_payload()
+        component = {item["key"]: item for item in payload["components"]}["websim_sync"]
+
+        self.assertEqual(component["status"], "verified")
+        self.assertEqual(component["blockers"], [])
+        self.assertEqual(component["details"]["talentCount"], 5246)
+        self.assertEqual(component["details"]["gearItemCount"], 114)
+        self.assertEqual(component["details"]["observedVariantCount"], 93)
 
     def test_data_health_accepts_warcraftlogs_v1_api_key_without_exposing_secret(self):
         os.environ["WOW_WARCRAFTLOGS_API_KEY"] = "fake-wcl-v1-key"

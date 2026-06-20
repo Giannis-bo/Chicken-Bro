@@ -1,26 +1,164 @@
-const {
-  requestSimulatorAnalysis
-} = require('./simulator-api')
+const { requestSimulatorAnalysis } = require('./simulator-api')
+const { fallbackBuildsHome, requestBuildsHome } = require('../builds/builds-api')
+const { fetchBuildTemplates, listBuildTemplates } = require('../common/build-template-storage')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
-const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
 const SIMC_PAGE_ROUTE = ['pages', 'simulator', 'simc'].join('/')
+const fallbackPayload = fallbackBuildsHome()
 
-function formatTalentNodeLabel(node) {
-  if (!node || typeof node !== 'object') return String(node || '').trim()
-  const name = node.name || node.id || ''
-  const rank = Number(node.rank || 0)
-  return rank > 1 ? `${name} x${rank}` : name
+const SCENARIO_OPTIONS = [
+  { key: 'single', title: '单体', desc: 'Patchwerk 5 分钟，1 目标' },
+  { key: 'mythic_plus', title: '大秘境', desc: 'DungeonSlice 6 分钟，5 目标' }
+]
+
+const ANALYSIS_TYPE_OPTIONS = [
+  { key: 'baseline', title: '基准', desc: '只跑当前组合 DPS' },
+  { key: 'stat_weights', title: '属性权重', desc: '追加 scale factors' }
+]
+
+function compactTemplate(template) {
+  if (!template) return null
+  return {
+    id: template.id || '',
+    type: template.type || '',
+    title: template.title || '',
+    rawString: template.rawString || '',
+    classKey: template.classKey || '',
+    className: template.className || '',
+    specKey: template.specKey || '',
+    specName: template.specName || '',
+    heroKey: template.heroKey || '',
+    heroLabel: template.heroLabel || '',
+    scenarioKey: template.scenarioKey || '',
+    scenarioTitle: template.scenarioTitle || '',
+    status: template.status || '',
+    source: template.source || ''
+  }
 }
 
-function formatCommunityTemplateEvidence(template) {
-  if (!template) return ''
-  const sampleCount = Number(template.sampleCount || 0)
-  const maxKeyLevel = Number(template.maxKeyLevel || 0)
-  const parts = []
-  if (sampleCount > 0) parts.push(`${sampleCount} 个样本`)
-  if (maxKeyLevel > 0) parts.push(`最高 +${maxKeyLevel}`)
-  return parts.join('，')
+function uniqueList(values) {
+  const result = []
+  ;(values || []).forEach((value) => {
+    const text = String(value || '').trim()
+    if (text && !result.includes(text)) result.push(text)
+  })
+  return result
+}
+
+function templateClassKey(template) {
+  return String((template && template.classKey) || '').trim()
+}
+
+function filterTemplatesByClass(templates, classKey) {
+  const key = String(classKey || '').trim()
+  if (!key) return []
+  return (templates || []).filter((template) => templateClassKey(template) === key)
+}
+
+function templateTime(template) {
+  const time = new Date((template && (template.updatedAt || template.createdAt)) || 0).getTime()
+  return Number.isFinite(time) ? time : 0
+}
+
+function normalizeTemplateList(value) {
+  return Array.isArray(value)
+    ? value
+      .filter((item) => item && item.id && item.rawString)
+      .slice()
+      .sort((a, b) => templateTime(b) - templateTime(a))
+    : []
+}
+
+function optionClassKey(option) {
+  if (!option) return ''
+  if (option.key) return String(option.key).trim()
+  if (option.websimClassKey) return String(option.websimClassKey).trim()
+  const specs = Array.isArray(option.specializations) ? option.specializations : []
+  const spec = specs.find((item) => item && (item.websimClassKey || item.classKey || item.classSlug)) || null
+  return String((spec && (spec.websimClassKey || spec.classKey || spec.classSlug)) || '').trim()
+}
+
+function normalizeClassOptions(value) {
+  return Array.isArray(value)
+    ? value.map((item) => {
+      const key = optionClassKey(item)
+      return {
+        ...item,
+        key,
+        name: item.name || item.className || key
+      }
+    }).filter((item) => item.key)
+    : []
+}
+
+function mostRecentTemplateClassKey(talentTemplates, gearTemplates) {
+  const recent = normalizeTemplateList([...(talentTemplates || []), ...(gearTemplates || [])])
+    .find((template) => templateClassKey(template))
+  return templateClassKey(recent)
+}
+
+function classIndexFor(classOptions, classKey) {
+  const key = String(classKey || '').trim()
+  if (!key) return -1
+  return (classOptions || []).findIndex((item) => item.key === key)
+}
+
+function templateIndexFor(templates, template) {
+  if (!template || !template.id) return -1
+  return (templates || []).findIndex((item) => item.id === template.id)
+}
+
+function templateEmptyText(type, filteredTemplates) {
+  if ((filteredTemplates || []).length) return ''
+  return type === 'talent' ? '尚未保存天赋模板' : '尚未保存装备模板'
+}
+
+function snapshotSelection(data) {
+  return {
+    selectedClassKey: data.selectedClassKey || '',
+    selectedTalentTemplate: data.selectedTalentTemplate || null,
+    selectedGearTemplate: data.selectedGearTemplate || null
+  }
+}
+
+function buildTemplateListState(classSource, talentTemplates, gearTemplates, previous = {}) {
+  const classOptions = normalizeClassOptions(classSource)
+  const allTalentTemplates = normalizeTemplateList(talentTemplates)
+  const allGearTemplates = normalizeTemplateList(gearTemplates)
+  const previousClassKey = String(previous.selectedClassKey || '').trim()
+  const recentClassKey = mostRecentTemplateClassKey(allTalentTemplates, allGearTemplates)
+  const selectedClassKey = classIndexFor(classOptions, previousClassKey) >= 0
+    ? previousClassKey
+    : (classIndexFor(classOptions, recentClassKey) >= 0 ? recentClassKey : '')
+  const selectedClassIndex = selectedClassKey ? classIndexFor(classOptions, selectedClassKey) : 0
+  const currentClass = selectedClassKey ? classOptions[selectedClassIndex] || null : null
+  const talentList = filterTemplatesByClass(allTalentTemplates, selectedClassKey)
+  const gearList = filterTemplatesByClass(allGearTemplates, selectedClassKey)
+  const previousTalentIndex = templateIndexFor(talentList, previous.selectedTalentTemplate)
+  const previousGearIndex = templateIndexFor(gearList, previous.selectedGearTemplate)
+  const selectedTalentTemplateIndex = previousTalentIndex >= 0 ? previousTalentIndex : 0
+  const selectedGearTemplateIndex = previousGearIndex >= 0 ? previousGearIndex : 0
+  const selectedTalentTemplate = talentList[selectedTalentTemplateIndex] || null
+  const selectedGearTemplate = gearList[selectedGearTemplateIndex] || null
+  return {
+    allTalentTemplates,
+    allGearTemplates,
+    classOptions,
+    selectedClassIndex,
+    selectedClassKey,
+    selectedClassName: currentClass ? currentClass.name : '',
+    talentTemplates: talentList,
+    gearTemplates: gearList,
+    selectedTalentTemplateIndex,
+    selectedGearTemplateIndex,
+    selectedTalentTemplate,
+    selectedGearTemplate,
+    emptyState: {
+      class: classOptions.length ? '' : '暂无可选择职业',
+      talent: templateEmptyText('talent', talentList),
+      gear: templateEmptyText('gear', gearList)
+    }
+  }
 }
 
 Page({
@@ -28,38 +166,52 @@ Page({
     navTitle: '模拟 SimC',
     kicker: '智能分析 01',
     title: '模拟 SimC',
-    desc: '用聊天方式确认角色、场景和模拟目标，信息足够后再提交 SimC 任务。',
-    messages: [
-      {
-        id: 'msg-0',
-        role: 'ai',
-        text: '告诉我你的职业专精、装等和想看的场景，例如“我是290元素萨，想看大秘境 AOE DPS 是否合格”。'
-      }
-    ],
-    messageSeq: 1,
-    chatInput: '',
-    chatAnchor: 'chat-bottom',
-    conversationRound: 0,
-    loadingChat: false,
+    desc: '选择已保存的天赋模板、装备模板和固定场景，提交单组合基准模拟。',
+    allTalentTemplates: [],
+    allGearTemplates: [],
+    classOptions: [],
+    selectedClassIndex: 0,
+    selectedClassKey: '',
+    selectedClassName: '',
+    talentTemplates: [],
+    gearTemplates: [],
+    selectedTalentTemplateIndex: 0,
+    selectedGearTemplateIndex: 0,
+    selectedTalentTemplate: null,
+    selectedGearTemplate: null,
+    scenarioOptions: SCENARIO_OPTIONS,
+    analysisTypeOptions: ANALYSIS_TYPE_OPTIONS,
+    selectedScenarioKey: 'single',
+    selectedAnalysisType: 'baseline',
+    emptyState: {
+      class: '',
+      talent: '',
+      gear: ''
+    },
+    loadingTemplates: false,
+    confirming: false,
     submittingTask: false,
+    canConfirm: false,
     canSubmitTask: false,
     taskSubmitted: false,
     submittedTaskId: '',
-    confirmedPrompt: '',
-    pendingBuildContext: null,
-    buildContextTitle: '',
-    fromFallback: true,
+    confirmedPayload: null,
+    latestAnalysis: null,
+    blockedReasons: [],
     requestError: '',
-    latestAnalysis: null
+    fromFallback: true
   },
 
   onLoad(options) {
     this.analyticsStartedAt = Date.now()
     trackPageView(SIMC_PAGE_ROUTE, {
-      source: options && options.from ? options.from : 'simulator',
-      specId: options && options.spec ? decodeURIComponent(options.spec) : ''
+      source: options && options.from ? options.from : 'simulator'
     })
-    this.loadBuildContext(options || {})
+    this.loadTemplateLists()
+  },
+
+  onShow() {
+    if (this.analyticsStartedAt) this.loadTemplateLists()
   },
 
   onUnload() {
@@ -69,254 +221,241 @@ Page({
     })
   },
 
-  loadBuildContext(options) {
-    if (!options || options.from !== 'builds') return
-    if (typeof wx === 'undefined' || typeof wx.getStorageSync !== 'function') return
-    const context = wx.getStorageSync(SIMC_BUILD_CONTEXT_STORAGE_KEY)
-    if (!context || !context.specId) return
-    const prompt = this.buildPromptFromContext(context)
+  loadTemplateLists() {
+    const selection = snapshotSelection(this.data)
+    const localTalentTemplates = normalizeTemplateList(listBuildTemplates('talent'))
+    const localGearTemplates = normalizeTemplateList(listBuildTemplates('gear'))
+    const localClassOptions = (fallbackPayload && fallbackPayload.classOptions) || []
+    const localState = buildTemplateListState(localClassOptions, localTalentTemplates, localGearTemplates, selection)
     this.setData({
-      pendingBuildContext: context,
-      buildContextTitle: `${context.specName || ''}${context.className || ''} · ${context.activeQueryTitle || '构筑方案'}`,
-      messages: [
-        {
-          id: 'msg-0',
-          role: 'ai',
-          text: '已带入职业专精页的天赋、装备、属性和来源上下文。我会先确认能否生成 SimC 模板，再让你提交任务。'
-        }
-      ],
-      messageSeq: 1
-    }, () => {
-      this.sendChatContent(prompt, { buildContext: context })
+      loadingTemplates: true,
+      ...localState,
+      canConfirm: !!(localState.selectedClassKey && localState.selectedTalentTemplate && localState.selectedGearTemplate)
     })
-  },
-
-  buildPromptFromContext(context) {
-    const details = context.details || {}
-    const talents = details.talents || {}
-    const gearRows = (details.gear && details.gear.gear) || []
-    const statRows = (details.statWeights && details.statWeights.stats) || []
-    const simulatorState = context.simulatorState || {}
-    const talentState = simulatorState.talent || {}
-    const gearState = simulatorState.gear || {}
-    const communityTemplate = talentState.communityTemplate || talents.communityTemplate || null
-    const communityEvidence = formatCommunityTemplateEvidence(communityTemplate)
-    const selectedTalentNodes = Array.isArray(talentState.selectedNodes)
-      ? talentState.selectedNodes.map(formatTalentNodeLabel).filter(Boolean).join('、')
-      : ''
-    const simcTalentLines = Array.isArray(talents.simcLines) ? talents.simcLines.filter(Boolean).join('；') : ''
-    const websimExportCode = talentState.websimExportCode || talents.websimExportCode || ''
-    const encodingStatus = talentState.encodingStatus || talents.encodingStatus || ''
-    const gearNames = gearRows.slice(0, 4).map((item) => `${item.slot || '装备'}：${item.name}`).join('；')
-    const stats = statRows.slice(0, 4).map((item) => item.name).join(' > ')
-    return [
-      `我从职业专精页带入了${context.specName || ''}${context.className || ''}的${context.activeQueryTitle || '构筑方案'}。`,
-      talentState.simcHint ? `请按${talentState.simcHint}场景，先确认这个方案能否生成 SimC 任务。` : '请按大秘境多目标场景，先确认这个方案能否生成 SimC 任务。',
-      talents.importCode ? `天赋导入代码：${talents.importCode}` : '',
-      selectedTalentNodes ? `前端天赋模拟器已选择节点：${selectedTalentNodes}` : '',
-      websimExportCode ? `WebSim 导出码：${websimExportCode}` : '',
-      communityTemplate && communityTemplate.name ? `社区模板：${communityTemplate.name}` : '',
-      communityTemplate && communityTemplate.sourceName ? `模板来源：${communityTemplate.sourceName}` : '',
-      communityEvidence ? `样本证据：${communityEvidence}` : '',
-      communityTemplate && communityTemplate.analysisWindow ? `模板窗口：${communityTemplate.analysisWindow}` : '',
-      encodingStatus ? `WebSim 天赋编码：${encodingStatus}` : '',
-      simcTalentLines ? `SimC 天赋行：${simcTalentLines}` : '',
-      talentState.summary ? `天赋模拟摘要：${talentState.summary}` : '',
-      gearNames ? `装备候选：${gearNames}` : '',
-      gearState.progressText ? `装备获取进度：${gearState.progressText}` : '',
-      gearState.nextAction ? `装备下一步：${gearState.nextAction}` : '',
-      stats ? `属性趋势：${stats}` : '',
-      context.analysisWindow ? `样本窗口：${context.analysisWindow}` : ''
-    ].filter(Boolean).join('\n')
-  },
-
-  updateChatInput(event) {
-    this.setData({ chatInput: event.detail.value || '' })
-  },
-
-  useQuickReply(event) {
-    const reply = event.currentTarget.dataset.reply || ''
-    if (!reply) return
-    this.setData({
-      latestAnalysis: this.data.latestAnalysis
-        ? {
-            ...this.data.latestAnalysis,
-            agent: this.data.latestAnalysis.agent
-              ? { ...this.data.latestAnalysis.agent, quickReplies: [] }
-              : this.data.latestAnalysis.agent
-          }
-        : this.data.latestAnalysis
-    })
-    this.sendChatContent(reply)
-  },
-
-  buildConversationPrompt(messages) {
-    return messages
-      .filter((message) => message.role === 'user')
-      .map((message, index) => `第${index + 1}轮玩家：${message.text}`)
-      .join('\n')
-  },
-
-  aiTextFromAnalysis(payload) {
-    const agent = payload && payload.agent
-    if (!agent) return '还缺职业专精或目标场景。请直接描述你玩的专精、装等，以及想看单体、AOE、属性收益还是装备对比。'
-    const profileSource = payload.request && payload.request.profileSource
-    if (agent.status === 'confirmation_failed') {
-      return agent.question || '后端暂时无法完成 SimC 需求确认，请稍后重试。'
-    }
-    if (profileSource === 'generated' && (agent.status === 'template_ready' || (agent.validation && agent.validation.passed))) {
-      return '需求已确认，当前是 SimC 模板预览。需要天赋导入码和手选装备数据后才会执行正式 DPS 模拟。'
-    }
-    if (profileSource === 'assembled' && agent.status === 'template_ready') {
-      return '需求、天赋和手选装备已确认，可以提交执行 SimC。'
-    }
-    if (agent.status === 'template_ready' || (agent.validation && agent.validation.passed)) {
-      return '需求和角色导出输入已确认，可以提交执行 SimC。'
-    }
-    if (agent.question) return agent.question
-    const recommendation = payload.recommendations && payload.recommendations[0]
-    return recommendation || '还需要补充职业专精、模拟场景或比较目标。'
-  },
-
-  isTaskReady(payload) {
-    const agent = payload && payload.agent
-    return !!(agent && (agent.canSubmitTask || agent.status === 'template_ready' || (agent.validation && agent.validation.passed)))
-  },
-
-  appendMessages(items, extraData) {
-    const start = this.data.messageSeq
-    const nextMessages = items.map((item, index) => ({
-      id: `msg-${start + index}`,
-      role: item.role,
-      text: item.text
-    }))
-    this.setData({
-      ...(extraData || {}),
-      messages: this.data.messages.concat(nextMessages),
-      messageSeq: start + nextMessages.length,
-      chatAnchor: 'chat-bottom'
-    })
-  },
-
-  sendChatMessage() {
-    const content = (this.data.chatInput || '').trim()
-    this.sendChatContent(content)
-  },
-
-  sendChatContent(content, options) {
-    if (!content || this.data.loadingChat || this.data.canSubmitTask || this.data.taskSubmitted) return
-
-    const requestOptions = options || {}
-    const nextRound = this.data.conversationRound + 1
-    const userMessage = { id: `msg-${this.data.messageSeq}`, role: 'user', text: content }
-    const nextMessages = this.data.messages.concat([userMessage])
-    const prompt = this.buildConversationPrompt(nextMessages)
-    this.setData({
-      messages: nextMessages,
-      messageSeq: this.data.messageSeq + 1,
-      chatInput: '',
-      chatAnchor: 'chat-bottom',
-      loadingChat: true,
-      latestAnalysis: this.data.latestAnalysis
-        ? {
-            ...this.data.latestAnalysis,
-            agent: this.data.latestAnalysis.agent
-              ? { ...this.data.latestAnalysis.agent, quickReplies: [] }
-              : this.data.latestAnalysis.agent
-          }
-        : this.data.latestAnalysis
-    })
-
-    const requestPayload = {
-      mode: 'simcraft_agent',
-      message: prompt,
-      prompt,
-      round: nextRound,
-      conversationRound: nextRound,
-      confirmOnly: true,
-      buildContext: this.data.pendingBuildContext
-    }
-    if (requestOptions.buildContext) requestPayload.buildContext = requestOptions.buildContext
-    if (!requestPayload.buildContext) delete requestPayload.buildContext
-
-    trackEvent('simc_chat_submit', {
-      round: nextRound,
-      hasBuildContext: !!requestPayload.buildContext,
-      specId: (requestPayload.buildContext && requestPayload.buildContext.specId) || ''
-    }, { page: SIMC_PAGE_ROUTE })
-
-    requestSimulatorAnalysis(requestPayload).then(({ payload, fromFallback, error }) => {
-      const ready = this.isTaskReady(payload)
-      const agent = (payload && payload.agent) || {}
-      const request = (payload && payload.request) || {}
-      const buildContext = request.buildContext || requestPayload.buildContext || {}
-      trackEvent('simc_confirm_result', {
-        round: nextRound,
-        ready,
-        agentStatus: agent.status || '',
-        profileSource: request.profileSource || '',
-        specId: buildContext.specId || '',
-        scenarioKey: (buildContext.simulatorState && buildContext.simulatorState.talent && buildContext.simulatorState.talent.scenarioKey) || ''
-      }, { page: SIMC_PAGE_ROUTE })
-      this.appendMessages([
-        { role: 'ai', text: this.aiTextFromAnalysis(payload) }
-      ], {
-        latestAnalysis: payload,
-        fromFallback,
-        requestError: error || '',
-        conversationRound: nextRound,
-        canSubmitTask: ready,
-        confirmedPrompt: ready ? prompt : this.data.confirmedPrompt
+    return Promise.all([requestBuildsHome(), fetchBuildTemplates('talent'), fetchBuildTemplates('gear')])
+      .then(([homeResult, talentResult, gearResult]) => {
+        const homePayload = homeResult.payload || fallbackPayload || {}
+        const classOptions = Array.isArray(homePayload.classOptions) ? homePayload.classOptions : localClassOptions
+        const talentTemplates = normalizeTemplateList((talentResult.payload || {}).templates || localTalentTemplates)
+        const gearTemplates = normalizeTemplateList((gearResult.payload || {}).templates || localGearTemplates)
+        const nextState = buildTemplateListState(classOptions, talentTemplates, gearTemplates, selection)
+        this.setData({
+          ...nextState,
+          canConfirm: !!(nextState.selectedClassKey && nextState.selectedTalentTemplate && nextState.selectedGearTemplate),
+          fromFallback: !!(homeResult.fromFallback || talentResult.fromFallback || gearResult.fromFallback),
+          requestError: homeResult.error || talentResult.error || gearResult.error || ''
+        })
       })
+      .finally(() => {
+        this.setData({ loadingTemplates: false })
+      })
+  },
+
+  findTemplate(type, id) {
+    const templates = type === 'talent' ? this.data.talentTemplates : this.data.gearTemplates
+    return templates.find((item) => item.id === id) || null
+  },
+
+  refreshSelectionState() {
+    const listState = buildTemplateListState(
+      this.data.classOptions,
+      this.data.allTalentTemplates.length ? this.data.allTalentTemplates : this.data.talentTemplates,
+      this.data.allGearTemplates.length ? this.data.allGearTemplates : this.data.gearTemplates,
+      snapshotSelection(this.data)
+    )
+    this.setData({
+      ...listState,
+      canConfirm: !!(listState.selectedClassKey && listState.selectedTalentTemplate && listState.selectedGearTemplate),
+      canSubmitTask: false,
+      taskSubmitted: false,
+      confirmedPayload: null,
+      blockedReasons: [],
+      latestAnalysis: null
+    })
+  },
+
+  selectClass(event) {
+    const index = Number((event.detail || {}).value)
+    if (!Number.isInteger(index) || index < 0 || index >= this.data.classOptions.length) return
+    const selectedClass = this.data.classOptions[index] || null
+    const classKey = selectedClass ? selectedClass.key : ''
+    if (!classKey) return
+    const listState = buildTemplateListState(
+      this.data.classOptions,
+      this.data.allTalentTemplates,
+      this.data.allGearTemplates,
+      { selectedClassKey: classKey }
+    )
+    this.setData({
+      ...listState,
+      canConfirm: !!(listState.selectedClassKey && listState.selectedTalentTemplate && listState.selectedGearTemplate),
+      canSubmitTask: false,
+      taskSubmitted: false,
+      confirmedPayload: null,
+      blockedReasons: [],
+      latestAnalysis: null
+    })
+  },
+
+  selectTalentTemplate(event) {
+    if (!this.data.selectedClassKey) return
+    const index = Number((event.detail || {}).value)
+    if (!Number.isInteger(index) || index < 0 || index >= this.data.talentTemplates.length) return
+    const template = this.data.talentTemplates[index] || null
+    if (template && templateClassKey(template) !== this.data.selectedClassKey) return
+    this.setData({
+      selectedTalentTemplateIndex: index,
+      selectedTalentTemplate: template,
+      canConfirm: !!(this.data.selectedClassKey && template && this.data.selectedGearTemplate),
+      canSubmitTask: false,
+      taskSubmitted: false,
+      confirmedPayload: null,
+      blockedReasons: [],
+      latestAnalysis: null
+    })
+  },
+
+  selectGearTemplate(event) {
+    if (!this.data.selectedClassKey) return
+    const index = Number((event.detail || {}).value)
+    if (!Number.isInteger(index) || index < 0 || index >= this.data.gearTemplates.length) return
+    const template = this.data.gearTemplates[index] || null
+    if (template && templateClassKey(template) !== this.data.selectedClassKey) return
+    this.setData({
+      selectedGearTemplateIndex: index,
+      selectedGearTemplate: template,
+      canConfirm: !!(this.data.selectedClassKey && this.data.selectedTalentTemplate && template),
+      canSubmitTask: false,
+      taskSubmitted: false,
+      confirmedPayload: null,
+      blockedReasons: [],
+      latestAnalysis: null
+    })
+  },
+
+  selectScenario(event) {
+    const key = event.currentTarget.dataset.key || 'single'
+    if (!SCENARIO_OPTIONS.some((item) => item.key === key)) return
+    this.setData({
+      selectedScenarioKey: key,
+      canSubmitTask: false,
+      taskSubmitted: false,
+      confirmedPayload: null,
+      blockedReasons: [],
+      latestAnalysis: null
+    })
+  },
+
+  selectAnalysisType(event) {
+    const key = event.currentTarget.dataset.key || 'baseline'
+    if (!ANALYSIS_TYPE_OPTIONS.some((item) => item.key === key)) return
+    this.setData({
+      selectedAnalysisType: key,
+      canSubmitTask: false,
+      taskSubmitted: false,
+      confirmedPayload: null,
+      blockedReasons: [],
+      latestAnalysis: null
+    })
+  },
+
+  buildTemplatePayload(confirmOnly = true, saveTask = false) {
+    if (!this.data.selectedClassKey || !this.data.selectedTalentTemplate || !this.data.selectedGearTemplate) return null
+    return {
+      mode: 'simcraft_template',
+      confirmOnly,
+      saveTask,
+      classKey: this.data.selectedClassKey,
+      scenarioKey: this.data.selectedScenarioKey,
+      analysisType: this.data.selectedAnalysisType,
+      templateContext: {
+        talent: compactTemplate(this.data.selectedTalentTemplate),
+        gear: compactTemplate(this.data.selectedGearTemplate)
+      }
+    }
+  },
+
+  blockedReasonsFromAnalysis(payload) {
+    const agent = (payload && payload.agent) || {}
+    const validation = agent.validation || {}
+    const evidenceState = (payload && payload.evidenceState) || {}
+    const simulation = (payload && payload.simulation) || {}
+    const simulationErrors = String(simulation.error || '')
+      .split(';')
+      .map((item) => item.trim())
+    return uniqueList([
+      ...(validation.errors || []),
+      ...(evidenceState.blockers || []),
+      ...simulationErrors
+    ])
+  },
+
+  applyAnalysisResult(payload, fromFallback, error) {
+    const agent = (payload && payload.agent) || {}
+    const blockedReasons = this.blockedReasonsFromAnalysis(payload)
+    const ready = !!(agent.canSubmitTask || agent.status === 'template_ready') && !blockedReasons.length
+    this.setData({
+      latestAnalysis: payload || null,
+      fromFallback: !!fromFallback,
+      requestError: error || '',
+      blockedReasons,
+      canSubmitTask: ready,
+      taskSubmitted: this.data.taskSubmitted && ready
+    })
+  },
+
+  confirmTemplateSimulation() {
+    if (!this.data.canConfirm || this.data.confirming) return Promise.resolve(null)
+    const requestPayload = this.buildTemplatePayload(true, false)
+    if (!requestPayload) return Promise.resolve(null)
+    this.setData({ confirming: true, confirmedPayload: requestPayload, blockedReasons: [] })
+    trackEvent('simc_template_confirm', {
+      classKey: requestPayload.classKey,
+      scenarioKey: requestPayload.scenarioKey,
+      analysisType: requestPayload.analysisType,
+      talentTemplateId: requestPayload.templateContext.talent.id,
+      gearTemplateId: requestPayload.templateContext.gear.id
+    }, { page: SIMC_PAGE_ROUTE })
+    return requestSimulatorAnalysis(requestPayload).then(({ payload, fromFallback, error }) => {
+      this.applyAnalysisResult(payload, fromFallback, error)
+      return payload
     }).finally(() => {
-      this.setData({ loadingChat: false })
+      this.setData({ confirming: false })
     })
   },
 
   submitConfirmedTask() {
-    if (!this.data.canSubmitTask || this.data.submittingTask || this.data.taskSubmitted) return
+    if (!this.data.canSubmitTask || this.data.submittingTask || this.data.taskSubmitted) return Promise.resolve(null)
+    const basePayload = this.data.confirmedPayload || this.buildTemplatePayload(true, false)
+    if (!basePayload) return Promise.resolve(null)
+    const requestPayload = {
+      ...basePayload,
+      confirmOnly: false,
+      saveTask: true
+    }
     this.setData({ submittingTask: true })
-    trackEvent('simc_task_submit', {
-      round: this.data.conversationRound,
-      hasBuildContext: !!this.data.pendingBuildContext,
-      specId: (this.data.pendingBuildContext && this.data.pendingBuildContext.specId) || ''
+    trackEvent('simc_template_submit', {
+      classKey: requestPayload.classKey,
+      scenarioKey: requestPayload.scenarioKey,
+      analysisType: requestPayload.analysisType,
+      talentTemplateId: requestPayload.templateContext.talent.id,
+      gearTemplateId: requestPayload.templateContext.gear.id
     }, { page: SIMC_PAGE_ROUTE })
-    requestSimulatorAnalysis({
-      mode: 'simcraft_agent',
-      message: this.data.confirmedPrompt,
-      prompt: this.data.confirmedPrompt,
-      round: this.data.conversationRound,
-      runSimulation: true,
-      saveTask: true,
-      buildContext: this.data.pendingBuildContext
-    }, { auth: true, allowInsecureGuestRequest: true })
+    return requestSimulatorAnalysis(requestPayload, { auth: true, allowInsecureGuestRequest: true })
       .then(({ payload, fromFallback, error }) => {
         const saved = !!(payload && payload.taskId)
-        const agent = (payload && payload.agent) || {}
-        const request = (payload && payload.request) || {}
-        const simulation = (payload && payload.simulation) || {}
-        const buildContext = request.buildContext || this.data.pendingBuildContext || {}
-        trackEvent('simc_task_saved', {
-          saved,
-          taskId: (payload && payload.taskId) || '',
-          agentStatus: agent.status || '',
-          profileSource: request.profileSource || '',
-          specId: buildContext.specId || '',
-          scenarioKey: (buildContext.simulatorState && buildContext.simulatorState.talent && buildContext.simulatorState.talent.scenarioKey) || '',
-          simulationRan: !!simulation.ran
-        }, { page: SIMC_PAGE_ROUTE })
-        this.appendMessages([
-        { role: 'ai', text: saved ? '任务已提交，结果会保存到任务列表。' : '提交失败，未保存到任务列表。请稍后重试。' }
-        ], {
-          latestAnalysis: payload,
-          fromFallback,
-          requestError: error || '',
+        this.applyAnalysisResult(payload, fromFallback, error)
+        this.setData({
           taskSubmitted: saved,
           submittedTaskId: (payload && payload.taskId) || '',
-          canSubmitTask: !saved
+          canSubmitTask: !saved && this.data.canSubmitTask
         })
-      wx.showToast({ title: saved ? '任务已提交' : '提交失败', icon: 'none' })
-      }).finally(() => {
+        if (typeof wx !== 'undefined' && wx.showToast) {
+          wx.showToast({ title: saved ? '任务已提交' : '提交失败', icon: 'none' })
+        }
+        return payload
+      })
+      .finally(() => {
         this.setData({ submittingTask: false })
       })
   }

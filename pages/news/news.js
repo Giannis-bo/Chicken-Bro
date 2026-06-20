@@ -10,7 +10,6 @@ Page({
   data: {
     navTitle: '最新资讯',
     heroNews: [],
-    metrics: [],
     channels: [],
     highlights: [],
     lastRefreshedAt: '',
@@ -61,14 +60,6 @@ Page({
     })
   },
 
-  openMetric(event) {
-    const { key } = event.currentTarget.dataset
-    trackEvent('news_list_view', { type: 'metric', key: key || 'today', source: 'metric_card' }, { page: 'pages/news/news' })
-    wx.navigateTo({
-      url: `/pages/news/list?type=metric&key=${encodeURIComponent(key || 'today')}`
-    })
-  },
-
   openChannel(event) {
     const { value } = event.currentTarget.dataset
     trackEvent('news_list_view', { type: 'channel', value: value || '', source: 'channel_item' }, { page: 'pages/news/news' })
@@ -91,7 +82,6 @@ Page({
     this.setData({
       navTitle: payload.navTitle,
       heroNews: payload.heroNews,
-      metrics: payload.metrics,
       channels: payload.channels,
       highlights: payload.highlights,
       lastRefreshedAt: payload.lastRefreshedAt,

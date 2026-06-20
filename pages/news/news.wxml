@@ -21,20 +21,19 @@
         </swiper-item>
       </swiper>
 
-      <view class="metrics news-metrics">
-        <view class="metric-card news-metric-card" wx:for="{{metrics}}" wx:key="label" data-key="{{item.key}}" bindtap="openMetric">
-          <text class="metric-value news-metric-value">{{item.value}}</text>
-          <text class="metric-label news-metric-label">{{item.label}}</text>
-        </view>
-      </view>
-
       <view class="section news-section">
         <view class="section-header">
           <text class="section-title news-section-title">资讯频道</text>
         </view>
         <view class="channel-grid">
           <view class="channel-item" wx:for="{{channels}}" wx:key="id" data-value="{{item.title}}" bindtap="openChannel">
-            <text class="channel-title">{{item.title}}</text>
+            <view class="channel-title-row">
+              <text class="channel-title">{{item.title}}</text>
+              <view class="channel-update-indicator" wx:if="{{item.updateCount}}">
+                <text class="channel-count">{{item.updateCount}}</text>
+                <text class="channel-update-dot"></text>
+              </view>
+            </view>
             <text class="channel-desc">{{item.desc}}</text>
           </view>
         </view>

@@ -334,10 +334,126 @@
   height: 64rpx;
   margin-left: -32rpx;
   margin-top: -32rpx;
-  border: 3rpx solid rgba(255, 255, 255, 0.16);
+  box-sizing: border-box;
+  border: 5rpx solid rgba(255, 255, 255, 0.16);
   border-radius: 50%;
   background: #1a1a1a;
   box-shadow: 0 10rpx 22rpx rgba(0, 0, 0, 0.42);
+}
+
+.talent-node.shape-circle {
+  border-radius: 50%;
+}
+
+.talent-node.shape-square {
+  border-radius: 14rpx;
+}
+
+.talent-node.shape-apex {
+  border-radius: 14rpx;
+}
+
+.talent-node.shape-choice {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.talent-choice-frame {
+  display: none;
+}
+
+.talent-node.shape-choice .talent-choice-frame {
+  display: block;
+  position: absolute;
+  z-index: 1;
+  left: -3rpx;
+  top: -3rpx;
+  width: 70rpx;
+  height: 70rpx;
+  background: rgba(150, 150, 150, 0.72);
+  pointer-events: none;
+  -webkit-clip-path: polygon(20% 0, 80% 0, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0 80%, 0 20%);
+  clip-path: polygon(20% 0, 80% 0, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0 80%, 0 20%);
+  filter: drop-shadow(0 4rpx 5rpx rgba(0, 0, 0, 0.78));
+}
+
+.talent-node.shape-choice .talent-choice-frame::after {
+  content: '';
+  position: absolute;
+  inset: 5rpx;
+  background: #1a1a1a;
+  -webkit-clip-path: polygon(20% 0, 80% 0, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0 80%, 0 20%);
+  clip-path: polygon(20% 0, 80% 0, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0 80%, 0 20%);
+}
+
+.talent-node.shape-choice::before,
+.talent-node.shape-choice::after {
+  content: '';
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-top: 13rpx solid transparent;
+  border-bottom: 13rpx solid transparent;
+  transform: translateY(-50%);
+  filter: drop-shadow(0 3rpx 4rpx rgba(0, 0, 0, 0.7));
+}
+
+.talent-node.shape-choice::before {
+  left: -13rpx;
+  border-right: 16rpx solid rgba(150, 150, 150, 0.72);
+}
+
+.talent-node.shape-choice::after {
+  right: -13rpx;
+  border-left: 16rpx solid rgba(150, 150, 150, 0.72);
+}
+
+.talent-node.shape-choice .talent-icon,
+.talent-node.shape-choice .talent-icon-fallback {
+  position: absolute;
+  z-index: 2;
+  left: 6rpx;
+  top: 6rpx;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 0;
+  -webkit-clip-path: polygon(18% 0, 82% 0, 100% 18%, 100% 82%, 82% 100%, 18% 100%, 0 82%, 0 18%);
+  clip-path: polygon(18% 0, 82% 0, 100% 18%, 100% 82%, 82% 100%, 18% 100%, 0 82%, 0 18%);
+}
+
+.talent-node.shape-choice.available .talent-choice-frame,
+.talent-node.shape-choice.selected .talent-choice-frame,
+.talent-node.shape-choice.granted .talent-choice-frame,
+.talent-node.shape-choice.selectable:not(.selected) .talent-choice-frame {
+  background: #f8b700;
+}
+
+.talent-node.shape-choice.available::before,
+.talent-node.shape-choice.selected::before,
+.talent-node.shape-choice.granted::before {
+  border-right-color: #f8b700;
+}
+
+.talent-node.shape-choice.available::after,
+.talent-node.shape-choice.selected::after,
+.talent-node.shape-choice.granted::after {
+  border-left-color: #f8b700;
+}
+
+.talent-node.shape-choice.locked:not(.selected)::before {
+  border-right-color: rgba(150, 150, 150, 0.72);
+}
+
+.talent-node.shape-choice.locked:not(.selected)::after {
+  border-left-color: rgba(150, 150, 150, 0.72);
+}
+
+.talent-node.shape-choice.locked:not(.selected) .talent-choice-frame {
+  background: rgba(150, 150, 150, 0.72);
 }
 
 .talent-node.available {
@@ -364,30 +480,10 @@
   box-shadow: 0 0 0 5rpx rgba(36, 240, 90, 0.14), 0 12rpx 24rpx rgba(0, 0, 0, 0.48);
 }
 
-.talent-node.selectable:not(.selected)::after {
-  content: '+';
-  position: absolute;
-  right: -9rpx;
-  top: -9rpx;
-  width: 24rpx;
-  height: 24rpx;
-  border: 2rpx solid rgba(5, 5, 5, 0.72);
-  border-radius: 50%;
-  background: #24f05a;
-  color: #061607;
-  font-size: 18rpx;
-  font-weight: 900;
-  line-height: 22rpx;
-  text-align: center;
-  box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.48);
-}
-
-.talent-node.choice {
-  border-radius: 16rpx;
-}
-
 .talent-icon,
 .talent-icon-fallback {
+  position: relative;
+  z-index: 2;
   width: 100%;
   height: 100%;
   border-radius: inherit;
@@ -404,6 +500,7 @@
 
 .talent-rank {
   position: absolute;
+  z-index: 5;
   right: -8rpx;
   bottom: -8rpx;
   min-width: 42rpx;

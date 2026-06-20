@@ -33,6 +33,8 @@ try:
     from .simulator_payload import (
         analyze_simulator_request,
         build_simulator_home_payload,
+        clean_simc_gear_items,
+        normalize_simc_slot,
         warcraftlogs_credentials_state,
     )
     from .raiderio_payload import (
@@ -68,6 +70,8 @@ try:
         get_websim_talents,
         get_active_season_payload,
         import_talent_api_payload,
+        encode_websim_talents,
+        parse_websim_talent_export_code,
         validate_talent_api_payload,
     )
 except ImportError:
@@ -87,6 +91,8 @@ except ImportError:
     from simulator_payload import (
         analyze_simulator_request,
         build_simulator_home_payload,
+        clean_simc_gear_items,
+        normalize_simc_slot,
         warcraftlogs_credentials_state,
     )
     from raiderio_payload import (
@@ -122,6 +128,8 @@ except ImportError:
         get_websim_talents,
         get_active_season_payload,
         import_talent_api_payload,
+        encode_websim_talents,
+        parse_websim_talent_export_code,
         validate_talent_api_payload,
     )
 
@@ -1636,18 +1644,35 @@ def build_data_health_payload():
         )
 
         websim_state = get_sync_state(conn, "websim_sync") or {}
+        websim_errors = websim_state.get("errors") if isinstance(websim_state.get("errors"), list) else []
+        websim_simc = websim_state.get("simc") if isinstance(websim_state.get("simc"), dict) else {}
+        websim_gear = websim_state.get("gearCatalog") if isinstance(websim_state.get("gearCatalog"), dict) else {}
+        websim_season = websim_state.get("currentSeason") if isinstance(websim_state.get("currentSeason"), dict) else {}
+        if websim_state:
+            websim_status = websim_state.get("dataStatus") or ("verified" if websim_state.get("ok") else "blocked")
+            websim_blockers = websim_errors if websim_errors else ([] if websim_state.get("ok") else ["websim cache sync did not complete successfully"])
+        else:
+            websim_status = "blocked"
+            websim_blockers = ["websim cache has not been synced"]
         components.append(
             data_health_component(
                 "websim_sync",
                 "WebSim sync state",
-                "verified" if websim_state.get("ok") else "blocked",
+                websim_status,
                 checked_at=websim_state.get("checkedAt") or websim_state.get("updatedAt") or "",
                 details={
-                    "simc": websim_state.get("simc") if isinstance(websim_state.get("simc"), dict) else {},
+                    "dataStatus": websim_state.get("dataStatus") or "",
+                    "simc": websim_simc,
+                    "gearCatalog": websim_gear,
+                    "currentSeason": websim_season,
+                    "blizzardSkipped": websim_state.get("blizzardSkipped"),
                     "itemCount": websim_state.get("itemCount") or 0,
-                    "talentCount": websim_state.get("talentCount") or 0,
+                    "talentCount": websim_state.get("talentCount") or websim_simc.get("talents") or 0,
+                    "profileCount": websim_simc.get("presets") or 0,
+                    "gearItemCount": websim_gear.get("itemCount") or 0,
+                    "observedVariantCount": websim_gear.get("observedVariantCount") or 0,
                 },
-                blockers=websim_state.get("errors") or ["websim cache has not been synced"],
+                blockers=websim_blockers,
             )
         )
 
@@ -1904,6 +1929,10 @@ BUILD_TEMPLATE_SELECT_COLUMNS = """
 
 
 def build_template_status_label(template_type, status):
+    if status == "saved":
+        return "已保存"
+    if status == "complete":
+        return "完整配置"
     if status == "encoded":
         return "Encoded"
     if status == "simc_ready":
@@ -1912,7 +1941,7 @@ def build_template_status_label(template_type, status):
         return "Partial"
     if status == "blocked":
         return "Blocked"
-    return "Draft" if template_type == "talent" else "Blocked"
+    return "已保存" if template_type == "talent" else "完整配置"
 
 
 def normalize_build_template_payload(record):
@@ -1929,7 +1958,7 @@ def normalize_build_template_payload(record):
         simc_lines = []
     simc_lines = [clean_text(line, 2000) for line in simc_lines if clean_text(line, 2000)]
     metadata = source.get("metadata") if isinstance(source.get("metadata"), dict) else {}
-    status = clean_text(source.get("status"), 64) or ("draft" if template_type == "talent" else "blocked")
+    status = clean_text(source.get("status"), 64) or ("saved" if template_type == "talent" else "complete")
     title = clean_text(source.get("title"), 200) or ("Talent Template" if template_type == "talent" else "Gear Template")
     now = utc_now()
     return {
@@ -2115,8 +2144,257 @@ def delete_user_build_template(access_token, template_id):
     return {"id": normalized_id, "deleted": True}
 
 
+SIMCRAFT_TEMPLATE_REQUIRED_GEAR_SLOTS = [
+    "head",
+    "neck",
+    "shoulder",
+    "back",
+    "chest",
+    "wrist",
+    "hands",
+    "waist",
+    "legs",
+    "feet",
+    "finger1",
+    "finger2",
+    "trinket1",
+    "trinket2",
+    "main_hand",
+    "off_hand",
+]
+
+SIMCRAFT_TEMPLATE_SCENARIOS = {
+    "single": {"label": "单体基准", "fightStyle": "Patchwerk", "targets": 1, "durationSeconds": 300},
+    "mythic_plus": {"label": "大秘境基准", "fightStyle": "DungeonSlice", "targets": 5, "durationSeconds": 360},
+}
+
+SIMCRAFT_TEMPLATE_ANALYSIS_TYPES = {"baseline", "stat_weights"}
+
+
+def simcraft_template_record(source, template_type):
+    record = source if isinstance(source, dict) else {}
+    return {
+        "id": clean_text(record.get("id") or record.get("clientId"), 128),
+        "type": clean_text(record.get("type") or record.get("templateType"), 32) or template_type,
+        "title": clean_text(record.get("title"), 200) or ("天赋模板" if template_type == "talent" else "装备模板"),
+        "rawString": clean_text(record.get("rawString") or record.get("raw_string"), 20000),
+        "classKey": clean_text(record.get("classKey") or record.get("class_key"), 64),
+        "className": clean_text(record.get("className") or record.get("class_name"), 100),
+        "specKey": clean_text(record.get("specKey") or record.get("spec_key"), 64),
+        "specName": clean_text(record.get("specName") or record.get("spec_name"), 100),
+        "heroKey": clean_text(record.get("heroKey") or record.get("hero_key"), 64),
+        "heroLabel": clean_text(record.get("heroLabel") or record.get("hero_label"), 100),
+        "scenarioKey": clean_text(record.get("scenarioKey") or record.get("scenario_key"), 64),
+        "scenarioTitle": clean_text(record.get("scenarioTitle") or record.get("scenario_title"), 120),
+        "status": clean_text(record.get("status"), 64),
+        "source": clean_text(record.get("source"), 120),
+    }
+
+
+def parse_simcraft_template_gear_line(line):
+    text = str(line or "").strip()
+    if not text or text.startswith("#"):
+        return None, ""
+    parts = [part.strip() for part in text.split(",") if part.strip()]
+    if not parts or "=" not in parts[0]:
+        return None, f"invalid gear line: {text[:80]}"
+    slot_key, _, name = parts[0].partition("=")
+    slot = normalize_simc_slot(slot_key)
+    if not slot:
+        return None, f"invalid gear slot: {slot_key}"
+    item = {"slot": slot, "name": name.strip()}
+    for part in parts[1:]:
+        key, separator, value = part.partition("=")
+        key = key.strip()
+        value = value.strip()
+        if not separator or not key or not value:
+            continue
+        item[key] = value
+    normalized = clean_simc_gear_items([item], limit=1)
+    if not normalized:
+        return None, f"missing item id for gear slot: {slot}"
+    return normalized[0], ""
+
+
+def parse_simcraft_template_gear_raw(raw_string):
+    errors = []
+    items = []
+    seen_slots = set()
+    for line in str(raw_string or "").splitlines():
+        item, error = parse_simcraft_template_gear_line(line)
+        if error:
+            errors.append(error)
+            continue
+        if not item:
+            continue
+        if item["slot"] in seen_slots:
+            errors.append(f"duplicate gear slot: {item['slot']}")
+            continue
+        seen_slots.add(item["slot"])
+        items.append(item)
+    missing_slots = [slot for slot in SIMCRAFT_TEMPLATE_REQUIRED_GEAR_SLOTS if slot not in seen_slots]
+    if missing_slots:
+        errors.append(f"missing gear slots: {', '.join(missing_slots)}")
+    return items if not errors else [], errors
+
+
+def simcraft_template_talent_context(conn, talent_template):
+    raw_string = str(talent_template.get("rawString") or "").strip()
+    if not raw_string:
+        return {}, ["talent template rawString is required"]
+    parsed = parse_websim_talent_export_code(raw_string)
+    if parsed:
+        expected_class = talent_template.get("classKey") or ""
+        expected_spec = talent_template.get("specKey") or ""
+        errors = []
+        if expected_class and parsed.get("classKey") != expected_class:
+            errors.append("talent rawString class mismatch")
+        if expected_spec and parsed.get("specKey") != expected_spec:
+            errors.append("talent rawString spec mismatch")
+        if errors:
+            return {}, errors
+        encoding_source = {**talent_template, **parsed}
+        encoding = encode_websim_talents(conn, encoding_source)
+        if encoding.get("status") != "encoded":
+            return {}, [str(item) for item in (encoding.get("errors") or ["WebSim talent encoding failed"])]
+        return {
+            "importCode": "",
+            "simcLines": list(encoding.get("lines") or []),
+            "encodingStatus": "encoded",
+            "sourceName": talent_template.get("source") or "WebSim 天赋模板",
+            "websimExportCode": raw_string.replace("talents=", "", 1).strip(),
+            "selectedNodes": (parsed.get("talentState") or {}).get("selectedNodes") or [],
+            "heroKey": parsed.get("heroKey") or talent_template.get("heroKey") or "",
+        }, []
+    import_code = raw_string
+    if import_code.startswith("talents="):
+        import_code = import_code.split("=", 1)[1].strip()
+    if not import_code:
+        return {}, ["talent import code is required"]
+    if import_code.startswith("websim:"):
+        return {}, ["websim talent code could not be parsed"]
+    return {
+        "importCode": import_code,
+        "simcLines": [],
+        "encodingStatus": "external",
+        "sourceName": talent_template.get("source") or "官方天赋导入码",
+        "websimExportCode": "",
+        "selectedNodes": [],
+        "heroKey": talent_template.get("heroKey") or "",
+    }, []
+
+
+def prepare_simcraft_template_request(request_payload):
+    source = request_payload if isinstance(request_payload, dict) else {}
+    template_context = source.get("templateContext") if isinstance(source.get("templateContext"), dict) else {}
+    talent_template = simcraft_template_record(template_context.get("talent"), "talent")
+    gear_template = simcraft_template_record(template_context.get("gear"), "gear")
+    scenario_key = clean_text(source.get("scenarioKey"), 64) or "single"
+    analysis_type = clean_text(source.get("analysisType"), 64) or "baseline"
+    errors = []
+    if scenario_key not in SIMCRAFT_TEMPLATE_SCENARIOS:
+        errors.append(f"unsupported scenario: {scenario_key}")
+    if analysis_type not in SIMCRAFT_TEMPLATE_ANALYSIS_TYPES:
+        errors.append(f"unsupported analysis type: {analysis_type}")
+    if talent_template["type"] != "talent":
+        errors.append("talent template is required")
+    if gear_template["type"] != "gear":
+        errors.append("gear template is required")
+    if not talent_template["classKey"] or not talent_template["specKey"]:
+        errors.append("talent template class/spec is required")
+    if not gear_template["classKey"] or not gear_template["specKey"]:
+        errors.append("gear template class/spec is required")
+    if (
+        talent_template["classKey"]
+        and gear_template["classKey"]
+        and talent_template["specKey"]
+        and gear_template["specKey"]
+        and (talent_template["classKey"], talent_template["specKey"]) != (gear_template["classKey"], gear_template["specKey"])
+    ):
+        errors.append("template class/spec mismatch")
+    if gear_template["status"] != "complete":
+        errors.append("gear template must be complete")
+
+    with db_connection() as conn:
+        talent_context, talent_errors = simcraft_template_talent_context(conn, talent_template)
+    errors.extend(talent_errors)
+    gear_items, gear_errors = parse_simcraft_template_gear_raw(gear_template.get("rawString"))
+    errors.extend(gear_errors)
+
+    scenario = SIMCRAFT_TEMPLATE_SCENARIOS.get(scenario_key) or SIMCRAFT_TEMPLATE_SCENARIOS["single"]
+    simc_items = gear_items if not errors else []
+    build_context = {
+        "specId": f'{talent_template.get("classKey")}-{talent_template.get("specKey")}',
+        "className": talent_template.get("className") or talent_template.get("classKey"),
+        "specName": talent_template.get("specName") or talent_template.get("specKey"),
+        "role": "",
+        "activeQueryKey": "simcraft_template",
+        "activeQueryTitle": "SimC 模板组合",
+        "sourceName": "个人模板库",
+        "analysisWindow": scenario["label"],
+        "sourceNote": "天赋模板和装备模板来自玩家已保存模板；场景由当前 SimC 页面预设决定。",
+        "details": {
+            "talents": {
+                "importCode": talent_context.get("importCode", ""),
+                "simcLines": talent_context.get("simcLines", []),
+                "encodingStatus": talent_context.get("encodingStatus", ""),
+                "sourceName": talent_context.get("sourceName", ""),
+                "sourceUrl": "",
+                "coreTalents": [],
+            },
+            "gear": {
+                "gear": [
+                    {"slot": item.get("slot", ""), "name": item.get("name", ""), "source": gear_template.get("title", "")}
+                    for item in simc_items
+                ],
+                "simcItems": simc_items,
+            },
+            "statWeights": {"stats": []},
+        },
+        "simulatorState": {
+            "talent": {
+                "selectedNodes": talent_context.get("selectedNodes", []),
+                "websimExportCode": talent_context.get("websimExportCode", ""),
+                "heroKey": talent_context.get("heroKey", ""),
+                "scenarioKey": scenario_key,
+                "encodingStatus": talent_context.get("encodingStatus", ""),
+                "simcLines": talent_context.get("simcLines", []),
+                "importCode": talent_context.get("importCode", ""),
+                "summary": talent_template.get("title", ""),
+                "simcHint": scenario["label"],
+            },
+            "gear": {
+                "selectedItems": simc_items,
+                "progressText": f"{len(simc_items)}/16 槽可解析",
+                "nextAction": "" if not errors else "补齐完整装备模板后再提交",
+            },
+        },
+    }
+    prepared = dict(source)
+    prepared.update({
+        "mode": "simcraft_template",
+        "scenarioKey": scenario_key,
+        "analysisType": analysis_type,
+        "message": f"{build_context['specName']}{build_context['className']} · {scenario['label']} · {analysis_type}",
+        "prompt": f"{build_context['specName']}{build_context['className']} · {scenario['label']} · {analysis_type}",
+        "buildContext": build_context,
+        "gearSelection": {"items": simc_items},
+        "templateContext": {"talent": talent_template, "gear": gear_template},
+        "templateValidation": {
+            "passed": not errors,
+            "errors": errors,
+            "warnings": [],
+            "requiredGearSlots": SIMCRAFT_TEMPLATE_REQUIRED_GEAR_SLOTS,
+            "parsedGearSlots": [item.get("slot", "") for item in simc_items],
+        },
+    })
+    return prepared
+
+
 def analyze_and_store_simulator_task(request_data, access_token=""):
     request_payload = dict(request_data or {})
+    if request_payload.get("mode") == "simcraft_template":
+        request_payload = prepare_simcraft_template_request(request_payload)
     analysis = analyze_simulator_request(request_payload)
     user = authenticate_token(access_token)
     if not user and request_payload.get("saveTask"):
@@ -2391,6 +2669,16 @@ def count_by_tag(articles, tag):
     return sum(1 for article in articles if tag in article.get("tags", []))
 
 
+def channels_with_counts(articles):
+    return [
+        {
+            **channel,
+            "updateCount": sum(1 for article in articles if article.get("channel") == channel["title"]),
+        }
+        for channel in CHANNELS
+    ]
+
+
 def article_list_title(query):
     if query.get("type") == "channel":
         return query.get("value") or "资讯列表"
@@ -2438,7 +2726,7 @@ def build_home_payload():
             {"key": "class-change", "value": str(count_by_tag(articles, "class-change")), "label": "职业变动"},
             {"key": "ptr", "value": str(sum(1 for article in articles if article.get("channel") == "测试服前瞻")), "label": "测试服重点"},
         ],
-        "channels": CHANNELS,
+        "channels": channels_with_counts(articles),
         "highlights": articles[:6],
         "lastRefreshedAt": state["lastRefreshedAt"],
         "refreshMode": state["refreshMode"],

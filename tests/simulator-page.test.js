@@ -52,222 +52,304 @@ function createPageInstance(pageDefinition) {
   }
 }
 
-test('simc page uses chat clarification before task submission', () => {
+const sampleTalentTemplate = {
+  id: 'talent-1',
+  type: 'talent',
+  title: '奥法 WebSim 天赋',
+  rawString: 'websim:mage:arcane:spellslinger:n1:1',
+  classKey: 'mage',
+  className: '法师',
+  specKey: 'arcane',
+  specName: '奥术',
+  status: 'saved',
+  updatedAt: '2026-06-19T08:00:00Z'
+}
+
+const sampleGearTemplate = {
+  id: 'gear-1',
+  type: 'gear',
+  title: '奥法 16 槽装备',
+  rawString: 'head=hat,id=1\nneck=amulet,id=2',
+  classKey: 'mage',
+  className: '法师',
+  specKey: 'arcane',
+  specName: '奥术',
+  status: 'complete',
+  updatedAt: '2026-06-19T09:00:00Z'
+}
+
+const warriorTalentTemplate = {
+  ...sampleTalentTemplate,
+  id: 'talent-warrior',
+  title: 'Warrior Talent',
+  rawString: 'websim:warrior:arms:slayer:n1:1',
+  classKey: 'warrior',
+  className: 'Warrior',
+  specKey: 'arms',
+  specName: 'Arms',
+  updatedAt: '2026-06-20T10:00:00Z'
+}
+
+const warriorGearTemplate = {
+  ...sampleGearTemplate,
+  id: 'gear-warrior',
+  title: 'Warrior Gear',
+  rawString: 'head=helm,id=11\nneck=amulet,id=12',
+  classKey: 'warrior',
+  className: 'Warrior',
+  specKey: 'arms',
+  specName: 'Arms',
+  updatedAt: '2026-06-20T09:00:00Z'
+}
+
+const simcClassOptions = [
+  { name: 'Mage', key: 'mage', specializations: [{ title: 'Arcane', websimClassKey: 'mage', websimSpecKey: 'arcane' }] },
+  { name: 'Warrior', key: 'warrior', specializations: [{ title: 'Arms', websimClassKey: 'warrior', websimSpecKey: 'arms' }] },
+  { name: 'Priest', key: 'priest', specializations: [{ title: 'Discipline', websimClassKey: 'priest', websimSpecKey: 'discipline' }] }
+]
+
+test('simc page uses a fixed saved-template workflow without chat composer', () => {
   const js = fs.readFileSync('pages/simulator/simc.js', 'utf8')
   const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
   const css = fs.readFileSync('pages/simulator/simc.wxss', 'utf8')
 
-  assert.match(wxml, /chat-messages/)
-  assert.match(wxml, /chat-context/)
-  assert.doesNotMatch(wxml, /<view class="hero simulator-hero">/)
-  assert.match(wxml, /wx:for="\{\{messages\}\}"/)
-  assert.match(wxml, /chat-row-\{\{item\.role\}\}/)
-  assert.match(wxml, /value="\{\{chatInput\}\}"/)
-  assert.match(wxml, /bindinput="updateChatInput"/)
-  assert.match(wxml, /bindtap="sendChatMessage"/)
+  assert.match(wxml, /picker[\s\S]*range="\{\{classOptions\}\}"[\s\S]*bindchange="selectClass"/)
+  assert.match(wxml, /picker[\s\S]*range="\{\{talentTemplates\}\}"[\s\S]*bindchange="selectTalentTemplate"/)
+  assert.match(wxml, /picker[\s\S]*range="\{\{gearTemplates\}\}"[\s\S]*bindchange="selectGearTemplate"/)
+  assert.match(wxml, /toolbar-picker/)
+  assert.match(wxml, /picker-label/)
+  assert.match(wxml, /picker-value/)
+  assert.match(wxml, /template-selector/)
+  assert.match(wxml, /talentTemplates/)
+  assert.match(wxml, /gearTemplates/)
+  assert.match(wxml, /scenarioOptions/)
+  assert.match(wxml, /analysisTypeOptions/)
+  assert.match(wxml, /bindtap="confirmTemplateSimulation"/)
   assert.match(wxml, /bindtap="submitConfirmedTask"/)
-  assert.match(wxml, /disabled="\{\{!canSubmitTask \|\| submittingTask \|\| taskSubmitted\}\}"/)
-  assert.match(wxml, /任务已提交/)
-  assert.doesNotMatch(wxml, /最多\s*3\s*轮/)
-  assert.match(js, /messages:\s*\[/)
-  assert.doesNotMatch(js, /maxRounds:\s*3/)
-  assert.doesNotMatch(js, /conversationRound\s*>=\s*this\.data\.maxRounds/)
-  assert.doesNotMatch(js, /chatLocked/)
-  assert.match(js, /sendChatMessage\(\)/)
-  assert.match(js, /sendChatContent\(content\)/)
-  assert.match(js, /submitConfirmedTask\(\)/)
-  assert.match(js, /confirmOnly:\s*true/)
+  assert.match(wxml, /blockedReasons/)
+  assert.match(wxml, /确认摘要/)
+  assert.doesNotMatch(wxml, /chat-messages|chat-composer|textarea|chatInput|quickReplies/)
+  assert.match(js, /fetchBuildTemplates/)
+  assert.match(js, /selectedClassKey/)
+  assert.match(js, /selectClass\(/)
+  assert.match(js, /selectedClassIndex/)
+  assert.match(js, /selectedTalentTemplateIndex/)
+  assert.match(js, /selectedGearTemplateIndex/)
+  assert.match(js, /buildTemplatePayload\(/)
+  assert.match(js, /mode:\s*'simcraft_template'/)
+  assert.match(js, /buildTemplatePayload\(true,\s*false\)/)
+  assert.match(js, /confirmOnly:\s*false/)
   assert.match(js, /saveTask:\s*true/)
   assert.match(js, /allowInsecureGuestRequest:\s*true/)
-  assert.match(js, /canSubmitTask/)
-  assert.match(js, /taskSubmitted/)
-  assert.match(js, /auth:\s*true/)
-  assert.doesNotMatch(js, /\/simc|角色名|服务器|角色数据/)
-  assert.doesNotMatch(wxml, /\/simc|角色名|服务器|角色数据/)
-  assert.match(js, /mode:\s*'simcraft_agent'/)
-  assert.match(js, /runSimulation:\s*true/)
-  assert.match(css, /\.chat-row-user/)
-  assert.match(css, /\.chat-row-ai/)
-  assert.match(css, /\.chat-composer/)
-  assert.match(css, /\.send-button[\s\S]*width:\s*132rpx;/)
-  assert.match(css, /\.task-submit-button\[disabled\]/)
-  assert.match(css, /\.submit-button/)
-  assert.match(css, /\.submit-ready/)
+  assert.doesNotMatch(js, /mode:\s*'simcraft_agent'|sendChatMessage|sendChatContent|useQuickReply|buildPromptFromContext/)
+  assert.match(css, /\.template-selector/)
+  assert.match(css, /\.toolbar-picker/)
+  assert.match(css, /\.picker-label/)
+  assert.match(css, /\.picker-value/)
+  assert.match(css, /\.confirm-summary/)
+  assert.match(css, /\.blocked-panel/)
+  assert.doesNotMatch(css, /\.class-option|\.template-option/)
+  assert.doesNotMatch(css, /\.chat-composer|\.chat-row-user|\.quick-reply/)
 })
 
-test('simc quick replies are sent immediately and clear stale suggestions', () => {
-  const js = fs.readFileSync('pages/simulator/simc.js', 'utf8')
-
-  assert.match(js, /useQuickReply\(event\)/)
-  assert.match(js, /this\.sendChatContent\(reply\)/)
-  assert.match(js, /quickReplies:\s*\[\]/)
-  assert.doesNotMatch(js, /useQuickReply\(event\)[\s\S]{0,180}setData\(\{\s*chatInput:\s*reply\s*\}\)/)
-})
-
-test('simc confirmation explains generated templates are preview-only', () => {
-  let pageDefinition = null
-  const originalPage = global.Page
-  global.Page = (definition) => {
-    pageDefinition = definition
-  }
-  delete require.cache[require.resolve('../pages/simulator/simc.js')]
-  require('../pages/simulator/simc.js')
-  global.Page = originalPage
-
-  const text = pageDefinition.aiTextFromAnalysis({
-    request: { profileSource: 'generated' },
-    agent: {
-      status: 'template_ready',
-      validation: { passed: true }
+test('simc page defaults to the most recent template class and filters picker templates', async () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
     },
-    recommendations: ['需求已确认，可以提交 SimC 任务。']
-  })
-
-  assert.match(text, /模板预览/)
-  assert.match(text, /天赋导入码和手选装备数据/)
-  assert.doesNotMatch(text, /现在可以提交任务/)
-})
-
-test('simc page loads build context from specialization detail and confirms it', () => {
-  const js = fs.readFileSync('pages/simulator/simc.js', 'utf8')
-  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
-
-  assert.match(js, /SIMC_BUILD_CONTEXT_STORAGE_KEY/)
-  assert.match(js, /onLoad\(options\)/)
-  assert.match(js, /loadBuildContext\(options\)/)
-  assert.match(js, /wx\.getStorageSync\(SIMC_BUILD_CONTEXT_STORAGE_KEY\)/)
-  assert.match(js, /buildPromptFromContext\(context\)/)
-  assert.match(js, /this\.sendChatContent\(prompt,\s*\{ buildContext: context \}\)/)
-  assert.match(js, /pendingBuildContext/)
-  assert.match(js, /buildContext:\s*this\.data\.pendingBuildContext/)
-  assert.match(wxml, /context-source/)
-  assert.match(wxml, /buildContextTitle/)
-})
-
-test('simc prompt includes front-end talent and gear simulator state', () => {
-  const js = fs.readFileSync('pages/simulator/simc.js', 'utf8')
-
-  assert.match(js, /context\.simulatorState \|\| \{\}/)
-  assert.match(js, /talentState\.selectedNodes/)
-  assert.match(js, /talentState\.simcHint/)
-  assert.match(js, /formatTalentNodeLabel/)
-  assert.match(js, /talentState\.websimExportCode/)
-  assert.match(js, /talentState\.encodingStatus/)
-  assert.match(js, /gearState\.progressText/)
-  assert.match(js, /gearState\.nextAction/)
-})
-
-test('simc prompt formats WebSim talent node objects and encoding lines', () => {
-  let pageDefinition = null
-  const originalPage = global.Page
-  global.Page = (definition) => {
-    pageDefinition = definition
-  }
-  delete require.cache[require.resolve('../pages/simulator/simc.js')]
-  require('../pages/simulator/simc.js')
-  global.Page = originalPage
-
-  const prompt = pageDefinition.buildPromptFromContext({
-    specId: '法师-冰霜',
-    className: '法师',
-    specName: '冰霜',
-    activeQueryTitle: '天赋构筑',
-    details: {
-      talents: {
-        importCode: 'CAE_CONTEXT',
-        simcLines: ['class_talents=1001:1', 'spec_talents=2001:2'],
-        encodingStatus: 'encoded'
-      }
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: {
+          templates: type === 'talent'
+            ? [sampleTalentTemplate, warriorTalentTemplate]
+            : [sampleGearTemplate, warriorGearTemplate]
+        },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
     },
-    simulatorState: {
-      talent: {
-        selectedNodes: [
-          { id: 'n1', name: 'Ice Lance', rank: 2, tree: 'spec' },
-          { id: 'n2', name: 'Spellslinger', rank: 1, tree: 'hero' }
-        ],
-        websimExportCode: 'websim:mage:frost:spellslinger:n1:2,n2:1',
-        heroKey: 'spellslinger',
-        scenarioKey: 'mythic_plus',
-        encodingStatus: 'encoded'
-      }
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
     }
   })
+  const page = createPageInstance(pageDefinition)
+  await page.loadTemplateLists()
+  await flushPromises()
 
-  assert.match(prompt, /前端天赋模拟器已选择节点：Ice Lance x2、Spellslinger/)
-  assert.match(prompt, /WebSim 导出码：websim:mage:frost:spellslinger:n1:2,n2:1/)
-  assert.match(prompt, /WebSim 天赋编码：encoded/)
-  assert.match(prompt, /SimC 天赋行：class_talents=1001:1；spec_talents=2001:2/)
-  assert.doesNotMatch(prompt, /\[object Object\]/)
+  assert.deepEqual(page.data.classOptions.map((item) => item.key), ['mage', 'warrior', 'priest'])
+  assert.equal(page.data.selectedClassKey, 'warrior')
+  assert.equal(page.data.selectedClassIndex, 1)
+  assert.deepEqual(page.data.talentTemplates.map((item) => item.id), ['talent-warrior'])
+  assert.deepEqual(page.data.gearTemplates.map((item) => item.id), ['gear-warrior'])
+  assert.equal(page.data.selectedTalentTemplate.id, 'talent-warrior')
+  assert.equal(page.data.selectedGearTemplate.id, 'gear-warrior')
+  assert.equal(page.data.canConfirm, true)
+
+  page.selectClass({ detail: { value: 0 } })
+  assert.equal(page.data.selectedClassKey, 'mage')
+  assert.deepEqual(page.data.talentTemplates.map((item) => item.id), ['talent-1'])
+  assert.deepEqual(page.data.gearTemplates.map((item) => item.id), ['gear-1'])
+  assert.equal(page.data.selectedTalentTemplate.id, 'talent-1')
+  assert.equal(page.data.selectedGearTemplate.id, 'gear-1')
+  assert.equal(page.data.canConfirm, true)
+
+  page.selectClass({ detail: { value: 2 } })
+  assert.equal(page.data.selectedClassKey, 'priest')
+  assert.deepEqual(page.data.talentTemplates, [])
+  assert.deepEqual(page.data.gearTemplates, [])
+  assert.equal(page.data.selectedTalentTemplate, null)
+  assert.equal(page.data.selectedGearTemplate, null)
+  assert.equal(page.data.emptyState.talent, '尚未保存天赋模板')
+  assert.equal(page.data.emptyState.gear, '尚未保存装备模板')
+  assert.equal(page.data.canConfirm, false)
 })
 
-test('simc prompt preserves community talent template evidence', () => {
-  let pageDefinition = null
-  const originalPage = global.Page
-  global.Page = (definition) => {
-    pageDefinition = definition
-  }
-  delete require.cache[require.resolve('../pages/simulator/simc.js')]
-  require('../pages/simulator/simc.js')
-  global.Page = originalPage
-
-  const prompt = pageDefinition.buildPromptFromContext({
-    specId: '法师-奥术',
-    className: '法师',
-    specName: '奥术',
-    activeQueryTitle: '天赋构筑',
-    details: {
-      talents: {
-        importCode: 'C4DA'
-      }
+test('simc page loads saved talent and gear templates with empty states', async () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
     },
-    simulatorState: {
-      talent: {
-        communityTemplate: {
-          name: '高层大秘 · 主流AOE',
-          flowLabel: '主流AOE',
-          sourceName: 'Manual Fixture',
-          sampleCount: 3,
-          maxKeyLevel: 12,
-          analysisWindow: '2026 S1 高分样本'
-        }
-      }
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: (type) => (type === 'talent' ? [sampleTalentTemplate] : []),
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
     }
   })
+  const page = createPageInstance(pageDefinition)
+  await page.loadTemplateLists()
+  await flushPromises()
 
-  assert.match(prompt, /社区模板：高层大秘 · 主流AOE/)
-  assert.match(prompt, /模板来源：Manual Fixture/)
-  assert.match(prompt, /样本证据：3 个样本，最高 \+12/)
-  assert.match(prompt, /模板窗口：2026 S1 高分样本/)
+  assert.deepEqual(page.data.allTalentTemplates, [sampleTalentTemplate])
+  assert.deepEqual(page.data.classOptions.map((item) => item.key), ['mage', 'warrior', 'priest'])
+  assert.equal(page.data.selectedClassKey, 'mage')
+  assert.deepEqual(page.data.talentTemplates, [sampleTalentTemplate])
+  assert.deepEqual(page.data.gearTemplates, [])
+  assert.equal(page.data.selectedTalentTemplate.id, 'talent-1')
+  assert.equal(page.data.selectedGearTemplate, null)
+  assert.equal(page.data.emptyState.gear, '尚未保存装备模板')
+  assert.equal(page.data.emptyState.talent, '')
+  assert.equal(page.data.canConfirm, false)
 })
 
-test('simulator page renders simc agent clarification and summary cards', () => {
-  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
-  const css = fs.readFileSync('pages/simulator/simc.wxss', 'utf8')
-  const api = fs.readFileSync('pages/simulator/simulator-api.js', 'utf8')
+test('simc page reuses the same template payload for confirm and final submit', async () => {
+  const requests = []
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: (request, options) => {
+        requests.push({ request, options })
+        return Promise.resolve({
+          payload: {
+            mode: 'simcraft_template',
+            status: 'ready',
+            taskId: request.saveTask ? 'task-1' : '',
+            request,
+            agent: { status: 'template_ready', canSubmitTask: true, validation: { passed: true, errors: [] } },
+            simulation: { ran: false, error: '', metrics: {} },
+            recommendations: ['模板组合已确认，可以提交执行 SimC。']
+          },
+          fromFallback: false,
+          error: ''
+        })
+      }
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const originalWx = global.wx
+  global.wx = { showToast() {} }
+  try {
+    const page = createPageInstance(pageDefinition)
+    await page.loadTemplateLists()
+    await flushPromises()
+    page.selectScenario({ currentTarget: { dataset: { key: 'mythic_plus' } } })
+    page.selectAnalysisType({ currentTarget: { dataset: { key: 'stat_weights' } } })
+    await page.confirmTemplateSimulation()
+    await flushPromises()
+    await page.submitConfirmedTask()
+    await flushPromises()
+  } finally {
+    global.wx = originalWx
+  }
 
-  assert.match(wxml, /SimC 需求确认/)
-  assert.match(wxml, /latestAnalysis\.agent\.quickReplies/)
-  assert.doesNotMatch(wxml, /确认摘要/)
-  assert.doesNotMatch(wxml, /生成的 SimC 模板/)
-  assert.doesNotMatch(wxml, /latestAnalysis\.agent\.summaryCards/)
-  assert.doesNotMatch(wxml, /latestAnalysis\.agent\.draftProfile/)
-  assert.match(api, /agent:\s*\{/)
-  assert.match(api, /confirmation_failed/)
-  assert.doesNotMatch(api, /我是冰法|我是元素萨|我是恶魔术/)
-  assert.match(css, /\.quick-reply/)
-  assert.doesNotMatch(css, /\.agent-summary-list/)
-  assert.doesNotMatch(css, /\.agent-template/)
+  assert.equal(requests.length, 2)
+  assert.equal(requests[0].request.mode, 'simcraft_template')
+  assert.equal(requests[0].request.confirmOnly, true)
+  assert.equal(requests[0].request.saveTask, false)
+  assert.equal(requests[0].request.classKey, 'mage')
+  assert.equal(requests[0].request.scenarioKey, 'mythic_plus')
+  assert.equal(requests[0].request.analysisType, 'stat_weights')
+  assert.equal(requests[0].request.templateContext.talent.id, 'talent-1')
+  assert.equal(requests[0].request.templateContext.gear.id, 'gear-1')
+  assert.equal(requests[1].request.confirmOnly, false)
+  assert.equal(requests[1].request.saveTask, true)
+  assert.deepEqual(requests[1].request.templateContext, requests[0].request.templateContext)
+  assert.equal(requests[1].request.classKey, requests[0].request.classKey)
+  assert.equal(requests[1].request.scenarioKey, requests[0].request.scenarioKey)
+  assert.deepEqual(requests[1].options, { auth: true, allowInsecureGuestRequest: true })
 })
 
-test('simulator page uses a dark code-console visual treatment', () => {
-  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
-  const css = fs.readFileSync('pages/simulator/simc.wxss', 'utf8')
+test('simc page exposes deterministic blocked reasons from template validation', () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: () => Promise.resolve({ payload: { templates: [] }, fromFallback: true, error: '' }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+  page.applyAnalysisResult({
+    agent: { status: 'template_blocked', validation: { errors: ['template class/spec mismatch', 'missing gear slots: off_hand'] } },
+    simulation: { error: 'template class/spec mismatch; missing gear slots: off_hand' },
+    recommendations: []
+  }, false, '')
 
-  assert.match(wxml, /background="#111111"/)
-  assert.match(css, /\.chat-context[\s\S]*#493477/i)
-  assert.match(css, /\.chat-input[\s\S]*background:\s*#101010;/)
-  assert.match(css, /\.chat-input[\s\S]*color:\s*#e1e2e5;/)
-  assert.match(css, /\.submit-button[\s\S]*background:\s*#8b3ff5;/)
+  assert.deepEqual(page.data.blockedReasons, ['template class/spec mismatch', 'missing gear slots: off_hand'])
+  assert.equal(page.data.canSubmitTask, false)
 })
 
 test('smart analysis tab is a three-module entry hub without metrics', () => {

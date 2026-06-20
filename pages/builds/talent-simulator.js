@@ -5,7 +5,6 @@ const {
 } = require('./builds-api')
 const {
   requestWebsimBootstrap,
-  requestWebsimProfile,
   requestWebsimTalents
 } = require('./websim-api')
 const {
@@ -150,7 +149,8 @@ function nodeClass(node) {
     node.locked ? 'locked' : 'available',
     node.granted ? 'granted' : '',
     node.canSelect ? 'selectable' : '',
-    node.choice ? 'choice' : ''
+    node.choice ? 'choice' : '',
+    `shape-${node.shape || 'square'}`
   ].filter(Boolean).join(' ')
 }
 
@@ -943,26 +943,8 @@ Page({
     const selectedDetail = this.data.selectedDetail || {}
     const selectedSpec = this.data.selectedSpec || {}
     const selectedCommunityTemplate = communityTemplateContext(this.data.selectedCommunityTemplate)
-    const payload = {
-      classKey: this.data.classKey,
-      specKey: this.data.specKey,
-      heroKey: this.data.heroKey,
-      scenarioKey: this.data.scenarioKey,
-      talents: code,
-      talentState: {
-        selectedNodes: this.data.selectedNodes,
-        websimExportCode: code,
-        communityTemplate: selectedCommunityTemplate,
-        heroKey: this.data.heroKey,
-        scenarioKey: this.data.scenarioKey
-      }
-    }
     this.setData({ templateSaving: true, statusText: '正在保存天赋模板' })
-    return requestWebsimProfile(payload).then(({ payload: profilePayload }) => {
-      const talentEncoding = (profilePayload && profilePayload.talentEncoding) || { status: 'failed', lines: [] }
-      const simcLines = Array.isArray(talentEncoding.lines) ? talentEncoding.lines : []
-      const encodingStatus = talentEncoding.status || 'failed'
-      return syncBuildTemplate({
+    return syncBuildTemplate({
         type: 'talent',
         title: templateTitle,
         classKey: this.data.classKey,
@@ -974,16 +956,14 @@ Page({
         scenarioKey: this.data.scenarioKey || '',
         scenarioTitle: scenario.title || this.data.selectedScenarioTitle || '',
         rawString: code,
-        simcLines,
-        status: encodingStatus === 'encoded' ? 'encoded' : 'blocked',
-        statusLabel: encodingStatus === 'encoded' ? '已编码' : '不可计算',
+        simcLines: [],
+        status: 'saved',
+        statusLabel: '已保存',
         source: selectedCommunityTemplate && selectedCommunityTemplate.sourceName ? selectedCommunityTemplate.sourceName : 'WebSim 天赋模拟器',
         metadata: {
           selectedNodes: this.data.selectedNodes || [],
           selectedNodeCount: (this.data.selectedNodes || []).length,
           communityTemplate: selectedCommunityTemplate,
-          encodingStatus,
-          encodingErrors: talentEncoding.errors || [],
           templateTitle,
           summary: talentSummary(this.data.selectedNodes || [], scenario)
         }
@@ -993,7 +973,6 @@ Page({
           this.setData({ saveTemplateSheet: { visible: false, name: '', defaultName: '' } })
         }
         safeToast(saved ? '天赋模板已保存' : '天赋模板保存失败')
-      })
     }).catch((error) => {
       safeToast((error && error.message) || '天赋模板保存失败')
     }).finally(() => {

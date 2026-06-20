@@ -4,7 +4,7 @@ const fs = require('node:fs')
 const vm = require('node:vm')
 const { buildSpecializationHomePayload } = require('../server/builds/home-payload')
 
-function loadBuildsDetailPageConfig() {
+function loadBuildsDetailPageConfig(options = {}) {
   const source = fs.readFileSync('pages/builds/detail.js', 'utf8')
   const sandbox = {
     console,
@@ -15,7 +15,9 @@ function loadBuildsDetailPageConfig() {
       navigateTo() {},
       redirectTo() {},
       setStorageSync() {},
-      showToast() {}
+      showToast(toast) {
+        if (Array.isArray(options.toasts)) options.toasts.push(toast || {})
+      }
     },
     require(modulePath) {
       if (modulePath === './builds-api') {
@@ -37,8 +39,8 @@ function loadBuildsDetailPageConfig() {
       }
       if (modulePath === './websim-api') {
         return {
-          requestWebsimGear: () => Promise.resolve({ payload: {} }),
-          requestWebsimGearStats: () => Promise.resolve({ payload: {} })
+          requestWebsimGear: options.requestWebsimGear || (() => Promise.resolve({ payload: {} })),
+          requestWebsimGearStats: options.requestWebsimGearStats || (() => Promise.resolve({ payload: {} }))
         }
       }
       if (modulePath === '../common/analytics-client') {
@@ -50,8 +52,9 @@ function loadBuildsDetailPageConfig() {
       }
       if (modulePath === '../common/build-template-storage') {
         return {
-          syncBuildTemplate() {
-            return Promise.resolve({ payload: { template: {} } })
+          syncBuildTemplate(record) {
+            if (Array.isArray(options.savedTemplates)) options.savedTemplates.push(record)
+            return Promise.resolve({ payload: { template: record || {} } })
           }
         }
       }
@@ -63,6 +66,27 @@ function loadBuildsDetailPageConfig() {
   }
   vm.runInNewContext(source, sandbox, { filename: 'pages/builds/detail.js' })
   return sandbox.pageConfig
+}
+
+const canonicalGearSlots = [
+  'head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist',
+  'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand', 'off_hand'
+]
+
+function completeGearSelection(slots = canonicalGearSlots) {
+  return slots.reduce((selection, slot, index) => {
+    selection[slot] = {
+      slot,
+      simcSlot: slot,
+      itemId: String(250000 + index),
+      id: String(250000 + index),
+      displayName: `Item ${slot}`,
+      ilevel: 707,
+      bonus_id: '12345',
+      simcReady: true
+    }
+    return selection
+  }, {})
 }
 
 function loadTalentSimulatorPageConfig(options = {}) {
@@ -227,7 +251,7 @@ test('query detail page has module-specific UI sections', () => {
   assert.match(wxml, /class="talent-chip-list"/)
   assert.match(wxml, /activeDetail\.coreTalents/)
   assert.match(wxml, /wx:if="\{\{activeQueryKey == 'gear'\}\}"/)
-  assert.match(wxml, /class="gear-stat-panel"/)
+  assert.doesNotMatch(wxml, /class="gear-stat-panel"/)
   assert.match(wxml, /class="gear-slot-grid"/)
   assert.match(wxml, /wx:if="\{\{activeQueryKey == 'statWeights'\}\}"/)
   assert.match(wxml, /class="stat-bars"/)
@@ -305,26 +329,22 @@ test('talent simulator page can open on a specialization selected from intel car
   assert.match(js, /findSpecSelection\(specId,/)
 })
 
-test('query detail page can pass current talent and gear context to simc', () => {
+test('query detail page removes talent and gear simc entrances while keeping stat weights entry', () => {
   const js = fs.readFileSync('pages/builds/detail.js', 'utf8')
   const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
   const css = fs.readFileSync('pages/builds/detail.wxss', 'utf8')
 
-  assert.match(wxml, /bindtap="openSimcWithBuildContext"/)
-  assert.match(wxml, /带当前构筑去 SimC/)
+  assert.doesNotMatch(wxml, /bindtap="openTalentSimc"/)
+  assert.doesNotMatch(wxml, /模拟这套天赋/)
   assert.match(js, /SIMC_BUILD_CONTEXT_STORAGE_KEY/)
   assert.match(js, /buildSimcContext\(\)/)
-  assert.match(js, /details:\s*selectedDetail\.details \|\| \{\}/)
-  assert.match(js, /selectedGearBySlot:\s*this\.data\.selectedGearBySlot/)
-  assert.match(js, /statSnapshot:\s*this\.data\.gearStatSnapshot/)
-  assert.match(js, /simcItems:\s*this\.data\.gearSimcItems/)
   assert.match(js, /statWeights:\s*\{/)
   assert.match(js, /weights:\s*this\.data\.activeStatRows/)
   assert.match(js, /wx\.setStorageSync\(SIMC_BUILD_CONTEXT_STORAGE_KEY/)
   assert.match(js, /\/pages\/simulator\/simc\?from=builds/)
   assert.match(js, /fail:\s*\(error\) =>/)
-  assert.match(css, /\.simc-link-panel/)
-  assert.match(css, /\.simc-link-button/)
+  assert.doesNotMatch(wxml, /class="simc-link-panel"/)
+  assert.doesNotMatch(css, /\.simc-link-panel/)
 })
 
 test('stat weights detail page exposes scenario state without strong claim copy', () => {
@@ -360,7 +380,7 @@ test('native talent simulator page exposes WebSim tree controls and template per
   assert.match(js, /game-asset/)
   assert.match(js, /requestWebsimBootstrap/)
   assert.match(js, /requestWebsimTalents/)
-  assert.match(js, /requestWebsimProfile/)
+  assert.doesNotMatch(js, /requestWebsimProfile/)
   assert.match(js, /buildTalentViewModel/)
   assert.match(js, /tapTalentNode\(event\)/)
   assert.match(js, /selectChoiceTalent\(event\)/)
@@ -377,12 +397,13 @@ test('native talent simulator page exposes WebSim tree controls and template per
   assert.doesNotMatch(js, /openTalentSimc\(\)/)
   assert.doesNotMatch(js, /buildSimcContext\(\)/)
   assert.doesNotMatch(js, /SIMC_BUILD_CONTEXT_STORAGE_KEY/)
-  assert.match(js, /talentEncoding\.lines/)
+  assert.doesNotMatch(js, /talentEncoding\.lines/)
   assert.match(js, /activeTreeKey:\s*'class'/)
   assert.match(js, /treeNavItems/)
   assert.match(js, /activeSection/)
   assert.match(js, /selectTalentTree\(event\)/)
   assert.match(js, /node\.canSelect \? 'selectable' : ''/)
+  assert.match(js, /`shape-\$\{node\.shape \|\| 'square'\}`/)
   assert.match(js, /line && line\.available \? 'available' : ''/)
   assert.doesNotMatch(js, /selectScenario\(event\)/)
   assert.doesNotMatch(js, /updateTalentSearch\(event\)/)
@@ -453,10 +474,20 @@ test('native talent simulator page exposes WebSim tree controls and template per
   assert.match(css, /\.talent-link\.active\s*\{[\s\S]*background:\s*#f8b700;[\s\S]*\}/)
   assert.match(css, /\.talent-link\.active::after\s*\{[\s\S]*border-left-color:\s*#f8b700;[\s\S]*\}/)
   assert.match(css, /\.talent-link\.available\s*\{[\s\S]*background:\s*rgba\(248,\s*183,\s*0,\s*0\.72\);[\s\S]*\}/)
-  assert.match(css, /\.talent-node\s*\{[\s\S]*width:\s*64rpx;[\s\S]*height:\s*64rpx;[\s\S]*margin-left:\s*-32rpx;[\s\S]*margin-top:\s*-32rpx;[\s\S]*\}/)
+  assert.match(css, /\.talent-node\s*\{[\s\S]*width:\s*64rpx;[\s\S]*height:\s*64rpx;[\s\S]*margin-left:\s*-32rpx;[\s\S]*margin-top:\s*-32rpx;[\s\S]*box-sizing:\s*border-box;[\s\S]*border:\s*5rpx solid rgba\(255,\s*255,\s*255,\s*0\.16\);[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.shape-circle\s*\{[\s\S]*border-radius:\s*50%;[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.shape-square\s*\{[\s\S]*border-radius:\s*14rpx;[\s\S]*\}/)
+  assert.match(wxml, /class="talent-choice-frame" wx:if="\{\{item\.shape === 'choice'\}\}"/)
+  assert.match(css, /\.talent-node\.shape-choice\s*\{[\s\S]*border:\s*0;[\s\S]*overflow:\s*visible;[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.shape-choice \.talent-choice-frame\s*\{[\s\S]*left:\s*-3rpx;[\s\S]*width:\s*70rpx;[\s\S]*clip-path:\s*polygon\(20% 0,\s*80% 0,\s*100% 20%,\s*100% 80%,\s*80% 100%,\s*20% 100%,\s*0 80%,\s*0 20%\);[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.shape-choice \.talent-choice-frame::after\s*\{[\s\S]*inset:\s*5rpx;[\s\S]*clip-path:\s*polygon\(20% 0,\s*80% 0,\s*100% 20%,\s*100% 80%,\s*80% 100%,\s*20% 100%,\s*0 80%,\s*0 20%\);[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.shape-choice \.talent-icon,[\s\S]*\.talent-node\.shape-choice \.talent-icon-fallback\s*\{[\s\S]*left:\s*6rpx;[\s\S]*width:\s*52rpx;[\s\S]*clip-path:\s*polygon\(18% 0,\s*82% 0,\s*100% 18%,\s*100% 82%,\s*82% 100%,\s*18% 100%,\s*0 82%,\s*0 18%\);[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.shape-choice::before\s*\{[\s\S]*left:\s*-13rpx;[\s\S]*border-right:\s*16rpx solid rgba\(150,\s*150,\s*150,\s*0\.72\);[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.shape-choice::after\s*\{[\s\S]*right:\s*-13rpx;[\s\S]*border-left:\s*16rpx solid rgba\(150,\s*150,\s*150,\s*0\.72\);[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.shape-choice\.available::before,[\s\S]*\.talent-node\.shape-choice\.selected::before,[\s\S]*\.talent-node\.shape-choice\.granted::before\s*\{[\s\S]*border-right-color:\s*#f8b700;[\s\S]*\}/)
   assert.match(css, /\.talent-node\.granted\s*\{[\s\S]*border-color:\s*#f8b700;[\s\S]*\}/)
   assert.match(css, /\.talent-node\.selectable:not\(\.selected\)\s*\{[\s\S]*border-color:\s*#24f05a;[\s\S]*\}/)
-  assert.match(css, /\.talent-node\.selectable:not\(\.selected\)::after\s*\{[\s\S]*content:\s*'\+';[\s\S]*\}/)
+  assert.doesNotMatch(css, /\.talent-node\.selectable:not\(\.selected\):not\(\.shape-choice\)::after/)
   assert.match(css, /\.rank-button\s*\{[\s\S]*width:\s*72rpx;[\s\S]*min-width:\s*72rpx;[\s\S]*max-width:\s*72rpx;[\s\S]*padding:\s*0;[\s\S]*margin:\s*0;[\s\S]*box-sizing:\s*border-box;[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;[\s\S]*line-height:\s*1;[\s\S]*\}/)
   assert.match(css, /\.rank-button::after\s*\{\s*border:\s*0;\s*\}/)
   assert.match(css, /\.talent-choice-sheet/)
@@ -513,10 +544,14 @@ test('native talent simulator save flow names talent templates for the profile l
   await pageConfig.confirmSaveTalentTemplate.call(page)
 
   assert.equal(page.data.saveTemplateSheet.visible, false)
-  assert.equal(mocks.profilePayload.talents, 'websim:mage:frost:frostfire:root:1')
+  assert.equal(mocks.profilePayload, null)
   assert.equal(mocks.savedTemplate.type, 'talent')
   assert.equal(mocks.savedTemplate.title, '我的AOE模板')
   assert.equal(mocks.savedTemplate.rawString, 'websim:mage:frost:frostfire:root:1')
+  assert.equal(Array.isArray(mocks.savedTemplate.simcLines), true)
+  assert.equal(mocks.savedTemplate.simcLines.length, 0)
+  assert.equal(mocks.savedTemplate.status, 'saved')
+  assert.equal(mocks.savedTemplate.statusLabel, '已保存')
   assert.deepEqual(mocks.savedTemplate.metadata.selectedNodes, selectedNodes)
 })
 
@@ -821,13 +856,14 @@ test('gear detail page exposes inline equipment simulator state and replacement 
 
   assert.match(js, /game-asset/)
   assert.match(js, /requestWebsimGear/)
-  assert.match(js, /requestWebsimGearStats/)
+  assert.doesNotMatch(js, /requestWebsimGearStats/)
   assert.match(js, /selectedGearBySlot/)
   assert.match(js, /gearSlotRows/)
-  assert.match(js, /gearStatSnapshot/)
-  assert.match(js, /gearStatBlockers/)
+  assert.match(js, /gearInitialLoading/)
+  assert.doesNotMatch(js, /gearStatSnapshot/)
+  assert.doesNotMatch(js, /gearStatBlockers/)
   assert.match(js, /loadWebsimGearForSelection/)
-  assert.match(js, /refreshGearStats/)
+  assert.doesNotMatch(js, /refreshGearStats/)
   assert.match(js, /openGearSlotSheet\(event\)/)
   assert.match(js, /selectGearCandidate\(event\)/)
   assert.match(js, /setGearCandidateFilter\(event\)/)
@@ -837,25 +873,33 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(js, /applyGearCandidate\(\)/)
   assert.match(js, /gearTemplateScenarios/)
   assert.match(js, /selectGearTemplateScenario\(event\)/)
+  assert.match(js, /openGearCommunityTemplates\(\)/)
+  assert.match(js, /applyGearCommunityTemplate\(event\)/)
+  assert.match(js, /resetGearSelection\(\)/)
   assert.doesNotMatch(js, /scenarioKey:\s*'single'/)
   assert.match(js, /selectedGearTemplateScenarioIndex/)
-  assert.match(js, /this\.refreshGearStats\(\)/)
+  assert.doesNotMatch(js, /this\.refreshGearStats\(\)/)
   assert.match(js, /saveGearTemplate\(\)/)
   assert.match(js, /canonicalGearTemplateLines/)
   assert.match(js, /syncBuildTemplate/)
   assert.doesNotMatch(wxml, /class="gear-status-strip"/)
   assert.doesNotMatch(wxml, /class="gear-template-picker"/)
-  assert.match(wxml, /class="gear-stat-panel"/)
-  assert.match(wxml, /gearStatSnapshot\.statStatus/)
-  assert.match(wxml, /gearStatBlockers/)
+  assert.doesNotMatch(wxml, /class="gear-stat-panel"/)
+  assert.doesNotMatch(wxml, /gearStatSnapshot\.statStatus/)
+  assert.doesNotMatch(wxml, /gearStatBlockers/)
   assert.match(wxml, /class="gear-slot-grid"/)
   assert.match(wxml, /wx:for="\{\{gearSlotRows\}\}"/)
+  assert.doesNotMatch(wxml, /source-strip/)
+  assert.match(wxml, /class="gear-loading-state" wx:if="\{\{gearInitialLoading\}\}"/)
   assert.match(wxml, /class="gear-icon"/)
   assert.match(wxml, /item\.gameAsset\.iconUrl/)
   assert.doesNotMatch(wxml, /item\.iconUrl/)
   assert.match(wxml, /item\.displayName/)
   assert.match(wxml, /item\.statusLabel/)
-  assert.match(wxml, /gearStatSnapshot\.itemLevel\.value/)
+  assert.doesNotMatch(wxml, /item\.reason/)
+  assert.doesNotMatch(wxml, /item\.source\s*(\|\||\}\})/)
+  assert.doesNotMatch(wxml, /item\.itemId/)
+  assert.doesNotMatch(wxml, /gearStatSnapshot\.itemLevel\.value/)
   assert.match(wxml, /bindtap="openGearSlotSheet"/)
   assert.match(wxml, /gearSlotSheet\.visible/)
   assert.match(wxml, /gearSlotSheet\.filters/)
@@ -869,15 +913,64 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(wxml, /bindtap="selectGearEnchantOption"/)
   assert.match(wxml, /bindtap="applyGearCandidate"/)
   assert.match(wxml, /bindtap="saveGearTemplate"/)
+  assert.match(wxml, /bindtap="openGearCommunityTemplates"/)
+  assert.match(wxml, /bindtap="resetGearSelection"/)
+  assert.match(wxml, /gearCommunityTemplateSheet\.visible/)
+  assert.match(wxml, /wx:for="\{\{activeGearCommunityTemplates\}\}"/)
+  assert.match(wxml, /bindtap="applyGearCommunityTemplate"/)
+  const gearPanelMarkup = wxml.match(/<view class="module-panel gear-panel"[\s\S]*?<view class="module-panel stats-panel"/)
+  assert.ok(gearPanelMarkup)
+  assert.doesNotMatch(gearPanelMarkup[0], /class="insight-list"/)
+  assert.match(wxml, /class="gear-template-actions" wx:if="\{\{!gearInitialLoading\}\}"/)
+  assert.match(wxml, /class="source-box" wx:if="\{\{activeDetail && activeQueryKey != 'gear'\}\}"/)
   assert.ok(wxml.indexOf('bindtap="saveGearTemplate"') > wxml.indexOf('class="gear-slot-grid"'))
-  assert.match(css, /\.gear-stat-panel/)
+  assert.doesNotMatch(css, /\.gear-stat-panel/)
   assert.match(css, /\.gear-slot-grid/)
-  assert.match(css, /\.gear-slot-card/)
+  assert.match(css, /\.gear-slot-card\s*\{[\s\S]*min-height:\s*176rpx;[\s\S]*padding:\s*12rpx;/)
+  assert.match(css, /\.gear-loading-state/)
   assert.match(css, /\.gear-slot-sheet/)
   assert.match(css, /\.gear-sheet-filter/)
   assert.match(css, /\.gear-variant-chip/)
   assert.match(css, /\.gear-mod-option/)
-  assert.match(css, /\.gear-template-actions/)
+  assert.match(css, /\.gear-template-actions\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/)
+  assert.match(css, /\.gear-community-template-sheet/)
+  assert.match(css, /\.gear-template-action-button\.primary\s*\{[\s\S]*grid-column:\s*1\s*\/\s*-1;/)
+})
+
+test('gear detail hides fallback insight while first gear payload is loading', () => {
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear: () => new Promise(() => {})
+  })
+  const page = {
+    data: {
+      selectedDetail: {
+        details: {
+          talents: { coreTalents: [], importCode: '' },
+          gear: {
+            sourceName: 'Mythicstats + Wowhead',
+            publishedAt: '2026-06-09',
+            items: ['old fallback gear insight']
+          }
+        }
+      },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: {},
+      gearSlotRows: [],
+      gearSelectionKey: '',
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.loadWebsimGearForSelection.call(page, {
+    selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' }
+  })
+
+  assert.equal(page.data.gearLoading, true)
+  assert.equal(page.data.gearInitialLoading, true)
 })
 
 test('gear slot candidate count matches selectable deduped equipment rows', () => {
@@ -1017,7 +1110,177 @@ test('gear slot sheet applies variant socket and enchant fields into selected ge
   assert.equal(selected.gem_ilevel, '710')
   assert.equal(selected.enchant_id, '8017')
   assert.equal(page.data.gearSlotSheet.visible, false)
-  assert.equal(refreshCalls, 1)
+  assert.equal(refreshCalls, 0)
+})
+
+test('gear detail does not request stat snapshot when gear payload loads', async () => {
+  let refreshCalls = 0
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear: () => Promise.resolve({
+      payload: {
+        classKey: 'mage',
+        specKey: 'frost',
+        slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+        replacementCandidates: [],
+        equippedSet: completeGearSelection(),
+        slotReadiness: {},
+        readiness: {
+          fullReady: true,
+          warnings: [],
+          itemLevel: { key: 'itemLevel', label: '装备等级', value: '0', rawValue: 0 }
+        },
+        statSnapshot: {
+          statStatus: 'blocked',
+          blockers: ['装备模拟数据暂不可用，等待后端返回槽位结构。'],
+          itemLevel: { key: 'itemLevel', label: '装备等级', value: '0', rawValue: 0 }
+        }
+      }
+    })
+  })
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: {},
+      gearSelectionKey: '',
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    },
+    refreshGearStats() {
+      refreshCalls += 1
+      return Promise.resolve()
+    }
+  }
+
+  pageConfig.loadWebsimGearForSelection.call(page, {
+    selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' }
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(refreshCalls, 0)
+  assert.equal(page.data.gearSlotRows.length, canonicalGearSlots.length)
+})
+
+test('gear template save requires all canonical slots and stores neutral complete status', () => {
+  const savedTemplates = []
+  const toasts = []
+  const pageConfig = loadBuildsDetailPageConfig({ savedTemplates, toasts })
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const incompleteSelection = completeGearSelection(canonicalGearSlots.slice(0, -1))
+  const completeSelection = completeGearSelection()
+  const page = {
+    data: {
+      selectedDetail: { className: '法师', specName: '冰霜', details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      selectedSpec: { className: '法师', title: '冰霜', specName: '冰霜', websimClassKey: 'mage', websimSpecKey: 'frost' },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots,
+        maxLevel: 90,
+        gearSchemaRevision: 'websim-gear-simulator-v1'
+      },
+      selectedGearBySlot: incompleteSelection,
+      selectedGearTemplateScenarioIndex: 0
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.saveGearTemplate.call(page)
+
+  assert.equal(savedTemplates.length, 0)
+  assert.match(toasts.at(-1).title, /请补齐 16 个装备槽位/)
+
+  page.data.selectedGearBySlot = completeSelection
+  pageConfig.saveGearTemplate.call(page)
+
+  assert.equal(savedTemplates.length, 1)
+  assert.equal(savedTemplates[0].status, 'complete')
+  assert.equal(savedTemplates[0].statusLabel, '完整配置')
+  assert.equal(Array.isArray(savedTemplates[0].simcLines), true)
+  assert.equal(savedTemplates[0].simcLines.length, 0)
+  assert.equal(savedTemplates[0].rawString.split('\n').length, canonicalGearSlots.length)
+})
+
+test('gear reset restores the backend equipped baseline', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const baseline = completeGearSelection(['head', 'neck'])
+  const modifiedHead = { ...baseline.head, itemId: '299999', id: '299999', displayName: 'Modified Head' }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots: ['head', 'neck'].map((slot) => ({ slot, simcSlot: slot, label: slot })),
+        equippedSet: baseline,
+        replacementCandidates: [],
+        slotReadiness: {},
+        readiness: {}
+      },
+      selectedGearBySlot: {
+        ...baseline,
+        head: modifiedHead
+      },
+      gearSlotSheet: { visible: true },
+      gearCommunityTemplateSheet: { visible: true }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.resetGearSelection.call(page)
+
+  assert.equal(page.data.selectedGearBySlot.head.itemId, baseline.head.itemId)
+  assert.equal(page.data.selectedGearBySlot.neck.itemId, baseline.neck.itemId)
+  assert.equal(page.data.gearSlotSheet.visible, false)
+  assert.equal(page.data.gearCommunityTemplateSheet.visible, false)
+})
+
+test('gear community template overlays template slots onto baseline only', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const baseline = completeGearSelection(['head', 'neck'])
+  const previousNeck = { ...baseline.neck, itemId: '288888', id: '288888', displayName: 'Previous Neck' }
+  const templateHead = { ...baseline.head, itemId: '277777', id: '277777', displayName: 'Community Head' }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots: ['head', 'neck'].map((slot) => ({ slot, simcSlot: slot, label: slot })),
+        equippedSet: baseline,
+        replacementCandidates: [],
+        slotReadiness: {},
+        readiness: {}
+      },
+      selectedGearBySlot: {
+        ...baseline,
+        neck: previousNeck
+      },
+      activeGearCommunityTemplates: [{
+        id: 'community-head',
+        name: 'Community Head Template',
+        canApplyGear: true,
+        gearItems: [templateHead]
+      }],
+      gearCommunityTemplateSheet: { visible: true },
+      gearSlotSheet: { visible: true }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.applyGearCommunityTemplate.call(page, { currentTarget: { dataset: { id: 'community-head' } } })
+
+  assert.equal(page.data.selectedGearBySlot.head.itemId, templateHead.itemId)
+  assert.equal(page.data.selectedGearBySlot.neck.itemId, baseline.neck.itemId)
+  assert.equal(page.data.gearCommunityTemplateSheet.visible, false)
+  assert.equal(page.data.gearSlotSheet.visible, false)
 })
 
 test('simc linkage derives talent and gear state from full specialization details', () => {

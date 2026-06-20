@@ -114,6 +114,26 @@ test('websim mini api wraps bootstrap talents profile gear and gear stats endpoi
               head: { slot: 'head', status: 'verified', reason: 'SimC-ready item' }
             },
             replacementCandidates: [{ slot: 'head', label: '头部', items: [] }],
+            communityTemplates: [{
+              id: 'preset-mage-frost',
+              name: 'Preset Mage Frost',
+              classKey: 'mage',
+              specKey: 'frost',
+              sourceName: 'SimC preset',
+              sourceStatus: 'partial',
+              status: 'partial',
+              readySlotCount: 1,
+              missingSlots: ['neck'],
+              gearItems: [{ slot: 'head', itemId: '250101' }],
+              rawString: 'head=verified_hood,id=250101',
+              canApplyGear: true
+            }],
+            communityTemplateSync: {
+              sourceStatus: 'partial',
+              sources: { simc_presets: { status: 'partial', sourceName: 'SimC preset', errors: [] } },
+              templates: { total: 1, verified: 0, partial: 1, blocked: 0 },
+              checkedAt: '2026-06-20T00:00:00Z'
+            },
             readiness: { fullReady: false },
             gearSchemaRevision: 'websim-gear-simulator-v1',
             maxLevel: 90
@@ -157,6 +177,8 @@ test('websim mini api wraps bootstrap talents profile gear and gear stats endpoi
   assert.equal(talents.payload.nodes[0].name, 'Ice Lance')
   assert.equal(gear.payload.gearSchemaRevision, 'websim-gear-simulator-v1')
   assert.equal(gear.payload.equippedSet.head.itemId, '250101')
+  assert.equal(gear.payload.communityTemplateSync.sourceStatus, 'partial')
+  assert.equal(gear.payload.communityTemplates[0].canApplyGear, true)
   assert.equal(stats.payload.statStatus, 'verified')
   assert.equal(stats.payload.primary.value, '12345')
   assert.equal(profile.payload.talentEncoding.status, 'encoded')

@@ -9,7 +9,7 @@ const queryTypes = [
   {
     key: 'gear',
     title: '装备模拟',
-    desc: '查看满级属性、替换装备并校验 SimC-ready 状态。'
+    desc: '替换装备、补齐 16 槽并保存装备配置字符串。'
   },
   {
     key: 'statWeights',
