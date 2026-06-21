@@ -79,8 +79,7 @@ test('primary form actions stay inside the compact 72rpx button rhythm', () => {
   const checks = [
     ['pages/simulator/simc.wxss', '.confirm-button,\n.submit-button'],
     ['pages/simulator/wcl.wxss', '.submit-button'],
-    ['pages/simulator/chickenbro.wxss', '.submit-button'],
-    ['pages/builds/detail.wxss', '.gear-apply-button']
+    ['pages/simulator/chickenbro.wxss', '.submit-button']
   ]
 
   for (const [file, selector] of checks) {
@@ -89,4 +88,24 @@ test('primary form actions stay inside the compact 72rpx button rhythm', () => {
     assert.match(buttonBlock, /min-height:\s*72rpx;/, `${selector} in ${file} should be 72rpx high`)
     assert.doesNotMatch(buttonBlock, /line-height:\s*84rpx;/, `${selector} in ${file} should not keep 84rpx line height`)
   }
+})
+
+test('gear replacement sheet keeps apply action in the compact sheet rhythm', () => {
+  const css = read('pages/builds/detail.wxss')
+  const applyBlock = block(css, '.gear-apply-button')
+  assert.match(applyBlock, /width:\s*112rpx;/)
+  assert.match(applyBlock, /min-height:\s*48rpx;/)
+  assert.match(applyBlock, /line-height:\s*48rpx;/)
+  assert.doesNotMatch(applyBlock, /min-width:\s*156rpx;/)
+  assert.doesNotMatch(applyBlock, /min-height:\s*72rpx;/)
+})
+
+test('gear replacement sheet keeps candidate detail action fixed and narrow', () => {
+  const css = read('pages/builds/detail.wxss')
+  const actionBlock = block(css, '.gear-candidate-action')
+  const detailButtonBlock = block(css, '.gear-candidate-detail-button')
+  assert.match(actionBlock, /width:\s*96rpx;/)
+  assert.match(detailButtonBlock, /width:\s*86rpx;/)
+  assert.match(detailButtonBlock, /min-height:\s*40rpx;/)
+  assert.doesNotMatch(detailButtonBlock, /padding:\s*0\s+12rpx;/)
 })

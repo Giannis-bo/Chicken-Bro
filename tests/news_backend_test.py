@@ -3284,6 +3284,7 @@ class NewsBackendTest(unittest.TestCase):
                     "variantRevision": "variants-test-rev",
                     "checkedAt": "2026-06-19T00:00:00+00:00",
                     "blockers": ["1 catalog item missing selectable variant"],
+                    "topBlockers": [{"reason": "missing deterministic SimC variant preset", "count": 2}],
                 },
             )
             conn.commit()
@@ -3296,6 +3297,21 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(components["gear_catalog"]["details"]["itemCount"], 12)
         self.assertEqual(components["gear_catalog"]["details"]["variantCount"], 21)
         self.assertEqual(components["gear_catalog"]["details"]["itemDatabaseRevision"], "items-test-rev")
+        self.assertEqual(
+            components["gear_catalog"]["details"]["variantReadiness"],
+            {"verified": 18, "partial": 2, "blocked": 1, "total": 21},
+        )
+        self.assertEqual(
+            components["gear_catalog"]["details"]["modOptionCoverage"],
+            {
+                "socket": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
+                "enchant": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
+            },
+        )
+        self.assertEqual(
+            components["gear_catalog"]["details"]["topBlockers"][0],
+            {"reason": "missing deterministic SimC variant preset", "count": 2},
+        )
         self.assertIn("1 catalog item missing selectable variant", components["gear_catalog"]["blockers"])
 
     def test_data_health_payload_includes_community_template_scan_coverage(self):

@@ -33,11 +33,9 @@ const gearTemplateScenarios = [
   { key: 'raid', title: '团本' }
 ]
 const gearCandidateFilters = [
-  { key: 'recommended', label: '推荐' },
   { key: 'all', label: '全部' },
-  { key: 'dungeon', label: '地下城' },
-  { key: 'raid', label: '团本' },
-  { key: 'crafted', label: '制造' }
+  { key: 'dungeon', label: '大秘境' },
+  { key: 'raid', label: '团本' }
 ]
 const maxGearTemplateTitleLength = 28
 const gearClassLabels = {
@@ -225,6 +223,39 @@ function stringList(values) {
     .filter(Boolean)
 }
 
+function localizedGearIssue(value) {
+  const text = String(value || '').trim()
+  const normalized = text.toLowerCase()
+  if (!text) return ''
+  if (normalized.includes('deterministic simc variant')) return '缺少确定 SimC 变体'
+  if (normalized.includes('bonus_id/gem_id/enchant_id')) return '缺少 bonus/宝石/附魔'
+  if (normalized.includes('missing item id') || normalized === 'itemid' || normalized === 'item id') return '缺少物品 ID'
+  if (normalized.includes('item level') || normalized === 'ilevel' || normalized === 'itemlevel') return '缺少装等'
+  if (normalized.includes('variantkey') || normalized === 'variant key') return '缺少变体'
+  if (normalized === 'slot') return '缺少槽位'
+  if (normalized.includes('observed gear source is not verified')) return '观测来源未验证'
+  if (normalized.includes('crafted variant missing deterministic simc options')) return '制造变体缺少确定 SimC 字段'
+  if (normalized.includes('missing item')) return '缺少装备'
+  return text
+}
+
+function localizedGearIssues(values) {
+  const seen = new Set()
+  return stringList(values)
+    .map(localizedGearIssue)
+    .filter((item) => {
+      if (!item || seen.has(item)) return false
+      seen.add(item)
+      return true
+    })
+}
+
+function gearIssueText(values, fallback) {
+  const issues = localizedGearIssues(values)
+  if (issues.length) return issues.join('；')
+  return localizedGearIssue(fallback || '')
+}
+
 function isSourceReferenceGear(item) {
   const statusValues = [
     item && item.status,
@@ -262,7 +293,7 @@ function gearTrustState(item, fallbackStatus, fallbackReason) {
     }
   }
   if (status === 'source-reference') {
-    const details = blockers.length ? blockers.join('；') : (missingFields.length ? `缺 ${missingFields.join(' / ')}` : fallbackReason)
+    const details = gearIssueText(blockers.length ? blockers : missingFields, fallbackReason)
     return {
       status,
       label: '来源参考',
@@ -271,7 +302,7 @@ function gearTrustState(item, fallbackStatus, fallbackReason) {
     }
   }
   if (status === 'partial') {
-    const details = missingFields.length ? `缺 ${missingFields.join(' / ')}` : (fallbackReason || '缺少可执行装备字段')
+    const details = gearIssueText(missingFields, fallbackReason || '缺少可执行装备字段')
     return {
       status,
       label: '缺字段',
@@ -279,7 +310,7 @@ function gearTrustState(item, fallbackStatus, fallbackReason) {
       blockerLabel: details
     }
   }
-  const details = blockers.length ? blockers.join('；') : (fallbackReason || '缺少可执行装备字段')
+  const details = gearIssueText(blockers, fallbackReason || '缺少可执行装备字段')
   return {
     status: 'blocked',
     label: '阻断',
@@ -692,14 +723,44 @@ function gearCandidateSourceType(item) {
 
 function gearCandidateMatchesFilter(item, filterKey) {
   if (!filterKey || filterKey === 'all') return true
-  if (filterKey === 'recommended') {
-    return Number(item.recommendationScore || 0) > 0 || !!item.selected || !!item.simcReady
-  }
   return gearCandidateSourceType(item) === filterKey
 }
 
 function gearOptionKey(option, index) {
   return (option && (option.id || option.key || option.name)) || `option-${index}`
+}
+
+function gearVariantDifficultyLabel(variant) {
+  const explicit = variant && (variant.difficultyLabel || variant.difficultyName)
+  if (explicit) return explicit
+  const key = String((variant && (variant.difficultyKey || variant.sourceType)) || '').toLowerCase().replace(/[-\s]+/g, '_')
+  const labels = {
+    normal: '普通',
+    heroic: '英雄',
+    mythic: '史诗',
+    lfr: '随机',
+    raid_finder: '随机',
+    mythic_plus: '大秘境',
+    dungeon: '大秘境',
+    raid: '团本',
+    observed_profile: '实装观测',
+    needs_variant: '难度待补'
+  }
+  if (labels[key]) return labels[key]
+  const label = String((variant && variant.label) || '')
+  if (/heroic|英雄/i.test(label)) return '英雄'
+  if (/mythic\+|mythic plus|大秘境/i.test(label)) return '大秘境'
+  if (/mythic|史诗|神话/i.test(label)) return '史诗'
+  if (/normal|普通/i.test(label)) return '普通'
+  if (/raid finder|lfr|随机/i.test(label)) return '随机'
+  if (/select difficulty|待补/i.test(label)) return '难度待补'
+  return label || '难度待补'
+}
+
+function gearVariantLevelLabel(variant) {
+  const rawLevel = variant && (variant.itemLevel || variant.ilevel)
+  const level = Number(rawLevel || 0)
+  return level > 0 ? `装等 ${level}` : ''
 }
 
 function decorateVariantOptions(candidate, selectedKey) {
@@ -709,6 +770,8 @@ function decorateVariantOptions(candidate, selectedKey) {
     return {
       ...variant,
       key,
+      displayLabel: gearVariantDifficultyLabel(variant),
+      levelLabel: gearVariantLevelLabel(variant),
       selected: key === selectedKey,
       statusClass: gearStatusClass(variant.status || 'partial')
     }
@@ -763,7 +826,8 @@ function appliedGearCandidate(candidate, variantKey, socketOptionId, enchantOpti
   }
   if (variant) {
     selected.variantKey = variant.key || variant.variantKey || ''
-    selected.variantLabel = variant.label || ''
+    selected.variantLabel = gearVariantDifficultyLabel(variant) || variant.label || ''
+    selected.variantDifficultyLabel = gearVariantDifficultyLabel(variant)
     selected.difficultyKey = variant.difficultyKey || selected.difficultyKey || ''
     selected.sourceType = variant.sourceType || selected.sourceType || ''
     if (variant.itemLevel || variant.ilevel) selected.ilevel = variant.itemLevel || variant.ilevel
@@ -795,17 +859,99 @@ function gearModSummary(item) {
   return parts.join(' / ')
 }
 
+function gearDropSourceText(item) {
+  const labels = gearCandidateSources(item)
+    .map((source) => source && (source.label || source.sourceLabel || source.encounterName || source.instanceName))
+    .filter(Boolean)
+  const fallback = item && (item.source || item.sourceName || [item.instanceName, item.encounterName].filter(Boolean).join(' · '))
+  const values = stringList(labels.length ? labels : [fallback])
+  const seen = new Set()
+  return values.filter((value) => {
+    if (seen.has(value)) return false
+    seen.add(value)
+    return true
+  }).slice(0, 3).join('；') || '来源待补充'
+}
+
+function gearStatLabel(label) {
+  const normalized = String(label || '').trim().toLowerCase()
+  const labels = {
+    intellect: '智力',
+    int: '智力',
+    agility: '敏捷',
+    agi: '敏捷',
+    strength: '力量',
+    str: '力量',
+    stamina: '耐力',
+    sta: '耐力',
+    crit: '暴击',
+    critical_strike: '暴击',
+    haste: '急速',
+    mastery: '精通',
+    versatility: '全能',
+    armor: '护甲',
+    avoidance: '闪避',
+    leech: '吸血',
+    speed: '速度'
+  }
+  return labels[normalized] || String(label || '').trim()
+}
+
+function gearStatText(stat) {
+  if (!stat) return ''
+  if (typeof stat === 'string') return stat.trim()
+  if (typeof stat !== 'object') return ''
+  const label = gearStatLabel(stat.label || stat.name || stat.stat || stat.key || stat.type)
+  const value = stat.value !== undefined && stat.value !== null && stat.value !== ''
+    ? stat.value
+    : (stat.amount || stat.rating || stat.displayValue || stat.text || '')
+  if (label && value) return `${label} ${value}`
+  return label || String(value || '').trim()
+}
+
+function gearAttributeText(item) {
+  const statSources = [
+    item && item.stats,
+    item && item.itemStats,
+    item && item.attributes,
+    item && item.secondaryStats
+  ]
+  const parts = []
+  statSources.forEach((stats) => {
+    if (Array.isArray(stats)) {
+      stats.map(gearStatText).filter(Boolean).forEach((text) => parts.push(text))
+    }
+  })
+  if (item && item.statSummary) parts.push(item.statSummary)
+  if (!parts.length && item && item.ilevel) parts.push(`装等 ${item.ilevel}`)
+  const seen = new Set()
+  return parts.filter((value) => {
+    if (!value || seen.has(value)) return false
+    seen.add(value)
+    return true
+  }).join('；') || '属性待补充'
+}
+
+function gearCandidateDetailRows(item) {
+  const rows = []
+  rows.push({ label: '掉落来源', value: gearDropSourceText(item) })
+  rows.push({ label: '装备属性', value: gearAttributeText(item) })
+  return rows
+}
+
 function emptyGearSlotSheet() {
   return {
     visible: false,
     slot: '',
     label: '',
     item: null,
-    filterKey: 'recommended',
+    filterKey: 'all',
     filters: gearCandidateFilters,
     candidates: [],
     allCandidates: [],
     selectedCandidateIndex: 0,
+    detailKey: '',
+    emptyText: '',
     activeCandidate: null,
     appliedCandidate: null,
     variantKey: '',
@@ -822,9 +968,9 @@ function emptyGearSlotSheet() {
 
 function buildGearSlotSheet(slot, row, allCandidates, options) {
   const config = options || {}
-  const filterKey = config.filterKey || 'recommended'
+  const filterKey = config.filterKey || 'all'
   const filtered = allCandidates.filter((item) => gearCandidateMatchesFilter(item, filterKey))
-  const candidates = filtered.length || filterKey === 'all' ? filtered : allCandidates
+  const candidates = filtered
   const selectedCandidateIndex = Math.max(0, Math.min(Number(config.candidateIndex) || 0, Math.max(candidates.length - 1, 0)))
   const activeCandidate = candidates[selectedCandidateIndex] || null
   const defaultVariant = candidateVariant(activeCandidate, config.variantKey)
@@ -833,6 +979,7 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
   const enchantOptionId = config.enchantOptionId || ''
   const appliedCandidate = appliedGearCandidate(activeCandidate, variantKey, socketOptionId, enchantOptionId)
   const activeTrust = gearTrustState(appliedCandidate || activeCandidate, activeCandidate && activeCandidate.statusClass, activeCandidate && activeCandidate.reason)
+  const detailKey = candidates.some((item) => item.key === config.detailKey) ? config.detailKey : ''
   return {
     visible: true,
     slot,
@@ -848,10 +995,13 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
     })),
     candidates: candidates.map((candidate, index) => ({
       ...candidate,
-      selected: index === selectedCandidateIndex
+      selected: index === selectedCandidateIndex,
+      detailOpen: candidate.key === detailKey
     })),
     allCandidates,
     selectedCandidateIndex,
+    detailKey,
+    emptyText: candidates.length ? '' : '该来源暂无候选装备',
     activeCandidate,
     appliedCandidate,
     variantKey,
@@ -894,6 +1044,7 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
       modSummary: gearModSummary(item),
       statusLabel: gearStatusLabel(trust.status),
       statusClass: gearStatusClass(trust.status),
+      detailRows: gearCandidateDetailRows(item, trust),
       trustLabel: trust.label,
       trustReason: trust.reason,
       blockerLabel: trust.blockerLabel,
@@ -1279,7 +1430,7 @@ Page({
     const row = (this.data.gearSlotRows || []).find((item) => item.slot === slot) || {}
     const candidates = buildGearCandidateRows(slot, this.data.gearPayload || {}, this.data.selectedGearBySlot || {})
     this.setData({
-      gearSlotSheet: buildGearSlotSheet(slot, row, candidates, { filterKey: 'recommended' })
+      gearSlotSheet: buildGearSlotSheet(slot, row, candidates, { filterKey: 'all' })
     })
   },
 
@@ -1377,7 +1528,28 @@ Page({
     this.setData({
       gearSlotSheet: buildGearSlotSheet(sheet.slot, sheet.item || {}, sheet.allCandidates || sheet.candidates || [], {
         filterKey: sheet.filterKey || 'all',
-        candidateIndex: index
+        candidateIndex: index,
+        detailKey: sheet.detailKey || ''
+      })
+    })
+  },
+
+  toggleGearCandidateDetail(event) {
+    const index = Number(event.currentTarget.dataset.index || 0)
+    const sheet = this.data.gearSlotSheet || {}
+    const candidates = sheet.candidates || []
+    const candidate = candidates[index]
+    if (!sheet.slot || !candidate) return
+    const key = candidate.key || ''
+    const detailKey = sheet.detailKey === key ? '' : key
+    this.setData({
+      gearSlotSheet: buildGearSlotSheet(sheet.slot, sheet.item || {}, sheet.allCandidates || candidates, {
+        filterKey: sheet.filterKey || 'all',
+        candidateIndex: sheet.selectedCandidateIndex || 0,
+        variantKey: sheet.variantKey || '',
+        socketOptionId: sheet.socketOptionId || '',
+        enchantOptionId: sheet.enchantOptionId || '',
+        detailKey
       })
     })
   },
@@ -1392,7 +1564,8 @@ Page({
         candidateIndex: sheet.selectedCandidateIndex || 0,
         variantKey: key,
         socketOptionId: sheet.socketOptionId || '',
-        enchantOptionId: sheet.enchantOptionId || ''
+        enchantOptionId: sheet.enchantOptionId || '',
+        detailKey: sheet.detailKey || ''
       })
     })
   },
@@ -1407,7 +1580,8 @@ Page({
         candidateIndex: sheet.selectedCandidateIndex || 0,
         variantKey: sheet.variantKey || '',
         socketOptionId: id,
-        enchantOptionId: sheet.enchantOptionId || ''
+        enchantOptionId: sheet.enchantOptionId || '',
+        detailKey: sheet.detailKey || ''
       })
     })
   },
@@ -1422,7 +1596,8 @@ Page({
         candidateIndex: sheet.selectedCandidateIndex || 0,
         variantKey: sheet.variantKey || '',
         socketOptionId: sheet.socketOptionId || '',
-        enchantOptionId: id
+        enchantOptionId: id,
+        detailKey: sheet.detailKey || ''
       })
     })
   },

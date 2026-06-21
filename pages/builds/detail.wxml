@@ -196,21 +196,29 @@
       </view>
     </view>
     <view class="gear-candidate-list">
-      <view class="gear-candidate-row {{item.statusClass}} {{item.selected ? 'selected' : ''}}" wx:for="{{gearSlotSheet.candidates}}" wx:for-index="candidateIndex" wx:key="key" data-index="{{candidateIndex}}" data-slot="{{gearSlotSheet.slot}}" bindtap="selectGearCandidate">
-        <view class="gear-icon-frame {{item.statusClass}}">
-          <image wx:if="{{item.gameAsset.iconUrl}}" class="gear-icon" src="{{item.gameAsset.iconUrl}}" mode="aspectFill"></image>
-          <text wx:else class="gear-icon-fallback">{{item.gameAsset.fallbackText}}</text>
+      <view class="gear-candidate-row {{item.statusClass}} {{item.selected ? 'selected' : ''}}" wx:for="{{gearSlotSheet.candidates}}" wx:for-index="candidateIndex" wx:key="key">
+        <view class="gear-candidate-main" data-index="{{candidateIndex}}" data-slot="{{gearSlotSheet.slot}}" bindtap="selectGearCandidate">
+          <view class="gear-icon-frame {{item.statusClass}}">
+            <image wx:if="{{item.gameAsset.iconUrl}}" class="gear-icon" src="{{item.gameAsset.iconUrl}}" mode="aspectFill"></image>
+            <text wx:else class="gear-icon-fallback">{{item.gameAsset.fallbackText}}</text>
+          </view>
+          <view class="gear-copy">
+            <text class="gear-name">{{item.displayName}}</text>
+            <text class="gear-source" wx:if="{{item.ilevel}}">装等 {{item.ilevel}}</text>
+          </view>
+          <view class="gear-candidate-action">
+            <button class="gear-candidate-detail-button" data-index="{{candidateIndex}}" catchtap="toggleGearCandidateDetail">{{item.detailOpen ? '收起' : '详情'}}</button>
+          </view>
         </view>
-        <view class="gear-copy">
-          <text class="gear-name">{{item.displayName}}</text>
-          <text class="gear-source" wx:if="{{item.ilevel}}">装等 {{item.ilevel}}</text>
+        <view class="gear-candidate-detail" wx:if="{{item.detailOpen}}">
+          <view class="gear-candidate-detail-row" wx:for="{{item.detailRows}}" wx:for-item="detail" wx:key="label">
+            <text class="gear-candidate-detail-label">{{detail.label}}</text>
+            <text class="gear-candidate-detail-value">{{detail.value}}</text>
+          </view>
         </view>
-        <view class="gear-candidate-meta">
-          <text class="gear-slot-status">{{item.statusLabel}}</text>
-          <text>{{item.trustLabel}}</text>
-          <text wx:if="{{item.blockerLabel}}">{{item.blockerLabel}}</text>
-          <text wx:if="{{item.ilevel}}">装等 {{item.ilevel}}</text>
-        </view>
+      </view>
+      <view class="gear-candidate-empty" wx:if="{{gearSlotSheet.emptyText}}">
+        <text>{{gearSlotSheet.emptyText}}</text>
       </view>
     </view>
     <view class="gear-sheet-config" wx:if="{{gearSlotSheet.activeCandidate}}">
@@ -222,8 +230,8 @@
         <text class="gear-sheet-section-title">难度 / 装等</text>
         <view class="gear-variant-list">
           <view class="gear-variant-chip {{item.selected ? 'active' : ''}} {{item.statusClass}}" wx:for="{{gearSlotSheet.variantOptions}}" wx:key="key" data-key="{{item.key}}" bindtap="selectGearVariant">
-            <text>{{item.label}}</text>
-            <text>{{item.itemLevel || item.ilevel}}</text>
+            <text>{{item.displayLabel}}</text>
+            <text wx:if="{{item.levelLabel}}">{{item.levelLabel}}</text>
           </view>
         </view>
       </view>
@@ -243,7 +251,10 @@
           </view>
         </view>
       </view>
-      <button class="gear-apply-button" bindtap="applyGearCandidate">应用到该部位</button>
+      <view class="gear-apply-row">
+        <text class="gear-apply-state">{{gearSlotSheet.activeTrustLabel}} · {{gearSlotSheet.activeTrustText}}</text>
+        <button class="gear-apply-button" bindtap="applyGearCandidate">应用</button>
+      </view>
     </view>
   </view>
 

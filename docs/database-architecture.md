@@ -9,7 +9,7 @@
 | Identity | `wechat_users`, `auth_tokens` | 持久账号与会话 | `auth_tokens.user_id` 必须指向 `wechat_users.id`，过期 token 会被清理。 |
 | User Data | `user_build_templates`, `simulator_tasks` | 用户资产 | 写接口必须有账号 token，或显式 guest policy；列表/详情/删除只能访问当前 owner。 |
 | News | `news_articles`, `news_sources`, `news_raw_articles`, `news_article_evidence`, `news_refresh_runs` | 可审计内容发布 | 公共 payload 只发布通过授权、官方校验和 source translation 门禁的内容。 |
-| WebSim/Game Cache | `websim_*`, Raider.IO/stat weight cache | 可重建缓存 | 缺凭据、过期或对账失败时必须降级为 `partial`、`stale` 或 `blocked`。 |
+| WebSim/Game Cache | `websim_*`, Raider.IO/stat weight cache | 可重建 Season Data Cache | 缺凭据、过期或对账失败时必须降级为 `partial`、`stale` 或 `blocked`；本地只保存规范化证据、索引、读取模型和健康状态，不作为人工维护的真理库。 |
 | Analytics | `analytics_*` | 事件与聚合 | 不存用户提交的 prompt/profile 原文；可归档，不能混入用户资产表。 |
 | Ops | `schema_migrations`, `websim_sync_state` | 运维控制面 | 记录已初始化的 schema 能力和同步状态。 |
 
@@ -36,6 +36,8 @@
 ## 数据健康接口
 
 `GET /api/data/health` 是只读聚合接口，不主动触发外部同步。它汇总新闻发布门禁、Raider.IO 缓存、WebSim 赛季、WebSim 同步、社区模板、Stat Weights、Warcraft Logs credentials 和 Battle.net API 配置状态。
+
+装备、宝石、附魔和变体属于 `Season Data Cache` 的核心读模型。每条可被前端或 SimC 链路消费的数据都应能追溯到 `sourceType`、`sourceStatus`、`seasonRevision`、`checkedAt`、`status` 和 `blockers`；缺少确定 `bonus_id/gem_id/enchant_id/crafted_stats` 等 SimC 字段时保持 `partial` 或 `blocked`，不得把展示候选标为可执行。
 
 状态只允许使用：
 

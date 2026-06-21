@@ -43,6 +43,7 @@ class WebSimPayloadTest(unittest.TestCase):
         os.environ.pop("WOW_SIMC_SPELLTEXT_DATA_FILE", None)
         os.environ.pop("WOW_SIMC_BIN", None)
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        os.environ.pop("WOW_WEBSIM_CRAFTED_GEAR_SEED", None)
         for attempt in range(5):
             try:
                 self.tmp.cleanup()
@@ -1503,13 +1504,28 @@ class WebSimPayloadTest(unittest.TestCase):
                 "250777",
                 {
                     "id": 250777,
-                    "name": "Catalog Hood",
-                    "inventory_type": {"name": "Head"},
+                    "name": "Catalog Band",
+                    "inventory_type": {"type": "INVTYPE_FINGER", "name": "Finger"},
                     "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [
+                            {
+                                "type": {"type": "INTELLECT", "name": "智力"},
+                                "value": 1234,
+                                "display": {"display_string": "+1,234 智力"},
+                            },
+                            {
+                                "type": {"type": "HASTE_RATING", "name": "急速"},
+                                "value": 567,
+                                "display": {"display_string": "+567 急速"},
+                            },
+                        ],
+                        "sockets": [{"socket_type": {"type": "PRISMATIC", "name": "棱彩插槽"}}],
+                    },
                 },
                 {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
-                fallback_name="Catalog Hood",
-                english_payload={"name": "Catalog Hood"},
+                fallback_name="Catalog Band",
+                english_payload={"name": "Catalog Band", "inventory_type": {"name": "Finger"}},
                 locale="en_US",
             )
             conn.execute(
@@ -1542,7 +1558,7 @@ class WebSimPayloadTest(unittest.TestCase):
                 (
                     "variant-250777-heroic-707",
                     "250777",
-                    "head",
+                    "finger1",
                     "heroic-707",
                     "Heroic 707",
                     "raid",
@@ -1567,7 +1583,7 @@ class WebSimPayloadTest(unittest.TestCase):
                         "socket-gem-240983",
                         "socket",
                         "Quick Gem",
-                        json.dumps(["head"], ensure_ascii=False),
+                        json.dumps(["finger1"], ensure_ascii=False),
                         json.dumps({"gem_id": "240983", "gem_ilevel": "707"}, ensure_ascii=False),
                         "verified",
                         "{}",
@@ -1577,7 +1593,7 @@ class WebSimPayloadTest(unittest.TestCase):
                         "enchant-8017",
                         "enchant",
                         "Radiant Enchant",
-                        json.dumps(["head"], ensure_ascii=False),
+                        json.dumps(["finger1"], ensure_ascii=False),
                         json.dumps({"enchant_id": "8017"}, ensure_ascii=False),
                         "verified",
                         "{}",
@@ -1610,11 +1626,13 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["catalogStatus"], "verified")
         self.assertEqual(payload["itemDatabaseRevision"], "items-test-rev")
         self.assertEqual(payload["variantRevision"], "variants-test-rev")
-        head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
-        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250777")
+        finger_group = next(group for group in payload["slotGroups"] if group["slot"] == "finger1")
+        catalog_item = next(item for item in finger_group["items"] if item["itemId"] == "250777")
         self.assertEqual(catalog_item["sources"][0]["label"], "Vault Mage - Arcane Vault")
         self.assertEqual(catalog_item["sources"][0]["sourceType"], "raid")
+        self.assertEqual(catalog_item["sources"][0]["difficultyLabel"], "英雄")
         self.assertEqual(catalog_item["variants"][0]["key"], "heroic-707")
+        self.assertEqual(catalog_item["variants"][0]["difficultyLabel"], "英雄")
         self.assertEqual(catalog_item["variants"][0]["itemLevel"], 707)
         self.assertEqual(catalog_item["variants"][0]["simcOptions"]["bonus_id"], "12345")
         self.assertEqual(catalog_item["defaultVariantKey"], "heroic-707")
@@ -1622,8 +1640,125 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(catalog_item["bonus_id"], "12345")
         self.assertEqual(catalog_item["recommendationScore"], 91)
         self.assertEqual(catalog_item["compatibility"]["status"], "compatible")
+        self.assertEqual(catalog_item["itemStats"][0]["label"], "智力")
+        self.assertEqual(catalog_item["itemStats"][0]["value"], 1234)
+        self.assertIn("智力 1234", catalog_item["statSummary"])
+        self.assertIn("急速 567", catalog_item["statSummary"])
+        self.assertTrue(catalog_item["modCapabilities"]["hasSocket"])
+        self.assertTrue(catalog_item["modCapabilities"]["canEnchant"])
         self.assertEqual(catalog_item["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
         self.assertEqual(catalog_item["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
+
+    def test_websim_gear_payload_hides_mod_options_when_item_lacks_socket_or_enchant_slot(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250778",
+                {
+                    "id": 250778,
+                    "name": "Catalog Hood",
+                    "inventory_type": {"type": "INVTYPE_HEAD", "name": "Head"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [
+                            {"type": {"type": "INTELLECT", "name": "智力"}, "value": 999},
+                        ],
+                    },
+                },
+                fallback_name="Catalog Hood",
+                english_payload={"name": "Catalog Hood", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {"id": "manual-250778", "itemId": "250778", "sourceType": "raid", "sourceLabel": "Arcane Vault"},
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "manual-250778-heroic",
+                    "itemId": "250778",
+                    "slot": "head",
+                    "variantKey": "heroic-707",
+                    "label": "Heroic 707",
+                    "sourceType": "raid",
+                    "difficultyKey": "heroic",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "verified",
+                },
+            )
+            conn.executemany(
+                """
+                INSERT INTO websim_gear_mod_options
+                (id, option_type, name, applicable_slots_json, simc_options_json,
+                 status, payload_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        "socket-gem-240983",
+                        "socket",
+                        "Quick Gem",
+                        json.dumps(["*"], ensure_ascii=False),
+                        json.dumps({"gem_id": "240983"}, ensure_ascii=False),
+                        "verified",
+                        "{}",
+                        "now",
+                    ),
+                    (
+                        "enchant-8017",
+                        "enchant",
+                        "Radiant Enchant",
+                        json.dumps(["head"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "8017"}, ensure_ascii=False),
+                        "verified",
+                        "{}",
+                        "now",
+                    ),
+                ],
+            )
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane")
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
+        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250778")
+        self.assertFalse(catalog_item["modCapabilities"]["hasSocket"])
+        self.assertFalse(catalog_item["modCapabilities"]["canEnchant"])
+        self.assertEqual(catalog_item["socketOptions"], [])
+        self.assertEqual(catalog_item["enchantOptions"], [])
+
+    def test_gear_candidate_sanitizer_strips_stale_placeholder_mod_options(self):
+        candidate = self.websim_payload.sanitize_gear_candidate_mod_options(
+            {
+                "slot": "head",
+                "itemId": "250778",
+                "id": "250778",
+                "modCapabilities": {"hasSocket": False, "canEnchant": False},
+                "socketOptions": [
+                    {
+                        "id": "seed-socket-gem-240983",
+                        "name": "Server seed gem 240983",
+                        "simcOptions": {"gem_id": "240983"},
+                    }
+                ],
+                "enchantOptions": [
+                    {
+                        "id": "seed-enchant-8017",
+                        "name": "Server seed enchant 8017",
+                        "simcOptions": {"enchant_id": "8017"},
+                    }
+                ],
+            }
+        )
+
+        self.assertEqual(candidate["socketOptions"], [])
+        self.assertEqual(candidate["enchantOptions"], [])
+        self.assertFalse(candidate["modCapabilities"]["hasSocket"])
+        self.assertFalse(candidate["modCapabilities"]["canEnchant"])
 
     def test_gear_catalog_sync_adds_observed_profile_variants_from_raiderio(self):
         conn = sqlite3.connect(self.db_path)
@@ -1973,13 +2108,13 @@ class WebSimPayloadTest(unittest.TestCase):
                 {
                     "type": "socket",
                     "name": "Quick Gem",
-                    "slots": ["head"],
+                    "slots": ["finger1"],
                     "simcOptions": {"gem_id": "240983", "gem_ilevel": "707"},
                 },
                 {
                     "type": "enchant",
                     "name": "Radiant Enchant",
-                    "slots": ["head"],
+                    "slots": ["finger1"],
                     "simcOptions": {"enchant_id": "8017"},
                 },
             ],
@@ -1993,13 +2128,16 @@ class WebSimPayloadTest(unittest.TestCase):
                 "250777",
                 {
                     "id": 250777,
-                    "name": "Catalog Hood",
-                    "inventory_type": {"name": "Head"},
+                    "name": "Catalog Band",
+                    "inventory_type": {"type": "INVTYPE_FINGER", "name": "Finger"},
                     "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "sockets": [{"socket_type": {"type": "PRISMATIC", "name": "Prismatic Socket"}}],
+                    },
                 },
                 {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
-                fallback_name="Catalog Hood",
-                english_payload={"name": "Catalog Hood"},
+                fallback_name="Catalog Band",
+                english_payload={"name": "Catalog Band", "inventory_type": {"name": "Finger"}},
                 locale="en_US",
             )
             self.websim_payload.upsert_gear_source(
@@ -2016,7 +2154,7 @@ class WebSimPayloadTest(unittest.TestCase):
                 {
                     "id": "manual-250777-heroic",
                     "itemId": "250777",
-                    "slot": "head",
+                    "slot": "finger1",
                     "variantKey": "heroic-707",
                     "label": "Heroic 707",
                     "sourceType": "raid",
@@ -2030,13 +2168,13 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
-        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250777")
+        finger_group = next(group for group in payload["slotGroups"] if group["slot"] == "finger1")
+        catalog_item = next(item for item in finger_group["items"] if item["itemId"] == "250777")
         self.assertEqual(catalog_item["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
         self.assertEqual(catalog_item["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
         self.assertEqual(payload["catalogStatus"], "verified")
 
-    def test_gear_catalog_sync_loads_default_mod_seed_without_env(self):
+    def test_gear_catalog_sync_does_not_load_placeholder_default_mod_seed_without_env(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
         conn = sqlite3.connect(self.db_path)
         try:
@@ -2047,9 +2185,118 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertGreaterEqual(count, 2)
-        self.assertTrue(any(option["simcOptions"].get("gem_id") == "240983" for option in socket_options["head"]))
-        self.assertTrue(any(option["simcOptions"].get("enchant_id") == "8017" for option in enchant_options["head"]))
+        self.assertEqual(count, 0)
+        self.assertFalse(any(options for options in socket_options.values()))
+        self.assertFalse(any(options for options in enchant_options.values()))
+
+    def test_gear_catalog_health_ignores_stale_placeholder_mod_options(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            conn.executemany(
+                """
+                INSERT INTO websim_gear_mod_options
+                (id, option_type, name, applicable_slots_json, simc_options_json,
+                 status, payload_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        "seed-socket-gem-240983",
+                        "socket",
+                        "Server seed gem 240983",
+                        json.dumps(["*"], ensure_ascii=False),
+                        json.dumps({"gem_id": "240983"}, ensure_ascii=False),
+                        "partial",
+                        json.dumps({"source": "server_default_seed"}, ensure_ascii=False),
+                        "now",
+                    ),
+                    (
+                        "enchant-real-8017",
+                        "enchant",
+                        "Radiant Enchant",
+                        json.dumps(["finger1"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "8017"}, ensure_ascii=False),
+                        "verified",
+                        "{}",
+                        "now",
+                    ),
+                ],
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        coverage = payload["details"]["modOptionCoverage"]
+        self.assertEqual(coverage["socket"], {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []})
+        self.assertEqual(coverage["enchant"]["optionCount"], 1)
+        self.assertEqual(coverage["enchant"]["coveredSlots"], ["finger1"])
+
+    def test_gear_catalog_sync_ignores_crafted_seed_sources(self):
+        os.environ["WOW_WEBSIM_CRAFTED_GEAR_SEED"] = json.dumps(
+            [
+                {
+                    "itemId": "250888",
+                    "slot": "head",
+                    "sourceLabel": "Crafted Hood",
+                    "variants": [
+                        {
+                            "key": "crafted-707",
+                            "label": "Crafted 707",
+                            "itemLevel": 707,
+                            "simcOptions": {"crafted_stats": "32/49"},
+                        }
+                    ],
+                }
+            ],
+            ensure_ascii=False,
+        )
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250888",
+                {
+                    "id": 250888,
+                    "name": "Crafted Hood",
+                    "inventory_type": {"name": "Head"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.example/item-250888.jpg"}]},
+                fallback_name="Crafted Hood",
+                english_payload={"name": "Crafted Hood"},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {"id": "crafted-old-250888", "itemId": "250888", "sourceType": "crafted", "sourceLabel": "Old Crafted"},
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "crafted-old-250888-707",
+                    "itemId": "250888",
+                    "slot": "head",
+                    "variantKey": "crafted-old",
+                    "label": "Old Crafted",
+                    "sourceType": "crafted",
+                    "itemLevel": 707,
+                    "simcOptions": {"crafted_stats": "32/49"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.sync_websim_gear_catalog(conn, self.websim_payload.get_active_season_payload(conn))
+            sources = conn.execute("SELECT id, source_type FROM websim_gear_sources WHERE id LIKE 'crafted-%' OR source_type = 'crafted'").fetchall()
+            variants = conn.execute("SELECT id, source_type FROM websim_gear_variants WHERE id LIKE 'crafted-%' OR source_type = 'crafted'").fetchall()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane")
+        finally:
+            conn.close()
+
+        self.assertEqual(sources, [])
+        self.assertEqual(variants, [])
+        head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
+        self.assertFalse(any(item["itemId"] == "250888" for item in head_group["items"]))
 
     def test_websim_gear_payload_smoke_covers_every_class_spec(self):
         conn = sqlite3.connect(self.db_path)

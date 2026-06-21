@@ -1202,6 +1202,12 @@ test('gear slot sheet exposes source reference and blocker trust states', () => 
     id: '250888',
     displayName: 'Guide Only Hood',
     sourceType: 'source_reference',
+    source: '虚空粉碎者掉落',
+    sources: [{ label: '虚空粉碎者掉落', sourceType: 'dungeon' }],
+    stats: [
+      { label: '智力', value: '1234' },
+      { name: '急速', value: '567' }
+    ],
     metadataStatus: 'source_reference',
     missingFields: ['deterministic SimC variant'],
     blockers: ['missing deterministic SimC variant preset'],
@@ -1210,6 +1216,8 @@ test('gear slot sheet exposes source reference and blocker trust states', () => 
   const blockedItem = {
     slot: 'head',
     simcSlot: 'head',
+    itemId: '250999',
+    id: '250999',
     displayName: 'Broken Hood',
     sourceType: 'raid',
     blockers: ['missing item id'],
@@ -1242,16 +1250,151 @@ test('gear slot sheet exposes source reference and blocker trust states', () => 
   pageConfig.refreshDerivedState.call(page)
   pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
 
+  assert.deepEqual(Array.from(page.data.gearSlotSheet.filters, (item) => item.key), ['all', 'dungeon', 'raid'])
+  assert.deepEqual(Array.from(page.data.gearSlotSheet.filters, (item) => item.label), ['全部', '大秘境', '团本'])
+  assert.equal(page.data.gearSlotSheet.filterKey, 'all')
   assert.equal(page.data.gearSlotSheet.candidates[0].statusClass, 'source-reference')
   assert.equal(page.data.gearSlotSheet.candidates[0].trustLabel, '来源参考')
   assert.match(page.data.gearSlotSheet.candidates[0].trustReason, /不可直接保存/)
   assert.equal(page.data.gearSlotSheet.activeTrustLabel, '来源参考')
-  assert.match(page.data.gearSlotSheet.activeTrustText, /missing deterministic SimC variant preset/)
+  assert.match(page.data.gearSlotSheet.activeTrustText, /缺少确定 SimC 变体/)
+
+  pageConfig.toggleGearCandidateDetail.call(page, { currentTarget: { dataset: { index: 0 } } })
+
+  assert.equal(page.data.gearSlotSheet.candidates[0].detailOpen, true)
+  assert.equal(page.data.gearSlotSheet.candidates[1].detailOpen, false)
+  assert.ok(page.data.gearSlotSheet.candidates[0].detailRows.some((row) => row.label === '掉落来源' && row.value === '虚空粉碎者掉落'))
+  assert.ok(page.data.gearSlotSheet.candidates[0].detailRows.some((row) => row.label === '装备属性' && /智力 1234/.test(row.value) && /急速 567/.test(row.value)))
+  assert.equal(page.data.gearSlotSheet.candidates[0].detailRows.some((row) => /物品 ID|SimC|缺失字段|阻断原因|变体|观测样本/.test(row.label)), false)
 
   pageConfig.selectGearCandidate.call(page, { currentTarget: { dataset: { index: 1 } } })
 
   assert.equal(page.data.gearSlotSheet.activeTrustLabel, '阻断')
-  assert.match(page.data.gearSlotSheet.activeTrustText, /missing item id/)
+  assert.match(page.data.gearSlotSheet.activeTrustText, /缺少物品 ID/)
+})
+
+test('gear slot sheet source filters omit recommendation and crafted buckets', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const item = {
+    slot: 'head',
+    simcSlot: 'head',
+    itemId: '250777',
+    id: '250777',
+    displayName: 'Catalog Hood',
+    sourceType: 'dungeon',
+    sources: [{ label: 'Maisara Caverns', sourceType: 'dungeon' }],
+    ilevel: 707,
+    bonus_id: '12345',
+    simcReady: true
+  }
+  const gearPayload = {
+    slots: [{ slot: 'head', simcSlot: 'head', label: 'Head' }],
+    replacementCandidates: [{
+      slot: 'head',
+      simcSlot: 'head',
+      label: 'Head',
+      items: [item]
+    }],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: {}
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+
+  assert.equal(page.data.gearSlotSheet.filters.length, 3)
+  assert.equal(page.data.gearSlotSheet.filters.some((filter) => /推荐|制造/.test(filter.label)), false)
+  assert.equal(page.data.gearSlotSheet.candidates.length, 1)
+
+  pageConfig.setGearCandidateFilter.call(page, { currentTarget: { dataset: { key: 'raid' } } })
+
+  assert.equal(page.data.gearSlotSheet.filterKey, 'raid')
+  assert.equal(page.data.gearSlotSheet.candidates.length, 0)
+  assert.equal(page.data.gearSlotSheet.emptyText, '该来源暂无候选装备')
+})
+
+test('gear candidate detail toggle does not change the selected candidate', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const gearPayload = {
+    slots: [{ slot: 'head', simcSlot: 'head', label: 'Head' }],
+    replacementCandidates: [{
+      slot: 'head',
+      simcSlot: 'head',
+      label: 'Head',
+      items: [
+        {
+          slot: 'head',
+          simcSlot: 'head',
+          itemId: '250101',
+          id: '250101',
+          displayName: 'Selected Hood',
+          sourceType: 'dungeon',
+          ilevel: 707,
+          bonus_id: '12345',
+          simcReady: true
+        },
+        {
+          slot: 'head',
+          simcSlot: 'head',
+          itemId: '250202',
+          id: '250202',
+          displayName: 'Inspect Only Hood',
+          sourceType: 'raid',
+          ilevel: 710,
+          bonus_id: '67890',
+          simcReady: true
+        }
+      ]
+    }],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: {}
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+
+  assert.equal(page.data.gearSlotSheet.selectedCandidateIndex, 0)
+  assert.equal(page.data.gearSlotSheet.activeCandidate.itemId, '250101')
+
+  pageConfig.toggleGearCandidateDetail.call(page, { currentTarget: { dataset: { index: 1 } } })
+
+  assert.equal(page.data.gearSlotSheet.selectedCandidateIndex, 0)
+  assert.equal(page.data.gearSlotSheet.activeCandidate.itemId, '250101')
+  assert.equal(page.data.gearSlotSheet.candidates[0].detailOpen, false)
+  assert.equal(page.data.gearSlotSheet.candidates[1].detailOpen, true)
+})
+
+test('gear candidate rows render only a compact detail action on the right side', () => {
+  const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
+  assert.match(wxml, /class="gear-candidate-action"/)
+  assert.match(wxml, /class="gear-candidate-detail-button"/)
+  assert.doesNotMatch(wxml, /item\.shortStatusLabel/)
+  assert.doesNotMatch(wxml, /item\.issueSummary/)
+  assert.doesNotMatch(wxml, /class="gear-candidate-meta"/)
 })
 
 test('gear slot sheet applies variant socket and enchant fields into selected gear', async () => {
@@ -1269,6 +1412,7 @@ test('gear slot sheet applies variant socket and enchant fields into selected ge
       {
         key: 'heroic-707',
         label: 'Heroic 707',
+        difficultyLabel: '英雄',
         itemLevel: 707,
         simcOptions: { bonus_id: '12345' },
         status: 'verified'
@@ -1276,9 +1420,18 @@ test('gear slot sheet applies variant socket and enchant fields into selected ge
       {
         key: 'mythic-710',
         label: 'Mythic 710',
+        difficultyLabel: '史诗',
         itemLevel: 710,
         simcOptions: { bonus_id: '67890' },
         status: 'verified'
+      },
+      {
+        key: 'needs-variant',
+        label: 'Select difficulty/item level',
+        difficultyLabel: '难度待补',
+        itemLevel: 0,
+        simcOptions: {},
+        status: 'partial'
       }
     ],
     socketOptions: [{
@@ -1327,6 +1480,10 @@ test('gear slot sheet applies variant socket and enchant fields into selected ge
 
   pageConfig.refreshDerivedState.call(page)
   pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+  assert.equal(page.data.gearSlotSheet.variantOptions[0].displayLabel, '英雄')
+  assert.equal(page.data.gearSlotSheet.variantOptions[0].levelLabel, '装等 707')
+  assert.equal(page.data.gearSlotSheet.variantOptions[2].displayLabel, '难度待补')
+  assert.equal(page.data.gearSlotSheet.variantOptions[2].levelLabel, '')
   pageConfig.selectGearVariant.call(page, { currentTarget: { dataset: { key: 'mythic-710' } } })
   pageConfig.selectGearSocketOption.call(page, { currentTarget: { dataset: { id: 'socket-gem-240983' } } })
   pageConfig.selectGearEnchantOption.call(page, { currentTarget: { dataset: { id: 'enchant-8017' } } })

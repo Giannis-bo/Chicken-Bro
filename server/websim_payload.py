@@ -97,32 +97,8 @@ COMMUNITY_TEMPLATE_REVISION = "community-template-v1"
 TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
 GEAR_SCHEMA_REVISION = "websim-gear-simulator-v1"
 GEAR_CATALOG_REVISION = "websim-gear-catalog-v1"
-DEFAULT_GEAR_MOD_SEED = [
-    {
-        "id": "seed-socket-gem-240983",
-        "type": "socket",
-        "name": "Server seed gem 240983",
-        "slots": ["*"],
-        "simcOptions": {"gem_id": "240983"},
-        "status": "partial",
-        "payload": {
-            "source": "server_default_seed",
-            "blockers": ["official current-season gem label pending"],
-        },
-    },
-    {
-        "id": "seed-enchant-8017",
-        "type": "enchant",
-        "name": "Server seed enchant 8017",
-        "slots": ["head"],
-        "simcOptions": {"enchant_id": "8017"},
-        "status": "partial",
-        "payload": {
-            "source": "server_default_seed",
-            "blockers": ["official current-season enchant label pending"],
-        },
-    },
-]
+DEFAULT_GEAR_MOD_SEED = []
+STALE_PLACEHOLDER_GEAR_MOD_OPTION_IDS = {"seed-socket-gem-240983", "seed-enchant-8017"}
 
 
 WOW_CLASSES = [
@@ -548,6 +524,58 @@ CANONICAL_GEAR_SLOTS = [
 ]
 
 PORTABLE_GEAR_SLOTS = {"neck", "back", "finger1", "finger2", "trinket1", "trinket2"}
+
+ENCHANTABLE_GEAR_SLOTS = {
+    "back",
+    "chest",
+    "wrist",
+    "legs",
+    "feet",
+    "finger1",
+    "finger2",
+    "main_hand",
+    "off_hand",
+}
+
+DIFFICULTY_LABELS_ZH = {
+    "normal": "普通",
+    "heroic": "英雄",
+    "mythic": "史诗",
+    "lfr": "随机",
+    "raid_finder": "随机",
+    "mythic_plus": "大秘境",
+    "mythicplus": "大秘境",
+    "dungeon": "大秘境",
+    "raid": "团本",
+    "observed_profile": "实装观测",
+    "observed": "实装观测",
+    "needs_variant": "难度待补",
+    "needs-variant": "难度待补",
+}
+
+ITEM_STAT_LABELS_ZH = {
+    "intellect": "智力",
+    "int": "智力",
+    "agility": "敏捷",
+    "agi": "敏捷",
+    "strength": "力量",
+    "str": "力量",
+    "stamina": "耐力",
+    "sta": "耐力",
+    "crit": "暴击",
+    "critical_strike": "暴击",
+    "critical_strike_rating": "暴击",
+    "haste": "急速",
+    "haste_rating": "急速",
+    "mastery": "精通",
+    "mastery_rating": "精通",
+    "versatility": "全能",
+    "versatility_rating": "全能",
+    "armor": "护甲",
+    "avoidance": "闪避",
+    "leech": "吸血",
+    "speed": "速度",
+}
 
 EQUIVALENT_GEAR_SLOTS = {
     "finger1": ["finger1", "finger2"],
@@ -1782,6 +1810,168 @@ def item_slot_from_payload(payload):
     return canonical_gear_slot(payload.get("_fallback_slot") or "")
 
 
+def normalized_difficulty_key(value):
+    key = re.sub(r"[^a-z0-9_+-]+", "_", str(value or "").lower()).strip("_")
+    key = key.replace("+", "_plus").replace("-", "_")
+    return key
+
+
+def difficulty_label_from_text(value):
+    text = str(value or "").lower()
+    checks = [
+        ("heroic", "英雄"),
+        ("mythic+", "大秘境"),
+        ("mythic plus", "大秘境"),
+        ("mythic", "史诗"),
+        ("normal", "普通"),
+        ("raid finder", "随机"),
+        ("lfr", "随机"),
+        ("英雄", "英雄"),
+        ("史诗", "史诗"),
+        ("神话", "史诗"),
+        ("普通", "普通"),
+        ("随机", "随机"),
+        ("大秘境", "大秘境"),
+    ]
+    for needle, label in checks:
+        if needle in text:
+            return label
+    return ""
+
+
+def localized_difficulty_label(difficulty_key="", fallback_text="", source_type=""):
+    key = normalized_difficulty_key(difficulty_key)
+    if key in DIFFICULTY_LABELS_ZH:
+        return DIFFICULTY_LABELS_ZH[key]
+    label = difficulty_label_from_text(fallback_text)
+    if label:
+        return label
+    source_key = normalized_difficulty_key(source_type)
+    return DIFFICULTY_LABELS_ZH.get(source_key, "")
+
+
+def payload_preview_item(payload):
+    if not isinstance(payload, dict):
+        return {}
+    for key in ("preview_item", "previewItem", "preview"):
+        value = payload.get(key)
+        if isinstance(value, dict):
+            return value
+    return {}
+
+
+def stat_label_from_payload(stat):
+    if not isinstance(stat, dict):
+        return ""
+    type_payload = stat.get("type") if isinstance(stat.get("type"), dict) else {}
+    raw_label = (
+        stat.get("label")
+        or stat.get("name")
+        or type_payload.get("name")
+        or type_payload.get("type")
+        or stat.get("stat")
+        or stat.get("key")
+    )
+    key = re.sub(r"[^a-z0-9_]+", "_", str(type_payload.get("type") or raw_label or "").lower()).strip("_")
+    return ITEM_STAT_LABELS_ZH.get(key) or str(raw_label or "").strip()
+
+
+def normalize_item_stat(stat):
+    if isinstance(stat, str):
+        text = stat.strip()
+        return {"label": text, "value": "", "display": text} if text else None
+    if not isinstance(stat, dict):
+        return None
+    label = stat_label_from_payload(stat)
+    value = first_matching_value(stat, ["value", "amount", "rating", "displayValue"], "")
+    display = ""
+    display_payload = stat.get("display") if isinstance(stat.get("display"), dict) else {}
+    display = str(display_payload.get("display_string") or stat.get("displayString") or stat.get("text") or "").strip()
+    if not label and display:
+        label = display
+    if not label and value in ("", None):
+        return None
+    return {
+        "key": re.sub(r"[^a-z0-9_]+", "_", str((stat.get("type") or {}).get("type") if isinstance(stat.get("type"), dict) else label).lower()).strip("_"),
+        "label": label,
+        "value": value,
+        "display": display,
+    }
+
+
+def extract_item_stats_from_payload(payload):
+    if not isinstance(payload, dict):
+        return []
+    candidates = []
+    for parent in [payload, payload_preview_item(payload)]:
+        if not isinstance(parent, dict):
+            continue
+        for key in ("stats", "item_stats", "itemStats", "attributes"):
+            values = parent.get(key)
+            if isinstance(values, list):
+                candidates.extend(values)
+    result = []
+    seen = set()
+    for stat in candidates:
+        normalized = normalize_item_stat(stat)
+        if not normalized:
+            continue
+        dedupe_key = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        result.append(normalized)
+    return result
+
+
+def item_stat_summary(stats):
+    parts = []
+    for stat in stats or []:
+        if not isinstance(stat, dict):
+            continue
+        label = str(stat.get("label") or "").strip()
+        value = stat.get("value")
+        if label and value not in ("", None):
+            parts.append(f"{label} {value}")
+        elif label:
+            parts.append(label)
+        elif stat.get("display"):
+            parts.append(str(stat.get("display")))
+    return "；".join(unique_text_list(parts))
+
+
+def item_payload_has_socket(payload):
+    if not isinstance(payload, dict):
+        return False
+    parents = [payload, payload_preview_item(payload)]
+    for parent in parents:
+        if not isinstance(parent, dict):
+            continue
+        for key in ("sockets", "socket", "gem_sockets", "gemSockets"):
+            value = parent.get(key)
+            if isinstance(value, list) and len(value) > 0:
+                return True
+            if isinstance(value, dict) and value:
+                return True
+    return False
+
+
+def item_mod_capabilities(payload=None, slot="", variants=None, item=None):
+    slot = normalize_slot(slot or (item or {}).get("slot") or "")
+    payload = payload if isinstance(payload, dict) else {}
+    item = item if isinstance(item, dict) else {}
+    variants = [variant for variant in variants or [] if isinstance(variant, dict)]
+    has_socket = item_payload_has_socket(payload) or any(
+        (variant.get("simcOptions") or {}).get("gem_id") or (variant.get("simcOptions") or {}).get("gem_bonus_id")
+        for variant in variants
+    ) or bool(item.get("gem_id") or item.get("gem_bonus_id"))
+    can_enchant = slot in ENCHANTABLE_GEAR_SLOTS
+    return {
+        "hasSocket": bool(has_socket),
+        "canEnchant": bool(can_enchant),
+    }
+
+
 def icon_url_from_media(media_payload):
     for asset in media_payload.get("assets", []) if isinstance(media_payload, dict) else []:
         value = asset.get("value")
@@ -1942,6 +2132,9 @@ def save_websim_item_metadata(
         "iconUrl": icon_url,
         "gameAsset": game_asset,
     }
+    item_stats = extract_item_stats_from_payload(metadata_payload)
+    stat_summary = item_stat_summary(item_stats)
+    mod_capabilities = item_mod_capabilities(metadata_payload, slot)
     conn.execute(
         """
         INSERT INTO websim_items (id, name, slot, quality, icon_url, payload_json, updated_at)
@@ -1984,6 +2177,9 @@ def save_websim_item_metadata(
         "quality": quality,
         "iconUrl": icon_url,
         "gameAsset": game_asset,
+        "itemStats": item_stats,
+        "statSummary": stat_summary,
+        "modCapabilities": mod_capabilities,
         "metadataStatus": "verified",
         "metadataSource": source,
         "metadataLocale": locale,
@@ -2612,20 +2808,32 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
                     usage=["websim_loot", "builds_detail"],
                     fallback_text=fallback_text_for(item_name),
                 )
-                conn.execute(
-                    """
-                    INSERT INTO websim_items (id, name, slot, quality, icon_url, payload_json, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET
-                        name=excluded.name,
-                        slot=excluded.slot,
-                        quality=excluded.quality,
-                        icon_url=excluded.icon_url,
-                        payload_json=excluded.payload_json,
-                        updated_at=excluded.updated_at
-                    """,
-                    (str(item_id), item_name, slot, quality, icon_url, json.dumps(item_payload, ensure_ascii=False), now),
-                )
+                existing_payload = (saved_metadata or {}).get("payload") if isinstance(saved_metadata, dict) else {}
+                item_payload_to_store = existing_payload if isinstance(existing_payload, dict) and existing_payload else item_payload
+                if saved_metadata:
+                    conn.execute(
+                        """
+                        UPDATE websim_items
+                        SET name = ?, slot = ?, quality = ?, icon_url = ?, updated_at = ?
+                        WHERE id = ?
+                        """,
+                        (item_name, slot, quality, icon_url, now, str(item_id)),
+                    )
+                else:
+                    conn.execute(
+                        """
+                        INSERT INTO websim_items (id, name, slot, quality, icon_url, payload_json, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(id) DO UPDATE SET
+                            name=excluded.name,
+                            slot=excluded.slot,
+                            quality=excluded.quality,
+                            icon_url=excluded.icon_url,
+                            updated_at=excluded.updated_at
+                        """,
+                        (str(item_id), item_name, slot, quality, icon_url, json.dumps(item_payload_to_store, ensure_ascii=False), now),
+                    )
+                saved_metadata = existing_websim_item_metadata(conn, item_id)
                 loot_id = f"{instance_id}:{encounter_id}:{item_id}"
                 conn.execute(
                     """
@@ -3609,6 +3817,9 @@ def existing_websim_item_metadata(conn, item_id):
     payload = safe_json_loads(row[5], {})
     metadata = payload.get("_metadata") if isinstance(payload, dict) else {}
     metadata_status = (metadata or {}).get("metadataStatus") or (metadata or {}).get("status") or "verified"
+    item_stats = extract_item_stats_from_payload(payload)
+    stat_summary = item_stat_summary(item_stats)
+    mod_capabilities = item_mod_capabilities(payload, row[2] or "")
     game_asset = normalize_game_asset(
         (metadata or {}).get("gameAsset") if isinstance(metadata, dict) else {},
         game_asset_from_icon_url(
@@ -3630,6 +3841,10 @@ def existing_websim_item_metadata(conn, item_id):
         "quality": row[3] or "",
         "iconUrl": row[4] or "",
         "gameAsset": game_asset,
+        "payload": payload,
+        "itemStats": item_stats,
+        "statSummary": stat_summary,
+        "modCapabilities": mod_capabilities,
         "metadataStatus": metadata_status,
         "metadataSource": (metadata or {}).get("source") or ITEM_METADATA_SOURCE,
         "metadataLocale": (metadata or {}).get("locale") or DEFAULT_LOCALE,
@@ -3857,14 +4072,6 @@ def sync_blizzard_preset_item_metadata(conn, token, region=DEFAULT_REGION, local
             counts["aliases"] += len(item_alias_candidates(*aliases))
             counts["items"] += 1
     return counts
-
-
-def crafted_gear_seed():
-    raw = os.environ.get("WOW_WEBSIM_CRAFTED_GEAR_SEED", "").strip()
-    if not raw:
-        return []
-    parsed = safe_json_loads(raw, [])
-    return parsed if isinstance(parsed, list) else []
 
 
 def gear_mod_seed():
@@ -4311,8 +4518,9 @@ def sync_websim_gear_catalog(conn, season=None):
                 "itemId": row[1],
                 "slot": row[2],
                 "variantKey": "needs-variant",
-                "label": "Select difficulty/item level",
+                "label": "难度 / 装等待补",
                 "sourceType": source_type,
+                "difficultyKey": "needs-variant",
                 "itemLevel": 0,
                 "simcOptions": {},
                 "status": "partial",
@@ -4320,54 +4528,6 @@ def sync_websim_gear_catalog(conn, season=None):
                 "payload": {"seasonRevision": season_revision},
                     },
                 )
-    for entry in crafted_gear_seed():
-        if not isinstance(entry, dict):
-            continue
-        item_id = normalize_option_value(entry.get("itemId") or entry.get("id"))
-        if not item_id:
-            continue
-        metadata = websim_item_metadata_by_ids(conn, [item_id]).get(item_id)
-        if not metadata:
-            continue
-        source_label = str(entry.get("sourceLabel") or entry.get("source") or "Crafted gear")
-        upsert_gear_source(
-            conn,
-            {
-                "id": f"crafted-{item_id}",
-                "itemId": item_id,
-                "sourceType": "crafted",
-                "sourceLabel": source_label,
-                "seasonRevision": season_revision,
-                "payload": {"authority": ITEM_METADATA_SOURCE, "craftedSeed": True},
-            },
-        )
-        variants = entry.get("variants") if isinstance(entry.get("variants"), list) else []
-        for index, variant in enumerate(variants, start=1):
-            if not isinstance(variant, dict):
-                continue
-            simc_options = variant.get("simcOptions") if isinstance(variant.get("simcOptions"), dict) else {}
-            status = "verified" if simc_options and (variant.get("itemLevel") or variant.get("ilevel")) else "partial"
-            upsert_gear_variant(
-                conn,
-                {
-                    "id": f"crafted-{item_id}-{variant.get('key') or index}",
-                    "itemId": item_id,
-                    "slot": entry.get("slot") or metadata.get("slot") or "",
-                    "variantKey": variant.get("key") or f"crafted-{index}",
-                    "label": variant.get("label") or f"Crafted {index}",
-                    "sourceType": "crafted",
-                    "difficultyKey": variant.get("difficultyKey") or "crafted",
-                    "itemLevel": variant.get("itemLevel") or variant.get("ilevel") or 0,
-                    "simcOptions": simc_options,
-                    "status": status,
-                    "blockers": [] if status == "verified" else ["crafted variant missing deterministic SimC options"],
-                    "payload": {
-                        "classKeys": entry.get("classKeys") or [],
-                        "specKeys": entry.get("specKeys") or [],
-                        "seasonRevision": season_revision,
-                    },
-                },
-            )
     observed_counts = {
         "observedSources": 0,
         "observedVariants": 0,
@@ -6354,6 +6514,9 @@ def websim_item_metadata_by_ids(conn, item_ids):
         payload = safe_json_loads(row[5], {})
         metadata = payload.get("_metadata") if isinstance(payload, dict) else {}
         metadata_status = (metadata or {}).get("metadataStatus") or (metadata or {}).get("status") or "verified"
+        item_stats = extract_item_stats_from_payload(payload)
+        stat_summary = item_stat_summary(item_stats)
+        mod_capabilities = item_mod_capabilities(payload, row[2] or "")
         game_asset = normalize_game_asset(
             (metadata or {}).get("gameAsset") if isinstance(metadata, dict) else {},
             game_asset_from_icon_url(
@@ -6376,6 +6539,9 @@ def websim_item_metadata_by_ids(conn, item_ids):
             "iconUrl": row[4] or "",
             "gameAsset": game_asset,
             "payload": payload,
+            "itemStats": item_stats,
+            "statSummary": stat_summary,
+            "modCapabilities": mod_capabilities,
             "metadataStatus": metadata_status,
             "metadataSource": (metadata or {}).get("source") or ITEM_METADATA_SOURCE,
             "metadataLocale": (metadata or {}).get("locale") or DEFAULT_LOCALE,
@@ -6407,6 +6573,9 @@ def websim_item_metadata_by_aliases(conn, aliases):
         payload = safe_json_loads(row[8], {})
         metadata = payload.get("_metadata") if isinstance(payload, dict) else {}
         metadata_status = (metadata or {}).get("metadataStatus") or (metadata or {}).get("status") or "verified"
+        item_stats = extract_item_stats_from_payload(payload)
+        stat_summary = item_stat_summary(item_stats)
+        mod_capabilities = item_mod_capabilities(payload, row[6] or "")
         game_asset = normalize_game_asset(
             (metadata or {}).get("gameAsset") if isinstance(metadata, dict) else {},
             game_asset_from_icon_url(
@@ -6429,6 +6598,9 @@ def websim_item_metadata_by_aliases(conn, aliases):
             "iconUrl": row[3] or "",
             "gameAsset": game_asset,
             "payload": payload,
+            "itemStats": item_stats,
+            "statSummary": stat_summary,
+            "modCapabilities": mod_capabilities,
             "metadataStatus": metadata_status,
             "metadataSource": row[4] or ITEM_METADATA_SOURCE,
             "metadataLocale": row[5] or (metadata or {}).get("locale") or DEFAULT_LOCALE,
@@ -6490,6 +6662,12 @@ def apply_item_metadata(item, metadata=None):
         enriched["metadataStatus"] = metadata_status
         enriched["metadataSource"] = metadata.get("metadataSource") or ITEM_METADATA_SOURCE
         enriched["metadataLocale"] = metadata.get("metadataLocale") or DEFAULT_LOCALE
+        if metadata.get("itemStats"):
+            enriched["itemStats"] = metadata.get("itemStats")
+            enriched["stats"] = metadata.get("itemStats")
+            enriched["statSummary"] = metadata.get("statSummary") or item_stat_summary(metadata.get("itemStats"))
+        if metadata.get("modCapabilities"):
+            enriched["modCapabilities"] = metadata.get("modCapabilities")
         if metadata.get("englishName"):
             enriched["englishName"] = metadata.get("englishName")
         return enriched
@@ -6695,6 +6873,57 @@ def gear_catalog_source_coverage(conn):
     return {str(source_type or "unknown"): int(count or 0) for source_type, count in rows}
 
 
+def gear_mod_option_is_visible(option_id="", option_name="", payload=None):
+    option_id = str(option_id or "").strip()
+    option_name = str(option_name or "").strip()
+    payload = payload if isinstance(payload, dict) else {}
+    if option_id in STALE_PLACEHOLDER_GEAR_MOD_OPTION_IDS:
+        return False
+    if option_name.lower().startswith("server seed"):
+        return False
+    if payload.get("source") == "server_default_seed":
+        return False
+    return True
+
+
+def gear_catalog_mod_option_coverage(conn):
+    rows = conn.execute(
+        """
+        SELECT id, option_type, name, applicable_slots_json, payload_json
+        FROM websim_gear_mod_options
+        WHERE option_type IN ('socket', 'enchant')
+        """
+    ).fetchall()
+    coverage = {
+        "socket": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
+        "enchant": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
+    }
+    slots_by_type = {"socket": set(), "enchant": set()}
+    for option_id, option_type, option_name, slots_json, payload_json in rows:
+        payload = safe_json_loads(payload_json, {})
+        if not gear_mod_option_is_visible(option_id, option_name, payload):
+            continue
+        option_key = str(option_type or "").strip()
+        if option_key not in coverage:
+            continue
+        coverage[option_key]["optionCount"] += 1
+        slots = safe_json_loads(slots_json, [])
+        if not isinstance(slots, list):
+            slots = []
+        if "*" in slots:
+            slots_by_type[option_key].update(CANONICAL_GEAR_SLOTS)
+            continue
+        for raw_slot in slots:
+            slot = normalize_slot(raw_slot)
+            if slot:
+                slots_by_type[option_key].add(slot)
+    for option_key, slots in slots_by_type.items():
+        ordered_slots = [slot for slot in CANONICAL_GEAR_SLOTS if slot in slots]
+        coverage[option_key]["coveredSlotCount"] = len(ordered_slots)
+        coverage[option_key]["coveredSlots"] = ordered_slots
+    return coverage
+
+
 def gear_catalog_counts(conn):
     ensure_websim_tables(conn)
     source_count = conn.execute("SELECT COUNT(*) FROM websim_gear_sources").fetchone()[0]
@@ -6744,6 +6973,7 @@ def gear_catalog_counts(conn):
         "verifiedObservedVariantCount": verified_observed_variant_count,
         "slotCoverage": gear_catalog_slot_coverage(conn),
         "sourceCoverage": gear_catalog_source_coverage(conn),
+        "modOptionCoverage": gear_catalog_mod_option_coverage(conn),
         "topBlockers": top_blockers,
         "blockers": [item["reason"] for item in top_blockers],
         "status": catalog_status_from_counts(verified_count, partial_count, blocked_count, item_count),
@@ -6808,11 +7038,19 @@ def gear_catalog_sync_state(conn):
         merged["blockers"] = state.get("blockers")
     if state.get("topBlockers"):
         merged["topBlockers"] = state.get("topBlockers")
+    if state.get("modOptionCoverage"):
+        merged["modOptionCoverage"] = state.get("modOptionCoverage")
     return merged
 
 
 def gear_catalog_health_payload(conn):
     state = gear_catalog_sync_state(conn)
+    variant_readiness = {
+        "verified": state.get("verifiedCount") or 0,
+        "partial": state.get("partialCount") or 0,
+        "blocked": state.get("blockedCount") or 0,
+        "total": state.get("variantCount") or 0,
+    }
     return {
         "status": state.get("status") or "blocked",
         "checkedAt": state.get("checkedAt") or "",
@@ -6826,6 +7064,7 @@ def gear_catalog_health_payload(conn):
             "blockedCount": state.get("blockedCount") or 0,
             "observedVariantCount": state.get("observedVariantCount") or 0,
             "verifiedObservedVariantCount": state.get("verifiedObservedVariantCount") or 0,
+            "variantReadiness": variant_readiness,
             "itemDatabaseRevision": state.get("itemDatabaseRevision") or "",
             "variantRevision": state.get("variantRevision") or "",
             "schemaRevision": state.get("schemaRevision") or GEAR_CATALOG_REVISION,
@@ -6837,6 +7076,7 @@ def gear_catalog_health_payload(conn):
                 "itemsBySlot": {},
             },
             "sourceCoverage": state.get("sourceCoverage") or {},
+            "modOptionCoverage": state.get("modOptionCoverage") or gear_catalog_mod_option_coverage(conn),
             "topBlockers": state.get("topBlockers") or [],
         },
         "blockers": state.get("blockers") or ([] if state.get("itemCount") else ["gear catalog has not been synced"]),
@@ -6865,6 +7105,7 @@ def gear_catalog_sources_by_item(conn):
             "instanceId": row[4],
             "encounterId": row[5],
             "difficultyKey": row[6],
+            "difficultyLabel": localized_difficulty_label(row[6], row[3], row[2]),
             "seasonRevision": row[7],
             "payload": payload if isinstance(payload, dict) else {},
             "updatedAt": row[9],
@@ -6902,6 +7143,7 @@ def gear_catalog_variants_by_item(conn):
             "key": row[3],
             "variantKey": row[3],
             "label": row[4],
+            "difficultyLabel": localized_difficulty_label(row[6], row[4], row[5]),
             "sourceType": row[5],
             "difficultyKey": row[6],
             "itemLevel": item_level,
@@ -7020,6 +7262,11 @@ def apply_default_catalog_variant(item, variants):
     item["defaultVariantKey"] = default_variant.get("key") or ""
     item["variantKey"] = default_variant.get("key") or ""
     item["variantLabel"] = default_variant.get("label") or ""
+    item["variantDifficultyLabel"] = default_variant.get("difficultyLabel") or localized_difficulty_label(
+        default_variant.get("difficultyKey"),
+        default_variant.get("label"),
+        default_variant.get("sourceType"),
+    )
     item["variantSource"] = default_variant.get("sourceType") or ""
     if default_variant.get("itemLevel"):
         item["ilevel"] = default_variant.get("itemLevel")
@@ -7057,12 +7304,19 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     item_slot = item.get("slot") or ""
     compatible_sources = [source for source in sources if catalog_source_compatible(source, class_key, spec_key, item_slot)]
     compatible_variants = [variant for variant in variants if catalog_variant_compatible(variant, class_key, spec_key, item_slot)]
+    base_capabilities = item.get("modCapabilities") if isinstance(item.get("modCapabilities"), dict) else {}
+    variant_capabilities = item_mod_capabilities({}, item_slot, compatible_variants, item)
+    mod_capabilities = {
+        "hasSocket": bool(base_capabilities.get("hasSocket") or variant_capabilities.get("hasSocket")),
+        "canEnchant": bool(base_capabilities.get("canEnchant") or variant_capabilities.get("canEnchant")),
+    }
     item["sources"] = compatible_sources
     item["sourceRefs"] = compatible_sources
     item["variants"] = compatible_variants
     item["observedProfileRefs"] = observed_profile_refs_from_catalog(compatible_sources, compatible_variants)
-    item["socketOptions"] = socket_options
-    item["enchantOptions"] = enchant_options
+    item["modCapabilities"] = mod_capabilities
+    item["socketOptions"] = socket_options if mod_capabilities["hasSocket"] else []
+    item["enchantOptions"] = enchant_options if mod_capabilities["canEnchant"] else []
     item["recommendationScore"] = max([int(source.get("recommendationScore") or 0) for source in compatible_sources] + [0])
     item["compatibility"] = catalog_compatibility(item, sources, variants, class_key, spec_key)
     if item["compatibility"]["status"] == "incompatible":
@@ -7097,6 +7351,9 @@ def get_websim_gear_catalog_items(conn, class_key, spec_key):
         payload = safe_json_loads(row[5], {})
         metadata = payload.get("_metadata") if isinstance(payload, dict) else {}
         metadata = metadata if isinstance(metadata, dict) else {}
+        item_stats = extract_item_stats_from_payload(payload)
+        stat_summary = item_stat_summary(item_stats)
+        mod_capabilities = item_mod_capabilities(payload, row[2])
         raw_item = {
             "id": item_id,
             "itemId": item_id,
@@ -7110,6 +7367,10 @@ def get_websim_gear_catalog_items(conn, class_key, spec_key):
             "metadataStatus": metadata.get("metadataStatus") or metadata.get("status") or "verified",
             "metadataSource": metadata.get("source") or ITEM_METADATA_SOURCE,
             "metadataLocale": metadata.get("locale") or DEFAULT_LOCALE,
+            "itemStats": item_stats,
+            "stats": item_stats,
+            "statSummary": stat_summary,
+            "modCapabilities": mod_capabilities,
             "payload": payload if isinstance(payload, dict) else {},
         }
         item = normalize_gear_item(raw_item, class_key, spec_key, "catalog")
@@ -7922,6 +8183,22 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         if option_value:
             item[key] = option_value
     payload = value.get("payload") if isinstance(value.get("payload"), dict) else {}
+    item_stats = value.get("itemStats") or value.get("stats") or extract_item_stats_from_payload(payload)
+    if isinstance(item_stats, list) and item_stats:
+        normalized_stats = [normalize_item_stat(stat) for stat in item_stats]
+        normalized_stats = [stat for stat in normalized_stats if stat]
+        if normalized_stats:
+            item["itemStats"] = normalized_stats
+            item["stats"] = normalized_stats
+            item["statSummary"] = str(value.get("statSummary") or item_stat_summary(normalized_stats))[:260]
+    if isinstance(value.get("modCapabilities"), dict):
+        computed_capabilities = item_mod_capabilities(payload, slot, item=item)
+        item["modCapabilities"] = {
+            "hasSocket": bool(value.get("modCapabilities", {}).get("hasSocket") or computed_capabilities.get("hasSocket")),
+            "canEnchant": bool(value.get("modCapabilities", {}).get("canEnchant") or computed_capabilities.get("canEnchant")),
+        }
+    else:
+        item["modCapabilities"] = item_mod_capabilities(payload, slot, item=item)
     item["compatibility"] = str(value.get("compatibility") or gear_compatibility_from_payload(payload, item["classKey"], slot) or "unknown")
     item["missingFields"] = gear_item_missing_fields(item)
     item["simcReady"] = gear_item_simc_ready(item)
@@ -7954,9 +8231,41 @@ def gear_candidate_slots(item):
     return EQUIVALENT_GEAR_SLOTS.get(slot, [slot])
 
 
+def visible_gear_mod_options(options):
+    visible = []
+    for option in options or []:
+        if not isinstance(option, dict):
+            continue
+        option_id = str(option.get("id") or "").strip()
+        option_name = str(option.get("name") or option.get("label") or "").strip()
+        payload = option.get("payload") if isinstance(option.get("payload"), dict) else {}
+        if not gear_mod_option_is_visible(option_id, option_name, payload):
+            continue
+        visible.append(option)
+    return visible
+
+
+def sanitize_gear_candidate_mod_options(item):
+    if not isinstance(item, dict):
+        return item
+    cloned = dict(item)
+    existing_capabilities = cloned.get("modCapabilities") if isinstance(cloned.get("modCapabilities"), dict) else {}
+    computed_capabilities = item_mod_capabilities({}, cloned.get("slot") or "", cloned.get("variants") or [], cloned)
+    capabilities = {
+        "hasSocket": bool(existing_capabilities.get("hasSocket") or computed_capabilities.get("hasSocket")),
+        "canEnchant": bool(existing_capabilities.get("canEnchant") or computed_capabilities.get("canEnchant")),
+    }
+    cloned["modCapabilities"] = capabilities
+    socket_options = visible_gear_mod_options(cloned.get("socketOptions") or [])
+    enchant_options = visible_gear_mod_options(cloned.get("enchantOptions") or [])
+    cloned["socketOptions"] = socket_options if capabilities["hasSocket"] else []
+    cloned["enchantOptions"] = enchant_options if capabilities["canEnchant"] else []
+    return cloned
+
+
 def gear_candidate_for_slot(item, slot):
     if not isinstance(item, dict) or item.get("slot") == slot:
-        return item
+        return sanitize_gear_candidate_mod_options(item)
     cloned = dict(item)
     cloned["slot"] = slot
     cloned["simcSlot"] = slot
@@ -7965,7 +8274,7 @@ def gear_candidate_for_slot(item, slot):
         tags = [tag for tag in game_asset.get("semanticTags") or [] if tag not in CANONICAL_GEAR_SLOTS]
         game_asset["semanticTags"] = [*tags, slot]
         cloned["gameAsset"] = game_asset
-    return cloned
+    return sanitize_gear_candidate_mod_options(cloned)
 
 
 def gear_candidate_key(item):
@@ -7992,6 +8301,7 @@ def unique_gear_candidates(items, limit=None):
     unique_items = []
     seen = set()
     for item in items or []:
+        item = sanitize_gear_candidate_mod_options(item)
         key = gear_candidate_key(item)
         if key in seen:
             continue
