@@ -81,6 +81,46 @@
   border-color: rgba(248, 183, 0, 0.18);
 }
 
+.report-explanation-box {
+  border-color: rgba(64, 180, 136, 0.24);
+}
+
+.report-finding {
+  border: 1rpx solid rgba(64, 180, 136, 0.18);
+}
+
+.report-evidence {
+  display: block;
+  margin-top: 10rpx;
+  color: rgba(155, 228, 193, 0.72);
+  font-size: 21rpx;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.report-sublist {
+  margin-top: 16rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.report-subtitle {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.report-note-row {
+  padding: 14rpx 16rpx;
+  border-radius: 10rpx;
+  background: rgba(255, 255, 255, 0.04);
+  color: #d9dadd;
+  font-size: 22rpx;
+  line-height: 1.45;
+  word-break: break-all;
+}
+
 .benchmark-grid {
   display: flex;
   gap: 14rpx;

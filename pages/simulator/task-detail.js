@@ -62,6 +62,10 @@ Page({
     const mythicPlusReference = analysis.mythicPlusReference || null
     const buildContext = analysisRequest.buildContext || request.buildContext || null
     const isPreviewSimc = this.isPreviewSimc(task, request, analysisRequest, simulation)
+    const report = analysis.report || {}
+    const reportFindings = this.reportFindings(report)
+    const reportActions = this.reportTextList(report.nextActions)
+    const reportLimitations = this.reportTextList(report.limitations)
     const simcDps = isPreviewSimc ? '' : (metrics.dps || '')
     const simcMetricLabel = simulation.metricLabel || (isPreviewSimc ? '正式 SimC DPS' : 'DPS')
     const simcUnitText = simulation.metricUnit || (isPreviewSimc ? '需要完整 /simc 导出' : '伤害/秒')
@@ -83,6 +87,10 @@ Page({
       statusText: task.status || analysis.status || 'ready',
       briefConclusion,
       recommendations,
+      reportFindings,
+      reportActions,
+      reportLimitations,
+      hasReportExplanation: !!(reportFindings.length || reportActions.length || reportLimitations.length),
       mythicPlusReference,
       mythicPlusReferenceText,
       buildContext,
@@ -102,6 +110,30 @@ Page({
     return (analysisRequest && analysisRequest.profileSource === 'generated') ||
       (request && request.profileSource === 'generated') ||
       (task && task.profileSource === 'generated')
+  },
+
+  reportTextList(values, limit = 5) {
+    if (!Array.isArray(values)) return []
+    return values
+      .map((item) => String(item || '').trim())
+      .filter(Boolean)
+      .slice(0, limit)
+  },
+
+  reportFindings(report) {
+    const findings = Array.isArray(report && report.topFindings) ? report.topFindings : []
+    return findings
+      .slice(0, 3)
+      .map((item) => {
+        const text = String((item && item.text) || '').trim()
+        const evidenceRefs = Array.isArray(item && item.evidenceRefs) ? item.evidenceRefs : []
+        const evidenceText = evidenceRefs
+          .map((ref) => String(ref || '').trim())
+          .filter(Boolean)
+          .join(' / ')
+        return text ? { text, evidenceText } : null
+      })
+      .filter(Boolean)
   },
 
   modeText(mode) {

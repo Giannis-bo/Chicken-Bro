@@ -1589,6 +1589,19 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("talents=CAE_OFFICIAL_IMPORT_CODE", draft_profile)
         self.assertNotIn("class_talents=", draft_profile)
 
+    def test_simcraft_template_confirm_returns_deterministic_preview_report(self):
+        self.seed_simc_template_websim_nodes()
+        analysis = self.backend.analyze_and_store_simulator_task(self.simc_template_payload())
+
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertFalse(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["runPolicy"]["policy"], "confirm_only")
+        self.assertEqual(analysis["evidenceState"]["phase"], "ready_to_submit")
+        self.assertEqual(analysis["report"]["source"], "deterministic_confirm_preview")
+        self.assertEqual(analysis["report"]["topFindings"][0]["evidenceRefs"], ["simc.confirmOnly", "simc.template"])
+        self.assertIn("validated", analysis["report"]["topFindings"][0]["text"])
+        self.assertIn("did not execute SimC", analysis["report"]["topFindings"][0]["text"])
+
     def test_simcraft_template_blocks_mismatched_class_spec(self):
         analysis = self.backend.analyze_and_store_simulator_task(
             self.simc_template_payload(talent_spec="arcane", gear_spec="frost")
@@ -1600,6 +1613,9 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("template class/spec mismatch", analysis["simulation"]["error"])
         self.assertIn("template class/spec mismatch", analysis["agent"]["validation"]["errors"])
         self.assertFalse(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["report"]["source"], "deterministic_blocked")
+        self.assertEqual(analysis["report"]["topFindings"][0]["evidenceRefs"], ["simc.templateValidation"])
+        self.assertIn("template class/spec mismatch", analysis["report"]["topFindings"][0]["text"])
 
     def test_simcraft_template_blocks_incomplete_gear_template(self):
         gear_raw = "\n".join(self.simc_template_full_gear_raw().splitlines()[:15])

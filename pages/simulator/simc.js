@@ -11,11 +11,6 @@ const SCENARIO_OPTIONS = [
   { key: 'mythic_plus', title: '大秘境', desc: 'DungeonSlice 6 分钟，5 目标' }
 ]
 
-const ANALYSIS_TYPE_OPTIONS = [
-  { key: 'baseline', title: '基准', desc: '只跑当前组合 DPS' },
-  { key: 'stat_weights', title: '属性权重', desc: '追加 scale factors' }
-]
-
 function compactTemplate(template) {
   if (!template) return null
   return {
@@ -180,7 +175,6 @@ Page({
     selectedTalentTemplate: null,
     selectedGearTemplate: null,
     scenarioOptions: SCENARIO_OPTIONS,
-    analysisTypeOptions: ANALYSIS_TYPE_OPTIONS,
     selectedScenarioKey: 'single',
     selectedAnalysisType: 'baseline',
     emptyState: {
@@ -197,6 +191,7 @@ Page({
     submittedTaskId: '',
     confirmedPayload: null,
     latestAnalysis: null,
+    resultSummary: '',
     blockedReasons: [],
     requestError: '',
     fromFallback: true
@@ -346,19 +341,6 @@ Page({
     })
   },
 
-  selectAnalysisType(event) {
-    const key = event.currentTarget.dataset.key || 'baseline'
-    if (!ANALYSIS_TYPE_OPTIONS.some((item) => item.key === key)) return
-    this.setData({
-      selectedAnalysisType: key,
-      canSubmitTask: false,
-      taskSubmitted: false,
-      confirmedPayload: null,
-      blockedReasons: [],
-      latestAnalysis: null
-    })
-  },
-
   buildTemplatePayload(confirmOnly = true, saveTask = false) {
     if (!this.data.selectedClassKey || !this.data.selectedTalentTemplate || !this.data.selectedGearTemplate) return null
     return {
@@ -390,6 +372,15 @@ Page({
     ])
   },
 
+  resultSummaryFromAnalysis(payload) {
+    const report = (payload && payload.report) || {}
+    const findings = Array.isArray(report.topFindings) ? report.topFindings : []
+    const finding = findings.find((item) => item && String(item.text || '').trim())
+    if (finding) return String(finding.text || '').trim()
+    const recommendations = Array.isArray(payload && payload.recommendations) ? payload.recommendations : []
+    return String(recommendations[0] || '').trim()
+  },
+
   applyAnalysisResult(payload, fromFallback, error) {
     const agent = (payload && payload.agent) || {}
     const blockedReasons = this.blockedReasonsFromAnalysis(payload)
@@ -399,6 +390,7 @@ Page({
       fromFallback: !!fromFallback,
       requestError: error || '',
       blockedReasons,
+      resultSummary: this.resultSummaryFromAnalysis(payload),
       canSubmitTask: ready,
       taskSubmitted: this.data.taskSubmitted && ready
     })

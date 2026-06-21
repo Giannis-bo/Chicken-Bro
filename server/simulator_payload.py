@@ -2443,12 +2443,35 @@ def deterministic_simc_report(request_data, simulation, recommendations, allowed
     benchmark = (simulation or {}).get("benchmark") or {}
     findings = []
     dps = str(metrics.get("dps") or "").strip()
-    if dps:
+    simulation_error = str((simulation or {}).get("error") or "").strip()
+    template_blocked = (
+        (request_data or {}).get("mode") == "simcraft_template"
+        and not bool((simulation or {}).get("ran"))
+        and not bool((request_data or {}).get("runSimulation"))
+        and bool(simulation_error)
+    )
+    confirm_preview = (
+        (request_data or {}).get("mode") == "simcraft_template"
+        and bool((request_data or {}).get("confirmOnly"))
+        and not bool((simulation or {}).get("ran"))
+        and not simulation_error
+    )
+    if template_blocked:
+        findings.append({
+            "text": clean_report_text(f"Template validation blocked: {simulation_error}"),
+            "evidenceRefs": ["simc.templateValidation"],
+        })
+    elif confirm_preview:
+        findings.append({
+            "text": "Template payload validated; confirmOnly did not execute SimC or save a task.",
+            "evidenceRefs": ["simc.confirmOnly", "simc.template"],
+        })
+    elif dps:
         findings.append({
             "text": f"SimC completed with DPS {dps}.",
             "evidenceRefs": ["simc.dps"],
         })
-    elif (simulation or {}).get("error"):
+    elif simulation_error:
         findings.append({
             "text": "SimC did not produce a parseable DPS result.",
             "evidenceRefs": ["simc.error"],
@@ -2468,7 +2491,7 @@ def deterministic_simc_report(request_data, simulation, recommendations, allowed
     ]
     return {
         "schemaRevision": "simc-report-v1",
-        "source": "deterministic_fallback",
+        "source": "deterministic_blocked" if template_blocked else ("deterministic_confirm_preview" if confirm_preview else "deterministic_fallback"),
         "fallbackReason": reason,
         "topFindings": findings[:3],
         "nextActions": actions,
@@ -2683,6 +2706,8 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
         "templateContext": template_context,
         "scenarioKey": str(source.get("scenarioKey") or "single").strip() or "single",
         "analysisType": intent,
+        "confirmOnly": bool(source.get("confirmOnly")),
+        "saveTask": bool(source.get("saveTask")),
     }
 
     if validation_errors:
