@@ -116,14 +116,23 @@ test('simc page uses a fixed saved-template workflow without chat composer', () 
   assert.match(wxml, /picker[\s\S]*range="\{\{classOptions\}\}"[\s\S]*bindchange="selectClass"/)
   assert.match(wxml, /picker[\s\S]*range="\{\{talentTemplates\}\}"[\s\S]*bindchange="selectTalentTemplate"/)
   assert.match(wxml, /picker[\s\S]*range="\{\{gearTemplates\}\}"[\s\S]*bindchange="selectGearTemplate"/)
+  assert.match(wxml, /class="template-selector compact-selector class-selector"/)
+  assert.match(wxml, /class="template-selector compact-selector"/)
+  assert.match(wxml, /selector-row/)
   assert.match(wxml, /toolbar-picker/)
-  assert.match(wxml, /picker-label/)
+  assert.doesNotMatch(wxml, /picker-label/)
   assert.match(wxml, /picker-value/)
   assert.match(wxml, /template-selector/)
   assert.match(wxml, /talentTemplates/)
   assert.match(wxml, /gearTemplates/)
   assert.match(wxml, /scenarioOptions/)
-  assert.match(wxml, /analysisTypeOptions/)
+  assert.match(wxml, /\{\{talentTemplates\.length\}\} 个配置/)
+  assert.match(wxml, /\{\{gearTemplates\.length\}\} 个配置/)
+  assert.doesNotMatch(wxml, /\{\{classOptions\.length\}\}/)
+  assert.doesNotMatch(wxml, /analysisTypeOptions/)
+  assert.doesNotMatch(wxml, /selectAnalysisType/)
+  assert.doesNotMatch(js, /ANALYSIS_TYPE_OPTIONS/)
+  assert.doesNotMatch(js, /selectAnalysisType/)
   assert.match(wxml, /bindtap="confirmTemplateSimulation"/)
   assert.match(wxml, /bindtap="submitConfirmedTask"/)
   assert.match(wxml, /blockedReasons/)
@@ -143,8 +152,10 @@ test('simc page uses a fixed saved-template workflow without chat composer', () 
   assert.match(js, /allowInsecureGuestRequest:\s*true/)
   assert.doesNotMatch(js, /mode:\s*'simcraft_agent'|sendChatMessage|sendChatContent|useQuickReply|buildPromptFromContext/)
   assert.match(css, /\.template-selector/)
+  assert.match(css, /\.compact-selector/)
+  assert.match(css, /\.selector-row/)
   assert.match(css, /\.toolbar-picker/)
-  assert.match(css, /\.picker-label/)
+  assert.doesNotMatch(css, /\.picker-label/)
   assert.match(css, /\.picker-value/)
   assert.match(css, /\.confirm-summary/)
   assert.match(css, /\.blocked-panel/)
@@ -299,7 +310,6 @@ test('simc page reuses the same template payload for confirm and final submit', 
     await page.loadTemplateLists()
     await flushPromises()
     page.selectScenario({ currentTarget: { dataset: { key: 'mythic_plus' } } })
-    page.selectAnalysisType({ currentTarget: { dataset: { key: 'stat_weights' } } })
     await page.confirmTemplateSimulation()
     await flushPromises()
     await page.submitConfirmedTask()
@@ -314,7 +324,7 @@ test('simc page reuses the same template payload for confirm and final submit', 
   assert.equal(requests[0].request.saveTask, false)
   assert.equal(requests[0].request.classKey, 'mage')
   assert.equal(requests[0].request.scenarioKey, 'mythic_plus')
-  assert.equal(requests[0].request.analysisType, 'stat_weights')
+  assert.equal(requests[0].request.analysisType, 'baseline')
   assert.equal(requests[0].request.templateContext.talent.id, 'talent-1')
   assert.equal(requests[0].request.templateContext.gear.id, 'gear-1')
   assert.equal(requests[1].request.confirmOnly, false)
@@ -350,6 +360,36 @@ test('simc page exposes deterministic blocked reasons from template validation',
 
   assert.deepEqual(page.data.blockedReasons, ['template class/spec mismatch', 'missing gear slots: off_hand'])
   assert.equal(page.data.canSubmitTask, false)
+})
+
+test('simc page surfaces confirm preview report finding', () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: () => Promise.resolve({ payload: { templates: [] }, fromFallback: true, error: '' }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
+  const page = createPageInstance(pageDefinition)
+  page.applyAnalysisResult({
+    agent: { status: 'template_ready', canSubmitTask: true, validation: { passed: true, errors: [] } },
+    report: {
+      topFindings: [{ text: 'Template payload validated; confirmOnly did not execute SimC.' }]
+    },
+    recommendations: ['Generic ready message.']
+  }, false, '')
+
+  assert.equal(page.data.resultSummary, 'Template payload validated; confirmOnly did not execute SimC.')
+  assert.match(wxml, /resultSummary/)
 })
 
 test('smart analysis tab is a three-module entry hub without metrics', () => {
@@ -430,6 +470,9 @@ test('simulator task detail page renders saved task analysis', () => {
   assert.match(wxml, /detail\.simcDisplayValue/)
   assert.match(wxml, /detail\.simcMetricLabel/)
   assert.match(wxml, /detail\.simcUnitText/)
+  assert.match(wxml, /detail\.reportFindings/)
+  assert.match(wxml, /detail\.reportActions/)
+  assert.match(wxml, /detail\.reportLimitations/)
   assert.match(wxml, /detail\.briefConclusion/)
   assert.match(api, /requestSimulatorTaskDetail\(taskId\)/)
   assert.match(css, /\.task-detail-hero/)
@@ -518,6 +561,55 @@ test('task detail hides generated SimC preview DPS values from the report', () =
   assert.equal(normalized.simcDisplayValue, '未执行正式模拟')
   assert.match(normalized.briefConclusion, /未执行正式 SimC DPS 模拟/)
   assert.doesNotMatch(normalized.briefConclusion, /26\.129/)
+})
+
+test('task detail exposes structured SimC report explanation', () => {
+  let pageDefinition = null
+  const originalPage = global.Page
+  global.Page = (definition) => {
+    pageDefinition = definition
+  }
+  delete require.cache[require.resolve('../pages/simulator/task-detail.js')]
+  require('../pages/simulator/task-detail.js')
+  global.Page = originalPage
+
+  const normalized = pageDefinition.normalizeTaskDetail({
+    taskId: 'task-report',
+    mode: 'simcraft_template',
+    question: 'Run fixed template',
+    request: {},
+    analysis: {
+      request: {
+        buildContext: {
+          className: 'Mage',
+          specName: 'Arcane',
+          details: { talents: {}, gear: { gear: [] } }
+        }
+      },
+      simulation: { ran: false, error: '', metrics: {} },
+      recommendations: ['Submit the confirmed task to run full SimC.'],
+      report: {
+        source: 'deterministic_confirm_preview',
+        topFindings: [
+          {
+            text: 'Template payload validated; confirmOnly did not execute SimC.',
+            evidenceRefs: ['simc.confirmOnly', 'simc.template']
+          }
+        ],
+        nextActions: ['Submit the task when ready.'],
+        limitations: ['No DPS is available until final submit runs SimC.']
+      }
+    }
+  })
+
+  assert.deepEqual(normalized.reportFindings, [
+    {
+      text: 'Template payload validated; confirmOnly did not execute SimC.',
+      evidenceText: 'simc.confirmOnly / simc.template'
+    }
+  ])
+  assert.deepEqual(normalized.reportActions, ['Submit the task when ready.'])
+  assert.deepEqual(normalized.reportLimitations, ['No DPS is available until final submit runs SimC.'])
 })
 
 test('wcl analysis page submits WCL questions through the simulator analyzer', () => {

@@ -45,6 +45,31 @@
           </view>
         </view>
 
+        <view class="section report-explanation-box" wx:if="{{detail.hasReportExplanation}}">
+          <view class="section-header">
+            <text class="section-title">报告解释</text>
+            <text class="section-action">Evidence</text>
+          </view>
+          <view class="detail-list" wx:if="{{detail.reportFindings.length}}">
+            <view class="detail-list-item report-finding" wx:for="{{detail.reportFindings}}" wx:key="text">
+              <text user-select="{{true}}">{{item.text}}</text>
+              <text wx:if="{{item.evidenceText}}" class="report-evidence" user-select="{{true}}">{{item.evidenceText}}</text>
+            </view>
+          </view>
+          <view class="report-sublist" wx:if="{{detail.reportActions.length}}">
+            <text class="report-subtitle">下一步</text>
+            <view class="report-note-row" wx:for="{{detail.reportActions}}" wx:key="*this">
+              <text user-select="{{true}}">{{item}}</text>
+            </view>
+          </view>
+          <view class="report-sublist" wx:if="{{detail.reportLimitations.length}}">
+            <text class="report-subtitle">限制</text>
+            <view class="report-note-row" wx:for="{{detail.reportLimitations}}" wx:key="*this">
+              <text user-select="{{true}}">{{item}}</text>
+            </view>
+          </view>
+        </view>
+
         <view class="section">
           <view class="section-header">
             <text class="section-title">SimC 结果</text>

@@ -10,52 +10,54 @@
     </view>
 
     <scroll-view class="template-workspace" scroll-y type="list">
-      <view class="template-selector class-selector">
-        <view class="section-header">
-          <text class="section-title">选择职业</text>
-          <text class="section-meta">{{classOptions.length}} 个</text>
+      <view class="template-selector compact-selector class-selector">
+        <view class="selector-row">
+          <view class="selector-title-group">
+            <text class="section-title">职业</text>
+          </view>
+          <picker class="selector-picker" mode="selector" range="{{classOptions}}" range-key="name" value="{{selectedClassIndex}}" bindchange="selectClass" disabled="{{!classOptions.length}}">
+            <view class="toolbar-picker">
+              <text class="picker-value">{{selectedClassName || '请选择职业'}}</text>
+            </view>
+          </picker>
         </view>
         <view class="empty-state" wx:if="{{emptyState.class}}">
           <text>{{emptyState.class}}</text>
         </view>
-        <picker mode="selector" range="{{classOptions}}" range-key="name" value="{{selectedClassIndex}}" bindchange="selectClass" disabled="{{!classOptions.length}}">
-          <view class="toolbar-picker">
-            <text class="picker-label">职业</text>
-            <text class="picker-value">{{selectedClassName || '请选择职业'}}</text>
-          </view>
-        </picker>
       </view>
 
-      <view class="template-selector">
-        <view class="section-header">
-          <text class="section-title">天赋模板</text>
-          <text class="section-meta">{{talentTemplates.length}} 个</text>
+      <view class="template-selector compact-selector">
+        <view class="selector-row">
+          <view class="selector-title-group">
+            <text class="section-title">天赋模板</text>
+            <text class="section-meta">{{talentTemplates.length}} 个配置</text>
+          </view>
+          <picker class="selector-picker" wx:if="{{talentTemplates.length}}" mode="selector" range="{{talentTemplates}}" range-key="title" value="{{selectedTalentTemplateIndex}}" bindchange="selectTalentTemplate">
+            <view class="toolbar-picker">
+              <text class="picker-value">{{selectedTalentTemplate ? selectedTalentTemplate.title : '尚未保存天赋模板'}}</text>
+            </view>
+          </picker>
         </view>
         <view class="empty-state" wx:if="{{emptyState.talent}}">
           <text>{{emptyState.talent}}</text>
         </view>
-        <picker wx:if="{{talentTemplates.length}}" mode="selector" range="{{talentTemplates}}" range-key="title" value="{{selectedTalentTemplateIndex}}" bindchange="selectTalentTemplate">
-          <view class="toolbar-picker">
-            <text class="picker-label">天赋</text>
-            <text class="picker-value">{{selectedTalentTemplate ? selectedTalentTemplate.title : '尚未保存天赋模板'}}</text>
-          </view>
-        </picker>
       </view>
 
-      <view class="template-selector">
-        <view class="section-header">
-          <text class="section-title">装备模板</text>
-          <text class="section-meta">{{gearTemplates.length}} 个</text>
+      <view class="template-selector compact-selector">
+        <view class="selector-row">
+          <view class="selector-title-group">
+            <text class="section-title">装备模板</text>
+            <text class="section-meta">{{gearTemplates.length}} 个配置</text>
+          </view>
+          <picker class="selector-picker" wx:if="{{gearTemplates.length}}" mode="selector" range="{{gearTemplates}}" range-key="title" value="{{selectedGearTemplateIndex}}" bindchange="selectGearTemplate">
+            <view class="toolbar-picker">
+              <text class="picker-value">{{selectedGearTemplate ? selectedGearTemplate.title : '尚未保存装备模板'}}</text>
+            </view>
+          </picker>
         </view>
         <view class="empty-state" wx:if="{{emptyState.gear}}">
           <text>{{emptyState.gear}}</text>
         </view>
-        <picker wx:if="{{gearTemplates.length}}" mode="selector" range="{{gearTemplates}}" range-key="title" value="{{selectedGearTemplateIndex}}" bindchange="selectGearTemplate">
-          <view class="toolbar-picker">
-            <text class="picker-label">装备</text>
-            <text class="picker-value">{{selectedGearTemplate ? selectedGearTemplate.title : '尚未保存装备模板'}}</text>
-          </view>
-        </picker>
       </view>
 
       <view class="template-selector">
@@ -69,24 +71,6 @@
             wx:key="key"
             data-key="{{item.key}}"
             bindtap="selectScenario"
-          >
-            <text class="segment-title">{{item.title}}</text>
-            <text class="segment-desc">{{item.desc}}</text>
-          </button>
-        </view>
-      </view>
-
-      <view class="template-selector">
-        <view class="section-header">
-          <text class="section-title">分析类型</text>
-        </view>
-        <view class="segmented-row">
-          <button
-            class="segment-button {{selectedAnalysisType === item.key ? 'segment-selected' : ''}}"
-            wx:for="{{analysisTypeOptions}}"
-            wx:key="key"
-            data-key="{{item.key}}"
-            bindtap="selectAnalysisType"
           >
             <text class="segment-title">{{item.title}}</text>
             <text class="segment-desc">{{item.desc}}</text>
@@ -114,10 +98,6 @@
           <text class="summary-label">场景</text>
           <text class="summary-value">{{selectedScenarioKey}}</text>
         </view>
-        <view class="summary-row">
-          <text class="summary-label">类型</text>
-          <text class="summary-value">{{selectedAnalysisType}}</text>
-        </view>
       </view>
 
       <view class="blocked-panel" wx:if="{{blockedReasons.length}}">
@@ -129,7 +109,7 @@
 
       <view class="result-panel" wx:if="{{latestAnalysis && latestAnalysis.agent && !blockedReasons.length}}">
         <text class="result-title">{{latestAnalysis.agent.status}}</text>
-        <text class="result-desc">{{latestAnalysis.recommendations[0]}}</text>
+        <text class="result-desc">{{resultSummary}}</text>
       </view>
     </scroll-view>
 
