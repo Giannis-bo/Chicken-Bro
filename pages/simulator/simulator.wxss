@@ -30,6 +30,11 @@
   background: linear-gradient(135deg, rgba(248, 183, 0, 0.14), #151515 62%);
 }
 
+.module-chickenbro {
+  border-color: rgba(91, 214, 180, 0.3);
+  background: linear-gradient(135deg, rgba(28, 112, 95, 0.34), #151515 64%);
+}
+
 .module-tasks {
   border-color: rgba(255, 255, 255, 0.12);
 }

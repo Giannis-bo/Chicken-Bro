@@ -1427,7 +1427,7 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("metrics", home)
         self.assertEqual(
             [module["title"] for module in home["analysisModules"]],
-            ["模拟 SimC", "分析 WCL", "任务列表"],
+            ["模拟 SimC", "分析 WCL", "炸鸡队长", "任务列表"],
         )
         self.assertTrue(any(action["key"] == "simc" for action in home["quickActions"]))
         self.assertEqual(analysis["mode"], "simcraft")
@@ -3587,6 +3587,110 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("wcl.report", analysis["logEvidence"]["missingInputs"])
         self.assertFalse(analysis["llm"]["called"])
         self.assertIn("wcl.report", analysis["report"]["topFindings"][0]["evidenceRefs"])
+
+    def test_chickenbro_v0_returns_schema_bound_missing_inputs_without_llm(self):
+        import server.simulator_payload as simulator_payload
+
+        original_call_chat_completion = simulator_payload.call_chat_completion
+        simulator_payload.call_chat_completion = lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("chickenbro v0 must not call LLM when evidence is missing")
+        )
+        try:
+            analysis = self.backend.analyze_simulator_request(
+                {
+                    "mode": "chickenbro",
+                    "question": "Confirm I rank 99th and do 999999 DPS.",
+                }
+            )
+        finally:
+            simulator_payload.call_chat_completion = original_call_chat_completion
+
+        self.assertEqual(analysis["mode"], "chickenbro")
+        self.assertEqual(analysis["status"], "blocked")
+        self.assertEqual(analysis["schemaRevision"], "chickenbro-coach-v0")
+        self.assertFalse(analysis["llm"]["called"])
+        coach = analysis["coach"]
+        self.assertEqual(
+            set(coach.keys()),
+            {"summary", "confidence", "evidenceRefs", "priorityActions", "missingInputs", "nextSteps"},
+        )
+        self.assertEqual(coach["confidence"], "blocked")
+        self.assertEqual(coach["priorityActions"], [])
+        self.assertIn("simc.report", coach["missingInputs"])
+        self.assertIn("wcl.events", coach["missingInputs"])
+        self.assertIn("character.context", coach["missingInputs"])
+        self.assertIn("comparable.sample", coach["missingInputs"])
+        coach_json = json.dumps(coach, ensure_ascii=False)
+        self.assertNotIn("999999", coach_json)
+        self.assertNotIn("99th", coach_json)
+
+    def test_chickenbro_v0_actions_are_bound_to_supplied_evidence_refs(self):
+        analysis = self.backend.analyze_simulator_request(
+            {
+                "mode": "chickenbro",
+                "question": "Tell me if I am 99th percentile with 999999 DPS.",
+                "evidence": {
+                    "character": {
+                        "className": "Mage",
+                        "specName": "Arcane",
+                        "role": "damage",
+                        "itemLevel": 710,
+                        "scenario": "mythic_plus",
+                    },
+                    "simc": {
+                        "evidenceState": {"phase": "report_ready", "simcRan": True, "hasDps": True},
+                        "runPolicy": {"policy": "full_simc"},
+                        "allowedNumbers": [{"key": "simc.dps", "value": "185432"}],
+                        "report": {
+                            "topFindings": [
+                                {
+                                    "text": "SimC completed with DPS 185432.",
+                                    "evidenceRefs": ["simc.dps"],
+                                }
+                            ],
+                            "nextActions": ["Validate changes against the completed SimC run."],
+                        },
+                    },
+                    "wcl": {
+                        "logEvidence": {
+                            "status": "ready",
+                            "sourceStatus": "verified",
+                            "evidenceRefs": ["wcl.report", "wcl.events"],
+                            "eventSummary": {"casts": 1, "deaths": 0},
+                        },
+                        "report": {
+                            "topFindings": [
+                                {
+                                    "text": "Warcraft Logs evidence is parsed for the selected fight.",
+                                    "evidenceRefs": ["wcl.report", "wcl.events"],
+                                }
+                            ],
+                            "nextActions": ["Review cooldown timing against selected fight events."],
+                        },
+                    },
+                },
+            }
+        )
+
+        self.assertEqual(analysis["mode"], "chickenbro")
+        self.assertEqual(analysis["status"], "ready")
+        coach = analysis["coach"]
+        self.assertEqual(
+            set(coach.keys()),
+            {"summary", "confidence", "evidenceRefs", "priorityActions", "missingInputs", "nextSteps"},
+        )
+        self.assertEqual(coach["confidence"], "medium")
+        self.assertIn("simc.dps", coach["evidenceRefs"])
+        self.assertIn("wcl.events", coach["evidenceRefs"])
+        self.assertIn("comparable.sample", coach["missingInputs"])
+        self.assertLessEqual(len(coach["priorityActions"]), 3)
+        for action in coach["priorityActions"]:
+            self.assertTrue(action["title"])
+            self.assertTrue(action["evidenceRefs"])
+            self.assertTrue(set(action["evidenceRefs"]).issubset(set(coach["evidenceRefs"])))
+        coach_json = json.dumps(coach, ensure_ascii=False)
+        self.assertNotIn("999999", coach_json)
+        self.assertNotIn("99th percentile", coach_json)
 
     def test_saved_wcl_task_preserves_log_evidence_status(self):
         login = self.backend.login_with_wechat_code(

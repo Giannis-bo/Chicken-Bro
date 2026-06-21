@@ -59,6 +59,10 @@ Page({
       wx.navigateTo({ url: '/pages/simulator/wcl' })
       return
     }
+    if (mode === 'chickenbro') {
+      wx.navigateTo({ url: '/pages/simulator/chickenbro' })
+      return
+    }
     if (mode === 'tasks') {
       this.setData({ scrollTarget: '' }, () => {
         this.setData({ scrollTarget: 'task-section' })

@@ -392,15 +392,19 @@ test('simc page surfaces confirm preview report finding', () => {
   assert.match(wxml, /resultSummary/)
 })
 
-test('smart analysis tab is a three-module entry hub without metrics', () => {
+test('smart analysis tab is a four-module entry hub without metrics', () => {
   const app = JSON.parse(fs.readFileSync('app.json', 'utf8'))
   const js = fs.readFileSync('pages/simulator/simulator.js', 'utf8')
   const wxml = fs.readFileSync('pages/simulator/simulator.wxml', 'utf8')
   const css = fs.readFileSync('pages/simulator/simulator.wxss', 'utf8')
   const api = fs.readFileSync('pages/simulator/simulator-api.js', 'utf8')
+  const chickenbroJs = fs.readFileSync('pages/simulator/chickenbro.js', 'utf8')
+  const chickenbroWxml = fs.readFileSync('pages/simulator/chickenbro.wxml', 'utf8')
+  const chickenbroCss = fs.readFileSync('pages/simulator/chickenbro.wxss', 'utf8')
 
   assert.ok(app.pages.includes('pages/simulator/simc'))
   assert.ok(app.pages.includes('pages/simulator/wcl'))
+  assert.ok(app.pages.includes('pages/simulator/chickenbro'))
   assert.ok(app.pages.includes('pages/simulator/task-detail'))
   assert.match(wxml, /<view class="hero simulator-hero">/)
   assert.doesNotMatch(wxml, /class="metrics"/)
@@ -421,6 +425,7 @@ test('smart analysis tab is a three-module entry hub without metrics', () => {
   assert.match(js, /taskId:\s*task\.taskId/)
   assert.match(js, /wx\.navigateTo\(\{[\s\S]*\/pages\/simulator\/simc/)
   assert.match(js, /wx\.navigateTo\(\{[\s\S]*\/pages\/simulator\/wcl/)
+  assert.match(js, /wx\.navigateTo\(\{[\s\S]*\/pages\/simulator\/chickenbro/)
   assert.match(js, /\/pages\/simulator\/task-detail\?id=/)
   assert.match(api, /navTitle:\s*'智能分析'/)
   assert.match(api, /analysisModules:\s*\[/)
@@ -428,9 +433,17 @@ test('smart analysis tab is a three-module entry hub without metrics', () => {
   assert.doesNotMatch(api, /metrics:\s*undefined/)
   assert.match(api, /title:\s*'模拟 SimC'/)
   assert.match(api, /title:\s*'分析 WCL'/)
+  assert.match(api, /key:\s*'chickenbro'/)
+  assert.match(api, /title:\s*'炸鸡队长'/)
   assert.match(api, /title:\s*'任务列表'/)
   assert.match(css, /\.analysis-modules/)
   assert.match(css, /\.analysis-module-card/)
+  assert.match(css, /\.module-chickenbro/)
+  assert.match(chickenbroJs, /mode:\s*'chickenbro'/)
+  assert.match(chickenbroJs, /requestSimulatorAnalysis/)
+  assert.match(chickenbroWxml, /coach\.priorityActions/)
+  assert.match(chickenbroWxml, /missingInputs/)
+  assert.match(chickenbroCss, /\.chickenbro-hero/)
 })
 
 test('simulator task detail page renders saved task analysis', () => {

@@ -1556,8 +1556,15 @@ def build_simulator_home_payload():
                 "action": "进入分析",
             },
             {
-                "key": "tasks",
+                "key": "chickenbro",
                 "badge": "03",
+                "title": "炸鸡队长",
+                "desc": "把已有 SimC、WCL 与角色上下文整理成证据受限的下一步建议，缺证据时只列缺失项。",
+                "action": "进入教练",
+            },
+            {
+                "key": "tasks",
+                "badge": "04",
                 "title": "任务列表",
                 "desc": "查看最近提交过的模拟和日志分析任务，继续追踪结果。",
                 "action": "查看记录",
@@ -1566,6 +1573,7 @@ def build_simulator_home_payload():
         "quickActions": [
             {"key": "simc", "title": "模拟 SimC", "desc": "进入 SimC 工作台。"},
             {"key": "wcl", "title": "分析 WCL", "desc": "进入 WCL 工作台。"},
+            {"key": "chickenbro", "title": "炸鸡队长", "desc": "进入证据教练。"},
             {"key": "tasks", "title": "任务列表", "desc": "查看最近任务。"},
         ],
         "tasks": [
@@ -2007,6 +2015,194 @@ def build_wcl_analysis_payload(request_data):
         "logEvidence": log_evidence,
         "report": report,
         "recommendations": report["nextActions"][:3],
+        "llm": {
+            "prompt": "",
+            "called": llm_result["called"],
+            "model": llm_result.get("model", llm_model()),
+            "content": "",
+            "error": llm_result["error"],
+        },
+    }
+
+
+def append_unique_text(values, text):
+    value = clean_report_text(text, 120)
+    if value and value not in values:
+        values.append(value)
+
+
+def append_unique_ref(values, ref):
+    value = clean_report_text(ref, 80)
+    if value and value not in values:
+        values.append(value)
+
+
+def report_evidence_refs(report):
+    refs = []
+    if not isinstance(report, dict):
+        return refs
+    for finding in report.get("topFindings") or []:
+        if not isinstance(finding, dict):
+            continue
+        for ref in finding.get("evidenceRefs") or []:
+            append_unique_ref(refs, ref)
+    return refs
+
+
+def chickenbro_coach_source_evidence(source):
+    evidence = source.get("evidence") if isinstance(source.get("evidence"), dict) else {}
+    return {
+        "character": evidence.get("character") if isinstance(evidence.get("character"), dict) else (
+            source.get("characterContext") if isinstance(source.get("characterContext"), dict) else {}
+        ),
+        "simc": evidence.get("simc") if isinstance(evidence.get("simc"), dict) else (
+            source.get("simcAnalysis") if isinstance(source.get("simcAnalysis"), dict) else {}
+        ),
+        "wcl": evidence.get("wcl") if isinstance(evidence.get("wcl"), dict) else (
+            source.get("wclAnalysis") if isinstance(source.get("wclAnalysis"), dict) else {}
+        ),
+        "comparison": evidence.get("comparison") if isinstance(evidence.get("comparison"), dict) else (
+            evidence.get("comparableSample") if isinstance(evidence.get("comparableSample"), dict) else {}
+        ),
+    }
+
+
+def chickenbro_has_character_context(character):
+    if not isinstance(character, dict):
+        return False
+    return bool(
+        (character.get("className") or character.get("classKey"))
+        and (character.get("specName") or character.get("specKey"))
+        and character.get("role")
+        and character.get("itemLevel")
+        and (character.get("scenario") or character.get("scenarioKey"))
+    )
+
+
+def chickenbro_simc_refs(simc):
+    if not isinstance(simc, dict):
+        return []
+    refs = report_evidence_refs(simc.get("report"))
+    for number in simc.get("allowedNumbers") or []:
+        if isinstance(number, dict):
+            append_unique_ref(refs, number.get("key"))
+    if not refs and (simc.get("evidenceState") or {}).get("phase") == "report_ready":
+        append_unique_ref(refs, "simc.report")
+    return refs
+
+
+def chickenbro_wcl_refs(wcl):
+    if not isinstance(wcl, dict):
+        return []
+    refs = []
+    log_evidence = wcl.get("logEvidence") if isinstance(wcl.get("logEvidence"), dict) else wcl
+    for ref in log_evidence.get("evidenceRefs") or []:
+        append_unique_ref(refs, ref)
+    for ref in report_evidence_refs(wcl.get("report")):
+        append_unique_ref(refs, ref)
+    return refs
+
+
+def chickenbro_comparison_ready(comparison):
+    if not isinstance(comparison, dict):
+        return False
+    return str(comparison.get("status") or comparison.get("sourceStatus") or "").lower() in {"ready", "verified"}
+
+
+def build_chickenbro_coach_payload(source):
+    source = source if isinstance(source, dict) else {}
+    evidence = chickenbro_coach_source_evidence(source)
+    character = evidence["character"]
+    simc = evidence["simc"]
+    wcl = evidence["wcl"]
+    comparison = evidence["comparison"]
+    simc_refs = chickenbro_simc_refs(simc)
+    wcl_refs = chickenbro_wcl_refs(wcl)
+    has_character = chickenbro_has_character_context(character)
+    has_simc = bool(simc_refs)
+    has_wcl = bool(wcl_refs)
+    has_comparison = chickenbro_comparison_ready(comparison)
+
+    evidence_refs = []
+    if has_character:
+        append_unique_ref(evidence_refs, "character.context")
+    for ref in simc_refs + wcl_refs:
+        append_unique_ref(evidence_refs, ref)
+    if has_comparison:
+        append_unique_ref(evidence_refs, "comparable.sample")
+    if not evidence_refs:
+        append_unique_ref(evidence_refs, "coach.scope")
+
+    missing_inputs = []
+    if not has_simc:
+        append_unique_text(missing_inputs, "simc.report")
+    if not has_wcl:
+        append_unique_text(missing_inputs, "wcl.events")
+    if not has_character:
+        append_unique_text(missing_inputs, "character.context")
+    if not has_comparison:
+        append_unique_text(missing_inputs, "comparable.sample")
+
+    priority_actions = []
+    if has_simc:
+        priority_actions.append({
+            "title": "Use the completed SimC report as the optimization baseline before changing talents or gear.",
+            "evidenceRefs": simc_refs[:3],
+        })
+    if has_wcl:
+        priority_actions.append({
+            "title": "Review parsed WCL events before making rotation, death, or cooldown claims.",
+            "evidenceRefs": wcl_refs[:3],
+        })
+    if has_character and (has_simc or has_wcl):
+        priority_actions.append({
+            "title": "Keep class, spec, role, item level, and scenario attached while iterating on advice.",
+            "evidenceRefs": ["character.context"],
+        })
+    priority_actions = [
+        action
+        for action in priority_actions[:3]
+        if action.get("evidenceRefs") and all(ref in evidence_refs for ref in action["evidenceRefs"])
+    ]
+
+    if not priority_actions:
+        summary = "chickenbro needs traceable SimC, WCL, character, and comparable sample evidence before coaching."
+        confidence = "blocked"
+    elif has_simc and has_wcl and has_character:
+        summary = "chickenbro can organize the supplied SimC and WCL evidence, while ranking or percentile claims still need a matched sample."
+        confidence = "high" if has_comparison else "medium"
+    else:
+        summary = "chickenbro has partial evidence and can only suggest evidence collection and review order."
+        confidence = "low"
+
+    next_steps = []
+    if "simc.report" in missing_inputs:
+        next_steps.append("Attach a completed SimC report or submit a complete /simc profile through the SimC workflow.")
+    if "wcl.events" in missing_inputs:
+        next_steps.append("Attach a Warcraft Logs report with fetched fight events before asking for log conclusions.")
+    if "character.context" in missing_inputs:
+        next_steps.append("Provide class, spec, role, item level, and scenario context.")
+    if "comparable.sample" in missing_inputs:
+        next_steps.append("Add a matched same-spec, same-role, same-scenario sample before asking for rankings or percentiles.")
+    if not next_steps:
+        next_steps.append("Review the prioritized actions, then rerun after any talent, gear, or gameplay change.")
+
+    coach = {
+        "summary": summary,
+        "confidence": confidence,
+        "evidenceRefs": evidence_refs,
+        "priorityActions": priority_actions,
+        "missingInputs": missing_inputs,
+        "nextSteps": next_steps[:4],
+    }
+    llm_result = skipped_llm_result("chickenbro coach v0 deterministic evidence schema")
+    return {
+        "mode": "chickenbro",
+        "status": "ready" if priority_actions else "blocked",
+        "schemaRevision": "chickenbro-coach-v0",
+        "createdAt": utc_now(),
+        "coach": coach,
+        "recommendations": [action["title"] for action in priority_actions],
         "llm": {
             "prompt": "",
             "called": llm_result["called"],
@@ -2999,6 +3195,8 @@ def analyze_simulator_request(payload, codex_runner=None):
         return analyze_simcraft_template_request(source, codex_runner=codex_runner)
     if (source.get("mode") or "") == "simcraft_agent":
         return analyze_simc_agent_request(source, codex_runner=codex_runner)
+    if (source.get("mode") or "") == "chickenbro":
+        return build_chickenbro_coach_payload(source)
 
     request_data = normalize_analysis_request(payload)
     if request_data["mode"] == "wcl":
