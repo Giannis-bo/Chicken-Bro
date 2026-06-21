@@ -49,8 +49,15 @@ function fallbackSimulatorHome() {
         action: '进入分析'
       },
       {
-        key: 'tasks',
+        key: 'chickenbro',
         badge: '03',
+        title: '炸鸡队长',
+        desc: '把已有 SimC、WCL 与角色上下文整理成证据受限的下一步建议，缺证据时只列缺失项。',
+        action: '进入教练'
+      },
+      {
+        key: 'tasks',
+        badge: '04',
         title: '任务列表',
         desc: '查看最近提交过的模拟和日志分析任务，继续追踪结果。',
         action: '查看记录'
@@ -59,6 +66,7 @@ function fallbackSimulatorHome() {
     quickActions: [
       { key: 'simc', title: '模拟 SimC', desc: '进入 SimC 工作台' },
       { key: 'wcl', title: '分析 WCL', desc: '进入 WCL 工作台' },
+      { key: 'chickenbro', title: '炸鸡队长', desc: '进入证据教练' },
       { key: 'tasks', title: '任务列表', desc: '查看最近任务' }
     ],
     tasks: [

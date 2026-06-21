@@ -304,7 +304,7 @@ test('pve and simulator apis expose fallback payloads', async () => {
   assert.equal(simulatorHome.payload.navTitle, '智能分析')
   assert.deepEqual(
     simulatorHome.payload.analysisModules.map((module) => module.title),
-    ['模拟 SimC', '分析 WCL', '任务列表']
+    ['模拟 SimC', '分析 WCL', '炸鸡队长', '任务列表']
   )
   assert.equal(simulatorHome.payload.metrics, undefined)
   assert.equal(analysis.fromFallback, true)

@@ -12,6 +12,7 @@
     "pages/simulator/simulator",
     "pages/simulator/simc",
     "pages/simulator/wcl",
+    "pages/simulator/chickenbro",
     "pages/simulator/task-detail",
     "pages/profile/profile"
   ],
