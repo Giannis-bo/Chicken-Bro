@@ -25,6 +25,50 @@
             {
                 "type": "glob",
                 "value": "**/*.pyc"
+            },
+            {
+                "type": "glob",
+                "value": ".worktrees/**"
+            },
+            {
+                "type": "glob",
+                "value": "tests/**"
+            },
+            {
+                "type": "glob",
+                "value": "docs/**"
+            },
+            {
+                "type": "glob",
+                "value": "server/**/*.py"
+            },
+            {
+                "type": "glob",
+                "value": "server/**/*.pyc"
+            },
+            {
+                "type": "glob",
+                "value": "server/**/__pycache__/**"
+            },
+            {
+                "type": "glob",
+                "value": "server/data/**"
+            },
+            {
+                "type": "glob",
+                "value": "server/*.sh"
+            },
+            {
+                "type": "glob",
+                "value": "server/*.service"
+            },
+            {
+                "type": "glob",
+                "value": "server/*.timer"
+            },
+            {
+                "type": "glob",
+                "value": "websim/**"
             }
         ],
         "include": []

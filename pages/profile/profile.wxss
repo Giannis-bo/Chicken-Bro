@@ -5,19 +5,19 @@
 .user-card {
   display: flex;
   align-items: center;
-  gap: 24rpx;
+  gap: 18rpx;
   margin-top: 0;
   border-color: rgba(248, 183, 0, 0.16);
 }
 
 .avatar-button {
-  width: 104rpx;
-  height: 104rpx;
+  width: 92rpx;
+  height: 92rpx;
   margin: 0;
   padding: 0;
   flex: none;
   border: 0;
-  border-radius: 16rpx;
+  border-radius: 12rpx;
   background: transparent;
   overflow: hidden;
 }
@@ -28,8 +28,8 @@
 
 .avatar,
 .avatar-image {
-  width: 104rpx;
-  height: 104rpx;
+  width: 92rpx;
+  height: 92rpx;
 }
 
 .avatar {
@@ -37,16 +37,16 @@
   align-items: center;
   justify-content: center;
   border: 1rpx solid rgba(248, 183, 0, 0.28);
-  border-radius: 16rpx;
+  border-radius: 12rpx;
   background: #101010;
   color: #f8b700;
-  font-size: 44rpx;
+  font-size: 38rpx;
   font-weight: 900;
 }
 
 .avatar-image {
   display: block;
-  border-radius: 16rpx;
+  border-radius: 12rpx;
 }
 
 .user-info {
@@ -57,7 +57,7 @@
 .user-name {
   display: block;
   color: #f1f1f1;
-  font-size: 36rpx;
+  font-size: 32rpx;
   font-weight: 900;
 }
 
@@ -70,7 +70,7 @@
 
 .user-desc {
   display: block;
-  margin-top: 10rpx;
+  margin-top: 8rpx;
   color: #9a9a9a;
   font-size: 24rpx;
 }
@@ -86,7 +86,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 18rpx;
-  padding: 24rpx 0;
+  padding: 18rpx 0;
   border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
 }
 
@@ -96,7 +96,7 @@
 
 .template-module {
   min-width: 0;
-  padding: 22rpx 0;
+  padding: 18rpx 0;
   border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
 }
 
@@ -113,7 +113,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18rpx;
+  gap: 14rpx;
 }
 
 .template-module-title,
@@ -121,7 +121,7 @@
 .setting-title {
   display: block;
   color: #f1f1f1;
-  font-size: 28rpx;
+  font-size: 27rpx;
   font-weight: 800;
 }
 
@@ -149,28 +149,28 @@
 }
 
 .template-empty {
-  margin-top: 18rpx;
-  padding: 20rpx;
+  margin-top: 14rpx;
+  padding: 16rpx;
   border: 1rpx dashed rgba(255, 255, 255, 0.12);
-  border-radius: 14rpx;
+  border-radius: 12rpx;
   background: #101010;
 }
 
 .template-list {
   display: flex;
   flex-direction: column;
-  gap: 14rpx;
-  margin-top: 18rpx;
+  gap: 12rpx;
+  margin-top: 14rpx;
 }
 
 .template-card {
   display: flex;
   align-items: flex-start;
-  gap: 16rpx;
+  gap: 12rpx;
   min-width: 0;
-  padding: 18rpx;
+  padding: 16rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.08);
-  border-radius: 14rpx;
+  border-radius: 12rpx;
   background: #101010;
 }
 
@@ -183,7 +183,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8rpx;
-  margin-top: 12rpx;
+  margin-top: 10rpx;
 }
 
 .template-meta-chip {
@@ -199,14 +199,14 @@
 }
 
 .template-source {
-  margin-top: 12rpx;
+  margin-top: 10rpx;
   overflow-wrap: anywhere;
 }
 
 .template-delete-button {
   flex: none;
   min-width: 88rpx;
-  min-height: 52rpx;
+  min-height: 48rpx;
   margin: 0;
   padding: 0 14rpx;
   border-radius: 12rpx;
@@ -214,7 +214,7 @@
   color: #d9d9d9;
   font-size: 22rpx;
   font-weight: 800;
-  line-height: 52rpx;
+  line-height: 48rpx;
 }
 
 .template-delete-button::after {
@@ -222,6 +222,6 @@
 }
 
 .setting-arrow {
-  color: #8b3ff5;
+  color: #f8b700;
   font-size: 36rpx;
 }

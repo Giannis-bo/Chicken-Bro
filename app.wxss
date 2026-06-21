@@ -1,9 +1,26 @@
 /**app.wxss**/
 page {
+  --wow-bg: #060606;
+  --wow-surface: #101010;
+  --wow-panel: #151515;
+  --wow-panel-warm: #17120d;
+  --wow-iron: #21170f;
+  --wow-gold: #f8b700;
+  --wow-text: #e1e2e5;
+  --wow-text-strong: #ffffff;
+  --wow-text-muted: #9a9a9a;
+  --wow-border: rgba(255, 255, 255, 0.08);
+  --wow-gold-border: rgba(248, 183, 0, 0.28);
+  --wow-verified: #58c98e;
+  --wow-reference: #54c0ff;
+  --wow-blocked: #ff6b64;
+  --wow-stale: #ff8c80;
   height: 100vh;
   min-height: 100vh;
   background: #060606;
+  background: var(--wow-bg);
   color: #e1e2e5;
+  color: var(--wow-text);
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 28rpx;
 }
@@ -20,6 +37,7 @@ scroll-view {
   display: flex;
   flex-direction: column;
   background: #060606;
+  background: var(--wow-bg);
 }
 
 .page-scroll {
@@ -29,28 +47,29 @@ scroll-view {
 }
 
 .page-content {
-  padding: 24rpx 28rpx 56rpx;
+  padding: 22rpx 24rpx 56rpx;
 }
 
 .hero {
   position: relative;
-  padding: 32rpx 30rpx;
+  padding: 24rpx;
   overflow: hidden;
-  border: 1rpx solid rgba(248, 183, 0, 0.24);
-  border-radius: 16rpx;
-  background: #111111;
+  border: 1rpx solid rgba(248, 183, 0, 0.28);
+  border: 1rpx solid var(--wow-gold-border);
+  border-radius: 12rpx;
+  background: linear-gradient(135deg, #101010 0%, #17120d 66%, #21170f 100%);
   color: #ffffff;
+  color: var(--wow-text-strong);
 }
 
 .hero::after {
   content: "";
   position: absolute;
-  right: -82rpx;
-  bottom: -108rpx;
-  width: 260rpx;
-  height: 260rpx;
-  border-radius: 50%;
-  background: rgba(139, 63, 245, 0.2);
+  right: 0;
+  top: 0;
+  width: 6rpx;
+  height: 100%;
+  background: linear-gradient(180deg, rgba(248, 183, 0, 0.46), rgba(248, 183, 0, 0));
 }
 
 .hero-kicker {
@@ -58,10 +77,11 @@ scroll-view {
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  padding: 7rpx 16rpx;
+  padding: 6rpx 14rpx;
   border-radius: 999rpx;
   background: rgba(248, 183, 0, 0.14);
   color: #f8b700;
+  color: var(--wow-gold);
   font-size: 22rpx;
   font-weight: 700;
 }
@@ -70,9 +90,9 @@ scroll-view {
   position: relative;
   z-index: 1;
   display: block;
-  margin-top: 24rpx;
-  font-size: 46rpx;
-  line-height: 1.15;
+  margin-top: 16rpx;
+  font-size: 38rpx;
+  line-height: 1.16;
   font-weight: 800;
 }
 
@@ -80,16 +100,16 @@ scroll-view {
   position: relative;
   z-index: 1;
   display: block;
-  width: 86%;
-  margin-top: 18rpx;
+  width: 92%;
+  margin-top: 10rpx;
   color: rgba(225, 226, 229, 0.76);
-  font-size: 26rpx;
-  line-height: 1.55;
+  font-size: 24rpx;
+  line-height: 1.42;
 }
 
 .metrics {
   display: flex;
-  margin-top: 24rpx;
+  margin-top: 18rpx;
 }
 
 .metric-card,
@@ -97,57 +117,64 @@ scroll-view {
 .task-card,
 .profile-card {
   border: 1rpx solid rgba(255, 255, 255, 0.08);
-  border-radius: 16rpx;
+  border: 1rpx solid var(--wow-border);
+  border-radius: 12rpx;
   background: #151515;
-  box-shadow: 0 16rpx 36rpx rgba(0, 0, 0, 0.28);
+  background: var(--wow-panel);
+  box-shadow: 0 12rpx 28rpx rgba(0, 0, 0, 0.24);
 }
 
 .metric-card {
   flex: 1;
-  min-height: 132rpx;
-  padding: 22rpx 18rpx;
+  min-height: 112rpx;
+  padding: 18rpx 16rpx;
 }
 
 .metric-card + .metric-card {
-  margin-left: 16rpx;
+  margin-left: 14rpx;
 }
 
 .metric-value {
   display: block;
   color: #f8b700;
-  font-size: 34rpx;
+  color: var(--wow-gold);
+  font-size: 32rpx;
   line-height: 1;
   font-weight: 800;
 }
 
 .metric-label {
   display: block;
-  margin-top: 16rpx;
+  margin-top: 10rpx;
   color: #9a9a9a;
+  color: var(--wow-text-muted);
   font-size: 22rpx;
   line-height: 1.35;
 }
 
 .section {
-  margin-top: 24rpx;
-  padding: 28rpx;
+  margin-top: 18rpx;
+  padding: 20rpx;
 }
 
 .section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 22rpx;
+  gap: 16rpx;
+  margin-bottom: 14rpx;
 }
 
 .section-title {
   color: #f1f1f1;
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: 800;
 }
 
 .section-action {
+  flex: none;
   color: #f8b700;
+  color: var(--wow-gold);
   font-size: 24rpx;
   font-weight: 700;
 }
@@ -160,22 +187,68 @@ scroll-view {
 
 .quick-item {
   width: calc(50% - 16rpx);
-  min-height: 132rpx;
+  min-height: 112rpx;
   margin: 8rpx;
-  padding: 24rpx;
+  padding: 18rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.08);
-  border-radius: 16rpx;
+  border: 1rpx solid var(--wow-border);
+  border-radius: 12rpx;
   background: #101010;
+  background: var(--wow-surface);
 }
 
 .quick-title {
   display: block;
   color: #f1f1f1;
-  font-size: 27rpx;
+  font-size: 26rpx;
   font-weight: 800;
 }
 
 .quick-desc {
+  display: block;
+  margin-top: 8rpx;
+  color: #a7a7a7;
+  font-size: 22rpx;
+  line-height: 1.38;
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.task-card {
+  padding: 18rpx;
+}
+
+.task-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.task-title {
+  flex: 1;
+  color: #f1f1f1;
+  font-size: 27rpx;
+  font-weight: 800;
+  line-height: 1.32;
+}
+
+.task-status {
+  flex: none;
+  padding: 7rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(248, 183, 0, 0.14);
+  color: #f8b700;
+  color: var(--wow-gold);
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.task-desc {
   display: block;
   margin-top: 10rpx;
   color: #a7a7a7;
@@ -183,50 +256,7 @@ scroll-view {
   line-height: 1.42;
 }
 
-.task-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-}
-
-.task-card {
-  padding: 24rpx;
-}
-
-.task-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18rpx;
-}
-
-.task-title {
-  flex: 1;
-  color: #f1f1f1;
-  font-size: 28rpx;
-  font-weight: 800;
-  line-height: 1.35;
-}
-
-.task-status {
-  flex: none;
-  padding: 8rpx 16rpx;
-  border-radius: 999rpx;
-  background: rgba(139, 63, 245, 0.18);
-  color: #b78aff;
-  font-size: 22rpx;
-  font-weight: 700;
-}
-
-.task-desc {
-  display: block;
-  margin-top: 12rpx;
-  color: #a7a7a7;
-  font-size: 24rpx;
-  line-height: 1.5;
-}
-
 .profile-card {
-  margin-top: 24rpx;
-  padding: 30rpx;
+  margin-top: 18rpx;
+  padding: 20rpx;
 }

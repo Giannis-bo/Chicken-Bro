@@ -78,6 +78,7 @@
 | 用 roadmap 作为长期推进控制台 | [roadmap.md](../roadmap.md) | 当前文档体系 |
 | 保留 `docs/plans/` 作为历史执行计划 | [roadmap.md](../roadmap.md) | `docs/plans/*.md` |
 | 用户确认 OK 后主动纳入 roadmap 或提醒纳入 | [roadmap.md](../roadmap.md) | 当前维护规则 |
+| 小程序 UI 风格规范 | [roadmap.md](../roadmap.md) | [ui-style-guide.md](../ui-style-guide.md), `app.wxss`, `websim/app.css`, `pages/builds/detail.wxss`, `pages/simulator/simc.wxss`, `pages/pve/detail.wxss` |
 | WebSim 到 SimC 的可提交闭环 | [roadmap.md](../roadmap.md) | `server/websim_payload.py`, `tests/websim_payload_test.py`, `tests/news_backend_test.py`, [simulator-simc-end-to-end.md](../simulator-simc-end-to-end.md) |
 | SimC 输入契约产品化 | [roadmap.md](../roadmap.md) | `websim/app.js`, `server/news_backend.py`, `server/websim_payload.py`, `tests/websim-page.test.js`, `tests/websim_payload_test.py`, [simulator-simc-end-to-end.md](../simulator-simc-end-to-end.md) |
 | 装备中文名与官方图标补全 | [roadmap.md](../roadmap.md) | `server/websim_payload.py`, `server/builds/home-payload.js`, `server/news_backend.py`, `pages/builds/detail.*`, `websim/app.js`, `websim/app.css`, `tests/websim_payload_test.py`, `tests/builds-home-payload.test.js`, `tests/builds-page.test.js`, `tests/websim-page.test.js` |

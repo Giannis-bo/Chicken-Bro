@@ -14,8 +14,8 @@ test('news carousel dots align with the banner card frame', () => {
   const swiperBlock = block(css, '.news-swiper')
   const bannerBlock = block(css, '.banner-card')
 
-  assert.match(swiperBlock, /height:\s*384rpx;/)
-  assert.match(bannerBlock, /height:\s*384rpx;/)
+  assert.match(swiperBlock, /height:\s*260rpx;/)
+  assert.match(bannerBlock, /height:\s*260rpx;/)
   assert.match(css, /\.news-swiper\s+\.wx-swiper-dots[\s\S]*bottom:\s*12rpx;/)
 })
 
@@ -24,7 +24,7 @@ test('news page adopts a dark Wowhead-style news surface', () => {
 
   assert.match(css, /\.news-shell[\s\S]*background:\s*#060606;/)
   assert.match(css, /\.news-content[\s\S]*#060606[\s\S]*#101010/)
-  assert.match(css, /\.banner-card[\s\S]*border-radius:\s*16rpx;/)
+  assert.match(css, /\.banner-card[\s\S]*border-radius:\s*12rpx;/)
   assert.match(css, /\.banner-card[\s\S]*#f8b700/i)
   assert.match(css, /\.news-section[\s\S]*background:\s*#151515;/)
   assert.match(css, /\.highlight-card[\s\S]*background:\s*#101010;/)
@@ -46,7 +46,7 @@ test('news channel shortcuts stay in one compact row', () => {
   assert.match(itemBlock, /min-width:\s*0;/)
   assert.match(itemBlock, /min-height:\s*72rpx;/)
   assert.match(itemBlock, /padding:\s*12rpx\s+10rpx;/)
-  assert.match(newsSectionBlock, /padding:\s*22rpx\s+18rpx;/)
+  assert.match(newsSectionBlock, /padding:\s*18rpx;/)
   assert.match(newsSectionHeaderBlock, /margin-bottom:\s*14rpx;/)
 })
 

@@ -1,28 +1,28 @@
 .simulator-hero {
-  border-color: rgba(139, 63, 245, 0.5);
-  background: linear-gradient(135deg, #493477 0%, #1a1128 58%, #060606 100%);
-  box-shadow: 0 18rpx 44rpx rgba(73, 52, 119, 0.28);
+  border-color: rgba(248, 183, 0, 0.28);
+  background: linear-gradient(135deg, #101010 0%, #17120d 64%, #21170f 100%);
+  box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.28), inset 0 0 0 1rpx rgba(139, 63, 245, 0.16);
 }
 
 .analysis-modules {
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
-  margin-top: 24rpx;
+  gap: 12rpx;
+  margin-top: 18rpx;
 }
 
 .analysis-module-card {
-  min-height: 188rpx;
-  padding: 28rpx;
+  min-height: 156rpx;
+  padding: 20rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.08);
-  border-radius: 16rpx;
+  border-radius: 12rpx;
   background: #151515;
-  box-shadow: 0 16rpx 36rpx rgba(0, 0, 0, 0.28);
+  box-shadow: 0 12rpx 28rpx rgba(0, 0, 0, 0.24);
 }
 
 .module-simc {
-  border-color: rgba(139, 63, 245, 0.36);
-  background: linear-gradient(135deg, rgba(73, 52, 119, 0.92), #151515 68%);
+  border-color: rgba(139, 63, 245, 0.28);
+  background: linear-gradient(135deg, rgba(139, 63, 245, 0.16), #151515 54%);
 }
 
 .module-wcl {
@@ -32,7 +32,7 @@
 
 .module-chickenbro {
   border-color: rgba(91, 214, 180, 0.3);
-  background: linear-gradient(135deg, rgba(28, 112, 95, 0.34), #151515 64%);
+  background: linear-gradient(135deg, rgba(28, 112, 95, 0.16), #151515 58%);
 }
 
 .module-tasks {
@@ -63,9 +63,9 @@
 
 .module-title {
   display: block;
-  margin-top: 24rpx;
+  margin-top: 16rpx;
   color: #ffffff;
-  font-size: 34rpx;
+  font-size: 30rpx;
   font-weight: 900;
   line-height: 1.25;
 }
@@ -74,8 +74,8 @@
   display: block;
   margin-top: 12rpx;
   color: rgba(225, 226, 229, 0.72);
-  font-size: 25rpx;
-  line-height: 1.5;
+  font-size: 23rpx;
+  line-height: 1.4;
 }
 
 .task-section {
