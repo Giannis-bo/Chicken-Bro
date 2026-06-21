@@ -62,6 +62,10 @@
           <text>{{gearDataWarningText}}</text>
         </view>
 
+        <view class="gear-trust-summary" wx:if="{{gearTrustSummaryText}}">
+          <text>{{gearTrustSummaryText}}</text>
+        </view>
+
         <view class="gear-slot-grid">
           <view class="gear-slot-card {{item.statusClass}}" wx:for="{{gearSlotRows}}" wx:key="slot" data-slot="{{item.slot}}" bindtap="openGearSlotSheet">
             <view class="gear-slot-topline">
@@ -80,6 +84,7 @@
             </view>
             <view class="gear-slot-footer">
               <text>{{item.candidateCount}} 个候选</text>
+              <text>{{item.trustLabel}}</text>
             </view>
           </view>
         </view>
@@ -191,7 +196,7 @@
       </view>
     </view>
     <view class="gear-candidate-list">
-      <view class="gear-candidate-row {{item.selected ? 'selected' : ''}}" wx:for="{{gearSlotSheet.candidates}}" wx:for-index="candidateIndex" wx:key="key" data-index="{{candidateIndex}}" data-slot="{{gearSlotSheet.slot}}" bindtap="selectGearCandidate">
+      <view class="gear-candidate-row {{item.statusClass}} {{item.selected ? 'selected' : ''}}" wx:for="{{gearSlotSheet.candidates}}" wx:for-index="candidateIndex" wx:key="key" data-index="{{candidateIndex}}" data-slot="{{gearSlotSheet.slot}}" bindtap="selectGearCandidate">
         <view class="gear-icon-frame {{item.statusClass}}">
           <image wx:if="{{item.gameAsset.iconUrl}}" class="gear-icon" src="{{item.gameAsset.iconUrl}}" mode="aspectFill"></image>
           <text wx:else class="gear-icon-fallback">{{item.gameAsset.fallbackText}}</text>
@@ -202,6 +207,8 @@
         </view>
         <view class="gear-candidate-meta">
           <text class="gear-slot-status">{{item.statusLabel}}</text>
+          <text>{{item.trustLabel}}</text>
+          <text wx:if="{{item.blockerLabel}}">{{item.blockerLabel}}</text>
           <text wx:if="{{item.ilevel}}">装等 {{item.ilevel}}</text>
         </view>
       </view>
@@ -209,6 +216,7 @@
     <view class="gear-sheet-config" wx:if="{{gearSlotSheet.activeCandidate}}">
       <view class="gear-sheet-active">
         <text class="gear-sheet-active-name">{{gearSlotSheet.activeCandidate.displayName}}</text>
+        <text class="gear-sheet-active-source">{{gearSlotSheet.activeTrustLabel}} · {{gearSlotSheet.activeTrustText}}</text>
       </view>
       <view class="gear-variant-section" wx:if="{{gearSlotSheet.variantOptions.length}}">
         <text class="gear-sheet-section-title">难度 / 装等</text>
@@ -255,6 +263,7 @@
           <text class="gear-community-template-title">{{item.displayName || item.name}}</text>
           <text class="gear-community-template-meta">{{item.displaySourceName || item.sourceName}} · {{item.slotCoverageLabel}}</text>
           <text class="gear-community-template-meta">{{item.statusLabel}} · {{item.updatedLabel || item.analysisWindow}}</text>
+          <text class="gear-community-template-meta warning" wx:if="{{item.blockerLabel}}">{{item.blockerLabel}}</text>
         </view>
         <view class="gear-community-template-side">
           <text class="gear-community-template-state">{{item.missingSlotLabel}}</text>

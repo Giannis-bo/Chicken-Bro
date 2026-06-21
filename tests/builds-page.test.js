@@ -897,7 +897,11 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.doesNotMatch(wxml, /item\.iconUrl/)
   assert.match(wxml, /item\.displayName/)
   assert.match(wxml, /item\.statusLabel/)
-  assert.doesNotMatch(wxml, /item\.reason/)
+  assert.match(wxml, /gearTrustSummaryText/)
+  assert.match(wxml, /item\.trustLabel/)
+  assert.match(wxml, /gearSlotSheet\.activeTrustText/)
+  assert.match(wxml, /gearSlotSheet\.activeTrustLabel/)
+  assert.match(wxml, /item\.blockerLabel/)
   assert.doesNotMatch(wxml, /item\.source\s*(\|\||\}\})/)
   assert.doesNotMatch(wxml, /item\.itemId/)
   assert.doesNotMatch(wxml, /gearStatSnapshot\.itemLevel\.value/)
@@ -935,6 +939,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(css, /\.gear-slot-grid/)
   assert.match(css, /\.gear-slot-card\s*\{[\s\S]*min-height:\s*176rpx;[\s\S]*padding:\s*12rpx;/)
   assert.match(css, /\.gear-request-alert/)
+  assert.match(css, /\.gear-trust-summary/)
   assert.match(css, /\.gear-loading-state/)
   assert.match(css, /\.gear-slot-sheet/)
   assert.match(css, /\.gear-sheet-filter/)
@@ -948,6 +953,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.ok(gearActionsCss)
   assert.doesNotMatch(gearActionsCss[0], /grid-template-columns/)
   assert.match(css, /\.gear-community-template-sheet/)
+  assert.match(css, /\.gear-community-template-card\.source-reference/)
   const gearCommunityCardCss = css.match(/\.gear-community-template-card\s*\{[^}]*\}/)
   assert.ok(gearCommunityCardCss)
   assert.match(gearCommunityCardCss[0], /display:\s*flex;/)
@@ -1186,6 +1192,67 @@ test('gear slot candidate count matches selectable deduped equipment rows', () =
   assert.equal(page.data.gearSlotSheet.candidates[0].gameAsset.iconUrl, item.iconUrl)
 })
 
+test('gear slot sheet exposes source reference and blocker trust states', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const sourceReferenceItem = {
+    slot: 'head',
+    simcSlot: 'head',
+    itemId: '250888',
+    id: '250888',
+    displayName: 'Guide Only Hood',
+    sourceType: 'source_reference',
+    metadataStatus: 'source_reference',
+    missingFields: ['deterministic SimC variant'],
+    blockers: ['missing deterministic SimC variant preset'],
+    simcReady: false
+  }
+  const blockedItem = {
+    slot: 'head',
+    simcSlot: 'head',
+    displayName: 'Broken Hood',
+    sourceType: 'raid',
+    blockers: ['missing item id'],
+    simcReady: false
+  }
+  const gearPayload = {
+    slots: [{ slot: 'head', simcSlot: 'head', label: '头部' }],
+    replacementCandidates: [{
+      slot: 'head',
+      simcSlot: 'head',
+      label: '头部',
+      items: [sourceReferenceItem, blockedItem]
+    }],
+    equippedSet: {},
+    slotReadiness: { head: { status: 'blocked', reason: 'missing item' } },
+    readiness: {}
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+
+  assert.equal(page.data.gearSlotSheet.candidates[0].statusClass, 'source-reference')
+  assert.equal(page.data.gearSlotSheet.candidates[0].trustLabel, '来源参考')
+  assert.match(page.data.gearSlotSheet.candidates[0].trustReason, /不可直接保存/)
+  assert.equal(page.data.gearSlotSheet.activeTrustLabel, '来源参考')
+  assert.match(page.data.gearSlotSheet.activeTrustText, /missing deterministic SimC variant preset/)
+
+  pageConfig.selectGearCandidate.call(page, { currentTarget: { dataset: { index: 1 } } })
+
+  assert.equal(page.data.gearSlotSheet.activeTrustLabel, '阻断')
+  assert.match(page.data.gearSlotSheet.activeTrustText, /missing item id/)
+})
+
 test('gear slot sheet applies variant socket and enchant fields into selected gear', async () => {
   const pageConfig = loadBuildsDetailPageConfig()
   const item = {
@@ -1273,6 +1340,58 @@ test('gear slot sheet applies variant socket and enchant fields into selected ge
   assert.equal(selected.enchant_id, '8017')
   assert.equal(page.data.gearSlotSheet.visible, false)
   assert.equal(refreshCalls, 0)
+})
+
+test('gear community template import blocks source reference templates and surfaces blockers', () => {
+  const toasts = []
+  const pageConfig = loadBuildsDetailPageConfig({ toasts })
+  const baseline = completeGearSelection(['head'])
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots: ['head', 'neck'].map((slot) => ({ slot, simcSlot: slot, label: slot })),
+        equippedSet: {},
+        replacementCandidates: [],
+        slotReadiness: {},
+        readiness: {},
+        communityTemplates: [{
+          id: 'guide-reference',
+          name: 'Guide Reference',
+          sourceKey: 'wowhead_guide',
+          sourceName: 'Wowhead guide',
+          sourceStatus: 'source_reference',
+          status: 'partial',
+          readySlotCount: 1,
+          missingSlots: canonicalGearSlots.slice(1),
+          canApplyGear: true,
+          blockers: ['missing deterministic SimC variant preset'],
+          gearItems: [baseline.head]
+        }]
+      },
+      selectedGearBySlot: {},
+      gearCommunityTemplateSheet: { visible: true },
+      gearSlotSheet: { visible: true }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  const template = page.data.activeGearCommunityTemplates[0]
+
+  assert.equal(template.cardClass, 'source-reference')
+  assert.equal(template.statusLabel, '来源参考')
+  assert.equal(template.canApplyGear, false)
+  assert.match(template.missingSlotLabel, /缺 15 槽/)
+  assert.match(template.blockerLabel, /missing deterministic SimC variant preset/)
+
+  pageConfig.applyGearCommunityTemplate.call(page, { currentTarget: { dataset: { id: 'guide-reference' } } })
+
+  assert.equal(page.data.selectedGearBySlot.head, undefined)
+  assert.match(toasts.at(-1).title, /暂不可导入/)
 })
 
 test('gear detail does not request stat snapshot when gear payload loads', async () => {
@@ -1366,6 +1485,55 @@ test('gear template save requires all canonical slots and stores neutral complet
   assert.equal(Array.isArray(savedTemplates[0].simcLines), true)
   assert.equal(savedTemplates[0].simcLines.length, 0)
   assert.equal(savedTemplates[0].rawString.split('\n').length, canonicalGearSlots.length)
+})
+
+test('gear template save validation names missing and untrusted slots', () => {
+  const savedTemplates = []
+  const toasts = []
+  const pageConfig = loadBuildsDetailPageConfig({ savedTemplates, toasts })
+  const page = {
+    data: {
+      selectedDetail: { className: '法师', specName: '冰霜', details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      selectedSpec: { className: '法师', title: '冰霜', specName: '冰霜', websimClassKey: 'mage', websimSpecKey: 'frost' },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+        maxLevel: 90,
+        gearSchemaRevision: 'websim-gear-simulator-v1'
+      },
+      selectedGearBySlot: completeGearSelection(canonicalGearSlots.slice(0, -1)),
+      selectedGearTemplateScenarioIndex: 0
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.saveGearTemplate.call(page)
+
+  assert.equal(savedTemplates.length, 0)
+  assert.match(toasts.at(-1).title, /off_hand/)
+
+  page.data.selectedGearBySlot = {
+    ...completeGearSelection(canonicalGearSlots.slice(0, -1)),
+    off_hand: {
+      slot: 'off_hand',
+      simcSlot: 'off_hand',
+      id: 'guide-only-offhand',
+      displayName: 'Guide Only Offhand',
+      ilevel: 707,
+      bonus_id: '12345',
+      metadataStatus: 'source_reference',
+      sourceType: 'source_reference',
+      simcReady: false
+    }
+  }
+
+  pageConfig.saveGearTemplate.call(page)
+
+  assert.equal(savedTemplates.length, 0)
+  assert.match(toasts.at(-1).title, /off_hand/)
+  assert.match(toasts.at(-1).title, /物品 ID|来源参考/)
 })
 
 test('gear reset restores the backend equipped baseline', () => {

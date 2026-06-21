@@ -146,6 +146,24 @@ const requiredGearSlots = [
   'head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist',
   'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand', 'off_hand'
 ]
+const gearSlotDisplayLabels = {
+  head: '头部',
+  neck: '项链',
+  shoulder: '肩部',
+  back: '披风',
+  chest: '胸部',
+  wrist: '护腕',
+  hands: '手套',
+  waist: '腰带',
+  legs: '腿部',
+  feet: '脚部',
+  finger1: '戒指 1',
+  finger2: '戒指 2',
+  trinket1: '饰品 1',
+  trinket2: '饰品 2',
+  main_hand: '主手',
+  off_hand: '副手'
+}
 
 function showToast(title) {
   if (typeof wx !== 'undefined' && typeof wx.showToast === 'function') {
@@ -191,6 +209,85 @@ function itemDisplayName(item) {
   return (item && (item.displayName || item.localizedName || item.englishName || item.name)) || '待选择装备'
 }
 
+function gearSlotDisplay(slot) {
+  return `${gearSlotDisplayLabels[slot] || slot}(${slot})`
+}
+
+function normalizedGearItemId(item) {
+  const rawId = item && (item.itemId || item.item_id || item.id)
+  const itemId = String(rawId || '').trim()
+  return /^\d+$/.test(itemId) ? itemId : ''
+}
+
+function stringList(values) {
+  return (Array.isArray(values) ? values : [])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+}
+
+function isSourceReferenceGear(item) {
+  const statusValues = [
+    item && item.status,
+    item && item.sourceStatus,
+    item && item.metadataStatus,
+    item && item.sourceType,
+    item && item.variantSource
+  ].map((value) => String(value || '').toLowerCase())
+  return !!(item && (item.isReference || statusValues.includes('source_reference') || statusValues.includes('source-reference')))
+}
+
+function gearTrustState(item, fallbackStatus, fallbackReason) {
+  const blockers = stringList((item && item.blockers) || [])
+  const missingFields = stringList((item && item.missingFields) || [])
+  const sourceReference = isSourceReferenceGear(item)
+  let status = fallbackStatus || ''
+  if (sourceReference) {
+    status = 'source-reference'
+  } else if (item && item.simcReady) {
+    status = 'verified'
+  } else if (blockers.length || status === 'blocked') {
+    status = 'blocked'
+  } else if (missingFields.length || status === 'partial') {
+    status = 'partial'
+  } else {
+    status = 'blocked'
+  }
+
+  if (status === 'verified') {
+    return {
+      status,
+      label: '可保存',
+      reason: '具备 canonical 槽位、物品 ID 和可执行字段。',
+      blockerLabel: ''
+    }
+  }
+  if (status === 'source-reference') {
+    const details = blockers.length ? blockers.join('；') : (missingFields.length ? `缺 ${missingFields.join(' / ')}` : fallbackReason)
+    return {
+      status,
+      label: '来源参考',
+      reason: ['仅作为来源参考，不可直接保存为装备模板。', details].filter(Boolean).join(' '),
+      blockerLabel: details || '来源参考不可直接导入'
+    }
+  }
+  if (status === 'partial') {
+    const details = missingFields.length ? `缺 ${missingFields.join(' / ')}` : (fallbackReason || '缺少可执行装备字段')
+    return {
+      status,
+      label: '缺字段',
+      reason: `${details}，保存前需补齐。`,
+      blockerLabel: details
+    }
+  }
+  const details = blockers.length ? blockers.join('；') : (fallbackReason || '缺少可执行装备字段')
+  return {
+    status: 'blocked',
+    label: '阻断',
+    reason: details,
+    blockerLabel: details
+  }
+}
+
 function attachGearGameAsset(row, contextKey) {
   const slot = row && (row.slot || row.simcSlot || '')
   const displayName = itemDisplayName(row)
@@ -208,12 +305,14 @@ function attachGearGameAsset(row, contextKey) {
 
 function gearStatusLabel(status) {
   if (status === 'verified') return '已配置'
+  if (status === 'source-reference') return '来源参考'
   if (status === 'partial') return '缺字段'
   return '不可计算'
 }
 
 function gearStatusClass(status) {
   if (status === 'verified') return 'verified'
+  if (status === 'source-reference') return 'source-reference'
   if (status === 'partial') return 'partial'
   return 'blocked'
 }
@@ -270,7 +369,7 @@ function selectedGearItems(selectedGearBySlot) {
 
 function gearTemplateLine(item) {
   const slot = item && (item.simcSlot || item.slot)
-  const itemId = item && (item.itemId || item.id)
+  const itemId = normalizedGearItemId(item)
   if (!slot || !itemId) return ''
   const fields = [
     `${slot}=`,
@@ -311,12 +410,41 @@ function missingGearConfigSlots(selectedGearBySlot) {
   return requiredGearSlots.filter((slot) => !gearTemplateLine(indexed[slot]))
 }
 
+function gearTemplateValidationIssues(selectedGearBySlot) {
+  const indexed = selectedGearByCanonicalSlot(selectedGearBySlot)
+  return requiredGearSlots.map((slot) => {
+    const item = indexed[slot]
+    if (!item) {
+      return { slot, message: `${gearSlotDisplay(slot)} 缺少装备` }
+    }
+    if (isSourceReferenceGear(item)) {
+      return { slot, message: `${gearSlotDisplay(slot)} 是来源参考，不能保存为可执行模板` }
+    }
+    if (!normalizedGearItemId(item)) {
+      return { slot, message: `${gearSlotDisplay(slot)} 缺少可执行物品 ID` }
+    }
+    if (!gearTemplateLine(item)) {
+      return { slot, message: `${gearSlotDisplay(slot)} 缺少可保存字段` }
+    }
+    return null
+  }).filter(Boolean)
+}
+
+function gearTemplateValidationMessage(issues) {
+  const list = Array.isArray(issues) ? issues : []
+  if (!list.length) return ''
+  const details = list.slice(0, 3).map((item) => item.message).join('；')
+  const more = list.length > 3 ? `；另有 ${list.length - 3} 个槽位` : ''
+  const hasMissingSlot = list.some((item) => /缺少装备/.test(item.message))
+  return `${hasMissingSlot ? '请补齐 16 个装备槽位' : '请先修正装备槽位'}：${details}${more}`
+}
+
 function gearTemplateStatus(selectedGearBySlot) {
-  const missingSlots = missingGearConfigSlots(selectedGearBySlot)
-  if (missingSlots.length) {
-    return { status: 'partial', statusLabel: '缺字段', missingSlots }
+  const issues = gearTemplateValidationIssues(selectedGearBySlot)
+  if (issues.length) {
+    return { status: 'partial', statusLabel: '缺字段', missingSlots: issues.map((item) => item.slot), issues }
   }
-  return { status: 'complete', statusLabel: '完整配置', missingSlots: [] }
+  return { status: 'complete', statusLabel: '完整配置', missingSlots: [], issues: [] }
 }
 
 function cleanGearTemplateTitlePart(value, fallback, maxLength) {
@@ -381,7 +509,9 @@ function gearItemsToSelection(items) {
 }
 
 function gearCommunityStatusLabel(status) {
-  if (status === 'complete' || status === 'synced' || status === 'verified') return '已同步'
+  if (status === 'source-reference' || status === 'source_reference') return '来源参考'
+  if (status === 'complete') return '完整配置'
+  if (status === 'synced' || status === 'verified') return '已验证'
   if (status === 'partial') return '部分可用'
   if (status === 'blocked' || status === 'missing_credentials') return '暂不可用'
   return '待同步'
@@ -389,6 +519,8 @@ function gearCommunityStatusLabel(status) {
 
 function gearCommunityTemplateCardClass(template) {
   const status = template && (template.status || template.sourceStatus)
+  const sourceStatus = template && template.sourceStatus
+  if (status === 'source-reference' || status === 'source_reference' || sourceStatus === 'source_reference' || sourceStatus === 'source-reference') return 'source-reference'
   if (status === 'complete' || status === 'synced' || status === 'verified') return 'complete'
   if (status === 'partial') return 'partial'
   return 'blocked'
@@ -447,25 +579,31 @@ function decorateGearCommunityTemplate(template) {
     : requiredGearSlots.filter((slot) => !gearSelection[slot])
   const status = (template && template.status) || (missingSlots.length ? 'partial' : 'complete')
   const sourceStatus = (template && template.sourceStatus) || status
-  const canApplyGear = !!(template && template.canApplyGear !== false && readySlotCount > 0)
+  const sourceReference = status === 'source_reference' || status === 'source-reference' || sourceStatus === 'source_reference' || sourceStatus === 'source-reference'
+  const normalizedStatus = sourceReference ? 'source-reference' : status
+  const normalizedSourceStatus = sourceReference ? 'source-reference' : sourceStatus
+  const blockers = stringList((template && template.blockers) || ((template && template.payload) || {}).blockers)
+  const canApplyGear = !!(template && template.canApplyGear !== false && readySlotCount > 0 && !sourceReference && normalizedStatus !== 'blocked' && normalizedSourceStatus !== 'blocked')
   const displaySourceName = gearCommunitySourceDisplayName(template)
+  const blockerLabel = blockers[0] || (sourceReference ? '仅作为来源参考，不可直接导入' : '')
   return {
     ...(template || {}),
-    status,
-    sourceStatus,
+    status: normalizedStatus,
+    sourceStatus: normalizedSourceStatus,
     gearItems,
     readySlotCount,
     missingSlots,
     canApplyGear,
     displayName: gearCommunityTemplateDisplayName(template),
     displaySourceName,
-    statusLabel: gearCommunityStatusLabel(status),
-    sourceStatusLabel: gearCommunityStatusLabel(sourceStatus),
+    statusLabel: gearCommunityStatusLabel(normalizedStatus),
+    sourceStatusLabel: gearCommunityStatusLabel(normalizedSourceStatus),
     slotCoverageLabel: `已覆盖 ${readySlotCount}/${requiredGearSlots.length} 槽`,
     missingSlotLabel: missingSlots.length ? `缺 ${missingSlots.length} 槽` : '16 槽完整',
+    blockerLabel,
     updatedLabel: (template && template.updatedAt) || '',
     actionLabel: canApplyGear ? '应用' : '不可导入',
-    cardClass: gearCommunityTemplateCardClass({ status, sourceStatus })
+    cardClass: gearCommunityTemplateCardClass({ status: normalizedStatus, sourceStatus: normalizedSourceStatus })
   }
 }
 
@@ -493,6 +631,17 @@ function gearDataWarningText(error, payload, fromFallback) {
     return '装备接口暂不可用，当前只是空槽位兜底。'
   }
   return ''
+}
+
+function gearTrustSummaryText(payload, selectedGearBySlot) {
+  if (!payload) return ''
+  const status = gearTemplateStatus(selectedGearBySlot || {})
+  const readyCount = requiredGearSlots.length - status.missingSlots.length
+  const catalogStatus = gearCommunityStatusLabel((payload.catalogStatus || payload.dataStatus || '').replace('_', '-'))
+  if (status.issues.length) {
+    return `当前配置 ${readyCount}/${requiredGearSlots.length} 槽可保存；${gearTemplateValidationMessage(status.issues)}。装备库：${catalogStatus}`
+  }
+  return `当前配置 16/16 槽完整；装备库：${catalogStatus}`
 }
 
 function gearGroupsBySlot(payload) {
@@ -664,7 +813,10 @@ function emptyGearSlotSheet() {
     enchantOptionId: '',
     variantOptions: [],
     socketOptions: [],
-    enchantOptions: []
+    enchantOptions: [],
+    activeTrustLabel: '',
+    activeTrustText: '',
+    canApplyCandidate: false
   }
 }
 
@@ -680,6 +832,7 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
   const socketOptionId = config.socketOptionId || ''
   const enchantOptionId = config.enchantOptionId || ''
   const appliedCandidate = appliedGearCandidate(activeCandidate, variantKey, socketOptionId, enchantOptionId)
+  const activeTrust = gearTrustState(appliedCandidate || activeCandidate, activeCandidate && activeCandidate.statusClass, activeCandidate && activeCandidate.reason)
   return {
     visible: true,
     slot,
@@ -706,7 +859,10 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
     enchantOptionId,
     variantOptions: decorateVariantOptions(activeCandidate, variantKey),
     socketOptions: decorateModOptions(activeCandidate && activeCandidate.socketOptions, socketOptionId),
-    enchantOptions: decorateModOptions(activeCandidate && activeCandidate.enchantOptions, enchantOptionId)
+    enchantOptions: decorateModOptions(activeCandidate && activeCandidate.enchantOptions, enchantOptionId),
+    activeTrustLabel: activeTrust.label,
+    activeTrustText: activeTrust.reason,
+    canApplyCandidate: !!activeCandidate
   }
 }
 
@@ -725,6 +881,7 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
     seen.add(key)
     const isSelected = selected && String(selected.itemId || selected.id || '') === String(item.itemId || item.id || '')
     const missingFields = Array.isArray(item.missingFields) ? item.missingFields : []
+    const trust = gearTrustState(item, item.simcReady ? 'verified' : (missingFields.length ? 'partial' : 'blocked'), item.reason)
     return attachGearGameAsset({
       ...item,
       key,
@@ -735,9 +892,12 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
       sourceType: gearCandidateSourceType(item),
       variantLabel: item.variantLabel || '',
       modSummary: gearModSummary(item),
-      statusLabel: gearStatusLabel(item.simcReady ? 'verified' : (missingFields.length ? 'partial' : 'blocked')),
-      statusClass: gearStatusClass(item.simcReady ? 'verified' : (missingFields.length ? 'partial' : 'blocked')),
-      reason: item.simcReady ? '可保存为配置' : (missingFields.length ? `缺 ${missingFields.join(' / ')}` : '缺装备配置字段'),
+      statusLabel: gearStatusLabel(trust.status),
+      statusClass: gearStatusClass(trust.status),
+      trustLabel: trust.label,
+      trustReason: trust.reason,
+      blockerLabel: trust.blockerLabel,
+      reason: trust.reason,
       selected: !!isSelected
     }, 'gear-candidate')
   }).filter(Boolean)
@@ -753,6 +913,7 @@ function buildGearSlotRows(payload, selectedGearBySlot) {
     const item = selection[slot] || ((payload.equippedSet || {})[slot]) || {}
     const slotState = readiness[slot] || {}
     const status = item.simcReady ? 'verified' : (slotState.status || 'blocked')
+    const trust = gearTrustState(item, status, slotState.reason || (item.simcReady ? '可保存为配置' : '等待装备配置字段'))
     return attachGearGameAsset({
       slot,
       label: slotMeta.label || slot,
@@ -764,10 +925,13 @@ function buildGearSlotRows(payload, selectedGearBySlot) {
       sourceType: item.sourceType || '',
       variantLabel: item.variantLabel || '',
       modSummary: gearModSummary(item),
-      status,
-      statusLabel: gearStatusLabel(status),
-      statusClass: gearStatusClass(status),
-      reason: slotState.reason || (item.simcReady ? '可保存为配置' : '等待装备配置字段'),
+      status: trust.status,
+      statusLabel: gearStatusLabel(trust.status),
+      statusClass: gearStatusClass(trust.status),
+      trustLabel: trust.label,
+      trustReason: trust.reason,
+      blockerLabel: trust.blockerLabel,
+      reason: trust.reason,
       candidateCount: buildGearCandidateRows(slot, payload, selection).length
     }, 'gear-slot')
   })
@@ -839,6 +1003,7 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
     gearPayload,
     gearDataFallback,
     gearDataWarningText: gearDataWarningText(currentState.gearRequestError || '', gearPayload, gearDataFallback),
+    gearTrustSummaryText: gearTrustSummaryText(gearPayload, selectedGearBySlot),
     selectedGearBySlot,
     gearSlotRows,
     gearInitialLoading,
@@ -1305,7 +1470,7 @@ Page({
     const configLines = canonicalGearTemplateLines(this.data.selectedGearBySlot || {})
     const status = gearTemplateStatus(this.data.selectedGearBySlot || {})
     if (status.missingSlots.length || configLines.length !== requiredGearSlots.length) {
-      showToast('请补齐 16 个装备槽位后再保存')
+      showToast(gearTemplateValidationMessage(status.issues) || '请补齐 16 个装备槽位后再保存')
       return
     }
     const scenario = gearScenarioAt(this.data.selectedGearTemplateScenarioIndex)

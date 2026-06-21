@@ -483,6 +483,23 @@
   overflow-wrap: anywhere;
 }
 
+.gear-trust-summary {
+  margin-top: 14rpx;
+  padding: 14rpx 16rpx;
+  border: 1rpx solid rgba(88, 201, 142, 0.24);
+  border-radius: 12rpx;
+  background: rgba(88, 201, 142, 0.08);
+  color: #d6f5df;
+  font-size: 21rpx;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.gear-trust-summary text {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
 .gear-template-actions {
   display: flex;
   align-items: center;
@@ -567,6 +584,10 @@
   border-color: rgba(248, 183, 0, 0.22);
 }
 
+.gear-slot-card.source-reference {
+  border-color: rgba(94, 141, 255, 0.34);
+}
+
 .gear-slot-card.blocked {
   opacity: 0.78;
 }
@@ -615,6 +636,10 @@
 
 .gear-icon-frame.partial {
   border-color: rgba(248, 183, 0, 0.38);
+}
+
+.gear-icon-frame.source-reference {
+  border-color: rgba(94, 141, 255, 0.44);
 }
 
 .gear-icon-frame.blocked {
@@ -802,11 +827,15 @@
   background: rgba(248, 183, 0, 0.1);
 }
 
+.gear-candidate-row.source-reference {
+  border-color: rgba(94, 141, 255, 0.34);
+}
+
 .gear-candidate-meta {
   flex: none;
-  width: 118rpx;
+  width: 146rpx;
   color: #8e8e8e;
-  font-size: 19rpx;
+  font-size: 18rpx;
   font-weight: 800;
   line-height: 1.3;
   text-align: right;
@@ -932,6 +961,10 @@
   border-color: rgba(248, 183, 0, 0.36);
 }
 
+.gear-community-template-card.source-reference {
+  border-color: rgba(94, 141, 255, 0.36);
+}
+
 .gear-community-template-card.blocked {
   opacity: 0.72;
 }
@@ -959,6 +992,10 @@
   color: #9f9f9f;
   font-size: 20rpx;
   line-height: 1.35;
+}
+
+.gear-community-template-meta.warning {
+  color: #f8b700;
 }
 
 .gear-community-template-side {
