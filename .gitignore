@@ -10,3 +10,6 @@ project.private.config.json
 __pycache__/
 *.py[cod]
 server/data/
+
+# Local parallel worktrees
+.worktrees/
