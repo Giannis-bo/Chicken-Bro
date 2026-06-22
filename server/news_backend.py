@@ -37,6 +37,10 @@ try:
         normalize_simc_slot,
         warcraftlogs_credentials_state,
     )
+    try:
+        from .codex_worker import run_codex_job
+    except ImportError:
+        run_codex_job = None
     from .raiderio_payload import (
         enrich_builds_detail_payload as enrich_raiderio_builds_detail_payload,
         enrich_builds_home_payload as enrich_raiderio_builds_home_payload,
@@ -95,6 +99,10 @@ except ImportError:
         normalize_simc_slot,
         warcraftlogs_credentials_state,
     )
+    try:
+        from codex_worker import run_codex_job
+    except ImportError:
+        run_codex_job = None
     from raiderio_payload import (
         enrich_builds_detail_payload as enrich_raiderio_builds_detail_payload,
         enrich_builds_home_payload as enrich_raiderio_builds_home_payload,
@@ -149,7 +157,33 @@ VALID_BUILD_TEMPLATE_TYPES = {"talent", "gear"}
 SCHEMA_MIGRATIONS = [
     ("core_schema_v1", "Core news, auth, simulator, WebSim, and analytics tables are initialized."),
     ("user_build_templates_v1", "Authenticated user build template sync table is initialized."),
+    ("chickenbro_backend_v1", "Chickenbro sessions, messages, jobs, structured memory, and playstyle profiles are initialized."),
 ]
+CHICKENBRO_PROFILE_STATUSES = {"published", "partial", "stale", "blocked", "needs_review"}
+CHICKENBRO_JOB_STATUSES = {"queued", "running", "succeeded", "failed", "timed_out"}
+CHICKENBRO_PRODUCT_PHASES = {"retail", "ptr", "beta"}
+CHICKENBRO_SCENARIOS = {
+    "raid_single",
+    "raid_cleave",
+    "raid_multi",
+    "mplus_fortified",
+    "mplus_tyrannical",
+}
+CHICKENBRO_ALLOWED_TOOL_TOPICS = {
+    "wcl",
+    "warcraft logs",
+    "warcraftlogs",
+    "raider.io",
+    "raiderio",
+    "rio",
+    "simc",
+    "simulationcraft",
+    "weakaura",
+    "weak aura",
+    "wa",
+    "插件",
+    "宏",
+}
 
 CHANNELS = [
     {"id": "retail", "title": "正式服动态", "desc": "官方公告、热修、活动与正式服版本内容"},
@@ -472,6 +506,7 @@ def init_db():
             """
         )
         ensure_auth_token_columns(conn)
+        ensure_chickenbro_tables(conn)
         ensure_websim_tables(conn)
         ensure_analytics_tables(conn)
         prune_expired_auth_tokens(conn)
@@ -517,6 +552,120 @@ def record_schema_migrations(conn):
             """,
             (migration_id, description, now),
         )
+
+
+def ensure_chickenbro_tables(conn):
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS chickenbro_sessions (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            product_phase TEXT NOT NULL,
+            metadata_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES wechat_users(id) ON DELETE CASCADE
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_chickenbro_sessions_owner_updated
+        ON chickenbro_sessions (user_id, updated_at DESC)
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS chickenbro_messages (
+            id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            agent_job_id TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(session_id) REFERENCES chickenbro_sessions(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES wechat_users(id) ON DELETE CASCADE
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_chickenbro_messages_session_created
+        ON chickenbro_messages (session_id, created_at)
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS agent_jobs (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            session_id TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            status TEXT NOT NULL,
+            request_json TEXT NOT NULL,
+            bounded_context_json TEXT NOT NULL,
+            result_json TEXT NOT NULL,
+            error TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            started_at TEXT NOT NULL DEFAULT '',
+            finished_at TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY(user_id) REFERENCES wechat_users(id) ON DELETE CASCADE,
+            FOREIGN KEY(session_id) REFERENCES chickenbro_sessions(id) ON DELETE CASCADE
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_agent_jobs_owner_status_updated
+        ON agent_jobs (user_id, status, updated_at DESC)
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS chickenbro_spec_profiles (
+            profile_key TEXT PRIMARY KEY,
+            product_phase TEXT NOT NULL,
+            season_slug TEXT NOT NULL,
+            patch_version TEXT NOT NULL,
+            region TEXT NOT NULL,
+            class_key TEXT NOT NULL,
+            spec_key TEXT NOT NULL,
+            role TEXT NOT NULL,
+            scenario_key TEXT NOT NULL,
+            status TEXT NOT NULL,
+            source_status TEXT NOT NULL,
+            checked_at TEXT NOT NULL,
+            published_at TEXT NOT NULL,
+            stale_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_chickenbro_profiles_lookup
+        ON chickenbro_spec_profiles (
+            product_phase, class_key, spec_key, scenario_key, region, status, updated_at DESC
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS chickenbro_user_profiles (
+            user_id INTEGER PRIMARY KEY,
+            profile_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES wechat_users(id) ON DELETE CASCADE
+        )
+        """
+    )
 
 
 def ensure_article_columns(conn):
@@ -1910,6 +2059,12 @@ def clean_text(value, limit):
     return str(value or "").strip()[:limit]
 
 
+def append_unique_text(values, text):
+    value = str(text or "").strip()
+    if value and value not in values:
+        values.append(value)
+
+
 def safe_json_loads(value, fallback, label):
     try:
         return json.loads(value or "")
@@ -2544,6 +2699,924 @@ def get_simulator_task(access_token, task_id, allow_guest=False, guest_id=""):
             "updatedAt": row[6],
         },
     }
+
+
+def normalize_chickenbro_phase(value):
+    phase = str(value or "retail").strip().lower()
+    return phase if phase in CHICKENBRO_PRODUCT_PHASES else "retail"
+
+
+def normalize_chickenbro_scenario(value):
+    scenario = str(value or "").strip().lower()
+    if scenario in CHICKENBRO_SCENARIOS:
+        return scenario
+    aliases = {
+        "mplus": "mplus_fortified",
+        "mythic_plus": "mplus_fortified",
+        "fortified": "mplus_fortified",
+        "tyrannical": "mplus_tyrannical",
+        "single": "raid_single",
+        "raid": "raid_single",
+        "cleave": "raid_cleave",
+        "aoe": "raid_multi",
+    }
+    return aliases.get(scenario, "mplus_fortified")
+
+
+def normalize_chickenbro_region(value):
+    region = str(value or "cn").strip().lower()
+    return "global" if region in {"global", "world", "all"} else (region or "cn")
+
+
+def chickenbro_profile_key(profile):
+    return (
+        profile.get("profileKey")
+        or ":".join(
+            [
+                normalize_chickenbro_phase(profile.get("productPhase")),
+                normalize_chickenbro_region(profile.get("region")),
+                str(profile.get("classKey") or "").strip().lower(),
+                str(profile.get("specKey") or "").strip().lower(),
+                normalize_chickenbro_scenario(profile.get("scenarioKey")),
+            ]
+        )
+    )
+
+
+def upsert_chickenbro_spec_profile(profile):
+    if not isinstance(profile, dict):
+        raise ValueError("chickenbro profile must be an object")
+    payload = profile.get("payload") if isinstance(profile.get("payload"), dict) else {}
+    class_key = str(profile.get("classKey") or "").strip().lower()
+    spec_key = str(profile.get("specKey") or "").strip().lower()
+    if not class_key or not spec_key:
+        raise ValueError("chickenbro profile requires classKey and specKey")
+    status = str(profile.get("status") or "partial").strip().lower()
+    if status not in CHICKENBRO_PROFILE_STATUSES:
+        raise ValueError(f"unsupported chickenbro profile status: {status}")
+    now = utc_now()
+    profile_key = chickenbro_profile_key(profile)
+    with db_connection() as conn:
+        existing = conn.execute(
+            """
+            SELECT status, published_at
+            FROM chickenbro_spec_profiles
+            WHERE profile_key = ?
+            """,
+            (profile_key,),
+        ).fetchone()
+        previous_status = existing[0] if existing else ""
+        previous_published_at = existing[1] if existing else ""
+        published_at = str(profile.get("publishedAt") or "")
+        downgraded = previous_status == "published" and status != "published"
+        # A downgrade invalidates runtime conclusions but should preserve the
+        # historical publish timestamp for audit and rollback review.
+        if downgraded and not published_at:
+            published_at = previous_published_at
+        conn.execute(
+            """
+            INSERT INTO chickenbro_spec_profiles (
+                profile_key, product_phase, season_slug, patch_version, region,
+                class_key, spec_key, role, scenario_key, status, source_status,
+                checked_at, published_at, stale_at, expires_at, payload_json, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(profile_key) DO UPDATE SET
+                product_phase = excluded.product_phase,
+                season_slug = excluded.season_slug,
+                patch_version = excluded.patch_version,
+                region = excluded.region,
+                class_key = excluded.class_key,
+                spec_key = excluded.spec_key,
+                role = excluded.role,
+                scenario_key = excluded.scenario_key,
+                status = excluded.status,
+                source_status = excluded.source_status,
+                checked_at = excluded.checked_at,
+                published_at = excluded.published_at,
+                stale_at = excluded.stale_at,
+                expires_at = excluded.expires_at,
+                payload_json = excluded.payload_json,
+                updated_at = excluded.updated_at
+            """,
+            (
+                profile_key,
+                normalize_chickenbro_phase(profile.get("productPhase")),
+                str(profile.get("seasonSlug") or ""),
+                str(profile.get("patchVersion") or ""),
+                normalize_chickenbro_region(profile.get("region")),
+                class_key,
+                spec_key,
+                str(profile.get("role") or ""),
+                normalize_chickenbro_scenario(profile.get("scenarioKey")),
+                status,
+                str(profile.get("sourceStatus") or status).strip().lower(),
+                str(profile.get("checkedAt") or now),
+                published_at,
+                str(profile.get("staleAt") or ""),
+                str(profile.get("expiresAt") or ""),
+                json.dumps(payload, ensure_ascii=False),
+                now,
+            ),
+        )
+    return {
+        "profileKey": profile_key,
+        "status": status,
+        "previousStatus": previous_status,
+        "statusChanged": bool(previous_status and previous_status != status),
+        "downgraded": downgraded,
+    }
+
+
+def chickenbro_profile_from_row(row):
+    if not row:
+        return None
+    payload = safe_json_loads(row[15], {}, f"chickenbro profile {row[0]}")
+    return {
+        "profileKey": row[0],
+        "productPhase": row[1],
+        "seasonSlug": row[2],
+        "patchVersion": row[3],
+        "region": row[4],
+        "classKey": row[5],
+        "specKey": row[6],
+        "role": row[7],
+        "scenarioKey": row[8],
+        "status": row[9],
+        "sourceStatus": row[10],
+        "checkedAt": row[11],
+        "publishedAt": row[12],
+        "staleAt": row[13],
+        "expiresAt": row[14],
+        "payload": payload if isinstance(payload, dict) else {},
+        "updatedAt": row[16],
+    }
+
+
+def load_chickenbro_profiles(context):
+    class_key = str(context.get("classKey") or (context.get("character") or {}).get("classKey") or "").strip().lower()
+    spec_key = str(context.get("specKey") or (context.get("character") or {}).get("specKey") or "").strip().lower()
+    if not class_key or not spec_key:
+        return []
+    phase = normalize_chickenbro_phase(context.get("productPhase") or context.get("phase"))
+    scenario = normalize_chickenbro_scenario(context.get("scenarioKey") or context.get("scenario"))
+    region = normalize_chickenbro_region(context.get("region"))
+    with db_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT profile_key, product_phase, season_slug, patch_version, region,
+                   class_key, spec_key, role, scenario_key, status, source_status,
+                   checked_at, published_at, stale_at, expires_at, payload_json, updated_at
+            FROM chickenbro_spec_profiles
+            WHERE product_phase = ? AND class_key = ? AND spec_key = ? AND scenario_key = ?
+            ORDER BY
+                CASE region WHEN ? THEN 0 WHEN 'global' THEN 1 ELSE 2 END,
+                CASE status WHEN 'published' THEN 0 WHEN 'partial' THEN 1 ELSE 2 END,
+                updated_at DESC
+            """,
+            (phase, class_key, spec_key, scenario, region),
+        ).fetchall()
+    return [chickenbro_profile_from_row(row) for row in rows]
+
+
+def public_chickenbro_profile(profile, include_payload=True):
+    if not profile:
+        return None
+    public = {
+        "profileKey": profile["profileKey"],
+        "productPhase": profile["productPhase"],
+        "seasonSlug": profile["seasonSlug"],
+        "patchVersion": profile["patchVersion"],
+        "region": profile["region"],
+        "classKey": profile["classKey"],
+        "specKey": profile["specKey"],
+        "role": profile["role"],
+        "scenarioKey": profile["scenarioKey"],
+        "status": profile["status"],
+        "sourceStatus": profile["sourceStatus"],
+        "checkedAt": profile["checkedAt"],
+        "publishedAt": profile["publishedAt"],
+        "staleAt": profile["staleAt"],
+        "expiresAt": profile["expiresAt"],
+        "updatedAt": profile["updatedAt"],
+    }
+    if include_payload:
+        public["payload"] = profile.get("payload", {})
+    return public
+
+
+def get_chickenbro_profiles(query):
+    context = {
+        "productPhase": query.get("phase") or query.get("productPhase"),
+        "region": query.get("region") or "cn",
+        "classKey": query.get("class") or query.get("classKey"),
+        "specKey": query.get("spec") or query.get("specKey"),
+        "scenarioKey": query.get("scenario") or query.get("scenarioKey"),
+    }
+    return {
+        "profiles": [public_chickenbro_profile(profile) for profile in load_chickenbro_profiles(context)],
+        "query": {
+            "productPhase": normalize_chickenbro_phase(context.get("productPhase")),
+            "region": normalize_chickenbro_region(context.get("region")),
+            "classKey": str(context.get("classKey") or "").strip().lower(),
+            "specKey": str(context.get("specKey") or "").strip().lower(),
+            "scenarioKey": normalize_chickenbro_scenario(context.get("scenarioKey")),
+        },
+    }
+
+
+def chickenbro_topic_scope(message, context=None):
+    text = str(message or "").strip()
+    lowered = text.lower()
+    forbidden = ("classic", "怀旧服", "私服", "外挂", "自动脚本", "脚本规避", "账号交易", "代练")
+    if any(term in lowered for term in forbidden):
+        return {"status": "out_of_scope", "reason": "unsupported_wow_scope"}
+    context = context if isinstance(context, dict) else {}
+    if context.get("classKey") or (context.get("character") or {}).get("classKey"):
+        return {"status": "in_scope", "reason": "structured_context"}
+    wow_terms = (
+        "魔兽", "wow", "正式服", "ptr", "beta", "大秘境", "团本", "副本", "专精", "天赋",
+        "装备", "配装", "手法", "属性", "绿字", "强韧", "残暴", "法师", "奥法", "冰法",
+        "火法", "战士", "术士", "牧师", "盗贼", "潜行者", "武僧", "萨满", "猎人",
+        "德鲁伊", "圣骑", "死亡骑士", "恶魔猎手", "唤魔师",
+    )
+    if any(term in lowered for term in CHICKENBRO_ALLOWED_TOOL_TOPICS) or any(term in text for term in wow_terms):
+        return {"status": "in_scope", "reason": "wow_topic"}
+    return {"status": "out_of_scope", "reason": "non_wow_topic"}
+
+
+def compact_chickenbro_runtime_profile(profile):
+    payload = profile.get("payload") if isinstance(profile.get("payload"), dict) else {}
+    runtime = payload.get("runtimeProjection") if isinstance(payload.get("runtimeProjection"), dict) else {}
+    coach_pack = payload.get("coachPack") if isinstance(payload.get("coachPack"), dict) else {}
+    evidence_refs = runtime.get("evidenceRefs") or [
+        item.get("id")
+        for item in payload.get("evidenceRefs", [])
+        if isinstance(item, dict) and item.get("id")
+    ]
+    allowed_numbers = runtime.get("allowedNumbers") or (
+        (payload.get("performanceModel") or {}).get("allowedNumbers")
+        if isinstance(payload.get("performanceModel"), dict)
+        else []
+    )
+    return {
+        "profileKey": profile["profileKey"],
+        "region": profile["region"],
+        "status": profile["status"],
+        "sourceStatus": profile["sourceStatus"],
+        "productPhase": profile["productPhase"],
+        "seasonSlug": profile["seasonSlug"],
+        "patchVersion": profile["patchVersion"],
+        "classKey": profile["classKey"],
+        "specKey": profile["specKey"],
+        "role": profile["role"],
+        "scenarioKey": profile["scenarioKey"],
+        "summary": runtime.get("summary") or coach_pack.get("summary") or "",
+        "priorityActions": coach_pack.get("priorityActions") or [],
+        "limitations": list(runtime.get("limitations") or payload.get("limitations") or coach_pack.get("limitations") or []),
+        "evidenceRefs": [str(ref) for ref in evidence_refs if ref],
+        "allowedNumbers": allowed_numbers if isinstance(allowed_numbers, list) else [],
+        "sourceCoverage": payload.get("sourceCoverage") if isinstance(payload.get("sourceCoverage"), dict) else {},
+        "sampleWindow": payload.get("sampleWindow") if isinstance(payload.get("sampleWindow"), dict) else {},
+    }
+
+
+def build_chickenbro_bounded_context(message, context, user_profile=None):
+    context = context if isinstance(context, dict) else {}
+    topic = chickenbro_topic_scope(message, context)
+    profiles = load_chickenbro_profiles(context)
+    desired_region = normalize_chickenbro_region(context.get("region"))
+    usable = []
+    background = []
+    excluded = []
+    limitations = []
+    for profile in profiles:
+        compact = compact_chickenbro_runtime_profile(profile)
+        status = profile.get("status")
+        if status == "published":
+            usable.append(compact)
+        elif status == "partial":
+            background.append(compact)
+        else:
+            excluded.append({"profileKey": profile["profileKey"], "region": profile["region"], "status": status})
+    if usable and usable[0]["region"] != desired_region:
+        limitations.append(f"{desired_region}_sample_insufficient_global_fallback")
+    if background:
+        limitations.append("partial_profiles_background_only")
+    if excluded:
+        limitations.append("unpublished_profiles_excluded")
+
+    allowed_refs = []
+    allowed_numbers = []
+    for profile in usable:
+        for ref in profile.get("evidenceRefs") or []:
+            append_unique_text(allowed_refs, ref)
+        for number in profile.get("allowedNumbers") or []:
+            if isinstance(number, dict):
+                append_unique_text(allowed_numbers, str(number.get("value") or ""))
+            else:
+                append_unique_text(allowed_numbers, str(number))
+
+    return {
+        "schemaRevision": "chickenbro-bounded-context-v1",
+        "topic": topic,
+        "message": clean_text(message, 1000),
+        "requestContext": {
+            "productPhase": normalize_chickenbro_phase(context.get("productPhase") or context.get("phase")),
+            "region": desired_region,
+            "classKey": str(context.get("classKey") or (context.get("character") or {}).get("classKey") or "").strip().lower(),
+            "specKey": str(context.get("specKey") or (context.get("character") or {}).get("specKey") or "").strip().lower(),
+            "scenarioKey": normalize_chickenbro_scenario(context.get("scenarioKey") or context.get("scenario")),
+        },
+        "userProfile": user_profile if isinstance(user_profile, dict) else {},
+        "usableProfiles": usable[:2],
+        "backgroundProfiles": background[:3],
+        "excludedProfiles": excluded[:5],
+        "allowedEvidenceRefs": allowed_refs,
+        "allowedNumbers": [number for number in allowed_numbers if number],
+        "limitations": limitations,
+        "policy": {
+            "publishedProfilesSupportConclusions": True,
+            "partialProfilesAreBackgroundOnly": True,
+            "staleBlockedNeedsReviewExcluded": True,
+            "noRealtimeExternalFetch": True,
+        },
+    }
+
+
+def chickenbro_prompt_from_context(bounded_context):
+    return json.dumps(
+        {
+            "instructions": [
+                "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
+                "只能使用 boundedContext 中的事实、证据引用和 allowedNumbers。",
+                "不要编造 DPS、排名、分位、日志发现或来源。",
+                "输出 JSON：answer, confidence, priorityActions, evidenceRefs, limitations。",
+            ],
+            "boundedContext": bounded_context,
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+
+
+def default_chickenbro_codex_runner(prompt, schema=None):
+    if os.environ.get("WOW_CHICKENBRO_CODEX_ENABLED") != "1" or run_codex_job is None:
+        return {"status": "skipped", "error": "chickenbro codex disabled"}
+    return run_codex_job(prompt, schema=schema)
+
+
+def parse_chickenbro_codex_output(codex_result):
+    if isinstance(codex_result, dict) and isinstance(codex_result.get("answer"), str):
+        return codex_result
+    last_message = ""
+    if isinstance(codex_result, dict):
+        last_message = codex_result.get("lastMessage") or codex_result.get("content") or ""
+    if not str(last_message).strip():
+        raise ValueError("empty codex output")
+    try:
+        payload = json.loads(last_message)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid codex json: {error}") from error
+    if not isinstance(payload, dict):
+        raise ValueError("codex output must be an object")
+    return payload
+
+
+def chickenbro_text_numbers(value):
+    return re.findall(r"(?<![A-Za-z])\d{3,}(?:\.\d+)?%?", str(value or ""))
+
+
+def validate_chickenbro_codex_output(payload, bounded_context):
+    answer = str(payload.get("answer") or "").strip()
+    if not answer:
+        raise ValueError("missing answer")
+    allowed_refs = set(bounded_context.get("allowedEvidenceRefs") or [])
+    refs = [str(ref) for ref in payload.get("evidenceRefs") or [] if ref]
+    if any(ref not in allowed_refs for ref in refs):
+        raise ValueError("codex_output_invalid: unknown evidence ref")
+    for action in payload.get("priorityActions") or []:
+        if not isinstance(action, dict):
+            raise ValueError("codex_output_invalid: priority action must be object")
+        for ref in action.get("evidenceRefs") or []:
+            if str(ref) not in allowed_refs:
+                raise ValueError("codex_output_invalid: unknown action evidence ref")
+    allowed_numbers = {str(number).rstrip("%") for number in bounded_context.get("allowedNumbers") or []}
+    output_text = json.dumps(payload, ensure_ascii=False)
+    for number in chickenbro_text_numbers(output_text):
+        normalized = number.rstrip("%")
+        if normalized not in allowed_numbers:
+            raise ValueError("codex_output_invalid: unapproved number")
+    return {
+        "answer": answer,
+        "confidence": str(payload.get("confidence") or "medium"),
+        "priorityActions": payload.get("priorityActions") if isinstance(payload.get("priorityActions"), list) else [],
+        "evidenceRefs": refs,
+        "limitations": payload.get("limitations") if isinstance(payload.get("limitations"), list) else [],
+    }
+
+
+def deterministic_chickenbro_answer(bounded_context, answer_source="deterministic_fallback"):
+    topic = bounded_context.get("topic") or {}
+    if topic.get("status") != "in_scope":
+        return {
+            "answer": "炸鸡队长只回答魔兽世界正式服和 PTR/Beta 相关的玩法、机制、日志、构筑、装备、SimC、WCL、Raider.IO、插件和宏问题。这个问题不在范围内。",
+            "answerSource": "deterministic_scope_refusal",
+            "confidence": "blocked",
+            "priorityActions": [],
+            "evidenceRefs": [],
+            "limitations": [topic.get("reason") or "out_of_scope"],
+        }
+    usable = bounded_context.get("usableProfiles") or []
+    if not usable:
+        return {
+            "answer": "当前缺少已发布的专精打法画像，不能给出具体强度、排名或日志结论。可以先补充角色专精、场景、SimC 报告或 WCL 链接；后台会优先使用本地已同步证据，不在本次请求里实时抓取外部数据。",
+            "answerSource": answer_source,
+            "confidence": "low",
+            "priorityActions": [
+                {"title": "先补齐角色、专精、场景和可追踪证据。", "evidenceRefs": []}
+            ],
+            "evidenceRefs": [],
+            "limitations": bounded_context.get("limitations") or ["missing_published_profile"],
+        }
+    profile = usable[0]
+    actions = [
+        action for action in profile.get("priorityActions") or []
+        if isinstance(action, dict)
+    ][:3]
+    refs = []
+    for ref in profile.get("evidenceRefs") or []:
+        append_unique_text(refs, ref)
+    summary = profile.get("summary") or "已找到可用的专精打法画像，但摘要为空。"
+    return {
+        "answer": summary,
+        "answerSource": answer_source,
+        "confidence": "medium",
+        "priorityActions": actions,
+        "evidenceRefs": refs,
+        "limitations": list((bounded_context.get("limitations") or []) + (profile.get("limitations") or [])),
+    }
+
+
+def sanitize_chickenbro_request_context(context):
+    context = context if isinstance(context, dict) else {}
+    character = context.get("character") if isinstance(context.get("character"), dict) else {}
+    allowed_character = {
+        key: clean_text(character.get(key), 120)
+        for key in ("classKey", "className", "specKey", "specName", "role", "itemLevel", "realm", "characterName")
+        if character.get(key) is not None
+    }
+    sanitized = {
+        "productPhase": normalize_chickenbro_phase(context.get("productPhase") or context.get("phase")),
+        "region": normalize_chickenbro_region(context.get("region")),
+        "scenarioKey": normalize_chickenbro_scenario(context.get("scenarioKey") or context.get("scenario")),
+    }
+    for key in ("classKey", "className", "specKey", "specName", "role"):
+        if context.get(key) is not None:
+            sanitized[key] = clean_text(context.get(key), 120)
+    if allowed_character:
+        sanitized["character"] = allowed_character
+    return sanitized
+
+
+def load_chickenbro_user_profile(conn, user_id):
+    row = conn.execute(
+        "SELECT profile_json FROM chickenbro_user_profiles WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+    return safe_json_loads(row[0], {}, f"chickenbro user profile {user_id}") if row else {}
+
+
+def merge_chickenbro_user_profile(existing, context, message):
+    profile = existing if isinstance(existing, dict) else {}
+    context = sanitize_chickenbro_request_context(context)
+    character = context.get("character") if isinstance(context.get("character"), dict) else {}
+    class_key = context.get("classKey") or character.get("classKey")
+    spec_key = context.get("specKey") or character.get("specKey")
+    scenario_key = context.get("scenarioKey")
+    if class_key or spec_key:
+        characters = [
+            item for item in profile.get("characters", [])
+            if isinstance(item, dict)
+            and not (item.get("classKey") == class_key and item.get("specKey") == spec_key)
+        ]
+        characters.insert(
+            0,
+            {
+                "classKey": clean_text(class_key, 80),
+                "specKey": clean_text(spec_key, 80),
+                "role": clean_text(context.get("role") or character.get("role"), 80),
+                "lastScenarioKey": scenario_key,
+                "updatedAt": utc_now(),
+            },
+        )
+        profile["characters"] = characters[:10]
+    if scenario_key:
+        scenarios = [item for item in profile.get("preferredScenarios", []) if item != scenario_key]
+        scenarios.insert(0, scenario_key)
+        profile["preferredScenarios"] = scenarios[:10]
+    if str(message or "").strip():
+        profile["lastIntentSummary"] = clean_text(message, 160)
+    profile["schemaRevision"] = "chickenbro-user-profile-v1"
+    return profile
+
+
+def upsert_chickenbro_user_profile(conn, user_id, context, message):
+    existing = load_chickenbro_user_profile(conn, user_id)
+    profile = merge_chickenbro_user_profile(existing, context, message)
+    now = utc_now()
+    conn.execute(
+        """
+        INSERT INTO chickenbro_user_profiles (user_id, profile_json, created_at, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+            profile_json = excluded.profile_json,
+            updated_at = excluded.updated_at
+        """,
+        (user_id, json.dumps(profile, ensure_ascii=False), now, now),
+    )
+    return profile
+
+
+def public_chickenbro_session_from_row(row):
+    return {
+        "sessionId": row[0],
+        "title": row[2],
+        "productPhase": row[3],
+        "metadata": safe_json_loads(row[4], {}, f"chickenbro session metadata {row[0]}"),
+        "createdAt": row[5],
+        "updatedAt": row[6],
+    }
+
+
+def public_chickenbro_message_from_row(row):
+    payload = safe_json_loads(row[5], {}, f"chickenbro message payload {row[0]}")
+    return {
+        "messageId": row[0],
+        "sessionId": row[1],
+        "role": row[3],
+        "content": row[4],
+        "payload": payload,
+        "agentJobId": row[6],
+        "createdAt": row[7],
+    }
+
+
+def public_chickenbro_job_from_row(row):
+    return {
+        "jobId": row[0],
+        "sessionId": row[2],
+        "kind": row[3],
+        "status": row[4],
+        "request": safe_json_loads(row[5], {}, f"agent job request {row[0]}"),
+        "boundedContext": safe_json_loads(row[6], {}, f"agent job context {row[0]}"),
+        "result": safe_json_loads(row[7], {}, f"agent job result {row[0]}"),
+        "error": row[8],
+        "createdAt": row[9],
+        "updatedAt": row[10],
+        "startedAt": row[11],
+        "finishedAt": row[12],
+    }
+
+
+def resolve_chickenbro_user(access_token="", guest_id="", create_guest=False):
+    user = authenticate_token(access_token)
+    if not user and guest_id:
+        user = guest_simulator_user(guest_id) if create_guest else find_guest_simulator_user(guest_id)
+    if not user:
+        raise PermissionError("invalid auth token")
+    return user
+
+
+def create_chickenbro_session(access_token="", guest_id="", metadata=None):
+    user = resolve_chickenbro_user(access_token, guest_id, create_guest=True)
+    metadata = metadata if isinstance(metadata, dict) else {}
+    now = utc_now()
+    session_id = uuid.uuid4().hex
+    title = clean_text(metadata.get("title") or "炸鸡队长对话", 80)
+    product_phase = normalize_chickenbro_phase(metadata.get("productPhase") or metadata.get("phase"))
+    with db_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO chickenbro_sessions (
+                id, user_id, title, product_phase, metadata_json, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session_id,
+                user["id"],
+                title,
+                product_phase,
+                json.dumps(metadata, ensure_ascii=False),
+                now,
+                now,
+            ),
+        )
+        row = conn.execute(
+            """
+            SELECT id, user_id, title, product_phase, metadata_json, created_at, updated_at
+            FROM chickenbro_sessions WHERE id = ?
+            """,
+            (session_id,),
+        ).fetchone()
+    return {"user": user, "session": public_chickenbro_session_from_row(row)}
+
+
+def find_or_create_chickenbro_session(conn, user, session_id, message, context):
+    if session_id:
+        row = conn.execute(
+            """
+            SELECT id, user_id, title, product_phase, metadata_json, created_at, updated_at
+            FROM chickenbro_sessions WHERE id = ? AND user_id = ?
+            """,
+            (session_id, user["id"]),
+        ).fetchone()
+        if not row:
+            raise KeyError("chickenbro session not found")
+        return public_chickenbro_session_from_row(row)
+    now = utc_now()
+    new_id = uuid.uuid4().hex
+    title = clean_text(message, 36) or "炸鸡队长对话"
+    metadata = {
+        "createdFrom": "message",
+        "context": sanitize_chickenbro_request_context(context),
+    }
+    conn.execute(
+        """
+        INSERT INTO chickenbro_sessions (
+            id, user_id, title, product_phase, metadata_json, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            new_id,
+            user["id"],
+            title,
+            normalize_chickenbro_phase(context.get("productPhase") or context.get("phase")),
+            json.dumps(metadata, ensure_ascii=False),
+            now,
+            now,
+        ),
+    )
+    return {
+        "sessionId": new_id,
+        "title": title,
+        "productPhase": normalize_chickenbro_phase(context.get("productPhase") or context.get("phase")),
+        "metadata": metadata,
+        "createdAt": now,
+        "updatedAt": now,
+    }
+
+
+def insert_chickenbro_message(conn, user_id, session_id, role, content, payload=None, agent_job_id=""):
+    now = utc_now()
+    message_id = uuid.uuid4().hex
+    conn.execute(
+        """
+        INSERT INTO chickenbro_messages (
+            id, session_id, user_id, role, content, payload_json, agent_job_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            message_id,
+            session_id,
+            user_id,
+            role,
+            clean_text(content, 4000),
+            json.dumps(payload if isinstance(payload, dict) else {}, ensure_ascii=False),
+            agent_job_id or "",
+            now,
+        ),
+    )
+    return {
+        "messageId": message_id,
+        "sessionId": session_id,
+        "role": role,
+        "content": clean_text(content, 4000),
+        "payload": payload if isinstance(payload, dict) else {},
+        "agentJobId": agent_job_id or "",
+        "createdAt": now,
+    }
+
+
+def insert_agent_job(conn, user_id, session_id, request_payload, bounded_context):
+    now = utc_now()
+    job_id = uuid.uuid4().hex
+    conn.execute(
+        """
+        INSERT INTO agent_jobs (
+            id, user_id, session_id, kind, status, request_json, bounded_context_json,
+            result_json, error, created_at, updated_at, started_at, finished_at
+        ) VALUES (?, ?, ?, 'chickenbro', 'queued', ?, ?, '{}', '', ?, ?, '', '')
+        """,
+        (
+            job_id,
+            user_id,
+            session_id,
+            json.dumps(request_payload, ensure_ascii=False),
+            json.dumps(bounded_context, ensure_ascii=False),
+            now,
+            now,
+        ),
+    )
+    return job_id
+
+
+def update_agent_job(conn, job_id, status, result=None, error="", started_at=None, finished_at=None):
+    if status not in CHICKENBRO_JOB_STATUSES:
+        raise ValueError(f"unsupported agent job status: {status}")
+    conn.execute(
+        """
+        UPDATE agent_jobs
+        SET status = ?,
+            result_json = ?,
+            error = ?,
+            updated_at = ?,
+            started_at = COALESCE(NULLIF(?, ''), started_at),
+            finished_at = COALESCE(NULLIF(?, ''), finished_at)
+        WHERE id = ?
+        """,
+        (
+            status,
+            json.dumps(result if isinstance(result, dict) else {}, ensure_ascii=False),
+            error or "",
+            utc_now(),
+            started_at or "",
+            finished_at or "",
+            job_id,
+        ),
+    )
+
+
+def run_chickenbro_agent(bounded_context, codex_runner=None):
+    if (bounded_context.get("topic") or {}).get("status") != "in_scope":
+        answer = deterministic_chickenbro_answer(bounded_context)
+        return {
+            "answer": answer,
+            "topic": bounded_context.get("topic"),
+            "validation": {"status": "skipped", "reason": "out_of_scope"},
+            "codex": {"status": "skipped"},
+        }
+    if not bounded_context.get("usableProfiles"):
+        answer = deterministic_chickenbro_answer(bounded_context)
+        return {
+            "answer": answer,
+            "topic": bounded_context.get("topic"),
+            "validation": {"status": "skipped", "reason": "missing_published_profile"},
+            "codex": {"status": "skipped"},
+        }
+
+    runner = codex_runner or default_chickenbro_codex_runner
+    prompt = chickenbro_prompt_from_context(bounded_context)
+    schema = {
+        "type": "object",
+        "required": ["answer", "confidence", "priorityActions", "evidenceRefs"],
+        "properties": {
+            "answer": {"type": "string"},
+            "confidence": {"type": "string"},
+            "priorityActions": {"type": "array"},
+            "evidenceRefs": {"type": "array", "items": {"type": "string"}},
+            "limitations": {"type": "array", "items": {"type": "string"}},
+        },
+    }
+    try:
+        codex_result = runner(prompt, schema=schema)
+        if isinstance(codex_result, dict) and codex_result.get("status") in {"skipped", "timed_out", "failed"}:
+            raise ValueError(codex_result.get("error") or codex_result.get("status"))
+        parsed = parse_chickenbro_codex_output(codex_result)
+        validated = validate_chickenbro_codex_output(parsed, bounded_context)
+        validated["answerSource"] = "codex"
+        return {
+            "answer": validated,
+            "topic": bounded_context.get("topic"),
+            "validation": {"status": "passed"},
+            "codex": {"status": (codex_result or {}).get("status", "succeeded") if isinstance(codex_result, dict) else "succeeded"},
+        }
+    except Exception as error:
+        fallback = deterministic_chickenbro_answer(bounded_context)
+        return {
+            "answer": fallback,
+            "topic": bounded_context.get("topic"),
+            "validation": {"status": "failed", "error": f"codex_output_invalid: {error}"},
+            "codex": {"status": "failed", "error": str(error)},
+        }
+
+
+def send_chickenbro_message(payload, access_token="", codex_runner=None):
+    payload = payload if isinstance(payload, dict) else {}
+    message = clean_text(payload.get("message") or payload.get("prompt") or payload.get("question"), 4000)
+    if not message:
+        raise ValueError("chickenbro message is required")
+    context = payload.get("context") if isinstance(payload.get("context"), dict) else {}
+    guest_id = payload.get("guestId") or context.get("guestId") or ""
+    user = resolve_chickenbro_user(access_token, guest_id, create_guest=True)
+
+    with db_connection() as conn:
+        session = find_or_create_chickenbro_session(conn, user, payload.get("sessionId"), message, context)
+        user_profile = upsert_chickenbro_user_profile(conn, user["id"], context, message)
+        bounded_context = build_chickenbro_bounded_context(message, context, user_profile=user_profile)
+        sanitized_request = {
+            "message": message,
+            "context": sanitize_chickenbro_request_context(context),
+            "sessionId": session["sessionId"],
+        }
+        user_message = insert_chickenbro_message(
+            conn,
+            user["id"],
+            session["sessionId"],
+            "user",
+            message,
+            {"context": sanitized_request["context"]},
+        )
+        job_id = insert_agent_job(conn, user["id"], session["sessionId"], sanitized_request, bounded_context)
+        update_agent_job(conn, job_id, "running", started_at=utc_now())
+
+    agent_result = run_chickenbro_agent(bounded_context, codex_runner=codex_runner)
+    answer_payload = agent_result["answer"]
+    job_status = "timed_out" if (agent_result.get("codex") or {}).get("status") == "timed_out" else "succeeded"
+    finished_at = utc_now()
+    with db_connection() as conn:
+        update_agent_job(conn, job_id, job_status, result=agent_result, finished_at=finished_at)
+        assistant_message = insert_chickenbro_message(
+            conn,
+            user["id"],
+            session["sessionId"],
+            "assistant",
+            answer_payload.get("answer", ""),
+            answer_payload,
+            agent_job_id=job_id,
+        )
+        conn.execute(
+            "UPDATE chickenbro_sessions SET updated_at = ? WHERE id = ?",
+            (finished_at, session["sessionId"]),
+        )
+        job_row = conn.execute(
+            """
+            SELECT id, user_id, session_id, kind, status, request_json, bounded_context_json,
+                   result_json, error, created_at, updated_at, started_at, finished_at
+            FROM agent_jobs WHERE id = ?
+            """,
+            (job_id,),
+        ).fetchone()
+    return {
+        "mode": "chickenbro",
+        "user": user,
+        "session": session,
+        "userMessage": user_message,
+        "assistantMessage": assistant_message,
+        "job": public_chickenbro_job_from_row(job_row),
+    }
+
+
+def get_chickenbro_session(access_token, session_id, allow_guest=False, guest_id=""):
+    user = authenticate_token(access_token)
+    if not user and allow_guest:
+        user = find_guest_simulator_user(guest_id)
+    if not user:
+        raise PermissionError("invalid auth token")
+    with db_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT id, user_id, title, product_phase, metadata_json, created_at, updated_at
+            FROM chickenbro_sessions WHERE user_id = ? AND id = ?
+            """,
+            (user["id"], session_id),
+        ).fetchone()
+        if not row:
+            raise KeyError("chickenbro session not found")
+        message_rows = conn.execute(
+            """
+            SELECT id, session_id, user_id, role, content, payload_json, agent_job_id, created_at
+            FROM chickenbro_messages
+            WHERE user_id = ? AND session_id = ?
+            ORDER BY created_at
+            """,
+            (user["id"], session_id),
+        ).fetchall()
+    return {
+        "user": user,
+        "session": public_chickenbro_session_from_row(row),
+        "messages": [public_chickenbro_message_from_row(message_row) for message_row in message_rows],
+    }
+
+
+def get_chickenbro_job(access_token, job_id, allow_guest=False, guest_id=""):
+    user = authenticate_token(access_token)
+    if not user and allow_guest:
+        user = find_guest_simulator_user(guest_id)
+    if not user:
+        raise PermissionError("invalid auth token")
+    with db_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT id, user_id, session_id, kind, status, request_json, bounded_context_json,
+                   result_json, error, created_at, updated_at, started_at, finished_at
+            FROM agent_jobs
+            WHERE user_id = ? AND id = ? AND kind = 'chickenbro'
+            """,
+            (user["id"], job_id),
+        ).fetchone()
+    if not row:
+        raise KeyError("agent job not found")
+    return {"user": user, "job": public_chickenbro_job_from_row(row)}
 
 
 def load_articles():
@@ -3365,6 +4438,44 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/simulator/home":
             json_response(self, 200, build_simulator_home_payload())
             return
+        if path == "/api/chickenbro/sessions":
+            try:
+                json_response(
+                    self,
+                    200,
+                    get_chickenbro_session(
+                        bearer_token_from_headers(self.headers),
+                        query.get("id", query.get("sessionId", [""]))[0],
+                        allow_guest=query.get("guest", ["0"])[0] == "1",
+                        guest_id=query.get("guestId", [""])[0],
+                    ),
+                )
+            except PermissionError:
+                json_response(self, 401, {"error": "unauthorized"})
+            except KeyError:
+                json_response(self, 404, {"error": "chickenbro_session_not_found"})
+            return
+        if path == "/api/chickenbro/jobs":
+            try:
+                json_response(
+                    self,
+                    200,
+                    get_chickenbro_job(
+                        bearer_token_from_headers(self.headers),
+                        query.get("id", query.get("jobId", [""]))[0],
+                        allow_guest=query.get("guest", ["0"])[0] == "1",
+                        guest_id=query.get("guestId", [""])[0],
+                    ),
+                )
+            except PermissionError:
+                json_response(self, 401, {"error": "unauthorized"})
+            except KeyError:
+                json_response(self, 404, {"error": "agent_job_not_found"})
+            return
+        if path == "/api/chickenbro/profiles":
+            flat_query = {key: values[0] for key, values in query.items() if values}
+            json_response(self, 200, get_chickenbro_profiles(flat_query))
+            return
         if path == "/api/websim/bootstrap":
             init_db()
             with db_connection() as conn:
@@ -3584,6 +4695,37 @@ class Handler(BaseHTTPRequestHandler):
                 json_response(self, 401, {"error": "unauthorized"})
             except ValueError as error:
                 json_response(self, 400, {"error": "invalid_build_template", "message": str(error)})
+            return
+        if parsed.path == "/api/chickenbro/sessions":
+            payload = read_json_body(self)
+            try:
+                json_response(
+                    self,
+                    200,
+                    create_chickenbro_session(
+                        access_token=bearer_token_from_headers(self.headers),
+                        guest_id=payload.get("guestId", ""),
+                        metadata=payload,
+                    ),
+                )
+            except PermissionError:
+                json_response(self, 401, {"error": "unauthorized"})
+            return
+        if parsed.path == "/api/chickenbro/messages":
+            payload = read_json_body(self)
+            try:
+                json_response(
+                    self,
+                    200,
+                    send_chickenbro_message(
+                        payload,
+                        access_token=bearer_token_from_headers(self.headers),
+                    ),
+                )
+            except PermissionError:
+                json_response(self, 401, {"error": "unauthorized"})
+            except (KeyError, ValueError) as error:
+                json_response(self, 400, {"error": "invalid_chickenbro_message", "message": str(error)})
             return
         if parsed.path == "/api/simulator/analyze":
             json_response(
