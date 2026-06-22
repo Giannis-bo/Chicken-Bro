@@ -3456,6 +3456,93 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(backfill["cursor"]["targetOffset"], 1)
         self.assertEqual(backfill["cursor"]["profileOffset"], 3)
 
+    def test_data_health_payload_includes_talent_catalog_component_without_syncing(self):
+        import server.websim_payload as websim_payload
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            websim_payload.ensure_websim_tables(conn)
+            self.insert_websim_talent(conn, "simc-class-1001-mage-arcane", "class", 1001, 1, 1, "Class Talent")
+            self.insert_websim_talent(conn, "simc-spec-2001-mage-arcane", "spec", 2001, 1, 2, "Spec Talent")
+            self.insert_websim_talent(conn, "simc-hero-3001-mage-arcane-spellslinger", "hero", 3001, 2, 1, "Hero Talent")
+            conn.execute(
+                """
+                INSERT INTO websim_spell_details
+                (id, spell_id, name, description, icon_url, locale, payload_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "spell-101001",
+                    101001,
+                    "Class Talent",
+                    "Class description",
+                    "https://render.worldofwarcraft.com/icon/class.jpg",
+                    "zh_CN",
+                    "{}",
+                    "2026-06-22T00:00:00+00:00",
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "preset-mage-arcane",
+                    "mage",
+                    "arcane",
+                    "Arcane preset",
+                    "mage=\"Arcane\"\nspec=arcane",
+                    "{}",
+                    "2026-06-22T00:00:00+00:00",
+                ),
+            )
+            websim_payload.set_sync_state(
+                conn,
+                "websim_sync",
+                {
+                    "ok": True,
+                    "dataStatus": "verified",
+                    "checkedAt": "2026-06-22T00:00:00+00:00",
+                    "simc": {"talents": 3, "presets": 1, "build": "simc-test-build"},
+                    "currentSeason": {"seasonRevision": "season-test", "dataStatus": "verified"},
+                },
+            )
+            conn.commit()
+
+        with patch.object(self.backend, "sync_raiderio_cache", side_effect=AssertionError("health must be read-only")):
+            payload = self.backend.build_data_health_payload()
+
+        component = {item["key"]: item for item in payload["components"]}["talent_catalog"]
+        details = component["details"]
+
+        self.assertEqual(component["status"], "partial")
+        self.assertEqual(details["talentCount"], 3)
+        self.assertEqual(details["classCount"], 1)
+        self.assertEqual(details["specCount"], 1)
+        self.assertEqual(details["heroTreeCount"], 1)
+        self.assertEqual(details["profilePresetCount"], 1)
+        self.assertEqual(details["officialAuditStatus"], "pending_official_audit")
+        self.assertEqual(details["spellDetailCoverage"]["talentSpellCount"], 3)
+        self.assertEqual(details["spellDetailCoverage"]["coveredSpellCount"], 1)
+        self.assertEqual(details["spellDetailCoverage"]["missingSpellDetailCount"], 2)
+        self.assertEqual(details["catalogContract"]["sourceStatus"], "simc")
+        self.assertEqual(details["catalogContract"]["coverage"]["covered"], 1)
+        self.assertEqual(details["catalogContract"]["coverage"]["total"], 3)
+
+    def test_data_health_payload_exposes_catalog_contract_for_core_catalogs(self):
+        import server.websim_payload as websim_payload
+
+        payload = self.backend.build_data_health_payload()
+        components = {item["key"]: item for item in payload["components"]}
+
+        self.assertIn("catalogContract", components["gear_catalog"]["details"])
+        self.assertIn("catalogContract", components["talent_catalog"]["details"])
+        self.assertEqual(components["gear_catalog"]["details"]["catalogContract"]["schemaRevision"], "websim-gear-catalog-v1")
+        self.assertEqual(components["talent_catalog"]["details"]["catalogContract"]["schemaRevision"], "websim-talent-catalog-v1")
+        self.assertEqual(components["gear_catalog"]["details"]["catalogContract"]["status"], components["gear_catalog"]["status"])
+        self.assertEqual(components["talent_catalog"]["details"]["catalogContract"]["status"], components["talent_catalog"]["status"])
+
     def test_data_health_payload_includes_community_template_scan_coverage(self):
         import server.websim_payload as websim_payload
 

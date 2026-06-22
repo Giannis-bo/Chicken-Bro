@@ -3104,6 +3104,20 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("head", payload["details"]["slotCoverage"]["coveredSlots"])
         self.assertEqual(payload["details"]["sourceCoverage"]["observed_profile"], 1)
 
+    def test_talent_catalog_health_blocks_missing_local_talent_data(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            payload = self.websim_payload.talent_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(payload["details"]["talentCount"], 0)
+        self.assertEqual(payload["details"]["catalogContract"]["schemaRevision"], "websim-talent-catalog-v1")
+        self.assertEqual(payload["details"]["catalogContract"]["coverage"], {"covered": 0, "total": 0, "percent": 0})
+        self.assertIn("talent catalog has no local talent nodes", payload["blockers"])
+
     def test_raiderio_observed_only_catalog_stays_partial_until_item_metadata_is_verified(self):
         conn = sqlite3.connect(self.db_path)
         try:

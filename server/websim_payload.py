@@ -96,6 +96,7 @@ COMMUNITY_TALENT_SYNC_KEY = "community_talent_templates"
 COMMUNITY_TEMPLATE_SYNC_RUN_KEY = "community_template_sync_latest"
 COMMUNITY_TEMPLATE_REVISION = "community-template-v1"
 TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
+TALENT_CATALOG_REVISION = "websim-talent-catalog-v1"
 GEAR_SCHEMA_REVISION = "websim-gear-simulator-v1"
 GEAR_CATALOG_REVISION = "websim-gear-catalog-v1"
 GEAR_OBSERVED_BACKFILL_SYNC_KEY = "gear_observed_backfill"
@@ -9897,6 +9898,38 @@ def gear_catalog_revision_from_counts(counts, season=None):
     return f"{GEAR_CATALOG_REVISION}-{digest}"
 
 
+def catalog_health_coverage(covered, total):
+    covered = int_or_zero(covered)
+    total = int_or_zero(total)
+    percent = round((covered / total) * 100, 2) if total else 0
+    return {"covered": covered, "total": total, "percent": percent}
+
+
+def catalog_health_contract(
+    *,
+    status,
+    checked_at="",
+    schema_revision="",
+    revision="",
+    source_status="",
+    coverage=None,
+    top_blockers=None,
+    last_error="",
+    stale_after="",
+):
+    return {
+        "status": str(status or "blocked").strip() or "blocked",
+        "checkedAt": str(checked_at or "").strip(),
+        "schemaRevision": str(schema_revision or "").strip(),
+        "revision": str(revision or "").strip(),
+        "sourceStatus": str(source_status or "").strip(),
+        "coverage": coverage or catalog_health_coverage(0, 0),
+        "topBlockers": top_blockers or [],
+        "lastError": str(last_error or "").strip(),
+        "staleAfter": str(stale_after or "").strip(),
+    }
+
+
 def build_gear_catalog_sync_state(conn, season=None):
     repair_websim_item_slots_from_payload(conn)
     counts = gear_catalog_counts(conn)
@@ -9936,6 +9969,217 @@ def gear_catalog_sync_state(conn):
     return merged
 
 
+def talent_catalog_spell_detail_coverage(conn):
+    rows = conn.execute(
+        """
+        SELECT talent_spell.spell_id, s.id, s.description, s.icon_url
+        FROM (
+            SELECT DISTINCT spell_id
+            FROM websim_talents
+            WHERE spell_id > 0
+        ) AS talent_spell
+        LEFT JOIN websim_spell_details s ON s.spell_id = talent_spell.spell_id
+        ORDER BY talent_spell.spell_id
+        """
+    ).fetchall()
+    talent_spell_count = len(rows)
+    covered = 0
+    missing_detail = 0
+    missing_description = 0
+    missing_icon = 0
+    for row in rows:
+        has_detail = bool(row[1])
+        has_description = bool(str(row[2] or "").strip())
+        has_icon = bool(str(row[3] or "").strip())
+        if not has_detail:
+            missing_detail += 1
+        if not has_description:
+            missing_description += 1
+        if not has_icon:
+            missing_icon += 1
+        if has_detail and has_description and has_icon:
+            covered += 1
+    return {
+        "talentSpellCount": talent_spell_count,
+        "coveredSpellCount": covered,
+        "missingSpellDetailCount": missing_detail,
+        "missingDescriptionCount": missing_description,
+        "missingIconCount": missing_icon,
+        "coverage": catalog_health_coverage(covered, talent_spell_count),
+    }
+
+
+def talent_catalog_latest_updated_at(conn):
+    values = []
+    for table_name in (
+        "websim_talents",
+        "websim_spell_details",
+        "websim_profile_presets",
+        "websim_community_talent_templates",
+    ):
+        row = conn.execute(f"SELECT MAX(updated_at) FROM {table_name}").fetchone()
+        if row and row[0]:
+            values.append(str(row[0]))
+    return max(values) if values else ""
+
+
+def talent_catalog_counts(conn):
+    ensure_websim_tables(conn)
+    talent_rows = conn.execute(
+        """
+        SELECT class_key, spec_key, spell_id, payload_json
+        FROM websim_talents
+        WHERE spell_id > 0
+        """
+    ).fetchall()
+    class_keys = set()
+    spec_pairs = set()
+    hero_trees = set()
+    tree_type_counts = {"class": 0, "spec": 0, "hero": 0, "unknown": 0}
+    for class_key, spec_key, _spell_id, payload_json in talent_rows:
+        class_key = str(class_key or "").strip()
+        spec_key = str(spec_key or "").strip()
+        if class_key:
+            class_keys.add(class_key)
+        payload = safe_json_loads(payload_json, {})
+        tree_type = str((payload or {}).get("treeType") or "").strip()
+        if tree_type not in tree_type_counts:
+            tree_type = "unknown"
+        tree_type_counts[tree_type] += 1
+        if tree_type == "spec" and class_key and spec_key:
+            spec_pairs.add(f"{class_key}:{spec_key}")
+        if tree_type == "hero":
+            hero_key = str((payload or {}).get("heroKey") or "").strip()
+            if hero_key:
+                hero_trees.add(hero_key)
+            if class_key and spec_key:
+                spec_pairs.add(f"{class_key}:{spec_key}")
+    spell_detail_coverage = talent_catalog_spell_detail_coverage(conn)
+    profile_preset_count = conn.execute("SELECT COUNT(*) FROM websim_profile_presets").fetchone()[0] or 0
+    community_rows = conn.execute(
+        """
+        SELECT status, source_status
+        FROM websim_community_talent_templates
+        """
+    ).fetchall()
+    community_status_counts = {}
+    community_source_status_counts = {}
+    for status, source_status in community_rows:
+        status = str(status or "unknown").strip() or "unknown"
+        source_status = str(source_status or "unknown").strip() or "unknown"
+        community_status_counts[status] = community_status_counts.get(status, 0) + 1
+        community_source_status_counts[source_status] = community_source_status_counts.get(source_status, 0) + 1
+    expected_specs = set(expected_spec_pairs())
+    covered_expected_specs = spec_pairs & expected_specs if expected_specs else spec_pairs
+    missing_specs = sorted(expected_specs - spec_pairs) if expected_specs else []
+    return {
+        "talentCount": len(talent_rows),
+        "classCount": len(class_keys),
+        "specCount": len(spec_pairs),
+        "heroTreeCount": len(hero_trees),
+        "treeTypeCounts": tree_type_counts,
+        "profilePresetCount": profile_preset_count,
+        "communityTemplateCount": len(community_rows),
+        "communityTemplateStatusCounts": community_status_counts,
+        "communityTemplateSourceStatusCounts": community_source_status_counts,
+        "expectedSpecCount": len(expected_specs),
+        "coveredExpectedSpecCount": len(covered_expected_specs),
+        "missingSpecCount": len(missing_specs),
+        "missingSpecs": missing_specs[:40],
+        "spellDetailCoverage": spell_detail_coverage,
+        "updatedAt": talent_catalog_latest_updated_at(conn),
+    }
+
+
+def talent_catalog_revision_from_counts(counts, sync_state=None):
+    simc_state = (sync_state or {}).get("simc") if isinstance((sync_state or {}).get("simc"), dict) else {}
+    digest = hashlib.sha256(
+        json.dumps(
+            {
+                "talentCount": counts.get("talentCount") or 0,
+                "classCount": counts.get("classCount") or 0,
+                "specCount": counts.get("specCount") or 0,
+                "heroTreeCount": counts.get("heroTreeCount") or 0,
+                "profilePresetCount": counts.get("profilePresetCount") or 0,
+                "communityTemplateCount": counts.get("communityTemplateCount") or 0,
+                "coveredSpellCount": (counts.get("spellDetailCoverage") or {}).get("coveredSpellCount") or 0,
+                "simcBuild": simc_state.get("build") or simc_state.get("version") or "",
+            },
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()[:12]
+    return f"{TALENT_CATALOG_REVISION}-{digest}"
+
+
+def talent_catalog_health_payload(conn):
+    ensure_websim_tables(conn)
+    counts = talent_catalog_counts(conn)
+    sync_state = get_sync_state(conn, "websim_sync") or {}
+    simc_state = sync_state.get("simc") if isinstance(sync_state.get("simc"), dict) else {}
+    community_state = community_talent_sync_state(conn)
+    spell_coverage = counts.get("spellDetailCoverage") or {}
+    blockers = []
+    if not counts.get("talentCount"):
+        blockers.append("talent catalog has no local talent nodes")
+    if spell_coverage.get("missingSpellDetailCount"):
+        blockers.append(f"talent spell details missing for {spell_coverage.get('missingSpellDetailCount')} talent spells")
+    if spell_coverage.get("missingDescriptionCount"):
+        blockers.append(f"talent spell descriptions missing for {spell_coverage.get('missingDescriptionCount')} talent spells")
+    if spell_coverage.get("missingIconCount"):
+        blockers.append(f"talent spell icons missing for {spell_coverage.get('missingIconCount')} talent spells")
+    if counts.get("talentCount") and counts.get("profilePresetCount", 0) == 0:
+        blockers.append("talent catalog has no SimC profile presets")
+    top_blockers = [{"reason": reason, "count": 1} for reason in blockers[:8]]
+    status = "blocked" if not counts.get("talentCount") else "partial"
+    checked_at = sync_state.get("checkedAt") or sync_state.get("updatedAt") or counts.get("updatedAt") or ""
+    revision = talent_catalog_revision_from_counts(counts, sync_state)
+    source_status = "simc" if counts.get("talentCount") else "blocked"
+    contract = catalog_health_contract(
+        status=status,
+        checked_at=checked_at,
+        schema_revision=TALENT_CATALOG_REVISION,
+        revision=revision,
+        source_status=source_status,
+        coverage=spell_coverage.get("coverage") or catalog_health_coverage(0, 0),
+        top_blockers=top_blockers,
+        last_error="; ".join(blockers[:3]) if status == "blocked" else "",
+    )
+    return {
+        "status": status,
+        "checkedAt": checked_at,
+        "details": {
+            "schemaRevision": TALENT_CATALOG_REVISION,
+            "talentSchemaRevision": TALENT_SCHEMA_REVISION,
+            "revision": revision,
+            "sourceStatus": source_status,
+            "officialAuditStatus": "pending_official_audit",
+            "simcBuild": simc_state.get("build") or simc_state.get("version") or "",
+            "talentCount": counts.get("talentCount") or 0,
+            "classCount": counts.get("classCount") or 0,
+            "specCount": counts.get("specCount") or 0,
+            "heroTreeCount": counts.get("heroTreeCount") or 0,
+            "treeTypeCounts": counts.get("treeTypeCounts") or {},
+            "profilePresetCount": counts.get("profilePresetCount") or 0,
+            "communityTemplateCount": counts.get("communityTemplateCount") or 0,
+            "communityTemplateStatusCounts": counts.get("communityTemplateStatusCounts") or {},
+            "communityTemplateSourceStatusCounts": counts.get("communityTemplateSourceStatusCounts") or {},
+            "expectedSpecCount": counts.get("expectedSpecCount") or 0,
+            "coveredExpectedSpecCount": counts.get("coveredExpectedSpecCount") or 0,
+            "missingSpecCount": counts.get("missingSpecCount") or 0,
+            "missingSpecs": counts.get("missingSpecs") or [],
+            "spellDetailCoverage": spell_coverage,
+            "communityTemplateSync": {
+                "sourceStatus": community_state.get("sourceStatus") or "",
+                "templateRevision": community_state.get("templateRevision") or "",
+                "scanCoverage": community_state.get("scanCoverage") or {},
+            },
+            "topBlockers": top_blockers,
+            "catalogContract": contract,
+        },
+        "blockers": blockers[:8],
+    }
+
+
 def gear_catalog_health_payload(conn):
     state = gear_catalog_sync_state(conn)
     observed_backfill = read_gear_observed_backfill_state(conn)
@@ -9945,6 +10189,16 @@ def gear_catalog_health_payload(conn):
         "blocked": state.get("blockedCount") or 0,
         "total": state.get("variantCount") or 0,
     }
+    top_blockers = state.get("topBlockers") or []
+    catalog_contract = catalog_health_contract(
+        status=state.get("status") or "blocked",
+        checked_at=state.get("checkedAt") or "",
+        schema_revision=state.get("schemaRevision") or GEAR_CATALOG_REVISION,
+        revision=state.get("variantRevision") or state.get("itemDatabaseRevision") or "",
+        source_status=state.get("status") or "blocked",
+        coverage=catalog_health_coverage(state.get("verifiedCount") or 0, state.get("variantCount") or 0),
+        top_blockers=top_blockers,
+    )
     return {
         "status": state.get("status") or "blocked",
         "checkedAt": state.get("checkedAt") or "",
@@ -9964,6 +10218,7 @@ def gear_catalog_health_payload(conn):
             "itemDatabaseRevision": state.get("itemDatabaseRevision") or "",
             "variantRevision": state.get("variantRevision") or "",
             "schemaRevision": state.get("schemaRevision") or GEAR_CATALOG_REVISION,
+            "catalogContract": catalog_contract,
             "observedBackfill": {
                 "provider": observed_backfill.get("provider") or "raiderio",
                 "providers": observed_backfill.get("providers") or {
@@ -9997,7 +10252,7 @@ def gear_catalog_health_payload(conn):
             "modOptionCoverage": state.get("modOptionCoverage") or gear_catalog_mod_option_coverage(conn),
             "itemMetadata": state.get("itemMetadata") or gear_catalog_item_metadata_audit(conn),
             "seasonSourceCoverage": state.get("seasonSourceCoverage") or gear_catalog_season_source_coverage(conn),
-            "topBlockers": state.get("topBlockers") or [],
+            "topBlockers": top_blockers,
             "dataReadiness": state.get("dataReadiness") or {
                 "status": "blocked",
                 "blockers": ["gear catalog has not been synced"],
