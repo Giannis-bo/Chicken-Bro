@@ -1,4 +1,5 @@
 import unittest
+import re
 from pathlib import Path
 
 
@@ -41,6 +42,34 @@ class DeployLighthouseScriptTest(unittest.TestCase):
         self.assertIn("Environment=WOW_CODEX_JOBS_DIR=/var/lib/wow-backend/codex-jobs", service)
         self.assertIn("Environment=WOW_CODEX_SANDBOX=workspace-write", service)
         self.assertIn("/home/ubuntu/.local/bin", service)
+
+    def test_websim_sync_service_budget_covers_full_season_gear_catalog(self):
+        service = Path("server/wow-websim-sync.service").read_text(encoding="utf-8")
+        env = dict(re.findall(r"^Environment=([^=]+)=(.+)$", service, flags=re.MULTILINE))
+        exec_start_match = re.search(r"^ExecStart=(.+)$", service, flags=re.MULTILINE)
+        self.assertIsNotNone(exec_start_match)
+        exec_start = exec_start_match.group(1)
+        self.assertIn("/usr/bin/env", exec_start)
+
+        expected_budgets = {
+            "WOW_WEBSIM_SYNC_INSTANCE_LIMIT": 20,
+            "WOW_WEBSIM_SYNC_RAID_INSTANCE_LIMIT": 8,
+            "WOW_WEBSIM_SYNC_ENCOUNTER_LIMIT": 200,
+            "WOW_WEBSIM_SYNC_ITEM_LIMIT": 1000,
+            "WOW_WEBSIM_SYNC_ITEM_SET_LIMIT": 40,
+            "WOW_WEBSIM_SYNC_OBSERVED_ITEM_LIMIT": 300,
+            "WOW_RAIDERIO_RUN_PAGES": 20,
+            "WOW_RAIDERIO_PROFILE_LIMIT": 160,
+            "WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC": 4,
+            "WOW_RAIDERIO_TARGET_ITEM_LIMIT": 500,
+            "WOW_RAIDERIO_TARGET_PROFILE_LIMIT": 800,
+            "WOW_RAIDERIO_TIMEOUT_SECONDS": 45,
+        }
+        for key, minimum in expected_budgets.items():
+            self.assertGreaterEqual(int(env[key]), minimum)
+            runtime_match = re.search(rf"\b{key}=(\d+)\b", exec_start)
+            self.assertIsNotNone(runtime_match)
+            self.assertGreaterEqual(int(runtime_match.group(1)), minimum)
 
 
 if __name__ == "__main__":

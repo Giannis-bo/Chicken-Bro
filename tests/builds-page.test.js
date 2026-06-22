@@ -1273,6 +1273,121 @@ test('gear slot sheet exposes source reference and blocker trust states', () => 
   assert.match(page.data.gearSlotSheet.activeTrustText, /缺少物品 ID/)
 })
 
+test('gear candidate detail prefers stat summary without duplicating stat arrays', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const item = {
+    slot: 'head',
+    simcSlot: 'head',
+    itemId: '250777',
+    id: '250777',
+    displayName: 'Catalog Hood',
+    sourceType: 'catalog',
+    source: 'Catalog Dungeon',
+    stats: [{ label: 'Intellect', value: 7 }],
+    itemStats: [{ label: 'Intellect', value: 7 }],
+    statSummary: 'Intellect 7; Haste 9',
+    missingFields: ['ilevel'],
+    simcReady: false
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots: [{ slot: 'head', simcSlot: 'head', label: 'Head' }],
+        replacementCandidates: [{ slot: 'head', simcSlot: 'head', label: 'Head', items: [item] }],
+        equippedSet: {},
+        slotReadiness: { head: { status: 'blocked', reason: 'missing item' } },
+        readiness: {}
+      },
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+  pageConfig.toggleGearCandidateDetail.call(page, { currentTarget: { dataset: { index: 0 } } })
+
+  const attributes = page.data.gearSlotSheet.candidates[0].detailRows.find((row) => /Intellect|Haste/.test(row.value))
+  assert.equal(attributes.value, 'Intellect 7; Haste 9')
+})
+
+test('gear slot sheet blocks applying candidates that still need item level or simc options', async () => {
+  const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
+  assert.match(wxml, /class="gear-apply-button" disabled="\{\{!gearSlotSheet\.canApplyCandidate\}\}"/)
+
+  const toasts = []
+  const pageConfig = loadBuildsDetailPageConfig({ toasts })
+  const partialItem = {
+    slot: 'head',
+    simcSlot: 'head',
+    itemId: '251109',
+    id: '251109',
+    displayName: '断法暗影面具',
+    sourceType: 'catalog',
+    source: '瑟拉奈尔·日鞭 - 魔导师平台',
+    sources: [{ label: '瑟拉奈尔·日鞭 - 魔导师平台', sourceType: 'dungeon' }],
+    stats: [
+      { label: '智力', value: 7 },
+      { label: '精通', value: 9 }
+    ],
+    missingFields: ['ilevel', 'bonus_id/gem_id/enchant_id'],
+    blockers: ['missing deterministic SimC variant preset'],
+    variants: [{
+      key: 'needs-variant',
+      variantKey: 'needs-variant',
+      difficultyLabel: '难度待补',
+      itemLevel: 0,
+      simcOptions: {},
+      status: 'partial'
+    }],
+    defaultVariantKey: 'needs-variant',
+    simcReady: false
+  }
+  const gearPayload = {
+    slots: [{ slot: 'head', simcSlot: 'head', label: '头部' }],
+    replacementCandidates: [{
+      slot: 'head',
+      simcSlot: 'head',
+      label: '头部',
+      items: [partialItem]
+    }],
+    equippedSet: {},
+    slotReadiness: { head: { status: 'blocked', reason: 'missing item' } },
+    readiness: {}
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    },
+    refreshGearStats() {
+      throw new Error('partial candidates must not refresh gear stats')
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+
+  assert.equal(page.data.gearSlotSheet.candidates.length, 1)
+  assert.equal(page.data.gearSlotSheet.canApplyCandidate, false)
+  assert.match(page.data.gearSlotSheet.activeTrustText, /缺少装等/)
+
+  await pageConfig.applyGearCandidate.call(page)
+
+  assert.equal(page.data.selectedGearBySlot.head, undefined)
+  assert.equal(page.data.gearSlotSheet.visible, true)
+  assert.match(toasts.at(-1).title, /缺少装等/)
+})
+
 test('gear slot sheet source filters omit recommendation and crafted buckets', () => {
   const pageConfig = loadBuildsDetailPageConfig()
   const item = {

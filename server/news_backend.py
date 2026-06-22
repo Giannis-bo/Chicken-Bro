@@ -270,6 +270,8 @@ def init_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with db_connection() as conn:
         ensure_schema_migrations(conn)
+        if all_schema_migrations_recorded(conn):
+            return
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS news_articles (
@@ -486,6 +488,22 @@ def ensure_schema_migrations(conn):
         )
         """
     )
+
+
+def all_schema_migrations_recorded(conn):
+    migration_ids = {migration_id for migration_id, _description in SCHEMA_MIGRATIONS}
+    if not migration_ids:
+        return False
+    try:
+        recorded_ids = {
+            row[0]
+            for row in conn.execute(
+                "SELECT id FROM schema_migrations"
+            ).fetchall()
+        }
+    except sqlite3.OperationalError:
+        return False
+    return migration_ids.issubset(recorded_ids)
 
 
 def record_schema_migrations(conn):
@@ -1618,6 +1636,7 @@ def build_data_health_payload():
                     "seasonSlug": raiderio.get("seasonSlug") or "",
                     "runCount": raiderio.get("runCount") or 0,
                     "profileCount": raiderio.get("profileCount") or 0,
+                    "targetItemCoverage": raiderio.get("targetItemCoverage") or {},
                     "expiresAt": raiderio.get("expiresAt") or "",
                     "staleAt": raiderio.get("staleAt") or "",
                 },

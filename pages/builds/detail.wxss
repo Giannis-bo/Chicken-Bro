@@ -1036,6 +1036,11 @@
   border: 0;
 }
 
+.gear-apply-button[disabled] {
+  background: rgba(255, 255, 255, 0.08);
+  color: #777777;
+}
+
 .gear-community-template-list {
   display: flex;
   flex-direction: column;

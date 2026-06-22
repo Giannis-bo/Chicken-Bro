@@ -276,10 +276,12 @@ function gearTrustState(item, fallbackStatus, fallbackReason) {
     status = 'source-reference'
   } else if (item && item.simcReady) {
     status = 'verified'
-  } else if (blockers.length || status === 'blocked') {
+  } else if (status === 'blocked') {
     status = 'blocked'
   } else if (missingFields.length || status === 'partial') {
     status = 'partial'
+  } else if (blockers.length) {
+    status = 'blocked'
   } else {
     status = 'blocked'
   }
@@ -910,6 +912,7 @@ function gearStatText(stat) {
 }
 
 function gearAttributeText(item) {
+  if (item && item.statSummary) return String(item.statSummary).trim()
   const statSources = [
     item && item.stats,
     item && item.itemStats,
@@ -922,7 +925,6 @@ function gearAttributeText(item) {
       stats.map(gearStatText).filter(Boolean).forEach((text) => parts.push(text))
     }
   })
-  if (item && item.statSummary) parts.push(item.statSummary)
   if (!parts.length && item && item.ilevel) parts.push(`装等 ${item.ilevel}`)
   const seen = new Set()
   return parts.filter((value) => {
@@ -979,6 +981,7 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
   const enchantOptionId = config.enchantOptionId || ''
   const appliedCandidate = appliedGearCandidate(activeCandidate, variantKey, socketOptionId, enchantOptionId)
   const activeTrust = gearTrustState(appliedCandidate || activeCandidate, activeCandidate && activeCandidate.statusClass, activeCandidate && activeCandidate.reason)
+  const canApplyCandidate = !!(appliedCandidate && appliedCandidate.simcReady && gearTemplateLine(appliedCandidate))
   const detailKey = candidates.some((item) => item.key === config.detailKey) ? config.detailKey : ''
   return {
     visible: true,
@@ -1012,7 +1015,7 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
     enchantOptions: decorateModOptions(activeCandidate && activeCandidate.enchantOptions, enchantOptionId),
     activeTrustLabel: activeTrust.label,
     activeTrustText: activeTrust.reason,
-    canApplyCandidate: !!activeCandidate
+    canApplyCandidate
   }
 }
 
@@ -1607,6 +1610,11 @@ Page({
     const slot = sheet.slot || ''
     const candidate = sheet.appliedCandidate || appliedGearCandidate(sheet.activeCandidate, sheet.variantKey, sheet.socketOptionId, sheet.enchantOptionId)
     if (!slot || !candidate) return Promise.resolve()
+    if (!(candidate.simcReady && gearTemplateLine(candidate))) {
+      const trust = gearTrustState(candidate, candidate.statusClass, candidate.reason)
+      showToast(trust.blockerLabel || trust.reason || '该装备数据待补，暂不能应用')
+      return Promise.resolve()
+    }
     const selectedGearBySlot = {
       ...(this.data.selectedGearBySlot || {}),
       [slot]: candidate

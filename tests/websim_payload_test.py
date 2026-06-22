@@ -44,15 +44,15 @@ class WebSimPayloadTest(unittest.TestCase):
         os.environ.pop("WOW_SIMC_BIN", None)
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
         os.environ.pop("WOW_WEBSIM_CRAFTED_GEAR_SEED", None)
-        for attempt in range(5):
+        for attempt in range(20):
             try:
                 self.tmp.cleanup()
                 break
             except PermissionError:
-                if attempt == 4:
+                if attempt == 19:
                     raise
                 gc.collect()
-                time.sleep(0.1)
+                time.sleep(0.2)
 
     def insert_websim_talent(
         self,
@@ -1021,6 +1021,47 @@ class WebSimPayloadTest(unittest.TestCase):
             "Rank three description.",
         ])
 
+    def test_sync_blizzard_spell_details_skips_cached_verified_spell_details(self):
+        original_get = self.websim_payload.blizzard_get_localized
+        original_limit = os.environ.get("WOW_WEBSIM_SYNC_SPELL_LIMIT")
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get_localized", original_get)
+        if original_limit is None:
+            self.addCleanup(os.environ.pop, "WOW_WEBSIM_SYNC_SPELL_LIMIT", None)
+        else:
+            self.addCleanup(os.environ.__setitem__, "WOW_WEBSIM_SYNC_SPELL_LIMIT", original_limit)
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            conn.execute(
+                """
+                INSERT INTO websim_talents
+                (id, class_key, spec_key, tree_id, row_index, col_index, spell_id, name, payload_json, updated_at)
+                VALUES ('simc-spec-12345-mage-arcane', 'mage', 'arcane', 'spec:mage:arcane', 1, 1, 12345, 'Cached Spell', '{}', 'now')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_spell_details
+                (id, spell_id, name, description, icon_url, locale, payload_json, updated_at)
+                VALUES ('12345', 12345, 'Cached Spell', 'Already verified.', 'https://render.example/spell.jpg', 'zh_CN', '{"source":"blizzard"}', 'now')
+                """
+            )
+            conn.commit()
+            os.environ["WOW_WEBSIM_SYNC_SPELL_LIMIT"] = "1"
+
+            def fail_get(*args, **kwargs):
+                raise AssertionError("cached spell detail should not be fetched")
+
+            self.websim_payload.blizzard_get_localized = fail_get
+            counts = self.websim_payload.sync_blizzard_spell_details(conn, "token", "us", "zh_CN")
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["spells"], 0)
+        self.assertEqual(counts["media"], 0)
+        self.assertEqual(counts["skipped"], 1)
+
     def test_talent_payload_default_hero_matches_spec_picker_order(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -1153,6 +1194,8 @@ class WebSimPayloadTest(unittest.TestCase):
             ({"inventory_type": {"type": "FINGER", "name": "手指"}}, "finger1"),
             ({"inventory_type": {"type": "TRINKET", "name": "饰品"}}, "trinket1"),
             ({"inventory_type": {"type": "WEAPON", "name": "武器"}}, "main_hand"),
+            ({"inventory_type": {"type": "MAIN_HAND", "name": "main_hand"}}, "main_hand"),
+            ({"inventory_type": {"type": "OFF_HAND", "name": "off_hand"}}, "off_hand"),
             ({"inventory_type": {"type": "SHIELD", "name": "盾牌"}}, "off_hand"),
         ]
 
@@ -1386,6 +1429,118 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("slotGroups", payload)
         self.assertNotIn("catalogItems", payload)
 
+    def test_websim_gear_compact_payload_prunes_raw_candidate_payloads(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_active_season_payload(
+                conn,
+                self.websim_payload.current_season_payload(
+                    season_id="17",
+                    season_label="Fresh Season",
+                    dungeons=[
+                        {
+                            "id": "239",
+                            "dungeonId": "239",
+                            "instanceId": "945",
+                            "name": "Catalog Dungeon",
+                            "shortName": "Catalog Dungeon",
+                            "timerSeconds": 1800,
+                            "payload": {"rawDebugPayload": "x" * 4096},
+                        }
+                    ],
+                ),
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Catalog Hood",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 1234}],
+                        "rawDebugPayload": {"text": "x" * 4096},
+                    },
+                    "rawDebugPayload": {"text": "x" * 4096},
+                },
+                fallback_name="Catalog Hood",
+                english_payload={"name": "Catalog Hood", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250777",
+                    "itemId": "250777",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Catalog Dungeon",
+                    "payload": {"rawDebugPayload": "x" * 4096},
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250777",
+                    "itemId": "250777",
+                    "slot": "head",
+                    "variantKey": "heroic-707",
+                    "label": "Heroic 707",
+                    "sourceType": "dungeon",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "verified",
+                    "payload": {"rawDebugPayload": "x" * 4096},
+                },
+            )
+            self.websim_payload.upsert_community_gear_template(
+                conn,
+                {
+                    "id": "community-gear-250777",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "name": "Community Gear",
+                    "status": "partial",
+                    "gearItems": [
+                        {
+                            "slot": "head",
+                            "simcSlot": "head",
+                            "itemId": "250777",
+                            "id": "250777",
+                            "name": "catalog_hood",
+                            "displayName": "Catalog Hood",
+                            "sourceType": "observed_profile",
+                            "ilevel": 707,
+                            "bonus_id": "12345",
+                            "payload": {"rawDebugPayload": "x" * 4096},
+                        }
+                    ],
+                    "payload": {"rawDebugPayload": "x" * 4096},
+                },
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250777")
+        self.assertNotIn("payload", catalog_item)
+        self.assertFalse(any("payload" in source for source in catalog_item.get("sources", [])))
+        self.assertFalse(any("payload" in variant for variant in catalog_item.get("variants", [])))
+        self.assertIn("statSummary", catalog_item)
+        self.assertEqual(catalog_item["variants"][0]["simcOptions"]["bonus_id"], "12345")
+        community_template = next(
+            template for template in payload["communityTemplates"] if template["id"] == "community_gear_250777"
+        )
+        self.assertNotIn("payload", community_template)
+        self.assertFalse(any("payload" in item for item in community_template.get("gearItems", [])))
+        self.assertNotIn("payload", payload["currentSeason"]["dungeons"][0])
+        self.assertNotIn('"payload"', json.dumps(payload, ensure_ascii=False))
+
     def test_http_websim_gear_miniprogram_header_uses_compact_payload(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -1528,6 +1683,21 @@ class WebSimPayloadTest(unittest.TestCase):
                 english_payload={"name": "Catalog Band", "inventory_type": {"name": "Finger"}},
                 locale="en_US",
             )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "240983",
+                {
+                    "id": 240983,
+                    "name": "Quick Gem",
+                    "item_class": {"id": 3, "name": "Gem"},
+                    "item_subclass": {"id": 8, "name": "Versatility"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.example/gem-240983.jpg"}]},
+                fallback_name="Quick Gem",
+                english_payload={"name": "Quick Gem"},
+                locale="en_US",
+            )
             conn.execute(
                 """
                 INSERT INTO websim_gear_sources
@@ -1543,7 +1713,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "arcane-vault",
                     "vault-mage",
                     "heroic",
-                    "season-test",
+                    "",
                     json.dumps({"recommendationScore": 91}, ensure_ascii=False),
                     "now",
                 ),
@@ -1586,7 +1756,17 @@ class WebSimPayloadTest(unittest.TestCase):
                         json.dumps(["finger1"], ensure_ascii=False),
                         json.dumps({"gem_id": "240983", "gem_ilevel": "707"}, ensure_ascii=False),
                         "verified",
-                        "{}",
+                        json.dumps(
+                            {
+                                "gemItemId": "240983",
+                                "displayName": "Quick Gem",
+                                "iconUrl": "https://render.example/gem-240983.jpg",
+                                "metadataStatus": "verified",
+                                "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
+                                "metadataLocale": "en_US",
+                            },
+                            ensure_ascii=False,
+                        ),
                         "now",
                     ),
                     (
@@ -1648,6 +1828,69 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(catalog_item["modCapabilities"]["canEnchant"])
         self.assertEqual(catalog_item["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
         self.assertEqual(catalog_item["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
+
+    def test_websim_gear_filters_localized_non_class_armor_catalog_candidates(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            for item_id, name, subclass_id, subclass_name in (
+                ("250701", "Localized Cloth Hood", 1, "\u5e03\u7532"),
+                ("250702", "Localized Leather Mask", 2, "\u76ae\u7532"),
+                ("250703", "Localized Mail Visage", 3, "\u9501\u7532"),
+            ):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": {"type": "HEAD", "name": "\u5934\u90e8"},
+                        "item_class": {"id": 4, "name": "\u62a4\u7532"},
+                        "item_subclass": {"id": subclass_id, "name": subclass_name},
+                        "quality": {"name": "\u53f2\u8bd7"},
+                        "preview_item": {
+                            "stats": [{"type": {"type": "INTELLECT", "name": "\u667a\u529b"}, "value": 7}],
+                        },
+                    },
+                    fallback_name=name,
+                    english_payload={"name": name, "inventory_type": {"name": "Head"}},
+                    locale="zh_CN",
+                )
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"source-{item_id}",
+                        "itemId": item_id,
+                        "sourceType": "dungeon",
+                        "sourceLabel": "Localized Dungeon",
+                    },
+                )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"variant-{item_id}",
+                        "itemId": item_id,
+                        "slot": "head",
+                        "variantKey": "needs-variant",
+                        "label": "Difficulty pending",
+                        "sourceType": "dungeon",
+                        "status": "partial",
+                        "blockers": ["missing deterministic SimC variant preset"],
+                    },
+                )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost")
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        item_ids = [item["itemId"] for item in head_group["items"]]
+        self.assertIn("250701", item_ids)
+        self.assertNotIn("250702", item_ids)
+        self.assertNotIn("250703", item_ids)
+        cloth_item = next(item for item in head_group["items"] if item["itemId"] == "250701")
+        self.assertEqual(cloth_item["compatibility"]["status"], "compatible")
+        self.assertEqual(cloth_item["compatibility"]["armorStatus"], "compatible")
 
     def test_websim_gear_payload_hides_mod_options_when_item_lacks_socket_or_enchant_slot(self):
         conn = sqlite3.connect(self.db_path)
@@ -1771,7 +2014,12 @@ class WebSimPayloadTest(unittest.TestCase):
                     "id": 250777,
                     "name": "观测兜帽",
                     "inventory_type": {"type": "HEAD", "name": "头部"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
                     "quality": {"name": "史诗"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 1234}],
+                    },
                 },
                 {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
                 fallback_name="Observed Hood",
@@ -1834,6 +2082,557 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["communityTemplates"][0]["status"], "partial")
         self.assertTrue(payload["communityTemplates"][0]["canApplyGear"])
         self.assertEqual(payload["communityTemplateSync"]["sources"]["observed_profile"]["status"], "partial")
+
+    def test_gear_catalog_sync_promotes_journal_loot_with_observed_variant(self):
+        import server.raiderio_payload as raiderio_payload
+
+        original_raiderio = raiderio_payload.get_raiderio_payload
+        self.addCleanup(setattr, raiderio_payload, "get_raiderio_payload", original_raiderio)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+            )
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Catalog Hood",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 321}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
+                fallback_name="Catalog Hood",
+                english_payload={"name": "Catalog Hood", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('1300', 'Magisters'' Terrace', 'Dungeon', '{}', 'now')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_encounters (id, instance_id, name, payload_json, updated_at)
+                VALUES (?, '1300', 'Arcane Warden', ?, 'now')
+                """,
+                (
+                    "9001",
+                    json.dumps(
+                        {
+                            "id": 9001,
+                            "name": "Arcane Warden",
+                            "items": [{"item": {"id": 250777, "name": "Catalog Hood"}}],
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_loot (
+                    id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                ) VALUES (
+                    '1300:9001:250777', '1300', '9001', '250777', 'Catalog Hood', 'head', 'Epic',
+                    'https://render.example/item-250777.jpg', '{}', 'now'
+                )
+                """
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        raiderio_payload.get_raiderio_payload = lambda conn, allow_sync=False: {
+            "sourceStatus": "verified",
+            "checkedAt": "2026-06-21T00:00:00+00:00",
+            "region": "cn",
+            "seasonSlug": "season-mn-1",
+            "specs": {
+                "mage:frost": {
+                    "observedGear": [
+                        {
+                            "slot": "head",
+                            "name": "Catalog Hood",
+                            "itemId": 250777,
+                            "itemLevel": 707,
+                            "quality": "Epic",
+                            "icon": "https://render.example/item-250777.jpg",
+                            "bonuses": [12345],
+                            "sourceName": "Raider.IO CN profile gear",
+                        }
+                    ],
+                }
+            },
+        }
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            state = self.websim_payload.sync_websim_gear_catalog(conn, self.websim_payload.get_active_season_payload(conn))
+            variant_rows = conn.execute(
+                """
+                SELECT id, source_type, status, simc_options_json, payload_json
+                FROM websim_gear_variants
+                WHERE item_id = '250777'
+                ORDER BY source_type, id
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+
+        official_variants = [row for row in variant_rows if row[1] == "dungeon"]
+        self.assertEqual(state["status"], "verified")
+        self.assertEqual(state["partialCount"], 0)
+        self.assertNotIn("missing deterministic SimC variant preset", state["blockers"])
+        self.assertFalse(any(str(row[0]).startswith("loot-partial-") for row in variant_rows))
+        self.assertEqual(len(official_variants), 1)
+        self.assertEqual(official_variants[0][2], "verified")
+        self.assertEqual(json.loads(official_variants[0][3])["bonus_id"], "12345")
+        self.assertEqual(json.loads(official_variants[0][4])["observedVariantSource"], "observed_profile")
+
+    def test_gear_catalog_sync_promotes_raid_preview_ilevel_only_variant(self):
+        import server.raiderio_payload as raiderio_payload
+
+        original_raiderio = raiderio_payload.get_raiderio_payload
+        self.addCleanup(setattr, raiderio_payload, "get_raiderio_payload", original_raiderio)
+        raiderio_payload.get_raiderio_payload = lambda conn, allow_sync=False: {"sourceStatus": "missing_credentials"}
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[],
+            )
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "242396",
+                {
+                    "id": 242396,
+                    "name": "Voidglass Cloak",
+                    "level": 662,
+                    "inventory_type": {"type": "CLOAK", "name": "Back"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [
+                            {"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 321},
+                            {"type": {"type": "STAMINA", "name": "Stamina"}, "value": 777},
+                        ],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-242396.jpg"}]},
+                fallback_name="Voidglass Cloak",
+                english_payload={"name": "Voidglass Cloak", "inventory_type": {"name": "Back"}},
+                locale="en_US",
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('1400', 'Manaforge Omega', 'Raid', '{}', 'now')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_encounters (id, instance_id, name, payload_json, updated_at)
+                VALUES ('9901', '1400', 'Dimensius', '{}', 'now')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_loot (
+                    id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                ) VALUES (
+                    '1400:9901:242396', '1400', '9901', '242396', 'Voidglass Cloak', 'back', 'Epic',
+                    'https://render.example/item-242396.jpg', '{}', 'now'
+                )
+                """
+            )
+            conn.commit()
+
+            self.websim_payload.sync_websim_gear_catalog(conn, self.websim_payload.get_active_season_payload(conn))
+            variant_rows = conn.execute(
+                """
+                SELECT id, source_type, difficulty_key, item_level, status, simc_options_json, payload_json
+                FROM websim_gear_variants
+                WHERE item_id = '242396'
+                ORDER BY id
+                """
+            ).fetchall()
+            gear = self.websim_payload.get_websim_gear(conn, "mage", "frost")
+        finally:
+            conn.close()
+
+        self.assertFalse(any(str(row[0]).startswith("loot-partial-") for row in variant_rows))
+        self.assertEqual(len(variant_rows), 1)
+        self.assertTrue(str(variant_rows[0][0]).startswith("loot-preview-"))
+        self.assertEqual(variant_rows[0][1], "raid")
+        self.assertEqual(variant_rows[0][2], "battle_net_preview")
+        self.assertEqual(variant_rows[0][3], 662)
+        self.assertEqual(variant_rows[0][4], "verified")
+        self.assertEqual(json.loads(variant_rows[0][5]), {})
+        variant_payload = json.loads(variant_rows[0][6])
+        self.assertEqual(variant_payload["officialVariantSource"], "raid")
+        self.assertEqual(variant_payload["previewVariantSource"], "battle_net_preview")
+        self.assertTrue(variant_payload["simcIlevelOnly"])
+        back_group = next(group for group in gear["slotGroups"] if group["slot"] == "back")
+        catalog_item = next(item for item in back_group["items"] if item["itemId"] == "242396")
+        self.assertTrue(catalog_item["simcReady"])
+        self.assertEqual(catalog_item["ilevel"], 662)
+        self.assertTrue(catalog_item["simcIlevelOnly"])
+        self.assertNotIn("bonus_id/gem_id/enchant_id", catalog_item.get("missingFields") or [])
+
+    def test_gear_catalog_sync_keeps_low_level_dungeon_preview_partial(self):
+        import server.raiderio_payload as raiderio_payload
+
+        original_raiderio = raiderio_payload.get_raiderio_payload
+        self.addCleanup(setattr, raiderio_payload, "get_raiderio_payload", original_raiderio)
+        raiderio_payload.get_raiderio_payload = lambda conn, allow_sync=False: {"sourceStatus": "missing_credentials"}
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+            )
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "260312",
+                {
+                    "id": 260312,
+                    "name": "Legacy Preview Ring",
+                    "level": 44,
+                    "inventory_type": {"type": "FINGER", "name": "Finger"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 0, "name": "Miscellaneous"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "bonus_list": [13578],
+                        "stats": [{"type": {"type": "HASTE", "name": "Haste"}, "value": 123}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-260312.jpg"}]},
+                fallback_name="Legacy Preview Ring",
+                english_payload={"name": "Legacy Preview Ring", "inventory_type": {"name": "Finger"}},
+                locale="en_US",
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('1300', 'Magisters'' Terrace', 'Dungeon', '{}', 'now')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_encounters (id, instance_id, name, payload_json, updated_at)
+                VALUES ('9001', '1300', 'Selin Fireheart', '{}', 'now')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_loot (
+                    id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                ) VALUES (
+                    '1300:9001:260312', '1300', '9001', '260312', 'Legacy Preview Ring', 'finger1', 'Epic',
+                    'https://render.example/item-260312.jpg', '{}', 'now'
+                )
+                """
+            )
+            conn.commit()
+
+            self.websim_payload.sync_websim_gear_catalog(conn, self.websim_payload.get_active_season_payload(conn))
+            variant_rows = conn.execute(
+                """
+                SELECT id, source_type, item_level, status, blockers_json
+                FROM websim_gear_variants
+                WHERE item_id = '260312'
+                ORDER BY id
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(len(variant_rows), 1)
+        self.assertTrue(str(variant_rows[0][0]).startswith("loot-partial-"))
+        self.assertEqual(variant_rows[0][1], "dungeon")
+        self.assertEqual(variant_rows[0][2], 0)
+        self.assertEqual(variant_rows[0][3], "partial")
+        self.assertIn("missing deterministic SimC variant preset", json.loads(variant_rows[0][4]))
+
+    def test_gear_catalog_sync_dedupes_observed_gear_when_aggregate_and_profile_repeat_item(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            observed_item = {
+                "slot": "head",
+                "name": "Fearsome Visage of Ra-den's Chosen",
+                "itemId": 250015,
+                "itemLevel": 289,
+                "bonuses": [6652, 13335, 13338, 13575, 12806, 13534],
+                "gems": [240890],
+                "enchants": [8017],
+                "sourceName": "Raider.IO CN profile gear",
+            }
+            raiderio = {
+                "sourceStatus": "synced",
+                "checkedAt": "2026-06-21T00:00:00+00:00",
+                "region": "cn",
+                "seasonSlug": "season-mn-1",
+                "specs": {
+                    "monk:mistweaver": {
+                        "observedGear": [observed_item],
+                        "observedGearProfiles": [
+                            {
+                                "characterName": "Realmonk",
+                                "realmSlug": "isillien",
+                                "profileUrl": "https://raider.io/characters/cn/isillien/Realmonk",
+                                "gear": [dict(observed_item)],
+                            }
+                        ],
+                    }
+                },
+            }
+
+            counts = self.websim_payload.sync_observed_gear_variants(conn, raiderio, {"seasonRevision": "season-mn-1"})
+            variant_count = conn.execute("SELECT COUNT(*) FROM websim_gear_variants").fetchone()[0]
+            source_count = conn.execute("SELECT COUNT(*) FROM websim_gear_sources").fetchone()[0]
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["observedVariants"], 1)
+        self.assertEqual(counts["verifiedObservedVariants"], 1)
+        self.assertEqual(variant_count, 1)
+        self.assertEqual(source_count, 1)
+
+    def test_sync_observed_gear_variants_imports_top_level_raiderio_profiles(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            raiderio = {
+                "sourceStatus": "synced",
+                "checkedAt": "2026-06-21T16:00:00+00:00",
+                "region": "cn",
+                "seasonSlug": "season-mn-1",
+                "specAggregates": [],
+                "profiles": [
+                    {
+                        "name": "Selong",
+                        "realmSlug": "isillien",
+                        "region": "cn",
+                        "classKey": "evoker",
+                        "specKey": "augmentation",
+                        "profileUrl": "https://raider.io/characters/cn/isillien/Selong",
+                        "gear": [
+                            {
+                                "slot": "main_hand",
+                                "name": "Splitshroud Stinger",
+                                "itemId": 251111,
+                                "itemLevel": 298,
+                                "quality": "Epic",
+                                "icon": "inv_knife_1h_etherealraid_d_02",
+                                "bonuses": [13440, 6652, 12701, 13654],
+                                "gems": [],
+                                "enchants": [8039],
+                                "sourceName": "Raider.IO",
+                                "sourceStatus": "source_reference",
+                            }
+                        ],
+                    }
+                ],
+            }
+
+            counts = self.websim_payload.sync_observed_gear_variants(
+                conn,
+                raiderio,
+                {"seasonRevision": "season-mn-1"},
+            )
+            variant = conn.execute(
+                """
+                SELECT item_id, slot, status, item_level, simc_options_json, payload_json
+                FROM websim_gear_variants
+                WHERE item_id = '251111'
+                """
+            ).fetchone()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["observedVariants"], 1)
+        self.assertEqual(counts["verifiedObservedVariants"], 1)
+        self.assertIsNotNone(variant)
+        self.assertEqual(variant[1], "main_hand")
+        self.assertEqual(variant[2], "verified")
+        self.assertEqual(variant[3], 298)
+        self.assertEqual(json.loads(variant[4])["bonus_id"], "13440/6652/12701/13654")
+        self.assertEqual(json.loads(variant[4])["enchant_id"], "8039")
+        self.assertEqual(json.loads(variant[5])["observedProfileRefs"][0]["characterName"], "Selong")
+
+    def test_sync_observed_gear_variants_preserves_verified_cache_when_raiderio_source_is_partial(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-existing-251111-main_hand",
+                    "itemId": "251111",
+                    "slot": "main_hand",
+                    "variantKey": "observed-298-existing",
+                    "label": "Observed 298",
+                    "sourceType": "observed_profile",
+                    "difficultyKey": "observed_profile",
+                    "itemLevel": 298,
+                    "simcOptions": {"bonus_id": "13440/6652/12701/13654", "enchant_id": "8039"},
+                    "status": "verified",
+                },
+            )
+            raiderio = {
+                "sourceStatus": "partial",
+                "checkedAt": "2026-06-22T01:53:18+00:00",
+                "profiles": [
+                    {
+                        "classKey": "evoker",
+                        "specKey": "augmentation",
+                        "gear": [
+                            {
+                                "slot": "main_hand",
+                                "itemId": 251111,
+                                "itemLevel": 298,
+                                "bonuses": [13440, 6652, 12701, 13654],
+                                "enchants": [8039],
+                            }
+                        ],
+                    }
+                ],
+            }
+
+            counts = self.websim_payload.sync_observed_gear_variants(
+                conn,
+                raiderio,
+                {"seasonRevision": "season-mn-1"},
+            )
+            variants = conn.execute(
+                """
+                SELECT id, status, simc_options_json
+                FROM websim_gear_variants
+                WHERE source_type = 'observed_profile'
+                ORDER BY id
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["observedVariants"], 0)
+        self.assertEqual(counts["skipped"], 1)
+        self.assertEqual(len(variants), 1)
+        self.assertEqual(variants[0][0], "observed-existing-251111-main_hand")
+        self.assertEqual(variants[0][1], "verified")
+        self.assertEqual(json.loads(variants[0][2])["bonus_id"], "13440/6652/12701/13654")
+
+    def test_sync_observed_gear_variants_preserves_larger_verified_cache_from_smaller_payload(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            for item_id in ("251111", "251112"):
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"observed-existing-{item_id}-main_hand",
+                        "itemId": item_id,
+                        "slot": "main_hand",
+                        "variantKey": f"observed-298-{item_id}",
+                        "label": "Observed 298",
+                        "sourceType": "observed_profile",
+                        "difficultyKey": "observed_profile",
+                        "itemLevel": 298,
+                        "simcOptions": {"bonus_id": "13440/6652/12701/13654", "enchant_id": "8039"},
+                        "status": "verified",
+                    },
+                )
+            raiderio = {
+                "sourceStatus": "verified",
+                "checkedAt": "2026-06-22T03:11:23+00:00",
+                "profiles": [
+                    {
+                        "classKey": "evoker",
+                        "specKey": "augmentation",
+                        "gear": [
+                            {
+                                "slot": "main_hand",
+                                "itemId": 251111,
+                                "itemLevel": 298,
+                                "bonuses": [13440, 6652, 12701, 13654],
+                                "enchants": [8039],
+                            }
+                        ],
+                    }
+                ],
+            }
+
+            counts = self.websim_payload.sync_observed_gear_variants(
+                conn,
+                raiderio,
+                {"seasonRevision": "season-mn-1"},
+            )
+            variants = conn.execute(
+                """
+                SELECT id, status
+                FROM websim_gear_variants
+                WHERE source_type = 'observed_profile'
+                ORDER BY id
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["observedVariants"], 0)
+        self.assertEqual(counts["skipped"], 1)
+        self.assertEqual(counts["sourceStatus"], "verified")
+        self.assertEqual(counts["preservedVerifiedObservedVariants"], 2)
+        self.assertEqual([row[0] for row in variants], [
+            "observed-existing-251111-main_hand",
+            "observed-existing-251112-main_hand",
+        ])
+        self.assertTrue(all(row[1] == "verified" for row in variants))
+
+    def test_observed_gear_simc_options_do_not_treat_bare_gem_ids_as_bonus_or_ilevel(self):
+        options = self.websim_payload.observed_gear_simc_options(
+            {
+                "bonuses": [6652],
+                "gems": [240916],
+            }
+        )
+
+        self.assertEqual(options["bonus_id"], "6652")
+        self.assertEqual(options["gem_id"], "240916")
+        self.assertNotIn("gem_bonus_id", options)
+        self.assertNotIn("gem_ilevel", options)
+
+    def test_observed_gear_simc_options_keeps_structured_gem_bonus_and_ilevel(self):
+        options = self.websim_payload.observed_gear_simc_options(
+            {
+                "gems": [{"itemId": 240916, "bonusId": 9727, "itemLevel": 707}],
+            }
+        )
+
+        self.assertEqual(options["gem_id"], "240916")
+        self.assertEqual(options["gem_bonus_id"], "9727")
+        self.assertEqual(options["gem_ilevel"], "707")
 
     def test_websim_gear_filters_incompatible_observed_profile_candidates(self):
         conn = sqlite3.connect(self.db_path)
@@ -2042,10 +2841,12 @@ class WebSimPayloadTest(unittest.TestCase):
 
         head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
         catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250779")
-        self.assertTrue(catalog_item["simcReady"])
+        self.assertFalse(catalog_item["simcReady"])
         self.assertEqual(catalog_item["variantStatus"], "verified")
         self.assertEqual(catalog_item["metadataStatus"], "source_reference")
         self.assertEqual(catalog_item["metadataSource"], "raiderio_observed_profile")
+        self.assertIn("verified Battle.net metadata", catalog_item["blockers"])
+        self.assertIn("Battle.net item stats", catalog_item["blockers"])
 
     def test_gear_catalog_health_payload_includes_slot_source_and_observed_variant_coverage(self):
         conn = sqlite3.connect(self.db_path)
@@ -2102,6 +2903,2514 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("head", payload["details"]["slotCoverage"]["coveredSlots"])
         self.assertEqual(payload["details"]["sourceCoverage"]["observed_profile"], 1)
 
+    def test_raiderio_observed_only_catalog_stays_partial_until_item_metadata_is_verified(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            raiderio = {
+                "sourceStatus": "synced",
+                "checkedAt": "2026-06-21T00:00:00+00:00",
+                "region": "cn",
+                "seasonSlug": "season-mn-1",
+                "specs": {
+                    "monk:mistweaver": {
+                        "observedGear": [
+                            {
+                                "slot": "head",
+                                "name": "Fearsome Visage of Ra-den's Chosen",
+                                "itemId": 250015,
+                                "itemLevel": 289,
+                                "quality": "Epic",
+                                "icon": "inv_helm_leather_raidmonk_s_01",
+                                "bonuses": [6652, 13335, 13338, 13575, 12806, 13534],
+                                "gems": [240890],
+                                "enchants": [8017],
+                                "sourceName": "Raider.IO CN profile gear",
+                            },
+                            {
+                                "slot": "mainhand",
+                                "name": "Weight of Command",
+                                "itemId": 249293,
+                                "itemLevel": 298,
+                                "quality": "Epic",
+                                "icon": "inv_mace_2h_artifactdoomhammer_d_06",
+                                "bonuses": [6652, 13335, 13654],
+                                "enchants": [8039, 8052],
+                                "sourceName": "Raider.IO CN profile gear",
+                            },
+                        ],
+                    }
+                },
+            }
+            counts = self.websim_payload.sync_observed_gear_variants(
+                conn,
+                raiderio,
+                {"seasonRevision": "season-mn-1"},
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["verifiedObservedVariants"], 2)
+        self.assertEqual(payload["status"], "partial")
+        metadata = payload["details"]["itemMetadata"]
+        self.assertEqual(metadata["itemCount"], 2)
+        self.assertEqual(metadata["verifiedItemCount"], 0)
+        self.assertEqual(metadata["missingVerifiedItemCount"], 2)
+        self.assertEqual(metadata["missingStatItemCount"], 2)
+        self.assertEqual(metadata["missingArmorTypeItemCount"], 1)
+        self.assertEqual(metadata["missingWeaponTypeItemCount"], 1)
+        self.assertEqual(metadata["socketCapableItemCount"], 1)
+        self.assertIn("2 catalog items missing verified Battle.net metadata", payload["blockers"])
+
+    def test_official_item_metadata_audit_records_stats_types_set_and_socket_support(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250015",
+                {
+                    "id": 250015,
+                    "name": "Fearsome Visage of Ra-den's Chosen",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 2, "name": "Leather"},
+                    "item_set": {"name": "Ra-den's Chosen"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 1234}],
+                        "sockets": [{"socket_type": {"type": "PRISMATIC", "name": "Prismatic Socket"}}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/head.jpg"}]},
+                fallback_name="Fearsome Visage of Ra-den's Chosen",
+                english_payload={"name": "Fearsome Visage of Ra-den's Chosen", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "249293",
+                {
+                    "id": 249293,
+                    "name": "Weight of Command",
+                    "inventory_type": {"type": "WEAPON", "name": "Weapon"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"id": 4, "name": "Mace"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 456}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/mainhand.jpg"}]},
+                fallback_name="Weight of Command",
+                english_payload={"name": "Weight of Command", "inventory_type": {"name": "Weapon"}},
+                locale="en_US",
+            )
+            for item_id, slot in (("250015", "head"), ("249293", "main_hand")):
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"source-{item_id}",
+                        "itemId": item_id,
+                        "sourceType": "raid",
+                        "sourceLabel": "Ra-den",
+                        "seasonRevision": "season-mn-1",
+                    },
+                )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"variant-{item_id}",
+                        "itemId": item_id,
+                        "slot": slot,
+                        "variantKey": "observed-289",
+                        "label": "Observed 289",
+                        "sourceType": "observed_profile",
+                        "itemLevel": 289,
+                        "simcOptions": {"bonus_id": "6652"},
+                        "status": "verified",
+                    },
+                )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+            gear = self.websim_payload.get_websim_gear(conn, "monk", "mistweaver", compact=True)
+        finally:
+            conn.close()
+
+        metadata = payload["details"]["itemMetadata"]
+        self.assertEqual(metadata["verifiedItemCount"], 2)
+        self.assertEqual(metadata["missingVerifiedItemCount"], 0)
+        self.assertEqual(metadata["missingStatItemCount"], 0)
+        self.assertEqual(metadata["armorTypeCoverage"]["Leather"], 1)
+        self.assertEqual(metadata["weaponTypeCoverage"]["One-Handed Mace"], 1)
+        self.assertEqual(metadata["setItemCount"], 1)
+        self.assertEqual(metadata["socketCapableItemCount"], 1)
+        head_group = next(group for group in gear["replacementCandidates"] if group["slot"] == "head")
+        head = next(item for item in head_group["items"] if item["itemId"] == "250015")
+        self.assertEqual(head["armorType"], "Leather")
+        self.assertEqual(head["itemSetName"], "Ra-den's Chosen")
+        self.assertTrue(head["supportsSocket"])
+        weapon_group = next(group for group in gear["replacementCandidates"] if group["slot"] == "main_hand")
+        weapon = next(item for item in weapon_group["items"] if item["itemId"] == "249293")
+        self.assertEqual(weapon["weaponType"], "One-Handed Mace")
+
+    def test_item_type_metadata_normalizes_warglaive_and_holdable_offhand(self):
+        warglaive = self.websim_payload.item_type_metadata_from_payload(
+            {
+                "inventory_type": {"type": "WEAPON", "name": "One-Hand"},
+                "item_class": {"id": 2, "name": "Weapon"},
+                "item_subclass": {"id": 9, "name": "Warglaives"},
+            }
+        )
+        holdable = self.websim_payload.item_type_metadata_from_payload(
+            {
+                "inventory_type": {"type": "HOLDABLE", "name": "Held In Off-hand"},
+                "item_class": {"id": 4, "name": "Armor"},
+                "item_subclass": {"id": 0, "name": "Miscellaneous"},
+            }
+        )
+
+        self.assertEqual(warglaive["weaponType"], "Warglaive")
+        self.assertEqual(holdable["weaponType"], "Held In Off-hand")
+
+    def test_item_stat_extraction_prefers_battle_net_preview_stats_over_stale_top_level_stats(self):
+        stats = self.websim_payload.extract_item_stats_from_payload(
+            {
+                "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 999}],
+                "preview_item": {
+                    "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 321}],
+                },
+            }
+        )
+
+        self.assertEqual(len(stats), 1)
+        self.assertEqual(stats[0]["key"], "intellect")
+        self.assertEqual(stats[0]["value"], 321)
+
+    def test_metadata_audit_accepts_official_effect_or_cosmetic_items_without_stat_array(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250401",
+                {
+                    "id": 250401,
+                    "name": "Effect Trinket",
+                    "inventory_type": {"type": "TRINKET", "name": "Trinket"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 0, "name": "Miscellaneous"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "spells": [
+                            {
+                                "spell": {"id": 12345, "name": "Effect Trinket"},
+                                "description": "Equip: Your spells deal 999 Cosmic damage.",
+                            }
+                        ],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/trinket.jpg"}]},
+                fallback_name="Effect Trinket",
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250402",
+                {
+                    "id": 250402,
+                    "name": "Cosmetic Cloak",
+                    "inventory_type": {"type": "CLOAK", "name": "Back"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 5, "name": "Cosmetic"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {"level": {"value": 1, "display_string": "Item Level 1"}},
+                },
+                {"assets": [{"value": "https://render.example/cloak.jpg"}]},
+                fallback_name="Cosmetic Cloak",
+                locale="en_US",
+            )
+            for item_id, slot in (("250401", "trinket1"), ("250402", "back")):
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"source-{item_id}",
+                        "itemId": item_id,
+                        "sourceType": "raid",
+                        "sourceLabel": "Verified Source",
+                    },
+                )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"variant-{item_id}",
+                        "itemId": item_id,
+                        "slot": slot,
+                        "variantKey": "observed-707",
+                        "label": "Observed 707",
+                        "sourceType": "observed_profile",
+                        "itemLevel": 707,
+                        "simcOptions": {"bonus_id": "12345"},
+                        "status": "verified",
+                    },
+                )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        metadata = payload["details"]["itemMetadata"]
+        self.assertEqual(metadata["missingStatItemCount"], 0)
+        self.assertNotIn("catalog items missing Battle.net item stats", " ".join(payload["blockers"]))
+
+    def test_gear_catalog_health_blocks_stale_stats_that_conflict_with_battle_net_preview_stats(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250224",
+                {
+                    "id": 250224,
+                    "name": "Verified Hood",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 999}],
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 321}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/head.jpg"}]},
+                fallback_name="Verified Hood",
+                english_payload={"name": "Verified Hood", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250224",
+                    "itemId": "250224",
+                    "sourceType": "raid",
+                    "sourceLabel": "Ra-den",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250224",
+                    "itemId": "250224",
+                    "slot": "head",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+            gear = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        metadata = payload["details"]["itemMetadata"]
+        self.assertEqual(metadata["statMismatchCount"], 1)
+        self.assertEqual(metadata["statMismatchExamples"][0]["itemId"], "250224")
+        self.assertEqual(metadata["statMismatchExamples"][0]["expectedStats"][0]["value"], 321)
+        self.assertEqual(metadata["statMismatchExamples"][0]["conflictingStats"][0]["value"], 999)
+        self.assertIn("1 catalog items have stat mismatches with Battle.net preview stats", payload["blockers"])
+        head_group = next(group for group in gear["replacementCandidates"] if group["slot"] == "head")
+        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250224")
+        self.assertEqual(catalog_item["itemStats"][0]["value"], 321)
+        self.assertNotIn("999", catalog_item["statSummary"])
+
+    def test_gear_catalog_health_blocks_catalog_slots_that_conflict_with_battle_net_metadata(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250222",
+                {
+                    "id": 250222,
+                    "name": "Rift Bindings",
+                    "inventory_type": {"type": "WRIST", "name": "Wrist"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 321}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/wrist.jpg"}]},
+                fallback_name="Rift Bindings",
+                english_payload={"name": "Rift Bindings", "inventory_type": {"name": "Wrist"}},
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250333",
+                {
+                    "id": 250333,
+                    "name": "Verified Band",
+                    "inventory_type": {"type": "INVTYPE_FINGER", "name": "Finger"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 222}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/ring.jpg"}]},
+                fallback_name="Verified Band",
+                english_payload={"name": "Verified Band", "inventory_type": {"name": "Finger"}},
+                locale="en_US",
+            )
+            for item_id, slot in (("250222", "head"), ("250333", "finger2")):
+                conn.execute(
+                    """
+                    INSERT INTO websim_loot (
+                        id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                    ) VALUES (?, '1300', '9001', ?, 'Catalog Item', ?, 'Epic', 'https://render.example/item.jpg', '{}', 'now')
+                    """,
+                    (f"loot-{item_id}", item_id, slot),
+                )
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"source-{item_id}",
+                        "itemId": item_id,
+                        "sourceType": "dungeon",
+                        "sourceLabel": "Arcane Warden",
+                        "instanceId": "1300",
+                        "encounterId": "9001",
+                        "seasonRevision": "season-mn-1",
+                    },
+                )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"variant-{item_id}",
+                        "itemId": item_id,
+                        "slot": slot,
+                        "variantKey": "observed-289",
+                        "label": "Observed 289",
+                        "sourceType": "observed_profile",
+                        "itemLevel": 289,
+                        "simcOptions": {"bonus_id": "6652"},
+                        "status": "verified",
+                    },
+                )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        metadata = payload["details"]["itemMetadata"]
+        self.assertEqual(metadata["slotMismatchCount"], 1)
+        self.assertEqual(metadata["slotMismatchExamples"][0]["itemId"], "250222")
+        self.assertEqual(metadata["slotMismatchExamples"][0]["expectedSlot"], "wrist")
+        self.assertEqual(metadata["slotMismatchExamples"][0]["catalogSlots"], ["head"])
+        self.assertIn("1 catalog items have slot mismatches with Battle.net metadata", payload["blockers"])
+
+    def test_gear_catalog_health_uses_battle_net_payload_slot_when_stored_slot_is_stale(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250444",
+                {
+                    "id": 250444,
+                    "name": "Verified Pendant",
+                    "inventory_type": {"type": "NECK", "name": "Neck"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 0, "name": "Miscellaneous"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 222}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/neck.jpg"}]},
+                fallback_name="Verified Pendant",
+                english_payload={"name": "Verified Pendant", "inventory_type": {"name": "Neck"}},
+                locale="en_US",
+            )
+            conn.execute("UPDATE websim_items SET slot = 'trinket1' WHERE id = '250444'")
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250444",
+                    "itemId": "250444",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Arcane Warden",
+                    "instanceId": "1300",
+                    "encounterId": "9001",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250444",
+                    "itemId": "250444",
+                    "slot": "neck",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                },
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        metadata = payload["details"]["itemMetadata"]
+        self.assertEqual(metadata["slotMismatchCount"], 0)
+        self.assertNotIn("catalog items have slot mismatches", " ".join(payload["blockers"]))
+
+    def test_build_gear_catalog_sync_state_repairs_stale_stored_item_slots(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250555",
+                {
+                    "id": 250555,
+                    "name": "Verified Bracers",
+                    "inventory_type": {"type": "WRIST", "name": "Wrist"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 333}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/wrist.jpg"}]},
+                fallback_name="Verified Bracers",
+                english_payload={"name": "Verified Bracers", "inventory_type": {"name": "Wrist"}},
+                locale="en_US",
+            )
+            conn.execute("UPDATE websim_items SET slot = 'trinket1' WHERE id = '250555'")
+
+            self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"})
+
+            row = conn.execute("SELECT slot FROM websim_items WHERE id = '250555'").fetchone()
+        finally:
+            conn.close()
+
+        self.assertEqual(row[0], "wrist")
+
+    def test_websim_gear_filters_shields_from_classes_that_cannot_equip_them(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "251105",
+                {
+                    "id": 251105,
+                    "name": "Spellbreaker Shield",
+                    "inventory_type": {"type": "SHIELD", "name": "Off Hand"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 6, "name": "Shield"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 321}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/shield.jpg"}]},
+                fallback_name="Spellbreaker Shield",
+                english_payload={"name": "Spellbreaker Shield", "inventory_type": {"name": "Off Hand"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-251105",
+                    "itemId": "251105",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Magisters' Terrace",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-251105",
+                    "itemId": "251105",
+                    "slot": "off_hand",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+            mage_payload = self.websim_payload.get_websim_gear(conn, "mage", "frost")
+            shaman_payload = self.websim_payload.get_websim_gear(conn, "shaman", "elemental")
+        finally:
+            conn.close()
+
+        mage_off_hand = next(group for group in mage_payload["slotGroups"] if group["slot"] == "off_hand")
+        shaman_off_hand = next(group for group in shaman_payload["slotGroups"] if group["slot"] == "off_hand")
+
+        self.assertFalse(any(item["itemId"] == "251105" for item in mage_off_hand["items"]))
+        shield = next(item for item in shaman_off_hand["items"] if item["itemId"] == "251105")
+        self.assertEqual(shield["weaponType"], "Shield")
+        self.assertEqual(shield["compatibility"]["status"], "compatible")
+        self.assertTrue(shield["simcReady"])
+
+    def test_gear_catalog_health_blocks_socket_capable_items_without_socket_mod_options(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250015",
+                {
+                    "id": 250015,
+                    "name": "Socketed Visage",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 2, "name": "Leather"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 1234}],
+                        "sockets": [{"socket_type": {"type": "PRISMATIC", "name": "Prismatic Socket"}}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/head.jpg"}]},
+                fallback_name="Socketed Visage",
+                english_payload={"name": "Socketed Visage", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250015",
+                    "itemId": "250015",
+                    "sourceType": "raid",
+                    "sourceLabel": "Ra-den",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250015",
+                    "itemId": "250015",
+                    "slot": "head",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(payload["status"], "partial")
+        self.assertEqual(payload["details"]["itemMetadata"]["socketCapableItemCount"], 1)
+        self.assertEqual(payload["details"]["modOptionCoverage"]["socket"]["optionCount"], 0)
+        self.assertIn("socket-capable catalog items missing socket mod options", payload["blockers"])
+
+    def test_gear_catalog_health_blocks_socket_options_without_battle_net_gem_metadata(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250015",
+                {
+                    "id": 250015,
+                    "name": "Socketed Visage",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 2, "name": "Leather"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 1234}],
+                        "sockets": [{"socket_type": {"type": "PRISMATIC", "name": "Prismatic Socket"}}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/head.jpg"}]},
+                fallback_name="Socketed Visage",
+                english_payload={"name": "Socketed Visage", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250015",
+                    "itemId": "250015",
+                    "sourceType": "raid",
+                    "sourceLabel": "Ra-den",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250015",
+                    "itemId": "250015",
+                    "slot": "head",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652", "gem_id": "240983"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "observed-socket-missing-metadata",
+                    "type": "socket",
+                    "name": "Observed gem 240983",
+                    "slots": ["*"],
+                    "simcOptions": {"gem_id": "240983"},
+                    "status": "verified",
+                    "payload": {"source": "observed_variant"},
+                },
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        socket_coverage = payload["details"]["modOptionCoverage"]["socket"]
+        self.assertEqual(socket_coverage["optionCount"], 1)
+        self.assertEqual(socket_coverage["missingMetadataCount"], 1)
+        self.assertEqual(socket_coverage["missingMetadataExamples"][0]["gemItemId"], "240983")
+        self.assertIn("1 socket mod options missing Battle.net gem metadata", payload["blockers"])
+
+    def test_gear_catalog_health_blocks_socket_options_with_non_gem_battle_net_metadata(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250015",
+                {
+                    "id": 250015,
+                    "name": "Socketed Visage",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 2, "name": "Leather"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 1234}],
+                        "sockets": [{"socket_type": {"type": "PRISMATIC", "name": "Prismatic Socket"}}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/head.jpg"}]},
+                fallback_name="Socketed Visage",
+                english_payload={"name": "Socketed Visage", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250999",
+                {
+                    "id": 250999,
+                    "name": "Verified Helmet Not Gem",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 2, "name": "Leather"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 99}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/not-gem.jpg"}]},
+                fallback_name="Verified Helmet Not Gem",
+                english_payload={"name": "Verified Helmet Not Gem", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250015",
+                    "itemId": "250015",
+                    "sourceType": "raid",
+                    "sourceLabel": "Ra-den",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250015",
+                    "itemId": "250015",
+                    "slot": "head",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652", "gem_id": "250999"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "observed-socket-not-gem",
+                    "type": "socket",
+                    "name": "Observed fake gem 250999",
+                    "slots": ["*"],
+                    "simcOptions": {"gem_id": "250999"},
+                    "status": "verified",
+                    "payload": {
+                        "source": "observed_variant",
+                        "gemItemId": "250999",
+                        "displayName": "Verified Helmet Not Gem",
+                        "iconUrl": "https://render.example/not-gem.jpg",
+                        "quality": "Epic",
+                        "metadataStatus": "verified",
+                        "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
+                    },
+                },
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        socket_coverage = payload["details"]["modOptionCoverage"]["socket"]
+        self.assertEqual(socket_coverage["optionCount"], 1)
+        self.assertEqual(socket_coverage["invalidGemMetadataCount"], 1)
+        self.assertEqual(socket_coverage["invalidGemMetadataExamples"][0]["gemItemId"], "250999")
+        self.assertEqual(socket_coverage["invalidGemMetadataExamples"][0]["itemClass"], "Armor")
+        self.assertIn("1 socket mod options reference non-gem Battle.net item metadata", payload["blockers"])
+
+    def test_gear_catalog_health_reports_missing_season_dungeon_loot_and_set_coverage(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[
+                    {"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"},
+                    {"id": "560", "dungeonId": "560", "instanceId": "1301", "name": "Maisara Caverns"},
+                ],
+            )
+            season["raids"] = [
+                {"id": "1400", "instanceId": "1400", "name": "Arcane Vault"},
+                {"id": "1401", "instanceId": "1401", "name": "Voidspire Keep"},
+            ]
+            self.websim_payload.save_active_season_payload(conn, season)
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('1400', 'Arcane Vault', 'Raid', '{}', 'now')
+                """
+            )
+            for item_id, name, slot, instance_id, source_type, set_name in (
+                ("250015", "Fearsome Visage", "head", "1300", "dungeon", "Ra-den's Chosen"),
+                ("250016", "Thunderfists", "hands", "1400", "raid", "Ra-den's Chosen"),
+            ):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": {"type": slot.upper(), "name": slot},
+                        "item_class": {"id": 4, "name": "Armor"},
+                        "item_subclass": {"id": 2, "name": "Leather"},
+                        "item_set": {"name": set_name},
+                        "quality": {"name": "Epic"},
+                        "preview_item": {
+                            "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 111}],
+                        },
+                    },
+                    fallback_name=name,
+                    english_payload={"name": name, "inventory_type": {"name": slot}},
+                    locale="en_US",
+                )
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"source-{item_id}",
+                        "itemId": item_id,
+                        "sourceType": source_type,
+                        "sourceLabel": "Current source",
+                        "instanceId": instance_id,
+                        "seasonRevision": "season-mn-1",
+                    },
+                )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"variant-{item_id}",
+                        "itemId": item_id,
+                        "slot": slot,
+                        "variantKey": "observed-289",
+                        "label": "Observed 289",
+                        "sourceType": source_type,
+                        "itemLevel": 289,
+                        "simcOptions": {"bonus_id": "6652"},
+                        "status": "verified",
+                    },
+                )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, self.websim_payload.get_active_season_payload(conn)),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        coverage = payload["details"]["seasonSourceCoverage"]
+        self.assertEqual(coverage["mythicPlus"]["expectedDungeonCount"], 2)
+        self.assertEqual(coverage["mythicPlus"]["coveredDungeonCount"], 1)
+        self.assertEqual(coverage["mythicPlus"]["missingDungeons"], ["Maisara Caverns"])
+        self.assertEqual(coverage["raid"]["expectedInstanceCount"], 2)
+        self.assertEqual(coverage["raid"]["coveredInstanceCount"], 1)
+        self.assertEqual(coverage["raid"]["missingInstances"], ["Voidspire Keep"])
+        self.assertEqual(coverage["raid"]["sourceItemCount"], 1)
+        self.assertEqual(coverage["sets"]["setItemCount"], 2)
+        self.assertEqual(coverage["sets"]["setNames"], ["Ra-den's Chosen"])
+        self.assertIn("1 current season dungeon missing gear loot", payload["blockers"])
+        self.assertIn("1 current expansion raid missing gear loot", payload["blockers"])
+
+    def test_gear_catalog_health_does_not_count_stale_season_sources_as_current_coverage(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="18",
+                season_label="season-mn-2",
+                dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+            )
+            season["seasonRevision"] = "season-mn-2"
+            season["revision"] = "season-mn-2"
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250015",
+                {
+                    "id": 250015,
+                    "name": "Old Season Visage",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 2, "name": "Leather"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 111}],
+                    },
+                },
+                fallback_name="Old Season Visage",
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "old-season-source-250015",
+                    "itemId": "250015",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Magisters' Terrace",
+                    "instanceId": "1300",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "old-season-variant-250015",
+                    "itemId": "250015",
+                    "slot": "head",
+                    "variantKey": "mythic-old",
+                    "label": "Old season",
+                    "sourceType": "dungeon",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, self.websim_payload.get_active_season_payload(conn)),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        mythic_plus = payload["details"]["seasonSourceCoverage"]["mythicPlus"]
+        self.assertEqual(mythic_plus["coveredDungeonCount"], 0)
+        self.assertEqual(mythic_plus["missingDungeonCount"], 1)
+        self.assertEqual(mythic_plus["staleSourceCount"], 1)
+        self.assertEqual(mythic_plus["staleSourceExamples"][0]["seasonRevision"], "season-mn-1")
+        self.assertIn("1 current season dungeon missing gear loot", payload["blockers"])
+
+    def test_gear_catalog_health_reports_missing_expected_raid_instance_without_sources(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[
+                    {"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"},
+                ],
+            )
+            season["raids"] = [
+                {"id": "1400", "instanceId": "1400", "name": "Arcane Vault"},
+                {"id": "1401", "instanceId": "1401", "name": "Voidspire Keep"},
+            ]
+            self.websim_payload.save_active_season_payload(conn, season)
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('1400', 'Arcane Vault', 'Raid', '{}', 'now')
+                """
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Catalog Hood",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 111}],
+                    },
+                },
+                fallback_name="Catalog Hood",
+                english_payload={"name": "Catalog Hood", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250777",
+                    "itemId": "250777",
+                    "sourceType": "raid",
+                    "sourceLabel": "Arcane Vault",
+                    "instanceId": "1400",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250777",
+                    "itemId": "250777",
+                    "slot": "head",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "raid",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, self.websim_payload.get_active_season_payload(conn)),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        coverage = payload["details"]["seasonSourceCoverage"]
+        self.assertEqual(coverage["raid"]["expectedInstanceCount"], 2)
+        self.assertEqual(coverage["raid"]["coveredInstanceCount"], 1)
+        self.assertEqual(coverage["raid"]["missingInstanceCount"], 1)
+        self.assertEqual(coverage["raid"]["missingInstances"], ["Voidspire Keep"])
+        self.assertIn("1 current expansion raid missing gear loot", payload["blockers"])
+
+    def test_gear_catalog_health_reports_journal_loot_missing_from_local_cache(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_active_season_payload(
+                conn,
+                self.websim_payload.current_season_payload(
+                    season_id="17",
+                    season_label="season-mn-1",
+                    dungeons=[
+                        {"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"},
+                    ],
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('1300', 'Magisters'' Terrace', 'Dungeon', '{}', 'now')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_encounters (id, instance_id, name, payload_json, updated_at)
+                VALUES (?, '1300', 'Arcane Warden', ?, 'now')
+                """,
+                (
+                    "9001",
+                    json.dumps(
+                        {
+                            "id": 9001,
+                            "name": "Arcane Warden",
+                            "items": [
+                                {"item": {"id": 250001, "name": "Verified Hood"}},
+                                {"item": {"id": 250002, "name": "Missing Bracers"}},
+                            ],
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250001",
+                {
+                    "id": 250001,
+                    "name": "Verified Hood",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 111}],
+                    },
+                },
+                fallback_name="Verified Hood",
+                english_payload={"name": "Verified Hood", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_loot (
+                    id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                ) VALUES (
+                    '1300:9001:250001', '1300', '9001', '250001', 'Verified Hood', 'head', 'Epic',
+                    'https://render.example/item-250001.jpg', '{}', 'now'
+                )
+                """
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250001",
+                    "itemId": "250001",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Magisters' Terrace",
+                    "instanceId": "1300",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250001",
+                    "itemId": "250001",
+                    "slot": "head",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "dungeon",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, self.websim_payload.get_active_season_payload(conn)),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        coverage = payload["details"]["seasonSourceCoverage"]
+        journal_loot = coverage["journalLoot"]
+        self.assertEqual(journal_loot["expectedItemCount"], 2)
+        self.assertEqual(journal_loot["cachedItemCount"], 1)
+        self.assertEqual(journal_loot["missingItemCount"], 1)
+        self.assertEqual(journal_loot["missingExamples"][0]["itemId"], "250002")
+        self.assertIn("1 Battle.net journal loot items missing from local cache", payload["blockers"])
+
+    def test_gear_catalog_health_reports_journal_loot_missing_catalog_source(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_active_season_payload(
+                conn,
+                self.websim_payload.current_season_payload(
+                    season_id="17",
+                    season_label="season-mn-1",
+                    dungeons=[
+                        {"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"},
+                    ],
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('1300', 'Magisters'' Terrace', 'Dungeon', '{}', 'now')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_encounters (id, instance_id, name, payload_json, updated_at)
+                VALUES (?, '1300', 'Arcane Warden', ?, 'now')
+                """,
+                (
+                    "9001",
+                    json.dumps(
+                        {
+                            "id": 9001,
+                            "name": "Arcane Warden",
+                            "items": [
+                                {"item": {"id": 250001, "name": "Catalog Hood"}},
+                                {"item": {"id": 250002, "name": "Unindexed Bracers"}},
+                            ],
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+            )
+            for item_id, name, slot in (
+                ("250001", "Catalog Hood", "head"),
+                ("250002", "Unindexed Bracers", "wrist"),
+            ):
+                conn.execute(
+                    """
+                    INSERT INTO websim_loot (
+                        id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                    ) VALUES (?, '1300', '9001', ?, ?, ?, 'Epic', 'https://render.example/item.jpg', '{}', 'now')
+                    """,
+                    (f"1300:9001:{item_id}", item_id, name, slot),
+                )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250001",
+                {
+                    "id": 250001,
+                    "name": "Catalog Hood",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 111}],
+                    },
+                },
+                fallback_name="Catalog Hood",
+                english_payload={"name": "Catalog Hood", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "loot-1300:9001:250001",
+                    "itemId": "250001",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Arcane Warden - Magisters' Terrace",
+                    "instanceId": "1300",
+                    "encounterId": "9001",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250001",
+                    "itemId": "250001",
+                    "slot": "head",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "dungeon",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, self.websim_payload.get_active_season_payload(conn)),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        journal_loot = payload["details"]["seasonSourceCoverage"]["journalLoot"]
+        self.assertEqual(journal_loot["expectedItemCount"], 2)
+        self.assertEqual(journal_loot["cachedItemCount"], 2)
+        self.assertEqual(journal_loot["catalogSourceItemCount"], 1)
+        self.assertEqual(journal_loot["missingCatalogSourceCount"], 1)
+        self.assertEqual(journal_loot["missingCatalogSourceExamples"][0]["itemId"], "250002")
+        self.assertIn("1 Battle.net journal loot items missing gear catalog source", payload["blockers"])
+
+    def test_gear_catalog_health_reports_journal_loot_catalog_source_context_mismatch(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_active_season_payload(
+                conn,
+                self.websim_payload.current_season_payload(
+                    season_id="17",
+                    season_label="season-mn-1",
+                    dungeons=[
+                        {"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"},
+                    ],
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_encounters (id, instance_id, name, payload_json, updated_at)
+                VALUES (?, '1300', 'Arcane Warden', ?, 'now')
+                """,
+                (
+                    "9001",
+                    json.dumps(
+                        {
+                            "id": 9001,
+                            "name": "Arcane Warden",
+                            "items": [{"item": {"id": 250001, "name": "Catalog Hood"}}],
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_loot (
+                    id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                ) VALUES (
+                    '1300:9001:250001', '1300', '9001', '250001', 'Catalog Hood', 'head', 'Epic',
+                    'https://render.example/item.jpg', '{}', 'now'
+                )
+                """
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "loot-1300:9001:250001",
+                    "itemId": "250001",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Wrong Boss - Magisters' Terrace",
+                    "instanceId": "1300",
+                    "encounterId": "9999",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, self.websim_payload.get_active_season_payload(conn)),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        journal_loot = payload["details"]["seasonSourceCoverage"]["journalLoot"]
+        self.assertEqual(journal_loot["catalogSourceItemCount"], 0)
+        self.assertEqual(journal_loot["mismatchedCatalogSourceCount"], 1)
+        mismatch = journal_loot["mismatchedCatalogSourceExamples"][0]
+        self.assertEqual(mismatch["itemId"], "250001")
+        self.assertEqual(mismatch["sourceId"], "loot-1300:9001:250001")
+        self.assertEqual(mismatch["expectedEncounterId"], "9001")
+        self.assertEqual(mismatch["actualEncounterId"], "9999")
+        self.assertIn("1 Battle.net journal loot items have mismatched gear catalog source context", payload["blockers"])
+
+    def test_gear_catalog_health_requires_active_season_dungeon_enumeration(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250015",
+                {
+                    "id": 250015,
+                    "name": "Fearsome Visage",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 2, "name": "Leather"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 111}],
+                    },
+                },
+                fallback_name="Fearsome Visage",
+                english_payload={"name": "Fearsome Visage", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250015",
+                    "itemId": "250015",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Observed dungeon",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250015",
+                    "itemId": "250015",
+                    "slot": "head",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "dungeon",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        coverage = payload["details"]["seasonSourceCoverage"]
+        self.assertEqual(coverage["status"], "partial")
+        self.assertEqual(coverage["mythicPlus"]["expectedDungeonCount"], 0)
+        self.assertIn("active season dungeon list is missing", payload["blockers"])
+
+    def test_gear_catalog_health_blocks_discovered_item_set_without_item_set_detail(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250015",
+                {
+                    "id": 250015,
+                    "name": "Fearsome Visage",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 2, "name": "Leather"},
+                    "item_set": {"id": 777, "name": "Ra-den's Chosen"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 111}],
+                    },
+                },
+                fallback_name="Fearsome Visage",
+                english_payload={"name": "Fearsome Visage", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250015",
+                    "itemId": "250015",
+                    "sourceType": "raid",
+                    "sourceLabel": "Ra-den",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250015",
+                    "itemId": "250015",
+                    "slot": "head",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "raid",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        sets = payload["details"]["seasonSourceCoverage"]["sets"]
+        self.assertEqual(sets.get("discoveredSetCount"), 1)
+        self.assertEqual(sets.get("verifiedSetCount"), 0)
+        self.assertIn("1 discovered item sets missing Battle.net item-set detail", payload["blockers"])
+
+    def test_gear_catalog_health_ignores_observed_profile_item_set_detail_for_pve_sources(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "245752",
+                {
+                    "id": 245752,
+                    "name": "Thalassian Competitor's Insignia of Alacrity",
+                    "inventory_type": {"type": "TRINKET", "name": "Trinket"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 0, "name": "Miscellaneous"},
+                    "item_set": {"id": 1458, "name": "Gladiator's Glory"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 111}],
+                    },
+                },
+                fallback_name="Thalassian Competitor's Insignia of Alacrity",
+                english_payload={"name": "Thalassian Competitor's Insignia of Alacrity", "inventory_type": {"name": "Trinket"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "observed-source-demonhunter-devourer-trinket2-245752",
+                    "itemId": "245752",
+                    "sourceType": "observed_profile",
+                    "sourceLabel": "Raider.IO CN observed demonhunter devourer",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-demonhunter-devourer-trinket2-245752",
+                    "itemId": "245752",
+                    "slot": "trinket2",
+                    "variantKey": "observed-246",
+                    "label": "Observed 246",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 246,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        sets = payload["details"]["seasonSourceCoverage"]["sets"]
+        self.assertEqual(sets.get("discoveredSetCount"), 0)
+        self.assertNotIn("1 discovered item sets missing Battle.net item-set detail", payload["blockers"])
+
+    def test_gear_catalog_health_reports_missing_expected_item_set_detail(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+            )
+            season["itemSets"] = [
+                {"id": "777", "name": "Ra-den's Chosen"},
+                {"id": "778", "name": "Forgotten Champion"},
+            ]
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_set(
+                conn,
+                "777",
+                {"id": 777, "name": "Ra-den's Chosen", "items": [{"item": {"id": 250015, "name": "Fearsome Visage"}}]},
+                "season-mn-1",
+            )
+            self.websim_payload.upsert_websim_item_set_item(
+                conn,
+                "777",
+                {"itemId": "250015", "name": "Fearsome Visage", "slot": "head"},
+                "head",
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, self.websim_payload.get_active_season_payload(conn)),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        sets = payload["details"]["seasonSourceCoverage"]["sets"]
+        self.assertEqual(sets["expectedSetCount"], 2)
+        self.assertEqual(sets["verifiedSetCount"], 1)
+        self.assertEqual(sets["missingExpectedSetCount"], 1)
+        self.assertEqual(sets["missingExpectedSets"], ["Forgotten Champion"])
+        self.assertIn("1 current season item sets missing Battle.net item-set detail", payload["blockers"])
+
+    def test_gear_catalog_health_matches_expected_item_set_display_name_to_verified_set_name(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[],
+            )
+            season["itemSets"] = [{"name": "织影者的预兆（0/3）"}]
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_set(
+                conn,
+                "1332",
+                {"id": 1332, "name": "织影者的预兆", "items": [{"item": {"id": 151303, "name": "虚空扭曲者长袍"}}]},
+                "season-mn-1",
+            )
+            self.websim_payload.upsert_websim_item_set_item(
+                conn,
+                "1332",
+                {"itemId": "151303", "name": "虚空扭曲者长袍", "slot": "chest"},
+                "chest",
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, self.websim_payload.get_active_season_payload(conn)),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        sets = payload["details"]["seasonSourceCoverage"]["sets"]
+        self.assertEqual(sets["expectedSetCount"], 1)
+        self.assertEqual(sets["verifiedSetCount"], 1)
+        self.assertEqual(sets["missingExpectedSetCount"], 0)
+        self.assertNotIn("1 current season item sets missing Battle.net item-set detail", payload["blockers"])
+
+    def test_gear_catalog_health_reports_item_set_piece_missing_catalog_source(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[],
+            )
+            season["itemSets"] = [{"id": "777", "name": "Ra-den's Chosen"}]
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_set(
+                conn,
+                "777",
+                {
+                    "id": 777,
+                    "name": "Ra-den's Chosen",
+                    "items": [
+                        {"item": {"id": 250015, "name": "Fearsome Visage"}},
+                        {"item": {"id": 250016, "name": "Thunderfists"}},
+                    ],
+                },
+                "season-mn-1",
+            )
+            for item_id, name, slot in (
+                ("250015", "Fearsome Visage", "head"),
+                ("250016", "Thunderfists", "hands"),
+            ):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": {"type": slot.upper(), "name": slot.title()},
+                        "item_class": {"id": 4, "name": "Armor"},
+                        "item_subclass": {"id": 2, "name": "Leather"},
+                        "item_set": {"id": 777, "name": "Ra-den's Chosen"},
+                        "quality": {"name": "Epic"},
+                        "preview_item": {
+                            "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 111}],
+                        },
+                    },
+                    fallback_name=name,
+                    english_payload={"name": name, "inventory_type": {"name": slot.title()}},
+                    locale="en_US",
+                )
+                self.websim_payload.upsert_websim_item_set_item(
+                    conn,
+                    "777",
+                    {"itemId": item_id, "name": name, "slot": slot},
+                    slot,
+                )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "set-777-250015",
+                    "itemId": "250015",
+                    "sourceType": "tier_set",
+                    "sourceLabel": "Ra-den's Chosen",
+                    "seasonRevision": "season-mn-1",
+                    "payload": {
+                        "authority": self.websim_payload.ITEM_METADATA_SOURCE,
+                        "setId": "777",
+                        "setName": "Ra-den's Chosen",
+                    },
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, self.websim_payload.get_active_season_payload(conn)),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        sets = payload["details"]["seasonSourceCoverage"]["sets"]
+        self.assertEqual(sets["verifiedSetItemCount"], 2)
+        self.assertEqual(sets["setItemCatalogSourceCount"], 1)
+        self.assertEqual(sets["missingSetItemCatalogSourceCount"], 1)
+        self.assertEqual(sets["missingSetItemCatalogSourceExamples"][0]["itemId"], "250016")
+        self.assertIn("1 item set pieces missing gear catalog source", payload["blockers"])
+
+    def test_item_set_ref_from_payload_reads_nested_battle_net_set_id(self):
+        payload = {
+            "id": 151303,
+            "name": "Void-Twisted Robes",
+            "set": {
+                "item_set": {
+                    "key": {
+                        "href": "https://us.api.blizzard.com/data/wow/item-set/1332?namespace=static-12.0.7_67808-us"
+                    },
+                    "name": "织影者的预兆",
+                    "id": 1332,
+                },
+                "display_string": "织影者的预兆（0/3）",
+            },
+        }
+
+        ref = self.websim_payload.item_set_ref_from_payload(payload)
+
+        self.assertEqual(ref, {"id": "1332", "name": "织影者的预兆"})
+
+    def test_sync_blizzard_item_sets_merges_season_display_name_with_discovered_numeric_id(self):
+        conn = sqlite3.connect(self.db_path)
+        original_blizzard_get = self.websim_payload.blizzard_get
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+        requested_paths = []
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            requested_paths.append(path)
+            if path == "/data/wow/item-set/1332":
+                return {
+                    "id": 1332,
+                    "name": "织影者的预兆",
+                    "items": [{"item": {"id": 151303, "name": "虚空扭曲者长袍"}}],
+                }
+            raise AssertionError(f"unexpected Blizzard path {path}")
+
+        self.websim_payload.blizzard_get = fake_blizzard_get
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[],
+            )
+            season["itemSets"] = [{"name": "织影者的预兆（0/3）"}]
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "151303",
+                {
+                    "id": 151303,
+                    "name": "虚空扭曲者长袍",
+                    "inventory_type": {"type": "CHEST", "name": "Chest"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 111}],
+                    },
+                    "set": {
+                        "item_set": {
+                            "key": {
+                                "href": "https://us.api.blizzard.com/data/wow/item-set/1332?namespace=static-12.0.7_67808-us"
+                            },
+                            "name": "织影者的预兆",
+                            "id": 1332,
+                        },
+                        "display_string": "织影者的预兆（0/3）",
+                    },
+                },
+                fallback_name="虚空扭曲者长袍",
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "loot-151303",
+                    "itemId": "151303",
+                    "sourceType": "raid",
+                    "sourceLabel": "Manaforge Omega",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            counts = self.websim_payload.sync_blizzard_item_sets(
+                conn,
+                "token",
+                "us",
+                "zh_CN",
+                self.websim_payload.get_active_season_payload(conn),
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(requested_paths, ["/data/wow/item-set/1332"])
+        self.assertEqual(counts["itemSets"], 1)
+        self.assertEqual(counts["errors"], [])
+
+    def test_sync_blizzard_item_sets_expands_discovered_set_into_catalog_sources(self):
+        conn = sqlite3.connect(self.db_path)
+        original_blizzard_get = self.websim_payload.blizzard_get
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            if path == "/data/wow/item-set/777":
+                return {
+                    "id": 777,
+                    "name": "Ra-den's Chosen",
+                    "items": [
+                        {"item": {"id": 250015, "name": "Fearsome Visage"}},
+                        {"item": {"id": 250016, "name": "Thunderfists"}},
+                    ],
+                }
+            raise AssertionError(f"unexpected Blizzard path {path}")
+
+        def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
+            slot = "HEAD" if str(item_id) == "250015" else "HANDS"
+            item_name = fallback_name or ("Fearsome Visage" if str(item_id) == "250015" else "Thunderfists")
+            return {
+                "payload": {
+                    "id": int(item_id),
+                    "name": item_name,
+                    "inventory_type": {"type": slot, "name": slot.title()},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 2, "name": "Leather"},
+                    "item_set": {"id": 777, "name": "Ra-den's Chosen"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 111}],
+                    },
+                },
+                "media": {"assets": [{"value": f"https://render.example/item-{item_id}.jpg"}]},
+                "englishPayload": {"name": item_name},
+                "locale": locale,
+                "fallbackName": fallback_name,
+            }
+
+        self.websim_payload.blizzard_get = fake_blizzard_get
+        self.websim_payload.fetch_blizzard_item_metadata = fake_fetch
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250015",
+                fake_fetch("token", "250015")["payload"],
+                fallback_name="Fearsome Visage",
+                english_payload={"name": "Fearsome Visage", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_loot (
+                    id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                ) VALUES (
+                    'loot-250015', '1400', '9100', '250015', 'Fearsome Visage', 'head', 'Epic',
+                    'https://render.example/item-250015.jpg', '{}', 'now'
+                )
+                """
+            )
+            counts = self.websim_payload.sync_blizzard_item_sets(
+                conn,
+                "token",
+                "us",
+                "zh_CN",
+                {"seasonRevision": "season-mn-1"},
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+            set_items = conn.execute(
+                "SELECT set_id, item_id, name FROM websim_item_set_items ORDER BY item_id"
+            ).fetchall()
+            sources = conn.execute(
+                "SELECT item_id, source_type, source_label FROM websim_gear_sources WHERE source_type = 'tier_set' ORDER BY item_id"
+            ).fetchall()
+            variants = conn.execute(
+                "SELECT item_id, slot, status FROM websim_gear_variants WHERE source_type = 'tier_set' ORDER BY item_id"
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["itemSets"], 1)
+        self.assertEqual(counts["setItems"], 2)
+        self.assertEqual(set_items, [("777", "250015", "Fearsome Visage"), ("777", "250016", "Thunderfists")])
+        self.assertEqual(
+            sources,
+            [
+                ("250015", "tier_set", "Ra-den's Chosen"),
+                ("250016", "tier_set", "Ra-den's Chosen"),
+            ],
+        )
+        self.assertEqual(variants, [("250015", "head", "partial"), ("250016", "hands", "partial")])
+        sets = payload["details"]["seasonSourceCoverage"]["sets"]
+        self.assertEqual(sets["verifiedSetCount"], 1)
+        self.assertEqual(sets["verifiedSetItemCount"], 2)
+        self.assertEqual(sets["missingSetDetailCount"], 0)
+        self.assertNotIn("1 discovered item sets missing Battle.net item-set detail", payload["blockers"])
+
+    def test_sync_blizzard_item_sets_fetches_active_season_expected_sets(self):
+        conn = sqlite3.connect(self.db_path)
+        original_blizzard_get = self.websim_payload.blizzard_get
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            if path == "/data/wow/item-set/778":
+                return {
+                    "id": 778,
+                    "name": "Forgotten Champion",
+                    "items": [{"item": {"id": 250099, "name": "Champion's Crown"}}],
+                }
+            raise AssertionError(f"unexpected Blizzard path {path}")
+
+        def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
+            return {
+                "payload": {
+                    "id": int(item_id),
+                    "name": fallback_name or f"Item {item_id}",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 4, "name": "Plate"},
+                    "item_set": {"id": 778, "name": "Forgotten Champion"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "STRENGTH", "name": "Strength"}, "value": 111}],
+                    },
+                },
+                "media": {"assets": [{"value": f"https://render.example/item-{item_id}.jpg"}]},
+                "englishPayload": {"name": fallback_name or f"Item {item_id}"},
+                "locale": locale,
+                "fallbackName": fallback_name,
+            }
+
+        self.websim_payload.blizzard_get = fake_blizzard_get
+        self.websim_payload.fetch_blizzard_item_metadata = fake_fetch
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[],
+            )
+            season["itemSets"] = [{"id": "778", "name": "Forgotten Champion"}]
+            self.websim_payload.save_active_season_payload(conn, season)
+            counts = self.websim_payload.sync_blizzard_item_sets(
+                conn,
+                "token",
+                "us",
+                "zh_CN",
+                self.websim_payload.get_active_season_payload(conn),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+            set_items = conn.execute(
+                "SELECT set_id, item_id, name FROM websim_item_set_items ORDER BY item_id"
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["itemSets"], 1)
+        self.assertEqual(counts["setItems"], 1)
+        self.assertEqual(set_items, [("778", "250099", "Champion's Crown")])
+        sets = payload["details"]["seasonSourceCoverage"]["sets"]
+        self.assertEqual(sets["expectedSetCount"], 1)
+        self.assertEqual(sets["verifiedSetCount"], 1)
+        self.assertEqual(sets["missingExpectedSetCount"], 0)
+
+    def test_sync_blizzard_item_sets_skips_named_refs_without_numeric_set_id(self):
+        conn = sqlite3.connect(self.db_path)
+        original_blizzard_get = self.websim_payload.blizzard_get
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+        self.websim_payload.blizzard_get = lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("item-set detail should not be requested without a numeric set id")
+        )
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[],
+            )
+            season["itemSets"] = [{"name": "织影者的预言（0/3）"}]
+            self.websim_payload.save_active_season_payload(conn, season)
+            counts = self.websim_payload.sync_blizzard_item_sets(
+                conn,
+                "token",
+                "us",
+                "zh_CN",
+                self.websim_payload.get_active_season_payload(conn),
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["itemSets"], 0)
+        self.assertEqual(counts["skipped"], 1)
+        self.assertIn("missing numeric Battle.net item-set id", counts["errors"][0])
+
+    def test_sync_blizzard_item_sets_keeps_metadata_blocker_when_piece_item_fetch_fails(self):
+        conn = sqlite3.connect(self.db_path)
+        original_blizzard_get = self.websim_payload.blizzard_get
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        self.websim_payload.blizzard_get = lambda path, token, region="us", locale="zh_CN", params=None, namespace=None: {
+            "id": 777,
+            "name": "Ra-den's Chosen",
+            "items": [{"item": {"id": 250099, "name": "Missing Metadata Gloves"}}],
+        }
+        self.websim_payload.fetch_blizzard_item_metadata = lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("item api down"))
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250015",
+                {
+                    "id": 250015,
+                    "name": "Fearsome Visage",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 2, "name": "Leather"},
+                    "item_set": {"id": 777, "name": "Ra-den's Chosen"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 111}],
+                    },
+                },
+                fallback_name="Fearsome Visage",
+                locale="en_US",
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_loot (
+                    id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                ) VALUES (
+                    'loot-250015', '1400', '9100', '250015', 'Fearsome Visage', 'head', 'Epic',
+                    'https://render.example/item-250015.jpg', '{}', 'now'
+                )
+                """
+            )
+            counts = self.websim_payload.sync_blizzard_item_sets(
+                conn,
+                "token",
+                "us",
+                "zh_CN",
+                {"seasonRevision": "season-mn-1"},
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["setItems"], 1)
+        self.assertEqual(payload["details"]["itemMetadata"]["itemCount"], 2)
+        self.assertEqual(payload["details"]["itemMetadata"]["missingVerifiedItemCount"], 1)
+        self.assertIn("1 catalog items missing verified Battle.net metadata", payload["blockers"])
+
+    def test_sync_blizzard_observed_item_metadata_fetches_source_reference_items_by_id(self):
+        conn = sqlite3.connect(self.db_path)
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
+            self.assertEqual(str(item_id), "249293")
+            return {
+                "payload": {
+                    "id": 249293,
+                    "name": "Weight of Command",
+                    "inventory_type": {"type": "WEAPON", "name": "One-Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"id": 4, "name": "Mace"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 222}],
+                    },
+                },
+                "media": {"assets": [{"value": "https://render.example/item-249293.jpg"}]},
+                "englishPayload": {"name": "Weight of Command"},
+                "locale": locale,
+                "fallbackName": fallback_name,
+                "fallbackSlot": fallback_slot,
+            }
+
+        self.websim_payload.fetch_blizzard_item_metadata = fake_fetch
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.ensure_observed_item_metadata(
+                conn,
+                {"itemId": "249293", "name": "Weight of Command", "slot": "main_hand"},
+                "main_hand",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "observed-249293",
+                    "itemId": "249293",
+                    "sourceType": "observed_profile",
+                    "sourceLabel": "Raider.IO CN observed monk mistweaver",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-249293-main_hand",
+                    "itemId": "249293",
+                    "slot": "main_hand",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 298,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                },
+            )
+            counts = self.websim_payload.sync_blizzard_observed_item_metadata(conn, "token", "us", "zh_CN")
+            metadata = self.websim_payload.existing_websim_item_metadata(conn, "249293")
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["items"], 1)
+        self.assertEqual(counts["errors"], [])
+        self.assertEqual(metadata["metadataSource"], self.websim_payload.ITEM_METADATA_SOURCE)
+        self.assertEqual(metadata["metadataStatus"], "verified")
+        self.assertEqual(metadata["weaponType"], "One-Handed Mace")
+
+    def test_observed_promotion_reuses_one_hand_weapon_options_across_hands(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "49807",
+                {
+                    "id": 49807,
+                    "name": "Krick's Beetle Stabber",
+                    "inventory_type": {"type": "WEAPON", "name": "One-Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"id": 15, "name": "Dagger"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "Agility"}, "value": 111}],
+                    },
+                },
+                fallback_name="Krick's Beetle Stabber",
+                english_payload={"name": "Krick's Beetle Stabber", "inventory_type": {"name": "One-Hand"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "loot-source-49807",
+                    "itemId": "49807",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Ick and Krick - Pit of Saron",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "loot-partial-49807-main_hand",
+                    "itemId": "49807",
+                    "slot": "main_hand",
+                    "sourceType": "dungeon",
+                    "status": "partial",
+                    "blockers": ["missing deterministic SimC variant preset"],
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-rogue-outlaw-off_hand-49807",
+                    "itemId": "49807",
+                    "slot": "off_hand",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 298,
+                    "simcOptions": {"bonus_id": "13440/6652/12701/13654", "enchant_id": "8039"},
+                    "status": "verified",
+                    "payload": {"observedProfileRefs": [{"sourceName": "Raider.IO"}]},
+                },
+            )
+
+            counts = self.websim_payload.promote_official_gear_variants_from_observed(conn)
+            rows = conn.execute(
+                """
+                SELECT slot, item_level, simc_options_json, status
+                FROM websim_gear_variants
+                WHERE item_id = '49807'
+                  AND source_type = 'dungeon'
+                ORDER BY id
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["promotedVariants"], 1)
+        self.assertEqual(counts["removedPartialVariants"], 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][0], "main_hand")
+        self.assertEqual(rows[0][1], 298)
+        self.assertEqual(json.loads(rows[0][2]), {"bonus_id": "13440/6652/12701/13654", "enchant_id": "8039"})
+        self.assertEqual(rows[0][3], "verified")
+
+    def test_observed_promotion_does_not_reuse_offhand_only_items_as_main_hand(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "251105",
+                {
+                    "id": 251105,
+                    "name": "Spellbreaker's Shield",
+                    "inventory_type": {"type": "SHIELD", "name": "Shield"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 6, "name": "Shield"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "STRENGTH", "name": "Strength"}, "value": 111}],
+                    },
+                },
+                fallback_name="Spellbreaker's Shield",
+                english_payload={"name": "Spellbreaker's Shield", "inventory_type": {"name": "Shield"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "loot-source-251105",
+                    "itemId": "251105",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Boss - Dungeon",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "loot-partial-251105-main_hand",
+                    "itemId": "251105",
+                    "slot": "main_hand",
+                    "sourceType": "dungeon",
+                    "status": "partial",
+                    "blockers": ["missing deterministic SimC variant preset"],
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-shaman-restoration-off_hand-251105",
+                    "itemId": "251105",
+                    "slot": "off_hand",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "13440/6652/12699/12806"},
+                    "status": "verified",
+                },
+            )
+
+            counts = self.websim_payload.promote_official_gear_variants_from_observed(conn)
+            partial_exists = conn.execute(
+                "SELECT 1 FROM websim_gear_variants WHERE id = 'loot-partial-251105-main_hand'"
+            ).fetchone()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["promotedVariants"], 0)
+        self.assertEqual(counts["removedPartialVariants"], 0)
+        self.assertIsNotNone(partial_exists)
+
+    def test_observed_promotion_keeps_existing_promoted_variants_when_no_partial_source_remains(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "loot-observed-49807-main_hand-existing",
+                    "itemId": "49807",
+                    "slot": "main_hand",
+                    "sourceType": "dungeon",
+                    "difficultyKey": "observed_profile",
+                    "itemLevel": 298,
+                    "simcOptions": {"bonus_id": "13440/6652/12701/13654"},
+                    "status": "verified",
+                },
+            )
+
+            counts = self.websim_payload.promote_official_gear_variants_from_observed(conn)
+            existing = conn.execute(
+                "SELECT status FROM websim_gear_variants WHERE id = 'loot-observed-49807-main_hand-existing'"
+            ).fetchone()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["promotedVariants"], 0)
+        self.assertEqual(counts["removedPartialVariants"], 0)
+        self.assertIsNotNone(existing)
+        self.assertEqual(existing[0], "verified")
+
+    def test_gear_catalog_health_recomputes_current_audit_over_stale_sync_snapshot(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "loot-250111",
+                    "itemId": "250111",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Magisters' Terrace",
+                    "instanceId": "1300",
+                    "encounterId": "9001",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250111",
+                    "itemId": "250111",
+                    "slot": "wrist",
+                    "variantKey": "observed-707",
+                    "label": "Observed 707",
+                    "sourceType": "dungeon",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                {
+                    "status": "verified",
+                    "checkedAt": "2026-06-21T00:00:00+00:00",
+                    "itemCount": 1,
+                    "sourceCount": 1,
+                    "variantCount": 1,
+                    "verifiedCount": 1,
+                    "partialCount": 0,
+                    "blockedCount": 0,
+                    "blockers": [],
+                    "itemMetadata": {
+                        "status": "verified",
+                        "itemCount": 1,
+                        "verifiedItemCount": 1,
+                        "missingVerifiedItemCount": 0,
+                        "blockers": [],
+                    },
+                },
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(payload["status"], "partial")
+        self.assertEqual(payload["details"]["itemMetadata"]["missingVerifiedItemCount"], 1)
+        self.assertIn("1 catalog items missing verified Battle.net metadata", payload["blockers"])
+
+    def test_gear_catalog_health_separates_verified_data_from_partial_simc_variants(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250888",
+                {
+                    "id": 250888,
+                    "name": "Verified Loop",
+                    "inventory_type": {"type": "INVTYPE_FINGER", "name": "Finger"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 321}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/ring.jpg"}]},
+                fallback_name="Verified Loop",
+                english_payload={"name": "Verified Loop", "inventory_type": {"name": "Finger"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250888",
+                    "itemId": "250888",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Magisters' Terrace",
+                    "seasonRevision": "",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "loot-partial-250888-finger",
+                    "itemId": "250888",
+                    "slot": "finger1",
+                    "variantKey": "needs-variant",
+                    "label": "Needs variant",
+                    "sourceType": "dungeon",
+                    "difficultyKey": "needs-variant",
+                    "itemLevel": 0,
+                    "simcOptions": {},
+                    "status": "partial",
+                    "blockers": ["missing deterministic SimC variant preset"],
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(payload["status"], "partial")
+        self.assertEqual(payload["details"]["dataReadiness"]["status"], "verified")
+        self.assertEqual(payload["details"]["dataReadiness"]["blockers"], [])
+        self.assertEqual(payload["details"]["simulationReadiness"]["status"], "partial")
+        self.assertIn(
+            "missing deterministic SimC variant preset",
+            payload["details"]["simulationReadiness"]["blockers"],
+        )
+        example = payload["details"]["simulationReadiness"]["partialExamples"][0]
+        self.assertEqual(example["itemId"], "250888")
+        self.assertEqual(example["slot"], "finger1")
+        self.assertEqual(example["sourceType"], "dungeon")
+        self.assertEqual(example["sourceLabel"], "Magisters' Terrace")
+        self.assertEqual(example["variantId"], "loot-partial-250888-finger")
+        self.assertEqual(example["blockers"], ["missing deterministic SimC variant preset"])
+
+    def test_gear_catalog_health_ignores_observed_profile_partials_for_official_readiness(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250889",
+                {
+                    "id": 250889,
+                    "name": "Verified Band",
+                    "inventory_type": {"type": "INVTYPE_FINGER", "name": "Finger"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 321}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/ring.jpg"}]},
+                fallback_name="Verified Band",
+                english_payload={"name": "Verified Band", "inventory_type": {"name": "Finger"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250889",
+                    "itemId": "250889",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Magisters' Terrace",
+                    "seasonRevision": "",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "loot-verified-250889-finger",
+                    "itemId": "250889",
+                    "slot": "finger1",
+                    "variantKey": "observed-707",
+                    "label": "Observed 707",
+                    "sourceType": "dungeon",
+                    "difficultyKey": "observed_profile",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-warrior-arms-finger1-250889",
+                    "itemId": "250889",
+                    "slot": "finger1",
+                    "variantKey": "observed-profile-no-options",
+                    "label": "Observed profile without options",
+                    "sourceType": "observed_profile",
+                    "difficultyKey": "observed_profile",
+                    "itemLevel": 707,
+                    "simcOptions": {},
+                    "status": "partial",
+                    "blockers": ["Raider.IO observed gear source is not verified"],
+                },
+            )
+
+            counts = self.websim_payload.gear_catalog_counts(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["status"], "verified")
+        self.assertEqual(counts["simulationReadiness"]["status"], "verified")
+        self.assertEqual(counts["simulationReadiness"]["verified"], 1)
+        self.assertEqual(counts["simulationReadiness"]["partial"], 0)
+        self.assertEqual(counts["simulationReadiness"]["blockers"], [])
+        self.assertEqual(counts["observedVariantCount"], 1)
+        self.assertEqual(counts["partialObservedVariantCount"], 1)
+
     def test_gear_catalog_sync_loads_server_owned_mod_seed(self):
         os.environ["WOW_WEBSIM_GEAR_MOD_SEED"] = json.dumps(
             [
@@ -2110,6 +5419,16 @@ class WebSimPayloadTest(unittest.TestCase):
                     "name": "Quick Gem",
                     "slots": ["finger1"],
                     "simcOptions": {"gem_id": "240983", "gem_ilevel": "707"},
+                    "payload": {
+                        "source": "server_owned_seed",
+                        "gemItemId": "240983",
+                        "displayName": "Quick Gem",
+                        "iconUrl": "https://render.example/gem-240983.jpg",
+                        "quality": "Epic",
+                        "metadataStatus": "verified",
+                        "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
+                        "metadataLocale": "en_US",
+                    },
                 },
                 {
                     "type": "enchant",
@@ -2132,12 +5451,28 @@ class WebSimPayloadTest(unittest.TestCase):
                     "inventory_type": {"type": "INVTYPE_FINGER", "name": "Finger"},
                     "quality": {"name": "Epic"},
                     "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 123}],
                         "sockets": [{"socket_type": {"type": "PRISMATIC", "name": "Prismatic Socket"}}],
                     },
                 },
                 {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
                 fallback_name="Catalog Band",
                 english_payload={"name": "Catalog Band", "inventory_type": {"name": "Finger"}},
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "240983",
+                {
+                    "id": 240983,
+                    "name": "Quick Gem",
+                    "item_class": {"id": 3, "name": "Gem"},
+                    "item_subclass": {"id": 8, "name": "Versatility"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.example/gem-240983.jpg"}]},
+                fallback_name="Quick Gem",
+                english_payload={"name": "Quick Gem"},
                 locale="en_US",
             )
             self.websim_payload.upsert_gear_source(
@@ -2188,6 +5523,215 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(count, 0)
         self.assertFalse(any(options for options in socket_options.values()))
         self.assertFalse(any(options for options in enchant_options.values()))
+
+    def test_gear_catalog_sync_derives_socket_mod_options_from_verified_gem_variants(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Socketed Catalog Band",
+                    "inventory_type": {"type": "INVTYPE_FINGER", "name": "Finger"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 123}],
+                        "sockets": [{"socket_type": {"type": "PRISMATIC", "name": "Prismatic Socket"}}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
+                fallback_name="Socketed Catalog Band",
+                english_payload={"name": "Socketed Catalog Band", "inventory_type": {"name": "Finger"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "manual-250777",
+                    "itemId": "250777",
+                    "sourceType": "raid",
+                    "sourceLabel": "Vault Mage - Arcane Vault",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-250777-gem",
+                    "itemId": "250777",
+                    "slot": "finger1",
+                    "variantKey": "observed-707",
+                    "label": "Observed 707",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345", "gem_id": "240983", "gem_ilevel": "707"},
+                    "status": "verified",
+                },
+            )
+            count = self.websim_payload.sync_websim_gear_mod_options(conn)
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            socket_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "socket")
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(count, 1)
+        option = socket_options["finger1"][0]
+        self.assertEqual(option["simcOptions"]["gem_id"], "240983")
+        self.assertEqual(option["simcOptions"]["gem_ilevel"], "707")
+        self.assertEqual(option["payload"]["source"], "observed_variant")
+        self.assertNotIn("socket-capable catalog items missing socket mod options", payload["blockers"])
+
+    def test_gear_catalog_sync_derives_mod_options_from_raiderio_bare_gem_and_enchant(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "151311",
+                {
+                    "id": 151311,
+                    "name": "Band of the Triumvirate",
+                    "inventory_type": {"type": "INVTYPE_FINGER", "name": "Finger"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 123}],
+                    },
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 0, "name": "Miscellaneous"},
+                    "_metadata": {"source": self.websim_payload.ITEM_METADATA_SOURCE, "metadataStatus": "verified"},
+                },
+                {"assets": [{"value": "https://render.example/item-151311.jpg"}]},
+                fallback_name="Band of the Triumvirate",
+                english_payload={"name": "Band of the Triumvirate", "inventory_type": {"name": "Finger"}},
+                locale="en_US",
+            )
+            self.websim_payload.sync_observed_gear_variants(
+                conn,
+                {
+                    "sourceStatus": "verified",
+                    "checkedAt": "2026-06-21T00:00:00+00:00",
+                    "specs": {
+                        "mage:frost": {
+                            "observedGear": [
+                                {
+                                    "slot": "finger1",
+                                    "name": "Band of the Triumvirate",
+                                    "itemId": 151311,
+                                    "itemLevel": 289,
+                                    "quality": 4,
+                                    "bonuses": [13440, 6652, 13668, 12699, 12806],
+                                    "gems": [240894],
+                                    "enchants": [7967],
+                                    "enchant": 7967,
+                                    "sourceName": "Raider.IO CN profile gear",
+                                    "characterName": "Supermono",
+                                    "realmSlug": "isillien",
+                                    "profileUrl": "https://raider.io/characters/cn/isillien/Supermono",
+                                }
+                            ],
+                        }
+                    },
+                },
+                {"seasonRevision": "season-mn-1"},
+            )
+            count = self.websim_payload.sync_websim_gear_mod_options(conn)
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+            socket_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "socket")
+            enchant_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "enchant")
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost")
+        finally:
+            conn.close()
+
+        self.assertEqual(count, 2)
+        self.assertEqual(socket_options["finger1"][0]["simcOptions"]["gem_id"], "240894")
+        self.assertEqual(enchant_options["finger1"][0]["simcOptions"]["enchant_id"], "7967")
+        finger_group = next(group for group in payload["slotGroups"] if group["slot"] == "finger1")
+        catalog_item = next(item for item in finger_group["items"] if item["itemId"] == "151311")
+        self.assertEqual(catalog_item["socketOptions"][0]["simcOptions"]["gem_id"], "240894")
+        self.assertEqual(catalog_item["enchantOptions"][0]["simcOptions"]["enchant_id"], "7967")
+
+    def test_sync_blizzard_gear_mod_option_metadata_enriches_observed_socket_options(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        fetches = []
+
+        def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
+            fetches.append({"token": token, "itemId": str(item_id), "region": region, "locale": locale})
+            return {
+                "itemId": str(item_id),
+                "payload": {
+                    "id": int(item_id),
+                    "name": "Quick Onyx",
+                    "item_class": {"id": 3, "name": "Gem"},
+                    "item_subclass": {"id": 8, "name": "Versatility"},
+                    "quality": {"name": "Epic"},
+                },
+                "media": {"assets": [{"value": "https://render.example/gem-240983.jpg"}]},
+                "englishPayload": {"name": "Quick Onyx"},
+                "locale": locale,
+                "fallbackName": fallback_name,
+                "fallbackSlot": fallback_slot,
+            }
+
+        self.websim_payload.fetch_blizzard_item_metadata = fake_fetch
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-250777-gem",
+                    "itemId": "250777",
+                    "slot": "finger1",
+                    "variantKey": "observed-707",
+                    "label": "Observed 707",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345", "gem_id": "240983", "gem_ilevel": "707"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.sync_websim_gear_mod_options(conn)
+
+            counts = self.websim_payload.sync_blizzard_gear_mod_option_metadata(conn, "token", "us", "zh_CN")
+            socket_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "socket")
+            gem_metadata = self.websim_payload.existing_websim_item_metadata(conn, "240983")
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["items"], 1)
+        self.assertEqual(counts["skipped"], 0)
+        self.assertEqual(counts["errors"], [])
+        self.assertEqual(fetches[0]["itemId"], "240983")
+        option = socket_options["finger1"][0]
+        self.assertEqual(option["name"], "Quick Onyx")
+        self.assertEqual(option["label"], "Quick Onyx")
+        self.assertEqual(option["gemItemId"], "240983")
+        self.assertEqual(option["iconUrl"], "https://render.example/gem-240983.jpg")
+        self.assertEqual(option["quality"], "Epic")
+        self.assertEqual(option["metadataStatus"], "verified")
+        self.assertEqual(option["metadataSource"], self.websim_payload.ITEM_METADATA_SOURCE)
+        self.assertEqual(option["payload"]["source"], "observed_variant")
+        self.assertEqual(option["payload"]["gemItemId"], "240983")
+        self.assertEqual(option["payload"]["metadataStatus"], "verified")
+        self.assertEqual(option["payload"]["iconUrl"], "https://render.example/gem-240983.jpg")
+        self.assertEqual(gem_metadata["displayName"], "Quick Onyx")
+        self.assertEqual(gem_metadata["iconUrl"], "https://render.example/gem-240983.jpg")
 
     def test_gear_catalog_health_ignores_stale_placeholder_mod_options(self):
         conn = sqlite3.connect(self.db_path)
@@ -3644,6 +7188,103 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_sync_websim_cache_emits_stage_progress_events(self):
+        events = []
+
+        payload = self.websim_payload.sync_websim_cache(
+            self.db_path,
+            include_blizzard=False,
+            stage_callback=events.append,
+        )
+
+        event_keys = [(event["stage"], event["status"]) for event in events]
+        self.assertIn(("simc", "start"), event_keys)
+        self.assertIn(("simc", "complete"), event_keys)
+        self.assertIn(("gear_catalog", "start"), event_keys)
+        self.assertIn(("gear_catalog", "complete"), event_keys)
+        self.assertIn(("websim_sync", "complete"), event_keys)
+        self.assertEqual(payload["stages"], events)
+
+    def test_sync_websim_cache_emits_blizzard_substage_progress_events(self):
+        originals = {
+            "sync_simc_generated_data": self.websim_payload.sync_simc_generated_data,
+            "get_blizzard_access_token": self.websim_payload.get_blizzard_access_token,
+            "sync_blizzard_journal": self.websim_payload.sync_blizzard_journal,
+            "sync_blizzard_item_sets": self.websim_payload.sync_blizzard_item_sets,
+            "sync_blizzard_preset_item_metadata": self.websim_payload.sync_blizzard_preset_item_metadata,
+            "sync_blizzard_build_gear_item_metadata": self.websim_payload.sync_blizzard_build_gear_item_metadata,
+            "sync_blizzard_spell_details": self.websim_payload.sync_blizzard_spell_details,
+            "sync_blizzard_observed_item_metadata": self.websim_payload.sync_blizzard_observed_item_metadata,
+            "sync_blizzard_gear_mod_option_metadata": self.websim_payload.sync_blizzard_gear_mod_option_metadata,
+        }
+        for name, original in originals.items():
+            self.addCleanup(setattr, self.websim_payload, name, original)
+
+        self.websim_payload.sync_simc_generated_data = lambda conn: {"talents": 1, "profiles": 0, "build": "test"}
+        self.websim_payload.get_blizzard_access_token = lambda region="us": "token"
+        self.websim_payload.sync_blizzard_journal = lambda conn, token, region="us", locale="zh_CN": {
+            "instances": 1,
+            "encounters": 1,
+            "loot": 1,
+            "items": 1,
+            "blockers": [],
+        }
+        self.websim_payload.sync_blizzard_item_sets = lambda conn, token, region="us", locale="zh_CN", season=None: {
+            "itemSets": 1,
+            "setItems": 1,
+            "itemMetadata": 1,
+            "sources": 1,
+            "variants": 1,
+            "skipped": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_preset_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 1,
+            "aliases": 0,
+            "skipped": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_build_gear_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 1,
+            "aliases": 0,
+            "skipped": 0,
+            "searched": 0,
+            "resolved": 0,
+            "references": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_spell_details = lambda conn, token, region="us", locale="zh_CN": {
+            "spells": 1,
+            "media": 1,
+        }
+        self.websim_payload.sync_blizzard_observed_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 0,
+            "aliases": 0,
+            "skipped": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_gear_mod_option_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 0,
+            "skipped": 0,
+            "options": 0,
+            "errors": [],
+        }
+
+        events = []
+        self.websim_payload.sync_websim_cache(self.db_path, include_blizzard=True, stage_callback=events.append)
+
+        event_keys = [(event["stage"], event["status"]) for event in events]
+        self.assertIn(("blizzard_journal", "start"), event_keys)
+        self.assertIn(("blizzard_journal", "complete"), event_keys)
+        self.assertIn(("blizzard_item_sets", "start"), event_keys)
+        self.assertIn(("blizzard_item_sets", "complete"), event_keys)
+        self.assertIn(("blizzard_preset_item_metadata", "start"), event_keys)
+        self.assertIn(("blizzard_preset_item_metadata", "complete"), event_keys)
+        self.assertIn(("blizzard_build_gear_item_metadata", "start"), event_keys)
+        self.assertIn(("blizzard_build_gear_item_metadata", "complete"), event_keys)
+        self.assertIn(("blizzard_spell_details", "start"), event_keys)
+        self.assertIn(("blizzard_spell_details", "complete"), event_keys)
+
     def test_verified_loot_payload_includes_game_asset(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -3711,6 +7352,67 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(loot["items"][0]["gameAsset"]["contextKey"], "websim-loot")
         self.assertEqual(loot["items"][0]["gameAsset"]["iconUrl"], loot["items"][0]["iconUrl"])
         self.assertIn("loot", loot["items"][0]["gameAsset"]["semanticTags"])
+
+    def test_websim_gear_filters_localized_non_class_armor_verified_loot_candidates(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_active_season_payload(
+                conn,
+                self.websim_payload.current_season_payload(
+                    season_id="17",
+                    season_label="Fresh Season",
+                    dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters Terrace"}],
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('1300', 'Magisters Terrace', 'Dungeon', '{}', 'now')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_encounters (id, instance_id, name, payload_json, updated_at)
+                VALUES ('9001', '1300', 'Arcane Warden', '{}', 'now')
+                """
+            )
+            for item_id, name, subclass_id, subclass_name in (
+                ("250701", "Localized Cloth Hood", 1, "\u5e03\u7532"),
+                ("250702", "Localized Leather Mask", 2, "\u76ae\u7532"),
+            ):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": {"type": "HEAD", "name": "\u5934\u90e8"},
+                        "item_class": {"id": 4, "name": "\u62a4\u7532"},
+                        "item_subclass": {"id": subclass_id, "name": subclass_name},
+                        "quality": {"name": "\u53f2\u8bd7"},
+                    },
+                    fallback_name=name,
+                    english_payload={"name": name, "inventory_type": {"name": "Head"}},
+                    locale="zh_CN",
+                )
+                conn.execute(
+                    """
+                    INSERT INTO websim_loot (
+                        id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                    ) VALUES (?, '1300', '9001', ?, ?, 'head', 'Epic', 'https://render.example/item.jpg', '{}', 'now')
+                    """,
+                    (f"loot-{item_id}", item_id, name),
+                )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        item_ids = [item["itemId"] for item in head_group["items"]]
+        self.assertIn("250701", item_ids)
+        self.assertNotIn("250702", item_ids)
 
     def test_sync_blizzard_journal_includes_current_expansion_raid_loot(self):
         conn = sqlite3.connect(self.db_path)
@@ -3798,6 +7500,7 @@ class WebSimPayloadTest(unittest.TestCase):
             counts = self.websim_payload.sync_blizzard_journal(conn, "token", "us", "zh_CN")
             self.websim_payload.sync_websim_gear_catalog(conn, self.websim_payload.get_active_season_payload(conn))
             conn.commit()
+            season = self.websim_payload.get_active_season_payload(conn)
             instances = conn.execute("SELECT id, category FROM websim_instances ORDER BY id").fetchall()
             sources = conn.execute("SELECT item_id, source_type, source_label FROM websim_gear_sources ORDER BY item_id").fetchall()
         finally:
@@ -3805,8 +7508,655 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertEqual(counts["instances"], 2)
         self.assertEqual(counts["loot"], 2)
+        self.assertEqual(season["raids"], [{"id": "1400", "instanceId": "1400", "name": "Arcane Vault", "category": "Raid"}])
         self.assertEqual(instances, [("1300", "Dungeon"), ("1400", "Raid")])
         self.assertIn(("250777", "raid", "Vault Mage - Arcane Vault"), sources)
+
+    def test_sync_blizzard_journal_preserves_existing_cache_when_aborted_mid_refresh(self):
+        conn = sqlite3.connect(self.db_path)
+        original_resolve = self.websim_payload.resolve_current_mythic_season
+        original_selected_refs = self.websim_payload.selected_journal_instance_refs
+        original_blizzard_get = self.websim_payload.blizzard_get
+        self.addCleanup(setattr, self.websim_payload, "resolve_current_mythic_season", original_resolve)
+        self.addCleanup(setattr, self.websim_payload, "selected_journal_instance_refs", original_selected_refs)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+
+        self.websim_payload.resolve_current_mythic_season = lambda token, region="us", locale="zh_CN": self.websim_payload.current_season_payload(
+            season_id="17",
+            season_label="Fresh Season",
+            dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+            locale=locale,
+        )
+        self.websim_payload.selected_journal_instance_refs = lambda token, region="us", locale="zh_CN": ([], "Current Expansion")
+
+        def aborting_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            raise KeyboardInterrupt("operator stopped sync")
+
+        self.websim_payload.blizzard_get = aborting_blizzard_get
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('1300', 'Magisters Terrace', 'Dungeon', '{}', 'old-sync')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_encounters (id, instance_id, name, payload_json, updated_at)
+                VALUES ('9001', '1300', 'Arcane Warden', '{}', 'old-sync')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_loot (
+                    id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                ) VALUES (
+                    '1300:9001:250222', '1300', '9001', '250222', 'Rift Bindings', 'wrist', 'Epic',
+                    'https://render.example/item-250222.jpg', '{}', 'old-sync'
+                )
+                """
+            )
+            conn.commit()
+
+            with self.assertRaises(KeyboardInterrupt):
+                self.websim_payload.sync_blizzard_journal(conn, "token", "us", "zh_CN")
+
+            instances = conn.execute("SELECT id, updated_at FROM websim_instances").fetchall()
+            encounters = conn.execute("SELECT id, updated_at FROM websim_encounters").fetchall()
+            loot = conn.execute("SELECT id, updated_at FROM websim_loot").fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(instances, [("1300", "old-sync")])
+        self.assertEqual(encounters, [("9001", "old-sync")])
+        self.assertEqual(loot, [("1300:9001:250222", "old-sync")])
+
+    def test_sync_blizzard_journal_skips_non_equipment_loot_items(self):
+        conn = sqlite3.connect(self.db_path)
+        original_resolve = self.websim_payload.resolve_current_mythic_season
+        original_selected_refs = self.websim_payload.selected_journal_instance_refs
+        original_blizzard_get = self.websim_payload.blizzard_get
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "resolve_current_mythic_season", original_resolve)
+        self.addCleanup(setattr, self.websim_payload, "selected_journal_instance_refs", original_selected_refs)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        self.websim_payload.resolve_current_mythic_season = lambda token, region="us", locale="zh_CN": self.websim_payload.current_season_payload(
+            season_id="17",
+            season_label="Fresh Season",
+            dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+            locale=locale,
+        )
+        self.websim_payload.selected_journal_instance_refs = lambda token, region="us", locale="zh_CN": ([], "Current Expansion")
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            if path == "/data/wow/journal-instance/1300":
+                return {
+                    "id": 1300,
+                    "name": "Magisters' Terrace",
+                    "category": {"name": "Dungeon"},
+                    "encounters": [{"key": {"href": "https://example.test/journal-encounter/9001"}, "name": "Arcane Warden"}],
+                }
+            if path == "/data/wow/journal-encounter/9001":
+                return {
+                    "id": 9001,
+                    "name": "Arcane Warden",
+                    "items": [
+                        {"item": {"id": 250222, "name": "Rift Bindings"}},
+                        {"item": {"id": 190001, "name": "Arcane Prize Token"}},
+                    ],
+                }
+            return {}
+
+        def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
+            if str(item_id) == "190001":
+                return {
+                    "payload": {
+                        "id": 190001,
+                        "name": fallback_name or "Arcane Prize Token",
+                        "item_class": {"id": 15, "name": "Miscellaneous"},
+                        "item_subclass": {"id": 0, "name": "Junk"},
+                        "quality": {"name": "Epic"},
+                    },
+                    "media": {"assets": [{"value": "https://render.example/non-gear.jpg"}]},
+                    "englishPayload": {"name": fallback_name or "Arcane Prize Token"},
+                    "locale": locale,
+                    "fallbackName": fallback_name,
+                }
+            return {
+                "payload": {
+                    "id": int(item_id),
+                    "name": fallback_name or "Rift Bindings",
+                    "inventory_type": {"type": "WRIST", "name": "Wrist"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 111}],
+                    },
+                },
+                "media": {"assets": [{"value": "https://render.example/item-250222.jpg"}]},
+                "englishPayload": {"name": fallback_name or "Rift Bindings"},
+                "locale": locale,
+                "fallbackName": fallback_name,
+            }
+
+        self.websim_payload.blizzard_get = fake_blizzard_get
+        self.websim_payload.fetch_blizzard_item_metadata = fake_fetch
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            counts = self.websim_payload.sync_blizzard_journal(conn, "token", "us", "zh_CN")
+            self.websim_payload.sync_websim_gear_catalog(conn, self.websim_payload.get_active_season_payload(conn))
+            health = self.websim_payload.gear_catalog_health_payload(conn)
+            loot_rows = conn.execute("SELECT item_id, slot FROM websim_loot ORDER BY item_id").fetchall()
+            metadata_rows = conn.execute("SELECT id FROM websim_items ORDER BY id").fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["loot"], 1)
+        self.assertEqual(counts["items"], 2)
+        self.assertEqual(counts["skippedNonGearLoot"], 1)
+        self.assertEqual(counts["skippedNonGearLootExamples"][0]["itemId"], "190001")
+        self.assertEqual(loot_rows, [("250222", "wrist")])
+        self.assertEqual(metadata_rows, [("190001",), ("250222",)])
+        journal_loot = health["details"]["seasonSourceCoverage"]["journalLoot"]
+        self.assertEqual(journal_loot["expectedItemCount"], 1)
+        self.assertEqual(journal_loot["cachedItemCount"], 1)
+        self.assertEqual(journal_loot["missingItemCount"], 0)
+
+    def test_sync_blizzard_journal_persists_discovered_item_set_refs_to_active_season(self):
+        conn = sqlite3.connect(self.db_path)
+        original_resolve = self.websim_payload.resolve_current_mythic_season
+        original_selected_refs = self.websim_payload.selected_journal_instance_refs
+        original_blizzard_get = self.websim_payload.blizzard_get
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "resolve_current_mythic_season", original_resolve)
+        self.addCleanup(setattr, self.websim_payload, "selected_journal_instance_refs", original_selected_refs)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        self.websim_payload.resolve_current_mythic_season = lambda token, region="us", locale="zh_CN": self.websim_payload.current_season_payload(
+            season_id="17",
+            season_label="Fresh Season",
+            dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+            locale=locale,
+        )
+        self.websim_payload.selected_journal_instance_refs = lambda token, region="us", locale="zh_CN": (
+            [({"id": "1400", "name": "Arcane Vault"}, "Raid")],
+            "Current Expansion",
+        )
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            if path == "/data/wow/journal-instance/1300":
+                return {
+                    "id": 1300,
+                    "name": "Magisters' Terrace",
+                    "category": {"name": "Dungeon"},
+                    "encounters": [],
+                }
+            if path == "/data/wow/journal-instance/1400":
+                return {
+                    "id": 1400,
+                    "name": "Arcane Vault",
+                    "category": {"name": "Raid"},
+                    "encounters": [{"key": {"href": "https://example.test/journal-encounter/9100"}, "name": "Vault Mage"}],
+                }
+            if path == "/data/wow/journal-encounter/9100":
+                return {
+                    "id": 9100,
+                    "name": "Vault Mage",
+                    "items": [{"item": {"id": 250777, "name": "Catalog Hood"}}],
+                }
+            return {}
+
+        def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
+            return {
+                "payload": {
+                    "id": int(item_id),
+                    "name": fallback_name or f"Item {item_id}",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "item_set": {"id": 777, "name": "Ra-den's Chosen"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 111}],
+                    },
+                },
+                "media": {"assets": [{"value": f"https://render.example/item-{item_id}.jpg"}]},
+                "englishPayload": {"name": fallback_name or f"Item {item_id}"},
+                "locale": locale,
+                "fallbackName": fallback_name,
+            }
+
+        self.websim_payload.blizzard_get = fake_blizzard_get
+        self.websim_payload.fetch_blizzard_item_metadata = fake_fetch
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.sync_blizzard_journal(conn, "token", "us", "zh_CN")
+            season = self.websim_payload.get_active_season_payload(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(season["itemSets"], [{"id": "777", "name": "Ra-den's Chosen"}])
+
+    def test_sync_blizzard_journal_reports_truncated_season_coverage(self):
+        conn = sqlite3.connect(self.db_path)
+        original_resolve = self.websim_payload.resolve_current_mythic_season
+        original_selected_refs = self.websim_payload.selected_journal_instance_refs
+        original_blizzard_get = self.websim_payload.blizzard_get
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "resolve_current_mythic_season", original_resolve)
+        self.addCleanup(setattr, self.websim_payload, "selected_journal_instance_refs", original_selected_refs)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+        for key, value in {
+            "WOW_WEBSIM_SYNC_INSTANCE_LIMIT": "1",
+            "WOW_WEBSIM_SYNC_RAID_INSTANCE_LIMIT": "0",
+            "WOW_WEBSIM_SYNC_ENCOUNTER_LIMIT": "1",
+            "WOW_WEBSIM_SYNC_ITEM_LIMIT": "1",
+        }.items():
+            os.environ[key] = value
+            self.addCleanup(os.environ.pop, key, None)
+
+        self.websim_payload.resolve_current_mythic_season = lambda token, region="us", locale="zh_CN": self.websim_payload.current_season_payload(
+            season_id="17",
+            season_label="Fresh Season",
+            dungeons=[
+                {"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"},
+                {"id": "560", "dungeonId": "560", "instanceId": "1301", "name": "Maisara Caverns"},
+            ],
+            locale=locale,
+        )
+        self.websim_payload.selected_journal_instance_refs = lambda token, region="us", locale="zh_CN": (
+            [({"id": "1400", "name": "Arcane Vault"}, "Raid")],
+            "Current Expansion",
+        )
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            if path == "/data/wow/journal-instance/1300":
+                return {
+                    "id": 1300,
+                    "name": "Magisters' Terrace",
+                    "category": {"name": "Dungeon"},
+                    "encounters": [
+                        {"key": {"href": "https://example.test/journal-encounter/9001"}, "name": "Arcane Warden"},
+                        {"key": {"href": "https://example.test/journal-encounter/9002"}, "name": "Chronomancer"},
+                    ],
+                }
+            if path == "/data/wow/journal-encounter/9001":
+                return {
+                    "id": 9001,
+                    "name": "Arcane Warden",
+                    "items": [
+                        {"item": {"id": 250222, "name": "Rift Bindings"}},
+                        {"item": {"id": 250223, "name": "Rift Cord"}},
+                    ],
+                }
+            return {}
+
+        self.websim_payload.blizzard_get = fake_blizzard_get
+        self.websim_payload.fetch_blizzard_item_metadata = lambda token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot="": {
+            "payload": {
+                "id": int(item_id),
+                "name": fallback_name or f"Item {item_id}",
+                "inventory_type": {"type": "WRIST", "name": "Wrist"},
+                "item_class": {"id": 4, "name": "Armor"},
+                "item_subclass": {"id": 1, "name": "Cloth"},
+                "quality": {"name": "Epic"},
+                "preview_item": {
+                    "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 111}],
+                },
+            },
+            "media": {},
+            "englishPayload": {"name": fallback_name or f"Item {item_id}"},
+            "locale": locale,
+            "fallbackName": fallback_name,
+        }
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            counts = self.websim_payload.sync_blizzard_journal(conn, "token", "us", "zh_CN")
+        finally:
+            conn.close()
+
+        self.assertTrue(counts["truncated"])
+        self.assertEqual(counts["limits"]["instances"], 1)
+        self.assertEqual(counts["truncation"]["dungeonInstances"], 1)
+        self.assertEqual(counts["truncation"]["raidInstances"], 1)
+        self.assertEqual(counts["truncation"]["encounters"], 1)
+        self.assertEqual(counts["truncation"]["items"], 1)
+        self.assertIn("Battle.net journal dungeon instance sync truncated: 1 not fetched", counts["blockers"])
+        self.assertIn("Battle.net journal raid instance sync truncated: 1 not fetched", counts["blockers"])
+        self.assertIn("Battle.net journal encounter sync truncated: 1 not fetched", counts["blockers"])
+        self.assertIn("Battle.net journal item sync truncated: 1 not fetched", counts["blockers"])
+
+    def test_sync_blizzard_journal_blocks_when_raid_instance_selection_fails(self):
+        conn = sqlite3.connect(self.db_path)
+        original_resolve = self.websim_payload.resolve_current_mythic_season
+        original_selected_refs = self.websim_payload.selected_journal_instance_refs
+        original_blizzard_get = self.websim_payload.blizzard_get
+        self.addCleanup(setattr, self.websim_payload, "resolve_current_mythic_season", original_resolve)
+        self.addCleanup(setattr, self.websim_payload, "selected_journal_instance_refs", original_selected_refs)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+
+        self.websim_payload.resolve_current_mythic_season = lambda token, region="us", locale="zh_CN": self.websim_payload.current_season_payload(
+            season_id="17",
+            season_label="Fresh Season",
+            dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+            locale=locale,
+        )
+
+        def fake_selected_refs(token, region="us", locale="zh_CN"):
+            raise RuntimeError("journal expansion index api down")
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            if path == "/data/wow/journal-instance/1300":
+                return {
+                    "id": 1300,
+                    "name": "Magisters' Terrace",
+                    "category": {"name": "Dungeon"},
+                    "encounters": [],
+                }
+            raise AssertionError(f"unexpected Blizzard path {path}")
+
+        self.websim_payload.selected_journal_instance_refs = fake_selected_refs
+        self.websim_payload.blizzard_get = fake_blizzard_get
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            counts = self.websim_payload.sync_blizzard_journal(conn, "token", "us", "zh_CN")
+            season = self.websim_payload.get_active_season_payload(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["instances"], 1)
+        self.assertEqual(counts["raidInstances"], 0)
+        self.assertEqual(counts["fetchFailureCount"], 1)
+        self.assertEqual(counts["fetchFailures"][0]["type"], "raid_selection")
+        self.assertIn(
+            "Battle.net journal raid_selection journal-expansion fetch failed: journal expansion index api down",
+            counts["blockers"],
+        )
+        self.assertEqual(season.get("raids") or [], [])
+
+    def test_sync_blizzard_journal_blocks_when_journal_instance_fetch_fails(self):
+        conn = sqlite3.connect(self.db_path)
+        original_resolve = self.websim_payload.resolve_current_mythic_season
+        original_selected_refs = self.websim_payload.selected_journal_instance_refs
+        original_blizzard_get = self.websim_payload.blizzard_get
+        self.addCleanup(setattr, self.websim_payload, "resolve_current_mythic_season", original_resolve)
+        self.addCleanup(setattr, self.websim_payload, "selected_journal_instance_refs", original_selected_refs)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+
+        self.websim_payload.resolve_current_mythic_season = lambda token, region="us", locale="zh_CN": self.websim_payload.current_season_payload(
+            season_id="17",
+            season_label="Fresh Season",
+            dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+            locale=locale,
+        )
+        self.websim_payload.selected_journal_instance_refs = lambda token, region="us", locale="zh_CN": ([], "Current Expansion")
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            if path == "/data/wow/journal-instance/1300":
+                raise RuntimeError("journal instance api down")
+            raise AssertionError(f"unexpected Blizzard path {path}")
+
+        self.websim_payload.blizzard_get = fake_blizzard_get
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            counts = self.websim_payload.sync_blizzard_journal(conn, "token", "us", "zh_CN")
+            instance_payload = conn.execute(
+                "SELECT payload_json FROM websim_instances WHERE id = '1300'"
+            ).fetchone()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["instances"], 1)
+        self.assertEqual(counts["fetchFailureCount"], 1)
+        self.assertEqual(counts["fetchFailures"][0]["type"], "instance")
+        self.assertEqual(counts["fetchFailures"][0]["id"], "1300")
+        self.assertIn("Battle.net journal instance 1300 fetch failed: journal instance api down", counts["blockers"])
+        self.assertIn("journal instance api down", instance_payload[0])
+
+    def test_sync_blizzard_journal_blocks_when_journal_encounter_fetch_fails_and_continues(self):
+        conn = sqlite3.connect(self.db_path)
+        original_resolve = self.websim_payload.resolve_current_mythic_season
+        original_selected_refs = self.websim_payload.selected_journal_instance_refs
+        original_blizzard_get = self.websim_payload.blizzard_get
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "resolve_current_mythic_season", original_resolve)
+        self.addCleanup(setattr, self.websim_payload, "selected_journal_instance_refs", original_selected_refs)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        self.websim_payload.resolve_current_mythic_season = lambda token, region="us", locale="zh_CN": self.websim_payload.current_season_payload(
+            season_id="17",
+            season_label="Fresh Season",
+            dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+            locale=locale,
+        )
+        self.websim_payload.selected_journal_instance_refs = lambda token, region="us", locale="zh_CN": ([], "Current Expansion")
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            if path == "/data/wow/journal-instance/1300":
+                return {
+                    "id": 1300,
+                    "name": "Magisters' Terrace",
+                    "category": {"name": "Dungeon"},
+                    "encounters": [
+                        {"key": {"href": "https://example.test/journal-encounter/9001"}, "name": "Broken Warden"},
+                        {"key": {"href": "https://example.test/journal-encounter/9002"}, "name": "Working Warden"},
+                    ],
+                }
+            if path == "/data/wow/journal-encounter/9001":
+                raise RuntimeError("journal encounter api down")
+            if path == "/data/wow/journal-encounter/9002":
+                return {
+                    "id": 9002,
+                    "name": "Working Warden",
+                    "items": [{"item": {"id": 250222, "name": "Rift Bindings"}}],
+                }
+            raise AssertionError(f"unexpected Blizzard path {path}")
+
+        self.websim_payload.blizzard_get = fake_blizzard_get
+        self.websim_payload.fetch_blizzard_item_metadata = lambda token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot="": {
+            "payload": {
+                "id": int(item_id),
+                "name": fallback_name or "Rift Bindings",
+                "inventory_type": {"type": "WRIST", "name": "Wrist"},
+                "item_class": {"id": 4, "name": "Armor"},
+                "item_subclass": {"id": 1, "name": "Cloth"},
+                "quality": {"name": "Epic"},
+                "preview_item": {
+                    "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 111}],
+                },
+            },
+            "media": {},
+            "englishPayload": {"name": fallback_name or "Rift Bindings"},
+            "locale": locale,
+            "fallbackName": fallback_name,
+        }
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            counts = self.websim_payload.sync_blizzard_journal(conn, "token", "us", "zh_CN")
+            encounter_ids = [
+                row[0]
+                for row in conn.execute("SELECT id FROM websim_encounters ORDER BY id").fetchall()
+            ]
+            loot_rows = conn.execute("SELECT item_id, encounter_id FROM websim_loot ORDER BY item_id").fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["encounters"], 1)
+        self.assertEqual(counts["loot"], 1)
+        self.assertEqual(counts["fetchFailureCount"], 1)
+        self.assertEqual(counts["fetchFailures"][0]["type"], "encounter")
+        self.assertEqual(counts["fetchFailures"][0]["id"], "9001")
+        self.assertIn("Battle.net journal encounter 9001 fetch failed: journal encounter api down", counts["blockers"])
+        self.assertEqual(encounter_ids, ["9002"])
+        self.assertEqual(loot_rows, [("250222", "9002")])
+
+    def test_sync_blizzard_journal_blocks_when_item_metadata_fetch_fails_and_continues(self):
+        conn = sqlite3.connect(self.db_path)
+        original_resolve = self.websim_payload.resolve_current_mythic_season
+        original_selected_refs = self.websim_payload.selected_journal_instance_refs
+        original_blizzard_get = self.websim_payload.blizzard_get
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "resolve_current_mythic_season", original_resolve)
+        self.addCleanup(setattr, self.websim_payload, "selected_journal_instance_refs", original_selected_refs)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        self.websim_payload.resolve_current_mythic_season = lambda token, region="us", locale="zh_CN": self.websim_payload.current_season_payload(
+            season_id="17",
+            season_label="Fresh Season",
+            dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+            locale=locale,
+        )
+        self.websim_payload.selected_journal_instance_refs = lambda token, region="us", locale="zh_CN": ([], "Current Expansion")
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            if path == "/data/wow/journal-instance/1300":
+                return {
+                    "id": 1300,
+                    "name": "Magisters' Terrace",
+                    "category": {"name": "Dungeon"},
+                    "encounters": [{"key": {"href": "https://example.test/journal-encounter/9001"}, "name": "Arcane Warden"}],
+                }
+            if path == "/data/wow/journal-encounter/9001":
+                return {
+                    "id": 9001,
+                    "name": "Arcane Warden",
+                    "items": [
+                        {"item": {"id": 250111, "name": "Broken Bindings"}},
+                        {"item": {"id": 250222, "name": "Working Cord"}},
+                    ],
+                }
+            raise AssertionError(f"unexpected Blizzard path {path}")
+
+        def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
+            if str(item_id) == "250111":
+                raise RuntimeError("item metadata api down")
+            return {
+                "payload": {
+                    "id": int(item_id),
+                    "name": fallback_name or "Working Cord",
+                    "inventory_type": {"type": "WAIST", "name": "Waist"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 111}],
+                    },
+                },
+                "media": {},
+                "englishPayload": {"name": fallback_name or "Working Cord"},
+                "locale": locale,
+                "fallbackName": fallback_name,
+            }
+
+        self.websim_payload.blizzard_get = fake_blizzard_get
+        self.websim_payload.fetch_blizzard_item_metadata = fake_fetch
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            counts = self.websim_payload.sync_blizzard_journal(conn, "token", "us", "zh_CN")
+            loot_rows = conn.execute("SELECT item_id, encounter_id FROM websim_loot ORDER BY item_id").fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["items"], 1)
+        self.assertEqual(counts["loot"], 1)
+        self.assertEqual(counts["fetchFailureCount"], 1)
+        self.assertEqual(counts["fetchFailures"][0]["type"], "item")
+        self.assertEqual(counts["fetchFailures"][0]["id"], "250111")
+        self.assertEqual(counts["fetchFailures"][0]["encounterId"], "9001")
+        self.assertEqual(counts["fetchFailures"][0]["instanceId"], "1300")
+        self.assertIn("Battle.net journal item 250111 fetch failed: item metadata api down", counts["blockers"])
+        self.assertEqual(loot_rows, [("250222", "9001")])
+
+    def test_sync_blizzard_journal_reuses_cached_item_metadata_when_refresh_fails(self):
+        conn = sqlite3.connect(self.db_path)
+        original_resolve = self.websim_payload.resolve_current_mythic_season
+        original_selected_refs = self.websim_payload.selected_journal_instance_refs
+        original_blizzard_get = self.websim_payload.blizzard_get
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "resolve_current_mythic_season", original_resolve)
+        self.addCleanup(setattr, self.websim_payload, "selected_journal_instance_refs", original_selected_refs)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        self.websim_payload.resolve_current_mythic_season = lambda token, region="us", locale="zh_CN": self.websim_payload.current_season_payload(
+            season_id="17",
+            season_label="Fresh Season",
+            dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+            locale=locale,
+        )
+        self.websim_payload.selected_journal_instance_refs = lambda token, region="us", locale="zh_CN": ([], "Current Expansion")
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            if path == "/data/wow/journal-instance/1300":
+                return {
+                    "id": 1300,
+                    "name": "Magisters' Terrace",
+                    "category": {"name": "Dungeon"},
+                    "encounters": [{"key": {"href": "https://example.test/journal-encounter/9001"}, "name": "Arcane Warden"}],
+                }
+            if path == "/data/wow/journal-encounter/9001":
+                return {
+                    "id": 9001,
+                    "name": "Arcane Warden",
+                    "items": [{"item": {"id": 250111, "name": "Cached Bindings"}}],
+                }
+            raise AssertionError(f"unexpected Blizzard path {path}")
+
+        self.websim_payload.blizzard_get = fake_blizzard_get
+        self.websim_payload.fetch_blizzard_item_metadata = lambda *args, **kwargs: (_ for _ in ()).throw(
+            RuntimeError("item metadata api down")
+        )
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250111",
+                {
+                    "id": 250111,
+                    "name": "Cached Bindings",
+                    "inventory_type": {"type": "WRIST", "name": "Wrist"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 111}],
+                    },
+                },
+                media_payload={"assets": [{"value": "https://render.example/item-250111.jpg"}]},
+                fallback_name="Cached Bindings",
+                english_payload={"name": "Cached Bindings", "inventory_type": {"name": "Wrist"}},
+                locale="en_US",
+            )
+            counts = self.websim_payload.sync_blizzard_journal(conn, "token", "us", "zh_CN")
+            loot_rows = conn.execute("SELECT item_id, name, slot, encounter_id FROM websim_loot ORDER BY item_id").fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["loot"], 1)
+        self.assertEqual(counts["items"], 0)
+        self.assertEqual(counts["cachedItems"], 1)
+        self.assertEqual(counts["fetchFailureCount"], 1)
+        self.assertEqual(counts["fetchFailures"][0]["type"], "item")
+        self.assertEqual(counts["fetchFailures"][0]["id"], "250111")
+        self.assertIn("Battle.net journal item 250111 fetch failed: item metadata api down", counts["blockers"])
+        self.assertEqual(loot_rows, [("250111", "Cached Bindings", "wrist", "9001")])
 
     def test_sync_skips_blizzard_when_active_season_cache_is_fresh(self):
         conn = sqlite3.connect(self.db_path)
@@ -3835,8 +8185,13 @@ class WebSimPayloadTest(unittest.TestCase):
                 {
                     "id": 250777,
                     "name": "Catalog Hood",
-                    "inventory_type": {"name": "Head"},
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
                     "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 321}],
+                    },
                 },
                 fallback_name="Catalog Hood",
                 english_payload={"name": "Catalog Hood", "inventory_type": {"name": "Head"}},
@@ -3860,6 +8215,48 @@ class WebSimPayloadTest(unittest.TestCase):
                     "status": "verified",
                 },
             )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250778",
+                {
+                    "id": 250778,
+                    "name": "Catalog Bracers",
+                    "inventory_type": {"type": "WRIST", "name": "Wrist"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 222}],
+                    },
+                },
+                fallback_name="Catalog Bracers",
+                english_payload={"name": "Catalog Bracers", "inventory_type": {"name": "Wrist"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "manual-250778",
+                    "itemId": "250778",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Magisters' Terrace",
+                    "instanceId": "1300",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "manual-250778-heroic",
+                    "itemId": "250778",
+                    "slot": "wrist",
+                    "variantKey": "heroic-707",
+                    "label": "Heroic 707",
+                    "sourceType": "dungeon",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "verified",
+                },
+            )
             self.websim_payload.set_sync_state(
                 conn,
                 "gearCatalog",
@@ -3878,12 +8275,143 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["blizzardSkipped"], "fresh-season-cache")
         self.assertEqual(payload["errors"], [])
 
+    def test_sync_websim_cache_enriches_observed_socket_options_with_blizzard_gem_metadata(self):
+        import server.raiderio_payload as raiderio_payload
+
+        conn = sqlite3.connect(self.db_path)
+        original_sync_simc = self.websim_payload.sync_simc_generated_data
+        original_token = self.websim_payload.get_blizzard_access_token
+        original_journal = self.websim_payload.sync_blizzard_journal
+        original_item_sets = self.websim_payload.sync_blizzard_item_sets
+        original_preset_metadata = self.websim_payload.sync_blizzard_preset_item_metadata
+        original_build_metadata = self.websim_payload.sync_blizzard_build_gear_item_metadata
+        original_spells = self.websim_payload.sync_blizzard_spell_details
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        original_raiderio = raiderio_payload.get_raiderio_payload
+        self.addCleanup(setattr, self.websim_payload, "sync_simc_generated_data", original_sync_simc)
+        self.addCleanup(setattr, self.websim_payload, "get_blizzard_access_token", original_token)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_journal", original_journal)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_item_sets", original_item_sets)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_preset_item_metadata", original_preset_metadata)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_build_gear_item_metadata", original_build_metadata)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_spell_details", original_spells)
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+        self.addCleanup(setattr, raiderio_payload, "get_raiderio_payload", original_raiderio)
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_active_season_payload(
+                conn,
+                self.websim_payload.current_season_payload(
+                    season_id="17",
+                    season_label="Fresh Season",
+                    dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        self.websim_payload.sync_simc_generated_data = lambda conn: {"talents": 1, "profiles": 1, "build": "test"}
+        self.websim_payload.get_blizzard_access_token = lambda region="us": "token"
+        self.websim_payload.sync_blizzard_journal = lambda conn, token, region="us", locale="zh_CN": {
+            "instances": 0,
+            "encounters": 0,
+            "loot": 0,
+            "items": 0,
+        }
+        self.websim_payload.sync_blizzard_item_sets = lambda conn, token, region="us", locale="zh_CN", season=None: {
+            "itemSets": 0,
+            "setItems": 0,
+            "itemMetadata": 0,
+            "sources": 0,
+            "variants": 0,
+            "skipped": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_preset_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 0,
+            "aliases": 0,
+            "skipped": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_build_gear_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 0,
+            "aliases": 0,
+            "skipped": 0,
+            "searched": 0,
+            "resolved": 0,
+            "references": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_spell_details = lambda conn, token, region="us", locale="zh_CN": {"spells": 0, "media": 0}
+
+        raiderio_payload.get_raiderio_payload = lambda conn, allow_sync=False: {
+            "sourceStatus": "verified",
+            "checkedAt": "2026-06-21T00:00:00+00:00",
+            "specs": {
+                "mage:frost": {
+                    "observedGear": [
+                        {
+                            "slot": "finger1",
+                            "name": "Observed Catalog Band",
+                            "itemId": 250777,
+                            "itemLevel": 707,
+                            "quality": "Epic",
+                            "icon": "https://render.example/item-250777.jpg",
+                            "bonuses": [12345],
+                            "gems": [{"itemId": 240983, "itemLevel": 707}],
+                            "sourceName": "Raider.IO CN profile gear",
+                        }
+                    ],
+                }
+            },
+        }
+
+        def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
+            self.assertEqual(str(item_id), "240983")
+            return {
+                "itemId": str(item_id),
+                "payload": {
+                    "id": int(item_id),
+                    "name": "Quick Onyx",
+                    "item_class": {"id": 3, "name": "Gem"},
+                    "item_subclass": {"id": 8, "name": "Versatility"},
+                    "quality": {"name": "Epic"},
+                },
+                "media": {"assets": [{"value": "https://render.example/gem-240983.jpg"}]},
+                "englishPayload": {"name": "Quick Onyx"},
+                "locale": locale,
+                "fallbackName": fallback_name,
+            }
+
+        self.websim_payload.fetch_blizzard_item_metadata = fake_fetch
+
+        payload = self.websim_payload.sync_websim_cache(self.db_path, include_blizzard=True)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            socket_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "socket")
+            gem_metadata = self.websim_payload.existing_websim_item_metadata(conn, "240983")
+        finally:
+            conn.close()
+
+        self.assertEqual(payload["gearModOptions"]["items"], 1)
+        self.assertEqual(payload["gearModOptions"]["errors"], [])
+        self.assertNotIn("missingMetadataCount", payload["gearCatalog"]["modOptionCoverage"]["socket"])
+        self.assertNotIn("1 socket mod options missing Battle.net gem metadata", payload["gearCatalog"]["blockers"])
+        option = socket_options["finger1"][0]
+        self.assertEqual(option["name"], "Quick Onyx")
+        self.assertEqual(option["iconUrl"], "https://render.example/gem-240983.jpg")
+        self.assertEqual(option["metadataStatus"], "verified")
+        self.assertEqual(gem_metadata["displayName"], "Quick Onyx")
+
     def test_sync_refreshes_blizzard_when_gear_catalog_is_partial_even_if_season_cache_is_fresh(self):
         conn = sqlite3.connect(self.db_path)
         original_sync_simc = self.websim_payload.sync_simc_generated_data
         original_credentials = self.websim_payload.blizzard_credentials_configured
         original_token = self.websim_payload.get_blizzard_access_token
         original_journal = self.websim_payload.sync_blizzard_journal
+        original_item_sets = self.websim_payload.sync_blizzard_item_sets
         original_preset_metadata = self.websim_payload.sync_blizzard_preset_item_metadata
         original_build_metadata = self.websim_payload.sync_blizzard_build_gear_item_metadata
         original_spells = self.websim_payload.sync_blizzard_spell_details
@@ -3891,10 +8419,11 @@ class WebSimPayloadTest(unittest.TestCase):
         self.addCleanup(setattr, self.websim_payload, "blizzard_credentials_configured", original_credentials)
         self.addCleanup(setattr, self.websim_payload, "get_blizzard_access_token", original_token)
         self.addCleanup(setattr, self.websim_payload, "sync_blizzard_journal", original_journal)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_item_sets", original_item_sets)
         self.addCleanup(setattr, self.websim_payload, "sync_blizzard_preset_item_metadata", original_preset_metadata)
         self.addCleanup(setattr, self.websim_payload, "sync_blizzard_build_gear_item_metadata", original_build_metadata)
         self.addCleanup(setattr, self.websim_payload, "sync_blizzard_spell_details", original_spells)
-        calls = {"journal": 0}
+        calls = {"journal": 0, "itemSets": 0}
         try:
             self.websim_payload.ensure_websim_tables(conn)
             self.websim_payload.save_active_season_payload(
@@ -3941,6 +8470,10 @@ class WebSimPayloadTest(unittest.TestCase):
             return {"instances": 0, "encounters": 0, "loot": 0, "items": 0}
 
         self.websim_payload.sync_blizzard_journal = fake_sync_journal
+        self.websim_payload.sync_blizzard_item_sets = lambda conn, token, region="us", locale="zh_CN", season=None: (
+            calls.__setitem__("itemSets", calls["itemSets"] + 1)
+            or {"itemSets": 1, "setItems": 5, "itemMetadata": 5, "sources": 5, "variants": 5, "skipped": 0, "errors": []}
+        )
         self.websim_payload.sync_blizzard_preset_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
             "items": 0,
             "aliases": 0,
@@ -3961,8 +8494,246 @@ class WebSimPayloadTest(unittest.TestCase):
         payload = self.websim_payload.sync_websim_cache(self.db_path, include_blizzard=True)
 
         self.assertEqual(calls["journal"], 1)
+        self.assertEqual(calls["itemSets"], 1)
+        self.assertEqual(payload["itemSets"]["setItems"], 5)
         self.assertNotEqual(payload.get("blizzardSkipped"), "fresh-season-cache")
-        self.assertEqual(payload["errors"], [])
+        self.assertFalse(payload["ok"])
+        self.assertNotEqual(payload["gearCatalog"]["status"], "verified")
+        self.assertIn("1 current season dungeon missing gear loot", payload["errors"])
+
+    def test_sync_skips_blizzard_journal_when_only_simc_variants_are_partial(self):
+        conn = sqlite3.connect(self.db_path)
+        original_sync_simc = self.websim_payload.sync_simc_generated_data
+        original_credentials = self.websim_payload.blizzard_credentials_configured
+        original_token = self.websim_payload.get_blizzard_access_token
+        original_journal = self.websim_payload.sync_blizzard_journal
+        original_item_sets = self.websim_payload.sync_blizzard_item_sets
+        original_preset_metadata = self.websim_payload.sync_blizzard_preset_item_metadata
+        original_build_metadata = self.websim_payload.sync_blizzard_build_gear_item_metadata
+        original_observed_metadata = self.websim_payload.sync_blizzard_observed_item_metadata
+        original_mod_options = self.websim_payload.sync_blizzard_gear_mod_option_metadata
+        original_spells = self.websim_payload.sync_blizzard_spell_details
+        self.addCleanup(setattr, self.websim_payload, "sync_simc_generated_data", original_sync_simc)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_credentials_configured", original_credentials)
+        self.addCleanup(setattr, self.websim_payload, "get_blizzard_access_token", original_token)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_journal", original_journal)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_item_sets", original_item_sets)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_preset_item_metadata", original_preset_metadata)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_build_gear_item_metadata", original_build_metadata)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_observed_item_metadata", original_observed_metadata)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_gear_mod_option_metadata", original_mod_options)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_spell_details", original_spells)
+        calls = {"journal": 0, "itemSets": 0}
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="Fresh Season",
+                dungeons=[
+                    {
+                        "id": "558",
+                        "dungeonId": "558",
+                        "instanceId": "1300",
+                        "name": "Magisters' Terrace",
+                        "shortName": "Magisters' Terrace",
+                        "timerSeconds": 2040,
+                    }
+                ],
+            )
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250888",
+                {
+                    "id": 250888,
+                    "name": "Verified Loop",
+                    "inventory_type": {"type": "FINGER", "name": "Finger"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 0, "name": "Miscellaneous"},
+                    "quality": {"name": "Epic"},
+                    "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 1024}],
+                },
+                {"assets": [{"value": "https://render.example/item-250888.jpg"}]},
+                fallback_slot="finger1",
+                english_payload={"name": "Verified Loop"},
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250888",
+                    "itemId": "250888",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Magisters' Terrace",
+                    "instanceId": "1300",
+                    "seasonRevision": season["seasonRevision"],
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "source-partial-250888-finger",
+                    "itemId": "250888",
+                    "slot": "finger1",
+                    "variantKey": "needs-variant",
+                    "label": "Needs variant",
+                    "sourceType": "dungeon",
+                    "difficultyKey": "needs-variant",
+                    "itemLevel": 0,
+                    "simcOptions": {},
+                    "status": "partial",
+                    "blockers": ["missing deterministic SimC variant preset"],
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, season),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        self.websim_payload.sync_simc_generated_data = lambda conn: {"talents": 1, "profiles": 1, "build": "test"}
+        self.websim_payload.blizzard_credentials_configured = lambda: False
+        self.websim_payload.get_blizzard_access_token = lambda region="us": "token"
+
+        def fake_sync_journal(conn, token, region="us", locale="zh_CN"):
+            calls["journal"] += 1
+            return {"instances": 0, "encounters": 0, "loot": 0, "items": 0}
+
+        def fake_sync_item_sets(conn, token, region="us", locale="zh_CN", season=None):
+            calls["itemSets"] += 1
+            return {"itemSets": 0, "setItems": 0, "itemMetadata": 0, "sources": 0, "variants": 0, "skipped": 0, "errors": []}
+
+        self.websim_payload.sync_blizzard_journal = fake_sync_journal
+        self.websim_payload.sync_blizzard_item_sets = fake_sync_item_sets
+        self.websim_payload.sync_blizzard_preset_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 0,
+            "aliases": 0,
+            "skipped": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_build_gear_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 0,
+            "aliases": 0,
+            "skipped": 0,
+            "searched": 0,
+            "resolved": 0,
+            "references": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_observed_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 0,
+            "aliases": 0,
+            "skipped": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_gear_mod_option_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 0,
+            "skipped": 0,
+            "options": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_spell_details = lambda conn, token, region="us", locale="zh_CN": {
+            "spells": 0,
+            "media": 0,
+        }
+
+        payload = self.websim_payload.sync_websim_cache(self.db_path, include_blizzard=True)
+
+        self.assertEqual(calls["journal"], 0)
+        self.assertEqual(calls["itemSets"], 0)
+        self.assertEqual(payload.get("blizzardSkipped"), "fresh-season-cache")
+        self.assertEqual(payload["gearCatalog"]["dataReadiness"]["status"], "verified")
+        self.assertEqual(payload["gearCatalog"]["simulationReadiness"]["status"], "partial")
+
+    def test_sync_websim_cache_blocks_when_blizzard_journal_sync_is_truncated(self):
+        conn = sqlite3.connect(self.db_path)
+        original_sync_simc = self.websim_payload.sync_simc_generated_data
+        original_credentials = self.websim_payload.blizzard_credentials_configured
+        original_token = self.websim_payload.get_blizzard_access_token
+        original_journal = self.websim_payload.sync_blizzard_journal
+        original_item_sets = self.websim_payload.sync_blizzard_item_sets
+        original_preset_metadata = self.websim_payload.sync_blizzard_preset_item_metadata
+        original_build_metadata = self.websim_payload.sync_blizzard_build_gear_item_metadata
+        original_spells = self.websim_payload.sync_blizzard_spell_details
+        self.addCleanup(setattr, self.websim_payload, "sync_simc_generated_data", original_sync_simc)
+        self.addCleanup(setattr, self.websim_payload, "blizzard_credentials_configured", original_credentials)
+        self.addCleanup(setattr, self.websim_payload, "get_blizzard_access_token", original_token)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_journal", original_journal)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_item_sets", original_item_sets)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_preset_item_metadata", original_preset_metadata)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_build_gear_item_metadata", original_build_metadata)
+        self.addCleanup(setattr, self.websim_payload, "sync_blizzard_spell_details", original_spells)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_active_season_payload(
+                conn,
+                self.websim_payload.current_season_payload(
+                    season_id="17",
+                    season_label="Fresh Season",
+                    dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters' Terrace"}],
+                ),
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                {
+                    "status": "partial",
+                    "itemCount": 1,
+                    "sourceCount": 1,
+                    "variantCount": 1,
+                    "verifiedCount": 0,
+                    "partialCount": 1,
+                    "blockedCount": 0,
+                    "blockers": ["missing deterministic SimC variant preset"],
+                },
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        self.websim_payload.sync_simc_generated_data = lambda conn: {"talents": 1, "profiles": 1, "build": "test"}
+        self.websim_payload.blizzard_credentials_configured = lambda: True
+        self.websim_payload.get_blizzard_access_token = lambda region="us": "token"
+        self.websim_payload.sync_blizzard_journal = lambda conn, token, region="us", locale="zh_CN": {
+            "instances": 1,
+            "encounters": 1,
+            "loot": 1,
+            "items": 1,
+            "truncated": True,
+            "blockers": ["Battle.net journal item sync truncated: 1 not fetched"],
+        }
+        self.websim_payload.sync_blizzard_item_sets = lambda conn, token, region="us", locale="zh_CN", season=None: {
+            "itemSets": 0,
+            "setItems": 0,
+            "itemMetadata": 0,
+            "sources": 0,
+            "variants": 0,
+            "skipped": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_preset_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 0,
+            "aliases": 0,
+            "skipped": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_build_gear_item_metadata = lambda conn, token, region="us", locale="zh_CN": {
+            "items": 0,
+            "aliases": 0,
+            "skipped": 0,
+            "searched": 0,
+            "resolved": 0,
+            "references": 0,
+            "errors": [],
+        }
+        self.websim_payload.sync_blizzard_spell_details = lambda conn, token, region="us", locale="zh_CN": {"spells": 0, "media": 0}
+
+        payload = self.websim_payload.sync_websim_cache(self.db_path, include_blizzard=True)
+
+        self.assertFalse(payload["ok"])
+        self.assertIn("Battle.net journal item sync truncated: 1 not fetched", payload["errors"])
 
     def test_blizzard_get_uses_bearer_header_not_query_token(self):
         captured = {}

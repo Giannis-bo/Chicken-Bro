@@ -12,6 +12,7 @@ import sqlite3
 import subprocess
 import sys
 import tarfile
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlencode, urlparse
@@ -660,6 +661,112 @@ CLASS_ARMOR_TYPES = {
 }
 
 ARMOR_SLOTS = {"head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"}
+ARMOR_ITEM_CLASS_IDS = {4}
+ARMOR_CLASS_NAMES = {"armor", "\u62a4\u7532"}
+ARMOR_SUBCLASS_TYPES = {
+    1: "Cloth",
+    2: "Leather",
+    3: "Mail",
+    4: "Plate",
+    5: "Cosmetic",
+    6: "Shield",
+}
+ARMOR_SUBCLASS_NAMES = {
+    "cloth": "Cloth",
+    "\u5e03\u7532": "Cloth",
+    "leather": "Leather",
+    "\u76ae\u7532": "Leather",
+    "mail": "Mail",
+    "\u9501\u7532": "Mail",
+    "plate": "Plate",
+    "\u677f\u7532": "Plate",
+    "miscellaneous": "Miscellaneous",
+    "\u5176\u4ed6": "Miscellaneous",
+    "cosmetic": "Cosmetic",
+    "\u5916\u89c2": "Cosmetic",
+    "\u88c5\u9970\u54c1": "Cosmetic",
+    "shield": "Shield",
+    "\u76fe\u724c": "Shield",
+}
+WEAPON_SLOTS = {"main_hand", "off_hand"}
+WEAPON_ITEM_CLASS_IDS = {2}
+WEAPON_CLASS_NAMES = {"weapon", "\u6b66\u5668"}
+SHIELD_CLASSES = {"paladin", "shaman", "warrior"}
+DUAL_WIELDABLE_WEAPON_TYPES = {
+    "Dagger",
+    "Fist Weapon",
+    "One-Handed Axe",
+    "One-Handed Mace",
+    "One-Handed Sword",
+    "Warglaive",
+}
+GEM_ITEM_CLASS_IDS = {3}
+GEM_CLASS_NAMES = {"gem", "\u5b9d\u77f3"}
+WEAPON_SUBCLASS_TYPES = {
+    0: "One-Handed Axe",
+    1: "Two-Handed Axe",
+    2: "Bow",
+    3: "Gun",
+    4: "One-Handed Mace",
+    5: "Two-Handed Mace",
+    6: "Polearm",
+    7: "One-Handed Sword",
+    8: "Two-Handed Sword",
+    9: "Warglaive",
+    10: "Staff",
+    13: "Fist Weapon",
+    15: "Dagger",
+    18: "Crossbow",
+    19: "Wand",
+    20: "Fishing Pole",
+}
+WEAPON_SUBCLASS_NAMES = {
+    "axe": "One-Handed Axe",
+    "one_handed_axe": "One-Handed Axe",
+    "one-handed axe": "One-Handed Axe",
+    "\u5355\u624b\u65a7": "One-Handed Axe",
+    "two_handed_axe": "Two-Handed Axe",
+    "two-handed axe": "Two-Handed Axe",
+    "\u53cc\u624b\u65a7": "Two-Handed Axe",
+    "bow": "Bow",
+    "\u5f13": "Bow",
+    "gun": "Gun",
+    "\u67aa": "Gun",
+    "mace": "One-Handed Mace",
+    "one_handed_mace": "One-Handed Mace",
+    "one-handed mace": "One-Handed Mace",
+    "\u5355\u624b\u9524": "One-Handed Mace",
+    "two_handed_mace": "Two-Handed Mace",
+    "two-handed mace": "Two-Handed Mace",
+    "\u53cc\u624b\u9524": "Two-Handed Mace",
+    "polearm": "Polearm",
+    "\u957f\u67c4\u6b66\u5668": "Polearm",
+    "sword": "One-Handed Sword",
+    "one_handed_sword": "One-Handed Sword",
+    "one-handed sword": "One-Handed Sword",
+    "\u5355\u624b\u5251": "One-Handed Sword",
+    "two_handed_sword": "Two-Handed Sword",
+    "two-handed sword": "Two-Handed Sword",
+    "\u53cc\u624b\u5251": "Two-Handed Sword",
+    "warglaive": "Warglaive",
+    "warglaives": "Warglaive",
+    "war_glaive": "Warglaive",
+    "war_glaives": "Warglaive",
+    "war glaive": "Warglaive",
+    "war glaives": "Warglaive",
+    "\u6218\u5203": "Warglaive",
+    "staff": "Staff",
+    "\u6cd5\u6756": "Staff",
+    "fist_weapon": "Fist Weapon",
+    "fist weapon": "Fist Weapon",
+    "\u62f3\u5957": "Fist Weapon",
+    "dagger": "Dagger",
+    "\u5315\u9996": "Dagger",
+    "crossbow": "Crossbow",
+    "\u5f29": "Crossbow",
+    "wand": "Wand",
+    "\u9b54\u6756": "Wand",
+}
 
 SCENARIOS = [
     {"key": "single", "title": "单体", "fightStyle": "Patchwerk", "targets": 1, "durationSeconds": 300},
@@ -706,6 +813,22 @@ FALLBACK_LOOT = [
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def emit_sync_stage(stages, callback, stage, status, started_at=None, details=None):
+    event = {
+        "stage": stage,
+        "status": status,
+        "checkedAt": utc_now(),
+    }
+    if started_at is not None:
+        event["durationSeconds"] = round(max(0.0, time.monotonic() - started_at), 3)
+    if isinstance(details, dict) and details:
+        event.update(details)
+    stages.append(event)
+    if callback:
+        callback(dict(event))
+    return time.monotonic()
 
 
 def int_env(name, default):
@@ -1119,6 +1242,38 @@ def ensure_websim_tables(conn):
     )
     conn.execute(
         """
+        CREATE TABLE IF NOT EXISTS websim_item_sets (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            season_revision TEXT NOT NULL DEFAULT '',
+            source TEXT NOT NULL,
+            status TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS websim_item_set_items (
+            id TEXT PRIMARY KEY,
+            set_id TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            slot TEXT NOT NULL DEFAULT '',
+            payload_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_websim_item_set_items_set
+        ON websim_item_set_items (set_id, item_id)
+        """
+    )
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS websim_talents (
             id TEXT PRIMARY KEY,
             class_key TEXT NOT NULL,
@@ -1453,6 +1608,58 @@ def season_metadata_fields(season):
     }
 
 
+COMPACT_SEASON_KEYS = {
+    "id",
+    "seasonId",
+    "label",
+    "seasonLabel",
+    "revision",
+    "seasonRevision",
+    "verifiedAt",
+    "expiresAt",
+    "locale",
+    "dataStatus",
+    "sourceRefs",
+    "errors",
+    "raids",
+    "itemSets",
+    "journalExpansionName",
+}
+COMPACT_SEASON_DUNGEON_KEYS = {
+    "id",
+    "dungeonId",
+    "instanceId",
+    "name",
+    "shortName",
+    "timerSeconds",
+    "sourceRefs",
+}
+
+
+def compact_season_payload(season):
+    if not isinstance(season, dict):
+        return season
+    compact = {
+        key: season.get(key)
+        for key in COMPACT_SEASON_KEYS
+        if season.get(key) not in (None, "", [], {})
+    }
+    dungeons = []
+    for dungeon in season.get("dungeons") or []:
+        if not isinstance(dungeon, dict):
+            continue
+        compact_dungeon = {
+            key: dungeon.get(key)
+            for key in COMPACT_SEASON_DUNGEON_KEYS
+            if dungeon.get(key) not in (None, "", [], {})
+        }
+        if compact_dungeon:
+            dungeons.append(compact_dungeon)
+    if dungeons:
+        compact["dungeons"] = dungeons
+    return compact
+
+
 def get_active_season_payload(conn):
     ensure_websim_tables(conn)
     row = conn.execute(
@@ -1753,6 +1960,10 @@ def item_slot_from_payload(payload):
         "trinket": "trinket1",
         "cloak": "back",
         "weapon": "main_hand",
+        "main_hand": "main_hand",
+        "off_hand": "off_hand",
+        "mainhand": "main_hand",
+        "offhand": "off_hand",
         "weaponmainhand": "main_hand",
         "2hweapon": "main_hand",
         "twohweapon": "main_hand",
@@ -1860,6 +2071,78 @@ def payload_preview_item(payload):
     return {}
 
 
+def positive_int_value(value):
+    if isinstance(value, dict):
+        value = first_matching_value(value, ["value", "amount", "level", "display_string"], "")
+    try:
+        normalized = normalize_option_value(value)
+        if not normalized:
+            return 0
+        match = re.search(r"\d+", normalized)
+        return int(match.group(0)) if match else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def battle_net_preview_item_level(payload):
+    if not isinstance(payload, dict):
+        return 0
+    preview = payload_preview_item(payload)
+    for parent in (payload, preview):
+        if not isinstance(parent, dict):
+            continue
+        value = first_matching_value(parent, ["level", "itemLevel", "item_level", "ilevel"], "")
+        item_level = positive_int_value(value)
+        if item_level > 0:
+            return item_level
+    return 0
+
+
+def battle_net_preview_bonus_ids(payload):
+    if not isinstance(payload, dict):
+        return []
+    preview = payload_preview_item(payload)
+    values = []
+    for parent in (preview, payload):
+        if not isinstance(parent, dict):
+            continue
+        for key in ("bonus_list", "bonusList", "bonus_lists", "bonusListIDs", "bonusIds", "bonuses"):
+            raw = parent.get(key)
+            if isinstance(raw, list):
+                values.extend(raw)
+            elif raw not in (None, "", {}):
+                values.append(raw)
+    result = []
+    seen = set()
+    for value in values:
+        text = normalize_option_value(value)
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+    return result
+
+
+def battle_net_preview_variant_from_metadata(payload, source_type):
+    payload = payload if isinstance(payload, dict) else {}
+    source_type = raw_source_type(source_type)
+    item_level = battle_net_preview_item_level(payload)
+    if item_level <= 0:
+        return None
+    if source_type == "dungeon" and item_level < int_env("WOW_WEBSIM_MIN_DUNGEON_PREVIEW_ILEVEL", 500):
+        return None
+    if source_type in {"raid", "tier_set"} and item_level < int_env("WOW_WEBSIM_MIN_OFFICIAL_PREVIEW_ILEVEL", 100):
+        return None
+    bonus_ids = battle_net_preview_bonus_ids(payload)
+    simc_options = {"bonus_id": "/".join(bonus_ids)} if bonus_ids else {}
+    return {
+        "itemLevel": item_level,
+        "simcOptions": simc_options,
+        "simcIlevelOnly": not bool(simc_options),
+        "bonusIds": bonus_ids,
+    }
+
+
 def stat_label_from_payload(stat):
     if not isinstance(stat, dict):
         return ""
@@ -1899,17 +2182,10 @@ def normalize_item_stat(stat):
     }
 
 
-def extract_item_stats_from_payload(payload):
-    if not isinstance(payload, dict):
-        return []
+def normalize_item_stats(values):
     candidates = []
-    for parent in [payload, payload_preview_item(payload)]:
-        if not isinstance(parent, dict):
-            continue
-        for key in ("stats", "item_stats", "itemStats", "attributes"):
-            values = parent.get(key)
-            if isinstance(values, list):
-                candidates.extend(values)
+    if isinstance(values, list):
+        candidates.extend(values)
     result = []
     seen = set()
     for stat in candidates:
@@ -1922,6 +2198,74 @@ def extract_item_stats_from_payload(payload):
         seen.add(dedupe_key)
         result.append(normalized)
     return result
+
+
+def direct_item_stats_from_payload(payload):
+    if not isinstance(payload, dict):
+        return []
+    candidates = []
+    for key in ("stats", "item_stats", "itemStats", "attributes"):
+        values = payload.get(key)
+        if isinstance(values, list):
+            candidates.extend(values)
+    return normalize_item_stats(candidates)
+
+
+def item_stat_comparison_key(stats):
+    normalized = []
+    for stat in normalize_item_stats(stats):
+        normalized.append(
+            {
+                "key": str(stat.get("key") or "").strip().lower(),
+                "label": str(stat.get("label") or "").strip(),
+                "value": str(stat.get("value") or "").strip(),
+                "display": str(stat.get("display") or "").strip(),
+            }
+        )
+    return sorted(normalized, key=lambda stat: (stat["key"], stat["label"], stat["value"], stat["display"]))
+
+
+def extract_item_stats_from_payload(payload):
+    if not isinstance(payload, dict):
+        return []
+    preview_stats = direct_item_stats_from_payload(payload_preview_item(payload))
+    if preview_stats:
+        return preview_stats
+    return direct_item_stats_from_payload(payload)
+
+
+def item_payload_has_effect_evidence(payload):
+    if not isinstance(payload, dict):
+        return False
+    for parent in (payload_preview_item(payload), payload):
+        if not isinstance(parent, dict):
+            continue
+        for key in ("spells", "effects", "use_effects", "equip_effects", "item_effects"):
+            values = parent.get(key)
+            if isinstance(values, list) and values:
+                return True
+    return False
+
+
+def item_payload_is_cosmetic_statless(payload):
+    if not isinstance(payload, dict):
+        return False
+    item_class = payload.get("item_class") if isinstance(payload.get("item_class"), dict) else {}
+    item_subclass = payload.get("item_subclass") if isinstance(payload.get("item_subclass"), dict) else {}
+    if payload_item_class_is_armor(item_class) and normalized_armor_subclass(item_subclass) == "Cosmetic":
+        return True
+    preview = payload_preview_item(payload)
+    if preview and preview is not payload:
+        return item_payload_is_cosmetic_statless(preview)
+    return False
+
+
+def item_payload_has_stat_evidence(payload):
+    return bool(
+        extract_item_stats_from_payload(payload)
+        or item_payload_has_effect_evidence(payload)
+        or item_payload_is_cosmetic_statless(payload)
+    )
 
 
 def item_stat_summary(stats):
@@ -1970,6 +2314,89 @@ def item_mod_capabilities(payload=None, slot="", variants=None, item=None):
         "hasSocket": bool(has_socket),
         "canEnchant": bool(can_enchant),
     }
+
+
+def item_set_name_from_payload(payload):
+    if not isinstance(payload, dict):
+        return ""
+    for key in ("item_set", "itemSet", "set", "set_bonus", "setBonus"):
+        value = payload.get(key)
+        if isinstance(value, dict):
+            name = str(value.get("name") or value.get("display_string") or value.get("slug") or "").strip()
+            if name:
+                return name
+        elif isinstance(value, str) and value.strip():
+            return value.strip()
+    preview = payload_preview_item(payload)
+    if preview and preview is not payload:
+        return item_set_name_from_payload(preview)
+    return ""
+
+
+def item_set_ref_from_payload(payload):
+    if not isinstance(payload, dict):
+        return {}
+    for key in ("item_set", "itemSet", "set", "set_bonus", "setBonus"):
+        value = payload.get(key)
+        if isinstance(value, dict):
+            if key not in ("item_set", "itemSet") and any(
+                isinstance(value.get(nested_key), dict) for nested_key in ("item_set", "itemSet")
+            ):
+                nested_ref = item_set_ref_from_payload(value)
+                if nested_ref.get("id") or nested_ref.get("name"):
+                    return nested_ref
+            set_id = str(value.get("id") or extract_id_from_ref(value) or "").strip()
+            name = str(value.get("name") or value.get("display_string") or value.get("slug") or "").strip()
+            if set_id or name:
+                return {"id": set_id, "name": name}
+        elif isinstance(value, str) and value.strip():
+            return {"id": "", "name": value.strip()}
+    preview = payload_preview_item(payload)
+    if preview and preview is not payload:
+        return item_set_ref_from_payload(preview)
+    return {}
+
+
+def item_set_item_refs_from_payload(payload):
+    if not isinstance(payload, dict):
+        return []
+    refs = []
+    for raw_ref in list_keyed_values(payload, "items", "set_items", "setItems", "pieces"):
+        if not isinstance(raw_ref, dict):
+            raw_ref = {"item": raw_ref}
+        item_ref = raw_ref.get("item") if isinstance(raw_ref.get("item"), dict) else raw_ref
+        item_id = extract_id_from_ref(item_ref)
+        if not item_id:
+            continue
+        name = ""
+        if isinstance(item_ref, dict):
+            name = str(item_ref.get("name") or item_ref.get("display_string") or "").strip()
+        refs.append(
+            {
+                "itemId": item_id,
+                "name": name or f"Item {item_id}",
+                "slot": item_slot_from_payload(raw_ref) or item_slot_from_payload(item_ref),
+                "payload": raw_ref,
+            }
+        )
+    return refs
+
+
+def season_item_set_refs(season):
+    refs = {}
+    if not isinstance(season, dict):
+        return refs
+    for raw_ref in season.get("itemSets") or season.get("item_sets") or season.get("tierSets") or season.get("tier_sets") or []:
+        if isinstance(raw_ref, dict):
+            set_id = str(raw_ref.get("id") or raw_ref.get("setId") or raw_ref.get("itemSetId") or extract_id_from_ref(raw_ref) or "").strip()
+            name = str(raw_ref.get("name") or raw_ref.get("setName") or raw_ref.get("itemSetName") or "").strip()
+        else:
+            set_id = str(raw_ref or "").strip()
+            name = ""
+        if not (set_id or name):
+            continue
+        refs[set_id or name] = {"id": set_id, "name": name}
+    return refs
 
 
 def icon_url_from_media(media_payload):
@@ -2135,6 +2562,7 @@ def save_websim_item_metadata(
     item_stats = extract_item_stats_from_payload(metadata_payload)
     stat_summary = item_stat_summary(item_stats)
     mod_capabilities = item_mod_capabilities(metadata_payload, slot)
+    type_metadata = item_type_metadata_from_payload(metadata_payload)
     conn.execute(
         """
         INSERT INTO websim_items (id, name, slot, quality, icon_url, payload_json, updated_at)
@@ -2180,10 +2608,31 @@ def save_websim_item_metadata(
         "itemStats": item_stats,
         "statSummary": stat_summary,
         "modCapabilities": mod_capabilities,
+        **type_metadata,
         "metadataStatus": "verified",
         "metadataSource": source,
         "metadataLocale": locale,
     }
+
+
+def repair_websim_item_slots_from_payload(conn):
+    rows = conn.execute("SELECT id, slot, payload_json FROM websim_items").fetchall()
+    repaired = 0
+    now = utc_now()
+    for item_id, raw_slot, payload_json in rows:
+        payload = safe_json_loads(payload_json, {})
+        payload = payload if isinstance(payload, dict) else {}
+        payload_slot = item_slot_from_payload(payload)
+        if not payload_slot:
+            continue
+        if payload_slot == normalize_slot(raw_slot):
+            continue
+        conn.execute(
+            "UPDATE websim_items SET slot = ?, updated_at = ? WHERE id = ?",
+            (payload_slot, now, str(item_id)),
+        )
+        repaired += 1
+    return repaired
 
 
 def unique_locale_preferences(locale=DEFAULT_LOCALE):
@@ -2284,6 +2733,12 @@ def dungeon_id_from_ref(value):
 
 def normalize_name_key(value):
     return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
+
+
+def normalize_item_set_name_key(value):
+    text = str(value or "").strip().lower()
+    text = re.sub(r"[（(]\s*\d+\s*/\s*\d+\s*[）)]\s*$", "", text).strip()
+    return re.sub(r"\s+", "", text)
 
 
 def official_dungeon_name_keys():
@@ -2534,12 +2989,36 @@ def selected_spell_ids_for_sync(conn, limit):
     return spell_ids[:limit]
 
 
+def cached_verified_spell_detail_ids(conn, spell_ids):
+    ids = [int(spell_id) for spell_id in spell_ids if int(spell_id or 0) > 0]
+    if not ids:
+        return set()
+    placeholders = ",".join("?" for _ in ids)
+    rows = conn.execute(
+        f"""
+        SELECT spell_id
+        FROM websim_spell_details
+        WHERE spell_id IN ({placeholders})
+          AND name != ''
+          AND description != ''
+          AND icon_url != ''
+          AND payload_json NOT LIKE '%simulationcraft%'
+        """,
+        ids,
+    ).fetchall()
+    return {int(row[0]) for row in rows}
+
+
 def sync_blizzard_spell_details(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOCALE):
     limit = int_env("WOW_WEBSIM_SYNC_SPELL_LIMIT", 400)
     spell_ids = selected_spell_ids_for_sync(conn, limit)
+    cached_spell_ids = cached_verified_spell_detail_ids(conn, spell_ids)
     now = utc_now()
-    counts = {"spells": 0, "media": 0}
+    counts = {"spells": 0, "media": 0, "skipped": 0}
     for spell_id in spell_ids:
+        if int(spell_id) in cached_spell_ids:
+            counts["skipped"] += 1
+            continue
         try:
             spell_payload, spell_locale = blizzard_get_localized(
                 f"/data/wow/spell/{spell_id}",
@@ -2645,24 +3124,48 @@ def normalize_journal_instance_ref(value):
     }
 
 
+def limited_sync_items(items, limit):
+    rows = list(items or [])
+    if limit < 0:
+        return rows, 0
+    return rows[:limit], max(0, len(rows) - limit)
+
+
+def item_payload_is_explicit_non_equipment(payload):
+    if not isinstance(payload, dict):
+        return False
+    item_class = payload.get("item_class") if isinstance(payload.get("item_class"), dict) else {}
+    return bool(item_class and not (payload_item_class_is_armor(item_class) or payload_item_class_is_weapon(item_class)))
+
+
+def item_payload_is_equipment_loot(payload, slot=""):
+    if not normalize_slot(slot):
+        return False
+    if item_payload_is_explicit_non_equipment(payload):
+        return False
+    return True
+
+
 def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOCALE):
     now = utc_now()
-    instance_limit = int_env("WOW_WEBSIM_SYNC_INSTANCE_LIMIT", 8)
-    raid_instance_limit = int_env("WOW_WEBSIM_SYNC_RAID_INSTANCE_LIMIT", 4)
-    encounter_limit = int_env("WOW_WEBSIM_SYNC_ENCOUNTER_LIMIT", 80)
-    item_limit = int_env("WOW_WEBSIM_SYNC_ITEM_LIMIT", 300)
+    instance_limit = int_env("WOW_WEBSIM_SYNC_INSTANCE_LIMIT", 20)
+    raid_instance_limit = int_env("WOW_WEBSIM_SYNC_RAID_INSTANCE_LIMIT", 8)
+    encounter_limit = int_env("WOW_WEBSIM_SYNC_ENCOUNTER_LIMIT", 200)
+    item_limit = int_env("WOW_WEBSIM_SYNC_ITEM_LIMIT", 1000)
     season = resolve_current_mythic_season(token, region, locale)
-    save_active_season_payload(conn, season)
-    conn.commit()
-    dungeons = [
+    all_dungeons = [
         {**dungeon, "instanceId": str(dungeon.get("instanceId") or dungeon.get("id") or ""), "category": "Dungeon"}
-        for dungeon in (season.get("dungeons") or [])[:instance_limit]
+        for dungeon in (season.get("dungeons") or [])
         if str(dungeon.get("instanceId") or dungeon.get("id") or "").strip()
     ]
+    dungeons, truncated_dungeons = limited_sync_items(all_dungeons, instance_limit)
     raid_refs = []
+    journal_expansion_name = ""
+    raid_selection_failure = None
     try:
         selected_refs = selected_journal_instance_refs(token, region, season.get("locale") or locale)
         if isinstance(selected_refs, tuple) and selected_refs and isinstance(selected_refs[0], list):
+            journal_expansion_name = str(selected_refs[1] or "") if len(selected_refs) > 1 else ""
             selected_refs = selected_refs[0]
         for raw_ref in selected_refs or []:
             ref = normalize_journal_instance_ref(raw_ref)
@@ -2672,11 +3175,22 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
                     "instanceId": str(ref.get("instanceId") or ref.get("id") or ""),
                     "category": "Raid",
                 })
-    except Exception:
+    except Exception as error:
+        raid_selection_failure = str(error)
         raid_refs = []
+    if raid_refs:
+        season = {
+            **season,
+            "raids": raid_refs,
+        }
+        if journal_expansion_name:
+            season["journalExpansionName"] = journal_expansion_name
+    save_active_season_payload(conn, season)
+    conn.commit()
+    limited_raid_refs, truncated_raids = limited_sync_items(raid_refs, raid_instance_limit)
     instance_refs = []
     seen_instances = set()
-    for ref in [*dungeons, *raid_refs[:raid_instance_limit]]:
+    for ref in [*dungeons, *limited_raid_refs]:
         instance_id = str(ref.get("instanceId") or ref.get("id") or "").strip()
         if not instance_id or instance_id in seen_instances:
             continue
@@ -2693,12 +3207,37 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
         "seasonLabel": season.get("seasonLabel"),
         "seasonRevision": season.get("seasonRevision"),
         "dataStatus": season.get("dataStatus"),
+        "limits": {
+            "instances": instance_limit,
+            "raidInstances": raid_instance_limit,
+            "encounters": encounter_limit,
+            "items": item_limit,
+        },
+        "truncation": {
+            "dungeonInstances": truncated_dungeons,
+            "raidInstances": truncated_raids,
+            "encounters": 0,
+            "items": 0,
+        },
+        "skippedNonGearLoot": 0,
+        "skippedNonGearLootExamples": [],
+        "cachedItems": 0,
+        "fetchFailureCount": 0,
+        "fetchFailures": [],
+        "truncated": False,
+        "blockers": [],
     }
+    if raid_selection_failure:
+        counts["fetchFailures"].append(
+            {
+                "type": "raid_selection",
+                "id": "journal-expansion",
+                "name": journal_expansion_name or "Journal expansion",
+                "message": raid_selection_failure,
+            }
+        )
     fetched_items = set()
-    conn.execute("DELETE FROM websim_loot")
-    conn.execute("DELETE FROM websim_encounters")
-    conn.execute("DELETE FROM websim_instances")
-    conn.commit()
+    discovered_item_sets = season_item_set_refs(season)
 
     for instance_ref in instance_refs:
         instance_id = str(instance_ref.get("instanceId") or "")
@@ -2712,8 +3251,23 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
                 season.get("locale") or locale,
                 namespace=blizzard_namespace(region, "static"),
             )
-        except Exception:
-            instance = {"id": instance_id, "name": instance_ref.get("name") or f"Instance {instance_id}", "encounters": []}
+        except Exception as error:
+            error_message = str(error)
+            counts["fetchFailures"].append(
+                {
+                    "type": "instance",
+                    "id": str(instance_id),
+                    "name": instance_ref.get("name") or f"Instance {instance_id}",
+                    "message": error_message,
+                }
+            )
+            instance = {
+                "id": instance_id,
+                "name": instance_ref.get("name") or f"Instance {instance_id}",
+                "category": {"name": instance_ref.get("category") or "Dungeon"},
+                "encounters": [],
+                "_syncError": error_message,
+            }
         instance_name = instance.get("name") or instance_ref.get("name") or f"Instance {instance_id}"
         category = (instance.get("category") or {}).get("name") or instance_ref.get("category") or "Dungeon"
         conn.execute(
@@ -2735,19 +3289,34 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
             counts["dungeonInstances"] += 1
 
         encounter_refs = list_keyed_values(instance, "encounters")
+        remaining_encounter_capacity = encounter_limit - counts["encounters"] if encounter_limit >= 0 else len(encounter_refs)
+        if remaining_encounter_capacity <= 0:
+            counts["truncation"]["encounters"] += len(encounter_refs)
+            continue
+        encounter_refs, skipped_encounters = limited_sync_items(encounter_refs, remaining_encounter_capacity)
+        counts["truncation"]["encounters"] += skipped_encounters
         for encounter_ref in encounter_refs:
-            if counts["encounters"] >= encounter_limit:
-                break
             encounter_id = extract_id_from_ref(encounter_ref)
             if not encounter_id:
                 continue
-            encounter = blizzard_get(
-                f"/data/wow/journal-encounter/{encounter_id}",
-                token,
-                region,
-                season.get("locale") or locale,
-                namespace=blizzard_namespace(region, "static"),
-            )
+            try:
+                encounter = blizzard_get(
+                    f"/data/wow/journal-encounter/{encounter_id}",
+                    token,
+                    region,
+                    season.get("locale") or locale,
+                    namespace=blizzard_namespace(region, "static"),
+                )
+            except Exception as error:
+                counts["fetchFailures"].append(
+                    {
+                        "type": "encounter",
+                        "id": str(encounter_id),
+                        "name": (encounter_ref or {}).get("name") or f"Encounter {encounter_id}",
+                        "message": str(error),
+                    }
+                )
+                continue
             encounter_name = encounter.get("name") or f"Encounter {encounter_id}"
             conn.execute(
                 """
@@ -2762,41 +3331,101 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
                 (str(encounter_id), str(instance_id), encounter_name, json.dumps(encounter, ensure_ascii=False), now),
             )
             counts["encounters"] += 1
-            item_refs = list_keyed_values(encounter, "items", "loot")
-            for loot_ref in item_refs:
+            item_refs = []
+            for loot_ref in list_keyed_values(encounter, "items", "loot"):
                 item_ref = loot_ref.get("item") if isinstance(loot_ref, dict) else loot_ref
                 item_id = extract_id_from_ref(item_ref)
-                if not item_id or len(fetched_items) >= item_limit:
+                if not item_id:
                     continue
+                item_refs.append((loot_ref, item_ref, item_id))
+            remaining_item_capacity = item_limit - len(fetched_items) if item_limit >= 0 else len(item_refs)
+            if remaining_item_capacity <= 0:
+                counts["truncation"]["items"] += len(item_refs)
+                continue
+            limited_item_refs, skipped_items = limited_sync_items(item_refs, remaining_item_capacity)
+            counts["truncation"]["items"] += skipped_items
+            for loot_ref, item_ref, item_id in limited_item_refs:
                 item_payload = {}
                 media_payload = {}
                 saved_metadata = existing_websim_item_metadata(conn, item_id)
                 if item_id not in fetched_items:
-                    item_metadata = fetch_blizzard_item_metadata(
-                        token,
-                        item_id,
-                        region,
-                        season.get("locale") or locale,
-                        fallback_name=(item_ref or {}).get("name") if isinstance(item_ref, dict) else "",
-                    )
-                    item_payload = item_metadata.get("payload") or {}
-                    media_payload = item_metadata.get("media") or {}
-                    save_websim_item_metadata(
-                        conn,
-                        item_id,
-                        item_payload,
-                        media_payload,
-                        fallback_name=item_metadata.get("fallbackName") or "",
-                        english_payload=item_metadata.get("englishPayload") or {},
-                        locale=item_metadata.get("locale") or season.get("locale") or locale,
-                    )
-                    saved_metadata = existing_websim_item_metadata(conn, item_id)
-                    fetched_items.add(item_id)
-                    counts["items"] += 1
+                    fallback_item_name = (item_ref or {}).get("name") if isinstance(item_ref, dict) else ""
+                    try:
+                        item_metadata = fetch_blizzard_item_metadata(
+                            token,
+                            item_id,
+                            region,
+                            season.get("locale") or locale,
+                            fallback_name=fallback_item_name,
+                        )
+                    except Exception as error:
+                        cached_payload = (saved_metadata or {}).get("payload") if isinstance(saved_metadata, dict) else {}
+                        cached_slot = (saved_metadata or {}).get("slot") if isinstance(saved_metadata, dict) else ""
+                        counts["fetchFailures"].append(
+                            {
+                                "type": "item",
+                                "id": str(item_id),
+                                "name": fallback_item_name or f"Item {item_id}",
+                                "message": str(error),
+                                "encounterId": str(encounter_id),
+                                "instanceId": str(instance_id),
+                            }
+                        )
+                        fetched_items.add(item_id)
+                        if not (
+                            saved_metadata
+                            and (saved_metadata.get("metadataStatus") or "") == "verified"
+                            and isinstance(cached_payload, dict)
+                            and item_payload_is_equipment_loot(cached_payload, cached_slot)
+                        ):
+                            continue
+                        item_payload = cached_payload
+                        media_payload = {}
+                        counts["cachedItems"] += 1
+                        set_ref = item_set_ref_from_payload(item_payload)
+                        set_id = set_ref.get("id") or ""
+                        set_name = set_ref.get("name") or ""
+                        set_key = set_id or set_name
+                        if set_key:
+                            discovered_item_sets[set_key] = {"id": set_id, "name": set_name}
+                    else:
+                        item_payload = item_metadata.get("payload") or {}
+                        media_payload = item_metadata.get("media") or {}
+                        save_websim_item_metadata(
+                            conn,
+                            item_id,
+                            item_payload,
+                            media_payload,
+                            fallback_name=item_metadata.get("fallbackName") or "",
+                            english_payload=item_metadata.get("englishPayload") or {},
+                            locale=item_metadata.get("locale") or season.get("locale") or locale,
+                        )
+                        saved_metadata = existing_websim_item_metadata(conn, item_id)
+                        fetched_items.add(item_id)
+                        counts["items"] += 1
+                        set_ref = item_set_ref_from_payload(item_payload)
+                        set_id = set_ref.get("id") or ""
+                        set_name = set_ref.get("name") or ""
+                        set_key = set_id or set_name
+                        if set_key:
+                            discovered_item_sets[set_key] = {"id": set_id, "name": set_name}
                 item_name = item_payload.get("name") or (item_ref or {}).get("name") or (saved_metadata or {}).get("displayName") or f"Item {item_id}"
                 slot = item_slot_from_payload(item_payload) or ((saved_metadata or {}).get("slot") or "")
                 quality = (item_payload.get("quality") or {}).get("name") or (saved_metadata or {}).get("quality") or ""
                 icon_url = icon_url_from_media(media_payload) or (saved_metadata or {}).get("iconUrl") or ""
+                existing_payload = (saved_metadata or {}).get("payload") if isinstance(saved_metadata, dict) else {}
+                item_payload_to_store = existing_payload if isinstance(existing_payload, dict) and existing_payload else item_payload
+                if not item_payload_is_equipment_loot(item_payload_to_store, slot):
+                    counts["skippedNonGearLoot"] += 1
+                    if len(counts["skippedNonGearLootExamples"]) < 5:
+                        counts["skippedNonGearLootExamples"].append(
+                            {
+                                "itemId": str(item_id),
+                                "name": item_name,
+                                "reason": "Battle.net item metadata is not equippable gear",
+                            }
+                        )
+                    continue
                 loot_asset = game_asset_from_icon_url(
                     "item",
                     item_id,
@@ -2808,8 +3437,6 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
                     usage=["websim_loot", "builds_detail"],
                     fallback_text=fallback_text_for(item_name),
                 )
-                existing_payload = (saved_metadata or {}).get("payload") if isinstance(saved_metadata, dict) else {}
-                item_payload_to_store = existing_payload if isinstance(existing_payload, dict) and existing_payload else item_payload
                 if saved_metadata:
                     conn.execute(
                         """
@@ -2864,6 +3491,284 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
                 upsert_websim_asset(conn, loot_asset)
                 counts["loot"] += 1
         conn.commit()
+    if discovered_item_sets:
+        season = {
+            **season,
+            "itemSets": sorted(
+                (ref for ref in discovered_item_sets.values() if ref.get("id") or ref.get("name")),
+                key=lambda ref: (ref.get("name") or "", ref.get("id") or ""),
+            ),
+        }
+        save_active_season_payload(conn, season)
+    truncation = counts["truncation"]
+    blockers = []
+    if truncation["dungeonInstances"]:
+        blockers.append(f"Battle.net journal dungeon instance sync truncated: {truncation['dungeonInstances']} not fetched")
+    if truncation["raidInstances"]:
+        blockers.append(f"Battle.net journal raid instance sync truncated: {truncation['raidInstances']} not fetched")
+    if truncation["encounters"]:
+        blockers.append(f"Battle.net journal encounter sync truncated: {truncation['encounters']} not fetched")
+    if truncation["items"]:
+        blockers.append(f"Battle.net journal item sync truncated: {truncation['items']} not fetched")
+    for failure in counts["fetchFailures"]:
+        failure_type = failure.get("type") or "resource"
+        failure_id = failure.get("id") or "unknown"
+        failure_message = failure.get("message") or "unknown error"
+        blockers.append(f"Battle.net journal {failure_type} {failure_id} fetch failed: {failure_message}")
+    if not blockers:
+        for table in ("websim_loot", "websim_encounters", "websim_instances"):
+            conn.execute(f"DELETE FROM {table} WHERE updated_at IS NULL OR updated_at != ?", (now,))
+    counts["fetchFailureCount"] = len(counts["fetchFailures"])
+    counts["blockers"] = blockers
+    counts["truncated"] = bool(blockers)
+    conn.commit()
+    return counts
+
+
+def discovered_item_set_refs(conn):
+    ensure_websim_tables(conn)
+    refs = {}
+    configured_ids = [
+        value.strip()
+        for value in os.environ.get("WOW_WEBSIM_SYNC_ITEM_SET_IDS", "").split(",")
+        if value.strip()
+    ]
+    for set_id in configured_ids:
+        refs.setdefault(set_id, {"id": set_id, "name": ""})
+    rows = conn.execute(
+        """
+        SELECT DISTINCT payload_json
+        FROM websim_items
+        WHERE id IN (
+            SELECT item_id FROM websim_gear_sources
+            UNION
+            SELECT item_id FROM websim_gear_variants
+            UNION
+            SELECT item_id FROM websim_loot
+        )
+        """
+    ).fetchall()
+    for (payload_json,) in rows:
+        payload = safe_json_loads(payload_json, {})
+        ref = item_set_ref_from_payload(payload if isinstance(payload, dict) else {})
+        set_id = str(ref.get("id") or "").strip()
+        if not set_id:
+            continue
+        refs[set_id] = {"id": set_id, "name": ref.get("name") or refs.get(set_id, {}).get("name") or ""}
+    return refs
+
+
+def save_websim_item_set(conn, set_id, payload, season_revision=""):
+    now = utc_now()
+    name = str((payload or {}).get("name") or f"Item Set {set_id}").strip()
+    conn.execute(
+        """
+        INSERT INTO websim_item_sets (id, name, season_revision, source, status, payload_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            name=excluded.name,
+            season_revision=excluded.season_revision,
+            source=excluded.source,
+            status=excluded.status,
+            payload_json=excluded.payload_json,
+            updated_at=excluded.updated_at
+        """,
+        (
+            str(set_id),
+            name,
+            season_revision or "",
+            ITEM_METADATA_SOURCE,
+            "verified",
+            json.dumps(payload or {}, ensure_ascii=False),
+            now,
+        ),
+    )
+    return {"id": str(set_id), "name": name}
+
+
+def upsert_websim_item_set_item(conn, set_id, item, slot=""):
+    now = utc_now()
+    item_id = str(item.get("itemId") or "").strip()
+    if not item_id:
+        return False
+    conn.execute(
+        """
+        INSERT INTO websim_item_set_items (id, set_id, item_id, name, slot, payload_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            set_id=excluded.set_id,
+            item_id=excluded.item_id,
+            name=excluded.name,
+            slot=excluded.slot,
+            payload_json=excluded.payload_json,
+            updated_at=excluded.updated_at
+        """,
+        (
+            f"{set_id}:{item_id}",
+            str(set_id),
+            item_id,
+            str(item.get("name") or f"Item {item_id}")[:220],
+            normalize_slot(slot or item.get("slot")) or "",
+            json.dumps(item.get("payload") or item, ensure_ascii=False),
+            now,
+        ),
+    )
+    return True
+
+
+def item_metadata_needs_fetch(metadata):
+    if not isinstance(metadata, dict) or not metadata:
+        return True
+    payload = metadata.get("payload") if isinstance(metadata.get("payload"), dict) else {}
+    if not item_payload_has_stat_evidence(payload):
+        return True
+    type_metadata = item_type_metadata_from_payload(payload)
+    slot = normalize_slot(metadata.get("slot") or "")
+    if slot in ARMOR_SLOTS and not type_metadata.get("armorType"):
+        return True
+    if slot in WEAPON_SLOTS and not type_metadata.get("weaponType"):
+        return True
+    return False
+
+
+def sync_blizzard_item_sets(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOCALE, season=None):
+    ensure_websim_tables(conn)
+    season = season or get_active_season_payload(conn)
+    season_revision = (season or {}).get("seasonRevision") or (season or {}).get("revision") or ""
+    refs = discovered_item_set_refs(conn)
+    refs_by_name = {
+        normalize_item_set_name_key(ref.get("name")): set_id
+        for set_id, ref in refs.items()
+        if normalize_item_set_name_key(ref.get("name"))
+    }
+    for set_key, set_ref in season_item_set_refs(season).items():
+        set_id = set_ref.get("id") or set_key
+        name_key = normalize_item_set_name_key(set_ref.get("name") or set_key)
+        if not str(set_ref.get("id") or "").strip() and name_key and name_key in refs_by_name:
+            continue
+        refs.setdefault(set_id, {"id": set_id, "name": set_ref.get("name") or ""})
+        if set_ref.get("name") and not refs[set_id].get("name"):
+            refs[set_id]["name"] = set_ref.get("name")
+        if name_key:
+            refs_by_name.setdefault(name_key, set_id)
+    limit = int_env("WOW_WEBSIM_SYNC_ITEM_SET_LIMIT", 20)
+    counts = {
+        "itemSets": 0,
+        "setItems": 0,
+        "itemMetadata": 0,
+        "sources": 0,
+        "variants": 0,
+        "skipped": 0,
+        "errors": [],
+    }
+    conn.execute("DELETE FROM websim_item_sets")
+    conn.execute("DELETE FROM websim_item_set_items")
+    conn.execute("DELETE FROM websim_gear_sources WHERE source_type = 'tier_set' OR id LIKE 'set-%'")
+    conn.execute("DELETE FROM websim_gear_variants WHERE source_type = 'tier_set' OR id LIKE 'set-partial-%'")
+    for set_id, ref in list(refs.items())[:limit]:
+        set_id = str(set_id or "").strip()
+        if not set_id:
+            counts["skipped"] += 1
+            continue
+        if not re.fullmatch(r"\d+", set_id):
+            counts["skipped"] += 1
+            set_name = str((ref or {}).get("name") or set_id).strip() or "unknown"
+            counts["errors"].append(f"item-set {set_name}: missing numeric Battle.net item-set id")
+            continue
+        try:
+            payload = blizzard_get(
+                f"/data/wow/item-set/{set_id}",
+                token,
+                region,
+                locale,
+                namespace=blizzard_namespace(region, "static"),
+            )
+        except Exception as error:
+            counts["errors"].append(f"item-set {set_id}: {error}")
+            continue
+        saved_set = save_websim_item_set(conn, set_id, payload, season_revision)
+        set_name = saved_set.get("name") or ref.get("name") or f"Item Set {set_id}"
+        counts["itemSets"] += 1
+        for set_item in item_set_item_refs_from_payload(payload):
+            item_id = set_item.get("itemId") or ""
+            if not item_id:
+                counts["skipped"] += 1
+                continue
+            metadata = existing_websim_item_metadata(conn, item_id)
+            if item_metadata_needs_fetch(metadata):
+                try:
+                    item_metadata = fetch_blizzard_item_metadata(
+                        token,
+                        item_id,
+                        region,
+                        locale,
+                        fallback_name=set_item.get("name") or "",
+                        fallback_slot=set_item.get("slot") or "",
+                    )
+                    save_websim_item_metadata(
+                        conn,
+                        item_id,
+                        item_metadata.get("payload") or {},
+                        item_metadata.get("media") or {},
+                        fallback_name=item_metadata.get("fallbackName") or set_item.get("name") or "",
+                        english_payload=item_metadata.get("englishPayload") or {},
+                        locale=item_metadata.get("locale") or locale,
+                    )
+                    metadata = existing_websim_item_metadata(conn, item_id)
+                    counts["itemMetadata"] += 1
+                except Exception as error:
+                    counts["errors"].append(f"item {item_id}: {error}")
+                    metadata = ensure_observed_item_metadata(
+                        conn,
+                        {
+                            "itemId": item_id,
+                            "name": set_item.get("name") or f"Item {item_id}",
+                            "slot": set_item.get("slot") or "",
+                            "sourceName": set_name,
+                        },
+                        normalize_slot(set_item.get("slot") or ""),
+                        source="battle_net_item_set",
+                        context_key="websim-item-set-reference",
+                    )
+            slot = normalize_slot((metadata or {}).get("slot") or set_item.get("slot") or "")
+            display_name = (metadata or {}).get("displayName") or set_item.get("name") or f"Item {item_id}"
+            upsert_websim_item_set_item(
+                conn,
+                set_id,
+                {**set_item, "name": display_name},
+                slot,
+            )
+            counts["setItems"] += 1
+            upsert_gear_source(
+                conn,
+                {
+                    "id": f"set-{set_id}-{item_id}",
+                    "itemId": item_id,
+                    "sourceType": "tier_set",
+                    "sourceLabel": set_name,
+                    "seasonRevision": season_revision,
+                    "payload": {"authority": ITEM_METADATA_SOURCE, "setId": str(set_id), "setName": set_name},
+                },
+            )
+            counts["sources"] += 1
+            upsert_gear_variant(
+                conn,
+                {
+                    "id": f"set-partial-{set_id}-{item_id}-{slot or 'slot'}",
+                    "itemId": item_id,
+                    "slot": slot,
+                    "variantKey": "needs-variant",
+                    "label": "套装装等 / 难度待补",
+                    "sourceType": "tier_set",
+                    "difficultyKey": "needs-variant",
+                    "itemLevel": 0,
+                    "simcOptions": {},
+                    "status": "partial",
+                    "blockers": ["missing deterministic SimC variant preset"],
+                    "payload": {"seasonRevision": season_revision, "setId": str(set_id), "setName": set_name},
+                },
+            )
+            counts["variants"] += 1
     conn.commit()
     return counts
 
@@ -3820,6 +4725,7 @@ def existing_websim_item_metadata(conn, item_id):
     item_stats = extract_item_stats_from_payload(payload)
     stat_summary = item_stat_summary(item_stats)
     mod_capabilities = item_mod_capabilities(payload, row[2] or "")
+    type_metadata = item_type_metadata_from_payload(payload)
     game_asset = normalize_game_asset(
         (metadata or {}).get("gameAsset") if isinstance(metadata, dict) else {},
         game_asset_from_icon_url(
@@ -3845,6 +4751,7 @@ def existing_websim_item_metadata(conn, item_id):
         "itemStats": item_stats,
         "statSummary": stat_summary,
         "modCapabilities": mod_capabilities,
+        **type_metadata,
         "metadataStatus": metadata_status,
         "metadataSource": (metadata or {}).get("source") or ITEM_METADATA_SOURCE,
         "metadataLocale": (metadata or {}).get("locale") or DEFAULT_LOCALE,
@@ -4074,6 +4981,97 @@ def sync_blizzard_preset_item_metadata(conn, token, region=DEFAULT_REGION, local
     return counts
 
 
+def observed_item_refs(conn, limit=None):
+    ensure_websim_tables(conn)
+    rows = conn.execute(
+        """
+        WITH refs AS (
+            SELECT item_id
+            FROM websim_gear_sources
+            WHERE source_type = 'observed_profile'
+            UNION
+            SELECT item_id
+            FROM websim_gear_variants
+            WHERE source_type = 'observed_profile'
+        )
+        SELECT refs.item_id, websim_items.name, websim_items.slot
+        FROM refs
+        LEFT JOIN websim_items ON websim_items.id = refs.item_id
+        WHERE refs.item_id IS NOT NULL AND TRIM(refs.item_id) <> ''
+        ORDER BY refs.item_id
+        """
+    ).fetchall()
+    refs = []
+    seen = set()
+    for item_id, name, slot in rows:
+        item_id = normalize_option_value(item_id)
+        if not item_id or item_id in seen:
+            continue
+        seen.add(item_id)
+        refs.append({"itemId": item_id, "name": name or "", "slot": normalize_slot(slot or "")})
+        if limit is not None and len(refs) >= limit:
+            break
+    return refs
+
+
+def sync_blizzard_observed_item_metadata(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOCALE):
+    limit = int_env("WOW_WEBSIM_SYNC_OBSERVED_ITEM_LIMIT", 120)
+    counts = {"items": 0, "aliases": 0, "skipped": 0, "searched": 0, "resolved": 0, "references": 0, "errors": []}
+    for ref in observed_item_refs(conn, limit):
+        item_id = ref["itemId"]
+        existing = existing_websim_item_metadata(conn, item_id)
+        if not item_metadata_needs_fetch(existing):
+            aliases = item_alias_candidates(ref.get("name"), (existing or {}).get("displayName"), (existing or {}).get("englishName"))
+            if aliases:
+                save_item_aliases(
+                    conn,
+                    item_id,
+                    aliases,
+                    (existing or {}).get("displayName") or ref.get("name") or f"Item {item_id}",
+                    (existing or {}).get("iconUrl") or "",
+                    target_locale=(existing or {}).get("metadataLocale") or locale,
+                )
+                counts["aliases"] += len(item_alias_candidates(*aliases))
+            counts["skipped"] += 1
+            continue
+        try:
+            item_metadata = fetch_blizzard_item_metadata(
+                token,
+                item_id,
+                region,
+                locale,
+                fallback_name=ref.get("name") or "",
+                fallback_slot=ref.get("slot") or "",
+            )
+        except Exception as error:
+            counts["errors"].append(f"{item_id}: {error}")
+            continue
+        saved = save_websim_item_metadata(
+            conn,
+            item_id,
+            item_metadata.get("payload") or {},
+            item_metadata.get("media") or {},
+            fallback_slot=item_metadata.get("fallbackSlot") or ref.get("slot") or "",
+            fallback_name=item_metadata.get("fallbackName") or ref.get("name") or "",
+            english_payload=item_metadata.get("englishPayload") or {},
+            locale=item_metadata.get("locale") or locale,
+        )
+        if saved:
+            aliases = item_alias_candidates(ref.get("name"), saved.get("displayName"), saved.get("englishName"))
+            if aliases:
+                save_item_aliases(
+                    conn,
+                    item_id,
+                    aliases,
+                    saved.get("displayName") or ref.get("name") or f"Item {item_id}",
+                    saved.get("iconUrl") or "",
+                    target_locale=saved.get("metadataLocale") or locale,
+                )
+                counts["aliases"] += len(item_alias_candidates(*aliases))
+            counts["items"] += 1
+    return counts
+
+
 def gear_mod_seed():
     seeds = [dict(option) for option in DEFAULT_GEAR_MOD_SEED]
     raw = os.environ.get("WOW_WEBSIM_GEAR_MOD_SEED", "").strip()
@@ -4201,10 +5199,146 @@ def upsert_gear_mod_option(conn, option):
     return True
 
 
+def observed_variant_socket_mod_options(conn):
+    rows = conn.execute(
+        """
+        SELECT item_id, slot, simc_options_json, payload_json
+        FROM websim_gear_variants
+        WHERE status = 'verified'
+        ORDER BY item_id, slot
+        """
+    ).fetchall()
+    options = []
+    seen = set()
+    for item_id, raw_slot, simc_options_json, payload_json in rows:
+        simc_options = safe_json_loads(simc_options_json, {})
+        if not isinstance(simc_options, dict):
+            continue
+        gem_id = normalize_option_value(simc_options.get("gem_id"))
+        if not gem_id:
+            continue
+        slot = normalize_slot(raw_slot)
+        if not slot:
+            continue
+        option_simc = {"gem_id": gem_id}
+        for key in ("gem_bonus_id", "gem_ilevel"):
+            value = normalize_option_value(simc_options.get(key))
+            if value:
+                option_simc[key] = value
+        digest = hashlib.sha1(json.dumps(option_simc, sort_keys=True).encode("utf-8")).hexdigest()[:10]
+        option_id = f"observed-socket-{digest}"
+        if option_id in seen:
+            continue
+        seen.add(option_id)
+        payload = safe_json_loads(payload_json, {})
+        payload = payload if isinstance(payload, dict) else {}
+        options.append(
+            {
+                "id": option_id,
+                "type": "socket",
+                "name": f"Observed gem {gem_id}",
+                "slots": ["*"],
+                "simcOptions": option_simc,
+                "status": "verified",
+                "payload": {
+                    "source": "observed_variant",
+                    "itemId": str(item_id or ""),
+                    "slot": slot,
+                    "variantPayload": payload,
+                },
+            }
+        )
+    return options
+
+
+def observed_mod_option_slots(slot, option_type):
+    slot = normalize_slot(slot)
+    if not slot:
+        return []
+    slots = EQUIVALENT_GEAR_SLOTS.get(slot, [slot])
+    if option_type == "enchant":
+        slots = [item for item in slots if item in ENCHANTABLE_GEAR_SLOTS]
+    return [item for item in CANONICAL_GEAR_SLOTS if item in set(slots)]
+
+
+def observed_variant_enchant_mod_options(conn):
+    rows = conn.execute(
+        """
+        SELECT item_id, slot, simc_options_json, payload_json
+        FROM websim_gear_variants
+        WHERE status = 'verified'
+        ORDER BY item_id, slot
+        """
+    ).fetchall()
+    options = []
+    seen = set()
+    for item_id, raw_slot, simc_options_json, payload_json in rows:
+        simc_options = safe_json_loads(simc_options_json, {})
+        if not isinstance(simc_options, dict):
+            continue
+        enchant_id = normalize_option_value(simc_options.get("enchant_id"))
+        if not enchant_id:
+            continue
+        slots = observed_mod_option_slots(raw_slot, "enchant")
+        if not slots:
+            continue
+        option_simc = {"enchant_id": enchant_id}
+        digest = hashlib.sha1(json.dumps([option_simc, slots], sort_keys=True).encode("utf-8")).hexdigest()[:10]
+        option_id = f"observed-enchant-{digest}"
+        if option_id in seen:
+            continue
+        seen.add(option_id)
+        payload = safe_json_loads(payload_json, {})
+        payload = payload if isinstance(payload, dict) else {}
+        options.append(
+            {
+                "id": option_id,
+                "type": "enchant",
+                "name": f"Observed enchant {enchant_id}",
+                "slots": slots,
+                "simcOptions": option_simc,
+                "status": "verified",
+                "payload": {
+                    "source": "observed_variant",
+                    "itemId": str(item_id or ""),
+                    "slot": normalize_slot(raw_slot),
+                    "variantPayload": payload,
+                },
+            }
+        )
+    return options
+
+
 def observed_gear_spec_entries(raiderio):
     if not isinstance(raiderio, dict):
         return []
     entries = []
+
+    def append_profile_entry(profile):
+        if not isinstance(profile, dict):
+            return
+        class_key = slugify(profile.get("classKey") or profile.get("classSlug") or profile.get("className"), "")
+        spec_key = slugify(profile.get("specKey") or profile.get("specSlug") or profile.get("specName"), "")
+        gear = profile.get("gear") if isinstance(profile.get("gear"), list) else []
+        if not class_key or not spec_key or not gear:
+            return
+        entries.append(
+            (
+                class_key,
+                spec_key,
+                {
+                    **profile,
+                    "characterName": profile.get("characterName") or profile.get("name") or "",
+                    "realmSlug": profile.get("realmSlug") or profile.get("realm") or "",
+                    "profileUrl": profile.get("profileUrl") or profile.get("profile_url") or "",
+                },
+                gear,
+            )
+        )
+
+    for profile in raiderio.get("profiles") or []:
+        append_profile_entry(profile)
+
     for aggregate in raiderio.get("specAggregates") or []:
         if not isinstance(aggregate, dict):
             continue
@@ -4276,6 +5410,40 @@ def observed_id_values(value, keys=None):
     return unique
 
 
+def observed_dict_field_values(value, keys=None):
+    values = []
+
+    def visit(item):
+        if item in (None, ""):
+            return
+        if isinstance(item, list):
+            for nested in item:
+                visit(nested)
+            return
+        if isinstance(item, tuple):
+            for nested in item:
+                visit(nested)
+            return
+        if not isinstance(item, dict):
+            return
+        for key in keys or []:
+            if key in item and item.get(key) not in (None, ""):
+                normalized = normalize_option_value(item.get(key))
+                if normalized:
+                    values.append(normalized)
+                return
+
+    visit(value)
+    unique = []
+    seen = set()
+    for value_text in values:
+        if value_text in seen:
+            continue
+        seen.add(value_text)
+        unique.append(value_text)
+    return unique
+
+
 def observed_gear_simc_options(item):
     if not isinstance(item, dict):
         return {}
@@ -4287,13 +5455,13 @@ def observed_gear_simc_options(item):
     if gem_ids:
         options["gem_id"] = "/".join(gem_ids)
     gem_bonus_ids = [
-        *observed_id_values(item.get("gems"), ["bonusId", "bonus_id", "bonusIds"]),
+        *observed_dict_field_values(item.get("gems"), ["bonusId", "bonus_id", "bonusIds"]),
         *observed_id_values(item.get("gemBonusIds") or item.get("gem_bonus_id"), ["bonusId", "bonus_id", "bonusIds"]),
     ]
     if gem_bonus_ids:
         options["gem_bonus_id"] = "/".join(dict.fromkeys(gem_bonus_ids))
     gem_item_levels = [
-        *observed_id_values(item.get("gems"), ["itemLevel", "item_level", "ilevel"]),
+        *observed_dict_field_values(item.get("gems"), ["itemLevel", "item_level", "ilevel"]),
         *observed_id_values(item.get("gemItemLevels") or item.get("gem_ilevel"), ["itemLevel", "item_level", "ilevel"]),
     ]
     if gem_item_levels:
@@ -4315,7 +5483,7 @@ def observed_item_level(item):
         return 0
 
 
-def ensure_observed_item_metadata(conn, item, slot):
+def ensure_observed_item_metadata(conn, item, slot, source="raiderio_observed_profile", context_key="websim-item-observed-profile"):
     item_id = normalize_option_value(first_matching_value(item, ["itemId", "item_id", "id"]))
     if not item_id:
         return None
@@ -4328,9 +5496,9 @@ def ensure_observed_item_metadata(conn, item, slot):
     item_asset = game_asset_from_icon_url(
         "item",
         item_id,
-        "websim-item-observed-profile",
+        context_key,
         icon_url,
-        source="raiderio_observed_profile",
+        source=source,
         status="source_reference",
         semantic_tags=["game", "gear", "item", slot],
         usage=["websim_gear", "builds_detail"],
@@ -4342,7 +5510,7 @@ def ensure_observed_item_metadata(conn, item, slot):
         "inventory_type": {"type": slot.upper(), "name": slot},
         "quality": {"name": quality},
         "_metadata": {
-            "source": "raiderio_observed_profile",
+            "source": source,
             "metadataStatus": "source_reference",
             "itemId": item_id,
             "locale": DEFAULT_LOCALE,
@@ -4376,11 +5544,45 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None):
     }
     if not entries:
         return counts
+    source_status = str((raiderio or {}).get("sourceStatus") or (raiderio or {}).get("status") or "").strip()
+    if source_status and source_status not in {"verified", "synced"}:
+        counts["skipped"] += sum(1 for _class_key, _spec_key, _aggregate, gear_items in entries for item in gear_items if isinstance(item, dict))
+        counts["sourceStatus"] = source_status
+        return counts
+    existing_verified = conn.execute(
+        """
+        SELECT COUNT(1)
+        FROM websim_gear_variants
+        WHERE source_type = 'observed_profile'
+          AND status = 'verified'
+        """
+    ).fetchone()[0]
+    incoming_verified = 0
+    incoming_items = 0
+    for _class_key, _spec_key, _aggregate, gear_items in entries:
+        for item in gear_items:
+            if not isinstance(item, dict):
+                continue
+            item_id = normalize_option_value(first_matching_value(item, ["itemId", "item_id", "id"]))
+            slot = normalize_slot(first_matching_value(item, ["simcSlot", "slot", "slotKey", "equipmentSlot"]))
+            if not item_id or not slot:
+                continue
+            incoming_items += 1
+            if observed_item_level(item) and observed_gear_simc_options(item):
+                incoming_verified += 1
+    allow_downgrade = os.environ.get("WOW_RAIDERIO_ALLOW_OBSERVED_CACHE_DOWNGRADE", "0").strip().lower() in {"1", "true", "yes", "on"}
+    if existing_verified and incoming_verified < existing_verified and not allow_downgrade:
+        counts["skipped"] += incoming_items
+        counts["sourceStatus"] = source_status or ""
+        counts["preservedVerifiedObservedVariants"] = existing_verified
+        counts["incomingVerifiedObservedVariants"] = incoming_verified
+        return counts
     conn.execute("DELETE FROM websim_gear_sources WHERE source_type = 'observed_profile' OR id LIKE 'observed-%'")
     conn.execute("DELETE FROM websim_gear_variants WHERE source_type = 'observed_profile' OR id LIKE 'observed-%'")
-    source_status = str((raiderio or {}).get("sourceStatus") or (raiderio or {}).get("status") or "").strip()
     checked_at = (raiderio or {}).get("checkedAt") or ""
     season_revision = (season or {}).get("seasonRevision") or (season or {}).get("revision") or ""
+    seen_source_ids = set()
+    seen_variant_ids = set()
     for class_key, spec_key, aggregate, gear_items in entries:
         for item in gear_items:
             if not isinstance(item, dict):
@@ -4431,14 +5633,17 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None):
                     },
                 },
             )
+            is_new_source = source_id not in seen_source_ids
+            seen_source_ids.add(source_id)
             variant_digest = hashlib.sha1(
                 json.dumps([class_key, spec_key, slot, item_id, item_level, simc_options], sort_keys=True).encode("utf-8")
             ).hexdigest()[:10]
             variant_key = f"observed-{item_level or 'unknown'}-{variant_digest}"
+            variant_id = f"observed-{class_key}-{spec_key}-{slot}-{item_id}-{variant_digest}"
             upsert_gear_variant(
                 conn,
                 {
-                    "id": f"observed-{class_key}-{spec_key}-{slot}-{item_id}-{variant_digest}",
+                    "id": variant_id,
                     "itemId": item_id,
                     "slot": slot,
                     "variantKey": variant_key,
@@ -4458,7 +5663,11 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None):
                     },
                 },
             )
-            counts["observedSources"] += 1
+            if is_new_source:
+                counts["observedSources"] += 1
+            if variant_id in seen_variant_ids:
+                continue
+            seen_variant_ids.add(variant_id)
             counts["observedVariants"] += 1
             if status == "verified":
                 counts["verifiedObservedVariants"] += 1
@@ -4469,20 +5678,354 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None):
     return counts
 
 
+def gear_variant_slots_are_compatible(source_slot, observed_slot):
+    source_slot = normalize_slot(source_slot)
+    observed_slot = normalize_slot(observed_slot)
+    if not source_slot or not observed_slot:
+        return False
+    if source_slot == observed_slot:
+        return True
+    if observed_slot in EQUIVALENT_GEAR_SLOTS.get(source_slot, []):
+        return True
+    return source_slot in EQUIVALENT_GEAR_SLOTS.get(observed_slot, [])
+
+
+def gear_variant_slots_are_compatible_for_item(item_payload, source_slot, observed_slot):
+    if gear_variant_slots_are_compatible(source_slot, observed_slot):
+        return True
+    source_slot = normalize_slot(source_slot)
+    observed_slot = normalize_slot(observed_slot)
+    if {source_slot, observed_slot} != {"main_hand", "off_hand"}:
+        return False
+    weapon_type = item_type_metadata_from_payload(item_payload).get("weaponType") or ""
+    return weapon_type in DUAL_WIELDABLE_WEAPON_TYPES
+
+
+def promote_official_gear_variants_from_observed(conn):
+    ensure_websim_tables(conn)
+    partial_rows = conn.execute(
+        """
+        SELECT v.id, v.item_id, v.slot, v.source_type, v.payload_json, wi.payload_json
+        FROM websim_gear_variants v
+        LEFT JOIN websim_items wi
+          ON wi.id = v.item_id
+        WHERE v.status = 'partial'
+          AND v.source_type IN ('dungeon', 'raid', 'tier_set')
+          AND (v.id LIKE 'loot-partial-%' OR v.id LIKE 'set-partial-%')
+        ORDER BY v.item_id, v.slot, v.id
+        """
+    ).fetchall()
+    if not partial_rows:
+        return {"promotedVariants": 0, "removedPartialVariants": 0}
+    target_item_ids = sorted({str(row[1]) for row in partial_rows if str(row[1] or "").strip()})
+    if target_item_ids:
+        placeholders = ",".join("?" for _ in target_item_ids)
+        conn.execute(
+            f"""
+            DELETE FROM websim_gear_variants
+            WHERE item_id IN ({placeholders})
+              AND (id LIKE 'loot-observed-%' OR id LIKE 'set-observed-%')
+            """,
+            target_item_ids,
+        )
+    observed_rows = conn.execute(
+        """
+        SELECT id, item_id, slot, variant_key, label, item_level, simc_options_json, payload_json
+        FROM websim_gear_variants
+        WHERE source_type = 'observed_profile'
+          AND status = 'verified'
+          AND item_level > 0
+        ORDER BY item_id, item_level DESC, id
+        """
+    ).fetchall()
+    observed_by_item = {}
+    for row in observed_rows:
+        simc_options = safe_json_loads(row[6], {})
+        if not isinstance(simc_options, dict) or not simc_options:
+            continue
+        observed_by_item.setdefault(str(row[1]), []).append(
+            {
+                "id": str(row[0]),
+                "itemId": str(row[1]),
+                "slot": normalize_slot(row[2]),
+                "variantKey": str(row[3] or ""),
+                "label": str(row[4] or ""),
+                "itemLevel": int(row[5] or 0),
+                "simcOptions": {
+                    key: normalize_option_value(value)
+                    for key, value in simc_options.items()
+                    if key in SIMC_GEAR_OPTION_KEYS and normalize_option_value(value)
+                },
+                "payload": safe_json_loads(row[7], {}),
+            }
+        )
+
+    promoted = 0
+    removed_partial_ids = []
+    for partial_id, item_id, raw_slot, source_type, payload_json, item_payload_json in partial_rows:
+        item_id = str(item_id)
+        source_type = str(source_type or "")
+        source_slot = normalize_slot(raw_slot)
+        item_payload = safe_json_loads(item_payload_json, {})
+        item_payload = item_payload if isinstance(item_payload, dict) else {}
+        matches = [
+            observed
+            for observed in observed_by_item.get(item_id, [])
+            if gear_variant_slots_are_compatible_for_item(item_payload, source_slot, observed.get("slot"))
+        ]
+        if not matches:
+            continue
+        partial_payload = safe_json_loads(payload_json, {})
+        partial_payload = partial_payload if isinstance(partial_payload, dict) else {}
+        for observed in matches:
+            simc_options = observed.get("simcOptions") or {}
+            if not simc_options:
+                continue
+            observed_payload = observed.get("payload") if isinstance(observed.get("payload"), dict) else {}
+            digest = hashlib.sha1(
+                json.dumps(
+                    [partial_id, observed.get("id"), observed.get("itemLevel"), simc_options],
+                    sort_keys=True,
+                ).encode("utf-8")
+            ).hexdigest()[:10]
+            prefix = "set-observed" if source_type == "tier_set" else "loot-observed"
+            upsert_gear_variant(
+                conn,
+                {
+                    "id": f"{prefix}-{item_id}-{source_slot or observed.get('slot') or 'slot'}-{digest}",
+                    "itemId": item_id,
+                    "slot": source_slot or observed.get("slot") or "",
+                    "variantKey": f"observed-{observed.get('itemLevel') or 'unknown'}-{digest}",
+                    "label": observed.get("label") or f"Observed {observed.get('itemLevel') or 'unknown'}",
+                    "sourceType": source_type,
+                    "difficultyKey": "observed_profile",
+                    "itemLevel": observed.get("itemLevel") or 0,
+                    "simcOptions": simc_options,
+                    "status": "verified",
+                    "blockers": [],
+                    "payload": {
+                        **partial_payload,
+                        "officialVariantSource": source_type,
+                        "observedVariantSource": "observed_profile",
+                        "observedVariantId": observed.get("id") or "",
+                        "observedProfileRefs": observed_payload.get("observedProfileRefs") or [],
+                    },
+                },
+            )
+            promoted += 1
+        removed_partial_ids.append(str(partial_id))
+    if removed_partial_ids:
+        placeholders = ",".join("?" for _ in removed_partial_ids)
+        conn.execute(f"DELETE FROM websim_gear_variants WHERE id IN ({placeholders})", removed_partial_ids)
+    conn.commit()
+    return {"promotedVariants": promoted, "removedPartialVariants": len(removed_partial_ids)}
+
+
+def promote_official_gear_variants_from_battle_net_preview(conn):
+    ensure_websim_tables(conn)
+    conn.execute(
+        """
+        DELETE FROM websim_gear_variants
+        WHERE id LIKE 'loot-preview-%'
+           OR id LIKE 'set-preview-%'
+        """
+    )
+    partial_rows = conn.execute(
+        """
+        SELECT v.id, v.item_id, v.slot, v.source_type, v.payload_json, i.payload_json
+        FROM websim_gear_variants v
+        JOIN websim_items i ON i.id = v.item_id
+        WHERE v.status = 'partial'
+          AND v.source_type IN ('dungeon', 'raid', 'tier_set')
+          AND (v.id LIKE 'loot-partial-%' OR v.id LIKE 'set-partial-%')
+        ORDER BY v.item_id, v.slot, v.id
+        """
+    ).fetchall()
+    promoted = 0
+    removed_partial_ids = []
+    for partial_id, item_id, raw_slot, source_type, partial_payload_json, metadata_payload_json in partial_rows:
+        item_id = str(item_id)
+        source_type = str(source_type or "")
+        source_slot = normalize_slot(raw_slot)
+        metadata_payload = safe_json_loads(metadata_payload_json, {})
+        preview_variant = battle_net_preview_variant_from_metadata(metadata_payload, source_type)
+        if not preview_variant:
+            continue
+        partial_payload = safe_json_loads(partial_payload_json, {})
+        partial_payload = partial_payload if isinstance(partial_payload, dict) else {}
+        simc_options = preview_variant.get("simcOptions") or {}
+        digest = hashlib.sha1(
+            json.dumps(
+                [
+                    partial_id,
+                    item_id,
+                    source_slot,
+                    source_type,
+                    preview_variant.get("itemLevel"),
+                    simc_options,
+                    preview_variant.get("simcIlevelOnly"),
+                ],
+                sort_keys=True,
+            ).encode("utf-8")
+        ).hexdigest()[:10]
+        prefix = "set-preview" if source_type == "tier_set" else "loot-preview"
+        upsert_gear_variant(
+            conn,
+            {
+                "id": f"{prefix}-{item_id}-{source_slot or 'slot'}-{digest}",
+                "itemId": item_id,
+                "slot": source_slot or "",
+                "variantKey": f"battle-net-preview-{preview_variant.get('itemLevel')}-{digest}",
+                "label": f"Battle.net preview {preview_variant.get('itemLevel')}",
+                "sourceType": source_type,
+                "difficultyKey": "battle_net_preview",
+                "itemLevel": preview_variant.get("itemLevel") or 0,
+                "simcOptions": simc_options,
+                "status": "verified",
+                "blockers": [],
+                "payload": {
+                    **partial_payload,
+                    "officialVariantSource": source_type,
+                    "previewVariantSource": "battle_net_preview",
+                    "previewItemLevel": preview_variant.get("itemLevel") or 0,
+                    "previewBonusList": preview_variant.get("bonusIds") or [],
+                    "simcIlevelOnly": bool(preview_variant.get("simcIlevelOnly")),
+                    "metadataSource": ITEM_METADATA_SOURCE,
+                },
+            },
+        )
+        promoted += 1
+        removed_partial_ids.append(str(partial_id))
+    if removed_partial_ids:
+        placeholders = ",".join("?" for _ in removed_partial_ids)
+        conn.execute(f"DELETE FROM websim_gear_variants WHERE id IN ({placeholders})", removed_partial_ids)
+    conn.commit()
+    return {"promotedVariants": promoted, "removedPartialVariants": len(removed_partial_ids)}
+
+
 def sync_websim_gear_mod_options(conn):
-    conn.execute("DELETE FROM websim_gear_mod_options WHERE id LIKE 'seed-%'")
+    conn.execute(
+        """
+        DELETE FROM websim_gear_mod_options
+        WHERE id LIKE 'seed-%'
+           OR id LIKE 'observed-socket-%'
+           OR id LIKE 'observed-enchant-%'
+        """
+    )
     count = 0
-    for option in gear_mod_seed():
+    for option in [
+        *gear_mod_seed(),
+        *observed_variant_socket_mod_options(conn),
+        *observed_variant_enchant_mod_options(conn),
+    ]:
         if isinstance(option, dict) and upsert_gear_mod_option(conn, option):
             count += 1
     return count
+
+
+def gem_item_ids_from_simc_options(simc_options):
+    if not isinstance(simc_options, dict):
+        return []
+    raw_gem_ids = normalize_option_value(simc_options.get("gem_id"))
+    if not raw_gem_ids:
+        return []
+    result = []
+    for value in raw_gem_ids.split("/"):
+        value = value.strip()
+        if value and re.fullmatch(r"\d+", value) and value not in result:
+            result.append(value)
+    return result
+
+
+def sync_blizzard_gear_mod_option_metadata(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOCALE):
+    ensure_websim_tables(conn)
+    rows = conn.execute(
+        """
+        SELECT id, name, simc_options_json, payload_json
+        FROM websim_gear_mod_options
+        WHERE option_type = 'socket'
+        ORDER BY id
+        """
+    ).fetchall()
+    counts = {"items": 0, "skipped": 0, "options": 0, "errors": []}
+    metadata_cache = {}
+    for option_id, option_name, simc_options_json, payload_json in rows:
+        simc_options = safe_json_loads(simc_options_json, {})
+        gem_item_ids = gem_item_ids_from_simc_options(simc_options)
+        if not gem_item_ids:
+            continue
+        gem_id = gem_item_ids[0]
+        saved = metadata_cache.get(gem_id)
+        if not saved:
+            existing = existing_websim_item_metadata(conn, gem_id)
+            if websim_item_metadata_is_complete(existing):
+                saved = existing
+                counts["skipped"] += 1
+            else:
+                try:
+                    item_metadata = fetch_blizzard_item_metadata(
+                        token,
+                        gem_id,
+                        region,
+                        locale,
+                        fallback_name=option_name or f"Gem {gem_id}",
+                    )
+                    saved = save_websim_item_metadata(
+                        conn,
+                        gem_id,
+                        item_metadata.get("payload") or {},
+                        item_metadata.get("media") or {},
+                        fallback_name=item_metadata.get("fallbackName") or option_name or f"Gem {gem_id}",
+                        english_payload=item_metadata.get("englishPayload") or {},
+                        locale=item_metadata.get("locale") or locale,
+                    )
+                    if saved:
+                        counts["items"] += 1
+                except Exception as error:
+                    counts["errors"].append(f"{gem_id}: {error}")
+                    continue
+            if not saved:
+                counts["errors"].append(f"{gem_id}: Battle.net item metadata unavailable")
+                continue
+            metadata_cache[gem_id] = saved
+
+        payload = safe_json_loads(payload_json, {})
+        payload = payload if isinstance(payload, dict) else {}
+        enriched_payload = dict(payload)
+        enriched_payload.update(
+            {
+                "gemItemId": gem_id,
+                "gemItemIds": gem_item_ids,
+                "displayName": saved.get("displayName") or option_name or f"Gem {gem_id}",
+                "iconUrl": saved.get("iconUrl") or "",
+                "quality": saved.get("quality") or "",
+                "gameAsset": saved.get("gameAsset") or {},
+                "metadataStatus": saved.get("metadataStatus") or "verified",
+                "metadataSource": saved.get("metadataSource") or ITEM_METADATA_SOURCE,
+                "metadataLocale": saved.get("metadataLocale") or locale,
+            }
+        )
+        conn.execute(
+            """
+            UPDATE websim_gear_mod_options
+            SET name = ?, payload_json = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                str(enriched_payload["displayName"])[:160],
+                json.dumps(enriched_payload, ensure_ascii=False),
+                utc_now(),
+                option_id,
+            ),
+        )
+        counts["options"] += 1
+    return counts
 
 
 def sync_websim_gear_catalog(conn, season=None):
     ensure_websim_tables(conn)
     season = season or get_active_season_payload(conn)
     season_revision = season.get("seasonRevision") or season.get("revision") or ""
-    sync_websim_gear_mod_options(conn)
     conn.execute("DELETE FROM websim_gear_sources WHERE id LIKE 'loot-%' OR id LIKE 'crafted-%'")
     conn.execute("DELETE FROM websim_gear_variants WHERE id LIKE 'loot-partial-%' OR id LIKE 'crafted-%'")
     rows = conn.execute(
@@ -4545,6 +6088,9 @@ def sync_websim_gear_catalog(conn, season=None):
         observed_counts = sync_observed_gear_variants(conn, get_raiderio_payload(conn, allow_sync=False), season)
     except Exception as error:
         observed_counts["errors"] = [str(error)]
+    observed_counts["officialVariantPromotion"] = promote_official_gear_variants_from_observed(conn)
+    observed_counts["battleNetPreviewVariantPromotion"] = promote_official_gear_variants_from_battle_net_preview(conn)
+    observed_counts["modOptions"] = sync_websim_gear_mod_options(conn)
     state = build_gear_catalog_sync_state(conn, season)
     state["observedSync"] = observed_counts
     set_sync_state(conn, "gearCatalog", state)
@@ -4562,6 +6108,16 @@ def gear_catalog_refresh_reason(state):
         return "missing-gear-sources"
     if not int(state.get("variantCount") or 0):
         return "missing-gear-variants"
+    data_readiness = state.get("dataReadiness") if isinstance(state.get("dataReadiness"), dict) else {}
+    data_status = str(data_readiness.get("status") or "").strip()
+    if data_status:
+        if data_status != "verified":
+            return f"{data_status}-gear-data"
+        for key in ("metadataStatus", "sourceStatus", "modOptionStatus"):
+            substatus = str(data_readiness.get(key) or "").strip()
+            if substatus and substatus != "verified":
+                return f"{substatus}-{key}"
+        return ""
     status = str(state.get("status") or "").strip()
     if status in {"partial", "blocked", "stale", "missing_credentials"}:
         return f"{status}-gear-catalog"
@@ -4570,13 +6126,27 @@ def gear_catalog_refresh_reason(state):
     return ""
 
 
-def sync_websim_cache(db_path, include_blizzard=True):
+def sync_websim_cache(db_path, include_blizzard=True, stage_callback=None):
     conn = sqlite3.connect(db_path, timeout=30, isolation_level=None)
+    stages = []
     try:
         conn.execute("PRAGMA busy_timeout = 30000")
         conn.execute("PRAGMA journal_mode = WAL")
         ensure_websim_tables(conn)
+        simc_stage_started = emit_sync_stage(stages, stage_callback, "simc", "start")
         simc_counts = sync_simc_generated_data(conn)
+        emit_sync_stage(
+            stages,
+            stage_callback,
+            "simc",
+            "complete",
+            simc_stage_started,
+            {
+                "talents": simc_counts.get("talents") or 0,
+                "profiles": simc_counts.get("profiles") or 0,
+                "build": simc_counts.get("build") or "",
+            },
+        )
         conn.commit()
         simc_season = get_active_season_payload(conn)
         initial_gear_catalog = build_gear_catalog_sync_state(conn, simc_season)
@@ -4600,6 +6170,15 @@ def sync_websim_cache(db_path, include_blizzard=True):
                 "locale": DEFAULT_LOCALE,
                 "simc": simc_counts,
                 "blizzard": {"instances": 0, "encounters": 0, "loot": 0, "items": 0},
+                "itemSets": {
+                    "itemSets": 0,
+                    "setItems": 0,
+                    "itemMetadata": 0,
+                    "sources": 0,
+                    "variants": 0,
+                    "skipped": 0,
+                    "errors": [],
+                },
                 "itemMetadata": {
                     "items": 0,
                     "aliases": 0,
@@ -4609,6 +6188,7 @@ def sync_websim_cache(db_path, include_blizzard=True):
                     "references": 0,
                     "errors": [],
                 },
+                "gearModOptions": {"items": 0, "skipped": 0, "options": 0, "errors": []},
                 "spells": {"spells": 0, "media": 0},
                 "gearCatalog": initial_gear_catalog,
                 "currentSeason": simc_season,
@@ -4616,11 +6196,21 @@ def sync_websim_cache(db_path, include_blizzard=True):
                 "seasonRevision": simc_season.get("seasonRevision") or "",
                 "talentSchemaRevision": TALENT_SCHEMA_REVISION,
                 "talentHealth": simc_talent_health,
+                "stages": list(stages),
                 "errors": [],
             },
         )
         conn.commit()
         blizzard_counts = {"instances": 0, "encounters": 0, "loot": 0, "items": 0}
+        item_set_counts = {
+            "itemSets": 0,
+            "setItems": 0,
+            "itemMetadata": 0,
+            "sources": 0,
+            "variants": 0,
+            "skipped": 0,
+            "errors": [],
+        }
         item_metadata_counts = {
             "items": 0,
             "aliases": 0,
@@ -4630,10 +6220,13 @@ def sync_websim_cache(db_path, include_blizzard=True):
             "references": 0,
             "errors": [],
         }
+        gear_mod_option_counts = {"items": 0, "skipped": 0, "options": 0, "errors": []}
         spell_counts = {"spells": 0, "media": 0}
         errors = []
         blizzard_skipped = ""
+        blizzard_token = ""
         if include_blizzard:
+            blizzard_stage_started = emit_sync_stage(stages, stage_callback, "blizzard", "start")
             refresh_always = os.environ.get("WOW_WEBSIM_REFRESH_BLIZZARD_ALWAYS", "0").strip() == "1"
             gear_refresh_reason = gear_catalog_refresh_reason(initial_gear_catalog)
             if simc_season.get("dataStatus") == "verified" and not refresh_always and not gear_refresh_reason:
@@ -4644,25 +6237,320 @@ def sync_websim_cache(db_path, include_blizzard=True):
                 ):
                     try:
                         token = get_blizzard_access_token(DEFAULT_REGION)
+                        blizzard_token = token
+                        preset_metadata_stage_started = emit_sync_stage(
+                            stages,
+                            stage_callback,
+                            "blizzard_preset_item_metadata",
+                            "start",
+                        )
+                        preset_metadata_counts = sync_blizzard_preset_item_metadata(
+                            conn,
+                            token,
+                            DEFAULT_REGION,
+                            DEFAULT_LOCALE,
+                        )
+                        emit_sync_stage(
+                            stages,
+                            stage_callback,
+                            "blizzard_preset_item_metadata",
+                            "complete",
+                            preset_metadata_stage_started,
+                            {
+                                "items": preset_metadata_counts.get("items") or 0,
+                                "aliases": preset_metadata_counts.get("aliases") or 0,
+                                "skipped": preset_metadata_counts.get("skipped") or 0,
+                                "errors": len(preset_metadata_counts.get("errors") or []),
+                            },
+                        )
+                        build_metadata_stage_started = emit_sync_stage(
+                            stages,
+                            stage_callback,
+                            "blizzard_build_gear_item_metadata",
+                            "start",
+                        )
+                        build_metadata_counts = sync_blizzard_build_gear_item_metadata(
+                            conn,
+                            token,
+                            DEFAULT_REGION,
+                            DEFAULT_LOCALE,
+                        )
+                        emit_sync_stage(
+                            stages,
+                            stage_callback,
+                            "blizzard_build_gear_item_metadata",
+                            "complete",
+                            build_metadata_stage_started,
+                            {
+                                "items": build_metadata_counts.get("items") or 0,
+                                "searched": build_metadata_counts.get("searched") or 0,
+                                "resolved": build_metadata_counts.get("resolved") or 0,
+                                "skipped": build_metadata_counts.get("skipped") or 0,
+                                "errors": len(build_metadata_counts.get("errors") or []),
+                            },
+                        )
+                        observed_metadata_stage_started = emit_sync_stage(
+                            stages,
+                            stage_callback,
+                            "blizzard_observed_item_metadata",
+                            "start",
+                        )
+                        observed_metadata_counts = sync_blizzard_observed_item_metadata(
+                            conn,
+                            token,
+                            DEFAULT_REGION,
+                            DEFAULT_LOCALE,
+                        )
+                        emit_sync_stage(
+                            stages,
+                            stage_callback,
+                            "blizzard_observed_item_metadata",
+                            "complete",
+                            observed_metadata_stage_started,
+                            {
+                                "items": observed_metadata_counts.get("items") or 0,
+                                "skipped": observed_metadata_counts.get("skipped") or 0,
+                                "errors": len(observed_metadata_counts.get("errors") or []),
+                            },
+                        )
                         item_metadata_counts = merge_item_metadata_counts(
-                            sync_blizzard_preset_item_metadata(conn, token, DEFAULT_REGION, DEFAULT_LOCALE),
-                            sync_blizzard_build_gear_item_metadata(conn, token, DEFAULT_REGION, DEFAULT_LOCALE),
+                            preset_metadata_counts,
+                            build_metadata_counts,
+                            observed_metadata_counts,
                         )
                     except Exception as error:
                         item_metadata_counts["errors"].append(str(error))
             else:
                 try:
                     token = get_blizzard_access_token(DEFAULT_REGION)
+                    blizzard_token = token
+                    journal_stage_started = emit_sync_stage(stages, stage_callback, "blizzard_journal", "start")
                     blizzard_counts = sync_blizzard_journal(conn, token, DEFAULT_REGION, DEFAULT_LOCALE)
-                    item_metadata_counts = merge_item_metadata_counts(
-                        sync_blizzard_preset_item_metadata(conn, token, DEFAULT_REGION, DEFAULT_LOCALE),
-                        sync_blizzard_build_gear_item_metadata(conn, token, DEFAULT_REGION, DEFAULT_LOCALE),
+                    emit_sync_stage(
+                        stages,
+                        stage_callback,
+                        "blizzard_journal",
+                        "complete",
+                        journal_stage_started,
+                        {
+                            "instances": blizzard_counts.get("instances") or 0,
+                            "encounters": blizzard_counts.get("encounters") or 0,
+                            "loot": blizzard_counts.get("loot") or 0,
+                            "items": blizzard_counts.get("items") or 0,
+                            "blockers": len(blizzard_counts.get("blockers") or []),
+                            "truncated": bool(blizzard_counts.get("truncated")),
+                        },
                     )
+                    errors.extend(blizzard_counts.get("blockers") or [])
+                    item_sets_stage_started = emit_sync_stage(stages, stage_callback, "blizzard_item_sets", "start")
+                    item_set_counts = sync_blizzard_item_sets(
+                        conn,
+                        token,
+                        DEFAULT_REGION,
+                        DEFAULT_LOCALE,
+                        get_active_season_payload(conn),
+                    )
+                    emit_sync_stage(
+                        stages,
+                        stage_callback,
+                        "blizzard_item_sets",
+                        "complete",
+                        item_sets_stage_started,
+                        {
+                            "itemSets": item_set_counts.get("itemSets") or 0,
+                            "setItems": item_set_counts.get("setItems") or 0,
+                            "itemMetadata": item_set_counts.get("itemMetadata") or 0,
+                            "sources": item_set_counts.get("sources") or 0,
+                            "variants": item_set_counts.get("variants") or 0,
+                            "skipped": item_set_counts.get("skipped") or 0,
+                            "errors": len(item_set_counts.get("errors") or []),
+                        },
+                    )
+                    errors.extend(item_set_counts.get("errors") or [])
+                    preset_metadata_stage_started = emit_sync_stage(
+                        stages,
+                        stage_callback,
+                        "blizzard_preset_item_metadata",
+                        "start",
+                    )
+                    preset_metadata_counts = sync_blizzard_preset_item_metadata(
+                        conn,
+                        token,
+                        DEFAULT_REGION,
+                        DEFAULT_LOCALE,
+                    )
+                    emit_sync_stage(
+                        stages,
+                        stage_callback,
+                        "blizzard_preset_item_metadata",
+                        "complete",
+                        preset_metadata_stage_started,
+                        {
+                            "items": preset_metadata_counts.get("items") or 0,
+                            "aliases": preset_metadata_counts.get("aliases") or 0,
+                            "skipped": preset_metadata_counts.get("skipped") or 0,
+                            "errors": len(preset_metadata_counts.get("errors") or []),
+                        },
+                    )
+                    build_metadata_stage_started = emit_sync_stage(
+                        stages,
+                        stage_callback,
+                        "blizzard_build_gear_item_metadata",
+                        "start",
+                    )
+                    build_metadata_counts = sync_blizzard_build_gear_item_metadata(
+                        conn,
+                        token,
+                        DEFAULT_REGION,
+                        DEFAULT_LOCALE,
+                    )
+                    emit_sync_stage(
+                        stages,
+                        stage_callback,
+                        "blizzard_build_gear_item_metadata",
+                        "complete",
+                        build_metadata_stage_started,
+                        {
+                            "items": build_metadata_counts.get("items") or 0,
+                            "searched": build_metadata_counts.get("searched") or 0,
+                            "resolved": build_metadata_counts.get("resolved") or 0,
+                            "skipped": build_metadata_counts.get("skipped") or 0,
+                            "errors": len(build_metadata_counts.get("errors") or []),
+                        },
+                    )
+                    item_metadata_counts = merge_item_metadata_counts(
+                        preset_metadata_counts,
+                        build_metadata_counts,
+                    )
+                    spell_stage_started = emit_sync_stage(stages, stage_callback, "blizzard_spell_details", "start")
                     spell_counts = sync_blizzard_spell_details(conn, token, DEFAULT_REGION, DEFAULT_LOCALE)
+                    emit_sync_stage(
+                        stages,
+                        stage_callback,
+                        "blizzard_spell_details",
+                        "complete",
+                        spell_stage_started,
+                        {
+                            "spells": spell_counts.get("spells") or 0,
+                            "media": spell_counts.get("media") or 0,
+                            "skipped": spell_counts.get("skipped") or 0,
+                        },
+                    )
                 except Exception as error:
                     errors.append(str(error))
+            emit_sync_stage(
+                stages,
+                stage_callback,
+                "blizzard",
+                "complete",
+                blizzard_stage_started,
+                {
+                    "skipped": blizzard_skipped,
+                    "errors": len(errors),
+                    "loot": blizzard_counts.get("loot") or 0,
+                    "items": blizzard_counts.get("items") or 0,
+                    "itemSets": item_set_counts.get("itemSets") or 0,
+                },
+            )
         active_season = get_active_season_payload(conn)
+        gear_stage_started = emit_sync_stage(stages, stage_callback, "gear_catalog", "start")
         gear_catalog_state = sync_websim_gear_catalog(conn, active_season)
+        emit_sync_stage(
+            stages,
+            stage_callback,
+            "gear_catalog",
+            "complete",
+            gear_stage_started,
+            {
+                "gearCatalogStatus": gear_catalog_state.get("status") or "",
+                "itemCount": gear_catalog_state.get("itemCount") or 0,
+                "sourceCount": gear_catalog_state.get("sourceCount") or 0,
+                "variantCount": gear_catalog_state.get("variantCount") or 0,
+                "verifiedCount": gear_catalog_state.get("verifiedCount") or 0,
+                "partialCount": gear_catalog_state.get("partialCount") or 0,
+            },
+        )
+        if include_blizzard and blizzard_token:
+            try:
+                observed_metadata_stage_started = emit_sync_stage(
+                    stages,
+                    stage_callback,
+                    "observed_item_metadata",
+                    "start",
+                )
+                observed_item_metadata_counts = sync_blizzard_observed_item_metadata(
+                    conn,
+                    blizzard_token,
+                    DEFAULT_REGION,
+                    DEFAULT_LOCALE,
+                )
+                emit_sync_stage(
+                    stages,
+                    stage_callback,
+                    "observed_item_metadata",
+                    "complete",
+                    observed_metadata_stage_started,
+                    {
+                        "items": observed_item_metadata_counts.get("items") or 0,
+                        "skipped": observed_item_metadata_counts.get("skipped") or 0,
+                        "errors": len(observed_item_metadata_counts.get("errors") or []),
+                    },
+                )
+                item_metadata_counts = merge_item_metadata_counts(item_metadata_counts, observed_item_metadata_counts)
+                errors.extend(observed_item_metadata_counts.get("errors") or [])
+            except Exception as error:
+                message = str(error)
+                item_metadata_counts["errors"].append(message)
+                errors.append(message)
+            try:
+                gear_mod_stage_started = emit_sync_stage(
+                    stages,
+                    stage_callback,
+                    "gear_mod_option_metadata",
+                    "start",
+                )
+                gear_mod_option_counts = sync_blizzard_gear_mod_option_metadata(
+                    conn,
+                    blizzard_token,
+                    DEFAULT_REGION,
+                    DEFAULT_LOCALE,
+                )
+                emit_sync_stage(
+                    stages,
+                    stage_callback,
+                    "gear_mod_option_metadata",
+                    "complete",
+                    gear_mod_stage_started,
+                    {
+                        "items": gear_mod_option_counts.get("items") or 0,
+                        "options": gear_mod_option_counts.get("options") or 0,
+                        "skipped": gear_mod_option_counts.get("skipped") or 0,
+                        "errors": len(gear_mod_option_counts.get("errors") or []),
+                    },
+                )
+                errors.extend(gear_mod_option_counts.get("errors") or [])
+            except Exception as error:
+                message = str(error)
+                gear_mod_option_counts["errors"].append(message)
+                errors.append(message)
+            observed_sync = gear_catalog_state.get("observedSync") if isinstance(gear_catalog_state, dict) else {}
+            gear_catalog_state = build_gear_catalog_sync_state(conn, active_season)
+            if observed_sync:
+                gear_catalog_state["observedSync"] = observed_sync
+            set_sync_state(conn, "gearCatalog", gear_catalog_state)
+        gear_catalog_status = str((gear_catalog_state or {}).get("status") or "").strip()
+        gear_catalog_blockers = [
+            str(blocker or "").strip()
+            for blocker in ((gear_catalog_state or {}).get("blockers") or [])
+            if str(blocker or "").strip()
+        ]
+        if gear_catalog_status != "verified":
+            if gear_catalog_blockers:
+                errors = unique_text_list([*errors, *gear_catalog_blockers])
+            else:
+                errors = unique_text_list([*errors, f"gear catalog status is {gear_catalog_status or 'unknown'}"])
+        else:
+            errors = unique_text_list(errors)
         talent_health = {
             "schemaRevision": TALENT_SCHEMA_REVISION,
             "simcBuild": simc_counts.get("build") or "",
@@ -4672,13 +6560,15 @@ def sync_websim_cache(db_path, include_blizzard=True):
             "checkedAt": utc_now(),
         }
         payload = {
-            "ok": not errors and active_season.get("dataStatus") == "verified",
+            "ok": not errors and active_season.get("dataStatus") == "verified" and gear_catalog_status == "verified",
             "checkedAt": utc_now(),
             "region": DEFAULT_REGION,
             "locale": DEFAULT_LOCALE,
             "simc": simc_counts,
             "blizzard": blizzard_counts,
+            "itemSets": item_set_counts,
             "itemMetadata": item_metadata_counts,
+            "gearModOptions": gear_mod_option_counts,
             "spells": spell_counts,
             "gearCatalog": gear_catalog_state,
             "currentSeason": active_season,
@@ -4686,10 +6576,20 @@ def sync_websim_cache(db_path, include_blizzard=True):
             "seasonRevision": active_season.get("seasonRevision") or "",
             "talentSchemaRevision": TALENT_SCHEMA_REVISION,
             "talentHealth": talent_health,
+            "stages": stages,
             "errors": errors,
         }
         if blizzard_skipped:
             payload["blizzardSkipped"] = blizzard_skipped
+        emit_sync_stage(
+            stages,
+            stage_callback,
+            "websim_sync",
+            "complete",
+            None,
+            {"ok": payload["ok"], "errors": len(errors), "gearCatalogStatus": gear_catalog_status},
+        )
+        payload["stages"] = stages
         set_sync_state(conn, "websim_sync", payload)
         conn.commit()
         return payload
@@ -6576,6 +8476,7 @@ def websim_item_metadata_by_aliases(conn, aliases):
         item_stats = extract_item_stats_from_payload(payload)
         stat_summary = item_stat_summary(item_stats)
         mod_capabilities = item_mod_capabilities(payload, row[6] or "")
+        type_metadata = item_type_metadata_from_payload(payload)
         game_asset = normalize_game_asset(
             (metadata or {}).get("gameAsset") if isinstance(metadata, dict) else {},
             game_asset_from_icon_url(
@@ -6601,6 +8502,7 @@ def websim_item_metadata_by_aliases(conn, aliases):
             "itemStats": item_stats,
             "statSummary": stat_summary,
             "modCapabilities": mod_capabilities,
+            **type_metadata,
             "metadataStatus": metadata_status,
             "metadataSource": row[4] or ITEM_METADATA_SOURCE,
             "metadataLocale": row[5] or (metadata or {}).get("locale") or DEFAULT_LOCALE,
@@ -6662,12 +8564,17 @@ def apply_item_metadata(item, metadata=None):
         enriched["metadataStatus"] = metadata_status
         enriched["metadataSource"] = metadata.get("metadataSource") or ITEM_METADATA_SOURCE
         enriched["metadataLocale"] = metadata.get("metadataLocale") or DEFAULT_LOCALE
+        if isinstance(metadata.get("payload"), dict):
+            enriched["payload"] = metadata.get("payload")
         if metadata.get("itemStats"):
             enriched["itemStats"] = metadata.get("itemStats")
             enriched["stats"] = metadata.get("itemStats")
             enriched["statSummary"] = metadata.get("statSummary") or item_stat_summary(metadata.get("itemStats"))
         if metadata.get("modCapabilities"):
             enriched["modCapabilities"] = metadata.get("modCapabilities")
+        for key in ("armorType", "weaponType", "itemSetName", "supportsSocket"):
+            if metadata.get(key) not in (None, "", []):
+                enriched[key] = metadata.get(key)
         if metadata.get("englishName"):
             enriched["englishName"] = metadata.get("englishName")
         return enriched
@@ -6873,6 +8780,24 @@ def gear_catalog_source_coverage(conn):
     return {str(source_type or "unknown"): int(count or 0) for source_type, count in rows}
 
 
+def gear_catalog_slot_matches_item_metadata(payload, expected_slot, catalog_slot):
+    expected_slot = normalize_slot(expected_slot)
+    catalog_slot = normalize_slot(catalog_slot)
+    if not expected_slot or not catalog_slot:
+        return True
+    if catalog_slot == expected_slot:
+        return True
+    if catalog_slot in EQUIVALENT_GEAR_SLOTS.get(expected_slot, []):
+        return True
+    inventory_type = (payload or {}).get("inventory_type") if isinstance(payload, dict) else {}
+    inventory_type = inventory_type if isinstance(inventory_type, dict) else {}
+    type_key = re.sub(r"[^a-z0-9_]+", "_", str(inventory_type.get("type") or "").lower()).strip("_")
+    type_key = re.sub(r"^invtype_", "", type_key)
+    if type_key == "weapon" and {expected_slot, catalog_slot} <= {"main_hand", "off_hand"}:
+        return True
+    return False
+
+
 def gear_mod_option_is_visible(option_id="", option_name="", payload=None):
     option_id = str(option_id or "").strip()
     option_name = str(option_name or "").strip()
@@ -6889,7 +8814,7 @@ def gear_mod_option_is_visible(option_id="", option_name="", payload=None):
 def gear_catalog_mod_option_coverage(conn):
     rows = conn.execute(
         """
-        SELECT id, option_type, name, applicable_slots_json, payload_json
+        SELECT id, option_type, name, applicable_slots_json, simc_options_json, payload_json
         FROM websim_gear_mod_options
         WHERE option_type IN ('socket', 'enchant')
         """
@@ -6899,7 +8824,9 @@ def gear_catalog_mod_option_coverage(conn):
         "enchant": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
     }
     slots_by_type = {"socket": set(), "enchant": set()}
-    for option_id, option_type, option_name, slots_json, payload_json in rows:
+    missing_socket_metadata = []
+    invalid_socket_gem_metadata = []
+    for option_id, option_type, option_name, slots_json, simc_options_json, payload_json in rows:
         payload = safe_json_loads(payload_json, {})
         if not gear_mod_option_is_visible(option_id, option_name, payload):
             continue
@@ -6907,6 +8834,41 @@ def gear_catalog_mod_option_coverage(conn):
         if option_key not in coverage:
             continue
         coverage[option_key]["optionCount"] += 1
+        if option_key == "socket":
+            simc_options = safe_json_loads(simc_options_json, {})
+            gem_item_ids = gem_item_ids_from_simc_options(simc_options)
+            gem_item_id = payload.get("gemItemId") or (gem_item_ids[0] if gem_item_ids else "")
+            gem_metadata = existing_websim_item_metadata(conn, gem_item_id) if gem_item_id else None
+            gem_metadata_payload = (gem_metadata or {}).get("payload") if isinstance(gem_metadata, dict) else {}
+            gem_metadata_payload = gem_metadata_payload if isinstance(gem_metadata_payload, dict) else {}
+            has_verified_metadata = bool(
+                str(gem_item_id or "").strip()
+                and str(payload.get("iconUrl") or "").strip()
+                and str(payload.get("metadataStatus") or "") == "verified"
+                and gem_metadata
+                and str(gem_metadata.get("iconUrl") or "").strip()
+                and str(gem_metadata.get("metadataStatus") or "") == "verified"
+                and str(gem_metadata.get("metadataSource") or "") == ITEM_METADATA_SOURCE
+            )
+            if gem_item_ids and not has_verified_metadata:
+                missing_socket_metadata.append(
+                    {
+                        "optionId": option_id,
+                        "name": option_name,
+                        "gemItemId": str(gem_item_id or gem_item_ids[0]),
+                    }
+                )
+            elif gem_item_ids:
+                item_class = gem_metadata_payload.get("item_class") if isinstance(gem_metadata_payload.get("item_class"), dict) else {}
+                if not payload_item_class_is_gem(item_class):
+                    invalid_socket_gem_metadata.append(
+                        {
+                            "optionId": option_id,
+                            "name": option_name,
+                            "gemItemId": str(gem_item_id or gem_item_ids[0]),
+                            "itemClass": payload_item_class_display_name(item_class) or "unknown",
+                        }
+                    )
         slots = safe_json_loads(slots_json, [])
         if not isinstance(slots, list):
             slots = []
@@ -6921,7 +8883,722 @@ def gear_catalog_mod_option_coverage(conn):
         ordered_slots = [slot for slot in CANONICAL_GEAR_SLOTS if slot in slots]
         coverage[option_key]["coveredSlotCount"] = len(ordered_slots)
         coverage[option_key]["coveredSlots"] = ordered_slots
+    if missing_socket_metadata:
+        coverage["socket"]["missingMetadataCount"] = len(missing_socket_metadata)
+        coverage["socket"]["missingMetadataExamples"] = missing_socket_metadata[:5]
+    if invalid_socket_gem_metadata:
+        coverage["socket"]["invalidGemMetadataCount"] = len(invalid_socket_gem_metadata)
+        coverage["socket"]["invalidGemMetadataExamples"] = invalid_socket_gem_metadata[:5]
     return coverage
+
+
+def gear_catalog_item_metadata_audit(conn):
+    ensure_websim_tables(conn)
+    rows = conn.execute(
+        """
+        WITH catalog_item_ids AS (
+            SELECT item_id AS id FROM websim_gear_sources
+            UNION
+            SELECT item_id AS id FROM websim_gear_variants
+            UNION
+            SELECT item_id AS id FROM websim_loot
+        )
+        SELECT DISTINCT catalog_item_ids.id, wi.name, wi.slot, wi.payload_json
+        FROM catalog_item_ids
+        LEFT JOIN websim_items wi ON wi.id = catalog_item_ids.id
+        WHERE catalog_item_ids.id IS NOT NULL AND catalog_item_ids.id != ''
+        ORDER BY catalog_item_ids.id
+        """
+    ).fetchall()
+    variant_rows = conn.execute(
+        """
+        SELECT item_id, slot, simc_options_json
+        FROM websim_gear_variants
+        """
+    ).fetchall()
+    variant_slots_by_item = {}
+    catalog_slots_by_item = {}
+    catalog_slot_sources_by_item = {}
+    socketed_variant_items = set()
+
+    def add_catalog_slot(item_id, raw_slot, source):
+        item_key = str(item_id or "")
+        slot = normalize_slot(raw_slot)
+        if not item_key or not slot:
+            return
+        catalog_slots_by_item.setdefault(item_key, set()).add(slot)
+        catalog_slot_sources_by_item.setdefault(item_key, {}).setdefault(slot, set()).add(source)
+
+    for item_id, raw_slot, simc_options_json in variant_rows:
+        item_key = str(item_id)
+        slot = normalize_slot(raw_slot)
+        if slot:
+            variant_slots_by_item.setdefault(item_key, set()).add(slot)
+            add_catalog_slot(item_key, slot, "variant")
+        simc_options = safe_json_loads(simc_options_json, {})
+        if isinstance(simc_options, dict) and (simc_options.get("gem_id") or simc_options.get("gem_bonus_id")):
+            socketed_variant_items.add(item_key)
+    loot_rows = conn.execute(
+        """
+        SELECT item_id, slot
+        FROM websim_loot
+        """
+    ).fetchall()
+    for item_id, raw_slot in loot_rows:
+        add_catalog_slot(item_id, raw_slot, "loot")
+
+    item_count = len(rows)
+    verified_item_count = 0
+    missing_verified_item_count = 0
+    stat_item_count = 0
+    missing_stat_item_count = 0
+    missing_armor_type_item_count = 0
+    missing_weapon_type_item_count = 0
+    stat_mismatch_count = 0
+    set_item_count = 0
+    socket_capable_item_count = 0
+    slot_mismatch_count = 0
+    armor_type_coverage = {}
+    weapon_type_coverage = {}
+    source_coverage = {}
+    missing_examples = []
+    stat_mismatch_examples = []
+    slot_mismatch_examples = []
+
+    for item_id, name, raw_slot, payload_json in rows:
+        item_key = str(item_id)
+        payload = safe_json_loads(payload_json, {})
+        payload = payload if isinstance(payload, dict) else {}
+        metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
+        metadata_source = str(metadata.get("source") or "").strip()
+        metadata_status = str(metadata.get("metadataStatus") or metadata.get("status") or "verified").strip()
+        official_metadata = metadata_source == ITEM_METADATA_SOURCE and metadata_status == "verified"
+        if official_metadata:
+            verified_item_count += 1
+        else:
+            missing_verified_item_count += 1
+        if metadata_source:
+            source_coverage[metadata_source] = source_coverage.get(metadata_source, 0) + 1
+
+        stats = extract_item_stats_from_payload(payload)
+        stat_evidence = item_payload_has_stat_evidence(payload)
+        if stat_evidence:
+            stat_item_count += 1
+        else:
+            missing_stat_item_count += 1
+        official_stats = direct_item_stats_from_payload(payload_preview_item(payload))
+        conflicting_stats = direct_item_stats_from_payload(payload)
+        if (
+            official_metadata
+            and official_stats
+            and conflicting_stats
+            and item_stat_comparison_key(conflicting_stats) != item_stat_comparison_key(official_stats)
+        ):
+            stat_mismatch_count += 1
+            if len(stat_mismatch_examples) < 5:
+                stat_mismatch_examples.append(
+                    {
+                        "itemId": item_key,
+                        "name": name or f"Item {item_key}",
+                        "expectedStats": official_stats,
+                        "conflictingStats": conflicting_stats,
+                    }
+                )
+
+        slots = set(catalog_slots_by_item.get(item_key) or variant_slots_by_item.get(item_key) or [])
+        slot = item_slot_from_payload(payload) or normalize_slot(raw_slot)
+        if slot:
+            slots.add(slot)
+        mismatched_slots = []
+        if official_metadata and slot:
+            mismatched_slots = [
+                catalog_slot
+                for catalog_slot in sorted(catalog_slots_by_item.get(item_key) or [])
+                if not gear_catalog_slot_matches_item_metadata(payload, slot, catalog_slot)
+            ]
+        if mismatched_slots:
+            slot_mismatch_count += 1
+            if len(slot_mismatch_examples) < 5:
+                source_map = catalog_slot_sources_by_item.get(item_key) or {}
+                slot_mismatch_examples.append(
+                    {
+                        "itemId": item_key,
+                        "name": name or f"Item {item_key}",
+                        "expectedSlot": slot,
+                        "catalogSlots": mismatched_slots,
+                        "catalogSlotSources": {
+                            catalog_slot: sorted(source_map.get(catalog_slot) or [])
+                            for catalog_slot in mismatched_slots
+                        },
+                    }
+                )
+        type_metadata = item_type_metadata_from_payload(payload)
+        armor_type = type_metadata.get("armorType") or ""
+        weapon_type = type_metadata.get("weaponType") or ""
+        if armor_type:
+            armor_type_coverage[armor_type] = armor_type_coverage.get(armor_type, 0) + 1
+        if weapon_type:
+            weapon_type_coverage[weapon_type] = weapon_type_coverage.get(weapon_type, 0) + 1
+        if slots & ARMOR_SLOTS and not armor_type:
+            missing_armor_type_item_count += 1
+        if slots & WEAPON_SLOTS and not weapon_type:
+            missing_weapon_type_item_count += 1
+        if type_metadata.get("itemSetName"):
+            set_item_count += 1
+        if type_metadata.get("supportsSocket") or item_key in socketed_variant_items:
+            socket_capable_item_count += 1
+        if len(missing_examples) < 5 and (not official_metadata or not stat_evidence):
+            missing_examples.append(
+                {
+                    "itemId": item_key,
+                    "name": name or f"Item {item_key}",
+                    "metadataSource": metadata_source or "missing",
+                    "metadataStatus": metadata_status or "missing",
+                    "missingStats": not bool(stat_evidence),
+                }
+            )
+
+    blockers = []
+    if missing_verified_item_count:
+        blockers.append(f"{missing_verified_item_count} catalog items missing verified Battle.net metadata")
+    if missing_stat_item_count:
+        blockers.append(f"{missing_stat_item_count} catalog items missing Battle.net item stats")
+    if stat_mismatch_count:
+        blockers.append(f"{stat_mismatch_count} catalog items have stat mismatches with Battle.net preview stats")
+    if missing_armor_type_item_count:
+        blockers.append(f"{missing_armor_type_item_count} armor-slot catalog items missing armor type")
+    if missing_weapon_type_item_count:
+        blockers.append(f"{missing_weapon_type_item_count} weapon-slot catalog items missing weapon type")
+    if slot_mismatch_count:
+        blockers.append(f"{slot_mismatch_count} catalog items have slot mismatches with Battle.net metadata")
+    status = "blocked" if not item_count else ("partial" if blockers else "verified")
+    return {
+        "status": status,
+        "itemCount": item_count,
+        "verifiedItemCount": verified_item_count,
+        "missingVerifiedItemCount": missing_verified_item_count,
+        "statItemCount": stat_item_count,
+        "missingStatItemCount": missing_stat_item_count,
+        "statMismatchCount": stat_mismatch_count,
+        "statMismatchExamples": stat_mismatch_examples,
+        "missingArmorTypeItemCount": missing_armor_type_item_count,
+        "missingWeaponTypeItemCount": missing_weapon_type_item_count,
+        "setItemCount": set_item_count,
+        "socketCapableItemCount": socket_capable_item_count,
+        "socketedVariantItemCount": len(socketed_variant_items),
+        "slotMismatchCount": slot_mismatch_count,
+        "slotMismatchExamples": slot_mismatch_examples,
+        "armorTypeCoverage": dict(sorted(armor_type_coverage.items())),
+        "weaponTypeCoverage": dict(sorted(weapon_type_coverage.items())),
+        "metadataSourceCoverage": dict(sorted(source_coverage.items())),
+        "examples": missing_examples,
+        "blockers": blockers,
+    }
+
+
+def gear_catalog_journal_loot_cache_coverage(conn):
+    ensure_websim_tables(conn)
+    encounter_rows = conn.execute(
+        """
+        SELECT id, instance_id, name, payload_json
+        FROM websim_encounters
+        ORDER BY id
+        """
+    ).fetchall()
+    expected = {}
+    for encounter_id, instance_id, encounter_name, payload_json in encounter_rows:
+        payload = safe_json_loads(payload_json, {})
+        if not isinstance(payload, dict):
+            continue
+        for loot_ref in list_keyed_values(payload, "items", "loot"):
+            item_ref = loot_ref.get("item") if isinstance(loot_ref, dict) else loot_ref
+            item_id = extract_id_from_ref(item_ref)
+            if not item_id:
+                continue
+            metadata = existing_websim_item_metadata(conn, item_id)
+            metadata_payload = (metadata or {}).get("payload") if isinstance(metadata, dict) else {}
+            if item_payload_is_explicit_non_equipment(metadata_payload):
+                continue
+            item_name = ""
+            if isinstance(item_ref, dict):
+                item_name = str(item_ref.get("name") or "")
+            if not item_name and isinstance(loot_ref, dict):
+                item_name = str(loot_ref.get("name") or "")
+            expected[(str(encounter_id), str(item_id))] = {
+                "encounterId": str(encounter_id),
+                "encounterName": str(encounter_name or ""),
+                "instanceId": str(instance_id or ""),
+                "itemId": str(item_id),
+                "itemName": item_name,
+            }
+
+    cached = {}
+    for loot_id, instance_id, encounter_id, item_id, name in conn.execute(
+        """
+        SELECT id, instance_id, encounter_id, item_id, name
+        FROM websim_loot
+        """
+    ).fetchall():
+        cached[(str(encounter_id or ""), str(item_id or ""))] = {
+            "lootId": str(loot_id or ""),
+            "instanceId": str(instance_id or ""),
+            "encounterId": str(encounter_id or ""),
+            "itemId": str(item_id or ""),
+            "itemName": str(name or ""),
+        }
+
+    source_rows = conn.execute(
+        """
+        SELECT id, item_id, instance_id, encounter_id, source_type, source_label
+        FROM websim_gear_sources
+        WHERE source_type IN ('dungeon', 'mythic_plus', 'mythicplus', 'raid')
+        """
+    ).fetchall()
+    catalog_sources_by_id = {}
+    catalog_source_keys = {
+        (str(item_id or ""), str(instance_id or ""), str(encounter_id or ""))
+        for _source_id, item_id, instance_id, encounter_id, _source_type, _source_label in source_rows
+    }
+    for source_id, item_id, instance_id, encounter_id, source_type, source_label in source_rows:
+        source_key = str(source_id or "")
+        if not source_key:
+            continue
+        catalog_sources_by_id[source_key] = {
+            "id": source_key,
+            "itemId": str(item_id or ""),
+            "instanceId": str(instance_id or ""),
+            "encounterId": str(encounter_id or ""),
+            "sourceType": str(source_type or ""),
+            "sourceLabel": str(source_label or ""),
+        }
+    missing_catalog_sources = []
+    mismatched_catalog_sources = []
+    catalog_source_item_count = 0
+    for key, entry in expected.items():
+        cached_entry = cached.get(key)
+        if not cached_entry:
+            continue
+        source_id = f"loot-{cached_entry.get('lootId') or ''}"
+        source_key = (
+            entry.get("itemId") or "",
+            cached_entry.get("instanceId") or entry.get("instanceId") or "",
+            entry.get("encounterId") or "",
+        )
+        if source_key in catalog_source_keys:
+            catalog_source_item_count += 1
+            continue
+        catalog_source = catalog_sources_by_id.get(source_id)
+        if catalog_source:
+            mismatched_catalog_sources.append(
+                {
+                    **entry,
+                    "lootId": cached_entry.get("lootId") or "",
+                    "itemName": entry.get("itemName") or cached_entry.get("itemName") or "",
+                    "sourceId": catalog_source.get("id") or "",
+                    "sourceType": catalog_source.get("sourceType") or "",
+                    "sourceLabel": catalog_source.get("sourceLabel") or "",
+                    "expectedItemId": source_key[0],
+                    "expectedInstanceId": source_key[1],
+                    "expectedEncounterId": source_key[2],
+                    "actualItemId": catalog_source.get("itemId") or "",
+                    "actualInstanceId": catalog_source.get("instanceId") or "",
+                    "actualEncounterId": catalog_source.get("encounterId") or "",
+                }
+            )
+            continue
+        missing_catalog_sources.append(
+            {
+                **entry,
+                "lootId": cached_entry.get("lootId") or "",
+                "itemName": entry.get("itemName") or cached_entry.get("itemName") or "",
+            }
+        )
+    missing = [entry for key, entry in expected.items() if key not in cached]
+    blockers = []
+    if missing:
+        blockers.append(f"{len(missing)} Battle.net journal loot items missing from local cache")
+    if missing_catalog_sources:
+        blockers.append(f"{len(missing_catalog_sources)} Battle.net journal loot items missing gear catalog source")
+    if mismatched_catalog_sources:
+        blockers.append(f"{len(mismatched_catalog_sources)} Battle.net journal loot items have mismatched gear catalog source context")
+    return {
+        "status": "partial" if blockers else "verified",
+        "expectedEncounterCount": len({encounter_id for encounter_id, _item_id in expected.keys()}),
+        "expectedItemCount": len(expected),
+        "cachedItemCount": len([key for key in expected.keys() if key in cached]),
+        "catalogSourceItemCount": catalog_source_item_count,
+        "missingItemCount": len(missing),
+        "missingCatalogSourceCount": len(missing_catalog_sources),
+        "mismatchedCatalogSourceCount": len(mismatched_catalog_sources),
+        "missingExamples": missing[:5],
+        "missingCatalogSourceExamples": missing_catalog_sources[:5],
+        "mismatchedCatalogSourceExamples": mismatched_catalog_sources[:5],
+        "blockers": blockers,
+    }
+
+
+def gear_catalog_season_source_coverage(conn, season=None):
+    ensure_websim_tables(conn)
+    season = season or get_active_season_payload(conn)
+    active_season_revision_values = {
+        str((season or {}).get(key) or "").strip()
+        for key in ("seasonRevision", "revision", "seasonLabel", "label")
+        if str((season or {}).get(key) or "").strip()
+    }
+    expected_dungeons = []
+    for dungeon in (season or {}).get("dungeons") or []:
+        if not isinstance(dungeon, dict):
+            continue
+        instance_id = str(dungeon.get("instanceId") or dungeon.get("instance_id") or "").strip()
+        dungeon_id = str(dungeon.get("dungeonId") or dungeon.get("id") or "").strip()
+        name = str(dungeon.get("name") or dungeon.get("shortName") or dungeon_id or instance_id or "").strip()
+        if not (instance_id or dungeon_id or name):
+            continue
+        expected_dungeons.append(
+            {
+                "instanceId": instance_id,
+                "dungeonId": dungeon_id,
+                "name": name,
+            }
+        )
+    expected_raids = []
+    for raid in (season or {}).get("raids") or []:
+        if not isinstance(raid, dict):
+            continue
+        instance_id = str(raid.get("instanceId") or raid.get("instance_id") or raid.get("id") or "").strip()
+        raid_id = str(raid.get("raidId") or raid.get("id") or "").strip()
+        name = str(raid.get("name") or raid_id or instance_id or "").strip()
+        if not (instance_id or raid_id or name):
+            continue
+        expected_raids.append(
+            {
+                "instanceId": instance_id,
+                "raidId": raid_id,
+                "name": name,
+            }
+        )
+
+    source_rows = conn.execute(
+        """
+        SELECT id, source_type, source_label, instance_id, item_id, season_revision, payload_json
+        FROM websim_gear_sources
+        ORDER BY source_type, source_label, item_id
+        """
+    ).fetchall()
+    dungeon_sources = []
+    raid_sources = []
+    tier_set_sources = []
+    has_season_tagged_sources = False
+    for source_id, source_type, source_label, instance_id, item_id, season_revision, payload_json in source_rows:
+        source_payload = safe_json_loads(payload_json, {})
+        source_payload = source_payload if isinstance(source_payload, dict) else {}
+        source = {
+            "id": str(source_id or ""),
+            "sourceType": str(source_type or ""),
+            "sourceLabel": str(source_label or ""),
+            "instanceId": str(instance_id or ""),
+            "itemId": str(item_id or ""),
+            "seasonRevision": str(season_revision or ""),
+            "payload": source_payload,
+        }
+        if source["seasonRevision"]:
+            has_season_tagged_sources = True
+        source_key = source["sourceType"].lower()
+        if source_key in {"dungeon", "mythic_plus", "mythicplus"}:
+            dungeon_sources.append(source)
+        elif source_key == "raid":
+            raid_sources.append(source)
+        elif source_key == "tier_set":
+            tier_set_sources.append(source)
+
+    def source_matches_active_season(source):
+        source_revision = str((source or {}).get("seasonRevision") or "").strip()
+        return not active_season_revision_values or not source_revision or source_revision in active_season_revision_values
+
+    def source_is_stale_for_active_season(source):
+        source_revision = str((source or {}).get("seasonRevision") or "").strip()
+        return bool(active_season_revision_values and source_revision and source_revision not in active_season_revision_values)
+
+    def source_summary(source):
+        return {
+            "id": str((source or {}).get("id") or ""),
+            "sourceType": str((source or {}).get("sourceType") or ""),
+            "sourceLabel": str((source or {}).get("sourceLabel") or ""),
+            "instanceId": str((source or {}).get("instanceId") or ""),
+            "itemId": str((source or {}).get("itemId") or ""),
+            "seasonRevision": str((source or {}).get("seasonRevision") or ""),
+        }
+
+    active_dungeon_sources = [source for source in dungeon_sources if source_matches_active_season(source)]
+    active_raid_sources = [source for source in raid_sources if source_matches_active_season(source)]
+    stale_dungeon_sources = [source for source in dungeon_sources if source_is_stale_for_active_season(source)]
+    stale_raid_sources = [source for source in raid_sources if source_is_stale_for_active_season(source)]
+
+    covered_dungeons = []
+    missing_dungeons = []
+    for dungeon in expected_dungeons:
+        instance_id = dungeon.get("instanceId") or ""
+        name_key = normalize_name_key(dungeon.get("name") or "")
+        covered = False
+        for source in active_dungeon_sources:
+            if instance_id and source.get("instanceId") == instance_id:
+                covered = True
+                break
+            if name_key and name_key in normalize_name_key(source.get("sourceLabel") or ""):
+                covered = True
+                break
+        if covered:
+            covered_dungeons.append(dungeon.get("name") or dungeon.get("instanceId") or dungeon.get("dungeonId") or "")
+        else:
+            missing_dungeons.append(dungeon.get("name") or dungeon.get("instanceId") or dungeon.get("dungeonId") or "")
+
+    covered_raids = []
+    missing_raids = []
+    for raid in expected_raids:
+        instance_id = raid.get("instanceId") or ""
+        name_key = normalize_name_key(raid.get("name") or "")
+        covered = False
+        for source in active_raid_sources:
+            if instance_id and source.get("instanceId") == instance_id:
+                covered = True
+                break
+            if name_key and name_key in normalize_name_key(source.get("sourceLabel") or ""):
+                covered = True
+                break
+        if covered:
+            covered_raids.append(raid.get("name") or raid.get("instanceId") or raid.get("raidId") or "")
+        else:
+            missing_raids.append(raid.get("name") or raid.get("instanceId") or raid.get("raidId") or "")
+
+    expected_set_refs = season_item_set_refs(season)
+    discovered_set_refs = {}
+    set_names = []
+    set_item_count = 0
+    item_rows = conn.execute(
+        """
+        SELECT DISTINCT wi.id, wi.payload_json
+        FROM websim_items wi
+        WHERE wi.id IN (
+            SELECT item_id FROM websim_gear_sources
+            WHERE source_type IN ('dungeon', 'raid', 'tier_set')
+            UNION
+            SELECT item_id FROM websim_gear_variants
+            WHERE source_type IN ('dungeon', 'raid', 'tier_set')
+        )
+        ORDER BY wi.id
+        """
+    ).fetchall()
+    for _item_id, payload_json in item_rows:
+        payload = safe_json_loads(payload_json, {})
+        payload = payload if isinstance(payload, dict) else {}
+        set_ref = item_set_ref_from_payload(payload)
+        set_name = set_ref.get("name") or ""
+        if not set_name:
+            continue
+        set_item_count += 1
+        set_names.append(set_name)
+        set_key = set_ref.get("id") or set_name
+        if set_key:
+            discovered_set_refs[set_key] = set_ref
+    all_set_refs = {**expected_set_refs, **discovered_set_refs}
+    set_rows = conn.execute(
+        """
+        SELECT id, name, status
+        FROM websim_item_sets
+        ORDER BY name
+        """
+    ).fetchall()
+    verified_set_ids = set()
+    verified_set_names = []
+    for set_id, name, status in set_rows:
+        if str(status or "") != "verified":
+            continue
+        verified_set_ids.add(str(set_id))
+        if name:
+            verified_set_names.append(str(name))
+    verified_set_name_keys = {
+        normalize_item_set_name_key(name)
+        for name in verified_set_names
+        if normalize_item_set_name_key(name)
+    }
+    set_item_rows = conn.execute(
+        """
+        SELECT DISTINCT set_id, item_id, name, slot
+        FROM websim_item_set_items
+        ORDER BY set_id, item_id
+        """
+    ).fetchall()
+    tier_set_source_pairs = set()
+    tier_set_source_unscoped_item_ids = set()
+    tier_set_source_all_item_ids = set()
+    for source in tier_set_sources:
+        item_id = source.get("itemId") or ""
+        if not item_id:
+            continue
+        tier_set_source_all_item_ids.add(item_id)
+        source_payload = source.get("payload") if isinstance(source.get("payload"), dict) else {}
+        set_id = str(
+            source_payload.get("setId")
+            or source_payload.get("set_id")
+            or source_payload.get("itemSetId")
+            or source_payload.get("item_set_id")
+            or ""
+        ).strip()
+        source_id = source.get("id") or ""
+        if not set_id and source_id.startswith("set-") and source_id.endswith(f"-{item_id}"):
+            set_id = source_id[4 : -len(f"-{item_id}")].strip()
+        if set_id:
+            tier_set_source_pairs.add((set_id, item_id))
+        else:
+            tier_set_source_unscoped_item_ids.add(item_id)
+    covered_set_item_catalog_source_keys = set()
+    missing_set_item_catalog_sources = []
+    for set_id, item_id, name, slot in set_item_rows:
+        set_id = str(set_id or "")
+        item_id = str(item_id or "")
+        if not item_id:
+            continue
+        covered = False
+        if set_id and (set_id, item_id) in tier_set_source_pairs:
+            covered = True
+        elif item_id in tier_set_source_unscoped_item_ids:
+            covered = True
+        elif not set_id and item_id in tier_set_source_all_item_ids:
+            covered = True
+        if covered:
+            covered_set_item_catalog_source_keys.add((set_id, item_id))
+            continue
+        missing_set_item_catalog_sources.append(
+            {
+                "setId": set_id,
+                "itemId": item_id,
+                "name": str(name or ""),
+                "slot": str(slot or ""),
+            }
+        )
+    set_names = unique_text_list(set_names)
+    missing_set_detail_keys = []
+    for set_key, set_ref in discovered_set_refs.items():
+        set_id = set_ref.get("id") or ""
+        if set_id and set_id in verified_set_ids:
+            continue
+        if not set_id and normalize_item_set_name_key(set_ref.get("name") or set_key) in verified_set_name_keys:
+            continue
+        missing_set_detail_keys.append(set_key)
+    missing_expected_set_keys = []
+    missing_expected_set_names = []
+    for set_key, set_ref in expected_set_refs.items():
+        set_id = set_ref.get("id") or ""
+        set_name = set_ref.get("name") or ""
+        if set_id and set_id in verified_set_ids:
+            continue
+        if not set_id and normalize_item_set_name_key(set_name or set_key) in verified_set_name_keys:
+            continue
+        missing_expected_set_keys.append(set_key)
+        missing_expected_set_names.append(set_name or set_id or set_key)
+
+    dungeon_item_ids = {source.get("itemId") for source in active_dungeon_sources if source.get("itemId")}
+    raid_item_ids = {source.get("itemId") for source in active_raid_sources if source.get("itemId")}
+    journal_loot = gear_catalog_journal_loot_cache_coverage(conn)
+    blockers = []
+    if not expected_dungeons and has_season_tagged_sources:
+        blockers.append("active season dungeon list is missing")
+    if expected_dungeons and missing_dungeons:
+        blockers.append(f"{len(missing_dungeons)} current season dungeon missing gear loot")
+    if expected_raids and missing_raids:
+        blockers.append(f"{len(missing_raids)} current expansion raid missing gear loot")
+    if missing_expected_set_keys:
+        blockers.append(f"{len(missing_expected_set_keys)} current season item sets missing Battle.net item-set detail")
+    if missing_set_detail_keys:
+        blockers.append(f"{len(missing_set_detail_keys)} discovered item sets missing Battle.net item-set detail")
+    if missing_set_item_catalog_sources:
+        blockers.append(f"{len(missing_set_item_catalog_sources)} item set pieces missing gear catalog source")
+    blockers.extend(journal_loot.get("blockers") or [])
+    status = "partial" if blockers else "verified"
+    return {
+        "status": status,
+        "mythicPlus": {
+            "expectedDungeonCount": len(expected_dungeons),
+            "coveredDungeonCount": len(covered_dungeons),
+            "missingDungeonCount": len(missing_dungeons),
+            "coveredDungeons": covered_dungeons,
+            "missingDungeons": missing_dungeons,
+            "sourceItemCount": len(dungeon_item_ids),
+            "staleSourceCount": len(stale_dungeon_sources),
+            "staleSourceExamples": [source_summary(source) for source in stale_dungeon_sources[:5]],
+        },
+        "raid": {
+            "expectedInstanceCount": len(expected_raids),
+            "coveredInstanceCount": len(covered_raids),
+            "missingInstanceCount": len(missing_raids),
+            "coveredInstances": covered_raids,
+            "missingInstances": missing_raids,
+            "instanceCount": len({source.get("instanceId") for source in active_raid_sources if source.get("instanceId")}),
+            "sourceItemCount": len(raid_item_ids),
+            "staleSourceCount": len(stale_raid_sources),
+            "staleSourceExamples": [source_summary(source) for source in stale_raid_sources[:5]],
+        },
+        "sets": {
+            "expectedSetCount": len(expected_set_refs),
+            "setItemCount": set_item_count,
+            "discoveredSetCount": len(discovered_set_refs),
+            "knownSetCount": len(all_set_refs),
+            "verifiedSetCount": len(verified_set_ids),
+            "missingExpectedSetCount": len(missing_expected_set_keys),
+            "missingSetDetailCount": len(missing_set_detail_keys),
+            "verifiedSetItemCount": len(set_item_rows),
+            "setItemCatalogSourceCount": len(covered_set_item_catalog_source_keys),
+            "missingSetItemCatalogSourceCount": len(missing_set_item_catalog_sources),
+            "missingSetItemCatalogSourceExamples": missing_set_item_catalog_sources[:5],
+            "missingExpectedSets": sorted(unique_text_list(missing_expected_set_names)),
+            "setNames": sorted(unique_text_list([*set_names, *verified_set_names])),
+        },
+        "journalLoot": journal_loot,
+        "blockers": blockers,
+    }
+
+
+def gear_catalog_variant_readiness_examples(conn, statuses, limit=8):
+    normalized_statuses = [str(status or "").strip() for status in statuses or [] if str(status or "").strip()]
+    if not normalized_statuses:
+        return []
+    placeholders = ",".join("?" for _ in normalized_statuses)
+    rows = conn.execute(
+        f"""
+        SELECT
+            v.id,
+            v.item_id,
+            v.slot,
+            v.source_type,
+            v.status,
+            v.blockers_json,
+            COALESCE(MIN(s.source_label), '') AS source_label
+        FROM websim_gear_variants v
+        LEFT JOIN websim_gear_sources s
+          ON s.item_id = v.item_id
+         AND s.source_type = v.source_type
+        WHERE v.status IN ({placeholders})
+          AND COALESCE(v.source_type, '') != 'observed_profile'
+        GROUP BY v.id, v.item_id, v.slot, v.source_type, v.status, v.blockers_json
+        ORDER BY v.source_type, v.slot, v.item_id, v.id
+        LIMIT ?
+        """,
+        (*normalized_statuses, max(1, int(limit or 8))),
+    ).fetchall()
+    examples = []
+    for variant_id, item_id, slot, source_type, status, blockers_json, source_label in rows:
+        examples.append(
+            {
+                "variantId": str(variant_id or ""),
+                "itemId": str(item_id or ""),
+                "slot": normalize_slot(slot),
+                "sourceType": str(source_type or ""),
+                "sourceLabel": str(source_label or ""),
+                "status": str(status or ""),
+                "blockers": [str(item) for item in (safe_json_loads(blockers_json, []) or []) if str(item or "").strip()],
+            }
+        )
+    return examples
 
 
 def gear_catalog_counts(conn):
@@ -6929,7 +9606,13 @@ def gear_catalog_counts(conn):
     source_count = conn.execute("SELECT COUNT(*) FROM websim_gear_sources").fetchone()[0]
     source_item_count = conn.execute("SELECT COUNT(DISTINCT item_id) FROM websim_gear_sources").fetchone()[0]
     mod_option_count = conn.execute("SELECT COUNT(*) FROM websim_gear_mod_options").fetchone()[0]
-    variant_rows = conn.execute("SELECT status, blockers_json FROM websim_gear_variants").fetchall()
+    variant_rows = conn.execute(
+        """
+        SELECT status, blockers_json
+        FROM websim_gear_variants
+        WHERE COALESCE(source_type, '') != 'observed_profile'
+        """
+    ).fetchall()
     verified_count = 0
     partial_count = 0
     blocked_count = 0
@@ -6949,7 +9632,13 @@ def gear_catalog_counts(conn):
     variant_count = len(variant_rows)
     item_count = max(
         source_item_count,
-        conn.execute("SELECT COUNT(DISTINCT item_id) FROM websim_gear_variants").fetchone()[0],
+        conn.execute(
+            """
+            SELECT COUNT(DISTINCT item_id)
+            FROM websim_gear_variants
+            WHERE COALESCE(source_type, '') != 'observed_profile'
+            """
+        ).fetchone()[0],
     )
     observed_variant_count = conn.execute(
         "SELECT COUNT(*) FROM websim_gear_variants WHERE source_type = 'observed_profile'"
@@ -6957,10 +9646,52 @@ def gear_catalog_counts(conn):
     verified_observed_variant_count = conn.execute(
         "SELECT COUNT(*) FROM websim_gear_variants WHERE source_type = 'observed_profile' AND status = 'verified'"
     ).fetchone()[0]
+    partial_observed_variant_count = conn.execute(
+        "SELECT COUNT(*) FROM websim_gear_variants WHERE source_type = 'observed_profile' AND status = 'partial'"
+    ).fetchone()[0]
+    blocked_observed_variant_count = conn.execute(
+        """
+        SELECT COUNT(*) FROM websim_gear_variants
+        WHERE source_type = 'observed_profile'
+          AND status NOT IN ('verified', 'partial')
+        """
+    ).fetchone()[0]
     top_blockers = [
         {"reason": reason, "count": count}
         for reason, count in sorted(blocker_counts.items(), key=lambda item: (-item[1], item[0]))[:5]
     ]
+    metadata_audit = gear_catalog_item_metadata_audit(conn)
+    season_source_coverage = gear_catalog_season_source_coverage(conn)
+    mod_option_coverage = gear_catalog_mod_option_coverage(conn)
+    metadata_blockers = metadata_audit.get("blockers") or []
+    source_blockers = season_source_coverage.get("blockers") or []
+    mod_option_blockers = []
+    if (metadata_audit.get("socketCapableItemCount") or 0) > 0 and not (mod_option_coverage.get("socket") or {}).get("optionCount"):
+        mod_option_blockers.append("socket-capable catalog items missing socket mod options")
+    missing_socket_option_metadata = (mod_option_coverage.get("socket") or {}).get("missingMetadataCount") or 0
+    if missing_socket_option_metadata:
+        mod_option_blockers.append(f"{missing_socket_option_metadata} socket mod options missing Battle.net gem metadata")
+    invalid_socket_gem_metadata = (mod_option_coverage.get("socket") or {}).get("invalidGemMetadataCount") or 0
+    if invalid_socket_gem_metadata:
+        mod_option_blockers.append(f"{invalid_socket_gem_metadata} socket mod options reference non-gem Battle.net item metadata")
+    data_blockers = unique_text_list([*metadata_blockers, *source_blockers, *mod_option_blockers])
+    simulation_blockers = unique_text_list([item["reason"] for item in top_blockers])
+    all_blockers = unique_text_list(
+        [*simulation_blockers, *data_blockers]
+    )
+    variant_status = catalog_status_from_counts(verified_count, partial_count, blocked_count, item_count)
+    metadata_status = metadata_audit.get("status") or "blocked"
+    source_status = season_source_coverage.get("status") or "blocked"
+    data_status = "blocked" if not item_count else (
+        "verified"
+        if metadata_status == "verified" and source_status == "verified" and not mod_option_blockers
+        else "partial"
+    )
+    status = "blocked" if not item_count else (
+        "verified"
+        if variant_status == "verified" and metadata_status == "verified" and source_status == "verified" and not mod_option_blockers
+        else "partial"
+    )
     return {
         "itemCount": item_count,
         "sourceCount": source_count,
@@ -6971,12 +9702,33 @@ def gear_catalog_counts(conn):
         "blockedCount": blocked_count,
         "observedVariantCount": observed_variant_count,
         "verifiedObservedVariantCount": verified_observed_variant_count,
+        "partialObservedVariantCount": partial_observed_variant_count,
+        "blockedObservedVariantCount": blocked_observed_variant_count,
         "slotCoverage": gear_catalog_slot_coverage(conn),
         "sourceCoverage": gear_catalog_source_coverage(conn),
-        "modOptionCoverage": gear_catalog_mod_option_coverage(conn),
+        "modOptionCoverage": mod_option_coverage,
+        "itemMetadata": metadata_audit,
+        "seasonSourceCoverage": season_source_coverage,
         "topBlockers": top_blockers,
-        "blockers": [item["reason"] for item in top_blockers],
-        "status": catalog_status_from_counts(verified_count, partial_count, blocked_count, item_count),
+        "dataReadiness": {
+            "status": data_status,
+            "blockers": data_blockers,
+            "metadataStatus": metadata_status,
+            "sourceStatus": source_status,
+            "modOptionStatus": "partial" if mod_option_blockers else "verified",
+        },
+        "simulationReadiness": {
+            "status": variant_status,
+            "blockers": simulation_blockers,
+            "partialExamples": gear_catalog_variant_readiness_examples(conn, ["partial"]),
+            "blockedExamples": gear_catalog_variant_readiness_examples(conn, ["blocked"]),
+            "verified": verified_count,
+            "partial": partial_count,
+            "blocked": blocked_count,
+            "total": variant_count,
+        },
+        "blockers": all_blockers,
+        "status": status,
     }
 
 
@@ -6997,6 +9749,7 @@ def gear_catalog_revision_from_counts(counts, season=None):
 
 
 def build_gear_catalog_sync_state(conn, season=None):
+    repair_websim_item_slots_from_payload(conn)
     counts = gear_catalog_counts(conn)
     revision = gear_catalog_revision_from_counts(counts, season)
     return {
@@ -7025,21 +9778,12 @@ def gear_catalog_sync_state(conn):
         }
     merged = {
         **counts,
-        "status": state.get("status") or counts["status"],
+        "status": counts["status"],
         "itemDatabaseRevision": state.get("itemDatabaseRevision") or fallback_revision,
         "variantRevision": state.get("variantRevision") or state.get("itemDatabaseRevision") or fallback_revision,
         "checkedAt": state.get("checkedAt") or state.get("updatedAt") or "",
         "schemaRevision": state.get("schemaRevision") or GEAR_CATALOG_REVISION,
     }
-    for key in ["itemCount", "sourceCount", "variantCount", "modOptionCount", "verifiedCount", "partialCount", "blockedCount"]:
-        if key in state:
-            merged[key] = state.get(key) or 0
-    if state.get("blockers"):
-        merged["blockers"] = state.get("blockers")
-    if state.get("topBlockers"):
-        merged["topBlockers"] = state.get("topBlockers")
-    if state.get("modOptionCoverage"):
-        merged["modOptionCoverage"] = state.get("modOptionCoverage")
     return merged
 
 
@@ -7064,6 +9808,8 @@ def gear_catalog_health_payload(conn):
             "blockedCount": state.get("blockedCount") or 0,
             "observedVariantCount": state.get("observedVariantCount") or 0,
             "verifiedObservedVariantCount": state.get("verifiedObservedVariantCount") or 0,
+            "partialObservedVariantCount": state.get("partialObservedVariantCount") or 0,
+            "blockedObservedVariantCount": state.get("blockedObservedVariantCount") or 0,
             "variantReadiness": variant_readiness,
             "itemDatabaseRevision": state.get("itemDatabaseRevision") or "",
             "variantRevision": state.get("variantRevision") or "",
@@ -7077,7 +9823,18 @@ def gear_catalog_health_payload(conn):
             },
             "sourceCoverage": state.get("sourceCoverage") or {},
             "modOptionCoverage": state.get("modOptionCoverage") or gear_catalog_mod_option_coverage(conn),
+            "itemMetadata": state.get("itemMetadata") or gear_catalog_item_metadata_audit(conn),
+            "seasonSourceCoverage": state.get("seasonSourceCoverage") or gear_catalog_season_source_coverage(conn),
             "topBlockers": state.get("topBlockers") or [],
+            "dataReadiness": state.get("dataReadiness") or {
+                "status": "blocked",
+                "blockers": ["gear catalog has not been synced"],
+            },
+            "simulationReadiness": state.get("simulationReadiness") or {
+                "status": "blocked",
+                "blockers": ["gear catalog has not been synced"],
+                **variant_readiness,
+            },
         },
         "blockers": state.get("blockers") or ([] if state.get("itemCount") else ["gear catalog has not been synced"]),
     }
@@ -7154,6 +9911,8 @@ def gear_catalog_variants_by_item(conn):
             "payload": payload if isinstance(payload, dict) else {},
             "updatedAt": row[12],
         }
+        if isinstance(payload, dict) and payload.get("simcIlevelOnly"):
+            variant["simcIlevelOnly"] = True
         result.setdefault(str(row[1]), []).append(variant)
     return result
 
@@ -7183,17 +9942,42 @@ def gear_catalog_mod_options_by_slot(conn, option_type):
         if not isinstance(simc_options, dict):
             simc_options = {}
         payload = safe_json_loads(row[6], {})
+        payload = payload if isinstance(payload, dict) else {}
+        normalized_simc_options = {
+            key: normalize_option_value(value)
+            for key, value in simc_options.items()
+            if key in SIMC_GEAR_OPTION_KEYS
+        }
         option = {
             "id": row[0],
             "type": row[1],
             "optionType": row[1],
             "name": row[2],
             "label": row[2],
-            "simcOptions": {key: normalize_option_value(value) for key, value in simc_options.items() if key in SIMC_GEAR_OPTION_KEYS},
+            "simcOptions": normalized_simc_options,
             "status": row[5] or "blocked",
-            "payload": payload if isinstance(payload, dict) else {},
+            "payload": payload,
             "updatedAt": row[7],
         }
+        for key in (
+            "gemItemId",
+            "gemItemIds",
+            "displayName",
+            "iconUrl",
+            "quality",
+            "gameAsset",
+            "metadataStatus",
+            "metadataSource",
+            "metadataLocale",
+        ):
+            if payload.get(key) not in (None, "", [], {}):
+                option[key] = payload.get(key)
+        if row[1] == "socket" and "gemItemId" not in option:
+            gem_item_ids = gem_item_ids_from_simc_options(normalized_simc_options)
+            if len(gem_item_ids) == 1:
+                option["gemItemId"] = gem_item_ids[0]
+            elif gem_item_ids:
+                option["gemItemIds"] = gem_item_ids
         for slot in normalized_slots:
             result.setdefault(slot, []).append(dict(option))
     return result
@@ -7270,6 +10054,9 @@ def apply_default_catalog_variant(item, variants):
     item["variantSource"] = default_variant.get("sourceType") or ""
     if default_variant.get("itemLevel"):
         item["ilevel"] = default_variant.get("itemLevel")
+    variant_payload = default_variant.get("payload") if isinstance(default_variant.get("payload"), dict) else {}
+    if default_variant.get("simcIlevelOnly") or variant_payload.get("simcIlevelOnly"):
+        item["simcIlevelOnly"] = True
     for key, value in (default_variant.get("simcOptions") or {}).items():
         if key in SIMC_GEAR_OPTION_KEYS and value:
             item[key] = value
@@ -7278,6 +10065,24 @@ def apply_default_catalog_variant(item, variants):
     item["missingFields"] = gear_item_missing_fields(item)
     item["simcReady"] = gear_item_simc_ready(item)
     return item
+
+
+def catalog_item_trust_blockers(item):
+    if not isinstance(item, dict):
+        return ["verified Battle.net metadata"]
+    blockers = []
+    metadata_status = str(item.get("metadataStatus") or "").strip()
+    metadata_source = str(item.get("metadataSource") or "").strip()
+    if metadata_status != "verified" or metadata_source != ITEM_METADATA_SOURCE:
+        blockers.append("verified Battle.net metadata")
+    if not item.get("itemStats"):
+        blockers.append("Battle.net item stats")
+    slot = normalize_slot(item.get("slot"))
+    if slot in ARMOR_SLOTS and not item.get("armorType"):
+        blockers.append("Battle.net armor type")
+    if slot in WEAPON_SLOTS and not item.get("weaponType"):
+        blockers.append("Battle.net weapon type")
+    return blockers
 
 
 def observed_profile_refs_from_catalog(sources, variants):
@@ -7322,6 +10127,10 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     if item["compatibility"]["status"] == "incompatible":
         return None
     apply_default_catalog_variant(item, compatible_variants)
+    trust_blockers = catalog_item_trust_blockers(item)
+    if trust_blockers:
+        item["missingFields"] = unique_text_list([*(item.get("missingFields") or []), *trust_blockers])
+        item["simcReady"] = False
     item["blockers"] = sorted(set([*(item.get("variantBlockers") or []), *(item.get("missingFields") or [])]))
     return item
 
@@ -7354,6 +10163,7 @@ def get_websim_gear_catalog_items(conn, class_key, spec_key):
         item_stats = extract_item_stats_from_payload(payload)
         stat_summary = item_stat_summary(item_stats)
         mod_capabilities = item_mod_capabilities(payload, row[2])
+        type_metadata = item_type_metadata_from_payload(payload)
         raw_item = {
             "id": item_id,
             "itemId": item_id,
@@ -7371,6 +10181,7 @@ def get_websim_gear_catalog_items(conn, class_key, spec_key):
             "stats": item_stats,
             "statSummary": stat_summary,
             "modCapabilities": mod_capabilities,
+            **type_metadata,
             "payload": payload if isinstance(payload, dict) else {},
         }
         item = normalize_gear_item(raw_item, class_key, spec_key, "catalog")
@@ -7865,6 +10676,9 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
     class_key = slugify(class_key, "mage")
     spec_key = slugify(spec_key, "arcane")
     compact = bool(compact)
+    season_fields = season_metadata_fields(season)
+    if compact:
+        season_fields["currentSeason"] = compact_season_payload(season_fields.get("currentSeason"))
     catalog_state = gear_catalog_sync_state(conn)
     presets = get_websim_presets(conn, class_key, spec_key)
     community_templates = dedupe_gear_community_templates([
@@ -7900,20 +10714,30 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
         else:
             normalized = normalize_gear_item(item, class_key, spec_key, item.get("sourceType") if isinstance(item, dict) else "")
         if normalized and normalized.get("slot") in grouped:
+            if gear_candidate_incompatible(normalized):
+                continue
             for candidate_slot in gear_candidate_slots(normalized):
                 if candidate_slot in grouped:
                     grouped[candidate_slot].append(gear_candidate_for_slot(normalized, candidate_slot))
     candidate_limit = 24 if compact else None
-    slot_groups = [
-        {
+    slot_groups = []
+    for slot in CANONICAL_GEAR_SLOTS:
+        items = unique_gear_candidates(grouped.get(slot, []), limit=candidate_limit)
+        if compact:
+            items = compact_gear_candidates(items)
+        slot_groups.append({
             "slot": slot,
             "simcSlot": slot,
             "label": GEAR_SLOT_LABELS.get(slot, slot),
-            "items": unique_gear_candidates(grouped.get(slot, []), limit=candidate_limit),
-        }
-        for slot in CANONICAL_GEAR_SLOTS
-    ]
-    equipped_set = gear_items_by_slot(baseline_set, class_key, spec_key)
+            "items": items,
+        })
+    output_baseline_set = compact_gear_candidates(baseline_set) if compact else baseline_set
+    output_community_templates = (
+        [compact_community_gear_template(template) for template in community_templates]
+        if compact
+        else community_templates
+    )
+    equipped_set = gear_items_by_slot(output_baseline_set, class_key, spec_key)
     readiness = gear_readiness(baseline_set)
     payload = {
         "classKey": class_key,
@@ -7922,8 +10746,8 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
         "replacementCandidates": slot_groups,
         "equippedSet": equipped_set,
         "slotReadiness": gear_slot_readiness(baseline_set, class_key, spec_key),
-        "baselineSet": baseline_set,
-        "communityTemplates": community_templates,
+        "baselineSet": output_baseline_set,
+        "communityTemplates": output_community_templates,
         "communityTemplateSync": websim_gear_community_template_sync_state(community_templates),
         "readiness": readiness,
         "statSnapshot": blocked_stat_snapshot(
@@ -7950,7 +10774,7 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
         "catalogBlockers": catalog_state.get("blockers") or [],
         "maxLevel": websim_max_level(),
         "checkedAt": utc_now(),
-        **season_metadata_fields(season),
+        **season_fields,
     }
     if not compact:
         payload["slotGroups"] = slot_groups
@@ -8089,13 +10913,15 @@ def raw_source_type(value, default=""):
 
 def gear_item_missing_fields(item):
     source_type = item.get("sourceType") or ""
-    if item.get("id") and source_type in SIMC_READY_SOURCE_TYPES:
-        return []
     missing = []
     if not item.get("slot"):
         missing.append("slot")
     if not item.get("id"):
         missing.append("itemId")
+    if item.get("id") and source_type in SIMC_READY_SOURCE_TYPES:
+        return missing
+    if item.get("id") and item.get("ilevel") and item.get("simcIlevelOnly"):
+        return missing
     if source_type in {"verifiedLoot", "loot"}:
         if item.get("variantKey") and item.get("ilevel") and any(item.get(key) for key in ("bonus_id", "gem_id", "enchant_id", "crafted_stats")):
             return missing
@@ -8114,19 +10940,151 @@ def gear_item_simc_ready(item):
     return bool(item.get("slot") and item.get("id") and not gear_item_missing_fields(item))
 
 
+def payload_item_class_is_armor(item_class):
+    if not isinstance(item_class, dict):
+        return False
+    try:
+        if int(item_class.get("id") or 0) in ARMOR_ITEM_CLASS_IDS:
+            return True
+    except (TypeError, ValueError):
+        pass
+    names = [
+        item_class.get("name"),
+        item_class.get("type"),
+        item_class.get("display_string"),
+    ]
+    return any(str(name or "").strip().lower() in ARMOR_CLASS_NAMES for name in names)
+
+
+def normalized_armor_subclass(item_subclass):
+    if not isinstance(item_subclass, dict):
+        return ""
+    try:
+        subclass_id = int(item_subclass.get("id") or 0)
+    except (TypeError, ValueError):
+        subclass_id = 0
+    if subclass_id in ARMOR_SUBCLASS_TYPES:
+        return ARMOR_SUBCLASS_TYPES[subclass_id]
+    names = [
+        item_subclass.get("name"),
+        item_subclass.get("type"),
+        item_subclass.get("display_string"),
+    ]
+    for name in names:
+        normalized = str(name or "").strip().lower()
+        if normalized in ARMOR_SUBCLASS_NAMES:
+            return ARMOR_SUBCLASS_NAMES[normalized]
+    return ""
+
+
+def payload_item_class_is_weapon(item_class):
+    if not isinstance(item_class, dict):
+        return False
+    try:
+        if int(item_class.get("id") or 0) in WEAPON_ITEM_CLASS_IDS:
+            return True
+    except (TypeError, ValueError):
+        pass
+    names = [
+        item_class.get("name"),
+        item_class.get("type"),
+        item_class.get("display_string"),
+    ]
+    return any(str(name or "").strip().lower() in WEAPON_CLASS_NAMES for name in names)
+
+
+def payload_item_class_is_gem(item_class):
+    if not isinstance(item_class, dict):
+        return False
+    try:
+        if int(item_class.get("id") or 0) in GEM_ITEM_CLASS_IDS:
+            return True
+    except (TypeError, ValueError):
+        pass
+    names = [
+        item_class.get("name"),
+        item_class.get("type"),
+        item_class.get("display_string"),
+    ]
+    return any(str(name or "").strip().lower() in GEM_CLASS_NAMES for name in names)
+
+
+def payload_item_class_display_name(item_class):
+    if not isinstance(item_class, dict):
+        return ""
+    for key in ("name", "type", "display_string"):
+        value = str(item_class.get(key) or "").strip()
+        if value:
+            return value
+    value = item_class.get("id")
+    return str(value) if value not in ("", None) else ""
+
+
+def normalized_weapon_subclass(item_subclass):
+    if not isinstance(item_subclass, dict):
+        return ""
+    try:
+        subclass_id = int(item_subclass.get("id") or 0)
+    except (TypeError, ValueError):
+        subclass_id = -1
+    if subclass_id in WEAPON_SUBCLASS_TYPES:
+        return WEAPON_SUBCLASS_TYPES[subclass_id]
+    names = [
+        item_subclass.get("name"),
+        item_subclass.get("type"),
+        item_subclass.get("display_string"),
+    ]
+    for name in names:
+        normalized = re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "_", str(name or "").strip().lower()).strip("_")
+        if normalized in WEAPON_SUBCLASS_NAMES:
+            return WEAPON_SUBCLASS_NAMES[normalized]
+        text = str(name or "").strip().lower()
+        if text in WEAPON_SUBCLASS_NAMES:
+            return WEAPON_SUBCLASS_NAMES[text]
+    return ""
+
+
+def item_type_metadata_from_payload(payload):
+    payload = payload if isinstance(payload, dict) else {}
+    item_class = payload.get("item_class") if isinstance(payload.get("item_class"), dict) else {}
+    item_subclass = payload.get("item_subclass") if isinstance(payload.get("item_subclass"), dict) else {}
+    slot = item_slot_from_payload(payload)
+    armor_type = normalized_armor_subclass(item_subclass) if payload_item_class_is_armor(item_class) else ""
+    weapon_type = normalized_weapon_subclass(item_subclass) if payload_item_class_is_weapon(item_class) else ""
+    if armor_type == "Shield":
+        weapon_type = "Shield"
+    if not weapon_type and slot == "off_hand":
+        inventory_type = payload.get("inventory_type") if isinstance(payload.get("inventory_type"), dict) else {}
+        inventory_key = re.sub(r"[^a-z0-9_]+", "_", str(inventory_type.get("type") or "").lower()).strip("_")
+        if inventory_key in {"holdable", "held_in_off_hand"}:
+            weapon_type = "Held In Off-hand"
+    return {
+        "armorType": armor_type,
+        "weaponType": weapon_type,
+        "itemSetName": item_set_name_from_payload(payload),
+        "supportsSocket": item_payload_has_socket(payload),
+    }
+
+
 def gear_compatibility_from_payload(payload, class_key, simc_slot):
-    if not isinstance(payload, dict) or not class_key or simc_slot not in ARMOR_SLOTS:
+    if not isinstance(payload, dict) or not class_key:
+        return "unknown"
+    if simc_slot in WEAPON_SLOTS:
+        weapon_type = item_type_metadata_from_payload(payload).get("weaponType") or ""
+        if weapon_type == "Shield":
+            return "compatible" if class_key in SHIELD_CLASSES else "incompatible"
+        return "unknown"
+    if simc_slot not in ARMOR_SLOTS:
         return "unknown"
     item_class = payload.get("item_class") or {}
     item_subclass = payload.get("item_subclass") or {}
-    item_class_name = str(item_class.get("name") or "").lower()
-    subclass_name = str(item_subclass.get("name") or "")
     expected_armor = CLASS_ARMOR_TYPES.get(class_key)
-    if "armor" not in item_class_name or not expected_armor or not subclass_name:
+    actual_armor = normalized_armor_subclass(item_subclass)
+    if not payload_item_class_is_armor(item_class) or not expected_armor or not actual_armor:
         return "unknown"
-    if subclass_name.lower() in {"miscellaneous", "cosmetic"}:
+    if actual_armor in {"Miscellaneous", "Cosmetic"}:
         return "unknown"
-    return "compatible" if subclass_name.lower() == expected_armor.lower() else "incompatible"
+    return "compatible" if actual_armor.lower() == expected_armor.lower() else "incompatible"
 
 
 def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""):
@@ -8158,6 +11116,12 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         "classKey": slugify(class_key, "") if class_key else str(value.get("classKey") or ""),
         "specKey": slugify(spec_key, "") if spec_key else str(value.get("specKey") or ""),
     }
+    payload = value.get("payload") if isinstance(value.get("payload"), dict) else {}
+    type_metadata = item_type_metadata_from_payload(payload)
+    for key in ("armorType", "weaponType", "itemSetName"):
+        text = str(value.get(key) or type_metadata.get(key) or "").strip()
+        if text:
+            item[key] = text[:120]
     game_asset = normalize_game_asset(
         {},
         game_asset_from_icon_url(
@@ -8182,7 +11146,6 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         option_value = normalize_option_value(value.get(key))
         if option_value:
             item[key] = option_value
-    payload = value.get("payload") if isinstance(value.get("payload"), dict) else {}
     item_stats = value.get("itemStats") or value.get("stats") or extract_item_stats_from_payload(payload)
     if isinstance(item_stats, list) and item_stats:
         normalized_stats = [normalize_item_stat(stat) for stat in item_stats]
@@ -8199,7 +11162,20 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         }
     else:
         item["modCapabilities"] = item_mod_capabilities(payload, slot, item=item)
-    item["compatibility"] = str(value.get("compatibility") or gear_compatibility_from_payload(payload, item["classKey"], slot) or "unknown")
+    if value.get("simcIlevelOnly"):
+        item["simcIlevelOnly"] = True
+    item["supportsSocket"] = bool(
+        value.get("supportsSocket")
+        or type_metadata.get("supportsSocket")
+        or item.get("modCapabilities", {}).get("hasSocket")
+    )
+    payload_compatibility = gear_compatibility_from_payload(payload, item["classKey"], slot)
+    existing_compatibility = str(value.get("compatibility") or "")
+    item["compatibility"] = (
+        payload_compatibility
+        if existing_compatibility in {"", "unknown"} and payload_compatibility != "unknown"
+        else existing_compatibility or payload_compatibility or "unknown"
+    )
     item["missingFields"] = gear_item_missing_fields(item)
     item["simcReady"] = gear_item_simc_ready(item)
     return item
@@ -8277,6 +11253,13 @@ def gear_candidate_for_slot(item, slot):
     return sanitize_gear_candidate_mod_options(cloned)
 
 
+def gear_candidate_incompatible(item):
+    compatibility = (item or {}).get("compatibility")
+    if isinstance(compatibility, dict):
+        return compatibility.get("status") == "incompatible"
+    return compatibility == "incompatible"
+
+
 def gear_candidate_key(item):
     if not isinstance(item, dict):
         return ("",)
@@ -8310,6 +11293,158 @@ def unique_gear_candidates(items, limit=None):
         if limit and len(unique_items) >= limit:
             break
     return unique_items
+
+
+COMPACT_GEAR_CANDIDATE_KEYS = {
+    "slot",
+    "simcSlot",
+    "itemId",
+    "name",
+    "id",
+    "displayName",
+    "localizedName",
+    "englishName",
+    "iconUrl",
+    "quality",
+    "sourceType",
+    "source",
+    "metadataStatus",
+    "metadataSource",
+    "metadataLocale",
+    "classKey",
+    "specKey",
+    "gameAsset",
+    "ilevel",
+    "bonus_id",
+    "gem_id",
+    "gem_bonus_id",
+    "gem_ilevel",
+    "enchant_id",
+    "crafted_stats",
+    "itemStats",
+    "statSummary",
+    "modCapabilities",
+    "armorType",
+    "weaponType",
+    "itemSetName",
+    "supportsSocket",
+    "compatibility",
+    "missingFields",
+    "simcReady",
+    "simcIlevelOnly",
+    "recommendationScore",
+    "defaultVariantKey",
+    "variantKey",
+    "variantLabel",
+    "variantDifficultyLabel",
+    "variantSource",
+    "variantStatus",
+    "variantBlockers",
+    "blockers",
+}
+COMPACT_GEAR_SOURCE_KEYS = {
+    "id",
+    "itemId",
+    "sourceType",
+    "label",
+    "sourceLabel",
+    "instanceId",
+    "encounterId",
+    "difficultyKey",
+    "difficultyLabel",
+    "seasonRevision",
+    "recommendationScore",
+    "updatedAt",
+}
+COMPACT_GEAR_VARIANT_KEYS = {
+    "id",
+    "itemId",
+    "slot",
+    "key",
+    "variantKey",
+    "label",
+    "difficultyLabel",
+    "sourceType",
+    "difficultyKey",
+    "itemLevel",
+    "ilevel",
+    "simcOptions",
+    "status",
+    "blockers",
+    "simcIlevelOnly",
+    "updatedAt",
+}
+COMPACT_GEAR_MOD_OPTION_KEYS = {
+    "id",
+    "type",
+    "optionType",
+    "name",
+    "label",
+    "simcOptions",
+    "status",
+}
+
+
+def compact_dict(source, allowed_keys):
+    if not isinstance(source, dict):
+        return {}
+    result = {}
+    for key in allowed_keys:
+        if key not in source:
+            continue
+        value = source.get(key)
+        if value in (None, "", [], {}):
+            continue
+        result[key] = value
+    return result
+
+
+def compact_gear_candidate(item):
+    if not isinstance(item, dict):
+        return item
+    compact_item = compact_dict(item, COMPACT_GEAR_CANDIDATE_KEYS)
+    sources = [
+        compact_dict(source, COMPACT_GEAR_SOURCE_KEYS)
+        for source in item.get("sources") or []
+        if isinstance(source, dict)
+    ]
+    variants = [
+        compact_dict(variant, COMPACT_GEAR_VARIANT_KEYS)
+        for variant in item.get("variants") or []
+        if isinstance(variant, dict)
+    ]
+    socket_options = [
+        compact_dict(option, COMPACT_GEAR_MOD_OPTION_KEYS)
+        for option in item.get("socketOptions") or []
+        if isinstance(option, dict)
+    ]
+    enchant_options = [
+        compact_dict(option, COMPACT_GEAR_MOD_OPTION_KEYS)
+        for option in item.get("enchantOptions") or []
+        if isinstance(option, dict)
+    ]
+    if sources:
+        compact_item["sources"] = sources
+    if variants:
+        compact_item["variants"] = variants
+    if socket_options:
+        compact_item["socketOptions"] = socket_options
+    if enchant_options:
+        compact_item["enchantOptions"] = enchant_options
+    return compact_item
+
+
+def compact_gear_candidates(items):
+    return [compact_gear_candidate(item) for item in items or [] if isinstance(item, dict)]
+
+
+def compact_community_gear_template(template):
+    if not isinstance(template, dict):
+        return template
+    compact_template = dict(template)
+    compact_template.pop("payload", None)
+    compact_template["gearItems"] = compact_gear_candidates(template.get("gearItems") or [])
+    return compact_template
 
 
 def build_websim_gear_lines(items):

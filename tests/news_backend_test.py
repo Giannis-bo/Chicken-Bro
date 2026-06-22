@@ -3091,6 +3091,16 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("core_schema_v1", migrations)
         self.assertIn("user_build_templates_v1", migrations)
 
+    def test_init_db_skips_seed_writes_after_schema_is_initialized(self):
+        self.backend.init_db()
+
+        with patch.object(
+            self.backend,
+            "seed_news_sources",
+            side_effect=AssertionError("init_db should not write seed data once initialized"),
+        ):
+            self.backend.init_db()
+
     def test_user_build_templates_are_synced_and_isolated_by_owner(self):
         login_a = self.backend.login_with_wechat_code(
             "wx-code-template-a",
@@ -3264,27 +3274,113 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(components["wcl_credentials"]["status"], "missing_credentials")
         self.assertNotIn("fake-api-key", json.dumps(payload, ensure_ascii=False))
 
+    def test_data_health_payload_exposes_raiderio_target_item_coverage(self):
+        import server.raiderio_payload as raiderio_payload
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            raiderio_payload.write_cache(
+                conn,
+                {
+                    "sourceName": "Raider.IO",
+                    "sourceStatus": "partial",
+                    "status": "partial",
+                    "region": "cn",
+                    "locale": "zh_CN",
+                    "seasonSlug": "season-tww-3",
+                    "checkedAt": "2026-06-22T00:00:00+00:00",
+                    "expiresAt": raiderio_payload.iso_after(6),
+                    "staleAt": raiderio_payload.iso_after(48),
+                    "errors": [],
+                    "runCount": 160,
+                    "profileCount": 183,
+                    "profileLimitPerSpec": 5,
+                    "targetItemCoverage": {
+                        "targetItemCount": 35,
+                        "matchedTargetItemIds": ["251111", "251166", "251171"],
+                        "missingTargetItemIds": ["250223"],
+                        "targetProfileRequestLimit": 120,
+                    },
+                    "runs": [],
+                    "profiles": [],
+                    "specAggregates": [],
+                },
+            )
+            conn.commit()
+
+        with patch.object(self.backend, "sync_raiderio_cache", side_effect=AssertionError("health must be read-only")):
+            payload = self.backend.build_data_health_payload()
+
+        component = {item["key"]: item for item in payload["components"]}["raiderio"]
+
+        self.assertEqual(component["status"], "partial")
+        self.assertEqual(component["details"]["profileCount"], 183)
+        self.assertEqual(
+            component["details"]["targetItemCoverage"],
+            {
+                "targetItemCount": 35,
+                "matchedTargetItemIds": ["251111", "251166", "251171"],
+                "missingTargetItemIds": ["250223"],
+                "targetProfileRequestLimit": 120,
+            },
+        )
+
     def test_data_health_payload_includes_gear_catalog_component(self):
         import server.websim_payload as websim_payload
 
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
             websim_payload.ensure_websim_tables(conn)
+            websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Health Catalog Hood",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 1234}],
+                    },
+                },
+                fallback_name="Health Catalog Hood",
+                english_payload={"name": "Health Catalog Hood", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-250777",
+                    "itemId": "250777",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Health Catalog Dungeon",
+                },
+            )
+            websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-250777",
+                    "itemId": "250777",
+                    "slot": "head",
+                    "variantKey": "heroic-707",
+                    "label": "Heroic 707",
+                    "sourceType": "dungeon",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "partial",
+                    "blockers": ["missing deterministic SimC variant preset"],
+                },
+            )
             websim_payload.set_sync_state(
                 conn,
                 "gearCatalog",
                 {
-                    "status": "partial",
+                    "status": "verified",
                     "itemCount": 12,
-                    "sourceCount": 9,
                     "variantCount": 21,
-                    "verifiedCount": 18,
-                    "partialCount": 2,
-                    "blockedCount": 1,
                     "itemDatabaseRevision": "items-test-rev",
                     "variantRevision": "variants-test-rev",
                     "checkedAt": "2026-06-19T00:00:00+00:00",
-                    "blockers": ["1 catalog item missing selectable variant"],
-                    "topBlockers": [{"reason": "missing deterministic SimC variant preset", "count": 2}],
                 },
             )
             conn.commit()
@@ -3294,12 +3390,12 @@ class NewsBackendTest(unittest.TestCase):
 
         self.assertIn("gear_catalog", components)
         self.assertEqual(components["gear_catalog"]["status"], "partial")
-        self.assertEqual(components["gear_catalog"]["details"]["itemCount"], 12)
-        self.assertEqual(components["gear_catalog"]["details"]["variantCount"], 21)
+        self.assertEqual(components["gear_catalog"]["details"]["itemCount"], 1)
+        self.assertEqual(components["gear_catalog"]["details"]["variantCount"], 1)
         self.assertEqual(components["gear_catalog"]["details"]["itemDatabaseRevision"], "items-test-rev")
         self.assertEqual(
             components["gear_catalog"]["details"]["variantReadiness"],
-            {"verified": 18, "partial": 2, "blocked": 1, "total": 21},
+            {"verified": 0, "partial": 1, "blocked": 0, "total": 1},
         )
         self.assertEqual(
             components["gear_catalog"]["details"]["modOptionCoverage"],
@@ -3310,9 +3406,9 @@ class NewsBackendTest(unittest.TestCase):
         )
         self.assertEqual(
             components["gear_catalog"]["details"]["topBlockers"][0],
-            {"reason": "missing deterministic SimC variant preset", "count": 2},
+            {"reason": "missing deterministic SimC variant preset", "count": 1},
         )
-        self.assertIn("1 catalog item missing selectable variant", components["gear_catalog"]["blockers"])
+        self.assertIn("missing deterministic SimC variant preset", components["gear_catalog"]["blockers"])
 
     def test_data_health_payload_includes_community_template_scan_coverage(self):
         import server.websim_payload as websim_payload

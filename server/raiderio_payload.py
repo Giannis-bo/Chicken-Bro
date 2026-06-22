@@ -2,6 +2,8 @@ import json
 import os
 import re
 import hashlib
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -11,6 +13,7 @@ from urllib.request import Request, urlopen
 RAIDERIO_BASE_URL = "https://raider.io/api/v1"
 RAIDERIO_CACHE_KEY = "raiderio_payload_v1"
 RAIDERIO_SOURCE_NAME = "Raider.IO"
+RAIDERIO_DEADLINE_ERROR = "Raider.IO sync deadline exceeded"
 DEFAULT_REGION = "cn"
 DEFAULT_LOCALE = "cn"
 DEFAULT_SEASON_SLUG = "season-mn-1"
@@ -68,6 +71,21 @@ def utc_now():
 
 def utc_now_iso():
     return utc_now().isoformat(timespec="seconds")
+
+
+def emit_sync_stage(callback, stage, status, started_at=None, details=None):
+    event = {
+        "stage": stage,
+        "status": status,
+        "checkedAt": utc_now_iso(),
+    }
+    if started_at is not None:
+        event["durationSeconds"] = round(max(0.0, time.monotonic() - started_at), 3)
+    if isinstance(details, dict) and details:
+        event.update(details)
+    if callback:
+        callback(event)
+    return time.monotonic()
 
 
 def iso_after(hours):
@@ -148,6 +166,10 @@ def raiderio_api_key():
     return os.environ.get("WOW_RAIDERIO_API_KEY", "").strip()
 
 
+def raiderio_public_fallback_enabled():
+    return os.environ.get("WOW_RAIDERIO_PUBLIC_FALLBACK", "0").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def raiderio_user_agent():
     return os.environ.get("WOW_RAIDERIO_USER_AGENT", "wow-mini-program/raiderio-sync").strip() or "wow-mini-program/raiderio-sync"
 
@@ -221,10 +243,9 @@ def write_cache(conn, payload):
 
 def api_get(path, params=None, api_key=None):
     key = api_key if api_key is not None else raiderio_api_key()
-    if not key:
-        raise RaiderIOError("WOW_RAIDERIO_API_KEY is not configured")
     query = dict(params or {})
-    query["access_key"] = key
+    if key:
+        query["access_key"] = key
     url = f"{RAIDERIO_BASE_URL}{path}?{urlencode(query, doseq=True)}"
     attempts = max(1, int_env("WOW_RAIDERIO_RETRIES", 2))
     last_error = None
@@ -243,6 +264,10 @@ def api_get(path, params=None, api_key=None):
             if 400 <= error.code < 500:
                 raise last_error from None
         except URLError as error:
+            last_error = RaiderIOError(redact_secret(f"Raider.IO network error: {error}"))
+        except TimeoutError as error:
+            last_error = RaiderIOError(redact_secret(f"Raider.IO network timeout: {error}"))
+        except OSError as error:
             last_error = RaiderIOError(redact_secret(f"Raider.IO network error: {error}"))
         except json.JSONDecodeError as error:
             raise RaiderIOError(redact_secret(f"Raider.IO invalid JSON: {error}")) from None
@@ -293,6 +318,50 @@ def profile_total_limit():
     return max(1, int_env("WOW_RAIDERIO_PROFILE_LIMIT", default_total))
 
 
+def target_profile_limit():
+    return max(0, int_env("WOW_RAIDERIO_TARGET_PROFILE_LIMIT", 120))
+
+
+def profile_fetch_workers():
+    return max(1, int_env("WOW_RAIDERIO_PROFILE_WORKERS", 1))
+
+
+def sync_deadline_at():
+    seconds = max(0, int_env("WOW_RAIDERIO_SYNC_DEADLINE_SECONDS", 0))
+    return time.monotonic() + seconds if seconds else 0
+
+
+def sync_deadline_expired(deadline_at):
+    return bool(deadline_at and time.monotonic() >= deadline_at)
+
+
+def profile_payload_limit():
+    return profile_total_limit() + target_profile_limit()
+
+
+def is_profile_candidate(character):
+    name = str((character or {}).get("name") or "").strip().lower()
+    realm = str((character or {}).get("realmSlug") or "").strip().lower()
+    if not name or not realm:
+        return False
+    return name != "anonymous" and realm != "anonymous"
+
+
+def unique_profile_candidates_for_runs(runs):
+    unique = []
+    seen_characters = set()
+    for run in runs:
+        for character in run.get("roster") or []:
+            if not is_profile_candidate(character):
+                continue
+            key = character_key(character)
+            if key in seen_characters:
+                continue
+            seen_characters.add(key)
+            unique.append(character)
+    return unique
+
+
 def select_profile_candidates_for_runs(runs):
     total_limit = profile_total_limit()
     per_spec_limit = max(1, int_env("WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC", 5))
@@ -301,6 +370,8 @@ def select_profile_candidates_for_runs(runs):
     per_spec_counts = {}
     for run in runs:
         for character in run.get("roster") or []:
+            if not is_profile_candidate(character):
+                continue
             key = character_key(character)
             if key in seen_characters:
                 continue
@@ -314,6 +385,195 @@ def select_profile_candidates_for_runs(runs):
             if len(unique) >= total_limit:
                 return unique
     return unique
+
+
+def env_target_item_ids():
+    raw = os.environ.get("WOW_RAIDERIO_TARGET_ITEM_IDS", "")
+    ids = []
+    for value in re.split(r"[\s,;/]+", raw):
+        normalized = str(value or "").strip()
+        if normalized and re.fullmatch(r"\d+", normalized) and normalized not in ids:
+            ids.append(normalized)
+    return ids
+
+
+def sqlite_table_columns(conn, table):
+    try:
+        rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    except Exception:
+        return set()
+    return {str(row[1]) for row in rows}
+
+
+def target_source_bucket(source_label, source_type=""):
+    text = str(source_label or "").strip()
+    if text:
+        parts = [part.strip() for part in re.split(r"\s+[-–—]\s+", text) if part.strip()]
+        if len(parts) > 1:
+            return parts[-1]
+        return text
+    return str(source_type or "unknown").strip() or "unknown"
+
+
+def fair_target_item_ids(rows, limit):
+    buckets = {}
+    bucket_order = []
+    for row in rows or []:
+        item_id = str(row.get("itemId") or "").strip()
+        if not item_id:
+            continue
+        source_label = target_source_bucket(row.get("sourceLabel"), row.get("sourceType"))
+        slot = str(row.get("slot") or "").strip() or "slot"
+        bucket_key = (source_label, slot)
+        if bucket_key not in buckets:
+            buckets[bucket_key] = []
+            bucket_order.append(bucket_key)
+        buckets[bucket_key].append(item_id)
+
+    result = []
+    seen = set()
+    while len(result) < limit:
+        progressed = False
+        for bucket_key in list(bucket_order):
+            bucket = buckets.get(bucket_key) or []
+            while bucket:
+                item_id = bucket.pop(0)
+                if item_id in seen:
+                    continue
+                seen.add(item_id)
+                result.append(item_id)
+                progressed = True
+                break
+            if len(result) >= limit:
+                break
+        if not progressed:
+            break
+    return result
+
+
+def db_target_item_ids(conn):
+    if conn is None:
+        return []
+    try:
+        table_exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='websim_gear_variants'"
+        ).fetchone()
+        if not table_exists:
+            return []
+        limit = max(1, int_env("WOW_RAIDERIO_TARGET_ITEM_LIMIT", 80))
+        variant_columns = sqlite_table_columns(conn, "websim_gear_variants")
+        source_columns = sqlite_table_columns(conn, "websim_gear_sources")
+        has_slot = "slot" in variant_columns
+        has_sources = {"item_id", "source_type", "source_label"}.issubset(source_columns)
+        slot_expr = "COALESCE(v.slot, '')" if has_slot else "''"
+        if has_sources:
+            rows = conn.execute(
+                f"""
+                SELECT DISTINCT v.item_id, {slot_expr}, COALESCE(s.source_label, ''), v.source_type
+                FROM websim_gear_variants v
+                LEFT JOIN websim_gear_sources s
+                  ON s.item_id = v.item_id
+                 AND s.source_type = v.source_type
+                WHERE v.status = 'partial'
+                  AND v.source_type IN ('dungeon', 'raid', 'tier_set')
+                ORDER BY COALESCE(s.source_label, ''), {slot_expr}, CAST(v.item_id AS INTEGER), v.item_id
+                """
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                f"""
+                SELECT DISTINCT v.item_id, {slot_expr}, '', v.source_type
+                FROM websim_gear_variants v
+                WHERE v.status = 'partial'
+                  AND v.source_type IN ('dungeon', 'raid', 'tier_set')
+                ORDER BY CAST(v.item_id AS INTEGER), v.item_id
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+    except Exception:
+        return []
+    candidates = [
+        {
+            "itemId": str(row[0] or "").strip(),
+            "slot": str(row[1] or "").strip(),
+            "sourceLabel": str(row[2] or "").strip(),
+            "sourceType": str(row[3] or "").strip(),
+        }
+        for row in rows
+    ]
+    return fair_target_item_ids(candidates, limit)
+
+
+def raiderio_target_item_ids(conn=None):
+    result = []
+    for item_id in [*env_target_item_ids(), *db_target_item_ids(conn)]:
+        normalized = str(item_id or "").strip()
+        if normalized and normalized not in result:
+            result.append(normalized)
+    return result
+
+
+def profile_gear_item_ids(profile):
+    ids = []
+    for item in (profile or {}).get("gear") or []:
+        item_id = str(item.get("itemId") or item.get("item_id") or item.get("id") or "").strip()
+        if item_id and item_id not in ids:
+            ids.append(item_id)
+    return ids
+
+
+def target_item_match_examples(profiles, targets):
+    target_set = {str(item_id) for item_id in targets or [] if str(item_id or "").strip()}
+    examples = []
+    seen = set()
+    profile_values = list((profiles or {}).values()) if isinstance(profiles, dict) else list(profiles or [])
+    for profile in sorted(profile_values, key=character_key):
+        profile_ref = {
+            "name": profile.get("name") or "",
+            "realmSlug": profile.get("realmSlug") or "",
+            "region": profile.get("region") or raiderio_region(),
+            "classKey": profile.get("classKey") or "",
+            "specKey": profile.get("specKey") or "",
+            "profileUrl": profile.get("profileUrl") or "",
+        }
+        for item in profile.get("gear") or []:
+            item_id = str(item.get("itemId") or item.get("item_id") or item.get("id") or "").strip()
+            if item_id not in target_set:
+                continue
+            key = (item_id, profile_ref["region"], profile_ref["realmSlug"], profile_ref["name"], item.get("slot") or "")
+            if key in seen:
+                continue
+            seen.add(key)
+            examples.append({
+                "itemId": item_id,
+                "slot": item.get("slot") or "",
+                "name": item.get("name") or "",
+                "itemLevel": item.get("itemLevel") or item.get("item_level") or 0,
+                "bonuses": item.get("bonuses") if isinstance(item.get("bonuses"), list) else [],
+                "gems": item.get("gems") if isinstance(item.get("gems"), list) else [],
+                "enchants": item.get("enchants") if isinstance(item.get("enchants"), list) else [],
+                "profile": profile_ref,
+            })
+            if len(examples) >= 40:
+                return examples
+    return examples
+
+
+def target_item_coverage(profiles, target_item_ids):
+    targets = [str(item_id) for item_id in target_item_ids or [] if str(item_id or "").strip()]
+    matched = []
+    for profile in (profiles or {}).values():
+        for item_id in profile_gear_item_ids(profile):
+            if item_id in targets and item_id not in matched:
+                matched.append(item_id)
+    return {
+        "targetItemCount": len(targets),
+        "matchedTargetItemIds": sorted(matched),
+        "missingTargetItemIds": sorted([item_id for item_id in targets if item_id not in matched]),
+        "matchedTargetItemExamples": target_item_match_examples(profiles, targets),
+        "targetProfileRequestLimit": target_profile_limit(),
+    }
 
 
 def spec_coverage_from_runs(runs):
@@ -376,7 +636,7 @@ def simplify_run(ranking, leaderboard_url=""):
     run = ranking.get("run") if isinstance(ranking.get("run"), dict) else {}
     dungeon_name, dungeon_slug = dict_name_slug(run.get("dungeon"))
     roster = [simplify_character(item) for item in run.get("roster") or []]
-    roster = [item for item in roster if item.get("name") and item.get("realmSlug")]
+    roster = [item for item in roster if is_profile_candidate(item)]
     return {
         "rank": safe_int(ranking.get("rank")),
         "score": safe_float(ranking.get("score")),
@@ -457,27 +717,159 @@ def profile_summary(profile):
     return character
 
 
-def fetch_profiles_for_runs(runs):
+def fetch_profile_for_character(character, fields):
+    raw = api_get("/characters/profile", {
+        "region": character.get("region") or raiderio_region(),
+        "realm": character.get("realmSlug"),
+        "name": character.get("name"),
+        "fields": fields,
+    })
+    summary = profile_summary(raw)
+    for key in ("region", "realm", "realmSlug", "className", "classKey", "specName", "specKey", "role"):
+        if not summary.get(key) and character.get(key):
+            summary[key] = character.get(key)
+    return summary
+
+
+def profile_fetch_error_message(error):
+    if isinstance(error, RaiderIOError):
+        return str(error)
+    return redact_secret(f"Raider.IO profile fetch failed: {error}")
+
+
+def fetch_profile_batch(characters, fields):
+    candidates = [character for character in characters or [] if character]
+    if not candidates:
+        return [], []
+    workers = min(profile_fetch_workers(), len(candidates))
+    profiles = []
+    errors = []
+    if workers <= 1:
+        for character in candidates:
+            try:
+                profiles.append(fetch_profile_for_character(character, fields))
+            except (RaiderIOError, TimeoutError, OSError) as error:
+                errors.append(profile_fetch_error_message(error))
+        return profiles, errors
+
+    results = [None] * len(candidates)
+    indexed_errors = []
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        future_indexes = {
+            executor.submit(fetch_profile_for_character, character, fields): index
+            for index, character in enumerate(candidates)
+        }
+        for future in as_completed(future_indexes):
+            index = future_indexes[future]
+            try:
+                results[index] = future.result()
+            except (RaiderIOError, TimeoutError, OSError) as error:
+                indexed_errors.append((index, profile_fetch_error_message(error)))
+    profiles = [profile for profile in results if profile]
+    errors = [message for _index, message in sorted(indexed_errors)]
+    return profiles, errors
+
+
+def fetch_profiles_for_runs(runs, target_item_ids=None, deadline_at=0, stage_callback=None):
     unique = select_profile_candidates_for_runs(runs)
 
     profiles = {}
     errors = []
     fields = "gear,talents,mythic_plus_recent_runs,mythic_plus_best_runs,mythic_plus_scores_by_season"
-    for character in unique:
-        try:
-            raw = api_get("/characters/profile", {
-                "region": character.get("region") or raiderio_region(),
-                "realm": character.get("realmSlug"),
-                "name": character.get("name"),
-                "fields": fields,
-            })
-            summary = profile_summary(raw)
-            for key in ("region", "realm", "realmSlug", "className", "classKey", "specName", "specKey", "role"):
-                if not summary.get(key) and character.get(key):
-                    summary[key] = character.get(key)
+    if sync_deadline_expired(deadline_at):
+        errors.append(RAIDERIO_DEADLINE_ERROR)
+    else:
+        base_stage_started = emit_sync_stage(
+            stage_callback,
+            "raiderio_base_profiles",
+            "start",
+            details={"candidateCount": len(unique), "workers": min(profile_fetch_workers(), max(1, len(unique)))},
+        )
+        summaries, batch_errors = fetch_profile_batch(unique, fields)
+        errors.extend(batch_errors)
+        for summary in summaries:
             profiles[character_key(summary)] = summary
-        except RaiderIOError as error:
-            errors.append(str(error))
+        emit_sync_stage(
+            stage_callback,
+            "raiderio_base_profiles",
+            "complete",
+            base_stage_started,
+            {"profileCount": len(profiles), "errors": len(batch_errors)},
+        )
+    targets = [str(item_id) for item_id in target_item_ids or [] if str(item_id or "").strip()]
+    if targets and target_profile_limit():
+        requested = {character_key(character) for character in unique}
+        matched = set(target_item_coverage(profiles, targets)["matchedTargetItemIds"])
+        target_set = set(targets)
+        extra_candidates = []
+        for character in unique_profile_candidates_for_runs(runs):
+            key = character_key(character)
+            if key in requested:
+                continue
+            requested.add(key)
+            extra_candidates.append(character)
+            if len(extra_candidates) >= target_profile_limit():
+                break
+        workers = profile_fetch_workers()
+        target_stage_started = emit_sync_stage(
+            stage_callback,
+            "raiderio_target_profiles",
+            "start",
+            details={
+                "candidateCount": len(extra_candidates),
+                "targetItemCount": len(targets),
+                "matchedTargetItemCount": len(matched),
+                "workers": workers,
+            },
+        )
+        for index in range(0, len(extra_candidates), workers):
+            if matched >= target_set:
+                break
+            if sync_deadline_expired(deadline_at):
+                if RAIDERIO_DEADLINE_ERROR not in errors:
+                    errors.append(RAIDERIO_DEADLINE_ERROR)
+                break
+            batch = extra_candidates[index:index + workers]
+            batch_stage_started = emit_sync_stage(
+                stage_callback,
+                "raiderio_target_profile_batch",
+                "start",
+                details={
+                    "offset": index,
+                    "batchSize": len(batch),
+                    "matchedTargetItemCount": len(matched),
+                },
+            )
+            summaries, batch_errors = fetch_profile_batch(batch, fields)
+            errors.extend(batch_errors)
+            for summary in summaries:
+                profiles[character_key(summary)] = summary
+                matched.update(item_id for item_id in profile_gear_item_ids(summary) if item_id in targets)
+            emit_sync_stage(
+                stage_callback,
+                "raiderio_target_profile_batch",
+                "complete",
+                batch_stage_started,
+                {
+                    "offset": index,
+                    "batchSize": len(batch),
+                    "profileCount": len(profiles),
+                    "matchedTargetItemCount": len(matched),
+                    "errors": len(batch_errors),
+                },
+            )
+        emit_sync_stage(
+            stage_callback,
+            "raiderio_target_profiles",
+            "complete",
+            target_stage_started,
+            {
+                "profileCount": len(profiles),
+                "matchedTargetItemCount": len(matched),
+                "targetItemCount": len(targets),
+                "errors": len(errors),
+            },
+        )
     return profiles, errors
 
 
@@ -625,13 +1017,9 @@ def optional_api_get(path, params, errors):
         return {}
 
 
-def sync_raiderio_cache(conn, force=False):
+def sync_raiderio_cache(conn, force=False, stage_callback=None):
     ensure_raiderio_tables(conn)
-    if not raiderio_api_key():
-        payload = missing_credentials_payload()
-        write_cache(conn, payload)
-        return payload
-
+    sync_stage_started = emit_sync_stage(stage_callback, "raiderio_sync", "start")
     checked_at = utc_now_iso()
     region = raiderio_region()
     season_slug = raiderio_season_slug()
@@ -639,7 +1027,19 @@ def sync_raiderio_cache(conn, force=False):
     rankings = []
     leaderboard_url = ""
     pages = max(1, int_env("WOW_RAIDERIO_RUN_PAGES", 8))
+    target_item_ids = raiderio_target_item_ids(conn)
+    deadline_at = sync_deadline_at()
+    runs_stage_started = emit_sync_stage(
+        stage_callback,
+        "raiderio_runs",
+        "start",
+        details={"pages": pages, "targetItemCount": len(target_item_ids)},
+    )
+    fetched_pages = 0
     for page in range(pages):
+        if sync_deadline_expired(deadline_at):
+            errors.append(RAIDERIO_DEADLINE_ERROR)
+            break
         response = api_get("/mythic-plus/runs", {
             "season": season_slug,
             "region": region,
@@ -651,25 +1051,62 @@ def sync_raiderio_cache(conn, force=False):
         if not isinstance(page_rankings, list):
             page_rankings = []
         rankings.extend(page_rankings)
+        fetched_pages += 1
         runs_preview = [simplify_run(item, leaderboard_url) for item in rankings]
         coverage_preview = spec_coverage_from_runs([run for run in runs_preview if run.get("roster")])
-        if coverage_preview.get("totalSpecCount") and coverage_preview.get("coveredSpecCount") >= coverage_preview.get("totalSpecCount"):
+        if (
+            not target_item_ids
+            and coverage_preview.get("totalSpecCount")
+            and coverage_preview.get("coveredSpecCount") >= coverage_preview.get("totalSpecCount")
+        ):
             break
         if len(page_rankings) < 20:
             break
 
     runs = [simplify_run(item, leaderboard_url) for item in rankings]
     runs = [run for run in runs if run.get("roster")]
-    spec_coverage = spec_coverage_from_runs(runs)
-    profiles, profile_errors = fetch_profiles_for_runs(runs)
-    errors.extend(profile_errors[:8])
-    static_data = optional_api_get(
-        "/mythic-plus/static-data",
-        {"expansion_id": os.environ.get("WOW_RAIDERIO_EXPANSION_ID", DEFAULT_EXPANSION_ID)},
-        errors,
+    emit_sync_stage(
+        stage_callback,
+        "raiderio_runs",
+        "complete",
+        runs_stage_started,
+        {"pagesFetched": fetched_pages, "rankingCount": len(rankings), "runCount": len(runs), "errors": len(errors)},
     )
-    affixes = optional_api_get("/mythic-plus/affixes", {"region": region, "locale": raiderio_locale()}, errors)
-    cutoffs = optional_api_get("/mythic-plus/season-cutoffs", {"season": season_slug, "region": region}, errors)
+    spec_coverage = spec_coverage_from_runs(runs)
+    profiles, profile_errors = fetch_profiles_for_runs(
+        runs,
+        target_item_ids=target_item_ids,
+        deadline_at=deadline_at,
+        stage_callback=stage_callback,
+    )
+    errors.extend(profile_errors[:8])
+    if sync_deadline_expired(deadline_at):
+        if RAIDERIO_DEADLINE_ERROR not in errors:
+            errors.append(RAIDERIO_DEADLINE_ERROR)
+        static_data = {}
+        affixes = {}
+        cutoffs = {}
+    else:
+        static_stage_started = emit_sync_stage(stage_callback, "raiderio_static", "start")
+        static_data = optional_api_get(
+            "/mythic-plus/static-data",
+            {"expansion_id": os.environ.get("WOW_RAIDERIO_EXPANSION_ID", DEFAULT_EXPANSION_ID)},
+            errors,
+        )
+        affixes = optional_api_get("/mythic-plus/affixes", {"region": region, "locale": raiderio_locale()}, errors)
+        cutoffs = optional_api_get("/mythic-plus/season-cutoffs", {"season": season_slug, "region": region}, errors)
+        emit_sync_stage(
+            stage_callback,
+            "raiderio_static",
+            "complete",
+            static_stage_started,
+            {
+                "hasStaticData": bool(static_data),
+                "hasAffixes": bool(affixes),
+                "hasCutoffs": bool(cutoffs),
+                "errors": len(errors),
+            },
+        )
     aggregates = aggregate_runs(runs, profiles)
     source_status = "synced" if runs else "blocked"
     if runs and errors:
@@ -690,9 +1127,10 @@ def sync_raiderio_cache(conn, force=False):
         "runCount": len(runs),
         "profileCount": len(profiles),
         "profileLimitPerSpec": max(1, int_env("WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC", 5)),
+        "targetItemCoverage": target_item_coverage(profiles, target_item_ids),
         "specCoverage": spec_coverage,
         "runs": runs[:200],
-        "profiles": list(profiles.values())[:profile_total_limit()],
+        "profiles": list(profiles.values())[:profile_payload_limit()],
         "specAggregates": aggregates,
         "communityTemplates": build_community_templates(aggregates, checked_at),
         "staticData": static_data,
@@ -700,6 +1138,18 @@ def sync_raiderio_cache(conn, force=False):
         "cutoffs": cutoffs,
     }
     write_cache(conn, payload)
+    emit_sync_stage(
+        stage_callback,
+        "raiderio_sync",
+        "complete",
+        sync_stage_started,
+        {
+            "sourceStatus": source_status,
+            "runCount": len(runs),
+            "profileCount": len(profiles),
+            "errors": len(errors),
+        },
+    )
     return payload
 
 
@@ -765,7 +1215,7 @@ def get_raiderio_payload(conn, allow_sync=True):
     cached = read_cache(conn)
     if cached and payload_is_fresh(cached):
         return cached
-    if allow_sync and raiderio_api_key():
+    if allow_sync and (raiderio_api_key() or raiderio_public_fallback_enabled()):
         try:
             return sync_raiderio_cache(conn)
         except RaiderIOError as error:

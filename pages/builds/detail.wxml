@@ -253,7 +253,7 @@
       </view>
       <view class="gear-apply-row">
         <text class="gear-apply-state">{{gearSlotSheet.activeTrustLabel}} · {{gearSlotSheet.activeTrustText}}</text>
-        <button class="gear-apply-button" bindtap="applyGearCandidate">应用</button>
+        <button class="gear-apply-button" disabled="{{!gearSlotSheet.canApplyCandidate}}" bindtap="applyGearCandidate">{{gearSlotSheet.canApplyCandidate ? '应用' : '待补'}}</button>
       </view>
     </view>
   </view>
