@@ -4053,6 +4053,43 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("made.up", json.dumps(payload, ensure_ascii=False))
         self.assertIn("profile.summary", payload["evidenceRefs"])
 
+    def test_chickenbro_codex_schema_is_strict_for_responses_api(self):
+        self.seed_chickenbro_profile()
+        captured = {}
+
+        def fake_codex_runner(prompt, **kwargs):
+            captured["schema"] = kwargs.get("schema")
+            return {
+                "status": "succeeded",
+                "lastMessage": json.dumps(
+                    {
+                        "answer": "先根据 profile.summary 安排强韧波次爆发。",
+                        "confidence": "medium",
+                        "priorityActions": [
+                            {"title": "围绕强韧小怪波次规划爆发。", "evidenceRefs": ["profile.summary"]}
+                        ],
+                        "evidenceRefs": ["profile.summary"],
+                        "limitations": ["缺少玩家自己的 WCL 和完整 SimC。"],
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+
+        result = self.backend.send_chickenbro_message(
+            {
+                "message": "奥法强韧大秘境怎么优化？",
+                "guestId": "strict-schema-device",
+                "context": {"classKey": "mage", "specKey": "arcane", "scenarioKey": "mplus_fortified"},
+            },
+            codex_runner=fake_codex_runner,
+        )
+
+        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "codex")
+        schema = captured["schema"]
+        self.assertIs(schema["additionalProperties"], False)
+        action_items = schema["properties"]["priorityActions"]["items"]
+        self.assertIs(action_items["additionalProperties"], False)
+
     def test_http_chickenbro_api_supports_guest_session_job_and_owner_isolation(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)

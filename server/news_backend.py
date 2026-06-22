@@ -3468,11 +3468,23 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
     prompt = chickenbro_prompt_from_context(bounded_context)
     schema = {
         "type": "object",
-        "required": ["answer", "confidence", "priorityActions", "evidenceRefs"],
+        "additionalProperties": False,
+        "required": ["answer", "confidence", "priorityActions", "evidenceRefs", "limitations"],
         "properties": {
             "answer": {"type": "string"},
             "confidence": {"type": "string"},
-            "priorityActions": {"type": "array"},
+            "priorityActions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["title", "evidenceRefs"],
+                    "properties": {
+                        "title": {"type": "string"},
+                        "evidenceRefs": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
             "evidenceRefs": {"type": "array", "items": {"type": "string"}},
             "limitations": {"type": "array", "items": {"type": "string"}},
         },
