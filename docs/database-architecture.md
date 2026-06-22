@@ -7,11 +7,11 @@
 | 域 | 表 | 数据性质 | 规则 |
 | --- | --- | --- | --- |
 | Identity | `wechat_users`, `auth_tokens` | 持久账号与会话 | `auth_tokens.user_id` 必须指向 `wechat_users.id`，过期 token 会被清理。 |
-| User Data | `user_build_templates`, `simulator_tasks` | 用户资产 | 写接口必须有账号 token，或显式 guest policy；列表/详情/删除只能访问当前 owner。 |
+| User Data | `user_build_templates`, `simulator_tasks`, `chickenbro_sessions`, `chickenbro_messages`, `chickenbro_user_profiles` | 用户资产 | 写接口必须有账号 token，或显式 guest policy；列表/详情/删除只能访问当前 owner。炸鸡队长长期记忆只保存结构化角色、场景、偏好和历史摘要，不把原始日志或完整 SimC profile 写入长期画像。 |
 | News | `news_articles`, `news_sources`, `news_raw_articles`, `news_article_evidence`, `news_refresh_runs` | 可审计内容发布 | 公共 payload 只发布通过授权、官方校验和 source translation 门禁的内容。 |
-| WebSim/Game Cache | `websim_*`, Raider.IO/stat weight cache | 可重建 Season Data Cache | 缺凭据、过期或对账失败时必须降级为 `partial`、`stale` 或 `blocked`；本地只保存规范化证据、索引、读取模型和健康状态，不作为人工维护的真理库。 |
+| WebSim/Game Cache | `websim_*`, Raider.IO/stat weight cache, `chickenbro_spec_profiles` | 可重建 Season Data Cache | 缺凭据、过期或对账失败时必须降级为 `partial`、`stale` 或 `blocked`；本地只保存规范化证据、索引、读取模型和健康状态，不作为人工维护的真理库。炸鸡队长 `published` 画像可支撑结论，`partial` 只做背景，`stale/blocked/needs_review` 不进入结论链路。 |
 | Analytics | `analytics_*` | 事件与聚合 | 不存用户提交的 prompt/profile 原文；可归档，不能混入用户资产表。 |
-| Ops | `schema_migrations`, `websim_sync_state` | 运维控制面 | 记录已初始化的 schema 能力和同步状态。 |
+| Ops | `schema_migrations`, `websim_sync_state`, `agent_jobs` | 运维控制面 | 记录已初始化的 schema 能力、同步状态和后台 agent 任务状态。`agent_jobs` 记录 queued/running/succeeded/failed/timed_out 和 bounded context/result，用户可见历史仍由对应业务表承载。 |
 
 ## Migration 规则
 
@@ -20,6 +20,7 @@
 - 当前标记：
   - `core_schema_v1`
   - `user_build_templates_v1`
+  - `chickenbro_backend_v1`
 - 新增用户写表前必须先补 migration 标记、owner 字段、外键和权限测试。
 
 ## 个人模板接口

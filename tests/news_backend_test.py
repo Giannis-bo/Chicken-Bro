@@ -3804,6 +3804,310 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("999999", coach_json)
         self.assertNotIn("99th percentile", coach_json)
 
+    def seed_chickenbro_profile(self, **overrides):
+        profile = {
+            "profileKey": "retail:cn:mage:arcane:mplus_fortified",
+            "productPhase": "retail",
+            "seasonSlug": "season-mn-1",
+            "patchVersion": "11.1.7",
+            "region": "cn",
+            "classKey": "mage",
+            "specKey": "arcane",
+            "role": "damage",
+            "scenarioKey": "mplus_fortified",
+            "status": "published",
+            "sourceStatus": "verified",
+            "checkedAt": "2026-06-22T00:00:00+00:00",
+            "publishedAt": "2026-06-22T00:00:00+00:00",
+            "staleAt": "2026-06-29T00:00:00+00:00",
+            "expiresAt": "2026-07-06T00:00:00+00:00",
+            "payload": {
+                "identity": {"className": "Mage", "specName": "Arcane"},
+                "sourceCoverage": {
+                    "raiderio": {"status": "verified", "sampleCount": 80},
+                    "wcl": {"status": "partial", "sampleCount": 12},
+                    "simc": {"status": "verified"},
+                },
+                "sampleWindow": {"region": "cn", "from": "2026-06-15", "to": "2026-06-22"},
+                "buildTrends": {"summary": "Arcane prefers planned burst windows in fortified keys."},
+                "performanceModel": {"allowedNumbers": [{"key": "sample.count", "value": "80"}]},
+                "combatInsights": {"summary": "Hold major cooldowns for dense pulls."},
+                "coachPack": {
+                    "summary": "奥法在强韧大秘境里优先围绕大波次规划爆发。",
+                    "priorityActions": [
+                        {"title": "先确认大波次爆发窗口，再微调饰品和天赋。", "evidenceRefs": ["profile.summary"]}
+                    ],
+                    "limitations": [],
+                },
+                "limitations": [],
+                "evidenceRefs": [
+                    {"id": "profile.summary", "source": "raiderio+simc", "status": "verified"}
+                ],
+                "review": {"status": "auto_published"},
+                "runtimeProjection": {
+                    "summary": "奥法在强韧大秘境里优先围绕大波次规划爆发。",
+                    "evidenceRefs": ["profile.summary"],
+                    "allowedNumbers": [{"key": "sample.count", "value": "80"}],
+                },
+            },
+        }
+        profile.update(overrides)
+        self.backend.upsert_chickenbro_spec_profile(profile)
+        return profile
+
+    def test_chickenbro_schema_initializes_sessions_jobs_profiles_and_structured_memory(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-chickenbro-memory",
+            exchange_code=lambda code: {"openid": "openid-chickenbro-memory"},
+        )
+
+        result = self.backend.send_chickenbro_message(
+            {
+                "message": "我是奥法，主要打强韧大秘境，后面继续按这个角色分析。",
+                "context": {
+                    "character": {"classKey": "mage", "specKey": "arcane", "role": "damage"},
+                    "scenarioKey": "mplus_fortified",
+                    "rawWclLog": "RAW_LOG_SHOULD_NOT_ENTER_MEMORY",
+                    "simcProfile": "SIMC_PROFILE_SHOULD_NOT_ENTER_MEMORY",
+                },
+            },
+            access_token=login["accessToken"],
+        )
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            tables = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'chickenbro_%' OR name = 'agent_jobs'"
+                ).fetchall()
+            }
+            memory_row = conn.execute(
+                "SELECT profile_json FROM chickenbro_user_profiles WHERE user_id = ?",
+                (login["user"]["id"],),
+            ).fetchone()
+
+        self.assertIn("chickenbro_sessions", tables)
+        self.assertIn("chickenbro_messages", tables)
+        self.assertIn("chickenbro_spec_profiles", tables)
+        self.assertIn("chickenbro_user_profiles", tables)
+        self.assertIn("agent_jobs", tables)
+        self.assertTrue(result["session"]["sessionId"])
+        memory_json = memory_row[0]
+        self.assertIn("arcane", memory_json)
+        self.assertIn("mplus_fortified", memory_json)
+        self.assertNotIn("RAW_LOG_SHOULD_NOT_ENTER_MEMORY", memory_json)
+        self.assertNotIn("SIMC_PROFILE_SHOULD_NOT_ENTER_MEMORY", memory_json)
+
+    def test_chickenbro_profile_gate_uses_published_global_profile_and_partial_cn_as_background(self):
+        self.seed_chickenbro_profile(status="partial", sourceStatus="partial")
+        self.seed_chickenbro_profile(
+            profileKey="retail:global:mage:arcane:mplus_fortified",
+            region="global",
+            payload={
+                "identity": {"className": "Mage", "specName": "Arcane"},
+                "sourceCoverage": {"raiderio": {"status": "verified", "sampleCount": 240}},
+                "sampleWindow": {"region": "global", "from": "2026-06-15", "to": "2026-06-22"},
+                "coachPack": {
+                    "summary": "Global samples confirm Arcane should plan burst around fortified trash packs.",
+                    "priorityActions": [
+                        {"title": "Use burst cooldowns on planned high-density pulls.", "evidenceRefs": ["global.summary"]}
+                    ],
+                },
+                "limitations": ["CN sample is partial, so this uses global fallback evidence."],
+                "evidenceRefs": [
+                    {"id": "global.summary", "source": "raiderio", "status": "verified"}
+                ],
+                "runtimeProjection": {
+                    "summary": "Global samples confirm Arcane should plan burst around fortified trash packs.",
+                    "evidenceRefs": ["global.summary"],
+                    "allowedNumbers": [{"key": "sample.count", "value": "240"}],
+                },
+            },
+        )
+        captured = {}
+
+        def fake_codex_runner(prompt, **kwargs):
+            captured["prompt"] = prompt
+            return {
+                "status": "succeeded",
+                "lastMessage": json.dumps(
+                    {
+                        "answer": "先按 global.summary 调整强韧波次爆发；CN 样本不足，只能作为背景。",
+                        "confidence": "medium",
+                        "priorityActions": [
+                            {"title": "Use burst cooldowns on planned high-density pulls.", "evidenceRefs": ["global.summary"]}
+                        ],
+                        "evidenceRefs": ["global.summary"],
+                        "limitations": ["CN sample is partial."],
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+
+        result = self.backend.send_chickenbro_message(
+            {
+                "message": "奥法强韧大秘境怎么优化爆发？",
+                "guestId": "profile-gate-device",
+                "context": {"classKey": "mage", "specKey": "arcane", "scenarioKey": "mplus_fortified"},
+            },
+            codex_runner=fake_codex_runner,
+        )
+
+        bounded_context = json.loads(captured["prompt"])["boundedContext"]
+        self.assertEqual(bounded_context["usableProfiles"][0]["region"], "global")
+        self.assertEqual(bounded_context["usableProfiles"][0]["status"], "published")
+        self.assertEqual(bounded_context["backgroundProfiles"][0]["region"], "cn")
+        self.assertEqual(bounded_context["backgroundProfiles"][0]["status"], "partial")
+        self.assertIn("cn_sample_insufficient_global_fallback", bounded_context["limitations"])
+        self.assertEqual(result["job"]["status"], "succeeded")
+        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "codex")
+        self.assertIn("global.summary", result["assistantMessage"]["payload"]["evidenceRefs"])
+
+    def test_chickenbro_profile_upsert_preserves_published_at_on_status_downgrade(self):
+        self.seed_chickenbro_profile(
+            profileKey="retail:cn:mage:arcane:mplus_fortified",
+            status="published",
+            publishedAt="2026-06-22T00:00:00+00:00",
+        )
+
+        update_result = self.backend.upsert_chickenbro_spec_profile(
+            {
+                "profileKey": "retail:cn:mage:arcane:mplus_fortified",
+                "productPhase": "retail",
+                "seasonSlug": "season-mn-1",
+                "patchVersion": "11.1.7",
+                "region": "cn",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "role": "damage",
+                "scenarioKey": "mplus_fortified",
+                "status": "partial",
+                "sourceStatus": "partial",
+                "checkedAt": "2026-06-23T00:00:00+00:00",
+                "payload": {
+                    "coachPack": {"summary": "CN sample fell below the publish threshold."},
+                    "runtimeProjection": {"summary": "CN sample fell below the publish threshold."},
+                },
+            }
+        )
+        profiles = self.backend.get_chickenbro_profiles(
+            {
+                "phase": "retail",
+                "region": "cn",
+                "class": "mage",
+                "spec": "arcane",
+                "scenario": "mplus_fortified",
+            }
+        )["profiles"]
+
+        self.assertTrue(update_result["statusChanged"])
+        self.assertEqual(update_result["previousStatus"], "published")
+        self.assertEqual(update_result["status"], "partial")
+        self.assertEqual(profiles[0]["status"], "partial")
+        self.assertEqual(profiles[0]["publishedAt"], "2026-06-22T00:00:00+00:00")
+
+    def test_chickenbro_rejects_non_wow_scope_without_calling_codex(self):
+        def fail_if_called(*args, **kwargs):
+            raise AssertionError("out-of-scope chickenbro requests must not call Codex")
+
+        result = self.backend.send_chickenbro_message(
+            {"message": "今天北京天气怎么样？", "guestId": "scope-device"},
+            codex_runner=fail_if_called,
+        )
+
+        self.assertEqual(result["job"]["status"], "succeeded")
+        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "deterministic_scope_refusal")
+        self.assertIn("只回答魔兽世界正式服和 PTR", result["assistantMessage"]["content"])
+        self.assertEqual(result["job"]["result"]["topic"]["status"], "out_of_scope")
+
+    def test_chickenbro_invalid_codex_output_downgrades_to_deterministic_answer(self):
+        self.seed_chickenbro_profile()
+
+        def fake_codex_runner(prompt, **kwargs):
+            return {
+                "status": "succeeded",
+                "lastMessage": json.dumps(
+                    {
+                        "answer": "你现在可以稳定打 999999 DPS，参考 made.up。",
+                        "confidence": "high",
+                        "priorityActions": [{"title": "Trust invented data.", "evidenceRefs": ["made.up"]}],
+                        "evidenceRefs": ["made.up"],
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+
+        result = self.backend.send_chickenbro_message(
+            {
+                "message": "奥法强韧大秘境怎么优化？",
+                "guestId": "invalid-codex-device",
+                "context": {"classKey": "mage", "specKey": "arcane", "scenarioKey": "mplus_fortified"},
+            },
+            codex_runner=fake_codex_runner,
+        )
+
+        payload = result["assistantMessage"]["payload"]
+        self.assertEqual(payload["answerSource"], "deterministic_fallback")
+        self.assertIn("codex_output_invalid", result["job"]["result"]["validation"]["error"])
+        self.assertNotIn("999999", result["assistantMessage"]["content"])
+        self.assertNotIn("made.up", json.dumps(payload, ensure_ascii=False))
+        self.assertIn("profile.summary", payload["evidenceRefs"])
+
+    def test_http_chickenbro_api_supports_guest_session_job_and_owner_isolation(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            message_request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/chickenbro/messages",
+                data=json.dumps(
+                    {
+                        "guestId": "guest-chickenbro-a",
+                        "message": "奥法强韧大秘境怎么开始收集证据？",
+                        "context": {"classKey": "mage", "specKey": "arcane", "scenarioKey": "mplus_fortified"},
+                    },
+                    ensure_ascii=False,
+                ).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(message_request, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+
+            session_url = (
+                f"http://127.0.0.1:{server.server_port}/api/chickenbro/sessions"
+                f"?id={payload['session']['sessionId']}&guest=1&guestId=guest-chickenbro-a"
+            )
+            with urlopen(session_url, timeout=5) as response:
+                session_payload = json.loads(response.read().decode("utf-8"))
+
+            other_guest_request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/chickenbro/messages",
+                data=json.dumps(
+                    {"guestId": "guest-chickenbro-b", "message": "奥法正式服问题"},
+                    ensure_ascii=False,
+                ).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(other_guest_request, timeout=5):
+                pass
+
+            forbidden_job_url = (
+                f"http://127.0.0.1:{server.server_port}/api/chickenbro/jobs"
+                f"?id={payload['job']['jobId']}&guest=1&guestId=guest-chickenbro-b"
+            )
+            with self.assertRaises(HTTPError) as error:
+                urlopen(forbidden_job_url, timeout=5)
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(payload["mode"], "chickenbro")
+        self.assertEqual(payload["job"]["status"], "succeeded")
+        self.assertEqual(len(session_payload["messages"]), 2)
+        self.assertEqual(error.exception.code, 404)
+
     def test_saved_wcl_task_preserves_log_evidence_status(self):
         login = self.backend.login_with_wechat_code(
             "wx-code-wcl-evidence",
