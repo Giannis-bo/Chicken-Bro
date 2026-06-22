@@ -3878,7 +3878,7 @@ class NewsBackendTest(unittest.TestCase):
             tables = {
                 row[0]
                 for row in conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'chickenbro_%' OR name = 'agent_jobs'"
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND (name LIKE 'chickenbro_%' OR name = 'agent_jobs')"
                 ).fetchall()
             }
             memory_row = conn.execute(

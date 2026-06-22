@@ -11,7 +11,7 @@
       <view class="section chickenbro-panel">
         <view class="section-header">
           <text class="section-title">对话输入</text>
-          <text class="section-action">{{loading ? '发送中' : (session.sessionId ? '继续会话' : '新会话')}}</text>
+          <text class="section-action">{{loading ? '发送中' : (session && session.sessionId ? '继续会话' : '新会话')}}</text>
         </view>
         <textarea
           class="chickenbro-context"
@@ -36,7 +36,7 @@
       <view class="section" wx:if="{{chatMessages.length}}">
         <view class="section-header">
           <text class="section-title">对话</text>
-          <text class="section-action">{{job.status}}</text>
+          <text class="section-action">{{job ? job.status : ''}}</text>
         </view>
         <view class="chat-list">
           <view class="chat-message {{item.role === 'assistant' ? 'assistant-message' : 'user-message'}}" wx:for="{{chatMessages}}" wx:key="messageId">

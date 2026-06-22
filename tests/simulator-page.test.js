@@ -443,6 +443,8 @@ test('smart analysis tab is a four-module entry hub without metrics', () => {
   assert.doesNotMatch(chickenbroJs, /requestSimulatorAnalysis/)
   assert.match(chickenbroWxml, /chatMessages/)
   assert.match(chickenbroWxml, /wx:key="messageId"/)
+  assert.match(chickenbroWxml, /session && session\.sessionId/)
+  assert.match(chickenbroWxml, /job \? job\.status : ''/)
   assert.match(chickenbroWxml, /assistantPayload\.priorityActions/)
   assert.match(chickenbroWxml, /assistantPayload\.evidenceRefs && assistantPayload\.evidenceRefs\.length/)
   assert.match(chickenbroWxml, /assistantPayload\.limitations && assistantPayload\.limitations\.length/)
@@ -532,7 +534,17 @@ test('chickenbro page surfaces request failures without leaving loading stuck', 
     const page = createPageInstance(pageDefinition)
     page.setData({
       chickenbroPrompt: '奥法强韧怎么打？',
-      contextDraft: 'class=mage spec=arcane scenario=mplus_fortified'
+      contextDraft: 'class=mage spec=arcane scenario=mplus_fortified',
+      session: { sessionId: 'session-before-failure' },
+      job: { jobId: 'old-job', status: 'succeeded' },
+      chatMessages: [{ messageId: 'old-message', role: 'assistant', content: '旧回复' }],
+      assistantPayload: {
+        answerSource: 'old',
+        confidence: 'high',
+        priorityActions: [{ title: '旧行动' }],
+        evidenceRefs: ['old.ref'],
+        limitations: ['old-limit']
+      }
     })
     page.submitChickenbroMessage()
     await flushPromises()
@@ -540,6 +552,12 @@ test('chickenbro page surfaces request failures without leaving loading stuck', 
 
     assert.equal(page.data.loading, false)
     assert.equal(page.data.fromFallback, true)
+    assert.equal(page.data.session.sessionId, 'session-before-failure')
+    assert.equal(page.data.job, null)
+    assert.deepEqual(page.data.chatMessages, [])
+    assert.deepEqual(page.data.assistantPayload.priorityActions, [])
+    assert.deepEqual(page.data.assistantPayload.evidenceRefs, [])
+    assert.deepEqual(page.data.assistantPayload.limitations, [])
     assert.match(page.data.requestError, /network timeout/)
   } finally {
     global.wx = originalWx

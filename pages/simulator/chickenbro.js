@@ -49,6 +49,14 @@ function normalizeAssistantPayload(payload) {
   }
 }
 
+function emptyAssistantPayload() {
+  return {
+    priorityActions: [],
+    evidenceRefs: [],
+    limitations: []
+  }
+}
+
 Page({
   data: {
     navTitle: '炸鸡队长',
@@ -63,11 +71,7 @@ Page({
     session: null,
     job: null,
     chatMessages: [],
-    assistantPayload: {
-      priorityActions: [],
-      evidenceRefs: [],
-      limitations: []
-    }
+    assistantPayload: emptyAssistantPayload()
   },
 
   onLoad() {
@@ -121,6 +125,9 @@ Page({
       }).catch((error) => {
         const message = error && error.message ? error.message : String(error || '炸鸡队长请求失败')
         this.setData({
+          job: null,
+          chatMessages: [],
+          assistantPayload: emptyAssistantPayload(),
           requestError: message,
           fromFallback: true
         })
