@@ -2610,6 +2610,207 @@ class WebSimPayloadTest(unittest.TestCase):
         ])
         self.assertTrue(all(row[1] == "verified" for row in variants))
 
+    def test_sync_observed_gear_variants_can_incrementally_upsert_without_replacing_cache(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-existing-251111-main_hand",
+                    "itemId": "251111",
+                    "slot": "main_hand",
+                    "variantKey": "observed-298-251111",
+                    "label": "Observed 298",
+                    "sourceType": "observed_profile",
+                    "difficultyKey": "observed_profile",
+                    "itemLevel": 298,
+                    "simcOptions": {"bonus_id": "13440/6652/12701/13654", "enchant_id": "8039"},
+                    "status": "verified",
+                },
+            )
+            raiderio = {
+                "sourceStatus": "verified",
+                "checkedAt": "2026-06-22T04:00:00+00:00",
+                "profiles": [
+                    {
+                        "name": "Targetmage",
+                        "realmSlug": "isillien",
+                        "region": "cn",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "profileUrl": "https://raider.io/characters/cn/isillien/Targetmage",
+                        "gear": [
+                            {
+                                "slot": "head",
+                                "itemId": 251222,
+                                "itemLevel": 704,
+                                "bonuses": [12345, 67890],
+                                "gems": [{"itemId": 240983}],
+                                "enchants": [8017],
+                                "sourceName": "Raider.IO target profile",
+                            }
+                        ],
+                    }
+                ],
+            }
+
+            counts = self.websim_payload.sync_observed_gear_variants(
+                conn,
+                raiderio,
+                {"seasonRevision": "season-mn-1"},
+                replace=False,
+            )
+            rows = conn.execute(
+                """
+                SELECT item_id, slot, status, item_level, simc_options_json, payload_json
+                FROM websim_gear_variants
+                WHERE source_type = 'observed_profile'
+                ORDER BY item_id
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["observedVariants"], 1)
+        self.assertEqual([row[0] for row in rows], ["251111", "251222"])
+        new_row = rows[1]
+        self.assertEqual(new_row[1], "head")
+        self.assertEqual(new_row[2], "verified")
+        self.assertEqual(new_row[3], 704)
+        self.assertEqual(json.loads(new_row[4]), {
+            "bonus_id": "12345/67890",
+            "gem_id": "240983",
+            "enchant_id": "8017",
+        })
+        self.assertEqual(json.loads(new_row[5])["observedProfileRefs"][0]["characterName"], "Targetmage")
+
+    def test_gear_observed_backfill_state_defaults_when_missing(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            state = self.websim_payload.read_gear_observed_backfill_state(
+                conn,
+                target_item_ids=["251111", "251222"],
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(state["schemaVersion"], 1)
+        self.assertEqual(state["provider"], "raiderio")
+        self.assertEqual(state["providers"]["raiderio"]["status"], "idle")
+        self.assertEqual(state["providers"]["wcl"]["status"], "not_implemented")
+        self.assertEqual(state["lastRunStatus"], "idle")
+        self.assertEqual(state["cursor"]["targetItemCount"], 2)
+        self.assertEqual(state["cursor"]["targetOffset"], 0)
+        self.assertEqual(state["cursor"]["profileOffset"], 0)
+        self.assertEqual(state["matchedTargetItemIds"], [])
+
+    def test_gear_observed_backfill_state_persists_in_websim_sync_state(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            state = self.websim_payload.read_gear_observed_backfill_state(
+                conn,
+                target_item_ids=["251111"],
+            )
+            state["lastRunStatus"] = "ok"
+            state["processedTargetItemCount"] = 1
+            state["processedProfileCount"] = 2
+            state["matchedTargetItemIds"] = ["251111"]
+            state["cursor"]["targetOffset"] = 1
+            state["cursor"]["profileOffset"] = 2
+            self.websim_payload.write_gear_observed_backfill_state(conn, state)
+            persisted = self.websim_payload.read_gear_observed_backfill_state(
+                conn,
+                target_item_ids=["251111"],
+            )
+            raw = self.websim_payload.get_sync_state(conn, "gear_observed_backfill")
+        finally:
+            conn.close()
+
+        self.assertEqual(persisted["lastRunStatus"], "ok")
+        self.assertEqual(persisted["processedTargetItemCount"], 1)
+        self.assertEqual(persisted["processedProfileCount"], 2)
+        self.assertEqual(persisted["matchedTargetItemIds"], ["251111"])
+        self.assertEqual(persisted["cursor"]["targetOffset"], 1)
+        self.assertEqual(persisted["cursor"]["profileOffset"], 2)
+        self.assertEqual(raw["provider"], "raiderio")
+
+    def test_gear_observed_backfill_state_read_preserves_persisted_provider(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            state = self.websim_payload.read_gear_observed_backfill_state(
+                conn,
+                target_item_ids=["251111"],
+                provider="wcl",
+            )
+            state["lastRunStatus"] = "ok"
+            state["providers"]["wcl"] = {"status": "ok"}
+            self.websim_payload.write_gear_observed_backfill_state(conn, state)
+            persisted = self.websim_payload.read_gear_observed_backfill_state(
+                conn,
+                target_item_ids=["251111"],
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(persisted["provider"], "wcl")
+        self.assertEqual(persisted["providers"]["wcl"]["status"], "ok")
+
+    def test_gear_observed_backfill_cursor_resets_when_target_hash_changes(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            state = self.websim_payload.read_gear_observed_backfill_state(
+                conn,
+                target_item_ids=["251111", "251222"],
+            )
+            state["cursor"]["targetOffset"] = 2
+            state["cursor"]["profileOffset"] = 5
+            state["matchedTargetItemIds"] = ["251111"]
+            self.websim_payload.write_gear_observed_backfill_state(conn, state)
+            reset = self.websim_payload.read_gear_observed_backfill_state(
+                conn,
+                target_item_ids=["251333"],
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(reset["cursor"]["targetItemCount"], 1)
+        self.assertEqual(reset["cursor"]["targetOffset"], 0)
+        self.assertEqual(reset["cursor"]["profileOffset"], 0)
+        self.assertEqual(reset["matchedTargetItemIds"], [])
+
+    def test_gear_observed_backfill_profile_window_resumes_and_wraps(self):
+        state = {
+            "schemaVersion": 1,
+            "provider": "raiderio",
+            "cursor": {
+                "targetItemHash": "",
+                "targetItemCount": 0,
+                "targetOffset": 2,
+                "profileOffset": 3,
+            },
+            "matchedTargetItemIds": [],
+        }
+        profiles = [{"name": f"Profile{index}"} for index in range(5)]
+
+        window = self.websim_payload.build_gear_observed_backfill_window(
+            ["251111", "251222", "251333"],
+            profiles,
+            state,
+            target_limit=2,
+            profile_limit=3,
+        )
+
+        self.assertEqual(window["targetItemIds"], ["251333", "251111"])
+        self.assertEqual([profile["name"] for profile in window["profiles"]], ["Profile3", "Profile4", "Profile0"])
+        self.assertEqual(window["cursor"]["targetOffset"], 1)
+        self.assertEqual(window["cursor"]["profileOffset"], 1)
+        self.assertTrue(window["wrapped"])
+
     def test_observed_gear_simc_options_do_not_treat_bare_gem_ids_as_bonus_or_ilevel(self):
         options = self.websim_payload.observed_gear_simc_options(
             {

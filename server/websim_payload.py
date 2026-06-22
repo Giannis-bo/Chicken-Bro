@@ -98,6 +98,8 @@ COMMUNITY_TEMPLATE_REVISION = "community-template-v1"
 TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
 GEAR_SCHEMA_REVISION = "websim-gear-simulator-v1"
 GEAR_CATALOG_REVISION = "websim-gear-catalog-v1"
+GEAR_OBSERVED_BACKFILL_SYNC_KEY = "gear_observed_backfill"
+GEAR_OBSERVED_BACKFILL_SCHEMA_VERSION = 1
 DEFAULT_GEAR_MOD_SEED = []
 STALE_PLACEHOLDER_GEAR_MOD_OPTION_IDS = {"seed-socket-gem-240983", "seed-enchant-8017"}
 
@@ -1536,6 +1538,152 @@ def get_sync_state(conn, key):
     if isinstance(value, dict):
         value["updatedAt"] = row[1]
     return value
+
+
+def gear_observed_backfill_target_ids(target_item_ids):
+    result = []
+    seen = set()
+    for item_id in target_item_ids or []:
+        normalized = str(item_id or "").strip()
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            result.append(normalized)
+    return result
+
+
+def gear_observed_backfill_target_hash(target_item_ids):
+    return hashlib.sha256(
+        json.dumps(gear_observed_backfill_target_ids(target_item_ids), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+
+
+def int_or_zero(value):
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def normalize_gear_observed_backfill_state(raw_state=None, target_item_ids=None, provider=None):
+    raw_state = raw_state if isinstance(raw_state, dict) else {}
+    provider = str(provider or raw_state.get("provider") or "raiderio").strip() or "raiderio"
+    raw_cursor = raw_state.get("cursor") if isinstance(raw_state.get("cursor"), dict) else {}
+    has_target_item_context = target_item_ids is not None
+    target_ids = gear_observed_backfill_target_ids(target_item_ids)
+    target_hash = gear_observed_backfill_target_hash(target_ids) if has_target_item_context else (
+        raw_cursor.get("targetItemHash") or gear_observed_backfill_target_hash([])
+    )
+    target_count = len(target_ids) if has_target_item_context else int_or_zero(raw_cursor.get("targetItemCount"))
+    reset_cursor = has_target_item_context and raw_cursor.get("targetItemHash") != target_hash
+    providers = raw_state.get("providers") if isinstance(raw_state.get("providers"), dict) else {}
+    raiderio_provider = providers.get("raiderio") if isinstance(providers.get("raiderio"), dict) else {}
+    wcl_provider = providers.get("wcl") if isinstance(providers.get("wcl"), dict) else {}
+    state = {
+        "schemaVersion": GEAR_OBSERVED_BACKFILL_SCHEMA_VERSION,
+        "provider": provider,
+        "providers": {
+            "raiderio": {"status": raiderio_provider.get("status") or "idle"},
+            "wcl": {"status": wcl_provider.get("status") or "not_implemented"},
+        },
+        "cursor": {
+            "targetItemHash": target_hash,
+            "targetItemCount": target_count,
+            "targetOffset": 0 if reset_cursor else int_or_zero(raw_cursor.get("targetOffset")),
+            "profileOffset": 0 if reset_cursor else int_or_zero(raw_cursor.get("profileOffset")),
+        },
+        "lastRunStatus": raw_state.get("lastRunStatus") or "idle",
+        "lastRunStartedAt": raw_state.get("lastRunStartedAt"),
+        "lastRunFinishedAt": raw_state.get("lastRunFinishedAt"),
+        "processedTargetItemCount": int_or_zero(raw_state.get("processedTargetItemCount")),
+        "processedProfileCount": int_or_zero(raw_state.get("processedProfileCount")),
+        "matchedTargetItemIds": [] if reset_cursor else gear_observed_backfill_target_ids(raw_state.get("matchedTargetItemIds")),
+        "lastError": raw_state.get("lastError"),
+    }
+    if raw_state.get("updatedAt"):
+        state["updatedAt"] = raw_state.get("updatedAt")
+    if raw_state.get("wrappedAt") and not reset_cursor:
+        state["wrappedAt"] = raw_state.get("wrappedAt")
+    return state
+
+
+def read_gear_observed_backfill_state(conn, target_item_ids=None, provider=None):
+    ensure_websim_tables(conn)
+    return normalize_gear_observed_backfill_state(
+        get_sync_state(conn, GEAR_OBSERVED_BACKFILL_SYNC_KEY),
+        target_item_ids=target_item_ids,
+        provider=provider,
+    )
+
+
+def write_gear_observed_backfill_state(conn, state):
+    ensure_websim_tables(conn)
+    normalized = normalize_gear_observed_backfill_state(
+        state,
+        target_item_ids=state.get("targetItemIds") or [],
+        provider=state.get("provider") or "raiderio",
+    )
+    if isinstance(state, dict):
+        cursor = state.get("cursor") if isinstance(state.get("cursor"), dict) else {}
+        if cursor.get("targetItemHash"):
+            normalized["cursor"]["targetItemHash"] = cursor.get("targetItemHash")
+        if cursor.get("targetItemCount") is not None:
+            normalized["cursor"]["targetItemCount"] = int_or_zero(cursor.get("targetItemCount"))
+        normalized["cursor"]["targetOffset"] = int_or_zero(cursor.get("targetOffset"))
+        normalized["cursor"]["profileOffset"] = int_or_zero(cursor.get("profileOffset"))
+        normalized["matchedTargetItemIds"] = gear_observed_backfill_target_ids(state.get("matchedTargetItemIds"))
+        for key in (
+            "lastRunStatus",
+            "lastRunStartedAt",
+            "lastRunFinishedAt",
+            "processedTargetItemCount",
+            "processedProfileCount",
+            "lastError",
+            "wrappedAt",
+        ):
+            if key in state:
+                normalized[key] = state[key]
+    set_sync_state(conn, GEAR_OBSERVED_BACKFILL_SYNC_KEY, normalized)
+    return normalized
+
+
+def gear_observed_backfill_slice(values, offset, limit):
+    values = list(values or [])
+    if not values or limit <= 0:
+        return [], 0, False
+    offset = int_or_zero(offset) % len(values)
+    count = min(max(0, int(limit)), len(values))
+    selected = [values[(offset + index) % len(values)] for index in range(count)]
+    next_offset = (offset + count) % len(values)
+    wrapped = offset + count >= len(values)
+    return selected, next_offset, wrapped
+
+
+def build_gear_observed_backfill_window(target_item_ids, profiles, state=None, *, target_limit=80, profile_limit=40):
+    target_ids = gear_observed_backfill_target_ids(target_item_ids)
+    profiles = list(profiles or [])
+    state = state if isinstance(state, dict) else {}
+    cursor = state.get("cursor") if isinstance(state.get("cursor"), dict) else {}
+    selected_targets, next_target_offset, target_wrapped = gear_observed_backfill_slice(
+        target_ids,
+        cursor.get("targetOffset"),
+        target_limit,
+    )
+    selected_profiles, next_profile_offset, profile_wrapped = gear_observed_backfill_slice(
+        profiles,
+        cursor.get("profileOffset"),
+        profile_limit,
+    )
+    return {
+        "targetItemIds": selected_targets,
+        "profiles": selected_profiles,
+        "cursor": {
+            "targetItemHash": gear_observed_backfill_target_hash(target_ids),
+            "targetItemCount": len(target_ids),
+            "targetOffset": next_target_offset,
+            "profileOffset": next_profile_offset,
+        },
+        "wrapped": bool(target_wrapped or profile_wrapped),
+    }
 
 
 def season_expires_at(hours=SEASON_TTL_HOURS):
@@ -5530,7 +5678,7 @@ def ensure_observed_item_metadata(conn, item, slot, source="raiderio_observed_pr
     return existing_websim_item_metadata(conn, item_id)
 
 
-def sync_observed_gear_variants(conn, raiderio=None, season=None):
+def sync_observed_gear_variants(conn, raiderio=None, season=None, *, replace=True):
     ensure_websim_tables(conn)
     season = season or get_active_season_payload(conn)
     entries = observed_gear_spec_entries(raiderio or {})
@@ -5571,14 +5719,15 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None):
             if observed_item_level(item) and observed_gear_simc_options(item):
                 incoming_verified += 1
     allow_downgrade = os.environ.get("WOW_RAIDERIO_ALLOW_OBSERVED_CACHE_DOWNGRADE", "0").strip().lower() in {"1", "true", "yes", "on"}
-    if existing_verified and incoming_verified < existing_verified and not allow_downgrade:
+    if replace and existing_verified and incoming_verified < existing_verified and not allow_downgrade:
         counts["skipped"] += incoming_items
         counts["sourceStatus"] = source_status or ""
         counts["preservedVerifiedObservedVariants"] = existing_verified
         counts["incomingVerifiedObservedVariants"] = incoming_verified
         return counts
-    conn.execute("DELETE FROM websim_gear_sources WHERE source_type = 'observed_profile' OR id LIKE 'observed-%'")
-    conn.execute("DELETE FROM websim_gear_variants WHERE source_type = 'observed_profile' OR id LIKE 'observed-%'")
+    if replace:
+        conn.execute("DELETE FROM websim_gear_sources WHERE source_type = 'observed_profile' OR id LIKE 'observed-%'")
+        conn.execute("DELETE FROM websim_gear_variants WHERE source_type = 'observed_profile' OR id LIKE 'observed-%'")
     checked_at = (raiderio or {}).get("checkedAt") or ""
     season_revision = (season or {}).get("seasonRevision") or (season or {}).get("revision") or ""
     seen_source_ids = set()
@@ -9789,6 +9938,7 @@ def gear_catalog_sync_state(conn):
 
 def gear_catalog_health_payload(conn):
     state = gear_catalog_sync_state(conn)
+    observed_backfill = read_gear_observed_backfill_state(conn)
     variant_readiness = {
         "verified": state.get("verifiedCount") or 0,
         "partial": state.get("partialCount") or 0,
@@ -9814,6 +9964,28 @@ def gear_catalog_health_payload(conn):
             "itemDatabaseRevision": state.get("itemDatabaseRevision") or "",
             "variantRevision": state.get("variantRevision") or "",
             "schemaRevision": state.get("schemaRevision") or GEAR_CATALOG_REVISION,
+            "observedBackfill": {
+                "provider": observed_backfill.get("provider") or "raiderio",
+                "providers": observed_backfill.get("providers") or {
+                    "raiderio": {"status": "idle"},
+                    "wcl": {"status": "not_implemented"},
+                },
+                "lastRunStatus": observed_backfill.get("lastRunStatus") or "idle",
+                "lastRunStartedAt": observed_backfill.get("lastRunStartedAt"),
+                "lastRunFinishedAt": observed_backfill.get("lastRunFinishedAt"),
+                "processedTargetItemCount": observed_backfill.get("processedTargetItemCount") or 0,
+                "processedProfileCount": observed_backfill.get("processedProfileCount") or 0,
+                "matchedTargetItemIds": observed_backfill.get("matchedTargetItemIds") or [],
+                "matchedTargetItemCount": len(observed_backfill.get("matchedTargetItemIds") or []),
+                "lastError": observed_backfill.get("lastError"),
+                "updatedAt": observed_backfill.get("updatedAt") or "",
+                "cursor": observed_backfill.get("cursor") or {
+                    "targetItemHash": gear_observed_backfill_target_hash([]),
+                    "targetItemCount": 0,
+                    "targetOffset": 0,
+                    "profileOffset": 0,
+                },
+            },
             "slotCoverage": state.get("slotCoverage") or {
                 "coveredSlotCount": 0,
                 "totalSlotCount": len(CANONICAL_GEAR_SLOTS),

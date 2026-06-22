@@ -71,6 +71,36 @@ class DeployLighthouseScriptTest(unittest.TestCase):
             self.assertIsNotNone(runtime_match)
             self.assertGreaterEqual(int(runtime_match.group(1)), minimum)
 
+    def test_observed_backfill_service_uses_independent_runner_with_short_timeout(self):
+        service = Path("server/wow-gear-observed-backfill.service").read_text(encoding="utf-8")
+        timer = Path("server/wow-gear-observed-backfill.timer").read_text(encoding="utf-8")
+        env = dict(re.findall(r"^Environment=([^=]+)=(.+)$", service, flags=re.MULTILINE))
+        exec_start_match = re.search(r"^ExecStart=(.+)$", service, flags=re.MULTILINE)
+
+        self.assertIsNotNone(exec_start_match)
+        exec_start = exec_start_match.group(1)
+        self.assertIn("/usr/bin/flock", exec_start)
+        self.assertIn("wow-gear-observed-backfill.lock", exec_start)
+        self.assertIn("/opt/wow-mini-program/server/gear_observed_backfill.py", exec_start)
+        self.assertNotIn("/opt/wow-mini-program/server/websim_sync.py", exec_start)
+        self.assertEqual(env["WOW_GEAR_OBSERVED_BACKFILL_TARGET_LIMIT"], "80")
+        self.assertEqual(env["WOW_GEAR_OBSERVED_BACKFILL_PROFILE_LIMIT"], "40")
+        self.assertEqual(env["WOW_GEAR_OBSERVED_BACKFILL_TIMEOUT_SECONDS"], "600")
+        timeout_match = re.search(r"^TimeoutStartSec=(\d+)min$", service, flags=re.MULTILINE)
+        self.assertIsNotNone(timeout_match)
+        self.assertLessEqual(int(timeout_match.group(1)), 15)
+        self.assertIn("OnUnitActiveSec=45min", timer)
+        self.assertIn("Persistent=true", timer)
+
+    def test_deploy_script_installs_observed_backfill_timer_without_enabling_or_starting(self):
+        script = Path("server/deploy_lighthouse.sh").read_text(encoding="utf-8")
+
+        self.assertIn('wow-gear-observed-backfill.service"', script)
+        self.assertIn('wow-gear-observed-backfill.timer"', script)
+        self.assertNotIn("enable --now wow-gear-observed-backfill.timer", script)
+        self.assertNotIn("start --no-block wow-gear-observed-backfill.service", script)
+        self.assertNotIn("start wow-gear-observed-backfill.service", script)
+
 
 if __name__ == "__main__":
     unittest.main()

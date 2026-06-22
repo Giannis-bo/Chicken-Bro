@@ -1,0 +1,13 @@
+[Unit]
+Description=Schedule WOW gear observed variant backfill
+
+[Timer]
+OnBootSec=30min
+OnUnitActiveSec=45min
+RandomizedDelaySec=10min
+Persistent=true
+Unit=wow-gear-observed-backfill.service
+
+[Install]
+WantedBy=timers.target
+

@@ -3410,6 +3410,52 @@ class NewsBackendTest(unittest.TestCase):
         )
         self.assertIn("missing deterministic SimC variant preset", components["gear_catalog"]["blockers"])
 
+    def test_data_health_payload_includes_observed_backfill_defaults_without_syncing(self):
+        with patch.object(self.backend, "sync_raiderio_cache", side_effect=AssertionError("health must be read-only")):
+            payload = self.backend.build_data_health_payload()
+
+        component = {item["key"]: item for item in payload["components"]}["gear_catalog"]
+        backfill = component["details"]["observedBackfill"]
+
+        self.assertEqual(backfill["provider"], "raiderio")
+        self.assertEqual(backfill["lastRunStatus"], "idle")
+        self.assertEqual(backfill["providers"]["wcl"]["status"], "not_implemented")
+        self.assertEqual(backfill["cursor"]["targetItemCount"], 0)
+        self.assertEqual(backfill["matchedTargetItemIds"], [])
+        self.assertEqual(backfill["matchedTargetItemCount"], 0)
+
+    def test_data_health_payload_includes_observed_backfill_state_without_syncing(self):
+        import server.websim_payload as websim_payload
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            websim_payload.ensure_websim_tables(conn)
+            state = websim_payload.read_gear_observed_backfill_state(conn, target_item_ids=["251111", "251222"])
+            state["lastRunStatus"] = "partial"
+            state["processedTargetItemCount"] = 2
+            state["processedProfileCount"] = 3
+            state["matchedTargetItemIds"] = ["251111"]
+            state["lastError"] = "one profile failed"
+            state["cursor"]["targetOffset"] = 1
+            state["cursor"]["profileOffset"] = 3
+            websim_payload.write_gear_observed_backfill_state(conn, state)
+            conn.commit()
+
+        with patch.object(self.backend, "sync_raiderio_cache", side_effect=AssertionError("health must be read-only")):
+            payload = self.backend.build_data_health_payload()
+
+        component = {item["key"]: item for item in payload["components"]}["gear_catalog"]
+        backfill = component["details"]["observedBackfill"]
+
+        self.assertEqual(backfill["provider"], "raiderio")
+        self.assertEqual(backfill["lastRunStatus"], "partial")
+        self.assertEqual(backfill["processedTargetItemCount"], 2)
+        self.assertEqual(backfill["processedProfileCount"], 3)
+        self.assertEqual(backfill["matchedTargetItemIds"], ["251111"])
+        self.assertEqual(backfill["matchedTargetItemCount"], 1)
+        self.assertEqual(backfill["lastError"], "one profile failed")
+        self.assertEqual(backfill["cursor"]["targetOffset"], 1)
+        self.assertEqual(backfill["cursor"]["profileOffset"], 3)
+
     def test_data_health_payload_includes_community_template_scan_coverage(self):
         import server.websim_payload as websim_payload
 
