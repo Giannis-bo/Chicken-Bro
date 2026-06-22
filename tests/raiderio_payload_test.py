@@ -874,6 +874,5 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(profile["role"], "healer")
         self.assertEqual(profile["talentLoadout"]["rawImportCode"], "CEQAAAAAAAAAAAAAAAAAAAAA")
 
-
 if __name__ == "__main__":
     unittest.main()

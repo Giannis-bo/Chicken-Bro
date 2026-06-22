@@ -1327,6 +1327,201 @@ class WebSimPayloadTest(unittest.TestCase):
         head_candidates = [item for item in head_group["items"] if item["itemId"] == "250060"]
         self.assertEqual(len(head_candidates), 1)
 
+    def test_websim_gear_dedupes_preset_candidate_against_observed_catalog_variant(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            profile = "\n".join(
+                [
+                    'shaman="Preset_Shaman"',
+                    "spec=elemental",
+                    "head=locus_of_the_primal_core,id=249979,ilevel=289,bonus_id=40/1808/12676/12806",
+                ]
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('preset-shaman-elemental', 'shaman', 'elemental', 'Preset Shaman', ?, '{}', 'now')
+                """,
+                (profile,),
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "249979",
+                {
+                    "id": 249979,
+                    "name": "原始核心的轨迹头盔",
+                    "inventory_type": {"type": "HEAD", "name": "头部"},
+                    "item_class": {"id": 4, "name": "护甲"},
+                    "item_subclass": {"id": 3, "name": "锁甲"},
+                    "quality": {"name": "史诗"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "智力"}, "value": 18}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-249979.jpg"}]},
+                fallback_name="原始核心的轨迹头盔",
+                english_payload={"name": "Locus of the Primal Core", "inventory_type": {"name": "Head"}},
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "observed-source-shaman-elemental-head-249979",
+                    "itemId": "249979",
+                    "sourceType": "observed_profile",
+                    "sourceLabel": "Raider.IO observed shaman elemental",
+                    "seasonRevision": "season-test",
+                    "payload": {
+                        "classKeys": ["shaman"],
+                        "specKeys": ["elemental"],
+                        "observedProfileRefs": [
+                            {
+                                "characterName": "Mandur",
+                                "classKey": "shaman",
+                                "specKey": "elemental",
+                                "profileUrl": "https://raider.io/characters/eu/hyjal/Mandur",
+                            }
+                        ],
+                    },
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-shaman-elemental-head-249979",
+                    "itemId": "249979",
+                    "slot": "head",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "observed_profile",
+                    "difficultyKey": "observed_profile",
+                    "itemLevel": 289,
+                    "simcOptions": {
+                        "bonus_id": "6652/13335/41/13338/13575/12806/13534",
+                        "gem_id": "240906",
+                        "enchant_id": "8017",
+                    },
+                    "status": "verified",
+                    "payload": {
+                        "classKeys": ["shaman"],
+                        "specKeys": ["elemental"],
+                        "observedProfileRefs": [
+                            {
+                                "characterName": "Mandur",
+                                "classKey": "shaman",
+                                "specKey": "elemental",
+                                "profileUrl": "https://raider.io/characters/eu/hyjal/Mandur",
+                            }
+                        ],
+                    },
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "shaman", "elemental", compact=True)
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        head_candidates = [item for item in head_group["items"] if item["itemId"] == "249979"]
+        self.assertEqual(len(head_candidates), 1)
+        candidate = head_candidates[0]
+        self.assertEqual(candidate["variantSource"], "observed_profile")
+        self.assertEqual(candidate["bonus_id"], "6652/13335/41/13338/13575/12806/13534")
+        self.assertEqual(candidate["gem_id"], "240906")
+        self.assertEqual(candidate["enchant_id"], "8017")
+        self.assertEqual(candidate["statDisplayStatus"], "pending_current_variant")
+        self.assertTrue(any(variant["sourceType"] == "observed_profile" for variant in candidate.get("variants") or []))
+
+    def test_websim_gear_allows_observed_catalog_candidate_to_replace_preset_before_compact_limit(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            profile_lines = [
+                'shaman="Preset_Shaman"',
+                "spec=elemental",
+                "head=locus_of_the_primal_core,id=249979,ilevel=289,bonus_id=40/1808/12676/12806",
+            ]
+            for index in range(24):
+                profile_lines.append(f"head=filler_{index},id={260000 + index},ilevel=289,bonus_id=40/12806")
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('preset-shaman-elemental', 'shaman', 'elemental', 'Preset Shaman', ?, '{}', 'now')
+                """,
+                ("\n".join(profile_lines),),
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "249979",
+                {
+                    "id": 249979,
+                    "name": "原始核心的轨迹头盔",
+                    "inventory_type": {"type": "HEAD", "name": "头部"},
+                    "item_class": {"id": 4, "name": "护甲"},
+                    "item_subclass": {"id": 3, "name": "锁甲"},
+                    "quality": {"name": "史诗"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "智力"}, "value": 18}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-249979.jpg"}]},
+                fallback_name="原始核心的轨迹头盔",
+                english_payload={"name": "Locus of the Primal Core", "inventory_type": {"name": "Head"}},
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "observed-source-shaman-elemental-head-249979",
+                    "itemId": "249979",
+                    "sourceType": "observed_profile",
+                    "sourceLabel": "Raider.IO observed shaman elemental",
+                    "seasonRevision": "season-test",
+                    "payload": {"classKeys": ["shaman"], "specKeys": ["elemental"]},
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-shaman-elemental-head-249979",
+                    "itemId": "249979",
+                    "slot": "head",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "observed_profile",
+                    "difficultyKey": "observed_profile",
+                    "itemLevel": 289,
+                    "simcOptions": {
+                        "bonus_id": "6652/13335/41/13338/13575/12806/13534",
+                        "gem_id": "240906",
+                    },
+                    "status": "verified",
+                    "payload": {"classKeys": ["shaman"], "specKeys": ["elemental"]},
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "shaman", "elemental", compact=True)
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        candidate = next(item for item in head_group["items"] if item["itemId"] == "249979")
+        self.assertEqual(candidate.get("variantSource"), "observed_profile")
+        self.assertEqual(candidate["bonus_id"], "6652/13335/41/13338/13575/12806/13534")
+
     def test_websim_gear_payload_dedupes_same_community_template_and_merges_sources(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -1829,6 +2024,133 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(catalog_item["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
         self.assertEqual(catalog_item["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
 
+    def test_websim_gear_dedupes_same_visible_dungeon_item_across_legacy_item_ids(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            for item_id, stat_value in (("133488", 25), ("49804", 6)):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": "闪亮的镜盔",
+                        "inventory_type": {"type": "HEAD", "name": "头部"},
+                        "item_class": {"id": 4, "name": "护甲"},
+                        "item_subclass": {"id": 3, "name": "锁甲"},
+                        "quality": {"name": "史诗"},
+                        "preview_item": {
+                            "stats": [
+                                {"type": {"type": "STAMINA", "name": "耐力"}, "value": stat_value},
+                            ],
+                        },
+                    },
+                    {"assets": [{"value": "https://render.example/shiny-mirror-helm.jpg"}]},
+                    fallback_name="闪亮的镜盔",
+                    english_payload={"name": "Shiny Mirror Helm", "inventory_type": {"name": "Head"}},
+                    locale="zh_CN",
+                )
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"loot-278:608:{item_id}",
+                        "itemId": item_id,
+                        "sourceType": "dungeon",
+                        "sourceLabel": "熔炉之主加弗斯特 - 萨隆矿坑",
+                        "instanceId": "278",
+                        "encounterId": "608",
+                    },
+                )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"loot-partial-{item_id}-head",
+                        "itemId": item_id,
+                        "slot": "head",
+                        "variantKey": "needs-variant",
+                        "label": "难度 / 装等待补",
+                        "sourceType": "dungeon",
+                        "difficultyKey": "needs-variant",
+                        "itemLevel": 0,
+                        "simcOptions": {},
+                        "status": "partial",
+                        "blockers": ["missing deterministic SimC variant preset"],
+                    },
+                )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "evoker", "devastation", compact=True)
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        mirror_helms = [item for item in head_group["items"] if item["displayName"] == "闪亮的镜盔"]
+        self.assertEqual(len(mirror_helms), 1)
+        self.assertEqual(mirror_helms[0]["itemId"], "133488")
+
+    def test_websim_gear_hides_partial_dungeon_preview_stats_without_current_variant(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "49804",
+                {
+                    "id": 49804,
+                    "name": "闪亮的镜盔",
+                    "inventory_type": {"type": "HEAD", "name": "头部"},
+                    "item_class": {"id": 4, "name": "护甲"},
+                    "item_subclass": {"id": 3, "name": "锁甲"},
+                    "quality": {"name": "史诗"},
+                    "preview_item": {
+                        "stats": [
+                            {"type": {"type": "INTELLECT", "name": "智力"}, "value": 4},
+                            {"type": {"type": "AGILITY", "name": "敏捷"}, "value": 4},
+                            {"type": {"type": "STAMINA", "name": "耐力"}, "value": 6},
+                        ],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/shiny-mirror-helm.jpg"}]},
+                fallback_name="闪亮的镜盔",
+                english_payload={"name": "Shiny Mirror Helm", "inventory_type": {"name": "Head"}},
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "loot-278:608:49804",
+                    "itemId": "49804",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "熔炉之主加弗斯特 - 萨隆矿坑",
+                    "instanceId": "278",
+                    "encounterId": "608",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "loot-partial-49804-head",
+                    "itemId": "49804",
+                    "slot": "head",
+                    "variantKey": "needs-variant",
+                    "label": "难度 / 装等待补",
+                    "sourceType": "dungeon",
+                    "difficultyKey": "needs-variant",
+                    "itemLevel": 0,
+                    "simcOptions": {},
+                    "status": "partial",
+                    "blockers": ["missing deterministic SimC variant preset"],
+                },
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "hunter", "beast_mastery", compact=True)
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        mirror_helm = next(item for item in head_group["items"] if item["itemId"] == "49804")
+        self.assertNotIn("statSummary", mirror_helm)
+        self.assertNotIn("itemStats", mirror_helm)
+
     def test_websim_gear_filters_localized_non_class_armor_catalog_candidates(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -2200,7 +2522,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(json.loads(official_variants[0][3])["bonus_id"], "12345")
         self.assertEqual(json.loads(official_variants[0][4])["observedVariantSource"], "observed_profile")
 
-    def test_gear_catalog_sync_promotes_raid_preview_ilevel_only_variant(self):
+    def test_gear_catalog_sync_keeps_raid_preview_partial_without_simc_variant(self):
         import server.raiderio_payload as raiderio_payload
 
         original_raiderio = raiderio_payload.get_raiderio_payload
@@ -2276,24 +2598,99 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertFalse(any(str(row[0]).startswith("loot-partial-") for row in variant_rows))
+        self.assertTrue(any(str(row[0]).startswith("loot-partial-") for row in variant_rows))
         self.assertEqual(len(variant_rows), 1)
-        self.assertTrue(str(variant_rows[0][0]).startswith("loot-preview-"))
+        self.assertTrue(str(variant_rows[0][0]).startswith("loot-partial-"))
         self.assertEqual(variant_rows[0][1], "raid")
-        self.assertEqual(variant_rows[0][2], "battle_net_preview")
-        self.assertEqual(variant_rows[0][3], 662)
-        self.assertEqual(variant_rows[0][4], "verified")
+        self.assertEqual(variant_rows[0][2], "needs-variant")
+        self.assertEqual(variant_rows[0][3], 0)
+        self.assertEqual(variant_rows[0][4], "partial")
         self.assertEqual(json.loads(variant_rows[0][5]), {})
         variant_payload = json.loads(variant_rows[0][6])
-        self.assertEqual(variant_payload["officialVariantSource"], "raid")
-        self.assertEqual(variant_payload["previewVariantSource"], "battle_net_preview")
-        self.assertTrue(variant_payload["simcIlevelOnly"])
+        self.assertNotIn("previewVariantSource", variant_payload)
         back_group = next(group for group in gear["slotGroups"] if group["slot"] == "back")
         catalog_item = next(item for item in back_group["items"] if item["itemId"] == "242396")
-        self.assertTrue(catalog_item["simcReady"])
-        self.assertEqual(catalog_item["ilevel"], 662)
-        self.assertTrue(catalog_item["simcIlevelOnly"])
-        self.assertNotIn("bonus_id/gem_id/enchant_id", catalog_item.get("missingFields") or [])
+        self.assertFalse(catalog_item["simcReady"])
+        self.assertNotIn("ilevel", catalog_item)
+        self.assertNotIn("simcIlevelOnly", catalog_item)
+        self.assertNotIn("statSummary", catalog_item)
+        self.assertIn("bonus_id/gem_id/enchant_id", catalog_item.get("missingFields") or [])
+
+    def test_websim_gear_demotes_existing_battle_net_preview_variant_at_runtime(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="Fresh Season",
+                dungeons=[],
+            )
+            season["raids"] = [{"id": "1400", "instanceId": "1400", "name": "Manaforge Omega", "category": "Raid"}]
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "237535",
+                {
+                    "id": 237535,
+                    "name": "阿托席恩的深渊凝视",
+                    "level": 662,
+                    "inventory_type": {"type": "HEAD", "name": "头部"},
+                    "item_class": {"id": 4, "name": "护甲"},
+                    "item_subclass": {"id": 1, "name": "布甲"},
+                    "quality": {"name": "史诗"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "智力"}, "value": 111}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-237535.jpg"}]},
+                fallback_name="阿托席恩的深渊凝视",
+                english_payload={"name": "Araz's Ritual Forge", "inventory_type": {"name": "Head"}},
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "loot-1400:9901:237535",
+                    "itemId": "237535",
+                    "sourceType": "raid",
+                    "sourceLabel": "诸界吞噬者迪门修斯 - Manaforge Omega",
+                    "instanceId": "1400",
+                    "encounterId": "9901",
+                    "seasonRevision": season["seasonRevision"],
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "loot-preview-237535-head-existing",
+                    "itemId": "237535",
+                    "slot": "head",
+                    "variantKey": "battle-net-preview-662-existing",
+                    "label": "Battle.net preview 662",
+                    "sourceType": "raid",
+                    "difficultyKey": "battle_net_preview",
+                    "itemLevel": 662,
+                    "simcOptions": {},
+                    "status": "verified",
+                    "payload": {"previewVariantSource": "battle_net_preview", "simcIlevelOnly": True},
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, season),
+            )
+            gear = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        head_group = next(group for group in gear["replacementCandidates"] if group["slot"] == "head")
+        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "237535")
+        self.assertFalse(catalog_item["simcReady"])
+        self.assertNotIn("ilevel", catalog_item)
+        self.assertEqual(catalog_item.get("variants") or [], [])
+        self.assertNotIn("statSummary", catalog_item)
+        self.assertEqual(catalog_item["statDisplayStatus"], "pending_current_variant")
 
     def test_gear_catalog_sync_keeps_low_level_dungeon_preview_partial(self):
         import server.raiderio_payload as raiderio_payload
@@ -2835,6 +3232,138 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(options["gem_bonus_id"], "9727")
         self.assertEqual(options["gem_ilevel"], "707")
 
+    def test_simc_json_gear_stats_by_slot_extracts_resolved_item_stats(self):
+        simc_json = {
+            "sim": {
+                "players": [
+                    {
+                        "gear": {
+                            "head": {
+                                "id": 249979,
+                                "ilevel": 289,
+                                "encoded_item": (
+                                    "locus_of_the_primal_core,id=249979,"
+                                    "bonus_id=41/6652/12806/13335/13338/13534/13575,"
+                                    "ilevel=289,gem_id=240906,enchant_id=8017"
+                                ),
+                                "agiint": 124,
+                                "stamina": 1768,
+                                "haste_rating": 55,
+                                "mastery_rating": 109,
+                                "leech_rating": 71,
+                            },
+                            "shoulders": {
+                                "id": 249977,
+                                "ilevel": 289,
+                                "agiint": 93,
+                                "stamina": 1326,
+                            },
+                        },
+                    }
+                ]
+            }
+        }
+
+        by_slot = self.websim_payload.simc_json_gear_stats_by_slot(simc_json)
+
+        self.assertEqual(by_slot["head"]["itemId"], "249979")
+        self.assertEqual(by_slot["head"]["itemLevel"], 289)
+        self.assertEqual(by_slot["head"]["simcOptions"]["bonus_id"], "41/6652/12806/13335/13338/13534/13575")
+        self.assertEqual(by_slot["head"]["simcOptions"]["gem_id"], "240906")
+        self.assertEqual(by_slot["head"]["simcOptions"]["enchant_id"], "8017")
+        self.assertEqual(by_slot["shoulder"]["itemId"], "249977")
+        self.assertEqual(by_slot["head"]["statSummary"], "敏捷 or 智力 124；耐力 1768；急速 55；精通 109；吸血 71")
+
+    def test_sync_observed_gear_variants_persists_simc_json_stats_not_raiderio_tooltip_stats(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            simc_json = {
+                "sim": {
+                    "players": [
+                        {
+                            "gear": {
+                                "head": {
+                                    "id": 249979,
+                                    "ilevel": 289,
+                                    "encoded_item": (
+                                        "locus_of_the_primal_core,id=249979,"
+                                        "bonus_id=41/6652/12806/13335/13338/13534/13575,"
+                                        "ilevel=289,gem_id=240906,enchant_id=8017"
+                                    ),
+                                    "agiint": 124,
+                                    "stamina": 1768,
+                                    "haste_rating": 55,
+                                    "mastery_rating": 109,
+                                    "leech_rating": 71,
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+            raiderio = {
+                "sourceStatus": "verified",
+                "checkedAt": "2026-06-22T00:00:00+00:00",
+                "profiles": [
+                    {
+                        "name": "Mandur",
+                        "realmSlug": "hyjal",
+                        "profileUrl": "https://raider.io/characters/eu/hyjal/Mandur",
+                        "classKey": "shaman",
+                        "specKey": "elemental",
+                        "simcJson": simc_json,
+                        "gear": [
+                            {
+                                "slot": "head",
+                                "name": "原始核心的轨迹头盔",
+                                "itemId": 249979,
+                                "itemLevel": 289,
+                                "bonuses": [41, 6652, 12806, 13335, 13338, 13534, 13575],
+                                "gems": [240906],
+                                "enchants": [8017],
+                                "itemStats": [{"key": "intellect", "label": "智力", "value": 9999}],
+                            },
+                            {
+                                "slot": "legs",
+                                "name": "Unknown",
+                                "itemId": 268288,
+                                "itemLevel": 289,
+                                "bonuses": [6652],
+                            },
+                        ],
+                    }
+                ],
+            }
+
+            counts = self.websim_payload.sync_observed_gear_variants(
+                conn,
+                raiderio,
+                {"seasonRevision": "season-test"},
+            )
+            conn.commit()
+
+            self.assertEqual(counts["verifiedObservedVariants"], 2)
+            rows = conn.execute(
+                """
+                SELECT item_id, payload_json
+                FROM websim_gear_variants
+                WHERE source_type = 'observed_profile'
+                ORDER BY item_id
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+
+        payloads = {str(item_id): json.loads(payload_json) for item_id, payload_json in rows}
+        head_payload = payloads["249979"]
+        self.assertEqual(head_payload["statSource"], "simulationcraft")
+        self.assertEqual(head_payload["statDisplayStatus"], "verified_variant")
+        self.assertEqual(head_payload["statSummary"], "敏捷 or 智力 124；耐力 1768；急速 55；精通 109；吸血 71")
+        self.assertEqual(head_payload["itemStats"][0]["key"], "agiint")
+        self.assertNotIn("9999", json.dumps(head_payload, ensure_ascii=False))
+        self.assertNotIn("itemStats", payloads["268288"])
+
     def test_websim_gear_filters_incompatible_observed_profile_candidates(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -2887,6 +3416,426 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("250777", item_ids)
         self.assertNotIn("258585", item_ids)
         self.assertFalse(any((item.get("compatibility") or {}).get("status") == "incompatible" for item in head_group["items"]))
+
+    def test_websim_gear_filters_promoted_tier_set_variants_to_observed_class(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            for item_id, name, set_name, observed_class, observed_spec in (
+                ("249961", "光耀裁决的坚定凝视", "光耀裁决的套装", "paladin", "retribution"),
+                ("249970", "冷厉骑手的头冠", "冷厉骑手的挽歌", "deathknight", "unholy"),
+            ):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": {"type": "HEAD", "name": "头部"},
+                        "item_class": {"id": 4, "name": "护甲"},
+                        "item_subclass": {"id": 4, "name": "板甲"},
+                        "quality": {"name": "史诗"},
+                        "item_set": {"name": set_name},
+                        "preview_item": {
+                            "stats": [{"type": {"type": "STRENGTH", "name": "力量"}, "value": 18}],
+                        },
+                    },
+                    {"assets": [{"value": f"https://render.example/item-{item_id}.jpg"}]},
+                    fallback_name=name,
+                    english_payload={"name": name, "inventory_type": {"name": "Head"}},
+                    locale="zh_CN",
+                )
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"set-source-{item_id}",
+                        "itemId": item_id,
+                        "sourceType": "tier_set",
+                        "sourceLabel": set_name,
+                        "seasonRevision": "season-test",
+                        "payload": {"authority": self.websim_payload.ITEM_METADATA_SOURCE, "setName": set_name},
+                    },
+                )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"set-observed-{item_id}-head",
+                        "itemId": item_id,
+                        "slot": "head",
+                        "variantKey": "observed-289",
+                        "label": "Observed 289",
+                        "sourceType": "tier_set",
+                        "difficultyKey": "observed_profile",
+                        "itemLevel": 289,
+                        "simcOptions": {"bonus_id": "6652/13534"},
+                        "status": "verified",
+                        "payload": {
+                            "observedProfileRefs": [
+                                {"classKey": observed_class, "specKey": observed_spec, "itemId": item_id}
+                            ],
+                            "setName": set_name,
+                        },
+                    },
+                )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            payload = self.websim_payload.get_websim_gear(conn, "paladin", "retribution", compact=True)
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        item_ids = [item["itemId"] for item in head_group["items"]]
+        self.assertIn("249961", item_ids)
+        self.assertNotIn("249970", item_ids)
+
+    def test_websim_gear_collapses_observed_variant_buttons_and_hides_preview_stats(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "249961",
+                {
+                    "id": 249961,
+                    "name": "光耀裁决的坚定凝视",
+                    "inventory_type": {"type": "HEAD", "name": "头部"},
+                    "item_class": {"id": 4, "name": "护甲"},
+                    "item_subclass": {"id": 4, "name": "板甲"},
+                    "quality": {"name": "史诗"},
+                    "item_set": {"name": "光耀裁决的套装"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "STRENGTH", "name": "力量"}, "value": 18}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-249961.jpg"}]},
+                fallback_name="光耀裁决的坚定凝视",
+                english_payload={"name": "Radiant Verdict Visage", "inventory_type": {"name": "Head"}},
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "set-source-249961",
+                    "itemId": "249961",
+                    "sourceType": "tier_set",
+                    "sourceLabel": "光耀裁决的套装",
+                    "seasonRevision": "season-test",
+                    "payload": {"authority": self.websim_payload.ITEM_METADATA_SOURCE, "setName": "光耀裁决的套装"},
+                },
+            )
+            for index, gem_id in enumerate(("240908", "240983", "240898", "240906", "240890"), start=1):
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"set-observed-249961-head-{index}",
+                        "itemId": "249961",
+                        "slot": "head",
+                        "variantKey": f"observed-289-{index}",
+                        "label": "Observed 289",
+                        "sourceType": "tier_set",
+                        "difficultyKey": "observed_profile",
+                        "itemLevel": 289,
+                        "simcOptions": {"bonus_id": "6652/13534", "gem_id": gem_id, "enchant_id": "8017"},
+                        "status": "verified",
+                        "payload": {
+                            "observedProfileRefs": [
+                                {"classKey": "paladin", "specKey": "retribution", "itemId": "249961"}
+                            ],
+                        },
+                    },
+                )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            payload = self.websim_payload.get_websim_gear(conn, "paladin", "retribution", compact=True)
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "249961")
+        self.assertEqual(len(catalog_item.get("variants") or []), 1)
+        self.assertNotIn("itemStats", catalog_item)
+        self.assertNotIn("statSummary", catalog_item)
+        self.assertEqual(catalog_item["statDisplayStatus"], "pending_current_variant")
+
+    def test_websim_gear_keeps_distinct_observed_bonus_variants_at_same_item_level(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250144",
+                {
+                    "id": 250144,
+                    "name": "烬翼羽毛",
+                    "inventory_type": {"type": "TRINKET", "name": "饰品"},
+                    "quality": {"name": "史诗"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "AGILITY", "name": "敏捷"}, "value": 18}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-250144.jpg"}]},
+                fallback_name="烬翼羽毛",
+                english_payload={"name": "Emberwing Feather", "inventory_type": {"name": "Trinket"}},
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "observed-source-shaman-elemental-trinket1-250144",
+                    "itemId": "250144",
+                    "sourceType": "observed_profile",
+                    "sourceLabel": "Raider.IO observed shaman elemental",
+                    "seasonRevision": "season-test",
+                    "payload": {"classKeys": ["shaman"], "specKeys": ["elemental"]},
+                },
+            )
+            for index, bonus_id in enumerate(("13440/40/12699/13654", "13440/6652/12699/13654"), start=1):
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"observed-shaman-elemental-trinket1-250144-{index}",
+                        "itemId": "250144",
+                        "slot": "trinket1",
+                        "variantKey": f"observed-298-{index}",
+                        "label": "Observed 298",
+                        "sourceType": "observed_profile",
+                        "difficultyKey": "observed_profile",
+                        "itemLevel": 298,
+                        "simcOptions": {"bonus_id": bonus_id},
+                        "status": "verified",
+                        "payload": {"classKeys": ["shaman"], "specKeys": ["elemental"]},
+                    },
+                )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            payload = self.websim_payload.get_websim_gear(conn, "shaman", "elemental", compact=True)
+        finally:
+            conn.close()
+
+        trinket_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "trinket1")
+        catalog_item = next(item for item in trinket_group["items"] if item["itemId"] == "250144")
+        variant_bonus_ids = {
+            (variant.get("simcOptions") or {}).get("bonus_id")
+            for variant in catalog_item.get("variants") or []
+        }
+        self.assertEqual(variant_bonus_ids, {"13440/40/12699/13654", "13440/6652/12699/13654"})
+
+    def test_websim_gear_uses_variant_stats_for_observed_catalog_candidate(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "249979",
+                {
+                    "id": 249979,
+                    "name": "原始核心的轨迹头盔",
+                    "inventory_type": {"type": "HEAD", "name": "头部"},
+                    "item_class": {"id": 4, "name": "护甲"},
+                    "item_subclass": {"id": 3, "name": "锁甲"},
+                    "quality": {"name": "史诗"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "INTELLECT", "name": "智力"}, "value": 9}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-249979.jpg"}]},
+                fallback_name="原始核心的轨迹头盔",
+                english_payload={"name": "Locus of the Primal Core", "inventory_type": {"name": "Head"}},
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "observed-source-shaman-elemental-head-249979",
+                    "itemId": "249979",
+                    "sourceType": "observed_profile",
+                    "sourceLabel": "Raider.IO observed shaman elemental",
+                    "seasonRevision": "season-test",
+                    "payload": {"classKeys": ["shaman"], "specKeys": ["elemental"]},
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-shaman-elemental-head-249979",
+                    "itemId": "249979",
+                    "slot": "head",
+                    "variantKey": "observed-289",
+                    "label": "Observed 289",
+                    "sourceType": "observed_profile",
+                    "difficultyKey": "observed_profile",
+                    "itemLevel": 289,
+                    "simcOptions": {
+                        "bonus_id": "6652/13335/41/13338/13575/12806/13534",
+                        "gem_id": "240906",
+                        "enchant_id": "8017",
+                    },
+                    "status": "verified",
+                    "payload": {
+                        "classKeys": ["shaman"],
+                        "specKeys": ["elemental"],
+                        "statSource": "simulationcraft",
+                        "statDisplayStatus": "verified_variant",
+                        "itemStats": [
+                            {"key": "agiint", "label": "敏捷 or 智力", "value": 124},
+                            {"key": "stamina", "label": "耐力", "value": 1768},
+                            {"key": "haste_rating", "label": "急速", "value": 55},
+                            {"key": "mastery_rating", "label": "精通", "value": 109},
+                            {"key": "leech_rating", "label": "吸血", "value": 71},
+                        ],
+                    },
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            payload = self.websim_payload.get_websim_gear(conn, "shaman", "elemental", compact=True)
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        catalog_item = next(item for item in head_group["items"] if item["itemId"] == "249979")
+        self.assertEqual(catalog_item["statDisplayStatus"], "verified_variant")
+        self.assertEqual(catalog_item["statSummary"], "敏捷 or 智力 124；耐力 1768；急速 55；精通 109；吸血 71")
+        self.assertNotIn("智力 9", catalog_item["statSummary"])
+        self.assertEqual(catalog_item["itemStats"][0]["value"], 124)
+
+    def test_websim_gear_prefers_observed_variant_with_verified_stats(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250144",
+                {
+                    "id": 250144,
+                    "name": "烬翼羽毛",
+                    "inventory_type": {"type": "TRINKET", "name": "饰品"},
+                    "quality": {"name": "史诗"},
+                    "preview_item": {"stats": [{"type": {"type": "AGILITY", "name": "敏捷"}, "value": 1}]},
+                },
+                {"assets": [{"value": "https://render.example/item-250144.jpg"}]},
+                fallback_name="烬翼羽毛",
+                english_payload={"name": "Emberwing Feather", "inventory_type": {"name": "Trinket"}},
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "observed-source-shaman-elemental-trinket1-250144",
+                    "itemId": "250144",
+                    "sourceType": "observed_profile",
+                    "sourceLabel": "Raider.IO observed shaman elemental",
+                    "seasonRevision": "season-test",
+                    "payload": {"classKeys": ["shaman"], "specKeys": ["elemental"]},
+                },
+            )
+            for variant_id, bonus_id, payload in (
+                ("observed-z-no-stats", "13440/6652/12699/13654", {"classKeys": ["shaman"], "specKeys": ["elemental"]}),
+                (
+                    "observed-a-with-stats",
+                    "13440/40/12699/13654",
+                    {
+                        "classKeys": ["shaman"],
+                        "specKeys": ["elemental"],
+                        "statSource": "simulationcraft",
+                        "statDisplayStatus": "verified_variant",
+                        "itemStats": [
+                            {"key": "agiint", "label": "敏捷 or 智力", "value": 128},
+                            {"key": "avoidance_rating", "label": "闪避", "value": 55},
+                        ],
+                        "statSummary": "+128 [敏捷 or 智力]；+55闪避",
+                    },
+                ),
+            ):
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": variant_id,
+                        "itemId": "250144",
+                        "slot": "trinket1",
+                        "variantKey": variant_id,
+                        "label": "Observed 298",
+                        "sourceType": "observed_profile",
+                        "difficultyKey": "observed_profile",
+                        "itemLevel": 298,
+                        "simcOptions": {"bonus_id": bonus_id},
+                        "status": "verified",
+                        "payload": payload,
+                    },
+                )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            payload = self.websim_payload.get_websim_gear(conn, "shaman", "elemental", compact=True)
+        finally:
+            conn.close()
+
+        trinket_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "trinket1")
+        catalog_item = next(item for item in trinket_group["items"] if item["itemId"] == "250144")
+        self.assertEqual(catalog_item["bonus_id"], "13440/40/12699/13654")
+        self.assertEqual(catalog_item["statDisplayStatus"], "verified_variant")
+        self.assertEqual(catalog_item["statSummary"], "+128 [敏捷 or 智力]；+55闪避")
+
+    def test_gear_catalog_health_includes_observed_variant_stat_coverage(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            for item_id, payload in (
+                (
+                    "249979",
+                    {
+                        "classKeys": ["shaman"],
+                        "specKeys": ["elemental"],
+                        "statSource": "simulationcraft",
+                        "itemStats": [{"key": "agiint", "label": "敏捷 or 智力", "value": 124}],
+                        "statSummary": "敏捷 or 智力 124",
+                    },
+                ),
+                ("268288", {"classKeys": ["shaman"], "specKeys": ["elemental"]}),
+            ):
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"observed-shaman-elemental-head-{item_id}",
+                        "itemId": item_id,
+                        "slot": "head",
+                        "variantKey": f"observed-{item_id}",
+                        "label": "Observed 289",
+                        "sourceType": "observed_profile",
+                        "difficultyKey": "observed_profile",
+                        "itemLevel": 289,
+                        "simcOptions": {"bonus_id": "6652"},
+                        "status": "verified",
+                        "payload": payload,
+                    },
+                )
+            state = self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"})
+            self.websim_payload.set_sync_state(conn, "gearCatalog", state)
+            health = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        coverage = state["observedStatCoverage"]
+        self.assertEqual(coverage["totalObservedVariantCount"], 2)
+        self.assertEqual(coverage["statObservedVariantCount"], 1)
+        self.assertEqual(coverage["missingStatObservedVariantCount"], 1)
+        self.assertEqual(coverage["coverage"]["percent"], 50.0)
+        self.assertEqual(coverage["missingExamples"][0]["itemId"], "268288")
+        self.assertEqual(health["details"]["observedStatCoverage"], coverage)
 
     def test_websim_gear_reuses_portable_observed_candidates_across_specs(self):
         conn = sqlite3.connect(self.db_path)
@@ -3453,8 +4402,9 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("1 catalog items have stat mismatches with Battle.net preview stats", payload["blockers"])
         head_group = next(group for group in gear["replacementCandidates"] if group["slot"] == "head")
         catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250224")
-        self.assertEqual(catalog_item["itemStats"][0]["value"], 321)
-        self.assertNotIn("999", catalog_item["statSummary"])
+        self.assertNotIn("itemStats", catalog_item)
+        self.assertNotIn("statSummary", catalog_item)
+        self.assertEqual(catalog_item["statDisplayStatus"], "pending_current_variant")
 
     def test_gear_catalog_health_blocks_catalog_slots_that_conflict_with_battle_net_metadata(self):
         conn = sqlite3.connect(self.db_path)
@@ -5297,14 +6247,22 @@ class WebSimPayloadTest(unittest.TestCase):
                     "itemLevel": 298,
                     "simcOptions": {"bonus_id": "13440/6652/12701/13654", "enchant_id": "8039"},
                     "status": "verified",
-                    "payload": {"observedProfileRefs": [{"sourceName": "Raider.IO"}]},
+                    "payload": {
+                        "observedProfileRefs": [{"sourceName": "Raider.IO"}],
+                        "classKeys": ["rogue"],
+                        "specKeys": ["outlaw"],
+                        "statSource": "simulationcraft",
+                        "statDisplayStatus": "verified_variant",
+                        "itemStats": [{"key": "agility", "label": "敏捷", "value": 77}],
+                        "statSummary": "敏捷 77",
+                    },
                 },
             )
 
             counts = self.websim_payload.promote_official_gear_variants_from_observed(conn)
             rows = conn.execute(
                 """
-                SELECT slot, item_level, simc_options_json, status
+                SELECT slot, item_level, simc_options_json, status, payload_json
                 FROM websim_gear_variants
                 WHERE item_id = '49807'
                   AND source_type = 'dungeon'
@@ -5321,6 +6279,98 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(rows[0][1], 298)
         self.assertEqual(json.loads(rows[0][2]), {"bonus_id": "13440/6652/12701/13654", "enchant_id": "8039"})
         self.assertEqual(rows[0][3], "verified")
+        payload = json.loads(rows[0][4])
+        self.assertEqual(payload["statSource"], "simulationcraft")
+        self.assertEqual(payload["statDisplayStatus"], "verified_variant")
+        self.assertEqual(payload["statSummary"], "敏捷 77")
+        self.assertNotIn("classKeys", payload)
+        self.assertNotIn("specKeys", payload)
+        self.assertEqual(payload["observedClassKeys"], ["rogue"])
+        self.assertEqual(payload["observedSpecKeys"], ["outlaw"])
+
+    def test_refresh_official_observed_variants_copies_simc_stats_from_observed_profile(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            for source_type in ("observed_profile", "tier_set"):
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"{source_type}-249979",
+                        "itemId": "249979",
+                        "slot": "head",
+                        "sourceType": source_type,
+                        "difficultyKey": "observed_profile",
+                        "itemLevel": 289,
+                        "simcOptions": {"bonus_id": "13338/13440/6652", "enchant_id": "8017"},
+                        "status": "verified",
+                        "payload": (
+                            {
+                                "classKeys": ["shaman"],
+                                "specKeys": ["enhancement"],
+                                "statSource": "simulationcraft",
+                                "statDisplayStatus": "verified_variant",
+                                "itemStats": [{"key": "agiint", "label": "敏捷 or 智力", "value": 124}],
+                                "statSummary": "敏捷 or 智力 124",
+                            }
+                            if source_type == "observed_profile"
+                            else {"classKeys": ["shaman"], "specKeys": ["enhancement"]}
+                        ),
+                    },
+                )
+
+            counts = self.websim_payload.refresh_official_observed_variant_payloads_from_observed(conn)
+            payload_json = conn.execute(
+                """
+                SELECT payload_json
+                FROM websim_gear_variants
+                WHERE id = 'tier_set-249979'
+                """
+            ).fetchone()[0]
+        finally:
+            conn.close()
+
+        payload = json.loads(payload_json)
+        self.assertEqual(counts["refreshedOfficialObservedVariants"], 1)
+        self.assertEqual(payload["statSource"], "simulationcraft")
+        self.assertEqual(payload["statDisplayStatus"], "verified_variant")
+        self.assertEqual(payload["statSummary"], "敏捷 or 智力 124")
+        self.assertNotIn("classKeys", payload)
+        self.assertNotIn("specKeys", payload)
+        self.assertEqual(payload["observedClassKeys"], ["shaman"])
+        self.assertEqual(payload["observedSpecKeys"], ["enhancement"])
+        self.assertTrue(
+            self.websim_payload.catalog_variant_compatible(
+                {
+                    "slot": "head",
+                    "sourceType": "tier_set",
+                    "payload": {
+                        "officialVariantSource": "tier_set",
+                        "observedProfileRefs": [{"classKey": "shaman", "specKey": "enhancement"}],
+                    },
+                },
+                "shaman",
+                "elemental",
+                "head",
+            )
+        )
+
+    def test_item_playable_class_requirement_filters_other_class_tier_items(self):
+        payload = {
+            "preview_item": {
+                "inventory_type": {"type": "HEAD", "name": "Head"},
+                "item_class": {"id": 4, "name": "Armor"},
+                "item_subclass": {"id": 4, "name": "Plate"},
+                "requirements": {
+                    "playable_classes": {
+                        "links": [{"id": 6, "name": "Death Knight"}],
+                    }
+                },
+            }
+        }
+
+        self.assertEqual(self.websim_payload.gear_compatibility_from_payload(payload, "paladin", "head"), "incompatible")
+        self.assertNotEqual(self.websim_payload.gear_compatibility_from_payload(payload, "deathknight", "head"), "incompatible")
 
     def test_observed_promotion_does_not_reuse_offhand_only_items_as_main_hand(self):
         conn = sqlite3.connect(self.db_path)
@@ -7629,7 +8679,75 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("250701", item_ids)
         self.assertNotIn("250702", item_ids)
 
-    def test_sync_blizzard_journal_includes_current_expansion_raid_loot(self):
+    def test_websim_gear_filters_verified_loot_candidates_outside_active_season_instances(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="Fresh Season",
+                dungeons=[{"id": "558", "dungeonId": "558", "instanceId": "1300", "name": "Magisters Terrace"}],
+            )
+            season["raids"] = [{"id": "1400", "instanceId": "1400", "name": "Current Raid", "category": "Raid"}]
+            self.websim_payload.save_active_season_payload(conn, season)
+            for instance_id, instance_name in (("1400", "Current Raid"), ("1200", "Old Raid")):
+                conn.execute(
+                    """
+                    INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                    VALUES (?, ?, 'Raid', '{}', 'now')
+                    """,
+                    (instance_id, instance_name),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO websim_encounters (id, instance_id, name, payload_json, updated_at)
+                    VALUES (?, ?, ?, '{}', 'now')
+                    """,
+                    (f"encounter-{instance_id}", instance_id, f"{instance_name} Boss"),
+                )
+            for item_id, item_name, instance_id in (
+                ("250701", "Current Raid Hood", "1400"),
+                ("250702", "Old Raid Hood", "1200"),
+            ):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": item_name,
+                        "inventory_type": {"type": "HEAD", "name": "Head"},
+                        "item_class": {"id": 4, "name": "Armor"},
+                        "item_subclass": {"id": 1, "name": "Cloth"},
+                        "quality": {"name": "Epic"},
+                        "preview_item": {
+                            "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 111}],
+                        },
+                    },
+                    fallback_name=item_name,
+                    english_payload={"name": item_name, "inventory_type": {"name": "Head"}},
+                    locale="en_US",
+                )
+                conn.execute(
+                    """
+                    INSERT INTO websim_loot (
+                        id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, 'head', 'Epic', 'https://render.example/item.jpg', '{}', 'now')
+                    """,
+                    (f"loot-{item_id}", instance_id, f"encounter-{instance_id}", item_id, item_name),
+                )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        item_ids = [item["itemId"] for item in head_group["items"]]
+        self.assertIn("250701", item_ids)
+        self.assertNotIn("250702", item_ids)
+        current_item = next(item for item in head_group["items"] if item["itemId"] == "250701")
+        self.assertNotIn("statSummary", current_item)
+
+    def test_sync_blizzard_journal_includes_current_season_raid_loot(self):
         conn = sqlite3.connect(self.db_path)
         original_resolve = self.websim_payload.resolve_current_mythic_season
         original_selected_refs = self.websim_payload.selected_journal_instance_refs
@@ -7658,6 +8776,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.websim_payload.selected_journal_instance_refs = lambda token, region="us", locale="zh_CN": (
             [
                 ({"id": "1300", "name": "Magisters' Terrace"}, "Dungeon"),
+                ({"id": "1200", "name": "Old Vault"}, "Raid"),
                 ({"id": "1400", "name": "Arcane Vault"}, "Raid"),
             ],
             "Current Expansion",
@@ -7678,6 +8797,13 @@ class WebSimPayloadTest(unittest.TestCase):
                     "category": {"name": "Raid"},
                     "encounters": [{"key": {"href": "https://example.test/journal-encounter/9100"}, "name": "Vault Mage"}],
                 }
+            if path == "/data/wow/journal-instance/1200":
+                return {
+                    "id": 1200,
+                    "name": "Old Vault",
+                    "category": {"name": "Raid"},
+                    "encounters": [{"key": {"href": "https://example.test/journal-encounter/9200"}, "name": "Old Mage"}],
+                }
             if path == "/data/wow/journal-encounter/9001":
                 return {
                     "id": 9001,
@@ -7689,6 +8815,12 @@ class WebSimPayloadTest(unittest.TestCase):
                     "id": 9100,
                     "name": "Vault Mage",
                     "items": [{"item": {"id": 250777, "name": "Catalog Hood"}}],
+                }
+            if path == "/data/wow/journal-encounter/9200":
+                return {
+                    "id": 9200,
+                    "name": "Old Mage",
+                    "items": [{"item": {"id": 250778, "name": "Old Hood"}}],
                 }
             return {}
 
@@ -7726,6 +8858,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(season["raids"], [{"id": "1400", "instanceId": "1400", "name": "Arcane Vault", "category": "Raid"}])
         self.assertEqual(instances, [("1300", "Dungeon"), ("1400", "Raid")])
         self.assertIn(("250777", "raid", "Vault Mage - Arcane Vault"), sources)
+        self.assertNotIn(("250778", "raid", "Old Mage - Old Vault"), sources)
 
     def test_sync_blizzard_journal_preserves_existing_cache_when_aborted_mid_refresh(self):
         conn = sqlite3.connect(self.db_path)

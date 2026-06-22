@@ -558,6 +558,9 @@ DIFFICULTY_LABELS_ZH = {
 }
 
 ITEM_STAT_LABELS_ZH = {
+    "agiint": "敏捷 or 智力",
+    "intagi": "敏捷 or 智力",
+    "stragiint": "力量/敏捷/智力",
     "intellect": "智力",
     "int": "智力",
     "agility": "敏捷",
@@ -567,6 +570,7 @@ ITEM_STAT_LABELS_ZH = {
     "stamina": "耐力",
     "sta": "耐力",
     "crit": "暴击",
+    "crit_rating": "暴击",
     "critical_strike": "暴击",
     "critical_strike_rating": "暴击",
     "haste": "急速",
@@ -577,9 +581,39 @@ ITEM_STAT_LABELS_ZH = {
     "versatility_rating": "全能",
     "armor": "护甲",
     "avoidance": "闪避",
+    "avoidance_rating": "闪避",
     "leech": "吸血",
+    "leech_rating": "吸血",
     "speed": "速度",
+    "speed_rating": "速度",
 }
+
+SIMC_GEAR_STAT_KEYS = [
+    "stragiint",
+    "agiint",
+    "intagi",
+    "intellect",
+    "agility",
+    "strength",
+    "stamina",
+    "armor",
+    "crit_rating",
+    "critical_strike_rating",
+    "haste_rating",
+    "mastery_rating",
+    "versatility_rating",
+    "leech_rating",
+    "avoidance_rating",
+    "speed_rating",
+    "crit",
+    "critical_strike",
+    "haste",
+    "mastery",
+    "versatility",
+    "leech",
+    "avoidance",
+    "speed",
+]
 
 EQUIVALENT_GEAR_SLOTS = {
     "finger1": ["finger1", "finger2"],
@@ -1597,6 +1631,9 @@ def normalize_gear_observed_backfill_state(raw_state=None, target_item_ids=None,
         "lastRunFinishedAt": raw_state.get("lastRunFinishedAt"),
         "processedTargetItemCount": int_or_zero(raw_state.get("processedTargetItemCount")),
         "processedProfileCount": int_or_zero(raw_state.get("processedProfileCount")),
+        "simcProfileCount": int_or_zero(raw_state.get("simcProfileCount")),
+        "simcResolvedProfileCount": int_or_zero(raw_state.get("simcResolvedProfileCount")),
+        "simcResolvedSlotCount": int_or_zero(raw_state.get("simcResolvedSlotCount")),
         "matchedTargetItemIds": [] if reset_cursor else gear_observed_backfill_target_ids(raw_state.get("matchedTargetItemIds")),
         "lastError": raw_state.get("lastError"),
     }
@@ -1638,6 +1675,9 @@ def write_gear_observed_backfill_state(conn, state):
             "lastRunFinishedAt",
             "processedTargetItemCount",
             "processedProfileCount",
+            "simcProfileCount",
+            "simcResolvedProfileCount",
+            "simcResolvedSlotCount",
             "lastError",
             "wrappedAt",
         ):
@@ -2275,6 +2315,8 @@ def battle_net_preview_bonus_ids(payload):
 def battle_net_preview_variant_from_metadata(payload, source_type):
     payload = payload if isinstance(payload, dict) else {}
     source_type = raw_source_type(source_type)
+    if source_type in {"dungeon", "raid", "tier_set"}:
+        return None
     item_level = battle_net_preview_item_level(payload)
     if item_level <= 0:
         return None
@@ -2304,7 +2346,8 @@ def stat_label_from_payload(stat):
         or stat.get("stat")
         or stat.get("key")
     )
-    key = re.sub(r"[^a-z0-9_]+", "_", str(type_payload.get("type") or raw_label or "").lower()).strip("_")
+    raw_key = type_payload.get("type") or stat.get("key") or stat.get("stat") or raw_label
+    key = re.sub(r"[^a-z0-9_]+", "_", str(raw_key or "").lower()).strip("_")
     return ITEM_STAT_LABELS_ZH.get(key) or str(raw_label or "").strip()
 
 
@@ -2323,8 +2366,10 @@ def normalize_item_stat(stat):
         label = display
     if not label and value in ("", None):
         return None
+    type_payload = stat.get("type") if isinstance(stat.get("type"), dict) else {}
+    raw_key = type_payload.get("type") or stat.get("key") or stat.get("stat") or label
     return {
-        "key": re.sub(r"[^a-z0-9_]+", "_", str((stat.get("type") or {}).get("type") if isinstance(stat.get("type"), dict) else label).lower()).strip("_"),
+        "key": re.sub(r"[^a-z0-9_]+", "_", str(raw_key).lower()).strip("_"),
         "label": label,
         "value": value,
         "display": display,
@@ -2383,6 +2428,18 @@ def extract_item_stats_from_payload(payload):
     return direct_item_stats_from_payload(payload)
 
 
+def item_payload_has_stat_mismatch(payload):
+    if not isinstance(payload, dict):
+        return False
+    official_stats = direct_item_stats_from_payload(payload_preview_item(payload))
+    conflicting_stats = direct_item_stats_from_payload(payload)
+    return bool(
+        official_stats
+        and conflicting_stats
+        and item_stat_comparison_key(conflicting_stats) != item_stat_comparison_key(official_stats)
+    )
+
+
 def item_payload_has_effect_evidence(payload):
     if not isinstance(payload, dict):
         return False
@@ -2431,6 +2488,218 @@ def item_stat_summary(stats):
         elif stat.get("display"):
             parts.append(str(stat.get("display")))
     return "；".join(unique_text_list(parts))
+
+
+def simc_encoded_item_options(value):
+    text = str(value or "").strip()
+    if not text:
+        return {}
+    options = {}
+    for part in text.split(","):
+        if "=" not in part:
+            continue
+        raw_key, raw_value = part.split("=", 1)
+        key = re.sub(r"[^A-Za-z0-9_]+", "", raw_key.strip())
+        normalized_value = normalize_option_value(raw_value)
+        if not key or not normalized_value:
+            continue
+        if key in {"id", "item_id", "itemId"}:
+            options["id"] = normalized_value
+        elif key in SIMC_GEAR_OPTION_KEYS:
+            options[key] = normalized_value
+    return options
+
+
+def simc_numeric_stat_value(value):
+    if value in ("", None):
+        return None
+    try:
+        number = float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    if number <= 0:
+        return None
+    if number.is_integer():
+        return int(number)
+    return round(number, 2)
+
+
+def simc_item_stats_from_gear_entry(entry):
+    if not isinstance(entry, dict):
+        return []
+    stat_sources = [entry]
+    nested_stats = entry.get("stats")
+    if isinstance(nested_stats, dict):
+        stat_sources.insert(0, nested_stats)
+    elif isinstance(nested_stats, list):
+        normalized = normalize_item_stats(nested_stats)
+        if normalized:
+            return normalized
+    stats = []
+    seen = set()
+    for stat_source in stat_sources:
+        if not isinstance(stat_source, dict):
+            continue
+        for key in SIMC_GEAR_STAT_KEYS:
+            if key in seen or key not in stat_source:
+                continue
+            value = simc_numeric_stat_value(stat_source.get(key))
+            if value is None:
+                continue
+            label = ITEM_STAT_LABELS_ZH.get(key) or key
+            stats.append({"key": key, "label": label, "value": value})
+            seen.add(key)
+    return stats
+
+
+def simc_gear_payload_candidates(value, depth=0):
+    if depth > 6:
+        return []
+    candidates = []
+    if isinstance(value, dict):
+        if isinstance(value.get("gear"), (dict, list)):
+            candidates.append(value.get("gear"))
+        for key in ("simcJson", "simcGearJson", "simulationcraftJson", "simcOutput", "simcGear"):
+            nested = value.get(key)
+            if isinstance(nested, (dict, list)) and nested is not value:
+                candidates.extend(simc_gear_payload_candidates(nested, depth + 1))
+        for key in ("sim", "simulation", "report", "result", "profile"):
+            nested = value.get(key)
+            if isinstance(nested, (dict, list)) and nested is not value:
+                candidates.extend(simc_gear_payload_candidates(nested, depth + 1))
+        for key in ("players", "profiles"):
+            nested = value.get(key)
+            if isinstance(nested, list):
+                for item in nested:
+                    candidates.extend(simc_gear_payload_candidates(item, depth + 1))
+        if any(canonical_gear_slot(key) and isinstance(item, dict) for key, item in value.items()):
+            candidates.append(value)
+    elif isinstance(value, list):
+        if any(isinstance(item, dict) and normalize_slot(first_matching_value(item, ["slot", "simcSlot", "slotKey", "equipmentSlot"])) for item in value):
+            candidates.append(value)
+        else:
+            for item in value:
+                candidates.extend(simc_gear_payload_candidates(item, depth + 1))
+    return candidates
+
+
+def simc_gear_entry_identity(raw_slot, entry):
+    if not isinstance(entry, dict):
+        return None
+    slot = normalize_slot(first_matching_value(entry, ["slot", "simcSlot", "slotKey", "equipmentSlot"], raw_slot))
+    if not slot:
+        return None
+    encoded_item = first_matching_value(entry, ["encoded_item", "encodedItem", "simcLine", "simc"], "")
+    encoded_options = simc_encoded_item_options(encoded_item)
+    item_id = normalize_option_value(
+        first_matching_value(entry, ["itemId", "item_id", "id"], encoded_options.get("id") or "")
+    )
+    item_level = 0
+    raw_item_level = first_matching_value(entry, ["itemLevel", "ilevel", "item_level"], encoded_options.get("ilevel") or 0)
+    try:
+        item_level = int(float(str(raw_item_level).strip()))
+    except (TypeError, ValueError):
+        item_level = 0
+    simc_options = {
+        key: value
+        for key, value in encoded_options.items()
+        if key in SIMC_GEAR_OPTION_KEYS and normalize_option_value(value)
+    }
+    for key, aliases in SIMC_GEAR_OPTION_ALIASES:
+        value = simc_option_value(entry, aliases)
+        if value:
+            simc_options[key] = value
+    stats = simc_item_stats_from_gear_entry(entry)
+    result = {
+        "slot": slot,
+        "itemId": item_id,
+        "itemLevel": item_level,
+        "simcOptions": simc_options,
+        "itemStats": stats,
+        "statSummary": item_stat_summary(stats),
+    }
+    if encoded_item:
+        result["simcEncodedItem"] = str(encoded_item).strip()
+    return result
+
+
+def simc_json_gear_stats_by_slot(payload):
+    by_slot = {}
+    for gear_payload in simc_gear_payload_candidates(payload):
+        if isinstance(gear_payload, dict):
+            iterable = gear_payload.items()
+        elif isinstance(gear_payload, list):
+            iterable = ((first_matching_value(item, ["slot", "simcSlot", "slotKey", "equipmentSlot"], ""), item) for item in gear_payload)
+        else:
+            continue
+        for raw_slot, entry in iterable:
+            normalized = simc_gear_entry_identity(raw_slot, entry)
+            if not normalized or not normalized.get("itemStats"):
+                continue
+            slot = normalized.get("slot")
+            if slot and slot not in by_slot:
+                by_slot[slot] = normalized
+    return by_slot
+
+
+def simc_option_segments(value):
+    text = normalize_option_value(value)
+    if not text:
+        return set()
+    return {segment for segment in text.split("/") if segment}
+
+
+def simc_gear_entry_matches_observed_item(item, gear_entry):
+    if not isinstance(item, dict) or not isinstance(gear_entry, dict):
+        return False
+    observed_item_id = normalize_option_value(first_matching_value(item, ["itemId", "item_id", "id"]))
+    if observed_item_id and gear_entry.get("itemId") and observed_item_id != str(gear_entry.get("itemId")):
+        return False
+    observed_level = observed_item_level(item)
+    gear_level = int(gear_entry.get("itemLevel") or 0)
+    if observed_level and gear_level and observed_level != gear_level:
+        return False
+    observed_options = observed_gear_simc_options(item)
+    gear_options = gear_entry.get("simcOptions") if isinstance(gear_entry.get("simcOptions"), dict) else {}
+    for key in ("bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats"):
+        observed_value = observed_options.get(key)
+        gear_value = gear_options.get(key)
+        if observed_value and gear_value and simc_option_segments(observed_value) != simc_option_segments(gear_value):
+            return False
+    return True
+
+
+def simc_gear_stats_for_observed_item(item, simc_gear_by_slot):
+    if not isinstance(simc_gear_by_slot, dict):
+        return None
+    slot = normalize_slot(first_matching_value(item, ["simcSlot", "slot", "slotKey", "equipmentSlot"]))
+    if not slot:
+        return None
+    gear_entry = simc_gear_by_slot.get(slot)
+    if not gear_entry or not simc_gear_entry_matches_observed_item(item, gear_entry):
+        return None
+    return gear_entry
+
+
+def simc_observed_variant_stat_payload(item, simc_gear_by_slot):
+    gear_entry = simc_gear_stats_for_observed_item(item, simc_gear_by_slot)
+    if not isinstance(gear_entry, dict):
+        return {}
+    stats = normalize_item_stats(gear_entry.get("itemStats") or [])
+    if not stats:
+        return {}
+    payload = {
+        "statSource": "simulationcraft",
+        "statSourceDetail": "SimulationCraft JSON gear output",
+        "statDisplayStatus": "verified_variant",
+        "itemStats": stats,
+        "statSummary": gear_entry.get("statSummary") or item_stat_summary(stats),
+        "simcItemId": gear_entry.get("itemId") or "",
+        "simcItemLevel": gear_entry.get("itemLevel") or 0,
+    }
+    if gear_entry.get("simcEncodedItem"):
+        payload["simcEncodedItem"] = gear_entry.get("simcEncodedItem")
+    return payload
 
 
 def item_payload_has_socket(payload):
@@ -2884,6 +3153,113 @@ def normalize_name_key(value):
     return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
 
 
+def normalized_season_ref(value, default_category=""):
+    ref = normalize_journal_instance_ref(value)
+    if not ref:
+        return {}
+    if default_category and not ref.get("category"):
+        ref["category"] = default_category
+    return {
+        **ref,
+        "instanceId": str(ref.get("instanceId") or ref.get("id") or "").strip(),
+        "name": str(ref.get("name") or "").strip(),
+        "category": str(ref.get("category") or default_category or "").strip(),
+    }
+
+
+def current_season_raid_refs(season):
+    if not isinstance(season, dict):
+        return []
+    raids = []
+    for raw_ref in season.get("raids") or []:
+        ref = normalized_season_ref(raw_ref, "Raid")
+        if not ref:
+            continue
+        ref["category"] = "Raid"
+        raids.append(ref)
+    explicit_ids = {
+        item.strip()
+        for item in os.environ.get("WOW_WEBSIM_CURRENT_SEASON_RAID_INSTANCE_IDS", "").split(",")
+        if item.strip()
+    }
+    if explicit_ids:
+        return [
+            ref
+            for ref in raids
+            if str(ref.get("instanceId") or ref.get("id") or "").strip() in explicit_ids
+        ]
+    limit = int_env("WOW_WEBSIM_CURRENT_SEASON_RAID_LIMIT", 1)
+    if limit < 0:
+        return raids
+    if limit == 0:
+        return []
+    return raids[-limit:]
+
+
+def active_season_dungeon_refs(season):
+    if not isinstance(season, dict):
+        return []
+    refs = []
+    for raw_ref in season.get("dungeons") or []:
+        if not isinstance(raw_ref, dict):
+            continue
+        instance_id = str(raw_ref.get("instanceId") or raw_ref.get("instance_id") or "").strip()
+        dungeon_id = str(raw_ref.get("dungeonId") or raw_ref.get("id") or "").strip()
+        name = str(raw_ref.get("name") or raw_ref.get("shortName") or dungeon_id or instance_id or "").strip()
+        if not (instance_id or dungeon_id or name):
+            continue
+        refs.append(
+            {
+                **raw_ref,
+                "instanceId": instance_id,
+                "dungeonId": dungeon_id,
+                "name": name,
+                "category": "Dungeon",
+            }
+        )
+    return refs
+
+
+def source_matches_season_refs(source, refs):
+    if not refs:
+        return True
+    source = source if isinstance(source, dict) else {}
+    source_instance_id = str(source.get("instanceId") or source.get("instance_id") or "").strip()
+    source_label_key = normalize_name_key(
+        source.get("sourceLabel")
+        or source.get("label")
+        or source.get("source")
+        or source.get("instanceName")
+        or ""
+    )
+    for ref in refs:
+        ref_instance_id = str(ref.get("instanceId") or ref.get("instance_id") or ref.get("id") or "").strip()
+        if source_instance_id and ref_instance_id and source_instance_id == ref_instance_id:
+            return True
+        ref_name_key = normalize_name_key(ref.get("name") or ref.get("shortName") or "")
+        if ref_name_key and source_label_key and ref_name_key in source_label_key:
+            return True
+    return False
+
+
+def gear_source_active_for_replacement(source, season):
+    source = source if isinstance(source, dict) else {}
+    source_type = raw_source_type(source.get("sourceType") or source.get("type")).lower()
+    if source_type in {"dungeon", "mythic_plus", "mythicplus"}:
+        return source_matches_season_refs(source, active_season_dungeon_refs(season))
+    if source_type == "raid":
+        return source_matches_season_refs(source, current_season_raid_refs(season))
+    if source_type in {"verifiedloot", "verified_loot", "loot"} and (
+        source.get("instanceId")
+        or source.get("instance_id")
+        or source.get("instanceName")
+        or source.get("source")
+    ):
+        refs = [*active_season_dungeon_refs(season), *current_season_raid_refs(season)]
+        return source_matches_season_refs(source, refs)
+    return True
+
+
 def normalize_item_set_name_key(value):
     text = str(value or "").strip().lower()
     text = re.sub(r"[（(]\s*\d+\s*/\s*\d+\s*[）)]\s*$", "", text).strip()
@@ -3327,6 +3703,7 @@ def sync_blizzard_journal(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOC
     except Exception as error:
         raid_selection_failure = str(error)
         raid_refs = []
+    raid_refs = current_season_raid_refs({"raids": raid_refs})
     if raid_refs:
         season = {
             **season,
@@ -5734,6 +6111,7 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None, *, replace=Tru
     seen_source_ids = set()
     seen_variant_ids = set()
     for class_key, spec_key, aggregate, gear_items in entries:
+        aggregate_simc_gear = simc_json_gear_stats_by_slot(aggregate)
         for item in gear_items:
             if not isinstance(item, dict):
                 continue
@@ -5790,6 +6168,15 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None, *, replace=Tru
             ).hexdigest()[:10]
             variant_key = f"observed-{item_level or 'unknown'}-{variant_digest}"
             variant_id = f"observed-{class_key}-{spec_key}-{slot}-{item_id}-{variant_digest}"
+            item_simc_gear = simc_json_gear_stats_by_slot(item) or aggregate_simc_gear
+            variant_payload = {
+                "classKeys": [class_key],
+                "specKeys": [spec_key],
+                "seasonRevision": season_revision,
+                "observedProfileRefs": [source_ref],
+                "displayName": display_name,
+            }
+            variant_payload.update(simc_observed_variant_stat_payload(item, item_simc_gear))
             upsert_gear_variant(
                 conn,
                 {
@@ -5804,13 +6191,7 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None, *, replace=Tru
                     "simcOptions": simc_options,
                     "status": status,
                     "blockers": blockers,
-                    "payload": {
-                        "classKeys": [class_key],
-                        "specKeys": [spec_key],
-                        "seasonRevision": season_revision,
-                        "observedProfileRefs": [source_ref],
-                        "displayName": display_name,
-                    },
+                    "payload": variant_payload,
                 },
             )
             if is_new_source:
@@ -5849,6 +6230,98 @@ def gear_variant_slots_are_compatible_for_item(item_payload, source_slot, observ
         return False
     weapon_type = item_type_metadata_from_payload(item_payload).get("weaponType") or ""
     return weapon_type in DUAL_WIELDABLE_WEAPON_TYPES
+
+
+OFFICIAL_OBSERVED_STAT_PAYLOAD_KEYS = (
+    "statSource",
+    "statSourceDetail",
+    "statDisplayStatus",
+    "itemStats",
+    "statSummary",
+    "simcItemId",
+    "simcItemLevel",
+    "simcEncodedItem",
+)
+
+
+def observed_variant_stat_payload_fields(payload):
+    payload = payload if isinstance(payload, dict) else {}
+    if payload.get("statSource") != "simulationcraft" or not payload.get("itemStats"):
+        return {}
+    return {
+        key: payload.get(key)
+        for key in OFFICIAL_OBSERVED_STAT_PAYLOAD_KEYS
+        if payload.get(key) not in (None, "", [])
+    }
+
+
+def simc_options_signature(options):
+    options = options if isinstance(options, dict) else {}
+    result = {}
+    for key in SIMC_GEAR_OPTION_KEYS:
+        value = normalize_option_value(options.get(key))
+        if value:
+            result[key] = sorted(simc_option_segments(value))
+    return json.dumps(result, sort_keys=True, ensure_ascii=False)
+
+
+def refresh_official_observed_variant_payloads_from_observed(conn):
+    ensure_websim_tables(conn)
+    observed_rows = conn.execute(
+        """
+        SELECT item_id, simc_options_json, payload_json
+        FROM websim_gear_variants
+        WHERE source_type = 'observed_profile'
+          AND status = 'verified'
+        """
+    ).fetchall()
+    observed_payload_by_key = {}
+    observed_context_by_key = {}
+    for item_id, simc_options_json, payload_json in observed_rows:
+        payload = safe_json_loads(payload_json, {})
+        stat_payload = observed_variant_stat_payload_fields(payload)
+        if not stat_payload:
+            continue
+        key = (str(item_id), simc_options_signature(safe_json_loads(simc_options_json, {})))
+        observed_payload_by_key[key] = stat_payload
+        observed_context_by_key[key] = class_spec_context_from_payload(payload)
+    if not observed_payload_by_key:
+        return {"refreshedOfficialObservedVariants": 0}
+    official_rows = conn.execute(
+        """
+        SELECT id, item_id, simc_options_json, payload_json
+        FROM websim_gear_variants
+        WHERE source_type IN ('dungeon', 'raid', 'tier_set')
+          AND difficulty_key = 'observed_profile'
+          AND status = 'verified'
+        """
+    ).fetchall()
+    refreshed = 0
+    for row_id, item_id, simc_options_json, payload_json in official_rows:
+        key = (str(item_id), simc_options_signature(safe_json_loads(simc_options_json, {})))
+        stat_payload = observed_payload_by_key.get(key)
+        if not stat_payload:
+            continue
+        payload = safe_json_loads(payload_json, {})
+        payload = payload if isinstance(payload, dict) else {}
+        observed_class_keys, observed_spec_keys = observed_context_by_key.get(key) or ([], [])
+        payload.pop("classKeys", None)
+        payload.pop("specKeys", None)
+        payload.update(stat_payload)
+        if observed_class_keys:
+            payload["observedClassKeys"] = observed_class_keys
+        if observed_spec_keys:
+            payload["observedSpecKeys"] = observed_spec_keys
+        conn.execute(
+            """
+            UPDATE websim_gear_variants
+            SET payload_json = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (json.dumps(payload, ensure_ascii=False), utc_now(), row_id),
+        )
+        refreshed += 1
+    return {"refreshedOfficialObservedVariants": refreshed}
 
 
 def promote_official_gear_variants_from_observed(conn):
@@ -5932,6 +6405,8 @@ def promote_official_gear_variants_from_observed(conn):
             if not simc_options:
                 continue
             observed_payload = observed.get("payload") if isinstance(observed.get("payload"), dict) else {}
+            observed_class_keys, observed_spec_keys = class_spec_context_from_payload(observed_payload)
+            observed_stat_payload = observed_variant_stat_payload_fields(observed_payload)
             digest = hashlib.sha1(
                 json.dumps(
                     [partial_id, observed.get("id"), observed.get("itemLevel"), simc_options],
@@ -5955,10 +6430,13 @@ def promote_official_gear_variants_from_observed(conn):
                     "blockers": [],
                     "payload": {
                         **partial_payload,
+                        **observed_stat_payload,
                         "officialVariantSource": source_type,
                         "observedVariantSource": "observed_profile",
                         "observedVariantId": observed.get("id") or "",
                         "observedProfileRefs": observed_payload.get("observedProfileRefs") or [],
+                        "observedClassKeys": observed_class_keys,
+                        "observedSpecKeys": observed_spec_keys,
                     },
                 },
             )
@@ -6177,7 +6655,15 @@ def sync_websim_gear_catalog(conn, season=None):
     season = season or get_active_season_payload(conn)
     season_revision = season.get("seasonRevision") or season.get("revision") or ""
     conn.execute("DELETE FROM websim_gear_sources WHERE id LIKE 'loot-%' OR id LIKE 'crafted-%'")
-    conn.execute("DELETE FROM websim_gear_variants WHERE id LIKE 'loot-partial-%' OR id LIKE 'crafted-%'")
+    conn.execute(
+        """
+        DELETE FROM websim_gear_variants
+        WHERE id LIKE 'loot-partial-%'
+           OR id LIKE 'loot-observed-%'
+           OR id LIKE 'loot-preview-%'
+           OR id LIKE 'crafted-%'
+        """
+    )
     rows = conn.execute(
         """
         SELECT l.id, l.item_id, l.slot, l.name, l.instance_id, COALESCE(i.name, ''),
@@ -6191,6 +6677,11 @@ def sync_websim_gear_catalog(conn, season=None):
     for row in rows:
         source_type = "raid" if str(row[6]).lower() == "raid" else "dungeon"
         label = " - ".join([part for part in [row[8], row[5]] if part]) or row[3] or "Official loot"
+        if not gear_source_active_for_replacement(
+            {"sourceType": source_type, "instanceId": row[4], "sourceLabel": label},
+            season,
+        ):
+            continue
         upsert_gear_source(
             conn,
             {
@@ -6239,6 +6730,7 @@ def sync_websim_gear_catalog(conn, season=None):
     except Exception as error:
         observed_counts["errors"] = [str(error)]
     observed_counts["officialVariantPromotion"] = promote_official_gear_variants_from_observed(conn)
+    observed_counts["officialObservedVariantRefresh"] = refresh_official_observed_variant_payloads_from_observed(conn)
     observed_counts["battleNetPreviewVariantPromotion"] = promote_official_gear_variants_from_battle_net_preview(conn)
     observed_counts["modOptions"] = sync_websim_gear_mod_options(conn)
     state = build_gear_catalog_sync_state(conn, season)
@@ -9138,12 +9630,7 @@ def gear_catalog_item_metadata_audit(conn):
             missing_stat_item_count += 1
         official_stats = direct_item_stats_from_payload(payload_preview_item(payload))
         conflicting_stats = direct_item_stats_from_payload(payload)
-        if (
-            official_metadata
-            and official_stats
-            and conflicting_stats
-            and item_stat_comparison_key(conflicting_stats) != item_stat_comparison_key(official_stats)
-        ):
+        if official_metadata and item_payload_has_stat_mismatch(payload):
             stat_mismatch_count += 1
             if len(stat_mismatch_examples) < 5:
                 stat_mismatch_examples.append(
@@ -9751,6 +10238,49 @@ def gear_catalog_variant_readiness_examples(conn, statuses, limit=8):
     return examples
 
 
+def gear_catalog_observed_stat_coverage(conn, limit=8):
+    rows = conn.execute(
+        """
+        SELECT id, item_id, slot, item_level, payload_json
+        FROM websim_gear_variants
+        WHERE source_type = 'observed_profile'
+        ORDER BY item_id, slot, id
+        """
+    ).fetchall()
+    total = len(rows)
+    with_stats = 0
+    simulationcraft_stats = 0
+    missing_examples = []
+    for variant_id, item_id, slot, item_level, payload_json in rows:
+        payload = safe_json_loads(payload_json, {})
+        payload = payload if isinstance(payload, dict) else {}
+        stats = normalize_item_stats(payload.get("itemStats") or payload.get("stats") or [])
+        if stats:
+            with_stats += 1
+            if str(payload.get("statSource") or "").strip() == "simulationcraft":
+                simulationcraft_stats += 1
+            continue
+        if len(missing_examples) < max(1, int(limit or 8)):
+            missing_examples.append(
+                {
+                    "variantId": str(variant_id or ""),
+                    "itemId": str(item_id or ""),
+                    "slot": normalize_slot(slot),
+                    "itemLevel": int_or_zero(item_level),
+                    "reason": "missing SimulationCraft gear stat payload",
+                }
+            )
+    missing = max(0, total - with_stats)
+    return {
+        "totalObservedVariantCount": total,
+        "statObservedVariantCount": with_stats,
+        "simulationcraftStatObservedVariantCount": simulationcraft_stats,
+        "missingStatObservedVariantCount": missing,
+        "coverage": catalog_health_coverage(with_stats, total),
+        "missingExamples": missing_examples,
+    }
+
+
 def gear_catalog_counts(conn):
     ensure_websim_tables(conn)
     source_count = conn.execute("SELECT COUNT(*) FROM websim_gear_sources").fetchone()[0]
@@ -9813,6 +10343,7 @@ def gear_catalog_counts(conn):
     metadata_audit = gear_catalog_item_metadata_audit(conn)
     season_source_coverage = gear_catalog_season_source_coverage(conn)
     mod_option_coverage = gear_catalog_mod_option_coverage(conn)
+    observed_stat_coverage = gear_catalog_observed_stat_coverage(conn)
     metadata_blockers = metadata_audit.get("blockers") or []
     source_blockers = season_source_coverage.get("blockers") or []
     mod_option_blockers = []
@@ -9854,6 +10385,7 @@ def gear_catalog_counts(conn):
         "verifiedObservedVariantCount": verified_observed_variant_count,
         "partialObservedVariantCount": partial_observed_variant_count,
         "blockedObservedVariantCount": blocked_observed_variant_count,
+        "observedStatCoverage": observed_stat_coverage,
         "slotCoverage": gear_catalog_slot_coverage(conn),
         "sourceCoverage": gear_catalog_source_coverage(conn),
         "modOptionCoverage": mod_option_coverage,
@@ -10214,6 +10746,7 @@ def gear_catalog_health_payload(conn):
             "verifiedObservedVariantCount": state.get("verifiedObservedVariantCount") or 0,
             "partialObservedVariantCount": state.get("partialObservedVariantCount") or 0,
             "blockedObservedVariantCount": state.get("blockedObservedVariantCount") or 0,
+            "observedStatCoverage": state.get("observedStatCoverage") or gear_catalog_observed_stat_coverage(conn),
             "variantReadiness": variant_readiness,
             "itemDatabaseRevision": state.get("itemDatabaseRevision") or "",
             "variantRevision": state.get("variantRevision") or "",
@@ -10230,6 +10763,9 @@ def gear_catalog_health_payload(conn):
                 "lastRunFinishedAt": observed_backfill.get("lastRunFinishedAt"),
                 "processedTargetItemCount": observed_backfill.get("processedTargetItemCount") or 0,
                 "processedProfileCount": observed_backfill.get("processedProfileCount") or 0,
+                "simcProfileCount": observed_backfill.get("simcProfileCount") or 0,
+                "simcResolvedProfileCount": observed_backfill.get("simcResolvedProfileCount") or 0,
+                "simcResolvedSlotCount": observed_backfill.get("simcResolvedSlotCount") or 0,
                 "matchedTargetItemIds": observed_backfill.get("matchedTargetItemIds") or [],
                 "matchedTargetItemCount": len(observed_backfill.get("matchedTargetItemIds") or []),
                 "lastError": observed_backfill.get("lastError"),
@@ -10414,18 +10950,37 @@ def portable_gear_slot(slot):
     return normalize_slot(slot) in PORTABLE_GEAR_SLOTS
 
 
-def catalog_context_compatible(row, class_key, spec_key, slot=""):
-    if portable_gear_slot(slot):
-        return True
-    payload = row.get("payload") if isinstance(row, dict) else {}
-    if not isinstance(payload, dict):
-        return True
+def class_spec_context_from_payload(payload):
+    payload = payload if isinstance(payload, dict) else {}
     class_keys = payload.get("classKeys") or payload.get("classes") or []
     spec_keys = payload.get("specKeys") or payload.get("specs") or []
     if isinstance(class_keys, str):
         class_keys = [class_keys]
     if isinstance(spec_keys, str):
         spec_keys = [spec_keys]
+    class_values = [str(item or "").strip() for item in class_keys if str(item or "").strip()]
+    spec_values = [str(item or "").strip() for item in spec_keys if str(item or "").strip()]
+    if payload.get("officialVariantSource"):
+        return unique_text_list(class_values), unique_text_list(spec_values)
+    for ref in payload.get("observedProfileRefs") or []:
+        if not isinstance(ref, dict):
+            continue
+        class_value = str(ref.get("classKey") or ref.get("class") or "").strip()
+        spec_value = str(ref.get("specKey") or ref.get("spec") or "").strip()
+        if class_value:
+            class_values.append(class_value)
+        if spec_value:
+            spec_values.append(spec_value)
+    return unique_text_list(class_values), unique_text_list(spec_values)
+
+
+def catalog_context_compatible(row, class_key, spec_key, slot=""):
+    if portable_gear_slot(slot):
+        return True
+    payload = row.get("payload") if isinstance(row, dict) else {}
+    if not isinstance(payload, dict):
+        return True
+    class_keys, spec_keys = class_spec_context_from_payload(payload)
     normalized_classes = {slugify(item, "") for item in class_keys if slugify(item, "")}
     normalized_specs = {slugify(item, "") for item in spec_keys if slugify(item, "")}
     if normalized_classes and class_key not in normalized_classes:
@@ -10444,15 +10999,110 @@ def catalog_source_compatible(source, class_key, spec_key, item_slot=""):
     return catalog_context_compatible(source, class_key, spec_key, item_slot)
 
 
+def catalog_variant_display_key(variant):
+    if not isinstance(variant, dict):
+        return ("",)
+    source_type = raw_source_type(variant.get("sourceType")).lower()
+    difficulty_key = str(variant.get("difficultyKey") or "").strip().lower()
+    item_level = positive_int_value(variant.get("itemLevel") or variant.get("ilevel"))
+    if difficulty_key in {"observed_profile", "battle_net_preview"}:
+        simc_options = variant.get("simcOptions") if isinstance(variant.get("simcOptions"), dict) else {}
+        return (
+            source_type,
+            difficulty_key,
+            item_level,
+            normalize_option_value(simc_options.get("bonus_id")),
+            normalize_option_value(simc_options.get("crafted_stats")),
+        )
+    return (
+        source_type,
+        difficulty_key,
+        item_level,
+        normalized_candidate_text(variant.get("difficultyLabel") or variant.get("label")),
+    )
+
+
+def catalog_variant_display_score(variant):
+    status_rank = {
+        "verified": 4,
+        "complete": 4,
+        "synced": 3,
+        "partial": 2,
+        "blocked": 0,
+    }
+    simc_options = (variant or {}).get("simcOptions") if isinstance((variant or {}).get("simcOptions"), dict) else {}
+    payload = (variant or {}).get("payload") if isinstance((variant or {}).get("payload"), dict) else {}
+    has_variant_stats = bool(
+        payload.get("statDisplayStatus") == "verified_variant"
+        and (payload.get("itemStats") or payload.get("stats") or payload.get("statSummary"))
+    )
+    return (
+        status_rank.get(str((variant or {}).get("status") or "").strip().lower(), 0),
+        positive_int_value((variant or {}).get("itemLevel") or (variant or {}).get("ilevel")),
+        1 if has_variant_stats else 0,
+        1 if simc_options.get("bonus_id") else 0,
+        len([value for value in simc_options.values() if value]),
+        str((variant or {}).get("id") or ""),
+    )
+
+
+def collapse_catalog_variants_for_display(variants, limit=3):
+    by_key = {}
+    for variant in variants or []:
+        if not isinstance(variant, dict):
+            continue
+        key = catalog_variant_display_key(variant)
+        if key not in by_key or catalog_variant_display_score(variant) > catalog_variant_display_score(by_key[key]):
+            by_key[key] = variant
+    collapsed = list(by_key.values())
+    collapsed.sort(key=catalog_variant_display_score, reverse=True)
+    if limit and limit > 0:
+        return collapsed[:limit]
+    return collapsed
+
+
+def catalog_variant_usable_for_replacement(variant):
+    if not isinstance(variant, dict):
+        return False
+    payload = variant.get("payload") if isinstance(variant.get("payload"), dict) else {}
+    difficulty_key = str(variant.get("difficultyKey") or "").strip().lower()
+    variant_key = str(variant.get("variantKey") or variant.get("key") or "").strip().lower()
+    if difficulty_key == "battle_net_preview" or variant_key.startswith("battle-net-preview"):
+        return False
+    if variant.get("simcIlevelOnly") or payload.get("simcIlevelOnly"):
+        return False
+    return True
+
+
+def catalog_variant_has_context(variant):
+    payload = variant.get("payload") if isinstance((variant or {}).get("payload"), dict) else {}
+    class_keys, spec_keys = class_spec_context_from_payload(payload)
+    return bool(class_keys or spec_keys)
+
+
 def catalog_compatibility(item, sources, variants, class_key, spec_key):
     armor_status = item.get("compatibility") or "unknown"
     item_slot = item.get("slot") or ""
     compatible_sources = [source for source in sources if catalog_source_compatible(source, class_key, spec_key, item_slot)]
-    compatible_variants = [variant for variant in variants if catalog_variant_compatible(variant, class_key, spec_key, item_slot)]
-    if armor_status == "incompatible" or (variants and not compatible_variants) or (sources and not compatible_sources):
+    usable_variants = [
+        variant
+        for variant in variants
+        if catalog_variant_usable_for_replacement(variant)
+    ]
+    compatible_variants = [
+        variant
+        for variant in usable_variants
+        if catalog_variant_compatible(variant, class_key, spec_key, item_slot)
+    ]
+    scoped_variants = [variant for variant in usable_variants if catalog_variant_has_context(variant)]
+    if armor_status == "incompatible" or (sources and not compatible_sources):
+        status = "incompatible"
+    elif scoped_variants and not compatible_variants:
         status = "incompatible"
     elif compatible_sources or compatible_variants:
         status = "compatible"
+    elif usable_variants and not compatible_variants:
+        status = "unknown"
     else:
         status = "unknown"
     return {
@@ -10478,6 +11128,7 @@ def apply_default_catalog_variant(item, variants):
         default_variant.get("label"),
         default_variant.get("sourceType"),
     )
+    item["variantDifficultyKey"] = default_variant.get("difficultyKey") or ""
     item["variantSource"] = default_variant.get("sourceType") or ""
     if default_variant.get("itemLevel"):
         item["ilevel"] = default_variant.get("itemLevel")
@@ -10487,6 +11138,17 @@ def apply_default_catalog_variant(item, variants):
     for key, value in (default_variant.get("simcOptions") or {}).items():
         if key in SIMC_GEAR_OPTION_KEYS and value:
             item[key] = value
+    variant_stats = []
+    for raw_stat in variant_payload.get("itemStats") or variant_payload.get("stats") or []:
+        normalized_stat = normalize_item_stat(raw_stat)
+        if normalized_stat:
+            variant_stats.append(normalized_stat)
+    if variant_stats:
+        item["itemStats"] = variant_stats
+        item["stats"] = variant_stats
+        item["statSummary"] = str(variant_payload.get("statSummary") or item_stat_summary(variant_stats))[:260]
+        item["statDisplayStatus"] = str(variant_payload.get("statDisplayStatus") or "verified_variant")[:80]
+        item["statSource"] = str(variant_payload.get("statSource") or default_variant.get("sourceType") or "")[:120]
     item["variantStatus"] = default_variant.get("status") or "blocked"
     item["variantBlockers"] = default_variant.get("blockers") or []
     item["missingFields"] = gear_item_missing_fields(item)
@@ -10512,6 +11174,57 @@ def catalog_item_trust_blockers(item):
     return blockers
 
 
+def text_list_value(value):
+    if isinstance(value, list):
+        return [str(item or "").strip() for item in value if str(item or "").strip()]
+    text = str(value or "").strip()
+    return [text] if text else []
+
+
+def catalog_item_should_hide_preview_stats(item):
+    if not isinstance(item, dict):
+        return False
+    if item.get("statDisplayStatus") == "verified_variant" and item.get("itemStats"):
+        return False
+    source_types = {
+        raw_source_type(source.get("sourceType"))
+        for source in item.get("sources") or []
+        if isinstance(source, dict)
+    }
+    source_types.add(raw_source_type(item.get("variantSource") or item.get("sourceType")))
+    normalized_source_types = {source_type.lower() for source_type in source_types if source_type}
+    variant_difficulty_key = str(item.get("variantDifficultyKey") or "").strip().lower()
+    variant_key = str(item.get("variantKey") or item.get("defaultVariantKey") or "").strip().lower()
+    if (
+        item.get("simcIlevelOnly")
+        or variant_difficulty_key in {"observed_profile", "battle_net_preview"}
+        or "observed_profile" in normalized_source_types
+        or variant_key.startswith("battle-net-preview")
+        or variant_key.startswith("observed-")
+    ):
+        return True
+    if normalized_source_types & {"verifiedloot", "verified_loot", "loot"} and not item.get("simcReady"):
+        return True
+    if item.get("simcReady") or positive_int_value(item.get("ilevel") or item.get("itemLevel")) > 0:
+        return False
+    if not (normalized_source_types & {"dungeon", "raid", "tier_set"}):
+        return False
+    status = str(item.get("variantStatus") or "").strip().lower()
+    if status not in {"", "partial", "blocked"}:
+        return False
+    blockers = [
+        *text_list_value(item.get("blockers")),
+        *text_list_value(item.get("variantBlockers")),
+        *text_list_value(item.get("missingFields")),
+    ]
+    blocker_text = " ".join(blockers).lower()
+    return (
+        "deterministic simc variant" in blocker_text
+        or "bonus_id/gem_id/enchant_id" in blocker_text
+        or "ilevel" in blocker_text
+    )
+
+
 def observed_profile_refs_from_catalog(sources, variants):
     refs = []
     seen = set()
@@ -10530,12 +11243,47 @@ def observed_profile_refs_from_catalog(sources, variants):
     return refs
 
 
+OFFICIAL_REPLACEMENT_SOURCE_TYPES = {"dungeon", "mythic_plus", "mythicplus", "raid", "tier_set"}
+
+
+def active_catalog_sources_for_replacement(sources, season):
+    sources = [source for source in sources or [] if isinstance(source, dict)]
+    official_sources = [
+        source
+        for source in sources
+        if raw_source_type(source.get("sourceType")).lower() in OFFICIAL_REPLACEMENT_SOURCE_TYPES
+    ]
+    if not official_sources:
+        return sources
+    active_official_sources = [
+        source
+        for source in official_sources
+        if gear_source_active_for_replacement(source, season)
+    ]
+    if not active_official_sources:
+        return []
+    active_ids = {source.get("id") for source in active_official_sources if source.get("id")}
+    return [
+        source
+        for source in sources
+        if raw_source_type(source.get("sourceType")).lower() not in OFFICIAL_REPLACEMENT_SOURCE_TYPES
+        or source.get("id") in active_ids
+        or gear_source_active_for_replacement(source, season)
+    ]
+
+
 def enrich_catalog_item(item, sources, variants, socket_options, enchant_options, class_key, spec_key):
     if not item:
         return None
     item_slot = item.get("slot") or ""
     compatible_sources = [source for source in sources if catalog_source_compatible(source, class_key, spec_key, item_slot)]
-    compatible_variants = [variant for variant in variants if catalog_variant_compatible(variant, class_key, spec_key, item_slot)]
+    compatible_variants = [
+        variant
+        for variant in variants
+        if catalog_variant_compatible(variant, class_key, spec_key, item_slot)
+        and catalog_variant_usable_for_replacement(variant)
+    ]
+    display_variants = collapse_catalog_variants_for_display(compatible_variants)
     base_capabilities = item.get("modCapabilities") if isinstance(item.get("modCapabilities"), dict) else {}
     variant_capabilities = item_mod_capabilities({}, item_slot, compatible_variants, item)
     mod_capabilities = {
@@ -10544,7 +11292,7 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     }
     item["sources"] = compatible_sources
     item["sourceRefs"] = compatible_sources
-    item["variants"] = compatible_variants
+    item["variants"] = display_variants
     item["observedProfileRefs"] = observed_profile_refs_from_catalog(compatible_sources, compatible_variants)
     item["modCapabilities"] = mod_capabilities
     item["socketOptions"] = socket_options if mod_capabilities["hasSocket"] else []
@@ -10553,17 +11301,23 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     item["compatibility"] = catalog_compatibility(item, sources, variants, class_key, spec_key)
     if item["compatibility"]["status"] == "incompatible":
         return None
-    apply_default_catalog_variant(item, compatible_variants)
+    apply_default_catalog_variant(item, display_variants)
     trust_blockers = catalog_item_trust_blockers(item)
     if trust_blockers:
         item["missingFields"] = unique_text_list([*(item.get("missingFields") or []), *trust_blockers])
         item["simcReady"] = False
     item["blockers"] = sorted(set([*(item.get("variantBlockers") or []), *(item.get("missingFields") or [])]))
+    if catalog_item_should_hide_preview_stats(item):
+        item.pop("itemStats", None)
+        item.pop("stats", None)
+        item.pop("statSummary", None)
+        item["statDisplayStatus"] = "pending_current_variant"
     return item
 
 
-def get_websim_gear_catalog_items(conn, class_key, spec_key):
+def get_websim_gear_catalog_items(conn, class_key, spec_key, season=None):
     ensure_websim_tables(conn)
+    season = season or get_active_season_payload(conn)
     sources_by_item = gear_catalog_sources_by_item(conn)
     variants_by_item = gear_catalog_variants_by_item(conn)
     socket_options_by_slot = gear_catalog_mod_options_by_slot(conn, "socket")
@@ -10584,6 +11338,16 @@ def get_websim_gear_catalog_items(conn, class_key, spec_key):
     catalog_items = []
     for row in rows:
         item_id = str(row[0])
+        item_sources = active_catalog_sources_for_replacement(sources_by_item.get(item_id, []), season)
+        item_variants = variants_by_item.get(item_id, [])
+        if sources_by_item.get(item_id) and not item_sources:
+            continue
+        if not item_sources and any(
+            raw_source_type(variant.get("sourceType")).lower() in OFFICIAL_REPLACEMENT_SOURCE_TYPES
+            for variant in item_variants
+            if isinstance(variant, dict)
+        ):
+            continue
         payload = safe_json_loads(row[5], {})
         metadata = payload.get("_metadata") if isinstance(payload, dict) else {}
         metadata = metadata if isinstance(metadata, dict) else {}
@@ -10616,8 +11380,8 @@ def get_websim_gear_catalog_items(conn, class_key, spec_key):
             continue
         item = enrich_catalog_item(
             item,
-            sources_by_item.get(item_id, []),
-            variants_by_item.get(item_id, []),
+            item_sources,
+            item_variants,
             socket_options_by_slot.get(item["slot"], []),
             enchant_options_by_slot.get(item["slot"], []),
             class_key,
@@ -11120,13 +11884,18 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
         if item.get("slot") not in {entry.get("slot") for entry in baseline_set}:
             baseline_set.append(item)
     candidate_items = get_websim_loot(conn, {}, limit=120)["items"]
-    catalog_items = get_websim_gear_catalog_items(conn, class_key, spec_key)
+    catalog_items = get_websim_gear_catalog_items(conn, class_key, spec_key, season)
     baseline_set = hydrate_gear_items_from_metadata(conn, baseline_set)
     preset_items = hydrate_gear_items_from_metadata(conn, preset_items)
     candidate_items = hydrate_gear_items_from_metadata(conn, candidate_items)
     baseline_set = normalize_websim_gear_items(baseline_set, class_key, spec_key)
     preset_items = normalize_gear_item_list(preset_items, class_key, spec_key)
     candidate_items = normalize_gear_item_list(candidate_items, class_key, spec_key)
+    candidate_items = [
+        item
+        for item in candidate_items
+        if gear_source_active_for_replacement(item, season)
+    ]
     observed_baseline_set = observed_profile_baseline_items(catalog_items, class_key, spec_key)
     if not baseline_set and observed_baseline_set:
         baseline_set = observed_baseline_set
@@ -11496,6 +12265,9 @@ def item_type_metadata_from_payload(payload):
 def gear_compatibility_from_payload(payload, class_key, simc_slot):
     if not isinstance(payload, dict) or not class_key:
         return "unknown"
+    allowed_class_keys = payload_playable_class_keys(payload)
+    if allowed_class_keys and class_key not in allowed_class_keys:
+        return "incompatible"
     if simc_slot in WEAPON_SLOTS:
         weapon_type = item_type_metadata_from_payload(payload).get("weaponType") or ""
         if weapon_type == "Shield":
@@ -11512,6 +12284,36 @@ def gear_compatibility_from_payload(payload, class_key, simc_slot):
     if actual_armor in {"Miscellaneous", "Cosmetic"}:
         return "unknown"
     return "compatible" if actual_armor.lower() == expected_armor.lower() else "incompatible"
+
+
+def payload_playable_class_keys(payload):
+    result = []
+    for parent in (payload_preview_item(payload), payload if isinstance(payload, dict) else {}):
+        if not isinstance(parent, dict):
+            continue
+        requirements = parent.get("requirements") if isinstance(parent.get("requirements"), dict) else {}
+        playable_classes = requirements.get("playable_classes") if isinstance(requirements.get("playable_classes"), dict) else {}
+        candidates = []
+        links = playable_classes.get("links")
+        if isinstance(links, list):
+            candidates.extend(links)
+        classes = playable_classes.get("classes")
+        if isinstance(classes, list):
+            candidates.extend(classes)
+        if isinstance(playable_classes.get("id"), int):
+            candidates.append(playable_classes)
+        for entry in candidates:
+            if not isinstance(entry, dict):
+                continue
+            raw_id = entry.get("id")
+            try:
+                class_id = int(raw_id)
+            except (TypeError, ValueError):
+                class_id = 0
+            class_key = GAME_CLASS_ID_TO_KEY.get(class_id, "")
+            if class_key and class_key not in result:
+                result.append(class_key)
+    return result
 
 
 def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""):
@@ -11537,6 +12339,10 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         "quality": str(value.get("quality") or "")[:80],
         "sourceType": source_type,
         "source": str(first_matching_value(value, ["source", "sourceName", "encounterName", "instanceName"], ""))[:220],
+        "instanceId": str(first_matching_value(value, ["instanceId", "instance_id"], ""))[:80],
+        "instanceName": str(first_matching_value(value, ["instanceName", "instance_name"], ""))[:160],
+        "encounterId": str(first_matching_value(value, ["encounterId", "encounter_id"], ""))[:80],
+        "encounterName": str(first_matching_value(value, ["encounterName", "encounter_name"], ""))[:160],
         "metadataStatus": str(value.get("metadataStatus") or "")[:40],
         "metadataSource": str(value.get("metadataSource") or "")[:120],
         "metadataLocale": str(value.get("metadataLocale") or "")[:20],
@@ -11581,6 +12387,16 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
             item["itemStats"] = normalized_stats
             item["stats"] = normalized_stats
             item["statSummary"] = str(value.get("statSummary") or item_stat_summary(normalized_stats))[:260]
+            stat_display_status = str(value.get("statDisplayStatus") or "").strip()
+            stat_source = str(value.get("statSource") or "").strip()
+            if not stat_display_status and item["metadataStatus"] == "verified" and item["metadataSource"] == ITEM_METADATA_SOURCE:
+                stat_display_status = "battle_net_item_metadata"
+            if not stat_source and stat_display_status == "battle_net_item_metadata":
+                stat_source = ITEM_METADATA_SOURCE
+            if stat_display_status:
+                item["statDisplayStatus"] = stat_display_status[:80]
+            if stat_source:
+                item["statSource"] = stat_source[:120]
     if isinstance(value.get("modCapabilities"), dict):
         computed_capabilities = item_mod_capabilities(payload, slot, item=item)
         item["modCapabilities"] = {
@@ -11648,6 +12464,18 @@ def visible_gear_mod_options(options):
     return visible
 
 
+def hide_candidate_preview_stats(item):
+    if not isinstance(item, dict):
+        return item
+    if not catalog_item_should_hide_preview_stats(item):
+        return item
+    item.pop("itemStats", None)
+    item.pop("stats", None)
+    item.pop("statSummary", None)
+    item["statDisplayStatus"] = "pending_current_variant"
+    return item
+
+
 def sanitize_gear_candidate_mod_options(item):
     if not isinstance(item, dict):
         return item
@@ -11663,7 +12491,7 @@ def sanitize_gear_candidate_mod_options(item):
     enchant_options = visible_gear_mod_options(cloned.get("enchantOptions") or [])
     cloned["socketOptions"] = socket_options if capabilities["hasSocket"] else []
     cloned["enchantOptions"] = enchant_options if capabilities["canEnchant"] else []
-    return cloned
+    return hide_candidate_preview_stats(cloned)
 
 
 def gear_candidate_for_slot(item, slot):
@@ -11685,6 +12513,110 @@ def gear_candidate_incompatible(item):
     if isinstance(compatibility, dict):
         return compatibility.get("status") == "incompatible"
     return compatibility == "incompatible"
+
+
+def normalized_candidate_text(value):
+    return re.sub(r"\s+", " ", str(value or "").strip()).lower()
+
+
+def gear_candidate_visible_source_key(item):
+    sources = item.get("sources") if isinstance(item, dict) else []
+    labels = []
+    if isinstance(sources, list):
+        for source in sources:
+            if not isinstance(source, dict):
+                continue
+            label = normalized_candidate_text(source.get("label") or source.get("sourceLabel"))
+            source_type = normalized_candidate_text(source.get("sourceType"))
+            if label:
+                labels.append(f"{source_type}:{label}")
+    if not labels:
+        label = normalized_candidate_text(
+            first_matching_value(item or {}, ["source", "sourceName", "encounterName", "instanceName"], "")
+        )
+        source_type = normalized_candidate_text((item or {}).get("sourceType"))
+        if label:
+            labels.append(f"{source_type}:{label}")
+    return "|".join(unique_text_list(labels[:3]))
+
+
+def gear_candidate_visible_key(item):
+    if not isinstance(item, dict):
+        return None
+    display_name = normalized_candidate_text(item.get("displayName") or item.get("localizedName") or item.get("name"))
+    source_key = gear_candidate_visible_source_key(item)
+    if not display_name or not source_key:
+        return None
+    return (
+        normalize_slot(item.get("slot")),
+        display_name,
+        source_key,
+    )
+
+
+def gear_candidate_item_visible_key(item):
+    if not isinstance(item, dict):
+        return None
+    item_id = normalize_option_value(item.get("itemId") or item.get("id"))
+    if not item_id:
+        return None
+    return (
+        normalize_slot(item.get("slot")),
+        item_id,
+    )
+
+
+def gear_candidate_has_observed_profile(item):
+    if not isinstance(item, dict):
+        return False
+    if raw_source_type(item.get("variantSource") or item.get("sourceType")).lower() == "observed_profile":
+        return True
+    for key in ("sources", "variants"):
+        for row in item.get(key) or []:
+            if isinstance(row, dict) and raw_source_type(row.get("sourceType")).lower() == "observed_profile":
+                return True
+    return bool(item.get("observedProfileRefs"))
+
+
+def gear_candidate_stat_score(item):
+    total = 0
+    for stat in (item or {}).get("itemStats") or (item or {}).get("stats") or []:
+        if not isinstance(stat, dict):
+            continue
+        value = stat.get("value")
+        if isinstance(value, (int, float)):
+            total += int(value)
+            continue
+        text = re.sub(r"[^\d-]+", "", str(value or ""))
+        if text and text not in {"-", "--"}:
+            try:
+                total += int(text)
+            except ValueError:
+                pass
+    return total
+
+
+def gear_candidate_quality_score(item):
+    status_rank = {
+        "verified": 4,
+        "complete": 4,
+        "synced": 3,
+        "partial": 2,
+        "source_reference": 1,
+        "blocked": 0,
+    }
+    status = str(item.get("variantStatus") or item.get("metadataStatus") or "").strip().lower()
+    item_id = positive_int_value(item.get("itemId") or item.get("id"))
+    return (
+        1 if item.get("simcReady") else 0,
+        status_rank.get(status, 0),
+        positive_int_value(item.get("ilevel") or item.get("itemLevel")),
+        1 if item.get("bonus_id") or item.get("gem_id") or item.get("enchant_id") or item.get("crafted_stats") else 0,
+        1 if gear_candidate_has_observed_profile(item) else 0,
+        gear_candidate_stat_score(item),
+        1 if item.get("metadataStatus") == "verified" else 0,
+        item_id,
+    )
 
 
 def gear_candidate_key(item):
@@ -11709,16 +12641,38 @@ def gear_candidate_key(item):
 
 def unique_gear_candidates(items, limit=None):
     unique_items = []
-    seen = set()
+    seen_exact = set()
+    item_indexes = {}
+    visible_indexes = {}
     for item in items or []:
         item = sanitize_gear_candidate_mod_options(item)
         key = gear_candidate_key(item)
-        if key in seen:
+        if key in seen_exact:
             continue
-        seen.add(key)
+        seen_exact.add(key)
+        item_key = gear_candidate_item_visible_key(item)
+        visible_key = gear_candidate_visible_key(item)
+        if item_key and item_key in item_indexes:
+            existing_index = item_indexes[item_key]
+            if gear_candidate_quality_score(item) > gear_candidate_quality_score(unique_items[existing_index]):
+                unique_items[existing_index] = item
+            if visible_key:
+                visible_indexes[visible_key] = existing_index
+            continue
+        if visible_key and visible_key in visible_indexes:
+            existing_index = visible_indexes[visible_key]
+            if gear_candidate_quality_score(item) > gear_candidate_quality_score(unique_items[existing_index]):
+                unique_items[existing_index] = item
+            if item_key:
+                item_indexes[item_key] = existing_index
+            continue
+        if item_key:
+            item_indexes[item_key] = len(unique_items)
+        if visible_key:
+            visible_indexes[visible_key] = len(unique_items)
         unique_items.append(item)
-        if limit and len(unique_items) >= limit:
-            break
+    if limit and limit > 0:
+        return unique_items[:limit]
     return unique_items
 
 
@@ -11763,11 +12717,14 @@ COMPACT_GEAR_CANDIDATE_KEYS = {
     "defaultVariantKey",
     "variantKey",
     "variantLabel",
+    "variantDifficultyKey",
     "variantDifficultyLabel",
     "variantSource",
     "variantStatus",
     "variantBlockers",
     "blockers",
+    "statDisplayStatus",
+    "statSource",
 }
 COMPACT_GEAR_SOURCE_KEYS = {
     "id",

@@ -12,8 +12,9 @@ Environment=WOW_NEWS_DB=/opt/wow-mini-program/server/data/wow_news.sqlite3
 Environment=WOW_GEAR_OBSERVED_BACKFILL_TARGET_LIMIT=80
 Environment=WOW_GEAR_OBSERVED_BACKFILL_PROFILE_LIMIT=40
 Environment=WOW_GEAR_OBSERVED_BACKFILL_TIMEOUT_SECONDS=600
+Environment=WOW_GEAR_OBSERVED_BACKFILL_SIMC_STATS=1
+Environment=WOW_GEAR_OBSERVED_BACKFILL_SIMC_TIMEOUT_SECONDS=90
 Environment=WOW_RAIDERIO_PROFILE_WORKERS=4
 Environment=WOW_RAIDERIO_TIMEOUT_SECONDS=30
 TimeoutStartSec=10min
-ExecStart=/usr/bin/flock -n /run/lock/wow-gear-observed-backfill.lock /usr/bin/env WOW_GEAR_OBSERVED_BACKFILL_TARGET_LIMIT=80 WOW_GEAR_OBSERVED_BACKFILL_PROFILE_LIMIT=40 WOW_GEAR_OBSERVED_BACKFILL_TIMEOUT_SECONDS=600 /usr/bin/python3 /opt/wow-mini-program/server/gear_observed_backfill.py --db /opt/wow-mini-program/server/data/wow_news.sqlite3 --target-limit 80 --profile-limit 40 --timeout-seconds 600 --json
-
+ExecStart=/usr/bin/flock -n /run/lock/wow-gear-observed-backfill.lock /usr/bin/env WOW_GEAR_OBSERVED_BACKFILL_TARGET_LIMIT=80 WOW_GEAR_OBSERVED_BACKFILL_PROFILE_LIMIT=40 WOW_GEAR_OBSERVED_BACKFILL_TIMEOUT_SECONDS=600 WOW_GEAR_OBSERVED_BACKFILL_SIMC_STATS=1 WOW_GEAR_OBSERVED_BACKFILL_SIMC_TIMEOUT_SECONDS=90 /usr/bin/python3 /opt/wow-mini-program/server/gear_observed_backfill.py --db /opt/wow-mini-program/server/data/wow_news.sqlite3 --target-limit 80 --profile-limit 40 --timeout-seconds 600 --simc-stats --full-profile-gear --simc-timeout-seconds 90 --json
