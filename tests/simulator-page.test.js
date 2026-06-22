@@ -439,11 +439,111 @@ test('smart analysis tab is a four-module entry hub without metrics', () => {
   assert.match(css, /\.analysis-modules/)
   assert.match(css, /\.analysis-module-card/)
   assert.match(css, /\.module-chickenbro/)
-  assert.match(chickenbroJs, /mode:\s*'chickenbro'/)
-  assert.match(chickenbroJs, /requestSimulatorAnalysis/)
-  assert.match(chickenbroWxml, /coach\.priorityActions/)
-  assert.match(chickenbroWxml, /missingInputs/)
+  assert.match(chickenbroJs, /requestChickenbroMessage/)
+  assert.doesNotMatch(chickenbroJs, /requestSimulatorAnalysis/)
+  assert.match(chickenbroWxml, /chatMessages/)
+  assert.match(chickenbroWxml, /wx:key="messageId"/)
+  assert.match(chickenbroWxml, /assistantPayload\.priorityActions/)
+  assert.match(chickenbroWxml, /assistantPayload\.evidenceRefs && assistantPayload\.evidenceRefs\.length/)
+  assert.match(chickenbroWxml, /assistantPayload\.limitations && assistantPayload\.limitations\.length/)
+  assert.match(chickenbroWxml, /job\.status/)
   assert.match(chickenbroCss, /\.chickenbro-hero/)
+})
+
+test('chickenbro page submits messages through independent chat API', async () => {
+  let capturedRequest = null
+  const pageDefinition = loadPageModule('../pages/simulator/chickenbro.js', {
+    '../pages/simulator/simulator-api.js': {
+      requestChickenbroMessage: (request) => {
+        capturedRequest = request
+        return Promise.resolve({
+          payload: {
+            mode: 'chickenbro',
+            session: { sessionId: 'session-1' },
+            job: { jobId: 'job-1', status: 'succeeded' },
+            userMessage: { messageId: 'message-user-1', role: 'user', content: '奥法强韧怎么打？' },
+            assistantMessage: {
+              messageId: 'message-assistant-1',
+              role: 'assistant',
+              content: '先围绕大波次规划爆发。',
+              payload: {
+                answerSource: 'codex',
+                confidence: 'medium',
+                priorityActions: [
+                  { title: '确认大波次爆发窗口', evidenceRefs: ['profile.summary'] }
+                ],
+                evidenceRefs: ['profile.summary'],
+                limitations: ['partial_profiles_background_only']
+              }
+            }
+          },
+          fromFallback: false,
+          error: ''
+        })
+      }
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const originalWx = global.wx
+  global.wx = { showToast() {} }
+  try {
+    const page = createPageInstance(pageDefinition)
+    page.setData({
+      chickenbroPrompt: '奥法强韧怎么打？',
+      contextDraft: 'class=mage spec=arcane scenario=mplus_fortified'
+    })
+    page.submitChickenbroMessage()
+    await flushPromises()
+    await flushPromises()
+
+    assert.equal(capturedRequest.message, '奥法强韧怎么打？')
+    assert.equal(capturedRequest.context.classKey, 'mage')
+    assert.equal(capturedRequest.context.specKey, 'arcane')
+    assert.equal(capturedRequest.context.scenarioKey, 'mplus_fortified')
+    assert.equal(page.data.session.sessionId, 'session-1')
+    assert.equal(page.data.job.status, 'succeeded')
+    assert.equal(page.data.chatMessages.length, 2)
+    assert.equal(page.data.assistantPayload.priorityActions[0].title, '确认大波次爆发窗口')
+    assert.equal(page.data.assistantPayload.evidenceRefs[0], 'profile.summary')
+    assert.equal(page.data.assistantPayload.limitations[0], 'partial_profiles_background_only')
+  } finally {
+    global.wx = originalWx
+  }
+})
+
+test('chickenbro page surfaces request failures without leaving loading stuck', async () => {
+  const pageDefinition = loadPageModule('../pages/simulator/chickenbro.js', {
+    '../pages/simulator/simulator-api.js': {
+      requestChickenbroMessage: () => Promise.reject(new Error('network timeout'))
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const originalWx = global.wx
+  global.wx = { showToast() {} }
+  try {
+    const page = createPageInstance(pageDefinition)
+    page.setData({
+      chickenbroPrompt: '奥法强韧怎么打？',
+      contextDraft: 'class=mage spec=arcane scenario=mplus_fortified'
+    })
+    page.submitChickenbroMessage()
+    await flushPromises()
+    await flushPromises()
+
+    assert.equal(page.data.loading, false)
+    assert.equal(page.data.fromFallback, true)
+    assert.match(page.data.requestError, /network timeout/)
+  } finally {
+    global.wx = originalWx
+  }
 })
 
 test('simulator task detail page renders saved task analysis', () => {

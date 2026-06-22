@@ -10,9 +10,17 @@
 
       <view class="section chickenbro-panel">
         <view class="section-header">
-          <text class="section-title">证据输入</text>
-          <text class="section-action">{{loading ? '检查中' : '可提交'}}</text>
+          <text class="section-title">对话输入</text>
+          <text class="section-action">{{loading ? '发送中' : (session.sessionId ? '继续会话' : '新会话')}}</text>
         </view>
+        <textarea
+          class="chickenbro-context"
+          value="{{contextDraft}}"
+          maxlength="240"
+          auto-height="{{false}}"
+          bindinput="updateContextDraft"
+          placeholder="class=mage spec=arcane scenario=mplus_fortified"
+        />
         <textarea
           class="chickenbro-input"
           value="{{chickenbroPrompt}}"
@@ -21,46 +29,45 @@
           bindinput="updateChickenbroPrompt"
           placeholder="粘贴角色、SimC、WCL 或你已确认的证据"
         />
-        <button class="submit-button" loading="{{loading}}" disabled="{{loading}}" bindtap="submitChickenbroCoach">提交证据教练</button>
+        <button class="submit-button" loading="{{loading}}" disabled="{{loading}}" bindtap="submitChickenbroMessage">发送给炸鸡队长</button>
+        <text class="request-error" wx:if="{{requestError}}">{{requestError}}</text>
       </view>
 
-      <view class="section" wx:if="{{latestAnalysis && latestAnalysis.coach}}">
+      <view class="section" wx:if="{{chatMessages.length}}">
         <view class="section-header">
-          <text class="section-title">教练结果</text>
-          <text class="section-action">{{latestAnalysis.coach.confidence}}</text>
+          <text class="section-title">对话</text>
+          <text class="section-action">{{job.status}}</text>
+        </view>
+        <view class="chat-list">
+          <view class="chat-message {{item.role === 'assistant' ? 'assistant-message' : 'user-message'}}" wx:for="{{chatMessages}}" wx:key="messageId">
+            <text class="chat-role">{{item.role === 'assistant' ? '炸鸡队长' : '玩家'}}</text>
+            <text class="chat-content" user-select="{{true}}">{{item.content}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="section" wx:if="{{assistantPayload.answerSource}}">
+        <view class="section-header">
+          <text class="section-title">回答依据</text>
+          <text class="section-action">{{assistantPayload.confidence}}</text>
         </view>
         <view class="task-list">
-          <view class="task-card coach-summary-card">
-            <text class="task-title">摘要</text>
-            <text class="task-desc" user-select="{{true}}">{{latestAnalysis.coach.summary}}</text>
-            <text class="coach-evidence-refs" user-select="{{true}}">{{latestAnalysis.coach.evidenceRefs}}</text>
-          </view>
-          <view class="task-card coach-action-card" wx:for="{{latestAnalysis.coach.priorityActions}}" wx:key="title">
+          <view class="task-card coach-action-card" wx:for="{{assistantPayload.priorityActions}}" wx:key="title">
             <text class="task-title">优先行动</text>
             <text class="task-desc" user-select="{{true}}">{{item.title}}</text>
             <text class="coach-evidence-refs" user-select="{{true}}">{{item.evidenceRefs}}</text>
           </view>
-          <view class="task-card coach-missing-card" wx:if="{{latestAnalysis.coach.missingInputs.length}}">
-            <text class="task-title">缺失输入</text>
+          <view class="task-card coach-summary-card" wx:if="{{assistantPayload.evidenceRefs && assistantPayload.evidenceRefs.length}}">
+            <text class="task-title">证据引用</text>
             <view class="coach-chip-list">
-              <text class="coach-chip" wx:for="{{latestAnalysis.coach.missingInputs}}" wx:key="*this">{{item}}</text>
+              <text class="coach-chip" wx:for="{{assistantPayload.evidenceRefs}}" wx:key="*this">{{item}}</text>
             </view>
           </view>
-          <view class="task-card coach-next-card" wx:if="{{latestAnalysis.coach.nextSteps.length}}">
-            <text class="task-title">下一步</text>
-            <text class="task-desc" wx:for="{{latestAnalysis.coach.nextSteps}}" wx:key="*this" user-select="{{true}}">{{item}}</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="section" wx:elif="{{latestAnalysis}}">
-        <view class="section-header">
-          <text class="section-title">检查结果</text>
-          <text class="section-action">{{latestAnalysis.status}}</text>
-        </view>
-        <view class="task-list">
-          <view class="task-card" wx:for="{{latestAnalysis.recommendations}}" wx:key="*this">
-            <text class="task-desc" user-select="{{true}}">{{item}}</text>
+          <view class="task-card coach-missing-card" wx:if="{{assistantPayload.limitations && assistantPayload.limitations.length}}">
+            <text class="task-title">限制</text>
+            <view class="coach-chip-list">
+              <text class="coach-chip" wx:for="{{assistantPayload.limitations}}" wx:key="*this">{{item}}</text>
+            </view>
           </view>
         </view>
       </view>

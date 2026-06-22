@@ -846,6 +846,87 @@ test('simulator task detail can read a saved guest task over insecure http', asy
   assert.equal(captured.header.Authorization, undefined)
 })
 
+test('chickenbro message API posts to independent chat endpoint with guest session', async () => {
+  const storage = {
+    wow_backend_api_base_url: 'http://api.example.test',
+    wow_backend_auth_token: 'token-that-must-stay-local',
+    wow_simulator_guest_id: 'guest-device-chat'
+  }
+  let captured = null
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: (key) => storage[key] || '',
+    request: (options) => {
+      captured = options
+      options.success({
+        statusCode: 200,
+        data: {
+          mode: 'chickenbro',
+          session: { sessionId: 'session-1' },
+          job: { jobId: 'job-1', status: 'succeeded' },
+          assistantMessage: {
+            messageId: 'message-2',
+            role: 'assistant',
+            content: '只回答魔兽正式服和 PTR 问题。',
+            payload: {
+              answerSource: 'deterministic_scope_refusal',
+              evidenceRefs: [],
+              priorityActions: [],
+              limitations: ['non_wow_topic']
+            }
+          }
+        }
+      })
+    }
+  }
+
+  const simulatorApi = resetModule('../pages/simulator/simulator-api')
+  const result = await simulatorApi.requestChickenbroMessage({
+    message: '今天天气怎么样？',
+    sessionId: 'session-1',
+    context: { classKey: 'mage', specKey: 'arcane', scenarioKey: 'mplus_fortified' }
+  })
+
+  assert.equal(result.fromFallback, false)
+  assert.equal(result.payload.session.sessionId, 'session-1')
+  assert.match(captured.url, /^http:\/\/api\.example\.test\/api\/chickenbro\/messages$/)
+  assert.equal(captured.header.Authorization, undefined)
+  assert.equal(captured.data.message, '今天天气怎么样？')
+  assert.equal(captured.data.sessionId, 'session-1')
+  assert.equal(captured.data.guestId, 'guest-device-chat')
+  assert.equal(captured.data.context.scenarioKey, 'mplus_fortified')
+})
+
+test('chickenbro session and job APIs read guest-owned chat state', async () => {
+  const storage = {
+    wow_backend_api_base_url: 'http://api.example.test',
+    wow_simulator_guest_id: 'guest-device-chat'
+  }
+  const capturedUrls = []
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: (key) => storage[key] || '',
+    request: (options) => {
+      capturedUrls.push(options.url)
+      options.success({
+        statusCode: 200,
+        data: options.url.includes('/jobs')
+          ? { job: { jobId: 'job-1', status: 'succeeded' } }
+          : { session: { sessionId: 'session-1' }, messages: [{ role: 'assistant', content: '回答' }] }
+      })
+    }
+  }
+
+  const simulatorApi = resetModule('../pages/simulator/simulator-api')
+  const sessionResult = await simulatorApi.requestChickenbroSession('session-1')
+  const jobResult = await simulatorApi.requestChickenbroJob('job-1')
+
+  assert.equal(sessionResult.payload.messages[0].content, '回答')
+  assert.equal(jobResult.payload.job.status, 'succeeded')
+  assert.match(capturedUrls[0], /^http:\/\/api\.example\.test\/api\/chickenbro\/sessions\?id=session-1&guest=1&guestId=guest-device-chat$/)
+  assert.match(capturedUrls[1], /^http:\/\/api\.example\.test\/api\/chickenbro\/jobs\?id=job-1&guest=1&guestId=guest-device-chat$/)
+})
+
 test('analytics client posts batches with bearer only on https', async () => {
   const storage = {
     wow_backend_api_base_url: 'https://api.example.test',

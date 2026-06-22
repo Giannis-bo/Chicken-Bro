@@ -263,10 +263,72 @@ function requestSimulatorTaskDetail(taskId) {
   })
 }
 
+function fallbackChickenbroMessage(request) {
+  return {
+    mode: 'chickenbro',
+    session: { sessionId: request && request.sessionId ? request.sessionId : '' },
+    job: { jobId: '', status: 'failed' },
+    userMessage: {
+      role: 'user',
+      content: (request && request.message) || ''
+    },
+    assistantMessage: {
+      role: 'assistant',
+      content: '后端暂时无法连接炸鸡队长，请稍后重试；当前不会使用本地假结论替代真实证据链。',
+      payload: {
+        answerSource: 'frontend_fallback',
+        confidence: 'blocked',
+        priorityActions: [],
+        evidenceRefs: [],
+        limitations: ['backend unavailable']
+      }
+    }
+  }
+}
+
+function requestChickenbroMessage(request) {
+  const payload = {
+    ...(request || {}),
+    guestId: simulatorGuestId()
+  }
+  return requestJson('/api/chickenbro/messages', {
+    method: 'POST',
+    data: payload,
+    auth: true,
+    allowInsecureGuestRequest: true,
+    timeout: 90000,
+    fallback: () => fallbackChickenbroMessage(payload),
+    validate: (data) => data && data.mode === 'chickenbro' && data.session && data.assistantMessage
+  })
+}
+
+function requestChickenbroSession(sessionId) {
+  const encodedSessionId = encodeURIComponent(sessionId || '')
+  return requestJson(`/api/chickenbro/sessions?id=${encodedSessionId}&${guestQueryString()}`, {
+    auth: true,
+    allowInsecureGuestRequest: true,
+    fallback: () => ({ session: null, messages: [] }),
+    validate: (data) => data && data.session && Array.isArray(data.messages)
+  })
+}
+
+function requestChickenbroJob(jobId) {
+  const encodedJobId = encodeURIComponent(jobId || '')
+  return requestJson(`/api/chickenbro/jobs?id=${encodedJobId}&${guestQueryString()}`, {
+    auth: true,
+    allowInsecureGuestRequest: true,
+    fallback: () => ({ job: null }),
+    validate: (data) => data && data.job && data.job.jobId
+  })
+}
+
 module.exports = {
   agentClarificationPayload,
   fallbackSimulatorAnalysis,
   fallbackSimulatorHome,
+  requestChickenbroJob,
+  requestChickenbroMessage,
+  requestChickenbroSession,
   normalizeSimulatorAnalysisPayload,
   requestSimulatorAnalysis,
   requestSimulatorHome,
