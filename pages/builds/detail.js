@@ -35,7 +35,8 @@ const gearTemplateScenarios = [
 const gearCandidateFilters = [
   { key: 'all', label: '全部' },
   { key: 'dungeon', label: '大秘境' },
-  { key: 'raid', label: '团本' }
+  { key: 'raid', label: '团本' },
+  { key: 'tier_set', label: '套装' }
 ]
 const maxGearTemplateTitleLength = 28
 const gearClassLabels = {
@@ -1025,6 +1026,7 @@ function gearCandidateSourceType(item) {
   const sources = gearDropSources(item)
   const sourceType = (sources[0] && sources[0].sourceType) || (item && item.sourceType) || ''
   const normalized = String(sourceType || '').toLowerCase()
+  if (normalized.includes('tier') || normalized.includes('item_set')) return 'tier_set'
   if (normalized.includes('raid')) return 'raid'
   if (normalized.includes('craft')) return 'crafted'
   if (normalized.includes('dungeon') || normalized.includes('loot')) return 'dungeon'
@@ -1041,6 +1043,8 @@ function gearOptionKey(option, index) {
 }
 
 function gearVariantDifficultyLabel(variant) {
+  const trackLabel = gearVariantUpgradeTrackLabel(variant)
+  if (trackLabel) return trackLabel
   const explicit = variant && (variant.difficultyLabel || variant.difficultyName)
   if (explicit) return explicit
   const key = String((variant && (variant.difficultyKey || variant.sourceType)) || '').toLowerCase().replace(/[-\s]+/g, '_')
@@ -1068,6 +1072,18 @@ function gearVariantDifficultyLabel(variant) {
   if (/raid finder|lfr|随机/i.test(label)) return '随机'
   if (/select difficulty|待补/i.test(label)) return '难度待补'
   return label || '难度待补'
+}
+
+function gearVariantUpgradeTrackLabel(variant) {
+  const rawLevel = variant && (variant.itemLevel || variant.ilevel)
+  const level = Number(rawLevel || 0)
+  const labels = {
+    263: '勇士',
+    276: '英雄',
+    289: '神话',
+    298: '虚空强化'
+  }
+  return labels[level] || ''
 }
 
 function gearVariantLevelLabel(variant) {

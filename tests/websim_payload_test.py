@@ -3,6 +3,7 @@ import io
 import gc
 import os
 import sqlite3
+import subprocess
 import tempfile
 import threading
 import time
@@ -6553,6 +6554,82 @@ class WebSimPayloadTest(unittest.TestCase):
             }
         )
         self.assertEqual(stale_refs, [])
+
+    def test_current_season_raid_refs_accepts_localized_current_season_names(self):
+        refs = self.websim_payload.current_season_raid_refs(
+            {
+                "raids": [
+                    {"id": "1307", "instanceId": "1307", "name": "虚影尖塔", "category": "Raid"},
+                    {"id": "1314", "instanceId": "1314", "name": "梦境裂隙", "category": "Raid"},
+                    {"id": "1308", "instanceId": "1308", "name": "进军奎尔丹纳斯", "category": "Raid"},
+                    {"id": "1305", "instanceId": "1305", "name": "孢陨幽境", "category": "Raid"},
+                    {"id": "1302", "instanceId": "1302", "name": "法力熔炉：欧米伽", "category": "Raid"},
+                ]
+            }
+        )
+
+        self.assertEqual(
+            [item["name"] for item in refs],
+            ["The Voidspire", "The Dreamrift", "March on Quel'Danas", "Sporefall"],
+        )
+        self.assertEqual([item["instanceId"] for item in refs], ["1307", "1314", "1308", "1305"])
+        self.assertEqual(refs[0]["localizedName"], "虚影尖塔")
+        self.assertNotIn("法力熔炉：欧米伽", [item.get("localizedName") or item["name"] for item in refs])
+
+    def test_current_season_raid_pool_allows_extra_rows_when_expected_refs_are_complete(self):
+        status = self.websim_payload.current_season_raid_pool_status(
+            {
+                "raids": [
+                    {"id": "1278", "instanceId": "1278", "name": "卡兹阿加", "category": "Raid"},
+                    {"id": "1302", "instanceId": "1302", "name": "法力熔炉：欧米伽", "category": "Raid"},
+                    {"id": "1307", "instanceId": "1307", "name": "虚影尖塔", "category": "Raid"},
+                    {"id": "1314", "instanceId": "1314", "name": "梦境裂隙", "category": "Raid"},
+                    {"id": "1308", "instanceId": "1308", "name": "进军奎尔丹纳斯", "category": "Raid"},
+                    {"id": "1305", "instanceId": "1305", "name": "孢陨幽境", "category": "Raid"},
+                ]
+            }
+        )
+
+        self.assertEqual(status["blockers"], [])
+        self.assertEqual([item["instanceId"] for item in status["refs"]], ["1307", "1314", "1308", "1305"])
+        self.assertEqual([item["name"] for item in status["staleRefs"]], ["卡兹阿加", "法力熔炉：欧米伽"])
+
+    def test_selected_journal_instance_refs_prefers_localized_current_season_before_last_expansion(self):
+        original_blizzard_get = self.websim_payload.blizzard_get
+        self.addCleanup(setattr, self.websim_payload, "blizzard_get", original_blizzard_get)
+
+        calls = []
+
+        def fake_blizzard_get(path, token, region="us", locale="zh_CN", params=None, namespace=None):
+            calls.append((path, locale))
+            if path == "/data/wow/journal-expansion/index":
+                return {
+                    "expansions": [
+                        {"id": 505, "name": "本赛季"},
+                        {"id": 514, "name": "地心之战"},
+                    ]
+                }
+            if path == "/data/wow/journal-expansion/505":
+                return {
+                    "name": "本赛季",
+                    "raids": [{"id": 1307, "name": "虚影尖塔"}],
+                    "dungeons": [],
+                }
+            if path == "/data/wow/journal-expansion/514":
+                return {
+                    "name": "地心之战",
+                    "raids": [{"id": 1302, "name": "法力熔炉：欧米伽"}],
+                    "dungeons": [],
+                }
+            raise AssertionError(f"unexpected Blizzard path {path}")
+
+        self.websim_payload.blizzard_get = fake_blizzard_get
+
+        refs, selected_name = self.websim_payload.selected_journal_instance_refs("token", "us", "zh_CN")
+
+        self.assertEqual(selected_name, "本赛季")
+        self.assertEqual(refs, [({"id": 1307, "name": "虚影尖塔"}, "Raid")])
+        self.assertNotIn(("/data/wow/journal-expansion/514", "zh_CN"), calls)
 
     def test_active_season_payload_normalizes_stale_cached_raid_pool(self):
         conn = sqlite3.connect(self.db_path)
@@ -14290,6 +14367,249 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertEqual(len(deduped), 1)
         self.assertEqual(deduped[0]["dungeonId"], "239")
+
+    def test_backfill_official_item_level_variants_writes_confirmed_raid_tracks(self):
+        conn = sqlite3.connect(self.db_path)
+        self.websim_payload.ensure_websim_tables(conn)
+        self.websim_payload.save_active_season_payload(
+            conn,
+            self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="Fresh Season",
+                dungeons=[],
+                raids=[{"id": "1314", "instanceId": "1314", "name": "The Dreamrift", "localizedName": "梦境裂隙"}],
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+            VALUES ('1314', '梦境裂隙', 'Raid', '{}', 'now')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO websim_encounters (id, instance_id, name, payload_json, updated_at)
+            VALUES ('2795', '1314', '奇美鲁斯，未梦之神', '{}', 'now')
+            """
+        )
+        for item_id, name, slot in (
+            ("249278", "艾蔑尖塔法杖", "main_hand"),
+            ("249922", "艾蔑悔恨魔典", "off_hand"),
+        ):
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                item_id,
+                {
+                    "id": int(item_id),
+                    "name": name,
+                    "inventory_type": {"type": "WEAPON" if slot == "main_hand" else "HOLDABLE", "name": slot},
+                    "item_class": {"id": 2 if slot == "main_hand" else 4, "name": "Weapon" if slot == "main_hand" else "Armor"},
+                    "item_subclass": {"name": "Staff" if slot == "main_hand" else "Held In Off-hand"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {"stats": [{"type": {"type": "STAMINA", "name": "Stamina"}, "value": 10}]},
+                },
+                fallback_name=name,
+                locale="zh_CN",
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_loot
+                (id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at)
+                VALUES (?, '1314', '2795', ?, ?, ?, '史诗', '', '{}', 'now')
+                """,
+                (f"1314:2795:{item_id}", item_id, name, slot),
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": f"loot-1314:2795:{item_id}",
+                    "itemId": item_id,
+                    "sourceType": "raid",
+                    "sourceLabel": "奇美鲁斯，未梦之神 - 梦境裂隙",
+                    "instanceId": "1314",
+                    "encounterId": "2795",
+                    "seasonRevision": "season-17-test",
+                    "payload": {"seasonRevision": "season-17-test"},
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": f"loot-partial-{item_id}-{slot}",
+                    "itemId": item_id,
+                    "slot": slot,
+                    "variantKey": "needs-variant",
+                    "label": "难度 / 装等待补",
+                    "sourceType": "raid",
+                    "difficultyKey": "needs-variant",
+                    "itemLevel": 0,
+                    "status": "partial",
+                    "blockers": ["missing deterministic SimC variant preset"],
+                    "payload": {"seasonRevision": "season-17-test"},
+                },
+            )
+
+        def fake_stat_resolver(item, item_level, track):
+            return {
+                "itemStats": [{"key": "stamina", "label": "耐力", "value": item_level}],
+                "statSummary": f"耐力 {item_level}",
+                "simcProfile": f"{item['simcSlot']}=item_{item['itemId']},id={item['itemId']},ilevel={item_level}",
+            }
+
+        result = self.websim_payload.backfill_official_item_level_variants_for_instance(
+            conn,
+            "1314",
+            source_type="raid",
+            stat_resolver=fake_stat_resolver,
+        )
+
+        self.assertEqual(result["items"], 2)
+        self.assertEqual(result["verifiedVariants"], 7)
+        rows = conn.execute(
+            """
+            SELECT item_id, difficulty_key, item_level, status, simc_options_json, payload_json
+            FROM websim_gear_variants
+            WHERE id LIKE 'loot-itemlevel-raid-%'
+            ORDER BY item_id, item_level
+            """
+        ).fetchall()
+        by_item = {}
+        for item_id, difficulty_key, item_level, status, simc_options_json, payload_json in rows:
+            by_item.setdefault(item_id, []).append((difficulty_key, item_level, status, simc_options_json, payload_json))
+        self.assertEqual([level for _key, level, _status, _options, _payload in by_item["249278"]], [263, 276, 289, 298])
+        self.assertEqual([level for _key, level, _status, _options, _payload in by_item["249922"]], [263, 276, 289])
+        void_payload = json.loads(by_item["249278"][-1][4])
+        self.assertEqual(void_payload["derivedVariantSource"], "simulationcraft_item_level_probe")
+        self.assertEqual(void_payload["statSource"], "simulationcraft")
+        self.assertEqual(void_payload["statDisplayStatus"], "verified_variant")
+        self.assertTrue(void_payload["simcIlevelOnly"])
+        self.assertEqual(json.loads(by_item["249278"][-1][3]), {"ilevel": "298"})
+
+    def test_catalog_variant_usable_allows_accepted_item_level_probe(self):
+        self.assertTrue(
+            self.websim_payload.catalog_variant_usable_for_replacement(
+                {
+                    "status": "verified",
+                    "difficultyKey": "void_upgrade",
+                    "simcIlevelOnly": True,
+                    "payload": {
+                        "simcIlevelOnly": True,
+                        "derivedVariantSource": "simulationcraft_item_level_probe",
+                        "itemStats": [{"id": "haste", "amount": 100}],
+                    },
+                }
+            )
+        )
+
+    def test_catalog_variant_usable_rejects_partial_item_level_probe_without_stats(self):
+        self.assertFalse(
+            self.websim_payload.catalog_variant_usable_for_replacement(
+                {
+                    "status": "partial",
+                    "difficultyKey": "void_upgrade",
+                    "simcIlevelOnly": True,
+                    "payload": {
+                        "simcIlevelOnly": True,
+                        "derivedVariantSource": "simulationcraft_item_level_probe",
+                        "itemStats": [],
+                        "blockers": ["SimC JSON did not include target item stats"],
+                    },
+                }
+            )
+        )
+
+    def test_item_level_probe_profile_uses_safe_generated_item_name(self):
+        conn = sqlite3.connect(self.db_path)
+        self.websim_payload.ensure_websim_tables(conn)
+        conn.execute(
+            """
+            INSERT INTO websim_profile_presets
+            (id, class_key, spec_key, name, profile, payload_json, updated_at)
+            VALUES ('mage-frost', 'mage', 'frost', 'Mage Frost', ?, '{}', 'now')
+            """,
+            ("mage=\"Mage Frost\"\nspec=frost\nlevel=90\nhead=old_hat,id=1,ilevel=1\n",),
+        )
+
+        profile, class_key, spec_key, item_line = self.websim_payload.simc_profile_with_item_level_probe(
+            conn,
+            {
+                "itemId": "249373",
+                "name": "梦境灼烧长靴",
+                "slot": "feet",
+                "metadataPayload": {
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"name": "Cloth"},
+                },
+            },
+            289,
+        )
+
+        self.assertEqual((class_key, spec_key), ("mage", "frost"))
+        self.assertIn("feet=item_249373,id=249373,ilevel=289", item_line)
+        self.assertIn(item_line, profile)
+        self.assertIn("iterations=1", profile)
+        self.assertIn("max_time=1", profile)
+        self.assertIn("calculate_scale_factors=0", profile)
+
+    def test_run_websim_simcraft_process_passes_blizzard_api_key_to_simc_home(self):
+        observed = {}
+
+        def fake_run(args, **kwargs):
+            env = kwargs.get("env") or {}
+            home = env.get("HOME")
+            self.assertTrue(home)
+            observed["apiKey"] = (Path(home) / ".simc_apikey").read_text(encoding="utf-8")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_BLIZZARD_CLIENT_ID": "test-client",
+                "WOW_BLIZZARD_CLIENT_SECRET": "test-secret",
+            },
+        ):
+            with patch.object(self.websim_payload.subprocess, "run", side_effect=fake_run):
+                result = self.websim_payload.run_websim_simcraft_process("/bin/simc", "profile", 5)
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(observed["apiKey"], "test-client:test-secret\n")
+
+    def test_item_level_probe_keeps_offhand_for_one_hand_warglaive(self):
+        conn = sqlite3.connect(self.db_path)
+        self.websim_payload.ensure_websim_tables(conn)
+        conn.execute(
+            """
+            INSERT INTO websim_profile_presets
+            (id, class_key, spec_key, name, profile, payload_json, updated_at)
+            VALUES ('dh-havoc', 'demonhunter', 'havoc', 'DH Havoc', ?, '{}', 'now')
+            """,
+            (
+                "demonhunter=\"DH Havoc\"\n"
+                "spec=havoc\n"
+                "level=90\n"
+                "main_hand=old_glaive,id=1,ilevel=1\n"
+                "off_hand=old_offhand,id=2,ilevel=1\n"
+            ,),
+        )
+
+        profile, _class_key, _spec_key, item_line = self.websim_payload.simc_profile_with_item_level_probe(
+            conn,
+            {
+                "itemId": "260408",
+                "name": "泯光哀歌",
+                "slot": "main_hand",
+                "metadataPayload": {
+                    "inventory_type": {"type": "WEAPON", "name": "Main Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"name": "Warglaive"},
+                    "preview_item": {"stats": [{"type": {"type": "AGILITY"}, "value": 9}]},
+                },
+            },
+            298,
+        )
+
+        self.assertIn("main_hand=item_260408,id=260408,ilevel=298", item_line)
+        self.assertIn("off_hand=old_offhand,id=2,ilevel=1", profile)
 
 
 if __name__ == "__main__":
