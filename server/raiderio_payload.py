@@ -491,6 +491,19 @@ def db_target_item_ids(conn):
                 """,
                 (limit,),
             ).fetchall()
+        if "payload_json" in variant_columns:
+            observed_rows = conn.execute(
+                f"""
+                SELECT v.item_id, MIN({slot_expr}), 'Raider.IO observed profile', v.source_type, COUNT(*) AS missing_count
+                FROM websim_gear_variants v
+                WHERE v.status = 'verified'
+                  AND v.source_type = 'observed_profile'
+                  AND COALESCE(json_extract(v.payload_json, '$.statSource'), '') != 'simulationcraft'
+                GROUP BY v.item_id, v.source_type
+                ORDER BY missing_count DESC, CAST(v.item_id AS INTEGER), v.item_id
+                """
+            ).fetchall()
+            rows = [*observed_rows, *rows]
     except Exception:
         return []
     candidates = [
@@ -1264,7 +1277,7 @@ def aggregate_by_spec(payload):
     return result
 
 
-def public_raiderio_summary(payload, aggregate=None):
+def public_raiderio_summary(payload, aggregate=None, include_details=False):
     status = payload.get("sourceStatus") or "blocked"
     summary = {
         "sourceName": RAIDERIO_SOURCE_NAME,
@@ -1278,20 +1291,26 @@ def public_raiderio_summary(payload, aggregate=None):
         "sampleCount": 0,
         "maxKeyLevel": 0,
         "bestScore": 0,
-        "topRuns": [],
-        "observedGear": [],
-        "talentLoadouts": [],
         "sourceUrl": payload.get("leaderboardUrl") or "https://raider.io/mythic-plus-rankings",
     }
+    if include_details:
+        summary.update({
+            "topRuns": [],
+            "observedGear": [],
+            "talentLoadouts": [],
+        })
     if aggregate:
         summary.update({
             "sampleCount": aggregate.get("sampleCount") or 0,
             "maxKeyLevel": aggregate.get("maxKeyLevel") or 0,
             "bestScore": aggregate.get("bestScore") or 0,
-            "topRuns": aggregate.get("topRuns") or [],
-            "observedGear": aggregate.get("observedGear") or [],
-            "talentLoadouts": aggregate.get("talentLoadouts") or [],
         })
+        if include_details:
+            summary.update({
+                "topRuns": aggregate.get("topRuns") or [],
+                "observedGear": aggregate.get("observedGear") or [],
+                "talentLoadouts": aggregate.get("talentLoadouts") or [],
+            })
     return summary
 
 
@@ -1301,9 +1320,9 @@ def aggregate_for_specialization(payload, specialization):
     return aggregate_by_spec(payload).get(f"{class_key}:{spec_key}")
 
 
-def enrich_build_specialization(specialization, payload):
+def enrich_build_specialization(specialization, payload, include_details=False):
     aggregate = aggregate_for_specialization(payload, specialization)
-    summary = public_raiderio_summary(payload, aggregate)
+    summary = public_raiderio_summary(payload, aggregate, include_details=include_details)
     enriched = dict(specialization)
     enriched["raiderio"] = summary
     enriched["raiderioSourceStatus"] = summary["sourceStatus"]
@@ -1344,10 +1363,6 @@ def enrich_builds_detail_payload(payload, raiderio):
         if key in {"talents", "gear"}:
             next_section["raiderio"] = result["raiderio"]
             next_section["sourceStatus"] = result["raiderio"]["sourceStatus"] if result["raiderio"]["sampleCount"] else next_section.get("sourceStatus", "source_reference")
-            if key == "talents":
-                next_section["talentLoadouts"] = result["raiderio"].get("talentLoadouts") or []
-            if key == "gear":
-                next_section["observedGear"] = result["raiderio"].get("observedGear") or []
         elif "sourceStatus" not in next_section:
             next_section["sourceStatus"] = "source_reference"
         details[key] = next_section

@@ -8,6 +8,7 @@ import secrets
 import sqlite3
 import subprocess
 import sys
+import threading
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -151,6 +152,7 @@ DB_PATH = Path(os.environ.get("WOW_NEWS_DB", BASE_DIR / "data" / "wow_news.sqlit
 HOST = os.environ.get("WOW_NEWS_HOST", "0.0.0.0")
 PORT = int(os.environ.get("WOW_NEWS_PORT", "8787"))
 ENABLE_COLLECTORS = os.environ.get("WOW_NEWS_ENABLE_COLLECTORS", "0") == "1"
+WEB_GEAR_BUILD_DEFAULT_WORKERS = 4
 PUBLIC_REFRESH_MODES = {"scheduled"}
 AUTH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
 GUEST_SIMULATOR_OPENID = "guest-simulator"
@@ -171,6 +173,9 @@ CHICKENBRO_SCENARIOS = {
     "mplus_fortified",
     "mplus_tyrannical",
 }
+_WEB_GEAR_BUILD_LIMITER = None
+_WEB_GEAR_BUILD_LIMITER_LIMIT = None
+_WEB_GEAR_BUILD_LIMITER_LOCK = threading.Lock()
 CHICKENBRO_ALLOWED_TOOL_TOPICS = {
     "wcl",
     "warcraft logs",
@@ -287,6 +292,32 @@ def int_env(name, default):
         return int(os.environ.get(name, str(default)))
     except (TypeError, ValueError):
         return default
+
+
+def websim_gear_build_worker_limit():
+    return max(1, int_env("WOW_WEB_GEAR_MAX_WORKERS", WEB_GEAR_BUILD_DEFAULT_WORKERS))
+
+
+def reset_websim_gear_build_limiter_for_tests():
+    global _WEB_GEAR_BUILD_LIMITER, _WEB_GEAR_BUILD_LIMITER_LIMIT
+    with _WEB_GEAR_BUILD_LIMITER_LOCK:
+        _WEB_GEAR_BUILD_LIMITER = None
+        _WEB_GEAR_BUILD_LIMITER_LIMIT = None
+
+
+def websim_gear_build_limiter():
+    global _WEB_GEAR_BUILD_LIMITER, _WEB_GEAR_BUILD_LIMITER_LIMIT
+    limit = websim_gear_build_worker_limit()
+    with _WEB_GEAR_BUILD_LIMITER_LOCK:
+        if _WEB_GEAR_BUILD_LIMITER is None or _WEB_GEAR_BUILD_LIMITER_LIMIT != limit:
+            _WEB_GEAR_BUILD_LIMITER = threading.BoundedSemaphore(limit)
+            _WEB_GEAR_BUILD_LIMITER_LIMIT = limit
+        return _WEB_GEAR_BUILD_LIMITER
+
+
+def run_websim_gear_build(build_payload):
+    with websim_gear_build_limiter():
+        return build_payload()
 
 
 @contextmanager
@@ -1817,6 +1848,9 @@ def build_data_health_payload():
         websim_errors = websim_state.get("errors") if isinstance(websim_state.get("errors"), list) else []
         websim_simc = websim_state.get("simc") if isinstance(websim_state.get("simc"), dict) else {}
         websim_gear = websim_state.get("gearCatalog") if isinstance(websim_state.get("gearCatalog"), dict) else {}
+        standalone_gear = get_sync_state(conn, "gearCatalog") or {}
+        if isinstance(standalone_gear, dict) and standalone_gear:
+            websim_gear = standalone_gear
         websim_season = websim_state.get("currentSeason") if isinstance(websim_state.get("currentSeason"), dict) else {}
         if websim_state:
             websim_status = websim_state.get("dataStatus") or ("verified" if websim_state.get("ok") else "blocked")
@@ -4228,14 +4262,18 @@ def record_analytics_request(handler, payload):
 
 def json_response(handler, status, payload):
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    handler.send_response(status)
-    handler.send_header("Content-Type", "application/json; charset=utf-8")
-    handler.send_header("Access-Control-Allow-Origin", "*")
-    handler.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-    handler.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Wow-Client-Id, X-Wow-Session-Id, X-Wow-Platform")
-    handler.send_header("Content-Length", str(len(body)))
-    handler.end_headers()
-    handler.wfile.write(body)
+    try:
+        handler.send_response(status)
+        handler.send_header("Content-Type", "application/json; charset=utf-8")
+        handler.send_header("Access-Control-Allow-Origin", "*")
+        handler.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+        handler.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Wow-Client-Id, X-Wow-Session-Id, X-Wow-Platform")
+        handler.send_header("Content-Length", str(len(body)))
+        handler.end_headers()
+        handler.wfile.write(body)
+        return True
+    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+        return False
 
 
 def text_response(handler, status, body, content_type="text/plain; charset=utf-8"):
@@ -4557,18 +4595,15 @@ class Handler(BaseHTTPRequestHandler):
                 str(query.get("compact", [""])[0]).lower() in {"1", "true", "yes"}
                 or platform == "miniprogram"
             )
-            init_db()
-            with db_connection() as conn:
-                json_response(
-                    self,
-                    200,
-                    get_websim_gear(
-                        conn,
-                        query.get("class", query.get("classKey", ["mage"]))[0],
-                        query.get("spec", query.get("specKey", ["arcane"]))[0],
-                        compact=compact,
-                    ),
-                )
+            class_key = query.get("class", query.get("classKey", ["mage"]))[0]
+            spec_key = query.get("spec", query.get("specKey", ["arcane"]))[0]
+
+            def build_payload():
+                init_db()
+                with db_connection() as conn:
+                    return get_websim_gear(conn, class_key, spec_key, compact=compact)
+
+            json_response(self, 200, run_websim_gear_build(build_payload))
             return
         if path == "/api/websim/loot":
             query = parse_qs(urlparse(self.path).query)

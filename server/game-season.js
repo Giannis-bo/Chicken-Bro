@@ -40,6 +40,18 @@ const currentSeason = {
     timerSeconds: 0,
     sourceRefs: officialSeasonSourceRefs
   })),
+  raids: [
+    'The Voidspire',
+    'The Dreamrift',
+    "March on Quel'Danas",
+    'Sporefall'
+  ].map((name) => ({
+    id: '',
+    raidId: '',
+    instanceId: '',
+    name,
+    category: 'Raid'
+  })),
   sourceRefs: officialSeasonSourceRefs,
   errors: []
 }

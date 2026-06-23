@@ -27,6 +27,11 @@ test('builds the specialization tab payload without legacy BD metrics', () => {
   assert.equal(payload.featuredSpecializations.length, 3)
   assert.equal(payload.classOptions.length, 13)
   assert.equal(payload.classOptions.flatMap((item) => item.specializations).length, 39)
+  assert.equal(payload.specializations, undefined)
+  assert.ok(
+    Buffer.byteLength(JSON.stringify(payload), 'utf8') < 45000,
+    'builds home payload should stay below the WeChat setData warning range'
+  )
   assert.equal(payload.currentSeason.seasonLabel, '至暗之夜 Season 1')
   assert.match(payload.seasonRevision, /^season-midnight-season-1-/)
   assert.equal(payload.dataStatus, 'verified')
@@ -68,7 +73,8 @@ test('every featured specialization keeps strict source evidence', () => {
 
 test('specialization payload exposes WebSim class and spec keys', () => {
   const payload = buildSpecializationHomePayload()
-  const byId = Object.fromEntries(payload.specializations.map((item) => [item.id, item]))
+  const specializations = payload.classOptions.flatMap((item) => item.specializations)
+  const byId = Object.fromEntries(specializations.map((item) => [item.id, item]))
 
   assert.equal(byId['死亡骑士-冰霜'].websimClassKey, 'deathknight')
   assert.equal(byId['死亡骑士-冰霜'].websimSpecKey, 'frost')
@@ -89,8 +95,9 @@ test('trusted source allowlist covers high-end mythic plus raid and WCL analysis
 
 test('details expose all query types for every specialization', () => {
   const payload = buildSpecializationHomePayload()
+  const specializations = payload.classOptions.flatMap((item) => item.specializations)
 
-  for (const specialization of payload.specializations) {
+  for (const specialization of specializations) {
     const detail = getSpecializationDetail(specialization.id)
 
     assert.equal(detail.id, specialization.id)
@@ -155,11 +162,12 @@ test('all intel specializations have real module data without local placeholders
 
 test('all 39 specializations expose structured source-backed data without placeholders', () => {
   const payload = buildSpecializationHomePayload()
+  const specializations = payload.classOptions.flatMap((item) => item.specializations)
   const placeholderPattern = /本地尚未写入|请以详情页来源字段|已完成检索的专精|装备列表按|属性模块需要|循环拆分为|暂无|待补充/
 
-  assert.equal(payload.specializations.length, 39)
+  assert.equal(specializations.length, 39)
 
-  for (const specialization of payload.specializations) {
+  for (const specialization of specializations) {
     const detail = getSpecializationDetail(specialization.id)
 
     assert.ok(detail.details.talents.coreTalents.length >= 4, `${specialization.id} should have talent highlights`)

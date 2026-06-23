@@ -229,6 +229,18 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(mage_template["payload"]["raiderio"]["loadout"][0]["traitId"], 91001)
         self.assertEqual(mage_template["sourceUrl"], "https://raider.io/characters/cn/isillien/Rioone")
 
+        home = {
+            "featuredSpecializations": [
+                {"id": "法师-冰霜", "websimClassKey": "mage", "websimSpecKey": "frost"},
+            ],
+        }
+        enriched_home = raiderio_payload.enrich_builds_home_payload(home, cached)
+        home_summary = enriched_home["featuredSpecializations"][0]["raiderio"]
+        self.assertEqual(home_summary["maxKeyLevel"], 24)
+        self.assertNotIn("observedGear", home_summary)
+        self.assertNotIn("talentLoadouts", home_summary)
+        self.assertNotIn("topRuns", home_summary)
+
         detail = {
             "websimClassKey": "mage",
             "websimSpecKey": "frost",
@@ -236,7 +248,11 @@ class RaiderIOPayloadTest(unittest.TestCase):
         }
         enriched = raiderio_payload.enrich_builds_detail_payload(detail, cached)
         self.assertEqual(enriched["raiderio"]["maxKeyLevel"], 24)
-        self.assertEqual(enriched["details"]["gear"]["observedGear"][0]["name"], "Observed Hood")
+        self.assertNotIn("observedGear", enriched["raiderio"])
+        self.assertNotIn("talentLoadouts", enriched["raiderio"])
+        self.assertNotIn("topRuns", enriched["raiderio"])
+        self.assertNotIn("observedGear", enriched["details"]["gear"])
+        self.assertNotIn("talentLoadouts", enriched["details"]["talents"])
         self.assertEqual(enriched["details"]["rotation"]["sourceStatus"], "source_reference")
 
         spec_module = raiderio_payload.enrich_pve_module_payload({"key": "specLadder"}, cached)
@@ -749,6 +765,103 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(payload["targetItemCoverage"]["targetItemCount"], 1)
         self.assertEqual(payload["targetItemCoverage"]["matchedTargetItemIds"], ["251171"])
         self.assertEqual(payload["targetItemCoverage"]["missingTargetItemIds"], [])
+
+    def test_db_target_item_ids_include_observed_variants_missing_simc_stats(self):
+        os.environ["WOW_RAIDERIO_TARGET_ITEM_LIMIT"] = "8"
+
+        with closing(self.connection()) as conn:
+            conn.execute(
+                """
+                CREATE TABLE websim_gear_variants (
+                    id TEXT PRIMARY KEY,
+                    item_id TEXT,
+                    slot TEXT,
+                    source_type TEXT,
+                    status TEXT,
+                    payload_json TEXT
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE websim_gear_sources (
+                    id TEXT PRIMARY KEY,
+                    item_id TEXT,
+                    source_type TEXT,
+                    source_label TEXT
+                )
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_gear_variants (id, item_id, slot, source_type, status, payload_json)
+                VALUES ('observed-missing-268290', '268290', 'finger1', 'observed_profile', 'verified', ?)
+                """,
+                (json.dumps({"observedProfileRefs": [{"characterName": "Observedone"}]}),),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_gear_variants (id, item_id, slot, source_type, status, payload_json)
+                VALUES ('observed-covered-268291', '268291', 'neck', 'observed_profile', 'verified', ?)
+                """,
+                (json.dumps({"statSource": "simulationcraft"}),),
+            )
+            for index in range(20):
+                item_id = str(300000 + index)
+                conn.execute(
+                    """
+                    INSERT INTO websim_gear_variants (id, item_id, slot, source_type, status, payload_json)
+                    VALUES (?, ?, ?, 'dungeon', 'partial', '{}')
+                    """,
+                    (f"loot-partial-{item_id}", item_id, "finger1" if index % 2 else "feet"),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO websim_gear_sources (id, item_id, source_type, source_label)
+                    VALUES (?, ?, 'dungeon', ?)
+                    """,
+                    (f"loot-source-{item_id}", item_id, f"Boss {index:03d} - Dungeon {index:03d}"),
+                )
+
+            target_ids = raiderio_payload.db_target_item_ids(conn)
+
+        self.assertIn("268290", target_ids)
+        self.assertNotIn("268291", target_ids)
+
+    def test_db_target_item_ids_prioritize_frequent_observed_stat_gaps(self):
+        os.environ["WOW_RAIDERIO_TARGET_ITEM_LIMIT"] = "1"
+
+        with closing(self.connection()) as conn:
+            conn.execute(
+                """
+                CREATE TABLE websim_gear_variants (
+                    id TEXT PRIMARY KEY,
+                    item_id TEXT,
+                    slot TEXT,
+                    source_type TEXT,
+                    status TEXT,
+                    payload_json TEXT
+                )
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_gear_variants (id, item_id, slot, source_type, status, payload_json)
+                VALUES ('observed-missing-151309', '151309', 'back', 'observed_profile', 'verified', '{}')
+                """
+            )
+            for index in range(3):
+                conn.execute(
+                    """
+                    INSERT INTO websim_gear_variants (id, item_id, slot, source_type, status, payload_json)
+                    VALUES (?, '268290', 'neck', 'observed_profile', 'verified', '{}')
+                    """,
+                    (f"observed-missing-268290-{index}",),
+                )
+
+            target_ids = raiderio_payload.db_target_item_ids(conn)
+
+        self.assertEqual(target_ids, ["268290"])
 
     def test_db_target_item_ids_round_robins_partial_items_by_source_and_slot(self):
         os.environ["WOW_RAIDERIO_TARGET_ITEM_LIMIT"] = "8"

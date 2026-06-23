@@ -922,7 +922,6 @@ function buildSpecializationHomePayload() {
     quickActions: queryTypes,
     classOptions,
     featuredSpecializations: featuredSpecializations.slice(0, 3),
-    specializations,
     trustedSources: trustedBuildSources,
     lastAnalyzedAt: latestAnalysis.publishedAt,
     analysisWindow: latestAnalysis.analysisWindow,

@@ -21,6 +21,12 @@ This repository maintains a project roadmap as shared context for all agents and
 - Do not invent undocumented historical decisions. If an idea cannot be verified from the repo, current conversation, or user confirmation, mark it as `待补录` or `待确认` in `docs/roadmap/ideas.md`.
 - When work completes, update status and evidence links instead of rewriting old plan documents.
 
+## Review Workflow
+
+- CodeRabbit is no longer part of this repository's required review workflow.
+- Do not block commits, pushes, deployment, or handoff on CodeRabbit review. Use local tests, smoke checks, diff review, runtime logs, and user-requested review tools instead.
+- Historical plans may still mention CodeRabbit as past evidence or an old workflow. Treat those mentions as historical only, not as current instructions.
+
 ## Scope Boundaries
 
 - The roadmap is the long-lived product and engineering control plane. It does not replace detailed task plans.

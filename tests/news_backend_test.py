@@ -3,6 +3,7 @@ import json
 import sqlite3
 import tempfile
 import threading
+import time
 import unittest
 from contextlib import closing
 from http.server import ThreadingHTTPServer
@@ -131,6 +132,72 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(feed_source["sourceUrl"], "https://us.forums.blizzard.com/en/wow/c/in-development")
         self.assertNotIn("/253", forum_source["sourceUrl"])
         self.assertNotIn("/253", feed_source["sourceUrl"])
+
+    def test_websim_gear_builds_are_bounded_by_configured_worker_limit(self):
+        active = 0
+        max_active = 0
+        lock = threading.Lock()
+        start_event = threading.Event()
+        results = []
+        errors = []
+
+        def build_payload():
+            nonlocal active, max_active
+            with lock:
+                active += 1
+                max_active = max(max_active, active)
+            try:
+                time.sleep(0.05)
+                return {"ok": True}
+            finally:
+                with lock:
+                    active -= 1
+
+        def worker():
+            start_event.wait(timeout=1)
+            try:
+                results.append(self.backend.run_websim_gear_build(build_payload))
+            except Exception as error:
+                errors.append(error)
+
+        with patch.dict(os.environ, {"WOW_WEB_GEAR_MAX_WORKERS": "2"}):
+            self.backend.reset_websim_gear_build_limiter_for_tests()
+            threads = [threading.Thread(target=worker) for _ in range(6)]
+            for thread in threads:
+                thread.start()
+            start_event.set()
+            for thread in threads:
+                thread.join(timeout=2)
+
+        self.assertEqual(errors, [])
+        self.assertEqual(len(results), 6)
+        self.assertLessEqual(max_active, 2)
+
+    def test_json_response_suppresses_broken_pipe_from_disconnected_client(self):
+        class BrokenPipeHandler:
+            def __init__(self):
+                self.status = None
+                self.headers = []
+                self.wfile = self
+
+            def send_response(self, status):
+                self.status = status
+
+            def send_header(self, name, value):
+                self.headers.append((name, value))
+
+            def end_headers(self):
+                return None
+
+            def write(self, body):
+                raise BrokenPipeError("client disconnected")
+
+        handler = BrokenPipeHandler()
+
+        delivered = self.backend.json_response(handler, 200, {"ok": True})
+
+        self.assertFalse(delivered)
+        self.assertEqual(handler.status, 200)
 
     def test_enqueue_requeues_published_discovery_when_public_row_is_missing(self):
         article = {
@@ -3616,6 +3683,61 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(component["details"]["talentCount"], 5246)
         self.assertEqual(component["details"]["gearItemCount"], 114)
         self.assertEqual(component["details"]["observedVariantCount"], 93)
+
+    def test_data_health_websim_sync_prefers_standalone_gear_catalog_state(self):
+        import server.websim_payload as websim_payload
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            websim_payload.ensure_websim_tables(conn)
+            websim_payload.set_sync_state(
+                conn,
+                "websim_sync",
+                {
+                    "ok": True,
+                    "dataStatus": "verified",
+                    "checkedAt": "2026-06-20T06:05:08+00:00",
+                    "errors": [],
+                    "simc": {"talents": 5246, "presets": 50},
+                    "gearCatalog": {
+                        "status": "partial",
+                        "itemCount": 114,
+                        "observedVariantCount": 93,
+                        "seasonSourceCoverage": {
+                            "mythicPlus": {"sourceItemCount": 464},
+                        },
+                    },
+                },
+            )
+            websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                {
+                    "status": "partial",
+                    "itemCount": 756,
+                    "observedVariantCount": 2388,
+                    "seasonSourceCoverage": {
+                        "mythicPlus": {"sourceItemCount": 203},
+                        "instances": [
+                            {
+                                "name": "萨隆矿坑",
+                                "sourceItemCount": 24,
+                                "verifiedItemCount": 4,
+                                "partialItemCount": 20,
+                            }
+                        ],
+                    },
+                },
+            )
+            conn.commit()
+
+        payload = self.backend.build_data_health_payload()
+        component = {item["key"]: item for item in payload["components"]}["websim_sync"]
+        gear_catalog = component["details"]["gearCatalog"]
+
+        self.assertEqual(component["details"]["gearItemCount"], 756)
+        self.assertEqual(component["details"]["observedVariantCount"], 2388)
+        self.assertEqual(gear_catalog["seasonSourceCoverage"]["mythicPlus"]["sourceItemCount"], 203)
+        self.assertEqual(gear_catalog["seasonSourceCoverage"]["instances"][0]["sourceItemCount"], 24)
 
     def test_data_health_accepts_warcraftlogs_v1_api_key_without_exposing_secret(self):
         os.environ["WOW_WARCRAFTLOGS_API_KEY"] = "fake-wcl-v1-key"

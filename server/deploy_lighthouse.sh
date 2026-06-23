@@ -13,6 +13,7 @@ SIMC_BRANCH="${WOW_SIMC_BRANCH:-midnight}"
 CODEX_JOBS_DIR="${WOW_CODEX_JOBS_DIR:-/var/lib/wow-backend/codex-jobs}"
 CODEX_HOME_DIR="${WOW_CODEX_HOME:-/home/${REMOTE_USER}/.codex}"
 SKIP_BOOTSTRAP="${WOW_DEPLOY_SKIP_BOOTSTRAP:-0}"
+START_ASYNC_SYNCS="${WOW_DEPLOY_START_ASYNC_SYNCS:-0}"
 
 validate_env_value() {
   local name="$1"
@@ -41,6 +42,7 @@ validate_env_value SIMC_BRANCH "${SIMC_BRANCH}" '^[A-Za-z0-9_.\@/-]+$'
 validate_env_value CODEX_JOBS_DIR "${CODEX_JOBS_DIR}" '^/[A-Za-z0-9_./-]+$'
 validate_env_value CODEX_HOME_DIR "${CODEX_HOME_DIR}" '^/[A-Za-z0-9_./-]+$'
 validate_env_value SKIP_BOOTSTRAP "${SKIP_BOOTSTRAP}" '^[01]$'
+validate_env_value START_ASYNC_SYNCS "${START_ASYNC_SYNCS}" '^[01]$'
 reject_path_traversal REMOTE_DIR "${REMOTE_DIR}"
 reject_path_traversal CODEX_JOBS_DIR "${CODEX_JOBS_DIR}"
 reject_path_traversal CODEX_HOME_DIR "${CODEX_HOME_DIR}"
@@ -68,7 +70,7 @@ COPYFILE_DISABLE=1 tar \
   --exclude '.DS_Store' \
   -czf - . | ssh_remote "sudo mkdir -p '${REMOTE_DIR}' && sudo tar -xzf - -C '${REMOTE_DIR}' && sudo chown -R ${REMOTE_USER}:${REMOTE_USER} '${REMOTE_DIR}'"
 
-ssh_remote "WOW_LIGHTHOUSE_DIR='${REMOTE_DIR}' SERVICE_NAME='${SERVICE_NAME}' SIMC_GITHUB_REPO='${SIMC_GITHUB_REPO}' SIMC_BRANCH='${SIMC_BRANCH}' WOW_CODEX_JOBS_DIR='${CODEX_JOBS_DIR}' WOW_CODEX_HOME='${CODEX_HOME_DIR}' WOW_DEPLOY_SKIP_BOOTSTRAP='${SKIP_BOOTSTRAP}' bash -s" <<'REMOTE'
+ssh_remote "WOW_LIGHTHOUSE_DIR='${REMOTE_DIR}' SERVICE_NAME='${SERVICE_NAME}' SIMC_GITHUB_REPO='${SIMC_GITHUB_REPO}' SIMC_BRANCH='${SIMC_BRANCH}' WOW_CODEX_JOBS_DIR='${CODEX_JOBS_DIR}' WOW_CODEX_HOME='${CODEX_HOME_DIR}' WOW_DEPLOY_SKIP_BOOTSTRAP='${SKIP_BOOTSTRAP}' WOW_DEPLOY_START_ASYNC_SYNCS='${START_ASYNC_SYNCS}' bash -s" <<'REMOTE'
 set -euo pipefail
 
 REMOTE_DIR="${WOW_LIGHTHOUSE_DIR:-/opt/wow-mini-program}"
@@ -85,6 +87,7 @@ CODEX_JOBS_DIR="${WOW_CODEX_JOBS_DIR:-/var/lib/wow-backend/codex-jobs}"
 CODEX_HOME_DIR="${WOW_CODEX_HOME:-/home/ubuntu/.codex}"
 CODEX_BIN="/usr/local/bin/codex"
 SKIP_BOOTSTRAP="${WOW_DEPLOY_SKIP_BOOTSTRAP:-0}"
+START_ASYNC_SYNCS="${WOW_DEPLOY_START_ASYNC_SYNCS:-0}"
 
 if [[ "${SKIP_BOOTSTRAP}" == "1" ]]; then
   echo "Skipping remote bootstrap because WOW_DEPLOY_SKIP_BOOTSTRAP=1; reusing remote packages, Codex, and SimulationCraft."
@@ -493,18 +496,12 @@ if [[ "${SKIP_BOOTSTRAP}" != "1" ]]; then
   sudo systemctl enable --now wow-simc-version-check.timer
   sudo systemctl start wow-simc-version-check.service
 fi
-sudo systemctl enable --now wow-websim-sync.timer
 sudo systemctl stop wow-websim-sync.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-websim-sync.service >/dev/null 2>&1 || true
-sudo systemctl start --no-block wow-websim-sync.service || sudo journalctl -u wow-websim-sync.service -n 80 --no-pager
-sudo systemctl enable --now wow-stat-weights-sync.timer
 sudo systemctl stop wow-stat-weights-sync.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-stat-weights-sync.service >/dev/null 2>&1 || true
-sudo systemctl start --no-block wow-stat-weights-sync.service || sudo journalctl -u wow-stat-weights-sync.service -n 80 --no-pager
-sudo systemctl enable --now wow-community-template-sync.timer
 sudo systemctl stop wow-community-template-sync.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-community-template-sync.service >/dev/null 2>&1 || true
-sudo systemctl start --no-block wow-community-template-sync.service || sudo journalctl -u wow-community-template-sync.service -n 80 --no-pager
 sudo systemctl enable --now "${SERVICE_NAME}"
 sudo systemctl restart "${SERVICE_NAME}"
 sudo systemctl restart nginx
@@ -523,6 +520,17 @@ curl -fsS http://127.0.0.1/api/simulator/home >/dev/null
 curl -fsS http://127.0.0.1/api/websim/bootstrap >/dev/null
 curl -fsS http://127.0.0.1/websim/ >/dev/null
 "${SIMC_BIN}" iterations=1 max_time=1 >/dev/null
+
+if [[ "${START_ASYNC_SYNCS}" == "1" ]]; then
+  sudo systemctl enable --now wow-websim-sync.timer
+  sudo systemctl start --no-block wow-websim-sync.service || sudo journalctl -u wow-websim-sync.service -n 80 --no-pager
+  sudo systemctl enable --now wow-stat-weights-sync.timer
+  sudo systemctl start --no-block wow-stat-weights-sync.service || sudo journalctl -u wow-stat-weights-sync.service -n 80 --no-pager
+  sudo systemctl enable --now wow-community-template-sync.timer
+  sudo systemctl start --no-block wow-community-template-sync.service || sudo journalctl -u wow-community-template-sync.service -n 80 --no-pager
+else
+  echo "Skipping async sync starts because WOW_DEPLOY_START_ASYNC_SYNCS is not 1."
+fi
 REMOTE
 
 curl -fsS "http://${REMOTE_HOST}/health"

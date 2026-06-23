@@ -13,7 +13,9 @@ test('lighthouse deploy script supports a no-download hot deploy mode', () => {
     assert.doesNotThrow(() => execFileSync('bash', ['-n', scriptPath]))
   }
   assert.match(script, /WOW_DEPLOY_SKIP_BOOTSTRAP/)
+  assert.match(script, /WOW_DEPLOY_START_ASYNC_SYNCS/)
   assert.match(script, /Skipping remote bootstrap/)
+  assert.match(script, /Skipping async sync starts/)
   assert.match(script, /systemctl start --no-block wow-websim-sync\.service/)
   assert.match(script, /wow-stat-weights-sync\.service/)
   assert.match(script, /wow-stat-weights-sync\.timer/)
@@ -39,6 +41,32 @@ test('lighthouse deploy script supports a no-download hot deploy mode', () => {
   ]) {
     const commandIndex = script.indexOf(networkOrInstallCommand)
     assert.ok(commandIndex > bootstrapBranch, `${networkOrInstallCommand} must stay out of hot deploy mode`)
+  }
+})
+
+test('lighthouse deploy script requires explicit opt-in before starting long sync jobs', () => {
+  const script = fs.readFileSync(scriptPath, 'utf8')
+  const smokeIndex = script.indexOf('curl -fsS http://127.0.0.1/api/builds/home >/dev/null')
+  assert.ok(smokeIndex > 0, 'missing builds home smoke check')
+  const optInIndex = script.indexOf('if [[ "${START_ASYNC_SYNCS}" == "1" ]]')
+  assert.ok(optInIndex > smokeIndex, 'async sync opt-in gate must run after API smoke checks')
+
+  for (const startCommand of [
+    'sudo systemctl start --no-block wow-websim-sync.service',
+    'sudo systemctl start --no-block wow-stat-weights-sync.service',
+    'sudo systemctl start --no-block wow-community-template-sync.service'
+  ]) {
+    const startIndex = script.indexOf(startCommand)
+    assert.ok(startIndex > optInIndex, `${startCommand} must stay behind the explicit async sync opt-in gate`)
+  }
+
+  for (const stopCommand of [
+    'sudo systemctl stop wow-websim-sync.service >/dev/null 2>&1 || true',
+    'sudo systemctl stop wow-stat-weights-sync.service >/dev/null 2>&1 || true',
+    'sudo systemctl stop wow-community-template-sync.service >/dev/null 2>&1 || true'
+  ]) {
+    const stopIndex = script.indexOf(stopCommand)
+    assert.ok(stopIndex > 0 && stopIndex < smokeIndex, `${stopCommand} must run before API smoke checks`)
   }
 })
 

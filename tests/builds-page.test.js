@@ -81,6 +81,8 @@ function completeGearSelection(slots = canonicalGearSlots) {
       itemId: String(250000 + index),
       id: String(250000 + index),
       displayName: `Item ${slot}`,
+      source: '测试首领 - 测试副本',
+      sources: [{ label: '测试首领 - 测试副本', sourceType: 'dungeon' }],
       ilevel: 707,
       bonus_id: '12345',
       simcReady: true
@@ -1106,6 +1108,134 @@ test('gear detail marks backend fallback and blocks empty community imports', as
   assert.match(toasts.at(-1).title, /未连接后端 API/)
 })
 
+test('gear detail keeps heavy candidate payload out of setData while preserving slot sheet candidates', async () => {
+  const heavyCandidate = {
+    slot: 'head',
+    simcSlot: 'head',
+    itemId: '250060',
+    id: '250060',
+    displayName: '虚空粉碎者的面纱',
+    iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_helm_cloth_raidmage_j_01.jpg',
+    simcReady: true,
+    source: '诸界吞噬者迪门修斯 - 法力熔炉：欧米伽',
+    sources: Array.from({ length: 20 }, (_, index) => ({
+      id: `source-${index}`,
+      sourceType: index % 2 ? 'observed_profile' : 'raid',
+      sourceLabel: `重型来源 ${index} ${'x'.repeat(120)}`
+    })),
+    socketOptions: Array.from({ length: 30 }, (_, index) => ({
+      id: `socket-${index}`,
+      name: `宝石 ${index} ${'y'.repeat(120)}`,
+      simcOptions: { gem_id: String(240900 + index) },
+      status: 'verified'
+    }))
+  }
+  const gearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    slots: [{ slot: 'head', simcSlot: 'head', label: '头部' }],
+    replacementCandidates: [{
+      slot: 'head',
+      simcSlot: 'head',
+      label: '头部',
+      items: [heavyCandidate]
+    }],
+    equippedSet: { head: heavyCandidate },
+    slotReadiness: {},
+    readiness: { fullReady: false },
+    communityTemplates: [],
+    communityTemplateSync: {
+      sourceStatus: 'partial',
+      sources: {},
+      templates: { total: 0, verified: 0, partial: 0, blocked: 0 }
+    },
+    catalogStatus: 'partial'
+  }
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear: () => Promise.resolve({ payload: gearPayload, fromFallback: false, error: '' })
+  })
+  const setDataUpdates = []
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: {},
+      gearSelectionKey: '',
+      gearSlotRows: [],
+      gearSlotSheet: {},
+      gearCommunityTemplateSheet: { visible: false }
+    },
+    setData(update) {
+      setDataUpdates.push(update)
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.loadWebsimGearForSelection.call(page, {
+    selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' }
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.ok(page.gearPayloadCache)
+  assert.equal(page.gearPayloadCache.replacementCandidates[0].items[0].itemId, '250060')
+  assert.equal(page.data.gearPayload.replacementCandidates, undefined)
+  assert.equal(page.data.gearPayload.slotGroups, undefined)
+  assert.equal(page.data.gearPayload.equippedSet, undefined)
+  assert.equal(page.data.gearPayload.communityTemplates, undefined)
+  assert.equal(page.data.selectedGearBySlot.head.sources, undefined)
+  assert.equal(page.data.selectedGearBySlot.head.socketOptions, undefined)
+  assert.ok(setDataUpdates.every((update) => !update.gearPayload || !update.gearPayload.replacementCandidates))
+  assert.ok(setDataUpdates.every((update) => !update.selectedGearBySlot || !update.selectedGearBySlot.head.sources))
+
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+  assert.equal(page.data.gearSlotSheet.candidates.length, 1)
+  assert.equal(page.data.gearSlotSheet.candidates[0].displayName, '虚空粉碎者的面纱')
+  assert.equal(page.data.gearSlotSheet.candidates[0].sources, undefined)
+  assert.equal(page.data.gearSlotSheet.candidates[0].socketOptions, undefined)
+  assert.equal(page.data.gearSlotSheet.activeCandidate.sources, undefined)
+  assert.equal(page.data.gearSlotSheet.appliedCandidate.socketOptions, undefined)
+  assert.equal(page.data.gearSlotSheet.allCandidates, undefined)
+  assert.equal(page.gearSlotCandidateCache.head[0].sources.length, 20)
+  assert.equal(page.gearSlotCandidateCache.head[0].socketOptions.length, 30)
+})
+
+test('gear trust summary surfaces catalog health gaps', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots,
+        replacementCandidates: [],
+        equippedSet: {},
+        slotReadiness: {},
+        readiness: { fullReady: true },
+        catalogStatus: 'partial',
+        catalogHealthSummary: {
+          sourcePendingItemCount: 131,
+          missingStatObservedVariantCount: 303,
+          socketMissingMetadataCount: 39,
+          partialVariantCount: 519
+        }
+      },
+      selectedGearBySlot: completeGearSelection()
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+
+  assert.match(page.data.gearTrustSummaryText, /来源待补 131 件/)
+  assert.match(page.data.gearTrustSummaryText, /属性待补 303 个/)
+  assert.match(page.data.gearTrustSummaryText, /插槽待补 39 个/)
+  assert.match(page.data.gearTrustSummaryText, /变体待补 519 个/)
+})
+
 test('gear detail hides fallback insight while first gear payload is loading', () => {
   const pageConfig = loadBuildsDetailPageConfig({
     requestWebsimGear: () => new Promise(() => {})
@@ -1191,6 +1321,245 @@ test('gear slot candidate count matches selectable deduped equipment rows', () =
   assert.equal(page.data.gearSlotRows[0].candidateCount, page.data.gearSlotSheet.candidates.length)
   assert.equal(page.data.gearSlotRows[0].gameAsset.iconUrl, item.iconUrl)
   assert.equal(page.data.gearSlotSheet.candidates[0].gameAsset.iconUrl, item.iconUrl)
+})
+
+test('gear candidate detail treats observed profiles as evidence not drop source', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const observedOnly = {
+    slot: 'finger1',
+    simcSlot: 'finger1',
+    itemId: '249920',
+    id: '249920',
+    displayName: '至暗之夜的眼眸',
+    simcReady: true,
+    ilevel: 289,
+    bonus_id: '13440/6652/13577/12699/12806',
+    source: 'Raider.IO CN observed mage frost',
+    observedProfileRefs: [
+      { sourceName: 'Raider.IO CN profile gear', classKey: 'mage', specKey: 'frost', itemLevel: 289 }
+    ],
+    sources: [
+      { sourceType: 'observed_profile', sourceLabel: 'Raider.IO CN observed mage frost' }
+    ]
+  }
+  const officialWithObserved = {
+    slot: 'finger1',
+    simcSlot: 'finger1',
+    itemId: '251115',
+    id: '251115',
+    displayName: '分叉指环',
+    simcReady: true,
+    source: 'Raider.IO CN observed priest holy',
+    sources: [
+      { sourceType: 'observed_profile', sourceLabel: 'Raider.IO CN observed priest holy' },
+      { sourceType: 'raid', sourceLabel: '无眠之心 - 法力熔炉：欧米伽' }
+    ]
+  }
+  const gearPayload = {
+    slots: [{ slot: 'finger1', simcSlot: 'finger1', label: '戒指' }],
+    replacementCandidates: [{
+      slot: 'finger1',
+      simcSlot: 'finger1',
+      label: '戒指',
+      items: [observedOnly, officialWithObserved]
+    }],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: {},
+    statSnapshot: { statStatus: 'blocked', blockers: [] }
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'finger1' } } })
+
+  const firstSource = page.data.gearSlotSheet.candidates[0].detailRows.find((row) => row.label === '掉落来源')
+  const firstObserved = page.data.gearSlotSheet.candidates[0].detailRows.find((row) => row.label === '实装观测')
+  const secondSource = page.data.gearSlotSheet.candidates[1].detailRows.find((row) => row.label === '掉落来源')
+  assert.equal(page.data.gearSlotSheet.candidates[0].source, '来源待补充')
+  assert.equal(page.data.gearSlotSheet.candidates[0].statusLabel, '来源待补')
+  assert.equal(page.data.gearSlotSheet.candidates[0].trustLabel, '来源待补')
+  assert.equal(page.data.gearSlotSheet.activeTrustLabel, '来源待补')
+  assert.match(page.data.gearSlotSheet.activeTrustText, /掉落来源待补充/)
+  assert.equal(firstSource.value, '来源待补充')
+  assert.match(firstObserved.value, /Raider.IO CN profile gear/)
+  assert.equal(secondSource.value, '无眠之心 - 法力熔炉：欧米伽')
+})
+
+test('gear slot rows enrich sparse equipped items from matching candidates', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const sparseEquipped = {
+    slot: 'back',
+    simcSlot: 'back',
+    itemId: '258575',
+    id: '258575',
+    displayName: '刚鳞大氅',
+    simcReady: true,
+    ilevel: 289,
+    bonus_id: '6652/13335',
+    source: 'SimulationCraft preset: MID1_Mage_Frost_Frostfire',
+    sourceType: 'simc_preset',
+    sources: [
+      { sourceType: 'simc_preset', sourceLabel: 'SimulationCraft preset: MID1_Mage_Frost_Frostfire' }
+    ],
+    statDisplayStatus: 'pending_current_variant'
+  }
+  const enrichedCandidate = {
+    ...sparseEquipped,
+    source: '兰吉特 - 通天峰',
+    sourceType: 'dungeon',
+    sources: [
+      { sourceType: 'dungeon', label: '兰吉特 - 通天峰' },
+      { sourceType: 'simc_preset', sourceLabel: 'SimulationCraft preset: MID1_Mage_Frost_Frostfire' }
+    ],
+    statSummary: '力量/敏捷/智力 70；耐力 995；暴击 50；精通 42',
+    statDisplayStatus: 'verified_variant'
+  }
+  const gearPayload = {
+    slots: [{ slot: 'back', simcSlot: 'back', label: '背部' }],
+    replacementCandidates: [{
+      slot: 'back',
+      simcSlot: 'back',
+      label: '背部',
+      items: [enrichedCandidate]
+    }],
+    equippedSet: { back: sparseEquipped },
+    slotReadiness: {},
+    readiness: {},
+    statSnapshot: { statStatus: 'blocked', blockers: [] }
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot: { back: sparseEquipped }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+
+  const row = page.data.gearSlotRows[0]
+  assert.equal(row.source, '兰吉特 - 通天峰')
+  assert.equal(row.statusLabel, '已配置')
+  assert.equal(row.trustLabel, '可保存')
+  assert.doesNotMatch(row.reason, /来源待补/)
+})
+
+test('gear candidate detail separates SimulationCraft preset from drop source', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const simcPresetOnly = {
+    slot: 'head',
+    simcSlot: 'head',
+    itemId: '268283',
+    id: '268283',
+    displayName: '溃烂之花冠冕',
+    simcReady: true,
+    ilevel: 298,
+    bonus_id: '6652/12667/13577/13335/13786',
+    source: 'SimulationCraft preset: MID1_Rogue_Outlaw_Fatebound',
+    sourceType: 'simc_preset',
+    sources: [
+      { sourceType: 'simc_preset', sourceLabel: 'SimulationCraft preset: MID1_Rogue_Outlaw_Fatebound' }
+    ],
+    statSummary: '敏捷 or 智力 124；耐力 1768'
+  }
+  const gearPayload = {
+    slots: [{ slot: 'head', simcSlot: 'head', label: '头部' }],
+    replacementCandidates: [{
+      slot: 'head',
+      simcSlot: 'head',
+      label: '头部',
+      items: [simcPresetOnly]
+    }],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: {}
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+
+  assert.equal(page.data.gearSlotSheet.candidates[0].statusLabel, '来源待补')
+  assert.equal(page.data.gearSlotSheet.candidates[0].trustLabel, '来源待补')
+  assert.equal(page.data.gearSlotSheet.activeTrustLabel, '来源待补')
+  assert.equal(page.data.gearSlotSheet.canApplyCandidate, true)
+  assert.equal(page.data.gearSlotSheet.candidates[0].source, '来源待补充')
+  const detailRows = page.data.gearSlotSheet.candidates[0].detailRows
+  assert.equal(detailRows.find((row) => row.label === '掉落来源').value, '来源待补充')
+  assert.equal(detailRows.find((row) => row.label === '配置来源').value, 'SimulationCraft preset: MID1_Rogue_Outlaw_Fatebound')
+})
+
+test('gear candidate detail shows crafted source even when compact candidate source type is a SimC preset', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const craftedPreset = {
+    slot: 'off_hand',
+    simcSlot: 'off_hand',
+    itemId: '237850',
+    id: '237850',
+    displayName: '远行者的劈斧',
+    simcReady: true,
+    bonus_id: '8793/8960',
+    crafted_stats: '40/32',
+    source: '制造装备',
+    sourceType: 'simcPreset',
+    statSummary: '力量 124；耐力 1768'
+  }
+  const gearPayload = {
+    slots: [{ slot: 'off_hand', simcSlot: 'off_hand', label: '副手' }],
+    replacementCandidates: [{
+      slot: 'off_hand',
+      simcSlot: 'off_hand',
+      label: '副手',
+      items: [craftedPreset]
+    }],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: {}
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'off_hand' } } })
+
+  const candidate = page.data.gearSlotSheet.candidates[0]
+  const detailRows = candidate.detailRows
+  assert.equal(candidate.source, '制造装备')
+  assert.equal(detailRows.find((row) => row.label === '掉落来源').value, '制造装备')
 })
 
 test('gear slot sheet exposes source reference and blocker trust states', () => {
@@ -1315,6 +1684,95 @@ test('gear candidate detail prefers stat summary without duplicating stat arrays
   assert.equal(attributes.value, 'Intellect 7; Haste 9')
 })
 
+test('gear candidate detail marks pending current variant stats instead of showing item level as attributes', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const item = {
+    slot: 'back',
+    simcSlot: 'back',
+    itemId: '193712',
+    id: '193712',
+    displayName: '药渍披风',
+    source: '茂林古树 - 艾杰斯亚学院',
+    ilevel: 289,
+    simcReady: true,
+    statDisplayStatus: 'pending_current_variant'
+  }
+  const gearPayload = {
+    slots: [{ slot: 'back', simcSlot: 'back', label: '披风' }],
+    replacementCandidates: [{
+      slot: 'back',
+      simcSlot: 'back',
+      label: '披风',
+      items: [item]
+    }],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: {},
+    statSnapshot: { statStatus: 'blocked', blockers: [] }
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'back' } } })
+
+  const attributes = page.data.gearSlotSheet.candidates[0].detailRows.find((row) => row.label === '装备属性')
+  assert.equal(attributes.value, '属性待补充（装等 289）')
+})
+
+test('gear candidate detail explains simc item resolution failure for observed variants', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const item = {
+    slot: 'neck',
+    simcSlot: 'neck',
+    itemId: '268291',
+    id: '268291',
+    displayName: '腐沼的孢子之心',
+    ilevel: 298,
+    simcReady: true,
+    statDisplayStatus: 'pending_current_variant',
+    simcStatStatus: 'failed',
+    simcStatFailureKind: 'item_resolution',
+    observedProfileRefs: [{ sourceName: 'Raider.IO', classKey: 'mage', specKey: 'frost' }]
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots: [{ slot: 'neck', simcSlot: 'neck', label: '项链' }],
+        replacementCandidates: [{ slot: 'neck', simcSlot: 'neck', label: '项链', items: [item] }],
+        equippedSet: {},
+        slotReadiness: {},
+        readiness: {}
+      },
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'neck' } } })
+
+  const candidate = page.data.gearSlotSheet.candidates[0]
+  assert.equal(candidate.statusLabel, '属性待补')
+  assert.equal(candidate.trustLabel, '属性待补')
+  assert.match(candidate.trustReason, /装备属性/)
+  const attributes = page.data.gearSlotSheet.candidates[0].detailRows.find((row) => row.label === '装备属性')
+  assert.equal(attributes.value, '属性待补充（装等 298，SimC 物品解析失败）')
+})
+
 test('gear slot sheet blocks applying candidates that still need item level or simc options', async () => {
   const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
   assert.match(wxml, /class="gear-apply-button" disabled="\{\{!gearSlotSheet\.canApplyCandidate\}\}"/)
@@ -1386,6 +1844,57 @@ test('gear slot sheet blocks applying candidates that still need item level or s
   assert.equal(page.data.selectedGearBySlot.head, undefined)
   assert.equal(page.data.gearSlotSheet.visible, true)
   assert.match(toasts.at(-1).title, /缺少装等/)
+})
+
+test('gear slot sheet applies simc-ready candidates with simc options when item level is absent', async () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const item = {
+    slot: 'off_hand',
+    simcSlot: 'off_hand',
+    itemId: '251175',
+    id: '251175',
+    displayName: '灵魂枯萎劈刀',
+    source: '测试首领 - 测试副本',
+    sources: [{ label: '测试首领 - 测试副本', sourceType: 'dungeon' }],
+    bonus_id: '4786/12806',
+    enchant_id: '8039',
+    statSummary: '敏捷 62；耐力 884',
+    simcReady: true
+  }
+  const gearPayload = {
+    slots: [{ slot: 'off_hand', simcSlot: 'off_hand', label: '副手' }],
+    replacementCandidates: [{
+      slot: 'off_hand',
+      simcSlot: 'off_hand',
+      label: '副手',
+      items: [item]
+    }],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: {}
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'off_hand' } } })
+
+  assert.equal(page.data.gearSlotSheet.canApplyCandidate, true)
+
+  await pageConfig.applyGearCandidate.call(page)
+
+  assert.equal(page.data.selectedGearBySlot.off_hand.itemId, '251175')
+  assert.equal(page.data.selectedGearBySlot.off_hand.ilevel, undefined)
+  assert.equal(page.data.selectedGearBySlot.off_hand.bonus_id, '4786/12806')
 })
 
 test('gear slot sheet source filters omit recommendation and crafted buckets', () => {
@@ -1522,6 +2031,7 @@ test('gear slot sheet applies variant socket and enchant fields into selected ge
     displayName: 'Catalog Hood',
     sourceType: 'raid',
     sources: [{ label: 'Vault Mage - Arcane Vault', sourceType: 'raid' }],
+    modCapabilities: { hasSocket: true, canEnchant: true },
     defaultVariantKey: 'heroic-707',
     variants: [
       {
@@ -1549,18 +2059,6 @@ test('gear slot sheet applies variant socket and enchant fields into selected ge
         status: 'partial'
       }
     ],
-    socketOptions: [{
-      id: 'socket-gem-240983',
-      name: 'Quick Gem',
-      simcOptions: { gem_id: '240983', gem_ilevel: '710' },
-      status: 'verified'
-    }],
-    enchantOptions: [{
-      id: 'enchant-8017',
-      name: 'Radiant Enchant',
-      simcOptions: { enchant_id: '8017' },
-      status: 'verified'
-    }],
     simcReady: true
   }
   const gearPayload = {
@@ -1569,6 +2067,18 @@ test('gear slot sheet applies variant socket and enchant fields into selected ge
       slot: 'head',
       simcSlot: 'head',
       label: 'Head',
+      socketOptions: [{
+        id: 'socket-gem-240983',
+        name: 'Quick Gem',
+        simcOptions: { gem_id: '240983', gem_ilevel: '710' },
+        status: 'verified'
+      }],
+      enchantOptions: [{
+        id: 'enchant-8017',
+        name: 'Radiant Enchant',
+        simcOptions: { enchant_id: '8017' },
+        status: 'verified'
+      }],
       items: [item]
     }],
     equippedSet: {},
@@ -1758,6 +2268,86 @@ test('gear template save requires all canonical slots and stores neutral complet
   assert.equal(Array.isArray(savedTemplates[0].simcLines), true)
   assert.equal(savedTemplates[0].simcLines.length, 0)
   assert.equal(savedTemplates[0].rawString.split('\n').length, canonicalGearSlots.length)
+})
+
+test('gear template save allows backend-ready two-handed setups without off hand', () => {
+  const savedTemplates = []
+  const toasts = []
+  const pageConfig = loadBuildsDetailPageConfig({ savedTemplates, toasts })
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const twoHandSelection = completeGearSelection(canonicalGearSlots.filter((slot) => slot !== 'off_hand'))
+  const page = {
+    data: {
+      selectedDetail: { className: '死亡骑士', specName: '鲜血', details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      selectedSpec: { className: '死亡骑士', title: '鲜血', specName: '鲜血', websimClassKey: 'deathknight', websimSpecKey: 'blood' },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots,
+        maxLevel: 90,
+        gearSchemaRevision: 'websim-gear-simulator-v1',
+        readiness: {
+          fullReady: true,
+          missingRequiredSlots: ['off_hand'],
+          missingCoreSlots: [],
+          requiredReadyCount: 15
+        }
+      },
+      selectedGearBySlot: twoHandSelection,
+      selectedGearTemplateScenarioIndex: 0
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.saveGearTemplate.call(page)
+
+  assert.equal(toasts.length, 0)
+  assert.equal(savedTemplates.length, 1)
+  assert.equal(savedTemplates[0].status, 'complete')
+  assert.equal(savedTemplates[0].rawString.split('\n').length, canonicalGearSlots.length - 1)
+  assert.doesNotMatch(savedTemplates[0].rawString, /^off_hand=/m)
+})
+
+test('gear template save keeps source pending evidence in metadata', () => {
+  const savedTemplates = []
+  const pageConfig = loadBuildsDetailPageConfig({ savedTemplates })
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  selection.waist = {
+    ...selection.waist,
+    source: 'SimulationCraft preset: MID1_Mage_Frost_Frostfire',
+    sourceType: 'simc_preset',
+    sources: [{ sourceType: 'simc_preset', sourceLabel: 'SimulationCraft preset: MID1_Mage_Frost_Frostfire' }],
+    statSummary: '智力 70；耐力 995',
+    simcReady: true
+  }
+  const page = {
+    data: {
+      selectedDetail: { className: '法师', specName: '冰霜', details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      selectedSpec: { className: '法师', title: '冰霜', specName: '冰霜', websimClassKey: 'mage', websimSpecKey: 'frost' },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots,
+        maxLevel: 90,
+        gearSchemaRevision: 'websim-gear-simulator-v1'
+      },
+      selectedGearBySlot: selection,
+      selectedGearTemplateScenarioIndex: 0
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.saveGearTemplate.call(page)
+
+  assert.equal(savedTemplates.length, 1)
+  assert.equal(savedTemplates[0].status, 'complete_with_warnings')
+  assert.equal(savedTemplates[0].statusLabel, '完整配置 · 来源待补')
+  assert.deepEqual(Array.from(savedTemplates[0].metadata.sourcePendingSlots), ['waist'])
+  assert.deepEqual(Array.from(savedTemplates[0].metadata.statPendingSlots), [])
+  assert.match(savedTemplates[0].metadata.warningSummary, /来源待补/)
 })
 
 test('gear template save validation names missing and untrusted slots', () => {
