@@ -2443,11 +2443,38 @@ def parse_simcraft_template_gear_line(line):
     return normalized[0], ""
 
 
-def parse_simcraft_template_gear_raw(raw_string):
+def parse_simcraft_template_gear_raw(raw_string, class_key="", spec_key="", conn=None):
+    text = str(raw_string or "").strip()
+    if text.startswith("{"):
+        payload = build_websim_profile_response(
+            {
+                "classKey": class_key,
+                "specKey": spec_key,
+                "rawString": text,
+            },
+            conn=conn,
+        )
+        readiness = payload.get("readiness") if isinstance(payload.get("readiness"), dict) else {}
+        enhancement = readiness.get("enhancement") if isinstance(readiness.get("enhancement"), dict) else {}
+        items = payload.get("simcItems") if isinstance(payload.get("simcItems"), list) else []
+        seen_slots = {item.get("slot") for item in items if isinstance(item, dict)}
+        errors = []
+        missing_required = set(readiness.get("missingRequiredSlots") if isinstance(readiness.get("missingRequiredSlots"), list) else [])
+        missing_core = set(readiness.get("missingCoreSlots") if isinstance(readiness.get("missingCoreSlots"), list) else [])
+        required_slots = [
+            slot
+            for slot in SIMCRAFT_TEMPLATE_REQUIRED_GEAR_SLOTS
+            if not (slot == "off_hand" and readiness.get("fullReady") and slot in missing_required and slot not in missing_core)
+        ]
+        missing_slots = [slot for slot in required_slots if slot not in seen_slots]
+        if missing_slots:
+            errors.append(f"missing gear slots: {', '.join(missing_slots)}")
+        errors.extend([str(item) for item in (enhancement.get("blockers") or []) if str(item or "").strip()])
+        return items if not errors else [], errors
     errors = []
     items = []
     seen_slots = set()
-    for line in str(raw_string or "").splitlines():
+    for line in text.splitlines():
         item, error = parse_simcraft_template_gear_line(line)
         if error:
             errors.append(error)
@@ -2544,8 +2571,13 @@ def prepare_simcraft_template_request(request_payload):
 
     with db_connection() as conn:
         talent_context, talent_errors = simcraft_template_talent_context(conn, talent_template)
+        gear_items, gear_errors = parse_simcraft_template_gear_raw(
+            gear_template.get("rawString"),
+            gear_template.get("classKey") or "",
+            gear_template.get("specKey") or "",
+            conn=conn,
+        )
     errors.extend(talent_errors)
-    gear_items, gear_errors = parse_simcraft_template_gear_raw(gear_template.get("rawString"))
     errors.extend(gear_errors)
 
     scenario = SIMCRAFT_TEMPLATE_SCENARIOS.get(scenario_key) or SIMCRAFT_TEMPLATE_SCENARIOS["single"]

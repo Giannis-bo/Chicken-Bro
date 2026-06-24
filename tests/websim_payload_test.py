@@ -1347,6 +1347,7 @@ class WebSimPayloadTest(unittest.TestCase):
                             "bonus_id": "13534",
                             "gem_id": "240983",
                             "enchant_id": "8017",
+                            "embellishment": "blue_silken_lining",
                         }
                     ]
                 },
@@ -1356,8 +1357,481 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn('mage="websim_arcane"', profile.lower())
         self.assertIn("spec=arcane", profile)
         self.assertIn("talents=C4DA", profile)
-        self.assertIn("head=voidbreaker_s_veil,id=250060,ilevel=289,bonus_id=13534,gem_id=240983,enchant_id=8017", profile)
+        self.assertIn(
+            "head=voidbreaker_s_veil,id=250060,ilevel=289,bonus_id=13534,gem_id=240983,enchant_id=8017,embellishment=blue_silken_lining",
+            profile,
+        )
         self.assertIn("fight_style=Patchwerk", profile)
+
+    def test_build_websim_profile_merges_structured_enhancement_snapshot(self):
+        response = self.websim_payload.build_websim_profile_response(
+            {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "talents": "C4DA",
+                "scenarioKey": "single",
+                "gearSelection": {
+                    "items": [
+                        {
+                            "slot": "finger1",
+                            "itemId": "250777",
+                            "name": "Catalog Band",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "simcReady": True,
+                            "modCapabilities": {"hasSocket": True, "canEnchant": True, "canEmbellish": True},
+                            "socketOptions": [
+                                {
+                                    "id": "gem-240983-r2",
+                                    "type": "socket",
+                                    "simcOptions": {"gem_id": "240983", "gem_ilevel": "707"},
+                                    "payload": {"qualityRank": 2, "source": "server_owned_seed"},
+                                    "status": "verified",
+                                }
+                            ],
+                            "enchantOptions": [
+                                {
+                                    "id": "enchant-7334-r2",
+                                    "type": "enchant",
+                                    "simcOptions": {"enchant_id": "7334"},
+                                    "payload": {"qualityRank": 2, "source": "server_owned_seed"},
+                                    "status": "verified",
+                                }
+                            ],
+                            "embellishmentOptions": [
+                                {
+                                    "id": "embellishment-blue-silken-lining-r2",
+                                    "type": "embellishment",
+                                    "simcOptions": {"embellishment": "blue_silken_lining"},
+                                    "payload": {
+                                        "qualityRank": 2,
+                                        "simcKey": "blue_silken_lining",
+                                        "bonusId": "123456",
+                                        "effectId": "98765",
+                                        "spellId": "456789",
+                                        "db2CategoryId": "2001",
+                                        "db2ReagentItemId": "260111",
+                                        "db2BonusTreeId": "3001",
+                                        "source": "simulationcraft+wago_db2",
+                                    },
+                                    "status": "verified",
+                                }
+                            ],
+                        }
+                    ]
+                },
+                "enhancementBySlot": {
+                    "finger1": {
+                        "socketOptionId": "gem-240983-r2",
+                        "enchantOptionId": "enchant-7334-r2",
+                        "embellishmentOptionId": "embellishment-blue-silken-lining-r2",
+                        "gem_id": "240983",
+                        "gem_ilevel": "707",
+                        "enchant_id": "7334",
+                        "embellishment": "blue_silken_lining",
+                    }
+                },
+            }
+        )
+
+        profile = response["profile"]
+        self.assertIn(
+            "finger1=catalog_band,id=250777,ilevel=289,bonus_id=13534,gem_id=240983,gem_ilevel=707,enchant_id=7334,embellishment=blue_silken_lining",
+            profile,
+        )
+        self.assertEqual(response["readiness"]["enhancement"]["embellishmentUsed"], 1)
+        self.assertEqual(response["readiness"]["enhancement"]["blockers"], [])
+
+    def test_embellishment_does_not_make_base_item_variant_ready(self):
+        item = self.websim_payload.normalize_gear_item(
+            {
+                "slot": "wrist",
+                "itemId": "250888",
+                "name": "Only Embellished Cuffs",
+                "ilevel": 289,
+                "embellishment": "blue_silken_lining",
+            },
+            "mage",
+            "arcane",
+        )
+        self.assertFalse(item["simcReady"])
+        self.assertIn("bonus_id/gem_id/enchant_id", item["missingFields"])
+
+        response = self.websim_payload.build_websim_profile_response(
+            {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "gearSelection": {"items": [item]},
+            }
+        )
+        self.assertNotIn("wrist=only_embellished_cuffs", response["profile"])
+
+    def test_structured_enhancement_snapshot_blocks_uncatalogued_options(self):
+        response = self.websim_payload.build_websim_profile_response(
+            {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "gearSelection": {
+                    "items": [
+                        {
+                            "slot": "finger1",
+                            "itemId": "250777",
+                            "name": "Catalog Band",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "simcReady": True,
+                            "modCapabilities": {"hasSocket": True, "canEnchant": True},
+                        }
+                    ]
+                },
+                "enhancementBySlot": {
+                    "finger1": {
+                        "gem_id": "999999",
+                        "enchant_id": "9999",
+                    }
+                },
+            }
+        )
+
+        blockers = response["readiness"]["enhancement"]["blockers"]
+        self.assertTrue(any("finger1 socket option is not in verified rank-two catalog" in blocker for blocker in blockers))
+        self.assertTrue(any("finger1 enchant option is not in verified rank-two catalog" in blocker for blocker in blockers))
+        self.assertNotIn("gem_id=999999", response["profile"])
+        self.assertNotIn("enchant_id=9999", response["profile"])
+
+    def test_structured_enhancement_snapshot_requires_display_ready_socket_catalog(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "server-gem-rank-two",
+                    "type": "socket",
+                    "name": "Rank Two Gem Without Metadata",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "240983"},
+                    "payload": {"qualityRank": 2, "source": "server_owned_seed"},
+                    "status": "verified",
+                },
+            )
+            conn.commit()
+            response = self.websim_payload.build_websim_profile_response(
+                {
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "gearSelection": {
+                        "items": [
+                            {
+                                "slot": "finger1",
+                                "itemId": "250777",
+                                "name": "Socketed Band",
+                                "ilevel": 289,
+                                "bonus_id": "13534",
+                                "simcReady": True,
+                                "modCapabilities": {"hasSocket": True, "canEnchant": True},
+                            }
+                        ]
+                    },
+                    "enhancementBySlot": {"finger1": {"gem_id": "240983"}},
+                },
+                conn=conn,
+            )
+        finally:
+            conn.close()
+
+        blockers = response["readiness"]["enhancement"]["blockers"]
+        self.assertTrue(any("finger1 socket option is not in verified rank-two catalog" in blocker for blocker in blockers))
+        self.assertNotIn("gem_id=240983", response["profile"])
+
+    def test_structured_enhancement_snapshot_uses_server_catalog_over_client_options(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            response = self.websim_payload.build_websim_profile_response(
+                {
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "gearSelection": {
+                        "items": [
+                            {
+                                "slot": "wrist",
+                                "itemId": "250888",
+                                "name": "Crafted Cuffs",
+                                "ilevel": 289,
+                                "bonus_id": "13534",
+                                "simcReady": True,
+                                "sourceType": "crafted",
+                                "crafted_stats": "32/49",
+                                "modCapabilities": {"canEmbellish": True},
+                                "embellishmentOptions": [
+                                    {
+                                        "id": "client-only-embellishment",
+                                        "status": "verified",
+                                        "payload": {"qualityRank": 2},
+                                        "simcOptions": {"embellishment": "client_only_lining"},
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "enhancementBySlot": {
+                        "wrist": {
+                            "embellishmentOptionId": "client-only-embellishment",
+                            "embellishment": "client_only_lining",
+                        }
+                    },
+                },
+                conn=conn,
+            )
+        finally:
+            conn.close()
+
+        blockers = response["readiness"]["enhancement"]["blockers"]
+        self.assertTrue(any("wrist embellishment option is not in verified rank-two catalog" in blocker for blocker in blockers))
+        self.assertNotIn("embellishment=client_only_lining", response["profile"])
+
+    def test_structured_enhancement_snapshot_rejects_catalog_options_without_item_capability(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "server-gem-rank-two",
+                    "type": "socket",
+                    "name": "Rank Two Gem",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "240983"},
+                    "payload": {"qualityRank": 2, "source": "server_owned_seed"},
+                },
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "server-embellishment-rank-two",
+                    "type": "embellishment",
+                    "name": "Blue Silken Lining",
+                    "slots": ["wrist"],
+                    "simcOptions": {"embellishment": "blue_silken_lining"},
+                    "payload": {"qualityRank": 2, "source": "simulationcraft+wago_db2"},
+                },
+            )
+            conn.commit()
+            response = self.websim_payload.build_websim_profile_response(
+                {
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "gearSelection": {
+                        "items": [
+                            {
+                                "slot": "finger1",
+                                "itemId": "250777",
+                                "name": "Unsocketed Band",
+                                "ilevel": 289,
+                                "bonus_id": "13534",
+                                "simcReady": True,
+                                "modCapabilities": {"hasSocket": False, "canEnchant": True, "canEmbellish": False},
+                            },
+                            {
+                                "slot": "wrist",
+                                "itemId": "250888",
+                                "name": "Dungeon Cuffs",
+                                "ilevel": 289,
+                                "bonus_id": "13534",
+                                "simcReady": True,
+                                "sourceType": "dungeon",
+                                "modCapabilities": {"hasSocket": False, "canEnchant": True, "canEmbellish": False},
+                            },
+                        ]
+                    },
+                    "enhancementBySlot": {
+                        "finger1": {"gem_id": "240983"},
+                        "wrist": {"embellishment": "blue_silken_lining"},
+                    },
+                },
+                conn=conn,
+            )
+        finally:
+            conn.close()
+
+        blockers = response["readiness"]["enhancement"]["blockers"]
+        self.assertTrue(any("finger1 socket incompatible with selected gear" in blocker for blocker in blockers))
+        self.assertTrue(any("wrist embellishment incompatible with selected gear" in blocker for blocker in blockers))
+        self.assertNotIn("gem_id=240983", response["profile"])
+        self.assertNotIn("embellishment=blue_silken_lining", response["profile"])
+
+    def test_structured_enhancement_snapshot_derives_embellishment_capability_server_side(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "server-embellishment-rank-two",
+                    "type": "embellishment",
+                    "name": "Blue Silken Lining",
+                    "slots": ["wrist"],
+                    "simcOptions": {"embellishment": "blue_silken_lining"},
+                    "payload": {"qualityRank": 2, "source": "simulationcraft+wago_db2"},
+                },
+            )
+            conn.commit()
+            response = self.websim_payload.build_websim_profile_response(
+                {
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "gearSelection": {
+                        "items": [
+                            {
+                                "slot": "wrist",
+                                "itemId": "250888",
+                                "name": "Raid Cuffs",
+                                "ilevel": 289,
+                                "bonus_id": "13534",
+                                "simcReady": True,
+                                "sourceType": "raid",
+                                "modCapabilities": {"canEmbellish": True},
+                            }
+                        ]
+                    },
+                    "enhancementBySlot": {"wrist": {"embellishment": "blue_silken_lining"}},
+                },
+                conn=conn,
+            )
+        finally:
+            conn.close()
+
+        blockers = response["readiness"]["enhancement"]["blockers"]
+        self.assertTrue(any("wrist embellishment incompatible with selected gear" in blocker for blocker in blockers))
+        self.assertNotIn("embellishment=blue_silken_lining", response["profile"])
+
+    def test_existing_item_embellishment_counts_toward_limit(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            for option_id, slot, simc_key in (
+                ("server-embellishment-wrist-rank-two", "wrist", "blue_silken_lining"),
+                ("server-embellishment-hands-rank-two", "hands", "dawnthread_lining"),
+            ):
+                self.websim_payload.upsert_gear_mod_option(
+                    conn,
+                    {
+                        "id": option_id,
+                        "type": "embellishment",
+                        "name": simc_key.replace("_", " ").title(),
+                        "slots": [slot],
+                        "simcOptions": {"embellishment": simc_key},
+                        "payload": {"qualityRank": 2, "source": "simulationcraft+wago_db2"},
+                    },
+                )
+            conn.commit()
+            response = self.websim_payload.build_websim_profile_response(
+                {
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "gearSelection": {
+                        "items": [
+                            {
+                                "slot": "back",
+                                "itemId": "250002",
+                                "name": "Existing Embellished Cloak",
+                                "ilevel": 289,
+                                "bonus_id": "13534",
+                                "embellishment": "existing_lining",
+                                "simcReady": True,
+                            },
+                            {
+                                "slot": "wrist",
+                                "itemId": "250888",
+                                "name": "Crafted Cuffs",
+                                "ilevel": 289,
+                                "bonus_id": "13534",
+                                "sourceType": "crafted",
+                                "modCapabilities": {"canEmbellish": True},
+                                "simcReady": True,
+                            },
+                            {
+                                "slot": "hands",
+                                "itemId": "250889",
+                                "name": "Crafted Gloves",
+                                "ilevel": 289,
+                                "bonus_id": "13534",
+                                "sourceType": "crafted",
+                                "modCapabilities": {"canEmbellish": True},
+                                "simcReady": True,
+                            },
+                        ]
+                    },
+                    "enhancementBySlot": {
+                        "wrist": {"embellishment": "blue_silken_lining"},
+                        "hands": {"embellishment": "dawnthread_lining"},
+                    },
+                },
+                conn=conn,
+            )
+        finally:
+            conn.close()
+
+        enhancement = response["readiness"]["enhancement"]
+        self.assertEqual(enhancement["builtInEmbellishmentCount"], 1)
+        self.assertEqual(enhancement["selectedEmbellishmentCount"], 2)
+        self.assertEqual(enhancement["embellishmentUsed"], 3)
+        self.assertTrue(any("embellishment limit exceeded: 3/2" in blocker for blocker in enhancement["blockers"]))
+        self.assertIn("back=existing_embellished_cloak,id=250002,ilevel=289,bonus_id=13534,embellishment=existing_lining", response["profile"])
+        self.assertNotIn("wrist=crafted_cuffs,id=250888,ilevel=289,bonus_id=13534,embellishment=blue_silken_lining", response["profile"])
+        self.assertNotIn("hands=crafted_gloves,id=250889,ilevel=289,bonus_id=13534,embellishment=dawnthread_lining", response["profile"])
+
+    def test_structured_enhancement_snapshot_blocks_incompatible_and_excess_embellishments(self):
+        response = self.websim_payload.build_websim_profile_response(
+            {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "gearSelection": {
+                    "items": [
+                        {
+                            "slot": "head",
+                            "itemId": "250001",
+                            "name": "Plain Hood",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "simcReady": True,
+                            "modCapabilities": {"hasSocket": False, "canEnchant": False, "canEmbellish": False},
+                        },
+                        {
+                            "slot": "back",
+                            "itemId": "250002",
+                            "name": "Built In Cloak",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "simcReady": True,
+                            "builtInEmbellishment": "dawnthread_lining",
+                        },
+                        {
+                            "slot": "chest",
+                            "itemId": "250003",
+                            "name": "Built In Robe",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "simcReady": True,
+                            "intrinsicEmbellishment": "duskthread_lining",
+                        },
+                    ]
+                },
+                "enhancementBySlot": {
+                    "head": {"gem_id": "240983", "enchant_id": "7334", "embellishment": "blue_silken_lining"},
+                    "wrist": {"embellishment": "blue_silken_lining"},
+                },
+            }
+        )
+
+        blockers = response["readiness"]["enhancement"]["blockers"]
+        self.assertTrue(any("head" in blocker and "socket" in blocker for blocker in blockers))
+        self.assertTrue(any("head" in blocker and "enchant" in blocker for blocker in blockers))
+        self.assertTrue(any("head" in blocker and "embellishment" in blocker for blocker in blockers))
+        self.assertTrue(any("wrist" in blocker and "missing selected gear" in blocker for blocker in blockers))
+        self.assertTrue(any("embellishment limit" in blocker for blocker in blockers))
+        self.assertNotIn("head=plain_hood,id=250001,ilevel=289,bonus_id=13534,gem_id=240983", response["profile"])
 
     def test_websim_gear_canonicalizes_slots_and_skips_incomplete_loot(self):
         preset_item = self.websim_payload.normalize_gear_item(
@@ -10237,6 +10711,158 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("enchantOptions", compact_catalog_item)
         self.assertEqual(payload["catalogStatus"], "verified")
 
+    def test_gear_catalog_sync_keeps_only_verified_rank_two_mod_options(self):
+        os.environ["WOW_WEBSIM_GEAR_MOD_SEED"] = json.dumps(
+            [
+                {
+                    "id": "socket-rank-one",
+                    "type": "socket",
+                    "name": "Low Quality Gem",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "240001"},
+                    "status": "verified",
+                    "payload": {"qualityRank": 1, "source": "server_owned_seed"},
+                },
+                {
+                    "id": "socket-rank-two",
+                    "type": "socket",
+                    "name": "Rank Two Gem",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "240983"},
+                    "status": "verified",
+                    "payload": {"qualityRank": 2, "source": "server_owned_seed"},
+                },
+                {
+                    "id": "enchant-rank-two-partial",
+                    "type": "enchant",
+                    "name": "Partial Enchant",
+                    "slots": ["finger1"],
+                    "simcOptions": {"enchant_id": "7333"},
+                    "status": "partial",
+                    "payload": {"qualityRank": 2, "source": "server_owned_seed"},
+                },
+                {
+                    "id": "embellishment-rank-two",
+                    "type": "embellishment",
+                    "name": "Blue Silken Lining",
+                    "slots": ["wrist"],
+                    "simcOptions": {"embellishment": "blue_silken_lining"},
+                    "status": "verified",
+                    "payload": {
+                        "qualityRank": 2,
+                        "source": "simulationcraft+wago_db2",
+                        "simcKey": "blue_silken_lining",
+                        "bonusId": "123456",
+                        "effectId": "98765",
+                        "spellId": "456789",
+                        "db2CategoryId": "2001",
+                        "db2ReagentItemId": "260111",
+                        "db2BonusTreeId": "3001",
+                    },
+                },
+            ],
+            ensure_ascii=False,
+        )
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            count = self.websim_payload.sync_websim_gear_mod_options(conn)
+            socket_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "socket")
+            enchant_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "enchant")
+            embellishment_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "embellishment")
+            coverage = self.websim_payload.gear_catalog_mod_option_coverage(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(count, 2)
+        self.assertEqual([option["id"] for option in socket_options["finger1"]], ["socket-rank-two"])
+        self.assertFalse(any(options for options in enchant_options.values()))
+        self.assertEqual(embellishment_options["wrist"][0]["simcOptions"]["embellishment"], "blue_silken_lining")
+        self.assertEqual(embellishment_options["wrist"][0]["payload"]["simcKey"], "blue_silken_lining")
+        self.assertEqual(coverage["socket"]["optionCount"], 1)
+        self.assertEqual(coverage["embellishment"]["optionCount"], 1)
+
+    def test_gear_catalog_sync_loads_server_owned_embellishment_mod_seed(self):
+        os.environ["WOW_WEBSIM_GEAR_MOD_SEED"] = json.dumps(
+            [
+                {
+                    "type": "embellishment",
+                    "name": "Blue Silken Lining",
+                    "slots": ["wrist"],
+                    "simcOptions": {"embellishment": "blue_silken_lining"},
+                    "payload": {
+                        "source": "server_owned_seed",
+                        "displayName": "Blue Silken Lining",
+                        "metadataStatus": "verified",
+                    },
+                },
+            ],
+            ensure_ascii=False,
+        )
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "260777",
+                {
+                    "id": 260777,
+                    "name": "Embellished Cuffs",
+                    "inventory_type": {"type": "INVTYPE_WRIST", "name": "Wrist"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 123}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-260777.jpg"}]},
+                fallback_name="Embellished Cuffs",
+                english_payload={"name": "Embellished Cuffs", "inventory_type": {"name": "Wrist"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "manual-260777",
+                    "itemId": "260777",
+                    "sourceType": "crafted",
+                    "sourceLabel": "Crafting",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "manual-260777-crafted",
+                    "itemId": "260777",
+                    "slot": "wrist",
+                    "variantKey": "crafted-285",
+                    "label": "Crafted 285",
+                    "sourceType": "crafted",
+                    "difficultyKey": "crafted_myth",
+                    "itemLevel": 285,
+                    "simcOptions": {"ilevel": "285", "crafted_stats": "32/49"},
+                    "status": "verified",
+                },
+            )
+            count = self.websim_payload.sync_websim_gear_mod_options(conn)
+            options_by_slot = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "embellishment")
+            coverage = self.websim_payload.gear_catalog_mod_option_coverage(conn)
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane")
+            compact_payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane", compact=True)
+        finally:
+            conn.close()
+
+        self.assertEqual(count, 1)
+        self.assertEqual(options_by_slot["wrist"][0]["simcOptions"]["embellishment"], "blue_silken_lining")
+        self.assertEqual(coverage["embellishment"]["optionCount"], 1)
+        self.assertEqual(coverage["embellishment"]["coveredSlots"], ["wrist"])
+        wrist_group = next(group for group in payload["slotGroups"] if group["slot"] == "wrist")
+        catalog_item = next(item for item in wrist_group["items"] if item["itemId"] == "260777")
+        self.assertEqual(catalog_item["embellishmentOptions"][0]["simcOptions"]["embellishment"], "blue_silken_lining")
+        compact_wrist_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "wrist")
+        compact_catalog_item = next(item for item in compact_wrist_group["items"] if item["itemId"] == "260777")
+        self.assertEqual(compact_wrist_group["embellishmentOptions"][0]["simcOptions"]["embellishment"], "blue_silken_lining")
+        self.assertNotIn("embellishmentOptions", compact_catalog_item)
+
     def test_compact_gear_payload_exposes_slot_mod_options_when_candidate_metadata_is_sparse(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
         conn = sqlite3.connect(self.db_path)
@@ -10357,7 +10983,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(all("socketOptions" not in item for item in neck_group["items"]))
         self.assertTrue(all("enchantOptions" not in item for item in main_hand_group["items"]))
 
-    def test_compact_gear_payload_falls_back_to_executable_mod_options_without_display_metadata(self):
+    def test_compact_gear_payload_keeps_raw_socket_fallbacks_non_selectable(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
         conn = sqlite3.connect(self.db_path)
         try:
@@ -10439,10 +11065,8 @@ class WebSimPayloadTest(unittest.TestCase):
 
         neck_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "neck")
         main_hand_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "main_hand")
-        self.assertIn("socketOptions", neck_group)
+        self.assertNotIn("socketOptions", neck_group)
         self.assertIn("enchantOptions", main_hand_group)
-        self.assertEqual(neck_group["socketOptions"][0]["label"], "宝石 240983")
-        self.assertEqual(neck_group["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
         self.assertEqual(main_hand_group["enchantOptions"][0]["label"], "附魔 8017")
         self.assertEqual(main_hand_group["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
 
@@ -10454,12 +11078,38 @@ class WebSimPayloadTest(unittest.TestCase):
             count = self.websim_payload.sync_websim_gear_mod_options(conn)
             socket_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "socket")
             enchant_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "enchant")
+            embellishment_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "embellishment")
+            rows = conn.execute(
+                "SELECT id, payload_json FROM websim_gear_mod_options WHERE option_type = 'embellishment' ORDER BY id"
+            ).fetchall()
         finally:
             conn.close()
 
-        self.assertEqual(count, 0)
+        self.assertEqual(count, 3)
         self.assertFalse(any(options for options in socket_options.values()))
         self.assertFalse(any(options for options in enchant_options.values()))
+        self.assertTrue(any(options for options in embellishment_options.values()))
+        self.assertEqual(
+            [row[0] for row in rows],
+            [
+                "seed-embellishment-dawnthread-lining-rank-2",
+                "seed-embellishment-duskthread-lining-rank-2",
+                "seed-embellishment-elemental-focusing-lens-rank-2",
+            ],
+        )
+        for _, payload_json in rows:
+            payload = json.loads(payload_json)
+            self.assertEqual(payload["qualityRank"], 2)
+            self.assertEqual(payload["source"], "simulationcraft_wowhead_db2_seed")
+            self.assertTrue(payload["item_id"])
+            self.assertTrue(payload["simc_key"])
+            self.assertIn("bonus_id", payload)
+            self.assertTrue(payload["effect_id"])
+            self.assertTrue(payload["spell_id"])
+            self.assertTrue(payload["db2_category"])
+            self.assertTrue(payload["db2_reagent_item_id"])
+            self.assertIn("db2_bonus_tree_id", payload)
+            self.assertTrue(payload["db2BonusTreeEvidence"])
 
     def test_gear_catalog_sync_derives_socket_mod_options_from_verified_gem_variants(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
@@ -10518,8 +11168,8 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(count, 1)
-        option = socket_options["finger1"][0]
+        self.assertEqual(count, 4)
+        option = next(option for option in socket_options["finger1"] if option["simcOptions"].get("gem_id") == "240983")
         self.assertEqual(option["simcOptions"]["gem_id"], "240983")
         self.assertEqual(option["simcOptions"]["gem_ilevel"], "707")
         self.assertEqual(option["payload"]["source"], "observed_variant")
@@ -10603,9 +11253,7 @@ class WebSimPayloadTest(unittest.TestCase):
         catalog_item = next(item for item in finger_group["items"] if item["itemId"] == "250777")
         self.assertEqual(catalog_item["socketOptions"], [])
         compact_finger_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "finger1")
-        self.assertEqual(compact_finger_group["socketOptions"][0]["label"], "宝石 240983")
-        self.assertEqual(compact_finger_group["socketOptions"][0]["status"], "partial")
-        self.assertEqual(compact_finger_group["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
+        self.assertNotIn("socketOptions", compact_finger_group)
 
     def test_gear_catalog_sync_derives_mod_options_from_raiderio_bare_gem_and_enchant(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
@@ -10673,13 +11321,51 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(count, 2)
-        self.assertEqual(socket_options["finger1"][0]["simcOptions"]["gem_id"], "240894")
-        self.assertEqual(enchant_options["finger1"][0]["simcOptions"]["enchant_id"], "7967")
+        self.assertEqual(count, 5)
+        socket_option = next(option for option in socket_options["finger1"] if option["simcOptions"].get("gem_id") == "240894")
+        enchant_option = next(option for option in enchant_options["finger1"] if option["simcOptions"].get("enchant_id") == "7967")
+        self.assertEqual(socket_option["simcOptions"]["gem_id"], "240894")
+        self.assertEqual(enchant_option["simcOptions"]["enchant_id"], "7967")
         finger_group = next(group for group in payload["slotGroups"] if group["slot"] == "finger1")
         catalog_item = next(item for item in finger_group["items"] if item["itemId"] == "151311")
         self.assertEqual(catalog_item["socketOptions"], [])
         self.assertEqual(catalog_item["enchantOptions"], [])
+
+    def test_gear_catalog_sync_derives_embellishment_mod_options_from_observed_variants(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-260777-wrist",
+                    "itemId": "260777",
+                    "slot": "wrist",
+                    "variantKey": "observed-285",
+                    "label": "Observed crafted wrist",
+                    "sourceType": "observed_profile",
+                    "itemLevel": 285,
+                    "simcOptions": {"embellishment": "blue_silken_lining"},
+                    "status": "verified",
+                    "payload": {"source": "raiderio"},
+                },
+            )
+            count = self.websim_payload.sync_websim_gear_mod_options(conn)
+            options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "embellishment")
+            coverage = self.websim_payload.gear_catalog_mod_option_coverage(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(count, 4)
+        option = next(
+            option
+            for option in options["wrist"]
+            if option["simcOptions"].get("embellishment") == "blue_silken_lining"
+        )
+        self.assertEqual(option["payload"]["source"], "observed_variant")
+        self.assertEqual(coverage["embellishment"]["optionCount"], 4)
+        self.assertIn("wrist", coverage["embellishment"]["coveredSlots"])
 
     def test_sync_blizzard_gear_mod_option_metadata_enriches_observed_socket_options(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)

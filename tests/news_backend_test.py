@@ -1645,6 +1645,155 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("main_hand=template_main_hand,id=250015,ilevel=289,bonus_id=13534/6652,crafted_stats=32/49", draft_profile)
         self.assertEqual(len(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]), 16)
 
+    def test_simcraft_template_confirm_serializes_structured_gear_enhancement_snapshot(self):
+        self.seed_simc_template_websim_nodes()
+        from server import websim_payload
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            self.backend.ensure_websim_tables(conn)
+            websim_payload.save_websim_item_metadata(
+                conn,
+                "213743",
+                {
+                    "id": 213743,
+                    "name": "Template Gem",
+                    "item_class": {"id": 3, "name": "Gem"},
+                    "item_subclass": {"id": 8, "name": "Versatility"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.example/gem-213743.jpg"}]},
+                fallback_name="Template Gem",
+                english_payload={"name": "Template Gem"},
+                locale="en_US",
+            )
+            websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "template-gem-rank-two",
+                    "type": "socket",
+                    "name": "Rank Two Gem",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "213743"},
+                    "payload": {
+                        "qualityRank": 2,
+                        "source": "server_owned_seed",
+                        "gemItemId": "213743",
+                        "metadataStatus": "verified",
+                        "iconUrl": "https://render.example/gem-213743.jpg",
+                    },
+                },
+            )
+            websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "template-enchant-rank-two",
+                    "type": "enchant",
+                    "name": "Rank Two Enchant",
+                    "slots": ["finger1"],
+                    "simcOptions": {"enchant_id": "7334"},
+                    "payload": {"qualityRank": 2, "source": "server_owned_seed"},
+                },
+            )
+            websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "template-embellishment-rank-two",
+                    "type": "embellishment",
+                    "name": "Blue Silken Lining",
+                    "slots": ["wrist"],
+                    "simcOptions": {"embellishment": "blue_silken_lining"},
+                    "payload": {
+                        "qualityRank": 2,
+                        "source": "simulationcraft+wago_db2",
+                        "simcKey": "blue_silken_lining",
+                        "bonusId": "123456",
+                        "effectId": "98765",
+                        "spellId": "456789",
+                        "db2CategoryId": "2001",
+                        "db2ReagentItemId": "260111",
+                        "db2BonusTreeId": "3001",
+                    },
+                },
+            )
+            conn.commit()
+        gear_by_slot = {}
+        for line in self.simc_template_full_gear_raw().splitlines():
+            head, *parts = line.split(",")
+            slot, _, name = head.partition("=")
+            item = {"slot": slot, "simcSlot": slot, "name": name, "displayName": name, "simcReady": True}
+            for part in parts:
+                key, _, value = part.partition("=")
+                if key in {"gem_id", "enchant_id"}:
+                    continue
+                item[key] = value
+                if key == "id":
+                    item["itemId"] = value
+            if slot == "finger1":
+                item["modCapabilities"] = {"hasSocket": True, "canEnchant": True, "canEmbellish": False}
+            if slot == "wrist":
+                item["modCapabilities"] = {"hasSocket": False, "canEnchant": True, "canEmbellish": True}
+                item["sourceType"] = "crafted"
+                item["crafted_stats"] = "32/49"
+            gear_by_slot[slot] = item
+        gear_raw = json.dumps(
+            {
+                "schemaRevision": "websim-gear-enhancement-snapshot-v1",
+                "gearBySlot": gear_by_slot,
+                "enhancementBySlot": {
+                    "finger1": {
+                        "gem_id": "213743",
+                        "enchant_id": "7334",
+                    },
+                    "wrist": {
+                        "embellishment": "blue_silken_lining",
+                    },
+                },
+            },
+            ensure_ascii=False,
+        )
+
+        analysis = self.backend.analyze_and_store_simulator_task(self.simc_template_payload(gear_raw=gear_raw))
+        draft_profile = analysis["agent"]["draftProfile"]
+
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertIn("finger1=template_finger1,id=250011,ilevel=289,bonus_id=13534/6652,gem_id=213743,enchant_id=7334", draft_profile)
+        self.assertIn(
+            "wrist=template_wrist,id=250006,ilevel=289,bonus_id=13534/6652,crafted_stats=32/49,embellishment=blue_silken_lining",
+            draft_profile,
+        )
+        self.assertEqual(len(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]), 16)
+
+    def test_simcraft_template_structured_snapshot_allows_two_handed_offhand_exemption(self):
+        self.seed_simc_template_websim_nodes()
+        gear_by_slot = {}
+        for line in self.simc_template_full_gear_raw().splitlines():
+            head, *parts = line.split(",")
+            slot, _, name = head.partition("=")
+            if slot == "off_hand":
+                continue
+            item = {"slot": slot, "simcSlot": slot, "name": name, "displayName": name, "simcReady": True}
+            for part in parts:
+                key, _, value = part.partition("=")
+                item[key] = value
+                if key == "id":
+                    item["itemId"] = value
+            gear_by_slot[slot] = item
+        gear_raw = json.dumps(
+            {
+                "schemaRevision": "websim-gear-enhancement-snapshot-v1",
+                "gearBySlot": gear_by_slot,
+                "enhancementBySlot": {},
+            },
+            ensure_ascii=False,
+        )
+
+        analysis = self.backend.analyze_and_store_simulator_task(self.simc_template_payload(gear_raw=gear_raw))
+
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertTrue(analysis["agent"]["canSubmitTask"])
+        self.assertNotIn("missing gear slots: off_hand", analysis["simulation"].get("error", ""))
+        self.assertEqual(len(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]), 15)
+
     def test_simcraft_template_confirm_accepts_official_talent_import_code(self):
         analysis = self.backend.analyze_and_store_simulator_task(
             self.simc_template_payload(talent_raw="talents=CAE_OFFICIAL_IMPORT_CODE")
@@ -3469,6 +3618,8 @@ class NewsBackendTest(unittest.TestCase):
             {
                 "socket": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
                 "enchant": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
+                "crafted_stats": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
+                "embellishment": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
             },
         )
         self.assertEqual(

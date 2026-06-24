@@ -231,7 +231,6 @@ GEAR_SCHEMA_REVISION = "websim-gear-simulator-v1"
 GEAR_CATALOG_REVISION = "websim-gear-catalog-v1"
 GEAR_OBSERVED_BACKFILL_SYNC_KEY = "gear_observed_backfill"
 GEAR_OBSERVED_BACKFILL_SCHEMA_VERSION = 1
-DEFAULT_GEAR_MOD_SEED = []
 STALE_PLACEHOLDER_GEAR_MOD_OPTION_IDS = {"seed-socket-gem-240983", "seed-enchant-8017"}
 
 
@@ -671,6 +670,136 @@ ENCHANTABLE_GEAR_SLOTS = {
     "off_hand",
 }
 SOCKET_OPTION_GEAR_SLOTS = {"neck", "finger1", "finger2"}
+GEAR_EMBELLISHMENT_ARMOR_SLOTS = ["head", "shoulder", "back", "chest", "wrist", "hands", "waist", "legs", "feet"]
+GEAR_EMBELLISHMENT_EQUIPMENT_SLOTS = [
+    "head",
+    "neck",
+    "shoulder",
+    "back",
+    "chest",
+    "wrist",
+    "hands",
+    "waist",
+    "legs",
+    "feet",
+    "finger1",
+    "finger2",
+    "main_hand",
+    "off_hand",
+]
+DEFAULT_GEAR_MOD_SEED = [
+    {
+        "id": "seed-embellishment-dawnthread-lining-rank-2",
+        "type": "embellishment",
+        "name": "Dawnthread Lining",
+        "slots": GEAR_EMBELLISHMENT_ARMOR_SLOTS,
+        "simcOptions": {"embellishment": "dawnthread_lining"},
+        "status": "verified",
+        "payload": {
+            "source": "simulationcraft_wowhead_db2_seed",
+            "status": "verified",
+            "displayName": "Dawnthread Lining",
+            "itemId": "222869",
+            "item_id": "222869",
+            "quality": "Quality 2",
+            "qualityRank": 2,
+            "slotGroup": "armor",
+            "simcKey": "dawnthread_lining",
+            "simc_key": "dawnthread_lining",
+            "bonusId": None,
+            "bonus_id": None,
+            "effectId": "457666",
+            "effect_id": "457666",
+            "spellId": "457665",
+            "spell_id": "457665",
+            "db2Category": "Tradeskill / Optional Reagents",
+            "db2_category": "Tradeskill / Optional Reagents",
+            "db2ReagentItemId": "222869",
+            "db2_reagent_item_id": "222869",
+            "db2BonusTreeId": None,
+            "db2_bonus_tree_id": None,
+            "db2BonusTreeEvidence": "Wowhead item 222869 is the +15 Recipe Difficulty optional reagent; SimulationCraft maps driver spell 457665 to dawn/dusk lining handling.",
+            "sourceRefs": [
+                "https://www.wowhead.com/item=222869/dawnthread-lining",
+                "https://raw.githubusercontent.com/simulationcraft/simc/midnight/engine/player/unique_gear_thewarwithin.cpp",
+            ],
+        },
+    },
+    {
+        "id": "seed-embellishment-duskthread-lining-rank-2",
+        "type": "embellishment",
+        "name": "Duskthread Lining",
+        "slots": GEAR_EMBELLISHMENT_ARMOR_SLOTS,
+        "simcOptions": {"embellishment": "duskthread_lining"},
+        "status": "verified",
+        "payload": {
+            "source": "simulationcraft_wowhead_db2_seed",
+            "status": "verified",
+            "displayName": "Duskthread Lining",
+            "itemId": "222872",
+            "item_id": "222872",
+            "quality": "Quality 2",
+            "qualityRank": 2,
+            "slotGroup": "armor",
+            "simcKey": "duskthread_lining",
+            "simc_key": "duskthread_lining",
+            "bonusId": None,
+            "bonus_id": None,
+            "effectId": "457674",
+            "effect_id": "457674",
+            "spellId": "457677",
+            "spell_id": "457677",
+            "db2Category": "Tradeskill / Optional Reagents",
+            "db2_category": "Tradeskill / Optional Reagents",
+            "db2ReagentItemId": "222872",
+            "db2_reagent_item_id": "222872",
+            "db2BonusTreeId": None,
+            "db2_bonus_tree_id": None,
+            "db2BonusTreeEvidence": "Wowhead item 222872 is the +15 Recipe Difficulty optional reagent; SimulationCraft maps driver spell 457677 to dawn/dusk lining handling.",
+            "sourceRefs": [
+                "https://www.wowhead.com/item=222872/duskthread-lining",
+                "https://raw.githubusercontent.com/simulationcraft/simc/midnight/engine/player/unique_gear_thewarwithin.cpp",
+            ],
+        },
+    },
+    {
+        "id": "seed-embellishment-elemental-focusing-lens-rank-2",
+        "type": "embellishment",
+        "name": "Elemental Focusing Lens",
+        "slots": GEAR_EMBELLISHMENT_EQUIPMENT_SLOTS,
+        "simcOptions": {"embellishment": "elemental_focusing_lens"},
+        "status": "verified",
+        "payload": {
+            "source": "simulationcraft_wowhead_db2_seed",
+            "status": "verified",
+            "displayName": "Elemental Focusing Lens",
+            "itemId": "213769",
+            "item_id": "213769",
+            "quality": "Quality 2",
+            "qualityRank": 2,
+            "slotGroup": "equipment",
+            "simcKey": "elemental_focusing_lens",
+            "simc_key": "elemental_focusing_lens",
+            "bonusId": None,
+            "bonus_id": None,
+            "effectId": "461177",
+            "effect_id": "461177",
+            "spellId": "461180",
+            "spell_id": "461180",
+            "db2Category": "Tradeskill / Optional Reagents",
+            "db2_category": "Tradeskill / Optional Reagents",
+            "db2ReagentItemId": "213769",
+            "db2_reagent_item_id": "213769",
+            "db2BonusTreeId": None,
+            "db2_bonus_tree_id": None,
+            "db2BonusTreeEvidence": "Wowhead item 213769 is the +15 Recipe Difficulty optional reagent; SimulationCraft maps the elemental_focusing_lens driver to spell 461180.",
+            "sourceRefs": [
+                "https://www.wowhead.com/item=213769/elemental-focusing-lens",
+                "https://raw.githubusercontent.com/simulationcraft/simc/midnight/engine/player/unique_gear_thewarwithin.cpp",
+            ],
+        },
+    },
+]
 
 DIFFICULTY_LABELS_ZH = {
     "normal": "普通",
@@ -821,9 +950,15 @@ SIMC_GEAR_OPTION_ALIASES = [
     ("gem_ilevel", ["gem_ilevel", "gemIlevel", "gemItemLevel", "gemItemLevels"]),
     ("enchant_id", ["enchant_id", "enchantId", "enchant"]),
     ("crafted_stats", ["crafted_stats", "craftedStats"]),
+    ("embellishment", ["embellishment", "embellishmentId", "embellishment_id"]),
 ]
 
 SIMC_GEAR_OPTION_KEYS = {key for key, _ in SIMC_GEAR_OPTION_ALIASES}
+GEAR_MOD_OPTION_TYPES = {"socket", "enchant", "crafted_stats", "embellishment"}
+BASE_ITEM_INSTANCE_OPTION_KEYS = ("bonus_id", "gem_id", "enchant_id", "crafted_stats")
+ITEM_INSTANCE_OPTION_KEYS = (*BASE_ITEM_INSTANCE_OPTION_KEYS, "embellishment")
+GEAR_ENHANCEMENT_SIMC_KEYS = ("gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "embellishment")
+GEAR_ENHANCEMENT_SNAPSHOT_REVISION = "websim-gear-enhancement-snapshot-v1"
 SIMC_READY_SOURCE_TYPES = {"simcPreset"}
 OFFICIAL_ITEM_LEVEL_TRACKS = [
     {"difficultyKey": "champion", "label": "勇士 263", "itemLevel": 263},
@@ -2999,7 +3134,7 @@ def simc_gear_entry_matches_observed_item(item, gear_entry):
         return False
     observed_options = observed_gear_simc_options(item)
     gear_options = gear_entry.get("simcOptions") if isinstance(gear_entry.get("simcOptions"), dict) else {}
-    for key in ("bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats"):
+    for key in ("bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats", "embellishment"):
         observed_value = observed_options.get(key)
         gear_value = gear_options.get(key)
         if observed_value and gear_value and simc_option_segments(observed_value) != simc_option_segments(gear_value):
@@ -3066,9 +3201,21 @@ def item_mod_capabilities(payload=None, slot="", variants=None, item=None):
         for variant in variants
     ) or bool(item.get("gem_id") or item.get("gem_bonus_id"))
     can_enchant = slot in ENCHANTABLE_GEAR_SLOTS
+    can_embellish = bool(
+        item.get("embellishment")
+        or item.get("crafted_stats")
+        or raw_source_type(item.get("sourceType")).lower() == "crafted"
+        or any(
+            raw_source_type(variant.get("sourceType")).lower() == "crafted"
+            or (variant.get("simcOptions") or {}).get("crafted_stats")
+            or (variant.get("simcOptions") or {}).get("embellishment")
+            for variant in variants
+        )
+    )
     return {
         "hasSocket": bool(has_socket),
         "canEnchant": bool(can_enchant),
+        "canEmbellish": bool(can_embellish),
     }
 
 
@@ -6172,14 +6319,12 @@ def sync_blizzard_observed_item_metadata(conn, token, region=DEFAULT_REGION, loc
 
 
 def gear_mod_seed():
-    seeds = [dict(option) for option in DEFAULT_GEAR_MOD_SEED]
     raw = os.environ.get("WOW_WEBSIM_GEAR_MOD_SEED", "").strip()
-    if not raw:
-        return seeds
-    parsed = safe_json_loads(raw, [])
-    if isinstance(parsed, list):
-        seeds.extend(parsed)
-    return seeds
+    if raw:
+        parsed = safe_json_loads(raw, [])
+        if isinstance(parsed, list):
+            return [dict(option) for option in parsed if isinstance(option, dict)]
+    return [dict(option) for option in DEFAULT_GEAR_MOD_SEED]
 
 
 def upsert_gear_source(conn, source):
@@ -7172,13 +7317,66 @@ def backfill_crafted_item_level_variants(conn, items, stat_resolver=None):
     return counts
 
 
+def gear_mod_option_quality_rank(option):
+    option = option if isinstance(option, dict) else {}
+    payload = option.get("payload") if isinstance(option.get("payload"), dict) else {}
+    for source in (option, payload):
+        for key in (
+            "qualityRank",
+            "quality_rank",
+            "rank",
+            "craftingQuality",
+            "crafting_quality",
+            "qualityTier",
+            "quality_tier",
+            "starRank",
+            "star_rank",
+        ):
+            value = source.get(key)
+            if value in (None, "", [], {}):
+                continue
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                text = str(value or "").strip().lower()
+                if text in {"2", "r2", "rank2", "rank_2", "rank-two", "rank_two", "two", "two-star", "two_star", "2-star", "2星", "二星"}:
+                    return 2
+                if text in {"1", "r1", "rank1", "rank_1", "rank-one", "rank_one", "one", "one-star", "one_star", "1-star", "1星", "一星"}:
+                    return 1
+    return None
+
+
+def gear_mod_option_has_supported_quality(option_type, option):
+    if option_type == "crafted_stats":
+        return True
+    rank = gear_mod_option_quality_rank(option)
+    return rank in (None, 2)
+
+
+def gear_mod_option_has_executable_field(option_type, simc_options):
+    if option_type == "socket":
+        return bool(normalize_option_value(simc_options.get("gem_id")))
+    if option_type == "enchant":
+        return bool(normalize_option_value(simc_options.get("enchant_id")))
+    if option_type == "embellishment":
+        return bool(normalize_option_value(simc_options.get("embellishment")))
+    if option_type == "crafted_stats":
+        return bool(normalize_option_value(simc_options.get("crafted_stats")))
+    return False
+
+
 def upsert_gear_mod_option(conn, option):
     option_type = str(option.get("optionType") or option.get("type") or "").strip().lower()
-    if option_type not in {"socket", "enchant", "crafted_stats"}:
+    if option_type not in GEAR_MOD_OPTION_TYPES:
         return False
     simc_options = option.get("simcOptions") if isinstance(option.get("simcOptions"), dict) else {}
     simc_options = {key: value for key, value in simc_options.items() if key in SIMC_GEAR_OPTION_KEYS and normalize_option_value(value)}
-    if not simc_options:
+    if not simc_options or not gear_mod_option_has_executable_field(option_type, simc_options):
+        return False
+    status = str(option.get("status") or "verified").strip().lower()
+    if status and status != "verified":
+        return False
+    if not gear_mod_option_has_supported_quality(option_type, option):
         return False
     option_id = str(option.get("id") or "").strip()
     if not option_id:
@@ -7219,7 +7417,7 @@ def upsert_gear_mod_option(conn, option):
             str(option.get("name") or option.get("label") or option_id)[:160],
             json.dumps(slots, ensure_ascii=False),
             json.dumps(simc_options, ensure_ascii=False),
-            option.get("status") or "verified",
+            "verified",
             json.dumps(option.get("payload") or {}, ensure_ascii=False),
             utc_now(),
         ),
@@ -7325,6 +7523,55 @@ def observed_variant_enchant_mod_options(conn):
                 "id": option_id,
                 "type": "enchant",
                 "name": f"Observed enchant {enchant_id}",
+                "slots": slots,
+                "simcOptions": option_simc,
+                "status": "verified",
+                "payload": {
+                    "source": "observed_variant",
+                    "itemId": str(item_id or ""),
+                    "slot": normalize_slot(raw_slot),
+                    "variantPayload": payload,
+                },
+            }
+        )
+    return options
+
+
+def observed_variant_embellishment_mod_options(conn):
+    rows = conn.execute(
+        """
+        SELECT item_id, slot, simc_options_json, payload_json
+        FROM websim_gear_variants
+        WHERE source_type = 'observed_profile'
+          AND status IN ('verified', 'partial')
+        ORDER BY item_id, slot
+        """
+    ).fetchall()
+    options = []
+    seen = set()
+    for item_id, raw_slot, simc_options_json, payload_json in rows:
+        simc_options = safe_json_loads(simc_options_json, {})
+        if not isinstance(simc_options, dict):
+            continue
+        embellishment = normalize_option_value(simc_options.get("embellishment"))
+        if not embellishment:
+            continue
+        slots = observed_mod_option_slots(raw_slot, "embellishment")
+        if not slots:
+            continue
+        option_simc = {"embellishment": embellishment}
+        digest = hashlib.sha1(json.dumps([option_simc, slots], sort_keys=True).encode("utf-8")).hexdigest()[:10]
+        option_id = f"observed-embellishment-{digest}"
+        if option_id in seen:
+            continue
+        seen.add(option_id)
+        payload = safe_json_loads(payload_json, {})
+        payload = payload if isinstance(payload, dict) else {}
+        options.append(
+            {
+                "id": option_id,
+                "type": "embellishment",
+                "name": f"Observed embellishment {embellishment}",
                 "slots": slots,
                 "simcOptions": option_simc,
                 "status": "verified",
@@ -7502,6 +7749,9 @@ def observed_gear_simc_options(item):
     crafted_stats = normalize_option_value(item.get("crafted_stats") or item.get("craftedStats"))
     if crafted_stats:
         options["crafted_stats"] = crafted_stats
+    embellishment = normalize_option_value(item.get("embellishment") or item.get("embellishmentId") or item.get("embellishment_id"))
+    if embellishment:
+        options["embellishment"] = embellishment
     return {key: value for key, value in options.items() if key in SIMC_GEAR_OPTION_KEYS and value}
 
 
@@ -8173,6 +8423,7 @@ def sync_websim_gear_mod_options(conn):
         WHERE id LIKE 'seed-%'
            OR id LIKE 'observed-socket-%'
            OR id LIKE 'observed-enchant-%'
+           OR id LIKE 'observed-embellishment-%'
         """
     )
     count = 0
@@ -8180,6 +8431,7 @@ def sync_websim_gear_mod_options(conn):
         *gear_mod_seed(),
         *observed_variant_socket_mod_options(conn),
         *observed_variant_enchant_mod_options(conn),
+        *observed_variant_embellishment_mod_options(conn),
     ]:
         if isinstance(option, dict) and upsert_gear_mod_option(conn, option):
             count += 1
@@ -11191,15 +11443,16 @@ def gear_catalog_mod_option_coverage(conn):
         """
         SELECT id, option_type, name, applicable_slots_json, simc_options_json, payload_json
         FROM websim_gear_mod_options
-        WHERE option_type IN ('socket', 'enchant', 'crafted_stats')
+        WHERE option_type IN ('socket', 'enchant', 'crafted_stats', 'embellishment')
         """
     ).fetchall()
     coverage = {
         "socket": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
         "enchant": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
         "crafted_stats": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
+        "embellishment": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
     }
-    slots_by_type = {"socket": set(), "enchant": set(), "crafted_stats": set()}
+    slots_by_type = {"socket": set(), "enchant": set(), "crafted_stats": set(), "embellishment": set()}
     missing_socket_metadata = []
     invalid_socket_gem_metadata = []
     for option_id, option_type, option_name, slots_json, simc_options_json, payload_json in rows:
@@ -13622,7 +13875,7 @@ def active_catalog_sources_for_replacement(sources, season):
     ]
 
 
-def enrich_catalog_item(item, sources, variants, socket_options, enchant_options, class_key, spec_key):
+def enrich_catalog_item(item, sources, variants, socket_options, enchant_options, embellishment_options, class_key, spec_key):
     if not item:
         return None
     item_slot = item.get("slot") or ""
@@ -13639,6 +13892,7 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     mod_capabilities = {
         "hasSocket": bool(base_capabilities.get("hasSocket") or variant_capabilities.get("hasSocket")),
         "canEnchant": bool(base_capabilities.get("canEnchant") or variant_capabilities.get("canEnchant")),
+        "canEmbellish": bool(base_capabilities.get("canEmbellish") or variant_capabilities.get("canEmbellish")),
     }
     item["sources"] = compatible_sources
     item["sourceRefs"] = compatible_sources
@@ -13647,6 +13901,7 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     item["modCapabilities"] = mod_capabilities
     item["socketOptions"] = socket_options if mod_capabilities["hasSocket"] else []
     item["enchantOptions"] = enchant_options if mod_capabilities["canEnchant"] else []
+    item["embellishmentOptions"] = embellishment_options if mod_capabilities["canEmbellish"] else []
     item["recommendationScore"] = max([int(source.get("recommendationScore") or 0) for source in compatible_sources] + [0])
     item["compatibility"] = catalog_compatibility(item, sources, variants, class_key, spec_key)
     if item["compatibility"]["status"] == "incompatible":
@@ -13714,6 +13969,7 @@ def shared_gear_catalog_rows(conn):
         variants_by_item = gear_catalog_variants_by_item(conn)
         socket_options_by_slot = display_ready_gear_mod_options_by_slot(conn, "socket")
         enchant_options_by_slot = display_ready_gear_mod_options_by_slot(conn, "enchant")
+        embellishment_options_by_slot = display_ready_gear_mod_options_by_slot(conn, "embellishment")
         item_ids = sorted(set(sources_by_item.keys()) | set(variants_by_item.keys()))
         items = []
         if item_ids:
@@ -13733,6 +13989,7 @@ def shared_gear_catalog_rows(conn):
             "variantsByItem": variants_by_item,
             "socketOptionsBySlot": socket_options_by_slot,
             "enchantOptionsBySlot": enchant_options_by_slot,
+            "embellishmentOptionsBySlot": embellishment_options_by_slot,
             "items": items,
         }
         GEAR_CATALOG_SHARED_CACHE.clear()
@@ -13748,6 +14005,7 @@ def get_websim_gear_catalog_items(conn, class_key, spec_key, season=None):
     variants_by_item = shared_catalog["variantsByItem"]
     socket_options_by_slot = shared_catalog["socketOptionsBySlot"]
     enchant_options_by_slot = shared_catalog["enchantOptionsBySlot"]
+    embellishment_options_by_slot = shared_catalog["embellishmentOptionsBySlot"]
     if not shared_catalog["items"]:
         return []
     catalog_items = []
@@ -13768,6 +14026,7 @@ def get_websim_gear_catalog_items(conn, class_key, spec_key, season=None):
             item_variants,
             socket_options_by_slot.get(item["slot"], []),
             enchant_options_by_slot.get(item["slot"], []),
+            embellishment_options_by_slot.get(item["slot"], []),
             class_key,
             spec_key,
         )
@@ -13795,6 +14054,7 @@ def gear_template_signature(template):
             "gem_ilevel": str(item.get("gem_ilevel") or ""),
             "enchant_id": str(item.get("enchant_id") or ""),
             "crafted_stats": str(item.get("crafted_stats") or ""),
+            "embellishment": str(item.get("embellishment") or ""),
         })
     return f"gear:{class_key}:{spec_key}:{stable_digest(parts)}"
 
@@ -14294,8 +14554,9 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
     shared_catalog = shared_gear_catalog_rows(conn)
     socket_options_by_slot = shared_catalog["socketOptionsBySlot"]
     enchant_options_by_slot = shared_catalog["enchantOptionsBySlot"]
-    raw_socket_options_by_slot = gear_catalog_mod_options_by_slot(conn, "socket") if compact else {}
+    embellishment_options_by_slot = shared_catalog["embellishmentOptionsBySlot"]
     raw_enchant_options_by_slot = gear_catalog_mod_options_by_slot(conn, "enchant") if compact else {}
+    raw_embellishment_options_by_slot = gear_catalog_mod_options_by_slot(conn, "embellishment") if compact else {}
     baseline_set = hydrate_gear_items_from_metadata(conn, baseline_set)
     preset_items = hydrate_gear_items_from_metadata(conn, preset_items)
     candidate_items = hydrate_gear_items_from_metadata(conn, candidate_items)
@@ -14353,6 +14614,7 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
         baseline_candidates_by_slot[slot] = items
         socket_options = []
         enchant_options = []
+        embellishment_options = []
         if compact:
             socket_options = compact_gear_mod_options(
                 option
@@ -14361,8 +14623,6 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
             )
             if not socket_options and items and slot in SOCKET_OPTION_GEAR_SLOTS:
                 socket_options = compact_gear_mod_options(socket_options_by_slot.get(slot, []))
-            if not socket_options and items and slot in SOCKET_OPTION_GEAR_SLOTS:
-                socket_options = executable_fallback_gear_mod_options(raw_socket_options_by_slot.get(slot, []), "socket")
             enchant_options = compact_gear_mod_options(
                 option
                 for item in items
@@ -14372,6 +14632,15 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
                 enchant_options = compact_gear_mod_options(enchant_options_by_slot.get(slot, []))
             if not enchant_options and items and slot in ENCHANTABLE_GEAR_SLOTS:
                 enchant_options = executable_fallback_gear_mod_options(raw_enchant_options_by_slot.get(slot, []), "enchant")
+            embellishment_options = compact_gear_mod_options(
+                option
+                for item in items
+                for option in item.get("embellishmentOptions") or []
+            )
+            if not embellishment_options and items and any((item.get("modCapabilities") or {}).get("canEmbellish") for item in items):
+                embellishment_options = compact_gear_mod_options(embellishment_options_by_slot.get(slot, []))
+            if not embellishment_options and items and any((item.get("modCapabilities") or {}).get("canEmbellish") for item in items):
+                embellishment_options = compact_gear_mod_options(raw_embellishment_options_by_slot.get(slot, []))
             items = compact_gear_candidates(items, include_mod_options=False)
         slot_group = {
             "slot": slot,
@@ -14383,6 +14652,8 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
             slot_group["socketOptions"] = socket_options
         if enchant_options:
             slot_group["enchantOptions"] = enchant_options
+        if embellishment_options:
+            slot_group["embellishmentOptions"] = embellishment_options
         slot_groups.append(slot_group)
     baseline_set = complete_baseline_with_candidate_slots(baseline_set, baseline_candidates_by_slot)
     output_baseline_set = compact_gear_candidates(baseline_set) if compact else baseline_set
@@ -14578,15 +14849,15 @@ def gear_item_missing_fields(item):
     if item.get("id") and item.get("ilevel") and item.get("simcIlevelOnly"):
         return missing
     if source_type in {"verifiedLoot", "loot"}:
-        if item.get("variantKey") and item.get("ilevel") and any(item.get(key) for key in ("bonus_id", "gem_id", "enchant_id", "crafted_stats")):
+        if item.get("variantKey") and item.get("ilevel") and any(item.get(key) for key in BASE_ITEM_INSTANCE_OPTION_KEYS):
             return missing
         missing.extend(["variantKey", "ilevel", "bonus_id/gem_id/enchant_id"])
         return missing
-    if item.get("id") and item.get("ilevel") and any(item.get(key) for key in ("bonus_id", "gem_id", "enchant_id", "crafted_stats")):
+    if item.get("id") and item.get("ilevel") and any(item.get(key) for key in BASE_ITEM_INSTANCE_OPTION_KEYS):
         return missing
     if not item.get("ilevel"):
         missing.append("ilevel")
-    if not any(item.get(key) for key in ("bonus_id", "gem_id", "enchant_id", "crafted_stats")):
+    if not any(item.get(key) for key in BASE_ITEM_INSTANCE_OPTION_KEYS):
         missing.append("bonus_id/gem_id/enchant_id")
     return missing
 
@@ -14886,9 +15157,25 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         item["modCapabilities"] = {
             "hasSocket": bool(value.get("modCapabilities", {}).get("hasSocket") or computed_capabilities.get("hasSocket")),
             "canEnchant": bool(value.get("modCapabilities", {}).get("canEnchant") or computed_capabilities.get("canEnchant")),
+            "canEmbellish": bool(value.get("modCapabilities", {}).get("canEmbellish") or computed_capabilities.get("canEmbellish")),
         }
     else:
         item["modCapabilities"] = item_mod_capabilities(payload, slot, item=item)
+    for key in ("socketOptions", "enchantOptions", "embellishmentOptions"):
+        if isinstance(value.get(key), list):
+            item[key] = [option for option in value.get(key) if isinstance(option, dict)]
+    for key in (
+        "socketOptionId",
+        "enchantOptionId",
+        "embellishmentOptionId",
+        "builtInEmbellishment",
+        "intrinsicEmbellishment",
+        "inherentEmbellishment",
+        "embellishmentSource",
+    ):
+        option_value = normalize_option_value(value.get(key))
+        if option_value:
+            item[key] = option_value
     if value.get("simcIlevelOnly"):
         item["simcIlevelOnly"] = True
     item["supportsSocket"] = bool(
@@ -15083,6 +15370,7 @@ def sanitize_gear_candidate_mod_options(item):
     capabilities = {
         "hasSocket": bool(existing_capabilities.get("hasSocket") or computed_capabilities.get("hasSocket")),
         "canEnchant": bool(existing_capabilities.get("canEnchant") or computed_capabilities.get("canEnchant")),
+        "canEmbellish": bool(existing_capabilities.get("canEmbellish") or computed_capabilities.get("canEmbellish")),
     }
     allow_mod_options = bool(
         cloned.get("simcReady")
@@ -15091,8 +15379,10 @@ def sanitize_gear_candidate_mod_options(item):
     cloned["modCapabilities"] = capabilities
     socket_options = visible_gear_mod_options(cloned.get("socketOptions") or [])
     enchant_options = visible_gear_mod_options(cloned.get("enchantOptions") or [])
+    embellishment_options = visible_gear_mod_options(cloned.get("embellishmentOptions") or [])
     cloned["socketOptions"] = socket_options if capabilities["hasSocket"] and allow_mod_options else []
     cloned["enchantOptions"] = enchant_options if capabilities["canEnchant"] and allow_mod_options else []
+    cloned["embellishmentOptions"] = embellishment_options if capabilities["canEmbellish"] and allow_mod_options else []
     return hide_candidate_preview_stats(cloned)
 
 
@@ -15231,7 +15521,7 @@ def gear_candidate_simc_option_quality(item):
         gear_candidate_variant_status_rank(item),
         1 if item.get("simcReady") else 0,
         positive_int_value(item.get("ilevel") or item.get("itemLevel")),
-        1 if item.get("bonus_id") or item.get("gem_id") or item.get("enchant_id") or item.get("crafted_stats") else 0,
+        1 if any(item.get(key) for key in BASE_ITEM_INSTANCE_OPTION_KEYS) else 0,
     )
 
 
@@ -15252,7 +15542,7 @@ def gear_candidate_quality_score(item):
         1 if observed_profile_evidence else 0,
         GEAR_CANDIDATE_STATUS_RANK.get(status, 0),
         positive_int_value(item.get("ilevel") or item.get("itemLevel")),
-        1 if item.get("bonus_id") or item.get("gem_id") or item.get("enchant_id") or item.get("crafted_stats") else 0,
+        1 if any(item.get(key) for key in BASE_ITEM_INSTANCE_OPTION_KEYS) else 0,
         1 if item.get("metadataStatus") == "verified" else 0,
         item_id,
     )
@@ -15372,10 +15662,12 @@ def merge_gear_candidate_records(primary, secondary):
         merged["modCapabilities"] = {
             "hasSocket": bool(primary_caps.get("hasSocket") or secondary_caps.get("hasSocket")),
             "canEnchant": bool(primary_caps.get("canEnchant") or secondary_caps.get("canEnchant")),
+            "canEmbellish": bool(primary_caps.get("canEmbellish") or secondary_caps.get("canEmbellish")),
         }
     for key, key_fields in [
         ("socketOptions", ("id", "name", "label")),
         ("enchantOptions", ("id", "name", "label")),
+        ("embellishmentOptions", ("id", "name", "label")),
     ]:
         values = merge_keyed_candidate_rows(
             [*(primary.get(key) or []), *(secondary.get(key) or [])],
@@ -15669,6 +15961,7 @@ def gear_candidate_key(item):
             item.get("gem_ilevel"),
             item.get("enchant_id"),
             item.get("crafted_stats"),
+            item.get("embellishment"),
         ]
     )
 
@@ -15742,6 +16035,7 @@ COMPACT_GEAR_CANDIDATE_KEYS = {
     "gem_ilevel",
     "enchant_id",
     "crafted_stats",
+    "embellishment",
     "itemStats",
     "statSummary",
     "modCapabilities",
@@ -15859,6 +16153,9 @@ def executable_fallback_gear_mod_options(options, option_type):
     for option in options or []:
         if not isinstance(option, dict):
             continue
+        option_status = str(option.get("status") or "").strip().lower()
+        if option_status != "verified":
+            continue
         option_id = str(option.get("id") or "").strip()
         option_name = str(option.get("name") or option.get("label") or "").strip()
         payload = option.get("payload") if isinstance(option.get("payload"), dict) else {}
@@ -15883,7 +16180,7 @@ def executable_fallback_gear_mod_options(options, option_type):
         fallback["optionType"] = option_type
         fallback["name"] = label
         fallback["label"] = label
-        fallback["status"] = "partial"
+        fallback["status"] = "verified"
         fallback["simcOptions"] = simc_options
         fallback_options.append(fallback)
     return compact_gear_mod_options(fallback_options)
@@ -16228,10 +16525,13 @@ def compact_gear_candidate(item, include_mod_options=True):
     if include_mod_options:
         socket_options = compact_gear_mod_options(item.get("socketOptions") or [])
         enchant_options = compact_gear_mod_options(item.get("enchantOptions") or [])
+        embellishment_options = compact_gear_mod_options(item.get("embellishmentOptions") or [])
         if socket_options:
             compact_item["socketOptions"] = socket_options
         if enchant_options:
             compact_item["enchantOptions"] = enchant_options
+        if embellishment_options:
+            compact_item["embellishmentOptions"] = embellishment_options
     return compact_item
 
 
@@ -16258,7 +16558,7 @@ def build_websim_gear_lines(items):
         if not item.get("simcReady"):
             continue
         parts = [f'{item["slot"]}={item["name"]}', f'id={item["id"]}']
-        for key in ["ilevel", "bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats"]:
+        for key in ["ilevel", "bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats", "embellishment"]:
             if item.get(key):
                 parts.append(f"{key}={item[key]}")
         lines.append(",".join(parts))
@@ -17361,6 +17661,311 @@ def import_talent_api_payload(conn, payload):
     }
 
 
+def parse_websim_gear_enhancement_snapshot(value):
+    if isinstance(value, dict):
+        snapshot = value
+    elif isinstance(value, str) and value.strip().startswith("{"):
+        snapshot = safe_json_loads(value, {})
+    else:
+        snapshot = {}
+    if not isinstance(snapshot, dict):
+        return {}
+    if not isinstance(snapshot.get("gearBySlot"), dict) and not isinstance(snapshot.get("enhancementBySlot"), dict):
+        return {}
+    return snapshot
+
+
+def websim_gear_enhancement_snapshot_from_source(source):
+    source = source if isinstance(source, dict) else {}
+    gear_selection = source.get("gearSelection") if isinstance(source.get("gearSelection"), dict) else {}
+    metadata = source.get("metadata") if isinstance(source.get("metadata"), dict) else {}
+    candidates = [
+        source.get("gearSnapshot"),
+        source.get("snapshot"),
+        source.get("rawString"),
+        gear_selection.get("gearSnapshot"),
+        gear_selection.get("snapshot"),
+        gear_selection.get("rawString"),
+        metadata.get("gearSnapshot"),
+    ]
+    for candidate in candidates:
+        snapshot = parse_websim_gear_enhancement_snapshot(candidate)
+        if snapshot:
+            return snapshot
+    return {}
+
+
+def ordered_gear_snapshot_items(gear_by_slot):
+    if not isinstance(gear_by_slot, dict):
+        return []
+    items = []
+    seen = set()
+    for slot in CANONICAL_GEAR_SLOTS:
+        item = gear_by_slot.get(slot)
+        if isinstance(item, dict):
+            items.append({**item, "slot": item.get("slot") or slot, "simcSlot": item.get("simcSlot") or slot})
+            seen.add(slot)
+    for slot, item in gear_by_slot.items():
+        normalized_slot = normalize_slot(slot)
+        if normalized_slot in seen or not isinstance(item, dict):
+            continue
+        items.append({**item, "slot": item.get("slot") or normalized_slot or slot, "simcSlot": item.get("simcSlot") or normalized_slot or slot})
+    return items
+
+
+def websim_gear_items_and_enhancements_from_source(source):
+    source = source if isinstance(source, dict) else {}
+    snapshot = websim_gear_enhancement_snapshot_from_source(source)
+    if snapshot:
+        return ordered_gear_snapshot_items(snapshot.get("gearBySlot") or {}), snapshot.get("enhancementBySlot") or {}
+    gear_selection = source.get("gearSelection") if isinstance(source.get("gearSelection"), dict) else {}
+    raw_items = gear_selection.get("items") or source.get("gearItems") or source.get("simcGearItems") or []
+    raw_enhancements = (
+        source.get("enhancementBySlot")
+        or gear_selection.get("enhancementBySlot")
+        or source.get("enhancementsBySlot")
+        or gear_selection.get("enhancementsBySlot")
+        or {}
+    )
+    return raw_items, raw_enhancements
+
+
+def normalize_enhancement_record(record):
+    if not isinstance(record, dict):
+        return {}
+    aliases = {
+        "gem_id": ("gem_id", "gemId"),
+        "gem_bonus_id": ("gem_bonus_id", "gemBonusId"),
+        "gem_ilevel": ("gem_ilevel", "gemIlevel", "gemItemLevel"),
+        "enchant_id": ("enchant_id", "enchantId"),
+        "embellishment": ("embellishment", "embellishmentId", "embellishment_id"),
+        "socketOptionId": ("socketOptionId", "socket_option_id"),
+        "enchantOptionId": ("enchantOptionId", "enchant_option_id"),
+        "embellishmentOptionId": ("embellishmentOptionId", "embellishment_option_id"),
+    }
+    normalized = {}
+    for key, names in aliases.items():
+        for name in names:
+            value = normalize_option_value(record.get(name))
+            if value:
+                normalized[key] = value
+                break
+    return normalized
+
+
+def normalize_enhancement_by_slot(raw_enhancements):
+    normalized = {}
+    if not isinstance(raw_enhancements, dict):
+        return normalized
+    for raw_slot, record in raw_enhancements.items():
+        slot = normalize_slot(raw_slot)
+        enhancement = normalize_enhancement_record(record)
+        if slot and enhancement:
+            normalized[slot] = enhancement
+    return normalized
+
+
+def item_builtin_embellishment_value(item):
+    if not isinstance(item, dict):
+        return ""
+    for key in ("builtInEmbellishment", "intrinsicEmbellishment", "inherentEmbellishment"):
+        value = normalize_option_value(item.get(key))
+        if value:
+            return value
+    payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+    for key in ("builtInEmbellishment", "intrinsicEmbellishment", "inherentEmbellishment"):
+        value = normalize_option_value(payload.get(key))
+        if value:
+            return value
+    if str(item.get("embellishmentSource") or "").strip().lower() in {"built_in", "builtin", "intrinsic", "item"}:
+        return normalize_option_value(item.get("embellishment"))
+    return normalize_option_value(item.get("embellishment"))
+
+
+def enhancement_options_for_type(item, option_type):
+    if option_type == "socket":
+        return item.get("socketOptions") or []
+    if option_type == "enchant":
+        return item.get("enchantOptions") or []
+    if option_type == "embellishment":
+        return item.get("embellishmentOptions") or []
+    return []
+
+
+def enhancement_option_matches(option, enhancement, option_type):
+    if not isinstance(option, dict):
+        return False
+    if str(option.get("status") or "verified").strip().lower() != "verified":
+        return False
+    if not gear_mod_option_has_supported_quality(option_type, option):
+        return False
+    option_id = normalize_option_value(option.get("id"))
+    if option_type == "socket" and enhancement.get("socketOptionId") and option_id == enhancement.get("socketOptionId"):
+        return True
+    if option_type == "enchant" and enhancement.get("enchantOptionId") and option_id == enhancement.get("enchantOptionId"):
+        return True
+    if option_type == "embellishment" and enhancement.get("embellishmentOptionId") and option_id == enhancement.get("embellishmentOptionId"):
+        return True
+    simc_options = option.get("simcOptions") if isinstance(option.get("simcOptions"), dict) else {}
+    if option_type == "socket":
+        return bool(enhancement.get("gem_id") and normalize_option_value(simc_options.get("gem_id")) == enhancement.get("gem_id"))
+    if option_type == "enchant":
+        return bool(enhancement.get("enchant_id") and normalize_option_value(simc_options.get("enchant_id")) == enhancement.get("enchant_id"))
+    if option_type == "embellishment":
+        return bool(enhancement.get("embellishment") and normalize_option_value(simc_options.get("embellishment")) == enhancement.get("embellishment"))
+    return False
+
+
+def item_has_independent_embellishment_capability(item):
+    if not isinstance(item, dict):
+        return False
+    if normalize_option_value(item.get("crafted_stats") or item.get("craftedStats")):
+        return True
+    if raw_source_type(item.get("sourceType")).lower() == "crafted":
+        return True
+    if raw_source_type(item.get("variantSource")).lower() == "crafted":
+        return True
+    for source in [*(item.get("sources") or []), *(item.get("sourceRefs") or [])]:
+        if isinstance(source, dict) and raw_source_type(source.get("sourceType")).lower() == "crafted":
+            return True
+    for variant in item.get("variants") or []:
+        if not isinstance(variant, dict):
+            continue
+        simc_options = variant.get("simcOptions") if isinstance(variant.get("simcOptions"), dict) else {}
+        payload = variant.get("payload") if isinstance(variant.get("payload"), dict) else {}
+        if raw_source_type(variant.get("sourceType")).lower() == "crafted":
+            return True
+        if normalize_option_value(simc_options.get("crafted_stats") or payload.get("crafted_stats") or payload.get("craftedStats")):
+            return True
+    return False
+
+
+def item_supports_enhancement_type(item, option_type):
+    caps = item.get("modCapabilities") if isinstance(item.get("modCapabilities"), dict) else {}
+    catalog_options_attached = bool(item.get("_catalogEnhancementOptionsAttached"))
+    if option_type == "socket":
+        return bool(
+            caps.get("hasSocket")
+            or item.get("supportsSocket")
+            or item.get("gem_id")
+            or item.get("gem_bonus_id")
+            or (not catalog_options_attached and item.get("socketOptions"))
+        )
+    if option_type == "enchant":
+        return bool(caps.get("canEnchant") or item.get("slot") in ENCHANTABLE_GEAR_SLOTS or item.get("enchantOptions"))
+    if option_type == "embellishment":
+        return bool(
+            item_has_independent_embellishment_capability(item)
+            or (not catalog_options_attached and caps.get("canEmbellish"))
+            or (not catalog_options_attached and item.get("embellishmentOptions"))
+        )
+    return False
+
+
+def validate_enhancement_option(item, enhancement, option_type):
+    if not item_supports_enhancement_type(item, option_type):
+        return False, f"{item.get('slot')} {option_type} incompatible with selected gear"
+    options = enhancement_options_for_type(item, option_type)
+    if not options:
+        return False, f"{item.get('slot')} {option_type} option is not in verified rank-two catalog"
+    if not any(enhancement_option_matches(option, enhancement, option_type) for option in options):
+        return False, f"{item.get('slot')} {option_type} option is not in verified rank-two catalog"
+    return True, ""
+
+
+def attach_catalog_enhancement_options(conn, items):
+    if conn is None:
+        return items
+    options_by_type = {}
+    try:
+        options_by_type = {
+            "socketOptions": display_ready_gear_mod_options_by_slot(conn, "socket"),
+            "enchantOptions": display_ready_gear_mod_options_by_slot(conn, "enchant"),
+            "embellishmentOptions": display_ready_gear_mod_options_by_slot(conn, "embellishment"),
+        }
+    except Exception:
+        return items
+    enhanced = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        slot = item.get("slot") or ""
+        next_item = dict(item)
+        for key, by_slot in options_by_type.items():
+            next_item[key] = by_slot.get(slot) or []
+        next_item["_catalogEnhancementOptionsAttached"] = True
+        enhanced.append(next_item)
+    return enhanced
+
+
+def merge_websim_gear_enhancements(items, raw_enhancements, conn=None):
+    items = attach_catalog_enhancement_options(conn, items)
+    normalized_enhancements = normalize_enhancement_by_slot(raw_enhancements)
+    by_slot = {item.get("slot"): item for item in items if isinstance(item, dict) and item.get("slot")}
+    blockers = []
+    built_in_count = sum(1 for item in items if item_builtin_embellishment_value(item))
+    selected_embellishment_slots = [
+        slot
+        for slot, enhancement in normalized_enhancements.items()
+        if normalize_option_value(enhancement.get("embellishment"))
+    ]
+    embellishment_total = built_in_count + len(selected_embellishment_slots)
+    if embellishment_total > 2:
+        blockers.append(f"embellishment limit exceeded: {embellishment_total}/2")
+    for slot in normalized_enhancements:
+        if slot not in by_slot:
+            blockers.append(f"{slot} enhancement has missing selected gear")
+    enhanced = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        slot = item.get("slot") or ""
+        enhancement = normalized_enhancements.get(slot) or {}
+        next_item = dict(item)
+        if enhancement.get("gem_id"):
+            valid, reason = validate_enhancement_option(next_item, enhancement, "socket")
+            if valid:
+                for key in ("gem_id", "gem_bonus_id", "gem_ilevel", "socketOptionId"):
+                    if enhancement.get(key):
+                        next_item[key] = enhancement[key]
+            else:
+                blockers.append(reason)
+        if enhancement.get("enchant_id"):
+            valid, reason = validate_enhancement_option(next_item, enhancement, "enchant")
+            if valid:
+                next_item["enchant_id"] = enhancement["enchant_id"]
+                if enhancement.get("enchantOptionId"):
+                    next_item["enchantOptionId"] = enhancement["enchantOptionId"]
+            else:
+                blockers.append(reason)
+        if enhancement.get("embellishment"):
+            if item_builtin_embellishment_value(next_item):
+                blockers.append(f"{slot} embellishment incompatible with built-in embellishment")
+            elif embellishment_total > 2:
+                blockers.append(f"{slot} embellishment blocked by 2 embellishment limit")
+            else:
+                valid, reason = validate_enhancement_option(next_item, enhancement, "embellishment")
+                if valid:
+                    next_item["embellishment"] = enhancement["embellishment"]
+                    if enhancement.get("embellishmentOptionId"):
+                        next_item["embellishmentOptionId"] = enhancement["embellishmentOptionId"]
+                else:
+                    blockers.append(reason)
+        next_item["missingFields"] = gear_item_missing_fields(next_item)
+        next_item["simcReady"] = gear_item_simc_ready(next_item)
+        next_item.pop("_catalogEnhancementOptionsAttached", None)
+        enhanced.append(next_item)
+    readiness = {
+        "schemaRevision": GEAR_ENHANCEMENT_SNAPSHOT_REVISION,
+        "embellishmentUsed": embellishment_total,
+        "embellishmentMax": 2,
+        "builtInEmbellishmentCount": built_in_count,
+        "selectedEmbellishmentCount": len(selected_embellishment_slots),
+        "blockers": unique_text_list(blockers),
+    }
+    return enhanced, readiness
+
+
 def build_websim_profile(payload, conn=None):
     source = payload if isinstance(payload, dict) else {}
     class_key = slugify(source.get("classKey"), "mage")
@@ -17384,9 +17989,8 @@ def build_websim_profile(payload, conn=None):
         talents = external_talent_import_code(source)
         if talents:
             lines.append(f"talents={talents}")
-    gear_selection = source.get("gearSelection") if isinstance(source.get("gearSelection"), dict) else {}
-    gear_items = gear_selection.get("items") or source.get("gearItems") or []
-    lines.extend(build_websim_gear_lines(normalize_websim_gear_items(gear_items, class_key, spec_key)))
+    gear_payload = websim_selected_gear_payload(source, class_key, spec_key, conn=conn)
+    lines.extend(build_websim_gear_lines(gear_payload["simcItems"]))
     scenario = selected_scenario(source.get("scenarioKey"))
     lines.extend(
         [
@@ -17405,7 +18009,7 @@ def build_websim_profile_response(payload, conn=None):
     source = payload if isinstance(payload, dict) else {}
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
-    gear_payload = websim_selected_gear_payload(source, class_key, spec_key)
+    gear_payload = websim_selected_gear_payload(source, class_key, spec_key, conn=conn)
     response = {
         "profile": build_websim_profile(payload, conn=conn),
         "gearItems": gear_payload["items"],
@@ -17417,15 +18021,21 @@ def build_websim_profile_response(payload, conn=None):
     return response
 
 
-def websim_selected_gear_payload(source, class_key, spec_key):
-    gear_selection = source.get("gearSelection") if isinstance(source.get("gearSelection"), dict) else {}
-    raw_items = gear_selection.get("items") or source.get("gearItems") or source.get("simcGearItems") or []
+def websim_selected_gear_payload(source, class_key, spec_key, conn=None):
+    raw_items, raw_enhancements = websim_gear_items_and_enhancements_from_source(source)
     items = normalize_websim_gear_items(raw_items, class_key, spec_key)
+    items, enhancement_readiness = merge_websim_gear_enhancements(items, raw_enhancements, conn=conn)
     ready_items = [item for item in items if item.get("simcReady")]
+    readiness = gear_readiness(items)
+    readiness["enhancement"] = enhancement_readiness
+    if enhancement_readiness.get("blockers"):
+        readiness["fullReady"] = False
+        readiness["status"] = "blocked" if not ready_items else "partial"
+        readiness["warnings"] = unique_text_list([*(readiness.get("warnings") or []), *enhancement_readiness.get("blockers")])
     return {
         "items": items,
         "simcItems": ready_items,
-        "readiness": gear_readiness(items),
+        "readiness": readiness,
     }
 
 
@@ -17448,7 +18058,7 @@ def build_websim_gear_stats_response(payload, conn=None):
     spec_key = slugify(source.get("specKey"), "arcane")
     level = normalized_websim_level(source.get("level"))
     request_source = {**source, "classKey": class_key, "specKey": spec_key, "level": level}
-    gear_payload = websim_selected_gear_payload(request_source, class_key, spec_key)
+    gear_payload = websim_selected_gear_payload(request_source, class_key, spec_key, conn=conn)
     readiness = gear_payload["readiness"]
     talent_encoding = encode_websim_talents(conn, request_source) if conn is not None else blank_talent_encoding("failed", "none")
     blockers = websim_gear_stats_blockers(readiness, talent_encoding)
@@ -17499,7 +18109,7 @@ def build_websim_simulator_request(payload, guest_id="", conn=None):
     talent_encoding = encode_websim_talents(conn, source) if conn is not None else blank_talent_encoding()
     talents = external_talent_import_code(source)[:400]
     scenario = selected_scenario(source.get("scenarioKey"))
-    gear_payload = websim_selected_gear_payload(source, class_key, spec_key)
+    gear_payload = websim_selected_gear_payload(source, class_key, spec_key, conn=conn)
     readiness = gear_payload["readiness"]
     has_talent_lines = talent_encoding.get("status") in {"encoded", "external"} or bool(talents)
     canonical_profile = (
