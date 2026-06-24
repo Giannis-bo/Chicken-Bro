@@ -93,9 +93,9 @@ test('primary form actions stay inside the compact 72rpx button rhythm', () => {
 test('gear replacement sheet keeps apply action in the compact sheet rhythm', () => {
   const css = read('pages/builds/detail.wxss')
   const applyBlock = block(css, '.gear-apply-button')
-  assert.match(applyBlock, /width:\s*112rpx;/)
-  assert.match(applyBlock, /min-height:\s*48rpx;/)
-  assert.match(applyBlock, /line-height:\s*48rpx;/)
+  assert.match(applyBlock, /width:\s*100%;/)
+  assert.match(applyBlock, /min-height:\s*64rpx;/)
+  assert.match(applyBlock, /line-height:\s*64rpx;/)
   assert.doesNotMatch(applyBlock, /min-width:\s*156rpx;/)
   assert.doesNotMatch(applyBlock, /min-height:\s*72rpx;/)
 })

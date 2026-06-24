@@ -670,6 +670,7 @@ ENCHANTABLE_GEAR_SLOTS = {
     "main_hand",
     "off_hand",
 }
+SOCKET_OPTION_GEAR_SLOTS = {"neck", "finger1", "finger2"}
 
 DIFFICULTY_LABELS_ZH = {
     "normal": "普通",
@@ -685,6 +686,10 @@ DIFFICULTY_LABELS_ZH = {
     "champion": "勇士",
     "hero": "英雄",
     "myth": "神话",
+    "crafted_champion": "勇士",
+    "crafted_hero": "英雄",
+    "crafted_myth": "神话",
+    "crafted_void_upgrade": "虚空晋升",
     "void_upgrade": "虚空晋升",
     "crafted": "制造装备",
     "source_pending": "来源待补",
@@ -827,6 +832,17 @@ OFFICIAL_ITEM_LEVEL_TRACKS = [
 ]
 OFFICIAL_VOID_UPGRADE_TRACK = {"difficultyKey": "void_upgrade", "label": "虚空晋升 298", "itemLevel": 298}
 OFFICIAL_ITEM_LEVEL_PROBE_SOURCE = "simulationcraft_item_level_probe"
+CRAFTED_ITEM_LEVEL_PROBE_SOURCE = "simulationcraft_crafted_item_probe"
+CRAFTED_PUBLIC_DIFFICULTY_KEYS = {
+    "crafted_champion": "champion",
+    "crafted_hero": "hero",
+    "crafted_myth": "myth",
+    "crafted_void_upgrade": "void_upgrade",
+}
+CRAFTED_ITEM_LEVEL_TRACKS = {
+    "crafted_myth": {"difficultyKey": "crafted_myth", "label": "神话 285", "itemLevel": 285},
+    "crafted_void_upgrade": {"difficultyKey": "crafted_void_upgrade", "label": "虚空晋升 295", "itemLevel": 295},
+}
 ENRICHABLE_SOURCE_TYPES = {"manual", "enriched", "manual/enriched", "custom"}
 
 CLASS_ARMOR_TYPES = {
@@ -6334,6 +6350,211 @@ def official_item_level_tracks_for_tier_set_item(conn, item_id):
     return tracks
 
 
+def crafted_public_difficulty_key(difficulty_key):
+    key = normalized_difficulty_key(difficulty_key)
+    return CRAFTED_PUBLIC_DIFFICULTY_KEYS.get(key, key)
+
+
+def crafted_track_from_input(value):
+    if isinstance(value, dict):
+        key = normalized_difficulty_key(
+            value.get("difficultyKey") or value.get("key") or value.get("trackKey") or ""
+        )
+        item_level = positive_int_value(value.get("itemLevel") or value.get("ilevel"))
+        if not key:
+            return None
+        base = dict(CRAFTED_ITEM_LEVEL_TRACKS.get(key) or {})
+        if item_level:
+            base["itemLevel"] = item_level
+        if not base.get("itemLevel"):
+            return None
+        base["difficultyKey"] = key
+        base["label"] = str(value.get("label") or base.get("label") or f"{localized_difficulty_label(key)} {base['itemLevel']}").strip()
+        base["trackEvidence"] = value.get("trackEvidence") or value.get("evidence") or []
+        return base
+    key = normalized_difficulty_key(value)
+    if key in CRAFTED_ITEM_LEVEL_TRACKS:
+        return dict(CRAFTED_ITEM_LEVEL_TRACKS[key])
+    return None
+
+
+def crafted_item_supports_void_upgrade(item):
+    if not isinstance(item, dict):
+        return False
+    if not item.get("supportsVoidUpgrade"):
+        return False
+    return normalize_slot(item.get("slot")) in {"main_hand", "off_hand"}
+
+
+def crafted_item_level_tracks_for_item(item):
+    raw_tracks = item.get("allowedTracks") or item.get("tracks") or ["crafted_myth"]
+    if isinstance(raw_tracks, str):
+        raw_tracks = [raw_tracks]
+    tracks = []
+    seen = set()
+    for raw_track in raw_tracks or []:
+        track = crafted_track_from_input(raw_track)
+        if not track:
+            continue
+        key = normalized_difficulty_key(track.get("difficultyKey"))
+        if crafted_public_difficulty_key(key) == "void_upgrade" and not crafted_item_supports_void_upgrade(item):
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        tracks.append(track)
+    return tracks
+
+
+def crafted_stat_option_from_input(value):
+    if isinstance(value, dict):
+        option_value = normalize_option_value(value.get("value") or value.get("crafted_stats") or value.get("craftedStats"))
+        if not option_value:
+            simc_options = value.get("simcOptions") if isinstance(value.get("simcOptions"), dict) else {}
+            option_value = normalize_option_value(simc_options.get("crafted_stats"))
+        if not option_value:
+            return None
+        key = slugify(value.get("key") or value.get("id") or value.get("label") or option_value, f"crafted-{stable_digest(option_value)}")
+        label = str(value.get("label") or value.get("name") or option_value).strip()
+        return {
+            "key": key,
+            "label": label,
+            "value": option_value,
+            "status": str(value.get("status") or "verified").strip() or "verified",
+            "payload": value.get("payload") if isinstance(value.get("payload"), dict) else {},
+        }
+    option_value = normalize_option_value(value)
+    if not option_value:
+        return None
+    return {
+        "key": f"crafted-{stable_digest(option_value)}",
+        "label": option_value,
+        "value": option_value,
+        "status": "verified",
+        "payload": {},
+    }
+
+
+def crafted_stat_options_for_item(item):
+    raw_options = item.get("allowedCraftedStats") or item.get("craftedStatOptions") or item.get("crafted_stats_options") or []
+    if isinstance(raw_options, (str, dict)):
+        raw_options = [raw_options]
+    options = []
+    seen = set()
+    for raw_option in raw_options or []:
+        option = crafted_stat_option_from_input(raw_option)
+        if not option:
+            continue
+        key = option["key"]
+        if key in seen:
+            continue
+        seen.add(key)
+        options.append(option)
+    return options
+
+
+def simc_profile_with_crafted_item_probe(conn, item, item_level, stat_option, track=None):
+    candidates = item_level_probe_profile_candidates(item)
+    if not candidates:
+        return "", "", "", ""
+    rows = conn.execute(
+        """
+        SELECT class_key, spec_key, name, profile
+        FROM websim_profile_presets
+        WHERE profile <> ''
+        ORDER BY class_key, spec_key, id
+        """
+    ).fetchall()
+    by_pair = {}
+    for class_key, spec_key, name, profile in rows:
+        by_pair.setdefault((str(class_key or ""), str(spec_key or "")), (str(name or ""), str(profile or "")))
+    simc_slot = official_item_level_probe_simc_slot(item.get("slot"))
+    if not simc_slot:
+        return "", "", "", ""
+    safe_name = simc_safe_item_name(item.get("name") or f"item_{item.get('itemId')}", item.get("itemId") or "")
+    options = [
+        f"id={item.get('itemId')}",
+        f"ilevel={int(item_level or 0)}",
+    ]
+    bonus_id = normalize_option_value(item.get("bonus_id") or item.get("bonusId") or (track or {}).get("bonus_id") or (track or {}).get("bonusId"))
+    if bonus_id:
+        options.append(f"bonus_id={bonus_id}")
+    crafted_stats = normalize_option_value((stat_option or {}).get("value") or (stat_option or {}).get("crafted_stats"))
+    if crafted_stats:
+        options.append(f"crafted_stats={crafted_stats}")
+    item_line = f"{simc_slot}={safe_name},{','.join(options)}"
+    remove_slots = {simc_slot}
+    if simc_slot == "main_hand" and item_level_probe_main_hand_removes_offhand(item):
+        remove_slots.add("off_hand")
+    for class_key, spec_key in candidates:
+        preset = by_pair.get((class_key, spec_key))
+        if not preset:
+            continue
+        _preset_name, profile = preset
+        lines = []
+        probe_override_keys = {"iterations", "max_time", "target_error", "calculate_scale_factors", "json"}
+        for line in str(profile or "").splitlines():
+            stripped = line.strip()
+            if not stripped or "=" not in stripped:
+                lines.append(line)
+                continue
+            head = stripped.split("=", 1)[0].strip()
+            if head in probe_override_keys:
+                continue
+            if head in remove_slots:
+                continue
+            lines.append(line)
+        lines.extend([
+            "iterations=1",
+            "max_time=1",
+            "target_error=0.5",
+            "calculate_scale_factors=0",
+        ])
+        lines.append(item_line)
+        return "\n".join(lines).strip() + "\n", class_key, spec_key, item_line
+    return "", "", "", ""
+
+
+def resolve_crafted_item_level_stat_payload(conn, item, item_level, stat_option, track=None):
+    profile, class_key, spec_key, item_line = simc_profile_with_crafted_item_probe(conn, item, item_level, stat_option, track)
+    if not profile:
+        return {"error": "no compatible SimC profile preset found"}
+    result = run_websim_profile_preset_simc_json(profile)
+    if not result.get("ok"):
+        return {
+            "error": str(result.get("error") or "SimC crafted item probe failed")[:1000],
+            "simcProfile": item_line,
+            "classKey": class_key,
+            "specKey": spec_key,
+        }
+    gear_by_slot = simc_json_gear_stats_by_slot(result.get("payload") or {})
+    stat_payload = simc_observed_variant_stat_payload(
+        {
+            "itemId": item.get("itemId"),
+            "slot": item.get("slot"),
+            "ilevel": item_level,
+        },
+        gear_by_slot,
+    )
+    if not stat_payload:
+        return {
+            "error": "SimC JSON did not include target item stats",
+            "simcProfile": item_line,
+            "classKey": class_key,
+            "specKey": spec_key,
+        }
+    stat_payload.update(
+        {
+            "simcProfile": item_line,
+            "probeClassKey": class_key,
+            "probeSpecKey": spec_key,
+            "simcCheckedAt": result.get("checkedAt") or utc_now(),
+            "simcDurationMs": result.get("durationMs", 0),
+        }
+    )
+    return stat_payload
+
+
 def item_level_probe_profile_candidates(item):
     item = item if isinstance(item, dict) else {}
     slot = normalize_slot(item.get("slot"))
@@ -6788,9 +7009,172 @@ def backfill_official_item_level_variants_for_tier_sets(conn, set_ids=None, stat
     return counts
 
 
+def backfill_crafted_item_level_variants(conn, items, stat_resolver=None):
+    ensure_websim_tables(conn)
+    season = get_active_season_payload(conn)
+    season_revision = season.get("seasonRevision") or season.get("revision") or ""
+    if stat_resolver is None:
+        stat_resolver = lambda item, item_level, stat_option, track: resolve_crafted_item_level_stat_payload(
+            conn,
+            item,
+            item_level,
+            stat_option,
+            track,
+        )
+    counts = {"items": 0, "tracks": 0, "verifiedVariants": 0, "partialVariants": 0, "skipped": 0, "errors": []}
+    for raw_item in items or []:
+        if not isinstance(raw_item, dict):
+            counts["skipped"] += 1
+            continue
+        item_id = normalize_option_value(raw_item.get("itemId") or raw_item.get("item_id") or raw_item.get("id"))
+        if not item_id:
+            counts["skipped"] += 1
+            counts["errors"].append("crafted item missing itemId")
+            continue
+        metadata = existing_websim_item_metadata(conn, item_id) or {}
+        metadata_payload = metadata.get("payload") if isinstance(metadata.get("payload"), dict) else {}
+        type_metadata = item_type_metadata_from_payload(metadata_payload)
+        slot = normalize_slot(raw_item.get("slot")) or normalize_slot(metadata.get("slot")) or item_slot_from_payload(metadata_payload)
+        if not slot:
+            counts["skipped"] += 1
+            counts["errors"].append(f"{item_id}: missing slot")
+            continue
+        item = {
+            **raw_item,
+            "itemId": item_id,
+            "name": str(raw_item.get("name") or metadata.get("displayName") or metadata.get("name") or f"item_{item_id}"),
+            "slot": slot,
+            "simcSlot": official_item_level_probe_simc_slot(slot),
+            "metadataPayload": metadata_payload,
+            "armorType": raw_item.get("armorType") or type_metadata.get("armorType") or "",
+            "weaponType": raw_item.get("weaponType") or type_metadata.get("weaponType") or "",
+        }
+        tracks = crafted_item_level_tracks_for_item(item)
+        stat_options = crafted_stat_options_for_item(item)
+        if not tracks:
+            counts["skipped"] += 1
+            counts["errors"].append(f"{item_id}: missing crafted item-level track evidence")
+            continue
+        if not stat_options:
+            counts["skipped"] += 1
+            counts["errors"].append(f"{item_id}: missing crafted stat options")
+            continue
+        conn.execute(
+            "DELETE FROM websim_gear_variants WHERE source_type = ? AND item_id = ?",
+            ("crafted", item_id),
+        )
+        counts["items"] += 1
+        source_payload = {
+            "status": str(raw_item.get("status") or "verified").strip() or "verified",
+            "profession": str(raw_item.get("profession") or "").strip(),
+            "recipeId": normalize_option_value(raw_item.get("recipeId") or raw_item.get("recipe_id")),
+            "seasonRevision": season_revision,
+            "sourceRefs": normalize_source_refs(raw_item.get("sourceRefs") or []),
+            "trackEvidence": raw_item.get("trackEvidence") or raw_item.get("evidence") or [],
+            "supportsVoidUpgrade": bool(crafted_item_supports_void_upgrade(item)),
+        }
+        upsert_gear_source(
+            conn,
+            {
+                "id": str(raw_item.get("sourceId") or f"crafted-governed-{item_id}"),
+                "itemId": item_id,
+                "sourceType": "crafted",
+                "sourceLabel": str(raw_item.get("sourceLabel") or "制造装备"),
+                "seasonRevision": season_revision,
+                "payload": source_payload,
+            },
+        )
+        for stat_option in stat_options:
+            upsert_gear_mod_option(
+                conn,
+                {
+                    "id": f"crafted-stats-{stat_option['key']}",
+                    "type": "crafted_stats",
+                    "name": stat_option["label"],
+                    "applicableSlots": [slot],
+                    "simcOptions": {"crafted_stats": stat_option["value"]},
+                    "status": stat_option.get("status") or "verified",
+                    "payload": {
+                        **(stat_option.get("payload") or {}),
+                        "source": "crafted_catalog",
+                        "craftedStatKey": stat_option["key"],
+                        "craftedStatLabel": stat_option["label"],
+                    },
+                },
+            )
+        for track in tracks:
+            counts["tracks"] += 1
+            difficulty_key = normalized_difficulty_key(track.get("difficultyKey"))
+            item_level = positive_int_value(track.get("itemLevel"))
+            if not item_level:
+                counts["skipped"] += 1
+                counts["errors"].append(f"{item_id}:{difficulty_key}: missing item level")
+                continue
+            for stat_option in stat_options:
+                stat_payload = stat_resolver(item, item_level, stat_option, track) or {}
+                stat_payload = stat_payload if isinstance(stat_payload, dict) else {}
+                stats = normalize_item_stats(stat_payload.get("itemStats") or stat_payload.get("stats") or [])
+                blockers = []
+                status = "verified"
+                if not stats or stat_option.get("status") != "verified":
+                    status = "partial"
+                    blockers.append(str(stat_payload.get("error") or "SimC crafted item probe missing item stats")[:1000])
+                simc_options = {"ilevel": str(item_level), "crafted_stats": stat_option["value"]}
+                for key in ("bonus_id", "bonusId"):
+                    value = normalize_option_value(raw_item.get(key) or track.get(key))
+                    if value:
+                        simc_options["bonus_id"] = value
+                        break
+                payload = {
+                    **source_payload,
+                    "officialVariantSource": "crafted",
+                    "derivedVariantSource": CRAFTED_ITEM_LEVEL_PROBE_SOURCE,
+                    "itemLevelTrack": difficulty_key,
+                    "publicDifficultyKey": crafted_public_difficulty_key(difficulty_key),
+                    "craftedStatKey": stat_option["key"],
+                    "craftedStatLabel": stat_option["label"],
+                    "crafted_stats": stat_option["value"],
+                    "statSource": "simulationcraft",
+                }
+                for key, value in stat_payload.items():
+                    if value not in (None, "", [], {}):
+                        payload[key] = value
+                if stats:
+                    payload["itemStats"] = stats
+                    payload["stats"] = stats
+                    payload["statSummary"] = stat_payload.get("statSummary") or item_stat_summary(stats)
+                    payload["statDisplayStatus"] = stat_payload.get("statDisplayStatus") or "verified_variant"
+                variant_id = f"crafted-itemlevel-{item_id}-{slot}-{difficulty_key}-{item_level}-{stat_option['key']}"
+                upsert_gear_variant(
+                    conn,
+                    {
+                        "id": variant_id,
+                        "itemId": item_id,
+                        "slot": slot,
+                        "variantKey": f"{crafted_public_difficulty_key(difficulty_key)}-{item_level}-{stat_option['key']}",
+                        "label": f"{localized_difficulty_label(difficulty_key, track.get('label'), 'crafted')} {item_level} · {stat_option['label']}",
+                        "sourceType": "crafted",
+                        "difficultyKey": difficulty_key,
+                        "itemLevel": item_level,
+                        "simcOptions": simc_options,
+                        "status": status,
+                        "blockers": blockers,
+                        "payload": payload,
+                    },
+                )
+                if status == "verified":
+                    counts["verifiedVariants"] += 1
+                else:
+                    counts["partialVariants"] += 1
+                    counts["errors"].append(f"{item_id}:{item_level}:{stat_option['key']}: {blockers[0] if blockers else 'partial'}")
+    conn.commit()
+    set_sync_state(conn, "gearCatalog", build_gear_catalog_sync_state(conn, season))
+    return counts
+
+
 def upsert_gear_mod_option(conn, option):
     option_type = str(option.get("optionType") or option.get("type") or "").strip().lower()
-    if option_type not in {"socket", "enchant"}:
+    if option_type not in {"socket", "enchant", "crafted_stats"}:
         return False
     simc_options = option.get("simcOptions") if isinstance(option.get("simcOptions"), dict) else {}
     simc_options = {key: value for key, value in simc_options.items() if key in SIMC_GEAR_OPTION_KEYS and normalize_option_value(value)}
@@ -6803,6 +7187,17 @@ def upsert_gear_mod_option(conn, option):
     slots = option.get("applicableSlots") or option.get("slots") or option.get("applicable_slots") or []
     if isinstance(slots, str):
         slots = [slots]
+    slots = unique_text_list([normalize_slot(slot) or str(slot or "").strip() for slot in slots])
+    if option_type == "crafted_stats" and option_id:
+        existing_row = conn.execute(
+            "SELECT applicable_slots_json FROM websim_gear_mod_options WHERE id = ?",
+            (option_id,),
+        ).fetchone()
+        if existing_row:
+            existing_slots = safe_json_loads(existing_row[0], [])
+            if not isinstance(existing_slots, list):
+                existing_slots = []
+            slots = unique_text_list([*existing_slots, *slots])
     conn.execute(
         """
         INSERT INTO websim_gear_mod_options
@@ -7912,18 +8307,66 @@ def sync_blizzard_gear_mod_option_metadata(conn, token, region=DEFAULT_REGION, l
     return counts
 
 
+def governed_crafted_payload(payload):
+    payload = payload if isinstance(payload, dict) else {}
+    if payload.get("derivedVariantSource") == CRAFTED_ITEM_LEVEL_PROBE_SOURCE:
+        return True
+    if payload.get("profession") or payload.get("recipeId") or payload.get("recipe_id"):
+        return True
+    if payload.get("sourceRefs") or payload.get("trackEvidence") or payload.get("craftedStatKey"):
+        return True
+    return False
+
+
+def delete_ungoverned_crafted_catalog_rows(conn):
+    removed = {"sources": 0, "variants": 0}
+    source_rows = conn.execute(
+        """
+        SELECT id, payload_json
+        FROM websim_gear_sources
+        WHERE source_type = 'crafted' OR id LIKE 'crafted-%'
+        """
+    ).fetchall()
+    source_ids = [
+        row_id
+        for row_id, payload_json in source_rows
+        if not governed_crafted_payload(safe_json_loads(payload_json, {}))
+    ]
+    if source_ids:
+        placeholders = ",".join("?" for _ in source_ids)
+        result = conn.execute(f"DELETE FROM websim_gear_sources WHERE id IN ({placeholders})", source_ids)
+        removed["sources"] = result.rowcount if result.rowcount and result.rowcount > 0 else len(source_ids)
+    variant_rows = conn.execute(
+        """
+        SELECT id, payload_json
+        FROM websim_gear_variants
+        WHERE source_type = 'crafted' OR id LIKE 'crafted-%'
+        """
+    ).fetchall()
+    variant_ids = [
+        row_id
+        for row_id, payload_json in variant_rows
+        if not governed_crafted_payload(safe_json_loads(payload_json, {}))
+    ]
+    if variant_ids:
+        placeholders = ",".join("?" for _ in variant_ids)
+        result = conn.execute(f"DELETE FROM websim_gear_variants WHERE id IN ({placeholders})", variant_ids)
+        removed["variants"] = result.rowcount if result.rowcount and result.rowcount > 0 else len(variant_ids)
+    return removed
+
+
 def sync_websim_gear_catalog(conn, season=None):
     ensure_websim_tables(conn)
     season = season or get_active_season_payload(conn)
     season_revision = season.get("seasonRevision") or season.get("revision") or ""
-    conn.execute("DELETE FROM websim_gear_sources WHERE id LIKE 'loot-%' OR id LIKE 'crafted-%'")
+    delete_ungoverned_crafted_catalog_rows(conn)
+    conn.execute("DELETE FROM websim_gear_sources WHERE id LIKE 'loot-%'")
     conn.execute(
         """
         DELETE FROM websim_gear_variants
         WHERE id LIKE 'loot-partial-%'
            OR id LIKE 'loot-observed-%'
            OR id LIKE 'loot-preview-%'
-           OR id LIKE 'crafted-%'
         """
     )
     rows = conn.execute(
@@ -10748,14 +11191,15 @@ def gear_catalog_mod_option_coverage(conn):
         """
         SELECT id, option_type, name, applicable_slots_json, simc_options_json, payload_json
         FROM websim_gear_mod_options
-        WHERE option_type IN ('socket', 'enchant')
+        WHERE option_type IN ('socket', 'enchant', 'crafted_stats')
         """
     ).fetchall()
     coverage = {
         "socket": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
         "enchant": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
+        "crafted_stats": {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []},
     }
-    slots_by_type = {"socket": set(), "enchant": set()}
+    slots_by_type = {"socket": set(), "enchant": set(), "crafted_stats": set()}
     missing_socket_metadata = []
     invalid_socket_gem_metadata = []
     for option_id, option_type, option_name, slots_json, simc_options_json, payload_json in rows:
@@ -12809,10 +13253,23 @@ def catalog_variant_display_key(variant):
     source_type = raw_source_type(variant.get("sourceType")).lower()
     difficulty_key = str(variant.get("difficultyKey") or "").strip().lower()
     item_level = positive_int_value(variant.get("itemLevel") or variant.get("ilevel"))
+    simc_options = variant.get("simcOptions") if isinstance(variant.get("simcOptions"), dict) else {}
+    payload = variant.get("payload") if isinstance(variant.get("payload"), dict) else {}
+    if source_type == "crafted":
+        return (
+            source_type,
+            difficulty_key,
+            item_level,
+            normalize_option_value(
+                simc_options.get("crafted_stats")
+                or payload.get("crafted_stats")
+                or payload.get("craftedStats")
+                or payload.get("craftedStatKey")
+            ),
+        )
     if source_type in OFFICIAL_REPLACEMENT_SOURCE_TYPES and item_level > 0:
         return (source_type, item_level)
     if difficulty_key in {"observed_profile", "battle_net_preview"}:
-        simc_options = variant.get("simcOptions") if isinstance(variant.get("simcOptions"), dict) else {}
         return (
             source_type,
             difficulty_key,
@@ -13834,6 +14291,11 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
             baseline_set.append(item)
     candidate_items = get_websim_loot(conn, {}, limit=120)["items"]
     catalog_items = get_websim_gear_catalog_items(conn, class_key, spec_key, season)
+    shared_catalog = shared_gear_catalog_rows(conn)
+    socket_options_by_slot = shared_catalog["socketOptionsBySlot"]
+    enchant_options_by_slot = shared_catalog["enchantOptionsBySlot"]
+    raw_socket_options_by_slot = gear_catalog_mod_options_by_slot(conn, "socket") if compact else {}
+    raw_enchant_options_by_slot = gear_catalog_mod_options_by_slot(conn, "enchant") if compact else {}
     baseline_set = hydrate_gear_items_from_metadata(conn, baseline_set)
     preset_items = hydrate_gear_items_from_metadata(conn, preset_items)
     candidate_items = hydrate_gear_items_from_metadata(conn, candidate_items)
@@ -13887,7 +14349,7 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
             items = source_only_replacement_fallback_candidates(grouped_items, season, limit=fallback_limit)
         items = sorted(items, key=gear_candidate_quality_score, reverse=True)
         if candidate_limit:
-            items = items[:candidate_limit]
+            items = limit_replacement_candidates(items, candidate_limit)
         baseline_candidates_by_slot[slot] = items
         socket_options = []
         enchant_options = []
@@ -13897,11 +14359,19 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
                 for item in items
                 for option in item.get("socketOptions") or []
             )
+            if not socket_options and items and slot in SOCKET_OPTION_GEAR_SLOTS:
+                socket_options = compact_gear_mod_options(socket_options_by_slot.get(slot, []))
+            if not socket_options and items and slot in SOCKET_OPTION_GEAR_SLOTS:
+                socket_options = executable_fallback_gear_mod_options(raw_socket_options_by_slot.get(slot, []), "socket")
             enchant_options = compact_gear_mod_options(
                 option
                 for item in items
                 for option in item.get("enchantOptions") or []
             )
+            if not enchant_options and items and slot in ENCHANTABLE_GEAR_SLOTS:
+                enchant_options = compact_gear_mod_options(enchant_options_by_slot.get(slot, []))
+            if not enchant_options and items and slot in ENCHANTABLE_GEAR_SLOTS:
+                enchant_options = executable_fallback_gear_mod_options(raw_enchant_options_by_slot.get(slot, []), "enchant")
             items = compact_gear_candidates(items, include_mod_options=False)
         slot_group = {
             "slot": slot,
@@ -14570,6 +15040,10 @@ def attach_crafted_source_reference(item):
         return item
     if not normalize_option_value(item.get("crafted_stats") or item.get("craftedStats")):
         return item
+    source_type = raw_source_type(item.get("sourceType")).lower()
+    variant_source = raw_source_type(item.get("variantSource")).lower()
+    if source_type != "crafted" and variant_source != "crafted":
+        return item
     existing_sources = [
         source
         for source in [*(item.get("sources") or []), *(item.get("sourceRefs") or [])]
@@ -15000,6 +15474,8 @@ def observed_only_replacement_candidate_below_current_floor(item, minimum_observ
     source_types = gear_candidate_source_types(item)
     if source_types & OFFICIAL_REPLACEMENT_SOURCE_TYPES:
         return False
+    if "crafted" in source_types:
+        return False
     if "observed_profile" not in source_types and not gear_candidate_has_observed_profile(item):
         return False
     minimum_ilevel = positive_int_value(minimum_observed_ilevel)
@@ -15040,6 +15516,30 @@ def gear_candidate_visible_for_replacement(item, minimum_observed_ilevel=0):
     ):
         return False
     return True
+
+
+def limit_replacement_candidates(items, limit):
+    if not limit or limit <= 0:
+        return list(items or [])
+    rows = list(items or [])
+    if len(rows) <= limit:
+        return rows
+    limited = rows[:limit]
+    seen = {
+        gear_candidate_item_visible_key(item)
+        or gear_candidate_visible_key(item)
+        or gear_candidate_key(item)
+        for item in limited
+    }
+    for item in rows[limit:]:
+        if "crafted" not in gear_candidate_source_types(item):
+            continue
+        key = gear_candidate_item_visible_key(item) or gear_candidate_visible_key(item) or gear_candidate_key(item)
+        if key in seen:
+            continue
+        limited.append(item)
+        seen.add(key)
+    return limited
 
 
 def current_official_replacement_item_level_floor(items):
@@ -15351,6 +15851,44 @@ def compact_gear_mod_options(options):
     return compacted
 
 
+def executable_fallback_gear_mod_options(options, option_type):
+    option_type = str(option_type or "").strip().lower()
+    if option_type not in {"socket", "enchant"}:
+        return []
+    fallback_options = []
+    for option in options or []:
+        if not isinstance(option, dict):
+            continue
+        option_id = str(option.get("id") or "").strip()
+        option_name = str(option.get("name") or option.get("label") or "").strip()
+        payload = option.get("payload") if isinstance(option.get("payload"), dict) else {}
+        if not gear_mod_option_is_visible(option_id, option_name, payload):
+            continue
+        simc_options = option.get("simcOptions") if isinstance(option.get("simcOptions"), dict) else {}
+        simc_options = {
+            key: normalize_option_value(value)
+            for key, value in simc_options.items()
+            if key in SIMC_GEAR_OPTION_KEYS and normalize_option_value(value)
+        }
+        if option_type == "socket":
+            value = simc_options.get("gem_id")
+            label = f"宝石 {value}" if value else ""
+        else:
+            value = simc_options.get("enchant_id")
+            label = f"附魔 {value}" if value else ""
+        if not label:
+            continue
+        fallback = dict(option)
+        fallback["type"] = option_type
+        fallback["optionType"] = option_type
+        fallback["name"] = label
+        fallback["label"] = label
+        fallback["status"] = "partial"
+        fallback["simcOptions"] = simc_options
+        fallback_options.append(fallback)
+    return compact_gear_mod_options(fallback_options)
+
+
 def compact_gear_sources(sources):
     compacted = []
     for source in sources or []:
@@ -15502,6 +16040,100 @@ def compact_observed_profile_refs(refs, limit=3):
     return compacted
 
 
+def crafted_stat_option_key_from_variant(variant):
+    payload = variant.get("payload") if isinstance((variant or {}).get("payload"), dict) else {}
+    simc_options = variant.get("simcOptions") if isinstance((variant or {}).get("simcOptions"), dict) else {}
+    return slugify(
+        payload.get("craftedStatKey")
+        or payload.get("craftedStatLabel")
+        or simc_options.get("crafted_stats")
+        or variant.get("variantKey")
+        or variant.get("key"),
+        f"crafted-{stable_digest([variant.get('id'), simc_options.get('crafted_stats')])}",
+    )
+
+
+def compact_crafted_stat_option(variant):
+    payload = variant.get("payload") if isinstance((variant or {}).get("payload"), dict) else {}
+    simc_options = variant.get("simcOptions") if isinstance((variant or {}).get("simcOptions"), dict) else {}
+    crafted_stats = normalize_option_value(
+        simc_options.get("crafted_stats")
+        or payload.get("crafted_stats")
+        or payload.get("craftedStats")
+    )
+    if not crafted_stats:
+        return None
+    option = {
+        "key": crafted_stat_option_key_from_variant(variant),
+        "label": str(payload.get("craftedStatLabel") or crafted_stats),
+        "simcOptions": {"crafted_stats": crafted_stats},
+        "status": str(variant.get("status") or payload.get("status") or "blocked"),
+    }
+    for key in (
+        "itemStats",
+        "stats",
+        "statSummary",
+        "statDisplayStatus",
+        "statSource",
+        "simcStatStatus",
+        "simcStatFailureKind",
+        "simcStatCheckedAt",
+    ):
+        value = payload.get(key)
+        if value not in (None, "", [], {}):
+            option[key] = value
+    blockers = variant.get("blockers") or []
+    if blockers:
+        option["blockers"] = blockers
+    return option
+
+
+def compact_crafted_gear_variants(variants):
+    by_track = {}
+    order = []
+    for variant in variants or []:
+        if not isinstance(variant, dict):
+            continue
+        if raw_source_type(variant.get("sourceType")).lower() != "crafted":
+            continue
+        public_key = crafted_public_difficulty_key(variant.get("difficultyKey"))
+        item_level = positive_int_value(variant.get("itemLevel") or variant.get("ilevel"))
+        track_key = (public_key, item_level)
+        option = compact_crafted_stat_option(variant)
+        if track_key not in by_track:
+            compact_variant = compact_gear_variant(variant, "crafted")
+            compact_variant["difficultyKey"] = public_key
+            compact_variant["difficultyLabel"] = localized_difficulty_label(public_key, variant.get("label"), "crafted")
+            compact_variant["key"] = f"crafted-{public_key}-{item_level}" if item_level else f"crafted-{public_key}"
+            compact_variant["variantKey"] = compact_variant["key"]
+            compact_variant["label"] = f"{compact_variant['difficultyLabel']} {item_level}".strip()
+            compact_simc_options = compact_variant.get("simcOptions") if isinstance(compact_variant.get("simcOptions"), dict) else {}
+            compact_simc_options = {key: value for key, value in compact_simc_options.items() if key != "crafted_stats"}
+            if compact_simc_options:
+                compact_variant["simcOptions"] = compact_simc_options
+            else:
+                compact_variant.pop("simcOptions", None)
+            compact_variant["craftedStatOptions"] = []
+            by_track[track_key] = compact_variant
+            order.append(track_key)
+        if option:
+            existing_keys = {row.get("key") for row in by_track[track_key]["craftedStatOptions"]}
+            if option["key"] not in existing_keys:
+                by_track[track_key]["craftedStatOptions"].append(option)
+    result = []
+    for track_key in order:
+        variant = by_track[track_key]
+        variant["craftedStatOptions"].sort(
+            key=lambda option: (
+                0 if str(option.get("status") or "") == "verified" else 1,
+                option.get("label") or "",
+            )
+        )
+        result.append(variant)
+    result.sort(key=lambda variant: positive_int_value(variant.get("itemLevel") or variant.get("ilevel")), reverse=True)
+    return result
+
+
 def observed_profile_display_source_label(item):
     if not isinstance(item, dict):
         return ""
@@ -15566,17 +16198,30 @@ def compact_gear_candidate(item, include_mod_options=True):
     if not public_source_type and not compact_gear_sources_have_drop_source(sources):
         public_source_type = "catalog"
     current_public_source_type = raw_source_type(compact_item.get("sourceType")).lower()
+    if "crafted" in gear_candidate_source_types(item) and (
+        raw_source_type(item.get("variantSource")).lower() == "crafted"
+        or raw_source_type(item.get("sourceType")).lower() == "crafted"
+        or current_public_source_type == "crafted"
+    ):
+        public_source_type = "crafted"
+        compact_item["sourceType"] = "crafted"
+        current_public_source_type = "crafted"
     if public_source_type and current_public_source_type in {"", "observed_profile"}:
         compact_item["sourceType"] = public_source_type
     sanitize_compact_candidate_variant_fields(compact_item, public_source_type)
-    variants = [
-        compact_gear_variant(variant, public_source_type)
-        for variant in item.get("variants") or []
-        if isinstance(variant, dict)
-    ]
+    if public_source_type == "crafted":
+        variants = compact_crafted_gear_variants(item.get("variants") or [])
+    if public_source_type != "crafted" or not variants:
+        variants = [
+            compact_gear_variant(variant, public_source_type)
+            for variant in item.get("variants") or []
+            if isinstance(variant, dict)
+        ]
     variants = [variant for variant in variants if variant]
     if variants:
         compact_item["variants"] = variants
+    if public_source_type == "crafted" and any(variant.get("craftedStatOptions") for variant in variants):
+        compact_item.pop("crafted_stats", None)
     observed_profile_refs = compact_observed_profile_refs(item.get("observedProfileRefs") or [])
     if observed_profile_refs:
         compact_item["observedProfileRefs"] = observed_profile_refs

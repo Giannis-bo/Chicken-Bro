@@ -10237,6 +10237,215 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("enchantOptions", compact_catalog_item)
         self.assertEqual(payload["catalogStatus"], "verified")
 
+    def test_compact_gear_payload_exposes_slot_mod_options_when_candidate_metadata_is_sparse(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "268291",
+                {
+                    "id": 268291,
+                    "name": "Sparse Choker",
+                    "inventory_type": {"type": "INVTYPE_NECK", "name": "Neck"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 123}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-268291.jpg"}]},
+                fallback_name="Sparse Choker",
+                english_payload={"name": "Sparse Choker", "inventory_type": {"name": "Neck"}},
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "240983",
+                {
+                    "id": 240983,
+                    "name": "Quick Onyx",
+                    "item_class": {"id": 3, "name": "Gem"},
+                    "item_subclass": {"id": 8, "name": "Versatility"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.example/gem-240983.jpg"}]},
+                fallback_name="Quick Onyx",
+                english_payload={"name": "Quick Onyx"},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {"id": "manual-268291", "itemId": "268291", "sourceType": "raid", "sourceLabel": "Sporefall"},
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "manual-268291-myth",
+                    "itemId": "268291",
+                    "slot": "neck",
+                    "variantKey": "myth-289",
+                    "label": "Myth 289",
+                    "sourceType": "raid",
+                    "difficultyKey": "myth",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "verified",
+                },
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('evoker-devastation-sparse-weapon', 'evoker', 'devastation', 'Sparse Weapon', ?, '{}', 'now')
+                """,
+                (
+                    "evoker=\"Sparse Weapon\"\n"
+                    "spec=devastation\n"
+                    "level=90\n"
+                    "main_hand=ritual_hexblade,id=249293,ilevel=298,bonus_id=13786\n"
+                ,),
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "socket-gem-240983",
+                    "type": "socket",
+                    "name": "Quick Onyx",
+                    "slots": ["neck"],
+                    "simcOptions": {"gem_id": "240983", "gem_ilevel": "707"},
+                    "payload": {
+                        "gemItemId": "240983",
+                        "displayName": "Quick Onyx",
+                        "iconUrl": "https://render.example/gem-240983.jpg",
+                        "metadataStatus": "verified",
+                        "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
+                        "metadataLocale": "en_US",
+                    },
+                },
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "enchant-main-hand-8017",
+                    "type": "enchant",
+                    "name": "Radiant Weapon",
+                    "slots": ["main_hand"],
+                    "simcOptions": {"enchant_id": "8017"},
+                },
+            )
+            compact_payload = self.websim_payload.get_websim_gear(conn, "evoker", "devastation", compact=True)
+        finally:
+            conn.close()
+
+        neck_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "neck")
+        main_hand_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "main_hand")
+        self.assertIn("socketOptions", neck_group)
+        self.assertIn("enchantOptions", main_hand_group)
+        neck_socket = next(
+            option
+            for option in neck_group["socketOptions"]
+            if option.get("simcOptions", {}).get("gem_id") == "240983"
+        )
+        main_hand_enchant = next(
+            option
+            for option in main_hand_group["enchantOptions"]
+            if option.get("simcOptions", {}).get("enchant_id") == "8017"
+        )
+        self.assertEqual(neck_socket["simcOptions"]["gem_id"], "240983")
+        self.assertEqual(main_hand_enchant["simcOptions"]["enchant_id"], "8017")
+        self.assertTrue(all("socketOptions" not in item for item in neck_group["items"]))
+        self.assertTrue(all("enchantOptions" not in item for item in main_hand_group["items"]))
+
+    def test_compact_gear_payload_falls_back_to_executable_mod_options_without_display_metadata(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "268291",
+                {
+                    "id": 268291,
+                    "name": "Sparse Choker",
+                    "inventory_type": {"type": "INVTYPE_NECK", "name": "Neck"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 123}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-268291.jpg"}]},
+                fallback_name="Sparse Choker",
+                english_payload={"name": "Sparse Choker", "inventory_type": {"name": "Neck"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {"id": "manual-268291", "itemId": "268291", "sourceType": "raid", "sourceLabel": "Sporefall"},
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "manual-268291-myth",
+                    "itemId": "268291",
+                    "slot": "neck",
+                    "variantKey": "myth-289",
+                    "label": "Myth 289",
+                    "sourceType": "raid",
+                    "difficultyKey": "myth",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "verified",
+                },
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('evoker-devastation-sparse-weapon', 'evoker', 'devastation', 'Sparse Weapon', ?, '{}', 'now')
+                """,
+                (
+                    "evoker=\"Sparse Weapon\"\n"
+                    "spec=devastation\n"
+                    "level=90\n"
+                    "main_hand=ritual_hexblade,id=249293,ilevel=298,bonus_id=13786\n"
+                ,),
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "observed-socket-240983",
+                    "type": "socket",
+                    "name": "Observed gem 240983",
+                    "slots": ["neck"],
+                    "simcOptions": {"gem_id": "240983"},
+                    "payload": {"source": "observed_variant"},
+                },
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "observed-enchant-8017",
+                    "type": "enchant",
+                    "name": "Observed enchant 8017",
+                    "slots": ["main_hand"],
+                    "simcOptions": {"enchant_id": "8017"},
+                    "payload": {"source": "observed_variant"},
+                },
+            )
+            compact_payload = self.websim_payload.get_websim_gear(conn, "evoker", "devastation", compact=True)
+        finally:
+            conn.close()
+
+        neck_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "neck")
+        main_hand_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "main_hand")
+        self.assertIn("socketOptions", neck_group)
+        self.assertIn("enchantOptions", main_hand_group)
+        self.assertEqual(neck_group["socketOptions"][0]["label"], "宝石 240983")
+        self.assertEqual(neck_group["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
+        self.assertEqual(main_hand_group["enchantOptions"][0]["label"], "附魔 8017")
+        self.assertEqual(main_hand_group["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
+
     def test_gear_catalog_sync_does_not_load_placeholder_default_mod_seed_without_env(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
         conn = sqlite3.connect(self.db_path)
@@ -10394,7 +10603,9 @@ class WebSimPayloadTest(unittest.TestCase):
         catalog_item = next(item for item in finger_group["items"] if item["itemId"] == "250777")
         self.assertEqual(catalog_item["socketOptions"], [])
         compact_finger_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "finger1")
-        self.assertNotIn("socketOptions", compact_finger_group)
+        self.assertEqual(compact_finger_group["socketOptions"][0]["label"], "宝石 240983")
+        self.assertEqual(compact_finger_group["socketOptions"][0]["status"], "partial")
+        self.assertEqual(compact_finger_group["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
 
     def test_gear_catalog_sync_derives_mod_options_from_raiderio_bare_gem_and_enchant(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
@@ -10721,6 +10932,693 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(variants, [])
         head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
         self.assertFalse(any(item["itemId"] == "250888" for item in head_group["items"]))
+
+    def test_gear_catalog_sync_preserves_governed_crafted_sources(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(season_id="17", season_label="Fresh Season")
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "260100",
+                {
+                    "id": 260100,
+                    "name": "Crafted Spellblade",
+                    "inventory_type": {"type": "WEAPON", "name": "One-Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"name": "One-Handed Sword"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {"stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 10}]},
+                    "_metadata": {"source": self.websim_payload.ITEM_METADATA_SOURCE, "metadataStatus": "verified"},
+                },
+                fallback_name="Crafted Spellblade",
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "crafted-governed-260100",
+                    "itemId": "260100",
+                    "sourceType": "crafted",
+                    "sourceLabel": "制造装备",
+                    "seasonRevision": season["seasonRevision"],
+                    "payload": {
+                        "status": "verified",
+                        "profession": "blacksmithing",
+                        "recipeId": "500100",
+                        "sourceRefs": [{"label": "受控制造业目录"}],
+                        "supportsVoidUpgrade": True,
+                    },
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "crafted-itemlevel-260100-crafted_myth-285-haste-mastery",
+                    "itemId": "260100",
+                    "slot": "main_hand",
+                    "variantKey": "crafted-myth-285-haste-mastery",
+                    "label": "神话 285 · 急速 + 精通",
+                    "sourceType": "crafted",
+                    "difficultyKey": "crafted_myth",
+                    "itemLevel": 285,
+                    "simcOptions": {"ilevel": "285", "bonus_id": "8793/8960", "crafted_stats": "40/32"},
+                    "status": "verified",
+                    "payload": {
+                        "seasonRevision": season["seasonRevision"],
+                        "derivedVariantSource": "simulationcraft_crafted_item_probe",
+                        "statSource": "simulationcraft",
+                        "statDisplayStatus": "verified_variant",
+                        "craftedStatKey": "haste-mastery",
+                        "craftedStatLabel": "急速 + 精通",
+                        "itemStats": [
+                            {"key": "intellect", "label": "智力", "value": 100},
+                            {"key": "haste", "label": "急速", "value": 40},
+                            {"key": "mastery", "label": "精通", "value": 32},
+                        ],
+                        "statSummary": "智力 100；急速 40；精通 32",
+                    },
+                },
+            )
+            self.websim_payload.sync_websim_gear_catalog(conn, season)
+            sources = conn.execute(
+                "SELECT id, source_type FROM websim_gear_sources WHERE source_type = 'crafted'"
+            ).fetchall()
+            variants = conn.execute(
+                "SELECT difficulty_key, item_level, status FROM websim_gear_variants WHERE source_type = 'crafted'"
+            ).fetchall()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        self.assertEqual(sources, [("crafted-governed-260100", "crafted")])
+        self.assertEqual(variants, [("crafted_myth", 285, "verified")])
+        main_hand_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "main_hand")
+        crafted_item = next(item for item in main_hand_group["items"] if item["itemId"] == "260100")
+        self.assertEqual(crafted_item["sourceType"], "crafted")
+        self.assertEqual(crafted_item["variants"][0]["difficultyKey"], "myth")
+        self.assertEqual(crafted_item["variants"][0]["itemLevel"], 285)
+        self.assertEqual(crafted_item["variants"][0]["craftedStatOptions"][0]["label"], "急速 + 精通")
+        self.assertEqual(crafted_item["variants"][0]["craftedStatOptions"][0]["simcOptions"]["crafted_stats"], "40/32")
+
+    def test_backfill_crafted_item_level_variants_writes_tracks_and_stat_options(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(season_id="17", season_label="Fresh Season")
+            self.websim_payload.save_active_season_payload(conn, season)
+            for item_id, name, slot, weapon in (
+                ("260100", "Crafted Spellblade", "main_hand", True),
+                ("260101", "Crafted Hood", "head", False),
+            ):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": {"type": "WEAPON" if weapon else "HEAD", "name": slot},
+                        "item_class": {"id": 2 if weapon else 4, "name": "Weapon" if weapon else "Armor"},
+                        "item_subclass": {"name": "One-Handed Sword" if weapon else "Cloth"},
+                        "quality": {"name": "Epic"},
+                        "preview_item": {"stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 10}]},
+                    },
+                    fallback_name=name,
+                    locale="en_US",
+                )
+
+            def fake_stat_resolver(item, item_level, stat_option, track):
+                if item["itemId"] == "260101" and stat_option["key"] == "crit_vers":
+                    return {"error": "SimC JSON did not include target item stats"}
+                return {
+                    "itemStats": [
+                        {"key": "intellect", "label": "智力", "value": item_level},
+                        {"key": "haste", "label": "急速", "value": 40},
+                    ],
+                    "statSummary": f"智力 {item_level}；{stat_option['label']}",
+                    "simcProfile": f"{item['simcSlot']}=crafted,id={item['itemId']},ilevel={item_level},crafted_stats={stat_option['value']}",
+                }
+
+            result = self.websim_payload.backfill_crafted_item_level_variants(
+                conn,
+                [
+                    {
+                        "itemId": "260100",
+                        "slot": "main_hand",
+                        "sourceLabel": "制造装备",
+                        "profession": "blacksmithing",
+                        "recipeId": "500100",
+                        "supportsVoidUpgrade": True,
+                        "allowedTracks": ["crafted_myth", "crafted_void_upgrade"],
+                        "allowedCraftedStats": [
+                            {"key": "haste-mastery", "label": "急速 + 精通", "value": "40/32"}
+                        ],
+                    },
+                    {
+                        "itemId": "260101",
+                        "slot": "head",
+                        "sourceLabel": "制造装备",
+                        "profession": "tailoring",
+                        "recipeId": "500101",
+                        "allowedTracks": [
+                            "crafted_myth",
+                            "crafted_void_upgrade",
+                            {"difficultyKey": "void_upgrade", "itemLevel": 295, "label": "虚空晋升 295"},
+                        ],
+                        "allowedCraftedStats": [
+                            {"key": "haste-mastery", "label": "急速 + 精通", "value": "40/32"},
+                            {"key": "crit-vers", "label": "暴击 + 全能", "value": "36/36"},
+                        ],
+                    },
+                ],
+                stat_resolver=fake_stat_resolver,
+            )
+            rows = conn.execute(
+                """
+                SELECT item_id, difficulty_key, item_level, status, simc_options_json, payload_json
+                FROM websim_gear_variants
+                WHERE source_type = 'crafted'
+                ORDER BY item_id, item_level, variant_key
+                """
+            ).fetchall()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+            health = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(result["items"], 2)
+        self.assertEqual(result["verifiedVariants"], 3)
+        self.assertEqual(result["partialVariants"], 1)
+        by_item = {}
+        for item_id, difficulty_key, item_level, status, simc_options_json, payload_json in rows:
+            by_item.setdefault(item_id, []).append((difficulty_key, item_level, status, simc_options_json, payload_json))
+        self.assertEqual(
+            [(difficulty, level) for difficulty, level, _status, _options, _payload in by_item["260100"]],
+            [("crafted_myth", 285), ("crafted_void_upgrade", 295)],
+        )
+        self.assertEqual(
+            [(difficulty, level) for difficulty, level, _status, _options, _payload in by_item["260101"]],
+            [("crafted_myth", 285), ("crafted_myth", 285)],
+        )
+        self.assertNotIn(289, [level for _difficulty, level, _status, _options, _payload in by_item["260101"]])
+        self.assertNotIn(298, [level for _difficulty, level, _status, _options, _payload in by_item["260100"]])
+        partial_payload = json.loads(by_item["260101"][0][4] if by_item["260101"][0][2] == "partial" else by_item["260101"][1][4])
+        self.assertEqual(partial_payload["craftedStatLabel"], "暴击 + 全能")
+
+        main_hand_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "main_hand")
+        weapon = next(item for item in main_hand_group["items"] if item["itemId"] == "260100")
+        self.assertEqual([variant["itemLevel"] for variant in weapon["variants"]], [295, 285])
+        self.assertEqual([variant["difficultyLabel"] for variant in weapon["variants"]], ["虚空晋升", "神话"])
+        self.assertEqual(weapon["variants"][0]["craftedStatOptions"][0]["label"], "急速 + 精通")
+        self.assertEqual(weapon["variants"][0]["craftedStatOptions"][0]["statSummary"], "智力 295；急速 + 精通")
+        self.assertEqual(health["details"]["sourceCoverage"]["crafted"], 2)
+        self.assertEqual(health["details"]["modOptionCoverage"]["crafted_stats"]["optionCount"], 2)
+        self.assertEqual(set(health["details"]["modOptionCoverage"]["crafted_stats"]["coveredSlots"]), {"head", "main_hand"})
+
+    def test_backfill_crafted_item_level_variants_removes_stale_item_variants(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(season_id="17", season_label="Fresh Season")
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "260150",
+                {
+                    "id": 260150,
+                    "name": "Crafted Spellblade",
+                    "inventory_type": {"type": "WEAPON", "name": "One-Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"id": 7, "name": "One-Handed Sword"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {"stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 10}]},
+                },
+                {},
+                fallback_name="Crafted Spellblade",
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "crafted-itemlevel-260150-off_hand-crafted_myth-285-haste-mastery",
+                    "itemId": "260150",
+                    "slot": "off_hand",
+                    "variantKey": "myth-285-haste-mastery",
+                    "label": "Old stale variant",
+                    "sourceType": "crafted",
+                    "difficultyKey": "crafted_myth",
+                    "itemLevel": 285,
+                    "simcOptions": {"ilevel": "285", "crafted_stats": "36/49"},
+                    "status": "verified",
+                    "payload": {"statSource": "simulationcraft", "itemStats": [{"key": "intellect", "value": 1}]},
+                },
+            )
+
+            def fake_stat_resolver(item, item_level, stat_option, track):
+                return {
+                    "itemStats": [{"key": "intellect", "label": "智力", "value": item_level}],
+                    "statSummary": f"智力 {item_level}",
+                }
+
+            self.websim_payload.backfill_crafted_item_level_variants(
+                conn,
+                [
+                    {
+                        "itemId": "260150",
+                        "slot": "main_hand",
+                        "sourceLabel": "制造装备",
+                        "supportsVoidUpgrade": True,
+                        "allowedTracks": ["crafted_myth"],
+                        "allowedCraftedStats": [
+                            {"key": "haste-mastery", "label": "急速 + 精通", "value": "36/49"}
+                        ],
+                    }
+                ],
+                stat_resolver=fake_stat_resolver,
+            )
+            rows = conn.execute(
+                """
+                SELECT slot, item_level, status
+                FROM websim_gear_variants
+                WHERE source_type = 'crafted' AND item_id = '260150'
+                ORDER BY slot, item_level
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(rows, [("main_hand", 285, "verified")])
+
+    def test_replacement_candidate_limit_keeps_crafted_items(self):
+        regular_items = [
+            {
+                "itemId": str(260500 + index),
+                "slot": "main_hand",
+                "sourceType": "raid",
+                "ilevel": 298,
+                "simcReady": True,
+            }
+            for index in range(12)
+        ]
+        crafted_item = {
+            "itemId": "260600",
+            "slot": "main_hand",
+            "sourceType": "crafted",
+            "ilevel": 295,
+            "simcReady": True,
+            "variants": [{"sourceType": "crafted", "itemLevel": 295}],
+        }
+
+        limited = self.websim_payload.limit_replacement_candidates(regular_items + [crafted_item], 12)
+
+        self.assertEqual(len(limited), 13)
+        self.assertEqual(limited[-1]["itemId"], "260600")
+
+    def test_compact_crafted_candidate_filters_mixed_source_variants(self):
+        item = {
+            "itemId": "251105",
+            "id": "251105",
+            "slot": "off_hand",
+            "displayName": "破法者之盾",
+            "sourceType": "crafted",
+            "variantSource": "crafted",
+            "variantDifficultyKey": "crafted_void_upgrade",
+            "sources": [
+                {"id": "crafted-preview-251105", "sourceType": "crafted", "sourceLabel": "制造装备"},
+                {"id": "loot-1300:2661:251105", "sourceType": "dungeon", "sourceLabel": "魔导师平台"},
+            ],
+            "variants": [
+                {
+                    "id": "crafted-itemlevel-251105-off_hand-crafted_void_upgrade-295-haste-mastery",
+                    "sourceType": "crafted",
+                    "difficultyKey": "crafted_void_upgrade",
+                    "itemLevel": 295,
+                    "simcOptions": {"ilevel": "295", "crafted_stats": "36/49"},
+                    "status": "verified",
+                    "payload": {
+                        "craftedStatKey": "haste-mastery",
+                        "craftedStatLabel": "急速 + 精通",
+                        "statSummary": "智力 201；急速 35；精通 50",
+                        "statSource": "simulationcraft",
+                    },
+                },
+                {
+                    "id": "loot-itemlevel-dungeon-1300-251105-off_hand-myth-289",
+                    "sourceType": "dungeon",
+                    "difficultyKey": "myth",
+                    "itemLevel": 289,
+                    "simcOptions": {"ilevel": "289"},
+                    "status": "verified",
+                },
+            ],
+        }
+
+        compact = self.websim_payload.compact_gear_candidate(item)
+
+        self.assertEqual(compact["sourceType"], "crafted")
+        self.assertEqual([variant["itemLevel"] for variant in compact["variants"]], [295])
+        self.assertEqual(compact["variants"][0]["difficultyKey"], "void_upgrade")
+        self.assertEqual(len(compact["variants"][0]["craftedStatOptions"]), 1)
+        self.assertEqual(compact["variants"][0]["craftedStatOptions"][0]["label"], "急速 + 精通")
+
+    def test_crafted_preview_catalog_items_from_profile_presets_builds_governed_seed(self):
+        import importlib
+        from server import crafted_gear_backfill
+
+        crafted_gear_backfill = importlib.reload(crafted_gear_backfill)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(season_id="17", season_label="Fresh Season")
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "260200",
+                {
+                    "id": 260200,
+                    "name": "Crafted Hood",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                },
+                {},
+                fallback_name="Crafted Hood",
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "260201",
+                {
+                    "id": 260201,
+                    "name": "Crafted Focus",
+                    "inventory_type": {"type": "HOLDABLE", "name": "Held In Off-hand"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"name": "Held In Off-hand"},
+                    "quality": {"name": "Epic"},
+                },
+                {},
+                fallback_name="Crafted Focus",
+                locale="en_US",
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'now')
+                """,
+                (
+                    "preset-crafted-preview",
+                    "mage",
+                    "frost",
+                    "Crafted Preview",
+                    "\n".join(
+                        [
+                            "head=crafted_hood,id=260200,ilevel=285,crafted_stats=32/49",
+                            "off_hand=crafted_focus,id=260201,ilevel=295,bonus_id=8793/8960,crafted_stats=36/49",
+                            "off_hand=crafted_focus,id=260201,ilevel=285,bonus_id=8793/8960,crafted_stats=32/40",
+                            "waist=uncrafted_belt,id=260202,ilevel=285",
+                        ]
+                    ),
+                    json.dumps({"source": "simulationcraft"}, ensure_ascii=False),
+                ),
+            )
+
+            items = crafted_gear_backfill.crafted_catalog_items_from_simc_presets(conn)
+        finally:
+            conn.close()
+
+        by_id = {item["itemId"]: item for item in items}
+        self.assertEqual(set(by_id), {"260200", "260201"})
+        hood = by_id["260200"]
+        self.assertEqual(hood["sourceLabel"], "制造装备")
+        self.assertEqual([track["difficultyKey"] for track in hood["allowedTracks"]], ["crafted_myth"])
+        self.assertFalse(hood["supportsVoidUpgrade"])
+        self.assertEqual(len(hood["allowedCraftedStats"]), 6)
+        self.assertIn(
+            ("crit-mastery", "暴击 + 精通", "32/49"),
+            [(option["key"], option["label"], option["value"]) for option in hood["allowedCraftedStats"]],
+        )
+        self.assertEqual(hood["sourceRefs"][0]["sourceType"], "simulationcraft_profile_preset")
+
+        focus = by_id["260201"]
+        self.assertTrue(focus["supportsVoidUpgrade"])
+        self.assertEqual(
+            [track["difficultyKey"] for track in focus["allowedTracks"]],
+            ["crafted_myth", "crafted_void_upgrade"],
+        )
+        self.assertEqual(len(focus["allowedCraftedStats"]), 6)
+        self.assertIn(
+            ("haste-versatility", "急速 + 全能", "36/40"),
+            [(option["key"], option["label"], option["value"]) for option in focus["allowedCraftedStats"]],
+        )
+
+    def test_crafted_catalog_items_from_metadata_builds_full_slot_seed(self):
+        import importlib
+        from server import crafted_gear_backfill
+
+        crafted_gear_backfill = importlib.reload(crafted_gear_backfill)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(season_id="17", season_label="Fresh Season")
+            self.websim_payload.save_active_season_payload(conn, season)
+
+            def save_item(item_id, name, inventory_type, item_class, item_subclass, crafting_key="modified_crafting_stat"):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": {"type": inventory_type, "name": inventory_type},
+                        "item_class": item_class,
+                        "item_subclass": item_subclass,
+                        "quality": {"name": "Epic"},
+                        "preview_item": {
+                            crafting_key: {
+                                "id": 32,
+                                "name": "Critical Strike",
+                            },
+                            "stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 10}],
+                        },
+                    },
+                    {},
+                    fallback_name=name,
+                    locale="en_US",
+                )
+
+            save_item("260410", "Crafted Hood", "HEAD", {"id": 4, "name": "Armor"}, {"id": 1, "name": "Cloth"}, "modified_crafting_stats")
+            save_item("260411", "Crafted Ring", "FINGER", {"id": 4, "name": "Armor"}, {"id": 0, "name": "Miscellaneous"})
+            save_item("260412", "Crafted Spellblade", "WEAPON", {"id": 2, "name": "Weapon"}, {"id": 7, "name": "One-Handed Sword"})
+            save_item("260413", "Crafted Shield", "SHIELD", {"id": 4, "name": "Armor"}, {"id": 6, "name": "Shield"})
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "251105",
+                {
+                    "id": 251105,
+                    "name": "Ward of the Spellbreaker",
+                    "inventory_type": {"type": "SHIELD", "name": "Off Hand"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 6, "name": "Shield"},
+                    "quality": {"name": "Rare"},
+                    "preview_item": {"stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 10}]},
+                },
+                {},
+                fallback_name="Ward of the Spellbreaker",
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "260414",
+                {
+                    "id": 260414,
+                    "name": "Plain Hood",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {"stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 10}]},
+                },
+                {},
+                fallback_name="Plain Hood",
+                locale="en_US",
+            )
+
+            items = crafted_gear_backfill.crafted_catalog_items_from_metadata(conn)
+        finally:
+            conn.close()
+
+        by_id = {item["itemId"]: item for item in items}
+        self.assertEqual(set(by_id), {"251105", "260410", "260411", "260412", "260413"})
+        self.assertEqual(by_id["260410"]["slot"], "head")
+        self.assertEqual(by_id["260411"]["slot"], "finger1")
+        self.assertEqual(by_id["251105"]["slot"], "off_hand")
+        self.assertEqual(by_id["260413"]["slot"], "off_hand")
+        self.assertEqual([track["difficultyKey"] for track in by_id["260410"]["allowedTracks"]], ["crafted_myth"])
+        self.assertEqual([track["itemLevel"] for track in by_id["260410"]["allowedTracks"]], [285])
+        self.assertEqual(
+            [track["difficultyKey"] for track in by_id["260412"]["allowedTracks"]],
+            ["crafted_myth", "crafted_void_upgrade"],
+        )
+        self.assertEqual(
+            [track["difficultyKey"] for track in by_id["260413"]["allowedTracks"]],
+            ["crafted_myth", "crafted_void_upgrade"],
+        )
+        self.assertEqual([track["itemLevel"] for track in by_id["260412"]["allowedTracks"]], [285, 295])
+        self.assertEqual([track["itemLevel"] for track in by_id["251105"]["allowedTracks"]], [285, 295])
+        self.assertEqual(len(by_id["260410"]["allowedCraftedStats"]), 6)
+        self.assertEqual(by_id["260410"]["sourceRefs"][0]["sourceType"], "battle_net_item_metadata")
+        self.assertEqual(by_id["251105"]["sourceRefs"][0]["sourceType"], "local_curated_crafted_catalog")
+        self.assertEqual(by_id["260410"]["profession"], "metadata_catalog")
+
+    def test_crafted_candidates_stay_visible_below_regular_item_level_floor(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(season_id="17", season_label="Fresh Season")
+            self.websim_payload.save_active_season_payload(conn, season)
+            for item_id, name in (("260300", "Raid Wrist"), ("260301", "Crafted Wrist")):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": {"type": "WRIST", "name": "Wrist"},
+                        "item_class": {"id": 4, "name": "Armor"},
+                        "item_subclass": {"id": 1, "name": "Cloth"},
+                        "quality": {"name": "Epic"},
+                        "preview_item": {"stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 10}]},
+                    },
+                    {},
+                    fallback_name=name,
+                    locale="en_US",
+                )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "raid-260300",
+                    "itemId": "260300",
+                    "sourceType": "raid",
+                    "sourceLabel": "Test Raid",
+                    "seasonRevision": season["seasonRevision"],
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "raid-260300-myth",
+                    "itemId": "260300",
+                    "slot": "wrist",
+                    "variantKey": "myth-289",
+                    "label": "神话 289",
+                    "sourceType": "raid",
+                    "difficultyKey": "myth",
+                    "itemLevel": 289,
+                    "simcOptions": {"ilevel": "289", "bonus_id": "12345"},
+                    "status": "verified",
+                    "payload": {
+                        "statSource": "simulationcraft",
+                        "statDisplayStatus": "verified_variant",
+                        "itemStats": [{"key": "intellect", "label": "智力", "value": 100}],
+                    },
+                },
+            )
+
+            def fake_stat_resolver(item, item_level, stat_option, track):
+                return {
+                    "itemStats": [
+                        {"key": "intellect", "label": "智力", "value": item_level},
+                        {"key": "haste", "label": "急速", "value": 42},
+                    ],
+                    "statSummary": f"智力 {item_level}；{stat_option['label']}",
+                }
+
+            self.websim_payload.backfill_crafted_item_level_variants(
+                conn,
+                [
+                    {
+                        "itemId": "260301",
+                        "slot": "wrist",
+                        "sourceLabel": "制造装备",
+                        "profession": "tailoring",
+                        "sourceRefs": [{"sourceType": "controlled_seed", "label": "受控制造业目录"}],
+                        "allowedTracks": ["crafted_myth"],
+                        "allowedCraftedStats": [
+                            {"key": "crit-haste", "label": "暴击 + 急速", "value": "32/36"},
+                            {"key": "crit-versatility", "label": "暴击 + 全能", "value": "32/40"},
+                            {"key": "crit-mastery", "label": "暴击 + 精通", "value": "32/49"},
+                            {"key": "haste-versatility", "label": "急速 + 全能", "value": "36/40"},
+                            {"key": "haste-mastery", "label": "急速 + 精通", "value": "36/49"},
+                            {"key": "versatility-mastery", "label": "全能 + 精通", "value": "40/49"},
+                        ],
+                    }
+                ],
+                stat_resolver=fake_stat_resolver,
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "observed-260301",
+                    "itemId": "260301",
+                    "sourceType": "observed_profile",
+                    "sourceLabel": "Observed crafted wrist",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "observed-260301",
+                    "itemId": "260301",
+                    "slot": "wrist",
+                    "variantKey": "observed-285",
+                    "label": "Observed 285",
+                    "sourceType": "observed_profile",
+                    "difficultyKey": "observed_profile",
+                    "itemLevel": 285,
+                    "simcOptions": {"ilevel": "285", "bonus_id": "12214"},
+                    "status": "verified",
+                    "payload": {
+                        "statSource": "simulationcraft",
+                        "statDisplayStatus": "verified_variant",
+                        "itemStats": [{"key": "intellect", "label": "智力", "value": 285}],
+                    },
+                },
+            )
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        wrist_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "wrist")
+        crafted = next(item for item in wrist_group["items"] if item["itemId"] == "260301")
+        self.assertEqual(crafted["sourceType"], "crafted")
+        self.assertEqual(crafted["variants"][0]["itemLevel"], 285)
+        self.assertEqual(len(crafted["variants"][0]["craftedStatOptions"]), 6)
+
+    def test_crafted_candidates_with_observed_refs_are_not_treated_as_observed_only_below_floor(self):
+        item = {
+            "slot": "wrist",
+            "itemId": "260301",
+            "sourceType": "crafted",
+            "variantSource": "crafted",
+            "ilevel": 285,
+            "sources": [
+                {"sourceType": "observed_profile", "sourceLabel": "Raider.IO observed"},
+                {"sourceType": "crafted", "sourceLabel": "制造装备"},
+            ],
+            "variants": [
+                {"sourceType": "observed_profile", "difficultyKey": "observed_profile", "itemLevel": 285},
+                {"sourceType": "crafted", "difficultyKey": "crafted_myth", "itemLevel": 285},
+            ],
+        }
+
+        self.assertFalse(
+            self.websim_payload.observed_only_replacement_candidate_below_current_floor(
+                item,
+                minimum_observed_ilevel=289,
+            )
+        )
 
     def test_websim_gear_payload_smoke_covers_every_class_spec(self):
         conn = sqlite3.connect(self.db_path)
@@ -12635,7 +13533,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(preset_item["sources"][0]["sourceType"], "simc_preset")
         self.assertEqual(preset_item["sources"][0]["sourceLabel"], "SimulationCraft preset: Community Preset")
 
-    def test_websim_gear_marks_crafted_preset_candidates_with_crafted_source(self):
+    def test_websim_gear_keeps_crafted_preset_candidates_as_simc_preset_source(self):
         conn = sqlite3.connect(self.db_path)
         try:
             self.websim_payload.ensure_websim_tables(conn)
@@ -12675,10 +13573,10 @@ class WebSimPayloadTest(unittest.TestCase):
 
         offhand_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "off_hand")
         crafted_item = next(item for item in offhand_group["items"] if item["itemId"] == "260003")
-        self.assertEqual(crafted_item["source"], "制造装备")
-        self.assertEqual(crafted_item["sources"][0]["sourceType"], "crafted")
-        self.assertEqual(crafted_item["sources"][0]["sourceLabel"], "制造装备")
-        self.assertEqual(crafted_item["sources"][1]["sourceType"], "simc_preset")
+        self.assertEqual(crafted_item["source"], "来源待补充")
+        self.assertEqual(crafted_item["sourceType"], "simcPreset")
+        self.assertEqual(crafted_item["sources"][0]["sourceType"], "simc_preset")
+        self.assertEqual(crafted_item["sources"][0]["sourceLabel"], "SimulationCraft preset: Crafted Preset")
         self.assertEqual(crafted_item["crafted_stats"], "40/32")
 
     def test_compact_gear_candidate_labels_crafted_observed_variants_as_crafted(self):

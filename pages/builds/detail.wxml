@@ -62,10 +62,6 @@
           <text>{{gearDataWarningText}}</text>
         </view>
 
-        <view class="gear-trust-summary" wx:if="{{gearTrustSummaryText}}">
-          <text>{{gearTrustSummaryText}}</text>
-        </view>
-
         <view class="gear-slot-grid">
           <view class="gear-slot-card {{item.statusClass}}" wx:for="{{gearSlotRows}}" wx:key="slot" data-slot="{{item.slot}}" bindtap="openGearSlotSheet">
             <view class="gear-slot-topline">
@@ -83,7 +79,6 @@
               </view>
             </view>
             <view class="gear-slot-footer">
-              <text>{{item.candidateCount}} 个候选</text>
               <text>{{item.trustLabel}}</text>
             </view>
           </view>
@@ -222,34 +217,33 @@
       </view>
     </view>
     <view class="gear-sheet-config" wx:if="{{gearSlotSheet.activeCandidate}}">
-      <view class="gear-variant-section" wx:if="{{gearSlotSheet.variantOptions.length}}">
-        <text class="gear-sheet-section-title">难度 / 装等</text>
-        <view class="gear-variant-list">
-          <view class="gear-variant-chip {{item.selected ? 'active' : ''}} {{item.statusClass}}" wx:for="{{gearSlotSheet.variantOptions}}" wx:key="key" data-key="{{item.key}}" bindtap="selectGearVariant">
-            <text>{{item.displayLabel}}</text>
-            <text wx:if="{{item.levelLabel}}">{{item.levelLabel}}</text>
+      <view class="gear-config-stack">
+        <view class="gear-variant-section" wx:if="{{gearSlotSheet.variantOptions.length}}">
+          <view class="gear-sheet-section-heading">
+            <text class="gear-sheet-section-title">难度 / 装等</text>
+          </view>
+          <view class="gear-variant-track-grid">
+            <view class="gear-variant-track-card {{item.selected ? 'active' : ''}} {{item.statusClass}}" wx:for="{{gearSlotSheet.variantOptions}}" wx:key="key" data-key="{{item.key}}" bindtap="selectGearVariant">
+              <text class="gear-variant-track-name">{{item.displayLabel}}</text>
+              <text class="gear-variant-track-level" wx:if="{{item.levelLabel}}">{{item.levelLabel}}</text>
+            </view>
           </view>
         </view>
-      </view>
-      <view class="gear-mod-section" wx:if="{{gearSlotSheet.socketOptions.length}}">
-        <text class="gear-sheet-section-title">珠宝插槽</text>
-        <view class="gear-mod-list">
-          <view class="gear-mod-option {{item.selected ? 'active' : ''}} {{item.statusClass}}" wx:for="{{gearSlotSheet.socketOptions}}" wx:key="id" data-id="{{item.id}}" bindtap="selectGearSocketOption">
-            <text>{{item.name || item.label}}</text>
+        <view class="gear-crafted-stat-section" wx:if="{{gearSlotSheet.craftedStatOptions.length}}">
+          <view class="gear-sheet-section-heading">
+            <text class="gear-sheet-section-title">属性搭配</text>
+          </view>
+          <view class="gear-crafted-stat-list">
+            <view class="gear-crafted-stat-chip {{item.selected ? 'active' : ''}} {{item.statusClass}}" wx:for="{{gearSlotSheet.craftedStatOptions}}" wx:key="key" data-key="{{item.key}}" bindtap="selectCraftedStatOption">
+              <text class="gear-crafted-stat-label">{{item.label}}</text>
+              <text class="gear-crafted-stat-status" wx:if="{{item.status && item.status !== 'verified'}}">待补</text>
+            </view>
           </view>
         </view>
-      </view>
-      <view class="gear-mod-section" wx:if="{{gearSlotSheet.enchantOptions.length}}">
-        <text class="gear-sheet-section-title">附魔</text>
-        <view class="gear-mod-list">
-          <view class="gear-mod-option {{item.selected ? 'active' : ''}} {{item.statusClass}}" wx:for="{{gearSlotSheet.enchantOptions}}" wx:key="id" data-id="{{item.id}}" bindtap="selectGearEnchantOption">
-            <text>{{item.name || item.label}}</text>
-          </view>
+        <view class="gear-apply-row">
+          <text class="gear-apply-message" wx:if="{{!gearSlotSheet.canApplyCandidate && gearSlotSheet.activeTrustText}}">{{gearSlotSheet.activeTrustText}}</text>
+          <button class="gear-apply-button" disabled="{{!gearSlotSheet.canApplyCandidate}}" bindtap="applyGearCandidate">{{gearSlotSheet.canApplyCandidate ? '应用' : '待补'}}</button>
         </view>
-      </view>
-      <view class="gear-apply-row">
-        <text class="gear-apply-state">{{gearSlotSheet.activeTrustLabel}} · {{gearSlotSheet.activeTrustText}}</text>
-        <button class="gear-apply-button" disabled="{{!gearSlotSheet.canApplyCandidate}}" bindtap="applyGearCandidate">{{gearSlotSheet.canApplyCandidate ? '应用' : '待补'}}</button>
       </view>
     </view>
   </view>
