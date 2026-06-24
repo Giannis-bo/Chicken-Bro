@@ -23,12 +23,13 @@ This repository maintains a project roadmap as shared context for all agents and
 
 ## Review Workflow
 
-- CodeRabbit is no longer part of this repository's required review workflow.
-- Do not block commits, pushes, deployment, or handoff on CodeRabbit review. Use local tests, smoke checks, diff review, runtime logs, and user-requested review tools instead.
-- Historical plans may still mention CodeRabbit as past evidence or an old workflow. Treat those mentions as historical only, not as current instructions.
+- Use local tests, smoke checks, diff review, runtime logs, and user-requested review tools as the default review workflow.
+- Before commit, push, deployment, or handoff, review the diff against the roadmap and current plan boundaries, fix technically valid findings, and re-run the relevant verification.
+- Treat older plan documents as historical implementation evidence; current review practice is defined by this section and the active task scope.
 
 ## Scope Boundaries
 
 - The roadmap is the long-lived product and engineering control plane. It does not replace detailed task plans.
 - Concrete implementation plans may still live in `docs/plans/`.
 - Product direction, data trust rules, SimC/WebSim contracts, release readiness, and personal-workspace ideas should all be routed through the roadmap system.
+- For already implemented features, current code and live verification take precedence over stale wording in older docs; update README and architecture docs to match the shipped behavior, while treating old plans as historical evidence unless the user explicitly asks to rewrite them.

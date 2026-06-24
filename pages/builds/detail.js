@@ -891,6 +891,8 @@ function gearOptionForData(option) {
   if (!option || typeof option !== 'object') return option
   const slim = { ...option }
   delete slim.simcOptions
+  delete slim.sortValue
+  delete slim.originalIndex
   return slim
 }
 
@@ -898,6 +900,41 @@ function gearSlotCandidatesForPage(page, slot, fallback) {
   const cache = page && page.gearSlotCandidateCache
   const cached = cache && cache[slot]
   return Array.isArray(cached) ? cached : (Array.isArray(fallback) ? fallback : [])
+}
+
+function gearCatalogExampleParts(example) {
+  if (!example || typeof example !== 'object') return []
+  const slot = example.slot || (Array.isArray(example.slots) ? example.slots[0] : '')
+  const sourceType = example.sourceType || (Array.isArray(example.sourceTypes) ? example.sourceTypes[0] : '')
+  const blockers = Array.isArray(example.blockers) && example.blockers.length
+    ? example.blockers
+    : (example.reason ? [example.reason] : [])
+  const fallbackIssue = example._fallbackIssue || (sourceType === 'observed_profile' ? '掉落来源待补充' : '')
+  const issue = gearIssueText(blockers, fallbackIssue)
+  return [
+    example.itemId || example.displayName || '',
+    slot,
+    sourceType,
+    issue
+  ].map((part) => String(part || '').trim()).filter(Boolean)
+}
+
+function gearCatalogHealthExampleText(summary) {
+  if (!summary || typeof summary !== 'object') return ''
+  const examples = [
+    ...((summary.partialVariantExamples || []).map((item) => ({ ...item, _fallbackIssue: '变体待补' }))),
+    ...((summary.blockedVariantExamples || []).map((item) => ({ ...item, _fallbackIssue: '阻断' }))),
+    ...((summary.sourcePendingExamples || []).map((item) => ({ ...item, _fallbackIssue: '掉落来源待补充' })))
+  ]
+  const labels = examples
+    .map((example) => {
+      const parts = gearCatalogExampleParts(example)
+      if (!parts.length) return ''
+      return parts.join(' ')
+    })
+    .filter(Boolean)
+    .slice(0, 2)
+  return labels.length ? `需分析：${labels.join('；')}` : ''
 }
 
 function gearCatalogHealthSummaryText(payload) {
@@ -914,6 +951,8 @@ function gearCatalogHealthSummaryText(payload) {
   if (socketMissingMetadata > 0) parts.push(`插槽待补 ${socketMissingMetadata} 个`)
   if (socketInvalidMetadata > 0) parts.push(`插槽异常 ${socketInvalidMetadata} 个`)
   if (partialVariants > 0) parts.push(`变体待补 ${partialVariants} 个`)
+  const exampleText = gearCatalogHealthExampleText(summary)
+  if (exampleText) parts.push(exampleText)
   return parts.length ? `；${parts.join('；')}` : ''
 }
 
@@ -1081,7 +1120,7 @@ function gearVariantUpgradeTrackLabel(variant) {
     263: '勇士',
     276: '英雄',
     289: '神话',
-    298: '虚空强化'
+    298: '虚空晋升'
   }
   return labels[level] || ''
 }
@@ -1092,9 +1131,91 @@ function gearVariantLevelLabel(variant) {
   return level > 0 ? `装等 ${level}` : ''
 }
 
+function gearVariantSortValue(variant, index) {
+  const rawLevel = variant && (variant.itemLevel || variant.ilevel)
+  const level = Number(rawLevel || 0)
+  if (level > 0) return level
+  const key = String((variant && (variant.difficultyKey || variant.sourceType || variant.key || variant.variantKey)) || '').toLowerCase()
+  const label = String((variant && (variant.difficultyLabel || variant.difficultyName || variant.label)) || '')
+  if (/champion/.test(key) || /勇士/.test(label)) return 263
+  if (/hero/.test(key) || /英雄/.test(label)) return 276
+  if (/void/.test(key) || /虚空/.test(label)) return 298
+  if (/myth/.test(key) || /神话|史诗/.test(label)) return 289
+  return 10000 + index
+}
+
+function gearCandidateVariants(candidate) {
+  const variants = Array.isArray(candidate && candidate.variants) ? candidate.variants.slice(0) : []
+  const hasItemLevelTrack = variants.some((variant) => Number((variant && (variant.itemLevel || variant.ilevel)) || 0) > 0)
+  if (!hasItemLevelTrack) return variants
+  return variants.filter((variant) => !gearVariantIsPendingPlaceholder(variant))
+}
+
+function gearVariantIsPendingPlaceholder(variant) {
+  if (!variant) return false
+  const level = Number((variant.itemLevel || variant.ilevel) || 0)
+  if (level > 0) return false
+  const key = String(variant.key || variant.variantKey || '').toLowerCase().replace(/_/g, '-')
+  const difficultyKey = String(variant.difficultyKey || '').toLowerCase().replace(/_/g, '-')
+  return key === 'needs-variant' || difficultyKey === 'needs-variant'
+}
+
+function gearVariantOptionVisibleKey(option) {
+  if (!option || !option.levelLabel) return `${option && option.key || 'variant'}-${option && option.originalIndex || 0}`
+  return `${option.displayLabel || ''}|${option.levelLabel || ''}`
+}
+
+function gearVariantOptionScore(option, selectedKey) {
+  const statusRank = {
+    verified: 4,
+    complete: 4,
+    synced: 3,
+    partial: 2,
+    blocked: 0
+  }
+  const simcOptions = option && typeof option.simcOptions === 'object' ? option.simcOptions : {}
+  const simcOptionCount = Object.keys(simcOptions).filter((key) => simcOptions[key] !== undefined && simcOptions[key] !== null && simcOptions[key] !== '').length
+  const hasExplicitSimcMod = !!(simcOptions.bonus_id || simcOptions.gem_id || simcOptions.enchant_id || simcOptions.crafted_stats)
+  return [
+    option && option.key === selectedKey ? 1 : 0,
+    statusRank[String(option && option.status || '').toLowerCase()] || 0,
+    hasExplicitSimcMod ? 1 : 0,
+    option && option.simcIlevelOnly ? 0 : 1,
+    simcOptionCount,
+    -Number(option && option.originalIndex || 0)
+  ]
+}
+
+function gearVariantOptionIsBetter(candidate, current, selectedKey) {
+  const left = gearVariantOptionScore(candidate, selectedKey)
+  const right = gearVariantOptionScore(current, selectedKey)
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return left[index] > right[index]
+  }
+  return false
+}
+
+function collapseDuplicateVariantOptions(options, selectedKey) {
+  const collapsed = []
+  const byVisibleKey = {}
+  ;(options || []).forEach((option) => {
+    const visibleKey = gearVariantOptionVisibleKey(option)
+    const existingIndex = byVisibleKey[visibleKey]
+    if (existingIndex === undefined) {
+      byVisibleKey[visibleKey] = collapsed.length
+      collapsed.push(option)
+      return
+    }
+    if (gearVariantOptionIsBetter(option, collapsed[existingIndex], selectedKey)) {
+      collapsed[existingIndex] = option
+    }
+  })
+  return collapsed
+}
+
 function decorateVariantOptions(candidate, selectedKey) {
-  const variants = Array.isArray(candidate && candidate.variants) ? candidate.variants : []
-  return variants.map((variant, index) => {
+  const variants = gearCandidateVariants(candidate)
+  const options = variants.map((variant, index) => {
     const key = variant.key || variant.variantKey || `variant-${index}`
     return {
       ...variant,
@@ -1102,9 +1223,15 @@ function decorateVariantOptions(candidate, selectedKey) {
       displayLabel: gearVariantDifficultyLabel(variant),
       levelLabel: gearVariantLevelLabel(variant),
       selected: key === selectedKey,
-      statusClass: gearStatusClass(variant.status || 'partial')
+      statusClass: gearStatusClass(variant.status || 'partial'),
+      sortValue: gearVariantSortValue(variant, index),
+      originalIndex: index
     }
+  }).sort((left, right) => {
+    if (left.sortValue !== right.sortValue) return left.sortValue - right.sortValue
+    return left.originalIndex - right.originalIndex
   })
+  return collapseDuplicateVariantOptions(options, selectedKey)
 }
 
 function decorateModOptions(options, selectedId) {
@@ -1120,10 +1247,15 @@ function decorateModOptions(options, selectedId) {
 }
 
 function candidateVariant(candidate, variantKey) {
-  const variants = Array.isArray(candidate && candidate.variants) ? candidate.variants : []
+  const variants = gearCandidateVariants(candidate)
   if (!variants.length) return null
-  const defaultKey = variantKey || candidate.defaultVariantKey || candidate.variantKey || variants[0].key || variants[0].variantKey
-  return variants.find((variant) => (variant.key || variant.variantKey) === defaultKey) || variants[0]
+  const fallbackVariant = variants.find((variant) => {
+    const variantLevel = Number((variant && (variant.itemLevel || variant.ilevel)) || 0)
+    const candidateLevel = Number((candidate && (candidate.ilevel || candidate.itemLevel)) || 0)
+    return candidateLevel > 0 && variantLevel === candidateLevel
+  }) || variants[0]
+  const defaultKey = variantKey || candidate.defaultVariantKey || candidate.variantKey || fallbackVariant.key || fallbackVariant.variantKey
+  return variants.find((variant) => (variant.key || variant.variantKey) === defaultKey) || fallbackVariant
 }
 
 function selectedGearModOption(options, selectedId) {
@@ -1141,18 +1273,47 @@ function applySimcOptions(target, options) {
   })
 }
 
+function applyVariantDisplayFields(target, variant) {
+  if (!target || !variant) return
+  const statKeys = ['statSummary', 'statDisplayStatus', 'statSource', 'simcStatStatus', 'simcStatFailureKind', 'simcStatCheckedAt']
+  const statArrayKeys = ['itemStats', 'stats', 'attributes', 'secondaryStats']
+  let hasVariantStats = false
+  statArrayKeys.forEach((key) => {
+    if (Array.isArray(variant[key]) && variant[key].length) {
+      target[key] = variant[key]
+      hasVariantStats = true
+    } else {
+      delete target[key]
+    }
+  })
+  statKeys.forEach((key) => {
+    if (variant[key] !== undefined && variant[key] !== null && variant[key] !== '') {
+      target[key] = variant[key]
+      if (key === 'statSummary') hasVariantStats = true
+    } else if (!hasVariantStats || key === 'statSummary') {
+      delete target[key]
+    }
+  })
+  if (!hasVariantStats && (variant.itemLevel || variant.ilevel)) {
+    target.statDisplayStatus = variant.statDisplayStatus || 'pending_current_variant'
+  }
+  if (Array.isArray(variant.blockers)) {
+    target.variantBlockers = variant.blockers
+  }
+}
+
 function appliedGearCandidate(candidate, variantKey, socketOptionId, enchantOptionId) {
   if (!candidate) return null
   const variant = candidateVariant(candidate, variantKey)
   const socket = selectedGearModOption(candidate.socketOptions, socketOptionId)
   const enchant = selectedGearModOption(candidate.enchantOptions, enchantOptionId)
   const selected = {
-    ...candidate,
-    selected: undefined,
-    statusClass: undefined,
-    statusLabel: undefined,
-    reason: undefined
+    ...candidate
   }
+  delete selected.selected
+  delete selected.statusClass
+  delete selected.statusLabel
+  delete selected.reason
   if (variant) {
     selected.variantKey = variant.key || variant.variantKey || ''
     selected.variantLabel = gearVariantDifficultyLabel(variant) || variant.label || ''
@@ -1161,6 +1322,8 @@ function appliedGearCandidate(candidate, variantKey, socketOptionId, enchantOpti
     selected.sourceType = variant.sourceType || selected.sourceType || ''
     if (variant.itemLevel || variant.ilevel) selected.ilevel = variant.itemLevel || variant.ilevel
     applySimcOptions(selected, variant.simcOptions)
+    if (variant.itemLevel || variant.ilevel) selected.ilevel = Number(variant.itemLevel || variant.ilevel) || (variant.itemLevel || variant.ilevel)
+    applyVariantDisplayFields(selected, variant)
   }
   if (socket) {
     selected.socketOptionId = socket.id
@@ -1190,6 +1353,9 @@ function gearModSummary(item) {
 }
 
 function gearDropSourceText(item) {
+  const sourceType = String(gearCandidateSourceType(item) || item && item.sourceType || '').toLowerCase()
+  const setName = String((item && (item.itemSetName || item.setName || item.tierSetName)) || '').trim()
+  if (sourceType === 'tier_set' && setName) return `${setName}-套装`
   const labels = gearDropSources(item)
     .map((source) => source && (source.label || source.sourceLabel || source.encounterName || source.instanceName))
     .filter(Boolean)
@@ -1203,31 +1369,6 @@ function gearDropSourceText(item) {
     seen.add(value)
     return true
   }).slice(0, 3).join('；') || '来源待补充'
-}
-
-function gearSimcPresetEvidenceText(item) {
-  const labels = gearCandidateSources(item)
-    .filter(gearSourceIsSimcPreset)
-    .map((source) => source && (source.label || source.sourceLabel || source.source))
-    .filter(Boolean)
-  const fallback = item && (item.source || item.sourceName || '')
-  if (gearSimcPresetSourceLabel(fallback)) labels.push(fallback)
-  return Array.from(new Set(stringList(labels))).slice(0, 2).join('；')
-}
-
-function gearObservedEvidenceText(item) {
-  const refs = Array.isArray(item && item.observedProfileRefs) ? item.observedProfileRefs : []
-  const refLabels = refs.map((ref) => ref && (ref.sourceName || [ref.classKey, ref.specKey].filter(Boolean).join(':'))).filter(Boolean)
-  if (refLabels.length) {
-    const uniqueLabels = Array.from(new Set(refLabels)).slice(0, 2).join('；')
-    const countText = refs.length > 1 ? ` · ${refs.length} 条观测` : ''
-    return `${uniqueLabels}${countText}`
-  }
-  const observedSources = gearCandidateSources(item).filter(gearSourceIsObservedEvidence)
-  if (observedSources.length) return 'Raider.IO 观测'
-  const variantSource = String((item && (item.variantSource || item.variantDifficultyKey)) || '').toLowerCase()
-  if (variantSource === 'observed_profile') return '实装观测'
-  return ''
 }
 
 function gearStatLabel(label) {
@@ -1317,10 +1458,6 @@ function gearAttributeText(item) {
 function gearCandidateDetailRows(item) {
   const rows = []
   rows.push({ label: '掉落来源', value: gearDropSourceText(item) })
-  const simcPresetEvidence = gearSimcPresetEvidenceText(item)
-  if (simcPresetEvidence) rows.push({ label: '配置来源', value: simcPresetEvidence })
-  const observedEvidence = gearObservedEvidenceText(item)
-  if (observedEvidence) rows.push({ label: '实装观测', value: observedEvidence })
   rows.push({ label: '装备属性', value: gearAttributeText(item) })
   return rows
 }
@@ -1379,11 +1516,33 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
         ? allCandidates.length
         : allCandidates.filter((item) => gearCandidateMatchesFilter(item, filter.key)).length
     })),
-    candidates: candidates.map((candidate, index) => ({
-      ...gearObjectForData(candidate),
-      selected: index === selectedCandidateIndex,
-      detailOpen: candidate.key === detailKey
-    })),
+    candidates: candidates.map((candidate, index) => {
+      const isSelected = index === selectedCandidateIndex
+      let displayCandidate = candidate
+      if (isSelected && appliedCandidate) {
+        const trust = gearTrustState(
+          appliedCandidate,
+          appliedCandidate.status || appliedCandidate.variantStatus || appliedCandidate.statusClass,
+          appliedCandidate.reason
+        )
+        displayCandidate = {
+          ...appliedCandidate,
+          key: candidate.key,
+          statusLabel: gearStatusLabel(trust.status),
+          statusClass: gearStatusClass(trust.status),
+          trustLabel: trust.label,
+          trustReason: trust.reason,
+          blockerLabel: trust.blockerLabel,
+          reason: trust.reason
+        }
+      }
+      return {
+        ...gearObjectForData(displayCandidate),
+        detailRows: gearCandidateDetailRows(displayCandidate),
+        selected: isSelected,
+        detailOpen: candidate.key === detailKey
+      }
+    }),
     selectedCandidateIndex,
     detailKey,
     emptyText: candidates.length ? '' : '该来源暂无候选装备',

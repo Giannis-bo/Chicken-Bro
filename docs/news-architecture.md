@@ -7,10 +7,11 @@
 ## 部署边界
 
 - 小程序前端：`pages/news/*`
-- 后端服务器：Tencent Lighthouse，公网主机 `${BACKEND_HOST}`
-- 当前后端目录：`/home/ubuntu/wow-news-backend`
-- 当前服务端口：`80`
-- 当前 API Base URL：`${API_BASE_URL}`
+- 后端服务器：Tencent Lighthouse，生产主机见 [remote-debugging.md](remote-debugging.md)
+- 当前后端目录：`/opt/wow-mini-program`
+- systemd service：`wow-backend`
+- 进程监听：`127.0.0.1:8787`
+- 对外访问：Nginx 80 端口代理到本机 `8787`
 
 > 实际主机和 API 地址不要写入仓库，放在不提交的环境配置或部署记录里。微信小程序正式环境需要 HTTPS 且域名加入 request 合法域名；开发版可临时使用 Lighthouse IP + HTTP 联调。
 
@@ -84,6 +85,18 @@
 
 公共 API 不返回 `originalBody` 或 `originalSummary`。原文正文只作为后端重翻译、审计和 blocked 归因的内部材料。
 
+### `GET /api/news/list`
+
+按首页指标、频道或指定 key 返回新闻列表。列表项沿用公共文章字段，不返回原文正文。
+
+### `GET /api/news/article?id=...`
+
+返回单篇详情，正文只渲染 `bodyBlocksZh`，原文标题保留为副标题，来源与 badge 一并返回。
+
+### `GET /api/news/refresh-runs/latest`
+
+返回最近一次发现、处理、发布和阻断统计，包括 `discoveredCount`、`queuedCount`、`processedCount`、`publishedCount`、`blockedCount`、`retryableCount`、`sourceCoverage` 和 `oldestBacklogAge`。`/api/data/health` 会把 backlog 显示为可解释的 partial 状态，而不是误报整轮失败。
+
 ### `POST /api/news/refresh?mode=scheduled`
 
 触发刷新并返回同结构首页 payload。
@@ -143,24 +156,24 @@ WOW_LLM_TIMEOUT_SECONDS=45  # 单次 LLM 翻译请求超时
 当前 Lighthouse 服务器已启用 `WOW_NEWS_ENABLE_COLLECTORS=1`。
 V1 只会跳过已经具备 `translationFidelity=source_translation` 的官方 seed 重复条目，避免同一篇合格文章反复送入 LLM；旧的 summary-only / 导读式 seed 即使命中同一 canonical topic，也必须由新采集到的官方全文重新翻译并重新通过发布门禁。
 
-服务器侧定时刷新使用可执行脚本，避免 inline crontab 静默失败：
+服务器侧定时刷新使用可执行脚本，避免 inline crontab 静默失败。规范部署路径应使用当前统一后端目录：
 
 ```text
-0 8 * * * /home/ubuntu/wow-news-backend/refresh_cron.sh
+0 8 * * * /opt/wow-mini-program/server/refresh_cron.sh
 ```
 
 脚本支持环境变量覆盖：
 
 ```text
 WOW_NEWS_REFRESH_URL=http://127.0.0.1/api/news/refresh?mode=scheduled
-WOW_NEWS_REFRESH_LOG=/home/ubuntu/wow-news-backend/logs/refresh_cron.log
+WOW_NEWS_REFRESH_LOG=/opt/wow-mini-program/logs/refresh_cron.log
 WOW_NEWS_REFRESH_TIMEOUT=240
 ```
 
 每次执行会记录开始/结束时间、HTTP 状态和错误退出码，便于排查定时刷新失败。
 `WOW_NEWS_DISCOVERY_LIMIT` 控制每源发现规模，后端会保证至少 10 条，避免 12.1 PTR 这类爆发更新被旧的 `WOW_NEWS_MAX_COLLECTED_ARTICLES=1` 截断。`WOW_NEWS_PROCESS_LIMIT` 控制每轮 LLM / 正文处理吞吐，未处理和 retryable 条目会留在 `news_discovery_queue` 供下轮继续。
 
-`GET /api/news/refresh-runs/latest` 会暴露 `discoveredCount`、`queuedCount`、`processedCount`、`publishedCount`、`blockedCount`、`retryableCount`、`sourceCoverage` 和 `oldestBacklogAge`。`/api/data/health` 的 news 组件会把 backlog 视为可解释的 partial 状态，而不是把“发现数大于发布数”误报为整轮失败。
+注意：`server/refresh_cron.sh` 仍支持通过环境变量覆盖 URL、日志路径和超时；如果线上 cron 继承了历史独立新闻后端路径，先调整环境变量或 crontab，不要在规范文档里继续沿用旧路径。
 
 ## 前端实现
 

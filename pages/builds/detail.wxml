@@ -222,10 +222,6 @@
       </view>
     </view>
     <view class="gear-sheet-config" wx:if="{{gearSlotSheet.activeCandidate}}">
-      <view class="gear-sheet-active">
-        <text class="gear-sheet-active-name">{{gearSlotSheet.activeCandidate.displayName}}</text>
-        <text class="gear-sheet-active-source">{{gearSlotSheet.activeTrustLabel}} · {{gearSlotSheet.activeTrustText}}</text>
-      </view>
       <view class="gear-variant-section" wx:if="{{gearSlotSheet.variantOptions.length}}">
         <text class="gear-sheet-section-title">难度 / 装等</text>
         <view class="gear-variant-list">

@@ -685,7 +685,7 @@ DIFFICULTY_LABELS_ZH = {
     "champion": "勇士",
     "hero": "英雄",
     "myth": "神话",
-    "void_upgrade": "虚空强化",
+    "void_upgrade": "虚空晋升",
     "crafted": "制造装备",
     "source_pending": "来源待补",
     "observed_profile": "实装观测",
@@ -825,7 +825,7 @@ OFFICIAL_ITEM_LEVEL_TRACKS = [
     {"difficultyKey": "hero", "label": "英雄 276", "itemLevel": 276},
     {"difficultyKey": "myth", "label": "神话 289", "itemLevel": 289},
 ]
-OFFICIAL_VOID_UPGRADE_TRACK = {"difficultyKey": "void_upgrade", "label": "虚空强化 298", "itemLevel": 298}
+OFFICIAL_VOID_UPGRADE_TRACK = {"difficultyKey": "void_upgrade", "label": "虚空晋升 298", "itemLevel": 298}
 OFFICIAL_ITEM_LEVEL_PROBE_SOURCE = "simulationcraft_item_level_probe"
 ENRICHABLE_SOURCE_TYPES = {"manual", "enriched", "manual/enriched", "custom"}
 
@@ -6238,6 +6238,39 @@ def upsert_gear_variant(conn, variant):
     )
 
 
+def delete_pending_gear_variant_placeholders(conn, item_ids, source_type):
+    normalized_ids = []
+    seen = set()
+    for item_id in item_ids or []:
+        normalized = str(item_id or "").strip()
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            normalized_ids.append(normalized)
+    source_type = raw_source_type(source_type or "").lower()
+    if not normalized_ids or not source_type:
+        return 0
+    deleted = 0
+    for index in range(0, len(normalized_ids), 500):
+        chunk = normalized_ids[index : index + 500]
+        placeholders = ",".join("?" for _ in chunk)
+        result = conn.execute(
+            f"""
+            DELETE FROM websim_gear_variants
+            WHERE source_type = ?
+              AND item_id IN ({placeholders})
+              AND item_level <= 0
+              AND (
+                    variant_key IN ('needs-variant', 'needs_variant')
+                 OR difficulty_key IN ('needs-variant', 'needs_variant')
+              )
+            """,
+            [source_type, *chunk],
+        )
+        if result.rowcount and result.rowcount > 0:
+            deleted += result.rowcount
+    return deleted
+
+
 def official_item_level_probe_simc_slot(slot):
     slot = normalize_slot(slot)
     return {
@@ -6257,6 +6290,46 @@ def official_loot_supports_void_upgrade(item):
 def official_item_level_tracks_for_item(item):
     tracks = [dict(track) for track in OFFICIAL_ITEM_LEVEL_TRACKS]
     if official_loot_supports_void_upgrade(item):
+        tracks.append(dict(OFFICIAL_VOID_UPGRADE_TRACK))
+    return tracks
+
+
+def tier_set_item_has_void_upgrade_evidence(conn, item_id):
+    season = get_active_season_payload(conn)
+    active_revision_values = {
+        str((season or {}).get(key) or "").strip()
+        for key in ("seasonRevision", "revision")
+        if str((season or {}).get(key) or "").strip()
+    }
+    rows = conn.execute(
+        """
+        SELECT status, payload_json
+        FROM websim_gear_variants
+        WHERE item_id = ?
+          AND item_level = 298
+          AND source_type IN ('observed_profile', 'tier_set')
+          AND id NOT LIKE 'set-itemlevel-tier_set-%'
+        """,
+        (str(item_id or ""),),
+    ).fetchall()
+    for status, payload_json in rows:
+        if str(status or "").strip().lower() != "verified":
+            continue
+        payload = safe_json_loads(payload_json, {})
+        payload = payload if isinstance(payload, dict) else {}
+        stats = payload.get("itemStats") or payload.get("stats") or []
+        if not (stats or payload.get("statSummary")):
+            continue
+        evidence_revision = str(payload.get("seasonRevision") or payload.get("revision") or "").strip()
+        if active_revision_values and evidence_revision not in active_revision_values:
+            continue
+        return True
+    return False
+
+
+def official_item_level_tracks_for_tier_set_item(conn, item_id):
+    tracks = [dict(track) for track in OFFICIAL_ITEM_LEVEL_TRACKS]
+    if tier_set_item_has_void_upgrade_evidence(conn, item_id):
         tracks.append(dict(OFFICIAL_VOID_UPGRADE_TRACK))
     return tracks
 
@@ -6481,6 +6554,7 @@ def backfill_official_item_level_variants_for_instance(conn, instance_id, source
     ).fetchall()
 
     counts = {"items": 0, "tracks": 0, "verifiedVariants": 0, "partialVariants": 0, "errors": []}
+    processed_item_ids = []
     for row in rows:
         metadata_payload = safe_json_loads(row[8], {})
         metadata_payload = metadata_payload if isinstance(metadata_payload, dict) else {}
@@ -6505,6 +6579,7 @@ def backfill_official_item_level_variants_for_instance(conn, instance_id, source
             counts["errors"].append(f"{row[0]}: missing slot")
             continue
         counts["items"] += 1
+        processed_item_ids.append(item["itemId"])
         source_payload = safe_json_loads(row[4], {})
         source_payload = source_payload if isinstance(source_payload, dict) else {}
         for track in official_item_level_tracks_for_item(item):
@@ -6559,6 +6634,155 @@ def backfill_official_item_level_variants_for_instance(conn, instance_id, source
             else:
                 counts["partialVariants"] += 1
                 counts["errors"].append(f"{item['itemId']}:{item_level}: {blockers[0] if blockers else 'partial'}")
+    removed_pending = delete_pending_gear_variant_placeholders(conn, processed_item_ids, source_type)
+    if removed_pending:
+        counts["removedPendingVariants"] = removed_pending
+    conn.commit()
+    set_sync_state(conn, "gearCatalog", build_gear_catalog_sync_state(conn, get_active_season_payload(conn)))
+    return counts
+
+
+def backfill_official_item_level_variants_for_tier_sets(conn, set_ids=None, stat_resolver=None):
+    ensure_websim_tables(conn)
+    requested_set_ids = [str(set_id or "").strip() for set_id in (set_ids or []) if str(set_id or "").strip()]
+    if stat_resolver is None:
+        stat_resolver = lambda item, item_level, track: resolve_item_level_probe_stat_payload(conn, item, item_level, track)
+
+    if requested_set_ids:
+        for set_id in requested_set_ids:
+            conn.execute(
+                "DELETE FROM websim_gear_variants WHERE id LIKE ?",
+                (f"set-itemlevel-tier_set-{set_id}-%",),
+            )
+        placeholders = ",".join("?" for _ in requested_set_ids)
+        rows = conn.execute(
+            f"""
+            SELECT i.set_id, i.item_id, i.name, i.slot, st.name, st.season_revision,
+                   i.payload_json, s.source_label, s.payload_json, wi.payload_json
+            FROM websim_item_set_items i
+            JOIN websim_item_sets st
+              ON st.id = i.set_id
+            LEFT JOIN websim_gear_sources s
+              ON s.id = 'set-' || i.set_id || '-' || i.item_id
+            LEFT JOIN websim_items wi
+              ON wi.id = i.item_id
+            WHERE i.set_id IN ({placeholders})
+            ORDER BY i.set_id, i.slot, i.item_id
+            """,
+            requested_set_ids,
+        ).fetchall()
+    else:
+        conn.execute("DELETE FROM websim_gear_variants WHERE id LIKE 'set-itemlevel-tier_set-%'")
+        rows = conn.execute(
+            """
+            SELECT i.set_id, i.item_id, i.name, i.slot, st.name, st.season_revision,
+                   i.payload_json, s.source_label, s.payload_json, wi.payload_json
+            FROM websim_item_set_items i
+            JOIN websim_item_sets st
+              ON st.id = i.set_id
+            LEFT JOIN websim_gear_sources s
+              ON s.id = 'set-' || i.set_id || '-' || i.item_id
+            LEFT JOIN websim_items wi
+              ON wi.id = i.item_id
+            ORDER BY i.set_id, i.slot, i.item_id
+            """
+        ).fetchall()
+
+    counts = {"items": 0, "tracks": 0, "verifiedVariants": 0, "partialVariants": 0, "errors": []}
+    processed_item_ids = []
+    for row in rows:
+        set_id, item_id, name, raw_slot, set_name, season_revision, item_set_payload_json, source_label, source_payload_json, metadata_payload_json = row
+        set_id = str(set_id or "").strip()
+        item_id = str(item_id or "").strip()
+        metadata_payload = safe_json_loads(metadata_payload_json, {})
+        metadata_payload = metadata_payload if isinstance(metadata_payload, dict) else {}
+        type_metadata = item_type_metadata_from_payload(metadata_payload)
+        slot = normalize_slot(raw_slot) or item_slot_from_payload(metadata_payload)
+        item = {
+            "itemId": item_id,
+            "name": str(name or f"item_{item_id}"),
+            "slot": slot,
+            "simcSlot": official_item_level_probe_simc_slot(slot),
+            "quality": (
+                metadata_payload.get("quality", {}).get("name")
+                if isinstance(metadata_payload.get("quality"), dict)
+                else str(metadata_payload.get("quality") or "")
+            ),
+            "sourceType": "tier_set",
+            "sourceLabel": str(source_label or set_name or "套装"),
+            "setId": set_id,
+            "setName": str(set_name or source_label or "套装"),
+            "seasonRevision": season_revision,
+            "metadataPayload": metadata_payload,
+            "armorType": type_metadata.get("armorType") or "",
+            "weaponType": type_metadata.get("weaponType") or "",
+        }
+        if not slot:
+            counts["errors"].append(f"{item_id}: missing slot")
+            continue
+        counts["items"] += 1
+        processed_item_ids.append(item_id)
+        source_payload = safe_json_loads(source_payload_json, {})
+        source_payload = source_payload if isinstance(source_payload, dict) else {}
+        item_set_payload = safe_json_loads(item_set_payload_json, {})
+        item_set_payload = item_set_payload if isinstance(item_set_payload, dict) else {}
+        for track in official_item_level_tracks_for_tier_set_item(conn, item_id):
+            counts["tracks"] += 1
+            item_level = int(track.get("itemLevel") or 0)
+            difficulty_key = str(track.get("difficultyKey") or "")
+            stat_payload = stat_resolver(item, item_level, track) or {}
+            stat_payload = stat_payload if isinstance(stat_payload, dict) else {}
+            stats = normalize_item_stats(stat_payload.get("itemStats") or stat_payload.get("stats") or [])
+            blockers = []
+            status = "verified"
+            if not stats:
+                status = "partial"
+                blockers.append(str(stat_payload.get("error") or "SimC item-level probe missing item stats")[:1000])
+            payload = {
+                **source_payload,
+                "seasonRevision": season_revision,
+                "officialVariantSource": "tier_set",
+                "derivedVariantSource": OFFICIAL_ITEM_LEVEL_PROBE_SOURCE,
+                "itemLevelTrack": difficulty_key,
+                "simcIlevelOnly": True,
+                "statSource": "simulationcraft",
+                "setId": set_id,
+                "setName": str(set_name or source_label or item_set_payload.get("setName") or "套装"),
+            }
+            for key, value in stat_payload.items():
+                if value not in (None, "", [], {}):
+                    payload[key] = value
+            if stats:
+                payload["itemStats"] = stats
+                payload["stats"] = stats
+                payload["statSummary"] = stat_payload.get("statSummary") or item_stat_summary(stats)
+                payload["statDisplayStatus"] = stat_payload.get("statDisplayStatus") or "verified_variant"
+            variant_id = f"set-itemlevel-tier_set-{set_id}-{item_id}-{slot}-{difficulty_key}-{item_level}"
+            upsert_gear_variant(
+                conn,
+                {
+                    "id": variant_id,
+                    "itemId": item_id,
+                    "slot": slot,
+                    "variantKey": f"{difficulty_key}-{item_level}",
+                    "label": track.get("label") or f"{difficulty_key} {item_level}",
+                    "sourceType": "tier_set",
+                    "difficultyKey": difficulty_key,
+                    "itemLevel": item_level,
+                    "simcOptions": {"ilevel": str(item_level)},
+                    "status": status,
+                    "blockers": blockers,
+                    "payload": payload,
+                },
+            )
+            if status == "verified":
+                counts["verifiedVariants"] += 1
+            else:
+                counts["partialVariants"] += 1
+                counts["errors"].append(f"{item_id}:{item_level}: {blockers[0] if blockers else 'partial'}")
+    removed_pending = delete_pending_gear_variant_placeholders(conn, processed_item_ids, "tier_set")
+    if removed_pending:
+        counts["removedPendingVariants"] = removed_pending
     conn.commit()
     set_sync_state(conn, "gearCatalog", build_gear_catalog_sync_state(conn, get_active_season_payload(conn)))
     return counts
@@ -6613,7 +6837,8 @@ def observed_variant_socket_mod_options(conn):
         """
         SELECT item_id, slot, simc_options_json, payload_json
         FROM websim_gear_variants
-        WHERE status = 'verified'
+        WHERE source_type = 'observed_profile'
+          AND status IN ('verified', 'partial')
         ORDER BY item_id, slot
         """
     ).fetchall()
@@ -6675,7 +6900,8 @@ def observed_variant_enchant_mod_options(conn):
         """
         SELECT item_id, slot, simc_options_json, payload_json
         FROM websim_gear_variants
-        WHERE status = 'verified'
+        WHERE source_type = 'observed_profile'
+          AND status IN ('verified', 'partial')
         ORDER BY item_id, slot
         """
     ).fetchall()
@@ -6929,6 +7155,22 @@ def existing_observed_variant_stat_payloads_by_identity(conn):
     return payloads
 
 
+def verified_observed_variant_with_stats_count(conn):
+    rows = conn.execute(
+        """
+        SELECT payload_json
+        FROM websim_gear_variants
+        WHERE source_type = 'observed_profile'
+          AND status = 'verified'
+        """
+    ).fetchall()
+    count = 0
+    for (payload_json,) in rows:
+        if observed_variant_stat_payload_fields(safe_json_loads(payload_json, {})):
+            count += 1
+    return count
+
+
 def existing_observed_variant_simc_failure_payloads_by_identity(conn):
     rows = conn.execute(
         """
@@ -7019,17 +7261,11 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None, *, replace=Tru
         counts["skipped"] += sum(1 for _class_key, _spec_key, _aggregate, gear_items in entries for item in gear_items if isinstance(item, dict))
         counts["sourceStatus"] = source_status
         return counts
-    existing_verified = conn.execute(
-        """
-        SELECT COUNT(1)
-        FROM websim_gear_variants
-        WHERE source_type = 'observed_profile'
-          AND status = 'verified'
-        """
-    ).fetchone()[0]
+    existing_verified = verified_observed_variant_with_stats_count(conn)
     incoming_verified = 0
     incoming_items = 0
     for _class_key, _spec_key, _aggregate, gear_items in entries:
+        aggregate_simc_gear = simc_json_gear_stats_by_slot(_aggregate)
         for item in gear_items:
             if not isinstance(item, dict):
                 continue
@@ -7038,7 +7274,12 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None, *, replace=Tru
             if not item_id or not slot:
                 continue
             incoming_items += 1
-            if observed_item_level(item) and observed_gear_simc_options(item):
+            item_simc_gear = simc_json_gear_stats_by_slot(item) or aggregate_simc_gear
+            if (
+                observed_item_level(item)
+                and observed_gear_simc_options(item)
+                and simc_observed_variant_stat_payload(item, item_simc_gear)
+            ):
                 incoming_verified += 1
     allow_downgrade = os.environ.get("WOW_RAIDERIO_ALLOW_OBSERVED_CACHE_DOWNGRADE", "0").strip().lower() in {"1", "true", "yes", "on"}
     if replace and existing_verified and incoming_verified < existing_verified and not allow_downgrade:
@@ -7075,7 +7316,6 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None, *, replace=Tru
                 blockers.append("missing deterministic SimC variant preset")
             if source_status and source_status not in {"verified", "synced"}:
                 blockers.append("Raider.IO observed gear source is not verified")
-            status = "verified" if not blockers else "partial"
             metadata = ensure_observed_item_metadata(conn, item, slot)
             display_name = (metadata or {}).get("displayName") or item.get("name") or f"Item {item_id}"
             source_ref = {
@@ -7128,8 +7368,13 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None, *, replace=Tru
                 stat_payload = preserved_stat_payloads.get(identity_key) or {}
             if stat_payload:
                 variant_payload.update(stat_payload)
-            elif preserved_failure_payloads:
-                variant_payload.update(preserved_failure_payloads.get(identity_key) or {})
+            else:
+                if item_level and simc_options:
+                    blockers.append(MISSING_OBSERVED_SIMC_STATS_BLOCKER)
+                if preserved_failure_payloads:
+                    variant_payload.update(preserved_failure_payloads.get(identity_key) or {})
+            blockers = unique_text_list(blockers)
+            status = "verified" if not blockers and stat_payload else "partial"
             upsert_gear_variant(
                 conn,
                 {
@@ -7203,6 +7448,7 @@ OBSERVED_VARIANT_SIMC_FAILURE_PAYLOAD_KEYS = (
     "simcStatError",
     "simcStatCheckedAt",
 )
+MISSING_OBSERVED_SIMC_STATS_BLOCKER = "missing SimulationCraft item stats"
 
 
 def observed_variant_stat_payload_fields(payload):
@@ -7693,8 +7939,9 @@ def sync_websim_gear_catalog(conn, season=None):
     for row in rows:
         source_type = "raid" if str(row[6]).lower() == "raid" else "dungeon"
         label = " - ".join([part for part in [row[8], row[5]] if part]) or row[3] or "Official loot"
+        source_payload = current_season_loot_source_payload(source_type, row[4], row[1], row[6])
         if not gear_source_active_for_replacement(
-            {"sourceType": source_type, "instanceId": row[4], "sourceLabel": label},
+            {"sourceType": source_type, "instanceId": row[4], "sourceLabel": label, "payload": source_payload},
             season,
         ):
             continue
@@ -7708,7 +7955,7 @@ def sync_websim_gear_catalog(conn, season=None):
                 "instanceId": row[4],
                 "encounterId": row[7],
                 "seasonRevision": season_revision,
-                "payload": current_season_loot_source_payload(source_type, row[4], row[1], row[6]),
+                "payload": source_payload,
             },
         )
         upsert_gear_variant(
@@ -7725,7 +7972,7 @@ def sync_websim_gear_catalog(conn, season=None):
                 "simcOptions": {},
                 "status": "partial",
                 "blockers": ["missing deterministic SimC variant preset"],
-                "payload": {"seasonRevision": season_revision},
+                "payload": {**source_payload, "seasonRevision": season_revision},
                     },
                 )
     observed_counts = {
@@ -10801,17 +11048,19 @@ def gear_catalog_item_metadata_audit(conn):
     }
 
 
-def gear_catalog_journal_loot_cache_coverage(conn):
+def gear_catalog_journal_loot_cache_coverage(conn, season=None):
     ensure_websim_tables(conn)
+    season = season or get_active_season_payload(conn)
     encounter_rows = conn.execute(
         """
-        SELECT id, instance_id, name, payload_json
-        FROM websim_encounters
-        ORDER BY id
+        SELECT e.id, e.instance_id, e.name, e.payload_json, COALESCE(i.category, '')
+        FROM websim_encounters e
+        LEFT JOIN websim_instances i ON i.id = e.instance_id
+        ORDER BY e.id
         """
     ).fetchall()
     expected = {}
-    for encounter_id, instance_id, encounter_name, payload_json in encounter_rows:
+    for encounter_id, instance_id, encounter_name, payload_json, instance_category in encounter_rows:
         payload = safe_json_loads(payload_json, {})
         if not isinstance(payload, dict):
             continue
@@ -10819,6 +11068,17 @@ def gear_catalog_journal_loot_cache_coverage(conn):
             item_ref = loot_ref.get("item") if isinstance(loot_ref, dict) else loot_ref
             item_id = extract_id_from_ref(item_ref)
             if not item_id:
+                continue
+            source_type = "raid" if str(instance_category or "").strip().lower() == "raid" else "dungeon"
+            source_payload = current_season_loot_source_payload(source_type, instance_id, item_id, instance_category)
+            if not gear_source_active_for_replacement(
+                {
+                    "sourceType": source_type,
+                    "instanceId": str(instance_id or ""),
+                    "payload": source_payload,
+                },
+                season,
+            ):
                 continue
             metadata = existing_websim_item_metadata(conn, item_id)
             metadata_payload = (metadata or {}).get("payload") if isinstance(metadata, dict) else {}
@@ -10854,28 +11114,37 @@ def gear_catalog_journal_loot_cache_coverage(conn):
 
     source_rows = conn.execute(
         """
-        SELECT id, item_id, instance_id, encounter_id, source_type, source_label
+        SELECT id, item_id, instance_id, encounter_id, source_type, source_label, payload_json
         FROM websim_gear_sources
         WHERE source_type IN ('dungeon', 'mythic_plus', 'mythicplus', 'raid')
         """
     ).fetchall()
     catalog_sources_by_id = {}
-    catalog_source_keys = {
-        (str(item_id or ""), str(instance_id or ""), str(encounter_id or ""))
-        for _source_id, item_id, instance_id, encounter_id, _source_type, _source_label in source_rows
-    }
-    for source_id, item_id, instance_id, encounter_id, source_type, source_label in source_rows:
-        source_key = str(source_id or "")
-        if not source_key:
-            continue
-        catalog_sources_by_id[source_key] = {
-            "id": source_key,
+    active_source_rows = []
+    for source_id, item_id, instance_id, encounter_id, source_type, source_label, payload_json in source_rows:
+        source_payload = safe_json_loads(payload_json, {})
+        source_payload = source_payload if isinstance(source_payload, dict) else {}
+        source = {
+            "id": str(source_id or ""),
             "itemId": str(item_id or ""),
             "instanceId": str(instance_id or ""),
             "encounterId": str(encounter_id or ""),
             "sourceType": str(source_type or ""),
             "sourceLabel": str(source_label or ""),
+            "payload": source_payload,
         }
+        if gear_source_active_for_replacement(source, season):
+            active_source_rows.append(source)
+    catalog_source_keys = {
+        (source.get("itemId") or "", source.get("instanceId") or "", source.get("encounterId") or "")
+        for source in active_source_rows
+    }
+    for source in active_source_rows:
+        source_id = source.get("id") or ""
+        source_key = str(source_id or "")
+        if not source_key:
+            continue
+        catalog_sources_by_id[source_key] = source
     missing_catalog_sources = []
     mismatched_catalog_sources = []
     catalog_source_item_count = 0
@@ -11313,7 +11582,7 @@ def gear_catalog_season_source_coverage(conn, season=None):
 
     dungeon_item_ids = {source.get("itemId") for source in active_dungeon_sources if source.get("itemId")}
     raid_item_ids = {source.get("itemId") for source in active_raid_sources if source.get("itemId")}
-    journal_loot = gear_catalog_journal_loot_cache_coverage(conn)
+    journal_loot = gear_catalog_journal_loot_cache_coverage(conn, season)
     blockers = []
     blockers.extend(raid_pool_status.get("blockers") or [])
     if not expected_dungeons and has_season_tagged_sources:
@@ -11656,6 +11925,9 @@ def compact_catalog_health_summary(catalog_state):
     observed_stats = (
         catalog_state.get("observedStatCoverage") if isinstance(catalog_state.get("observedStatCoverage"), dict) else {}
     )
+    simulation_readiness = (
+        catalog_state.get("simulationReadiness") if isinstance(catalog_state.get("simulationReadiness"), dict) else {}
+    )
     mod_options = catalog_state.get("modOptionCoverage") if isinstance(catalog_state.get("modOptionCoverage"), dict) else {}
     socket_options = mod_options.get("socket") if isinstance(mod_options.get("socket"), dict) else {}
     source_coverage = source_gap.get("coverage") if isinstance(source_gap.get("coverage"), dict) else {}
@@ -11673,6 +11945,9 @@ def compact_catalog_health_summary(catalog_state):
         "partialVariantCount": int_or_zero(catalog_state.get("partialCount")),
         "verifiedVariantCount": int_or_zero(catalog_state.get("verifiedCount")),
         "blockedVariantCount": int_or_zero(catalog_state.get("blockedCount")),
+        "sourcePendingExamples": (source_gap.get("examples") or [])[:3],
+        "partialVariantExamples": (simulation_readiness.get("partialExamples") or [])[:3],
+        "blockedVariantExamples": (simulation_readiness.get("blockedExamples") or [])[:3],
         "blockers": (catalog_state.get("blockers") or [])[:5],
     }
 
@@ -11757,12 +12032,19 @@ def gear_catalog_counts(conn):
     invalid_socket_gem_metadata = (mod_option_coverage.get("socket") or {}).get("invalidGemMetadataCount") or 0
     if invalid_socket_gem_metadata:
         mod_option_blockers.append(f"{invalid_socket_gem_metadata} socket mod options reference non-gem Battle.net item metadata")
+    observed_stat_blockers = []
+    missing_observed_stat_count = int_or_zero(observed_stat_coverage.get("missingStatObservedVariantCount"))
+    if missing_observed_stat_count:
+        observed_stat_blockers.append(
+            f"{missing_observed_stat_count} observed gear variants missing SimulationCraft item stats"
+        )
     data_blockers = unique_text_list([*metadata_blockers, *source_blockers, *source_gap_blockers, *mod_option_blockers])
-    simulation_blockers = unique_text_list([item["reason"] for item in top_blockers])
+    simulation_blockers = unique_text_list([*[item["reason"] for item in top_blockers], *observed_stat_blockers])
     all_blockers = unique_text_list(
         [*simulation_blockers, *data_blockers]
     )
     variant_status = catalog_status_from_counts(verified_count, partial_count, blocked_count, item_count)
+    simulation_status = "partial" if observed_stat_blockers and variant_status == "verified" else variant_status
     metadata_status = metadata_audit.get("status") or "blocked"
     season_source_status = season_source_coverage.get("status") or "blocked"
     source_status = "partial" if source_gap_blockers else season_source_status
@@ -11773,7 +12055,7 @@ def gear_catalog_counts(conn):
     )
     status = "blocked" if not item_count else (
         "verified"
-        if variant_status == "verified" and metadata_status == "verified" and source_status == "verified" and not mod_option_blockers
+        if simulation_status == "verified" and metadata_status == "verified" and source_status == "verified" and not mod_option_blockers
         else "partial"
     )
     return {
@@ -11805,7 +12087,7 @@ def gear_catalog_counts(conn):
             "modOptionStatus": "partial" if mod_option_blockers else "verified",
         },
         "simulationReadiness": {
-            "status": variant_status,
+            "status": simulation_status,
             "blockers": simulation_blockers,
             "partialExamples": gear_catalog_variant_readiness_examples(conn, ["partial"]),
             "blockedExamples": gear_catalog_variant_readiness_examples(conn, ["blocked"]),
@@ -12527,6 +12809,8 @@ def catalog_variant_display_key(variant):
     source_type = raw_source_type(variant.get("sourceType")).lower()
     difficulty_key = str(variant.get("difficultyKey") or "").strip().lower()
     item_level = positive_int_value(variant.get("itemLevel") or variant.get("ilevel"))
+    if source_type in OFFICIAL_REPLACEMENT_SOURCE_TYPES and item_level > 0:
+        return (source_type, item_level)
     if difficulty_key in {"observed_profile", "battle_net_preview"}:
         simc_options = variant.get("simcOptions") if isinstance(variant.get("simcOptions"), dict) else {}
         return (
@@ -12558,9 +12842,11 @@ def catalog_variant_display_score(variant):
         payload.get("statDisplayStatus") == "verified_variant"
         and (payload.get("itemStats") or payload.get("stats") or payload.get("statSummary"))
     )
+    derived_rank = 1 if str(payload.get("derivedVariantSource") or "") == OFFICIAL_ITEM_LEVEL_PROBE_SOURCE else 0
     return (
         status_rank.get(str((variant or {}).get("status") or "").strip().lower(), 0),
         positive_int_value((variant or {}).get("itemLevel") or (variant or {}).get("ilevel")),
+        derived_rank,
         1 if has_variant_stats else 0,
         1 if simc_options.get("bonus_id") else 0,
         len([value for value in simc_options.values() if value]),
@@ -12568,7 +12854,32 @@ def catalog_variant_display_score(variant):
     )
 
 
-def collapse_catalog_variants_for_display(variants, limit=3):
+def catalog_variant_is_pending_placeholder(variant):
+    if not isinstance(variant, dict):
+        return False
+    difficulty_key = str(variant.get("difficultyKey") or "").strip().lower().replace("_", "-")
+    variant_key = str(variant.get("variantKey") or variant.get("key") or "").strip().lower().replace("_", "-")
+    item_level = positive_int_value(variant.get("itemLevel") or variant.get("ilevel"))
+    return item_level <= 0 and (difficulty_key == "needs-variant" or variant_key == "needs-variant")
+
+
+def catalog_variant_is_official_item_level_probe(variant):
+    if not isinstance(variant, dict):
+        return False
+    source_type = raw_source_type(variant.get("sourceType")).lower()
+    payload = variant.get("payload") if isinstance(variant.get("payload"), dict) else {}
+    item_level = positive_int_value(variant.get("itemLevel") or variant.get("ilevel"))
+    stats = payload.get("itemStats") or payload.get("stats") or []
+    return (
+        source_type in OFFICIAL_REPLACEMENT_SOURCE_TYPES
+        and item_level > 0
+        and str(variant.get("status") or "").strip().lower() == "verified"
+        and str(payload.get("derivedVariantSource") or "") == OFFICIAL_ITEM_LEVEL_PROBE_SOURCE
+        and bool(stats or payload.get("statSummary"))
+    )
+
+
+def collapse_catalog_variants_for_display(variants, limit=0):
     by_key = {}
     for variant in variants or []:
         if not isinstance(variant, dict):
@@ -12577,6 +12888,22 @@ def collapse_catalog_variants_for_display(variants, limit=3):
         if key not in by_key or catalog_variant_display_score(variant) > catalog_variant_display_score(by_key[key]):
             by_key[key] = variant
     collapsed = list(by_key.values())
+    if any(positive_int_value(variant.get("itemLevel") or variant.get("ilevel")) > 0 for variant in collapsed):
+        collapsed = [variant for variant in collapsed if not catalog_variant_is_pending_placeholder(variant)]
+    official_probe_levels = {
+        positive_int_value(variant.get("itemLevel") or variant.get("ilevel"))
+        for variant in collapsed
+        if catalog_variant_is_official_item_level_probe(variant)
+    }
+    if official_probe_levels:
+        collapsed = [
+            variant
+            for variant in collapsed
+            if not (
+                raw_source_type(variant.get("sourceType")).lower() == "observed_profile"
+                and positive_int_value(variant.get("itemLevel") or variant.get("ilevel")) in official_probe_levels
+            )
+        ]
     collapsed.sort(key=catalog_variant_display_score, reverse=True)
     if limit and limit > 0:
         return collapsed[:limit]
@@ -12670,18 +12997,6 @@ def apply_default_catalog_variant(item, variants, stat_fallback_variants=None):
         normalized_stat = normalize_item_stat(raw_stat)
         if normalized_stat:
             variant_stats.append(normalized_stat)
-    if not variant_stats:
-        sibling_stat_payload = same_item_level_variant_stat_payload(
-            item,
-            default_variant,
-            stat_fallback_variants if stat_fallback_variants is not None else variants,
-        )
-        if sibling_stat_payload:
-            variant_payload = {**variant_payload, **sibling_stat_payload}
-            for raw_stat in variant_payload.get("itemStats") or variant_payload.get("stats") or []:
-                normalized_stat = normalize_item_stat(raw_stat)
-                if normalized_stat:
-                    variant_stats.append(normalized_stat)
     if variant_stats:
         item["itemStats"] = variant_stats
         item["stats"] = variant_stats
@@ -12697,33 +13012,6 @@ def apply_default_catalog_variant(item, variants, stat_fallback_variants=None):
     item["missingFields"] = gear_item_missing_fields(item)
     item["simcReady"] = gear_item_simc_ready(item)
     return item
-
-
-def same_item_level_variant_stat_payload(item, default_variant, variants):
-    if not candidate_uses_observed_current_variant(
-        {
-            "variantSource": (default_variant or {}).get("sourceType"),
-            "variantDifficultyKey": (default_variant or {}).get("difficultyKey"),
-            "variantKey": (default_variant or {}).get("variantKey") or (default_variant or {}).get("key"),
-        }
-    ):
-        return {}
-    item_level = positive_int_value((default_variant or {}).get("itemLevel") or (default_variant or {}).get("ilevel"))
-    if not item_level:
-        return {}
-    default_slot = normalize_slot((default_variant or {}).get("slot") or (item or {}).get("slot"))
-    for variant in variants or []:
-        if not isinstance(variant, dict) or variant is default_variant:
-            continue
-        if positive_int_value(variant.get("itemLevel") or variant.get("ilevel")) != item_level:
-            continue
-        variant_slot = normalize_slot(variant.get("slot") or (item or {}).get("slot"))
-        if default_slot and variant_slot and not gear_variant_slots_are_compatible_for_item(item, default_slot, variant_slot):
-            continue
-        stat_payload = observed_variant_stat_payload_fields(variant.get("payload") if isinstance(variant.get("payload"), dict) else {})
-        if stat_payload:
-            return stat_payload
-    return {}
 
 
 def catalog_item_trust_blockers(item):
@@ -15013,6 +15301,14 @@ COMPACT_GEAR_VARIANT_KEYS = {
     "status",
     "blockers",
     "simcIlevelOnly",
+    "itemStats",
+    "stats",
+    "statSummary",
+    "statDisplayStatus",
+    "statSource",
+    "simcStatStatus",
+    "simcStatFailureKind",
+    "simcStatCheckedAt",
     "updatedAt",
 }
 COMPACT_GEAR_MOD_OPTION_KEYS = {
@@ -15125,6 +15421,20 @@ def compact_gear_variant(variant, public_source_type=""):
     compact_variant = compact_dict(variant, COMPACT_GEAR_VARIANT_KEYS)
     if not compact_variant:
         return compact_variant
+    payload = variant.get("payload") if isinstance(variant.get("payload"), dict) else {}
+    for key in (
+        "itemStats",
+        "stats",
+        "statSummary",
+        "statDisplayStatus",
+        "statSource",
+        "simcStatStatus",
+        "simcStatFailureKind",
+        "simcStatCheckedAt",
+    ):
+        value = payload.get(key)
+        if value not in (None, "", [], {}):
+            compact_variant[key] = value
     public_source_type = raw_source_type(public_source_type).lower()
     variant_source = raw_source_type(compact_variant.get("sourceType")).lower()
     difficulty_key = str(compact_variant.get("difficultyKey") or "").strip().lower()
@@ -15430,13 +15740,13 @@ def sync_observed_variant_stats_from_profile_presets(conn):
         return counts
     rows = conn.execute(
         """
-        SELECT id, item_id, slot, item_level, simc_options_json, payload_json
+        SELECT id, item_id, slot, item_level, simc_options_json, blockers_json, payload_json
         FROM websim_gear_variants
         WHERE source_type = 'observed_profile'
-          AND status = 'verified'
+          AND status IN ('verified', 'partial')
         """
     ).fetchall()
-    for row_id, item_id, slot, item_level, simc_options_json, payload_json in rows:
+    for row_id, item_id, slot, item_level, simc_options_json, blockers_json, payload_json in rows:
         payload = safe_json_loads(payload_json, {})
         payload = payload if isinstance(payload, dict) else {}
         if observed_variant_stat_payload_fields(payload):
@@ -15458,13 +15768,19 @@ def sync_observed_variant_stats_from_profile_presets(conn):
         for failure_key in OBSERVED_VARIANT_SIMC_FAILURE_PAYLOAD_KEYS:
             payload.pop(failure_key, None)
         payload.update(stat_payload)
+        blockers = [
+            blocker
+            for blocker in (safe_json_loads(blockers_json, []) or [])
+            if str(blocker or "").strip() and str(blocker or "").strip() != MISSING_OBSERVED_SIMC_STATS_BLOCKER
+        ]
+        status = "partial" if blockers else "verified"
         conn.execute(
             """
             UPDATE websim_gear_variants
-            SET payload_json = ?, updated_at = ?
+            SET status = ?, blockers_json = ?, payload_json = ?, updated_at = ?
             WHERE id = ?
             """,
-            (json.dumps(payload, ensure_ascii=False), utc_now(), row_id),
+            (status, json.dumps(blockers, ensure_ascii=False), json.dumps(payload, ensure_ascii=False), utc_now(), row_id),
         )
         counts["profilePresetObservedVariantsRefreshed"] += 1
     return counts
@@ -15474,15 +15790,15 @@ def sync_observed_variant_stats_from_same_item_level_siblings(conn):
     ensure_websim_tables(conn)
     rows = conn.execute(
         """
-        SELECT id, item_id, slot, item_level, payload_json
+        SELECT id, item_id, slot, item_level, blockers_json, payload_json
         FROM websim_gear_variants
         WHERE source_type = 'observed_profile'
-          AND status = 'verified'
+          AND status IN ('verified', 'partial')
         ORDER BY item_id, slot, item_level DESC, id
         """
     ).fetchall()
     stat_payloads = {}
-    for _row_id, item_id, slot, item_level, payload_json in rows:
+    for _row_id, item_id, slot, item_level, _blockers_json, payload_json in rows:
         stat_payload = observed_variant_stat_payload_fields(safe_json_loads(payload_json, {}))
         if not stat_payload:
             continue
@@ -15494,7 +15810,7 @@ def sync_observed_variant_stats_from_same_item_level_siblings(conn):
     }
     if not stat_payloads:
         return counts
-    for row_id, item_id, slot, item_level, payload_json in rows:
+    for row_id, item_id, slot, item_level, blockers_json, payload_json in rows:
         payload = safe_json_loads(payload_json, {})
         payload = payload if isinstance(payload, dict) else {}
         if observed_variant_stat_payload_fields(payload):
@@ -15506,13 +15822,19 @@ def sync_observed_variant_stats_from_same_item_level_siblings(conn):
         for failure_key in OBSERVED_VARIANT_SIMC_FAILURE_PAYLOAD_KEYS:
             payload.pop(failure_key, None)
         payload.update(stat_payload)
+        blockers = [
+            blocker
+            for blocker in (safe_json_loads(blockers_json, []) or [])
+            if str(blocker or "").strip() and str(blocker or "").strip() != MISSING_OBSERVED_SIMC_STATS_BLOCKER
+        ]
+        status = "partial" if blockers else "verified"
         conn.execute(
             """
             UPDATE websim_gear_variants
-            SET payload_json = ?, updated_at = ?
+            SET status = ?, blockers_json = ?, payload_json = ?, updated_at = ?
             WHERE id = ?
             """,
-            (json.dumps(payload, ensure_ascii=False), utc_now(), row_id),
+            (status, json.dumps(blockers, ensure_ascii=False), json.dumps(payload, ensure_ascii=False), utc_now(), row_id),
         )
         counts["sameItemLevelObservedVariantsRefreshed"] += 1
     return counts

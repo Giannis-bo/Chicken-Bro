@@ -7,7 +7,7 @@
 首版围绕 4 个核心能力展开：
 
 1. **资讯追踪**：关注最新正式服以及测试服资讯，包括游戏玩法、版本变动和职业强度变化。
-2. **职业专精查询**：学习最高端玩家的职业专精构筑，包括天赋构筑、装备获取、属性权重和输出循环。
+2. **职业专精查询**：学习最高端玩家的职业专精构筑，包括天赋构筑、装备模拟、属性权重和输出循环。
 3. **大秘境和团队 raid 专区**：按当前赛季展示大秘境队伍天梯、职业天梯、赛季副本，以及团队 raid 首杀战报和 boss 攻略入口。
 4. **构筑模拟器**：提供 AI 功能辅助玩家跑 SimCraft、分析 WCL 数据、比较配装收益和定位战斗问题。
 
@@ -18,7 +18,7 @@
 | Tab | 页面 | 说明 |
 | --- | --- | --- |
 | 最新资讯 | `pages/news/news` | 由 Lighthouse 轻量后端提供正式服、测试服、职业强度动态、完整中文详情与来源记录 |
-| 职业专精 | `pages/builds/builds` | 高端玩家构筑、天赋构筑、装备获取、属性权重与输出循环 |
+| 职业专精 | `pages/builds/builds` | 高端玩家构筑、天赋构筑、装备模拟、属性权重与输出循环 |
 | PVE专区 | `pages/pve/pve` | 当前赛季大秘境专区、团队 raid 专区、来源和分析窗口 |
 | 智能分析 | `pages/simulator/simulator` | SimCraft、WCL、配装对比、AI 分析建议；职业专精详情可带入天赋/装备上下文生成 SimC 任务 |
 | 我的 | `pages/profile/profile` | 角色偏好、收藏职业、订阅与数据源设置 |
@@ -34,11 +34,29 @@
 │   └── navigation-bar/
 ├── pages/
 │   ├── builds/
+│   │   ├── builds.*             # 职业专精入口
+│   │   ├── detail.*             # 属性、循环、装备模拟详情
+│   │   ├── intel.*              # 职业情报页
+│   │   ├── talent-simulator.*   # 原生 WebSim 天赋模拟器
+│   │   └── websim-api.js
+│   ├── common/                  # API、鉴权、埋点、本地模板和游戏资产工具
 │   ├── news/
 │   ├── profile/
 │   ├── pve/
 │   └── simulator/
+│       ├── simulator.*          # 智能分析入口
+│       ├── simc.*               # SimC 对话/提交
+│       ├── wcl.*                # WCL 日志入口
+│       ├── chickenbro.*         # 炸鸡队长证据教练
+│       └── task-detail.*        # 已保存任务详情
 ├── project.config.json
+├── server/
+│   ├── news_backend.py          # 统一 HTTP 后端
+│   ├── websim_payload.py        # Season Data Cache / WebSim / 装备和天赋契约
+│   ├── simulator_payload.py     # SimC/WCL/LLM 报告边界
+│   ├── analytics.py             # 事件采集与管理报表
+│   └── *.service / *.timer      # 生产 systemd jobs
+├── docs/
 └── sitemap.json
 ```
 
@@ -58,24 +76,16 @@
 WOW_NEWS_PORT=8787 python3 server/news_backend.py
 ```
 
-当前 API：
+当前 API 按域分组：
 
-- `GET /health`
-- `GET /api/news/home`
-- `POST /api/news/refresh?mode=scheduled`
-- `GET /api/news/list`
-- `GET /api/news/article?id=...`
-- `GET /api/data/health`
-- `GET /api/builds/home`
-- `GET /api/builds/intel`
-- `GET /api/builds/detail?id=法师-冰霜`
-- `GET /api/pve/home`
-- `GET /api/pve/module?key=bossGuides`
-- `POST /api/auth/wechat-login`
-- `POST /api/me/profile`
-- `GET /api/me/build-templates?type=talent`
-- `POST /api/me/build-templates`
-- `DELETE /api/me/build-templates?id=...`
+- 基础与健康：`GET /health`、`GET /api/data/health`、`GET /api/game/season`
+- 资讯：`GET /api/news/home`、`GET /api/news/list`、`GET /api/news/article?id=...`、`GET /api/news/refresh-runs/latest`、`POST /api/news/refresh?mode=scheduled`
+- 职业专精 / PVE：`GET /api/builds/home`、`GET /api/builds/intel`、`GET /api/builds/detail?id=法师-冰霜`、`GET /api/builds/stat-weights/refresh-runs/latest`、`GET /api/pve/home`、`GET /api/pve/module?key=bossGuides`
+- WebSim / 天赋 / 装备：`GET /api/websim/bootstrap`、`GET /api/websim/assets`、`GET /api/websim/talents`、`GET /api/talents/tree`、`GET /api/websim/gear?class=mage&spec=frost&compact=1`、`GET /api/websim/loot?instanceId=...`、`POST /api/websim/profile`、`POST /api/websim/gear/stats`、`POST /api/websim/simulate`、`POST /api/talents/validate`、`POST /api/talents/export`、`POST /api/talents/import`
+- 账号与模板：`POST /api/auth/wechat-login`、`POST /api/me/profile`、`GET /api/me/build-templates?type=talent`、`POST /api/me/build-templates`、`DELETE /api/me/build-templates?id=...`
+- 智能分析：`GET /api/simulator/home`、`POST /api/simulator/analyze`、`GET /api/simulator/tasks?guest=1`、`GET /api/simulator/task?id=...&guest=1`
+- 炸鸡队长：`POST /api/chickenbro/messages`、`POST /api/chickenbro/sessions`、`GET /api/chickenbro/sessions?id=...`、`GET /api/chickenbro/jobs?id=...`、`GET /api/chickenbro/profiles?classKey=...&specKey=...`
+- 埋点和管理：`POST /api/analytics/events`、`GET /admin/analytics`、`GET /api/admin/analytics/*`、`POST /api/admin/analytics/rollup`
 
 账号写接口统一使用 Bearer token。小程序 API client 在明文 HTTP + auth 场景会拒绝发送 token 并回退到本地数据；个人模板会先写入本地 `wow_build_templates_v1`，只有 HTTPS/合法域名可用时才同步到 `/api/me/build-templates`。
 
@@ -138,7 +148,15 @@ printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
 ./server/deploy_lighthouse.sh
 ```
 
-脚本会上传当前工作区、安装 Python/Node/Nginx、Codex CLI 与 SimCraft 构建依赖，从官方 `simulationcraft/simc` 仓库的 `midnight` 分支构建 CLI-only `simc`，注册 `wow-simc-version-check.timer` 每 12 小时检测 GitHub 分支版本，注册 `wow-backend` systemd service，并用 Nginx 将 80 端口代理到本机 `8787`。如服务器或用户变化，可通过环境变量覆盖：
+脚本会上传当前工作区到 `/opt/wow-mini-program`，注册 `wow-backend` systemd service，并用 Nginx 将 80 端口代理到本机 `8787`。完整 bootstrap 模式会安装 Python/Node/Nginx、Codex CLI 与 SimCraft 构建依赖，从官方 `simulationcraft/simc` 仓库的 `midnight` 分支构建 CLI-only `simc`，并注册 `wow-simc-version-check.timer` 每 12 小时检测 GitHub 分支版本。
+
+日常热部署优先复用远程已有依赖：
+
+```bash
+WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
+```
+
+部署脚本默认只重启后端并做轻量 smoke，不会自动启动长耗时同步任务；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 时才会启动 `wow-websim-sync`、`wow-stat-weights-sync` 和 `wow-community-template-sync`。如服务器或用户变化，可通过环境变量覆盖：
 
 ```bash
 WOW_LIGHTHOUSE_HOST=124.223.51.33 WOW_LIGHTHOUSE_USER=ubuntu ./server/deploy_lighthouse.sh
@@ -161,6 +179,6 @@ PY
 
 - 为统一后端补充正式域名、HTTPS、微信 request 合法域名配置和刷新记录管理视图。
 - 建立职业、专精、天赋、装备和副本数据模型，详见 `docs/builds-architecture.md`。
-- 将当前 JS payload 迁移到数据库化采集任务，接入大秘境榜单、玩家分数和团本进度数据。
-- 深化 SimCraft 配置生成、WCL 日志解析和 AI 分析链路。
-- 增加角色绑定、订阅提醒和收藏管理。
+- 继续补齐 Season Data Cache 的 deterministic SimC 变体、宝石/附魔元数据、赛季漂移监控和告警。
+- 深化 WCL GraphQL 日志抽取、同类样本窗口、炸鸡队长证据编排和结构化报告。
+- 增加角色绑定、订阅提醒、收藏管理和跨端个人资产同步。

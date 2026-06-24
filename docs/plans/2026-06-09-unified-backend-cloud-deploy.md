@@ -73,6 +73,6 @@
 
 **Step 1:** Run JS and Python test suites.
 
-**Step 2:** Run CodeRabbit review before commit/push.
+**Step 2:** Run local diff/code review before commit/push.
 
 **Step 3:** Address valid feedback, verify again, then commit and push.

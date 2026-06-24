@@ -77,6 +77,8 @@ sudo systemctl restart wow-backend
 
 ```bash
 curl -fsS http://124.223.51.33/health
+curl -fsS http://124.223.51.33/api/game/season
+curl -fsS http://124.223.51.33/api/data/health
 python3 server/simulator_e2e_smoke.py --base-url http://124.223.51.33 --timeout 90
 ```
 
@@ -91,6 +93,14 @@ ssh wow-lighthouse 'sudo install -d -m 700 -o ubuntu -g ubuntu /opt/wow-mini-pro
 ```bash
 WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
 ```
+
+当前部署脚本的默认行为：
+
+- 上传当前工作区到 `/opt/wow-mini-program`，不上传 `server/data`。
+- 热部署模式要求远端已有 Python、curl、systemd 和 `/opt/wow-simc/current/simc`。
+- 部署会重启 `wow-backend` 和 nginx，并 smoke `/health`、`/api/builds/home`、`/api/pve/home`、`/api/simulator/home`、`/api/websim/bootstrap`、`/websim/` 和一次 SimC 最小执行。
+- 部署默认不会启动长耗时同步；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 才会启动 `wow-websim-sync`、`wow-stat-weights-sync` 和 `wow-community-template-sync`。
+- 线上数据写入、SQLite schema 变更、受控同步或生产环境变量修改前，先说明范围并备份数据库。
 
 完整部署入口：
 

@@ -6,8 +6,9 @@ Make the simulator tab prove the first usable path: the mini program accepts a p
 
 ## Current Flow
 
-1. The simulator page renders a `SimC 输入` textarea and a `提交模拟` button.
-2. The page posts to `POST /api/simulator/analyze` with:
+1. `pages/simulator/simulator` renders the 智能分析 hub from `GET /api/simulator/home`. Current modules are `simc`, `wcl`, `chickenbro`, and `tasks`.
+2. `pages/simulator/simc` renders the SimC conversation/submission path.
+3. The SimC page posts to `POST /api/simulator/analyze` with:
 
 ```json
 {
@@ -17,9 +18,11 @@ Make the simulator tab prove the first usable path: the mini program accepts a p
 }
 ```
 
-3. The backend extracts the fenced `simc` or `simulationcraft` code block.
-4. If a profile is present, the backend runs `WOW_SIMC_BIN` or a `simc`/`simulationcraft` binary on `PATH`.
-5. The response includes the normalized request, execution stages, simulation status, parsed DPS metric, real Mythic+ reference data, and concise Chinese recommendations.
+4. The backend extracts the fenced `simc` or `simulationcraft` code block.
+5. If a profile is present, the backend runs `WOW_SIMC_BIN` or a `simc`/`simulationcraft` binary on `PATH`.
+6. The response includes the normalized request, execution stages, simulation status, parsed DPS metric, real Mythic+ reference data, allowed-number guardrails, and concise Chinese recommendations.
+
+Task history uses `GET /api/simulator/tasks?guest=1` and `GET /api/simulator/task?id=...&guest=1`. Authenticated requests use Bearer token; guest mode is explicit and scoped by guest id.
 
 ## SimC Agent Flow
 
@@ -86,6 +89,19 @@ The response adds an `agent` object:
 ```
 
 Player-facing task details should lead with the simplified conclusion, then show at most three concise recommendations, SimC DPS, real Mythic+ reference data, and execution stages. The saved detail page intentionally does not render the full generated SimC template or raw SimC summary.
+
+## WCL And Chickenbro Entries
+
+`pages/simulator/wcl` is the WCL input surface. The backend parses report URL/code/fight and blocks deterministically when the report is missing or credentials are unavailable. Without `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET` or another supported WCL credential, the system must not call LLM to fabricate log conclusions.
+
+`pages/simulator/chickenbro` is the current 炸鸡队长证据教练 entry. It posts to `POST /api/chickenbro/messages` and can read `GET /api/chickenbro/sessions`, `GET /api/chickenbro/jobs`, and `GET /api/chickenbro/profiles`.
+
+Chickenbro rules:
+
+- Frontend sends a short message plus bounded context such as `productPhase`, `region`, `classKey`, `specKey`, and `scenarioKey`; it does not send raw DB access, API keys, full logs, or complete SimC profiles to an LLM.
+- Backend stores lightweight sessions/messages/jobs, builds a bounded context, validates topic scope and allowed numbers, then either runs the configured Codex runner or returns deterministic fallback.
+- `published` spec profiles may support conclusions; `partial` profiles are background only; `stale` / `blocked` / `needs_review` profiles do not enter the conclusion chain.
+- The frontend fallback explicitly says the backend is unavailable and must not substitute fake coaching conclusions.
 
 ## Response Shape
 
@@ -158,7 +174,7 @@ Player-facing task details should lead with the simplified conclusion, then show
 - Natural-language-only prompts with missing specialization return `profile_check=blocked`, `simc_execution=skipped`, and `agent.status=needs_clarification`.
 - The highest-fidelity prompt format remains natural language plus a fenced SimC profile, because exported talents and gear are more accurate than generated defaults.
 - LLM output is optional. The deterministic SimC result and heuristic recommendation path must still return a useful conclusion when LLM credentials are absent.
-- Codex Worker remains an optional asynchronous reviewer. The main request path is backend validation, then SimC execution, then LLM interpretation.
+- Codex Worker remains optional and bounded. The main SimC request path is backend validation, then SimC execution, then optional LLM interpretation. Chickenbro uses a separate `/api/chickenbro/*` session/job boundary and deterministic fallback.
 - The mini program does not hold OpenAI, Codex, or SimC credentials. All execution stays behind the backend.
 
 ## SimC Conclusion Correctness Standard

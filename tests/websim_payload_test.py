@@ -3749,7 +3749,8 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(counts["observedVariants"], 1)
         variant = variants["250777"][0]
         self.assertEqual(variant["sourceType"], "observed_profile")
-        self.assertEqual(variant["status"], "verified")
+        self.assertEqual(variant["status"], "partial")
+        self.assertEqual(variant["blockers"], ["missing SimulationCraft item stats"])
         self.assertEqual(variant["simcOptions"]["bonus_id"], "12345/67890")
         self.assertEqual(variant["simcOptions"]["gem_id"], "240983")
         self.assertEqual(variant["simcOptions"]["enchant_id"], "8017")
@@ -4821,7 +4822,8 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         self.assertEqual(counts["observedVariants"], 1)
-        self.assertEqual(counts["verifiedObservedVariants"], 1)
+        self.assertEqual(counts["verifiedObservedVariants"], 0)
+        self.assertEqual(counts["partialObservedVariants"], 1)
         self.assertEqual(variant_count, 1)
         self.assertEqual(source_count, 1)
 
@@ -4869,7 +4871,7 @@ class WebSimPayloadTest(unittest.TestCase):
             )
             variant = conn.execute(
                 """
-                SELECT item_id, slot, status, item_level, simc_options_json, payload_json
+                SELECT item_id, slot, status, item_level, simc_options_json, blockers_json, payload_json
                 FROM websim_gear_variants
                 WHERE item_id = '251111'
                 """
@@ -4878,14 +4880,16 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         self.assertEqual(counts["observedVariants"], 1)
-        self.assertEqual(counts["verifiedObservedVariants"], 1)
+        self.assertEqual(counts["verifiedObservedVariants"], 0)
+        self.assertEqual(counts["partialObservedVariants"], 1)
         self.assertIsNotNone(variant)
         self.assertEqual(variant[1], "main_hand")
-        self.assertEqual(variant[2], "verified")
+        self.assertEqual(variant[2], "partial")
         self.assertEqual(variant[3], 298)
         self.assertEqual(json.loads(variant[4])["bonus_id"], "13440/6652/12701/13654")
         self.assertEqual(json.loads(variant[4])["enchant_id"], "8039")
-        self.assertEqual(json.loads(variant[5])["observedProfileRefs"][0]["characterName"], "Selong")
+        self.assertEqual(json.loads(variant[5]), ["missing SimulationCraft item stats"])
+        self.assertEqual(json.loads(variant[6])["observedProfileRefs"][0]["characterName"], "Selong")
 
     def test_sync_observed_gear_variants_preserves_verified_cache_when_raiderio_source_is_partial(self):
         conn = sqlite3.connect(self.db_path)
@@ -4967,6 +4971,12 @@ class WebSimPayloadTest(unittest.TestCase):
                         "itemLevel": 298,
                         "simcOptions": {"bonus_id": "13440/6652/12701/13654", "enchant_id": "8039"},
                         "status": "verified",
+                        "payload": {
+                            "statSource": "simulationcraft",
+                            "statDisplayStatus": "verified_variant",
+                            "itemStats": [{"key": "intellect", "label": "智力", "value": 111}],
+                            "statSummary": "智力 111",
+                        },
                     },
                 )
             raiderio = {
@@ -5081,7 +5091,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual([row[0] for row in rows], ["251111", "251222"])
         new_row = rows[1]
         self.assertEqual(new_row[1], "head")
-        self.assertEqual(new_row[2], "verified")
+        self.assertEqual(new_row[2], "partial")
         self.assertEqual(new_row[3], 704)
         self.assertEqual(json.loads(new_row[4]), {
             "bonus_id": "12345/67890",
@@ -5366,10 +5376,11 @@ class WebSimPayloadTest(unittest.TestCase):
             )
             conn.commit()
 
-            self.assertEqual(counts["verifiedObservedVariants"], 2)
+            self.assertEqual(counts["verifiedObservedVariants"], 1)
+            self.assertEqual(counts["partialObservedVariants"], 1)
             rows = conn.execute(
                 """
-                SELECT item_id, payload_json
+                SELECT item_id, status, blockers_json, payload_json
                 FROM websim_gear_variants
                 WHERE source_type = 'observed_profile'
                 ORDER BY item_id
@@ -5378,14 +5389,24 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        payloads = {str(item_id): json.loads(payload_json) for item_id, payload_json in rows}
-        head_payload = payloads["249979"]
+        payloads = {
+            str(item_id): {
+                "status": status,
+                "blockers": json.loads(blockers_json),
+                "payload": json.loads(payload_json),
+            }
+            for item_id, status, blockers_json, payload_json in rows
+        }
+        head_payload = payloads["249979"]["payload"]
+        self.assertEqual(payloads["249979"]["status"], "verified")
         self.assertEqual(head_payload["statSource"], "simulationcraft")
         self.assertEqual(head_payload["statDisplayStatus"], "verified_variant")
         self.assertEqual(head_payload["statSummary"], "敏捷 or 智力 124；耐力 1768；急速 55；精通 109；吸血 71")
         self.assertEqual(head_payload["itemStats"][0]["key"], "agiint")
         self.assertNotIn("9999", json.dumps(head_payload, ensure_ascii=False))
-        self.assertNotIn("itemStats", payloads["268288"])
+        self.assertEqual(payloads["268288"]["status"], "partial")
+        self.assertEqual(payloads["268288"]["blockers"], ["missing SimulationCraft item stats"])
+        self.assertNotIn("itemStats", payloads["268288"]["payload"])
 
     def test_sync_observed_gear_variants_preserves_existing_simc_stats_when_replaced_by_statless_cache(self):
         conn = sqlite3.connect(self.db_path)
@@ -5970,7 +5991,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("simcStatError", candidate)
         self.assertIn("SimulationCraft item stats", candidate["blockers"])
 
-    def test_websim_gear_reuses_same_item_level_observed_stats_for_variant_without_exact_stats(self):
+    def test_websim_gear_does_not_synthesize_stats_from_same_item_level_variant_at_request_time(self):
         conn = sqlite3.connect(self.db_path)
         try:
             self.websim_payload.ensure_websim_tables(conn)
@@ -6060,10 +6081,11 @@ class WebSimPayloadTest(unittest.TestCase):
         waist_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "waist")
         candidate = next(item for item in waist_group["items"] if item["itemId"] == "249380")
         self.assertEqual(candidate["variantKey"], "observed-289-missing")
-        self.assertEqual(candidate["statDisplayStatus"], "verified_variant")
-        self.assertEqual(candidate["statSource"], "simulationcraft")
-        self.assertEqual(candidate["statSummary"], "耐力 1326；暴击 37；精通 87")
-        self.assertNotIn("SimulationCraft item stats", candidate.get("blockers") or [])
+        self.assertEqual(candidate["statDisplayStatus"], "pending_current_variant")
+        self.assertNotIn("statSource", candidate)
+        self.assertNotIn("statSummary", candidate)
+        self.assertNotIn("itemStats", candidate)
+        self.assertIn("SimulationCraft item stats", candidate.get("blockers") or [])
 
     def test_websim_gear_prefers_observed_variant_with_verified_stats(self):
         conn = sqlite3.connect(self.db_path)
@@ -6190,6 +6212,14 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(coverage["coverage"]["percent"], 50.0)
         self.assertEqual(coverage["missingExamples"][0]["itemId"], "268288")
         self.assertEqual(health["details"]["observedStatCoverage"], coverage)
+        self.assertIn(
+            "1 observed gear variants missing SimulationCraft item stats",
+            state["simulationReadiness"]["blockers"],
+        )
+        self.assertIn(
+            "1 observed gear variants missing SimulationCraft item stats",
+            health["details"]["simulationReadiness"]["blockers"],
+        )
 
     def test_websim_gear_reuses_portable_observed_candidates_across_specs(self):
         conn = sqlite3.connect(self.db_path)
@@ -6346,7 +6376,7 @@ class WebSimPayloadTest(unittest.TestCase):
         head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
         catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250779")
         self.assertFalse(catalog_item["simcReady"])
-        self.assertEqual(catalog_item["variantStatus"], "verified")
+        self.assertEqual(catalog_item["variantStatus"], "partial")
         self.assertEqual(catalog_item["metadataStatus"], "source_reference")
         self.assertEqual(catalog_item["metadataSource"], "raiderio_observed_profile")
         self.assertIn("verified Battle.net metadata", catalog_item["blockers"])
@@ -6770,7 +6800,59 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(summary["socketMissingMetadataCount"], 1)
         self.assertEqual(summary["partialVariantCount"], 1)
         self.assertIn("1 gear catalog items missing trusted drop source", summary["blockers"])
-        self.assertNotIn("examples", summary)
+        self.assertEqual(summary["sourcePendingExamples"][0]["itemId"], "250890")
+        self.assertEqual(summary["sourcePendingExamples"][0]["sourcePendingVariantCount"], 1)
+        self.assertEqual(summary["partialVariantExamples"][0]["itemId"], "250891")
+        self.assertEqual(summary["partialVariantExamples"][0]["slot"], "back")
+        self.assertEqual(summary["partialVariantExamples"][0]["sourceType"], "dungeon")
+        self.assertEqual(summary["partialVariantExamples"][0]["blockers"], ["missing deterministic SimC variant preset"])
+
+    def test_catalog_variant_display_preserves_all_db_item_level_variants(self):
+        variants = [
+            {"key": "champion-263", "difficultyKey": "champion", "itemLevel": 263, "status": "verified"},
+            {"key": "hero-276", "difficultyKey": "hero", "itemLevel": 276, "status": "verified"},
+            {"key": "myth-289", "difficultyKey": "myth", "itemLevel": 289, "status": "verified"},
+            {"key": "void-298", "difficultyKey": "void_ascension", "itemLevel": 298, "status": "verified"},
+        ]
+        collapsed = self.websim_payload.collapse_catalog_variants_for_display(variants)
+
+        self.assertEqual(
+            sorted(variant["itemLevel"] for variant in collapsed),
+            [263, 276, 289, 298],
+        )
+
+    def test_catalog_variant_display_hides_placeholder_when_item_level_variants_exist(self):
+        variants = [
+            {"key": "myth-289", "difficultyKey": "myth", "itemLevel": 289, "status": "verified"},
+            {"key": "hero-276", "difficultyKey": "hero", "itemLevel": 276, "status": "verified"},
+            {"key": "champion-263", "difficultyKey": "champion", "itemLevel": 263, "status": "verified"},
+            {
+                "key": "needs-variant",
+                "difficultyKey": "needs-variant",
+                "itemLevel": 0,
+                "status": "partial",
+                "blockers": ["missing deterministic SimC variant preset"],
+            },
+        ]
+
+        collapsed = self.websim_payload.collapse_catalog_variants_for_display(variants)
+
+        self.assertEqual([variant["key"] for variant in collapsed], ["myth-289", "hero-276", "champion-263"])
+
+    def test_catalog_variant_display_keeps_placeholder_when_it_is_only_variant(self):
+        variants = [
+            {
+                "key": "needs-variant",
+                "difficultyKey": "needs-variant",
+                "itemLevel": 0,
+                "status": "partial",
+                "blockers": ["missing deterministic SimC variant preset"],
+            },
+        ]
+
+        collapsed = self.websim_payload.collapse_catalog_variants_for_display(variants)
+
+        self.assertEqual([variant["key"] for variant in collapsed], ["needs-variant"])
 
     def test_talent_catalog_health_blocks_missing_local_talent_data(self):
         conn = sqlite3.connect(self.db_path)
@@ -6839,7 +6921,8 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(counts["verifiedObservedVariants"], 2)
+        self.assertEqual(counts["verifiedObservedVariants"], 0)
+        self.assertEqual(counts["partialObservedVariants"], 2)
         self.assertEqual(payload["status"], "partial")
         metadata = payload["details"]["itemMetadata"]
         self.assertEqual(metadata["itemCount"], 2)
@@ -8067,6 +8150,90 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(pit_row["verifiedItemCount"], 1)
         self.assertEqual([item["itemId"] for item in catalog_items], ["50228"])
 
+    def test_sync_websim_gear_catalog_skips_inactive_reused_legacy_journal_rows(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[
+                    {"id": "556", "dungeonId": "556", "instanceId": "278", "name": "Pit of Saron"},
+                ],
+            )
+            self.websim_payload.save_active_season_payload(conn, season)
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('278', 'Pit of Saron', 'Dungeon', '{}', 'now')
+                """
+            )
+            for item_id, name in (
+                ("50228", "Accepted source-reference neck"),
+                ("49801", "Raw journal candidate staff"),
+                ("133501", "Legacy duplicate bucket staff"),
+            ):
+                conn.execute(
+                    """
+                    INSERT INTO websim_loot
+                    (id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at)
+                    VALUES (?, '278', '', ?, ?, 'neck', 'Epic', '', '{}', 'now')
+                    """,
+                    (f"278:{item_id}", item_id, name),
+                )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "loot-stale-49801",
+                    "itemId": "49801",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Stale Pit of Saron",
+                    "instanceId": "278",
+                    "seasonRevision": "season-mn-1",
+                    "payload": {"validationStatus": "journal_candidate"},
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "loot-partial-49801-neck",
+                    "itemId": "49801",
+                    "slot": "neck",
+                    "variantKey": "needs-variant",
+                    "label": "难度 / 装等待补",
+                    "sourceType": "dungeon",
+                    "difficultyKey": "needs-variant",
+                    "itemLevel": 0,
+                    "status": "partial",
+                    "blockers": ["missing deterministic SimC variant preset"],
+                },
+            )
+
+            self.websim_payload.sync_websim_gear_catalog(conn, season)
+
+            sources = conn.execute(
+                """
+                SELECT item_id, payload_json
+                FROM websim_gear_sources
+                WHERE source_type = 'dungeon'
+                ORDER BY item_id
+                """
+            ).fetchall()
+            variants = conn.execute(
+                """
+                SELECT item_id, difficulty_key
+                FROM websim_gear_variants
+                WHERE source_type = 'dungeon'
+                ORDER BY item_id
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual([row[0] for row in sources], ["50228"])
+        self.assertEqual(json.loads(sources[0][1])["validationStatus"], "source_reference")
+        self.assertEqual([(row[0], row[1]) for row in variants], [("50228", "needs-variant")])
+
     def test_reused_legacy_dungeon_source_reference_item_ids_promote_current_sources(self):
         status_for = self.websim_payload.reused_legacy_dungeon_source_validation_status
 
@@ -8459,6 +8626,84 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(journal_loot["missingCatalogSourceCount"], 1)
         self.assertEqual(journal_loot["missingCatalogSourceExamples"][0]["itemId"], "250002")
         self.assertIn("1 Battle.net journal loot items missing gear catalog source", payload["blockers"])
+
+    def test_gear_catalog_health_ignores_inactive_reused_legacy_journal_loot(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(
+                season_id="17",
+                season_label="season-mn-1",
+                dungeons=[
+                    {"id": "556", "dungeonId": "556", "instanceId": "278", "name": "Pit of Saron"},
+                ],
+            )
+            self.websim_payload.save_active_season_payload(conn, season)
+            conn.execute(
+                """
+                INSERT INTO websim_instances (id, name, category, payload_json, updated_at)
+                VALUES ('278', 'Pit of Saron', 'Dungeon', '{}', 'now')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_encounters (id, instance_id, name, payload_json, updated_at)
+                VALUES (?, '278', 'Forge Lord Garfrost', ?, 'now')
+                """,
+                (
+                    "1001",
+                    json.dumps(
+                        {
+                            "items": [
+                                {"item": {"id": 50228, "name": "Accepted Neck"}},
+                                {"item": {"id": 49801, "name": "Raw Journal Staff"}},
+                                {"item": {"id": 133501, "name": "Legacy Duplicate Staff"}},
+                            ],
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+            )
+            for item_id, name in (
+                ("50228", "Accepted Neck"),
+                ("49801", "Raw Journal Staff"),
+                ("133501", "Legacy Duplicate Staff"),
+            ):
+                conn.execute(
+                    """
+                    INSERT INTO websim_loot
+                    (id, instance_id, encounter_id, item_id, name, slot, quality, icon_url, payload_json, updated_at)
+                    VALUES (?, '278', '1001', ?, ?, 'neck', 'Epic', '', '{}', 'now')
+                    """,
+                    (f"278:1001:{item_id}", item_id, name),
+                )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "loot-278:1001:50228",
+                    "itemId": "50228",
+                    "sourceType": "dungeon",
+                    "sourceLabel": "Forge Lord Garfrost - Pit of Saron",
+                    "instanceId": "278",
+                    "encounterId": "1001",
+                    "seasonRevision": "season-mn-1",
+                    "payload": {"validationStatus": "source_reference", "candidateStatus": "source_reference"},
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, self.websim_payload.get_active_season_payload(conn)),
+            )
+            payload = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        journal_loot = payload["details"]["seasonSourceCoverage"]["journalLoot"]
+        self.assertEqual(journal_loot["expectedItemCount"], 1)
+        self.assertEqual(journal_loot["cachedItemCount"], 1)
+        self.assertEqual(journal_loot["missingCatalogSourceCount"], 0)
+        self.assertNotIn("Battle.net journal loot items missing gear catalog source", " ".join(payload["blockers"]))
 
     def test_gear_catalog_health_reports_journal_loot_catalog_source_context_mismatch(self):
         conn = sqlite3.connect(self.db_path)
@@ -9876,11 +10121,14 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(counts["status"], "verified")
-        self.assertEqual(counts["simulationReadiness"]["status"], "verified")
+        self.assertEqual(counts["status"], "partial")
+        self.assertEqual(counts["simulationReadiness"]["status"], "partial")
         self.assertEqual(counts["simulationReadiness"]["verified"], 1)
         self.assertEqual(counts["simulationReadiness"]["partial"], 0)
-        self.assertEqual(counts["simulationReadiness"]["blockers"], [])
+        self.assertEqual(
+            counts["simulationReadiness"]["blockers"],
+            ["1 observed gear variants missing SimulationCraft item stats"],
+        )
         self.assertEqual(counts["observedVariantCount"], 1)
         self.assertEqual(counts["partialObservedVariantCount"], 1)
 
@@ -12258,6 +12506,7 @@ class WebSimPayloadTest(unittest.TestCase):
                         "specKeys": ["frost"],
                         "statDisplayStatus": "verified_variant",
                         "statSource": "simulationcraft",
+                        "statSummary": "智力 111",
                         "itemStats": [{"key": "intellect", "label": "Intellect", "value": 111}],
                         "observedProfileRefs": [observed_ref],
                     },
@@ -12278,6 +12527,9 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(candidate["variants"][0]["sourceType"], "catalog")
         self.assertEqual(candidate["variants"][0]["difficultyKey"], "source_pending")
         self.assertEqual(candidate["variants"][0]["difficultyLabel"], "来源待补")
+        self.assertEqual(candidate["variants"][0]["statSummary"], "智力 111")
+        self.assertEqual(candidate["variants"][0]["statDisplayStatus"], "verified_variant")
+        self.assertEqual(candidate["variants"][0]["itemStats"][0]["value"], 111)
         self.assertEqual(candidate["observedProfileRefs"][0]["sourceName"], "Raider.IO")
 
     def test_websim_gear_marks_simc_ready_preset_candidates_with_source_reference(self):
@@ -14465,6 +14717,17 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertEqual(result["items"], 2)
         self.assertEqual(result["verifiedVariants"], 7)
+        self.assertEqual(result["removedPendingVariants"], 2)
+        remaining_placeholders = conn.execute(
+            """
+            SELECT COUNT(1)
+            FROM websim_gear_variants
+            WHERE source_type = 'raid'
+              AND item_level <= 0
+              AND (variant_key = 'needs-variant' OR difficulty_key = 'needs-variant')
+            """
+        ).fetchone()[0]
+        self.assertEqual(remaining_placeholders, 0)
         rows = conn.execute(
             """
             SELECT item_id, difficulty_key, item_level, status, simc_options_json, payload_json
@@ -14484,6 +14747,256 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(void_payload["statDisplayStatus"], "verified_variant")
         self.assertTrue(void_payload["simcIlevelOnly"])
         self.assertEqual(json.loads(by_item["249278"][-1][3]), {"ilevel": "298"})
+
+    def test_backfill_official_item_level_variants_writes_tier_set_tracks(self):
+        conn = sqlite3.connect(self.db_path)
+        self.addCleanup(conn.close)
+        self.websim_payload.ensure_websim_tables(conn)
+        season = self.websim_payload.current_season_payload(
+            season_id="17",
+            season_label="season-mn-1",
+        )
+        season["itemSets"] = [{"id": "1986", "name": "盲誓的重负"}]
+        season_revision = season["seasonRevision"]
+        self.websim_payload.save_active_season_payload(conn, season)
+        conn.execute(
+            """
+            INSERT INTO websim_item_sets
+            (id, name, season_revision, source, status, payload_json, updated_at)
+            VALUES ('1986', '盲誓的重负', ?, 'battle_net_item_set', 'verified', '{}', 'now')
+            """,
+            (season_revision,),
+        )
+        for item_id, name, slot in (
+            ("250054", "盲誓法衣", "chest"),
+            ("250055", "盲誓护腿", "legs"),
+        ):
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                item_id,
+                {
+                    "id": int(item_id),
+                    "name": name,
+                    "inventory_type": {"type": "ROBE" if slot == "chest" else "LEGS", "name": slot},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {"stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 10}]},
+                },
+                fallback_name=name,
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_websim_item_set_item(
+                conn,
+                "1986",
+                {"itemId": item_id, "name": name},
+                slot,
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": f"set-1986-{item_id}",
+                    "itemId": item_id,
+                    "sourceType": "tier_set",
+                    "sourceLabel": "盲誓的重负",
+                    "seasonRevision": season_revision,
+                    "payload": {"seasonRevision": season_revision, "setId": "1986", "setName": "盲誓的重负"},
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": f"set-partial-1986-{item_id}-{slot}",
+                    "itemId": item_id,
+                    "slot": slot,
+                    "variantKey": "needs-variant",
+                    "label": "套装装等 / 难度待补",
+                    "sourceType": "tier_set",
+                    "difficultyKey": "needs-variant",
+                    "itemLevel": 0,
+                    "status": "partial",
+                    "blockers": ["missing deterministic SimC variant preset"],
+                    "payload": {"seasonRevision": season_revision, "setId": "1986", "setName": "盲誓的重负"},
+                },
+            )
+        self.websim_payload.upsert_gear_variant(
+            conn,
+            {
+                "id": "set-observed-250054-chest-298",
+                "itemId": "250054",
+                "slot": "chest",
+                "variantKey": "observed-298",
+                "label": "Observed 298",
+                "sourceType": "tier_set",
+                "difficultyKey": "observed_profile",
+                "itemLevel": 298,
+                "simcOptions": {"bonus_id": "13336/13575"},
+                "status": "verified",
+                "payload": {
+                    "setId": "1986",
+                    "setName": "盲誓的重负",
+                    "statSource": "simulationcraft",
+                    "statDisplayStatus": "verified_variant",
+                    "itemStats": [{"key": "intellect", "label": "智力", "value": 135}],
+                    "statSummary": "智力 135",
+                    "seasonRevision": season_revision,
+                },
+            },
+        )
+        self.websim_payload.upsert_gear_variant(
+            conn,
+            {
+                "id": "observed-priest-shadow-chest-250054-298",
+                "itemId": "250054",
+                "slot": "chest",
+                "variantKey": "observed-298-shadow",
+                "label": "Observed 298",
+                "sourceType": "observed_profile",
+                "difficultyKey": "observed_profile",
+                "itemLevel": 298,
+                "simcOptions": {"bonus_id": "13336/13575", "gem_id": "240983"},
+                "status": "verified",
+                "payload": {
+                    "classKeys": ["priest"],
+                    "specKeys": ["shadow"],
+                    "statSource": "simulationcraft",
+                    "statDisplayStatus": "verified_variant",
+                    "itemStats": [{"key": "intellect", "label": "智力", "value": 135}],
+                    "statSummary": "智力 135",
+                    "seasonRevision": season_revision,
+                },
+            },
+        )
+
+        def fake_stat_resolver(item, item_level, track):
+            return {
+                "itemStats": [{"key": "intellect", "label": "智力", "value": item_level}],
+                "statSummary": f"智力 {item_level}",
+                "simcProfile": f"{item['simcSlot']}=item_{item['itemId']},id={item['itemId']},ilevel={item_level}",
+            }
+
+        result = self.websim_payload.backfill_official_item_level_variants_for_tier_sets(
+            conn,
+            set_ids=["1986"],
+            stat_resolver=fake_stat_resolver,
+        )
+
+        self.assertEqual(result["items"], 2)
+        self.assertEqual(result["verifiedVariants"], 7)
+        rows = conn.execute(
+            """
+            SELECT item_id, difficulty_key, item_level, status, simc_options_json, payload_json
+            FROM websim_gear_variants
+            WHERE id LIKE 'set-itemlevel-tier_set-1986-%'
+            ORDER BY item_id, item_level
+            """
+        ).fetchall()
+        by_item = {}
+        for item_id, difficulty_key, item_level, status, simc_options_json, payload_json in rows:
+            by_item.setdefault(item_id, []).append((difficulty_key, item_level, status, simc_options_json, payload_json))
+        self.assertEqual([level for _key, level, _status, _options, _payload in by_item["250054"]], [263, 276, 289, 298])
+        self.assertEqual([level for _key, level, _status, _options, _payload in by_item["250055"]], [263, 276, 289])
+        self.assertEqual(json.loads(by_item["250054"][-1][3]), {"ilevel": "298"})
+        void_payload = json.loads(by_item["250054"][-1][4])
+        self.assertEqual(void_payload["officialVariantSource"], "tier_set")
+        self.assertEqual(void_payload["derivedVariantSource"], "simulationcraft_item_level_probe")
+        self.assertEqual(void_payload["setName"], "盲誓的重负")
+        self.assertEqual(void_payload["statSummary"], "智力 298")
+        remaining_placeholders = conn.execute(
+            """
+            SELECT COUNT(1)
+            FROM websim_gear_variants
+            WHERE id IN ('set-partial-1986-250054-chest', 'set-partial-1986-250055-legs')
+            """
+        ).fetchone()[0]
+        self.assertEqual(remaining_placeholders, 0)
+        payload = self.websim_payload.get_websim_gear(conn, "priest", "shadow", compact=True)
+        chest_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "chest")
+        tier_item = next(item for item in chest_group["items"] if item["itemId"] == "250054")
+        self.assertEqual(
+            [variant["itemLevel"] for variant in tier_item["variants"]],
+            [298, 289, 276, 263],
+        )
+        self.assertEqual(tier_item["variants"][0]["difficultyLabel"], "虚空晋升")
+        self.assertEqual(tier_item["variants"][0]["statSummary"], "智力 298")
+
+    def test_tier_set_void_upgrade_requires_verified_current_season_evidence(self):
+        conn = sqlite3.connect(self.db_path)
+        self.addCleanup(conn.close)
+        self.websim_payload.ensure_websim_tables(conn)
+        season = self.websim_payload.current_season_payload(
+            season_id="17",
+            season_label="season-mn-1",
+        )
+        season["itemSets"] = [{"id": "1986", "name": "盲誓的重负"}]
+        season_revision = season["seasonRevision"]
+        self.websim_payload.save_active_season_payload(conn, season)
+        self.websim_payload.upsert_gear_variant(
+            conn,
+            {
+                "id": "observed-current-partial-250054",
+                "itemId": "250054",
+                "slot": "chest",
+                "variantKey": "observed-298-partial",
+                "label": "Observed 298",
+                "sourceType": "observed_profile",
+                "difficultyKey": "observed_profile",
+                "itemLevel": 298,
+                "status": "partial",
+                "payload": {"seasonRevision": season_revision},
+            },
+        )
+        self.websim_payload.upsert_gear_variant(
+            conn,
+            {
+                "id": "observed-old-verified-250054",
+                "itemId": "250054",
+                "slot": "chest",
+                "variantKey": "observed-298-old",
+                "label": "Observed 298",
+                "sourceType": "observed_profile",
+                "difficultyKey": "observed_profile",
+                "itemLevel": 298,
+                "status": "verified",
+                "payload": {
+                    "seasonRevision": "season-old",
+                    "itemStats": [{"key": "intellect", "label": "智力", "value": 135}],
+                    "statSummary": "智力 135",
+                },
+            },
+        )
+
+        self.assertFalse(self.websim_payload.tier_set_item_has_void_upgrade_evidence(conn, "250054"))
+        self.assertEqual(
+            [track["itemLevel"] for track in self.websim_payload.official_item_level_tracks_for_tier_set_item(conn, "250054")],
+            [263, 276, 289],
+        )
+
+        self.websim_payload.upsert_gear_variant(
+            conn,
+            {
+                "id": "observed-current-verified-250054",
+                "itemId": "250054",
+                "slot": "chest",
+                "variantKey": "observed-298-current",
+                "label": "Observed 298",
+                "sourceType": "observed_profile",
+                "difficultyKey": "observed_profile",
+                "itemLevel": 298,
+                "status": "verified",
+                "payload": {
+                    "seasonRevision": season_revision,
+                    "itemStats": [{"key": "intellect", "label": "智力", "value": 135}],
+                    "statSummary": "智力 135",
+                },
+            },
+        )
+
+        self.assertTrue(self.websim_payload.tier_set_item_has_void_upgrade_evidence(conn, "250054"))
+        self.assertEqual(
+            [track["itemLevel"] for track in self.websim_payload.official_item_level_tracks_for_tier_set_item(conn, "250054")],
+            [263, 276, 289, 298],
+        )
 
     def test_catalog_variant_usable_allows_accepted_item_level_probe(self):
         self.assertTrue(

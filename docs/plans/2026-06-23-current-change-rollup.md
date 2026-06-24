@@ -4,7 +4,7 @@ This note summarizes the current dirty worktree before final review, deploy, and
 
 ## Scope Summary
 
-- Review workflow: `AGENTS.md` now states CodeRabbit is not a required gate; commits, deploys, and handoff should rely on local tests, smoke checks, diff review, runtime logs, and user-requested review tools.
+- Review workflow: `AGENTS.md` now defines local tests, smoke checks, diff review, runtime logs, and user-requested review tools as the default review practice for commits, deploys, and handoff.
 - Deploy workflow: `server/deploy_lighthouse.sh` validates deploy env values, supports hot deploy via `WOW_DEPLOY_SKIP_BOOTSTRAP=1`, performs service smoke checks before optional async sync starts, and requires explicit `WOW_DEPLOY_START_ASYNC_SYNCS=1` before kicking long sync jobs.
 - Current season pool: `server/game-season.js` and `server/websim_payload.py` carry the confirmed Midnight Season 1 M+ and raid pools; Manaforge Omega is blocked as the current-season raid fallback.
 - Gear trust model: `server/websim_payload.py` separates accepted `source_reference` from `journal_candidate`, `excluded_legacy_bucket`, `observed_confirmed`, and `source_discrepancy`; raw Battle.net Journal data is retained for traceability but no longer accepted as current-season M+ coverage.
@@ -45,5 +45,5 @@ This note summarizes the current dirty worktree before final review, deploy, and
 - After deploy, verify:
   - `/api/game/season`
   - `/api/data/health`
-  - all `40` class/spec compact gear traversal
+  - all `39` class/spec compact gear traversal
 - Stage, commit, and push only after deploy verification passes and the final scope is confirmed.

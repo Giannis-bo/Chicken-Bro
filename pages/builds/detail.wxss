@@ -936,24 +936,9 @@
   border-top: 1rpx solid rgba(255, 255, 255, 0.08);
 }
 
-.gear-sheet-active-name,
-.gear-sheet-active-source,
 .gear-sheet-section-title {
   display: block;
   overflow-wrap: anywhere;
-}
-
-.gear-sheet-active-name {
-  color: #ffffff;
-  font-size: 24rpx;
-  font-weight: 900;
-}
-
-.gear-sheet-active-source {
-  margin-top: 4rpx;
-  color: #8e8e8e;
-  font-size: 20rpx;
-  line-height: 1.35;
 }
 
 .gear-variant-section,

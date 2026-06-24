@@ -521,7 +521,7 @@ python3 server/simulator_e2e_smoke.py
 git diff --check
 ```
 
-Before any commit/push in this repo, run CodeRabbit review per current project workflow and fix technically valid findings before re-verifying.
+Before any commit/push in this repo, run local diff/code review per current project workflow and fix technically valid findings before re-verifying.
 
 ## Implementation Evidence
 
