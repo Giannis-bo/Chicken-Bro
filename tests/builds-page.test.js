@@ -896,14 +896,21 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.doesNotMatch(wxml, /gearStatSnapshot\.statStatus/)
   assert.doesNotMatch(wxml, /gearStatBlockers/)
   assert.match(wxml, /class="gear-attribute-panel"/)
-  assert.match(wxml, /gearAttributePanel\.primaryStat/)
+  assert.match(wxml, /class="gear-attribute-level"/)
+  assert.match(wxml, /gearAttributePanel\.itemLevel/)
+  assert.doesNotMatch(wxml, /gearAttributePanel\.primaryStat/)
   assert.match(wxml, /gearAttributePanel\.enhancementRows/)
+  assert.match(wxml, /gearAttributePanel\.statRows/)
   assert.doesNotMatch(wxml, /gearAttributePanel\.resourceRows/)
   assert.match(wxml, /class="gear-slot-grid"/)
   assert.match(wxml, /wx:for="\{\{gearSlotRows\}\}"/)
   assert.ok(wxml.indexOf('class="gear-attribute-panel"') < wxml.indexOf('class="gear-slot-grid"'))
+  assert.ok(wxml.indexOf('class="gear-attribute-level"') < wxml.indexOf('class="gear-attribute-grid"'))
   assert.ok(wxml.indexOf('class="gear-attribute-action"') > wxml.indexOf('class="gear-attribute-panel"'))
   assert.ok(wxml.indexOf('class="gear-attribute-action"') < wxml.indexOf('class="gear-slot-grid"'))
+  assert.ok(wxml.indexOf('class="gear-attribute-grid"') < wxml.indexOf('class="gear-attribute-enhancement-row"'))
+  assert.ok(wxml.indexOf('class="gear-attribute-enhancement-row"') < wxml.indexOf('class="gear-attribute-action-row"'))
+  assert.doesNotMatch(wxml, /class="gear-attribute-primary"/)
   const gearSlotGridMarkup = wxml.match(/<view class="gear-slot-grid">[\s\S]*?<view class="gear-loading-state"/)
   assert.ok(gearSlotGridMarkup)
   assert.doesNotMatch(gearSlotGridMarkup[0], /gear-slot-status/)
@@ -957,9 +964,11 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.doesNotMatch(wxml, /class="gear-template-action-button enhance"/)
   assert.match(wxml, /bindtap="openGearEnhancementSheet"/)
   assert.match(wxml, /gearEnhancementSheet\.visible/)
-  assert.match(wxml, /gearEnhancementSheet\.gemRows/)
-  assert.match(wxml, /gearEnhancementSheet\.enchantRows/)
-  assert.match(wxml, /gearEnhancementSheet\.embellishmentRows/)
+  assert.match(wxml, /gearEnhancementSheet\.equipmentRows/)
+  assert.match(wxml, /gearEnhancementSheet\.activeGemRows/)
+  assert.match(wxml, /gearEnhancementSheet\.activeEnchantRows/)
+  assert.match(wxml, /gearEnhancementSheet\.activeEmbellishmentRows/)
+  assert.match(wxml, /bindtap="selectGearEnhancementSlot"/)
   assert.match(wxml, /bindtap="openGearCommunityTemplates"/)
   assert.match(wxml, /bindtap="resetGearSelection"/)
   assert.match(wxml, /gearDataWarningText/)
@@ -979,9 +988,22 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.ok(wxml.indexOf('bindtap="saveGearTemplate"') > wxml.indexOf('class="gear-slot-grid"'))
   assert.doesNotMatch(css, /\.gear-stat-panel/)
   assert.match(css, /\.gear-attribute-panel/)
+  assert.match(css, /\.gear-attribute-level/)
   assert.match(css, /\.gear-attribute-action/)
   assert.match(css, /\.gear-attribute-enhancement-row/)
+  assert.match(css, /\.gear-attribute-action-row/)
+  assert.doesNotMatch(css, /\.gear-attribute-primary/)
   assert.match(css, /\.gear-attribute-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/)
+  const gearAttributeLevelCss = css.match(/\.gear-attribute-level\s*\{[^}]*\}/)
+  assert.ok(gearAttributeLevelCss)
+  assert.match(gearAttributeLevelCss[0], /align-items:\s*center;/)
+  assert.match(gearAttributeLevelCss[0], /text-align:\s*center;/)
+  const gearAttributeEnhancementCss = css.match(/\.gear-attribute-enhancement-row\s*\{[^}]*\}/)
+  assert.ok(gearAttributeEnhancementCss)
+  assert.doesNotMatch(gearAttributeEnhancementCss[0], /136rpx/)
+  const gearAttributeActionCss = css.match(/\.gear-attribute-action\s*\{[^}]*\}/)
+  assert.ok(gearAttributeActionCss)
+  assert.match(gearAttributeActionCss[0], /width:\s*100%;/)
   assert.match(css, /\.gear-slot-grid/)
   assert.match(css, /\.gear-slot-grid\s*\{[\s\S]*gap:\s*8rpx;[\s\S]*margin-top:\s*12rpx;/)
   assert.match(css, /\.gear-slot-card\s*\{[\s\S]*min-height:\s*118rpx;[\s\S]*padding:\s*10rpx;/)
@@ -1005,7 +1027,15 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(css, /\.gear-template-action-button\.import\s*\{[\s\S]*flex-grow:\s*1\.35;[\s\S]*\}/)
   assert.match(css, /\.gear-template-action-button\[disabled\]/)
   assert.match(css, /\.gear-enhancement-sheet/)
+  assert.match(css, /\.gear-enhancement-equipment-grid/)
+  assert.match(css, /\.gear-enhancement-equipment-card/)
   assert.match(css, /\.gear-enhancement-option\.disabled/)
+  const gearSlotMaskCss = css.match(/\.gear-slot-sheet-mask\s*\{[^}]*\}/)
+  const gearEnhancementSheetCss = css.match(/\.gear-enhancement-sheet\s*\{[^}]*\}/)
+  assert.ok(gearSlotMaskCss)
+  assert.ok(gearEnhancementSheetCss)
+  const cssZIndex = (block) => Number((block.match(/z-index:\s*(\d+);/) || [])[1] || 0)
+  assert.ok(cssZIndex(gearEnhancementSheetCss[0]) > cssZIndex(gearSlotMaskCss[0]))
   const gearActionsCss = css.match(/\.gear-template-actions\s*\{[^}]*\}/)
   assert.ok(gearActionsCss)
   assert.doesNotMatch(gearActionsCss[0], /grid-template-columns/)
@@ -1067,10 +1097,20 @@ test('gear detail summarizes selected equipment attributes above the slot grid',
           label: slot,
           items: [],
           socketOptions: slot === 'finger1'
-            ? [{ id: 'gem-rank-two', label: '迅捷宝石', status: 'verified', simcOptions: { gem_id: '240983' }, payload: { qualityRank: 2 } }]
+            ? [{ id: 'gem-rank-two', label: '迅捷宝石', statSummary: '急速 +147', status: 'verified', simcOptions: { gem_id: '240983' }, payload: { qualityRank: 2 } }]
             : [],
           enchantOptions: slot === 'finger1'
-            ? [{ id: 'enchant-rank-two', label: '戒指附魔', status: 'verified', simcOptions: { enchant_id: '7334' }, payload: { qualityRank: 2 } }]
+            ? [{
+                id: 'enchant-rank-two',
+                label: '自然之怒',
+                displayLabel: '自然之怒',
+                displayKind: 'name',
+                displayStatus: 'verified',
+                evidenceSource: 'wago_db2_spell_item_enchantment',
+                status: 'verified',
+                simcOptions: { enchant_id: '7334' },
+                payload: { qualityRank: 2 }
+              }]
             : []
         })),
         equippedSet: selectedGear,
@@ -1107,9 +1147,11 @@ test('gear detail summarizes selected equipment attributes above the slot grid',
   assert.equal(panel.visible, true)
   assert.equal(panel.summary, '已选 3/16 槽')
   assert.equal(panel.itemLevel.value, '291')
-  assert.equal(panel.primaryStat.label, '智力')
-  assert.equal(panel.primaryStat.value, '250')
+  assert.equal(panel.primaryStat, undefined)
   assert.equal(panel.resourceRows, undefined)
+  assert.equal(panel.statRows.find((row) => row.key === 'itemLevel'), undefined)
+  assert.equal(panel.statRows.find((row) => row.key === 'intellect').label, '智力')
+  assert.equal(panel.statRows.find((row) => row.key === 'intellect').value, '250')
   assert.equal(panel.enhancementRows.find((row) => row.key === 'embellishment').value, '0/2')
   assert.equal(panel.enhancementRows.find((row) => row.key === 'gem').value, '0/1')
   assert.equal(panel.enhancementRows.find((row) => row.key === 'enchant').value, '0/1')
@@ -1163,8 +1205,9 @@ test('gear attribute panel maps hybrid primary stat labels to the active spec', 
   }
 
   pageConfig.refreshDerivedState.call(page)
-  assert.equal(page.data.gearAttributePanel.primaryStat.label, '智力')
-  assert.equal(page.data.gearAttributePanel.primaryStat.value, '120')
+  assert.equal(page.data.gearAttributePanel.primaryStat, undefined)
+  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'intellect').label, '智力')
+  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'intellect').value, '120')
 
   page.data.selectedSpec = { websimClassKey: 'rogue', websimSpecKey: 'subtlety' }
   page.data.selectedGearBySlot = {
@@ -1178,8 +1221,9 @@ test('gear attribute panel maps hybrid primary stat labels to the active spec', 
     }
   }
   pageConfig.refreshDerivedState.call(page)
-  assert.equal(page.data.gearAttributePanel.primaryStat.label, '敏捷')
-  assert.equal(page.data.gearAttributePanel.primaryStat.value, '80')
+  assert.equal(page.data.gearAttributePanel.primaryStat, undefined)
+  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'agility').label, '敏捷')
+  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'agility').value, '80')
 })
 
 test('gear enhancement sheet filters configurable slots and disables extra embellishments at the cap', () => {
@@ -1224,6 +1268,7 @@ test('gear enhancement sheet filters configurable slots and disables extra embel
           {
             id: 'gem-rank-two',
             label: '迅捷宝石',
+            statSummary: '急速 +147',
             status: 'verified',
             simcOptions: { gem_id: '240983', gem_ilevel: '707' },
             payload: { qualityRank: 2 }
@@ -1232,7 +1277,11 @@ test('gear enhancement sheet filters configurable slots and disables extra embel
         enchantOptions: [
           {
             id: 'enchant-rank-two',
-            label: '戒指附魔',
+            label: '自然之怒',
+            displayLabel: '自然之怒',
+            displayKind: 'name',
+            displayStatus: 'verified',
+            evidenceSource: 'wago_db2_spell_item_enchantment',
             status: 'verified',
             simcOptions: { enchant_id: '7334' },
             payload: { qualityRank: 2 }
@@ -1263,6 +1312,10 @@ test('gear enhancement sheet filters configurable slots and disables extra embel
           {
             id: 'embellishment-blue-silken-lining',
             label: '蓝色丝质内衬',
+            displayLabel: '蓝色丝质内衬',
+            displayKind: 'name',
+            displayStatus: 'verified',
+            evidenceSource: 'server_owned_evidence_seed',
             status: 'verified',
             simcOptions: { embellishment: 'blue_silken_lining' },
             payload: { qualityRank: 2, simcKey: 'blue_silken_lining' }
@@ -1278,6 +1331,10 @@ test('gear enhancement sheet filters configurable slots and disables extra embel
           {
             id: 'embellishment-hands',
             label: '蓝色丝质内衬',
+            displayLabel: '蓝色丝质内衬',
+            displayKind: 'name',
+            displayStatus: 'verified',
+            evidenceSource: 'server_owned_evidence_seed',
             status: 'verified',
             simcOptions: { embellishment: 'blue_silken_lining' },
             payload: { qualityRank: 2, simcKey: 'blue_silken_lining' }
@@ -1313,14 +1370,235 @@ test('gear enhancement sheet filters configurable slots and disables extra embel
   assert.equal(JSON.stringify(page.data.gearEnhancementSheet.gemRows.map((row) => row.slot)), JSON.stringify(['finger1']))
   assert.equal(JSON.stringify(page.data.gearEnhancementSheet.enchantRows.map((row) => row.slot)), JSON.stringify(['finger1']))
   assert.equal(JSON.stringify(page.data.gearEnhancementSheet.embellishmentRows.map((row) => row.slot)), JSON.stringify(['wrist']))
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.equipmentRows.map((row) => row.slot)), JSON.stringify(['finger1', 'wrist']))
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, 'finger1')
+  assert.equal(page.data.gearEnhancementSheet.activeTitle, '戒指 1')
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.activeGemRows.map((row) => row.slot)), JSON.stringify(['finger1']))
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.activeEnchantRows.map((row) => row.slot)), JSON.stringify(['finger1']))
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.activeEmbellishmentRows.map((row) => row.slot)), JSON.stringify([]))
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options[0].label, '急速 +147')
+  assert.equal(page.data.gearEnhancementSheet.activeEnchantRows[0].options[0].label, '自然之怒')
   assert.equal(page.data.gearEnhancementSheet.embellishmentUsed, 2)
   assert.equal(page.data.gearEnhancementSheet.embellishmentMax, 2)
   assert.equal(page.data.gearEnhancementSheet.embellishmentRows[0].options[0].disabled, true)
+
+  pageConfig.selectGearEnhancementSlot.call(page, {
+    currentTarget: { dataset: { slot: 'wrist' } }
+  })
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, 'wrist')
+  assert.equal(page.data.gearEnhancementSheet.activeTitle, '护腕')
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.activeGemRows.map((row) => row.slot)), JSON.stringify([]))
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.activeEnchantRows.map((row) => row.slot)), JSON.stringify([]))
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.activeEmbellishmentRows.map((row) => row.slot)), JSON.stringify(['wrist']))
+  assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options[0].label, '蓝色丝质内衬')
 
   pageConfig.selectGearEnhancementOption.call(page, {
     currentTarget: { dataset: { slot: 'finger1', type: 'gem', id: 'gem-rank-two' } }
   })
   assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'gem').value, '1/1')
+})
+
+test('gear enhancement sheet hides options without backend readable display evidence', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  selection.neck = {
+    ...selection.neck,
+    modCapabilities: { hasSocket: true, canEnchant: false, canEmbellish: false }
+  }
+  selection.main_hand = {
+    ...selection.main_hand,
+    modCapabilities: { hasSocket: false, canEnchant: true, canEmbellish: false }
+  }
+  selection.wrist = {
+    ...selection.wrist,
+    sourceType: 'crafted',
+    modCapabilities: { hasSocket: false, canEnchant: false, canEmbellish: true }
+  }
+  const gearPayload = {
+    slots,
+    replacementCandidates: [
+      {
+        slot: 'neck',
+        simcSlot: 'neck',
+        label: 'neck',
+        items: [],
+        socketOptions: [
+          {
+            id: 'legacy-gem-240983',
+            name: 'Quick Gem',
+            status: 'verified',
+            simcOptions: { gem_id: '240983' }
+          }
+        ]
+      },
+      {
+        slot: 'main_hand',
+        simcSlot: 'main_hand',
+        label: 'main_hand',
+        items: [],
+        enchantOptions: [
+          {
+            id: 'observed-enchant-8017',
+            name: 'Observed enchant 8017',
+            status: 'verified',
+            simcOptions: { enchant_id: '8017' }
+          }
+        ]
+      },
+      {
+        slot: 'wrist',
+        simcSlot: 'wrist',
+        label: 'wrist',
+        items: [],
+        embellishmentOptions: [
+          {
+            id: 'seed-embellishment-blue-silken-lining',
+            name: 'Blue Silken Lining',
+            status: 'verified',
+            simcOptions: { embellishment: 'blue_silken_lining' },
+            payload: { qualityRank: 2, simcKey: 'blue_silken_lining' }
+          }
+        ]
+      }
+    ],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.openGearEnhancementSheet.call(page)
+  assert.equal(page.data.gearEnhancementSheet.equipmentRows.some((row) => row.slot === 'neck'), false)
+  assert.equal(page.data.gearEnhancementSheet.equipmentRows.some((row) => row.slot === 'main_hand'), false)
+  assert.equal(page.data.gearEnhancementSheet.equipmentRows.some((row) => row.slot === 'wrist'), false)
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, '')
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.activeGemRows), JSON.stringify([]))
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.activeEnchantRows), JSON.stringify([]))
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.activeEmbellishmentRows), JSON.stringify([]))
+  assert.doesNotMatch(JSON.stringify(page.data.gearEnhancementSheet), /武器附魔 8017|Observed enchant 8017|Blue Silken Lining|属性待补|附魔待补|美化待补/)
+})
+
+test('gear enhancement sheet shows socket enchant and embellishment groups for the same ring slot', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  selection.finger1 = {
+    ...selection.finger1,
+    sourceType: 'crafted',
+    modCapabilities: { hasSocket: true, canEnchant: true, canEmbellish: true }
+  }
+  const gearPayload = {
+    slots,
+    replacementCandidates: [
+      {
+        slot: 'finger1',
+        simcSlot: 'finger1',
+        label: 'finger1',
+        items: [],
+        socketOptions: [
+          {
+            id: 'gem-stat-primary',
+            label: '无瑕宝石',
+            displayLabel: '+32主属性',
+            displayKind: 'stat',
+            displayStatus: 'verified',
+            evidenceSource: 'battle_net_item_metadata',
+            status: 'verified',
+            simcOptions: { gem_id: '240888', gem_ilevel: '707' },
+            payload: { qualityRank: 2 }
+          }
+        ],
+        enchantOptions: [
+          {
+            id: 'enchant-ring-nature',
+            label: '自然之怒',
+            displayLabel: '自然之怒',
+            displayKind: 'name',
+            displayStatus: 'verified',
+            evidenceSource: 'wago_db2_spell_item_enchantment',
+            status: 'verified',
+            simcOptions: { enchant_id: '7967' },
+            payload: { qualityRank: 2 }
+          }
+        ],
+        embellishmentOptions: [
+          {
+            id: 'embellishment-arcanoweave',
+            label: '奥纹内衬',
+            displayLabel: '奥纹内衬',
+            displayKind: 'name',
+            displayStatus: 'verified',
+            evidenceSource: 'server_owned_evidence_seed',
+            status: 'verified',
+            simcOptions: { embellishment: 'arcanoweave_lining' },
+            payload: { qualityRank: 2, simcKey: 'arcanoweave_lining' }
+          }
+        ]
+      }
+    ],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, 'finger1')
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.equipmentRows.map((row) => row.typeSummary)), JSON.stringify(['宝石 / 附魔 / 美化']))
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options[0].label, '+32主属性')
+  assert.equal(page.data.gearEnhancementSheet.activeEnchantRows[0].options[0].label, '自然之怒')
+  assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options[0].label, '奥纹内衬')
+
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'gem', id: 'gem-stat-primary' } }
+  })
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-ring-nature' } }
+  })
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'embellishment', id: 'embellishment-arcanoweave' } }
+  })
+
+  assert.equal(JSON.stringify(page.data.enhancementBySlot.finger1), JSON.stringify({
+    socketOptionId: 'gem-stat-primary',
+    enchantOptionId: 'enchant-ring-nature',
+    embellishmentOptionId: 'embellishment-arcanoweave',
+    gem_id: '240888',
+    gem_ilevel: '707',
+    enchant_id: '7967',
+    embellishment: 'arcanoweave_lining'
+  }))
+  assert.doesNotMatch(JSON.stringify(page.data.enhancementBySlot), /自然之怒|奥纹内衬|\+32主属性/)
 })
 
 test('gear community templates derive readable names from class spec hero and source', async () => {
@@ -3409,6 +3687,7 @@ test('gear template save stores structured enhancement snapshot for backend seri
               {
                 id: 'gem-rank-two',
                 label: '迅捷宝石',
+                statSummary: '急速 +147',
                 status: 'verified',
                 simcOptions: { gem_id: '240983', gem_ilevel: '707' },
                 payload: { qualityRank: 2 }
@@ -3417,7 +3696,11 @@ test('gear template save stores structured enhancement snapshot for backend seri
             enchantOptions: [
               {
                 id: 'enchant-rank-two',
-                label: '戒指附魔',
+                label: '自然之怒',
+                displayLabel: '自然之怒',
+                displayKind: 'name',
+                displayStatus: 'verified',
+                evidenceSource: 'wago_db2_spell_item_enchantment',
                 status: 'verified',
                 simcOptions: { enchant_id: '7334' },
                 payload: { qualityRank: 2 }
@@ -3433,6 +3716,10 @@ test('gear template save stores structured enhancement snapshot for backend seri
               {
                 id: 'embellishment-blue-silken-lining',
                 label: '蓝色丝质内衬',
+                displayLabel: '蓝色丝质内衬',
+                displayKind: 'name',
+                displayStatus: 'verified',
+                evidenceSource: 'server_owned_evidence_seed',
                 status: 'verified',
                 simcOptions: { embellishment: 'blue_silken_lining' },
                 payload: { qualityRank: 2, simcKey: 'blue_silken_lining' }
@@ -3494,7 +3781,11 @@ test('gear template save prunes invalid enhancement fields by type', () => {
             enchantOptions: [
               {
                 id: 'enchant-rank-two',
-                label: '戒指附魔',
+                label: '自然之怒',
+                displayLabel: '自然之怒',
+                displayKind: 'name',
+                displayStatus: 'verified',
+                evidenceSource: 'wago_db2_spell_item_enchantment',
                 status: 'verified',
                 simcOptions: { enchant_id: '7334' },
                 payload: { qualityRank: 2 }
@@ -3570,6 +3861,10 @@ test('gear template save blocks over-cap embellishments', () => {
               {
                 id: 'embellishment-blue-silken-lining',
                 label: '蓝色丝质内衬',
+                displayLabel: '蓝色丝质内衬',
+                displayKind: 'name',
+                displayStatus: 'verified',
+                evidenceSource: 'server_owned_evidence_seed',
                 status: 'verified',
                 simcOptions: { embellishment: 'blue_silken_lining' },
                 payload: { qualityRank: 2, simcKey: 'blue_silken_lining' }

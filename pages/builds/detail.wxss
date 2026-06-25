@@ -554,7 +554,7 @@
 
 .gear-attribute-header {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: space-between;
   gap: 12rpx;
 }
@@ -581,7 +581,6 @@
 }
 
 .gear-attribute-level,
-.gear-attribute-primary-card,
 .gear-attribute-cell {
   min-width: 0;
   box-sizing: border-box;
@@ -597,27 +596,20 @@
 }
 
 .gear-attribute-level {
-  min-width: 138rpx;
-  align-items: flex-end;
+  min-width: 142rpx;
+  flex-shrink: 0;
+  align-items: center;
+  text-align: center;
   border-color: rgba(248, 183, 0, 0.28);
 }
 
-.gear-attribute-primary {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8rpx;
-  margin-top: 12rpx;
-}
-
-.gear-attribute-primary-card {
-  border-color: rgba(139, 63, 245, 0.42);
-  background: rgba(139, 63, 245, 0.12);
+.gear-attribute-level .gear-attribute-label,
+.gear-attribute-level .gear-attribute-value {
+  width: 100%;
+  text-align: center;
 }
 
 .gear-attribute-enhancement-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 136rpx;
-  gap: 8rpx;
   margin-top: 8rpx;
 }
 
@@ -627,9 +619,14 @@
   gap: 8rpx;
 }
 
+.gear-attribute-action-row {
+  margin-top: 8rpx;
+}
+
 .gear-attribute-action {
+  width: 100%;
   min-width: 0;
-  min-height: 70rpx;
+  min-height: 64rpx;
   margin: 0;
   padding: 0 12rpx;
   box-sizing: border-box;
@@ -659,7 +656,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8rpx;
-  margin-top: 8rpx;
+  margin-top: 12rpx;
 }
 
 .gear-attribute-label {
@@ -680,11 +677,6 @@
   font-weight: 900;
   line-height: 1.16;
   overflow-wrap: anywhere;
-}
-
-.gear-attribute-value.strong {
-  color: #efe4ff;
-  font-size: 30rpx;
 }
 
 .gear-attribute-cell.pending .gear-attribute-value {
@@ -1230,7 +1222,7 @@
   right: 0;
   bottom: 0;
   left: 0;
-  z-index: 30;
+  z-index: 41;
   max-height: 78vh;
   padding: 18rpx 22rpx 28rpx;
   box-sizing: border-box;
@@ -1242,6 +1234,58 @@
 
 .gear-enhancement-section {
   margin-top: 18rpx;
+}
+
+.gear-enhancement-equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10rpx;
+  margin-top: 10rpx;
+}
+
+.gear-enhancement-equipment-card {
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 14rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 12rpx;
+  background: #181818;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.gear-enhancement-equipment-card.active {
+  border-color: rgba(248, 183, 0, 0.55);
+  background: rgba(248, 183, 0, 0.11);
+}
+
+.gear-enhancement-equipment-slot {
+  color: #f8b700;
+  font-size: 20rpx;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.gear-enhancement-equipment-name,
+.gear-enhancement-active-item {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 18rpx;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.gear-enhancement-equipment-types {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 17rpx;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.gear-enhancement-active-item {
+  display: block;
+  margin-top: 6rpx;
 }
 
 .gear-enhancement-row {

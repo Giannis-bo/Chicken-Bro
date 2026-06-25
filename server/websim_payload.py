@@ -691,14 +691,18 @@ DEFAULT_GEAR_MOD_SEED = [
     {
         "id": "seed-embellishment-dawnthread-lining-rank-2",
         "type": "embellishment",
-        "name": "Dawnthread Lining",
+        "name": "晖晨线内衬",
         "slots": GEAR_EMBELLISHMENT_ARMOR_SLOTS,
         "simcOptions": {"embellishment": "dawnthread_lining"},
         "status": "verified",
         "payload": {
             "source": "simulationcraft_wowhead_db2_seed",
             "status": "verified",
-            "displayName": "Dawnthread Lining",
+            "displayName": "晖晨线内衬",
+            "displayLabel": "晖晨线内衬",
+            "displayKind": "name",
+            "displayStatus": "verified",
+            "evidenceSource": "wowhead_item+simulationcraft",
             "itemId": "222869",
             "item_id": "222869",
             "quality": "Quality 2",
@@ -728,14 +732,18 @@ DEFAULT_GEAR_MOD_SEED = [
     {
         "id": "seed-embellishment-duskthread-lining-rank-2",
         "type": "embellishment",
-        "name": "Duskthread Lining",
+        "name": "萤暮线内衬",
         "slots": GEAR_EMBELLISHMENT_ARMOR_SLOTS,
         "simcOptions": {"embellishment": "duskthread_lining"},
         "status": "verified",
         "payload": {
             "source": "simulationcraft_wowhead_db2_seed",
             "status": "verified",
-            "displayName": "Duskthread Lining",
+            "displayName": "萤暮线内衬",
+            "displayLabel": "萤暮线内衬",
+            "displayKind": "name",
+            "displayStatus": "verified",
+            "evidenceSource": "wowhead_item+simulationcraft",
             "itemId": "222872",
             "item_id": "222872",
             "quality": "Quality 2",
@@ -765,14 +773,18 @@ DEFAULT_GEAR_MOD_SEED = [
     {
         "id": "seed-embellishment-elemental-focusing-lens-rank-2",
         "type": "embellishment",
-        "name": "Elemental Focusing Lens",
+        "name": "元素焦镜",
         "slots": GEAR_EMBELLISHMENT_EQUIPMENT_SLOTS,
         "simcOptions": {"embellishment": "elemental_focusing_lens"},
         "status": "verified",
         "payload": {
             "source": "simulationcraft_wowhead_db2_seed",
             "status": "verified",
-            "displayName": "Elemental Focusing Lens",
+            "displayName": "元素焦镜",
+            "displayLabel": "元素焦镜",
+            "displayKind": "name",
+            "displayStatus": "verified",
+            "evidenceSource": "wowhead_item+simulationcraft",
             "itemId": "213769",
             "item_id": "213769",
             "quality": "Quality 2",
@@ -800,6 +812,22 @@ DEFAULT_GEAR_MOD_SEED = [
         },
     },
 ]
+
+GEAR_EMBELLISHMENT_LABELS_ZH = {
+    "blue_silken_lining": "蓝色丝质内衬",
+    "dawnthread_lining": "晖晨线内衬",
+    "duskthread_lining": "萤暮线内衬",
+    "elemental_focusing_lens": "元素焦镜",
+    "arcanoweave_lining": "奥纹内衬",
+}
+
+GEAR_EMBELLISHMENT_EVIDENCE_SOURCES = {
+    "blue_silken_lining": "server_owned_legacy_evidence_seed",
+    "dawnthread_lining": "wowhead_item+simulationcraft",
+    "duskthread_lining": "wowhead_item+simulationcraft",
+    "elemental_focusing_lens": "wowhead_item+simulationcraft",
+    "arcanoweave_lining": "wowhead_item+simulationcraft",
+}
 
 DIFFICULTY_LABELS_ZH = {
     "normal": "普通",
@@ -8452,6 +8480,128 @@ def gem_item_ids_from_simc_options(simc_options):
     return result
 
 
+def enchant_ids_from_gear_mod_options(conn):
+    ensure_websim_tables(conn)
+    rows = conn.execute(
+        """
+        SELECT simc_options_json
+        FROM websim_gear_mod_options
+        WHERE option_type = 'enchant'
+          AND status = 'verified'
+        """
+    ).fetchall()
+    ids = []
+    for (simc_options_json,) in rows:
+        simc_options = safe_json_loads(simc_options_json, {})
+        if not isinstance(simc_options, dict):
+            continue
+        enchant_id = normalize_option_value(simc_options.get("enchant_id"))
+        if enchant_id and enchant_id not in ids:
+            ids.append(enchant_id)
+    return ids
+
+
+def parse_wago_spell_item_enchantment_names_csv(text, enchant_ids=None):
+    desired = {str(value or "").strip() for value in (enchant_ids or []) if str(value or "").strip()}
+    result = {}
+    if not str(text or "").strip():
+        return result
+    reader = csv.DictReader(io.StringIO(str(text or "")))
+    for row in reader:
+        row = row if isinstance(row, dict) else {}
+        raw_id = str(row.get("ID") or row.get("Id") or row.get("id") or "").strip()
+        if not raw_id or (desired and raw_id not in desired):
+            continue
+        display_name = ""
+        for key in (
+            "Name_lang",
+            "Name",
+            "name_lang",
+            "name",
+            "Description_lang",
+            "Description",
+            "EffectName_lang",
+            "EffectName",
+        ):
+            candidate = str(row.get(key) or "").strip()
+            if candidate and text_contains_cjk(candidate) and not display_label_looks_like_raw_id(candidate, "enchant"):
+                display_name = candidate
+                break
+        if display_name:
+            result[raw_id] = display_name
+    return result
+
+
+def sync_wago_gear_mod_option_display_names(conn, simc_text_or_build="", locale=DEFAULT_LOCALE):
+    ensure_websim_tables(conn)
+    build = simc_build_from_text(simc_text_or_build) or str(simc_text_or_build or "").strip()
+    enchant_ids = enchant_ids_from_gear_mod_options(conn)
+    counts = {"updated": 0, "missing": 0, "source": "", "errors": []}
+    if not enchant_ids:
+        return counts
+    if not build:
+        counts["missing"] = len(enchant_ids)
+        counts["errors"].append("missing SimulationCraft build for Wago SpellItemEnchantment sync")
+        return counts
+    try:
+        text, source = download_wago_db2_csv("SpellItemEnchantment", build, locale)
+        counts["source"] = source
+    except Exception as error:
+        counts["missing"] = len(enchant_ids)
+        counts["errors"].append(str(error))
+        return counts
+    names_by_id = parse_wago_spell_item_enchantment_names_csv(text, enchant_ids)
+    rows = conn.execute(
+        """
+        SELECT id, name, simc_options_json, payload_json
+        FROM websim_gear_mod_options
+        WHERE option_type = 'enchant'
+          AND status = 'verified'
+        ORDER BY id
+        """
+    ).fetchall()
+    found_ids = set()
+    for option_id, option_name, simc_options_json, payload_json in rows:
+        simc_options = safe_json_loads(simc_options_json, {})
+        if not isinstance(simc_options, dict):
+            continue
+        enchant_id = normalize_option_value(simc_options.get("enchant_id"))
+        display_name = names_by_id.get(enchant_id)
+        if not display_name:
+            continue
+        payload = safe_json_loads(payload_json, {})
+        payload = payload if isinstance(payload, dict) else {}
+        payload.update(
+            {
+                "displayName": display_name,
+                "displayLabel": display_name,
+                "displayKind": "name",
+                "displayStatus": "verified",
+                "evidenceSource": "wago_db2_spell_item_enchantment",
+                "evidenceRef": source,
+                "metadataLocale": locale,
+            }
+        )
+        conn.execute(
+            """
+            UPDATE websim_gear_mod_options
+            SET name = ?, payload_json = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                display_name[:160],
+                json.dumps(payload, ensure_ascii=False),
+                utc_now(),
+                option_id,
+            ),
+        )
+        found_ids.add(enchant_id)
+        counts["updated"] += 1
+    counts["missing"] = len([enchant_id for enchant_id in enchant_ids if enchant_id not in found_ids])
+    conn.commit()
+    return counts
+
+
 def sync_blizzard_gear_mod_option_metadata(conn, token, region=DEFAULT_REGION, locale=DEFAULT_LOCALE):
     ensure_websim_tables(conn)
     rows = conn.execute(
@@ -8809,6 +8959,7 @@ def sync_websim_cache(db_path, include_blizzard=True, stage_callback=None):
                     "errors": [],
                 },
                 "gearModOptions": {"items": 0, "skipped": 0, "options": 0, "errors": []},
+                "gearModDisplayNames": {"updated": 0, "missing": 0, "source": "", "errors": []},
                 "spells": {"spells": 0, "media": 0},
                 "gearCatalog": initial_gear_catalog,
                 "currentSeason": simc_season,
@@ -8841,6 +8992,7 @@ def sync_websim_cache(db_path, include_blizzard=True, stage_callback=None):
             "errors": [],
         }
         gear_mod_option_counts = {"items": 0, "skipped": 0, "options": 0, "errors": []}
+        gear_mod_display_name_counts = {"updated": 0, "missing": 0, "source": "", "errors": []}
         spell_counts = {"spells": 0, "media": 0}
         errors = []
         blizzard_skipped = ""
@@ -9090,6 +9242,37 @@ def sync_websim_cache(db_path, include_blizzard=True, stage_callback=None):
                 "partialCount": gear_catalog_state.get("partialCount") or 0,
             },
         )
+        try:
+            display_name_stage_started = emit_sync_stage(
+                stages,
+                stage_callback,
+                "gear_mod_option_display_names",
+                "start",
+            )
+            gear_mod_display_name_counts = sync_wago_gear_mod_option_display_names(
+                conn,
+                simc_counts.get("build") or "",
+                DEFAULT_LOCALE,
+            )
+            emit_sync_stage(
+                stages,
+                stage_callback,
+                "gear_mod_option_display_names",
+                "complete",
+                display_name_stage_started,
+                {
+                    "updated": gear_mod_display_name_counts.get("updated") or 0,
+                    "missing": gear_mod_display_name_counts.get("missing") or 0,
+                    "errors": len(gear_mod_display_name_counts.get("errors") or []),
+                },
+            )
+            observed_sync = gear_catalog_state.get("observedSync") if isinstance(gear_catalog_state, dict) else {}
+            gear_catalog_state = build_gear_catalog_sync_state(conn, active_season)
+            if observed_sync:
+                gear_catalog_state["observedSync"] = observed_sync
+            set_sync_state(conn, "gearCatalog", gear_catalog_state)
+        except Exception as error:
+            gear_mod_display_name_counts["errors"].append(str(error))
         if include_blizzard and blizzard_token:
             try:
                 observed_metadata_stage_started = emit_sync_stage(
@@ -9189,6 +9372,7 @@ def sync_websim_cache(db_path, include_blizzard=True, stage_callback=None):
             "itemSets": item_set_counts,
             "itemMetadata": item_metadata_counts,
             "gearModOptions": gear_mod_option_counts,
+            "gearModDisplayNames": gear_mod_display_name_counts,
             "spells": spell_counts,
             "gearCatalog": gear_catalog_state,
             "currentSeason": active_season,
@@ -11441,7 +11625,7 @@ def gear_mod_option_is_visible(option_id="", option_name="", payload=None):
 def gear_catalog_mod_option_coverage(conn):
     rows = conn.execute(
         """
-        SELECT id, option_type, name, applicable_slots_json, simc_options_json, payload_json
+        SELECT id, option_type, name, applicable_slots_json, simc_options_json, payload_json, status
         FROM websim_gear_mod_options
         WHERE option_type IN ('socket', 'enchant', 'crafted_stats', 'embellishment')
         """
@@ -11455,16 +11639,44 @@ def gear_catalog_mod_option_coverage(conn):
     slots_by_type = {"socket": set(), "enchant": set(), "crafted_stats": set(), "embellishment": set()}
     missing_socket_metadata = []
     invalid_socket_gem_metadata = []
-    for option_id, option_type, option_name, slots_json, simc_options_json, payload_json in rows:
+    missing_socket_stat_display = []
+    missing_named_display = {"enchant": [], "embellishment": []}
+    for option_id, option_type, option_name, slots_json, simc_options_json, payload_json, option_status in rows:
         payload = safe_json_loads(payload_json, {})
         if not gear_mod_option_is_visible(option_id, option_name, payload):
             continue
         option_key = str(option_type or "").strip()
         if option_key not in coverage:
             continue
+        simc_options = safe_json_loads(simc_options_json, {})
+        simc_options = simc_options if isinstance(simc_options, dict) else {}
+        if option_key in {"enchant", "embellishment"}:
+            display_fields = gear_mod_option_display_fields(option_key, option_name, simc_options, payload)
+            display_option = apply_gear_mod_option_display_fields(
+                {
+                    "id": option_id,
+                    "type": option_key,
+                    "name": option_name,
+                    "label": option_name,
+                    "status": option_status or "blocked",
+                },
+                display_fields,
+            )
+            if (
+                str(option_status or "").strip().lower() != "verified"
+                or not gear_mod_option_has_verified_display_fields(option_key, display_option)
+            ):
+                missing_example = {
+                    "optionId": option_id,
+                    "name": option_name,
+                }
+                simc_key = "enchant_id" if option_key == "enchant" else "embellishment"
+                if normalize_option_value(simc_options.get(simc_key)):
+                    missing_example["simcValue"] = normalize_option_value(simc_options.get(simc_key))
+                missing_named_display[option_key].append(missing_example)
+                continue
         coverage[option_key]["optionCount"] += 1
         if option_key == "socket":
-            simc_options = safe_json_loads(simc_options_json, {})
             gem_item_ids = gem_item_ids_from_simc_options(simc_options)
             payload_gem_items = payload.get("gemItems") if isinstance(payload.get("gemItems"), list) else []
             payload_gem_items_by_id = {
@@ -11474,6 +11686,7 @@ def gear_catalog_mod_option_coverage(conn):
             }
             missing_gem_id = ""
             invalid_gem = None
+            statless_gem = None
             for gem_item_id in gem_item_ids:
                 gem_metadata = existing_websim_item_metadata(conn, gem_item_id) if gem_item_id else None
                 gem_metadata_payload = (gem_metadata or {}).get("payload") if isinstance(gem_metadata, dict) else {}
@@ -11505,6 +11718,11 @@ def gear_catalog_mod_option_coverage(conn):
                 if not payload_item_class_is_gem(item_class):
                     invalid_gem = (str(gem_item_id or ""), item_class)
                     break
+                stat_summary = str(gem_metadata.get("statSummary") or "").strip()
+                preview_item = gem_metadata_payload.get("preview_item") if isinstance(gem_metadata_payload.get("preview_item"), dict) else {}
+                item_stats = normalize_item_stats(gem_metadata.get("itemStats") or preview_item.get("stats") or [])
+                if not stat_summary and not item_stats:
+                    statless_gem = str(gem_item_id or "")
             if gem_item_ids and missing_gem_id:
                 missing_socket_metadata.append(
                     {
@@ -11521,6 +11739,14 @@ def gear_catalog_mod_option_coverage(conn):
                         "name": option_name,
                         "gemItemId": invalid_gem_id or str(gem_item_ids[0]),
                         "itemClass": payload_item_class_display_name(item_class) or "unknown",
+                    }
+                )
+            elif gem_item_ids and statless_gem:
+                missing_socket_stat_display.append(
+                    {
+                        "optionId": option_id,
+                        "name": option_name,
+                        "gemItemId": statless_gem or str(gem_item_ids[0]),
                     }
                 )
         slots = safe_json_loads(slots_json, [])
@@ -11543,6 +11769,13 @@ def gear_catalog_mod_option_coverage(conn):
     if invalid_socket_gem_metadata:
         coverage["socket"]["invalidGemMetadataCount"] = len(invalid_socket_gem_metadata)
         coverage["socket"]["invalidGemMetadataExamples"] = invalid_socket_gem_metadata[:5]
+    if missing_socket_stat_display:
+        coverage["socket"]["missingStatDisplayCount"] = len(missing_socket_stat_display)
+        coverage["socket"]["missingStatDisplayExamples"] = missing_socket_stat_display[:5]
+    for option_key, examples in missing_named_display.items():
+        if examples:
+            coverage[option_key]["missingDisplayCount"] = len(examples)
+            coverage[option_key]["missingDisplayExamples"] = examples[:5]
     return coverage
 
 
@@ -12729,6 +12962,13 @@ def gear_catalog_counts(conn):
     invalid_socket_gem_metadata = (mod_option_coverage.get("socket") or {}).get("invalidGemMetadataCount") or 0
     if invalid_socket_gem_metadata:
         mod_option_blockers.append(f"{invalid_socket_gem_metadata} socket mod options reference non-gem Battle.net item metadata")
+    missing_socket_stat_display = (mod_option_coverage.get("socket") or {}).get("missingStatDisplayCount") or 0
+    if missing_socket_stat_display:
+        mod_option_blockers.append(f"{missing_socket_stat_display} socket mod options missing gem stat display metadata")
+    for option_key, label in (("enchant", "enchant"), ("embellishment", "embellishment")):
+        missing_display = (mod_option_coverage.get(option_key) or {}).get("missingDisplayCount") or 0
+        if missing_display:
+            mod_option_blockers.append(f"{missing_display} {label} mod options missing verified display label")
     observed_stat_blockers = []
     missing_observed_stat_count = int_or_zero(observed_stat_coverage.get("missingStatObservedVariantCount"))
     if missing_observed_stat_count:
@@ -13265,6 +13505,123 @@ def gear_catalog_variants_by_item(conn):
     return result
 
 
+def text_contains_cjk(value):
+    return bool(re.search(r"[\u3400-\u9fff]", str(value or "")))
+
+
+def display_label_looks_like_raw_id(label, option_type):
+    label = str(label or "").strip()
+    option_type = str(option_type or "").strip().lower()
+    if not label:
+        return True
+    if re.fullmatch(r"[\w-]*\s*(?:gem|enchant|embellishment)\s*[\d/_-]+", label, re.IGNORECASE):
+        return True
+    if option_type == "enchant" and re.fullmatch(r"(?:附魔|武器附魔|戒指附魔|披风附魔|胸甲附魔|护腕附魔|靴子附魔|腿部强化)\s*[\d/]+", label):
+        return True
+    if option_type == "socket" and re.fullmatch(r"(?:宝石|gem)\s*[\d/]+", label, re.IGNORECASE):
+        return True
+    return False
+
+
+def gear_mod_option_display_fields(option_type, name="", simc_options=None, payload=None):
+    option_type = str(option_type or "").strip().lower()
+    name = str(name or "").strip()
+    simc_options = simc_options if isinstance(simc_options, dict) else {}
+    payload = payload if isinstance(payload, dict) else {}
+    payload_status = str(
+        payload.get("displayStatus")
+        or payload.get("display_status")
+        or payload.get("localizationStatus")
+        or payload.get("localization_status")
+        or ""
+    ).strip().lower()
+    evidence_source = str(
+        payload.get("evidenceSource")
+        or payload.get("evidence_source")
+        or payload.get("displaySource")
+        or payload.get("display_source")
+        or payload.get("metadataSource")
+        or ""
+    ).strip()
+    evidence_ref = str(
+        payload.get("evidenceRef")
+        or payload.get("evidence_ref")
+        or payload.get("displaySourceRef")
+        or payload.get("display_source_ref")
+        or ""
+    ).strip()
+    for candidate in (
+        payload.get("displayLabel"),
+        payload.get("display_label"),
+        payload.get("localizedName"),
+        payload.get("localized_name"),
+        payload.get("zhName"),
+        payload.get("zh_name"),
+        payload.get("displayName"),
+        name,
+    ):
+        candidate = str(candidate or "").strip()
+        if (
+            candidate
+            and text_contains_cjk(candidate)
+            and not display_label_looks_like_raw_id(candidate, option_type)
+            and (payload_status == "verified" or evidence_source)
+        ):
+            result = {
+                "displayLabel": candidate,
+                "displayName": candidate,
+                "displayKind": "name",
+                "displayStatus": "verified",
+                "evidenceSource": evidence_source or "server_payload",
+            }
+            if evidence_ref:
+                result["evidenceRef"] = evidence_ref
+            return result
+    if option_type == "embellishment":
+        key = normalize_option_value(
+            simc_options.get("embellishment")
+            or payload.get("simcKey")
+            or payload.get("simc_key")
+            or payload.get("embellishment")
+        )
+        if key in GEAR_EMBELLISHMENT_LABELS_ZH:
+            result = {
+                "displayLabel": GEAR_EMBELLISHMENT_LABELS_ZH[key],
+                "displayName": GEAR_EMBELLISHMENT_LABELS_ZH[key],
+                "displayKind": "name",
+                "displayStatus": "verified",
+                "evidenceSource": evidence_source or GEAR_EMBELLISHMENT_EVIDENCE_SOURCES.get(key) or "server_owned_evidence_seed",
+            }
+            if evidence_ref:
+                result["evidenceRef"] = evidence_ref
+            return result
+    return {}
+
+
+def apply_gear_mod_option_display_fields(option, fields):
+    if not isinstance(option, dict) or not isinstance(fields, dict) or not fields.get("displayLabel"):
+        return option
+    enriched = dict(option)
+    display_label = str(fields.get("displayLabel") or "").strip()
+    enriched["name"] = display_label
+    enriched["label"] = display_label
+    enriched["displayName"] = str(fields.get("displayName") or display_label).strip()
+    for key in ("displayLabel", "displayKind", "displayStatus", "evidenceSource", "evidenceRef"):
+        if fields.get(key) not in (None, "", [], {}):
+            enriched[key] = fields.get(key)
+    return enriched
+
+
+def gear_mod_option_has_verified_display_fields(option_type, option):
+    if not isinstance(option, dict):
+        return False
+    label = str(option.get("displayLabel") or option.get("label") or option.get("name") or "").strip()
+    display_status = str(option.get("displayStatus") or "").strip().lower()
+    if display_status != "verified":
+        return False
+    return bool(label and text_contains_cjk(label) and not display_label_looks_like_raw_id(label, option_type))
+
+
 def gear_catalog_mod_options_by_slot(conn, option_type):
     ensure_websim_tables(conn)
     rows = conn.execute(
@@ -13296,21 +13653,30 @@ def gear_catalog_mod_options_by_slot(conn, option_type):
             for key, value in simc_options.items()
             if key in SIMC_GEAR_OPTION_KEYS
         }
+        display_fields = gear_mod_option_display_fields(row[1], row[2], normalized_simc_options, payload)
+        display_label = str(display_fields.get("displayLabel") or row[2] or row[0]).strip()
         option = {
             "id": row[0],
             "type": row[1],
             "optionType": row[1],
-            "name": row[2],
-            "label": row[2],
+            "name": display_label,
+            "label": display_label,
+            "rawName": row[2],
             "simcOptions": normalized_simc_options,
             "status": row[5] or "blocked",
             "payload": payload,
             "updatedAt": row[7],
         }
+        option = apply_gear_mod_option_display_fields(option, display_fields)
         for key in (
             "gemItemId",
             "gemItemIds",
             "displayName",
+            "displayLabel",
+            "displayKind",
+            "displayStatus",
+            "evidenceSource",
+            "evidenceRef",
             "iconUrl",
             "quality",
             "gameAsset",
@@ -13319,6 +13685,8 @@ def gear_catalog_mod_options_by_slot(conn, option_type):
             "metadataLocale",
         ):
             if payload.get(key) not in (None, "", [], {}):
+                if key in {"displayName", "displayLabel", "displayKind", "displayStatus", "evidenceSource", "evidenceRef"} and option.get(key) not in (None, "", [], {}):
+                    continue
                 option[key] = payload.get(key)
         if row[1] == "socket" and "gemItemId" not in option:
             gem_item_ids = gem_item_ids_from_simc_options(normalized_simc_options)
@@ -13414,6 +13782,21 @@ def display_ready_socket_mod_option(conn, option):
     enriched["metadataSource"] = gem_metadata.get("metadataSource") or enriched.get("metadataSource")
     enriched["gemItemId"] = gem_metadata.get("itemId") or enriched.get("gemItemId")
     enriched["gemItemIds"] = [record.get("itemId") for record in gem_metadata_records if record.get("itemId")]
+    stat_summaries = [
+        str(record.get("statSummary") or "").strip()
+        for record in gem_metadata_records
+        if str(record.get("statSummary") or "").strip()
+    ]
+    if not stat_summaries:
+        return None
+    stat_summary = " / ".join(stat_summaries)
+    enriched["statSummary"] = stat_summary
+    enriched["displayLabel"] = stat_summary
+    enriched["displayKind"] = "stat"
+    enriched["displayStatus"] = "verified"
+    enriched["evidenceSource"] = ITEM_METADATA_SOURCE
+    if gem_metadata.get("itemStats"):
+        enriched["itemStats"] = gem_metadata.get("itemStats")
     enriched["gemItems"] = [
         {
             "itemId": record.get("itemId"),
@@ -13421,12 +13804,37 @@ def display_ready_socket_mod_option(conn, option):
             "iconUrl": record.get("iconUrl"),
             "quality": record.get("quality"),
             "gameAsset": record.get("gameAsset"),
+            "itemStats": record.get("itemStats"),
+            "statSummary": record.get("statSummary"),
             "metadataStatus": record.get("metadataStatus"),
             "metadataSource": record.get("metadataSource"),
             "metadataLocale": record.get("metadataLocale"),
         }
         for record in gem_metadata_records
     ]
+    return enriched
+
+
+def display_ready_named_mod_option(option_type, option):
+    if not isinstance(option, dict):
+        return None
+    option_id = str(option.get("id") or "").strip()
+    option_name = str(option.get("name") or option.get("label") or "").strip()
+    payload = option.get("payload") if isinstance(option.get("payload"), dict) else {}
+    if not gear_mod_option_is_visible(option_id, option_name, payload):
+        return None
+    option_status = str(option.get("status") or "").strip().lower()
+    if option_status != "verified":
+        return None
+    display_fields = gear_mod_option_display_fields(
+        option_type,
+        option.get("rawName") or option.get("name") or option.get("label") or "",
+        option.get("simcOptions") if isinstance(option.get("simcOptions"), dict) else {},
+        payload,
+    )
+    enriched = apply_gear_mod_option_display_fields(option, display_fields)
+    if not gear_mod_option_has_verified_display_fields(option_type, enriched):
+        return None
     return enriched
 
 
@@ -13438,6 +13846,16 @@ def display_ready_gear_mod_options_by_slot(conn, option_type):
                 ready_option
                 for option in options
                 for ready_option in [display_ready_socket_mod_option(conn, option)]
+                if ready_option
+            ]
+            for slot, options in raw_options.items()
+        }
+    if option_type in {"enchant", "embellishment"}:
+        return {
+            slot: [
+                ready_option
+                for option in options
+                for ready_option in [display_ready_named_mod_option(option_type, option)]
                 if ready_option
             ]
             for slot, options in raw_options.items()
@@ -14555,8 +14973,6 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
     socket_options_by_slot = shared_catalog["socketOptionsBySlot"]
     enchant_options_by_slot = shared_catalog["enchantOptionsBySlot"]
     embellishment_options_by_slot = shared_catalog["embellishmentOptionsBySlot"]
-    raw_enchant_options_by_slot = gear_catalog_mod_options_by_slot(conn, "enchant") if compact else {}
-    raw_embellishment_options_by_slot = gear_catalog_mod_options_by_slot(conn, "embellishment") if compact else {}
     baseline_set = hydrate_gear_items_from_metadata(conn, baseline_set)
     preset_items = hydrate_gear_items_from_metadata(conn, preset_items)
     candidate_items = hydrate_gear_items_from_metadata(conn, candidate_items)
@@ -14630,8 +15046,6 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
             )
             if not enchant_options and items and slot in ENCHANTABLE_GEAR_SLOTS:
                 enchant_options = compact_gear_mod_options(enchant_options_by_slot.get(slot, []))
-            if not enchant_options and items and slot in ENCHANTABLE_GEAR_SLOTS:
-                enchant_options = executable_fallback_gear_mod_options(raw_enchant_options_by_slot.get(slot, []), "enchant")
             embellishment_options = compact_gear_mod_options(
                 option
                 for item in items
@@ -14639,8 +15053,6 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
             )
             if not embellishment_options and items and any((item.get("modCapabilities") or {}).get("canEmbellish") for item in items):
                 embellishment_options = compact_gear_mod_options(embellishment_options_by_slot.get(slot, []))
-            if not embellishment_options and items and any((item.get("modCapabilities") or {}).get("canEmbellish") for item in items):
-                embellishment_options = compact_gear_mod_options(raw_embellishment_options_by_slot.get(slot, []))
             items = compact_gear_candidates(items, include_mod_options=False)
         slot_group = {
             "slot": slot,
@@ -15251,12 +15663,13 @@ def visible_gear_mod_options(options):
             continue
         option_id = str(option.get("id") or "").strip()
         option_name = str(option.get("name") or option.get("label") or "").strip()
+        raw_option_name = str(option.get("rawName") or option_name).strip()
         payload = option.get("payload") if isinstance(option.get("payload"), dict) else {}
         if not gear_mod_option_is_visible(option_id, option_name, payload):
             continue
         if (
             payload.get("source") == "observed_variant"
-            and option_name.lower().startswith("observed ")
+            and raw_option_name.lower().startswith("observed ")
             and not str(payload.get("displayName") or "").strip()
         ):
             continue
@@ -16111,8 +16524,16 @@ COMPACT_GEAR_MOD_OPTION_KEYS = {
     "optionType",
     "name",
     "label",
+    "displayName",
+    "displayLabel",
+    "displayKind",
+    "displayStatus",
+    "evidenceSource",
+    "evidenceRef",
     "simcOptions",
     "status",
+    "itemStats",
+    "statSummary",
 }
 
 
@@ -16147,7 +16568,7 @@ def compact_gear_mod_options(options):
 
 def executable_fallback_gear_mod_options(options, option_type):
     option_type = str(option_type or "").strip().lower()
-    if option_type not in {"socket", "enchant"}:
+    if option_type not in {"socket"}:
         return []
     fallback_options = []
     for option in options or []:
@@ -16172,7 +16593,9 @@ def executable_fallback_gear_mod_options(options, option_type):
             label = f"宝石 {value}" if value else ""
         else:
             value = simc_options.get("enchant_id")
-            label = f"附魔 {value}" if value else ""
+            label = str(option.get("label") or option.get("name") or "").strip()
+            if not label or re.fullmatch(r"附魔\s*[\d/]+", label):
+                label = f"附魔 {value}" if value else ""
         if not label:
             continue
         fallback = dict(option)

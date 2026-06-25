@@ -3450,6 +3450,9 @@ class WebSimPayloadTest(unittest.TestCase):
                     "item_class": {"id": 3, "name": "Gem"},
                     "item_subclass": {"id": 8, "name": "Versatility"},
                     "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "急速"}, "value": 147}],
+                    },
                 },
                 {"assets": [{"value": "https://render.example/gem-240983.jpg"}]},
                 fallback_name="Quick Gem",
@@ -3543,11 +3546,18 @@ class WebSimPayloadTest(unittest.TestCase):
                     (
                         "enchant-8017",
                         "enchant",
-                        "Radiant Enchant",
+                        "朗多雷之锐",
                         json.dumps(["finger1"], ensure_ascii=False),
                         json.dumps({"enchant_id": "8017"}, ensure_ascii=False),
                         "verified",
-                        "{}",
+                        json.dumps(
+                            {
+                                "displayName": "朗多雷之锐",
+                                "displayStatus": "verified",
+                                "evidenceSource": "wago_db2_spell_item_enchantment",
+                            },
+                            ensure_ascii=False,
+                        ),
                         "now",
                     ),
                 ],
@@ -5161,7 +5171,8 @@ class WebSimPayloadTest(unittest.TestCase):
                     "payload": {
                         "source": "observed_variant",
                         "displayName": "披风真实附魔",
-                        "metadataStatus": "verified",
+                        "displayStatus": "verified",
+                        "evidenceSource": "wago_db2_spell_item_enchantment",
                     },
                 },
             )
@@ -10627,9 +10638,14 @@ class WebSimPayloadTest(unittest.TestCase):
                 },
                 {
                     "type": "enchant",
-                    "name": "Radiant Enchant",
+                    "name": "朗多雷之锐",
                     "slots": ["finger1"],
                     "simcOptions": {"enchant_id": "8017"},
+                    "payload": {
+                        "displayName": "朗多雷之锐",
+                        "displayStatus": "verified",
+                        "evidenceSource": "wago_db2_spell_item_enchantment",
+                    },
                 },
             ],
             ensure_ascii=False,
@@ -10664,6 +10680,9 @@ class WebSimPayloadTest(unittest.TestCase):
                     "item_class": {"id": 3, "name": "Gem"},
                     "item_subclass": {"id": 8, "name": "Versatility"},
                     "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "急速"}, "value": 32}],
+                    },
                 },
                 {"assets": [{"value": "https://render.example/gem-240983.jpg"}]},
                 fallback_name="Quick Gem",
@@ -10858,9 +10877,11 @@ class WebSimPayloadTest(unittest.TestCase):
         wrist_group = next(group for group in payload["slotGroups"] if group["slot"] == "wrist")
         catalog_item = next(item for item in wrist_group["items"] if item["itemId"] == "260777")
         self.assertEqual(catalog_item["embellishmentOptions"][0]["simcOptions"]["embellishment"], "blue_silken_lining")
+        self.assertEqual(catalog_item["embellishmentOptions"][0]["label"], "蓝色丝质内衬")
         compact_wrist_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "wrist")
         compact_catalog_item = next(item for item in compact_wrist_group["items"] if item["itemId"] == "260777")
         self.assertEqual(compact_wrist_group["embellishmentOptions"][0]["simcOptions"]["embellishment"], "blue_silken_lining")
+        self.assertEqual(compact_wrist_group["embellishmentOptions"][0]["label"], "蓝色丝质内衬")
         self.assertNotIn("embellishmentOptions", compact_catalog_item)
 
     def test_compact_gear_payload_exposes_slot_mod_options_when_candidate_metadata_is_sparse(self):
@@ -10894,6 +10915,9 @@ class WebSimPayloadTest(unittest.TestCase):
                     "item_class": {"id": 3, "name": "Gem"},
                     "item_subclass": {"id": 8, "name": "Versatility"},
                     "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "急速"}, "value": 147}],
+                    },
                 },
                 {"assets": [{"value": "https://render.example/gem-240983.jpg"}]},
                 fallback_name="Quick Onyx",
@@ -10955,9 +10979,14 @@ class WebSimPayloadTest(unittest.TestCase):
                 {
                     "id": "enchant-main-hand-8017",
                     "type": "enchant",
-                    "name": "Radiant Weapon",
+                    "name": "朗多雷之锐",
                     "slots": ["main_hand"],
                     "simcOptions": {"enchant_id": "8017"},
+                    "payload": {
+                        "displayName": "朗多雷之锐",
+                        "displayStatus": "verified",
+                        "evidenceSource": "wago_db2_spell_item_enchantment",
+                    },
                 },
             )
             compact_payload = self.websim_payload.get_websim_gear(conn, "evoker", "devastation", compact=True)
@@ -10979,6 +11008,7 @@ class WebSimPayloadTest(unittest.TestCase):
             if option.get("simcOptions", {}).get("enchant_id") == "8017"
         )
         self.assertEqual(neck_socket["simcOptions"]["gem_id"], "240983")
+        self.assertEqual(neck_socket["statSummary"], "急速 147")
         self.assertEqual(main_hand_enchant["simcOptions"]["enchant_id"], "8017")
         self.assertTrue(all("socketOptions" not in item for item in neck_group["items"]))
         self.assertTrue(all("enchantOptions" not in item for item in main_hand_group["items"]))
@@ -11066,9 +11096,53 @@ class WebSimPayloadTest(unittest.TestCase):
         neck_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "neck")
         main_hand_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "main_hand")
         self.assertNotIn("socketOptions", neck_group)
-        self.assertIn("enchantOptions", main_hand_group)
-        self.assertEqual(main_hand_group["enchantOptions"][0]["label"], "附魔 8017")
-        self.assertEqual(main_hand_group["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
+        self.assertNotIn("enchantOptions", main_hand_group)
+
+    def test_sync_wago_gear_mod_enchant_names_makes_observed_enchants_selectable(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        original_wago = self.websim_payload.download_wago_db2_csv
+        self.addCleanup(setattr, self.websim_payload, "download_wago_db2_csv", original_wago)
+
+        def fake_wago_csv(table, build, locale="enUS"):
+            if table == "SpellItemEnchantment":
+                return "ID,Name_lang\n8017,朗多雷之锐\n7967,自然之怒\n8039,奥术精通\n", "wago://SpellItemEnchantment"
+            return "", f"wago://{table}"
+
+        self.websim_payload.download_wago_db2_csv = fake_wago_csv
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "observed-enchant-8017",
+                    "type": "enchant",
+                    "name": "Observed enchant 8017",
+                    "slots": ["main_hand"],
+                    "simcOptions": {"enchant_id": "8017"},
+                    "payload": {"source": "observed_variant"},
+                },
+            )
+            counts = self.websim_payload.sync_wago_gear_mod_option_display_names(
+                conn,
+                "// wow build 12.0.5.67823",
+                "zh_CN",
+            )
+            options = self.websim_payload.display_ready_gear_mod_options_by_slot(conn, "enchant")
+            compact = self.websim_payload.compact_gear_mod_options(options["main_hand"])
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["updated"], 1)
+        self.assertEqual(counts["missing"], 0)
+        self.assertEqual(options["main_hand"][0]["label"], "朗多雷之锐")
+        self.assertEqual(options["main_hand"][0]["displayLabel"], "朗多雷之锐")
+        self.assertEqual(options["main_hand"][0]["displayKind"], "name")
+        self.assertEqual(options["main_hand"][0]["displayStatus"], "verified")
+        self.assertEqual(options["main_hand"][0]["evidenceSource"], "wago_db2_spell_item_enchantment")
+        self.assertEqual(compact[0]["displayLabel"], "朗多雷之锐")
+        self.assertEqual(compact[0]["simcOptions"]["enchant_id"], "8017")
 
     def test_gear_catalog_sync_does_not_load_placeholder_default_mod_seed_without_env(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
@@ -11110,6 +11184,10 @@ class WebSimPayloadTest(unittest.TestCase):
             self.assertTrue(payload["db2_reagent_item_id"])
             self.assertIn("db2_bonus_tree_id", payload)
             self.assertTrue(payload["db2BonusTreeEvidence"])
+            self.assertTrue(payload["displayName"])
+            self.assertTrue(self.websim_payload.text_contains_cjk(payload["displayName"]))
+            self.assertEqual(payload["displayStatus"], "verified")
+            self.assertTrue(payload["evidenceSource"])
 
     def test_gear_catalog_sync_derives_socket_mod_options_from_verified_gem_variants(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
@@ -11254,6 +11332,238 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(catalog_item["socketOptions"], [])
         compact_finger_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "finger1")
         self.assertNotIn("socketOptions", compact_finger_group)
+
+    def test_websim_gear_hides_socket_options_until_gem_stat_summary_is_verified(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Socketed Catalog Band",
+                    "inventory_type": {"type": "INVTYPE_FINGER", "name": "Finger"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 123}],
+                        "sockets": [{"socket_type": {"type": "PRISMATIC", "name": "Prismatic Socket"}}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
+                fallback_name="Socketed Catalog Band",
+                english_payload={"name": "Socketed Catalog Band", "inventory_type": {"name": "Finger"}},
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "240983",
+                {
+                    "id": 240983,
+                    "name": "Statless Onyx",
+                    "item_class": {"id": 3, "name": "Gem"},
+                    "item_subclass": {"id": 8, "name": "Versatility"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.example/gem-240983.jpg"}]},
+                fallback_name="Statless Onyx",
+                english_payload={"name": "Statless Onyx"},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "manual-250777",
+                    "itemId": "250777",
+                    "sourceType": "raid",
+                    "sourceLabel": "Vault Mage - Arcane Vault",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "manual-250777-heroic",
+                    "itemId": "250777",
+                    "slot": "finger1",
+                    "variantKey": "heroic-707",
+                    "label": "Heroic 707",
+                    "sourceType": "raid",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "socket-statless-gem-metadata",
+                    "type": "socket",
+                    "name": "Statless Onyx",
+                    "applicableSlots": ["finger1"],
+                    "simcOptions": {"gem_id": "240983", "gem_ilevel": "707"},
+                    "status": "verified",
+                    "payload": {
+                        "source": "observed_variant",
+                        "displayName": "Statless Onyx",
+                        "gemItemId": "240983",
+                        "iconUrl": "https://render.example/gem-240983.jpg",
+                        "metadataStatus": "verified",
+                        "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
+                        "metadataLocale": "en_US",
+                    },
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-test"}),
+            )
+            health = self.websim_payload.gear_catalog_health_payload(conn)
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane")
+            compact_payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane", compact=True)
+        finally:
+            conn.close()
+
+        self.assertEqual(health["details"]["modOptionCoverage"]["socket"]["missingStatDisplayCount"], 1)
+        self.assertIn("1 socket mod options missing gem stat display metadata", health["blockers"])
+        finger_group = next(group for group in payload["slotGroups"] if group["slot"] == "finger1")
+        catalog_item = next(item for item in finger_group["items"] if item["itemId"] == "250777")
+        self.assertEqual(catalog_item["socketOptions"], [])
+        compact_finger_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "finger1")
+        self.assertNotIn("socketOptions", compact_finger_group)
+
+    def test_compact_gear_payload_preserves_socket_enchant_and_embellishment_groups_for_same_slot(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Crafted Catalog Band",
+                    "inventory_type": {"type": "INVTYPE_FINGER", "name": "Finger"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 123}],
+                        "sockets": [{"socket_type": {"type": "PRISMATIC", "name": "Prismatic Socket"}}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
+                fallback_name="Crafted Catalog Band",
+                english_payload={"name": "Crafted Catalog Band", "inventory_type": {"name": "Finger"}},
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "240983",
+                {
+                    "id": 240983,
+                    "name": "Quick Onyx",
+                    "item_class": {"id": 3, "name": "Gem"},
+                    "item_subclass": {"id": 8, "name": "Versatility"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "急速"}, "value": 32}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/gem-240983.jpg"}]},
+                fallback_name="Quick Onyx",
+                english_payload={"name": "Quick Onyx"},
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "crafted-250777",
+                    "itemId": "250777",
+                    "sourceType": "crafted",
+                    "sourceLabel": "Crafting",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "crafted-250777-285",
+                    "itemId": "250777",
+                    "slot": "finger1",
+                    "variantKey": "crafted-285",
+                    "label": "Crafted 285",
+                    "sourceType": "crafted",
+                    "difficultyKey": "crafted_myth",
+                    "itemLevel": 285,
+                    "simcOptions": {"ilevel": "285", "crafted_stats": "32/49"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "socket-gem-240983",
+                    "type": "socket",
+                    "name": "Quick Onyx",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "240983"},
+                    "payload": {
+                        "source": "observed_variant",
+                        "gemItemId": "240983",
+                        "displayName": "Quick Onyx",
+                        "iconUrl": "https://render.example/gem-240983.jpg",
+                        "metadataStatus": "verified",
+                        "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
+                    },
+                },
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "enchant-finger-7967",
+                    "type": "enchant",
+                    "name": "Observed enchant 7967",
+                    "slots": ["finger1"],
+                    "simcOptions": {"enchant_id": "7967"},
+                    "payload": {
+                        "source": "observed_variant",
+                        "displayName": "自然之怒",
+                        "displayStatus": "verified",
+                        "evidenceSource": "wago_db2_spell_item_enchantment",
+                    },
+                },
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "embellishment-arcanoweave-lining",
+                    "type": "embellishment",
+                    "name": "Arcanoweave Lining",
+                    "slots": ["finger1"],
+                    "simcOptions": {"embellishment": "arcanoweave_lining"},
+                    "payload": {
+                        "source": "server_owned_evidence_seed",
+                        "displayName": "奥纹内衬",
+                        "displayStatus": "verified",
+                        "evidenceSource": "wowhead_item",
+                        "qualityRank": 2,
+                        "simcKey": "arcanoweave_lining",
+                    },
+                },
+            )
+            compact_payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane", compact=True)
+        finally:
+            conn.close()
+
+        finger_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "finger1")
+        self.assertEqual(finger_group["socketOptions"][0]["displayLabel"], "急速 32")
+        self.assertEqual(finger_group["socketOptions"][0]["displayKind"], "stat")
+        self.assertEqual(finger_group["enchantOptions"][0]["displayLabel"], "自然之怒")
+        self.assertEqual(finger_group["enchantOptions"][0]["displayKind"], "name")
+        self.assertEqual(finger_group["embellishmentOptions"][0]["displayLabel"], "奥纹内衬")
+        self.assertEqual(finger_group["embellishmentOptions"][0]["displayKind"], "name")
+        self.assertEqual(finger_group["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
+        self.assertEqual(finger_group["enchantOptions"][0]["simcOptions"]["enchant_id"], "7967")
+        self.assertEqual(finger_group["embellishmentOptions"][0]["simcOptions"]["embellishment"], "arcanoweave_lining")
 
     def test_gear_catalog_sync_derives_mod_options_from_raiderio_bare_gem_and_enchant(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
@@ -11457,6 +11767,14 @@ class WebSimPayloadTest(unittest.TestCase):
                     "item_class": {"id": 3, "name": "Gem"},
                     "item_subclass": {"id": 8, "name": "Versatility"},
                     "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [
+                            {
+                                "type": {"type": "HASTE_RATING", "name": "急速" if str(item_id) == "240900" else "精通"},
+                                "value": 32 if str(item_id) == "240900" else 16,
+                            }
+                        ],
+                    },
                 },
                 "media": {"assets": [{"value": f"https://render.example/gem-{item_id}.jpg"}]},
                 "englishPayload": {"name": names[str(item_id)]},
@@ -11542,6 +11860,23 @@ class WebSimPayloadTest(unittest.TestCase):
                         "{}",
                         "now",
                     ),
+                    (
+                        "enchant-localized-7967",
+                        "enchant",
+                        "自然之怒",
+                        json.dumps(["finger2"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "7967"}, ensure_ascii=False),
+                        "verified",
+                        json.dumps(
+                            {
+                                "displayName": "自然之怒",
+                                "displayStatus": "verified",
+                                "evidenceSource": "wago_db2_spell_item_enchantment",
+                            },
+                            ensure_ascii=False,
+                        ),
+                        "now",
+                    ),
                 ],
             )
             payload = self.websim_payload.gear_catalog_health_payload(conn)
@@ -11551,7 +11886,9 @@ class WebSimPayloadTest(unittest.TestCase):
         coverage = payload["details"]["modOptionCoverage"]
         self.assertEqual(coverage["socket"], {"optionCount": 0, "coveredSlotCount": 0, "coveredSlots": []})
         self.assertEqual(coverage["enchant"]["optionCount"], 1)
-        self.assertEqual(coverage["enchant"]["coveredSlots"], ["finger1"])
+        self.assertEqual(coverage["enchant"]["coveredSlots"], ["finger2"])
+        self.assertEqual(coverage["enchant"]["missingDisplayCount"], 1)
+        self.assertEqual(coverage["enchant"]["missingDisplayExamples"][0]["simcValue"], "8017")
 
     def test_gear_catalog_sync_ignores_crafted_seed_sources(self):
         os.environ["WOW_WEBSIM_CRAFTED_GEAR_SEED"] = json.dumps(

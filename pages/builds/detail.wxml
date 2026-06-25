@@ -73,10 +73,10 @@
               <text class="gear-attribute-value">{{gearAttributePanel.itemLevel.value}}</text>
             </view>
           </view>
-          <view class="gear-attribute-primary">
-            <view class="gear-attribute-primary-card">
-              <text class="gear-attribute-label">{{gearAttributePanel.primaryStat.label}}</text>
-              <text class="gear-attribute-value strong">{{gearAttributePanel.primaryStat.value}}</text>
+          <view class="gear-attribute-grid">
+            <view class="gear-attribute-cell {{item.pending ? 'pending' : ''}}" wx:for="{{gearAttributePanel.statRows}}" wx:key="key">
+              <text class="gear-attribute-label">{{item.label}}</text>
+              <text class="gear-attribute-value">{{item.value}}</text>
             </view>
           </view>
           <view class="gear-attribute-enhancement-row">
@@ -86,13 +86,9 @@
                 <text class="gear-attribute-value">{{item.value}}</text>
               </view>
             </view>
-            <button class="gear-attribute-action" disabled="{{gearDataFallback}}" bindtap="openGearEnhancementSheet">强化配置</button>
           </view>
-          <view class="gear-attribute-grid">
-            <view class="gear-attribute-cell {{item.pending ? 'pending' : ''}}" wx:for="{{gearAttributePanel.statRows}}" wx:key="key">
-              <text class="gear-attribute-label">{{item.label}}</text>
-              <text class="gear-attribute-value">{{item.value}}</text>
-            </view>
+          <view class="gear-attribute-action-row">
+            <button class="gear-attribute-action" disabled="{{gearDataFallback}}" bindtap="openGearEnhancementSheet">强化配置</button>
           </view>
         </view>
 
@@ -294,34 +290,37 @@
     <view class="gear-enhancement-blockers" wx:if="{{gearEnhancementSheet.blockers.length}}">
       <text class="gear-enhancement-blocker" wx:for="{{gearEnhancementSheet.blockers}}" wx:key="*this">{{item}}</text>
     </view>
-    <view class="gear-enhancement-section" wx:if="{{gearEnhancementSheet.gemRows.length}}">
+    <view class="gear-enhancement-section" wx:if="{{gearEnhancementSheet.equipmentRows.length}}">
       <view class="gear-sheet-section-heading">
-        <text class="gear-sheet-section-title">宝石</text>
+        <text class="gear-sheet-section-title">可强化装备</text>
       </view>
-      <view class="gear-enhancement-row" wx:for="{{gearEnhancementSheet.gemRows}}" wx:for-item="row" wx:key="slot">
-        <text class="gear-enhancement-slot">{{row.label}}</text>
+      <view class="gear-enhancement-equipment-grid">
+        <view class="gear-enhancement-equipment-card {{item.active ? 'active' : ''}}" wx:for="{{gearEnhancementSheet.equipmentRows}}" wx:key="slot" data-slot="{{item.slot}}" bindtap="selectGearEnhancementSlot">
+          <text class="gear-enhancement-equipment-slot">{{item.label}}</text>
+          <text class="gear-enhancement-equipment-name">{{item.itemName}}</text>
+          <text class="gear-enhancement-equipment-types">{{item.typeSummary}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="gear-enhancement-section" wx:if="{{gearEnhancementSheet.activeSlot}}">
+      <view class="gear-sheet-section-heading">
+        <text class="gear-sheet-section-title">{{gearEnhancementSheet.activeTitle}}配置</text>
+      </view>
+      <text class="gear-enhancement-active-item">{{gearEnhancementSheet.activeItemName}}</text>
+      <view class="gear-enhancement-row" wx:if="{{gearEnhancementSheet.activeGemRows.length}}" wx:for="{{gearEnhancementSheet.activeGemRows}}" wx:for-item="row" wx:key="slot">
+        <text class="gear-enhancement-slot">宝石</text>
         <view class="gear-enhancement-options">
           <button class="gear-enhancement-option {{option.selected ? 'active' : ''}} {{option.disabled ? 'disabled' : ''}}" wx:for="{{row.options}}" wx:for-item="option" wx:key="id" data-slot="{{row.slot}}" data-type="gem" data-id="{{option.id}}" disabled="{{option.disabled}}" bindtap="selectGearEnhancementOption">{{option.label}}</button>
         </view>
       </view>
-    </view>
-    <view class="gear-enhancement-section" wx:if="{{gearEnhancementSheet.enchantRows.length}}">
-      <view class="gear-sheet-section-heading">
-        <text class="gear-sheet-section-title">附魔</text>
-      </view>
-      <view class="gear-enhancement-row" wx:for="{{gearEnhancementSheet.enchantRows}}" wx:for-item="row" wx:key="slot">
-        <text class="gear-enhancement-slot">{{row.label}}</text>
+      <view class="gear-enhancement-row" wx:if="{{gearEnhancementSheet.activeEnchantRows.length}}" wx:for="{{gearEnhancementSheet.activeEnchantRows}}" wx:for-item="row" wx:key="slot">
+        <text class="gear-enhancement-slot">附魔</text>
         <view class="gear-enhancement-options">
           <button class="gear-enhancement-option {{option.selected ? 'active' : ''}} {{option.disabled ? 'disabled' : ''}}" wx:for="{{row.options}}" wx:for-item="option" wx:key="id" data-slot="{{row.slot}}" data-type="enchant" data-id="{{option.id}}" disabled="{{option.disabled}}" bindtap="selectGearEnhancementOption">{{option.label}}</button>
         </view>
       </view>
-    </view>
-    <view class="gear-enhancement-section" wx:if="{{gearEnhancementSheet.embellishmentRows.length}}">
-      <view class="gear-sheet-section-heading">
-        <text class="gear-sheet-section-title">美化</text>
-      </view>
-      <view class="gear-enhancement-row" wx:for="{{gearEnhancementSheet.embellishmentRows}}" wx:for-item="row" wx:key="slot">
-        <text class="gear-enhancement-slot">{{row.label}}</text>
+      <view class="gear-enhancement-row" wx:if="{{gearEnhancementSheet.activeEmbellishmentRows.length}}" wx:for="{{gearEnhancementSheet.activeEmbellishmentRows}}" wx:for-item="row" wx:key="slot">
+        <text class="gear-enhancement-slot">美化</text>
         <view class="gear-enhancement-options">
           <button class="gear-enhancement-option {{option.selected ? 'active' : ''}} {{option.disabled ? 'disabled' : ''}}" wx:for="{{row.options}}" wx:for-item="option" wx:key="id" data-slot="{{row.slot}}" data-type="embellishment" data-id="{{option.id}}" disabled="{{option.disabled}}" bindtap="selectGearEnhancementOption">{{option.label}}</button>
         </view>

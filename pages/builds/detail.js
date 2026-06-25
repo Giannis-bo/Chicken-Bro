@@ -35,6 +35,7 @@ const gearTemplateScenarios = [
 const GEAR_ENHANCEMENT_SNAPSHOT_REVISION = 'websim-gear-enhancement-snapshot-v1'
 const gearEnhancementMax = 2
 const enchantableGearSlots = new Set(['back', 'chest', 'wrist', 'legs', 'feet', 'finger1', 'finger2', 'main_hand', 'off_hand'])
+const gearEnhancementSlotOrder = ['neck', 'finger1', 'finger2', 'main_hand', 'off_hand']
 const gearCandidateFilters = [
   { key: 'all', label: '全部' },
   { key: 'dungeon', label: '大秘境' },
@@ -421,13 +422,13 @@ function emptyGearAttributePanel() {
     visible: false,
     summary: '已选 0/16 槽',
     itemLevel: gearAttributeMetric('itemLevel', '装备等级', null, '待补'),
-    primaryStat: gearAttributeMetric('intellect', '智力', null, '待补'),
     enhancementRows: [
       gearEnhancementMetric('embellishment', '美化', 0, gearEnhancementMax),
       gearEnhancementMetric('gem', '宝石', 0, 0),
       gearEnhancementMetric('enchant', '附魔', 0, 0)
     ],
     statRows: [
+      gearAttributeMetric('intellect', '智力', null, '待补'),
       gearAttributeMetric('stamina', '耐力', null, '待补'),
       gearAttributeMetric('haste', '急速', 0, '0'),
       gearAttributeMetric('crit', '暴击', 0, '0'),
@@ -479,13 +480,13 @@ function buildGearAttributePanel(gearPayload, selectedGearBySlot, selectedSpec, 
     visible: true,
     summary: `已选 ${selectedItems.length}/${requiredSlotsForPanel.length} 槽`,
     itemLevel: gearAttributeMetric('itemLevel', '装备等级', itemLevelAverage, '待补'),
-    primaryStat: gearAttributeMetric(primaryKey, gearPrimaryStatLabels[primaryKey] || '主属性', primaryValue, '待补'),
     enhancementRows: [
       gearEnhancementMetric('embellishment', '美化', enhancementSheet.embellishmentUsed, enhancementSheet.embellishmentMax),
       gearEnhancementMetric('gem', '宝石', selectedEnhancementRowCount(enhancementSheet.gemRows), enhancementSheet.gemRows.length),
       gearEnhancementMetric('enchant', '附魔', selectedEnhancementRowCount(enhancementSheet.enchantRows), enhancementSheet.enchantRows.length)
     ],
     statRows: [
+      gearAttributeMetric(primaryKey, gearPrimaryStatLabels[primaryKey] || '主属性', primaryValue, '待补'),
       gearAttributeMetric('stamina', '耐力', staminaValue, '待补'),
       gearAttributeMetric('haste', '急速', totals.haste, '0'),
       gearAttributeMetric('crit', '暴击', totals.crit, '0'),
@@ -907,12 +908,98 @@ function enhancementOptionSelected(option, selected, type) {
   return false
 }
 
-function enhancementOptionForData(option, selected, type, disabled) {
+function textContainsCjk(value) {
+  return /[\u3400-\u9fff]/.test(String(value || ''))
+}
+
+function optionItemStatSummary(option) {
+  const stats = Array.isArray(option.itemStats) ? option.itemStats : (Array.isArray(option.stats) ? option.stats : [])
+  const parts = []
+  const seen = new Set()
+  stats.forEach((stat) => {
+    if (!stat || typeof stat !== 'object') return
+    const label = cleanGearString(stat.label || (stat.type && stat.type.name) || stat.name || stat.stat)
+    const value = cleanGearString(stat.value || stat.amount)
+    const part = label && value ? `${label} ${value}` : (label || cleanGearString(stat.display))
+    if (!part || seen.has(part)) return
+    seen.add(part)
+    parts.push(part)
+  })
+  return parts.join('；')
+}
+
+function optionPayload(option) {
+  return option && option.payload && typeof option.payload === 'object' ? option.payload : {}
+}
+
+function optionDisplayStatus(option) {
+  const payload = optionPayload(option)
+  return cleanGearString(option.displayStatus || option.display_status || payload.displayStatus || payload.display_status).toLowerCase()
+}
+
+function optionEvidenceSource(option) {
+  const payload = optionPayload(option)
+  return cleanGearString(option.evidenceSource || option.evidence_source || option.displaySource || option.display_source || payload.evidenceSource || payload.evidence_source || payload.displaySource || payload.display_source || payload.metadataSource)
+}
+
+function optionDisplayLabel(option) {
+  const payload = optionPayload(option)
+  return cleanGearString(
+    option.displayLabel ||
+    option.display_label ||
+    payload.displayLabel ||
+    payload.display_label ||
+    option.displayName ||
+    payload.displayName ||
+    option.label ||
+    option.name
+  )
+}
+
+function enhancementLabelLooksLikeFallback(label, type) {
+  const value = cleanGearString(label)
+  if (!value) return true
+  if (/^(gem|enchant|embellishment|observed|server seed)\b/i.test(value)) return true
+  if (type === 'enchant' && /^(附魔|武器附魔|戒指附魔|披风附魔|胸甲附魔|护腕附魔|靴子附魔|腿部强化)\s*[\d/]*$/i.test(value)) return true
+  if (type === 'gem' && /^(宝石|gem)\s*[\d/]+$/i.test(value)) return true
+  return false
+}
+
+function readableEnhancementOptionLabel(option, type) {
+  const explicitLabel = optionDisplayLabel(option || {})
+  if (type === 'gem') {
+    const payload = optionPayload(option)
+    return cleanGearString(
+      option.displayLabel ||
+      option.display_label ||
+      payload.displayLabel ||
+      payload.display_label ||
+      option.statSummary ||
+      option.stat_summary ||
+      option.summary ||
+      option.valueSummary ||
+      payload.statSummary ||
+      payload.summary
+    ) || optionItemStatSummary(option || {})
+  }
+  if (!textContainsCjk(explicitLabel)) return ''
+  if (enhancementLabelLooksLikeFallback(explicitLabel, type)) return ''
+  const status = optionDisplayStatus(option || {})
+  const evidenceSource = optionEvidenceSource(option || {})
+  const payload = optionPayload(option)
+  const hasExplicitDisplayLabel = !!cleanGearString(option.displayLabel || option.display_label || payload.displayLabel || payload.display_label)
+  if (status && status !== 'verified') return ''
+  return status === 'verified' || evidenceSource || hasExplicitDisplayLabel ? explicitLabel : ''
+}
+
+function enhancementOptionForData(option, selected, type, disabled, slot) {
   const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
   const isSelected = enhancementOptionSelected(option, selected || {}, type)
+  const displayLabel = readableEnhancementOptionLabel(option || {}, type)
+  if (!displayLabel) return null
   return {
     id: cleanGearString(option.id || option.key || option.label || option.name),
-    label: cleanGearString(option.label || option.name || option.id || '强化选项'),
+    label: displayLabel,
     selected: isSelected,
     disabled: !!(disabled && !isSelected),
     simcOptions
@@ -920,18 +1007,28 @@ function enhancementOptionForData(option, selected, type, disabled) {
 }
 
 function enhancementRow(slot, item, options, selected, type, disabled) {
+  const displayOptions = options
+    .map((option) => enhancementOptionForData(option, selected || {}, type, disabled, slot))
+    .filter(Boolean)
   return {
     slot,
     label: gearSlotDisplayLabels[slot] || slot,
     itemName: itemDisplayName(item),
-    selectedLabel: (options.find((option) => enhancementOptionSelected(option, selected || {}, type)) || {}).label || '',
-    options: options.map((option) => enhancementOptionForData(option, selected || {}, type, disabled))
+    selectedLabel: (displayOptions.find((option) => option.selected) || {}).label || '',
+    options: displayOptions
   }
 }
 
 function emptyGearEnhancementSheet() {
   return {
     visible: false,
+    equipmentRows: [],
+    activeSlot: '',
+    activeTitle: '',
+    activeItemName: '',
+    activeGemRows: [],
+    activeEnchantRows: [],
+    activeEmbellishmentRows: [],
     gemRows: [],
     enchantRows: [],
     embellishmentRows: [],
@@ -942,7 +1039,38 @@ function emptyGearEnhancementSheet() {
   }
 }
 
-function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible) {
+function gearEnhancementSlotSortKey(slot, fallbackIndex) {
+  const priorityIndex = gearEnhancementSlotOrder.indexOf(slot)
+  return [
+    priorityIndex >= 0 ? priorityIndex : gearEnhancementSlotOrder.length,
+    fallbackIndex
+  ]
+}
+
+function buildGearEnhancementEquipmentRows(slots, indexed, gemRows, enchantRows, embellishmentRows, activeSlot) {
+  const rowMaps = {
+    gem: new Map(gemRows.map((row) => [row.slot, row])),
+    enchant: new Map(enchantRows.map((row) => [row.slot, row])),
+    embellishment: new Map(embellishmentRows.map((row) => [row.slot, row]))
+  }
+  return (slots || []).map((slot) => {
+    const typeLabels = []
+    if (rowMaps.gem.has(slot)) typeLabels.push('宝石')
+    if (rowMaps.enchant.has(slot)) typeLabels.push('附魔')
+    if (rowMaps.embellishment.has(slot)) typeLabels.push('美化')
+    if (!typeLabels.length) return null
+    const item = indexed[slot] || {}
+    return {
+      slot,
+      label: gearSlotDisplayLabels[slot] || slot,
+      itemName: itemDisplayName(item),
+      typeSummary: typeLabels.join(' / '),
+      active: slot === activeSlot
+    }
+  }).filter(Boolean)
+}
+
+function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible, requestedActiveSlot) {
   const indexed = selectedGearByCanonicalSlot(selectedGearBySlot || {})
   const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
   const builtInCount = Object.keys(indexed).filter((slot) => builtInEmbellishmentValue(indexed[slot])).length
@@ -963,17 +1091,20 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
     const enchantOptions = enhancementOptionsForSlot(gearPayload, item, 'enchantOptions')
     const embellishmentOptions = enhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions')
     if (socketOptions.length && itemSupportsEnhancement(item, 'gem', socketOptions)) {
-      gemRows.push(enhancementRow(slot, item, socketOptions, selected, 'gem', false))
+      const row = enhancementRow(slot, item, socketOptions, selected, 'gem', false)
+      if (row.options.length) gemRows.push(row)
     } else if (selected.gem_id) {
       blockers.push(`${gearSlotDisplay(slot)} 宝石已不兼容`)
     }
     if (enchantOptions.length && itemSupportsEnhancement(item, 'enchant', enchantOptions)) {
-      enchantRows.push(enhancementRow(slot, item, enchantOptions, selected, 'enchant', false))
+      const row = enhancementRow(slot, item, enchantOptions, selected, 'enchant', false)
+      if (row.options.length) enchantRows.push(row)
     } else if (selected.enchant_id) {
       blockers.push(`${gearSlotDisplay(slot)} 附魔已不兼容`)
     }
     if (embellishmentOptions.length && itemSupportsEnhancement(item, 'embellishment', embellishmentOptions) && !builtInEmbellishmentValue(item)) {
-      embellishmentRows.push(enhancementRow(slot, item, embellishmentOptions, selected, 'embellishment', embellishmentUsed >= gearEnhancementMax))
+      const row = enhancementRow(slot, item, embellishmentOptions, selected, 'embellishment', embellishmentUsed >= gearEnhancementMax)
+      if (row.options.length) embellishmentRows.push(row)
     } else if (selected.embellishment) {
       blockers.push(`${gearSlotDisplay(slot)} 美化已不兼容`)
     }
@@ -981,8 +1112,30 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
   const emptyText = gemRows.length || enchantRows.length || embellishmentRows.length
     ? ''
     : '当前已选装备没有可配置的宝石、附魔或美化。'
+  const configurableSlots = requiredGearTemplateSlots(gearPayload || {}).filter((slot) => {
+    return gemRows.some((row) => row.slot === slot) ||
+      enchantRows.some((row) => row.slot === slot) ||
+      embellishmentRows.some((row) => row.slot === slot)
+  }).sort((left, right) => {
+    const allSlots = requiredGearTemplateSlots(gearPayload || {})
+    const leftKey = gearEnhancementSlotSortKey(left, allSlots.indexOf(left))
+    const rightKey = gearEnhancementSlotSortKey(right, allSlots.indexOf(right))
+    return leftKey[0] - rightKey[0] || leftKey[1] - rightKey[1]
+  })
+  const activeSlot = configurableSlots.includes(requestedActiveSlot) ? requestedActiveSlot : (configurableSlots[0] || '')
+  const equipmentRows = buildGearEnhancementEquipmentRows(configurableSlots, indexed, gemRows, enchantRows, embellishmentRows, activeSlot)
+  const activeGemRows = activeSlot ? gemRows.filter((row) => row.slot === activeSlot) : []
+  const activeEnchantRows = activeSlot ? enchantRows.filter((row) => row.slot === activeSlot) : []
+  const activeEmbellishmentRows = activeSlot ? embellishmentRows.filter((row) => row.slot === activeSlot) : []
   return {
     visible: !!visible,
+    equipmentRows,
+    activeSlot,
+    activeTitle: activeSlot ? (gearSlotDisplayLabels[activeSlot] || activeSlot) : '',
+    activeItemName: activeSlot ? itemDisplayName(indexed[activeSlot]) : '',
+    activeGemRows,
+    activeEnchantRows,
+    activeEmbellishmentRows,
     gemRows,
     enchantRows,
     embellishmentRows,
@@ -2628,6 +2781,21 @@ Page({
     })
   },
 
+  selectGearEnhancementSlot(event) {
+    const slot = event.currentTarget.dataset.slot || ''
+    if (!slot) return
+    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
+    this.setData({
+      gearEnhancementSheet: buildGearEnhancementSheet(
+        gearPayload,
+        this.data.selectedGearBySlot || {},
+        this.data.enhancementBySlot || {},
+        true,
+        slot
+      )
+    })
+  },
+
   selectGearEnhancementOption(event) {
     const slot = event.currentTarget.dataset.slot || ''
     const type = event.currentTarget.dataset.type || ''
@@ -2654,7 +2822,7 @@ Page({
     this.setData({
       enhancementBySlot: current,
       gearAttributePanel: buildGearAttributePanel(gearPayload, this.data.selectedGearBySlot || {}, this.data.selectedSpec, current),
-      gearEnhancementSheet: buildGearEnhancementSheet(gearPayload, this.data.selectedGearBySlot || {}, current, true)
+      gearEnhancementSheet: buildGearEnhancementSheet(gearPayload, this.data.selectedGearBySlot || {}, current, true, sheet.activeSlot || slot)
     })
   },
 
