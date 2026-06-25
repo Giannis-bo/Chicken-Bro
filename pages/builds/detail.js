@@ -876,6 +876,7 @@ function itemSupportsEnhancement(item, type, options) {
 function builtInEmbellishmentValue(item) {
   return cleanGearString(
     item && (
+      (item.hasBuiltInEmbellishment ? item.builtInEmbellishment || 'built_in' : '') ||
       item.builtInEmbellishment ||
       item.intrinsicEmbellishment ||
       item.inherentEmbellishment ||
@@ -883,6 +884,20 @@ function builtInEmbellishmentValue(item) {
       item.embellishment
     )
   )
+}
+
+function gearBuiltInEmbellishmentBadgeLabel(item) {
+  if (!item || typeof item !== 'object') return ''
+  const source = cleanGearString(item.embellishmentSource).toLowerCase()
+  const hasExplicitBuiltIn = !!(
+    item.hasBuiltInEmbellishment ||
+    item.builtInEmbellishment ||
+    item.intrinsicEmbellishment ||
+    item.inherentEmbellishment ||
+    ['built_in', 'builtin', 'intrinsic', 'item'].includes(source)
+  )
+  if (!hasExplicitBuiltIn) return ''
+  return cleanGearString(item.builtInEmbellishmentLabel) || '美化'
 }
 
 function enhancementOptionSelected(option, selected, type) {
@@ -1585,7 +1600,7 @@ function gearDataWarningText(error, payload, fromFallback) {
   if (error) {
     return `装备接口请求失败：${error}。当前只是空槽位兜底。`
   }
-  if (fromFallback || (payload && payload.dataStatus === 'blocked')) {
+  if (fromFallback) {
     return '装备接口暂不可用，当前只是空槽位兜底。'
   }
   return ''
@@ -1648,9 +1663,11 @@ function gearObjectForSnapshot(item) {
     'armorType',
     'weaponType',
     'itemSetName',
+    'hasBuiltInEmbellishment',
     'builtInEmbellishment',
     'intrinsicEmbellishment',
     'inherentEmbellishment',
+    'builtInEmbellishmentLabel',
     'embellishmentSource',
     'compatibility',
     'missingFields',
@@ -2277,6 +2294,7 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
       return {
         ...gearObjectForData(displayCandidate),
         detailRows: gearCandidateDetailRows(displayCandidate),
+        embellishmentBadgeLabel: gearBuiltInEmbellishmentBadgeLabel(displayCandidate),
         selected: isSelected,
         detailOpen: candidate.key === detailKey
       }
@@ -2325,6 +2343,7 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
       iconUrl: candidate.iconUrl || '',
       source: gearCandidateSourceLabel(candidate),
       sourceType: gearCandidateSourceType(candidate),
+      embellishmentBadgeLabel: gearBuiltInEmbellishmentBadgeLabel(candidate),
       variantLabel: candidate.variantLabel || '',
       modSummary: gearModSummary(candidate),
       statusLabel: gearStatusLabel(trust.status),
@@ -2359,6 +2378,7 @@ function buildGearSlotRows(payload, selectedGearBySlot) {
       ilevel: item.ilevel || '',
       source: gearCandidateSourceLabel(item),
       sourceType: item.sourceType || '',
+      embellishmentBadgeLabel: gearBuiltInEmbellishmentBadgeLabel(item),
       variantLabel: item.variantLabel || '',
       variantKey: item.variantKey || '',
       selectedCraftedStatKey: item.selectedCraftedStatKey || '',
@@ -2407,7 +2427,7 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
   const talentScenario = talentScenarios.find((item) => item.key === activeTalentScenarioKey) || talentScenarios[0]
   const talentSimulationSummary = buildTalentSimulationSummary(talentDetail, talentScenario.key, selectedTalentNodes)
   const gearPayload = currentState.gearPayload || null
-  const gearDataFallback = !!(currentState.gearDataFallback || (gearPayload && gearPayload.dataStatus === 'blocked'))
+  const gearDataFallback = !!currentState.gearDataFallback
   const selectedGearBySlot = currentState.selectedGearBySlot || {}
   const gearReadiness = currentState.gearReadiness || (gearPayload && gearPayload.readiness) || {}
   const gearSlotRows = buildGearSlotRows(gearPayload, selectedGearBySlot)

@@ -1080,6 +1080,7 @@ OFFICIAL_ITEM_LEVEL_TRACKS = [
 OFFICIAL_VOID_UPGRADE_TRACK = {"difficultyKey": "void_upgrade", "label": "虚空晋升 298", "itemLevel": 298}
 OFFICIAL_ITEM_LEVEL_PROBE_SOURCE = "simulationcraft_item_level_probe"
 CRAFTED_ITEM_LEVEL_PROBE_SOURCE = "simulationcraft_crafted_item_probe"
+PREEMBELLISHED_CRAFTED_ITEM_LEVEL_PROBE_SOURCE = "simulationcraft_preembellished_item_probe"
 CRAFTED_PUBLIC_DIFFICULTY_KEYS = {
     "crafted_champion": "champion",
     "crafted_hero": "hero",
@@ -2842,6 +2843,89 @@ def payload_preview_item(payload):
         if isinstance(value, dict):
             return value
     return {}
+
+
+BUILT_IN_EMBELLISHMENT_VALUE = "built_in"
+BUILT_IN_EMBELLISHMENT_LABEL = "美化"
+BUILT_IN_EMBELLISHMENT_LIMIT_KEYS = {
+    "limit_category",
+    "limitCategory",
+    "limit_categories",
+    "limitCategories",
+    "unique_equipped",
+    "uniqueEquipped",
+    "unique_equipped_category",
+    "uniqueEquippedCategory",
+    "equip_limit",
+    "equipLimit",
+}
+
+
+def text_fragments_from_value(value, depth=0):
+    if depth > 6 or value in (None, "", [], {}):
+        return []
+    if isinstance(value, (str, int, float, bool)):
+        text = str(value).strip()
+        return [text] if text else []
+    if isinstance(value, list):
+        fragments = []
+        for entry in value:
+            fragments.extend(text_fragments_from_value(entry, depth + 1))
+        return fragments
+    if isinstance(value, dict):
+        fragments = []
+        for key in ("name", "display_string", "displayString", "type", "label", "description", "text"):
+            if key in value:
+                fragments.extend(text_fragments_from_value(value.get(key), depth + 1))
+        for nested in value.values():
+            if isinstance(nested, (dict, list)):
+                fragments.extend(text_fragments_from_value(nested, depth + 1))
+        return fragments
+    return []
+
+
+def keyed_payload_text_fragments(value, keys, depth=0):
+    if depth > 6 or not isinstance(value, dict):
+        return []
+    fragments = []
+    for key, child in value.items():
+        if key in keys:
+            fragments.extend(text_fragments_from_value(child))
+        if isinstance(child, dict):
+            fragments.extend(keyed_payload_text_fragments(child, keys, depth + 1))
+        elif isinstance(child, list):
+            for entry in child:
+                if isinstance(entry, dict):
+                    fragments.extend(keyed_payload_text_fragments(entry, keys, depth + 1))
+    return fragments
+
+
+def built_in_embellishment_fields_from_payload(payload):
+    if not isinstance(payload, dict):
+        return {}
+    fragments = []
+    seen_parents = set()
+    for parent in (payload_preview_item(payload), payload):
+        if not isinstance(parent, dict):
+            continue
+        parent_id = id(parent)
+        if parent_id in seen_parents:
+            continue
+        seen_parents.add(parent_id)
+        fragments.extend(keyed_payload_text_fragments(parent, BUILT_IN_EMBELLISHMENT_LIMIT_KEYS))
+    text = " ".join(fragments).strip().lower()
+    if not text:
+        return {}
+    has_chinese_marker = "美化" in text and ("唯一" in text or "装备唯一" in text)
+    has_english_marker = "embellish" in text and ("unique" in text or "equipped" in text)
+    if not (has_chinese_marker or has_english_marker):
+        return {}
+    return {
+        "hasBuiltInEmbellishment": True,
+        "builtInEmbellishment": BUILT_IN_EMBELLISHMENT_VALUE,
+        "builtInEmbellishmentLabel": BUILT_IN_EMBELLISHMENT_LABEL,
+        "embellishmentSource": "built_in",
+    }
 
 
 def positive_int_value(value):
@@ -6191,6 +6275,7 @@ def existing_websim_item_metadata(conn, item_id):
         "metadataSource": (metadata or {}).get("source") or ITEM_METADATA_SOURCE,
         "metadataLocale": (metadata or {}).get("locale") or DEFAULT_LOCALE,
         "englishName": (metadata or {}).get("englishName") or "",
+        **built_in_embellishment_fields_from_payload(payload),
     }
 
 
@@ -14266,10 +14351,15 @@ def catalog_variant_usable_for_replacement(variant):
     if not isinstance(variant, dict):
         return False
     payload = variant.get("payload") if isinstance(variant.get("payload"), dict) else {}
+    source_type = raw_source_type(variant.get("sourceType")).lower()
     difficulty_key = str(variant.get("difficultyKey") or "").strip().lower()
     variant_key = str(variant.get("variantKey") or variant.get("key") or "").strip().lower()
     derived_source = str(payload.get("derivedVariantSource") or "").strip()
     if derived_source == OFFICIAL_ITEM_LEVEL_PROBE_SOURCE:
+        status = str(variant.get("status") or payload.get("status") or "").strip().lower()
+        stats = payload.get("itemStats") or payload.get("stats") or []
+        return status == "verified" and bool(stats)
+    if source_type == "crafted" and derived_source == PREEMBELLISHED_CRAFTED_ITEM_LEVEL_PROBE_SOURCE:
         status = str(variant.get("status") or payload.get("status") or "").strip().lower()
         stats = payload.get("itemStats") or payload.get("stats") or []
         return status == "verified" and bool(stats)
@@ -15808,10 +15898,19 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         "intrinsicEmbellishment",
         "inherentEmbellishment",
         "embellishmentSource",
+        "builtInEmbellishmentLabel",
     ):
         option_value = normalize_option_value(value.get(key))
         if option_value:
             item[key] = option_value
+    if value.get("hasBuiltInEmbellishment"):
+        item["hasBuiltInEmbellishment"] = True
+        item.setdefault("builtInEmbellishment", BUILT_IN_EMBELLISHMENT_VALUE)
+        item.setdefault("builtInEmbellishmentLabel", BUILT_IN_EMBELLISHMENT_LABEL)
+        item.setdefault("embellishmentSource", "built_in")
+    payload_builtin_embellishment = built_in_embellishment_fields_from_payload(payload)
+    if payload_builtin_embellishment:
+        item.update({key: value for key, value in payload_builtin_embellishment.items() if key not in item})
     if value.get("simcIlevelOnly"):
         item["simcIlevelOnly"] = True
     item["supportsSocket"] = bool(
@@ -16333,6 +16432,12 @@ def merge_gear_candidate_records(primary, secondary):
         "variantDifficultyLabel",
         "variantSource",
         "variantStatus",
+        "hasBuiltInEmbellishment",
+        "builtInEmbellishment",
+        "intrinsicEmbellishment",
+        "inherentEmbellishment",
+        "builtInEmbellishmentLabel",
+        "embellishmentSource",
     ]:
         if merged.get(key) in (None, "", [], {}) and secondary.get(key) not in (None, "", [], {}):
             merged[key] = secondary.get(key)
@@ -16673,6 +16778,12 @@ COMPACT_GEAR_CANDIDATE_KEYS = {
     "enchant_id",
     "crafted_stats",
     "embellishment",
+    "hasBuiltInEmbellishment",
+    "builtInEmbellishment",
+    "intrinsicEmbellishment",
+    "inherentEmbellishment",
+    "builtInEmbellishmentLabel",
+    "embellishmentSource",
     "itemStats",
     "statSummary",
     "modCapabilities",
@@ -18415,11 +18526,21 @@ def normalize_enhancement_by_slot(raw_enhancements):
 def item_builtin_embellishment_value(item):
     if not isinstance(item, dict):
         return ""
+    if item.get("hasBuiltInEmbellishment"):
+        return normalize_option_value(
+            item.get("builtInEmbellishment")
+            or item.get("intrinsicEmbellishment")
+            or item.get("inherentEmbellishment")
+            or BUILT_IN_EMBELLISHMENT_VALUE
+        )
     for key in ("builtInEmbellishment", "intrinsicEmbellishment", "inherentEmbellishment"):
         value = normalize_option_value(item.get(key))
         if value:
             return value
     payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+    payload_builtin_embellishment = built_in_embellishment_fields_from_payload(payload)
+    if payload_builtin_embellishment:
+        return payload_builtin_embellishment["builtInEmbellishment"]
     for key in ("builtInEmbellishment", "intrinsicEmbellishment", "inherentEmbellishment"):
         value = normalize_option_value(payload.get(key))
         if value:

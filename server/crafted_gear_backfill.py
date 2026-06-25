@@ -24,6 +24,44 @@ CRAFTED_STAT_ID_LABELS = {
     "49": ("mastery", "精通"),
 }
 STANDARD_CRAFTED_STATS_VALUES = ("32/36", "32/40", "32/49", "36/40", "36/49", "40/49")
+CURRENT_PVE_CRAFTED_METADATA_ITEMS = {
+    # Blacksmithing: epic plate armor and weapons.
+    **{str(item_id): {"profession": "blacksmithing", "evidence": "midnight_pve_recipe_audit"} for item_id in range(237828, 237851)},
+    # Tailoring: epic cloth armor.
+    **{str(item_id): {"profession": "tailoring", "evidence": "midnight_pve_recipe_audit"} for item_id in range(239648, 239657)},
+    # Jewelcrafting: epic customizable ring and neck. PvP competitor jewelry is intentionally excluded.
+    "240949": {"profession": "jewelcrafting", "evidence": "midnight_pve_recipe_audit"},
+    "240950": {"profession": "jewelcrafting", "evidence": "midnight_pve_recipe_audit"},
+    # Leatherworking: epic leather and mail armor.
+    **{str(item_id): {"profession": "leatherworking", "evidence": "midnight_pve_recipe_audit"} for item_id in range(244569, 244585)},
+    # Inscription: epic weapons and off-hand.
+    "245769": {"profession": "inscription", "evidence": "midnight_pve_recipe_audit"},
+    "245770": {"profession": "inscription", "evidence": "midnight_pve_recipe_audit"},
+    "245771": {"profession": "inscription", "evidence": "midnight_pve_recipe_audit"},
+    "265337": {"profession": "inscription", "evidence": "midnight_pve_recipe_audit"},
+}
+UNSUPPORTED_CRAFTED_METADATA_ITEMS = {
+    # Engineering combat gear uses a single amplified secondary stat. Keep it out
+    # of the two-stat crafted_stats lane until the probe and UI support it.
+    "244774": "engineering_single_stat_crafted_gear_unsupported",
+}
+EXCLUDED_CRAFTED_METADATA_ITEMS = {
+    # Previous/observed random-stat or drop items that expose crafting-like item
+    # metadata but are not current-season PVE crafted recipes.
+    "228843": "old_raid_random_stat_item",
+    "239678": "pvp_competitor_item",
+    "240951": "pvp_competitor_item",
+    "240952": "pvp_competitor_item",
+    "244764": "pvp_competitor_item",
+    "251105": "drop_item_not_crafted_spellbreakers_rebuke",
+    "260370": "midnight_raid_boe_random_stat_item",
+    "260371": "midnight_raid_boe_random_stat_item",
+    "260372": "midnight_raid_boe_random_stat_item",
+    "260373": "midnight_raid_boe_random_stat_item",
+    "260374": "midnight_raid_boe_random_stat_item",
+    "260375": "midnight_raid_boe_random_stat_item",
+    "260377": "midnight_raid_boe_random_stat_item",
+}
 DEFAULT_CRAFTED_METADATA_SLOTS = (
     "head",
     "neck",
@@ -47,14 +85,6 @@ CRAFTING_STAT_METADATA_KEYS = {
     "modifiedCraftingStats",
 }
 CURATED_CRAFTED_METADATA_ITEMS = {
-    "251105": {
-        "slot": "off_hand",
-        "sourceType": "local_curated_crafted_catalog",
-        "sourceLabel": "Local curated crafted catalog: shield",
-        "profession": "metadata_catalog",
-        "supportsVoidUpgrade": True,
-        "evidence": "curated_crafted_shield",
-    },
 }
 
 
@@ -355,6 +385,10 @@ def crafted_catalog_items_from_simc_presets(conn, *, item_ids=None, limit=None, 
             item_id = websim_payload.normalize_option_value(item.get("itemId") or item.get("id"))
             if not item_id or (target_ids and item_id not in target_ids):
                 continue
+            if item_id in EXCLUDED_CRAFTED_METADATA_ITEMS or item_id in UNSUPPORTED_CRAFTED_METADATA_ITEMS:
+                continue
+            if item_id not in CURRENT_PVE_CRAFTED_METADATA_ITEMS:
+                continue
             option = crafted_stats_option(item.get("crafted_stats"), observed=True)
             if not option:
                 continue
@@ -452,6 +486,11 @@ def crafted_catalog_items_from_metadata(conn, *, item_ids=None, slots=None, limi
         if item_id in seen_item_ids:
             continue
         seen_item_ids.add(item_id)
+        if item_id in EXCLUDED_CRAFTED_METADATA_ITEMS or item_id in UNSUPPORTED_CRAFTED_METADATA_ITEMS:
+            continue
+        governed = CURRENT_PVE_CRAFTED_METADATA_ITEMS.get(item_id)
+        if not governed:
+            continue
         curated = CURATED_CRAFTED_METADATA_ITEMS.get(item_id) or {}
         metadata = websim_payload.existing_websim_item_metadata(conn, item_id) or {}
         metadata_payload = metadata.get("payload") if isinstance(metadata.get("payload"), dict) else {}
@@ -469,7 +508,7 @@ def crafted_catalog_items_from_metadata(conn, *, item_ids=None, slots=None, limi
         profile_item = profile_items_by_id.get(item_id) or {}
         supports_void_upgrade = crafted_metadata_supports_void_upgrade(metadata, profile_item)
         evidence_source = str(curated.get("sourceType") or "battle_net_item_metadata")
-        evidence_key = str(curated.get("evidence") or "modified_crafting_stat")
+        evidence_key = str(curated.get("evidence") or governed.get("evidence") or "modified_crafting_stat")
         evidence = metadata_track_evidence(
             slot,
             supports_void_upgrade,
@@ -502,7 +541,12 @@ def crafted_catalog_items_from_metadata(conn, *, item_ids=None, slots=None, limi
                 "slot": slot,
                 "sourceId": f"crafted-preview-{item_id}",
                 "sourceLabel": "制造装备",
-                "profession": str(profile_item.get("profession") or curated.get("profession") or "metadata_catalog"),
+                "profession": str(
+                    profile_item.get("profession")
+                    or curated.get("profession")
+                    or governed.get("profession")
+                    or "metadata_catalog"
+                ),
                 "recipeId": str(profile_item.get("recipeId") or curated.get("recipeId") or ""),
                 "status": "verified",
                 "supportsVoidUpgrade": supports_void_upgrade,

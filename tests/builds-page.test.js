@@ -1033,6 +1033,17 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(css, /\.gear-enhancement-equipment-grid/)
   assert.match(css, /\.gear-enhancement-equipment-card/)
   assert.match(css, /\.gear-enhancement-option\.disabled/)
+  const gearEnhancementOptionsCss = css.match(/\.gear-enhancement-options\s*\{[^}]*\}/)
+  assert.ok(gearEnhancementOptionsCss)
+  assert.match(gearEnhancementOptionsCss[0], /gap:\s*12rpx;/)
+  const gearEnhancementOptionCss = css.match(/\.gear-enhancement-option\s*\{[^}]*\}/)
+  assert.ok(gearEnhancementOptionCss)
+  assert.match(gearEnhancementOptionCss[0], /min-height:\s*64rpx;/)
+  assert.match(gearEnhancementOptionCss[0], /display:\s*flex;/)
+  assert.match(gearEnhancementOptionCss[0], /align-items:\s*center;/)
+  assert.match(gearEnhancementOptionCss[0], /justify-content:\s*center;/)
+  assert.match(gearEnhancementOptionCss[0], /text-align:\s*center;/)
+  assert.match(gearEnhancementOptionCss[0], /white-space:\s*normal;/)
   const gearSlotMaskCss = css.match(/\.gear-slot-sheet-mask\s*\{[^}]*\}/)
   const gearEnhancementSheetCss = css.match(/\.gear-enhancement-sheet\s*\{[^}]*\}/)
   assert.ok(gearSlotMaskCss)
@@ -1737,6 +1748,74 @@ test('gear detail marks backend fallback and blocks empty community imports', as
   assert.match(page.data.gearDataWarningText, /未连接后端 API/)
   assert.equal(page.data.gearCommunityTemplateSheet.visible, false)
   assert.match(toasts.at(-1).title, /未连接后端 API/)
+})
+
+test('gear detail keeps enhancement available when successful gear payload has blocked season status', async () => {
+  const toasts = []
+  const selectedGear = completeGearSelection()
+  selectedGear.finger1 = {
+    ...selectedGear.finger1,
+    modCapabilities: { hasSocket: true, canEnchant: false, canEmbellish: false }
+  }
+  const gearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    dataStatus: 'blocked',
+    slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    replacementCandidates: canonicalGearSlots.map((slot) => ({
+      slot,
+      simcSlot: slot,
+      label: slot,
+      items: [],
+      socketOptions: slot === 'finger1'
+        ? [{
+            id: 'quick-gem-rank-two',
+            displayLabel: '+32主属性',
+            displayStatus: 'verified',
+            status: 'verified',
+            simcOptions: { gem_id: '240983' },
+            payload: { qualityRank: 2 }
+          }]
+        : []
+    })),
+    equippedSet: selectedGear,
+    slotReadiness: {},
+    readiness: { fullReady: true },
+    communityTemplates: [],
+    currentSeason: { dataStatus: 'blocked', errors: ['season health is degraded'] }
+  }
+  const pageConfig = loadBuildsDetailPageConfig({
+    toasts,
+    requestWebsimGear: () => Promise.resolve({ payload: gearPayload, fromFallback: false, error: '' })
+  })
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: {},
+      enhancementBySlot: {},
+      gearSelectionKey: '',
+      gearSlotRows: [],
+      gearSlotSheet: {},
+      gearEnhancementSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.loadWebsimGearForSelection.call(page, {
+    selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' }
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.gearDataFallback, false)
+  assert.equal(page.data.gearDataWarningText, '')
+  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options[0].label, '+32主属性')
+  assert.equal(toasts.length, 0)
 })
 
 test('gear detail keeps heavy candidate payload out of setData while preserving slot sheet candidates', async () => {
@@ -2668,6 +2747,96 @@ test('gear slot sheet keeps candidates that differ only by embellishment', () =>
     Array.from(page.data.gearSlotSheet.candidates, (candidate) => candidate.embellishment),
     ['dawnthread_lining', 'duskthread_lining']
   )
+})
+
+test('gear slot sheet marks built-in embellishments and apply syncs enhancement count', async () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
+  const selectedGearBySlot = {
+    waist: {
+      slot: 'waist',
+      simcSlot: 'waist',
+      itemId: '260899',
+      id: '260899',
+      displayName: 'Plain Crafted Belt',
+      sourceType: 'crafted',
+      ilevel: 285,
+      bonus_id: '8793',
+      simcReady: true
+    }
+  }
+  const builtInBelt = {
+    slot: 'waist',
+    simcSlot: 'waist',
+    itemId: '260900',
+    id: '260900',
+    displayName: '世界照护者的树皮腰扣',
+    sourceType: 'crafted',
+    sources: [{ label: '制造装备', sourceType: 'crafted' }],
+    ilevel: 285,
+    bonus_id: '8793',
+    hasBuiltInEmbellishment: true,
+    builtInEmbellishment: 'built_in',
+    builtInEmbellishmentLabel: '美化',
+    embellishmentSource: 'built_in',
+    simcReady: true
+  }
+  const gearPayload = {
+    slots: [{ slot: 'waist', simcSlot: 'waist', label: '腰部' }],
+    replacementCandidates: [{
+      slot: 'waist',
+      simcSlot: 'waist',
+      label: '腰部',
+      items: [builtInBelt],
+      embellishmentOptions: [{
+        id: 'embellishment-blue-silken-lining',
+        label: '蓝色丝质内衬',
+        displayLabel: '蓝色丝质内衬',
+        displayStatus: 'verified',
+        status: 'verified',
+        simcOptions: { embellishment: 'blue_silken_lining' },
+        payload: { qualityRank: 2 }
+      }]
+    }],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { id: 'mage-frost', websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot,
+      enhancementBySlot: { waist: { embellishment: 'blue_silken_lining' } },
+      gearSlotRows: [],
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  assert.match(wxml, /gear-embellishment-badge/)
+  assert.match(wxml, /item\.embellishmentBadgeLabel/)
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'waist' } } })
+
+  assert.ok(page.data.gearSlotSheet.filters.find((filter) => filter.key === 'crafted').count >= 1)
+  const builtInIndex = page.data.gearSlotSheet.candidates.findIndex((candidate) => candidate.itemId === '260900')
+  assert.notEqual(builtInIndex, -1)
+  assert.equal(page.data.gearSlotSheet.candidates[builtInIndex].embellishmentBadgeLabel, '美化')
+  pageConfig.selectGearCandidate.call(page, { currentTarget: { dataset: { index: builtInIndex } } })
+  assert.equal(page.data.gearSlotSheet.activeCandidate.itemId, '260900')
+
+  await pageConfig.applyGearCandidate.call(page)
+
+  assert.equal(page.data.selectedGearBySlot.waist.itemId, '260900')
+  assert.equal(JSON.stringify(page.data.enhancementBySlot), '{}')
+  assert.equal(page.data.gearSlotRows[0].embellishmentBadgeLabel, '美化')
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'embellishment').value, '1/2')
 })
 
 test('gear slot sheet source filters include tier set and crafted buckets while omitting recommendations', () => {

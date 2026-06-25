@@ -12603,6 +12603,91 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(len(compact["variants"][0]["craftedStatOptions"]), 1)
         self.assertEqual(compact["variants"][0]["craftedStatOptions"][0]["label"], "急速 + 精通")
 
+    def test_crafted_fixed_stat_variant_without_crafted_stats_is_usable(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            season = self.websim_payload.current_season_payload(season_id="17", season_label="Fresh Season")
+            self.websim_payload.save_active_season_payload(conn, season)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "260700",
+                {
+                    "id": 260700,
+                    "name": "Pre-Embellished Torque",
+                    "inventory_type": {"type": "NECK", "name": "Neck"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 0, "name": "Miscellaneous"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "limit_category": "装备唯一：美化 （2）",
+                        "stats": [
+                            {"type": {"type": "STAMINA", "name": "Stamina"}, "value": 100},
+                            {"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 60},
+                        ],
+                    },
+                },
+                {},
+                fallback_name="Pre-Embellished Torque",
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "crafted-governed-260700",
+                    "itemId": "260700",
+                    "sourceType": "crafted",
+                    "sourceLabel": "制造装备",
+                    "seasonRevision": season["seasonRevision"],
+                    "payload": {
+                        "status": "verified",
+                        "hasBuiltInEmbellishment": True,
+                        "builtInEmbellishmentLabel": "美化",
+                        "embellishmentSource": "built_in",
+                    },
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "crafted-preembellished-itemlevel-260700-neck-crafted_myth-285",
+                    "itemId": "260700",
+                    "slot": "neck",
+                    "variantKey": "myth-285",
+                    "label": "神话 285",
+                    "sourceType": "crafted",
+                    "difficultyKey": "crafted_myth",
+                    "itemLevel": 285,
+                    "simcOptions": {"ilevel": "285"},
+                    "status": "verified",
+                    "payload": {
+                        "derivedVariantSource": "simulationcraft_preembellished_item_probe",
+                        "simcIlevelOnly": True,
+                        "statSource": "simulationcraft",
+                        "statDisplayStatus": "verified_variant",
+                        "itemStats": [
+                            {"key": "stamina", "label": "耐力", "value": 948},
+                            {"key": "haste_rating", "label": "急速", "value": 160},
+                        ],
+                        "statSummary": "耐力 948；急速 160",
+                    },
+                },
+            )
+            conn.commit()
+
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        neck_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "neck")
+        crafted_item = next(item for item in neck_group["items"] if item["itemId"] == "260700")
+        self.assertTrue(crafted_item["simcReady"])
+        self.assertEqual(crafted_item["builtInEmbellishmentLabel"], "美化")
+        self.assertEqual(crafted_item["variants"][0]["difficultyKey"], "myth")
+        self.assertEqual(crafted_item["variants"][0]["itemLevel"], 285)
+        self.assertEqual(crafted_item["variants"][0]["simcOptions"], {"ilevel": "285"})
+        self.assertEqual(crafted_item["variants"][0]["craftedStatOptions"], [])
+
     def test_crafted_preview_catalog_items_from_profile_presets_builds_governed_seed(self):
         import importlib
         from server import crafted_gear_backfill
@@ -12615,32 +12700,32 @@ class WebSimPayloadTest(unittest.TestCase):
             self.websim_payload.save_active_season_payload(conn, season)
             self.websim_payload.save_websim_item_metadata(
                 conn,
-                "260200",
+                "237832",
                 {
-                    "id": 260200,
-                    "name": "Crafted Hood",
+                    "id": 237832,
+                    "name": "Spellbreaker's Cover",
                     "inventory_type": {"type": "HEAD", "name": "Head"},
                     "item_class": {"id": 4, "name": "Armor"},
-                    "item_subclass": {"name": "Cloth"},
+                    "item_subclass": {"name": "Plate"},
                     "quality": {"name": "Epic"},
                 },
                 {},
-                fallback_name="Crafted Hood",
+                fallback_name="Spellbreaker's Cover",
                 locale="en_US",
             )
             self.websim_payload.save_websim_item_metadata(
                 conn,
-                "260201",
+                "237831",
                 {
-                    "id": 260201,
-                    "name": "Crafted Focus",
-                    "inventory_type": {"type": "HOLDABLE", "name": "Held In Off-hand"},
+                    "id": 237831,
+                    "name": "Spellbreaker's Rebuke",
+                    "inventory_type": {"type": "SHIELD", "name": "Off Hand"},
                     "item_class": {"id": 4, "name": "Armor"},
-                    "item_subclass": {"name": "Held In Off-hand"},
+                    "item_subclass": {"id": 6, "name": "Shield"},
                     "quality": {"name": "Epic"},
                 },
                 {},
-                fallback_name="Crafted Focus",
+                fallback_name="Spellbreaker's Rebuke",
                 locale="en_US",
             )
             conn.execute(
@@ -12655,10 +12740,10 @@ class WebSimPayloadTest(unittest.TestCase):
                     "Crafted Preview",
                     "\n".join(
                         [
-                            "head=crafted_hood,id=260200,ilevel=285,crafted_stats=32/49",
-                            "off_hand=crafted_focus,id=260201,ilevel=295,bonus_id=8793/8960,crafted_stats=36/49",
-                            "off_hand=crafted_focus,id=260201,ilevel=285,bonus_id=8793/8960,crafted_stats=32/40",
-                            "waist=uncrafted_belt,id=260202,ilevel=285",
+                            "head=spellbreakers_cover,id=237832,ilevel=285,crafted_stats=32/49",
+                            "off_hand=spellbreakers_rebuke,id=237831,ilevel=295,bonus_id=8793/8960,crafted_stats=36/49",
+                            "off_hand=spellbreakers_rebuke,id=237831,ilevel=285,bonus_id=8793/8960,crafted_stats=32/40",
+                            "waist=uncrafted_belt,id=260375,ilevel=285,crafted_stats=32/49",
                         ]
                     ),
                     json.dumps({"source": "simulationcraft"}, ensure_ascii=False),
@@ -12670,8 +12755,8 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         by_id = {item["itemId"]: item for item in items}
-        self.assertEqual(set(by_id), {"260200", "260201"})
-        hood = by_id["260200"]
+        self.assertEqual(set(by_id), {"237831", "237832"})
+        hood = by_id["237832"]
         self.assertEqual(hood["sourceLabel"], "制造装备")
         self.assertEqual([track["difficultyKey"] for track in hood["allowedTracks"]], ["crafted_myth"])
         self.assertFalse(hood["supportsVoidUpgrade"])
@@ -12682,7 +12767,7 @@ class WebSimPayloadTest(unittest.TestCase):
         )
         self.assertEqual(hood["sourceRefs"][0]["sourceType"], "simulationcraft_profile_preset")
 
-        focus = by_id["260201"]
+        focus = by_id["237831"]
         self.assertTrue(focus["supportsVoidUpgrade"])
         self.assertEqual(
             [track["difficultyKey"] for track in focus["allowedTracks"]],
@@ -12729,26 +12814,13 @@ class WebSimPayloadTest(unittest.TestCase):
                     locale="en_US",
                 )
 
-            save_item("260410", "Crafted Hood", "HEAD", {"id": 4, "name": "Armor"}, {"id": 1, "name": "Cloth"}, "modified_crafting_stats")
-            save_item("260411", "Crafted Ring", "FINGER", {"id": 4, "name": "Armor"}, {"id": 0, "name": "Miscellaneous"})
-            save_item("260412", "Crafted Spellblade", "WEAPON", {"id": 2, "name": "Weapon"}, {"id": 7, "name": "One-Handed Sword"})
-            save_item("260413", "Crafted Shield", "SHIELD", {"id": 4, "name": "Armor"}, {"id": 6, "name": "Shield"})
-            self.websim_payload.save_websim_item_metadata(
-                conn,
-                "251105",
-                {
-                    "id": 251105,
-                    "name": "Ward of the Spellbreaker",
-                    "inventory_type": {"type": "SHIELD", "name": "Off Hand"},
-                    "item_class": {"id": 4, "name": "Armor"},
-                    "item_subclass": {"id": 6, "name": "Shield"},
-                    "quality": {"name": "Rare"},
-                    "preview_item": {"stats": [{"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 10}]},
-                },
-                {},
-                fallback_name="Ward of the Spellbreaker",
-                locale="en_US",
-            )
+            save_item("237832", "Spellbreaker's Cover", "HEAD", {"id": 4, "name": "Armor"}, {"id": 4, "name": "Plate"}, "modified_crafting_stats")
+            save_item("240949", "Masterwork Sin'dorei Band", "FINGER", {"id": 4, "name": "Armor"}, {"id": 0, "name": "Miscellaneous"})
+            save_item("237838", "Magister's Ritual Knife", "WEAPON", {"id": 2, "name": "Weapon"}, {"id": 15, "name": "Dagger"})
+            save_item("237831", "Spellbreaker's Rebuke", "SHIELD", {"id": 4, "name": "Armor"}, {"id": 6, "name": "Shield"})
+            save_item("260375", "Raging Storm Sash", "WAIST", {"id": 4, "name": "Armor"}, {"id": 3, "name": "Mail"})
+            save_item("240951", "Thalassian Competitor's Signet", "FINGER", {"id": 4, "name": "Armor"}, {"id": 0, "name": "Miscellaneous"})
+            save_item("244774", "Aetherlume Stompers", "FEET", {"id": 4, "name": "Armor"}, {"id": 4, "name": "Plate"})
             self.websim_payload.save_websim_item_metadata(
                 conn,
                 "260414",
@@ -12771,27 +12843,25 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         by_id = {item["itemId"]: item for item in items}
-        self.assertEqual(set(by_id), {"251105", "260410", "260411", "260412", "260413"})
-        self.assertEqual(by_id["260410"]["slot"], "head")
-        self.assertEqual(by_id["260411"]["slot"], "finger1")
-        self.assertEqual(by_id["251105"]["slot"], "off_hand")
-        self.assertEqual(by_id["260413"]["slot"], "off_hand")
-        self.assertEqual([track["difficultyKey"] for track in by_id["260410"]["allowedTracks"]], ["crafted_myth"])
-        self.assertEqual([track["itemLevel"] for track in by_id["260410"]["allowedTracks"]], [285])
+        self.assertEqual(set(by_id), {"237831", "237832", "237838", "240949"})
+        self.assertEqual(by_id["237832"]["slot"], "head")
+        self.assertEqual(by_id["240949"]["slot"], "finger1")
+        self.assertEqual(by_id["237831"]["slot"], "off_hand")
+        self.assertEqual([track["difficultyKey"] for track in by_id["237832"]["allowedTracks"]], ["crafted_myth"])
+        self.assertEqual([track["itemLevel"] for track in by_id["237832"]["allowedTracks"]], [285])
         self.assertEqual(
-            [track["difficultyKey"] for track in by_id["260412"]["allowedTracks"]],
+            [track["difficultyKey"] for track in by_id["237838"]["allowedTracks"]],
             ["crafted_myth", "crafted_void_upgrade"],
         )
         self.assertEqual(
-            [track["difficultyKey"] for track in by_id["260413"]["allowedTracks"]],
+            [track["difficultyKey"] for track in by_id["237831"]["allowedTracks"]],
             ["crafted_myth", "crafted_void_upgrade"],
         )
-        self.assertEqual([track["itemLevel"] for track in by_id["260412"]["allowedTracks"]], [285, 295])
-        self.assertEqual([track["itemLevel"] for track in by_id["251105"]["allowedTracks"]], [285, 295])
-        self.assertEqual(len(by_id["260410"]["allowedCraftedStats"]), 6)
-        self.assertEqual(by_id["260410"]["sourceRefs"][0]["sourceType"], "battle_net_item_metadata")
-        self.assertEqual(by_id["251105"]["sourceRefs"][0]["sourceType"], "local_curated_crafted_catalog")
-        self.assertEqual(by_id["260410"]["profession"], "metadata_catalog")
+        self.assertEqual([track["itemLevel"] for track in by_id["237838"]["allowedTracks"]], [285, 295])
+        self.assertEqual([track["itemLevel"] for track in by_id["237831"]["allowedTracks"]], [285, 295])
+        self.assertEqual(len(by_id["237832"]["allowedCraftedStats"]), 6)
+        self.assertEqual(by_id["237832"]["sourceRefs"][0]["sourceType"], "battle_net_item_metadata")
+        self.assertEqual(by_id["237832"]["profession"], "blacksmithing")
 
     def test_crafted_candidates_stay_visible_below_regular_item_level_floor(self):
         conn = sqlite3.connect(self.db_path)
@@ -14943,6 +15013,109 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(compact["variants"][0]["sourceType"], "crafted")
         self.assertEqual(compact["variants"][0]["difficultyKey"], "crafted")
         self.assertEqual(compact["variants"][0]["difficultyLabel"], "制造装备")
+
+    def test_normalize_gear_item_marks_limit_category_as_built_in_embellishment(self):
+        for limit_category in (
+            {"name": "装备唯一：美化（2）"},
+            {"display_string": "Unique-Equipped: Embellished (2)"},
+        ):
+            with self.subTest(limit_category=limit_category):
+                item = self.websim_payload.normalize_gear_item(
+                    {
+                        "slot": "waist",
+                        "itemId": "260900",
+                        "name": "world_preservers_barkclasp",
+                        "displayName": "世界照护者的树皮腰扣",
+                        "sourceType": "crafted",
+                        "ilevel": 285,
+                        "bonus_id": "8793",
+                        "payload": {
+                            "preview_item": {
+                                "limit_category": limit_category,
+                            }
+                        },
+                    },
+                    "druid",
+                    "balance",
+                    "catalog",
+                )
+
+                self.assertTrue(item["hasBuiltInEmbellishment"])
+                self.assertEqual(item["builtInEmbellishment"], "built_in")
+                self.assertEqual(item["builtInEmbellishmentLabel"], "美化")
+                self.assertEqual(item["embellishmentSource"], "built_in")
+                self.assertEqual(self.websim_payload.item_builtin_embellishment_value(item), "built_in")
+
+    def test_compact_gear_candidate_preserves_built_in_embellishment_marker(self):
+        compact = self.websim_payload.compact_gear_candidate(
+            {
+                "slot": "waist",
+                "itemId": "260900",
+                "name": "世界照护者的树皮腰扣",
+                "displayName": "世界照护者的树皮腰扣",
+                "sourceType": "crafted",
+                "sources": [{"id": "crafted-260900", "sourceType": "crafted", "sourceLabel": "制造装备"}],
+                "ilevel": 285,
+                "bonus_id": "8793",
+                "hasBuiltInEmbellishment": True,
+                "builtInEmbellishment": "built_in",
+                "builtInEmbellishmentLabel": "美化",
+                "embellishmentSource": "built_in",
+                "simcReady": True,
+            }
+        )
+
+        self.assertEqual(compact["sourceType"], "crafted")
+        self.assertTrue(compact["hasBuiltInEmbellishment"])
+        self.assertEqual(compact["builtInEmbellishment"], "built_in")
+        self.assertEqual(compact["builtInEmbellishmentLabel"], "美化")
+        self.assertEqual(compact["embellishmentSource"], "built_in")
+
+    def test_metadata_built_in_embellishment_survives_simc_preset_merge(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "260900",
+                {
+                    "id": 260900,
+                    "name": "世界照护者的树皮腰扣",
+                    "inventory_type": {"type": "WAIST", "name": "腰部"},
+                    "item_class": {"id": 4, "name": "护甲"},
+                    "item_subclass": {"id": 3, "name": "锁甲"},
+                    "preview_item": {
+                        "limit_category": "装备唯一：美化 （2）",
+                    },
+                    "quality": {"name": "史诗"},
+                },
+                fallback_name="世界照护者的树皮腰扣",
+                locale="zh_CN",
+            )
+            metadata = self.websim_payload.existing_websim_item_metadata(conn, "260900")
+        finally:
+            conn.close()
+
+        simc_candidate = self.websim_payload.normalize_gear_item(
+            {
+                "slot": "waist",
+                "itemId": "260900",
+                "name": "world_preservers_barkclasp",
+                "sourceType": "simcPreset",
+                "ilevel": 285,
+                "bonus_id": "1808/8960/12214",
+            },
+            "hunter",
+            "marksmanship",
+            "simcPreset",
+        )
+        merged = self.websim_payload.merge_gear_candidate_records(simc_candidate, metadata)
+        compact = self.websim_payload.compact_gear_candidate(merged)
+
+        self.assertTrue(compact["hasBuiltInEmbellishment"])
+        self.assertEqual(compact["builtInEmbellishment"], "built_in")
+        self.assertEqual(compact["builtInEmbellishmentLabel"], "美化")
+        self.assertEqual(compact["embellishmentSource"], "built_in")
 
     def test_websim_gear_ranks_verified_stat_candidates_above_pending_observed_variants(self):
         pending = {

@@ -103,7 +103,10 @@
                 <text wx:else class="gear-icon-fallback">{{item.gameAsset.fallbackText}}</text>
               </view>
               <view class="gear-copy">
-                <text class="gear-name">{{item.displayName}}</text>
+                <view class="gear-name-row">
+                  <text class="gear-name">{{item.displayName}}</text>
+                  <text class="gear-embellishment-badge" wx:if="{{item.embellishmentBadgeLabel}}">{{item.embellishmentBadgeLabel}}</text>
+                </view>
                 <text class="gear-source" wx:if="{{item.ilevel}}">装等 {{item.ilevel}}</text>
               </view>
             </view>
@@ -224,7 +227,10 @@
             <text wx:else class="gear-icon-fallback">{{item.gameAsset.fallbackText}}</text>
           </view>
           <view class="gear-copy">
-            <text class="gear-name">{{item.displayName}}</text>
+            <view class="gear-name-row">
+              <text class="gear-name">{{item.displayName}}</text>
+              <text class="gear-embellishment-badge" wx:if="{{item.embellishmentBadgeLabel}}">{{item.embellishmentBadgeLabel}}</text>
+            </view>
             <text class="gear-source" wx:if="{{item.ilevel}}">装等 {{item.ilevel}}</text>
           </view>
           <view class="gear-candidate-action">
