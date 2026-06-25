@@ -1,6 +1,6 @@
 # 装备强化配置方案
 
-> 状态：v1 已完成本地实现，待提交合入远端；生产入库和线上部署另行执行。
+> 状态：v1 已完成生产热部署与本地收口，当前待随本轮提交合入远端。
 > 来源：2026-06-24 本地讨论，围绕装备模拟如何处理宝石、附魔、美化、饰品特效和套装效果。
 
 ## 背景
@@ -28,13 +28,15 @@
 - 美化：仅展示可制造或已带制造字段的装备部位。
 - 套装：不作为普通配置项；相关推导继续留在后端 / SimC 边界，避免普通玩家伪造套装效果。
 
+强化配置 sheet 已按两层交互实现：上层展示当前已选装备里可强化的槽位，装备卡展示该槽位同时支持的 `宝石 / 附魔 / 美化` 能力；选中装备后，下层按能力分组展示该装备全部可配选项。同一槽位可以同时配置宝石、附魔和美化，例如制造戒指可以同时出现三组。用户点击选项时只写入 sheet 内的 draft 状态并高亮选中，点击底部“确认”后才写回 `enhancementBySlot` 和属性概览；点击“关闭”会丢弃未确认修改，避免玩家以为选择已经保存但实际没有提交。
+
 换装备后，原强化配置必须重新校验：如果新装备不支持原宝石、附魔或美化，配置应被清除或标为 blocker，不能静默保留到 SimC profile。
 
 ## 品质选择规则
 
 首版强化配置 catalog 只保留二星品质，不支持一星 / 低品质选项。虽然宝石和附魔的一星、二星会对应不同 `item_id`、`gem_id` 或 `enchant_id`，且 SimC 数值不同，但产品层面不提供低品质模拟入口，避免 UI、模板保存和 profile 生成出现额外分支。
 
-- 宝石：只导入二星宝石 item id，最终 profile 写对应二星 `gem_id`。
+- 宝石：只导入 PVE Quality 2/2 宝石 item id，最终 profile 写对应二星 `gem_id`。当前生产 socket catalog 收敛为 20 个单颗宝石 seed，覆盖项链与双戒指；PVP 宝石、observed 多宝石组合和缺可读属性值的宝石不进入玩家可选项。
 - 附魔：只导入二星附魔 item id / `SpellItemEnchantmentID`，最终 profile 写对应二星 `enchant_id`。
 - 美化：UI 只展示二星 Optional Reagent；SimC 序列化仍按归一化 `embellishment=...` 写入，因为同一美化的一星 / 二星在 SimC 侧共享同一个美化效果 key。
 
@@ -91,6 +93,16 @@
 - `readiness`：不由前端保存；后端 serializer 在确认 / 执行 SimC 前重新校验，任何缺字段、槽位不兼容、重复美化、低品质或 SimC 不支持都进入 blockers。
 - `derivedSetBonuses`：不进入 v1 保存 payload。后续如果要显式写 SimC `set_bonus` token，需要单独补权威映射和 blocker。
 
+强化配置读模型统一从后端 `websim_gear_mod_options` 输出可展示字段：
+
+- `displayLabel`：玩家可读展示值。宝石显示属性值，例如 `+32主属性`、`+16精通 +7暴击`；附魔和美化显示中文名称，例如 `朗多雷之锐`、`奥纹内衬`。
+- `displayKind`：`stat` 或 `name`，用于前端只做薄展示，不从 ID 猜文案。
+- `displayStatus`：必须为 `verified` 才进入强化配置 UI。
+- `evidenceSource` / `sourceRefs`：记录展示证据来源。
+- `simcOptions`：继续保留可执行字段，保存和 serializer 只消费这些字段，不保存展示名。
+
+宝石需要特别处理数据漂移：Battle.net item metadata 仍是宝石名称、图标、item class 和缓存完整性的证据，但当前 `preview_item.gem_properties.effect` 对同一批宝石存在旧数值。服务端因此维护 20 个 PVE Quality 2/2 宝石的 live tooltip `statSummary/displayLabel` 覆盖；当单颗宝石 seed 带 verified 覆盖值时，`display_ready_socket_mod_option` 与 health coverage 优先使用该值，避免 UI 展示 `+14/+6` 这类旧属性。
+
 ## SimC 序列化规则
 
 后端是唯一 profile serializer。最终 profile 生成规则：
@@ -114,9 +126,13 @@
 - 后端：`websim_gear_mod_options` 继续作为 catalog 表，新增 `embellishment` 类型与二星 Optional Reagent seed；mod option coverage 纳入 `crafted_stats` 和 `embellishment`；profile serializer 支持从结构化 `gearBySlot/enhancementBySlot` 快照读取宝石、附魔、美化并回写到装备行。
 - 后端：SimC 模板确认链路识别结构化装备快照，复用后端 serializer 生成 `simcItems/profile`，不再要求前端保存可执行 profile 字符串。
 - 后端：美化计数包含装备自带美化和独立美化，超过 2 个进入 enhancement blocker；同一装备自带美化时不允许再叠加独立美化。
-- 前端：装备页新增属性概览，强化配置入口从底部 action bar 移到概览旁边；强化 sheet 按宝石、附魔、美化分组，只显示当前已选装备支持的槽位。
+- 后端：附魔通过 Wago DB2 / SimC evidence 补齐中文名，无法解析为中文可读名的 observed 附魔不进入 UI；美化 seed 改为服务端维护中文 displayName 和 SimC key；前端不再维护名称兜底映射。
+- 后端：20 个 PVE Quality 2/2 宝石 seed 由服务端维护 live tooltip `statSummary`，公网 compact payload 已验证包含 `+32主属性`、`+16精通 +7暴击`，不再展示旧的 `+14精通 +6暴击`。
+- 前端：装备页新增属性概览，强化配置入口从底部 action bar 移到概览旁边；强化 sheet 按可强化装备和当前装备配置两层展示，按宝石、附魔、美化分组，只显示当前已选装备支持且后端提供可读证据的选项。
+- 前端：强化 sheet 使用 draft 状态承接选项点击，底部“确认”按钮提交后才写回 `enhancementBySlot`；关闭 sheet 不保存未确认修改。
 - 前端：保存装备模板时写结构化 `gearBySlot/enhancementBySlot` 快照，`metadata.enhancementBySlot` 保留结构化选择；`rawString/profile` 的可执行 SimC 输出仍由后端确定性生成。
-- 验证：`tests/websim_payload_test.py`、`tests/news_backend_test.py`、`tests/builds-page.test.js` 覆盖 catalog 入库、二星过滤、美化上限、换装备 blocker、profile serializer、强化配置入口、可配置槽位过滤、美化 2 个上限和保存 payload。
+- 生产：已执行后端热部署和生产 SQLite 刷新。相关备份包括 `/opt/wow-mini-program/backups/wow_news-before-rank-two-gems-20260625T045237Z.sqlite3`、`/opt/wow-mini-program/backups/wow_news-before-readable-mod-options-20260625T050309Z.sqlite3`、`/opt/wow-mini-program/backups/wow_news-before-live-gem-tooltips-20260625T060131Z.sqlite3`。
+- 验证：`tests/websim_payload_test.py`、`tests/news_backend_test.py`、`tests/builds-page.test.js` 覆盖 catalog 入库、二星过滤、美化上限、换装备 blocker、profile serializer、强化配置入口、可配置槽位过滤、同槽宝石/附魔/美化三组展示、确认按钮 draft 写回、美化 2 个上限和保存 payload。生产 `/api/data/health` 中 `modOptionStatus=verified`，公网 `/api/websim/gear?class=mage&spec=frost&compact=1` 验证 `neck/finger1/finger2` 均返回 20 个宝石选项。
 
 ## 后续切片建议
 

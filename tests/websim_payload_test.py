@@ -28,6 +28,7 @@ class WebSimPayloadTest(unittest.TestCase):
         os.environ.pop("WOW_WARCRAFTLOGS_CLIENT_SECRET", None)
         os.environ.pop("WOW_WARCRAFTLOGS_API_KEY", None)
         os.environ["WOW_WEBSIM_FETCH_SIMC_REMOTE"] = "0"
+        os.environ["WOW_WEBSIM_DEFAULT_RANK_TWO_GEM_SEED"] = "0"
 
         import importlib
         import server.news_backend as backend
@@ -40,6 +41,7 @@ class WebSimPayloadTest(unittest.TestCase):
     def tearDown(self):
         os.environ.pop("WOW_NEWS_DB", None)
         os.environ.pop("WOW_WEBSIM_FETCH_SIMC_REMOTE", None)
+        os.environ.pop("WOW_WEBSIM_DEFAULT_RANK_TWO_GEM_SEED", None)
         os.environ.pop("WOW_WEBSIM_FETCH_WAGO_DB2_TRAIT_EDGE", None)
         os.environ.pop("WOW_SIMC_TRAIT_DATA_FILE", None)
         os.environ.pop("WOW_SIMC_SPELLTEXT_DATA_FILE", None)
@@ -5089,7 +5091,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "slots": ["back"],
                     "simcOptions": {"enchant_id": "4897"},
                     "status": "verified",
-                    "payload": {"source": "observed_variant"},
+                    "payload": {"source": "observed_variant", "qualityRank": 2},
                 },
             )
             payload = self.websim_payload.get_websim_gear(conn, "mage", "frost")
@@ -7265,6 +7267,7 @@ class WebSimPayloadTest(unittest.TestCase):
                         "source": "observed_variant",
                         "displayName": "Quick Gem",
                         "gemItemId": "240983",
+                        "qualityRank": 2,
                     },
                 },
             )
@@ -8264,7 +8267,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "slots": ["*"],
                     "simcOptions": {"gem_id": "240983"},
                     "status": "verified",
-                    "payload": {"source": "observed_variant"},
+                    "payload": {"source": "observed_variant", "qualityRank": 2},
                 },
             )
             payload = self.websim_payload.gear_catalog_health_payload(conn)
@@ -8277,7 +8280,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(socket_coverage["missingMetadataExamples"][0]["gemItemId"], "240983")
         self.assertIn("1 socket mod options missing Battle.net gem metadata", payload["blockers"])
 
-    def test_gear_catalog_health_requires_metadata_for_every_gem_in_socket_option(self):
+    def test_gear_catalog_health_ignores_multi_gem_socket_options(self):
         conn = sqlite3.connect(self.db_path)
         try:
             self.websim_payload.ensure_websim_tables(conn)
@@ -8303,6 +8306,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "status": "verified",
                     "payload": {
                         "source": "observed_variant",
+                        "qualityRank": 2,
                         "gemItemId": "240900",
                         "gemItemIds": ["240900", "240892"],
                         "gemItems": [
@@ -8325,9 +8329,9 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         socket_coverage = payload["details"]["modOptionCoverage"]["socket"]
-        self.assertEqual(socket_coverage["missingMetadataCount"], 1)
-        self.assertEqual(socket_coverage["missingMetadataExamples"][0]["gemItemId"], "240892")
-        self.assertIn("1 socket mod options missing Battle.net gem metadata", payload["blockers"])
+        self.assertEqual(socket_coverage["optionCount"], 0)
+        self.assertNotIn("missingMetadataCount", socket_coverage)
+        self.assertNotIn("1 socket mod options missing Battle.net gem metadata", payload["blockers"])
 
     def test_gear_catalog_health_blocks_socket_options_with_non_gem_battle_net_metadata(self):
         conn = sqlite3.connect(self.db_path)
@@ -8407,6 +8411,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "status": "verified",
                     "payload": {
                         "source": "observed_variant",
+                        "qualityRank": 2,
                         "gemItemId": "250999",
                         "displayName": "Verified Helmet Not Gem",
                         "iconUrl": "https://render.example/not-gem.jpg",
@@ -10630,6 +10635,7 @@ class WebSimPayloadTest(unittest.TestCase):
                         "gemItemId": "240983",
                         "displayName": "Quick Gem",
                         "iconUrl": "https://render.example/gem-240983.jpg",
+                        "qualityRank": 2,
                         "quality": "Epic",
                         "metadataStatus": "verified",
                         "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
@@ -10752,6 +10758,24 @@ class WebSimPayloadTest(unittest.TestCase):
                     "payload": {"qualityRank": 2, "source": "server_owned_seed"},
                 },
                 {
+                    "id": "socket-quality-unknown",
+                    "type": "socket",
+                    "name": "Observed Quality Unknown Gem",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "240888"},
+                    "status": "verified",
+                    "payload": {"source": "observed_variant"},
+                },
+                {
+                    "id": "socket-rank-two-combo",
+                    "type": "socket",
+                    "name": "Observed Gem Combo",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "240983/240888"},
+                    "status": "verified",
+                    "payload": {"qualityRank": 2, "source": "observed_variant"},
+                },
+                {
                     "id": "enchant-rank-two-partial",
                     "type": "enchant",
                     "name": "Partial Enchant",
@@ -10759,6 +10783,15 @@ class WebSimPayloadTest(unittest.TestCase):
                     "simcOptions": {"enchant_id": "7333"},
                     "status": "partial",
                     "payload": {"qualityRank": 2, "source": "server_owned_seed"},
+                },
+                {
+                    "id": "enchant-combo",
+                    "type": "enchant",
+                    "name": "Observed Enchant Combo",
+                    "slots": ["finger1"],
+                    "simcOptions": {"enchant_id": "8017/8052"},
+                    "status": "verified",
+                    "payload": {"source": "observed_variant"},
                 },
                 {
                     "id": "embellishment-rank-two",
@@ -10968,6 +11001,7 @@ class WebSimPayloadTest(unittest.TestCase):
                         "gemItemId": "240983",
                         "displayName": "Quick Onyx",
                         "iconUrl": "https://render.example/gem-240983.jpg",
+                        "qualityRank": 2,
                         "metadataStatus": "verified",
                         "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
                         "metadataLocale": "en_US",
@@ -11144,6 +11178,77 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(compact[0]["displayLabel"], "朗多雷之锐")
         self.assertEqual(compact[0]["simcOptions"]["enchant_id"], "8017")
 
+    def test_sync_wago_gear_mod_enchant_names_removes_unresolved_observed_enchants(self):
+        conn = sqlite3.connect(self.db_path)
+        original_wago = self.websim_payload.download_wago_db2_csv
+        self.addCleanup(setattr, self.websim_payload, "download_wago_db2_csv", original_wago)
+
+        def fake_wago_csv(table, build, locale="enUS"):
+            if table == "SpellItemEnchantment":
+                return "ID,Name_lang\n8017,附魔武器 - 朗多雷之锐\n", "wago://SpellItemEnchantment"
+            return "", f"wago://{table}"
+
+        self.websim_payload.download_wago_db2_csv = fake_wago_csv
+
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            conn.executemany(
+                """
+                INSERT INTO websim_gear_mod_options
+                (id, option_type, name, applicable_slots_json, simc_options_json,
+                 status, payload_json, updated_at)
+                VALUES (?, 'enchant', ?, ?, ?, 'verified', ?, 'now')
+                """,
+                [
+                    (
+                        "observed-enchant-8017",
+                        "Observed enchant 8017",
+                        json.dumps(["main_hand"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "8017"}, ensure_ascii=False),
+                        json.dumps({"source": "observed_variant"}, ensure_ascii=False),
+                    ),
+                    (
+                        "observed-enchant-combo",
+                        "Observed enchant 8017/8052",
+                        json.dumps(["main_hand"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "8017/8052"}, ensure_ascii=False),
+                        json.dumps({"source": "observed_variant"}, ensure_ascii=False),
+                    ),
+                    (
+                        "observed-enchant-missing",
+                        "Observed enchant 7935",
+                        json.dumps(["finger1"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "7935"}, ensure_ascii=False),
+                        json.dumps({"source": "observed_variant"}, ensure_ascii=False),
+                    ),
+                ],
+            )
+            counts = self.websim_payload.sync_wago_gear_mod_option_display_names(
+                conn,
+                "// wow build 12.0.5.67823",
+                "zh_CN",
+            )
+            rows = conn.execute(
+                """
+                SELECT id, simc_options_json, payload_json
+                FROM websim_gear_mod_options
+                WHERE option_type = 'enchant'
+                ORDER BY id
+                """
+            ).fetchall()
+            coverage = self.websim_payload.gear_catalog_mod_option_coverage(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(counts["updated"], 1)
+        self.assertEqual(counts["removed"], 2)
+        self.assertEqual(counts["missing"], 0)
+        self.assertEqual([row[0] for row in rows], ["observed-enchant-8017"])
+        self.assertEqual(json.loads(rows[0][1]), {"enchant_id": "8017"})
+        self.assertEqual(json.loads(rows[0][2])["displayLabel"], "朗多雷之锐")
+        self.assertEqual(coverage["enchant"]["optionCount"], 1)
+        self.assertNotIn("missingDisplayCount", coverage["enchant"])
+
     def test_gear_catalog_sync_does_not_load_placeholder_default_mod_seed_without_env(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
         conn = sqlite3.connect(self.db_path)
@@ -11189,7 +11294,59 @@ class WebSimPayloadTest(unittest.TestCase):
             self.assertEqual(payload["displayStatus"], "verified")
             self.assertTrue(payload["evidenceSource"])
 
-    def test_gear_catalog_sync_derives_socket_mod_options_from_verified_gem_variants(self):
+    def test_gear_catalog_sync_loads_default_rank_two_pve_gem_seed_when_enabled(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        os.environ["WOW_WEBSIM_DEFAULT_RANK_TWO_GEM_SEED"] = "1"
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            count = self.websim_payload.sync_websim_gear_mod_options(conn)
+            socket_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "socket")
+            rows = conn.execute(
+                """
+                SELECT id, simc_options_json, payload_json
+                FROM websim_gear_mod_options
+                WHERE option_type = 'socket'
+                ORDER BY id
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+
+        gem_ids = []
+        for _, simc_options_json, payload_json in rows:
+            simc_options = json.loads(simc_options_json)
+            payload = json.loads(payload_json)
+            gem_id = simc_options["gem_id"]
+            gem_ids.append(gem_id)
+            self.assertNotIn("/", gem_id)
+            self.assertEqual(payload["qualityRank"], 2)
+            self.assertEqual(payload["usageScope"], "pve")
+            self.assertEqual(payload["source"], "server_owned_midnight_rank_two_gem_seed")
+            self.assertTrue(payload["statSummary"])
+            self.assertEqual(payload["displayLabel"], payload["statSummary"])
+            self.assertEqual(payload["displayKind"], "stat")
+            self.assertEqual(payload["displayStatus"], "verified")
+            self.assertEqual(payload["statDisplayStatus"], "verified_tooltip_override")
+            self.assertEqual(payload["evidenceSource"], "wowhead_live_tooltip")
+
+        self.assertEqual(count, 23)
+        self.assertEqual(len(rows), 20)
+        self.assertIn("240912", gem_ids)
+        self.assertIn("240971", gem_ids)
+        self.assertIn("240983", gem_ids)
+        self.assertNotIn("241144", gem_ids)
+        payloads_by_gem_id = {
+            json.loads(simc_options_json)["gem_id"]: json.loads(payload_json)
+            for _, simc_options_json, payload_json in rows
+        }
+        self.assertEqual(payloads_by_gem_id["240898"]["statSummary"], "+16精通 +7暴击")
+        self.assertEqual(payloads_by_gem_id["240983"]["statSummary"], "+32主属性")
+        self.assertEqual(len(socket_options["neck"]), 20)
+        self.assertEqual(len(socket_options["finger1"]), 20)
+        self.assertEqual(len(socket_options["finger2"]), 20)
+
+    def test_gear_catalog_sync_does_not_derive_socket_mod_options_from_observed_gem_variants(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
         conn = sqlite3.connect(self.db_path)
         try:
@@ -11246,12 +11403,9 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(count, 4)
-        option = next(option for option in socket_options["finger1"] if option["simcOptions"].get("gem_id") == "240983")
-        self.assertEqual(option["simcOptions"]["gem_id"], "240983")
-        self.assertEqual(option["simcOptions"]["gem_ilevel"], "707")
-        self.assertEqual(option["payload"]["source"], "observed_variant")
-        self.assertNotIn("socket-capable catalog items missing socket mod options", payload["blockers"])
+        self.assertEqual(count, 3)
+        self.assertFalse(any(options for options in socket_options.values()))
+        self.assertIn("socket-capable catalog items missing socket mod options", payload["blockers"])
 
     def test_websim_gear_hides_socket_options_until_gem_metadata_is_verified(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
@@ -11312,6 +11466,7 @@ class WebSimPayloadTest(unittest.TestCase):
                         "source": "observed_variant",
                         "displayName": "Quick Gem",
                         "gemItemId": "240983",
+                        "qualityRank": 2,
                     },
                 },
             )
@@ -11407,6 +11562,7 @@ class WebSimPayloadTest(unittest.TestCase):
                         "source": "observed_variant",
                         "displayName": "Statless Onyx",
                         "gemItemId": "240983",
+                        "qualityRank": 2,
                         "iconUrl": "https://render.example/gem-240983.jpg",
                         "metadataStatus": "verified",
                         "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
@@ -11512,6 +11668,7 @@ class WebSimPayloadTest(unittest.TestCase):
                         "source": "observed_variant",
                         "displayName": "无瑕精湛榴石",
                         "gemItemId": "240908",
+                        "qualityRank": 2,
                         "iconUrl": "https://render.example/gem-240908.jpg",
                         "metadataStatus": "verified",
                         "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
@@ -11529,6 +11686,67 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(finger_group["socketOptions"][0]["displayLabel"], "+14暴击 +6精通")
         self.assertEqual(finger_group["socketOptions"][0]["statSummary"], "+14暴击 +6精通")
         self.assertEqual(finger_group["socketOptions"][0]["simcOptions"]["gem_id"], "240908")
+
+    def test_default_pve_gem_seed_overrides_stale_battle_net_effect_with_live_tooltip_stats(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        os.environ["WOW_WEBSIM_DEFAULT_RANK_TWO_GEM_SEED"] = "1"
+        conn = sqlite3.connect(self.db_path)
+        original_fetch = self.websim_payload.fetch_blizzard_item_metadata
+        self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
+
+        def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
+            return {
+                "itemId": str(item_id),
+                "payload": {
+                    "id": int(item_id),
+                    "name": fallback_name or f"Gem {item_id}",
+                    "item_class": {"id": 3, "name": "宝石"},
+                    "quality": {"name": "精良"},
+                    "preview_item": {
+                        "gem_properties": {"effect": "+15 急速"},
+                    },
+                },
+                "media": {"assets": [{"value": f"https://render.example/gem-{item_id}.jpg"}]},
+                "englishPayload": {"name": fallback_name or f"Gem {item_id}"},
+                "locale": locale,
+                "fallbackName": fallback_name,
+            }
+
+        self.websim_payload.fetch_blizzard_item_metadata = fake_fetch
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "240898",
+                {
+                    "id": 240898,
+                    "name": "无瑕致命紫晶",
+                    "item_class": {"id": 3, "name": "宝石"},
+                    "item_subclass": {"id": 10, "name": "复合属性"},
+                    "quality": {"name": "精良"},
+                    "preview_item": {
+                        "item_class": {"id": 3, "name": "宝石"},
+                        "item_subclass": {"id": 10, "name": "复合属性"},
+                        "gem_properties": {"effect": "+14 精通和+6 爆击"},
+                    },
+                },
+                {"assets": [{"value": "https://render.example/gem-240898.jpg"}]},
+                fallback_name="无瑕致命紫晶",
+                english_payload={"name": "Flawless Deadly Amethyst"},
+                locale="zh_CN",
+            )
+            self.websim_payload.sync_websim_gear_mod_options(conn)
+            self.websim_payload.sync_blizzard_gear_mod_option_metadata(conn, "token", "us", "zh_CN")
+            options = self.websim_payload.display_ready_gear_mod_options_by_slot(conn, "socket")
+        finally:
+            conn.close()
+
+        option = next(option for option in options["finger1"] if option["simcOptions"].get("gem_id") == "240898")
+        self.assertEqual(option["displayLabel"], "+16精通 +7暴击")
+        self.assertEqual(option["statSummary"], "+16精通 +7暴击")
+        self.assertEqual(option["displayKind"], "stat")
+        self.assertEqual(option["displayStatus"], "verified")
+        self.assertEqual(option["evidenceSource"], "wowhead_live_tooltip")
 
     def test_compact_gear_payload_preserves_socket_enchant_and_embellishment_groups_for_same_slot(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
@@ -11608,6 +11826,7 @@ class WebSimPayloadTest(unittest.TestCase):
                         "gemItemId": "240983",
                         "displayName": "Quick Onyx",
                         "iconUrl": "https://render.example/gem-240983.jpg",
+                        "qualityRank": 2,
                         "metadataStatus": "verified",
                         "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
                     },
@@ -11662,7 +11881,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(finger_group["enchantOptions"][0]["simcOptions"]["enchant_id"], "7967")
         self.assertEqual(finger_group["embellishmentOptions"][0]["simcOptions"]["embellishment"], "arcanoweave_lining")
 
-    def test_gear_catalog_sync_derives_mod_options_from_raiderio_bare_gem_and_enchant(self):
+    def test_gear_catalog_sync_derives_enchant_but_not_socket_options_from_raiderio_observed_gear(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
         conn = sqlite3.connect(self.db_path)
         try:
@@ -11728,10 +11947,9 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(count, 5)
-        socket_option = next(option for option in socket_options["finger1"] if option["simcOptions"].get("gem_id") == "240894")
+        self.assertEqual(count, 4)
         enchant_option = next(option for option in enchant_options["finger1"] if option["simcOptions"].get("enchant_id") == "7967")
-        self.assertEqual(socket_option["simcOptions"]["gem_id"], "240894")
+        self.assertFalse(any(options for options in socket_options.values()))
         self.assertEqual(enchant_option["simcOptions"]["enchant_id"], "7967")
         finger_group = next(group for group in payload["slotGroups"] if group["slot"] == "finger1")
         catalog_item = next(item for item in finger_group["items"] if item["itemId"] == "151311")
@@ -11774,8 +11992,20 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(coverage["embellishment"]["optionCount"], 4)
         self.assertIn("wrist", coverage["embellishment"]["coveredSlots"])
 
-    def test_sync_blizzard_gear_mod_option_metadata_enriches_observed_socket_options(self):
-        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+    def test_sync_blizzard_gear_mod_option_metadata_enriches_rank_two_socket_seed(self):
+        os.environ["WOW_WEBSIM_GEAR_MOD_SEED"] = json.dumps(
+            [
+                {
+                    "id": "seed-socket-gem-240983-rank-2",
+                    "type": "socket",
+                    "name": "Quick Onyx",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "240983"},
+                    "payload": {"source": "server_owned_seed", "qualityRank": 2},
+                },
+            ],
+            ensure_ascii=False,
+        )
         conn = sqlite3.connect(self.db_path)
         original_fetch = self.websim_payload.fetch_blizzard_item_metadata
         self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
@@ -11804,20 +12034,6 @@ class WebSimPayloadTest(unittest.TestCase):
 
         try:
             self.websim_payload.ensure_websim_tables(conn)
-            self.websim_payload.upsert_gear_variant(
-                conn,
-                {
-                    "id": "observed-250777-gem",
-                    "itemId": "250777",
-                    "slot": "finger1",
-                    "variantKey": "observed-707",
-                    "label": "Observed 707",
-                    "sourceType": "observed_profile",
-                    "itemLevel": 707,
-                    "simcOptions": {"bonus_id": "12345", "gem_id": "240983", "gem_ilevel": "707"},
-                    "status": "verified",
-                },
-            )
             self.websim_payload.sync_websim_gear_mod_options(conn)
 
             counts = self.websim_payload.sync_blizzard_gear_mod_option_metadata(conn, "token", "us", "zh_CN")
@@ -11838,29 +12054,27 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(option["quality"], "Epic")
         self.assertEqual(option["metadataStatus"], "verified")
         self.assertEqual(option["metadataSource"], self.websim_payload.ITEM_METADATA_SOURCE)
-        self.assertEqual(option["payload"]["source"], "observed_variant")
+        self.assertEqual(option["payload"]["source"], "server_owned_seed")
         self.assertEqual(option["payload"]["gemItemId"], "240983")
         self.assertEqual(option["payload"]["metadataStatus"], "verified")
         self.assertEqual(option["payload"]["iconUrl"], "https://render.example/gem-240983.jpg")
         self.assertEqual(gem_metadata["displayName"], "Quick Onyx")
         self.assertEqual(gem_metadata["iconUrl"], "https://render.example/gem-240983.jpg")
 
-    def test_sync_blizzard_gear_mod_option_metadata_enriches_all_gems_in_multi_socket_option(self):
+    def test_sync_blizzard_gear_mod_option_metadata_ignores_multi_gem_socket_options(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
         conn = sqlite3.connect(self.db_path)
         original_fetch = self.websim_payload.fetch_blizzard_item_metadata
         self.addCleanup(setattr, self.websim_payload, "fetch_blizzard_item_metadata", original_fetch)
 
         fetches = []
-        names = {"240900": "Quick Onyx", "240892": "Keen Emerald"}
-
         def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
             fetches.append(str(item_id))
             return {
                 "itemId": str(item_id),
                 "payload": {
                     "id": int(item_id),
-                    "name": names[str(item_id)],
+                    "name": "Unexpected Gem",
                     "item_class": {"id": 3, "name": "Gem"},
                     "item_subclass": {"id": 8, "name": "Versatility"},
                     "quality": {"name": "Epic"},
@@ -11874,7 +12088,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     },
                 },
                 "media": {"assets": [{"value": f"https://render.example/gem-{item_id}.jpg"}]},
-                "englishPayload": {"name": names[str(item_id)]},
+                "englishPayload": {"name": "Unexpected Gem"},
                 "locale": locale,
                 "fallbackName": fallback_name,
                 "fallbackSlot": fallback_slot,
@@ -11903,27 +12117,14 @@ class WebSimPayloadTest(unittest.TestCase):
             counts = self.websim_payload.sync_blizzard_gear_mod_option_metadata(conn, "token", "us", "zh_CN")
             socket_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "socket")
             display_ready_socket_options = self.websim_payload.display_ready_gear_mod_options_by_slot(conn, "socket")
-            health = self.websim_payload.gear_catalog_health_payload(conn)
         finally:
             conn.close()
 
-        self.assertEqual(fetches, ["240900", "240892"])
-        self.assertEqual(counts["items"], 2)
+        self.assertEqual(fetches, [])
+        self.assertEqual(counts["items"], 0)
         self.assertEqual(counts["errors"], [])
-        option = socket_options["finger1"][0]
-        self.assertEqual(option["name"], "Quick Onyx / Keen Emerald")
-        self.assertEqual(option["gemItemId"], "240900")
-        self.assertEqual(option["gemItemIds"], ["240900", "240892"])
-        self.assertEqual(
-            [gem["itemId"] for gem in option["payload"]["gemItems"]],
-            ["240900", "240892"],
-        )
-        ready_option = display_ready_socket_options["finger1"][0]
-        self.assertEqual(ready_option["name"], "Quick Onyx / Keen Emerald")
-        self.assertEqual(ready_option["label"], "Quick Onyx / Keen Emerald")
-        self.assertEqual(ready_option["gemItemId"], "240900")
-        self.assertEqual(ready_option["gemItemIds"], ["240900", "240892"])
-        self.assertNotIn("missingMetadataCount", health["details"]["modOptionCoverage"]["socket"])
+        self.assertFalse(any(options for options in socket_options.values()))
+        self.assertFalse(any(options for options in display_ready_socket_options.values()))
 
     def test_gear_catalog_health_ignores_stale_placeholder_mod_options(self):
         conn = sqlite3.connect(self.db_path)
@@ -15872,9 +16073,22 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["blizzardSkipped"], "fresh-season-cache")
         self.assertEqual(payload["errors"], [])
 
-    def test_sync_websim_cache_enriches_observed_socket_options_with_blizzard_gem_metadata(self):
+    def test_sync_websim_cache_enriches_rank_two_socket_seed_with_blizzard_gem_metadata(self):
         import server.raiderio_payload as raiderio_payload
 
+        os.environ["WOW_WEBSIM_GEAR_MOD_SEED"] = json.dumps(
+            [
+                {
+                    "id": "seed-socket-gem-240983-rank-2",
+                    "type": "socket",
+                    "name": "Quick Onyx",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "240983"},
+                    "payload": {"source": "server_owned_seed", "qualityRank": 2},
+                },
+            ],
+            ensure_ascii=False,
+        )
         conn = sqlite3.connect(self.db_path)
         original_sync_simc = self.websim_payload.sync_simc_generated_data
         original_token = self.websim_payload.get_blizzard_access_token

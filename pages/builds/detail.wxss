@@ -1345,6 +1345,30 @@
   color: #686868;
 }
 
+.gear-enhancement-action-row {
+  position: sticky;
+  bottom: 0;
+  margin-top: 18rpx;
+  padding-top: 14rpx;
+  background: linear-gradient(180deg, rgba(16, 16, 16, 0), #101010 28%);
+}
+
+.gear-enhancement-confirm {
+  width: 100%;
+  min-height: 64rpx;
+  margin: 0;
+  border-radius: 10rpx;
+  background: #4f3b16;
+  color: #ffffff;
+  font-size: 22rpx;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.gear-enhancement-confirm::after {
+  border: 0;
+}
+
 .gear-enhancement-empty,
 .gear-enhancement-blockers {
   margin-top: 16rpx;

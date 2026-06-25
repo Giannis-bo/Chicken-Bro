@@ -669,7 +669,8 @@ ENCHANTABLE_GEAR_SLOTS = {
     "main_hand",
     "off_hand",
 }
-SOCKET_OPTION_GEAR_SLOTS = {"neck", "finger1", "finger2"}
+SOCKET_OPTION_GEAR_SLOT_LIST = ["neck", "finger1", "finger2"]
+SOCKET_OPTION_GEAR_SLOTS = set(SOCKET_OPTION_GEAR_SLOT_LIST)
 GEAR_EMBELLISHMENT_ARMOR_SLOTS = ["head", "shoulder", "back", "chest", "wrist", "hands", "waist", "legs", "feet"]
 GEAR_EMBELLISHMENT_EQUIPMENT_SLOTS = [
     "head",
@@ -687,7 +688,90 @@ GEAR_EMBELLISHMENT_EQUIPMENT_SLOTS = [
     "main_hand",
     "off_hand",
 ]
+
+PVE_RANK_TWO_GEM_SEEDS = [
+    ("240888", "无瑕迅捷榄石"),
+    ("240890", "无瑕致命榄石"),
+    ("240892", "无瑕精湛榄石"),
+    ("240894", "无瑕万能榄石"),
+    ("240896", "无瑕精湛紫晶"),
+    ("240898", "无瑕致命紫晶"),
+    ("240900", "无瑕迅捷紫晶"),
+    ("240902", "无瑕万能紫晶"),
+    ("240904", "无瑕致命榴石"),
+    ("240906", "无瑕迅捷榴石"),
+    ("240908", "无瑕精湛榴石"),
+    ("240910", "无瑕万能榴石"),
+    ("240912", "无瑕万能青金石"),
+    ("240914", "无瑕致命青金石"),
+    ("240916", "无瑕迅捷青金石"),
+    ("240918", "无瑕精湛青金石"),
+    ("240967", "强能之永歌钻石"),
+    ("240969", "御土之永歌钻石"),
+    ("240971", "坚韧之永歌钻石"),
+    ("240983", "费解之永歌钻石"),
+]
+
+PVE_RANK_TWO_GEM_LIVE_TOOLTIPS = {
+    "240888": "+17急速",
+    "240890": "+16急速 +7暴击",
+    "240892": "+16急速 +7精通",
+    "240894": "+16急速 +7全能",
+    "240896": "+17精通",
+    "240898": "+16精通 +7暴击",
+    "240900": "+16精通 +7急速",
+    "240902": "+16精通 +7全能",
+    "240904": "+17暴击",
+    "240906": "+16暴击 +7急速",
+    "240908": "+16暴击 +7精通",
+    "240910": "+16暴击 +7全能",
+    "240912": "+17全能",
+    "240914": "+16全能 +7暴击",
+    "240916": "+16全能 +7急速",
+    "240918": "+16全能 +7精通",
+    "240967": "+23主属性 每种不同的至暗之夜宝石颜色+0.15%暴击效果",
+    "240969": "+23主属性 每种不同的至暗之夜宝石颜色+1%最大法力值",
+    "240971": "+23主属性 +13护甲",
+    "240983": "+32主属性",
+}
+
+
+def pve_rank_two_gem_seed(item_id, name):
+    item_id = str(item_id)
+    stat_summary = PVE_RANK_TWO_GEM_LIVE_TOOLTIPS.get(item_id, "")
+    return {
+        "id": f"seed-socket-gem-{item_id}-rank-2",
+        "type": "socket",
+        "name": str(name),
+        "slots": list(SOCKET_OPTION_GEAR_SLOT_LIST),
+        "simcOptions": {"gem_id": item_id},
+        "status": "verified",
+        "payload": {
+            "source": "server_owned_midnight_rank_two_gem_seed",
+            "status": "verified",
+            "itemId": item_id,
+            "item_id": item_id,
+            "gemItemId": item_id,
+            "gem_item_id": item_id,
+            "displayName": str(name),
+            "displayLabel": stat_summary,
+            "displayKind": "stat" if stat_summary else "",
+            "displayStatus": "verified" if stat_summary else "",
+            "statSummary": stat_summary,
+            "statDisplayStatus": "verified_tooltip_override" if stat_summary else "",
+            "quality": "Quality 2",
+            "qualityRank": 2,
+            "usageScope": "pve",
+            "usage_scope": "pve",
+            "evidenceSource": "wowhead_live_tooltip",
+            "fallbackEvidenceSource": "wowhead_item+battle_net_item_metadata",
+            "sourceRefs": [f"https://www.wowhead.com/item={item_id}"],
+        },
+    }
+
+
 DEFAULT_GEAR_MOD_SEED = [
+    *[pve_rank_two_gem_seed(item_id, name) for item_id, name in PVE_RANK_TWO_GEM_SEEDS],
     {
         "id": "seed-embellishment-dawnthread-lining-rank-2",
         "type": "embellishment",
@@ -3048,6 +3132,24 @@ def gem_metadata_stat_summary(metadata):
         or compact_gem_item_stat_summary(metadata.get("itemStats") or [])
         or str(metadata.get("statSummary") or "").strip()
     )
+
+
+def verified_socket_option_payload_stat_summary(payload, gem_item_count):
+    if not isinstance(payload, dict) or int(gem_item_count or 0) != 1:
+        return ""
+    stat_summary = normalize_gem_effect_summary(payload.get("statSummary") or payload.get("displayLabel"))
+    if not stat_summary:
+        return ""
+    display_status = str(payload.get("displayStatus") or "").strip().lower()
+    stat_status = str(payload.get("statDisplayStatus") or "").strip().lower()
+    evidence_source = str(payload.get("evidenceSource") or "").strip()
+    if (
+        display_status == "verified"
+        or stat_status in {"verified", "verified_tooltip_override"}
+        or evidence_source == "wowhead_live_tooltip"
+    ):
+        return stat_summary
+    return ""
 
 
 def simc_encoded_item_options(value):
@@ -6411,7 +6513,10 @@ def gear_mod_seed():
         parsed = safe_json_loads(raw, [])
         if isinstance(parsed, list):
             return [dict(option) for option in parsed if isinstance(option, dict)]
-    return [dict(option) for option in DEFAULT_GEAR_MOD_SEED]
+    default_options = DEFAULT_GEAR_MOD_SEED
+    if os.environ.get("WOW_WEBSIM_DEFAULT_RANK_TWO_GEM_SEED", "1").strip().lower() in {"0", "false", "no", "off"}:
+        default_options = [option for option in DEFAULT_GEAR_MOD_SEED if str(option.get("type") or "").lower() != "socket"]
+    return [dict(option) for option in default_options]
 
 
 def upsert_gear_source(conn, source):
@@ -7437,6 +7542,8 @@ def gear_mod_option_has_supported_quality(option_type, option):
     if option_type == "crafted_stats":
         return True
     rank = gear_mod_option_quality_rank(option)
+    if option_type == "socket":
+        return rank == 2
     return rank in (None, 2)
 
 
@@ -7452,6 +7559,16 @@ def gear_mod_option_has_executable_field(option_type, simc_options):
     return False
 
 
+def single_numeric_simc_option_value(simc_options, key):
+    if not isinstance(simc_options, dict):
+        return False
+    value = normalize_option_value(simc_options.get(key))
+    if not value:
+        return False
+    parts = [part.strip() for part in value.split("/") if part.strip()]
+    return len(parts) == 1 and bool(re.fullmatch(r"\d+", parts[0]))
+
+
 def upsert_gear_mod_option(conn, option):
     option_type = str(option.get("optionType") or option.get("type") or "").strip().lower()
     if option_type not in GEAR_MOD_OPTION_TYPES:
@@ -7459,6 +7576,10 @@ def upsert_gear_mod_option(conn, option):
     simc_options = option.get("simcOptions") if isinstance(option.get("simcOptions"), dict) else {}
     simc_options = {key: value for key, value in simc_options.items() if key in SIMC_GEAR_OPTION_KEYS and normalize_option_value(value)}
     if not simc_options or not gear_mod_option_has_executable_field(option_type, simc_options):
+        return False
+    if option_type == "socket" and len(gem_item_ids_from_simc_options(simc_options)) != 1:
+        return False
+    if option_type == "enchant" and not single_numeric_simc_option_value(simc_options, "enchant_id"):
         return False
     status = str(option.get("status") or "verified").strip().lower()
     if status and status != "verified":
@@ -8620,6 +8741,8 @@ def sync_wago_gear_mod_option_display_names(conn, simc_text_or_build="", locale=
         """
     ).fetchall()
     found_ids = set()
+    removed_option_ids = []
+    removed_enchant_ids = set()
     for option_id, option_name, simc_options_json, payload_json in rows:
         simc_options = safe_json_loads(simc_options_json, {})
         if not isinstance(simc_options, dict):
@@ -8627,6 +8750,12 @@ def sync_wago_gear_mod_option_display_names(conn, simc_text_or_build="", locale=
         enchant_id = normalize_option_value(simc_options.get("enchant_id"))
         display_name = names_by_id.get(enchant_id)
         if not display_name:
+            payload = safe_json_loads(payload_json, {})
+            payload = payload if isinstance(payload, dict) else {}
+            if str(option_id or "").startswith("observed-enchant-") and payload.get("source") == "observed_variant":
+                removed_option_ids.append(str(option_id))
+                if enchant_id:
+                    removed_enchant_ids.add(enchant_id)
             continue
         payload = safe_json_loads(payload_json, {})
         payload = payload if isinstance(payload, dict) else {}
@@ -8656,7 +8785,17 @@ def sync_wago_gear_mod_option_display_names(conn, simc_text_or_build="", locale=
         )
         found_ids.add(enchant_id)
         counts["updated"] += 1
-    counts["missing"] = len([enchant_id for enchant_id in enchant_ids if enchant_id not in found_ids])
+    if removed_option_ids:
+        placeholders = ",".join("?" for _ in removed_option_ids)
+        conn.execute(f"DELETE FROM websim_gear_mod_options WHERE id IN ({placeholders})", removed_option_ids)
+    counts["removed"] = len(removed_option_ids)
+    counts["missing"] = len(
+        [
+            enchant_id
+            for enchant_id in enchant_ids
+            if enchant_id not in found_ids and enchant_id not in removed_enchant_ids
+        ]
+    )
     conn.commit()
     return counts
 
@@ -11777,7 +11916,8 @@ def gear_catalog_mod_option_coverage(conn):
                 if not payload_item_class_is_gem(item_class):
                     invalid_gem = (str(gem_item_id or ""), item_class)
                     break
-                stat_summary = str(gem_metadata.get("statSummary") or "").strip()
+                option_stat_summary = verified_socket_option_payload_stat_summary(payload, len(gem_item_ids))
+                stat_summary = option_stat_summary or str(gem_metadata.get("statSummary") or "").strip()
                 preview_item = gem_metadata_payload.get("preview_item") if isinstance(gem_metadata_payload.get("preview_item"), dict) else {}
                 item_stats = normalize_item_stats(gem_metadata.get("itemStats") or preview_item.get("stats") or [])
                 if not stat_summary and not item_stats:
@@ -13856,20 +13996,29 @@ def display_ready_socket_mod_option(conn, option):
     enriched["metadataSource"] = gem_metadata.get("metadataSource") or enriched.get("metadataSource")
     enriched["gemItemId"] = gem_metadata.get("itemId") or enriched.get("gemItemId")
     enriched["gemItemIds"] = [record.get("itemId") for record in gem_metadata_records if record.get("itemId")]
-    stat_summaries = [
-        summary
-        for record in gem_metadata_records
-        for summary in [gem_metadata_stat_summary(record)]
-        if summary
-    ]
+    option_stat_summary = verified_socket_option_payload_stat_summary(payload, len(gem_metadata_records))
+    stat_summaries = (
+        [option_stat_summary]
+        if option_stat_summary
+        else [
+            summary
+            for record in gem_metadata_records
+            for summary in [gem_metadata_stat_summary(record)]
+            if summary
+        ]
+    )
     if not stat_summaries:
         return None
     stat_summary = " / ".join(stat_summaries)
     enriched["statSummary"] = stat_summary
     enriched["displayLabel"] = stat_summary
-    enriched["displayKind"] = "stat"
-    enriched["displayStatus"] = "verified"
-    enriched["evidenceSource"] = ITEM_METADATA_SOURCE
+    enriched["displayKind"] = payload.get("displayKind") or "stat"
+    enriched["displayStatus"] = payload.get("displayStatus") or "verified"
+    enriched["evidenceSource"] = payload.get("evidenceSource") or ITEM_METADATA_SOURCE
+    if payload.get("evidenceRef"):
+        enriched["evidenceRef"] = payload.get("evidenceRef")
+    if payload.get("statDisplayStatus"):
+        enriched["statDisplayStatus"] = payload.get("statDisplayStatus")
     if gem_metadata.get("itemStats"):
         enriched["itemStats"] = gem_metadata.get("itemStats")
     enriched["gemItems"] = [
@@ -13880,7 +14029,7 @@ def display_ready_socket_mod_option(conn, option):
             "quality": record.get("quality"),
             "gameAsset": record.get("gameAsset"),
             "itemStats": record.get("itemStats"),
-            "statSummary": gem_metadata_stat_summary(record),
+            "statSummary": option_stat_summary if len(gem_metadata_records) == 1 else gem_metadata_stat_summary(record),
             "metadataStatus": record.get("metadataStatus"),
             "metadataSource": record.get("metadataSource"),
             "metadataLocale": record.get("metadataLocale"),

@@ -1680,6 +1680,12 @@ class NewsBackendTest(unittest.TestCase):
                         "gemItemId": "213743",
                         "metadataStatus": "verified",
                         "iconUrl": "https://render.example/gem-213743.jpg",
+                        "displayLabel": "+32主属性",
+                        "displayKind": "stat",
+                        "displayStatus": "verified",
+                        "statSummary": "+32主属性",
+                        "statDisplayStatus": "verified_tooltip_override",
+                        "evidenceSource": "wowhead_live_tooltip",
                     },
                 },
             )
@@ -1691,7 +1697,13 @@ class NewsBackendTest(unittest.TestCase):
                     "name": "Rank Two Enchant",
                     "slots": ["finger1"],
                     "simcOptions": {"enchant_id": "7334"},
-                    "payload": {"qualityRank": 2, "source": "server_owned_seed"},
+                    "payload": {
+                        "qualityRank": 2,
+                        "source": "server_owned_seed",
+                        "displayName": "朗多雷之锐",
+                        "displayStatus": "verified",
+                        "evidenceSource": "simulationcraft+wago_db2",
+                    },
                 },
             )
             websim_payload.upsert_gear_mod_option(

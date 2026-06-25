@@ -326,6 +326,9 @@
         </view>
       </view>
     </view>
+    <view class="gear-enhancement-action-row" wx:if="{{gearEnhancementSheet.equipmentRows.length}}">
+      <button class="gear-enhancement-confirm" bindtap="confirmGearEnhancementSheet">确认</button>
+    </view>
   </view>
 
   <view class="gear-slot-sheet-mask gear-community-template-sheet-mask" wx:if="{{gearCommunityTemplateSheet.visible}}" bindtap="closeGearCommunityTemplates"></view>

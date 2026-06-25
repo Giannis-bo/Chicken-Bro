@@ -886,6 +886,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(js, /saveGearTemplate\(\)/)
   assert.match(js, /openGearEnhancementSheet\(\)/)
   assert.match(js, /selectGearEnhancementOption\(event\)/)
+  assert.match(js, /confirmGearEnhancementSheet\(\)/)
   assert.match(js, /enhancementBySlot/)
   assert.match(js, /gearEnhancementSheet/)
   assert.match(js, /canonicalGearTemplateLines/)
@@ -969,6 +970,8 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(wxml, /gearEnhancementSheet\.activeEnchantRows/)
   assert.match(wxml, /gearEnhancementSheet\.activeEmbellishmentRows/)
   assert.match(wxml, /bindtap="selectGearEnhancementSlot"/)
+  assert.match(wxml, /bindtap="confirmGearEnhancementSheet"/)
+  assert.match(wxml, />确认<\/button>/)
   assert.match(wxml, /bindtap="openGearCommunityTemplates"/)
   assert.match(wxml, /bindtap="resetGearSelection"/)
   assert.match(wxml, /gearDataWarningText/)
@@ -1395,6 +1398,10 @@ test('gear enhancement sheet filters configurable slots and disables extra embel
   pageConfig.selectGearEnhancementOption.call(page, {
     currentTarget: { dataset: { slot: 'finger1', type: 'gem', id: 'gem-rank-two' } }
   })
+  assert.deepEqual(page.data.enhancementBySlot, {})
+  assert.equal(page.data.gearEnhancementSheet.gemRows.find((row) => row.slot === 'finger1').options[0].selected, true)
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'gem').value, '0/1')
+  pageConfig.confirmGearEnhancementSheet.call(page)
   assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'gem').value, '1/1')
 })
 
@@ -1588,6 +1595,12 @@ test('gear enhancement sheet shows socket enchant and embellishment groups for t
   pageConfig.selectGearEnhancementOption.call(page, {
     currentTarget: { dataset: { slot: 'finger1', type: 'embellishment', id: 'embellishment-arcanoweave' } }
   })
+
+  assert.deepEqual(page.data.enhancementBySlot, {})
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options[0].selected, true)
+  assert.equal(page.data.gearEnhancementSheet.activeEnchantRows[0].options[0].selected, true)
+  assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options[0].selected, true)
+  pageConfig.confirmGearEnhancementSheet.call(page)
 
   assert.equal(JSON.stringify(page.data.enhancementBySlot.finger1), JSON.stringify({
     socketOptionId: 'gem-stat-primary',

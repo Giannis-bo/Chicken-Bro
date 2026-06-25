@@ -1131,6 +1131,7 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
   const activeEmbellishmentRows = activeSlot ? embellishmentRows.filter((row) => row.slot === activeSlot) : []
   return {
     visible: !!visible,
+    draftEnhancementBySlot: enhancement,
     equipmentRows,
     activeSlot,
     activeTitle: activeSlot ? (gearSlotDisplayLabels[activeSlot] || activeSlot) : '',
@@ -2791,7 +2792,7 @@ Page({
       gearEnhancementSheet: buildGearEnhancementSheet(
         gearPayload,
         this.data.selectedGearBySlot || {},
-        this.data.enhancementBySlot || {},
+        (this.data.gearEnhancementSheet && this.data.gearEnhancementSheet.draftEnhancementBySlot) || this.data.enhancementBySlot || {},
         true,
         slot
       )
@@ -2812,7 +2813,7 @@ Page({
     const row = (rowsByType[type] || []).find((item) => item.slot === slot)
     const option = row && (row.options || []).find((item) => item.id === optionId)
     if (!row || !option || option.disabled) return
-    const current = normalizedEnhancementBySlot(this.data.enhancementBySlot || {})
+    const current = normalizedEnhancementBySlot(sheet.draftEnhancementBySlot || this.data.enhancementBySlot || {})
     const existing = current[slot] || {}
     const nextRecord = option.selected
       ? removeEnhancementType(existing, type)
@@ -2822,9 +2823,31 @@ Page({
     else delete current[slot]
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     this.setData({
-      enhancementBySlot: current,
-      gearAttributePanel: buildGearAttributePanel(gearPayload, this.data.selectedGearBySlot || {}, this.data.selectedSpec, current),
       gearEnhancementSheet: buildGearEnhancementSheet(gearPayload, this.data.selectedGearBySlot || {}, current, true, sheet.activeSlot || slot)
+    })
+  },
+
+  confirmGearEnhancementSheet() {
+    const sheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
+    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
+    const selectedGearBySlot = this.data.selectedGearBySlot || {}
+    const enhancementBySlot = prunedEnhancementBySlot(
+      gearPayload,
+      selectedGearBySlot,
+      sheet.draftEnhancementBySlot || this.data.enhancementBySlot || {}
+    )
+    const validationSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, true, sheet.activeSlot)
+    if ((validationSheet.blockers || []).length || validationSheet.embellishmentUsed > validationSheet.embellishmentMax) {
+      showToast((validationSheet.blockers || [])[0] || `美化已超过上限 ${validationSheet.embellishmentUsed}/${validationSheet.embellishmentMax}`)
+      this.setData({
+        gearEnhancementSheet: validationSheet
+      })
+      return
+    }
+    this.setData({
+      enhancementBySlot,
+      gearAttributePanel: buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot),
+      gearEnhancementSheet: emptyGearEnhancementSheet()
     })
   },
 
