@@ -8582,7 +8582,7 @@ def parse_wago_spell_item_enchantment_names_csv(text, enchant_ids=None):
             "EffectName_lang",
             "EffectName",
         ):
-            candidate = str(row.get(key) or "").strip()
+            candidate = clean_gear_mod_display_label(row.get(key), "enchant")
             if candidate and text_contains_cjk(candidate) and not display_label_looks_like_raw_id(candidate, "enchant"):
                 display_name = candidate
                 break
@@ -13582,6 +13582,21 @@ def display_label_looks_like_raw_id(label, option_type):
     return False
 
 
+def clean_gear_mod_display_label(label, option_type=""):
+    text = str(label or "").strip()
+    if not text:
+        return ""
+    text = re.sub(r"\|A:[^|]+?\|a", "", text)
+    text = re.sub(r"\|T[^|]+?\|t", "", text)
+    text = re.sub(r"\|[cC][0-9A-Fa-f]{8}", "", text).replace("|r", "")
+    text = re.sub(r"\s+", " ", text).strip()
+    if "$" in text:
+        return ""
+    if str(option_type or "").strip().lower() == "enchant":
+        text = re.sub(r"^附魔[^-－—]*[-－—]\s*", "", text).strip()
+    return text
+
+
 def gear_mod_option_display_fields(option_type, name="", simc_options=None, payload=None):
     option_type = str(option_type or "").strip().lower()
     name = str(name or "").strip()
@@ -13619,7 +13634,7 @@ def gear_mod_option_display_fields(option_type, name="", simc_options=None, payl
         payload.get("displayName"),
         name,
     ):
-        candidate = str(candidate or "").strip()
+        candidate = clean_gear_mod_display_label(candidate, option_type)
         if (
             candidate
             and text_contains_cjk(candidate)

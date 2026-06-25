@@ -11106,7 +11106,7 @@ class WebSimPayloadTest(unittest.TestCase):
 
         def fake_wago_csv(table, build, locale="enUS"):
             if table == "SpellItemEnchantment":
-                return "ID,Name_lang\n8017,朗多雷之锐\n7967,自然之怒\n8039,奥术精通\n", "wago://SpellItemEnchantment"
+                return "ID,Name_lang\n8017,附魔武器 - 朗多雷之锐|A:Professions-ChatIcon-Quality-12-Tier2:20:20|a\n7967,附魔戒指 - 自然之怒\n8039,+$k1 智力和+$457616s1% 法力值\n", "wago://SpellItemEnchantment"
             return "", f"wago://{table}"
 
         self.websim_payload.download_wago_db2_csv = fake_wago_csv

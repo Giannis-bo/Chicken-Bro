@@ -961,6 +961,7 @@ function enhancementLabelLooksLikeFallback(label, type) {
   const value = cleanGearString(label)
   if (!value) return true
   if (/^(gem|enchant|embellishment|observed|server seed)\b/i.test(value)) return true
+  if (/\$/.test(value) || /\|[A-Za-z]:/.test(value)) return true
   if (type === 'enchant' && /^(附魔|武器附魔|戒指附魔|披风附魔|胸甲附魔|护腕附魔|靴子附魔|腿部强化)\s*[\d/]*$/i.test(value)) return true
   if (type === 'gem' && /^(宝石|gem)\s*[\d/]+$/i.test(value)) return true
   return false
