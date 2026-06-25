@@ -2991,6 +2991,65 @@ def item_stat_summary(stats):
     return "；".join(unique_text_list(parts))
 
 
+def normalize_gem_stat_label(label):
+    text = str(label or "").strip()
+    return text.replace("爆击", "暴击")
+
+
+def compact_gem_item_stat_summary(stats):
+    parts = []
+    for stat in normalize_item_stats(stats):
+        label = normalize_gem_stat_label(stat.get("label") or stat.get("display") or "")
+        value = stat.get("value")
+        if not label or value in ("", None):
+            continue
+        value_text = str(value).strip()
+        if re.fullmatch(r"\d+(?:\.\d+)?", value_text):
+            value_text = f"+{value_text}"
+        parts.append(f"{value_text}{label}")
+    return " ".join(unique_text_list(parts))
+
+
+def normalize_gem_effect_summary(value):
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    text = text.replace("爆击", "暴击")
+    text = re.sub(r"\s*(?:和|,|，|;|；)\s*", " ", text)
+    text = re.sub(r"([+-]?\d+(?:\.\d+)?)\s*([^+\-\d\s][^+\-]*?)(?=\s+[+-]?\d|$)", lambda match: f"{match.group(1)}{match.group(2).strip()}", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text if re.search(r"[+-]?\d", text) else ""
+
+
+def gem_effect_summary_from_payload(payload):
+    if not isinstance(payload, dict):
+        return ""
+    for parent in (payload_preview_item(payload), payload):
+        if not isinstance(parent, dict):
+            continue
+        gem_properties = parent.get("gem_properties") if isinstance(parent.get("gem_properties"), dict) else {}
+        effect = gem_properties.get("effect") or gem_properties.get("display_string") or gem_properties.get("displayString")
+        summary = normalize_gem_effect_summary(effect)
+        if summary:
+            return summary
+    return ""
+
+
+def item_stat_summary_for_metadata(payload, item_stats):
+    return gem_effect_summary_from_payload(payload) or item_stat_summary(item_stats)
+
+
+def gem_metadata_stat_summary(metadata):
+    if not isinstance(metadata, dict):
+        return ""
+    payload = metadata.get("payload") if isinstance(metadata.get("payload"), dict) else {}
+    return (
+        gem_effect_summary_from_payload(payload)
+        or compact_gem_item_stat_summary(metadata.get("itemStats") or [])
+        or str(metadata.get("statSummary") or "").strip()
+    )
+
+
 def simc_encoded_item_options(value):
     text = str(value or "").strip()
     if not text:
@@ -3491,7 +3550,7 @@ def save_websim_item_metadata(
         "gameAsset": game_asset,
     }
     item_stats = extract_item_stats_from_payload(metadata_payload)
-    stat_summary = item_stat_summary(item_stats)
+    stat_summary = item_stat_summary_for_metadata(metadata_payload, item_stats)
     mod_capabilities = item_mod_capabilities(metadata_payload, slot)
     type_metadata = item_type_metadata_from_payload(metadata_payload)
     conn.execute(
@@ -5997,7 +6056,7 @@ def existing_websim_item_metadata(conn, item_id):
     metadata = payload.get("_metadata") if isinstance(payload, dict) else {}
     metadata_status = (metadata or {}).get("metadataStatus") or (metadata or {}).get("status") or "verified"
     item_stats = extract_item_stats_from_payload(payload)
-    stat_summary = item_stat_summary(item_stats)
+    stat_summary = item_stat_summary_for_metadata(payload, item_stats)
     mod_capabilities = item_mod_capabilities(payload, row[2] or "")
     type_metadata = item_type_metadata_from_payload(payload)
     game_asset = normalize_game_asset(
@@ -13783,9 +13842,10 @@ def display_ready_socket_mod_option(conn, option):
     enriched["gemItemId"] = gem_metadata.get("itemId") or enriched.get("gemItemId")
     enriched["gemItemIds"] = [record.get("itemId") for record in gem_metadata_records if record.get("itemId")]
     stat_summaries = [
-        str(record.get("statSummary") or "").strip()
+        summary
         for record in gem_metadata_records
-        if str(record.get("statSummary") or "").strip()
+        for summary in [gem_metadata_stat_summary(record)]
+        if summary
     ]
     if not stat_summaries:
         return None
@@ -13805,7 +13865,7 @@ def display_ready_socket_mod_option(conn, option):
             "quality": record.get("quality"),
             "gameAsset": record.get("gameAsset"),
             "itemStats": record.get("itemStats"),
-            "statSummary": record.get("statSummary"),
+            "statSummary": gem_metadata_stat_summary(record),
             "metadataStatus": record.get("metadataStatus"),
             "metadataSource": record.get("metadataSource"),
             "metadataLocale": record.get("metadataLocale"),

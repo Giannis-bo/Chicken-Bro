@@ -11008,7 +11008,7 @@ class WebSimPayloadTest(unittest.TestCase):
             if option.get("simcOptions", {}).get("enchant_id") == "8017"
         )
         self.assertEqual(neck_socket["simcOptions"]["gem_id"], "240983")
-        self.assertEqual(neck_socket["statSummary"], "急速 147")
+        self.assertEqual(neck_socket["statSummary"], "+147急速")
         self.assertEqual(main_hand_enchant["simcOptions"]["enchant_id"], "8017")
         self.assertTrue(all("socketOptions" not in item for item in neck_group["items"]))
         self.assertTrue(all("enchantOptions" not in item for item in main_hand_group["items"]))
@@ -11433,6 +11433,103 @@ class WebSimPayloadTest(unittest.TestCase):
         compact_finger_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "finger1")
         self.assertNotIn("socketOptions", compact_finger_group)
 
+    def test_websim_gear_uses_battle_net_gem_properties_effect_as_socket_display(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Socketed Catalog Band",
+                    "inventory_type": {"type": "INVTYPE_FINGER", "name": "Finger"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 123}],
+                        "sockets": [{"socket_type": {"type": "PRISMATIC", "name": "Prismatic Socket"}}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
+                fallback_name="Socketed Catalog Band",
+                english_payload={"name": "Socketed Catalog Band", "inventory_type": {"name": "Finger"}},
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "240908",
+                {
+                    "id": 240908,
+                    "name": "无瑕精湛榴石",
+                    "item_class": {"id": 3, "name": "宝石"},
+                    "item_subclass": {"id": 10, "name": "复合属性"},
+                    "quality": {"name": "精良"},
+                    "preview_item": {
+                        "item_class": {"id": 3, "name": "宝石"},
+                        "item_subclass": {"id": 10, "name": "复合属性"},
+                        "gem_properties": {"effect": "+14 爆击和+6 精通"},
+                    },
+                },
+                {"assets": [{"value": "https://render.example/gem-240908.jpg"}]},
+                fallback_name="Masterful Ruby",
+                english_payload={"name": "Masterful Ruby"},
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "manual-250777",
+                    "itemId": "250777",
+                    "sourceType": "raid",
+                    "sourceLabel": "Vault Mage - Arcane Vault",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "manual-250777-heroic",
+                    "itemId": "250777",
+                    "slot": "finger1",
+                    "variantKey": "heroic-707",
+                    "label": "Heroic 707",
+                    "sourceType": "raid",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": "12345"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "socket-gem-properties-effect",
+                    "type": "socket",
+                    "name": "无瑕精湛榴石",
+                    "applicableSlots": ["finger1"],
+                    "simcOptions": {"gem_id": "240908", "gem_ilevel": "707"},
+                    "status": "verified",
+                    "payload": {
+                        "source": "observed_variant",
+                        "displayName": "无瑕精湛榴石",
+                        "gemItemId": "240908",
+                        "iconUrl": "https://render.example/gem-240908.jpg",
+                        "metadataStatus": "verified",
+                        "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
+                        "metadataLocale": "zh_CN",
+                    },
+                },
+            )
+            health = self.websim_payload.gear_catalog_health_payload(conn)
+            compact_payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane", compact=True)
+        finally:
+            conn.close()
+
+        self.assertNotIn("missingStatDisplayCount", health["details"]["modOptionCoverage"]["socket"])
+        finger_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "finger1")
+        self.assertEqual(finger_group["socketOptions"][0]["displayLabel"], "+14暴击 +6精通")
+        self.assertEqual(finger_group["socketOptions"][0]["statSummary"], "+14暴击 +6精通")
+        self.assertEqual(finger_group["socketOptions"][0]["simcOptions"]["gem_id"], "240908")
+
     def test_compact_gear_payload_preserves_socket_enchant_and_embellishment_groups_for_same_slot(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
         conn = sqlite3.connect(self.db_path)
@@ -11555,7 +11652,7 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         finger_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "finger1")
-        self.assertEqual(finger_group["socketOptions"][0]["displayLabel"], "急速 32")
+        self.assertEqual(finger_group["socketOptions"][0]["displayLabel"], "+32急速")
         self.assertEqual(finger_group["socketOptions"][0]["displayKind"], "stat")
         self.assertEqual(finger_group["enchantOptions"][0]["displayLabel"], "自然之怒")
         self.assertEqual(finger_group["enchantOptions"][0]["displayKind"], "name")

@@ -918,14 +918,15 @@ function optionItemStatSummary(option) {
   const seen = new Set()
   stats.forEach((stat) => {
     if (!stat || typeof stat !== 'object') return
-    const label = cleanGearString(stat.label || (stat.type && stat.type.name) || stat.name || stat.stat)
+    const label = cleanGearString(stat.label || (stat.type && stat.type.name) || stat.name || stat.stat).replace(/爆击/g, '暴击')
     const value = cleanGearString(stat.value || stat.amount)
-    const part = label && value ? `${label} ${value}` : (label || cleanGearString(stat.display))
+    const displayValue = value && /^\d+(\.\d+)?$/.test(value) ? `+${value}` : value
+    const part = label && displayValue ? `${displayValue}${label}` : (label || cleanGearString(stat.display))
     if (!part || seen.has(part)) return
     seen.add(part)
     parts.push(part)
   })
-  return parts.join('；')
+  return parts.join(' ')
 }
 
 function optionPayload(option) {

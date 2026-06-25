@@ -1097,7 +1097,7 @@ test('gear detail summarizes selected equipment attributes above the slot grid',
           label: slot,
           items: [],
           socketOptions: slot === 'finger1'
-            ? [{ id: 'gem-rank-two', label: '迅捷宝石', statSummary: '急速 +147', status: 'verified', simcOptions: { gem_id: '240983' }, payload: { qualityRank: 2 } }]
+            ? [{ id: 'gem-rank-two', label: '迅捷宝石', statSummary: '+147急速', status: 'verified', simcOptions: { gem_id: '240983' }, payload: { qualityRank: 2 } }]
             : [],
           enchantOptions: slot === 'finger1'
             ? [{
@@ -1268,7 +1268,7 @@ test('gear enhancement sheet filters configurable slots and disables extra embel
           {
             id: 'gem-rank-two',
             label: '迅捷宝石',
-            statSummary: '急速 +147',
+            statSummary: '+147急速',
             status: 'verified',
             simcOptions: { gem_id: '240983', gem_ilevel: '707' },
             payload: { qualityRank: 2 }
@@ -1376,7 +1376,7 @@ test('gear enhancement sheet filters configurable slots and disables extra embel
   assert.equal(JSON.stringify(page.data.gearEnhancementSheet.activeGemRows.map((row) => row.slot)), JSON.stringify(['finger1']))
   assert.equal(JSON.stringify(page.data.gearEnhancementSheet.activeEnchantRows.map((row) => row.slot)), JSON.stringify(['finger1']))
   assert.equal(JSON.stringify(page.data.gearEnhancementSheet.activeEmbellishmentRows.map((row) => row.slot)), JSON.stringify([]))
-  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options[0].label, '急速 +147')
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options[0].label, '+147急速')
   assert.equal(page.data.gearEnhancementSheet.activeEnchantRows[0].options[0].label, '自然之怒')
   assert.equal(page.data.gearEnhancementSheet.embellishmentUsed, 2)
   assert.equal(page.data.gearEnhancementSheet.embellishmentMax, 2)
@@ -3687,7 +3687,7 @@ test('gear template save stores structured enhancement snapshot for backend seri
               {
                 id: 'gem-rank-two',
                 label: '迅捷宝石',
-                statSummary: '急速 +147',
+                statSummary: '+147急速',
                 status: 'verified',
                 simcOptions: { gem_id: '240983', gem_ilevel: '707' },
                 payload: { qualityRank: 2 }
