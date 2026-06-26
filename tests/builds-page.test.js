@@ -91,6 +91,14 @@ function completeGearSelection(slots = canonicalGearSlots) {
   }, {})
 }
 
+async function confirmGearTemplateSave(pageConfig, page, name) {
+  pageConfig.saveGearTemplate.call(page)
+  if (name !== undefined) {
+    pageConfig.updateGearTemplateName.call(page, { detail: { value: name } })
+  }
+  await pageConfig.confirmSaveGearTemplate.call(page)
+}
+
 function loadTalentSimulatorPageConfig(options = {}) {
   const source = fs.readFileSync('pages/builds/talent-simulator.js', 'utf8')
   const mocks = {
@@ -935,15 +943,15 @@ test('gear detail page exposes inline equipment simulator state and replacement 
 
   assert.match(js, /game-asset/)
   assert.match(js, /requestWebsimGear/)
-  assert.doesNotMatch(js, /requestWebsimGearStats/)
+  assert.match(js, /requestWebsimGearStats/)
   assert.match(js, /selectedGearBySlot/)
   assert.match(js, /gearSlotRows/)
   assert.match(js, /buildGearAttributePanel/)
   assert.match(js, /gearInitialLoading/)
-  assert.doesNotMatch(js, /gearStatSnapshot/)
-  assert.doesNotMatch(js, /gearStatBlockers/)
+  assert.match(js, /gearStatSnapshot/)
+  assert.match(js, /gearStatBlockers/)
   assert.match(js, /loadWebsimGearForSelection/)
-  assert.doesNotMatch(js, /refreshGearStats/)
+  assert.match(js, /refreshGearStats/)
   assert.match(js, /openGearSlotSheet\(event\)/)
   assert.match(js, /selectGearCandidate\(event\)/)
   assert.match(js, /setGearCandidateFilter\(event\)/)
@@ -978,6 +986,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.doesNotMatch(wxml, /gearAttributePanel\.primaryStat/)
   assert.match(wxml, /gearAttributePanel\.enhancementRows/)
   assert.match(wxml, /gearAttributePanel\.statRows/)
+  assert.match(wxml, /gear-attribute-converted/)
   assert.doesNotMatch(wxml, /gearAttributePanel\.resourceRows/)
   assert.match(wxml, /class="gear-slot-grid"/)
   assert.match(wxml, /wx:for="\{\{gearSlotRows\}\}"/)
@@ -989,6 +998,8 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.ok(wxml.indexOf('class="gear-attribute-level"') < wxml.indexOf('class="gear-attribute-grid"'))
   assert.ok(wxml.indexOf('class="gear-attribute-action"') > wxml.indexOf('class="gear-attribute-panel"'))
   assert.ok(wxml.indexOf('class="gear-attribute-action"') < wxml.indexOf('class="gear-slot-grid"'))
+  assert.match(wxml, />配置宝石、附魔<\/button>/)
+  assert.doesNotMatch(wxml, />强化配置</)
   assert.ok(wxml.indexOf('class="gear-attribute-grid"') < wxml.indexOf('class="gear-attribute-enhancement-row"'))
   assert.ok(wxml.indexOf('class="gear-attribute-enhancement-row"') < wxml.indexOf('class="gear-attribute-action-row"'))
   assert.doesNotMatch(wxml, /class="gear-attribute-primary"/)
@@ -1042,6 +1053,12 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.doesNotMatch(wxml, /bindtap="selectGearEnchantOption"/)
   assert.match(wxml, /bindtap="applyGearCandidate"/)
   assert.match(wxml, /bindtap="saveGearTemplate"/)
+  assert.match(wxml, /gearSaveTemplateSheet\.visible/)
+  assert.match(wxml, /value="\{\{gearSaveTemplateSheet\.name\}\}"/)
+  assert.match(wxml, /placeholder="\{\{gearSaveTemplateSheet\.defaultName\}\}"/)
+  assert.match(wxml, /bindinput="updateGearTemplateName"/)
+  assert.match(wxml, /bindtap="confirmSaveGearTemplate"/)
+  assert.match(wxml, /bindtap="closeGearSaveTemplateSheet"/)
   assert.doesNotMatch(wxml, /class="gear-template-action-button enhance"/)
   assert.match(wxml, /bindtap="openGearEnhancementSheet"/)
   assert.match(wxml, /gearEnhancementSheet\.visible/)
@@ -1077,6 +1094,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(css, /\.gear-attribute-action-row/)
   assert.doesNotMatch(css, /\.gear-attribute-primary/)
   assert.match(css, /\.gear-attribute-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/)
+  assert.match(css, /\.gear-attribute-enhancement-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\);/)
   const gearAttributeLevelCss = css.match(/\.gear-attribute-level\s*\{[^}]*\}/)
   assert.ok(gearAttributeLevelCss)
   assert.match(gearAttributeLevelCss[0], /align-items:\s*center;/)
@@ -1091,6 +1109,13 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(css, /\.gear-slot-grid\s*\{[\s\S]*gap:\s*8rpx;[\s\S]*margin-top:\s*12rpx;/)
   assert.match(css, /\.gear-slot-card\s*\{[\s\S]*min-height:\s*118rpx;[\s\S]*padding:\s*10rpx;/)
   assert.match(css, /\.gear-slot-card\s*\{[\s\S]*position:\s*relative;/)
+  const gearSlotCardCss = css.match(/\.gear-slot-card\s*\{[^}]*\}/)
+  assert.ok(gearSlotCardCss)
+  assert.match(gearSlotCardCss[0], /border:\s*1rpx solid rgba\(248,\s*183,\s*0,\s*0\.28\);/)
+  const sourceReferenceSlotCardCss = css.match(/\.gear-slot-card\.source-reference\s*\{[^}]*\}/)
+  assert.ok(sourceReferenceSlotCardCss)
+  assert.match(sourceReferenceSlotCardCss[0], /border-color:\s*rgba\(248,\s*183,\s*0,\s*0\.28\);/)
+  assert.doesNotMatch(sourceReferenceSlotCardCss[0], /94,\s*141,\s*255/)
   assert.match(css, /\.gear-slot-enhancement-badges\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*10rpx;[\s\S]*right:\s*10rpx;/)
   assert.match(css, /\.gear-slot-enhancement-badge\s*\{[\s\S]*font-size:\s*18rpx;[\s\S]*font-weight:\s*900;/)
   assert.match(css, /\.gear-slot-card \.gear-name\s*\{[\s\S]*font-size:\s*22rpx;[\s\S]*line-height:\s*1\.28;/)
@@ -1127,6 +1152,11 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(gearEnhancementOptionCss[0], /justify-content:\s*center;/)
   assert.match(gearEnhancementOptionCss[0], /text-align:\s*center;/)
   assert.match(gearEnhancementOptionCss[0], /white-space:\s*normal;/)
+  const disabledEnhancementOptionCss = css.match(/button\.gear-enhancement-option\[disabled\]\s*\{[^}]*\}/)
+  assert.ok(disabledEnhancementOptionCss)
+  assert.match(disabledEnhancementOptionCss[0], /background-color:\s*rgba\(255,\s*255,\s*255,\s*0\.05\)\s*!important;/)
+  assert.match(disabledEnhancementOptionCss[0], /color:\s*#686868\s*!important;/)
+  assert.match(disabledEnhancementOptionCss[0], /opacity:\s*1;/)
   const gearSlotMaskCss = css.match(/\.gear-slot-sheet-mask\s*\{[^}]*\}/)
   const gearEnhancementSheetCss = css.match(/\.gear-enhancement-sheet\s*\{[^}]*\}/)
   assert.ok(gearSlotMaskCss)
@@ -1162,6 +1192,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   const primaryGearActionCss = css.match(/\.gear-template-action-button\.primary\s*\{[^}]*\}/)
   assert.ok(primaryGearActionCss)
   assert.doesNotMatch(primaryGearActionCss[0], /grid-column/)
+  assert.match(css, /\.gear-attribute-converted/)
 })
 
 test('gear detail summarizes selected equipment attributes above the slot grid', async () => {
@@ -1169,12 +1200,18 @@ test('gear detail summarizes selected equipment attributes above the slot grid',
   selectedGear.head = {
     ...selectedGear.head,
     ilevel: 298,
-    statSummary: '智力 120；耐力 240；急速 30；暴击 20；精通 10；全能 5；护甲 100'
+    statSummary: '智力 120；耐力 240；急速 30；暴击 20；精通 10；全能 5；护甲 100',
+    sourceType: 'tier_set',
+    itemSetName: '虚空粉碎者协律',
+    modCapabilities: { hasSocket: true, canEnchant: true, canEmbellish: false }
   }
   selectedGear.chest = {
     ...selectedGear.chest,
     ilevel: 289,
-    statSummary: '敏捷 or 智力 80；耐力 160；急速 15；精通 7；护甲 80'
+    statSummary: '敏捷 or 智力 80；耐力 160；急速 15；精通 7；护甲 80',
+    sourceTypes: ['raid', 'tier_set'],
+    setName: '虚空粉碎者协律',
+    modCapabilities: { hasSocket: false, canEnchant: true, canEmbellish: false }
   }
   selectedGear.finger1 = {
     ...selectedGear.finger1,
@@ -1213,6 +1250,22 @@ test('gear detail summarizes selected equipment attributes above the slot grid',
         equippedSet: selectedGear,
         slotReadiness: {},
         readiness: { fullReady: false },
+        statConversion: {
+          status: 'ready',
+          level: 90,
+          stats: {
+            haste: { ratingPerPercent: 44, precision: 1, displaySuffix: '%' },
+            crit: { ratingPerPercent: 46, precision: 1, displaySuffix: '%' },
+            mastery: {
+              ratingPerMasteryPoint: 46,
+              precision: 1,
+              displaySuffix: '%',
+              effect: { percentPerPoint: 2, label: '冰锥' }
+            },
+            versatility: { ratingPerPercent: 54, precision: 1, displaySuffix: '%' }
+          },
+          diminishingReturns: []
+        },
         communityTemplates: []
       }
     })
@@ -1250,13 +1303,85 @@ test('gear detail summarizes selected equipment attributes above the slot grid',
   assert.equal(panel.statRows.find((row) => row.key === 'intellect').label, '智力')
   assert.equal(panel.statRows.find((row) => row.key === 'intellect').value, '250')
   assert.equal(panel.enhancementRows.find((row) => row.key === 'embellishment').value, '0/2')
-  assert.equal(panel.enhancementRows.find((row) => row.key === 'gem').value, '0/1')
-  assert.equal(panel.enhancementRows.find((row) => row.key === 'enchant').value, '0/1')
+  assert.equal(panel.enhancementRows.find((row) => row.key === 'gem').value, '0/2')
+  assert.equal(panel.enhancementRows.find((row) => row.key === 'enchant').value, '0/3')
+  assert.equal(panel.enhancementRows.find((row) => row.key === 'tierSet').label, '套装')
+  assert.equal(panel.enhancementRows.find((row) => row.key === 'tierSet').value, '2/5')
   assert.equal(panel.statRows.find((row) => row.key === 'stamina').value, '490')
   assert.equal(panel.statRows.find((row) => row.key === 'haste').value, '45')
+  assert.equal(panel.statRows.find((row) => row.key === 'haste').convertedValue, undefined)
   assert.equal(panel.statRows.find((row) => row.key === 'crit').value, '32')
+  assert.equal(panel.statRows.find((row) => row.key === 'crit').convertedValue, undefined)
   assert.equal(panel.statRows.find((row) => row.key === 'mastery').value, '17')
+  assert.equal(panel.statRows.find((row) => row.key === 'mastery').convertedValue, undefined)
   assert.equal(panel.statRows.find((row) => row.key === 'versatility').value, '11')
+  assert.equal(panel.statRows.find((row) => row.key === 'versatility').convertedValue, undefined)
+})
+
+test('gear attribute panel displays SimC verified character percentages when available', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const page = {
+    gearPayloadCache: {
+      slots,
+      replacementCandidates: [],
+      equippedSet: {},
+      slotReadiness: {},
+      readiness: { fullReady: true }
+    },
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots,
+        replacementCandidates: [],
+        equippedSet: {},
+        slotReadiness: {},
+        readiness: { fullReady: true }
+      },
+      gearStatSnapshot: {
+        statStatus: 'verified',
+        statSource: 'simulationcraft_json',
+        primary: { key: 'intellect', label: '智力', value: '2,344', rawValue: 2344 },
+        stamina: { key: 'stamina', label: '耐力', value: '20,067', rawValue: 20067 },
+        secondary: [
+          { key: 'crit', label: '暴击', value: '994', rawValue: 994, convertedValue: '28.6%', convertedRawValue: 28.60869565217391 },
+          { key: 'haste', label: '急速', value: '554', rawValue: 554, convertedValue: '18.3%', convertedRawValue: 18.288009090909108 },
+          { key: 'mastery', label: '精通', value: '545', rawValue: 545, convertedValue: '36.6%', convertedRawValue: 36.55652173913044 },
+          { key: 'versatility', label: '全能', value: '83', rawValue: 83, convertedValue: '1.5%', convertedRawValue: 1.5370370370370372 }
+        ]
+      },
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: {
+        head: {
+          slot: 'head',
+          simcSlot: 'head',
+          itemId: '250101',
+          displayName: 'Snapshot Helm',
+          ilevel: 289,
+          statSummary: '智力 120；耐力 240；暴击 12；急速 8'
+        }
+      },
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false },
+      gearCommunityTemplateSheet: { visible: false },
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+
+  const panel = page.data.gearAttributePanel
+  assert.equal(panel.statRows.find((row) => row.key === 'intellect').value, '2,344')
+  assert.equal(panel.statRows.find((row) => row.key === 'stamina').value, '20,067')
+  assert.equal(panel.statRows.find((row) => row.key === 'crit').value, '994')
+  assert.equal(panel.statRows.find((row) => row.key === 'crit').convertedValue, '28.6%')
+  assert.equal(panel.statRows.find((row) => row.key === 'haste').convertedValue, '18.3%')
+  assert.equal(panel.statRows.find((row) => row.key === 'mastery').convertedValue, '36.6%')
+  assert.equal(panel.statRows.find((row) => row.key === 'versatility').convertedValue, '1.5%')
 })
 
 test('gear attribute panel maps hybrid primary stat labels to the active spec', () => {
@@ -1377,7 +1502,21 @@ test('gear attribute panel includes selected gem stat bonuses', () => {
     ],
     equippedSet: {},
     slotReadiness: {},
-    readiness: { fullReady: false }
+    readiness: { fullReady: false },
+    statConversion: {
+      status: 'ready',
+      level: 90,
+      stats: {
+        crit: { ratingPerPercent: 46, precision: 1, displaySuffix: '%' },
+        mastery: {
+          ratingPerMasteryPoint: 46,
+          precision: 1,
+          displaySuffix: '%',
+          effect: { percentPerPoint: 2, label: '冰锥' }
+        }
+      },
+      diminishingReturns: []
+    }
   }
   const page = {
     gearPayloadCache: gearPayload,
@@ -1408,7 +1547,9 @@ test('gear attribute panel includes selected gem stat bonuses', () => {
   assert.equal(panel.enhancementRows.find((row) => row.key === 'gem').value, '2/2')
   assert.equal(panel.statRows.find((row) => row.key === 'intellect').value, '32')
   assert.equal(panel.statRows.find((row) => row.key === 'mastery').value, '16')
+  assert.equal(panel.statRows.find((row) => row.key === 'mastery').convertedValue, undefined)
   assert.equal(panel.statRows.find((row) => row.key === 'crit').value, '7')
+  assert.equal(panel.statRows.find((row) => row.key === 'crit').convertedValue, undefined)
 })
 
 test('gear enhancement sheet filters configurable slots and disables extra embellishments at the cap', () => {
@@ -4524,7 +4665,134 @@ test('gear detail does not request stat snapshot when gear payload loads', async
   assert.equal(page.data.gearSlotRows.length, canonicalGearSlots.length)
 })
 
-test('gear template save requires all canonical slots and stores neutral complete status', () => {
+test('gear detail requests SimC stat snapshot when gear and talents are complete', async () => {
+  let statsPayload = null
+  let resolveStats
+  const statsRequested = new Promise((resolve) => {
+    resolveStats = resolve
+  })
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear: () => Promise.resolve({
+      payload: {
+        classKey: 'mage',
+        specKey: 'frost',
+        slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+        replacementCandidates: [],
+        equippedSet: completeGearSelection(),
+        slotReadiness: {},
+        readiness: {
+          fullReady: true,
+          warnings: [],
+          itemLevel: { key: 'itemLevel', label: '装备等级', value: '289', rawValue: 289 }
+        },
+        communityTemplates: []
+      }
+    }),
+    requestWebsimGearStats: (payload) => {
+      statsPayload = payload
+      resolveStats()
+      return Promise.resolve({
+        payload: {
+          statStatus: 'verified',
+          statSource: 'simulationcraft_json',
+          blockers: [],
+          primary: { key: 'intellect', label: '智力', value: '2,344', rawValue: 2344 },
+          stamina: { key: 'stamina', label: '耐力', value: '20,067', rawValue: 20067 },
+          secondary: [
+            { key: 'crit', label: '暴击', value: '994', rawValue: 994, convertedValue: '28.6%' },
+            { key: 'haste', label: '急速', value: '554', rawValue: 554, convertedValue: '18.3%' },
+            { key: 'mastery', label: '精通', value: '545', rawValue: 545, convertedValue: '36.6%' },
+            { key: 'versatility', label: '全能', value: '83', rawValue: 83, convertedValue: '1.5%' }
+          ],
+          itemLevel: { key: 'itemLevel', label: '装备等级', value: '289', rawValue: 289 }
+        }
+      })
+    }
+  })
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      selectedDetail: { className: '法师', specName: '冰霜', details: { talents: { importCode: 'C4DA' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: {},
+      gearSelectionKey: '',
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.loadWebsimGearForSelection.call(page, {
+    selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' }
+  })
+  await statsRequested
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(statsPayload.classKey, 'mage')
+  assert.equal(statsPayload.specKey, 'frost')
+  assert.equal(statsPayload.talents, 'C4DA')
+  assert.equal(statsPayload.gearSelection.items.length, canonicalGearSlots.length)
+  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'crit').convertedValue, '28.6%')
+})
+
+test('gear stats refresh dedupes the same request signature after blocked snapshot', async () => {
+  let requestCount = 0
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGearStats: () => {
+      requestCount += 1
+      return Promise.resolve({
+        payload: {
+          statStatus: 'blocked',
+          statSource: 'simulationcraft_json',
+          blockers: ['SimC item resolution warning']
+        }
+      })
+    }
+  })
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const requestPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    talents: 'C4DA',
+    gearSelection: { items: [] }
+  }
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      selectedDetail: { className: '法师', specName: '冰霜', details: { talents: { importCode: 'C4DA' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearPayload: {
+        classKey: 'mage',
+        specKey: 'frost',
+        slots,
+        replacementCandidates: [],
+        equippedSet: {},
+        slotReadiness: {},
+        readiness: { fullReady: true }
+      },
+      selectedGearBySlot: completeGearSelection(),
+      enhancementBySlot: {},
+      gearStatSnapshot: { statStatus: 'pending', blockers: [] }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  await pageConfig.refreshGearStats.call(page, requestPayload, 'same-signature')
+  await pageConfig.refreshGearStats.call(page, requestPayload, 'same-signature')
+
+  assert.equal(requestCount, 1)
+  assert.equal(page.data.gearStatSnapshot.statStatus, 'blocked')
+  assert.deepEqual(page.data.gearStatBlockers, ['SimC item resolution warning'])
+})
+
+test('gear template save asks for a name before storing neutral complete status', async () => {
   const savedTemplates = []
   const toasts = []
   const pageConfig = loadBuildsDetailPageConfig({ savedTemplates, toasts })
@@ -4557,10 +4825,19 @@ test('gear template save requires all canonical slots and stores neutral complet
   page.data.selectedGearBySlot = completeSelection
   pageConfig.saveGearTemplate.call(page)
 
+  assert.equal(savedTemplates.length, 0)
+  assert.equal(page.data.gearSaveTemplateSheet.visible, true)
+  assert.match(page.data.gearSaveTemplateSheet.name, /^法师-冰霜-单体-\d{4} \d{4}$/)
+  assert.ok(page.data.gearSaveTemplateSheet.name.length <= 28)
+
+  pageConfig.updateGearTemplateName.call(page, { detail: { value: '我的装备模板' } })
+  await pageConfig.confirmSaveGearTemplate.call(page)
+
   assert.equal(savedTemplates.length, 1)
+  assert.equal(page.data.gearSaveTemplateSheet.visible, false)
   assert.equal(savedTemplates[0].status, 'complete')
   assert.equal(savedTemplates[0].statusLabel, '完整配置')
-  assert.match(savedTemplates[0].title, /^法师-冰霜-单体-\d{4} \d{4}$/)
+  assert.equal(savedTemplates[0].title, '我的装备模板')
   assert.equal(Array.isArray(savedTemplates[0].simcLines), true)
   assert.equal(savedTemplates[0].simcLines.length, 0)
   const snapshot = JSON.parse(savedTemplates[0].rawString)
@@ -4569,7 +4846,7 @@ test('gear template save requires all canonical slots and stores neutral complet
   assert.equal(snapshot.schemaRevision, 'websim-gear-enhancement-snapshot-v1')
 })
 
-test('gear template save stores structured enhancement snapshot for backend serialization', () => {
+test('gear template save stores structured enhancement snapshot for backend serialization', async () => {
   const savedTemplates = []
   const pageConfig = loadBuildsDetailPageConfig({ savedTemplates })
   const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
@@ -4681,7 +4958,7 @@ test('gear template save stores structured enhancement snapshot for backend seri
     }
   }
 
-  pageConfig.saveGearTemplate.call(page)
+  await confirmGearTemplateSave(pageConfig, page)
 
   assert.equal(savedTemplates.length, 1)
   const snapshot = JSON.parse(savedTemplates[0].rawString)
@@ -4698,7 +4975,7 @@ test('gear template save stores structured enhancement snapshot for backend seri
   assert.doesNotMatch(savedTemplates[0].rawString, /^head=/m)
 })
 
-test('gear template save prunes invalid enhancement fields by type', () => {
+test('gear template save prunes invalid enhancement fields by type', async () => {
   const savedTemplates = []
   const pageConfig = loadBuildsDetailPageConfig({ savedTemplates })
   const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
@@ -4755,7 +5032,7 @@ test('gear template save prunes invalid enhancement fields by type', () => {
     }
   }
 
-  pageConfig.saveGearTemplate.call(page)
+  await confirmGearTemplateSave(pageConfig, page)
 
   assert.equal(savedTemplates.length, 1)
   const snapshot = JSON.parse(savedTemplates[0].rawString)
@@ -4839,7 +5116,7 @@ test('gear template save blocks over-cap embellishments', () => {
   assert.ok(page.data.gearEnhancementSheet.blockers.includes('美化已超过上限 3/2'))
 })
 
-test('gear template save allows backend-ready two-handed setups without off hand', () => {
+test('gear template save allows backend-ready two-handed setups without off hand', async () => {
   const savedTemplates = []
   const toasts = []
   const pageConfig = loadBuildsDetailPageConfig({ savedTemplates, toasts })
@@ -4869,9 +5146,9 @@ test('gear template save allows backend-ready two-handed setups without off hand
     }
   }
 
-  pageConfig.saveGearTemplate.call(page)
+  await confirmGearTemplateSave(pageConfig, page)
 
-  assert.equal(toasts.length, 0)
+  assert.equal(toasts.at(-1).title, '装备模板已保存')
   assert.equal(savedTemplates.length, 1)
   assert.equal(savedTemplates[0].status, 'complete')
   const snapshot = JSON.parse(savedTemplates[0].rawString)
@@ -4947,7 +5224,7 @@ test('gear selection prunes stale off hand when selected main hand is two-handed
   assert.equal(page.data.enhancementBySlot.off_hand, undefined)
 })
 
-test('gear template save prunes stale off hand and enhancement before snapshot', () => {
+test('gear template save prunes stale off hand and enhancement before snapshot', async () => {
   const savedTemplates = []
   const toasts = []
   const pageConfig = loadBuildsDetailPageConfig({ savedTemplates, toasts })
@@ -4997,9 +5274,9 @@ test('gear template save prunes stale off hand and enhancement before snapshot',
     }
   }
 
-  pageConfig.saveGearTemplate.call(page)
+  await confirmGearTemplateSave(pageConfig, page)
 
-  assert.equal(toasts.length, 0)
+  assert.equal(toasts.at(-1).title, '装备模板已保存')
   assert.equal(savedTemplates.length, 1)
   const snapshot = JSON.parse(savedTemplates[0].rawString)
   assert.equal(snapshot.gearBySlot.off_hand, undefined)
@@ -5007,7 +5284,7 @@ test('gear template save prunes stale off hand and enhancement before snapshot',
   assert.equal(Object.keys(snapshot.gearBySlot).length, canonicalGearSlots.length - 1)
 })
 
-test('gear template save keeps source pending evidence in metadata', () => {
+test('gear template save keeps source pending evidence in metadata', async () => {
   const savedTemplates = []
   const pageConfig = loadBuildsDetailPageConfig({ savedTemplates })
   const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
@@ -5038,7 +5315,7 @@ test('gear template save keeps source pending evidence in metadata', () => {
     }
   }
 
-  pageConfig.saveGearTemplate.call(page)
+  await confirmGearTemplateSave(pageConfig, page)
 
   assert.equal(savedTemplates.length, 1)
   assert.equal(savedTemplates[0].status, 'complete_with_warnings')

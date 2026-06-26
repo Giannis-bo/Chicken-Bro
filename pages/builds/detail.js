@@ -5,7 +5,8 @@ const {
   requestBuildsHome
 } = require('./builds-api')
 const {
-  requestWebsimGear
+  requestWebsimGear,
+  requestWebsimGearStats
 } = require('./websim-api')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 const { syncBuildTemplate } = require('../common/build-template-storage')
@@ -34,6 +35,7 @@ const gearTemplateScenarios = [
 ]
 const GEAR_ENHANCEMENT_SNAPSHOT_REVISION = 'websim-gear-enhancement-snapshot-v1'
 const gearEnhancementMax = 2
+const gearTierSetMax = 5
 const primaryStatGemUniqueGroup = 'primary_stat_gem'
 const primaryStatGemUniqueLimit = 1
 const primaryStatGemIds = new Set(['240967', '240969', '240971', '240983'])
@@ -302,6 +304,47 @@ function gearAttributeMetric(key, label, value, fallback) {
   }
 }
 
+function verifiedGearStatSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return null
+  return snapshot.statStatus === 'verified' ? snapshot : null
+}
+
+function gearStatSnapshotMetric(snapshot, key) {
+  const source = verifiedGearStatSnapshot(snapshot)
+  if (!source) return null
+  if (key === 'primary') return source.primary || null
+  if (key === 'stamina') return source.stamina || null
+  if (key === 'itemLevel') return source.itemLevel || null
+  if (key === 'armor') return source.armor || null
+  const secondary = Array.isArray(source.secondary) ? source.secondary : []
+  return secondary.find((row) => row && row.key === key) || null
+}
+
+function gearAttributeMetricFromSnapshot(row, fallbackKey, fallbackLabel) {
+  if (!row || typeof row !== 'object') return null
+  const value = cleanGearString(row.value)
+  if (!value) return null
+  const metric = {
+    key: row.key || fallbackKey,
+    label: row.label || fallbackLabel,
+    value,
+    rawValue: row.rawValue === undefined ? gearNumericValue(value) : row.rawValue,
+    pending: false
+  }
+  if (row.convertedValue) {
+    metric.convertedValue = row.convertedValue
+    metric.convertedRawValue = row.convertedRawValue
+    metric.convertedSourceValue = row.convertedSourceValue
+    metric.convertedSourceUnit = row.convertedSourceUnit
+  }
+  return metric
+}
+
+function gearAttributeMetricWithSnapshot(key, label, value, fallback, gearStatSnapshot) {
+  const snapshotMetric = gearAttributeMetricFromSnapshot(gearStatSnapshotMetric(gearStatSnapshot, key), key, label)
+  return snapshotMetric || gearAttributeMetric(key, label, value, fallback)
+}
+
 function gearEnhancementMetric(key, label, used, max) {
   const safeUsed = Math.max(0, Number(used) || 0)
   const safeMax = Math.max(0, Number(max) || 0)
@@ -315,10 +358,71 @@ function gearEnhancementMetric(key, label, used, max) {
   }
 }
 
-function selectedEnhancementRowCount(rows) {
-  return (Array.isArray(rows) ? rows : []).filter((row) => {
-    return Array.isArray(row.options) && row.options.some((option) => option.selected)
-  }).length
+function gearItemIsTierSet(item) {
+  if (!item || typeof item !== 'object') return false
+  if (cleanGearString(item.itemSetName || item.setName || item.tierSetName)) return true
+  const sourceValues = [
+    item.sourceType,
+    item.variantSource,
+    ...(Array.isArray(item.sourceTypes) ? item.sourceTypes : []),
+    ...(Array.isArray(item.sources) ? item.sources.map((source) => source && (source.sourceType || source.type)) : [])
+  ].map((value) => cleanGearString(value).toLowerCase()).filter(Boolean)
+  return sourceValues.some((value) => value.includes('tier') || value.includes('item_set'))
+}
+
+function explicitGearCapabilityValue(caps, key) {
+  if (!caps || typeof caps !== 'object' || !Object.prototype.hasOwnProperty.call(caps, key)) return null
+  const value = caps[key]
+  if (value === true || value === 1) return true
+  if (value === false || value === 0) return false
+  const text = cleanGearString(value).toLowerCase()
+  if (['true', '1', 'yes'].includes(text)) return true
+  if (['false', '0', 'no'].includes(text)) return false
+  return value ? true : false
+}
+
+function itemSupportsEnhancementMetric(gearPayload, item, type, optionKey) {
+  if (!item || typeof item !== 'object') return false
+  const caps = item.modCapabilities && typeof item.modCapabilities === 'object' ? item.modCapabilities : {}
+  const capabilityKey = {
+    gem: 'hasSocket',
+    enchant: 'canEnchant',
+    embellishment: 'canEmbellish'
+  }[type]
+  const explicitCapability = explicitGearCapabilityValue(caps, capabilityKey)
+  if (explicitCapability !== null) return explicitCapability
+  const itemOptions = item && Array.isArray(item[optionKey]) ? item[optionKey] : []
+  const payloadOptions = enhancementOptionsForSlot(gearPayload, item, optionKey)
+  if (type === 'gem') {
+    return !!(item.supportsSocket || item.gem_id || item.gem_bonus_id || itemOptions.length || payloadOptions.length)
+  }
+  if (type === 'enchant') {
+    return !!(item.enchant_id || itemOptions.length || payloadOptions.length)
+  }
+  if (type === 'embellishment') {
+    const sourceType = cleanGearString(item.sourceType).toLowerCase()
+    const variantSource = cleanGearString(item.variantSource).toLowerCase()
+    return !!(item.crafted_stats || item.embellishment || sourceType === 'crafted' || variantSource === 'crafted' || itemOptions.length || payloadOptions.length)
+  }
+  return false
+}
+
+function enhancementRecordHasSelectedType(record, type) {
+  if (!record || typeof record !== 'object') return false
+  if (type === 'gem') return !!(cleanGearString(record.socketOptionId) || cleanGearString(record.gem_id))
+  if (type === 'enchant') return !!(cleanGearString(record.enchantOptionId) || cleanGearString(record.enchant_id))
+  if (type === 'embellishment') return !!(cleanGearString(record.embellishmentOptionId) || cleanGearString(record.embellishment))
+  return false
+}
+
+function gearEnhancementMetricUsage(gearPayload, slots, indexed, enhancement, type, optionKey) {
+  return (Array.isArray(slots) ? slots : []).reduce((memo, slot) => {
+    const item = indexed && indexed[slot]
+    if (!item || !itemSupportsEnhancementMetric(gearPayload, item, type, optionKey)) return memo
+    memo.max += 1
+    if (enhancementRecordHasSelectedType(enhancement && enhancement[slot], type)) memo.used += 1
+    return memo
+  }, { used: 0, max: 0 })
 }
 
 function gearStatKeyForLabel(label, primaryKey) {
@@ -494,7 +598,8 @@ function emptyGearAttributePanel() {
     enhancementRows: [
       gearEnhancementMetric('embellishment', '美化', 0, gearEnhancementMax),
       gearEnhancementMetric('gem', '宝石', 0, 0),
-      gearEnhancementMetric('enchant', '附魔', 0, 0)
+      gearEnhancementMetric('enchant', '附魔', 0, 0),
+      gearEnhancementMetric('tierSet', '套装', 0, gearTierSetMax)
     ],
     statRows: [
       gearAttributeMetric('intellect', '智力', null, '待补'),
@@ -507,7 +612,7 @@ function emptyGearAttributePanel() {
   }
 }
 
-function buildGearAttributePanel(gearPayload, selectedGearBySlot, selectedSpec, enhancementBySlot) {
+function buildGearAttributePanel(gearPayload, selectedGearBySlot, selectedSpec, enhancementBySlot, gearStatSnapshot) {
   const requiredSlotsForPanel = requiredGearTemplateSlots(gearPayload || {})
   const indexedSelection = selectedGearByCanonicalSlot(selectedGearBySlot || {})
   const selectedItems = requiredSlotsForPanel.map((slot) => indexedSelection[slot]).filter(Boolean)
@@ -562,23 +667,31 @@ function buildGearAttributePanel(gearPayload, selectedGearBySlot, selectedSpec, 
   const payloadStamina = payloadGearStatValue(gearPayload, 'stamina')
   const primaryValue = totals[primaryKey] > 0 ? totals[primaryKey] : payloadPrimary
   const staminaValue = totals.stamina > 0 ? totals.stamina : payloadStamina
+  const verifiedSnapshot = verifiedGearStatSnapshot(gearStatSnapshot)
+  const snapshotPrimary = gearAttributeMetricFromSnapshot(gearStatSnapshotMetric(verifiedSnapshot, 'primary'), primaryKey, gearPrimaryStatLabels[primaryKey] || '主属性')
+  const snapshotStamina = gearAttributeMetricFromSnapshot(gearStatSnapshotMetric(verifiedSnapshot, 'stamina'), 'stamina', '耐力')
+  const snapshotItemLevel = gearAttributeMetricFromSnapshot(gearStatSnapshotMetric(verifiedSnapshot, 'itemLevel'), 'itemLevel', '装备等级')
   const enhancementSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot || {}, false)
+  const gemUsage = gearEnhancementMetricUsage(gearPayload, requiredSlotsForPanel, indexedSelection, enhancement, 'gem', 'socketOptions')
+  const enchantUsage = gearEnhancementMetricUsage(gearPayload, requiredSlotsForPanel, indexedSelection, enhancement, 'enchant', 'enchantOptions')
+  const tierSetCount = selectedItems.filter((item) => gearItemIsTierSet(item)).length
   return {
     visible: true,
     summary: `已选 ${selectedItems.length}/${requiredSlotsForPanel.length} 槽`,
-    itemLevel: gearAttributeMetric('itemLevel', '装备等级', itemLevelAverage, '待补'),
+    itemLevel: snapshotItemLevel || gearAttributeMetric('itemLevel', '装备等级', itemLevelAverage, '待补'),
     enhancementRows: [
       gearEnhancementMetric('embellishment', '美化', enhancementSheet.embellishmentUsed, enhancementSheet.embellishmentMax),
-      gearEnhancementMetric('gem', '宝石', selectedEnhancementRowCount(enhancementSheet.gemRows), enhancementSheet.gemRows.length),
-      gearEnhancementMetric('enchant', '附魔', selectedEnhancementRowCount(enhancementSheet.enchantRows), enhancementSheet.enchantRows.length)
+      gearEnhancementMetric('gem', '宝石', gemUsage.used, gemUsage.max),
+      gearEnhancementMetric('enchant', '附魔', enchantUsage.used, enchantUsage.max),
+      gearEnhancementMetric('tierSet', '套装', tierSetCount, gearTierSetMax)
     ],
     statRows: [
-      gearAttributeMetric(primaryKey, gearPrimaryStatLabels[primaryKey] || '主属性', primaryValue, '待补'),
-      gearAttributeMetric('stamina', '耐力', staminaValue, '待补'),
-      gearAttributeMetric('haste', '急速', totals.haste, '0'),
-      gearAttributeMetric('crit', '暴击', totals.crit, '0'),
-      gearAttributeMetric('mastery', '精通', totals.mastery, '0'),
-      gearAttributeMetric('versatility', '全能', totals.versatility, '0')
+      snapshotPrimary || gearAttributeMetric(primaryKey, gearPrimaryStatLabels[primaryKey] || '主属性', primaryValue, '待补'),
+      snapshotStamina || gearAttributeMetric('stamina', '耐力', staminaValue, '待补'),
+      gearAttributeMetricWithSnapshot('haste', '急速', totals.haste, '0', verifiedSnapshot),
+      gearAttributeMetricWithSnapshot('crit', '暴击', totals.crit, '0', verifiedSnapshot),
+      gearAttributeMetricWithSnapshot('mastery', '精通', totals.mastery, '0', verifiedSnapshot),
+      gearAttributeMetricWithSnapshot('versatility', '全能', totals.versatility, '0', verifiedSnapshot)
     ]
   }
 }
@@ -901,6 +1014,75 @@ function gearTemplateSnapshot(selectedGearBySlot, enhancementBySlot, gearPayload
     gearBySlot: orderedGearBySlot(selectedGearBySlot, gearPayload),
     enhancementBySlot: normalizedEnhancementBySlot(enhancementBySlot)
   }
+}
+
+function gearTalentImportForStats(data) {
+  const talentDetail = detailForQuery((data && data.selectedDetail) || {}, 'talents') || {}
+  const candidates = [
+    talentDetail.websimExportCode,
+    talentDetail.importCode,
+    talentDetail.talentImport,
+    talentDetail.rawString,
+    data && data.websimExportCode,
+    data && data.talentImport
+  ]
+  return candidates.map(cleanGearString).find(Boolean) || ''
+}
+
+function gearStatsRequestForPage(page) {
+  const data = (page && page.data) || {}
+  const gearPayload = fullGearPayloadForPage(page) || data.gearPayload || {}
+  const blockers = []
+  if (data.activeQueryKey !== 'gear') blockers.push('当前不在装备模拟页')
+  if (!gearPayload || !Array.isArray(gearPayload.slots)) blockers.push('等待装备数据')
+  if (data.gearDataFallback) blockers.push(data.gearDataWarningText || '装备接口暂不可用')
+  const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, data.selectedGearBySlot || {})
+  const requiredSlots = requiredGearTemplateSlots(gearPayload)
+  const indexed = selectedGearByCanonicalSlot(selectedGearBySlot)
+  const missingSlots = requiredSlots.filter((slot) => !gearTemplateLine(indexed[slot]))
+  if (missingSlots.length) blockers.push(`请补齐 ${requiredSlots.length} 个装备槽位`)
+  const talents = gearTalentImportForStats(data)
+  if (!talents) blockers.push('缺少天赋导入代码')
+  if (blockers.length) {
+    return { ready: false, blockers: blockers.filter(Boolean) }
+  }
+  const selectedSpec = data.selectedSpec || {}
+  const keys = specWebsimKeys({
+    websimClassKey: selectedSpec.websimClassKey || selectedSpec.classKey || gearPayload.classKey,
+    websimSpecKey: selectedSpec.websimSpecKey || selectedSpec.specKey || gearPayload.specKey
+  })
+  const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, data.enhancementBySlot || {})
+  const payload = {
+    classKey: keys.classKey,
+    specKey: keys.specKey,
+    level: Number(gearPayload.maxLevel) || 90,
+    scenarioKey: gearScenarioAt(data.selectedGearTemplateScenarioIndex).key,
+    talents,
+    gearSelection: {
+      items: requiredSlots.map((slot) => gearObjectForSnapshot(indexed[slot])).filter(Boolean)
+    },
+    enhancementBySlot
+  }
+  return {
+    ready: true,
+    payload,
+    signature: JSON.stringify(payload)
+  }
+}
+
+function maybeRefreshGearStatsForPage(page) {
+  const request = gearStatsRequestForPage(page)
+  if (!request.ready) {
+    if ((request.blockers || []).includes('当前不在装备模拟页')) return Promise.resolve(null)
+    if (page && typeof page.clearGearStatsSnapshot === 'function') {
+      return page.clearGearStatsSnapshot(request.blockers)
+    }
+    return Promise.resolve(null)
+  }
+  if (page && typeof page.refreshGearStats === 'function') {
+    return page.refreshGearStats(request.payload, request.signature)
+  }
+  return Promise.resolve(null)
 }
 
 function optionQualityRank(option) {
@@ -1757,6 +1939,125 @@ function gearTemplateTitle(className, specName, scenarioTitle) {
   const maxPrefixLength = Math.max(4, maxGearTemplateTitleLength - time.length - 1)
   const shortPrefix = prefix.length > maxPrefixLength ? prefix.slice(0, maxPrefixLength) : prefix
   return `${shortPrefix}-${time}`
+}
+
+function trimGearTemplateTitle(title) {
+  const text = String(title || '').replace(/\s+/g, ' ').trim()
+  if (!text) return ''
+  return text.length > maxGearTemplateTitleLength ? text.slice(0, maxGearTemplateTitleLength) : text
+}
+
+function gearTemplateTitleOrDefault(value, fallback) {
+  return trimGearTemplateTitle(value) || trimGearTemplateTitle(fallback) || '装备模板'
+}
+
+function emptyGearSaveTemplateSheet() {
+  return { visible: false, name: '', defaultName: '' }
+}
+
+function gearTemplateSaveDraft(page, templateTitle) {
+  const data = page.data || {}
+  if (data.gearDataFallback) {
+    return { blockMessage: data.gearDataWarningText || '装备接口暂不可用，无法保存装备模板' }
+  }
+  const gearPayload = fullGearPayloadForPage(page) || data.gearPayload || {}
+  const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, data.selectedGearBySlot || {})
+  const selectedItems = selectedGearItems(selectedGearBySlot)
+  const configLines = canonicalGearTemplateLines(selectedGearBySlot, gearPayload)
+  const status = gearTemplateStatus(selectedGearBySlot, gearPayload)
+  const requiredCount = (status.requiredSlots || requiredGearSlots).length
+  if (status.missingSlots.length || configLines.length !== requiredCount) {
+    return {
+      blockMessage: gearTemplateValidationMessage(status.issues, requiredCount) || `请补齐 ${requiredCount} 个装备槽位后再保存`,
+      state: { selectedGearBySlot }
+    }
+  }
+  const scenario = gearScenarioAt(data.selectedGearTemplateScenarioIndex)
+  const selectedDetail = data.selectedDetail || {}
+  const selectedSpec = data.selectedSpec || {}
+  const keys = specWebsimKeys(selectedSpec)
+  const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, data.enhancementBySlot || {})
+  const enhancementSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, false)
+  if ((enhancementSheet.blockers || []).length || enhancementSheet.embellishmentUsed > enhancementSheet.embellishmentMax) {
+    return {
+      blockMessage: (enhancementSheet.blockers || [])[0] || `美化已超过上限 ${enhancementSheet.embellishmentUsed}/${enhancementSheet.embellishmentMax}`,
+      state: {
+        selectedGearBySlot,
+        enhancementBySlot,
+        gearEnhancementSheet: {
+          ...enhancementSheet,
+          visible: data.gearEnhancementSheet && data.gearEnhancementSheet.visible
+        }
+      }
+    }
+  }
+  const snapshot = gearTemplateSnapshot(selectedGearBySlot, enhancementBySlot, gearPayload)
+  const defaultName = gearTemplateTitle(
+    selectedDetail.className || selectedSpec.className || '',
+    selectedDetail.specName || selectedSpec.title || selectedSpec.specName || '',
+    scenario.title
+  )
+  return {
+    defaultName,
+    selectedGearBySlot,
+    enhancementBySlot,
+    record: {
+      type: 'gear',
+      title: gearTemplateTitleOrDefault(templateTitle, defaultName),
+      classKey: keys.classKey,
+      className: selectedDetail.className || selectedSpec.className || '',
+      specKey: keys.specKey,
+      specName: selectedDetail.specName || selectedSpec.title || selectedSpec.specName || '',
+      scenarioKey: scenario.key,
+      scenarioTitle: scenario.title,
+      rawString: JSON.stringify(snapshot),
+      simcLines: [],
+      status: status.status,
+      statusLabel: status.statusLabel,
+      source: '装备模拟器',
+      metadata: {
+        gearSnapshot: snapshot,
+        gearBySlot: snapshot.gearBySlot,
+        enhancementBySlot,
+        selectedGearSnapshot: selectedGearBySlot,
+        selectedItems,
+        configLineCount: configLines.length,
+        missingSlots: [],
+        statPendingSlots: status.statPendingSlots || [],
+        sourcePendingSlots: status.sourcePendingSlots || [],
+        craftedStatSelections: craftedStatSelections(selectedGearBySlot),
+        warningSummary: status.warningSummary || '',
+        selectedItemCount: selectedItems.length,
+        gearSchemaRevision: data.gearPayload && data.gearPayload.gearSchemaRevision,
+        maxLevel: data.gearPayload && data.gearPayload.maxLevel
+      }
+    }
+  }
+}
+
+function persistGearTemplateForPage(page, templateTitle) {
+  const draft = gearTemplateSaveDraft(page, templateTitle)
+  if (draft.blockMessage) {
+    if (draft.state) page.setData(draft.state)
+    showToast(draft.blockMessage)
+    return Promise.resolve(null)
+  }
+  page.setData({
+    gearTemplateSaving: true,
+    selectedGearBySlot: draft.selectedGearBySlot,
+    enhancementBySlot: draft.enhancementBySlot
+  })
+  return syncBuildTemplate(draft.record).then(({ payload }) => {
+    const saved = !!(payload && payload.template)
+    if (saved) {
+      page.setData({ gearSaveTemplateSheet: emptyGearSaveTemplateSheet() })
+    }
+    showToast(saved ? '装备模板已保存' : '装备模板保存失败')
+  }).catch(() => {
+    showToast('装备模板保存失败')
+  }).finally(() => {
+    page.setData({ gearTemplateSaving: false })
+  })
 }
 
 function gearScenarioAt(index) {
@@ -2848,7 +3149,14 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
   const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, currentState.selectedGearBySlot || {})
   const gearReadiness = currentState.gearReadiness || (gearPayload && gearPayload.readiness) || {}
   const gearSlotRows = buildGearSlotRows(gearPayload, selectedGearBySlot, currentState.enhancementBySlot)
-  const gearAttributePanel = buildGearAttributePanel(gearPayload, selectedGearBySlot, currentState.selectedSpec, currentState.enhancementBySlot)
+  const gearStatSnapshot = currentState.gearStatSnapshot || (gearPayload && gearPayload.statSnapshot) || defaultGearStatSnapshot()
+  const gearAttributePanel = buildGearAttributePanel(
+    gearPayload,
+    selectedGearBySlot,
+    currentState.selectedSpec,
+    currentState.enhancementBySlot,
+    gearStatSnapshot
+  )
   const gearInitialLoading = !!(currentState.gearLoading && !gearSlotRows.length)
   const activeGearCommunityTemplates = gearCommunityTemplatesForPayload(gearPayload)
   const gearCommunityTemplateSync = (gearPayload && gearPayload.communityTemplateSync) || {}
@@ -2882,6 +3190,8 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
     selectedGearBySlot,
     gearSlotRows,
     gearAttributePanel,
+    gearStatSnapshot,
+    gearStatBlockers: Array.isArray(gearStatSnapshot.blockers) ? gearStatSnapshot.blockers : [],
     gearInitialLoading,
     gearReadiness,
     activeGearCommunityTemplates,
@@ -2950,9 +3260,13 @@ Page({
     gearDataFallback: false,
     gearDataWarningText: '',
     gearSelectionKey: '',
+    gearStatSnapshot: defaultGearStatSnapshot(),
+    gearStatBlockers: [],
+    gearStatsRequestError: '',
     enhancementBySlot: {},
     gearSlotSheet: emptyGearSlotSheet(),
     gearEnhancementSheet: emptyGearEnhancementSheet(),
+    gearSaveTemplateSheet: emptyGearSaveTemplateSheet(),
     gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet(),
     fromFallback: true,
     requestError: ''
@@ -3052,6 +3366,7 @@ Page({
         fromFallback,
         requestError: error || ''
       })
+      maybeRefreshGearStatsForPage(this)
     }).finally(() => {
       this.setData({ loading: false })
     })
@@ -3109,6 +3424,7 @@ Page({
         gearDataWarningText: gearDataWarningText(error || '', payload, gearDataFallback),
         enhancementBySlot
       })
+      maybeRefreshGearStatsForPage(this)
     }).catch((error) => {
       this.gearPayloadCache = null
       this.gearSlotCandidateCache = {}
@@ -3119,6 +3435,7 @@ Page({
         gearDataFallback: true,
         gearDataWarningText: gearDataWarningText(error.message || String(error), null, true)
       })
+      maybeRefreshGearStatsForPage(this)
     })
   },
 
@@ -3164,6 +3481,88 @@ Page({
       }
     )
     this.setData(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState)
+  },
+
+  clearGearStatsSnapshot(blockers) {
+    const messages = Array.isArray(blockers) && blockers.length ? blockers : ['等待完整装备和天赋后计算属性百分比']
+    const snapshot = defaultGearStatSnapshot(messages[0])
+    snapshot.blockers = messages
+    this.gearStatsRequestKey = ''
+    const nextState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
+      ...this.data,
+      gearStatSnapshot: snapshot
+    })
+    this.setData({
+      ...(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState),
+      gearStatSnapshot: snapshot,
+      gearStatBlockers: messages,
+      gearStatsLoading: false,
+      gearStatsRequestError: ''
+    })
+    return Promise.resolve(null)
+  },
+
+  refreshGearStats(requestPayload, requestSignature) {
+    const request = requestPayload
+      ? { ready: true, payload: requestPayload, signature: requestSignature || JSON.stringify(requestPayload) }
+      : gearStatsRequestForPage(this)
+    if (!request.ready) return this.clearGearStatsSnapshot(request.blockers)
+    const currentSnapshot = this.data.gearStatSnapshot
+    if (this.gearStatsRequestKey === request.signature) {
+      if (this.data.gearStatsLoading) return Promise.resolve(currentSnapshot || null)
+      if (currentSnapshot && currentSnapshot.statStatus) return Promise.resolve(currentSnapshot)
+    }
+    this.gearStatsRequestKey = request.signature
+    this.gearStatsRequestSerial = (this.gearStatsRequestSerial || 0) + 1
+    const requestSerial = this.gearStatsRequestSerial
+    const pendingSnapshot = defaultGearStatSnapshot('SimC 属性快照计算中')
+    const pendingState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
+      ...this.data,
+      gearStatSnapshot: pendingSnapshot
+    })
+    this.setData({
+      ...(this.gearPayloadCache ? gearDerivedStateForData(pendingState) : pendingState),
+      gearStatSnapshot: pendingSnapshot,
+      gearStatBlockers: [],
+      gearStatsLoading: true,
+      gearStatsRequestError: ''
+    })
+    return requestWebsimGearStats(request.payload).then(({ payload, error }) => {
+      if (requestSerial !== this.gearStatsRequestSerial) return null
+      const snapshot = payload && payload.statStatus
+        ? payload
+        : defaultGearStatSnapshot('属性快照返回为空')
+      const blockers = Array.isArray(snapshot.blockers) ? snapshot.blockers : []
+      const nextState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
+        ...this.data,
+        gearStatSnapshot: snapshot
+      })
+      this.setData({
+        ...(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState),
+        gearStatSnapshot: snapshot,
+        gearStatBlockers: blockers,
+        gearStatsLoading: false,
+        gearStatsRequestError: error || ''
+      })
+      return snapshot
+    }).catch((error) => {
+      if (requestSerial !== this.gearStatsRequestSerial) return null
+      const message = error && error.message ? error.message : String(error || '属性快照请求失败')
+      this.gearStatsRequestKey = ''
+      const snapshot = defaultGearStatSnapshot(message)
+      const nextState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
+        ...this.data,
+        gearStatSnapshot: snapshot
+      })
+      this.setData({
+        ...(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState),
+        gearStatSnapshot: snapshot,
+        gearStatBlockers: snapshot.blockers || [message],
+        gearStatsLoading: false,
+        gearStatsRequestError: message
+      })
+      return null
+    })
   },
 
   openGearSlotSheet(event) {
@@ -3285,10 +3684,11 @@ Page({
     this.setData({
       selectedGearBySlot,
       enhancementBySlot,
-      gearAttributePanel: buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot),
+      gearAttributePanel: buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot),
       gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
       gearEnhancementSheet: emptyGearEnhancementSheet()
     })
+    maybeRefreshGearStatsForPage(this)
   },
 
   openGearCommunityTemplates() {
@@ -3333,6 +3733,7 @@ Page({
       gearEnhancementSheet: emptyGearEnhancementSheet(),
       gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
+    maybeRefreshGearStatsForPage(this)
     trackEvent('builds_gear_selection_reset', {
       specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
     }, { page: 'pages/builds/detail' })
@@ -3366,6 +3767,7 @@ Page({
       gearEnhancementSheet: emptyGearEnhancementSheet(),
       gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
+    maybeRefreshGearStatsForPage(this)
     trackEvent('builds_gear_community_template_apply', {
       templateId,
       readySlotCount: template.readySlotCount || Object.keys(templateSelection).length,
@@ -3486,6 +3888,7 @@ Page({
       gearSlotSheet: emptyGearSlotSheet(),
       gearEnhancementSheet: emptyGearEnhancementSheet()
     })
+    maybeRefreshGearStatsForPage(this)
     return Promise.resolve()
   },
 
@@ -3494,82 +3897,58 @@ Page({
     this.setData({
       selectedGearTemplateScenarioIndex: Math.max(0, Math.min(index, gearTemplateScenarios.length - 1))
     })
+    maybeRefreshGearStatsForPage(this)
   },
 
   saveGearTemplate() {
-    if (this.data.gearDataFallback) {
-      showToast(this.data.gearDataWarningText || '装备接口暂不可用，无法保存装备模板')
+    if (this.data.gearTemplateSaving) return
+    const draft = gearTemplateSaveDraft(this)
+    if (draft.blockMessage) {
+      if (draft.state) this.setData(draft.state)
+      showToast(draft.blockMessage)
       return
     }
-    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
-    const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, this.data.selectedGearBySlot || {})
-    const selectedItems = selectedGearItems(selectedGearBySlot)
-    const configLines = canonicalGearTemplateLines(selectedGearBySlot, gearPayload)
-    const status = gearTemplateStatus(selectedGearBySlot, gearPayload)
-    const requiredCount = (status.requiredSlots || requiredGearSlots).length
-    if (status.missingSlots.length || configLines.length !== requiredCount) {
-      this.setData({ selectedGearBySlot })
-      showToast(gearTemplateValidationMessage(status.issues, requiredCount) || `请补齐 ${requiredCount} 个装备槽位后再保存`)
-      return
-    }
-    const scenario = gearScenarioAt(this.data.selectedGearTemplateScenarioIndex)
-    const selectedDetail = this.data.selectedDetail || {}
-    const selectedSpec = this.data.selectedSpec || {}
-    const keys = specWebsimKeys(selectedSpec)
-    const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, this.data.enhancementBySlot || {})
-    const enhancementSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, false)
-    if ((enhancementSheet.blockers || []).length || enhancementSheet.embellishmentUsed > enhancementSheet.embellishmentMax) {
-      showToast((enhancementSheet.blockers || [])[0] || `美化已超过上限 ${enhancementSheet.embellishmentUsed}/${enhancementSheet.embellishmentMax}`)
-      this.setData({
-        selectedGearBySlot,
-        enhancementBySlot,
-        gearEnhancementSheet: {
-          ...enhancementSheet,
-          visible: this.data.gearEnhancementSheet && this.data.gearEnhancementSheet.visible
-        }
-      })
-      return
-    }
-    const snapshot = gearTemplateSnapshot(selectedGearBySlot, enhancementBySlot, gearPayload)
-    syncBuildTemplate({
-      type: 'gear',
-      title: gearTemplateTitle(
-        selectedDetail.className || selectedSpec.className || '',
-        selectedDetail.specName || selectedSpec.title || selectedSpec.specName || '',
-        scenario.title
-      ),
-      classKey: keys.classKey,
-      className: selectedDetail.className || selectedSpec.className || '',
-      specKey: keys.specKey,
-      specName: selectedDetail.specName || selectedSpec.title || selectedSpec.specName || '',
-      scenarioKey: scenario.key,
-      scenarioTitle: scenario.title,
-      rawString: JSON.stringify(snapshot),
-      simcLines: [],
-      status: status.status,
-      statusLabel: status.statusLabel,
-      source: '装备模拟器',
-      metadata: {
-        gearSnapshot: snapshot,
-        gearBySlot: snapshot.gearBySlot,
-        enhancementBySlot,
-        selectedGearSnapshot: selectedGearBySlot,
-        selectedItems,
-        configLineCount: configLines.length,
-        missingSlots: [],
-        statPendingSlots: status.statPendingSlots || [],
-        sourcePendingSlots: status.sourcePendingSlots || [],
-        craftedStatSelections: craftedStatSelections(selectedGearBySlot),
-        warningSummary: status.warningSummary || '',
-        selectedItemCount: selectedItems.length,
-        gearSchemaRevision: this.data.gearPayload && this.data.gearPayload.gearSchemaRevision,
-        maxLevel: this.data.gearPayload && this.data.gearPayload.maxLevel
+    this.setData({
+      selectedGearBySlot: draft.selectedGearBySlot,
+      enhancementBySlot: draft.enhancementBySlot,
+      gearSaveTemplateSheet: {
+        visible: true,
+        name: draft.defaultName,
+        defaultName: draft.defaultName
       }
-    }).then(({ payload }) => {
-      showToast(payload && payload.template ? '装备模板已保存' : '装备模板保存失败')
-    }).catch(() => {
-      showToast('装备模板保存失败')
     })
+  },
+
+  closeGearSaveTemplateSheet() {
+    if (this.data.gearTemplateSaving) return
+    this.setData({ gearSaveTemplateSheet: emptyGearSaveTemplateSheet() })
+  },
+
+  updateGearTemplateName(event) {
+    const name = trimGearTemplateTitle(event && event.detail ? event.detail.value : '')
+    this.setData({
+      gearSaveTemplateSheet: {
+        ...(this.data.gearSaveTemplateSheet || emptyGearSaveTemplateSheet()),
+        name
+      }
+    })
+  },
+
+  confirmSaveGearTemplate() {
+    if (this.data.gearTemplateSaving) return Promise.resolve(null)
+    const sheet = this.data.gearSaveTemplateSheet || {}
+    const templateTitle = gearTemplateTitleOrDefault(sheet.name, sheet.defaultName)
+    this.setData({
+      gearSaveTemplateSheet: {
+        ...sheet,
+        name: templateTitle
+      }
+    })
+    return persistGearTemplateForPage(this, templateTitle)
+  },
+
+  persistGearTemplate(templateTitle) {
+    return persistGearTemplateForPage(this, templateTitle)
   },
 
   setTalentScenario(event) {

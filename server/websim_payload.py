@@ -5,6 +5,7 @@ import csv
 import hashlib
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -19424,6 +19425,127 @@ def simc_stat_number(output, names):
         return 0.0, ""
 
 
+def simc_snapshot_display_number(value, precision=0):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return "", None
+    if not math.isfinite(number):
+        return "", None
+    if precision <= 0:
+        return f"{int(round(number)):,}", number
+    text = f"{round(number, precision):,.{precision}f}"
+    text = text.rstrip("0").rstrip(".")
+    return text, number
+
+
+def simc_snapshot_percent_value(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return "", None
+    if not math.isfinite(number):
+        return "", None
+    percent = number * 100 if abs(number) <= 2 else number
+    text = f"{round(percent, 1):.1f}".rstrip("0").rstrip(".")
+    return f"{text}%", percent
+
+
+def simc_json_player(payload):
+    if not isinstance(payload, dict):
+        return {}
+    candidates = []
+    sim = payload.get("sim") if isinstance(payload.get("sim"), dict) else {}
+    candidates.extend(sim.get("players") if isinstance(sim.get("players"), list) else [])
+    candidates.extend(payload.get("players") if isinstance(payload.get("players"), list) else [])
+    for player in candidates:
+        if isinstance(player, dict):
+            return player
+    return {}
+
+
+def simc_json_buffed_stats(player):
+    collected = player.get("collected_data") if isinstance(player.get("collected_data"), dict) else {}
+    buffed = collected.get("buffed_stats") if isinstance(collected.get("buffed_stats"), dict) else {}
+    return (
+        buffed.get("attribute") if isinstance(buffed.get("attribute"), dict) else {},
+        buffed.get("stats") if isinstance(buffed.get("stats"), dict) else {},
+    )
+
+
+def parse_simcraft_json_stat_snapshot(payload):
+    player = simc_json_player(payload)
+    attributes, stats = simc_json_buffed_stats(player)
+    if not player or not attributes or not stats:
+        return blocked_stat_snapshot(["SimC JSON did not include a parseable buffed stat snapshot"])
+
+    primary_candidates = [
+        ("intellect", "智力"),
+        ("strength", "力量"),
+        ("agility", "敏捷"),
+    ]
+    primary = None
+    positive_primary_values = []
+    for key, label in primary_candidates:
+        display, number = simc_snapshot_display_number(attributes.get(key), 0)
+        if display and number and number > 0:
+            positive_primary_values.append((number, key, label, display))
+    if positive_primary_values:
+        number, key, label, display = max(positive_primary_values, key=lambda item: item[0])
+        primary = {"key": key, "label": label, "value": display, "rawValue": number}
+
+    stamina_display, stamina_number = simc_snapshot_display_number(attributes.get("stamina"), 0)
+    secondary = []
+    for key, label, rating_key, percent_keys in [
+        ("crit", "暴击", "crit_rating", ["crit_pct", "spell_crit", "attack_crit"]),
+        ("haste", "急速", "haste_rating", ["haste_pct"]),
+        ("mastery", "精通", "mastery_rating", ["mastery_pct", "mastery_value"]),
+        ("versatility", "全能", "versatility_rating", ["versatility_pct", "damage_versatility"]),
+    ]:
+        rating_display, rating_number = simc_snapshot_display_number(stats.get(rating_key), 0)
+        percent_display = ""
+        percent_number = None
+        for percent_key in percent_keys:
+            percent_display, percent_number = simc_snapshot_percent_value(stats.get(percent_key))
+            if percent_display:
+                break
+        if rating_display or percent_display:
+            row = {
+                "key": key,
+                "label": label,
+                "value": rating_display or "0",
+                "rawValue": rating_number or 0,
+                "statSource": "simulationcraft_json",
+            }
+            if percent_display:
+                row["convertedValue"] = percent_display
+                row["convertedRawValue"] = percent_number
+                row["convertedSourceUnit"] = "percent"
+            secondary.append(row)
+
+    armor_display, armor_number = simc_snapshot_display_number(stats.get("armor"), 0)
+    if not primary or not stamina_display or len(secondary) < 3:
+        return blocked_stat_snapshot(["SimC JSON did not include a parseable stat snapshot"])
+    gear_items = [
+        item for item in (player.get("gear") or {}).values()
+        if isinstance(item, dict)
+    ] if isinstance(player.get("gear"), dict) else []
+    return {
+        "statStatus": "verified",
+        "statSource": "simulationcraft_json",
+        "simcVersion": str((payload or {}).get("version") or ""),
+        "checkedAt": utc_now(),
+        "blockers": [],
+        "primary": primary,
+        "stamina": {"key": "stamina", "label": "耐力", "value": stamina_display, "rawValue": stamina_number},
+        "secondary": secondary,
+        "armor": {"key": "armor", "label": "护甲", "value": armor_display, "rawValue": armor_number} if armor_display else None,
+        "weaponDps": None,
+        "itemLevel": gear_item_level_payload(gear_items),
+        "gearSchemaRevision": GEAR_SCHEMA_REVISION,
+    }
+
+
 def parse_simcraft_stat_snapshot(output):
     primary_candidates = [
         ("intellect", "智力", ["intellect", "int"]),
@@ -19512,6 +19634,34 @@ def run_websim_simcraft_process(binary, profile, timeout_seconds):
         raise
 
 
+def simcraft_item_resolution_warnings(*texts):
+    patterns = [
+        "unable to download item id",
+        "error retrieving item",
+        "document is empty",
+        "could not find item",
+        "unknown item id",
+        "invalid item id",
+    ]
+    warnings = []
+    seen = set()
+    for text in texts:
+        for line in str(text or "").splitlines():
+            stripped = line.strip()
+            normalized = stripped.lower()
+            if not stripped:
+                continue
+            if not any(pattern in normalized for pattern in patterns):
+                continue
+            if "item" not in normalized:
+                continue
+            if stripped in seen:
+                continue
+            seen.add(stripped)
+            warnings.append(stripped[:400])
+    return warnings[:8]
+
+
 def run_windows_fake_simc_script(binary, profile):
     if os.name != "nt":
         return None
@@ -19570,22 +19720,39 @@ def run_websim_stat_simcraft(profile):
         return {"ran": False, "available": False, "summary": "", "error": "simcraft binary not found"}
     if not str(profile or "").strip():
         return {"ran": False, "available": True, "summary": "", "error": "empty profile"}
-    try:
-        result = run_websim_simcraft_process(
-            binary,
-            profile,
-            int_env("WOW_WEBSIM_GEAR_STATS_TIMEOUT_SECONDS", 45),
-        )
-    except (OSError, subprocess.TimeoutExpired) as error:
-        return {"ran": False, "available": True, "summary": "", "error": str(error)}
-    output = (result.stdout or result.stderr or "").strip()
-    return {
-        "ran": result.returncode == 0,
-        "available": True,
-        "rawOutput": output,
-        "summary": output[:4000],
-        "error": "" if result.returncode == 0 else (result.stderr or f"simc exited {result.returncode}")[:1000],
-    }
+    with tempfile.TemporaryDirectory(prefix="wow-websim-gear-stats-") as tmp_dir:
+        output_path = Path(tmp_dir) / "gear-stats.json"
+        profile_text = profile_with_simc_json_output(profile, output_path)
+        try:
+            result = run_websim_simcraft_process(
+                binary,
+                profile_text,
+                int_env("WOW_WEBSIM_GEAR_STATS_TIMEOUT_SECONDS", 45),
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            return {"ran": False, "available": True, "summary": "", "error": str(error)}
+        stdout = result.stdout or ""
+        stderr = result.stderr or ""
+        output = "\n".join(item for item in [stdout.strip(), stderr.strip()] if item).strip()
+        json_payload = None
+        json_error = ""
+        if output_path.exists():
+            try:
+                json_payload = json.loads(output_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                json_error = f"invalid simc json output: {error}"
+        return {
+            "ran": result.returncode == 0,
+            "available": True,
+            "rawOutput": output,
+            "stdout": stdout[:4000],
+            "stderr": stderr[:4000],
+            "jsonPayload": json_payload,
+            "jsonError": json_error,
+            "itemResolutionWarnings": simcraft_item_resolution_warnings(stdout, stderr),
+            "summary": output[:4000],
+            "error": "" if result.returncode == 0 else (stderr or stdout or f"simc exited {result.returncode}")[:1000],
+        }
 
 
 def profile_with_simc_json_output(profile, output_path):
@@ -20773,7 +20940,24 @@ def build_websim_gear_stats_response(payload, conn=None):
             talent_encoding=talent_encoding,
         )
 
-    snapshot = parse_simcraft_stat_snapshot(simc_result.get("rawOutput") or simc_result.get("summary") or "")
+    item_resolution_warnings = simc_result.get("itemResolutionWarnings") or []
+    if item_resolution_warnings:
+        snapshot = blocked_stat_snapshot(
+            item_resolution_warnings,
+            class_key=class_key,
+            spec_key=spec_key,
+            level=level,
+            gear_readiness_payload=readiness,
+            talent_encoding=talent_encoding,
+        )
+        snapshot["statSource"] = "simulationcraft_json"
+        snapshot["simcWarnings"] = item_resolution_warnings
+    elif simc_result.get("jsonPayload"):
+        snapshot = parse_simcraft_json_stat_snapshot(simc_result.get("jsonPayload"))
+    else:
+        snapshot = parse_simcraft_stat_snapshot(simc_result.get("rawOutput") or simc_result.get("summary") or "")
+        if simc_result.get("jsonError"):
+            snapshot["simcWarnings"] = [simc_result.get("jsonError")]
     snapshot.update({
         "classKey": class_key,
         "specKey": spec_key,
@@ -20787,6 +20971,8 @@ def build_websim_gear_stats_response(payload, conn=None):
     })
     if snapshot.get("statStatus") != "verified":
         snapshot["blockers"] = snapshot.get("blockers") or ["SimC output did not include a parseable stat snapshot"]
+        if simc_result.get("jsonError") and simc_result.get("jsonError") not in snapshot["blockers"]:
+            snapshot["simcWarnings"] = unique_text_list([*(snapshot.get("simcWarnings") or []), simc_result.get("jsonError")])
     return snapshot
 
 

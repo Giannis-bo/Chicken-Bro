@@ -77,6 +77,7 @@
             <view class="gear-attribute-cell {{item.pending ? 'pending' : ''}}" wx:for="{{gearAttributePanel.statRows}}" wx:key="key">
               <text class="gear-attribute-label">{{item.label}}</text>
               <text class="gear-attribute-value">{{item.value}}</text>
+              <text class="gear-attribute-converted" wx:if="{{item.convertedValue}}">{{item.convertedValue}}</text>
             </view>
           </view>
           <view class="gear-attribute-enhancement-row">
@@ -88,7 +89,7 @@
             </view>
           </view>
           <view class="gear-attribute-action-row">
-            <button class="gear-attribute-action" disabled="{{gearDataFallback}}" bindtap="openGearEnhancementSheet">强化配置</button>
+            <button class="gear-attribute-action" disabled="{{gearDataFallback}}" bindtap="openGearEnhancementSheet">配置宝石、附魔</button>
           </view>
         </view>
 
@@ -206,6 +207,30 @@
     </view>
   </scroll-view>
 
+  <view class="gear-slot-sheet-mask gear-save-template-sheet-mask" wx:if="{{gearSaveTemplateSheet.visible}}" bindtap="closeGearSaveTemplateSheet"></view>
+  <view class="gear-save-template-sheet" wx:if="{{gearSaveTemplateSheet.visible}}">
+    <view class="gear-sheet-handle"></view>
+    <view class="gear-sheet-header">
+      <view>
+        <text class="gear-sheet-kicker">装备模拟器</text>
+        <text class="gear-sheet-title">保存装备模板</text>
+      </view>
+    </view>
+    <input
+      class="gear-template-name-input"
+      value="{{gearSaveTemplateSheet.name}}"
+      placeholder="{{gearSaveTemplateSheet.defaultName}}"
+      maxlength="28"
+      bindinput="updateGearTemplateName"
+      confirm-type="done"
+      bindconfirm="confirmSaveGearTemplate"
+    />
+    <view class="gear-save-sheet-actions">
+      <button class="gear-save-sheet-secondary" bindtap="closeGearSaveTemplateSheet">取消</button>
+      <button class="gear-save-sheet-primary" loading="{{gearTemplateSaving}}" disabled="{{gearTemplateSaving}}" bindtap="confirmSaveGearTemplate">保存</button>
+    </view>
+  </view>
+
   <view class="gear-slot-sheet-mask" wx:if="{{gearSlotSheet.visible}}" bindtap="closeGearSlotSheet"></view>
   <view class="gear-slot-sheet" wx:if="{{gearSlotSheet.visible}}">
     <view class="gear-sheet-handle"></view>
@@ -290,7 +315,7 @@
     <view class="gear-sheet-header">
       <view>
         <text class="gear-sheet-kicker">已使用 {{gearEnhancementSheet.embellishmentUsed}} / {{gearEnhancementSheet.embellishmentMax}} 美化</text>
-        <text class="gear-sheet-title">强化配置</text>
+        <text class="gear-sheet-title">配置宝石、附魔</text>
       </view>
       <button class="gear-sheet-close" bindtap="closeGearEnhancementSheet">关闭</button>
     </view>

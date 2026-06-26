@@ -3122,6 +3122,7 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertEqual(payload["gearSchemaRevision"], "websim-gear-simulator-v1")
         self.assertEqual(payload["maxLevel"], 90)
+        self.assertNotIn("statConversion", payload)
         self.assertTrue(payload["checkedAt"])
         self.assertIn("head", payload["equippedSet"])
         self.assertEqual(payload["equippedSet"]["head"]["itemId"], "250101")
@@ -14075,6 +14076,64 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(snapshot["weaponDps"]["value"], "789.5")
         self.assertNotIn("999999", json.dumps(snapshot, ensure_ascii=False))
 
+    def test_parse_simcraft_json_stat_snapshot_extracts_character_percentages(self):
+        payload = {
+            "version": "1205-01",
+            "sim": {
+                "players": [
+                    {
+                        "name": "mageroysong",
+                        "race": "dwarf",
+                        "level": 90,
+                        "specialization": "Frost Mage",
+                        "gear": {
+                            "head": {"ilevel": 289, "crit_rating": 120, "haste_rating": 45},
+                            "chest": {"ilevel": 289, "mastery_rating": 88},
+                        },
+                        "collected_data": {
+                            "buffed_stats": {
+                                "attribute": {
+                                    "intellect": 2344,
+                                    "stamina": 20067,
+                                },
+                                "stats": {
+                                    "crit_rating": 994,
+                                    "crit_pct": 0.2860869565217391,
+                                    "haste_rating": 554,
+                                    "haste_pct": 0.18288009090909108,
+                                    "mastery_rating": 545,
+                                    "mastery_pct": 0.3655652173913044,
+                                    "versatility_rating": 83,
+                                    "versatility_pct": 0.015370370370370373,
+                                    "armor": 2265,
+                                },
+                            }
+                        },
+                    }
+                ]
+            },
+        }
+
+        snapshot = self.websim_payload.parse_simcraft_json_stat_snapshot(payload)
+
+        self.assertEqual(snapshot["statStatus"], "verified")
+        self.assertEqual(snapshot["statSource"], "simulationcraft_json")
+        self.assertEqual(snapshot["simcVersion"], "1205-01")
+        self.assertEqual(snapshot["primary"]["key"], "intellect")
+        self.assertEqual(snapshot["primary"]["value"], "2,344")
+        crit = next(row for row in snapshot["secondary"] if row["key"] == "crit")
+        haste = next(row for row in snapshot["secondary"] if row["key"] == "haste")
+        mastery = next(row for row in snapshot["secondary"] if row["key"] == "mastery")
+        versatility = next(row for row in snapshot["secondary"] if row["key"] == "versatility")
+        self.assertEqual(crit["value"], "994")
+        self.assertEqual(crit["convertedValue"], "28.6%")
+        self.assertAlmostEqual(crit["convertedRawValue"], 28.60869565217391)
+        self.assertEqual(haste["convertedValue"], "18.3%")
+        self.assertEqual(mastery["convertedValue"], "36.6%")
+        self.assertEqual(versatility["convertedValue"], "1.5%")
+        self.assertEqual(snapshot["itemLevel"]["value"], "289")
+        self.assertNotIn("999999", json.dumps(snapshot, ensure_ascii=False))
+
     def test_parse_simcraft_stat_snapshot_blocks_when_stats_are_missing(self):
         snapshot = self.websim_payload.parse_simcraft_stat_snapshot(
             "Generating Baseline: 50/100\nDPS Ranking:\n1. WebSim_Arcane 999999 dps\n"
@@ -15387,6 +15446,63 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(result["gearReadiness"]["itemLevel"]["rawValue"], 289)
         self.assertIn("class_talents=1001:1", executed_profile)
         self.assertIn("calculate_scale_factors=0", executed_profile)
+
+    def test_http_websim_gear_stats_prefers_simc_json_character_snapshot(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+        finally:
+            conn.close()
+        simc_bin = Path(self.tmp.name) / "fake-json-gear-stats-simc"
+        captured_profile = Path(self.tmp.name) / "json-gear-stats-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "python3 - <<'PY'\n"
+            "import json, pathlib, re\n"
+            f"profile = pathlib.Path('{captured_profile}').read_text(encoding='utf-8')\n"
+            "match = re.search(r'^json=(.+)$', profile, re.M)\n"
+            "if not match:\n"
+            "    raise SystemExit('missing json output path')\n"
+            "path = pathlib.Path(match.group(1).strip())\n"
+            "path.write_text(json.dumps({\n"
+            "    'version': '1205-01',\n"
+            "    'sim': {'players': [{\n"
+            "        'name': 'websim_arcane',\n"
+            "        'race': 'human',\n"
+            "        'level': 90,\n"
+            "        'specialization': 'Arcane Mage',\n"
+            "        'gear': {'head': {'ilevel': 289}, 'chest': {'ilevel': 289}},\n"
+            "        'collected_data': {'buffed_stats': {\n"
+            "            'attribute': {'intellect': 2344, 'stamina': 20067},\n"
+            "            'stats': {\n"
+            "                'crit_rating': 994, 'crit_pct': 0.2860869565217391,\n"
+            "                'haste_rating': 554, 'haste_pct': 0.18288009090909108,\n"
+            "                'mastery_rating': 545, 'mastery_pct': 0.3655652173913044,\n"
+            "                'versatility_rating': 83, 'versatility_pct': 0.015370370370370373,\n"
+            "            },\n"
+            "        }},\n"
+            "    }]},\n"
+            "}, ensure_ascii=False), encoding='utf-8')\n"
+            "PY\n"
+            "printf 'DPS Ranking:\\n1. Should_Not_Parse 999999 dps\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+
+        result = self.post_backend_json("/api/websim/gear/stats", self.websim_encoder_payload())
+
+        self.assertEqual(result["statStatus"], "verified")
+        self.assertEqual(result["statSource"], "simulationcraft_json")
+        self.assertEqual(result["simcVersion"], "1205-01")
+        self.assertEqual(result["primary"]["value"], "2,344")
+        crit = next(row for row in result["secondary"] if row["key"] == "crit")
+        self.assertEqual(crit["value"], "994")
+        self.assertEqual(crit["convertedValue"], "28.6%")
+        self.assertTrue(captured_profile.exists())
+        self.assertIn("json=", captured_profile.read_text(encoding="utf-8"))
+        self.assertNotIn("999999", json.dumps(result))
 
     def test_http_websim_gear_stats_fake_snapshot_smoke_for_core_specs(self):
         specs = [
