@@ -795,6 +795,10 @@ class WebSimPayloadTest(unittest.TestCase):
                     self.assertEqual(payload["talentAuthority"]["runtimeSource"], "fallback")
                     self.assertEqual(payload["talentAuthority"]["diffStatus"], "blocked")
                     self.assertEqual(payload["talentAuthority"]["official"]["status"], "not_configured")
+                    self.assertEqual(payload["talentReadiness"]["treeReady"], True)
+                    self.assertEqual(payload["talentReadiness"]["encodingReady"], False)
+                    self.assertEqual(payload["talentReadiness"]["simcReady"], False)
+                    self.assertTrue(any("fallback" in blocker for blocker in payload["blockers"]))
                     self.assertEqual(tree_types, {"class", "spec", "hero"})
                     self.assertEqual([section["key"] for section in payload["treeSections"]], ["class", "spec", "hero"])
                     self.assertEqual([section["reqLevel"] for section in payload["treeSections"]], [10, 11, 71])
@@ -872,6 +876,13 @@ class WebSimPayloadTest(unittest.TestCase):
                         self.assertEqual(payload["talentSchemaRevision"], self.websim_payload.TALENT_SCHEMA_REVISION)
                         self.assertEqual(payload["talentAuthority"]["schemaRevision"], self.websim_payload.TALENT_SCHEMA_REVISION)
                         self.assertIn(payload["talentAuthority"]["diffStatus"], {"blocked", "pending_official_audit", "verified", "stale", "incompatible"})
+                        self.assertIn("talentReadiness", payload)
+                        self.assertIn("treeReady", payload["talentReadiness"])
+                        self.assertIn("ruleReady", payload["talentReadiness"])
+                        self.assertIn("spellReady", payload["talentReadiness"])
+                        self.assertIn("encodingReady", payload["talentReadiness"])
+                        self.assertIn("simcReady", payload["talentReadiness"])
+                        self.assertIsInstance(payload["blockers"], list)
                         self.assertEqual(payload["heroKey"], hero["key"])
                         self.assertEqual({section["key"] for section in payload["treeSections"]}, {"class", "spec", "hero"})
                         self.assertEqual({node["treeType"] for node in payload["nodes"]}, {"class", "spec", "hero"})
@@ -7502,6 +7513,12 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["details"]["talentCount"], 0)
         self.assertEqual(payload["details"]["catalogContract"]["schemaRevision"], "websim-talent-catalog-v1")
         self.assertEqual(payload["details"]["catalogContract"]["coverage"], {"covered": 0, "total": 0, "percent": 0})
+        self.assertEqual(payload["details"]["expectedSpecCount"], 40)
+        self.assertEqual(payload["details"]["expectedHeroTreeCount"], 80)
+        self.assertEqual(payload["details"]["coveredExpectedHeroTreeCount"], 0)
+        self.assertEqual(payload["details"]["ruleReadiness"]["treeReady"], False)
+        self.assertEqual(payload["details"]["readiness"]["simcReady"], False)
+        self.assertEqual(payload["details"]["sourceReadiness"]["officialAuditStatus"], "pending_official_audit")
         self.assertIn("talent catalog has no local talent nodes", payload["blockers"])
 
     def test_raiderio_observed_only_catalog_stays_partial_until_item_metadata_is_verified(self):
@@ -14421,6 +14438,28 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(choice["status"], "failed")
         self.assertTrue(any("multiple talents selected" in error for error in choice["errors"]))
 
+    def test_profile_response_marks_not_ready_when_talent_encoding_fails(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+            response = self.websim_payload.build_websim_profile_response(
+                self.websim_encoder_payload({
+                    "talents": "",
+                    "talentState": {"selectedNodes": []},
+                }),
+                conn=conn,
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(response["talentEncoding"]["status"], "failed")
+        self.assertEqual(response["talentEncoding"]["errors"], ["no WebSim talent nodes selected"])
+        self.assertEqual(response["profileReadiness"]["talentReady"], False)
+        self.assertEqual(response["profileReadiness"]["gearReady"], True)
+        self.assertEqual(response["profileReadiness"]["simcReady"], False)
+        self.assertIn("no WebSim talent nodes selected", response["profileReadiness"]["blockers"])
+        self.assertNotIn("class_talents=", response["profile"])
+
     def test_websim_talent_encoding_uses_purchased_points_for_gates(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -14464,6 +14503,54 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(encoded["status"], "encoded")
         self.assertEqual(encoded["selectedCounts"]["class"], 3)
         self.assertIn("class_talents=2302:1/2303:1/2304:1", encoded["lines"])
+
+    def test_websim_talent_encoding_counts_granted_hero_root_for_hero_gates(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-root-mage-arcane-spellslinger",
+                "hero",
+                2401,
+                1,
+                1,
+                "Hero Root",
+                granted_rank=1,
+                hero_key="spellslinger",
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-child-mage-arcane-spellslinger",
+                "hero",
+                2402,
+                2,
+                1,
+                "Hero Child",
+                parent_ids=["simc-hero-root-mage-arcane-spellslinger"],
+                point_requirement=1,
+                hero_key="spellslinger",
+            )
+            conn.commit()
+
+            encoded = self.websim_payload.encode_websim_talents(
+                conn,
+                self.websim_encoder_payload({
+                    "heroKey": "spellslinger",
+                    "talentState": {
+                        "selectedNodes": [
+                            {"id": "simc-hero-root-mage-arcane-spellslinger", "rank": 1},
+                            {"id": "simc-hero-child-mage-arcane-spellslinger", "rank": 1},
+                        ]
+                    }
+                }),
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(encoded["status"], "encoded")
+        self.assertEqual(encoded["selectedCounts"]["hero"], 1)
+        self.assertIn("hero_talents=2402:1", encoded["lines"])
 
     def test_raiderio_player_template_requires_parsed_visual_loadout(self):
         conn = sqlite3.connect(self.db_path)
@@ -14687,26 +14774,200 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(templates[0]["websimExportCode"].startswith("websim:mage:arcane:spellslinger:"))
         self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
         self.assertEqual(payload["communityTemplateSync"]["sources"]["raiderio"]["status"], "missing_credentials")
-        self.assertEqual([item["id"] for item in other_payload["communityTemplates"]], [templates[0]["id"]])
+        self.assertEqual(payload["communityTemplateSync"]["sources"]["websim_baseline"]["status"], "blocked")
+        self.assertEqual(other_payload["communityTemplates"], [])
 
-    def test_websim_talents_returns_verified_community_templates_by_class_only(self):
+    def seed_full_websim_talent_tree(self, conn, class_key, spec_key, hero_key):
+        class_id = 8 if class_key == "mage" else 1
+        spec_id = 62 if spec_key == "arcane" else 63
+        for index in range(34):
+            self.insert_websim_talent(
+                conn,
+                f"simc-class-{class_key}-{spec_key}-{index + 1}",
+                "class",
+                31000 + index,
+                index + 1,
+                1,
+                f"Class {index + 1}",
+                class_key=class_key,
+                spec_key=spec_key,
+                class_id=class_id,
+                spec_id=spec_id,
+            )
+        for index in range(34):
+            self.insert_websim_talent(
+                conn,
+                f"simc-spec-{class_key}-{spec_key}-{index + 1}",
+                "spec",
+                32000 + index,
+                index + 1,
+                2,
+                f"Spec {index + 1}",
+                class_key=class_key,
+                spec_key=spec_key,
+                class_id=class_id,
+                spec_id=spec_id,
+            )
+        for index in range(13):
+            self.insert_websim_talent(
+                conn,
+                f"simc-hero-{class_key}-{spec_key}-{hero_key}-{index + 1}",
+                "hero",
+                33000 + index,
+                index + 1,
+                3,
+                f"Hero {index + 1}",
+                class_key=class_key,
+                spec_key=spec_key,
+                hero_key=hero_key,
+                class_id=class_id,
+                spec_id=spec_id,
+            )
+        conn.commit()
+
+    def test_websim_baseline_talent_template_fills_tree_caps_and_encodes(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            hero_key = self.websim_payload.hero_tree_for("mage", "arcane", "spellslinger")
+            self.seed_full_websim_talent_tree(conn, "mage", "arcane", hero_key)
+            template = self.websim_payload.build_websim_baseline_talent_template(conn, "mage", "arcane", hero_key)
+            validated = self.websim_payload.validate_community_talent_template(conn, template)
+        finally:
+            conn.close()
+
+        self.assertEqual(validated["sourceKey"], "websim_baseline")
+        self.assertEqual(validated["status"], "verified")
+        self.assertTrue(validated["websimExportCode"].startswith("websim:mage:arcane:spellslinger:"))
+        encoding = validated["payload"]["talentEncoding"]
+        self.assertEqual(encoding["status"], "encoded")
+        self.assertEqual(encoding["selectedCounts"], {"class": 34, "spec": 34, "hero": 12})
+        self.assertEqual(validated["payload"]["baseline"]["activeSelectedCounts"], {"class": 34, "spec": 34, "hero": 13})
+
+    def test_community_talent_sync_adds_baseline_for_every_expected_spec(self):
+        conn = sqlite3.connect(self.db_path)
+        expected_classes = [{
+            "key": "mage",
+            "label": "Mage",
+            "specs": ["arcane", "fire"],
+        }]
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            arcane_hero = self.websim_payload.hero_tree_for("mage", "arcane", "spellslinger")
+            fire_hero = self.websim_payload.hero_tree_for("mage", "fire", "")
+            self.seed_full_websim_talent_tree(conn, "mage", "arcane", arcane_hero)
+            self.seed_full_websim_talent_tree(conn, "mage", "fire", fire_hero)
+            with patch.object(self.websim_payload, "WOW_CLASSES", expected_classes):
+                sync = self.websim_payload.sync_community_talent_templates(conn)
+                arcane = self.websim_payload.get_websim_talents(conn, "mage", "arcane", arcane_hero)
+                fire = self.websim_payload.get_websim_talents(conn, "mage", "fire", fire_hero)
+        finally:
+            conn.close()
+
+        self.assertEqual(sync["sources"]["websim_baseline"]["status"], "synced")
+        self.assertEqual(sync["scanCoverage"]["coveredSpecCount"], 2)
+        self.assertEqual(sync["scanCoverage"]["missingSpecs"], [])
+        self.assertTrue(any(item["sourceKey"] == "websim_baseline" for item in arcane["communityTemplates"]))
+        self.assertEqual(len(fire["communityTemplates"]), 1)
+        self.assertEqual(fire["communityTemplates"][0]["sourceKey"], "websim_baseline")
+        self.assertTrue(fire["communityTemplates"][0]["canApplyVisual"])
+
+    def test_websim_talents_returns_current_spec_community_templates_only(self):
         conn = sqlite3.connect(self.db_path)
         try:
             self.websim_payload.ensure_websim_tables(conn)
             now = self.websim_payload.utc_now()
             for template in [
                 {
-                    "id": "mage-arcane-template",
+                    "id": "mage-arcane-duplicate-low",
                     "classKey": "mage",
                     "specKey": "arcane",
                     "heroKey": "spellslinger",
                     "scenarioKey": "mythic_plus",
-                    "name": "Mage Arcane",
+                    "name": "Same Arcane Player",
                     "flowLabel": "M+",
                     "sourceName": "Fixture",
                     "sourceUrl": "",
-                    "talentState": {"selectedNodes": [{"id": "arcane-node", "rank": 1}]},
+                    "talentState": {"selectedNodes": [{"id": "arcane-low", "rank": 1}]},
+                    "playerId": "ArcanePlayer",
                     "sampleCount": 2,
+                    "maxKeyLevel": 20,
+                    "analysisWindow": "fixture",
+                    "sourceStatus": "synced",
+                    "status": "verified",
+                    "updatedAt": now,
+                    "expiresAt": now,
+                },
+                {
+                    "id": "mage-arcane-duplicate-high",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "heroKey": "spellslinger",
+                    "scenarioKey": "mythic_plus",
+                    "name": "Same Arcane Player",
+                    "flowLabel": "M+",
+                    "sourceName": "Fixture",
+                    "sourceUrl": "",
+                    "talentState": {"selectedNodes": [{"id": "arcane-high", "rank": 1}]},
+                    "playerId": "ArcanePlayer",
+                    "sampleCount": 7,
+                    "maxKeyLevel": 23,
+                    "analysisWindow": "fixture",
+                    "sourceStatus": "synced",
+                    "status": "verified",
+                    "updatedAt": now,
+                    "expiresAt": now,
+                },
+                {
+                    "id": "mage-arcane-other-a",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "heroKey": "sunfury",
+                    "scenarioKey": "mythic_plus",
+                    "name": "Mage Arcane A",
+                    "flowLabel": "M+",
+                    "sourceName": "Fixture",
+                    "sourceUrl": "",
+                    "talentState": {"selectedNodes": [{"id": "arcane-a", "rank": 1}]},
+                    "sampleCount": 5,
+                    "maxKeyLevel": 22,
+                    "analysisWindow": "fixture",
+                    "sourceStatus": "synced",
+                    "status": "verified",
+                    "updatedAt": now,
+                    "expiresAt": now,
+                },
+                {
+                    "id": "mage-arcane-other-b",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "heroKey": "spellslinger",
+                    "scenarioKey": "single",
+                    "name": "Mage Arcane B",
+                    "flowLabel": "Single",
+                    "sourceName": "Fixture",
+                    "sourceUrl": "",
+                    "talentState": {"selectedNodes": [{"id": "arcane-b", "rank": 1}]},
+                    "sampleCount": 4,
+                    "maxKeyLevel": 21,
+                    "analysisWindow": "fixture",
+                    "sourceStatus": "synced",
+                    "status": "verified",
+                    "updatedAt": now,
+                    "expiresAt": now,
+                },
+                {
+                    "id": "mage-arcane-over-limit",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "heroKey": "spellslinger",
+                    "scenarioKey": "mythic_plus",
+                    "name": "Mage Arcane C",
+                    "flowLabel": "M+",
+                    "sourceName": "Fixture",
+                    "sourceUrl": "",
+                    "talentState": {"selectedNodes": [{"id": "arcane-c", "rank": 1}]},
+                    "sampleCount": 3,
                     "maxKeyLevel": 20,
                     "analysisWindow": "fixture",
                     "sourceStatus": "synced",
@@ -14725,8 +14986,8 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceName": "Fixture",
                     "sourceUrl": "",
                     "talentState": {"selectedNodes": [{"id": "fire-node", "rank": 1}]},
-                    "sampleCount": 1,
-                    "maxKeyLevel": 18,
+                    "sampleCount": 99,
+                    "maxKeyLevel": 30,
                     "analysisWindow": "fixture",
                     "sourceStatus": "synced",
                     "status": "verified",
@@ -14759,9 +15020,14 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         template_ids = [item["id"] for item in payload["communityTemplates"]]
-        self.assertEqual(template_ids, ["mage_arcane_template", "mage_fire_template"])
+        self.assertEqual(template_ids, ["mage_arcane_duplicate_high", "mage_arcane_other_a", "mage_arcane_other_b"])
+        self.assertEqual(len(payload["communityTemplates"]), 3)
+        self.assertEqual({item["specKey"] for item in payload["communityTemplates"]}, {"arcane"})
+        self.assertNotIn("mage_fire_template", template_ids)
+        self.assertNotIn("mage_arcane_duplicate_low", template_ids)
+        self.assertNotIn("mage_arcane_over_limit", template_ids)
         self.assertEqual(payload["communityTemplates"][0]["classLabel"], self.websim_payload.CLASS_LABELS_ZH["mage"])
-        self.assertEqual(payload["communityTemplates"][1]["specLabel"], self.websim_payload.SPEC_LABELS_ZH["fire"])
+        self.assertEqual({item["specLabel"] for item in payload["communityTemplates"]}, {self.websim_payload.SPEC_LABELS_ZH["arcane"]})
 
     def test_websim_talents_dedupes_same_template_signature_and_merges_sources(self):
         conn = sqlite3.connect(self.db_path)
@@ -14850,7 +15116,7 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(len(payload["communityTemplates"]), 2)
+        self.assertEqual(len(payload["communityTemplates"]), 1)
         shared = payload["communityTemplates"][0]
         self.assertEqual(shared["id"], "raiderio_shared")
         self.assertTrue(shared["signature"].startswith("talent:mage:arcane:spellslinger:"))
@@ -14862,17 +15128,73 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["communityTemplateSync"]["dedupedCount"], 2)
         self.assertEqual(payload["communityTemplateSync"]["hiddenDuplicateCount"], 1)
 
-    def test_websim_talents_bootstraps_fixture_community_templates(self):
+    def test_websim_talents_read_model_does_not_bootstrap_community_templates(self):
         conn = sqlite3.connect(self.db_path)
         try:
             self.seed_websim_encoder_nodes(conn)
+            sync_calls = []
+            original_sync = self.websim_payload.sync_community_talent_templates
+
+            def fake_sync(sync_conn):
+                sync_calls.append("sync")
+                self.websim_payload.set_sync_state(sync_conn, self.websim_payload.COMMUNITY_TALENT_SYNC_KEY, {
+                    "sourceStatus": "partial",
+                    "sources": {},
+                    "templates": {"total": 1, "verified": 1, "blocked": 0},
+                    "checkedAt": self.websim_payload.utc_now(),
+                })
+                return {"sourceStatus": "partial"}
+
+            self.websim_payload.sync_community_talent_templates = fake_sync
+            self.addCleanup(setattr, self.websim_payload, "sync_community_talent_templates", original_sync)
             payload = self.websim_payload.get_websim_talents(conn, "mage", "arcane", "spellslinger")
         finally:
             conn.close()
 
-        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
-        self.assertEqual(len(payload["communityTemplates"]), 1)
-        self.assertEqual(payload["communityTemplates"][0]["name"], "高层大秘 · 主流AOE")
+        self.assertEqual(sync_calls, [])
+        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "missing_credentials")
+        self.assertEqual(payload["communityTemplates"], [])
+
+    def test_websim_talents_hides_unresolved_spell_template_text(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+            conn.executemany(
+                """
+                INSERT INTO websim_spell_details
+                (id, spell_id, name, description, icon_url, locale, payload_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, 'zh_CN', '{"source":"wago-db2"}', 'now')
+                """,
+                [
+                    ("101001", 101001, "Class Talent", "清晰的职业天赋说明。", "https://render.example/class.jpg"),
+                    (
+                        "102001",
+                        102001,
+                        "Spec Talent",
+                        "狂风怒号使你的裂雷效果提高${$455089s1*$mas}%，持续$455089d。",
+                        "https://render.example/spec.jpg",
+                    ),
+                    ("103001", 103001, "Hero Talent", "清晰的英雄天赋说明。", "https://render.example/hero.jpg"),
+                ],
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_talents(conn, "mage", "arcane", "spellslinger")
+            health = self.websim_payload.talent_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        dirty_node = next(node for node in payload["nodes"] if node["name"] == "Spec Talent")
+        self.assertNotIn("$", dirty_node["description"])
+        self.assertIn("描述待补", dirty_node["description"])
+        self.assertEqual(dirty_node["descriptionStatus"], "pending_formula_resolution")
+        self.assertEqual(payload["talentReadiness"]["spellReady"], False)
+        self.assertEqual(payload["talentReadiness"]["spellCoverage"]["covered"], 2)
+        self.assertIn("unresolved formula text", " ".join(payload["talentReadiness"]["blockers"]))
+        self.assertEqual(
+            health["details"]["spellDetailCoverage"]["unresolvedDescriptionCount"],
+            1,
+        )
+        self.assertIn("unresolved formula text", " ".join(health["blockers"]))
 
     def test_community_talent_fixture_resolves_current_websim_nodes(self):
         conn = sqlite3.connect(self.db_path)

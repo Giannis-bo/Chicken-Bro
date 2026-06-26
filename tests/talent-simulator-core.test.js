@@ -421,27 +421,86 @@ test('talent view model provides unique render keys for duplicate node ids', () 
   assert.ok(viewModel.sections[0].links.every((link) => link.renderKey))
 })
 
-test('community template helpers expose source status and class-wide availability', () => {
+test('community template helpers expose source status and spec-scoped availability', () => {
   const templates = [
     {
-      id: 'mplus-mainstream',
+      id: 'arcane-low',
       classKey: 'mage',
+      specKey: 'arcane',
+      heroKey: 'spellslinger',
       scenarioKey: 'mythic_plus',
-      name: '高层大秘 · 主流AOE',
+      name: 'Same Arcane Player',
       canApplyVisual: true,
-      websimExportCode: 'websim:mage:arcane:spellslinger:granted:1'
+      websimExportCode: 'websim:mage:arcane:spellslinger:granted:1',
+      playerId: 'ArcanePlayer',
+      sampleCount: 2,
+      maxKeyLevel: 20
     },
     {
-      id: 'single-external',
+      id: 'arcane-high',
       classKey: 'mage',
+      specKey: 'arcane',
+      heroKey: 'spellslinger',
+      scenarioKey: 'mythic_plus',
+      name: 'Same Arcane Player',
+      canApplyVisual: true,
+      websimExportCode: 'websim:mage:arcane:spellslinger:other:1',
+      playerId: 'ArcanePlayer',
+      sampleCount: 7,
+      maxKeyLevel: 23
+    },
+    {
+      id: 'arcane-other-a',
+      classKey: 'mage',
+      specKey: 'arcane',
+      heroKey: 'sunfury',
       scenarioKey: 'single',
       name: '单体 · 爆发',
       canApplyVisual: false,
-      rawImportCode: 'C4DA'
+      rawImportCode: 'C4DA',
+      sampleCount: 3,
+      maxKeyLevel: 21
+    },
+    {
+      id: 'arcane-other-b',
+      classKey: 'mage',
+      specKey: 'arcane',
+      heroKey: 'spellslinger',
+      scenarioKey: 'mythic_plus',
+      name: 'Arcane B',
+      canApplyVisual: true,
+      websimExportCode: 'websim:mage:arcane:spellslinger:b:1',
+      sampleCount: 2,
+      maxKeyLevel: 20
+    },
+    {
+      id: 'arcane-third',
+      classKey: 'mage',
+      specKey: 'arcane',
+      heroKey: 'spellslinger',
+      scenarioKey: 'mythic_plus',
+      name: 'Arcane C',
+      canApplyVisual: true,
+      websimExportCode: 'websim:mage:arcane:spellslinger:c:1',
+      sampleCount: 1,
+      maxKeyLevel: 19
+    },
+    {
+      id: 'frost-cross-spec',
+      classKey: 'mage',
+      specKey: 'frost',
+      heroKey: 'spellslinger',
+      scenarioKey: 'mythic_plus',
+      name: 'Frost M+',
+      canApplyVisual: true,
+      websimExportCode: 'websim:mage:frost:spellslinger:frost:1',
+      sampleCount: 99,
+      maxKeyLevel: 30
     },
     {
       id: 'warrior-mplus',
       classKey: 'warrior',
+      specKey: 'protection',
       scenarioKey: 'mythic_plus',
       name: 'Warrior M+',
       canApplyVisual: true,
@@ -449,9 +508,9 @@ test('community template helpers expose source status and class-wide availabilit
     }
   ]
 
-  assert.deepEqual(core.templatesForClass(templates, 'mage').map((item) => item.id), ['mplus-mainstream', 'single-external'])
+  assert.deepEqual(core.templatesForClass(templates, 'mage', 'arcane').map((item) => item.id), ['arcane-high', 'arcane-other-b', 'arcane-third'])
   assert.equal(core.communityTemplateApplyMode(templates[0]), 'visual')
-  assert.equal(core.communityTemplateApplyMode(templates[1]), 'simc_only')
+  assert.equal(core.communityTemplateApplyMode(templates[2]), 'simc_only')
   assert.match(core.communityTemplateStatusText({
     sourceStatus: 'partial',
     sources: {

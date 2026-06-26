@@ -382,6 +382,19 @@ function communityTemplateSignature(template) {
   return `id|${template.id || ''}`
 }
 
+function communityTemplatePublicIdentity(template) {
+  if (!template) return ''
+  const parsed = parseTalentExportCode(template.websimExportCode)
+  const classKey = String(template.classKey || (parsed && parsed.classKey) || '').trim()
+  const specKey = String(template.specKey || (parsed && parsed.specKey) || '').trim()
+  const heroKey = String(template.heroKey || (parsed && parsed.heroKey) || '').trim()
+  const sourceKey = String(template.sourceKey || '').trim().toLowerCase()
+  const playerId = String(template.playerId || '').trim()
+  const visibleName = playerId || String(template.name || template.id || '').trim()
+  const scenarioKey = String(template.scenarioKey || '').trim()
+  return [sourceKey, visibleName.toLowerCase(), classKey, specKey, heroKey, scenarioKey].join('|')
+}
+
 function communityTemplateQuality(template) {
   const updated = Date.parse((template && template.updatedAt) || '') || 0
   return {
@@ -402,18 +415,33 @@ function compareCommunityTemplateQuality(left, right) {
     || String(left && left.id || '').localeCompare(String(right && right.id || ''))
 }
 
-function templatesForClass(templates, classKey) {
+function templatesForClass(templates, classKey, specKey, options = {}) {
   const key = String(classKey || '').trim()
+  const spec = String(specKey || '').trim()
+  const limit = Number(options.limit || 3) || 3
   const bySignature = new Map()
   ;(Array.isArray(templates) ? templates : []).forEach((template) => {
-    if (!template || (key && (template.classKey || '') !== key)) return
+    if (!template) return
+    const parsed = parseTalentExportCode(template.websimExportCode)
+    const templateClass = String(template.classKey || (parsed && parsed.classKey) || '').trim()
+    const templateSpec = String(template.specKey || (parsed && parsed.specKey) || '').trim()
+    if (key && templateClass !== key) return
+    if (spec && templateSpec !== spec) return
     const signature = communityTemplateSignature(template)
     const previous = bySignature.get(signature)
     if (!previous || compareCommunityTemplateQuality(template, previous) < 0) {
       bySignature.set(signature, template)
     }
   })
-  return Array.from(bySignature.values()).sort(compareCommunityTemplateQuality)
+  const byIdentity = new Map()
+  Array.from(bySignature.values()).forEach((template) => {
+    const identity = communityTemplatePublicIdentity(template)
+    const previous = byIdentity.get(identity)
+    if (!previous || compareCommunityTemplateQuality(template, previous) < 0) {
+      byIdentity.set(identity, template)
+    }
+  })
+  return Array.from(byIdentity.values()).sort(compareCommunityTemplateQuality).slice(0, limit)
 }
 
 function communityTemplateApplyMode(template) {

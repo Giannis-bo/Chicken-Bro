@@ -488,6 +488,9 @@ test('native talent simulator page exposes WebSim tree controls and template per
   assert.match(css, /\.talent-node\.shape-choice::before\s*\{[\s\S]*left:\s*-13rpx;[\s\S]*border-right:\s*16rpx solid rgba\(150,\s*150,\s*150,\s*0\.72\);[\s\S]*\}/)
   assert.match(css, /\.talent-node\.shape-choice::after\s*\{[\s\S]*right:\s*-13rpx;[\s\S]*border-left:\s*16rpx solid rgba\(150,\s*150,\s*150,\s*0\.72\);[\s\S]*\}/)
   assert.match(css, /\.talent-node\.shape-choice\.available::before,[\s\S]*\.talent-node\.shape-choice\.selected::before,[\s\S]*\.talent-node\.shape-choice\.granted::before\s*\{[\s\S]*border-right-color:\s*#f8b700;[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.shape-choice\.selectable:not\(\.selected\) \.talent-choice-frame\s*\{[\s\S]*background:\s*#24f05a;[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.shape-choice\.selectable:not\(\.selected\)::before\s*\{[\s\S]*border-right-color:\s*#24f05a;[\s\S]*\}/)
+  assert.match(css, /\.talent-node\.shape-choice\.selectable:not\(\.selected\)::after\s*\{[\s\S]*border-left-color:\s*#24f05a;[\s\S]*\}/)
   assert.match(css, /\.talent-node\.granted\s*\{[\s\S]*border-color:\s*#f8b700;[\s\S]*\}/)
   assert.match(css, /\.talent-node\.selectable:not\(\.selected\)\s*\{[\s\S]*border-color:\s*#24f05a;[\s\S]*\}/)
   assert.doesNotMatch(css, /\.talent-node\.selectable:not\(\.selected\):not\(\.shape-choice\)::after/)
@@ -525,6 +528,10 @@ test('native talent simulator save flow names talent templates for the profile l
       classSection: { key: 'class', pointCount: 34, pointCap: 34 },
       heroSection: { key: 'hero', pointCount: 13, pointCap: 13 },
       specSection: { key: 'spec', pointCount: 34, pointCap: 34 },
+      talentStatus: 'verified',
+      talentAuthority: { diffStatus: 'pending_official_audit' },
+      talentReadiness: { simcReady: true, blockers: [] },
+      talentBlockers: [],
       canSaveTalentTemplate: true,
       selectedCommunityTemplate: null,
       saveTemplateSheet: { visible: false, name: '', defaultName: '' },
@@ -589,6 +596,56 @@ test('native talent simulator blocks template save until talent points are fille
   assert.equal(mocks.toasts.at(-1).title, '请先点满天赋点：通用 33/34')
 })
 
+test('native talent simulator blocks template save when backend readiness is not simc ready', () => {
+  const { pageConfig, mocks } = loadTalentSimulatorPageConfig()
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      activeTreeKey: 'class',
+      classKey: 'mage',
+      specKey: 'frost',
+      heroKey: 'frostfire',
+      nodes: [{
+        id: 'fallback-mage-frost-class-core',
+        name: 'Fallback Core',
+        treeType: 'class',
+        row: 1,
+        col: 1,
+        maxRank: 1
+      }],
+      treeSections: [{ key: 'class', title: '职业天赋', tree: 'class', pointCap: 1 }],
+      talentRanks: { 'fallback-mage-frost-class-core': 1 },
+      baseTalentRanks: {},
+      pointCaps: { class: 1 },
+      talentStatus: 'fallback',
+      talentAuthority: { diffStatus: 'blocked' },
+      talentReadiness: {
+        simcReady: false,
+        blockers: ['WebSim talent cache is fallback; sync SimulationCraft talent data before running SimC']
+      },
+      scenarioOptions: [{ key: 'mythic_plus', title: '大秘境' }],
+      selectedScenarioIndex: 0,
+      saveTemplateSheet: { visible: false, name: '', defaultName: '' },
+      templateSaving: false
+    },
+    setData(update, callback) {
+      this.data = { ...this.data, ...update }
+      if (callback) callback()
+    }
+  }
+
+  pageConfig.renderTalentView.call(page)
+  pageConfig.saveTalentTemplate.call(page)
+
+  assert.equal(page.data.websimExportCode, 'websim:mage:frost:frostfire:fallback-mage-frost-class-core:1')
+  assert.equal(page.data.canSaveTalentTemplate, false)
+  assert.match(page.data.saveBlockReason, /后端天赋数据暂不可用于模拟/)
+  assert.equal(page.data.saveTemplateSheet.visible, false)
+  assert.equal(mocks.savedTemplate, null)
+  assert.match(mocks.toasts.at(-1).title, /后端天赋数据暂不可用于模拟/)
+})
+
 test('native talent simulator action bar keeps three clear actions on one row', () => {
   const wxml = fs.readFileSync('pages/builds/talent-simulator.wxml', 'utf8')
   const css = fs.readFileSync('pages/builds/talent-simulator.wxss', 'utf8')
@@ -650,11 +707,14 @@ test('native talent simulator page exposes community template import sheet', () 
   assert.match(wxml, /item\.keyLabel/)
   assert.match(wxml, /item\.updatedLabel/)
   assert.match(wxml, /item\.canApplyVisual/)
+  assert.doesNotMatch(wxml, /item\.analysisWindow/)
+  assert.doesNotMatch(wxml, /template-note/)
   assert.match(wxml, /class="template-apply-row"/)
   assert.match(wxml, /bindtap="applyCommunityTemplate"/)
   assert.match(css, /\.community-template-sheet/)
   assert.match(css, /\.community-template-card/)
   assert.match(css, /\.community-template-card\.external/)
+  assert.doesNotMatch(css, /\.template-note/)
   assert.match(css, /\.template-apply-row\s*\{[\s\S]*display:\s*flex;[\s\S]*justify-content:\s*center;[\s\S]*\}/)
   assert.match(css, /\.template-apply-button\s*\{[\s\S]*width:\s*300rpx;[\s\S]*max-width:\s*100%;[\s\S]*margin:\s*0;[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;[\s\S]*line-height:\s*1;[\s\S]*\}/)
 })
@@ -746,6 +806,22 @@ test('native talent simulator filters duplicate community talent trees', () => {
     sampleCount: 20,
     maxKeyLevel: 20
   }
+  const arcaneTemplate = {
+    id: 'rio-arcane-cross-spec',
+    classKey: 'mage',
+    specKey: 'arcane',
+    heroKey: 'spellslinger',
+    name: 'Arcane cross spec',
+    canApplyVisual: true,
+    websimExportCode: 'websim:mage:arcane:spellslinger:arcane:1',
+    talentState: {
+      selectedNodes: [
+        { id: 'arcane', rank: 1 }
+      ]
+    },
+    sampleCount: 99,
+    maxKeyLevel: 30
+  }
   const page = {
     ...pageConfig,
     data: {
@@ -759,8 +835,8 @@ test('native talent simulator filters duplicate community talent trees', () => {
       talentRanks: { root: 1 },
       baseTalentRanks: { root: 1 },
       pointCaps: { class: 1 },
-      communityTemplates: [lowerTemplate, distinctTemplate, strongerTemplate],
-      communityTemplateSync: { sourceStatus: 'synced', sources: {}, templates: { total: 3, verified: 3, blocked: 0 } },
+      communityTemplates: [lowerTemplate, distinctTemplate, strongerTemplate, arcaneTemplate],
+      communityTemplateSync: { sourceStatus: 'synced', sources: {}, templates: { total: 4, verified: 4, blocked: 0 } },
       scenarioOptions: [{ key: 'mythic_plus', title: 'Mythic+' }],
       selectedScenarioIndex: 0
     },

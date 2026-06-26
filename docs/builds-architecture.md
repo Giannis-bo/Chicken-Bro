@@ -33,8 +33,10 @@
 
 装备模拟的真实数据不再由静态 `details.gear` 承担，而是走 `server/websim_payload.py`：
 
+- `GET /api/websim/talents?class=...&spec=...&hero=...` 返回 `nodes`、`treeSections`、`talentAuthority`、`talentReadiness` 和 `blockers`；该读模型必须保持纯只读，不触发社区模板同步或 DB 写入。
+- `POST /api/talents/validate|export|import` 复用同一套 backend authority，不能信任前端裁剪后的节点状态。
 - `GET /api/websim/gear?class=...&spec=...&compact=1` 返回 16 槽、`slotReadiness`、候选装备、来源、变体、宝石/附魔选项、`communityTemplates`、catalog 状态和 blocker。
-- `POST /api/websim/profile` 生成可提交 SimC 的 WebSim profile 前置 payload。
+- `POST /api/websim/profile` 生成可提交 SimC 的 WebSim profile 前置 payload，并返回合并 talent/gear 的 `profileReadiness`。
 - `POST /api/websim/simulate` 只有在天赋编码成功且核心装备槽位 SimC-ready 时才提交到模拟链路。
 - `POST /api/websim/gear/stats` 保留给 WebSim/模拟器链路，不作为职业专精页的普通属性快照来源。
 
@@ -63,6 +65,10 @@
 
 `/api/websim/gear` 这类读模型只能输出 DB 已入库的变体和属性。缺失的勇士 / 英雄 / 神话 / 虚空晋升轨道、缺失属性或缺失 SimC 字段不得由前端或请求时 payload builder 临时推断；应保留为 `partial` / `blocked`，通过 health 和页面提示暴露给项目 owner 分析并回填。
 
+天赋模拟器同样保持 consumer-only：前端可以预览 fallback 树和生成 `websim:` 可视化 export code，但不能生成 `class_talents/spec_talents/hero_talents`。当 `talentStatus=fallback`、`talentAuthority.diffStatus=blocked` 或 `talentReadiness.simcReady=false` 时，只允许预览，不允许保存为可执行模板；最终 SimC profile 仍以后端 `encode_websim_talents` 和 `profileReadiness` 为准。
+
+社区模板导入横跨天赋和装备两条模拟链路，长期执行手册见 [社区模板导入全链路 Runbook](community-template-import-full-chain-runbook.md)。真实 Raider.IO / WCL 样本、manual fixture 和 `websim_baseline` 必须分清来源；baseline 只能作为全职业专精可编辑起点兜底，不能冒充社区玩家样本或强度结论。
+
 ## 当前实现状态
 
 线上当前赛季来源覆盖已经能通过 `/api/game/season` 和 `/api/data/health` 验证：
@@ -73,6 +79,10 @@
 - `/api/websim/gear` 对职业 / 专精返回 16 槽 readiness 和 compact payload；保存装备模板必须补齐 canonical 16 槽，off-hand 只在双手/无副手合理场景可空。
 
 整体 catalog 仍可能是 `partial`。当前主要缺口是 deterministic SimC variant preset、少量天赋 spell detail、社区模板/WCL 凭据或 stat weight 数据，不影响已验证来源覆盖的表达，但会阻断强模拟结论。
+
+天赋链路的长期执行手册见 [全职业天赋模拟全链路 Runbook](talent-simulation-full-chain-runbook.md)。版本或赛季更新时先按该文档确认 SimC trait data、Wago trait edges、Blizzard spell/media、社区模板、health readiness、profile/simulate fail-closed 和回滚边界。
+
+社区模板导入链路的长期执行手册见 [社区模板导入全链路 Runbook](community-template-import-full-chain-runbook.md)。导入推荐刷新时先按该文档确认上游样本、baseline 兜底、per-spec cap、去重、health coverage、40 专精矩阵和回滚边界。
 
 ## API
 

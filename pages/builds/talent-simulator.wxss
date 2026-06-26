@@ -427,8 +427,7 @@
 
 .talent-node.shape-choice.available .talent-choice-frame,
 .talent-node.shape-choice.selected .talent-choice-frame,
-.talent-node.shape-choice.granted .talent-choice-frame,
-.talent-node.shape-choice.selectable:not(.selected) .talent-choice-frame {
+.talent-node.shape-choice.granted .talent-choice-frame {
   background: #f8b700;
 }
 
@@ -442,6 +441,18 @@
 .talent-node.shape-choice.selected::after,
 .talent-node.shape-choice.granted::after {
   border-left-color: #f8b700;
+}
+
+.talent-node.shape-choice.selectable:not(.selected) .talent-choice-frame {
+  background: #24f05a;
+}
+
+.talent-node.shape-choice.selectable:not(.selected)::before {
+  border-right-color: #24f05a;
+}
+
+.talent-node.shape-choice.selectable:not(.selected)::after {
+  border-left-color: #24f05a;
 }
 
 .talent-node.shape-choice.locked:not(.selected)::before {
@@ -943,14 +954,6 @@
   color: #d8d8d8;
   font-size: 20rpx;
   line-height: 1.2;
-}
-
-.template-note {
-  display: block;
-  margin-top: 12rpx;
-  color: #8f8f8f;
-  font-size: 21rpx;
-  line-height: 1.38;
 }
 
 .template-apply-row {

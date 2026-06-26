@@ -267,7 +267,35 @@ function talentSummary(selectedNodes, scenario) {
   return `${scenarioTitle}：已选择 ${count} 个天赋节点，保存前会由后端重新编码校验。`
 }
 
-function talentSaveReadiness(sectionsByKey, code) {
+function backendTalentSaveBlockReason(context = {}) {
+  const readiness = context.talentReadiness || {}
+  const authority = context.talentAuthority || {}
+  const blockers = []
+  if (Array.isArray(readiness.blockers)) blockers.push(...readiness.blockers)
+  if (Array.isArray(context.blockers)) blockers.push(...context.blockers)
+  const detail = blockers.find((item) => String(item || '').trim()) || '请等待 SimulationCraft 天赋目录同步完成'
+  if (context.talentStatus === 'fallback') {
+    return `后端天赋数据暂不可用于模拟：${detail}`
+  }
+  if (authority.diffStatus === 'blocked') {
+    return `后端天赋数据暂不可用于模拟：${detail}`
+  }
+  if (readiness && readiness.simcReady === false) {
+    return `后端天赋数据暂不可用于模拟：${detail}`
+  }
+  return ''
+}
+
+function talentReadinessContext(data = {}) {
+  return {
+    talentStatus: data.talentStatus || '',
+    talentAuthority: data.talentAuthority || {},
+    talentReadiness: data.talentReadiness || {},
+    blockers: data.talentBlockers || []
+  }
+}
+
+function talentSaveReadiness(sectionsByKey, code, readinessContext = {}) {
   const sections = TREE_ORDER
     .map((key) => ({ key, ...((sectionsByKey && sectionsByKey[key]) || {}) }))
     .filter((section) => Number(section.pointCap) > 0)
@@ -289,6 +317,13 @@ function talentSaveReadiness(sectionsByKey, code) {
     return {
       canSaveTalentTemplate: false,
       saveBlockReason: `请先点满天赋点：${detail}`
+    }
+  }
+  const backendBlockReason = backendTalentSaveBlockReason(readinessContext)
+  if (backendBlockReason) {
+    return {
+      canSaveTalentTemplate: false,
+      saveBlockReason: backendBlockReason
     }
   }
   return {
@@ -365,15 +400,21 @@ function decorateCommunityTemplate(template) {
   }
 }
 
-function activeTemplatesForClass(templates, classKey) {
+function activeTemplatesForClass(templates, classKey, specKey) {
   if (typeof coreTemplatesForClass === 'function') {
-    return coreTemplatesForClass(templates, classKey)
+    return coreTemplatesForClass(templates, classKey, specKey)
   }
   const key = String(classKey || '').trim()
+  const spec = String(specKey || '').trim()
   return (Array.isArray(templates) ? templates : []).filter((template) => {
     if (!template) return false
-    return !key || (template.classKey || '') === key
-  })
+    const parsed = parseTalentExportCode(template.websimExportCode)
+    const templateClass = String(template.classKey || (parsed && parsed.classKey) || '').trim()
+    const templateSpec = String(template.specKey || (parsed && parsed.specKey) || '').trim()
+    if (key && templateClass !== key) return false
+    if (spec && templateSpec !== spec) return false
+    return true
+  }).slice(0, 3)
 }
 
 function communityTemplateContext(template) {
@@ -426,6 +467,9 @@ Page({
     communityTemplateSheet: { visible: false },
     selectedCommunityTemplate: null,
     talentStatus: 'loading',
+    talentAuthority: { diffStatus: 'blocked' },
+    talentReadiness: { simcReady: false, blockers: [] },
+    talentBlockers: [],
     nodes: [],
     treeSections: [],
     talentRanks: {},
@@ -538,6 +582,9 @@ Page({
         },
         selectedCommunityTemplate: null,
         talentStatus: payload.talentStatus || 'blocked',
+        talentAuthority: payload.talentAuthority || { diffStatus: 'blocked' },
+        talentReadiness: payload.talentReadiness || { simcReady: false, blockers: payload.blockers || [] },
+        talentBlockers: payload.blockers || [],
         currentSeason: payload.currentSeason || this.data.currentSeason,
         heroKey: payload.heroKey || currentHero.key || '',
         pointCaps: rankState.pointCaps,
@@ -583,9 +630,13 @@ Page({
     const sourceStatus = (this.data.communityTemplateSync && this.data.communityTemplateSync.sourceStatus) || 'missing_credentials'
     const canShowTemplates = sourceStatus === 'synced' || sourceStatus === 'partial'
     const activeCommunityTemplates = canShowTemplates
-      ? activeTemplatesForClass(this.data.communityTemplates, this.data.classKey).map(decorateCommunityTemplate)
+      ? activeTemplatesForClass(this.data.communityTemplates, this.data.classKey, this.data.specKey).map(decorateCommunityTemplate)
       : []
-    const saveReadiness = talentSaveReadiness(sectionsByKey, viewModel.websimExportCode)
+    const saveReadiness = talentSaveReadiness(
+      sectionsByKey,
+      viewModel.websimExportCode,
+      talentReadinessContext(this.data)
+    )
     this.setData({
       classSection,
       specSection,
@@ -857,7 +908,7 @@ Page({
       class: this.data.classSection,
       hero: this.data.heroSection,
       spec: this.data.specSection
-    }, this.data.websimExportCode)
+    }, this.data.websimExportCode, talentReadinessContext(this.data))
     if (!saveReadiness.canSaveTalentTemplate) {
       this.setData(saveReadiness)
       safeToast(saveReadiness.saveBlockReason)
@@ -905,7 +956,7 @@ Page({
       class: this.data.classSection,
       hero: this.data.heroSection,
       spec: this.data.specSection
-    }, this.data.websimExportCode)
+    }, this.data.websimExportCode, talentReadinessContext(this.data))
     if (!saveReadiness.canSaveTalentTemplate) {
       this.setData(saveReadiness)
       safeToast(saveReadiness.saveBlockReason)
@@ -927,7 +978,7 @@ Page({
       class: this.data.classSection,
       hero: this.data.heroSection,
       spec: this.data.specSection
-    }, this.data.websimExportCode)
+    }, this.data.websimExportCode, talentReadinessContext(this.data))
     if (!saveReadiness.canSaveTalentTemplate) {
       this.setData(saveReadiness)
       safeToast(saveReadiness.saveBlockReason)

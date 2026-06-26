@@ -223,6 +223,7 @@ SIMC_TALENT_SOURCE_REFS = [
     }
 ]
 COMMUNITY_TALENT_SYNC_KEY = "community_talent_templates"
+COMMUNITY_TALENT_TEMPLATE_LIMIT_PER_SPEC = 3
 COMMUNITY_TEMPLATE_SYNC_RUN_KEY = "community_template_sync_latest"
 COMMUNITY_TEMPLATE_REVISION = "community-template-v1"
 TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
@@ -6238,6 +6239,36 @@ def clean_simc_spell_text(value):
     return text.strip()
 
 
+UNRESOLVED_SPELL_TEXT_RE = re.compile(
+    r"\$\?|\$\{|\$@[A-Za-z][A-Za-z0-9_]*\d*|\$\d+[A-Za-z]\d*|\$[A-Za-z][A-Za-z0-9_]*"
+)
+TALENT_DESCRIPTION_MISSING = "描述待补：当前天赋目录缺少可展示说明。"
+TALENT_DESCRIPTION_UNRESOLVED = "描述待补：当前上游说明包含未解析数值，等待法术文本对账。"
+
+
+def normalize_spell_display_text(value):
+    text = str(value or "").replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"\|[cC][0-9A-Fa-f]{8}", "", text)
+    text = text.replace("|r", "").replace("|R", "")
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    return text.strip()
+
+
+def spell_text_has_unresolved_tokens(value):
+    return bool(UNRESOLVED_SPELL_TEXT_RE.search(str(value or "")))
+
+
+def talent_spell_display_description(value):
+    text = normalize_spell_display_text(value)
+    if not text:
+        return TALENT_DESCRIPTION_MISSING, "missing"
+    if spell_text_has_unresolved_tokens(text):
+        return TALENT_DESCRIPTION_UNRESOLVED, "pending_formula_resolution"
+    return text, "ready"
+
+
 def simc_spell_description(desc, tooltip):
     desc_text = clean_simc_spell_text(desc)
     tooltip_text = clean_simc_spell_text(tooltip)
@@ -11099,10 +11130,7 @@ def decorate_real_talent_node(row, season):
     icon_name = CLASS_ICON_NAMES.get(row[1], "inv_misc_questionmark")
     if tree_type in {"spec", "hero"}:
         icon_name = SPEC_ICON_NAMES.get(row[2], icon_name)
-    description = row[9] or payload.get("description") or (
-        f"SimulationCraft {tree_type} talent node for "
-        f"{SPEC_LABELS.get(row[2], row[2].replace('_', ' ').title())}."
-    )
+    description, description_status = talent_spell_display_description(row[9] or payload.get("description") or "")
     icon_url = row[10] or wow_icon_url(icon_name)
     spell_detail_payload = safe_json_loads(row[11] if len(row) > 11 else "", {})
     icon_source, icon_status = spell_icon_asset_source_status(
@@ -11148,6 +11176,7 @@ def decorate_real_talent_node(row, season):
         "dependencySource": payload.get("dependencySource", ""),
         "schemaRevision": TALENT_SCHEMA_REVISION,
         "description": description,
+        "descriptionStatus": description_status,
         "iconUrl": icon_url,
         "gameAsset": game_asset,
         "source": payload.get("source", "simulationcraft"),
@@ -11203,10 +11232,14 @@ def enrich_talent_rank_entries(conn, nodes):
         """,
         spell_ids,
     ).fetchall()
-    details = {
-        int(row[0]): {"name": row[1] or "", "description": row[2] or ""}
-        for row in rows
-    }
+    details = {}
+    for row in rows:
+        description, description_status = talent_spell_display_description(row[2] or "")
+        details[int(row[0])] = {
+            "name": row[1] or "",
+            "description": description,
+            "descriptionStatus": description_status,
+        }
     for node in nodes or []:
         next_entries = []
         for entry in node.get("rankEntries") or []:
@@ -11215,6 +11248,7 @@ def enrich_talent_rank_entries(conn, nodes):
             next_entry = dict(entry)
             if detail.get("description"):
                 next_entry["description"] = detail["description"]
+                next_entry["descriptionStatus"] = detail.get("descriptionStatus") or "missing"
             if detail.get("name"):
                 next_entry["spellName"] = detail["name"]
             next_entries.append(next_entry)
@@ -11309,9 +11343,149 @@ def get_websim_instances(conn):
     ]
 
 
+def talent_node_description_status(node):
+    status = str((node or {}).get("descriptionStatus") or "").strip()
+    if status:
+        return status
+    return "ready" if str((node or {}).get("description") or "").strip() else "missing"
+
+
+def talent_node_spell_status_counts(nodes):
+    counts = {
+        "coveredSpellCount": 0,
+        "missingDescriptionCount": 0,
+        "unresolvedDescriptionCount": 0,
+        "missingIconCount": 0,
+    }
+    for node in nodes or []:
+        if not isinstance(node, dict):
+            continue
+        status = talent_node_description_status(node)
+        entry_statuses = [
+            str(entry.get("descriptionStatus") or "").strip()
+            for entry in node.get("rankEntries") or []
+            if isinstance(entry, dict) and str(entry.get("descriptionStatus") or "").strip()
+        ]
+        has_unresolved = status == "pending_formula_resolution" or any(
+            entry_status == "pending_formula_resolution" for entry_status in entry_statuses
+        )
+        has_missing_description = status == "missing" or any(entry_status == "missing" for entry_status in entry_statuses)
+        has_icon = bool(str(node.get("iconUrl") or "").strip())
+        if has_unresolved:
+            counts["unresolvedDescriptionCount"] += 1
+        if has_missing_description:
+            counts["missingDescriptionCount"] += 1
+        if not has_icon:
+            counts["missingIconCount"] += 1
+        if status == "ready" and not has_unresolved and not has_missing_description and has_icon:
+            counts["coveredSpellCount"] += 1
+    return counts
+
+
+def talent_readiness_payload(class_key, spec_key, hero_key, talent_status, nodes, tree_sections, talent_authority=None):
+    node_list = nodes if isinstance(nodes, list) else []
+    sections = tree_sections if isinstance(tree_sections, list) else []
+    required_trees = {"class", "spec", "hero"}
+    section_keys = {
+        str(section.get("key") or "").strip()
+        for section in sections
+        if isinstance(section, dict) and int(section.get("pointCap") or 0) > 0
+    }
+    node_tree_types = {
+        str(node.get("treeType") or "").strip()
+        for node in node_list
+        if isinstance(node, dict) and str(node.get("treeType") or "").strip()
+    }
+    node_counts = {
+        tree_type: sum(1 for node in node_list if isinstance(node, dict) and node.get("treeType") == tree_type)
+        for tree_type in sorted(required_trees)
+    }
+    entry_counts = {
+        tree_type: sum(
+            1
+            for node in node_list
+            if isinstance(node, dict) and node.get("treeType") == tree_type and websim_node_entry_id(node) > 0
+        )
+        for tree_type in sorted(required_trees)
+    }
+    missing_trees = sorted(required_trees - (section_keys & node_tree_types))
+    tree_ready = not missing_trees
+    non_fallback = talent_status != "fallback"
+    rule_ready = non_fallback and bool(node_list) and all(
+        isinstance(node, dict)
+        and node.get("schemaRevision") == TALENT_SCHEMA_REVISION
+        and str(node.get("parentMode") or "any") in {"any", "all"}
+        and "pointRequirement" in node
+        and "grantedRank" in node
+        for node in node_list
+    )
+    spell_counts = talent_node_spell_status_counts(node_list)
+    spell_ready = bool(
+        non_fallback
+        and node_list
+        and spell_counts["coveredSpellCount"] == len([node for node in node_list if isinstance(node, dict)])
+    )
+    encoding_ready = non_fallback and tree_ready and all(entry_counts.get(tree_type, 0) > 0 for tree_type in required_trees)
+    diff_status = str(((talent_authority or {}).get("diffStatus") or "")).strip()
+    authority_blocked = diff_status == "blocked"
+    blockers = []
+    if talent_status == "fallback":
+        blockers.append("WebSim talent cache is fallback; sync SimulationCraft talent data before running SimC")
+    if missing_trees:
+        blockers.append(f"talent tree is incomplete for {', '.join(missing_trees)}")
+    if not rule_ready:
+        blockers.append("talent authority rules are incomplete")
+    if not spell_ready:
+        blockers.append("talent spell descriptions/icons are incomplete")
+    if spell_counts["unresolvedDescriptionCount"]:
+        blockers.append(
+            "talent spell descriptions contain unresolved formula text for "
+            f"{spell_counts['unresolvedDescriptionCount']} talent nodes"
+        )
+    if not encoding_ready:
+        blockers.append("talent nodes cannot produce class/spec/hero SimC talent lines")
+    if authority_blocked:
+        blockers.append("talent authority diff status is blocked")
+    rule_sources = sorted({
+        str(node.get("dependencySource") or node.get("source") or "").strip()
+        for node in node_list
+        if isinstance(node, dict) and str(node.get("dependencySource") or node.get("source") or "").strip()
+    })
+    return {
+        "schemaRevision": TALENT_SCHEMA_REVISION,
+        "classKey": class_key,
+        "specKey": spec_key,
+        "heroKey": hero_key,
+        "sourceStatus": talent_status,
+        "treeReady": tree_ready,
+        "ruleReady": rule_ready,
+        "spellReady": spell_ready,
+        "encodingReady": encoding_ready,
+        "simcReady": bool(non_fallback and tree_ready and rule_ready and encoding_ready and not authority_blocked),
+        "treeCoverage": {
+            "required": sorted(required_trees),
+            "present": sorted(section_keys & node_tree_types),
+            "missing": missing_trees,
+            "nodeCounts": node_counts,
+        },
+        "ruleSource": ", ".join(rule_sources) or ("fallback" if talent_status == "fallback" else ""),
+        "spellCoverage": {
+            **catalog_health_coverage(spell_counts["coveredSpellCount"], len(node_list)),
+            "missingDescriptionCount": spell_counts["missingDescriptionCount"],
+            "unresolvedDescriptionCount": spell_counts["unresolvedDescriptionCount"],
+            "missingIconCount": spell_counts["missingIconCount"],
+        },
+        "encodingCoverage": {
+            "required": sorted(required_trees),
+            "covered": sorted(tree_type for tree_type in required_trees if entry_counts.get(tree_type, 0) > 0),
+            "entryCounts": entry_counts,
+        },
+        "blockers": unique_text_list(blockers),
+    }
+
+
 def get_websim_talents(conn, class_key="mage", spec_key="arcane", hero_key=""):
     ensure_websim_tables(conn)
-    ensure_community_talent_templates(conn)
     season = get_active_season_payload(conn)
     class_key = slugify(class_key, "mage")
     spec_key = slugify(spec_key, "arcane")
@@ -11342,23 +11516,38 @@ def get_websim_talents(conn, class_key="mage", spec_key="arcane", hero_key=""):
         conn,
         dedupe_real_talent_nodes([decorate_real_talent_node(row, season) for row in filtered_rows]),
     )
-    has_spell_details = any(row[9] and row[10] for row in filtered_rows)
+    has_spell_details = bool(filtered_rows) and all(
+        talent_spell_display_description(row[9] or "")[1] == "ready" and str(row[10] or "").strip()
+        for row in filtered_rows
+    )
     talent_status = "verified" if nodes and season.get("dataStatus") == "verified" and has_spell_details else "simc"
     if not nodes:
         nodes = fallback_talents(class_key, spec_key, hero_key)
         talent_status = "fallback"
     talent_authority = talent_authority_payload(conn, talent_status, season, nodes)
+    tree_sections = talent_tree_sections(class_key, spec_key, hero_key)
+    talent_readiness = talent_readiness_payload(
+        class_key,
+        spec_key,
+        hero_key,
+        talent_status,
+        nodes,
+        tree_sections,
+        talent_authority,
+    )
     return {
         "classKey": class_key,
         "specKey": spec_key,
         "heroKey": hero_key,
         "talentSchemaRevision": TALENT_SCHEMA_REVISION,
         "talentAuthority": talent_authority,
+        "talentReadiness": talent_readiness,
+        "blockers": talent_readiness.get("blockers") or [],
         "nodes": nodes,
         "presets": get_websim_presets(conn, class_key, spec_key),
         "communityTemplates": get_websim_community_talent_templates(conn, class_key, spec_key, hero_key),
         "communityTemplateSync": community_talent_sync_state(conn),
-        "treeSections": talent_tree_sections(class_key, spec_key, hero_key),
+        "treeSections": tree_sections,
         "talentStatus": talent_status,
         **season_metadata_fields(season),
     }
@@ -11403,6 +11592,7 @@ def ensure_community_talent_templates(conn):
                 "manual_fixture": {"status": "blocked", "sourceName": "Manual Fixture", "errors": [str(error)]},
                 "raiderio": {"status": "missing_credentials", "sourceName": "Raider.IO", "errors": []},
                 "warcraftlogs": {"status": "missing_credentials", "sourceName": "Warcraft Logs", "errors": []},
+                "websim_baseline": {"status": "blocked", "sourceName": "WebSim 基线模板", "errors": [str(error)]},
             },
             "templates": {"total": 0, "verified": 0, "blocked": 0},
             "checkedAt": utc_now(),
@@ -11469,6 +11659,7 @@ def community_talent_sync_state(conn):
             "manual_fixture": {"status": "missing_credentials", "sourceName": "Manual Fixture", "errors": []},
             "raiderio": {"status": "missing_credentials", "sourceName": "Raider.IO", "errors": []},
             "warcraftlogs": {"status": "missing_credentials", "sourceName": "Warcraft Logs", "errors": []},
+            "websim_baseline": {"status": "missing_credentials", "sourceName": "WebSim 基线模板", "errors": []},
         },
         "templates": {"total": 0, "verified": 0, "blocked": 0},
         "templateRevision": stats["templateRevision"],
@@ -11543,6 +11734,20 @@ def expected_spec_pairs():
             if class_key and spec_key:
                 pairs.append(f"{class_key}:{spec_key}")
     return pairs
+
+
+def expected_hero_tree_triplets():
+    triplets = []
+    for klass in WOW_CLASSES:
+        class_key = slugify(klass.get("key"), "")
+        for spec in klass.get("specs") or []:
+            spec_key = slugify(spec.get("key") if isinstance(spec, dict) else spec, "")
+            if not class_key or not spec_key:
+                continue
+            for hero_key in hero_trees_for_spec(class_key, spec_key):
+                if hero_key:
+                    triplets.append(f"{class_key}:{spec_key}:{hero_key}")
+    return triplets
 
 
 def community_template_revision_from_signatures(signatures):
@@ -11651,6 +11856,47 @@ def dedupe_templates_by_signature(templates, signature_getter, sort_key_getter):
     return sorted(deduped, key=sort_key_getter, reverse=True)
 
 
+def community_talent_public_identity(template):
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    player_id = str(template.get("playerId") or payload.get("playerId") or "").strip()
+    visible_name = player_id or str(template.get("name") or template.get("id") or "").strip()
+    return "|".join([
+        str(template.get("sourceKey") or payload.get("sourceKey") or "").strip().lower(),
+        visible_name.lower(),
+        slugify(template.get("classKey"), ""),
+        slugify(template.get("specKey"), ""),
+        slugify(template.get("heroKey"), ""),
+        slugify(template.get("scenarioKey"), ""),
+    ])
+
+
+def dedupe_community_talent_templates_for_display(templates):
+    by_signature = dedupe_templates_by_signature(
+        templates,
+        community_talent_signature,
+        community_talent_template_sort_key,
+    )
+    groups = {}
+    for template in by_signature:
+        identity = community_talent_public_identity(template)
+        if not identity:
+            continue
+        groups.setdefault(identity, []).append(template)
+    deduped = []
+    for grouped in groups.values():
+        winner = sorted(grouped, key=community_talent_template_sort_key, reverse=True)[0]
+        merged_refs = []
+        deduped_count = 0
+        for item in grouped:
+            merged_refs.extend(item.get("sourceRefs") or [])
+            deduped_count += max(1, int(item.get("dedupedCount") or 1))
+        winner = {**winner}
+        winner["sourceRefs"] = normalize_source_refs(merged_refs)
+        winner["dedupedCount"] = deduped_count
+        deduped.append(winner)
+    return sorted(deduped, key=community_talent_template_sort_key, reverse=True)
+
+
 def community_talent_default_state_from_db(conn, class_key, spec_key, hero_key):
     rows = conn.execute(
         """
@@ -11701,6 +11947,206 @@ def community_talent_default_state_from_db(conn, class_key, spec_key, hero_key):
             selected.append({"id": node["id"], "rank": 1})
             selected_ids.add(node["id"])
     return {"selectedNodes": selected}
+
+
+def community_talent_rows_from_rank_map(ranks):
+    return [
+        {"id": node_id, "rank": rank}
+        for node_id, rank in sorted((str(key), int(value or 0)) for key, value in (ranks or {}).items())
+        if node_id and rank > 0
+    ]
+
+
+def community_talent_baseline_state_from_authority(conn, class_key, spec_key, hero_key):
+    talent_payload, nodes_by_id = build_websim_authority_nodes(conn, class_key, spec_key, hero_key)
+    nodes = [node for node in talent_payload.get("nodes") or [] if isinstance(node, dict) and node.get("id")]
+    tree_sections = talent_payload.get("treeSections") or talent_tree_sections(class_key, spec_key, hero_key)
+    point_caps = {
+        str(section.get("key") or ""): int(section.get("pointCap") or 0)
+        for section in tree_sections
+        if isinstance(section, dict) and int(section.get("pointCap") or 0) > 0
+    }
+    tree_order = {"class": 0, "spec": 1, "hero": 2}
+    candidates = sorted(
+        nodes,
+        key=lambda node: (
+            tree_order.get(str(node.get("treeType") or ""), 9),
+            int(node.get("pointRequirement") or 0),
+            int(node.get("row") or 0),
+            int(node.get("col") or 0),
+            int(node.get("selectionIndex") or 0),
+            str(node.get("id") or ""),
+        ),
+    )
+    ranks = {}
+    granted_counts = {"class": 0, "spec": 0, "hero": 0}
+    for node in candidates:
+        node_id = str(node.get("id") or "")
+        tree_type = str(node.get("treeType") or "")
+        granted_rank = max(0, int(node.get("grantedRank") or 0))
+        if node_id and granted_rank > 0:
+            ranks[node_id] = granted_rank
+            granted_counts[tree_type] = granted_counts.get(tree_type, 0) + granted_rank
+    purchased_targets = {
+        tree_type: max(0, int(point_caps.get(tree_type) or 0) - int(granted_counts.get(tree_type) or 0))
+        for tree_type in ("class", "spec", "hero")
+    }
+
+    last_encoding = None
+    for tree_type in ("class", "spec", "hero"):
+        target = int(purchased_targets.get(tree_type) or 0)
+        if target <= 0:
+            continue
+        for _attempt in range(max(1, target * 4)):
+            selected_rows = community_talent_rows_from_rank_map(ranks)
+            _encoded, selected_counts, _errors, _warnings = validate_websim_talent_selection(
+                nodes_by_id,
+                selected_rows,
+                tree_sections,
+            )
+            if int(selected_counts.get(tree_type) or 0) >= target:
+                break
+            progressed = False
+            for node in candidates:
+                if (node.get("treeType") or "") != tree_type:
+                    continue
+                node_id = str(node.get("id") or "")
+                if not node_id:
+                    continue
+                max_rank = max(1, int(node.get("maxRank") or node.get("rank") or 1))
+                current_rank = max(0, int(ranks.get(node_id) or 0))
+                if current_rank >= max_rank:
+                    continue
+                trial_ranks = {**ranks, node_id: current_rank + 1}
+                trial_rows = community_talent_rows_from_rank_map(trial_ranks)
+                encoded, trial_counts, errors, _warnings = validate_websim_talent_selection(
+                    nodes_by_id,
+                    trial_rows,
+                    tree_sections,
+                )
+                if errors:
+                    continue
+                if int(trial_counts.get(tree_type) or 0) > target:
+                    continue
+                ranks = trial_ranks
+                last_encoding = {"encoded": encoded, "selectedCounts": trial_counts, "errors": errors}
+                progressed = True
+                break
+            if not progressed:
+                break
+
+    selected_rows = community_talent_rows_from_rank_map(ranks)
+    encoded, selected_counts, errors, warnings = validate_websim_talent_selection(
+        nodes_by_id,
+        selected_rows,
+        tree_sections,
+    )
+    active_counts = {"class": 0, "spec": 0, "hero": 0}
+    for row in selected_rows:
+        node = nodes_by_id.get(row["id"])
+        if not node:
+            continue
+        tree_type = node.get("treeType") or ("class" if node.get("specKey") == "class" else "spec")
+        active_counts[tree_type] = active_counts.get(tree_type, 0) + int(row.get("rank") or 0)
+    complete = bool(
+        selected_rows
+        and not errors
+        and all(int(active_counts.get(tree_type) or 0) >= int(point_caps.get(tree_type) or 0) for tree_type in ("class", "spec", "hero"))
+    )
+    blockers = []
+    if not selected_rows:
+        blockers.append("no WebSim authority nodes available for baseline template")
+    for tree_type in ("class", "spec", "hero"):
+        target = int(point_caps.get(tree_type) or 0)
+        selected = int(active_counts.get(tree_type) or 0)
+        if target and selected < target:
+            blockers.append(f"{tree_type} baseline only selected {selected}/{target} talent points")
+    blockers.extend(errors or [])
+    return {
+        "selectedNodes": selected_rows if complete else [],
+        "baseline": {
+            "complete": complete,
+            "targetCounts": point_caps,
+            "purchasedTargetCounts": purchased_targets,
+            "grantedCounts": granted_counts,
+            "selectedCounts": selected_counts,
+            "activeSelectedCounts": active_counts,
+            "warnings": warnings,
+            "blockers": unique_text_list(blockers),
+            "lastEncoding": last_encoding or {},
+        },
+    }
+
+
+def build_websim_baseline_talent_template(conn, class_key, spec_key, hero_key=""):
+    class_key = slugify(class_key, "mage")
+    spec_key = slugify(spec_key, "arcane")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(hero_key, ""))
+    state = community_talent_baseline_state_from_authority(conn, class_key, spec_key, hero_key)
+    baseline = state.get("baseline") if isinstance(state.get("baseline"), dict) else {}
+    status = "verified" if baseline.get("complete") else "blocked"
+    return {
+        "id": f"websim-baseline-{class_key}-{spec_key}-{hero_key}",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "heroKey": hero_key,
+        "scenarioKey": "mythic_plus",
+        "name": f"WebSim 基线-{class_label(class_key)}-{spec_label(spec_key)}-{hero_tree_label(hero_key)}",
+        "flowLabel": "基线",
+        "sourceKey": "websim_baseline",
+        "sourceName": "WebSim 基线模板",
+        "sourceUrl": "docs/community-template-import-full-chain-runbook.md",
+        "sampleCount": 0,
+        "maxKeyLevel": 0,
+        "analysisWindow": "backend-authority-baseline",
+        "sourceStatus": "synced" if baseline.get("complete") else "partial",
+        "status": status,
+        "talentState": {"selectedNodes": state.get("selectedNodes") or []},
+        "payload": {
+            "baseline": baseline,
+            "sourceType": "backend_authority_baseline",
+        },
+        "updatedAt": utc_now(),
+        "expiresAt": season_expires_at(),
+    }
+
+
+def load_websim_baseline_talent_templates(conn):
+    templates = []
+    errors = []
+    expected = expected_spec_pairs()
+    for klass in WOW_CLASSES:
+        class_key = slugify(klass.get("key"), "")
+        if not class_key:
+            continue
+        for spec in klass.get("specs") or []:
+            spec_key = slugify(spec, "")
+            if not spec_key:
+                continue
+            hero_key = hero_tree_for(class_key, spec_key, "")
+            try:
+                template = build_websim_baseline_talent_template(conn, class_key, spec_key, hero_key)
+                templates.append(template)
+                baseline = (template.get("payload") or {}).get("baseline") or {}
+                if not baseline.get("complete"):
+                    errors.extend(
+                        f"{class_key}:{spec_key}: {blocker}"
+                        for blocker in baseline.get("blockers") or ["baseline template incomplete"]
+                    )
+            except Exception as error:
+                errors.append(f"{class_key}:{spec_key}: {error}")
+    complete_count = sum(
+        1
+        for template in templates
+        if ((template.get("payload") or {}).get("baseline") or {}).get("complete")
+    )
+    source_status = "synced" if expected and complete_count >= len(expected) and not errors else ("partial" if complete_count else "blocked")
+    return {
+        "status": source_status,
+        "sourceName": "WebSim 基线模板",
+        "templates": templates,
+        "errors": unique_text_list(errors)[:80],
+    }
 
 
 def community_talent_structured_loadout(template):
@@ -12191,6 +12637,7 @@ def upsert_community_talent_template(conn, template):
 def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arcane", hero_key=""):
     ensure_websim_tables(conn)
     class_key = slugify(class_key, "mage")
+    spec_key = slugify(spec_key, "arcane")
     rows = conn.execute(
         """
         SELECT id, class_key, spec_key, hero_key, scenario_key, name, flow_label,
@@ -12200,11 +12647,12 @@ def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arca
                signature, source_refs_json, scan_run_id
         FROM websim_community_talent_templates
         WHERE class_key = ?
+          AND spec_key = ?
           AND status = 'verified'
-        ORDER BY max_key_level DESC, sample_count DESC, spec_key, hero_key, name
+        ORDER BY max_key_level DESC, sample_count DESC, hero_key, name
         LIMIT 240
         """,
-        (class_key,),
+        (class_key, spec_key),
     ).fetchall()
     templates = []
     for row in rows:
@@ -12251,12 +12699,8 @@ def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arca
             "canApplyVisual": can_apply_visual,
             "canUseInSimc": bool(can_apply_visual or raw_import_code),
         })
-    deduped = dedupe_templates_by_signature(
-        templates,
-        community_talent_signature,
-        community_talent_template_sort_key,
-    )
-    return deduped[:60]
+    deduped = dedupe_community_talent_templates_for_display(templates)
+    return deduped[:COMMUNITY_TALENT_TEMPLATE_LIMIT_PER_SPEC]
 
 
 def sync_community_talent_templates(conn):
@@ -12270,6 +12714,7 @@ def sync_community_talent_templates(conn):
         "manual_fixture": manual_fixture.load_templates,
         "raiderio": raiderio.load_templates,
         "warcraftlogs": warcraftlogs.load_templates,
+        "websim_baseline": load_websim_baseline_talent_templates,
     }
     sources = {}
     verified = 0
@@ -14307,24 +14752,30 @@ def talent_catalog_spell_detail_coverage(conn):
     covered = 0
     missing_detail = 0
     missing_description = 0
+    unresolved_description = 0
     missing_icon = 0
     for row in rows:
         has_detail = bool(row[1])
-        has_description = bool(str(row[2] or "").strip())
+        description_text = normalize_spell_display_text(row[2] or "")
+        has_description = bool(description_text)
+        has_unresolved_description = bool(has_description and spell_text_has_unresolved_tokens(description_text))
         has_icon = bool(str(row[3] or "").strip())
         if not has_detail:
             missing_detail += 1
         if not has_description:
             missing_description += 1
+        if has_unresolved_description:
+            unresolved_description += 1
         if not has_icon:
             missing_icon += 1
-        if has_detail and has_description and has_icon:
+        if has_detail and has_description and not has_unresolved_description and has_icon:
             covered += 1
     return {
         "talentSpellCount": talent_spell_count,
         "coveredSpellCount": covered,
         "missingSpellDetailCount": missing_detail,
         "missingDescriptionCount": missing_description,
+        "unresolvedDescriptionCount": unresolved_description,
         "missingIconCount": missing_icon,
         "coverage": catalog_health_coverage(covered, talent_spell_count),
     }
@@ -14356,6 +14807,7 @@ def talent_catalog_counts(conn):
     class_keys = set()
     spec_pairs = set()
     hero_trees = set()
+    hero_tree_triplets = set()
     tree_type_counts = {"class": 0, "spec": 0, "hero": 0, "unknown": 0}
     for class_key, spec_key, _spell_id, payload_json in talent_rows:
         class_key = str(class_key or "").strip()
@@ -14373,6 +14825,8 @@ def talent_catalog_counts(conn):
             hero_key = str((payload or {}).get("heroKey") or "").strip()
             if hero_key:
                 hero_trees.add(hero_key)
+                if class_key and spec_key:
+                    hero_tree_triplets.add(f"{class_key}:{spec_key}:{hero_key}")
             if class_key and spec_key:
                 spec_pairs.add(f"{class_key}:{spec_key}")
     spell_detail_coverage = talent_catalog_spell_detail_coverage(conn)
@@ -14393,6 +14847,9 @@ def talent_catalog_counts(conn):
     expected_specs = set(expected_spec_pairs())
     covered_expected_specs = spec_pairs & expected_specs if expected_specs else spec_pairs
     missing_specs = sorted(expected_specs - spec_pairs) if expected_specs else []
+    expected_heroes = set(expected_hero_tree_triplets())
+    covered_expected_heroes = hero_tree_triplets & expected_heroes if expected_heroes else hero_tree_triplets
+    missing_heroes = sorted(expected_heroes - hero_tree_triplets) if expected_heroes else []
     return {
         "talentCount": len(talent_rows),
         "classCount": len(class_keys),
@@ -14407,6 +14864,10 @@ def talent_catalog_counts(conn):
         "coveredExpectedSpecCount": len(covered_expected_specs),
         "missingSpecCount": len(missing_specs),
         "missingSpecs": missing_specs[:40],
+        "expectedHeroTreeCount": len(expected_heroes),
+        "coveredExpectedHeroTreeCount": len(covered_expected_heroes),
+        "missingHeroTreeCount": len(missing_heroes),
+        "missingHeroTrees": missing_heroes[:40],
         "spellDetailCoverage": spell_detail_coverage,
         "updatedAt": talent_catalog_latest_updated_at(conn),
     }
@@ -14424,6 +14885,7 @@ def talent_catalog_revision_from_counts(counts, sync_state=None):
                 "profilePresetCount": counts.get("profilePresetCount") or 0,
                 "communityTemplateCount": counts.get("communityTemplateCount") or 0,
                 "coveredSpellCount": (counts.get("spellDetailCoverage") or {}).get("coveredSpellCount") or 0,
+                "unresolvedDescriptionCount": (counts.get("spellDetailCoverage") or {}).get("unresolvedDescriptionCount") or 0,
                 "simcBuild": simc_state.get("build") or simc_state.get("version") or "",
             },
             sort_keys=True,
@@ -14442,10 +14904,19 @@ def talent_catalog_health_payload(conn):
     blockers = []
     if not counts.get("talentCount"):
         blockers.append("talent catalog has no local talent nodes")
+    if counts.get("missingSpecCount"):
+        blockers.append(f"talent catalog missing {counts.get('missingSpecCount')} expected specs")
+    if counts.get("missingHeroTreeCount"):
+        blockers.append(f"talent catalog missing {counts.get('missingHeroTreeCount')} expected hero trees")
     if spell_coverage.get("missingSpellDetailCount"):
         blockers.append(f"talent spell details missing for {spell_coverage.get('missingSpellDetailCount')} talent spells")
     if spell_coverage.get("missingDescriptionCount"):
         blockers.append(f"talent spell descriptions missing for {spell_coverage.get('missingDescriptionCount')} talent spells")
+    if spell_coverage.get("unresolvedDescriptionCount"):
+        blockers.append(
+            "talent spell descriptions contain unresolved formula text for "
+            f"{spell_coverage.get('unresolvedDescriptionCount')} talent spells"
+        )
     if spell_coverage.get("missingIconCount"):
         blockers.append(f"talent spell icons missing for {spell_coverage.get('missingIconCount')} talent spells")
     if counts.get("talentCount") and counts.get("profilePresetCount", 0) == 0:
@@ -14455,6 +14926,52 @@ def talent_catalog_health_payload(conn):
     checked_at = sync_state.get("checkedAt") or sync_state.get("updatedAt") or counts.get("updatedAt") or ""
     revision = talent_catalog_revision_from_counts(counts, sync_state)
     source_status = "simc" if counts.get("talentCount") else "blocked"
+    spec_coverage = catalog_health_coverage(counts.get("coveredExpectedSpecCount") or 0, counts.get("expectedSpecCount") or 0)
+    hero_coverage = catalog_health_coverage(
+        counts.get("coveredExpectedHeroTreeCount") or 0,
+        counts.get("expectedHeroTreeCount") or 0,
+    )
+    tree_type_counts = counts.get("treeTypeCounts") or {}
+    tree_ready = bool(
+        counts.get("talentCount")
+        and not counts.get("missingSpecCount")
+        and not counts.get("missingHeroTreeCount")
+        and all((tree_type_counts.get(tree_type) or 0) > 0 for tree_type in ("class", "spec", "hero"))
+    )
+    rule_ready = tree_ready and source_status == "simc"
+    spell_ready = bool(
+        spell_coverage.get("talentSpellCount")
+        and not spell_coverage.get("missingSpellDetailCount")
+        and not spell_coverage.get("missingDescriptionCount")
+        and not spell_coverage.get("unresolvedDescriptionCount")
+        and not spell_coverage.get("missingIconCount")
+    )
+    preset_ready = counts.get("profilePresetCount", 0) > 0
+    encoding_ready = rule_ready
+    rule_readiness = {
+        "source": "simulationcraft" if counts.get("talentCount") else "none",
+        "treeReady": tree_ready,
+        "ruleReady": rule_ready,
+        "specCoverage": spec_coverage,
+        "heroTreeCoverage": hero_coverage,
+        "treeTypeCounts": tree_type_counts,
+        "edgeSourceCoverage": catalog_health_coverage(counts.get("talentCount") or 0, counts.get("talentCount") or 0),
+    }
+    source_readiness = {
+        "runtimeSource": source_status,
+        "simcBuild": simc_state.get("build") or simc_state.get("version") or "",
+        "communityTemplateSourceStatus": community_state.get("sourceStatus") or "",
+        "officialAuditStatus": "pending_official_audit",
+    }
+    readiness = {
+        "treeReady": tree_ready,
+        "ruleReady": rule_ready,
+        "spellReady": spell_ready,
+        "encodingReady": encoding_ready,
+        "presetReady": preset_ready,
+        "simcReady": bool(tree_ready and rule_ready and encoding_ready and preset_ready),
+        "blockers": unique_text_list(blockers),
+    }
     contract = catalog_health_contract(
         status=status,
         checked_at=checked_at,
@@ -14488,6 +15005,13 @@ def talent_catalog_health_payload(conn):
             "coveredExpectedSpecCount": counts.get("coveredExpectedSpecCount") or 0,
             "missingSpecCount": counts.get("missingSpecCount") or 0,
             "missingSpecs": counts.get("missingSpecs") or [],
+            "expectedHeroTreeCount": counts.get("expectedHeroTreeCount") or 0,
+            "coveredExpectedHeroTreeCount": counts.get("coveredExpectedHeroTreeCount") or 0,
+            "missingHeroTreeCount": counts.get("missingHeroTreeCount") or 0,
+            "missingHeroTrees": counts.get("missingHeroTrees") or [],
+            "ruleReadiness": rule_readiness,
+            "sourceReadiness": source_readiness,
+            "readiness": readiness,
             "spellDetailCoverage": spell_coverage,
             "communityTemplateSync": {
                 "sourceStatus": community_state.get("sourceStatus") or "",
@@ -19481,7 +20005,9 @@ def validate_websim_talent_selection(nodes_by_id, selected_rows, tree_sections):
         requirement = max(0, int(node.get("pointRequirement") or 0))
         tree_type = node.get("treeType") or ("class" if node.get("specKey") == "class" else "spec")
         purchased_rank = max(0, selected_rank - granted_rank)
-        points_before_node = purchased_counts.get(tree_type, 0) - purchased_rank
+        gate_counts = active_counts if tree_type == "hero" else purchased_counts
+        gate_rank = selected_rank if tree_type == "hero" else purchased_rank
+        points_before_node = gate_counts.get(tree_type, 0) - gate_rank
         if requirement and points_before_node < requirement:
             errors.append(f"talent point gate not satisfied for {node_id}: requires {requirement}")
 
@@ -19576,6 +20102,8 @@ def validate_talent_api_payload(conn, payload):
         "talentState": {"selectedNodes": websim_selected_talent_nodes(request_payload)},
         "talentSchemaRevision": TALENT_SCHEMA_REVISION,
         "talentAuthority": talent_payload.get("talentAuthority"),
+        "talentReadiness": talent_payload.get("talentReadiness"),
+        "blockers": talent_payload.get("blockers") or [],
     }
 
 
@@ -20138,19 +20666,41 @@ def build_websim_profile(payload, conn=None):
     return "\n".join(lines).strip()
 
 
+def websim_profile_readiness_payload(readiness, talent_encoding):
+    gear_readiness = readiness if isinstance(readiness, dict) else {}
+    talent_payload = talent_encoding if isinstance(talent_encoding, dict) else blank_talent_encoding("failed", "none")
+    talent_ready = talent_payload.get("status") in {"encoded", "external"}
+    gear_ready = bool(gear_readiness.get("fullReady"))
+    blockers = websim_gear_stats_blockers(gear_readiness, talent_payload)
+    missing_fields = []
+    if not talent_ready:
+        missing_fields.append("talents")
+    if not gear_ready:
+        missing_fields.append("gear")
+    return {
+        "schemaRevision": TALENT_SCHEMA_REVISION,
+        "talentReady": talent_ready,
+        "gearReady": gear_ready,
+        "simcReady": bool(talent_ready and gear_ready),
+        "missingFields": missing_fields,
+        "blockers": unique_text_list(blockers),
+    }
+
+
 def build_websim_profile_response(payload, conn=None):
     source = payload if isinstance(payload, dict) else {}
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
     gear_payload = websim_selected_gear_payload(source, class_key, spec_key, conn=conn)
+    talent_encoding = encode_websim_talents(conn, source) if conn is not None else blank_talent_encoding()
     response = {
         "profile": build_websim_profile(payload, conn=conn),
         "gearItems": gear_payload["items"],
         "simcItems": gear_payload["simcItems"],
         "readiness": gear_payload["readiness"],
+        "talentEncoding": talent_encoding,
+        "profileReadiness": websim_profile_readiness_payload(gear_payload["readiness"], talent_encoding),
     }
-    if conn is not None:
-        response["talentEncoding"] = encode_websim_talents(conn, source)
     return response
 
 

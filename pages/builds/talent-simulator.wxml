@@ -154,7 +154,6 @@
           <text class="template-meta" wx:if="{{item.keyLabel}}">{{item.keyLabel}}</text>
           <text class="template-meta" wx:if="{{item.updatedLabel}}">{{item.updatedLabel}}</text>
         </view>
-        <text class="template-note" wx:if="{{item.analysisWindow}}">{{item.analysisWindow}}</text>
         <view class="template-apply-row">
           <button class="template-apply-button" data-id="{{item.id}}" bindtap="applyCommunityTemplate">{{item.actionLabel}}</button>
         </view>
