@@ -894,6 +894,59 @@
   box-shadow: 0 -20rpx 48rpx rgba(0, 0, 0, 0.42);
 }
 
+.gear-template-layer-scroll {
+  max-height: 58vh;
+  margin-top: 18rpx;
+}
+
+.gear-template-layer {
+  padding: 14rpx 0 18rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.gear-template-layer:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.gear-template-layer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.gear-template-layer-title {
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.gear-template-layer-count {
+  min-width: 44rpx;
+  height: 34rpx;
+  padding: 0 10rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  background: rgba(248, 183, 0, 0.16);
+  color: #f8b700;
+  font-size: 19rpx;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.gear-template-layer-status {
+  display: block;
+  margin-top: 10rpx;
+  color: #9f9f9f;
+  font-size: 20rpx;
+  line-height: 1.35;
+}
+
 .gear-save-template-sheet {
   position: fixed;
   left: 0;
@@ -1540,9 +1593,7 @@ button.gear-enhancement-option[disabled] {
   display: flex;
   flex-direction: column;
   gap: 12rpx;
-  max-height: 52vh;
-  margin-top: 18rpx;
-  overflow-y: auto;
+  margin-top: 12rpx;
 }
 
 .gear-community-template-card {

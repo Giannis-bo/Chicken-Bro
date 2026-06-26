@@ -18,13 +18,9 @@ test('builds the specialization tab payload without legacy BD metrics', () => {
   assert.equal(payload.metrics, undefined)
   assert.deepEqual(
     payload.quickActions.map((action) => action.key),
-    ['talents', 'gear', 'statWeights', 'rotation']
+    ['talents', 'gear', 'simc', 'tasks']
   )
-  assert.deepEqual(
-    payload.quickActions.map((action) => action.title),
-    ['天赋构筑', '装备模拟', '属性权重', '输出循环']
-  )
-  assert.equal(payload.featuredSpecializations.length, 3)
+  assert.equal(payload.featuredSpecializations.length, 0)
   assert.equal(payload.classOptions.length, 13)
   assert.equal(payload.classOptions.flatMap((item) => item.specializations).length, 39)
   assert.equal(payload.specializations, undefined)
@@ -44,6 +40,7 @@ test('builds a complete specialization intel payload for the view-all page', () 
   assert.equal(intelPayload.navTitle, '热门专精')
   assert.equal(intelPayload.title, '热门专精资讯')
   assert.equal(intelPayload.items.length, 5)
+  assert.equal(homePayload.featuredSpecializations.length, 0)
   assert.ok(intelPayload.items.length > homePayload.featuredSpecializations.length)
   assert.equal(intelPayload.seasonRevision, homePayload.seasonRevision)
 
@@ -57,10 +54,10 @@ test('builds a complete specialization intel payload for the view-all page', () 
   }
 })
 
-test('every featured specialization keeps strict source evidence', () => {
-  const payload = buildSpecializationHomePayload()
+test('dormant specialization intel payload keeps strict source evidence', () => {
+  const payload = buildSpecializationIntelPayload()
 
-  for (const specialization of payload.featuredSpecializations) {
+  for (const specialization of payload.items) {
     assert.match(specialization.id, /\S/)
     assert.match(specialization.title, /\S/)
     assert.match(specialization.sourceName, /\S/)

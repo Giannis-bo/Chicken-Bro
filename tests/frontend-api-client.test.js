@@ -82,6 +82,10 @@ test('builds api returns fallback without an API base and remote payload when re
   let result = await api.requestBuildsHome()
   assert.equal(result.fromFallback, true)
   assert.equal(result.payload.navTitle, '职业专精')
+  assert.deepEqual(
+    result.payload.quickActions.map((action) => action.key),
+    ['talents', 'gear', 'simc', 'tasks']
+  )
 
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
@@ -92,6 +96,10 @@ test('builds api returns fallback without an API base and remote payload when re
   result = await api.requestBuildsHome()
   assert.equal(result.fromFallback, false)
   assert.equal(result.payload.navTitle, '远端职业专精')
+  assert.deepEqual(
+    result.payload.quickActions.map((action) => action.key),
+    ['talents', 'gear', 'simc', 'tasks']
+  )
 })
 
 test('websim mini api wraps bootstrap talents profile gear and gear stats endpoints', async () => {
@@ -304,7 +312,7 @@ test('pve and simulator apis expose fallback payloads', async () => {
   assert.equal(simulatorHome.payload.navTitle, '智能分析')
   assert.deepEqual(
     simulatorHome.payload.analysisModules.map((module) => module.title),
-    ['模拟 SimC', '分析 WCL', '炸鸡队长', '任务列表']
+    ['炸鸡队长']
   )
   assert.equal(simulatorHome.payload.metrics, undefined)
   assert.equal(analysis.fromFallback, true)

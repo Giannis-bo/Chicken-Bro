@@ -13,12 +13,13 @@ test('pve tab uses backend payload and removes legacy ranking sections', () => {
   assert.doesNotMatch(wxml, /wx:for="\{\{tasks\}\}"/)
 })
 
-test('pve page opens each zone module as a detail page instead of expanding records inline', () => {
+test('pve page remains dormant and opens each zone module when re-registered', () => {
   const app = JSON.parse(fs.readFileSync('app.json', 'utf8'))
   const js = fs.readFileSync('pages/pve/pve.js', 'utf8')
   const wxml = fs.readFileSync('pages/pve/pve.wxml', 'utf8')
 
-  assert.ok(app.pages.includes('pages/pve/detail'))
+  assert.ok(!app.pages.includes('pages/pve/pve'))
+  assert.ok(!app.pages.includes('pages/pve/detail'))
   assert.match(wxml, /bindtap="openPveModule"/)
   assert.match(wxml, /data-key="\{\{module\.key\}\}"/)
   assert.match(wxml, /module\.itemCount/)

@@ -53,6 +53,10 @@ function loadBuildsDetailPageConfig(options = {}) {
       }
       if (modulePath === '../common/build-template-storage') {
         return {
+          listBuildTemplates(type) {
+            const templates = Array.isArray(options.storedTemplates) ? options.storedTemplates : []
+            return type ? templates.filter((item) => item && item.type === type) : templates
+          },
           syncBuildTemplate(record) {
             if (Array.isArray(options.savedTemplates)) options.savedTemplates.push(record)
             return Promise.resolve({ payload: { template: record || {} } })
@@ -188,6 +192,10 @@ function loadTalentSimulatorPageConfig(options = {}) {
       }
       if (modulePath === '../common/build-template-storage') {
         return {
+          listBuildTemplates(type) {
+            const templates = Array.isArray(options.storedTemplates) ? options.storedTemplates : []
+            return type ? templates.filter((item) => item && item.type === type) : templates
+          },
           syncBuildTemplate(record) {
             mocks.savedTemplate = record
             return Promise.resolve({ payload: { template: record } })
@@ -214,20 +222,29 @@ test('builds tab is renamed to specialization and removes legacy metrics row', (
   assert.doesNotMatch(wxml, /metric-card/)
 })
 
-test('builds page focuses on four query entries and opens talents in the native simulator', () => {
+test('builds page focuses on first-version query entries and opens talents in the native simulator', () => {
   const js = fs.readFileSync('pages/builds/builds.js', 'utf8')
   const wxml = fs.readFileSync('pages/builds/builds.wxml', 'utf8')
   const payload = buildSpecializationHomePayload()
 
   assert.deepEqual(
-    payload.quickActions.map((item) => item.title),
-    ['天赋构筑', '装备模拟', '属性权重', '输出循环']
+    payload.quickActions.map((item) => item.key),
+    ['talents', 'gear', 'simc', 'tasks']
   )
   assert.match(wxml, /bindtap="openQueryPage"/)
+  assert.match(wxml, /scroll-into-view="\{\{scrollTarget\}\}"/)
+  assert.match(wxml, /id="task-section"/)
   assert.match(js, /openQueryPage\(event\)/)
+  assert.match(js, /openTaskDetail\(event\)/)
   assert.match(js, /wx\.navigateTo/)
   assert.match(js, /queryKey === 'talents'/)
   assert.match(js, /pages\/builds\/talent-simulator/)
+  assert.match(js, /queryKey === 'simc'/)
+  assert.match(js, /pages\/simulator\/simc/)
+  assert.match(js, /queryKey === 'tasks'/)
+  assert.match(js, /scrollTarget:\s*'task-section'/)
+  assert.match(js, /requestSimulatorTasks/)
+  assert.match(js, /\/pages\/simulator\/task-detail\?id=/)
   assert.match(js, /encodeURIComponent\(queryKey \|\| ''\)/)
   assert.doesNotMatch(wxml, /query-window/)
   assert.doesNotMatch(wxml, /queryWindowVisible/)
@@ -289,31 +306,28 @@ test('builds page uses the shared WoW specialization meta palette', () => {
   assert.doesNotMatch(css, /#edf3ff/i)
 })
 
-test('featured specialization cards show source evidence', () => {
-  const wxml = fs.readFileSync('pages/builds/builds.wxml', 'utf8')
+test('dormant specialization intel cards keep source evidence', () => {
+  const wxml = fs.readFileSync('pages/builds/intel.wxml', 'utf8')
 
   assert.match(wxml, /item\.sourceName/)
   assert.match(wxml, /item\.publishedAt/)
   assert.match(wxml, /item\.analysisWindow/)
 })
 
-test('featured specialization section is a three-dot swiper preview with view-all navigation', () => {
+test('featured specialization section is dormant on the first-version specialization tab', () => {
   const js = fs.readFileSync('pages/builds/builds.js', 'utf8')
   const wxml = fs.readFileSync('pages/builds/builds.wxml', 'utf8')
   const css = fs.readFileSync('pages/builds/builds.wxss', 'utf8')
   const payload = buildSpecializationHomePayload()
 
-  assert.equal(payload.featuredSpecializations.length, 3)
-  assert.match(wxml, /swiper[\s\S]*class="intel-swiper"[\s\S]*indicator-dots/)
-  assert.match(wxml, /swiper-item[\s\S]*wx:for="\{\{featuredSpecializations\}\}"/)
-  assert.doesNotMatch(wxml, /class="intel-scroll"/)
-  assert.match(wxml, /bindtap="openIntelPage"/)
-  assert.match(wxml, />查看全部</)
-  assert.match(js, /openIntelPage\(\)/)
-  assert.match(js, /pages\/builds\/intel/)
-  assert.match(css, /\.intel-swiper[\s\S]*height:\s*252rpx;/)
-  assert.match(css, /\.intel-swiper\s+\.wx-swiper-dots[\s\S]*bottom:\s*10rpx;/)
-  assert.match(css, /\.intel-card[\s\S]*height:\s*220rpx;/)
+  assert.equal(payload.featuredSpecializations.length, 0)
+  assert.doesNotMatch(wxml, /热门专精/)
+  assert.doesNotMatch(wxml, /swiper[\s\S]*class="intel-swiper"/)
+  assert.doesNotMatch(wxml, /wx:for="\{\{featuredSpecializations\}\}"/)
+  assert.doesNotMatch(wxml, /bindtap="openIntelPage"/)
+  assert.doesNotMatch(js, /openIntelPage\(\)/)
+  assert.doesNotMatch(js, /pages\/builds\/intel/)
+  assert.doesNotMatch(css, /\.intel-swiper/)
 })
 
 test('specialization intel page is registered and renders all retrieved content', () => {
@@ -663,7 +677,8 @@ test('native talent simulator action bar keeps three clear actions on one row', 
   assert.ok(actionBarMatch)
   assert.equal((actionBarMatch[1].match(/<button/g) || []).length, 3)
   assert.match(actionBarMatch[1], /保存模板/)
-  assert.match(actionBarMatch[1], /导入社区推荐/)
+  assert.match(actionBarMatch[1], />导入</)
+  assert.doesNotMatch(actionBarMatch[1], /导入社区推荐/)
   assert.match(actionBarMatch[1], /重置/)
   assert.doesNotMatch(actionBarMatch[1], /openTalentImport/)
   assert.match(css, /grid-template-columns:\s*minmax\(220rpx,\s*1\.15fr\) minmax\(220rpx,\s*1fr\) 132rpx;/)
@@ -688,7 +703,7 @@ test('native talent simulator save sheet keeps cancel and save on the same row',
   assert.match(css, /\.save-sheet-actions button\s*\{[\s\S]*width:\s*100%;[\s\S]*min-width:\s*0;[\s\S]*margin:\s*0;[\s\S]*box-sizing:\s*border-box;[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;[\s\S]*line-height:\s*1;[\s\S]*white-space:\s*nowrap;[\s\S]*\}/)
 })
 
-test('native talent simulator page exposes community template import sheet', () => {
+test('native talent simulator page exposes two-layer import sheet', () => {
   const js = fs.readFileSync('pages/builds/talent-simulator.js', 'utf8')
   const wxml = fs.readFileSync('pages/builds/talent-simulator.wxml', 'utf8')
   const css = fs.readFileSync('pages/builds/talent-simulator.wxss', 'utf8')
@@ -699,17 +714,26 @@ test('native talent simulator page exposes community template import sheet', () 
   assert.match(js, /communityTemplates:\s*\[\]/)
   assert.match(js, /communityTemplateSync/)
   assert.match(js, /activeCommunityTemplates/)
+  assert.match(js, /listBuildTemplates/)
+  assert.match(js, /savedTalentTemplates/)
   assert.match(js, /communityTemplateSheet/)
   assert.match(js, /selectedCommunityTemplate/)
   assert.match(js, /openCommunityTemplates\(\)/)
   assert.match(js, /closeCommunityTemplates\(\)/)
+  assert.match(js, /applySavedTalentTemplate\(event\)/)
   assert.match(js, /applyCommunityTemplate\(event\)/)
   assert.match(js, /communityTemplateStatusText/)
   assert.match(js, /communityTemplateApplyMode/)
   assert.match(wxml, /bindtap="openCommunityTemplates"/)
-  assert.match(wxml, />导入社区推荐</)
+  assert.match(wxml, />导入</)
+  assert.doesNotMatch(wxml, />导入社区推荐</)
   assert.match(wxml, /communityTemplateSheet\.visible/)
+  assert.match(wxml, /personal-template-section/)
+  assert.match(wxml, /community-template-section/)
+  assert.match(wxml, /wx:for="\{\{savedTalentTemplates\}\}"/)
+  assert.match(wxml, /bindtap="applySavedTalentTemplate"/)
   assert.match(wxml, /wx:for="\{\{activeCommunityTemplates\}\}"/)
+  assert.ok(wxml.indexOf('savedTalentTemplates') < wxml.indexOf('activeCommunityTemplates'))
   assert.match(wxml, /item\.name/)
   assert.match(wxml, /item\.sourceName/)
   assert.match(wxml, /item\.sampleLabel/)
@@ -721,6 +745,8 @@ test('native talent simulator page exposes community template import sheet', () 
   assert.match(wxml, /class="template-apply-row"/)
   assert.match(wxml, /bindtap="applyCommunityTemplate"/)
   assert.match(css, /\.community-template-sheet/)
+  assert.match(css, /\.template-layer/)
+  assert.match(css, /\.template-section-title/)
   assert.match(css, /\.community-template-card/)
   assert.match(css, /\.community-template-card\.external/)
   assert.doesNotMatch(css, /\.template-note/)
@@ -937,6 +963,56 @@ test('native talent simulator applies cross-spec community templates after switc
   assert.equal(page.data.communityTemplateSheet.visible, false)
 })
 
+test('native talent simulator imports a saved personal template from the top layer', () => {
+  const { pageConfig } = loadTalentSimulatorPageConfig({
+    storedTemplates: [{
+      id: 'saved-frost',
+      type: 'talent',
+      title: '我的冰法模板',
+      classKey: 'mage',
+      className: '法师',
+      specKey: 'frost',
+      specName: '冰霜',
+      heroKey: 'frostfire',
+      heroLabel: '霜火',
+      scenarioTitle: '单体',
+      rawString: 'websim:mage:frost:frostfire:frost-root:1',
+      updatedAt: '2026-06-26T12:30:00.000Z',
+      statusLabel: '已保存'
+    }]
+  })
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      classKey: 'mage',
+      specKey: 'frost',
+      heroKey: 'frostfire',
+      activeTreeKey: 'class',
+      nodes: [{ id: 'frost-root', treeType: 'class', rank: 1, maxRank: 1 }],
+      treeSections: [{ key: 'class', title: '职业天赋', pointCap: 1 }],
+      pointCaps: { class: 1 },
+      talentRanks: {},
+      baseTalentRanks: {},
+      communityTemplateSheet: { visible: false }
+    },
+    setData(update, callback) {
+      this.data = { ...this.data, ...update }
+      if (callback) callback()
+    },
+    renderTalentView() {}
+  }
+
+  pageConfig.openCommunityTemplates.call(page)
+  pageConfig.applySavedTalentTemplate.call(page, { currentTarget: { dataset: { id: 'saved-frost' } } })
+
+  assert.equal(page.data.savedTalentTemplates.length, 1)
+  assert.equal(page.data.savedTalentTemplates[0].name, '我的冰法模板')
+  assert.equal(page.data.talentRanks['frost-root'], 1)
+  assert.equal(page.data.communityTemplateSheet.visible, false)
+  assert.match(page.data.statusText, /保存模板/)
+})
+
 test('gear detail page exposes inline equipment simulator state and replacement sheet', () => {
   const js = fs.readFileSync('pages/builds/detail.js', 'utf8')
   const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
@@ -963,6 +1039,9 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(js, /gearTemplateScenarios/)
   assert.match(js, /selectGearTemplateScenario\(event\)/)
   assert.match(js, /openGearCommunityTemplates\(\)/)
+  assert.match(js, /savedGearTemplates/)
+  assert.match(js, /listBuildTemplates/)
+  assert.match(js, /applySavedGearTemplate\(event\)/)
   assert.match(js, /applyGearCommunityTemplate\(event\)/)
   assert.match(js, /resetGearSelection\(\)/)
   assert.doesNotMatch(js, /scenarioKey:\s*'single'/)
@@ -1075,9 +1154,16 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(wxml, /gearDataWarningText/)
   assert.match(wxml, /disabled="\{\{gearDataFallback \|\| gearTemplateSaving\}\}"/)
   assert.match(wxml, /class="gear-template-action-button import"/)
+  assert.match(wxml, />导入</)
+  assert.doesNotMatch(wxml, />导入社区推荐</)
   assert.match(wxml, /disabled="\{\{gearDataFallback\}\}"/)
   assert.match(wxml, /gearCommunityTemplateSheet\.visible/)
+  assert.match(wxml, /gear-personal-template-section/)
+  assert.match(wxml, /gear-community-recommendation-section/)
+  assert.match(wxml, /wx:for="\{\{savedGearTemplates\}\}"/)
+  assert.match(wxml, /bindtap="applySavedGearTemplate"/)
   assert.match(wxml, /wx:for="\{\{activeGearCommunityTemplates\}\}"/)
+  assert.ok(wxml.indexOf('savedGearTemplates') < wxml.indexOf('activeGearCommunityTemplates'))
   assert.match(wxml, /gear-community-template-title">\{\{item\.displayName \|\| item\.name\}\}/)
   assert.match(wxml, /\{\{item\.displaySourceName \|\| item\.sourceName\}\} · \{\{item\.slotCoverageLabel\}\}/)
   assert.match(wxml, /bindtap="applyGearCommunityTemplate"/)
@@ -5989,6 +6075,90 @@ test('gear community template overlays template slots onto baseline only', () =>
 
   assert.equal(page.data.selectedGearBySlot.head.itemId, templateHead.itemId)
   assert.equal(page.data.selectedGearBySlot.neck.itemId, baseline.neck.itemId)
+  assert.equal(page.data.gearCommunityTemplateSheet.visible, false)
+  assert.equal(page.data.gearSlotSheet.visible, false)
+})
+
+test('gear import sheet applies a saved personal gear template with enhancements', () => {
+  const baseline = completeGearSelection(['back', 'neck'])
+  const savedBack = {
+    ...baseline.back,
+    itemId: '277777',
+    id: '277777',
+    displayName: 'Saved Back'
+  }
+  const enhancementBySlot = {
+    back: {
+      enchantOptionId: 'cloak-speed',
+      enchant_id: '123'
+    }
+  }
+  const pageConfig = loadBuildsDetailPageConfig({
+    storedTemplates: [{
+      id: 'saved-gear',
+      type: 'gear',
+      title: '我的装备模板',
+      classKey: 'mage',
+      className: '法师',
+      specKey: 'frost',
+      specName: '冰霜',
+      scenarioTitle: '单体',
+      rawString: JSON.stringify({
+        gearBySlot: { back: savedBack },
+        enhancementBySlot
+      }),
+      metadata: {
+        gearBySlot: { back: savedBack },
+        enhancementBySlot
+      },
+      updatedAt: '2026-06-26T12:30:00.000Z',
+      statusLabel: '完整配置'
+    }]
+  })
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearDataFallback: false,
+      gearPayload: {
+        slots: ['back', 'neck'].map((slot) => ({ slot, simcSlot: slot, label: slot })),
+        equippedSet: baseline,
+        replacementCandidates: [{
+          slot: 'back',
+          simcSlot: 'back',
+          items: [savedBack],
+          enchantOptions: [{
+            id: 'cloak-speed',
+            displayLabel: '披风附魔 迅捷之诵',
+            status: 'verified',
+            simcOptions: { enchant_id: '123' }
+          }]
+        }],
+        slotReadiness: {},
+        readiness: {}
+      },
+      selectedGearBySlot: baseline,
+      enhancementBySlot: {},
+      gearCommunityTemplateSheet: { visible: false },
+      gearSlotSheet: { visible: true },
+      gearEnhancementSheet: { visible: true }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.openGearCommunityTemplates.call(page)
+  pageConfig.applySavedGearTemplate.call(page, { currentTarget: { dataset: { id: 'saved-gear' } } })
+
+  assert.equal(page.data.savedGearTemplates.length, 1)
+  assert.equal(page.data.savedGearTemplates[0].displayName, '我的装备模板')
+  assert.equal(page.data.selectedGearBySlot.back.itemId, savedBack.itemId)
+  assert.equal(page.data.selectedGearBySlot.neck.itemId, baseline.neck.itemId)
+  assert.equal(page.data.enhancementBySlot.back.enchant_id, '123')
   assert.equal(page.data.gearCommunityTemplateSheet.visible, false)
   assert.equal(page.data.gearSlotSheet.visible, false)
 })

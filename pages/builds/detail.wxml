@@ -128,7 +128,7 @@
 
         <view class="gear-template-actions" wx:if="{{!gearInitialLoading}}">
           <button class="gear-template-action-button primary" loading="{{gearTemplateSaving}}" disabled="{{gearDataFallback || gearTemplateSaving}}" bindtap="saveGearTemplate">保存模板</button>
-          <button class="gear-template-action-button import" disabled="{{gearDataFallback}}" bindtap="openGearCommunityTemplates">导入社区推荐</button>
+          <button class="gear-template-action-button import" disabled="{{gearDataFallback}}" bindtap="openGearCommunityTemplates">导入</button>
           <button class="gear-template-action-button muted" bindtap="resetGearSelection">重置</button>
         </view>
       </view>
@@ -371,27 +371,59 @@
     <view class="gear-sheet-handle"></view>
     <view class="gear-sheet-header">
       <view>
-        <text class="gear-sheet-kicker">{{gearCommunityTemplateStatusText}}</text>
-        <text class="gear-sheet-title">社区装备模板</text>
+        <text class="gear-sheet-kicker">装备模板</text>
+        <text class="gear-sheet-title">导入</text>
       </view>
       <button class="gear-sheet-close" bindtap="closeGearCommunityTemplates">关闭</button>
     </view>
-    <view class="gear-community-template-list" wx:if="{{activeGearCommunityTemplates.length}}">
-      <view class="gear-community-template-card {{item.cardClass}}" wx:for="{{activeGearCommunityTemplates}}" wx:key="id">
-        <view class="gear-community-template-main">
-          <text class="gear-community-template-title">{{item.displayName || item.name}}</text>
-          <text class="gear-community-template-meta">{{item.displaySourceName || item.sourceName}} · {{item.slotCoverageLabel}}</text>
-          <text class="gear-community-template-meta">{{item.statusLabel}} · {{item.updatedLabel || item.analysisWindow}}</text>
-          <text class="gear-community-template-meta warning" wx:if="{{item.blockerLabel}}">{{item.blockerLabel}}</text>
+    <scroll-view class="gear-template-layer-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="gear-template-layer gear-personal-template-section">
+        <view class="gear-template-layer-head">
+          <text class="gear-template-layer-title">我的保存</text>
+          <text class="gear-template-layer-count">{{savedGearTemplates.length}}</text>
         </view>
-        <view class="gear-community-template-side">
-          <text class="gear-community-template-state">{{item.missingSlotLabel}}</text>
-          <button class="gear-community-template-apply" disabled="{{!item.canApplyGear}}" data-id="{{item.id}}" bindtap="applyGearCommunityTemplate">{{item.actionLabel}}</button>
+        <view class="gear-community-template-list" wx:if="{{savedGearTemplates.length}}">
+          <view class="gear-community-template-card {{item.cardClass}}" wx:for="{{savedGearTemplates}}" wx:key="id">
+            <view class="gear-community-template-main">
+              <text class="gear-community-template-title">{{item.displayName || item.name}}</text>
+              <text class="gear-community-template-meta">{{item.displaySourceName || item.sourceName}} · {{item.slotCoverageLabel}}</text>
+              <text class="gear-community-template-meta">{{item.statusLabel}} · {{item.updatedLabel}}</text>
+            </view>
+            <view class="gear-community-template-side">
+              <text class="gear-community-template-state">{{item.missingSlotLabel}}</text>
+              <button class="gear-community-template-apply" disabled="{{!item.canApplyGear}}" data-id="{{item.id}}" bindtap="applySavedGearTemplate">{{item.actionLabel}}</button>
+            </view>
+          </view>
+        </view>
+        <view class="gear-community-template-empty" wx:else>
+          <text>暂无已保存装备模板</text>
         </view>
       </view>
-    </view>
-    <view class="gear-community-template-empty" wx:else>
-      <text>暂无可导入装备模板</text>
-    </view>
+
+      <view class="gear-template-layer gear-community-recommendation-section">
+        <view class="gear-template-layer-head">
+          <text class="gear-template-layer-title">社区推荐</text>
+          <text class="gear-template-layer-count">{{activeGearCommunityTemplates.length}}</text>
+        </view>
+        <text class="gear-template-layer-status">{{gearCommunityTemplateStatusText}}</text>
+        <view class="gear-community-template-list" wx:if="{{activeGearCommunityTemplates.length}}">
+          <view class="gear-community-template-card {{item.cardClass}}" wx:for="{{activeGearCommunityTemplates}}" wx:key="id">
+            <view class="gear-community-template-main">
+              <text class="gear-community-template-title">{{item.displayName || item.name}}</text>
+              <text class="gear-community-template-meta">{{item.displaySourceName || item.sourceName}} · {{item.slotCoverageLabel}}</text>
+              <text class="gear-community-template-meta">{{item.statusLabel}} · {{item.updatedLabel || item.analysisWindow}}</text>
+              <text class="gear-community-template-meta warning" wx:if="{{item.blockerLabel}}">{{item.blockerLabel}}</text>
+            </view>
+            <view class="gear-community-template-side">
+              <text class="gear-community-template-state">{{item.missingSlotLabel}}</text>
+              <button class="gear-community-template-apply" disabled="{{!item.canApplyGear}}" data-id="{{item.id}}" bindtap="applyGearCommunityTemplate">{{item.actionLabel}}</button>
+            </view>
+          </view>
+        </view>
+        <view class="gear-community-template-empty" wx:else>
+          <text>暂无可导入装备模板</text>
+        </view>
+      </view>
+    </scroll-view>
   </view>
 </view>

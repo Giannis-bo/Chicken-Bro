@@ -20,23 +20,9 @@
   box-shadow: 0 12rpx 28rpx rgba(0, 0, 0, 0.24);
 }
 
-.module-simc {
-  border-color: rgba(139, 63, 245, 0.28);
-  background: linear-gradient(135deg, rgba(139, 63, 245, 0.16), #151515 54%);
-}
-
-.module-wcl {
-  border-color: rgba(248, 183, 0, 0.28);
-  background: linear-gradient(135deg, rgba(248, 183, 0, 0.14), #151515 62%);
-}
-
 .module-chickenbro {
   border-color: rgba(91, 214, 180, 0.3);
   background: linear-gradient(135deg, rgba(28, 112, 95, 0.16), #151515 58%);
-}
-
-.module-tasks {
-  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .module-heading {
@@ -76,8 +62,4 @@
   color: rgba(225, 226, 229, 0.72);
   font-size: 23rpx;
   line-height: 1.4;
-}
-
-.task-section {
-  border-color: rgba(255, 255, 255, 0.08);
 }

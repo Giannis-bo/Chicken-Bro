@@ -15,11 +15,13 @@ test('navigation home button has an implementation that returns to the news tab'
   assert.match(css, /\.weui-navigation-bar__btn_home[\s\S]*background-color:\s*currentColor/)
 })
 
-test('pve tab is named PVE zone', () => {
+test('pve tab is disabled for the first public version', () => {
   const app = JSON.parse(fs.readFileSync('app.json', 'utf8'))
-  const tab = app.tabBar.list.find((item) => item.pagePath === 'pages/pve/pve')
+  const pagePaths = app.tabBar.list.map((item) => item.pagePath)
 
-  assert.equal(tab.text, 'PVE专区')
+  assert.ok(!pagePaths.includes('pages/pve/pve'))
+  assert.ok(!app.pages.includes('pages/pve/pve'))
+  assert.ok(!app.pages.includes('pages/pve/detail'))
 })
 
 test('simulator tab is renamed to smart analysis', () => {

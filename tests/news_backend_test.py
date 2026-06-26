@@ -1408,7 +1408,8 @@ class NewsBackendTest(unittest.TestCase):
 
         self.assertEqual(home["navTitle"], "职业专精")
         self.assertEqual(home["dataStatus"], "blocked")
-        self.assertEqual([item["key"] for item in home["quickActions"]], ["talents", "gear", "statWeights", "rotation"])
+        self.assertEqual([item["key"] for item in home["quickActions"]], ["talents", "gear", "simc", "tasks"])
+        self.assertEqual(home["featuredSpecializations"], [])
         self.assertEqual(len(home["classOptions"]), 13)
         self.assertEqual(intel["items"], [])
         self.assertEqual(detail["details"], {})
@@ -1494,9 +1495,9 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("metrics", home)
         self.assertEqual(
             [module["title"] for module in home["analysisModules"]],
-            ["模拟 SimC", "分析 WCL", "炸鸡队长", "任务列表"],
+            ["炸鸡队长"],
         )
-        self.assertTrue(any(action["key"] == "simc" for action in home["quickActions"]))
+        self.assertEqual([action["key"] for action in home["quickActions"]], ["chickenbro"])
         self.assertEqual(analysis["mode"], "simcraft")
         self.assertEqual(analysis["status"], "ready")
         self.assertGreater(len(analysis["recommendations"]), 0)

@@ -1,6 +1,6 @@
 <view class="page-shell builds-shell">
   <navigation-bar title="{{navTitle}}" back="{{false}}" color="#FFFFFF" background="#111111"></navigation-bar>
-  <scroll-view class="page-scroll" scroll-y type="list">
+  <scroll-view class="page-scroll" scroll-y type="list" scroll-into-view="{{scrollTarget}}" scroll-with-animation="{{true}}">
     <view class="page-content builds-content">
       <view class="hero builds-hero">
         <text class="hero-kicker">{{kicker}}</text>
@@ -29,27 +29,29 @@
         </view>
       </view>
 
-      <view class="section intel-section">
+      <view id="task-section" class="section task-section">
         <view class="section-header">
-          <text class="section-title">热门专精</text>
-          <text class="section-action" bindtap="openIntelPage">查看全部</text>
+          <text class="section-title">任务列表</text>
+          <text class="section-action">最近记录</text>
         </view>
-        <swiper class="intel-swiper" indicator-dots circular indicator-color="rgba(255, 255, 255, 0.18)" indicator-active-color="#8B3FF5">
-          <swiper-item wx:for="{{featuredSpecializations}}" wx:key="id">
-            <view class="task-card intel-card">
+        <view class="task-list" wx:if="{{tasks.length}}">
+          <view
+            class="task-card"
+            wx:for="{{tasks}}"
+            wx:key="taskId"
+            data-task-id="{{item.taskId}}"
+            bindtap="openTaskDetail"
+          >
               <view class="task-row">
                 <text class="task-title">{{item.title}}</text>
                 <text class="task-status">{{item.status}}</text>
               </view>
-              <text class="task-desc">{{item.desc}}</text>
-              <view class="source-row">
-                <text>{{item.sourceName}}</text>
-                <text>{{item.publishedAt}}</text>
-              </view>
-              <text class="source-note">{{item.analysisWindow}}</text>
-            </view>
-          </swiper-item>
-        </swiper>
+              <text class="task-desc" user-select="{{true}}">{{item.desc}}</text>
+          </view>
+        </view>
+        <view class="task-empty" wx:else>
+          <text>暂无任务记录</text>
+        </view>
       </view>
     </view>
   </scroll-view>

@@ -7,11 +7,8 @@
     "pages/builds/intel",
     "pages/builds/talent-simulator",
     "pages/builds/detail",
-    "pages/pve/pve",
-    "pages/pve/detail",
     "pages/simulator/simulator",
     "pages/simulator/simc",
-    "pages/simulator/wcl",
     "pages/simulator/chickenbro",
     "pages/simulator/task-detail",
     "pages/profile/profile"
@@ -34,10 +31,6 @@
       {
         "pagePath": "pages/builds/builds",
         "text": "职业专精"
-      },
-      {
-        "pagePath": "pages/pve/pve",
-        "text": "PVE专区"
       },
       {
         "pagePath": "pages/simulator/simulator",

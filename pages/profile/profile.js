@@ -14,19 +14,25 @@ function shortDate(value) {
 
 function templateMetaChips(template) {
   const chips = []
-  const specLabel = `${template.specName || ''}${template.className || ''}`.trim()
-  if (specLabel) chips.push(specLabel)
-  if (template.heroLabel) chips.push(template.heroLabel)
-  if (template.scenarioTitle) chips.push(template.scenarioTitle)
-  chips.push(template.statusLabel || '待校验')
+  const fields = [
+    template.className || template.classKey,
+    template.specName || template.specKey,
+    template.heroLabel || template.heroKey
+  ]
+  fields.forEach((value) => {
+    const text = String(value || '').trim()
+    if (text && !chips.includes(text)) chips.push(text)
+  })
   return chips
 }
 
 function decorateTemplate(template) {
+  const savedLabel = shortDate((template && template.updatedAt) || (template && template.createdAt))
   return {
     ...(template || {}),
     metaChips: templateMetaChips(template || {}),
-    savedLabel: shortDate((template && template.updatedAt) || (template && template.createdAt))
+    savedLabel,
+    savedTimeLabel: `模板保存时间 · ${savedLabel}`
   }
 }
 

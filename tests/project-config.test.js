@@ -39,3 +39,16 @@ test('mini-program pack options ignore non-client workspace directories without 
     assert.ok(fs.existsSync(runtimeModule), `${runtimeModule} should remain available to mini-program require()`)
   }
 })
+
+test('roadmap marks first-version deferred surfaces as pending planning', () => {
+  const roadmap = fs.readFileSync('docs/roadmap.md', 'utf8')
+
+  assert.match(roadmap, /\| 职业专精 \| [^\n|]*热门专精\/属性权重\/输出循环待规划/)
+  assert.match(roadmap, /职业专精 tab 开放“天赋构筑”“装备模拟”“模拟 SimC”“任务列表”四个入口/)
+  assert.match(roadmap, /\| PVE 专区 \| 待规划 \|/)
+  assert.match(roadmap, /\| 智能分析 \/ SimC \| [^\n|]*首版只保留炸鸡队长/)
+  assert.match(roadmap, /\| 智能分析 \/ SimC \| [^\n|]*SimC 与任务列表迁入职业专精/)
+  assert.match(roadmap, /\| 智能分析 \/ SimC \| [^\n|]*WCL 待规划/)
+  assert.match(roadmap, /\| 待规划 \| PVE 职业天梯移动端排行 \|/)
+  assert.match(roadmap, /\| 待规划 \| WCL \/ 日志复盘链路 \|/)
+})

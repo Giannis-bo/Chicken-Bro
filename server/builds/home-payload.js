@@ -23,6 +23,21 @@ const queryTypes = [
   }
 ]
 
+const firstVersionQueryKeys = new Set(['talents', 'gear'])
+const firstVersionHomeActions = [
+  ...queryTypes.filter((item) => firstVersionQueryKeys.has(item.key)),
+  {
+    key: 'simc',
+    title: '模拟 SimC',
+    desc: '组合已保存的天赋与装备模板，进入固定 SimC 工作台。'
+  },
+  {
+    key: 'tasks',
+    title: '任务列表',
+    desc: '查看最近提交过的模拟任务，继续追踪结果。'
+  }
+]
+
 const trustedBuildSources = [
   {
     name: 'Raider.IO',
@@ -296,7 +311,7 @@ function makeSpecialization(className, specName) {
     specSlug: specSlugByName[specName] || '',
     websimClassKey: websimClassKeyByName[className] || '',
     websimSpecKey: websimSpecKeyByName[specName] || '',
-    desc: `${role}专精，详情页覆盖天赋构筑、装备模拟、属性权重和输出循环。`,
+    desc: `${role}专精，详情页首版聚焦天赋构筑和装备模拟。`,
     sourceName: 'Archon',
     sourceUrl: 'https://www.archon.gg/wow',
     publishedAt: latestAnalysis.publishedAt,
@@ -912,16 +927,15 @@ function getSpecializationDetail(id) {
 
 function buildSpecializationHomePayload() {
   const season = buildCurrentSeasonPayload()
-  const featuredSpecializations = buildFeaturedSpecializations()
 
   return {
     navTitle: '职业专精',
     kicker: '能力 02',
     title: '职业专精',
-    desc: '追踪最高端大秘境、团本和 WCL 数据，沉淀可直接参考的天赋、装备、属性与循环作业。',
-    quickActions: queryTypes,
+    desc: '追踪最高端大秘境、团本和 WCL 数据，首版先沉淀可直接参考的天赋与装备作业。',
+    quickActions: firstVersionHomeActions,
     classOptions,
-    featuredSpecializations: featuredSpecializations.slice(0, 3),
+    featuredSpecializations: [],
     trustedSources: trustedBuildSources,
     lastAnalyzedAt: latestAnalysis.publishedAt,
     analysisWindow: latestAnalysis.analysisWindow,

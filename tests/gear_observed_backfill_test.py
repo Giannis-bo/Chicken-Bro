@@ -196,7 +196,10 @@ class GearObservedBackfillTest(unittest.TestCase):
         self.assertTrue(result["ok"], result)
         self.assertIsNotNone(captured["env"])
         self.assertEqual(captured["apikey"], "client-id:client-secret\n")
-        self.assertEqual(captured["mode"], 0o600)
+        if os.name == "nt":
+            self.assertTrue(captured["mode"] & 0o200)
+        else:
+            self.assertEqual(captured["mode"], 0o600)
         self.assertFalse(captured["home"].exists())
 
     def seed_partial_variant(self, item_id="251111", slot="head"):

@@ -1,6 +1,7 @@
 const { requestJson } = require('../common/api-client')
 
 const SIMULATOR_GUEST_ID_STORAGE_KEY = 'wow_simulator_guest_id'
+const FIRST_VERSION_ANALYSIS_KEYS = ['chickenbro']
 
 function randomGuestId() {
   return `guest-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
@@ -32,51 +33,23 @@ function fallbackSimulatorHome() {
     navTitle: '智能分析',
     kicker: '能力 04',
     title: '智能分析',
-    desc: '把模拟、日志复盘和历史任务收束到同一个入口，先选择分析类型，再进入对应工作台。',
+    desc: '首版智能分析只保留炸鸡队长，围绕已有证据给出下一步建议。',
     analysisModules: [
       {
-        key: 'simc',
-        badge: '01',
-        title: '模拟 SimC',
-        desc: '用中文描述职业专精、装等和目标场景，进入专属工作台生成模拟结论。',
-        action: '进入模拟'
-      },
-      {
-        key: 'wcl',
-        badge: '02',
-        title: '分析 WCL',
-        desc: '提交战斗日志链接和问题，复盘输出、爆发、覆盖率与关键失误。',
-        action: '进入分析'
-      },
-      {
         key: 'chickenbro',
-        badge: '03',
+        badge: '01',
         title: '炸鸡队长',
-        desc: '把已有 SimC、WCL 与角色上下文整理成证据受限的下一步建议，缺证据时只列缺失项。',
+        desc: '把已有 SimC 与角色上下文整理成证据受限的下一步建议，缺证据时只列缺失项。',
         action: '进入教练'
-      },
-      {
-        key: 'tasks',
-        badge: '04',
-        title: '任务列表',
-        desc: '查看最近提交过的模拟和日志分析任务，继续追踪结果。',
-        action: '查看记录'
       }
     ],
     quickActions: [
-      { key: 'simc', title: '模拟 SimC', desc: '进入 SimC 工作台' },
-      { key: 'wcl', title: '分析 WCL', desc: '进入 WCL 工作台' },
-      { key: 'chickenbro', title: '炸鸡队长', desc: '进入证据教练' },
-      { key: 'tasks', title: '任务列表', desc: '查看最近任务' }
-    ],
-    tasks: [
-      { title: 'SimC 智能模拟', status: '可提交', desc: '描述职业专精、装等和目标场景，生成 SimCraft 和 AI 分析请求。' },
-      { title: 'WCL 战斗日志分析', status: '可分析', desc: '用 AI 总结输出差距、技能覆盖和关键失误。' }
+      { key: 'chickenbro', title: '炸鸡队长', desc: '进入证据教练' }
     ],
     capabilities: {
       simcraft: false,
       llm: false,
-      wcl: true
+      wcl: false
     }
   }
 }
@@ -88,17 +61,23 @@ function defaultAnalysisModules() {
 function normalizeSimulatorHomePayload(payload) {
   const home = payload || fallbackSimulatorHome()
   const { metrics, ...homeWithoutLegacyMetrics } = home
+  const modules = Array.isArray(home.analysisModules) && home.analysisModules.length
+    ? home.analysisModules
+    : defaultAnalysisModules()
+  const quickActions = Array.isArray(home.quickActions) && home.quickActions.length
+    ? home.quickActions
+    : fallbackSimulatorHome().quickActions
   return {
     ...homeWithoutLegacyMetrics,
     navTitle: '智能分析',
     title: home.title === 'SimC Agent 与构筑分析' ? '智能分析' : (home.title || '智能分析'),
     desc: home.desc || fallbackSimulatorHome().desc,
-    analysisModules: Array.isArray(home.analysisModules) && home.analysisModules.length
-      ? home.analysisModules
-      : defaultAnalysisModules(),
-    quickActions: Array.isArray(home.quickActions) && home.quickActions.length
-      ? home.quickActions
-      : fallbackSimulatorHome().quickActions
+    analysisModules: modules.filter((module) => FIRST_VERSION_ANALYSIS_KEYS.includes(module && module.key)),
+    quickActions: quickActions.filter((action) => FIRST_VERSION_ANALYSIS_KEYS.includes(action && action.key)),
+    capabilities: {
+      ...(home.capabilities || {}),
+      wcl: false
+    }
   }
 }
 

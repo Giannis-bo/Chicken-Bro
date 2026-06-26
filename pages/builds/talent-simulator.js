@@ -21,7 +21,7 @@ const {
   templatesForClass: coreTemplatesForClass
 } = require('./talent-simulator-core')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
-const { syncBuildTemplate } = require('../common/build-template-storage')
+const { listBuildTemplates, syncBuildTemplate } = require('../common/build-template-storage')
 const { attachGameAsset } = require('../common/game-asset')
 
 const PAGE_ROUTE = 'pages/builds/talent-simulator'
@@ -400,6 +400,46 @@ function decorateCommunityTemplate(template) {
   }
 }
 
+function templateUpdatedLabel(template) {
+  const value = shortDate((template && (template.updatedAt || template.createdAt)) || '')
+  return value ? `保存 ${value}` : ''
+}
+
+function savedTalentDetailLabel(template) {
+  return [
+    template && (template.className || template.classKey),
+    template && (template.specName || template.specKey),
+    template && (template.heroLabel || template.heroKey)
+  ].filter(Boolean).join(' · ')
+}
+
+function savedTalentTemplatesForImport() {
+  let templates = []
+  try {
+    templates = listBuildTemplates('talent')
+  } catch (error) {
+    templates = []
+  }
+  return (Array.isArray(templates) ? templates : []).map((template) => {
+    const rawString = String((template && template.rawString) || '').trim()
+    const canApply = !!rawString
+    return {
+      ...(template || {}),
+      name: (template && template.title) || '已保存天赋模板',
+      sourceName: (template && template.source) || '我的保存',
+      detailLabel: savedTalentDetailLabel(template),
+      sampleLabel: (template && template.scenarioTitle) || '个人模板',
+      keyLabel: (template && template.statusLabel) || '已保存',
+      updatedLabel: templateUpdatedLabel(template),
+      rawString,
+      websimExportCode: rawString,
+      canApplyVisual: canApply,
+      actionLabel: canApply ? '应用' : '不可导入',
+      cardClass: ['community-template-card', 'saved-template-card', canApply ? '' : 'blocked'].filter(Boolean).join(' ')
+    }
+  }).slice(0, 8)
+}
+
 function activeTemplatesForClass(templates, classKey, specKey) {
   if (typeof coreTemplatesForClass === 'function') {
     return coreTemplatesForClass(templates, classKey, specKey)
@@ -463,6 +503,7 @@ Page({
       templates: { total: 0, verified: 0, blocked: 0 }
     },
     activeCommunityTemplates: [],
+    savedTalentTemplates: [],
     communityTemplateStatusText: '缺少社区模板 API 凭据',
     communityTemplateSheet: { visible: false },
     selectedCommunityTemplate: null,
@@ -595,7 +636,7 @@ Page({
         statusText: (payload.nodes || []).length ? '天赋树已就绪' : 'WebSim 天赋树不可用，请检查后端数据状态'
       }, () => {
         if (pendingTemplate) {
-          this.applyParsedCommunityTemplate(pendingTemplate)
+          this.applyParsedTalentTemplate(pendingTemplate, null, pendingTemplate.applyStatusPrefix || '已应用社区模板：')
           return
         }
         this.renderTalentView()
@@ -812,15 +853,18 @@ Page({
   },
 
   openCommunityTemplates() {
-    this.setData({ communityTemplateSheet: { visible: true } }, () => this.renderTalentView())
+    this.setData({
+      savedTalentTemplates: savedTalentTemplatesForImport(),
+      communityTemplateSheet: { visible: true }
+    }, () => this.renderTalentView())
   },
 
   closeCommunityTemplates() {
     this.setData({ communityTemplateSheet: { visible: false } })
   },
 
-  applyParsedCommunityTemplate(template, parsedInput) {
-    const parsed = parsedInput || parseTalentExportCode((template && template.websimExportCode) || '')
+  applyParsedTalentTemplate(template, parsedInput, statusPrefix) {
+    const parsed = parsedInput || parseTalentExportCode((template && (template.websimExportCode || template.rawString)) || '')
     if (!parsed) {
       safeToast('模板导入码不可用')
       return false
@@ -842,25 +886,17 @@ Page({
       baseTalentRanks: rankState.baseTalentRanks,
       selectedCommunityTemplate: template,
       communityTemplateSheet: { visible: false },
-      statusText: `已应用社区模板：${template.name}`
+      statusText: `${statusPrefix || '已应用模板：'}${template.name || template.title || ''}`
     }, () => this.renderTalentView())
     return true
   },
 
-  applyCommunityTemplate(event) {
-    const id = event.currentTarget.dataset.id || ''
-    const template = (this.data.activeCommunityTemplates || []).find((item) => item.id === id)
-    if (!template) return
-    const mode = communityTemplateApplyMode(template)
-    if (mode === 'simc_only') {
-      safeToast('此模板仅提供外部导入码，当前页不可编辑')
-      return
-    }
-    if (mode !== 'visual') {
-      safeToast('模板暂不可用')
-      return
-    }
-    const parsed = parseTalentExportCode(template.websimExportCode || '')
+  applyParsedCommunityTemplate(template, parsedInput) {
+    return this.applyParsedTalentTemplate(template, parsedInput, '已应用社区模板：')
+  },
+
+  applyVisualTalentTemplate(template, statusPrefix) {
+    const parsed = parseTalentExportCode((template && (template.websimExportCode || template.rawString)) || '')
     if (parsed) {
       const targetClassKey = parsed.classKey || template.classKey || this.data.classKey
       const targetSpecKey = parsed.specKey || template.specKey || this.data.specKey
@@ -869,7 +905,7 @@ Page({
         targetSpecKey === this.data.specKey &&
         targetHeroKey === this.data.heroKey
       if (sameSelection) {
-        return this.applyParsedCommunityTemplate(template, parsed)
+        return this.applyParsedTalentTemplate(template, parsed, statusPrefix)
       }
       const selection = findSpecSelectionByKeys(this.data.classOptions, targetClassKey, targetSpecKey)
       if (!selection) {
@@ -893,7 +929,12 @@ Page({
           selectedHeroLabel: hero.label || hero.title || hero.key || '默认',
           activeTreeKey: 'class'
         }, () => {
-          resolve(this.loadTalentsForSelection({ applyTemplate: template }))
+          resolve(this.loadTalentsForSelection({
+            applyTemplate: {
+              ...template,
+              applyStatusPrefix: statusPrefix
+            }
+          }))
         })
       })
     }
@@ -901,6 +942,32 @@ Page({
       safeToast('模板导入码不可用')
       return
     }
+  },
+
+  applySavedTalentTemplate(event) {
+    const id = event.currentTarget.dataset.id || ''
+    const template = (this.data.savedTalentTemplates || []).find((item) => item.id === id)
+    if (!template || !template.rawString) {
+      safeToast('保存模板暂不可用')
+      return
+    }
+    return this.applyVisualTalentTemplate(template, '已应用保存模板：')
+  },
+
+  applyCommunityTemplate(event) {
+    const id = event.currentTarget.dataset.id || ''
+    const template = (this.data.activeCommunityTemplates || []).find((item) => item.id === id)
+    if (!template) return
+    const mode = communityTemplateApplyMode(template)
+    if (mode === 'simc_only') {
+      safeToast('此模板仅提供外部导入码，当前页不可编辑')
+      return
+    }
+    if (mode !== 'visual') {
+      safeToast('模板暂不可用')
+      return
+    }
+    return this.applyVisualTalentTemplate(template, '已应用社区模板：')
   },
 
   saveTalentTemplate() {

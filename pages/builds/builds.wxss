@@ -32,7 +32,7 @@
 }
 
 .query-section,
-.intel-section {
+.task-section {
   border-color: rgba(255, 255, 255, 0.08);
   background: #151515;
 }
@@ -99,38 +99,27 @@
   font-weight: 800;
 }
 
-.intel-card {
-  height: 220rpx;
-  padding: 18rpx;
-  overflow: hidden;
-  border-color: rgba(139, 63, 245, 0.18);
-  background: #101010;
-}
-
-.intel-swiper {
-  width: 100%;
-  height: 252rpx;
-}
-
-.intel-swiper .wx-swiper-dots {
-  bottom: 10rpx;
-}
-
 .task-status {
   background: rgba(139, 63, 245, 0.18);
   color: #c9a8ff;
 }
 
-.source-row {
+.task-list {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 16rpx;
-  margin-top: 16rpx;
-  color: #f8b700;
-  font-size: 22rpx;
 }
 
-.source-note {
+.task-empty {
+  padding: 24rpx;
+  border: 1rpx dashed rgba(255, 255, 255, 0.12);
+  border-radius: 12rpx;
+  color: #8e8e8e;
+  text-align: center;
+  font-size: 23rpx;
+}
+
+.task-desc {
   display: block;
   margin-top: 8rpx;
   color: #8e8e8e;

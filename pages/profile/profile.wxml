@@ -56,7 +56,7 @@
                   <view class="template-meta-row">
                     <text class="template-meta-chip" wx:for="{{template.metaChips}}" wx:for-item="chip" wx:key="*this">{{chip}}</text>
                   </view>
-                  <text class="template-source">{{template.source}} · {{template.savedLabel}}</text>
+                  <text class="template-source">{{template.savedTimeLabel}}</text>
                 </view>
                 <button class="template-delete-button" data-id="{{template.id}}" data-title="{{template.title}}" bindtap="deleteTemplate">删除</button>
               </view>

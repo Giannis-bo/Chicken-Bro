@@ -10,7 +10,7 @@ const {
   requestWebsimTalents
 } = require('./websim-api')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
-const { syncBuildTemplate } = require('../common/build-template-storage')
+const { listBuildTemplates, syncBuildTemplate } = require('../common/build-template-storage')
 const { attachGameAsset } = require('../common/game-asset')
 
 const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
@@ -2366,6 +2366,60 @@ function gearItemsToSelection(items) {
   return selection
 }
 
+function templateShortDate(value) {
+  const text = cleanGearString(value)
+  if (!text) return ''
+  return text.includes('T') ? text.split('T')[0] : text.slice(0, 10)
+}
+
+function parseSavedGearTemplateSnapshot(template) {
+  const metadata = template && template.metadata && typeof template.metadata === 'object' ? template.metadata : {}
+  let parsed = {}
+  const rawString = cleanGearString(template && template.rawString)
+  if (rawString) {
+    try {
+      const value = JSON.parse(rawString)
+      parsed = value && typeof value === 'object' ? value : {}
+    } catch (error) {
+      parsed = {}
+    }
+  }
+  return {
+    gearBySlot: metadata.selectedGearSnapshot || metadata.gearBySlot || parsed.gearBySlot || {},
+    enhancementBySlot: metadata.enhancementBySlot || parsed.enhancementBySlot || {}
+  }
+}
+
+function savedGearTemplatesForImport() {
+  let templates = []
+  try {
+    templates = listBuildTemplates('gear')
+  } catch (error) {
+    templates = []
+  }
+  return (Array.isArray(templates) ? templates : []).map((template) => {
+    const snapshot = parseSavedGearTemplateSnapshot(template)
+    const gearBySlot = selectedGearByCanonicalSlot(snapshot.gearBySlot || {})
+    const readySlotCount = requiredGearSlots.filter((slot) => !!gearBySlot[slot]).length
+    const canApplyGear = readySlotCount > 0
+    const savedAt = templateShortDate((template && (template.updatedAt || template.createdAt)) || '')
+    return {
+      ...(template || {}),
+      displayName: (template && template.title) || '已保存装备模板',
+      displaySourceName: (template && template.source) || '我的保存',
+      statusLabel: (template && template.statusLabel) || '已保存',
+      slotCoverageLabel: `已保存 ${readySlotCount}/${requiredGearSlots.length} 槽`,
+      missingSlotLabel: readySlotCount >= requiredGearSlots.length ? '配置完整' : `缺 ${requiredGearSlots.length - readySlotCount} 槽`,
+      updatedLabel: savedAt ? `保存 ${savedAt}` : '',
+      canApplyGear,
+      savedGearBySlot: gearBySlot,
+      savedEnhancementBySlot: normalizedEnhancementBySlot(snapshot.enhancementBySlot || {}),
+      actionLabel: canApplyGear ? '应用' : '不可导入',
+      cardClass: ['saved-template-card', canApplyGear ? (readySlotCount >= requiredGearSlots.length ? 'complete' : 'partial') : 'blocked'].filter(Boolean).join(' ')
+    }
+  }).slice(0, 8)
+}
+
 function gearCommunityStatusLabel(status) {
   if (status === 'source-reference' || status === 'source_reference') return '来源参考'
   if (status === 'complete') return '完整配置'
@@ -3483,6 +3537,7 @@ Page({
     gearEnhancementSheet: emptyGearEnhancementSheet(),
     gearSaveTemplateSheet: emptyGearSaveTemplateSheet(),
     gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet(),
+    savedGearTemplates: [],
     fromFallback: true,
     requestError: ''
   },
@@ -3944,6 +3999,7 @@ Page({
     }
     this.refreshDerivedState()
     this.setData({
+      savedGearTemplates: savedGearTemplatesForImport(),
       gearCommunityTemplateSheet: { visible: true },
       gearSlotSheet: emptyGearSlotSheet(),
       gearEnhancementSheet: emptyGearEnhancementSheet()
@@ -3981,6 +4037,45 @@ Page({
     })
     maybeRefreshGearStatsForPage(this)
     trackEvent('builds_gear_selection_reset', {
+      specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
+    }, { page: 'pages/builds/detail' })
+  },
+
+  applySavedGearTemplate(event) {
+    const templateId = event.currentTarget.dataset.id || ''
+    const template = (this.data.savedGearTemplates || []).find((item) => item.id === templateId)
+    if (!template || !template.canApplyGear) {
+      showToast('保存模板暂不可导入')
+      return
+    }
+    const gearPayload = fullGearPayloadForPage(this) || {}
+    const baselineSelection = equippedSetToSelection(gearPayload.equippedSet || {}, gearPayload)
+    const templateSelection = selectedGearByCanonicalSlot(template.savedGearBySlot || {})
+    if (!Object.keys(templateSelection).length) {
+      showToast('保存模板缺少装备配置')
+      return
+    }
+    const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, {
+      ...baselineSelection,
+      ...templateSelection
+    })
+    const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, template.savedEnhancementBySlot || {})
+    const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
+      ...this.data,
+      selectedGearBySlot,
+      enhancementBySlot
+    })
+    this.setData({
+      ...derivedState,
+      enhancementBySlot,
+      gearSlotSheet: emptyGearSlotSheet(),
+      gearEnhancementSheet: emptyGearEnhancementSheet(),
+      gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
+    })
+    maybeRefreshGearStatsForPage(this)
+    trackEvent('builds_gear_saved_template_apply', {
+      templateId,
+      readySlotCount: Object.keys(templateSelection).length,
       specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
     }, { page: 'pages/builds/detail' })
   },
