@@ -231,6 +231,45 @@ Unsupported / excluded：
 - 后端 `display_ready_gear_mod_options_by_slot` 先过滤，前端只镜像同一结构做即时交互。
 - serializer 必须重新验证 option catalog，不能信任前端提交。
 
+## 强化机制复核：宝石 / 附魔 / 美化 / 套装
+
+本节和天赋模拟 runbook 保持同一边界：上游证据与可执行字段先进入后端读模型，前端只消费结构化 payload；前端可以做交互镜像和旧载荷兼容，但不能成为规则来源。
+
+### 宝石
+
+- 上游入口是 `websim_gear_mod_options.option_type='socket'`、Battle.net 宝石 metadata / tooltip 证据和服务端维护的当前 PVE 二星宝石 seed。Observed profile 中的 `gem_id` 只作为实例证据，不反推 socket catalog；多宝石组合不进入玩家可选项。
+- 当前可配置槽位由后端 `SOCKET_OPTION_GEAR_SLOT_CAPACITY` 给出：`neck=1`、`finger1=1`、`finger2=1`。对外仍显示 3 个宝石槽，但底层是三件装备各自的 `socketCount=1`，不是前端写死总数 3。
+- `item_mod_capabilities` 在 compact item 上输出 `hasSocket/socketCount`；`display_ready_gear_mod_options_by_slot` 只下发 display-ready 的单颗宝石选项。宝石 metadata 或属性展示未验证时，option 保持 blocked/不可见。
+- 前端 `gearItemSocketCapacity` 读取 `modCapabilities.socketCount`、socket 数组等显式容量证据；仅在旧 payload 明确 `hasSocket=true` 但缺少容量字段时按 1 做兼容兜底。属性概览和金色 tag 都按当前装备 + 已确认 `enhancementBySlot` 统计。
+- 主属性宝石按 `primary_stat_gem` 唯一组处理：前端禁用超额选择，后端 serializer 继续把超过 1 颗的快照判为 blocker。
+
+### 附魔
+
+- 上游入口是 Wago DB2 / SimC enchant evidence 与服务端分类规则。普通装备行附魔进入 `websim_gear_mod_options.option_type='enchant'`；职业专属 precombat、临时武器强化、药剂/战斗准备效果默认 blocked/excluded。
+- 腿部护甲片归入附魔链路，最终同样写 `enchant_id`，因此属性概览和强化配置 sheet 都把腿部护甲片计入“附魔”。
+- 后端 `ENCHANTABLE_GEAR_SLOTS` 是候选能力范围，不等于 UI 固定上限；`item_can_enchant_slot` 还会按装备类型排除 Held In Off-hand、盾牌等不能附武器附魔的副手。
+- Read model 只把 display-ready 且适用于当前 item 的 `enchantOptions` 下发给前端。前端 `gearItemEnchantCapacity` / `gearEnhancementMetricUsage` 按当前已选装备、实际可配置行和受控兜底统计上限，避免把不存在 option 的槽位算进概览。
+- Serializer 在 `merge_websim_gear_enhancements` 里重新附加 catalog option 并验证；stale enchant、错误副手类型、盾牌武器附魔等都必须 blocker。
+
+### 美化
+
+- 上游入口包括 SimC embellishment key、Wago/DB2 optional reagent 证据、Battle.net 物品 metadata，以及制造业装备自带美化的 unique / limit-category 证据。
+- 独立美化走 `websim_gear_mod_options.option_type='embellishment'` 和 slot group；自带美化不进入二次选择，而是在装备 item 上输出 `builtInEmbellishment` / `builtInEmbellishmentLabel=美化`。
+- 前端 `buildGearEnhancementSheet` 同时统计自带美化和玩家已选独立美化，最大值固定为 2；达到上限后禁用其他独立美化。同一装备已自带美化时，不展示该槽位的独立美化选择。
+- 同一槽位可以同时展示宝石、附魔、美化三组，前提是该 item 的三类 option 都有后端 display-ready 证据；不要因为同槽存在某一类强化就隐藏另外两类。
+- Serializer 重新计算自带美化 + 独立美化总数，超过 2 或同槽叠加自带/独立美化都必须 blocker。
+
+### 套装
+
+- 套装不属于 `enhancementBySlot`，不进入“配置宝石、附魔”sheet。上游从 Battle.net item-set API 和当前赛季 source/variant 证据进入 `websim_item_sets` / `websim_item_set_items` 与装备候选 metadata。
+- Read model 在装备 item 上保留 `itemSetName`、`sourceType='tier_set'` 等结构化信息。前端 `gearTierSetCountForPanel` 只按当前已选装备自动统计同一套装件数，展示上限为 5，不提供普通玩家手工开关。
+- v1 不显式写 SimC `set_bonus` token；如果后续需要，需要新增已验证 set membership 到 SimC token 的映射。缺映射时应 profile blocked，而不是让前端伪造套装效果。
+
+### 复核证据
+
+- 后端测试重点：socket 不从 observed gem 反推、宝石 metadata/stat display 门禁、腿部护甲片作为 enchant、职业专属/临时附魔过滤、副手/盾牌过滤、美化 slot group 和自带美化计数、套装 item-set backfill。
+- 前端测试重点：属性概览按 `socketCount` 统计宝石上限、腿部护甲片计入附魔上限、同槽宝石/附魔/美化三组共存、确认后才显示装备卡金色 tag、主属性宝石唯一、套装 5 件上限。
+
 ## 全职业专精适配
 
 ### 规则来源

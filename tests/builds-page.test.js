@@ -40,7 +40,8 @@ function loadBuildsDetailPageConfig(options = {}) {
       if (modulePath === './websim-api') {
         return {
           requestWebsimGear: options.requestWebsimGear || (() => Promise.resolve({ payload: {} })),
-          requestWebsimGearStats: options.requestWebsimGearStats || (() => Promise.resolve({ payload: {} }))
+          requestWebsimGearStats: options.requestWebsimGearStats || (() => Promise.resolve({ payload: {} })),
+          requestWebsimTalents: options.requestWebsimTalents || (() => Promise.resolve({ payload: {} }))
         }
       }
       if (modulePath === '../common/analytics-client') {
@@ -1203,7 +1204,7 @@ test('gear detail summarizes selected equipment attributes above the slot grid',
     statSummary: '智力 120；耐力 240；急速 30；暴击 20；精通 10；全能 5；护甲 100',
     sourceType: 'tier_set',
     itemSetName: '虚空粉碎者协律',
-    modCapabilities: { hasSocket: true, canEnchant: true, canEmbellish: false }
+    modCapabilities: { hasSocket: false, canEnchant: true, canEmbellish: false }
   }
   selectedGear.chest = {
     ...selectedGear.chest,
@@ -1217,7 +1218,7 @@ test('gear detail summarizes selected equipment attributes above the slot grid',
     ...selectedGear.finger1,
     ilevel: 286,
     statSummary: '力量/敏捷/智力 50；耐力 90；暴击 12；全能 6',
-    modCapabilities: { hasSocket: true, canEnchant: true, canEmbellish: false }
+    modCapabilities: { hasSocket: true, canEnchant: true, canEmbellish: false, socketCount: 1 }
   }
   const pageConfig = loadBuildsDetailPageConfig({
     requestWebsimGear: () => Promise.resolve({
@@ -1303,8 +1304,8 @@ test('gear detail summarizes selected equipment attributes above the slot grid',
   assert.equal(panel.statRows.find((row) => row.key === 'intellect').label, '智力')
   assert.equal(panel.statRows.find((row) => row.key === 'intellect').value, '250')
   assert.equal(panel.enhancementRows.find((row) => row.key === 'embellishment').value, '0/2')
-  assert.equal(panel.enhancementRows.find((row) => row.key === 'gem').value, '0/2')
-  assert.equal(panel.enhancementRows.find((row) => row.key === 'enchant').value, '0/3')
+  assert.equal(panel.enhancementRows.find((row) => row.key === 'gem').value, '0/1')
+  assert.equal(panel.enhancementRows.find((row) => row.key === 'enchant').value, '0/1')
   assert.equal(panel.enhancementRows.find((row) => row.key === 'tierSet').label, '套装')
   assert.equal(panel.enhancementRows.find((row) => row.key === 'tierSet').value, '2/5')
   assert.equal(panel.statRows.find((row) => row.key === 'stamina').value, '490')
@@ -1382,6 +1383,464 @@ test('gear attribute panel displays SimC verified character percentages when ava
   assert.equal(panel.statRows.find((row) => row.key === 'haste').convertedValue, '18.3%')
   assert.equal(panel.statRows.find((row) => row.key === 'mastery').convertedValue, '36.6%')
   assert.equal(panel.statRows.find((row) => row.key === 'versatility').convertedValue, '1.5%')
+})
+
+test('gear attribute panel counts governed socket slots and caps tier set pieces', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  const enchantSlots = ['back', 'chest', 'wrist', 'legs', 'feet', 'finger1', 'finger2', 'main_hand', 'off_hand']
+  ;['head', 'shoulder', 'chest', 'hands', 'legs', 'back'].forEach((slot) => {
+    selection[slot] = {
+      ...selection[slot],
+      sourceType: 'tier_set',
+      itemSetName: 'Current Season Set'
+    }
+  })
+  selection.neck = {
+    ...selection.neck,
+    gem_id: '240983/240898',
+    gem_ilevel: '707/707',
+    modCapabilities: { hasSocket: true, canEnchant: false, canEmbellish: false }
+  }
+  enchantSlots.forEach((slot) => {
+    selection[slot] = {
+      ...selection[slot],
+      enchant_id: slot === 'main_hand' || slot === 'off_hand' ? '8039' : '7334',
+      modCapabilities: { ...((selection[slot] && selection[slot].modCapabilities) || {}), canEnchant: true }
+    }
+  })
+  selection.finger1.modCapabilities = { ...selection.finger1.modCapabilities, hasSocket: true }
+  selection.finger2.modCapabilities = { ...selection.finger2.modCapabilities, hasSocket: true }
+  const page = {
+    gearPayloadCache: {
+      slots,
+      replacementCandidates: [],
+      equippedSet: {},
+      slotReadiness: {},
+      readiness: { fullReady: true }
+    },
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots,
+        replacementCandidates: [],
+        equippedSet: {},
+        slotReadiness: {},
+        readiness: { fullReady: true }
+      },
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false },
+      gearCommunityTemplateSheet: { visible: false },
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+
+  const rows = page.data.gearAttributePanel.enhancementRows
+  assert.equal(rows.find((row) => row.key === 'gem').value, '0/3')
+  assert.equal(rows.find((row) => row.key === 'enchant').value, '0/7')
+  assert.equal(rows.find((row) => row.key === 'tierSet').value, '5/5')
+})
+
+test('gear attribute panel honors backend socketCount evidence instead of slot defaults', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  selection.neck = {
+    ...selection.neck,
+    modCapabilities: { hasSocket: true, socketCount: 2 }
+  }
+  selection.finger1 = {
+    ...selection.finger1,
+    modCapabilities: { hasSocket: true, socketCount: 1 }
+  }
+  selection.finger2 = {
+    ...selection.finger2,
+    modCapabilities: { hasSocket: false, socketCount: 0 }
+  }
+  const gearPayload = {
+    slots,
+    replacementCandidates: [],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false },
+      gearCommunityTemplateSheet: { visible: false },
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+
+  const rows = page.data.gearAttributePanel.enhancementRows
+  assert.equal(rows.find((row) => row.key === 'gem').value, '0/3')
+})
+
+test('gear attribute panel excludes held off-hand items from enchant capacity', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = {
+    main_hand: {
+      slot: 'main_hand',
+      simcSlot: 'main_hand',
+      itemId: '250100',
+      displayName: 'Enchantable weapon',
+      ilevel: 289,
+      enchant_id: '7981',
+      weaponType: 'Dagger',
+      modCapabilities: { canEnchant: true }
+    },
+    off_hand: {
+      slot: 'off_hand',
+      simcSlot: 'off_hand',
+      itemId: '245769',
+      displayName: 'Held off-hand lantern',
+      ilevel: 289,
+      weaponType: 'Held In Off-hand',
+      modCapabilities: { canEnchant: true }
+    }
+  }
+  const page = {
+    gearPayloadCache: {
+      slots,
+      replacementCandidates: [],
+      equippedSet: {},
+      slotReadiness: {},
+      readiness: { fullReady: true }
+    },
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots,
+        replacementCandidates: [],
+        equippedSet: {},
+        slotReadiness: {},
+        readiness: { fullReady: true }
+      },
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false },
+      gearCommunityTemplateSheet: { visible: false },
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+
+  const rows = page.data.gearAttributePanel.enhancementRows
+  assert.equal(rows.find((row) => row.key === 'enchant').value, '0/1')
+})
+
+test('gear attribute panel counts only user configured gems and enchants against governed slots', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  selection.head = {
+    ...selection.head,
+    gem_id: '240983',
+    modCapabilities: { hasSocket: false }
+  }
+  selection.neck = {
+    ...selection.neck,
+    gem_id: '240908/240906',
+    modCapabilities: { hasSocket: true, socketCount: 1 }
+  }
+  selection.wrist = {
+    ...selection.wrist,
+    gem_id: '240908',
+    modCapabilities: { hasSocket: false, canEnchant: true }
+  }
+  selection.waist = {
+    ...selection.waist,
+    gem_id: '240908',
+    enchant_id: '4223',
+    modCapabilities: { hasSocket: false, canEnchant: false }
+  }
+  selection.chest = {
+    ...selection.chest,
+    enchant_id: '7987',
+    modCapabilities: { canEnchant: true }
+  }
+  selection.legs = {
+    ...selection.legs,
+    enchant_id: '7935',
+    modCapabilities: { canEnchant: true }
+  }
+  selection.finger1 = {
+    ...selection.finger1,
+    gem_id: '240908/240906',
+    enchant_id: '7967',
+    modCapabilities: { hasSocket: true, canEnchant: true, socketCount: 1 }
+  }
+  selection.finger2 = {
+    ...selection.finger2,
+    gem_id: '240908',
+    enchant_id: '7967',
+    modCapabilities: { hasSocket: true, canEnchant: true, socketCount: 1 }
+  }
+  selection.main_hand = {
+    ...selection.main_hand,
+    enchant_id: '7981',
+    weaponType: 'Dagger',
+    modCapabilities: { canEnchant: true }
+  }
+  selection.off_hand = {
+    ...selection.off_hand,
+    enchant_id: '8039',
+    weaponType: 'Held In Off-hand',
+    modCapabilities: { canEnchant: true }
+  }
+  ;['back', 'feet'].forEach((slot) => {
+    selection[slot] = {
+      ...selection[slot],
+      modCapabilities: { canEnchant: true }
+    }
+  })
+  const page = {
+    gearPayloadCache: {
+      slots,
+      replacementCandidates: [],
+      equippedSet: {},
+      slotReadiness: {},
+      readiness: { fullReady: true }
+    },
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots,
+        replacementCandidates: [],
+        equippedSet: {},
+        slotReadiness: {},
+        readiness: { fullReady: true }
+      },
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false },
+      gearCommunityTemplateSheet: { visible: false },
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+
+  const rows = page.data.gearAttributePanel.enhancementRows
+  assert.equal(rows.find((row) => row.key === 'gem').value, '0/3')
+  assert.equal(rows.find((row) => row.key === 'enchant').value, '0/7')
+})
+
+test('gear attribute panel keeps governed enchant cap when only selected enchants are restored', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  ;['back', 'chest', 'legs', 'feet', 'finger1', 'finger2', 'main_hand'].forEach((slot) => {
+    selection[slot] = {
+      ...selection[slot],
+      weaponType: slot === 'main_hand' ? 'Dagger' : selection[slot].weaponType,
+      modCapabilities: { canEnchant: true }
+    }
+  })
+  selection.wrist = {
+    ...selection.wrist,
+    modCapabilities: { canEnchant: true }
+  }
+  selection.off_hand = {
+    ...selection.off_hand,
+    weaponType: 'Held In Off-hand',
+    modCapabilities: { canEnchant: true }
+  }
+  const gearPayload = {
+    slots,
+    replacementCandidates: [],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'shaman', websimSpecKey: 'elemental' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {
+        chest: { enchantOptionId: 'restored-chest-enchant', enchant_id: '7987' },
+        legs: { enchantOptionId: 'restored-leg-armor-kit', enchant_id: '8159' }
+      },
+      gearEnhancementSheet: { visible: false },
+      gearCommunityTemplateSheet: { visible: false },
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'enchant').value, '2/7')
+})
+
+test('gear attribute panel counts enchant cap from configurable rows including leg armor patches', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  const enchantSlots = ['back', 'chest', 'wrist', 'legs', 'feet', 'finger1', 'finger2', 'main_hand']
+  enchantSlots.forEach((slot) => {
+    selection[slot] = {
+      ...selection[slot],
+      weaponType: slot === 'main_hand' ? 'Dagger' : selection[slot].weaponType,
+      modCapabilities: { canEnchant: true }
+    }
+  })
+  const visibleEnchantSlots = ['back', 'chest', 'legs', 'feet', 'finger1', 'finger2', 'main_hand']
+  const labelBySlot = {
+    back: '披风附魔',
+    chest: '胸部附魔',
+    legs: '森林猎手的护甲片',
+    feet: '脚部附魔',
+    finger1: '戒指附魔',
+    finger2: '戒指附魔',
+    main_hand: '武器附魔'
+  }
+  const idBySlot = {
+    back: '7987',
+    chest: '7983',
+    legs: '8159',
+    feet: '8019',
+    finger1: '7967',
+    finger2: '7997',
+    main_hand: '8039'
+  }
+  const optionForSlot = (slot) => ({
+    id: `enchant-${slot}`,
+    label: labelBySlot[slot],
+    displayLabel: labelBySlot[slot],
+    displayKind: 'name',
+    displayStatus: 'verified',
+    evidenceSource: 'wago_db2_spell_item_enchantment',
+    status: 'verified',
+    simcOptions: { enchant_id: idBySlot[slot] },
+    payload: { qualityRank: 2, displayStatus: 'verified', evidenceSource: 'wago_db2_spell_item_enchantment' }
+  })
+  const gearPayload = {
+    slots,
+    replacementCandidates: visibleEnchantSlots.map((slot) => ({
+      slot,
+      simcSlot: slot,
+      label: slot,
+      items: [],
+      enchantOptions: [optionForSlot(slot)]
+    })),
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'shaman', websimSpecKey: 'elemental' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false },
+      gearCommunityTemplateSheet: { visible: false },
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'enchant').value, '0/7')
+
+  pageConfig.openGearEnhancementSheet.call(page)
+  const configurableSlots = page.data.gearEnhancementSheet.equipmentRows.map((row) => row.slot)
+  assert.equal(configurableSlots.includes('legs'), true)
+  assert.equal(configurableSlots.includes('wrist'), false)
+  assert.equal(page.data.gearEnhancementSheet.enchantRows.find((row) => row.slot === 'legs').options[0].label, '森林猎手的护甲片')
+})
+
+test('gear attribute panel and slot badges reflect configured neck and ring gems', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  ;['neck', 'finger1', 'finger2'].forEach((slot) => {
+    selection[slot] = {
+      ...selection[slot],
+      modCapabilities: { hasSocket: true, canEnchant: slot !== 'neck', socketCount: 1 }
+    }
+  })
+  const gearPayload = {
+    slots,
+    replacementCandidates: [],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {
+        neck: { socketOptionId: 'gem-neck', gem_id: '240901' },
+        finger1: { socketOptionId: 'gem-finger1', gem_id: '240902' },
+        finger2: { socketOptionId: 'gem-finger2', gem_id: '240903' }
+      },
+      gearEnhancementSheet: { visible: false },
+      gearCommunityTemplateSheet: { visible: false },
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+
+  const rows = page.data.gearAttributePanel.enhancementRows
+  assert.equal(rows.find((row) => row.key === 'gem').value, '3/3')
+  ;['neck', 'finger1', 'finger2'].forEach((slot) => {
+    assert.equal(JSON.stringify(page.data.gearSlotRows.find((row) => row.slot === slot).enhancementBadgeLabels), JSON.stringify(['宝石']))
+  })
 })
 
 test('gear attribute panel maps hybrid primary stat labels to the active spec', () => {
@@ -4738,18 +5197,101 @@ test('gear detail requests SimC stat snapshot when gear and talents are complete
   assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'crit').convertedValue, '28.6%')
 })
 
-test('gear stats refresh dedupes the same request signature after blocked snapshot', async () => {
+test('gear detail requests SimC stat snapshot with community talent import when detail lacks code', async () => {
+  let statsPayload = null
+  let resolveStats
+  const statsRequested = new Promise((resolve) => {
+    resolveStats = resolve
+  })
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear: () => Promise.resolve({
+      payload: {
+        classKey: 'mage',
+        specKey: 'frost',
+        slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+        replacementCandidates: [],
+        equippedSet: completeGearSelection(),
+        slotReadiness: {},
+        readiness: {
+          fullReady: true,
+          warnings: [],
+          itemLevel: { key: 'itemLevel', label: '瑁呭绛夌骇', value: '289', rawValue: 289 }
+        },
+        communityTemplates: []
+      }
+    }),
+    requestWebsimTalents: () => Promise.resolve({
+      payload: {
+        communityTemplates: [
+          { id: 'blocked-template', canUseInSimc: false, rawImportCode: 'BLOCKED' },
+          { id: 'raiderio-mage-frost', canUseInSimc: true, rawImportCode: 'COMMUNITY-C4DA' }
+        ]
+      }
+    }),
+    requestWebsimGearStats: (payload) => {
+      statsPayload = payload
+      resolveStats()
+      return Promise.resolve({
+        payload: {
+          statStatus: 'verified',
+          statSource: 'simulationcraft_json',
+          blockers: [],
+          primary: { key: 'intellect', label: '鏅哄姏', value: '2,344', rawValue: 2344 },
+          stamina: { key: 'stamina', label: '鑰愬姏', value: '20,067', rawValue: 20067 },
+          secondary: [
+            { key: 'crit', label: '鏆村嚮', value: '994', rawValue: 994, convertedValue: '28.6%' }
+          ]
+        }
+      })
+    }
+  })
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      selectedDetail: { className: '娉曞笀', specName: '鍐伴湝', details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: {},
+      gearSelectionKey: '',
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.loadWebsimGearForSelection.call(page, {
+    selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' }
+  })
+  await statsRequested
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(statsPayload.talents, 'COMMUNITY-C4DA')
+  assert.equal(page.data.gearStatsTalentImport, 'COMMUNITY-C4DA')
+  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'crit').convertedValue, '28.6%')
+})
+
+test('gear stats refresh retries the same request signature after blocked snapshot', async () => {
   let requestCount = 0
   const pageConfig = loadBuildsDetailPageConfig({
     requestWebsimGearStats: () => {
       requestCount += 1
-      return Promise.resolve({
-        payload: {
-          statStatus: 'blocked',
-          statSource: 'simulationcraft_json',
-          blockers: ['SimC item resolution warning']
-        }
-      })
+      const payload = requestCount === 1
+        ? {
+            statStatus: 'blocked',
+            statSource: 'simulationcraft_json',
+            blockers: ['SimC item resolution warning']
+          }
+        : {
+            statStatus: 'verified',
+            statSource: 'simulationcraft_json',
+            blockers: [],
+            secondary: [
+              { key: 'crit', label: '鏆村嚮', value: '994', rawValue: 994, convertedValue: '28.6%' }
+            ]
+          }
+      return Promise.resolve({ payload })
     }
   })
   const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
@@ -4787,9 +5329,8 @@ test('gear stats refresh dedupes the same request signature after blocked snapsh
   await pageConfig.refreshGearStats.call(page, requestPayload, 'same-signature')
   await pageConfig.refreshGearStats.call(page, requestPayload, 'same-signature')
 
-  assert.equal(requestCount, 1)
-  assert.equal(page.data.gearStatSnapshot.statStatus, 'blocked')
-  assert.deepEqual(page.data.gearStatBlockers, ['SimC item resolution warning'])
+  assert.equal(requestCount, 2)
+  assert.equal(page.data.gearStatSnapshot.statStatus, 'verified')
 })
 
 test('gear template save asks for a name before storing neutral complete status', async () => {

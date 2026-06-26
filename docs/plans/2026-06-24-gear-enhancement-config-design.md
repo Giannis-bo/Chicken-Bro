@@ -170,6 +170,17 @@
 - 线上 health：`/health` 返回 OK；`/api/data/health` 中 `sourceCoverage.crafted=84`，`modOptionCoverage.socket=20`、`enchant=21`、`embellishment=11`、`crafted_stats=6`。
 - 线上 compact 抽样：`shaman/elemental` 的制造项链、戒指、武器、盾牌、Held In Off-hand 副手均按装备类型返回美化选项；盾牌不出现暗月徽记，Held In Off-hand 不出现奥纹/阳炎内衬；自带美化装备返回空独立美化列表但继续计入 `美化 1/2`。
 
+## v1.2 强化统计与标签机制复核
+
+本轮复核源于属性概览中“未配置却显示已满”、附魔上限误算、宝石 tag 丢失等 UI 问题。最终收口是：宝石、附魔、美化、套装对外都可以显示为简单计数，但底层必须分别走各自证据链，不能共用一个前端槽位常量。
+
+- 宝石：对外仍是 `0/3`、`3/3`，但这 3 来自后端 `SOCKET_OPTION_GEAR_SLOT_CAPACITY` 当前规则：项链、戒指 1、戒指 2 各 `socketCount=1`。前端已移除本地 `neck/finger1/finger2` 容量表，只消费 `modCapabilities.socketCount`、socket 数组或旧 payload 的明确 `hasSocket=true` 兼容兜底。属性概览的已使用数只统计用户确认写回的 `enhancementBySlot`，不会把装备原始 `gem_id` 或候选 option 当成已配置。
+- 附魔：腿部护甲片归入 `enchant`，和其他装备附魔一样最终写 `enchant_id`。UI 上限不等于后端 `ENCHANTABLE_GEAR_SLOTS` 的全集，而是当前已选装备中存在 display-ready `enchantOptions` 或受控兼容兜底的可配置行；Held In Off-hand、盾牌和不适用副手武器附魔继续按装备类型过滤。
+- 美化：计数继续为自带美化 + 独立美化，最大 2。自带美化只以装备 tag 和属性概览计数出现，不在同一装备上继续提供独立美化选择；独立美化达到上限时前端禁用，后端 serializer 仍负责最终 blocker。
+- 套装：不进入 `enhancementBySlot`，也不进入“配置宝石、附魔”sheet。属性概览按当前已选装备的 item-set metadata 自动统计同套装件数，上限 5；未来若要显式 `set_bonus`，必须单独补权威映射和 blocker。
+- 金色 tag：装备卡右上角标签来自“当前槽位已确认的 `enhancementBySlot` 与当前装备仍匹配”或装备自带美化，不从全局计数倒推。选择宝石/附魔/美化后，只有点击“确认”写回后才显示；换装备后若 option 不再匹配，会裁剪 stale 配置并同步移除 tag。
+- 复核测试：`tests/builds-page.test.js` 覆盖 `socketCount` 证据链、腿部护甲片附魔上限、项链/双戒指宝石 tag、同戒指宝石/附魔/美化共存、主属性宝石唯一和自带美化计数；`tests/websim_payload_test.py` 覆盖 socket 不从 observed gem 反推、display-ready 门禁、附魔/美化过滤、serializer blocker 和套装 backfill。
+
 ## 后续切片建议
 
 1. **套装推导**：从已选装备的 item set metadata 计算 2/4 件状态，补 SimC `set_bonus` token 映射和 blocker。

@@ -246,6 +246,34 @@ GEAR_CONFIG_ENCHANT_ID_POLICIES = {
         "configCategory": "runeforge",
         "exclusionReason": "DK runeforge observed on weapons, not a general gear enchant.",
     },
+    "7528": {
+        "configCategory": "class_only_precombat",
+        "exclusionReason": "Restoration Shaman class-only combat preparation, not a general gear enchant.",
+    },
+}
+GEAR_ENCHANT_LABELS_ZH = {
+    "4897": "地精滑翔器",
+    "7957": "纳洛拉克印记",
+    "7963": "山猫之敏",
+    "7967": "鹰眼神视",
+    "7969": "祖尔金的精通",
+    "7981": "加亚莱的精准",
+    "7983": "狂战士之怒",
+    "7985": "护根者印记",
+    "7987": "世界之魂印记",
+    "7993": "莎拉达希尔之根",
+    "7997": "自然之怒",
+    "8013": "魔导师印记",
+    "8019": "远行者的狩猎",
+    "8025": "银月城之捷",
+    "8027": "银月城之韧",
+    "8039": "朗多雷之锐",
+    "8041": "奥术精通",
+    "7935": "阳炎丝绸魔线",
+    "7937": "奥纹魔线",
+    "8158": "森林猎手的护甲片",
+    "8159": "森林猎手的护甲片",
+    "8163": "血骑士的护甲片",
 }
 GEAR_CONFIG_ENCHANT_NAME_POLICIES = [
     {
@@ -693,6 +721,7 @@ ENCHANTABLE_GEAR_SLOTS = {
 }
 SOCKET_OPTION_GEAR_SLOT_LIST = ["neck", "finger1", "finger2"]
 SOCKET_OPTION_GEAR_SLOTS = set(SOCKET_OPTION_GEAR_SLOT_LIST)
+SOCKET_OPTION_GEAR_SLOT_CAPACITY = {"neck": 1, "finger1": 1, "finger2": 1}
 GEAR_EMBELLISHMENT_ARMOR_SLOTS = ["head", "shoulder", "back", "chest", "wrist", "hands", "waist", "legs", "feet"]
 GEAR_EMBELLISHMENT_JEWELRY_SLOTS = ["neck", "finger1", "finger2"]
 GEAR_EMBELLISHMENT_WEAPON_SLOTS = ["main_hand", "off_hand"]
@@ -4288,16 +4317,35 @@ def item_payload_has_socket(payload):
     return False
 
 
+def item_socket_capacity(payload=None, slot=""):
+    slot = normalize_slot(slot)
+    if slot in SOCKET_OPTION_GEAR_SLOT_CAPACITY:
+        return SOCKET_OPTION_GEAR_SLOT_CAPACITY[slot]
+    return 1 if item_payload_has_socket(payload) else 0
+
+
+def item_can_enchant_slot(payload=None, slot="", item=None):
+    slot = normalize_slot(slot or (item or {}).get("slot") or "")
+    if slot not in ENCHANTABLE_GEAR_SLOTS:
+        return False
+    if slot != "off_hand":
+        return True
+    context = dict(item) if isinstance(item, dict) else {"slot": slot}
+    if isinstance(payload, dict) and payload:
+        context.setdefault("payload", payload)
+    _slot, armor_type, weapon_type = gear_item_type_context(context)
+    if weapon_type in {"held in off-hand", "shield"} or armor_type == "shield":
+        return False
+    return True
+
+
 def item_mod_capabilities(payload=None, slot="", variants=None, item=None):
     slot = normalize_slot(slot or (item or {}).get("slot") or "")
     payload = payload if isinstance(payload, dict) else {}
     item = item if isinstance(item, dict) else {}
     variants = [variant for variant in variants or [] if isinstance(variant, dict)]
-    has_socket = item_payload_has_socket(payload) or any(
-        (variant.get("simcOptions") or {}).get("gem_id") or (variant.get("simcOptions") or {}).get("gem_bonus_id")
-        for variant in variants
-    ) or bool(item.get("gem_id") or item.get("gem_bonus_id"))
-    can_enchant = slot in ENCHANTABLE_GEAR_SLOTS
+    socket_count = item_socket_capacity(payload, slot)
+    can_enchant = item_can_enchant_slot(payload, slot, item)
     can_embellish = bool(
         item.get("embellishment")
         or item.get("crafted_stats")
@@ -4309,11 +4357,14 @@ def item_mod_capabilities(payload=None, slot="", variants=None, item=None):
             for variant in variants
         )
     )
-    return {
-        "hasSocket": bool(has_socket),
+    capabilities = {
+        "hasSocket": bool(socket_count),
         "canEnchant": bool(can_enchant),
         "canEmbellish": bool(can_embellish),
     }
+    if socket_count:
+        capabilities["socketCount"] = socket_count
+    return capabilities
 
 
 def item_set_name_from_payload(payload):
@@ -9707,6 +9758,12 @@ def sync_wago_gear_mod_option_display_names(conn, simc_text_or_build="", locale=
             continue
         enchant_id = normalize_option_value(simc_options.get("enchant_id"))
         display_name = names_by_id.get(enchant_id)
+        evidence_source = "wago_db2_spell_item_enchantment"
+        evidence_ref = source
+        if not display_name and enchant_id in GEAR_ENCHANT_LABELS_ZH:
+            display_name = GEAR_ENCHANT_LABELS_ZH[enchant_id]
+            evidence_source = "server_curated_enchant_label"
+            evidence_ref = ""
         if not display_name:
             payload = safe_json_loads(payload_json, {})
             payload = payload if isinstance(payload, dict) else {}
@@ -9723,8 +9780,8 @@ def sync_wago_gear_mod_option_display_names(conn, simc_text_or_build="", locale=
                 "displayLabel": display_name,
                 "displayKind": "name",
                 "displayStatus": "verified",
-                "evidenceSource": "wago_db2_spell_item_enchantment",
-                "evidenceRef": source,
+                "evidenceSource": evidence_source,
+                "evidenceRef": evidence_ref,
                 "metadataLocale": locale,
             }
         )
@@ -15283,6 +15340,24 @@ def gear_mod_option_display_fields(option_type, name="", simc_options=None, payl
             if evidence_ref:
                 result["evidenceRef"] = evidence_ref
             return result
+    if option_type == "enchant":
+        enchant_id = normalize_option_value(
+            simc_options.get("enchant_id")
+            or payload.get("enchant_id")
+            or payload.get("enchantId")
+            or payload.get("enchant")
+        )
+        if enchant_id in GEAR_ENCHANT_LABELS_ZH:
+            result = {
+                "displayLabel": GEAR_ENCHANT_LABELS_ZH[enchant_id],
+                "displayName": GEAR_ENCHANT_LABELS_ZH[enchant_id],
+                "displayKind": "name",
+                "displayStatus": "verified",
+                "evidenceSource": evidence_source or "wago_db2_spell_item_enchantment",
+            }
+            if evidence_ref:
+                result["evidenceRef"] = evidence_ref
+            return result
     if option_type == "embellishment":
         key = normalize_option_value(
             simc_options.get("embellishment")
@@ -15348,7 +15423,11 @@ def gear_catalog_mod_options_by_slot(conn, option_type):
         normalized_slots = [normalize_slot(slot) for slot in slots]
         normalized_slots = [slot for slot in normalized_slots if slot]
         if not normalized_slots or "*" in slots:
-            normalized_slots = list(CANONICAL_GEAR_SLOTS)
+            normalized_slots = list(SOCKET_OPTION_GEAR_SLOT_LIST if option_type == "socket" else CANONICAL_GEAR_SLOTS)
+        if option_type == "socket":
+            normalized_slots = [slot for slot in normalized_slots if slot in SOCKET_OPTION_GEAR_SLOTS]
+            if not normalized_slots:
+                continue
         simc_options = safe_json_loads(row[4], {})
         if not isinstance(simc_options, dict):
             simc_options = {}
@@ -17416,11 +17495,18 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
                 item["statSource"] = stat_source[:120]
     if isinstance(value.get("modCapabilities"), dict):
         computed_capabilities = item_mod_capabilities(payload, slot, item=item)
+        source_capabilities = value.get("modCapabilities", {})
+        def merged_capability(key):
+            if source_capabilities.get(key) is False:
+                return False
+            return bool(source_capabilities.get(key) or computed_capabilities.get(key))
         item["modCapabilities"] = {
-            "hasSocket": bool(value.get("modCapabilities", {}).get("hasSocket") or computed_capabilities.get("hasSocket")),
-            "canEnchant": bool(value.get("modCapabilities", {}).get("canEnchant") or computed_capabilities.get("canEnchant")),
-            "canEmbellish": bool(value.get("modCapabilities", {}).get("canEmbellish") or computed_capabilities.get("canEmbellish")),
+            "hasSocket": merged_capability("hasSocket"),
+            "canEnchant": merged_capability("canEnchant"),
+            "canEmbellish": merged_capability("canEmbellish"),
         }
+        if item["modCapabilities"]["hasSocket"] and computed_capabilities.get("socketCount"):
+            item["modCapabilities"]["socketCount"] = computed_capabilities.get("socketCount")
     else:
         item["modCapabilities"] = item_mod_capabilities(payload, slot, item=item)
     for key in ("socketOptions", "enchantOptions", "embellishmentOptions"):
@@ -17784,11 +17870,17 @@ def sanitize_gear_candidate_mod_options(item):
         cloned.pop("source", None)
     existing_capabilities = cloned.get("modCapabilities") if isinstance(cloned.get("modCapabilities"), dict) else {}
     computed_capabilities = item_mod_capabilities({}, cloned.get("slot") or "", cloned.get("variants") or [], cloned)
+    def merged_capability(key):
+        if existing_capabilities.get(key) is False:
+            return False
+        return bool(existing_capabilities.get(key) or computed_capabilities.get(key))
     capabilities = {
-        "hasSocket": bool(existing_capabilities.get("hasSocket") or computed_capabilities.get("hasSocket")),
-        "canEnchant": bool(existing_capabilities.get("canEnchant") or computed_capabilities.get("canEnchant")),
-        "canEmbellish": bool(existing_capabilities.get("canEmbellish") or computed_capabilities.get("canEmbellish")),
+        "hasSocket": merged_capability("hasSocket"),
+        "canEnchant": merged_capability("canEnchant"),
+        "canEmbellish": merged_capability("canEmbellish"),
     }
+    if capabilities["hasSocket"] and computed_capabilities.get("socketCount"):
+        capabilities["socketCount"] = computed_capabilities.get("socketCount")
     allow_mod_options = bool(
         cloned.get("simcReady")
         or any(str(variant.get("status") or "").strip().lower() == "verified" for variant in cloned.get("variants") or [])
@@ -19439,6 +19531,21 @@ def simc_snapshot_display_number(value, precision=0):
     return text, number
 
 
+def simc_snapshot_number(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def simc_snapshot_display_max_number(values, precision=0):
+    numbers = [number for number in (simc_snapshot_number(value) for value in values) if number is not None]
+    if not numbers:
+        return "", None
+    return simc_snapshot_display_number(max(numbers), precision)
+
+
 def simc_snapshot_percent_value(value):
     try:
         number = float(value)
@@ -19449,6 +19556,28 @@ def simc_snapshot_percent_value(value):
     percent = number * 100 if abs(number) <= 2 else number
     text = f"{round(percent, 1):.1f}".rstrip("0").rstrip(".")
     return f"{text}%", percent
+
+
+def simc_snapshot_percent_display(percent):
+    if percent is None or not math.isfinite(percent):
+        return "", None
+    text = f"{round(percent, 1):.1f}".rstrip("0").rstrip(".")
+    return f"{text}%", percent
+
+
+def simc_snapshot_percent_from_stats(stats, percent_keys, haste_multiplier_keys=None):
+    candidates = []
+    for percent_key in percent_keys or []:
+        _, percent = simc_snapshot_percent_value(stats.get(percent_key))
+        if percent is not None:
+            candidates.append(percent)
+    for haste_key in haste_multiplier_keys or []:
+        multiplier = simc_snapshot_number(stats.get(haste_key))
+        if multiplier and multiplier > 0:
+            candidates.append((1 / multiplier - 1) * 100)
+    if not candidates:
+        return "", None
+    return simc_snapshot_percent_display(max(candidates))
 
 
 def simc_json_player(payload):
@@ -19496,19 +19625,14 @@ def parse_simcraft_json_stat_snapshot(payload):
 
     stamina_display, stamina_number = simc_snapshot_display_number(attributes.get("stamina"), 0)
     secondary = []
-    for key, label, rating_key, percent_keys in [
-        ("crit", "暴击", "crit_rating", ["crit_pct", "spell_crit", "attack_crit"]),
-        ("haste", "急速", "haste_rating", ["haste_pct"]),
-        ("mastery", "精通", "mastery_rating", ["mastery_pct", "mastery_value"]),
-        ("versatility", "全能", "versatility_rating", ["versatility_pct", "damage_versatility"]),
+    for key, label, rating_keys, percent_keys, haste_multiplier_keys in [
+        ("crit", "暴击", ["crit_rating", "melee_crit_rating", "spell_crit_rating"], ["crit_pct", "spell_crit", "attack_crit"], []),
+        ("haste", "急速", ["haste_rating", "melee_haste_rating", "spell_haste_rating"], ["haste_pct"], ["attack_haste", "spell_haste"]),
+        ("mastery", "精通", ["mastery_rating"], ["mastery_pct", "mastery_value"], []),
+        ("versatility", "全能", ["versatility_rating"], ["versatility_pct", "damage_versatility"], []),
     ]:
-        rating_display, rating_number = simc_snapshot_display_number(stats.get(rating_key), 0)
-        percent_display = ""
-        percent_number = None
-        for percent_key in percent_keys:
-            percent_display, percent_number = simc_snapshot_percent_value(stats.get(percent_key))
-            if percent_display:
-                break
+        rating_display, rating_number = simc_snapshot_display_max_number([stats.get(rating_key) for rating_key in rating_keys], 0)
+        percent_display, percent_number = simc_snapshot_percent_from_stats(stats, percent_keys, haste_multiplier_keys)
         if rating_display or percent_display:
             row = {
                 "key": key,
@@ -19669,6 +19793,17 @@ def run_windows_fake_simc_script(binary, profile):
         script = Path(binary).read_text(encoding="utf-8")
     except OSError:
         return None
+    first_line = script.splitlines()[0].strip().lower() if script.splitlines() else ""
+    if first_line.startswith("#!") and "python" in first_line:
+        return subprocess.run(
+            [sys.executable, binary, "-"],
+            input=profile,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            check=False,
+        )
     if not script.startswith("#!/bin/sh"):
         return None
 
@@ -20578,15 +20713,22 @@ def item_supports_enhancement_type(item, option_type):
     caps = item.get("modCapabilities") if isinstance(item.get("modCapabilities"), dict) else {}
     catalog_options_attached = bool(item.get("_catalogEnhancementOptionsAttached"))
     if option_type == "socket":
+        if caps.get("hasSocket") is False:
+            return False
+        slot = normalize_slot(item.get("slot") or item.get("simcSlot"))
         return bool(
             caps.get("hasSocket")
             or item.get("supportsSocket")
-            or item.get("gem_id")
-            or item.get("gem_bonus_id")
+            or item_socket_capacity({}, slot)
             or (not catalog_options_attached and item.get("socketOptions"))
         )
     if option_type == "enchant":
-        return bool(caps.get("canEnchant") or item.get("slot") in ENCHANTABLE_GEAR_SLOTS or item.get("enchantOptions"))
+        slot = normalize_slot(item.get("slot") or item.get("simcSlot"))
+        if not item_can_enchant_slot({}, slot, item):
+            return False
+        if caps.get("canEnchant") is False:
+            return False
+        return bool(caps.get("canEnchant") or slot in ENCHANTABLE_GEAR_SLOTS or item.get("enchantOptions"))
     if option_type == "embellishment":
         return bool(
             item_has_independent_embellishment_capability(item)

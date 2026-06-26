@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 class WebSimPayloadTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
+        self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.db_path = Path(self.tmp.name) / "websim.sqlite3"
         os.environ["WOW_NEWS_DB"] = str(self.db_path)
         os.environ.pop("WOW_BLIZZARD_CLIENT_ID", None)
@@ -3766,6 +3766,29 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(catalog_item["modCapabilities"]["canEnchant"])
         self.assertEqual(catalog_item["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
         self.assertEqual(catalog_item["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
+
+    def test_item_mod_capabilities_do_not_infer_socket_from_simc_gem_fields(self):
+        head_caps = self.websim_payload.item_mod_capabilities(
+            {},
+            "head",
+            variants=[{"simcOptions": {"gem_id": "240983"}}],
+            item={"slot": "head", "gem_id": "240983"},
+        )
+        neck_caps = self.websim_payload.item_mod_capabilities({}, "neck")
+        finger_caps = self.websim_payload.item_mod_capabilities({}, "finger1")
+        held_offhand_caps = self.websim_payload.item_mod_capabilities(
+            {},
+            "off_hand",
+            item={"slot": "off_hand", "weaponType": "Held In Off-hand"},
+        )
+
+        self.assertFalse(head_caps["hasSocket"])
+        self.assertNotIn("socketCount", head_caps)
+        self.assertTrue(neck_caps["hasSocket"])
+        self.assertEqual(neck_caps["socketCount"], 1)
+        self.assertTrue(finger_caps["hasSocket"])
+        self.assertEqual(finger_caps["socketCount"], 1)
+        self.assertFalse(held_offhand_caps["canEnchant"])
 
     def test_compact_gear_candidate_omits_redundant_mobile_metadata(self):
         compact = self.websim_payload.compact_gear_candidate(
@@ -11727,6 +11750,76 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(compact[0]["displayLabel"], "朗多雷之锐")
         self.assertEqual(compact[0]["simcOptions"]["enchant_id"], "8017")
 
+    def test_display_ready_enchants_use_verified_wago_id_fallback_names(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "observed-enchant-raw-ring",
+                    "type": "enchant",
+                    "name": "Observed enchant 7997",
+                    "slots": ["finger1"],
+                    "simcOptions": {"enchant_id": "7997"},
+                    "payload": {"source": "observed_variant"},
+                },
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "observed-enchant-class-only",
+                    "type": "enchant",
+                    "name": "Observed enchant 7528",
+                    "slots": ["main_hand"],
+                    "simcOptions": {"enchant_id": "7528"},
+                    "payload": {"source": "observed_variant"},
+                },
+            )
+            options = self.websim_payload.display_ready_gear_mod_options_by_slot(conn, "enchant")
+        finally:
+            conn.close()
+
+        self.assertEqual(options["finger1"][0]["displayLabel"], "自然之怒")
+        self.assertEqual(options["finger1"][0]["displayKind"], "name")
+        self.assertEqual(options["finger1"][0]["displayStatus"], "verified")
+        self.assertEqual(options["finger1"][0]["evidenceSource"], "wago_db2_spell_item_enchantment")
+        self.assertEqual(options["main_hand"], [])
+
+    def test_display_ready_enchants_include_leg_armor_patches_as_enchants(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            expected_labels = {
+                "7935": "阳炎丝绸魔线",
+                "7937": "奥纹魔线",
+                "8158": "森林猎手的护甲片",
+                "8159": "森林猎手的护甲片",
+                "8163": "血骑士的护甲片",
+            }
+            for enchant_id in expected_labels:
+                self.websim_payload.upsert_gear_mod_option(
+                    conn,
+                    {
+                        "id": f"observed-enchant-{enchant_id}",
+                        "type": "enchant",
+                        "name": f"Observed enchant {enchant_id}",
+                        "slots": ["legs"],
+                        "simcOptions": {"enchant_id": enchant_id},
+                        "payload": {"source": "observed_variant"},
+                    },
+                )
+            options = self.websim_payload.display_ready_gear_mod_options_by_slot(conn, "enchant")
+            coverage = self.websim_payload.gear_catalog_mod_option_coverage(conn)
+        finally:
+            conn.close()
+
+        labels_by_id = {option["simcOptions"]["enchant_id"]: option["displayLabel"] for option in options["legs"]}
+        self.assertEqual(labels_by_id, expected_labels)
+        self.assertEqual(coverage["enchant"]["optionCount"], 5)
+        self.assertIn("legs", coverage["enchant"]["coveredSlots"])
+        self.assertNotIn("missingDisplayCount", coverage["enchant"])
+
     def test_display_ready_enchants_hide_observed_death_knight_runeforge(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -11950,10 +12043,17 @@ class WebSimPayloadTest(unittest.TestCase):
                         json.dumps({"source": "observed_variant"}, ensure_ascii=False),
                     ),
                     (
-                        "observed-enchant-missing",
+                        "observed-enchant-leg-fallback",
                         "Observed enchant 7935",
-                        json.dumps(["finger1"], ensure_ascii=False),
+                        json.dumps(["legs"], ensure_ascii=False),
                         json.dumps({"enchant_id": "7935"}, ensure_ascii=False),
+                        json.dumps({"source": "observed_variant"}, ensure_ascii=False),
+                    ),
+                    (
+                        "observed-enchant-missing",
+                        "Observed enchant 999999",
+                        json.dumps(["finger1"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "999999"}, ensure_ascii=False),
                         json.dumps({"source": "observed_variant"}, ensure_ascii=False),
                     ),
                 ],
@@ -11975,13 +12075,16 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(counts["updated"], 1)
+        self.assertEqual(counts["updated"], 2)
         self.assertEqual(counts["removed"], 2)
         self.assertEqual(counts["missing"], 0)
-        self.assertEqual([row[0] for row in rows], ["observed-enchant-8017"])
+        self.assertEqual([row[0] for row in rows], ["observed-enchant-8017", "observed-enchant-leg-fallback"])
         self.assertEqual(json.loads(rows[0][1]), {"enchant_id": "8017"})
         self.assertEqual(json.loads(rows[0][2])["displayLabel"], "朗多雷之锐")
-        self.assertEqual(coverage["enchant"]["optionCount"], 1)
+        self.assertEqual(json.loads(rows[1][1]), {"enchant_id": "7935"})
+        self.assertEqual(json.loads(rows[1][2])["displayLabel"], "阳炎丝绸魔线")
+        self.assertEqual(json.loads(rows[1][2])["evidenceSource"], "server_curated_enchant_label")
+        self.assertEqual(coverage["enchant"]["optionCount"], 2)
         self.assertNotIn("missingDisplayCount", coverage["enchant"])
 
     def test_gear_catalog_sync_does_not_load_placeholder_default_mod_seed_without_env(self):
@@ -14134,6 +14237,55 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(snapshot["itemLevel"]["value"], "289")
         self.assertNotIn("999999", json.dumps(snapshot, ensure_ascii=False))
 
+    def test_parse_simcraft_json_stat_snapshot_accepts_native_buffed_stat_fields(self):
+        payload = {
+            "version": "1205-01",
+            "sim": {
+                "players": [
+                    {
+                        "name": "mageroysong",
+                        "gear": {"head": {"ilevel": 289}, "chest": {"ilevel": 289}},
+                        "collected_data": {
+                            "buffed_stats": {
+                                "attribute": {
+                                    "intellect": 2344,
+                                    "stamina": 20067,
+                                },
+                                "stats": {
+                                    "spell_crit_rating": 900,
+                                    "melee_crit_rating": 994,
+                                    "spell_crit": 0.25,
+                                    "attack_crit": 0.2860869565217391,
+                                    "spell_haste_rating": 554,
+                                    "melee_haste_rating": 500,
+                                    "spell_haste": 0.8453942766295706,
+                                    "attack_haste": 0.9,
+                                    "mastery_rating": 545,
+                                    "mastery_value": 0.3655652173913044,
+                                    "versatility_rating": 83,
+                                    "damage_versatility": 0.015370370370370373,
+                                },
+                            }
+                        },
+                    }
+                ]
+            },
+        }
+
+        snapshot = self.websim_payload.parse_simcraft_json_stat_snapshot(payload)
+
+        self.assertEqual(snapshot["statStatus"], "verified")
+        crit = next(row for row in snapshot["secondary"] if row["key"] == "crit")
+        haste = next(row for row in snapshot["secondary"] if row["key"] == "haste")
+        mastery = next(row for row in snapshot["secondary"] if row["key"] == "mastery")
+        versatility = next(row for row in snapshot["secondary"] if row["key"] == "versatility")
+        self.assertEqual(crit["value"], "994")
+        self.assertEqual(crit["convertedValue"], "28.6%")
+        self.assertEqual(haste["value"], "554")
+        self.assertEqual(haste["convertedValue"], "18.3%")
+        self.assertEqual(mastery["convertedValue"], "36.6%")
+        self.assertEqual(versatility["convertedValue"], "1.5%")
+
     def test_parse_simcraft_stat_snapshot_blocks_when_stats_are_missing(self):
         snapshot = self.websim_payload.parse_simcraft_stat_snapshot(
             "Generating Baseline: 50/100\nDPS Ranking:\n1. WebSim_Arcane 999999 dps\n"
@@ -15455,12 +15607,13 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
         simc_bin = Path(self.tmp.name) / "fake-json-gear-stats-simc"
         captured_profile = Path(self.tmp.name) / "json-gear-stats-profile.txt"
+        captured_profile_literal = json.dumps(str(captured_profile))
         simc_bin.write_text(
             "#!/bin/sh\n"
             f"cat > {captured_profile}\n"
             "python3 - <<'PY'\n"
             "import json, pathlib, re\n"
-            f"profile = pathlib.Path('{captured_profile}').read_text(encoding='utf-8')\n"
+            f"profile = pathlib.Path({captured_profile_literal}).read_text(encoding='utf-8')\n"
             "match = re.search(r'^json=(.+)$', profile, re.M)\n"
             "if not match:\n"
             "    raise SystemExit('missing json output path')\n"
