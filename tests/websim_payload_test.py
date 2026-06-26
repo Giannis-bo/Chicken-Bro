@@ -1541,6 +1541,76 @@ class WebSimPayloadTest(unittest.TestCase):
         )
         self.assertNotIn("wrist=only_embellished_cuffs", response["profile"])
 
+    def test_profile_serializer_blocks_spec_invalid_weapon_selection(self):
+        response = self.websim_payload.build_websim_profile_response(
+            {
+                "classKey": "shaman",
+                "specKey": "enhancement",
+                "gearSelection": {
+                    "items": [
+                        {
+                            "slot": "main_hand",
+                            "itemId": "260101",
+                            "name": "Storm Hacker",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "weaponType": "One-Handed Axe",
+                            "simcReady": True,
+                        },
+                        {
+                            "slot": "off_hand",
+                            "itemId": "260108",
+                            "name": "Storm Shield",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "weaponType": "Shield",
+                            "armorType": "Shield",
+                            "simcReady": True,
+                        },
+                    ]
+                },
+            }
+        )
+
+        blockers = response["readiness"]["enhancement"]["blockers"]
+        self.assertIn("main_hand=storm_hacker,id=260101,ilevel=289,bonus_id=13534", response["profile"])
+        self.assertNotIn("off_hand=storm_shield", response["profile"])
+        self.assertTrue(any("off_hand gear incompatible with shaman/enhancement weapon rule: Shield" in blocker for blocker in blockers))
+
+        response = self.websim_payload.build_websim_profile_response(
+            {
+                "classKey": "deathknight",
+                "specKey": "frost",
+                "gearSelection": {
+                    "items": [
+                        {
+                            "slot": "main_hand",
+                            "itemId": "260103",
+                            "name": "Frost Greatsword",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "weaponType": "Two-Handed Sword",
+                            "simcReady": True,
+                        },
+                        {
+                            "slot": "off_hand",
+                            "itemId": "260105",
+                            "name": "Frost Sidearm",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "weaponType": "One-Handed Sword",
+                            "simcReady": True,
+                        },
+                    ]
+                },
+            }
+        )
+
+        blockers = response["readiness"]["enhancement"]["blockers"]
+        self.assertIn("main_hand=frost_greatsword,id=260103,ilevel=289,bonus_id=13534", response["profile"])
+        self.assertNotIn("off_hand=frost_sidearm", response["profile"])
+        self.assertTrue(any("off_hand gear incompatible with selected two-hand main hand" in blocker for blocker in blockers))
+
     def test_structured_enhancement_snapshot_blocks_uncatalogued_options(self):
         response = self.websim_payload.build_websim_profile_response(
             {
@@ -4778,7 +4848,7 @@ class WebSimPayloadTest(unittest.TestCase):
         back_candidate = next(item for item in back_group["items"] if item["itemId"] == "258575")
         self.assertEqual(back_candidate["statDisplayStatus"], "verified_variant")
         self.assertEqual(back_candidate["statSource"], "simulationcraft")
-        self.assertEqual(back_candidate["statSummary"], "力量/敏捷/智力 70；耐力 995；暴击 50；精通 42")
+        self.assertEqual(back_candidate["statSummary"], "智力 70；耐力 995；暴击 50；精通 42")
         self.assertNotIn("智力 3", back_candidate["statSummary"])
 
     def test_sync_observed_variant_stats_from_profile_presets_enriches_observed_variants_without_network(self):
@@ -6469,7 +6539,7 @@ class WebSimPayloadTest(unittest.TestCase):
         head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
         catalog_item = next(item for item in head_group["items"] if item["itemId"] == "249979")
         self.assertEqual(catalog_item["statDisplayStatus"], "verified_variant")
-        self.assertEqual(catalog_item["statSummary"], "敏捷 or 智力 124；耐力 1768；急速 55；精通 109；吸血 71")
+        self.assertEqual(catalog_item["statSummary"], "智力 124；耐力 1768；急速 55；精通 109；吸血 71")
         self.assertNotIn("智力 9", catalog_item["statSummary"])
         self.assertEqual(catalog_item["itemStats"][0]["value"], 124)
 
@@ -6724,7 +6794,7 @@ class WebSimPayloadTest(unittest.TestCase):
         catalog_item = next(item for item in trinket_group["items"] if item["itemId"] == "250144")
         self.assertEqual(catalog_item["bonus_id"], "13440/40/12699/13654")
         self.assertEqual(catalog_item["statDisplayStatus"], "verified_variant")
-        self.assertEqual(catalog_item["statSummary"], "+128 [敏捷 or 智力]；+55闪避")
+        self.assertEqual(catalog_item["statSummary"], "+128 [智力]；+55闪避")
 
     def test_gear_catalog_health_includes_observed_variant_stat_coverage(self):
         conn = sqlite3.connect(self.db_path)
@@ -6996,6 +7066,11 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["details"]["slotCoverage"]["coveredSlotCount"], 1)
         self.assertIn("head", payload["details"]["slotCoverage"]["coveredSlots"])
         self.assertEqual(payload["details"]["sourceCoverage"]["observed_profile"], 1)
+        self.assertEqual(payload["details"]["weaponRuleCoverage"]["missingRuleCount"], 0)
+        self.assertEqual(
+            payload["details"]["weaponRuleCoverage"]["coveredSpecCount"],
+            payload["details"]["weaponRuleCoverage"]["totalSpecCount"],
+        )
 
     def test_gear_catalog_health_payload_reports_trusted_source_gaps(self):
         conn = sqlite3.connect(self.db_path)
@@ -8220,6 +8295,389 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("258412", main_hand_item_ids(hunter_payload))
         self.assertNotIn("258050", main_hand_item_ids(deathknight_payload))
         self.assertIn("258051", main_hand_item_ids(demonhunter_payload))
+
+    def test_websim_gear_filters_weapons_by_spec_equipment_mode(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+
+            def seed_weapon(item_id, name, inventory_type, subclass_id, subclass_name, stat_key="agility"):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": {"type": inventory_type, "name": inventory_type},
+                        "item_class": {"id": 2, "name": "Weapon"},
+                        "item_subclass": {"id": subclass_id, "name": subclass_name},
+                        "quality": {"name": "Epic"},
+                        "preview_item": {
+                            "stats": [{"type": {"type": stat_key.upper(), "name": stat_key.title()}, "value": 321}],
+                        },
+                    },
+                    {"assets": [{"value": f"https://render.example/{item_id}.jpg"}]},
+                    fallback_name=name,
+                    english_payload={"name": name, "inventory_type": {"name": inventory_type}},
+                    locale="en_US",
+                )
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"source-{item_id}",
+                        "itemId": item_id,
+                        "sourceType": "dungeon",
+                        "sourceLabel": "Weapon Boss - Test Dungeon",
+                        "seasonRevision": "season-mn-1",
+                    },
+                )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"variant-{item_id}",
+                        "itemId": item_id,
+                        "slot": "main_hand",
+                        "variantKey": "myth-289",
+                        "label": "Myth 289",
+                        "sourceType": "dungeon",
+                        "itemLevel": 289,
+                        "simcOptions": {"bonus_id": "6652"},
+                        "status": "verified",
+                        "payload": {
+                            "statDisplayStatus": "verified_variant",
+                            "statSource": "simulationcraft",
+                            "itemStats": [{"key": stat_key, "label": stat_key.title(), "value": 321}],
+                            "statSummary": f"{stat_key.title()} 321",
+                        },
+                    },
+                )
+
+            def seed_shield(item_id, name):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": {"type": "SHIELD", "name": "Shield"},
+                        "item_class": {"id": 4, "name": "Armor"},
+                        "item_subclass": {"id": 6, "name": "Shield"},
+                        "quality": {"name": "Epic"},
+                        "preview_item": {
+                            "stats": [{"type": {"type": "STAMINA", "name": "Stamina"}, "value": 321}],
+                        },
+                    },
+                    {"assets": [{"value": f"https://render.example/{item_id}.jpg"}]},
+                    fallback_name=name,
+                    english_payload={"name": name, "inventory_type": {"name": "Shield"}},
+                    locale="en_US",
+                )
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"source-{item_id}",
+                        "itemId": item_id,
+                        "sourceType": "dungeon",
+                        "sourceLabel": "Shield Boss - Test Dungeon",
+                        "seasonRevision": "season-mn-1",
+                    },
+                )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"variant-{item_id}",
+                        "itemId": item_id,
+                        "slot": "off_hand",
+                        "variantKey": "myth-289",
+                        "label": "Myth 289",
+                        "sourceType": "dungeon",
+                        "itemLevel": 289,
+                        "simcOptions": {"bonus_id": "6652"},
+                        "status": "verified",
+                        "payload": {
+                            "statDisplayStatus": "verified_variant",
+                            "statSource": "simulationcraft",
+                            "itemStats": [{"key": "stamina", "label": "Stamina", "value": 321}],
+                            "statSummary": "Stamina 321",
+                        },
+                    },
+                )
+
+            seed_weapon("260101", "Enhancement Axe", "WEAPON", 0, "One-Handed Axe")
+            seed_weapon("260102", "Shaman Staff", "2HWEAPON", 10, "Staff", "intellect")
+            seed_weapon("260103", "Fury Greatsword", "2HWEAPON", 8, "Two-Handed Sword", "strength")
+            seed_weapon("260104", "Fury One-Hand Sword", "WEAPON", 7, "One-Handed Sword", "strength")
+            seed_weapon("260105", "Frost Runeblade", "WEAPON", 7, "One-Handed Sword", "strength")
+            seed_weapon("260106", "Brewmaster Mace", "WEAPON", 4, "One-Handed Mace")
+            seed_weapon("260107", "Brewmaster Staff", "2HWEAPON", 10, "Staff")
+            seed_shield("260108", "Shaman Shield")
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+
+            enhancement = self.websim_payload.get_websim_gear(conn, "shaman", "enhancement", compact=True)
+            fury = self.websim_payload.get_websim_gear(conn, "warrior", "fury", compact=True)
+            frost = self.websim_payload.get_websim_gear(conn, "deathknight", "frost", compact=True)
+            brewmaster = self.websim_payload.get_websim_gear(conn, "monk", "brewmaster", compact=True)
+        finally:
+            conn.close()
+
+        def item_ids(payload, slot):
+            group = next(group for group in payload["replacementCandidates"] if group["slot"] == slot)
+            return {item["itemId"] for item in group["items"]}
+
+        self.assertIn("260101", item_ids(enhancement, "main_hand"))
+        self.assertIn("260101", item_ids(enhancement, "off_hand"))
+        self.assertNotIn("260102", item_ids(enhancement, "main_hand"))
+        self.assertNotIn("260108", item_ids(enhancement, "off_hand"))
+        self.assertEqual(enhancement["weaponRule"]["mode"], "dual_wield_1h")
+        self.assertIn("One-Handed Axe", enhancement["weaponRule"]["offHandTypes"])
+
+        self.assertIn("260103", item_ids(fury, "main_hand"))
+        self.assertIn("260103", item_ids(fury, "off_hand"))
+        self.assertNotIn("260104", item_ids(fury, "main_hand"))
+        self.assertNotIn("260108", item_ids(fury, "off_hand"))
+        self.assertEqual(fury["weaponRule"]["mode"], "dual_wield_2h")
+
+        self.assertIn("260105", item_ids(frost, "main_hand"))
+        self.assertIn("260105", item_ids(frost, "off_hand"))
+        self.assertIn("260103", item_ids(frost, "main_hand"))
+        self.assertNotIn("260103", item_ids(frost, "off_hand"))
+
+        self.assertIn("260106", item_ids(brewmaster, "main_hand"))
+        self.assertIn("260106", item_ids(brewmaster, "off_hand"))
+        self.assertIn("260107", item_ids(brewmaster, "main_hand"))
+        self.assertNotIn("260107", item_ids(brewmaster, "off_hand"))
+
+    def test_websim_gear_filters_candidates_and_stat_summary_by_spec_primary_stat(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+
+            def seed_neck(item_id, name, stats, stat_summary):
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": {"type": "NECK", "name": "Neck"},
+                        "item_class": {"id": 4, "name": "Armor"},
+                        "item_subclass": {"id": 0, "name": "Miscellaneous"},
+                        "quality": {"name": "Epic"},
+                        "preview_item": {"stats": stats},
+                    },
+                    {"assets": [{"value": f"https://render.example/{item_id}.jpg"}]},
+                    fallback_name=name,
+                    english_payload={"name": name, "inventory_type": {"name": "Neck"}},
+                    locale="en_US",
+                )
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"source-{item_id}",
+                        "itemId": item_id,
+                        "sourceType": "dungeon",
+                        "sourceLabel": "Primary Stat Boss - Test Dungeon",
+                        "seasonRevision": "season-mn-1",
+                    },
+                )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"variant-{item_id}",
+                        "itemId": item_id,
+                        "slot": "neck",
+                        "variantKey": "myth-289",
+                        "label": "Myth 289",
+                        "sourceType": "dungeon",
+                        "itemLevel": 289,
+                        "simcOptions": {"bonus_id": "6652"},
+                        "status": "verified",
+                        "payload": {
+                            "statDisplayStatus": "verified_variant",
+                            "statSource": "simulationcraft",
+                            "itemStats": stats,
+                            "statSummary": stat_summary,
+                        },
+                    },
+                )
+
+            seed_neck(
+                "260201",
+                "Intellect-Only Torque",
+                [
+                    {"key": "intellect", "label": "智力", "value": 222},
+                    {"key": "stamina", "label": "耐力", "value": 555},
+                    {"key": "haste", "label": "急速", "value": 60},
+                ],
+                "智力 222；耐力 555；急速 60",
+            )
+            seed_neck(
+                "260202",
+                "Adaptive Battle Torque",
+                [
+                    {"key": "strint", "label": "力量 or 智力", "value": 333},
+                    {"key": "stamina", "label": "耐力", "value": 555},
+                    {"key": "crit", "label": "暴击", "value": 70},
+                ],
+                "力量 or 智力 333；耐力 555；暴击 70",
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+
+            warrior = self.websim_payload.get_websim_gear(conn, "warrior", "fury", compact=True)
+            mage = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        def neck_items(payload):
+            group = next(group for group in payload["replacementCandidates"] if group["slot"] == "neck")
+            return {item["itemId"]: item for item in group["items"]}
+
+        warrior_necks = neck_items(warrior)
+        mage_necks = neck_items(mage)
+        self.assertNotIn("260201", warrior_necks)
+        self.assertIn("260201", mage_necks)
+        self.assertIn("260202", warrior_necks)
+        self.assertIn("260202", mage_necks)
+        self.assertEqual(warrior_necks["260202"]["primaryStatKey"], "strength")
+        self.assertEqual(mage_necks["260202"]["primaryStatKey"], "intellect")
+        self.assertIn("力量 333", warrior_necks["260202"]["statSummary"])
+        self.assertNotIn("智力", warrior_necks["260202"]["statSummary"])
+        self.assertIn("智力 333", mage_necks["260202"]["statSummary"])
+        self.assertNotIn("力量", mage_necks["260202"]["statSummary"])
+
+    def test_crafted_stat_options_filter_by_spec_primary_stat(self):
+        item = {
+            "itemId": "260203",
+            "id": "260203",
+            "slot": "chest",
+            "displayName": "Forged Test Chest",
+            "sourceType": "crafted",
+            "variantSource": "crafted",
+            "primaryStatKey": "strength",
+            "sources": [{"id": "crafted-260203", "sourceType": "crafted", "sourceLabel": "制造装备"}],
+            "variants": [
+                {
+                    "id": "crafted-strength",
+                    "sourceType": "crafted",
+                    "difficultyKey": "crafted_myth",
+                    "itemLevel": 285,
+                    "simcOptions": {"ilevel": "285", "crafted_stats": "40/32"},
+                    "status": "verified",
+                    "payload": {
+                        "craftedStatKey": "strength-haste",
+                        "craftedStatLabel": "力量 + 急速",
+                        "itemStats": [
+                            {"key": "strength", "label": "力量", "value": 285},
+                            {"key": "haste", "label": "急速", "value": 40},
+                        ],
+                        "statSummary": "力量 285；急速 40",
+                    },
+                },
+                {
+                    "id": "crafted-intellect",
+                    "sourceType": "crafted",
+                    "difficultyKey": "crafted_myth",
+                    "itemLevel": 285,
+                    "simcOptions": {"ilevel": "285", "crafted_stats": "36/49"},
+                    "status": "verified",
+                    "payload": {
+                        "craftedStatKey": "intellect-mastery",
+                        "craftedStatLabel": "智力 + 精通",
+                        "itemStats": [
+                            {"key": "intellect", "label": "智力", "value": 285},
+                            {"key": "mastery", "label": "精通", "value": 49},
+                        ],
+                        "statSummary": "智力 285；精通 49",
+                    },
+                },
+            ],
+        }
+
+        compact = self.websim_payload.compact_gear_candidate(item)
+        options = compact["variants"][0]["craftedStatOptions"]
+
+        self.assertEqual([option["label"] for option in options], ["力量 + 急速"])
+        self.assertEqual(options[0]["statSummary"], "力量 285；急速 40")
+
+    def test_compact_gear_payload_includes_handedness_and_unique_badges(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "260204",
+                {
+                    "id": 260204,
+                    "name": "Unique Greatsword",
+                    "inventory_type": {"type": "2HWEAPON", "name": "Two-Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"id": 8, "name": "Two-Handed Sword"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "limit_category": "Unique-Equipped: Test Relic (1)",
+                        "stats": [{"type": {"type": "STRENGTH", "name": "Strength"}, "value": 321}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/260204.jpg"}]},
+                fallback_name="Unique Greatsword",
+                english_payload={"name": "Unique Greatsword", "inventory_type": {"name": "Two-Hand"}},
+                locale="en_US",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "source-260204",
+                    "itemId": "260204",
+                    "sourceType": "raid",
+                    "sourceLabel": "Unique Boss - Test Raid",
+                    "seasonRevision": "season-mn-1",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "variant-260204",
+                    "itemId": "260204",
+                    "slot": "main_hand",
+                    "variantKey": "myth-289",
+                    "label": "Myth 289",
+                    "sourceType": "raid",
+                    "itemLevel": 289,
+                    "simcOptions": {"bonus_id": "6652"},
+                    "status": "verified",
+                    "payload": {
+                        "statDisplayStatus": "verified_variant",
+                        "statSource": "simulationcraft",
+                        "itemStats": [{"key": "strength", "label": "力量", "value": 321}],
+                        "statSummary": "力量 321",
+                    },
+                },
+            )
+            self.websim_payload.set_sync_state(
+                conn,
+                "gearCatalog",
+                self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
+            )
+
+            payload = self.websim_payload.get_websim_gear(conn, "warrior", "arms", compact=True)
+        finally:
+            conn.close()
+
+        main_hand = next(group for group in payload["replacementCandidates"] if group["slot"] == "main_hand")
+        item = next(item for item in main_hand["items"] if item["itemId"] == "260204")
+        self.assertEqual(item["handednessLabel"], "双手")
+        self.assertTrue(item["uniqueEquipped"])
+        self.assertEqual(item["uniqueEquippedLabel"], "唯一")
+        self.assertIn({"key": "weapon_handedness", "label": "双手"}, item["equipmentBadges"])
+        self.assertIn({"key": "unique_equipped", "label": "唯一"}, item["equipmentBadges"])
 
     def test_gear_catalog_health_blocks_socket_capable_items_without_socket_mod_options(self):
         conn = sqlite3.connect(self.db_path)
@@ -11302,6 +11760,140 @@ class WebSimPayloadTest(unittest.TestCase):
         main_hand_labels = [option["displayLabel"] for option in options["main_hand"]]
         self.assertNotIn("天启符文", main_hand_labels)
         self.assertIn("朗多雷之锐", main_hand_labels)
+
+    def test_display_ready_enchants_hide_class_only_precombat_enchants(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            conn.executemany(
+                """
+                INSERT INTO websim_gear_mod_options
+                (id, option_type, name, applicable_slots_json, simc_options_json,
+                 status, payload_json, updated_at)
+                VALUES (?, 'enchant', ?, ?, ?, 'verified', ?, 'now')
+                """,
+                [
+                    (
+                        "observed-enchant-tideguard",
+                        "唤潮者的护卫",
+                        json.dumps(["off_hand"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "7528"}, ensure_ascii=False),
+                        json.dumps(
+                            {
+                                "source": "observed_variant",
+                                "displayName": "唤潮者的护卫",
+                                "displayStatus": "verified",
+                                "evidenceSource": "wago_db2_spell_item_enchantment",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    ),
+                    (
+                        "observed-enchant-real-weapon",
+                        "朗多雷之锐",
+                        json.dumps(["main_hand"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "8039"}, ensure_ascii=False),
+                        json.dumps(
+                            {
+                                "source": "observed_variant",
+                                "displayName": "朗多雷之锐",
+                                "displayStatus": "verified",
+                                "evidenceSource": "wago_db2_spell_item_enchantment",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    ),
+                ],
+            )
+            options = self.websim_payload.display_ready_gear_mod_options_by_slot(conn, "enchant")
+            coverage = self.websim_payload.gear_catalog_mod_option_coverage(conn)
+        finally:
+            conn.close()
+
+        off_hand_labels = [option["displayLabel"] for option in options["off_hand"]]
+        main_hand_labels = [option["displayLabel"] for option in options["main_hand"]]
+        self.assertNotIn("唤潮者的护卫", off_hand_labels)
+        self.assertIn("朗多雷之锐", main_hand_labels)
+        self.assertEqual(coverage["enchant"]["excludedOptionCount"], 1)
+        self.assertEqual(coverage["enchant"]["excludedExamples"][0]["name"], "唤潮者的护卫")
+
+    def test_weapon_enchants_filter_offhand_by_item_type(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "observed-enchant-rondorei",
+                    "type": "enchant",
+                    "name": "朗多雷之锐",
+                    "slots": ["main_hand", "off_hand"],
+                    "simcOptions": {"enchant_id": "8039"},
+                    "payload": {
+                        "source": "observed_variant",
+                        "displayName": "朗多雷之锐",
+                        "displayStatus": "verified",
+                        "evidenceSource": "wago_db2_spell_item_enchantment",
+                    },
+                },
+            )
+            items = self.websim_payload.attach_catalog_enhancement_options(
+                conn,
+                [
+                    {"slot": "main_hand", "weaponType": "One-Handed Sword", "modCapabilities": {"canEnchant": True}},
+                    {"slot": "off_hand", "weaponType": "Shield", "armorType": "Shield", "modCapabilities": {"canEnchant": True}},
+                    {"slot": "off_hand", "weaponType": "Held In Off-hand", "armorType": "Miscellaneous", "modCapabilities": {"canEnchant": True}},
+                    {"slot": "off_hand", "weaponType": "One-Handed Axe", "modCapabilities": {"canEnchant": True}},
+                ],
+            )
+        finally:
+            conn.close()
+
+        main_hand, shield, held_offhand, offhand_weapon = items
+        self.assertEqual([option["displayLabel"] for option in main_hand["enchantOptions"]], ["朗多雷之锐"])
+        self.assertEqual(shield["enchantOptions"], [])
+        self.assertEqual(held_offhand["enchantOptions"], [])
+        self.assertEqual([option["displayLabel"] for option in offhand_weapon["enchantOptions"]], ["朗多雷之锐"])
+
+    def test_serializer_blocks_weapon_enchant_on_held_offhand(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "observed-enchant-rondorei",
+                    "type": "enchant",
+                    "name": "朗多雷之锐",
+                    "slots": ["off_hand"],
+                    "simcOptions": {"enchant_id": "8039"},
+                    "payload": {
+                        "source": "observed_variant",
+                        "displayName": "朗多雷之锐",
+                        "displayStatus": "verified",
+                        "evidenceSource": "wago_db2_spell_item_enchantment",
+                    },
+                },
+            )
+            enhanced, readiness = self.websim_payload.merge_websim_gear_enhancements(
+                [
+                    {
+                        "slot": "off_hand",
+                        "itemId": "245769",
+                        "name": "艾林哈籁灯笼",
+                        "weaponType": "Held In Off-hand",
+                        "armorType": "Miscellaneous",
+                        "modCapabilities": {"canEnchant": True},
+                    }
+                ],
+                {"off_hand": {"enchant_id": "8039"}},
+                conn,
+            )
+        finally:
+            conn.close()
+
+        self.assertFalse(enhanced[0].get("enchant_id"))
+        self.assertTrue(any("off_hand enchant" in blocker for blocker in readiness["blockers"]))
 
     def test_sync_wago_gear_mod_enchant_names_removes_unresolved_observed_enchants(self):
         conn = sqlite3.connect(self.db_path)

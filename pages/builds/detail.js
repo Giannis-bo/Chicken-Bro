@@ -38,6 +38,28 @@ const primaryStatGemUniqueGroup = 'primary_stat_gem'
 const primaryStatGemUniqueLimit = 1
 const primaryStatGemIds = new Set(['240967', '240969', '240971', '240983'])
 const enchantableGearSlots = new Set(['back', 'chest', 'wrist', 'legs', 'feet', 'finger1', 'finger2', 'main_hand', 'off_hand'])
+const gearConfigEnchantExcludedCategories = new Set([
+  'class_only_precombat',
+  'class_only_weapon_enchant',
+  'combat_preparation',
+  'runeforge',
+  'temporary_enchant'
+])
+const offhandWeaponEnchantTypes = new Set([
+  'dagger',
+  'fist weapon',
+  'one-handed axe',
+  'one-handed mace',
+  'one-handed sword',
+  'warglaive'
+])
+const twoHandWeaponTypes = new Set([
+  'polearm',
+  'staff',
+  'two-handed axe',
+  'two-handed mace',
+  'two-handed sword'
+])
 const gearEmbellishmentArmorSlots = new Set(['head', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist', 'legs', 'feet'])
 const gearEmbellishmentJewelrySlots = new Set(['neck', 'finger1', 'finger2'])
 const gearEmbellishmentEquipmentSlots = new Set([
@@ -921,12 +943,96 @@ function enhancementOptionSlotGroup(option) {
   return cleanGearString((option && option.slotGroup) || payload.slotGroup || payload.slot_group).toLowerCase()
 }
 
+function normalizedConfigKey(value) {
+  return cleanGearString(value).replace(/[^a-zA-Z0-9_]+/g, '_').replace(/^_+|_+$/g, '').toLowerCase()
+}
+
+function enchantOptionConfigCategory(option) {
+  const payload = option && option.payload && typeof option.payload === 'object' ? option.payload : {}
+  return normalizedConfigKey(
+    (option && (option.configCategory || option.config_category || option.enchantCategory || option.enchant_category)) ||
+    payload.configCategory ||
+    payload.config_category ||
+    payload.enchantCategory ||
+    payload.enchant_category ||
+    payload.category
+  )
+}
+
+function enchantOptionExcludedFromGearConfig(option) {
+  const payload = option && option.payload && typeof option.payload === 'object' ? option.payload : {}
+  const category = enchantOptionConfigCategory(option)
+  return !!(
+    gearConfigEnchantExcludedCategories.has(category) ||
+    (option && (option.excludeFromGearConfig || option.exclude_from_gear_config || option.blocked)) ||
+    payload.excludeFromGearConfig ||
+    payload.exclude_from_gear_config ||
+    payload.blocked
+  )
+}
+
+function enchantOptionItemTypeRule(option) {
+  const payload = option && option.payload && typeof option.payload === 'object' ? option.payload : {}
+  return normalizedConfigKey(
+    (option && (option.itemTypeRule || option.item_type_rule)) ||
+    payload.itemTypeRule ||
+    payload.item_type_rule
+  )
+}
+
 function gearItemTypeContext(item) {
   return {
     slot: cleanGearString(item && (item.slot || item.simcSlot)),
     armorType: cleanGearString(item && item.armorType).toLowerCase(),
     weaponType: cleanGearString(item && item.weaponType).toLowerCase()
   }
+}
+
+function normalizedWeaponRule(gearPayload) {
+  const rule = gearPayload && gearPayload.weaponRule && typeof gearPayload.weaponRule === 'object'
+    ? gearPayload.weaponRule
+    : {}
+  const normalizeList = (values) => new Set(
+    (Array.isArray(values) ? values : [])
+      .map((value) => cleanGearString(value).toLowerCase())
+      .filter(Boolean)
+  )
+  const mode = cleanGearString(rule.mode).toLowerCase()
+  const mainHandTypes = normalizeList(rule.mainHandTypes)
+  const offHandTypes = normalizeList(rule.offHandTypes)
+  return {
+    mode,
+    mainHandTypes,
+    offHandTypes,
+    available: !!(mode || mainHandTypes.size || offHandTypes.size)
+  }
+}
+
+function weaponRuleAllowsItem(rule, item) {
+  if (!rule || !rule.available || !item) return true
+  const { slot, weaponType } = gearItemTypeContext(item)
+  if (slot !== 'main_hand' && slot !== 'off_hand') return true
+  if (!weaponType) return true
+  const allowedTypes = slot === 'main_hand' ? rule.mainHandTypes : rule.offHandTypes
+  return allowedTypes.has(weaponType)
+}
+
+function prunedGearSelectionByWeaponRule(gearPayload, selectedGearBySlot) {
+  const rule = normalizedWeaponRule(gearPayload || {})
+  const selected = { ...(selectedGearBySlot || {}) }
+  if (!rule.available) return selected
+  Object.keys(selected).forEach((slot) => {
+    if (!weaponRuleAllowsItem(rule, selected[slot])) delete selected[slot]
+  })
+  const mainType = gearItemTypeContext(selected.main_hand).weaponType
+  if (
+    selected.off_hand &&
+    twoHandWeaponTypes.has(mainType) &&
+    rule.mode !== 'dual_wield_2h'
+  ) {
+    delete selected.off_hand
+  }
+  return selected
 }
 
 function embellishmentOptionAppliesToItem(option, item) {
@@ -945,12 +1051,28 @@ function embellishmentOptionAppliesToItem(option, item) {
   return true
 }
 
+function enchantOptionAppliesToItem(option, item) {
+  if (enchantOptionExcludedFromGearConfig(option)) return false
+  const { slot, armorType, weaponType } = gearItemTypeContext(item)
+  if (slot !== 'off_hand') return true
+  const isShield = weaponType === 'shield' || armorType === 'shield'
+  const isHeldOffhand = weaponType === 'held in off-hand'
+  const rule = enchantOptionItemTypeRule(option)
+  if (['any', 'any_equipment', 'equipment', 'gear', 'gear_slot'].includes(rule)) return true
+  if (['shield', 'offhand_shield', 'off_hand_shield'].includes(rule)) return isShield
+  if (['held_offhand', 'held_off_hand', 'holdable', 'invtype_holdable'].includes(rule)) return isHeldOffhand
+  return offhandWeaponEnchantTypes.has(weaponType)
+}
+
 function enhancementOptionsForSlot(gearPayload, item, optionKey) {
   const slot = item && (item.slot || item.simcSlot)
   const options = uniqueEnhancementOptions([
     ...((item && Array.isArray(item[optionKey])) ? item[optionKey] : []),
     ...gearGroupOptionsForSlot(gearPayload, slot, optionKey)
   ])
+  if (optionKey === 'enchantOptions') {
+    return options.filter((option) => enchantOptionAppliesToItem(option, item))
+  }
   if (optionKey === 'embellishmentOptions') {
     return options.filter((option) => embellishmentOptionAppliesToItem(option, item))
   }
@@ -997,6 +1119,56 @@ function gearBuiltInEmbellishmentBadgeLabel(item) {
   )
   if (!hasExplicitBuiltIn && !appliedEmbellishment) return ''
   return cleanGearString(item.builtInEmbellishmentLabel) || '美化'
+}
+
+function gearHandednessBadgeLabel(item) {
+  const direct = cleanGearString(item && item.handednessLabel)
+  if (direct) return direct
+  const weaponType = cleanGearString(item && item.weaponType).toLowerCase()
+  if (!weaponType) return ''
+  if (weaponType.includes('two-handed') || weaponType.includes('polearm') || weaponType.includes('staff')) return '双手'
+  if (weaponType.includes('bow') || weaponType.includes('crossbow') || weaponType.includes('gun')) return '远程'
+  if (
+    weaponType.includes('one-handed') ||
+    weaponType.includes('dagger') ||
+    weaponType.includes('fist') ||
+    weaponType.includes('warglaive') ||
+    weaponType.includes('wand')
+  ) return '单手'
+  if (weaponType.includes('shield')) return '盾牌'
+  if (weaponType.includes('held in off-hand')) return '副手'
+  return ''
+}
+
+function truthyGearFlag(value) {
+  if (typeof value === 'boolean') return value
+  const text = cleanGearString(value).toLowerCase()
+  if (!text) return false
+  return !['0', 'false', 'no', 'none', 'null'].includes(text)
+}
+
+function gearUniqueBadgeLabel(item) {
+  if (!item || typeof item !== 'object') return ''
+  if (!truthyGearFlag(item.uniqueEquipped || item.unique_equipped)) return ''
+  return cleanGearString(item.uniqueEquippedLabel || item.uniqueLabel) || '唯一'
+}
+
+function gearEquipmentBadgeLabels(item) {
+  if (!item || typeof item !== 'object') return []
+  const labels = []
+  const addLabel = (label) => {
+    const text = cleanGearString(label)
+    if (text && !labels.includes(text)) labels.push(text)
+  }
+  const backendBadges = Array.isArray(item.equipmentBadges) ? item.equipmentBadges : []
+  backendBadges.forEach((badge) => {
+    if (typeof badge === 'string') addLabel(badge)
+    else if (badge && typeof badge === 'object') addLabel(badge.label || badge.name || badge.displayLabel)
+  })
+  addLabel(gearHandednessBadgeLabel(item))
+  addLabel(gearUniqueBadgeLabel(item))
+  const embellishmentLabel = gearBuiltInEmbellishmentBadgeLabel(item)
+  return labels.filter((label) => label !== embellishmentLabel)
 }
 
 function enhancementRecordMatchesCurrentItem(gearPayload, item, enhancementRecord, optionKey, type) {
@@ -2363,6 +2535,43 @@ function gearStatText(stat) {
   return label || String(value || '').trim()
 }
 
+function displayLabelForGearStatKey(key) {
+  const labels = {
+    strength: '力量',
+    agility: '敏捷',
+    intellect: '智力',
+    stamina: '耐力',
+    haste: '急速',
+    crit: '暴击',
+    mastery: '精通',
+    versatility: '全能',
+    armor: '护甲'
+  }
+  return labels[key] || key
+}
+
+function gearStatEntriesForDisplay(item, primaryKey) {
+  const resolvedPrimary = cleanGearString(primaryKey || (item && item.primaryStatKey))
+  const entries = gearStatEntriesForItem(item, resolvedPrimary)
+  if (!entries.length) return []
+  const primaryKeys = ['strength', 'agility', 'intellect']
+  const seen = new Set()
+  return entries.filter((entry) => {
+    if (!entry || !entry.key) return false
+    if (primaryKeys.includes(entry.key) && resolvedPrimary && entry.key !== resolvedPrimary) return false
+    const key = `${entry.key}:${entry.value}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function gearStatDisplaySummary(item, primaryKey) {
+  const entries = gearStatEntriesForDisplay(item, primaryKey)
+  if (!entries.length) return ''
+  return entries.map((entry) => `${displayLabelForGearStatKey(entry.key)} ${entry.value}`).join('；')
+}
+
 function gearPendingStatReason(item) {
   const simcStatus = String((item && item.simcStatStatus) || '').toLowerCase()
   const failureKind = String((item && item.simcStatFailureKind) || '').toLowerCase()
@@ -2380,7 +2589,11 @@ function gearPendingStatReason(item) {
   return ''
 }
 
-function gearAttributeText(item) {
+function gearAttributeText(item, primaryKey) {
+  const resolvedPrimary = cleanGearString(primaryKey || (item && item.primaryStatKey))
+  if (item && item.statSummary && !resolvedPrimary) return String(item.statSummary).trim()
+  const statSummary = gearStatDisplaySummary(item, resolvedPrimary)
+  if (statSummary) return statSummary
   if (item && item.statSummary) return String(item.statSummary).trim()
   const statSources = [
     item && item.stats,
@@ -2411,10 +2624,12 @@ function gearAttributeText(item) {
   }).join('；') || '属性待补充'
 }
 
-function gearCandidateDetailRows(item) {
+function gearCandidateDetailRows(item, primaryKey) {
   const rows = []
   rows.push({ label: '掉落来源', value: gearDropSourceText(item) })
-  rows.push({ label: '装备属性', value: gearAttributeText(item) })
+  const badgeLabels = gearEquipmentBadgeLabels(item)
+  if (badgeLabels.length) rows.push({ label: '装备标签', value: badgeLabels.join(' / ') })
+  rows.push({ label: '装备属性', value: gearAttributeText(item, primaryKey) })
   return rows
 }
 
@@ -2490,7 +2705,8 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
       }
       return {
         ...gearObjectForData(displayCandidate),
-        detailRows: gearCandidateDetailRows(displayCandidate),
+        equipmentBadgeLabels: gearEquipmentBadgeLabels(displayCandidate),
+        detailRows: gearCandidateDetailRows(displayCandidate, displayCandidate.primaryStatKey),
         embellishmentBadgeLabel: gearBuiltInEmbellishmentBadgeLabel(displayCandidate),
         selected: isSelected,
         detailOpen: candidate.key === detailKey
@@ -2540,12 +2756,13 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
       iconUrl: candidate.iconUrl || '',
       source: gearCandidateSourceLabel(candidate),
       sourceType: gearCandidateSourceType(candidate),
+      equipmentBadgeLabels: gearEquipmentBadgeLabels(candidate),
       embellishmentBadgeLabel: gearBuiltInEmbellishmentBadgeLabel(candidate),
       variantLabel: candidate.variantLabel || '',
       modSummary: gearModSummary(candidate),
       statusLabel: gearStatusLabel(trust.status),
       statusClass: gearStatusClass(trust.status),
-      detailRows: gearCandidateDetailRows(candidate, trust),
+      detailRows: gearCandidateDetailRows(candidate, candidate.primaryStatKey),
       trustLabel: trust.label,
       trustReason: trust.reason,
       blockerLabel: trust.blockerLabel,
@@ -2576,6 +2793,7 @@ function buildGearSlotRows(payload, selectedGearBySlot, enhancementBySlot) {
       ilevel: item.ilevel || '',
       source: gearCandidateSourceLabel(item),
       sourceType: item.sourceType || '',
+      equipmentBadgeLabels: gearEquipmentBadgeLabels(item),
       embellishmentBadgeLabel: gearBuiltInEmbellishmentBadgeLabel(item),
       enhancementBadgeLabels: gearSlotEnhancementBadgeLabels(payload, item, enhancement[slot]),
       variantLabel: item.variantLabel || '',
@@ -2627,7 +2845,7 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
   const talentSimulationSummary = buildTalentSimulationSummary(talentDetail, talentScenario.key, selectedTalentNodes)
   const gearPayload = currentState.gearPayload || null
   const gearDataFallback = !!currentState.gearDataFallback
-  const selectedGearBySlot = currentState.selectedGearBySlot || {}
+  const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, currentState.selectedGearBySlot || {})
   const gearReadiness = currentState.gearReadiness || (gearPayload && gearPayload.readiness) || {}
   const gearSlotRows = buildGearSlotRows(gearPayload, selectedGearBySlot, currentState.enhancementBySlot)
   const gearAttributePanel = buildGearAttributePanel(gearPayload, selectedGearBySlot, currentState.selectedSpec, currentState.enhancementBySlot)
@@ -2866,10 +3084,10 @@ Page({
       this.gearPayloadCache = payload
       this.gearSlotCandidateCache = {}
       const baselineSelection = equippedSetToSelection(payload.equippedSet || {}, payload)
-      const selectedGearBySlot = {
+      const selectedGearBySlot = prunedGearSelectionByWeaponRule(payload, {
         ...baselineSelection,
         ...existingSelection
-      }
+      })
       const enhancementBySlot = prunedEnhancementBySlot(payload, selectedGearBySlot, existingEnhancement)
       const gearDataFallback = !!fromFallback
       const gearReadiness = payload.readiness || {}
@@ -3049,7 +3267,7 @@ Page({
   confirmGearEnhancementSheet() {
     const sheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
-    const selectedGearBySlot = this.data.selectedGearBySlot || {}
+    const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, this.data.selectedGearBySlot || {})
     const enhancementBySlot = prunedEnhancementBySlot(
       gearPayload,
       selectedGearBySlot,
@@ -3059,11 +3277,13 @@ Page({
     if ((validationSheet.blockers || []).length || validationSheet.embellishmentUsed > validationSheet.embellishmentMax) {
       showToast((validationSheet.blockers || [])[0] || `美化已超过上限 ${validationSheet.embellishmentUsed}/${validationSheet.embellishmentMax}`)
       this.setData({
+        selectedGearBySlot,
         gearEnhancementSheet: validationSheet
       })
       return
     }
     this.setData({
+      selectedGearBySlot,
       enhancementBySlot,
       gearAttributePanel: buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot),
       gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
@@ -3096,7 +3316,10 @@ Page({
       this.loadWebsimGearForSelection()
       return
     }
-    const selectedGearBySlot = equippedSetToSelection(gearPayload.equippedSet || {}, gearPayload)
+    const selectedGearBySlot = prunedGearSelectionByWeaponRule(
+      gearPayload,
+      equippedSetToSelection(gearPayload.equippedSet || {}, gearPayload)
+    )
     const enhancementBySlot = {}
     const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
       ...this.data,
@@ -3126,10 +3349,10 @@ Page({
     const gearPayload = fullGearPayloadForPage(this) || {}
     const baselineSelection = equippedSetToSelection(gearPayload.equippedSet || {}, gearPayload)
     const templateSelection = gearItemsToSelection(template.gearItems || [])
-    const selectedGearBySlot = {
+    const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, {
       ...baselineSelection,
       ...templateSelection
-    }
+    })
     const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, this.data.enhancementBySlot || {})
     const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
       ...this.data,
@@ -3239,11 +3462,11 @@ Page({
       showToast(trust.blockerLabel || trust.reason || '该装备数据待补，暂不能应用')
       return Promise.resolve()
     }
-    const selectedGearBySlot = {
+    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
+    const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, {
       ...(this.data.selectedGearBySlot || {}),
       [slot]: candidate
-    }
-    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
+    })
     const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, this.data.enhancementBySlot || {})
     trackEvent('builds_gear_candidate_select', {
       gearSlot: slot,
@@ -3278,12 +3501,14 @@ Page({
       showToast(this.data.gearDataWarningText || '装备接口暂不可用，无法保存装备模板')
       return
     }
-    const selectedItems = selectedGearItems(this.data.selectedGearBySlot || {})
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
-    const configLines = canonicalGearTemplateLines(this.data.selectedGearBySlot || {}, gearPayload)
-    const status = gearTemplateStatus(this.data.selectedGearBySlot || {}, gearPayload)
+    const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, this.data.selectedGearBySlot || {})
+    const selectedItems = selectedGearItems(selectedGearBySlot)
+    const configLines = canonicalGearTemplateLines(selectedGearBySlot, gearPayload)
+    const status = gearTemplateStatus(selectedGearBySlot, gearPayload)
     const requiredCount = (status.requiredSlots || requiredGearSlots).length
     if (status.missingSlots.length || configLines.length !== requiredCount) {
+      this.setData({ selectedGearBySlot })
       showToast(gearTemplateValidationMessage(status.issues, requiredCount) || `请补齐 ${requiredCount} 个装备槽位后再保存`)
       return
     }
@@ -3291,11 +3516,12 @@ Page({
     const selectedDetail = this.data.selectedDetail || {}
     const selectedSpec = this.data.selectedSpec || {}
     const keys = specWebsimKeys(selectedSpec)
-    const enhancementBySlot = prunedEnhancementBySlot(gearPayload, this.data.selectedGearBySlot || {}, this.data.enhancementBySlot || {})
-    const enhancementSheet = buildGearEnhancementSheet(gearPayload, this.data.selectedGearBySlot || {}, enhancementBySlot, false)
+    const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, this.data.enhancementBySlot || {})
+    const enhancementSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, false)
     if ((enhancementSheet.blockers || []).length || enhancementSheet.embellishmentUsed > enhancementSheet.embellishmentMax) {
       showToast((enhancementSheet.blockers || [])[0] || `美化已超过上限 ${enhancementSheet.embellishmentUsed}/${enhancementSheet.embellishmentMax}`)
       this.setData({
+        selectedGearBySlot,
         enhancementBySlot,
         gearEnhancementSheet: {
           ...enhancementSheet,
@@ -3304,7 +3530,7 @@ Page({
       })
       return
     }
-    const snapshot = gearTemplateSnapshot(this.data.selectedGearBySlot || {}, enhancementBySlot, gearPayload)
+    const snapshot = gearTemplateSnapshot(selectedGearBySlot, enhancementBySlot, gearPayload)
     syncBuildTemplate({
       type: 'gear',
       title: gearTemplateTitle(
@@ -3327,13 +3553,13 @@ Page({
         gearSnapshot: snapshot,
         gearBySlot: snapshot.gearBySlot,
         enhancementBySlot,
-        selectedGearSnapshot: this.data.selectedGearBySlot || {},
+        selectedGearSnapshot: selectedGearBySlot,
         selectedItems,
         configLineCount: configLines.length,
         missingSlots: [],
         statPendingSlots: status.statPendingSlots || [],
         sourcePendingSlots: status.sourcePendingSlots || [],
-        craftedStatSelections: craftedStatSelections(this.data.selectedGearBySlot || {}),
+        craftedStatSelections: craftedStatSelections(selectedGearBySlot),
         warningSummary: status.warningSummary || '',
         selectedItemCount: selectedItems.length,
         gearSchemaRevision: this.data.gearPayload && this.data.gearPayload.gearSchemaRevision,

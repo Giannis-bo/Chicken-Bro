@@ -905,7 +905,8 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.doesNotMatch(wxml, /gearAttributePanel\.resourceRows/)
   assert.match(wxml, /class="gear-slot-grid"/)
   assert.match(wxml, /wx:for="\{\{gearSlotRows\}\}"/)
-  assert.match(wxml, /class="gear-slot-enhancement-badges" wx:if="\{\{item\.enhancementBadgeLabels\.length\}\}"/)
+  assert.match(wxml, /class="gear-slot-enhancement-badges" wx:if="\{\{item\.equipmentBadgeLabels\.length \|\| item\.enhancementBadgeLabels\.length\}\}"/)
+  assert.match(wxml, /wx:for="\{\{item\.equipmentBadgeLabels\}\}"/)
   assert.match(wxml, /wx:for="\{\{item\.enhancementBadgeLabels\}\}"/)
   assert.match(wxml, /class="gear-slot-enhancement-badge"/)
   assert.ok(wxml.indexOf('class="gear-attribute-panel"') < wxml.indexOf('class="gear-slot-grid"'))
@@ -1900,6 +1901,153 @@ test('gear enhancement sheet filters off-hand embellishments by selected item ty
   assert.deepEqual(heldOffhandLabels, ['暗月徽记：狩猎', '吞噬绑带', '圣佑穿山甲护符'])
 })
 
+test('gear enhancement sheet filters off-hand enchants by item type and hides class-only enchants', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  const enchantOptions = [
+    {
+      id: 'observed-enchant-tideguard',
+      label: '唤潮者的护卫',
+      displayLabel: '唤潮者的护卫',
+      displayKind: 'name',
+      displayStatus: 'verified',
+      status: 'verified',
+      simcOptions: { enchant_id: '7528' },
+      payload: {
+        configCategory: 'class_only_precombat',
+        exclusionReason: 'Restoration Shaman class-only combat preparation',
+        displayStatus: 'verified',
+        evidenceSource: 'wago_db2_spell_item_enchantment'
+      }
+    },
+    {
+      id: 'observed-enchant-rondorei',
+      label: '朗多雷之锐',
+      displayLabel: '朗多雷之锐',
+      displayKind: 'name',
+      displayStatus: 'verified',
+      status: 'verified',
+      simcOptions: { enchant_id: '8039' },
+      payload: { displayStatus: 'verified', evidenceSource: 'wago_db2_spell_item_enchantment' }
+    }
+  ]
+  const gearPayload = {
+    slots,
+    replacementCandidates: [
+      {
+        slot: 'off_hand',
+        simcSlot: 'off_hand',
+        label: 'off_hand',
+        items: [],
+        enchantOptions
+      }
+    ],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'shaman', websimSpecKey: 'restoration' },
+      selectedGearBySlot: {
+        ...selection,
+        off_hand: {
+          ...selection.off_hand,
+          displayName: '艾林哈籁灯笼',
+          weaponType: 'Held In Off-hand',
+          armorType: 'Miscellaneous',
+          modCapabilities: { hasSocket: false, canEnchant: true, canEmbellish: false }
+        }
+      },
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.openGearEnhancementSheet.call(page)
+  assert.equal(page.data.gearEnhancementSheet.activeEnchantRows.length, 0)
+  assert.doesNotMatch(JSON.stringify(page.data.gearEnhancementSheet), /唤潮者的护卫|朗多雷之锐/)
+
+  page.data.selectedGearBySlot.off_hand = {
+    ...page.data.selectedGearBySlot.off_hand,
+    displayName: '副手斧',
+    weaponType: 'One-Handed Axe',
+    armorType: ''
+  }
+  pageConfig.openGearEnhancementSheet.call(page)
+  const offhandWeaponLabels = Array.from(page.data.gearEnhancementSheet.activeEnchantRows[0].options, (option) => option.label)
+  assert.deepEqual(offhandWeaponLabels, ['朗多雷之锐'])
+})
+
+test('gear enhancement confirm prunes stale off-hand weapon enchant on held offhand', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  const gearPayload = {
+    slots,
+    replacementCandidates: [
+      {
+        slot: 'off_hand',
+        simcSlot: 'off_hand',
+        label: 'off_hand',
+        items: [],
+        enchantOptions: [
+          {
+            id: 'observed-enchant-rondorei',
+            label: '朗多雷之锐',
+            displayLabel: '朗多雷之锐',
+            displayKind: 'name',
+            displayStatus: 'verified',
+            status: 'verified',
+            simcOptions: { enchant_id: '8039' },
+            payload: { displayStatus: 'verified', evidenceSource: 'wago_db2_spell_item_enchantment' }
+          }
+        ]
+      }
+    ],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'shaman', websimSpecKey: 'restoration' },
+      selectedGearBySlot: {
+        ...selection,
+        off_hand: {
+          ...selection.off_hand,
+          displayName: '艾林哈籁灯笼',
+          weaponType: 'Held In Off-hand',
+          armorType: 'Miscellaneous',
+          modCapabilities: { hasSocket: false, canEnchant: true, canEmbellish: false }
+        }
+      },
+      enhancementBySlot: { off_hand: { enchantOptionId: 'observed-enchant-rondorei', enchant_id: '8039' } },
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(Object.keys(page.data.enhancementBySlot).length, 0)
+})
+
 test('gear enhancement sheet allows only one primary stat gem across jewelry slots', () => {
   const toasts = []
   const pageConfig = loadBuildsDetailPageConfig({ toasts })
@@ -2684,6 +2832,64 @@ test('gear slot rows enrich sparse equipped items from matching candidates', () 
   assert.equal(row.statusLabel, '已配置')
   assert.equal(row.trustLabel, '可保存')
   assert.doesNotMatch(row.reason, /来源待补/)
+})
+
+test('gear candidate detail shows handedness unique badges and filters primary stat copy', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const weapon = {
+    slot: 'main_hand',
+    simcSlot: 'main_hand',
+    itemId: '260204',
+    id: '260204',
+    displayName: '唯一巨剑',
+    simcReady: true,
+    ilevel: 289,
+    primaryStatKey: 'strength',
+    weaponType: 'Two-Handed Sword',
+    handednessLabel: '双手',
+    uniqueEquipped: true,
+    uniqueEquippedLabel: '唯一',
+    equipmentBadges: [
+      { key: 'weapon_handedness', label: '双手' },
+      { key: 'unique_equipped', label: '唯一' }
+    ],
+    statSummary: '力量 or 敏捷 333；耐力 555；智力 999；暴击 70'
+  }
+  const gearPayload = {
+    classKey: 'warrior',
+    specKey: 'fury',
+    slots: [{ slot: 'main_hand', simcSlot: 'main_hand', label: '主手' }],
+    replacementCandidates: [{
+      slot: 'main_hand',
+      simcSlot: 'main_hand',
+      label: '主手',
+      items: [weapon]
+    }],
+    equippedSet: { main_hand: weapon },
+    slotReadiness: { main_hand: { status: 'verified', reason: '可写入 SimC profile' } },
+    readiness: {}
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'warrior', websimSpecKey: 'fury' },
+      gearPayload,
+      selectedGearBySlot: { main_hand: weapon }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'main_hand' } } })
+
+  assert.deepEqual(Array.from(page.data.gearSlotRows[0].equipmentBadgeLabels), ['双手', '唯一'])
+  assert.deepEqual(Array.from(page.data.gearSlotSheet.candidates[0].equipmentBadgeLabels), ['双手', '唯一'])
+  const detailRows = page.data.gearSlotSheet.candidates[0].detailRows
+  assert.equal(detailRows.find((row) => row.label === '装备标签').value, '双手 / 唯一')
+  assert.equal(detailRows.find((row) => row.label === '装备属性').value, '力量 333；耐力 555；暴击 70')
 })
 
 test('gear candidate detail separates SimulationCraft preset from drop source', () => {
@@ -4595,6 +4801,134 @@ test('gear template save allows backend-ready two-handed setups without off hand
   const snapshot = JSON.parse(savedTemplates[0].rawString)
   assert.equal(Object.keys(snapshot.gearBySlot).length, canonicalGearSlots.length - 1)
   assert.equal(snapshot.gearBySlot.off_hand, undefined)
+})
+
+test('gear selection prunes stale off hand when selected main hand is two-handed', async () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  selection.main_hand = {
+    ...selection.main_hand,
+    itemId: '260106',
+    id: '260106',
+    displayName: 'Brewmaster Mace',
+    weaponType: 'One-Handed Mace'
+  }
+  selection.off_hand = {
+    ...selection.off_hand,
+    itemId: '260109',
+    id: '260109',
+    displayName: 'Brewmaster Sidearm',
+    weaponType: 'One-Handed Mace',
+    modCapabilities: { canEnchant: true }
+  }
+  const twoHand = {
+    slot: 'main_hand',
+    simcSlot: 'main_hand',
+    itemId: '260107',
+    id: '260107',
+    displayName: 'Brewmaster Staff',
+    ilevel: 289,
+    bonus_id: '6652',
+    weaponType: 'Staff',
+    simcReady: true
+  }
+  const page = {
+    data: {
+      selectedDetail: { className: '武僧', specName: '酒仙', details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      selectedSpec: { className: '武僧', title: '酒仙', specName: '酒仙', websimClassKey: 'monk', websimSpecKey: 'brewmaster' },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots,
+        maxLevel: 90,
+        gearSchemaRevision: 'websim-gear-simulator-v1',
+        weaponRule: {
+          mode: 'selectable_two_hand_or_dual_wield_1h',
+          mainHandTypes: ['Staff', 'Polearm', 'One-Handed Mace'],
+          offHandTypes: ['One-Handed Mace']
+        },
+        readiness: {
+          missingRequiredSlots: ['off_hand'],
+          missingCoreSlots: []
+        }
+      },
+      selectedGearBySlot: selection,
+      enhancementBySlot: { off_hand: { enchantOptionId: 'observed-enchant-rondorei', enchant_id: '8039' } },
+      gearSlotSheet: {
+        slot: 'main_hand',
+        appliedCandidate: twoHand
+      }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  await pageConfig.applyGearCandidate.call(page)
+
+  assert.equal(page.data.selectedGearBySlot.main_hand.itemId, '260107')
+  assert.equal(page.data.selectedGearBySlot.off_hand, undefined)
+  assert.equal(page.data.enhancementBySlot.off_hand, undefined)
+})
+
+test('gear template save prunes stale off hand and enhancement before snapshot', () => {
+  const savedTemplates = []
+  const toasts = []
+  const pageConfig = loadBuildsDetailPageConfig({ savedTemplates, toasts })
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  selection.main_hand = {
+    ...selection.main_hand,
+    itemId: '260107',
+    id: '260107',
+    displayName: 'Brewmaster Staff',
+    weaponType: 'Staff'
+  }
+  selection.off_hand = {
+    ...selection.off_hand,
+    itemId: '260109',
+    id: '260109',
+    displayName: 'Brewmaster Sidearm',
+    weaponType: 'One-Handed Mace'
+  }
+  const page = {
+    data: {
+      selectedDetail: { className: '武僧', specName: '酒仙', details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      selectedSpec: { className: '武僧', title: '酒仙', specName: '酒仙', websimClassKey: 'monk', websimSpecKey: 'brewmaster' },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots,
+        maxLevel: 90,
+        gearSchemaRevision: 'websim-gear-simulator-v1',
+        weaponRule: {
+          mode: 'selectable_two_hand_or_dual_wield_1h',
+          mainHandTypes: ['Staff', 'Polearm', 'One-Handed Mace'],
+          offHandTypes: ['One-Handed Mace']
+        },
+        readiness: {
+          fullReady: true,
+          missingRequiredSlots: ['off_hand'],
+          missingCoreSlots: [],
+          requiredReadyCount: 15
+        }
+      },
+      selectedGearBySlot: selection,
+      enhancementBySlot: { off_hand: { enchantOptionId: 'observed-enchant-rondorei', enchant_id: '8039' } },
+      selectedGearTemplateScenarioIndex: 0
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.saveGearTemplate.call(page)
+
+  assert.equal(toasts.length, 0)
+  assert.equal(savedTemplates.length, 1)
+  const snapshot = JSON.parse(savedTemplates[0].rawString)
+  assert.equal(snapshot.gearBySlot.off_hand, undefined)
+  assert.equal(snapshot.enhancementBySlot.off_hand, undefined)
+  assert.equal(Object.keys(snapshot.gearBySlot).length, canonicalGearSlots.length - 1)
 })
 
 test('gear template save keeps source pending evidence in metadata', () => {

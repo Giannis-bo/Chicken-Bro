@@ -1,6 +1,7 @@
 # 装备自建数据库治理标准
 
 > 适用范围：职业详情页装备模拟、WebSim gear API、装备来源与变体健康检查。12.1 大量装备更新时，按本文作为入库、审计、发布和问题上报标准。
+> 全链路手册：装备模拟从上游 API 到校验、审计、入库、全职业专精适配、前端展示、serializer、发布和回滚，按 [装备模拟全链路 Runbook](gear-simulation-full-chain-runbook.md) 执行。
 > 实施方案：周期性更新和后续工程任务按 [装备自建数据库实施方案 v2](plans/2026-06-25-gear-database-implementation-plan-v2.md) 执行。
 
 ## 目标

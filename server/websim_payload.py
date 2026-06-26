@@ -232,8 +232,26 @@ GEAR_CATALOG_REVISION = "websim-gear-catalog-v1"
 GEAR_OBSERVED_BACKFILL_SYNC_KEY = "gear_observed_backfill"
 GEAR_OBSERVED_BACKFILL_SCHEMA_VERSION = 1
 STALE_PLACEHOLDER_GEAR_MOD_OPTION_IDS = {"seed-socket-gem-240983", "seed-enchant-8017"}
-# 6245 is the DK "天启符文" runeforge observed on weapons, not a general gear enchant.
-UNSUPPORTED_GEAR_CONFIG_ENCHANT_IDS = {"6245"}
+GEAR_CONFIG_ENCHANT_EXCLUDED_CATEGORIES = {
+    "class_only_precombat",
+    "class_only_weapon_enchant",
+    "combat_preparation",
+    "runeforge",
+    "temporary_enchant",
+}
+GEAR_CONFIG_ENCHANT_ID_POLICIES = {
+    "6245": {
+        "configCategory": "runeforge",
+        "exclusionReason": "DK runeforge observed on weapons, not a general gear enchant.",
+    },
+}
+GEAR_CONFIG_ENCHANT_NAME_POLICIES = [
+    {
+        "tokens": ("唤潮者护卫", "唤潮者的护卫", "tideguard"),
+        "configCategory": "class_only_precombat",
+        "exclusionReason": "Restoration Shaman class-only combat preparation, not a general gear enchant.",
+    },
+]
 
 
 WOW_CLASSES = [
@@ -1043,6 +1061,171 @@ def gear_item_is_held_offhand(item):
     return slot == "off_hand" and weapon_type == "held in off-hand"
 
 
+def normalized_config_category(value):
+    return re.sub(r"[^a-z0-9_]+", "_", str(value or "").strip().lower()).strip("_")
+
+
+def gear_config_enchant_policy(option_name="", simc_options=None, payload=None):
+    simc_options = simc_options if isinstance(simc_options, dict) else {}
+    payload = payload if isinstance(payload, dict) else {}
+    policy = {}
+
+    def merge_policy(extra):
+        if not isinstance(extra, dict):
+            return
+        for key, value in extra.items():
+            if value not in (None, "", [], {}):
+                policy[key] = value
+
+    for key in (
+        "configCategory",
+        "config_category",
+        "enchantCategory",
+        "enchant_category",
+        "category",
+    ):
+        category = normalized_config_category(payload.get(key))
+        if category:
+            policy["configCategory"] = category
+            break
+    for key in ("exclusionReason", "exclusion_reason", "blockReason", "block_reason"):
+        reason = str(payload.get(key) or "").strip()
+        if reason:
+            policy["exclusionReason"] = reason
+            break
+    for key in ("itemTypeRule", "item_type_rule"):
+        rule = normalized_config_category(payload.get(key))
+        if rule:
+            policy["itemTypeRule"] = rule
+            break
+
+    enchant_id = normalize_option_value(
+        simc_options.get("enchant_id")
+        or payload.get("enchant_id")
+        or payload.get("enchantId")
+        or payload.get("enchant")
+    )
+    merge_policy(GEAR_CONFIG_ENCHANT_ID_POLICIES.get(enchant_id))
+
+    text = "\n".join(
+        str(value or "")
+        for value in (
+            option_name,
+            payload.get("displayName"),
+            payload.get("displayLabel"),
+            payload.get("name"),
+            payload.get("label"),
+        )
+    ).lower()
+    for rule in GEAR_CONFIG_ENCHANT_NAME_POLICIES:
+        tokens = rule.get("tokens") or []
+        if any(str(token or "").lower() and str(token or "").lower() in text for token in tokens):
+            merge_policy(rule)
+    if policy.get("configCategory"):
+        policy["configCategory"] = normalized_config_category(policy.get("configCategory"))
+    if policy.get("itemTypeRule"):
+        policy["itemTypeRule"] = normalized_config_category(policy.get("itemTypeRule"))
+    return policy
+
+
+def gear_config_enchant_exclusion(option_name="", simc_options=None, payload=None):
+    payload = payload if isinstance(payload, dict) else {}
+    policy = gear_config_enchant_policy(option_name, simc_options, payload)
+    category = normalized_config_category(policy.get("configCategory"))
+    blocked = bool(
+        category in GEAR_CONFIG_ENCHANT_EXCLUDED_CATEGORIES
+        or payload.get("excludeFromGearConfig")
+        or payload.get("exclude_from_gear_config")
+        or payload.get("blocked")
+        or policy.get("blocked")
+    )
+    if not blocked:
+        return {}
+    if not policy.get("exclusionReason"):
+        policy["exclusionReason"] = f"{category or 'blocked'} is not a general gear enchant."
+    return policy
+
+
+def gear_config_enchant_exclusion_example(option_id, option_name, simc_options, payload):
+    exclusion = gear_config_enchant_exclusion(option_name, simc_options, payload)
+    example = {
+        "optionId": str(option_id or "").strip(),
+        "name": str(option_name or "").strip(),
+    }
+    enchant_id = normalize_option_value((simc_options or {}).get("enchant_id"))
+    if enchant_id:
+        example["simcValue"] = enchant_id
+    if exclusion.get("configCategory"):
+        example["configCategory"] = exclusion["configCategory"]
+    if exclusion.get("exclusionReason"):
+        example["exclusionReason"] = exclusion["exclusionReason"]
+    return example
+
+
+def gear_mod_option_payload_with_config_policy(option_type, option_name, simc_options, payload, slots=None):
+    option_type = str(option_type or "").strip().lower()
+    payload = dict(payload) if isinstance(payload, dict) else {}
+    if option_type != "enchant":
+        return payload
+    slots = [normalize_slot(slot) for slot in (slots or [])]
+    policy = gear_config_enchant_policy(option_name, simc_options, payload)
+    for key in ("configCategory", "exclusionReason", "itemTypeRule"):
+        if policy.get(key) not in (None, "", [], {}) and payload.get(key) in (None, "", [], {}):
+            payload[key] = policy[key]
+    if payload.get("itemTypeRule") in (None, "", [], {}) and any(slot in {"main_hand", "off_hand"} for slot in slots):
+        payload["itemTypeRule"] = "weapon"
+    return payload
+
+
+def dual_wieldable_weapon_type(weapon_type):
+    normalized = str(weapon_type or "").strip().lower()
+    return normalized in {value.lower() for value in DUAL_WIELDABLE_WEAPON_TYPES}
+
+
+def gear_item_is_dual_wieldable_offhand_weapon(item):
+    slot, _armor_type, weapon_type = gear_item_type_context(item)
+    return slot == "off_hand" and dual_wieldable_weapon_type(weapon_type)
+
+
+def gear_enchant_option_item_type_rule(option):
+    if not isinstance(option, dict):
+        return ""
+    payload = option.get("payload") if isinstance(option.get("payload"), dict) else {}
+    policy = gear_config_enchant_policy(
+        option.get("rawName") or option.get("name") or option.get("label") or "",
+        option.get("simcOptions") if isinstance(option.get("simcOptions"), dict) else {},
+        payload,
+    )
+    return normalized_config_category(
+        option.get("itemTypeRule")
+        or option.get("item_type_rule")
+        or payload.get("itemTypeRule")
+        or payload.get("item_type_rule")
+        or policy.get("itemTypeRule")
+    )
+
+
+def gear_enchant_option_applies_to_item(option, item):
+    if not isinstance(option, dict):
+        return False
+    payload = option.get("payload") if isinstance(option.get("payload"), dict) else {}
+    simc_options = option.get("simcOptions") if isinstance(option.get("simcOptions"), dict) else {}
+    option_name = option.get("rawName") or option.get("name") or option.get("label") or ""
+    if gear_config_enchant_exclusion(option_name, simc_options, payload):
+        return False
+    slot, _armor_type, _weapon_type = gear_item_type_context(item)
+    if slot != "off_hand":
+        return True
+    rule = gear_enchant_option_item_type_rule(option)
+    if rule in {"any", "any_equipment", "equipment", "gear", "gear_slot"}:
+        return True
+    if rule in {"shield", "offhand_shield", "off_hand_shield"}:
+        return gear_item_is_shield(item)
+    if rule in {"held_offhand", "held_off_hand", "holdable", "invtype_holdable"}:
+        return gear_item_is_held_offhand(item)
+    return gear_item_is_dual_wieldable_offhand_weapon(item)
+
+
 def gear_embellishment_option_applies_to_item(option, item):
     if not isinstance(option, dict):
         return False
@@ -1314,6 +1497,25 @@ DUAL_WIELDABLE_WEAPON_TYPES = {
     "One-Handed Sword",
     "Warglaive",
 }
+ONE_HAND_WEAPON_TYPES = {
+    "Dagger",
+    "Fist Weapon",
+    "One-Handed Axe",
+    "One-Handed Mace",
+    "One-Handed Sword",
+    "Warglaive",
+    "Wand",
+}
+TWO_HAND_WEAPON_TYPES = {
+    "Two-Handed Axe",
+    "Two-Handed Mace",
+    "Two-Handed Sword",
+    "Polearm",
+    "Staff",
+}
+RANGED_WEAPON_TYPES = {"Bow", "Crossbow", "Gun"}
+HELD_OFFHAND_WEAPON_TYPES = {"Held In Off-hand"}
+SHIELD_WEAPON_TYPES = {"Shield"}
 CLASS_WEAPON_TYPES = {
     "deathknight": {
         "One-Handed Axe",
@@ -1425,6 +1627,248 @@ CLASS_WEAPON_TYPES = {
         "One-Handed Sword",
         "Two-Handed Sword",
     },
+}
+SPEC_WEAPON_EQUIPMENT_RULES = {
+    ("deathknight", "blood"): {
+        "mode": "two_hand",
+        "mainHandTypes": {"Two-Handed Axe", "Two-Handed Mace", "Two-Handed Sword", "Polearm"},
+        "offHandTypes": set(),
+    },
+    ("deathknight", "frost"): {
+        "mode": "selectable_two_hand_or_dual_wield_1h",
+        "mainHandTypes": {
+            "One-Handed Axe",
+            "One-Handed Mace",
+            "One-Handed Sword",
+            "Two-Handed Axe",
+            "Two-Handed Mace",
+            "Two-Handed Sword",
+            "Polearm",
+        },
+        "offHandTypes": {"One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
+    },
+    ("deathknight", "unholy"): {
+        "mode": "two_hand",
+        "mainHandTypes": {"Two-Handed Axe", "Two-Handed Mace", "Two-Handed Sword", "Polearm"},
+        "offHandTypes": set(),
+    },
+    ("demonhunter", "devourer"): {
+        "mode": "dual_wield_1h",
+        "mainHandTypes": {"Warglaive", "Fist Weapon", "One-Handed Axe", "One-Handed Sword"},
+        "offHandTypes": {"Warglaive", "Fist Weapon", "One-Handed Axe", "One-Handed Sword"},
+    },
+    ("demonhunter", "havoc"): {
+        "mode": "dual_wield_1h",
+        "mainHandTypes": {"Warglaive", "Fist Weapon", "One-Handed Axe", "One-Handed Sword"},
+        "offHandTypes": {"Warglaive", "Fist Weapon", "One-Handed Axe", "One-Handed Sword"},
+    },
+    ("demonhunter", "vengeance"): {
+        "mode": "dual_wield_1h",
+        "mainHandTypes": {"Warglaive", "Fist Weapon", "One-Handed Axe", "One-Handed Sword"},
+        "offHandTypes": {"Warglaive", "Fist Weapon", "One-Handed Axe", "One-Handed Sword"},
+    },
+    ("druid", "balance"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("druid", "feral"): {
+        "mode": "two_hand_agi",
+        "mainHandTypes": {"Staff", "Polearm"},
+        "offHandTypes": set(),
+    },
+    ("druid", "guardian"): {
+        "mode": "two_hand_agi",
+        "mainHandTypes": {"Staff", "Polearm"},
+        "offHandTypes": set(),
+    },
+    ("druid", "restoration"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("evoker", "augmentation"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace", "One-Handed Sword"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("evoker", "devastation"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace", "One-Handed Sword"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("evoker", "preservation"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace", "One-Handed Sword"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("hunter", "beast_mastery"): {
+        "mode": "ranged",
+        "mainHandTypes": {"Bow", "Crossbow", "Gun"},
+        "offHandTypes": set(),
+    },
+    ("hunter", "marksmanship"): {
+        "mode": "ranged",
+        "mainHandTypes": {"Bow", "Crossbow", "Gun"},
+        "offHandTypes": set(),
+    },
+    ("hunter", "survival"): {
+        "mode": "melee_weapon",
+        "mainHandTypes": {"Polearm", "Staff", "Two-Handed Axe", "Two-Handed Sword", "Dagger", "One-Handed Axe", "One-Handed Sword"},
+        "offHandTypes": set(),
+    },
+    ("mage", "arcane"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Sword", "Wand"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("mage", "fire"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Sword", "Wand"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("mage", "frost"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Sword", "Wand"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("monk", "brewmaster"): {
+        "mode": "selectable_two_hand_or_dual_wield_1h",
+        "mainHandTypes": {"Staff", "Polearm", "Fist Weapon", "One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
+        "offHandTypes": {"Fist Weapon", "One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
+    },
+    ("monk", "mistweaver"): {
+        "mode": "healer_1h_or_staff",
+        "mainHandTypes": {"Staff", "One-Handed Mace", "One-Handed Sword"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("monk", "windwalker"): {
+        "mode": "selectable_two_hand_or_dual_wield_1h",
+        "mainHandTypes": {"Staff", "Polearm", "Fist Weapon", "One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
+        "offHandTypes": {"Fist Weapon", "One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
+    },
+    ("paladin", "holy"): {
+        "mode": "shield_caster",
+        "mainHandTypes": {"One-Handed Mace", "One-Handed Sword"},
+        "offHandTypes": {"Shield"},
+    },
+    ("paladin", "protection"): {
+        "mode": "shield_tank",
+        "mainHandTypes": {"One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
+        "offHandTypes": {"Shield"},
+    },
+    ("paladin", "retribution"): {
+        "mode": "two_hand",
+        "mainHandTypes": {"Two-Handed Axe", "Two-Handed Mace", "Two-Handed Sword", "Polearm"},
+        "offHandTypes": set(),
+    },
+    ("priest", "discipline"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace", "Wand"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("priest", "holy"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace", "Wand"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("priest", "shadow"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace", "Wand"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("rogue", "assassination"): {
+        "mode": "dual_wield_dagger",
+        "mainHandTypes": {"Dagger"},
+        "offHandTypes": {"Dagger"},
+    },
+    ("rogue", "outlaw"): {
+        "mode": "dual_wield_1h",
+        "mainHandTypes": {"Fist Weapon", "One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
+        "offHandTypes": {"Fist Weapon", "One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
+    },
+    ("rogue", "subtlety"): {
+        "mode": "dual_wield_dagger",
+        "mainHandTypes": {"Dagger"},
+        "offHandTypes": {"Dagger"},
+    },
+    ("shaman", "elemental"): {
+        "mode": "caster_shield_or_holdable",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace"},
+        "offHandTypes": {"Shield", "Held In Off-hand"},
+    },
+    ("shaman", "enhancement"): {
+        "mode": "dual_wield_1h",
+        "mainHandTypes": {"Fist Weapon", "One-Handed Axe", "One-Handed Mace"},
+        "offHandTypes": {"Fist Weapon", "One-Handed Axe", "One-Handed Mace"},
+    },
+    ("shaman", "restoration"): {
+        "mode": "caster_shield_or_holdable",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace"},
+        "offHandTypes": {"Shield", "Held In Off-hand"},
+    },
+    ("warlock", "affliction"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Sword", "Wand"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("warlock", "demonology"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Sword", "Wand"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("warlock", "destruction"): {
+        "mode": "caster_1h_or_staff",
+        "mainHandTypes": {"Staff", "Dagger", "One-Handed Sword", "Wand"},
+        "offHandTypes": {"Held In Off-hand"},
+    },
+    ("warrior", "arms"): {
+        "mode": "two_hand",
+        "mainHandTypes": {"Two-Handed Axe", "Two-Handed Mace", "Two-Handed Sword", "Polearm"},
+        "offHandTypes": set(),
+    },
+    ("warrior", "fury"): {
+        "mode": "dual_wield_2h",
+        "mainHandTypes": {"Two-Handed Axe", "Two-Handed Mace", "Two-Handed Sword"},
+        "offHandTypes": {"Two-Handed Axe", "Two-Handed Mace", "Two-Handed Sword"},
+    },
+    ("warrior", "protection"): {
+        "mode": "shield_tank",
+        "mainHandTypes": {"One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
+        "offHandTypes": {"Shield"},
+    },
+}
+PRIMARY_STAT_LABELS_ZH = {
+    "strength": "力量",
+    "agility": "敏捷",
+    "intellect": "智力",
+}
+PRIMARY_STAT_KEYS = set(PRIMARY_STAT_LABELS_ZH)
+PRIMARY_STAT_HYBRID_PATTERNS = {
+    "stragi": {"strength", "agility"},
+    "agistr": {"strength", "agility"},
+    "strengthagility": {"strength", "agility"},
+    "agilitystrength": {"strength", "agility"},
+    "strint": {"strength", "intellect"},
+    "intstr": {"strength", "intellect"},
+    "strengthintellect": {"strength", "intellect"},
+    "intellectstrength": {"strength", "intellect"},
+    "agiint": {"agility", "intellect"},
+    "intagi": {"agility", "intellect"},
+    "agilityintellect": {"agility", "intellect"},
+    "intellectagility": {"agility", "intellect"},
+    "stragiint": {"strength", "agility", "intellect"},
+    "strintagi": {"strength", "agility", "intellect"},
+    "agistrint": {"strength", "agility", "intellect"},
+    "agiintstr": {"strength", "agility", "intellect"},
+    "intstragi": {"strength", "agility", "intellect"},
+    "intagistr": {"strength", "agility", "intellect"},
+    "strengthagilityintellect": {"strength", "agility", "intellect"},
+    "strengthintellectagility": {"strength", "agility", "intellect"},
+    "agilitystrengthintellect": {"strength", "agility", "intellect"},
+    "agilityintellectstrength": {"strength", "agility", "intellect"},
+    "intellectstrengthagility": {"strength", "agility", "intellect"},
+    "intellectagilitystrength": {"strength", "agility", "intellect"},
 }
 GEM_ITEM_CLASS_IDS = {3}
 GEM_CLASS_NAMES = {"gem", "\u5b9d\u77f3"}
@@ -3085,6 +3529,54 @@ def built_in_embellishment_fields_from_payload(payload):
     }
 
 
+def unique_equipped_fields_from_payload(payload):
+    if not isinstance(payload, dict):
+        return {}
+    fragments = []
+    explicit_unique = False
+    seen_parents = set()
+    for parent in (payload_preview_item(payload), payload):
+        if not isinstance(parent, dict):
+            continue
+        parent_id = id(parent)
+        if parent_id in seen_parents:
+            continue
+        seen_parents.add(parent_id)
+        for key in BUILT_IN_EMBELLISHMENT_LIMIT_KEYS:
+            if parent.get(key) not in (None, "", [], {}):
+                if isinstance(parent.get(key), bool):
+                    explicit_unique = explicit_unique or bool(parent.get(key))
+                fragments.extend(text_fragments_from_value(parent.get(key)))
+        for key in ("is_unique_equipped", "isUniqueEquipped", "unique", "uniqueEquipped"):
+            if isinstance(parent.get(key), bool) and parent.get(key):
+                explicit_unique = True
+    text = " ".join(fragments).strip()
+    normalized = text.lower()
+    has_marker = (
+        explicit_unique
+        or "unique-equipped" in normalized
+        or "unique equipped" in normalized
+        or "unique_equipped" in normalized
+        or "\u88c5\u5907\u552f\u4e00" in text
+        or "\u552f\u4e00\u88c5\u5907" in text
+    )
+    if not has_marker:
+        return {}
+    limit = 0
+    match = re.search(r"\((\d+)\)|\uff08(\d+)\uff09", text)
+    if match:
+        limit = int(match.group(1) or match.group(2) or 0)
+    elif explicit_unique:
+        limit = 1
+    fields = {
+        "uniqueEquipped": True,
+        "uniqueEquippedLabel": "\u552f\u4e00",
+    }
+    if limit:
+        fields["uniqueLimit"] = limit
+    return fields
+
+
 def positive_int_value(value):
     if isinstance(value, dict):
         value = first_matching_value(value, ["value", "amount", "level", "display_string"], "")
@@ -3218,6 +3710,179 @@ def normalize_item_stats(values):
         seen.add(dedupe_key)
         result.append(normalized)
     return result
+
+
+def primary_stat_keys_from_text(value):
+    text = str(value or "").strip()
+    if not text:
+        return set()
+    lower = text.lower()
+    compact = re.sub(r"[\s/_\-\+\|:;\uff1a\uff1b,，/]+", "", lower)
+    for pattern, keys in PRIMARY_STAT_HYBRID_PATTERNS.items():
+        if pattern in compact:
+            return set(keys)
+    keys = set()
+    if "\u4e3b\u5c5e\u6027" in text or "primary stat" in lower or "primarystat" in compact:
+        keys.update(PRIMARY_STAT_KEYS)
+    if "\u529b\u91cf" in text or "strength" in lower or compact == "str":
+        keys.add("strength")
+    if "\u654f\u6377" in text or "agility" in lower or compact == "agi":
+        keys.add("agility")
+    if "\u667a\u529b" in text or "intellect" in lower or "intelligence" in lower or compact == "int":
+        keys.add("intellect")
+    return keys
+
+
+def item_stat_primary_keys(stat):
+    if isinstance(stat, dict):
+        fragments = [
+            stat.get("key"),
+            stat.get("label"),
+            stat.get("name"),
+            stat.get("stat"),
+            stat.get("type"),
+            stat.get("display"),
+            stat.get("displayString"),
+            stat.get("text"),
+        ]
+        type_payload = stat.get("type") if isinstance(stat.get("type"), dict) else {}
+        fragments.extend([type_payload.get("type"), type_payload.get("name")])
+    else:
+        fragments = [stat]
+    keys = set()
+    for fragment in fragments:
+        keys.update(primary_stat_keys_from_text(fragment))
+    return keys
+
+
+def item_stats_primary_compatible(stats, primary_key):
+    primary_key = str(primary_key or "").strip()
+    if primary_key not in PRIMARY_STAT_KEYS:
+        return True
+    primary_sets = [item_stat_primary_keys(stat) for stat in stats or []]
+    primary_sets = [keys for keys in primary_sets if keys]
+    if not primary_sets:
+        return True
+    return any(primary_key in keys for keys in primary_sets)
+
+
+def item_stat_summary_primary_compatible(summary, primary_key):
+    text = str(summary or "").strip()
+    if not text:
+        return True
+    parts = re.split(r"[\uff1b;，,\n]+", text)
+    return item_stats_primary_compatible(parts, primary_key)
+
+
+def replace_primary_stat_text_for_spec(text, primary_key):
+    label = PRIMARY_STAT_LABELS_ZH.get(primary_key)
+    if not label:
+        return text
+    patterns = [
+        r"\u529b\u91cf\s*(?:or|/|\u6216|,|\uff0c)\s*\u654f\u6377\s*(?:or|/|\u6216|,|\uff0c)\s*\u667a\u529b",
+        r"\u529b\u91cf\s*(?:or|/|\u6216|,|\uff0c)\s*\u667a\u529b\s*(?:or|/|\u6216|,|\uff0c)\s*\u654f\u6377",
+        r"\u654f\u6377\s*(?:or|/|\u6216|,|\uff0c)\s*\u529b\u91cf\s*(?:or|/|\u6216|,|\uff0c)\s*\u667a\u529b",
+        r"\u654f\u6377\s*(?:or|/|\u6216|,|\uff0c)\s*\u667a\u529b\s*(?:or|/|\u6216|,|\uff0c)\s*\u529b\u91cf",
+        r"\u667a\u529b\s*(?:or|/|\u6216|,|\uff0c)\s*\u529b\u91cf\s*(?:or|/|\u6216|,|\uff0c)\s*\u654f\u6377",
+        r"\u667a\u529b\s*(?:or|/|\u6216|,|\uff0c)\s*\u654f\u6377\s*(?:or|/|\u6216|,|\uff0c)\s*\u529b\u91cf",
+        r"strength\s*(?:or|/|,)\s*agility\s*(?:or|/|,)\s*intellect",
+        r"strength\s*(?:or|/|,)\s*intellect\s*(?:or|/|,)\s*agility",
+        r"agility\s*(?:or|/|,)\s*strength\s*(?:or|/|,)\s*intellect",
+        r"agility\s*(?:or|/|,)\s*intellect\s*(?:or|/|,)\s*strength",
+        r"intellect\s*(?:or|/|,)\s*strength\s*(?:or|/|,)\s*agility",
+        r"intellect\s*(?:or|/|,)\s*agility\s*(?:or|/|,)\s*strength",
+        r"\u529b\u91cf\s*(?:or|/|\u6216|,|\uff0c)\s*\u654f\u6377",
+        r"\u654f\u6377\s*(?:or|/|\u6216|,|\uff0c)\s*\u529b\u91cf",
+        r"\u529b\u91cf\s*(?:or|/|\u6216|,|\uff0c)\s*\u667a\u529b",
+        r"\u667a\u529b\s*(?:or|/|\u6216|,|\uff0c)\s*\u529b\u91cf",
+        r"\u654f\u6377\s*(?:or|/|\u6216|,|\uff0c)\s*\u667a\u529b",
+        r"\u667a\u529b\s*(?:or|/|\u6216|,|\uff0c)\s*\u654f\u6377",
+        r"strength\s*(?:or|/|,)\s*agility",
+        r"agility\s*(?:or|/|,)\s*strength",
+        r"strength\s*(?:or|/|,)\s*intellect",
+        r"intellect\s*(?:or|/|,)\s*strength",
+        r"agility\s*(?:or|/|,)\s*intellect",
+        r"intellect\s*(?:or|/|,)\s*agility",
+    ]
+    result = str(text or "")
+    for pattern in patterns:
+        result = re.sub(pattern, label, result, flags=re.IGNORECASE)
+    return result
+
+
+def filter_item_stat_summary_for_spec(summary, primary_key):
+    text = str(summary or "").strip()
+    if not text or primary_key not in PRIMARY_STAT_KEYS:
+        return text
+    filtered = []
+    for part in re.split(r"([\uff1b;\n]+)", text):
+        if part in {"\uff1b", ";", "\n"}:
+            continue
+        fragment = part.strip()
+        if not fragment:
+            continue
+        primary_keys = primary_stat_keys_from_text(fragment)
+        if primary_keys:
+            if primary_key not in primary_keys:
+                continue
+            fragment = replace_primary_stat_text_for_spec(fragment, primary_key)
+        filtered.append(fragment)
+    return "\uff1b".join(unique_text_list(filtered))
+
+
+def filter_item_stats_for_spec(stats, primary_key):
+    primary_key = str(primary_key or "").strip()
+    normalized_stats = normalize_item_stats(stats)
+    if primary_key not in PRIMARY_STAT_KEYS or not normalized_stats:
+        return normalized_stats
+    filtered = []
+    seen = set()
+    for stat in normalized_stats:
+        primary_keys = item_stat_primary_keys(stat)
+        next_stat = dict(stat)
+        if primary_keys:
+            if primary_key not in primary_keys:
+                continue
+            next_stat["key"] = primary_key
+            next_stat["label"] = PRIMARY_STAT_LABELS_ZH[primary_key]
+            display = str(next_stat.get("display") or "").strip()
+            if display:
+                next_stat["display"] = re.sub(
+                    r"(\u529b\u91cf|Strength|\u654f\u6377|Agility|\u667a\u529b|Intellect|Intelligence)(?:\s*(?:or|/|,|\uff0c|\u6216)\s*(\u529b\u91cf|Strength|\u654f\u6377|Agility|\u667a\u529b|Intellect|Intelligence))+",
+                    PRIMARY_STAT_LABELS_ZH[primary_key],
+                    display,
+                    flags=re.IGNORECASE,
+                )
+        dedupe_key = json.dumps(next_stat, ensure_ascii=False, sort_keys=True)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        filtered.append(next_stat)
+    return filtered
+
+
+def apply_primary_stat_filter_to_stat_payload(payload, primary_key):
+    if not isinstance(payload, dict):
+        return payload
+    primary_key = str(primary_key or "").strip()
+    if primary_key not in PRIMARY_STAT_KEYS:
+        return payload
+    stats = payload.get("itemStats") or payload.get("stats") or []
+    if stats:
+        if not item_stats_primary_compatible(stats, primary_key):
+            return None
+        filtered_stats = filter_item_stats_for_spec(stats, primary_key)
+        if filtered_stats:
+            payload = dict(payload)
+            payload["itemStats"] = filtered_stats
+            payload["stats"] = filtered_stats
+            if payload.get("statSummary"):
+                payload["statSummary"] = filter_item_stat_summary_for_spec(payload.get("statSummary"), primary_key)
+            else:
+                payload["statSummary"] = item_stat_summary(filtered_stats)
+    elif payload.get("statSummary") and not item_stat_summary_primary_compatible(payload.get("statSummary"), primary_key):
+        return None
+    return payload
 
 
 def direct_item_stats_from_payload(payload):
@@ -7811,12 +8476,11 @@ def single_numeric_simc_option_value(simc_options, key):
     return len(parts) == 1 and bool(re.fullmatch(r"\d+", parts[0]))
 
 
-def gear_mod_option_is_supported_config_option(option_type, simc_options, payload=None):
+def gear_mod_option_is_supported_config_option(option_type, simc_options, payload=None, option_name=""):
     option_type = str(option_type or "").strip().lower()
     simc_options = simc_options if isinstance(simc_options, dict) else {}
     if option_type == "enchant":
-        enchant_id = normalize_option_value(simc_options.get("enchant_id"))
-        if enchant_id in UNSUPPORTED_GEAR_CONFIG_ENCHANT_IDS:
+        if gear_config_enchant_exclusion(option_name, simc_options, payload):
             return False
     return True
 
@@ -7830,7 +8494,7 @@ def upsert_gear_mod_option(conn, option):
     payload = option.get("payload") if isinstance(option.get("payload"), dict) else {}
     if not simc_options or not gear_mod_option_has_executable_field(option_type, simc_options):
         return False
-    if not gear_mod_option_is_supported_config_option(option_type, simc_options, payload):
+    if not gear_mod_option_is_supported_config_option(option_type, simc_options, payload, option.get("name") or option.get("label") or ""):
         return False
     if option_type == "socket" and len(gem_item_ids_from_simc_options(simc_options)) != 1:
         return False
@@ -7849,6 +8513,13 @@ def upsert_gear_mod_option(conn, option):
     if isinstance(slots, str):
         slots = [slots]
     slots = unique_text_list([normalize_slot(slot) or str(slot or "").strip() for slot in slots])
+    payload = gear_mod_option_payload_with_config_policy(
+        option_type,
+        option.get("name") or option.get("label") or option_id,
+        simc_options,
+        payload,
+        slots,
+    )
     if option_type == "crafted_stats" and option_id:
         existing_row = conn.execute(
             "SELECT applicable_slots_json FROM websim_gear_mod_options WHERE id = ?",
@@ -12094,6 +12765,7 @@ def gear_catalog_mod_option_coverage(conn):
     invalid_socket_gem_metadata = []
     missing_socket_stat_display = []
     missing_named_display = {"enchant": [], "embellishment": []}
+    excluded_named_options = {"enchant": []}
     for option_id, option_type, option_name, slots_json, simc_options_json, payload_json, option_status in rows:
         payload = safe_json_loads(payload_json, {})
         if not gear_mod_option_is_visible(option_id, option_name, payload):
@@ -12103,7 +12775,11 @@ def gear_catalog_mod_option_coverage(conn):
             continue
         simc_options = safe_json_loads(simc_options_json, {})
         simc_options = simc_options if isinstance(simc_options, dict) else {}
-        if not gear_mod_option_is_supported_config_option(option_key, simc_options, payload):
+        if not gear_mod_option_is_supported_config_option(option_key, simc_options, payload, option_name):
+            if option_key == "enchant":
+                excluded_named_options[option_key].append(
+                    gear_config_enchant_exclusion_example(option_id, option_name, simc_options, payload)
+                )
             continue
         if option_key in {"enchant", "embellishment"}:
             display_fields = gear_mod_option_display_fields(option_key, option_name, simc_options, payload)
@@ -12233,6 +12909,10 @@ def gear_catalog_mod_option_coverage(conn):
         if examples:
             coverage[option_key]["missingDisplayCount"] = len(examples)
             coverage[option_key]["missingDisplayExamples"] = examples[:5]
+    for option_key, examples in excluded_named_options.items():
+        if examples:
+            coverage[option_key]["excludedOptionCount"] = len(examples)
+            coverage[option_key]["excludedExamples"] = examples[:5]
     return coverage
 
 
@@ -13543,6 +14223,34 @@ def catalog_health_contract(
     }
 
 
+def weapon_rule_coverage():
+    expected = set(expected_spec_pairs())
+    covered = {f"{class_key}:{spec_key}" for class_key, spec_key in SPEC_WEAPON_EQUIPMENT_RULES}
+    missing = sorted(expected - covered)
+    extra = sorted(covered - expected)
+    examples = []
+    for class_spec in sorted(covered & expected)[:5]:
+        class_key, spec_key = class_spec.split(":", 1)
+        rule = weapon_equipment_rule_payload(class_key, spec_key)
+        examples.append({
+            "classKey": class_key,
+            "specKey": spec_key,
+            "mode": rule.get("mode") or "",
+            "mainHandTypes": rule.get("mainHandTypes") or [],
+            "offHandTypes": rule.get("offHandTypes") or [],
+        })
+    return {
+        "totalClassCount": len(WOW_CLASSES),
+        "totalSpecCount": len(expected),
+        "coveredSpecCount": len(covered & expected),
+        "missingRuleCount": len(missing),
+        "extraRuleCount": len(extra),
+        "missingRules": missing,
+        "extraRules": extra,
+        "examples": examples,
+    }
+
+
 def build_gear_catalog_sync_state(conn, season=None):
     repair_websim_item_slots_from_payload(conn)
     counts = gear_catalog_counts(conn)
@@ -13868,6 +14576,7 @@ def gear_catalog_health_payload(conn):
             "sourceCoverage": state.get("sourceCoverage") or {},
             "sourceGapCoverage": state.get("sourceGapCoverage") or gear_catalog_source_gap_coverage(conn),
             "modOptionCoverage": state.get("modOptionCoverage") or gear_catalog_mod_option_coverage(conn),
+            "weaponRuleCoverage": state.get("weaponRuleCoverage") or weapon_rule_coverage(),
             "itemMetadata": state.get("itemMetadata") or gear_catalog_item_metadata_audit(conn),
             "seasonSourceCoverage": state.get("seasonSourceCoverage") or gear_catalog_season_source_coverage(conn),
             "topBlockers": top_blockers,
@@ -14125,7 +14834,14 @@ def gear_catalog_mod_options_by_slot(conn, option_type):
             for key, value in simc_options.items()
             if key in SIMC_GEAR_OPTION_KEYS
         }
-        if not gear_mod_option_is_supported_config_option(row[1], normalized_simc_options, payload):
+        payload = gear_mod_option_payload_with_config_policy(
+            row[1],
+            row[2],
+            normalized_simc_options,
+            payload,
+            normalized_slots,
+        )
+        if not gear_mod_option_is_supported_config_option(row[1], normalized_simc_options, payload, row[2]):
             continue
         display_fields = gear_mod_option_display_fields(row[1], row[2], normalized_simc_options, payload)
         display_label = str(display_fields.get("displayLabel") or row[2] or row[0]).strip()
@@ -14167,6 +14883,12 @@ def gear_catalog_mod_options_by_slot(conn, option_type):
             "unique_limit",
             "uniqueScope",
             "unique_scope",
+            "configCategory",
+            "config_category",
+            "exclusionReason",
+            "exclusion_reason",
+            "itemTypeRule",
+            "item_type_rule",
         ):
             if payload.get(key) not in (None, "", [], {}):
                 if key in {"displayName", "displayLabel", "displayKind", "displayStatus", "evidenceSource", "evidenceRef"} and option.get(key) not in (None, "", [], {}):
@@ -14818,7 +15540,10 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     item["observedProfileRefs"] = observed_profile_refs_from_catalog(compatible_sources, compatible_variants)
     item["modCapabilities"] = mod_capabilities
     item["socketOptions"] = socket_options if mod_capabilities["hasSocket"] else []
-    item["enchantOptions"] = enchant_options if mod_capabilities["canEnchant"] else []
+    filtered_enchant_options = [
+        option for option in enchant_options if gear_enchant_option_applies_to_item(option, item)
+    ]
+    item["enchantOptions"] = filtered_enchant_options if mod_capabilities["canEnchant"] else []
     filtered_embellishment_options = [
         option for option in embellishment_options if gear_embellishment_option_applies_to_item(option, item)
     ]
@@ -15493,6 +16218,10 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
     candidate_items = [sanitize_gear_candidate_mod_options(item) for item in candidate_items]
     baseline_set = enrich_gear_items_with_catalog_records(baseline_set, catalog_items)
     preset_items = enrich_gear_items_with_catalog_records(preset_items, catalog_items)
+    baseline_set = apply_spec_primary_stat_display_to_items(baseline_set, class_key, spec_key)
+    preset_items = apply_spec_primary_stat_display_to_items(preset_items, class_key, spec_key)
+    catalog_items = apply_spec_primary_stat_display_to_items(catalog_items, class_key, spec_key)
+    candidate_items = apply_spec_primary_stat_display_to_items(candidate_items, class_key, spec_key)
     observed_baseline_set = observed_profile_baseline_items(catalog_items, class_key, spec_key)
     if not baseline_set and observed_baseline_set:
         baseline_set = observed_baseline_set
@@ -15509,7 +16238,7 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
         if normalized and normalized.get("slot") in grouped:
             if gear_candidate_incompatible(normalized):
                 continue
-            for candidate_slot in gear_candidate_slots(normalized):
+            for candidate_slot in gear_candidate_slots(normalized, normalized.get("classKey"), normalized.get("specKey")):
                 if candidate_slot in grouped:
                     grouped[candidate_slot].append(gear_candidate_for_slot(normalized, candidate_slot))
     candidate_limit = 12 if compact else None
@@ -15548,7 +16277,11 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
                 for option in item.get("enchantOptions") or []
             )
             if not enchant_options and items and slot in ENCHANTABLE_GEAR_SLOTS:
-                enchant_options = compact_gear_mod_options(enchant_options_by_slot.get(slot, []))
+                enchant_options = compact_gear_mod_options(
+                    option
+                    for option in enchant_options_by_slot.get(slot, [])
+                    if any(gear_enchant_option_applies_to_item(option, item) for item in items)
+                )
             embellishment_options = compact_gear_mod_options(
                 option
                 for item in items
@@ -15586,6 +16319,7 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
     payload = {
         "classKey": class_key,
         "specKey": spec_key,
+        "weaponRule": weapon_equipment_rule_payload(class_key, spec_key),
         "slots": gear_slot_payload(),
         "replacementCandidates": slot_groups,
         "equippedSet": equipped_set,
@@ -15914,10 +16648,97 @@ def item_type_metadata_from_payload(payload):
 def class_spec_can_use_held_offhand(class_key, spec_key=""):
     class_key = slugify(class_key, "")
     spec_key = slugify(spec_key, "")
+    rule = weapon_equipment_rule_for_spec(class_key, spec_key)
+    if rule:
+        return "Held In Off-hand" in set(rule.get("offHandTypes") or [])
     if class_key in HELD_OFFHAND_CLASSES:
         return True
     if spec_key:
         return (class_key, spec_key) in HELD_OFFHAND_SPECS
+    return False
+
+
+def weapon_equipment_rule_for_spec(class_key, spec_key=""):
+    class_key = slugify(class_key, "")
+    spec_key = slugify(spec_key, "")
+    if not class_key:
+        return {}
+    rule = SPEC_WEAPON_EQUIPMENT_RULES.get((class_key, spec_key))
+    if rule:
+        return rule
+    allowed_types = CLASS_WEAPON_TYPES.get(class_key)
+    if not allowed_types:
+        return {}
+    return {
+        "mode": "class_proficiency",
+        "mainHandTypes": set(allowed_types),
+        "offHandTypes": set(),
+    }
+
+
+def weapon_equipment_rule_payload(class_key, spec_key=""):
+    rule = weapon_equipment_rule_for_spec(class_key, spec_key)
+    if not rule:
+        return {}
+    return {
+        "mode": str(rule.get("mode") or ""),
+        "mainHandTypes": sorted(str(value) for value in rule.get("mainHandTypes") or []),
+        "offHandTypes": sorted(str(value) for value in rule.get("offHandTypes") or []),
+    }
+
+
+def primary_stat_key_for_spec(class_key, spec_key=""):
+    class_key = slugify(class_key, "")
+    spec_key = slugify(spec_key, "")
+    if class_key in {"deathknight", "warrior"}:
+        return "strength"
+    if class_key in {"demonhunter", "hunter", "rogue"}:
+        return "agility"
+    if class_key in {"evoker", "mage", "priest", "warlock"}:
+        return "intellect"
+    if class_key == "paladin":
+        return "intellect" if spec_key == "holy" else "strength"
+    if class_key == "shaman":
+        return "agility" if spec_key == "enhancement" else "intellect"
+    if class_key == "druid":
+        return "agility" if spec_key in {"feral", "guardian"} else "intellect"
+    if class_key == "monk":
+        return "intellect" if spec_key == "mistweaver" else "agility"
+    return ""
+
+
+def weapon_type_in_class_proficiency(class_key, weapon_type):
+    class_key = slugify(class_key, "")
+    weapon_type = str(weapon_type or "").strip()
+    if not class_key or not weapon_type:
+        return True
+    if weapon_type in SHIELD_WEAPON_TYPES:
+        return class_key in SHIELD_CLASSES
+    if weapon_type in HELD_OFFHAND_WEAPON_TYPES:
+        return class_spec_can_use_held_offhand(class_key)
+    allowed_types = CLASS_WEAPON_TYPES.get(class_key)
+    if allowed_types is None:
+        return True
+    return weapon_type in allowed_types
+
+
+def weapon_type_allowed_for_slot(class_key, spec_key, simc_slot, weapon_type):
+    class_key = slugify(class_key, "")
+    spec_key = slugify(spec_key, "")
+    simc_slot = normalize_slot(simc_slot)
+    weapon_type = str(weapon_type or "").strip()
+    if not class_key or not simc_slot or not weapon_type:
+        return True
+    rule = weapon_equipment_rule_for_spec(class_key, spec_key)
+    if not rule:
+        return weapon_type_in_class_proficiency(class_key, weapon_type)
+    if weapon_type not in SHIELD_WEAPON_TYPES and weapon_type not in HELD_OFFHAND_WEAPON_TYPES:
+        if not weapon_type_in_class_proficiency(class_key, weapon_type):
+            return False
+    if simc_slot == "main_hand":
+        return weapon_type in set(rule.get("mainHandTypes") or [])
+    if simc_slot == "off_hand":
+        return weapon_type in set(rule.get("offHandTypes") or [])
     return False
 
 
@@ -15926,10 +16747,7 @@ def class_spec_can_use_weapon_type(class_key, spec_key, weapon_type):
     weapon_type = str(weapon_type or "").strip()
     if not class_key or not weapon_type:
         return True
-    allowed_types = CLASS_WEAPON_TYPES.get(class_key)
-    if allowed_types is None:
-        return True
-    return weapon_type in allowed_types
+    return weapon_type_allowed_for_slot(class_key, spec_key, "main_hand", weapon_type)
 
 
 def gear_compatibility_from_payload(payload, class_key, simc_slot, spec_key=""):
@@ -15941,11 +16759,11 @@ def gear_compatibility_from_payload(payload, class_key, simc_slot, spec_key=""):
     if simc_slot in WEAPON_SLOTS:
         weapon_type = item_type_metadata_from_payload(payload).get("weaponType") or ""
         if weapon_type == "Shield":
-            return "compatible" if class_key in SHIELD_CLASSES else "incompatible"
+            return "compatible" if weapon_type_allowed_for_slot(class_key, spec_key, simc_slot, weapon_type) else "incompatible"
         if weapon_type == "Held In Off-hand":
-            return "compatible" if class_spec_can_use_held_offhand(class_key, spec_key) else "incompatible"
+            return "compatible" if weapon_type_allowed_for_slot(class_key, spec_key, simc_slot, weapon_type) else "incompatible"
         if weapon_type:
-            return "compatible" if class_spec_can_use_weapon_type(class_key, spec_key, weapon_type) else "incompatible"
+            return "compatible" if weapon_type_allowed_for_slot(class_key, spec_key, simc_slot, weapon_type) else "incompatible"
         return "unknown"
     if simc_slot not in ARMOR_SLOTS:
         return "unknown"
@@ -16092,10 +16910,19 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         "inherentEmbellishment",
         "embellishmentSource",
         "builtInEmbellishmentLabel",
+        "uniqueEquippedLabel",
+        "uniqueGroup",
+        "uniqueScope",
     ):
         option_value = normalize_option_value(value.get(key))
         if option_value:
             item[key] = option_value
+    for key in ("uniqueEquipped", "unique_equipped"):
+        if value.get(key) not in (None, "", [], {}):
+            item["uniqueEquipped"] = bool(value.get(key))
+    unique_limit = positive_int_value(value.get("uniqueLimit") or value.get("unique_limit"))
+    if unique_limit:
+        item["uniqueLimit"] = unique_limit
     if value.get("hasBuiltInEmbellishment"):
         item["hasBuiltInEmbellishment"] = True
         item.setdefault("builtInEmbellishment", BUILT_IN_EMBELLISHMENT_VALUE)
@@ -16104,6 +16931,9 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
     payload_builtin_embellishment = built_in_embellishment_fields_from_payload(payload)
     if payload_builtin_embellishment:
         item.update({key: value for key, value in payload_builtin_embellishment.items() if key not in item})
+    payload_unique_equipped = unique_equipped_fields_from_payload(payload)
+    if payload_unique_equipped:
+        item.update({key: value for key, value in payload_unique_equipped.items() if key not in item})
     if value.get("simcIlevelOnly"):
         item["simcIlevelOnly"] = True
     item["supportsSocket"] = bool(
@@ -16167,9 +16997,142 @@ def enrich_gear_items_with_catalog_records(items, catalog_items):
     return enriched
 
 
-def gear_candidate_slots(item):
+def gear_item_handedness_fields(item):
+    if not isinstance(item, dict):
+        return {}
+    weapon_type = str(item.get("weaponType") or "").strip()
+    if not weapon_type:
+        return {}
+    if weapon_type in RANGED_WEAPON_TYPES:
+        return {"handedness": "ranged", "handednessLabel": "\u8fdc\u7a0b"}
+    if weapon_type in TWO_HAND_WEAPON_TYPES:
+        return {"handedness": "two_hand", "handednessLabel": "\u53cc\u624b"}
+    if weapon_type in ONE_HAND_WEAPON_TYPES:
+        return {"handedness": "one_hand", "handednessLabel": "\u5355\u624b"}
+    if weapon_type in SHIELD_WEAPON_TYPES:
+        return {"handedness": "off_hand", "handednessLabel": "\u76fe\u724c"}
+    if weapon_type in HELD_OFFHAND_WEAPON_TYPES:
+        return {"handedness": "off_hand", "handednessLabel": "\u526f\u624b"}
+    return {}
+
+
+def unique_equipped_bool(value):
+    if isinstance(value, bool):
+        return value
+    text = str(value or "").strip().lower()
+    if not text:
+        return False
+    return text not in {"0", "false", "no", "none", "null"}
+
+
+def gear_equipment_badges(item):
+    badges = []
+    if not isinstance(item, dict):
+        return badges
+
+    def append_badge(key, label):
+        label = str(label or "").strip()
+        if not key or not label:
+            return
+        badge = {"key": key, "label": label}
+        if badge not in badges:
+            badges.append(badge)
+
+    handedness_label = str(item.get("handednessLabel") or "").strip()
+    if handedness_label:
+        append_badge("weapon_handedness", handedness_label)
+    built_in_label = str(item.get("builtInEmbellishmentLabel") or "").strip()
+    if item.get("hasBuiltInEmbellishment") or item.get("builtInEmbellishment"):
+        append_badge("built_in_embellishment", built_in_label or BUILT_IN_EMBELLISHMENT_LABEL)
+    if unique_equipped_bool(item.get("uniqueEquipped") or item.get("unique_equipped")):
+        append_badge("unique_equipped", str(item.get("uniqueEquippedLabel") or "\u552f\u4e00"))
+    return badges
+
+
+def annotate_gear_item_display_fields(item):
+    if not isinstance(item, dict):
+        return item
+    cloned = dict(item)
+    for key, value in gear_item_handedness_fields(cloned).items():
+        cloned.setdefault(key, value)
+    if unique_equipped_bool(cloned.get("uniqueEquipped") or cloned.get("unique_equipped")):
+        cloned["uniqueEquipped"] = True
+        cloned.setdefault("uniqueEquippedLabel", "\u552f\u4e00")
+    badges = gear_equipment_badges(cloned)
+    if badges:
+        cloned["equipmentBadges"] = badges
+    return cloned
+
+
+def mark_gear_candidate_primary_stat_incompatible(item, primary_key):
+    cloned = dict(item)
+    reason = f"primary stat incompatible with {primary_key}"
+    existing = cloned.get("compatibility")
+    if isinstance(existing, dict):
+        compatibility = dict(existing)
+    else:
+        compatibility = {"status": existing or "unknown"}
+    compatibility["status"] = "incompatible"
+    compatibility["primaryStatStatus"] = "incompatible"
+    compatibility["primaryStatKey"] = primary_key
+    compatibility["reason"] = reason
+    cloned["compatibility"] = compatibility
+    cloned["blockers"] = unique_text_list([*(cloned.get("blockers") or []), reason])
+    return annotate_gear_item_display_fields(cloned)
+
+
+def apply_spec_primary_stat_display_fields(item, class_key="", spec_key=""):
+    if not isinstance(item, dict):
+        return item
+    class_key = slugify(class_key or item.get("classKey"), "")
+    spec_key = slugify(spec_key or item.get("specKey"), "")
+    primary_key = primary_stat_key_for_spec(class_key, spec_key)
+    cloned = dict(item)
+    if primary_key:
+        cloned["primaryStatKey"] = primary_key
+    stats = cloned.get("itemStats") or cloned.get("stats") or []
+    if primary_key in PRIMARY_STAT_KEYS and stats:
+        if not item_stats_primary_compatible(stats, primary_key):
+            return mark_gear_candidate_primary_stat_incompatible(cloned, primary_key)
+        filtered_stats = filter_item_stats_for_spec(stats, primary_key)
+        if filtered_stats:
+            cloned["itemStats"] = filtered_stats
+            cloned["stats"] = filtered_stats
+            if cloned.get("statSummary"):
+                cloned["statSummary"] = filter_item_stat_summary_for_spec(cloned.get("statSummary"), primary_key)
+            else:
+                cloned["statSummary"] = item_stat_summary(filtered_stats)
+    elif primary_key in PRIMARY_STAT_KEYS and cloned.get("statSummary"):
+        if not item_stat_summary_primary_compatible(cloned.get("statSummary"), primary_key):
+            return mark_gear_candidate_primary_stat_incompatible(cloned, primary_key)
+        cloned["statSummary"] = filter_item_stat_summary_for_spec(cloned.get("statSummary"), primary_key)
+    return annotate_gear_item_display_fields(cloned)
+
+
+def apply_spec_primary_stat_display_to_items(items, class_key="", spec_key=""):
+    return [
+        apply_spec_primary_stat_display_fields(item, class_key, spec_key) if isinstance(item, dict) else item
+        for item in items or []
+    ]
+
+
+def gear_candidate_slots(item, class_key="", spec_key=""):
     slot = (item or {}).get("slot") or ""
-    return EQUIVALENT_GEAR_SLOTS.get(slot, [slot])
+    if slot not in WEAPON_SLOTS:
+        return EQUIVALENT_GEAR_SLOTS.get(slot, [slot])
+    class_key = slugify(class_key or (item or {}).get("classKey"), "")
+    spec_key = slugify(spec_key or (item or {}).get("specKey"), "")
+    weapon_type = str((item or {}).get("weaponType") or "").strip()
+    if not weapon_type:
+        return [slot]
+    slots = []
+    for candidate_slot in ("main_hand", "off_hand"):
+        if weapon_type_allowed_for_slot(class_key, spec_key, candidate_slot, weapon_type):
+            if candidate_slot == slot or weapon_type not in SHIELD_WEAPON_TYPES | HELD_OFFHAND_WEAPON_TYPES:
+                slots.append(candidate_slot)
+    if slots:
+        return slots
+    return [slot] if not class_key and not spec_key else []
 
 
 def visible_gear_mod_options(options):
@@ -16307,7 +17270,11 @@ def sanitize_gear_candidate_mod_options(item):
     )
     cloned["modCapabilities"] = capabilities
     socket_options = visible_gear_mod_options(cloned.get("socketOptions") or [])
-    enchant_options = visible_gear_mod_options(cloned.get("enchantOptions") or [])
+    enchant_options = [
+        option
+        for option in visible_gear_mod_options(cloned.get("enchantOptions") or [])
+        if gear_enchant_option_applies_to_item(option, cloned)
+    ]
     embellishment_options = [
         option
         for option in visible_gear_mod_options(cloned.get("embellishmentOptions") or [])
@@ -16983,6 +17950,16 @@ COMPACT_GEAR_CANDIDATE_KEYS = {
     "embellishmentSource",
     "itemStats",
     "statSummary",
+    "primaryStatKey",
+    "handedness",
+    "handednessLabel",
+    "uniqueEquipped",
+    "unique_equipped",
+    "uniqueEquippedLabel",
+    "uniqueLimit",
+    "uniqueGroup",
+    "uniqueScope",
+    "equipmentBadges",
     "modCapabilities",
     "armorType",
     "weaponType",
@@ -17043,6 +18020,7 @@ COMPACT_GEAR_VARIANT_KEYS = {
     "itemStats",
     "stats",
     "statSummary",
+    "primaryStatKey",
     "statDisplayStatus",
     "statSource",
     "simcStatStatus",
@@ -17076,6 +18054,12 @@ COMPACT_GEAR_MOD_OPTION_KEYS = {
     "unique_limit",
     "uniqueScope",
     "unique_scope",
+    "configCategory",
+    "config_category",
+    "exclusionReason",
+    "exclusion_reason",
+    "itemTypeRule",
+    "item_type_rule",
 }
 
 
@@ -17217,7 +18201,7 @@ def public_variant_difficulty_key(source_type):
     return ""
 
 
-def compact_gear_variant(variant, public_source_type=""):
+def compact_gear_variant(variant, public_source_type="", primary_key=""):
     compact_variant = compact_dict(variant, COMPACT_GEAR_VARIANT_KEYS)
     if not compact_variant:
         return compact_variant
@@ -17235,6 +18219,11 @@ def compact_gear_variant(variant, public_source_type=""):
         value = payload.get(key)
         if value not in (None, "", [], {}):
             compact_variant[key] = value
+    if primary_key in PRIMARY_STAT_KEYS:
+        compact_variant["primaryStatKey"] = primary_key
+        compact_variant = apply_primary_stat_filter_to_stat_payload(compact_variant, primary_key)
+        if compact_variant is None:
+            return None
     public_source_type = raw_source_type(public_source_type).lower()
     variant_source = raw_source_type(compact_variant.get("sourceType")).lower()
     difficulty_key = str(compact_variant.get("difficultyKey") or "").strip().lower()
@@ -17315,7 +18304,7 @@ def crafted_stat_option_key_from_variant(variant):
     )
 
 
-def compact_crafted_stat_option(variant):
+def compact_crafted_stat_option(variant, primary_key=""):
     payload = variant.get("payload") if isinstance((variant or {}).get("payload"), dict) else {}
     simc_options = variant.get("simcOptions") if isinstance((variant or {}).get("simcOptions"), dict) else {}
     crafted_stats = normalize_option_value(
@@ -17325,6 +18314,11 @@ def compact_crafted_stat_option(variant):
     )
     if not crafted_stats:
         return None
+    if primary_key in PRIMARY_STAT_KEYS:
+        filtered_payload = apply_primary_stat_filter_to_stat_payload(dict(payload), primary_key)
+        if filtered_payload is None:
+            return None
+        payload = filtered_payload
     option = {
         "key": crafted_stat_option_key_from_variant(variant),
         "label": str(payload.get("craftedStatLabel") or crafted_stats),
@@ -17350,7 +18344,7 @@ def compact_crafted_stat_option(variant):
     return option
 
 
-def compact_crafted_gear_variants(variants):
+def compact_crafted_gear_variants(variants, primary_key=""):
     by_track = {}
     order = []
     for variant in variants or []:
@@ -17361,9 +18355,11 @@ def compact_crafted_gear_variants(variants):
         public_key = crafted_public_difficulty_key(variant.get("difficultyKey"))
         item_level = positive_int_value(variant.get("itemLevel") or variant.get("ilevel"))
         track_key = (public_key, item_level)
-        option = compact_crafted_stat_option(variant)
+        option = compact_crafted_stat_option(variant, primary_key)
         if track_key not in by_track:
-            compact_variant = compact_gear_variant(variant, "crafted")
+            compact_variant = compact_gear_variant(variant, "crafted", primary_key)
+            if not compact_variant:
+                continue
             compact_variant["difficultyKey"] = public_key
             compact_variant["difficultyLabel"] = localized_difficulty_label(public_key, variant.get("label"), "crafted")
             compact_variant["key"] = f"crafted-{public_key}-{item_level}" if item_level else f"crafted-{public_key}"
@@ -17435,6 +18431,7 @@ def compact_gear_candidate(item, include_mod_options=True):
     if not isinstance(item, dict):
         return item
     compact_item = compact_dict(item, COMPACT_GEAR_CANDIDATE_KEYS)
+    primary_key = str(item.get("primaryStatKey") or "").strip()
     item_id = normalize_option_value(item.get("itemId") or item.get("id"))
     placeholder_names = {f"item_{item_id}", f"Item {item_id}"} if item_id else set()
     display_name = next(
@@ -17472,10 +18469,10 @@ def compact_gear_candidate(item, include_mod_options=True):
         compact_item["sourceType"] = public_source_type
     sanitize_compact_candidate_variant_fields(compact_item, public_source_type)
     if public_source_type == "crafted":
-        variants = compact_crafted_gear_variants(item.get("variants") or [])
+        variants = compact_crafted_gear_variants(item.get("variants") or [], primary_key)
     if public_source_type != "crafted" or not variants:
         variants = [
-            compact_gear_variant(variant, public_source_type)
+            compact_gear_variant(variant, public_source_type, primary_key)
             for variant in item.get("variants") or []
             if isinstance(variant, dict)
         ]
@@ -18915,6 +19912,59 @@ def validate_enhancement_option(item, enhancement, option_type):
     return True, ""
 
 
+def selected_gear_item_weapon_type(item):
+    if not isinstance(item, dict):
+        return ""
+    weapon_type = str(item.get("weaponType") or "").strip()
+    if weapon_type:
+        return weapon_type
+    payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+    return str(item_type_metadata_from_payload(payload).get("weaponType") or "").strip()
+
+
+def selected_gear_weapon_rule_blocker(item, class_key, spec_key):
+    if not isinstance(item, dict):
+        return ""
+    slot = normalize_slot(item.get("slot") or item.get("simcSlot"))
+    if slot not in WEAPON_SLOTS:
+        return ""
+    weapon_type = selected_gear_item_weapon_type(item)
+    if not weapon_type or weapon_type_allowed_for_slot(class_key, spec_key, slot, weapon_type):
+        return ""
+    class_spec = f"{slugify(class_key, '')}/{slugify(spec_key, '')}".strip("/")
+    return f"{slot} gear incompatible with {class_spec} weapon rule: {weapon_type}"
+
+
+def selected_gear_weapon_rule_blockers(items, class_key, spec_key):
+    if not class_key:
+        return [], set()
+    normalized_items = [item for item in items or [] if isinstance(item, dict)]
+    by_slot = {
+        normalize_slot(item.get("slot") or item.get("simcSlot")): item
+        for item in normalized_items
+        if normalize_slot(item.get("slot") or item.get("simcSlot"))
+    }
+    blockers = []
+    invalid_slots = set()
+    for item in normalized_items:
+        slot = normalize_slot(item.get("slot") or item.get("simcSlot"))
+        blocker = selected_gear_weapon_rule_blocker(item, class_key, spec_key)
+        if blocker:
+            blockers.append(blocker)
+            invalid_slots.add(slot)
+    main_hand_type = selected_gear_item_weapon_type(by_slot.get("main_hand"))
+    rule = weapon_equipment_rule_for_spec(class_key, spec_key)
+    if (
+        by_slot.get("off_hand")
+        and "off_hand" not in invalid_slots
+        and main_hand_type in TWO_HAND_WEAPON_TYPES
+        and rule.get("mode") != "dual_wield_2h"
+    ):
+        blockers.append("off_hand gear incompatible with selected two-hand main hand")
+        invalid_slots.add("off_hand")
+    return blockers, invalid_slots
+
+
 def attach_catalog_enhancement_options(conn, items):
     if conn is None:
         return items
@@ -18934,7 +19984,13 @@ def attach_catalog_enhancement_options(conn, items):
         slot = item.get("slot") or ""
         next_item = dict(item)
         for key, by_slot in options_by_type.items():
-            if key == "embellishmentOptions":
+            if key == "enchantOptions":
+                next_item[key] = [
+                    option
+                    for option in by_slot.get(slot) or []
+                    if gear_enchant_option_applies_to_item(option, next_item)
+                ]
+            elif key == "embellishmentOptions":
                 next_item[key] = [
                     option
                     for option in by_slot.get(slot) or []
@@ -18947,11 +20003,17 @@ def attach_catalog_enhancement_options(conn, items):
     return enhanced
 
 
-def merge_websim_gear_enhancements(items, raw_enhancements, conn=None):
+def merge_websim_gear_enhancements(items, raw_enhancements, conn=None, class_key="", spec_key=""):
     items = attach_catalog_enhancement_options(conn, items)
+    blockers, invalid_gear_slots = selected_gear_weapon_rule_blockers(items, class_key, spec_key)
+    if invalid_gear_slots:
+        items = [
+            item
+            for item in items
+            if normalize_slot(item.get("slot") or item.get("simcSlot")) not in invalid_gear_slots
+        ]
     normalized_enhancements = normalize_enhancement_by_slot(raw_enhancements)
     by_slot = {item.get("slot"): item for item in items if isinstance(item, dict) and item.get("slot")}
-    blockers = []
     built_in_count = sum(1 for item in items if item_builtin_embellishment_value(item))
     selected_embellishment_slots = [
         slot
@@ -19095,7 +20157,13 @@ def build_websim_profile_response(payload, conn=None):
 def websim_selected_gear_payload(source, class_key, spec_key, conn=None):
     raw_items, raw_enhancements = websim_gear_items_and_enhancements_from_source(source)
     items = normalize_websim_gear_items(raw_items, class_key, spec_key)
-    items, enhancement_readiness = merge_websim_gear_enhancements(items, raw_enhancements, conn=conn)
+    items, enhancement_readiness = merge_websim_gear_enhancements(
+        items,
+        raw_enhancements,
+        conn=conn,
+        class_key=class_key,
+        spec_key=spec_key,
+    )
     ready_items = [item for item in items if item.get("simcReady")]
     readiness = gear_readiness(items)
     readiness["enhancement"] = enhancement_readiness
