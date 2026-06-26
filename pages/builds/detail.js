@@ -34,7 +34,18 @@ const gearTemplateScenarios = [
 ]
 const GEAR_ENHANCEMENT_SNAPSHOT_REVISION = 'websim-gear-enhancement-snapshot-v1'
 const gearEnhancementMax = 2
+const primaryStatGemUniqueGroup = 'primary_stat_gem'
+const primaryStatGemUniqueLimit = 1
+const primaryStatGemIds = new Set(['240967', '240969', '240971', '240983'])
 const enchantableGearSlots = new Set(['back', 'chest', 'wrist', 'legs', 'feet', 'finger1', 'finger2', 'main_hand', 'off_hand'])
+const gearEmbellishmentArmorSlots = new Set(['head', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist', 'legs', 'feet'])
+const gearEmbellishmentJewelrySlots = new Set(['neck', 'finger1', 'finger2'])
+const gearEmbellishmentEquipmentSlots = new Set([
+  ...gearEmbellishmentArmorSlots,
+  ...gearEmbellishmentJewelrySlots,
+  'main_hand',
+  'off_hand'
+])
 const gearEnhancementSlotOrder = ['neck', 'finger1', 'finger2', 'main_hand', 'off_hand']
 const gearCandidateFilters = [
   { key: 'all', label: '全部' },
@@ -298,6 +309,7 @@ function gearStatKeyForLabel(label, primaryKey) {
   if (text.includes('暴击') || text.includes('爆击') || text.includes('critical') || text.includes('crit')) return 'crit'
   if (text.includes('精通') || text.includes('mastery')) return 'mastery'
   if (text.includes('全能') || text.includes('versatility')) return 'versatility'
+  if (text.includes('主属性') || text.includes('primary stat') || compact.includes('primarystat')) return primaryKey
   if ((text.includes('力量') && text.includes('敏捷') && text.includes('智力')) || compact.includes('stragiint')) return primaryKey
   if ((text.includes('strength') && text.includes('agility') && text.includes('intellect')) || compact.includes('strintagi')) return primaryKey
   if ((text.includes('力量') && text.includes('敏捷')) || compact.includes('stragi') || compact.includes('agistr')) return primaryKey === 'strength' || primaryKey === 'agility' ? primaryKey : ''
@@ -313,20 +325,28 @@ function gearStatKeyForLabel(label, primaryKey) {
 function gearStatEntriesFromSummary(summary, primaryKey) {
   const text = cleanGearString(summary)
   if (!text) return []
-  return text
-    .split(/[；;，,\n]+/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const match = part.match(/[+-]?\d[\d,]*(?:\.\d+)?/)
-      if (!match) return null
-      const value = gearNumericValue(match[0])
-      if (value === null) return null
-      const label = part.replace(match[0], '').replace(/[+：:]/g, ' ').trim()
-      const key = gearStatKeyForLabel(label || part, primaryKey)
-      return key ? { key, value } : null
-    })
-    .filter(Boolean)
+  return text.split(/[；;，,\n]+/).reduce((entries, rawPart) => {
+    const part = rawPart.trim()
+    if (!part) return entries
+    const numberLeadingEntries = []
+    const numberLeadingPattern = /([+-]?\d[\d,]*(?:\.\d+)?)\s*([^+\-\d；;,，\n]+)/g
+    let tokenMatch = numberLeadingPattern.exec(part)
+    while (tokenMatch) {
+      const value = gearNumericValue(tokenMatch[1])
+      const label = cleanGearString(tokenMatch[2]).replace(/[+：:]/g, ' ').trim()
+      const key = gearStatKeyForLabel(label, primaryKey)
+      if (key && value !== null) numberLeadingEntries.push({ key, value })
+      tokenMatch = numberLeadingPattern.exec(part)
+    }
+    if (numberLeadingEntries.length) return entries.concat(numberLeadingEntries)
+    const match = part.match(/[+-]?\d[\d,]*(?:\.\d+)?/)
+    if (!match) return entries
+    const value = gearNumericValue(match[0])
+    if (value === null) return entries
+    const label = part.replace(match[0], '').replace(/[+：:]/g, ' ').trim()
+    const key = gearStatKeyForLabel(label || part, primaryKey)
+    return key ? entries.concat({ key, value }) : entries
+  }, [])
 }
 
 function gearStatEntriesFromStructuredValue(value, primaryKey) {
@@ -369,6 +389,33 @@ function gearStatEntriesForItem(item, primaryKey) {
   ]
   if (structured.length) return structured
   return gearStatEntriesFromSummary(item && (item.statSummary || item.stat_summary || item.statsSummary), primaryKey)
+}
+
+function gearStatEntriesForEnhancementOption(option, primaryKey) {
+  if (!option || typeof option !== 'object') return []
+  const payload = optionPayload(option)
+  const structured = [
+    ...gearStatEntriesFromStructuredValue(option.stats, primaryKey),
+    ...gearStatEntriesFromStructuredValue(option.itemStats, primaryKey),
+    ...gearStatEntriesFromStructuredValue(payload.stats, primaryKey),
+    ...gearStatEntriesFromStructuredValue(payload.itemStats, primaryKey)
+  ]
+  if (structured.length) return structured
+  return gearStatEntriesFromSummary(
+    option.statSummary ||
+    option.stat_summary ||
+    option.displayLabel ||
+    option.display_label ||
+    option.summary ||
+    option.valueSummary ||
+    payload.statSummary ||
+    payload.stat_summary ||
+    payload.displayLabel ||
+    payload.display_label ||
+    payload.summary ||
+    payload.valueSummary,
+    primaryKey
+  )
 }
 
 function directGearStatValue(source, statKey) {
@@ -466,6 +513,24 @@ function buildGearAttributePanel(gearPayload, selectedGearBySlot, selectedSpec, 
         if (direct !== null) itemTotals[key] = direct
       }
       if (itemTotals[key] !== undefined) totals[key] += itemTotals[key]
+    })
+  })
+  const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
+  requiredSlotsForPanel.forEach((slot) => {
+    const item = indexedSelection[slot]
+    const selected = enhancement[slot]
+    if (!item || !selected) return
+    ;[
+      ['socketOptions', 'gem'],
+      ['enchantOptions', 'enchant'],
+      ['embellishmentOptions', 'embellishment']
+    ].forEach(([optionKey, type]) => {
+      const selectedOption = enhancementOptionsForSlot(gearPayload, item, optionKey)
+        .find((option) => enhancementOptionSelected(option, selected, type))
+      if (!selectedOption) return
+      gearStatEntriesForEnhancementOption(selectedOption, primaryKey).forEach((entry) => {
+        totals[entry.key] = (totals[entry.key] || 0) + entry.value
+      })
     })
   })
   const itemLevelAverage = itemLevels.length
@@ -851,12 +916,45 @@ function uniqueEnhancementOptions(options) {
   })
 }
 
+function enhancementOptionSlotGroup(option) {
+  const payload = option && option.payload && typeof option.payload === 'object' ? option.payload : {}
+  return cleanGearString((option && option.slotGroup) || payload.slotGroup || payload.slot_group).toLowerCase()
+}
+
+function gearItemTypeContext(item) {
+  return {
+    slot: cleanGearString(item && (item.slot || item.simcSlot)),
+    armorType: cleanGearString(item && item.armorType).toLowerCase(),
+    weaponType: cleanGearString(item && item.weaponType).toLowerCase()
+  }
+}
+
+function embellishmentOptionAppliesToItem(option, item) {
+  const group = enhancementOptionSlotGroup(option)
+  if (!group) return true
+  const { slot, armorType, weaponType } = gearItemTypeContext(item)
+  const isShield = slot === 'off_hand' && (weaponType === 'shield' || armorType === 'shield')
+  const isHeldOffhand = slot === 'off_hand' && weaponType === 'held in off-hand'
+  if (group === 'equipment') return gearEmbellishmentEquipmentSlots.has(slot)
+  if (group === 'jewelry') return gearEmbellishmentJewelrySlots.has(slot)
+  if (group === 'armor') return gearEmbellishmentArmorSlots.has(slot) || isShield
+  if (group === 'weapon' || group === 'weapon_offhand') return slot === 'main_hand' || isHeldOffhand
+  if (group === 'weapon_armor') {
+    return gearEmbellishmentArmorSlots.has(slot) || slot === 'main_hand' || isShield || isHeldOffhand
+  }
+  return true
+}
+
 function enhancementOptionsForSlot(gearPayload, item, optionKey) {
   const slot = item && (item.slot || item.simcSlot)
-  return uniqueEnhancementOptions([
+  const options = uniqueEnhancementOptions([
     ...((item && Array.isArray(item[optionKey])) ? item[optionKey] : []),
     ...gearGroupOptionsForSlot(gearPayload, slot, optionKey)
   ])
+  if (optionKey === 'embellishmentOptions') {
+    return options.filter((option) => embellishmentOptionAppliesToItem(option, item))
+  }
+  return options
 }
 
 function itemSupportsEnhancement(item, type, options) {
@@ -889,6 +987,7 @@ function builtInEmbellishmentValue(item) {
 function gearBuiltInEmbellishmentBadgeLabel(item) {
   if (!item || typeof item !== 'object') return ''
   const source = cleanGearString(item.embellishmentSource).toLowerCase()
+  const appliedEmbellishment = cleanGearString(item.embellishment)
   const hasExplicitBuiltIn = !!(
     item.hasBuiltInEmbellishment ||
     item.builtInEmbellishment ||
@@ -896,8 +995,27 @@ function gearBuiltInEmbellishmentBadgeLabel(item) {
     item.inherentEmbellishment ||
     ['built_in', 'builtin', 'intrinsic', 'item'].includes(source)
   )
-  if (!hasExplicitBuiltIn) return ''
+  if (!hasExplicitBuiltIn && !appliedEmbellishment) return ''
   return cleanGearString(item.builtInEmbellishmentLabel) || '美化'
+}
+
+function enhancementRecordMatchesCurrentItem(gearPayload, item, enhancementRecord, optionKey, type) {
+  if (!enhancementRecord || typeof enhancementRecord !== 'object') return false
+  const options = enhancementOptionsForSlot(gearPayload, item, optionKey)
+  if (!options.length || !itemSupportsEnhancement(item, type, options)) return false
+  return options.some((option) => enhancementOptionSelected(option, enhancementRecord, type))
+}
+
+function gearSlotEnhancementBadgeLabels(gearPayload, item, enhancementRecord) {
+  const labels = []
+  const addLabel = (label) => {
+    if (!labels.includes(label)) labels.push(label)
+  }
+  if (enhancementRecordMatchesCurrentItem(gearPayload, item, enhancementRecord, 'socketOptions', 'gem')) addLabel('宝石')
+  if (enhancementRecordMatchesCurrentItem(gearPayload, item, enhancementRecord, 'enchantOptions', 'enchant')) addLabel('附魔')
+  if (enhancementRecordMatchesCurrentItem(gearPayload, item, enhancementRecord, 'embellishmentOptions', 'embellishment')) addLabel('美化')
+  if (gearBuiltInEmbellishmentBadgeLabel(item)) addLabel('美化')
+  return labels
 }
 
 function enhancementOptionSelected(option, selected, type) {
@@ -946,6 +1064,45 @@ function optionItemStatSummary(option) {
 
 function optionPayload(option) {
   return option && option.payload && typeof option.payload === 'object' ? option.payload : {}
+}
+
+function optionFirstValue(option, keys) {
+  const payload = optionPayload(option)
+  const keyList = Array.isArray(keys) ? keys : [keys]
+  for (const source of [option || {}, payload]) {
+    for (const key of keyList) {
+      const value = source[key]
+      if (value !== undefined && value !== null && value !== '') return value
+    }
+  }
+  return ''
+}
+
+function optionGemIds(option) {
+  const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
+  const gemIdText = cleanGearString(simcOptions.gem_id || optionFirstValue(option, ['gemItemId', 'gem_item_id']))
+  return gemIdText ? gemIdText.split('/').map((value) => cleanGearString(value)).filter(Boolean) : []
+}
+
+function enhancementOptionUniqueGroup(option, type) {
+  const explicitGroup = cleanGearString(optionFirstValue(option, ['uniqueGroup', 'unique_group', 'uniqueKey', 'unique_key']))
+  if (explicitGroup) return explicitGroup
+  if (type === 'gem' && optionGemIds(option).some((gemId) => primaryStatGemIds.has(gemId))) {
+    return primaryStatGemUniqueGroup
+  }
+  return ''
+}
+
+function enhancementOptionUniqueLimit(option, type) {
+  const rawLimit = optionFirstValue(option, ['uniqueLimit', 'unique_limit', 'uniqueEquippedLimit', 'unique_equipped_limit'])
+  const parsed = Number.parseInt(rawLimit, 10)
+  if (Number.isFinite(parsed) && parsed > 0) return parsed
+  return enhancementOptionUniqueGroup(option, type) ? primaryStatGemUniqueLimit : 0
+}
+
+function enhancementUniqueGroupLabel(group, type) {
+  if (type === 'gem' && group === primaryStatGemUniqueGroup) return '主属性宝石'
+  return group || '唯一强化'
 }
 
 function optionDisplayStatus(option) {
@@ -1014,12 +1171,17 @@ function enhancementOptionForData(option, selected, type, disabled, slot) {
   const isSelected = enhancementOptionSelected(option, selected || {}, type)
   const displayLabel = readableEnhancementOptionLabel(option || {}, type)
   if (!displayLabel) return null
+  const uniqueGroup = enhancementOptionUniqueGroup(option || {}, type)
+  const uniqueLimit = enhancementOptionUniqueLimit(option || {}, type)
+  const isDisabled = typeof disabled === 'function' ? disabled(option || {}, isSelected, slot) : disabled
   return {
     id: cleanGearString(option.id || option.key || option.label || option.name),
     label: displayLabel,
     selected: isSelected,
-    disabled: !!(disabled && !isSelected),
-    simcOptions
+    disabled: !!(isDisabled && !isSelected),
+    simcOptions,
+    uniqueGroup,
+    uniqueLimit
   }
 }
 
@@ -1087,12 +1249,32 @@ function buildGearEnhancementEquipmentRows(slots, indexed, gemRows, enchantRows,
   }).filter(Boolean)
 }
 
+function selectedEnhancementUniqueGroups(gearPayload, indexed, enhancement, type) {
+  const state = {}
+  if (type !== 'gem') return state
+  requiredGearTemplateSlots(gearPayload || {}).forEach((slot) => {
+    const item = indexed[slot]
+    const selected = enhancement[slot] || {}
+    if (!item || !selected.gem_id) return
+    const options = enhancementOptionsForSlot(gearPayload, item, 'socketOptions')
+    const selectedOption = options.find((option) => enhancementOptionSelected(option, selected, type))
+    const group = enhancementOptionUniqueGroup(selectedOption, type)
+    if (!group) return
+    const limit = enhancementOptionUniqueLimit(selectedOption, type) || 1
+    if (!state[group]) state[group] = { limit, slots: [] }
+    state[group].limit = Math.min(state[group].limit || limit, limit)
+    state[group].slots.push(slot)
+  })
+  return state
+}
+
 function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible, requestedActiveSlot) {
   const indexed = selectedGearByCanonicalSlot(selectedGearBySlot || {})
   const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
   const builtInCount = Object.keys(indexed).filter((slot) => builtInEmbellishmentValue(indexed[slot])).length
   const selectedEmbellishmentCount = Object.keys(enhancement).filter((slot) => cleanGearString(enhancement[slot].embellishment)).length
   const embellishmentUsed = builtInCount + selectedEmbellishmentCount
+  const gemUniqueGroups = selectedEnhancementUniqueGroups(gearPayload, indexed, enhancement, 'gem')
   const gemRows = []
   const enchantRows = []
   const embellishmentRows = []
@@ -1100,6 +1282,14 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
   if (embellishmentUsed > gearEnhancementMax) {
     blockers.push(`美化已超过上限 ${embellishmentUsed}/${gearEnhancementMax}`)
   }
+  Object.keys(gemUniqueGroups).forEach((group) => {
+    const state = gemUniqueGroups[group]
+    const limit = state.limit || 1
+    const count = (state.slots || []).length
+    if (count > limit) {
+      blockers.push(`${enhancementUniqueGroupLabel(group, 'gem')}已超过上限 ${count}/${limit}`)
+    }
+  })
   requiredGearTemplateSlots(gearPayload || {}).forEach((slot) => {
     const item = indexed[slot]
     if (!item) return
@@ -1108,7 +1298,14 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
     const enchantOptions = enhancementOptionsForSlot(gearPayload, item, 'enchantOptions')
     const embellishmentOptions = enhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions')
     if (socketOptions.length && itemSupportsEnhancement(item, 'gem', socketOptions)) {
-      const row = enhancementRow(slot, item, socketOptions, selected, 'gem', false)
+      const row = enhancementRow(slot, item, socketOptions, selected, 'gem', (option, isSelected) => {
+        if (isSelected) return false
+        const group = enhancementOptionUniqueGroup(option, 'gem')
+        if (!group) return false
+        const limit = enhancementOptionUniqueLimit(option, 'gem') || 1
+        const state = gemUniqueGroups[group] || { slots: [] }
+        return (state.slots || []).length >= limit
+      })
       if (row.options.length) gemRows.push(row)
     } else if (selected.gem_id) {
       blockers.push(`${gearSlotDisplay(slot)} 宝石已不兼容`)
@@ -2358,11 +2555,12 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
   }).filter(Boolean)
 }
 
-function buildGearSlotRows(payload, selectedGearBySlot) {
+function buildGearSlotRows(payload, selectedGearBySlot, enhancementBySlot) {
   const slots = payload && Array.isArray(payload.slots) ? payload.slots : []
   const readiness = (payload && payload.slotReadiness) || {}
   const groups = gearGroupsBySlot(payload)
   const selection = selectedGearBySlot || {}
+  const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
   return slots.map((slotMeta) => {
     const slot = slotMeta.slot || slotMeta.simcSlot || slotMeta.key
     const item = enrichedGearItemFromCandidates(payload, slot, selection[slot] || ((payload.equippedSet || {})[slot]) || {})
@@ -2379,6 +2577,7 @@ function buildGearSlotRows(payload, selectedGearBySlot) {
       source: gearCandidateSourceLabel(item),
       sourceType: item.sourceType || '',
       embellishmentBadgeLabel: gearBuiltInEmbellishmentBadgeLabel(item),
+      enhancementBadgeLabels: gearSlotEnhancementBadgeLabels(payload, item, enhancement[slot]),
       variantLabel: item.variantLabel || '',
       variantKey: item.variantKey || '',
       selectedCraftedStatKey: item.selectedCraftedStatKey || '',
@@ -2430,7 +2629,7 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
   const gearDataFallback = !!currentState.gearDataFallback
   const selectedGearBySlot = currentState.selectedGearBySlot || {}
   const gearReadiness = currentState.gearReadiness || (gearPayload && gearPayload.readiness) || {}
-  const gearSlotRows = buildGearSlotRows(gearPayload, selectedGearBySlot)
+  const gearSlotRows = buildGearSlotRows(gearPayload, selectedGearBySlot, currentState.enhancementBySlot)
   const gearAttributePanel = buildGearAttributePanel(gearPayload, selectedGearBySlot, currentState.selectedSpec, currentState.enhancementBySlot)
   const gearInitialLoading = !!(currentState.gearLoading && !gearSlotRows.length)
   const activeGearCommunityTemplates = gearCommunityTemplatesForPayload(gearPayload)
@@ -2867,6 +3066,7 @@ Page({
     this.setData({
       enhancementBySlot,
       gearAttributePanel: buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot),
+      gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
       gearEnhancementSheet: emptyGearEnhancementSheet()
     })
   },

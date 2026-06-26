@@ -232,6 +232,8 @@ GEAR_CATALOG_REVISION = "websim-gear-catalog-v1"
 GEAR_OBSERVED_BACKFILL_SYNC_KEY = "gear_observed_backfill"
 GEAR_OBSERVED_BACKFILL_SCHEMA_VERSION = 1
 STALE_PLACEHOLDER_GEAR_MOD_OPTION_IDS = {"seed-socket-gem-240983", "seed-enchant-8017"}
+# 6245 is the DK "天启符文" runeforge observed on weapons, not a general gear enchant.
+UNSUPPORTED_GEAR_CONFIG_ENCHANT_IDS = {"6245"}
 
 
 WOW_CLASSES = [
@@ -672,22 +674,25 @@ ENCHANTABLE_GEAR_SLOTS = {
 SOCKET_OPTION_GEAR_SLOT_LIST = ["neck", "finger1", "finger2"]
 SOCKET_OPTION_GEAR_SLOTS = set(SOCKET_OPTION_GEAR_SLOT_LIST)
 GEAR_EMBELLISHMENT_ARMOR_SLOTS = ["head", "shoulder", "back", "chest", "wrist", "hands", "waist", "legs", "feet"]
-GEAR_EMBELLISHMENT_EQUIPMENT_SLOTS = [
-    "head",
-    "neck",
-    "shoulder",
-    "back",
-    "chest",
-    "wrist",
-    "hands",
-    "waist",
-    "legs",
-    "feet",
-    "finger1",
-    "finger2",
-    "main_hand",
-    "off_hand",
+GEAR_EMBELLISHMENT_JEWELRY_SLOTS = ["neck", "finger1", "finger2"]
+GEAR_EMBELLISHMENT_WEAPON_SLOTS = ["main_hand", "off_hand"]
+GEAR_EMBELLISHMENT_WEAPON_ARMOR_SLOTS = [
+    *GEAR_EMBELLISHMENT_ARMOR_SLOTS,
+    *GEAR_EMBELLISHMENT_WEAPON_SLOTS,
 ]
+GEAR_EMBELLISHMENT_EQUIPMENT_SLOTS = [
+    *GEAR_EMBELLISHMENT_ARMOR_SLOTS,
+    *GEAR_EMBELLISHMENT_JEWELRY_SLOTS,
+    *GEAR_EMBELLISHMENT_WEAPON_SLOTS,
+]
+GEAR_EMBELLISHMENT_SLOT_GROUPS = {
+    "armor": [*GEAR_EMBELLISHMENT_ARMOR_SLOTS, "off_hand"],
+    "jewelry": GEAR_EMBELLISHMENT_JEWELRY_SLOTS,
+    "weapon": GEAR_EMBELLISHMENT_WEAPON_SLOTS,
+    "weapon_offhand": GEAR_EMBELLISHMENT_WEAPON_SLOTS,
+    "weapon_armor": GEAR_EMBELLISHMENT_WEAPON_ARMOR_SLOTS,
+    "equipment": GEAR_EMBELLISHMENT_EQUIPMENT_SLOTS,
+}
 
 PVE_RANK_TWO_GEM_SEEDS = [
     ("240888", "无瑕迅捷榄石"),
@@ -735,10 +740,166 @@ PVE_RANK_TWO_GEM_LIVE_TOOLTIPS = {
     "240983": "+32主属性",
 }
 
+PRIMARY_STAT_GEM_UNIQUE_GROUP = "primary_stat_gem"
+PRIMARY_STAT_GEM_UNIQUE_LIMIT = 1
+PRIMARY_STAT_GEM_IDS = frozenset(
+    item_id for item_id, tooltip in PVE_RANK_TWO_GEM_LIVE_TOOLTIPS.items() if "主属性" in tooltip
+)
+
+MIDNIGHT_OPTIONAL_EMBELLISHMENT_SEEDS = [
+    {
+        "key": "arcanoweave_lining",
+        "name": "奥纹内衬",
+        "itemId": "240166",
+        "spellId": "1228961",
+        "simcDriverSpellIds": ["1283697", "1229511"],
+        "wowheadSlug": "arcanoweave-lining",
+        "slotGroup": "armor",
+        "scopeEvidence": "Usable with Midnight recipes for most unembellished armor.",
+    },
+    {
+        "key": "sunfire_silk_lining",
+        "name": "阳炎丝绸内衬",
+        "itemId": "240164",
+        "spellId": "1228960",
+        "simcDriverSpellIds": ["1241711", "1230364"],
+        "wowheadSlug": "sunfire-silk-lining",
+        "slotGroup": "armor",
+        "scopeEvidence": "Usable with Midnight recipes for most unembellished armor.",
+    },
+    {
+        "key": "blessed_pango_charm",
+        "name": "圣佑穿山甲护符",
+        "itemId": "244603",
+        "spellId": "1237577",
+        "simcDriverSpellIds": ["1259060", "1244243"],
+        "wowheadSlug": "blessed-pango-charm",
+        "slotGroup": "equipment",
+        "scopeEvidence": "Usable with Midnight recipes for most unembellished equipment.",
+        "methodListed": True,
+    },
+    {
+        "key": "prismatic_focusing_iris",
+        "name": "棱光聚焦之虹",
+        "itemId": "251487",
+        "spellId": "1230477",
+        "simcDriverSpellIds": ["1251906", "1252383"],
+        "wowheadSlug": "prismatic-focusing-iris",
+        "slotGroup": "equipment",
+        "scopeEvidence": "Usable with Midnight recipes for most unembellished equipment.",
+    },
+    {
+        "key": "stabilizing_gemstone_bandolier",
+        "name": "稳定式宝石弹药带",
+        "itemId": "251489",
+        "spellId": "1230478",
+        "simcDriverSpellIds": ["1251905"],
+        "wowheadSlug": "stabilizing-gemstone-bandolier",
+        "slotGroup": "equipment",
+        "scopeEvidence": "Usable with Midnight recipes for most unembellished equipment.",
+    },
+    {
+        "key": "devouring_banding",
+        "name": "吞噬绑带",
+        "itemId": "244674",
+        "spellId": "1237579",
+        "simcDriverSpellIds": ["1244238", "1259213"],
+        "wowheadSlug": "devouring-banding",
+        "slotGroup": "weapon_armor",
+        "scopeEvidence": "Usable with Midnight recipes for most unembellished weapons and armor.",
+        "methodListed": True,
+    },
+    {
+        "key": "primal_spore_binding",
+        "name": "原始孢子缚带",
+        "itemId": "244607",
+        "spellId": "1237578",
+        "simcDriverSpellIds": ["1244276", "1259124"],
+        "wowheadSlug": "primal-spore-binding",
+        "slotGroup": "weapon_armor",
+        "scopeEvidence": "Usable with Midnight recipes for most unembellished weapons and armor.",
+        "methodListed": True,
+    },
+    {
+        "key": "darkmoon_sigil_blood",
+        "name": "暗月徽记：鲜血",
+        "itemId": "245871",
+        "spellId": "1230074",
+        "simcDriverSpellIds": ["1245001", "1245053"],
+        "wowheadSlug": "darkmoon-sigil-blood",
+        "slotGroup": "weapon_offhand",
+        "scopeEvidence": "Usable with Midnight recipes for most unembellished weapons and off-hands.",
+        "methodListed": True,
+    },
+    {
+        "key": "darkmoon_sigil_hunt",
+        "name": "暗月徽记：狩猎",
+        "itemId": "245875",
+        "spellId": "1230076",
+        "simcDriverSpellIds": ["1245050", "1245054"],
+        "wowheadSlug": "darkmoon-sigil-hunt",
+        "slotGroup": "weapon_offhand",
+        "scopeEvidence": "Usable with Midnight recipes for most unembellished weapons and off-hands.",
+        "methodListed": True,
+    },
+    {
+        "key": "darkmoon_sigil_rot",
+        "name": "暗月徽记：腐朽",
+        "itemId": "245877",
+        "spellId": "1230075",
+        "simcDriverSpellIds": ["1245055", "1245051"],
+        "wowheadSlug": "darkmoon-sigil-rot",
+        "slotGroup": "weapon_offhand",
+        "scopeEvidence": "Usable with Midnight recipes for most unembellished weapons and off-hands.",
+        "methodListed": True,
+    },
+    {
+        "key": "darkmoon_sigil_void",
+        "name": "暗月徽记：虚空",
+        "itemId": "245873",
+        "spellId": "1230077",
+        "simcDriverSpellIds": ["1245052", "1244254"],
+        "wowheadSlug": "darkmoon-sigil-void",
+        "slotGroup": "weapon_offhand",
+        "scopeEvidence": "Usable with Midnight recipes for most unembellished weapons and off-hands.",
+        "methodListed": True,
+    },
+]
+
 
 def pve_rank_two_gem_seed(item_id, name):
     item_id = str(item_id)
     stat_summary = PVE_RANK_TWO_GEM_LIVE_TOOLTIPS.get(item_id, "")
+    payload = {
+        "source": "server_owned_midnight_rank_two_gem_seed",
+        "status": "verified",
+        "itemId": item_id,
+        "item_id": item_id,
+        "gemItemId": item_id,
+        "gem_item_id": item_id,
+        "displayName": str(name),
+        "displayLabel": stat_summary,
+        "displayKind": "stat" if stat_summary else "",
+        "displayStatus": "verified" if stat_summary else "",
+        "statSummary": stat_summary,
+        "statDisplayStatus": "verified_tooltip_override" if stat_summary else "",
+        "quality": "Quality 2",
+        "qualityRank": 2,
+        "usageScope": "pve",
+        "usage_scope": "pve",
+        "evidenceSource": "wowhead_live_tooltip",
+        "fallbackEvidenceSource": "wowhead_item+battle_net_item_metadata",
+        "sourceRefs": [f"https://www.wowhead.com/item={item_id}"],
+    }
+    if item_id in PRIMARY_STAT_GEM_IDS:
+        payload.update(
+            {
+                "uniqueEquipped": True,
+                "uniqueGroup": PRIMARY_STAT_GEM_UNIQUE_GROUP,
+                "uniqueLimit": PRIMARY_STAT_GEM_UNIQUE_LIMIT,
+                "uniqueScope": "gear_socket",
+            }
+        )
     return {
         "id": f"seed-socket-gem-{item_id}-rank-2",
         "type": "socket",
@@ -746,172 +907,168 @@ def pve_rank_two_gem_seed(item_id, name):
         "slots": list(SOCKET_OPTION_GEAR_SLOT_LIST),
         "simcOptions": {"gem_id": item_id},
         "status": "verified",
+        "payload": payload,
+    }
+
+
+def midnight_optional_embellishment_seed(seed):
+    key = str(seed["key"])
+    item_id = str(seed["itemId"])
+    spell_id = str(seed["spellId"])
+    simc_driver_spell_ids = [str(value) for value in seed.get("simcDriverSpellIds") or [] if str(value or "").strip()]
+    wowhead_slug = str(seed.get("wowheadSlug") or key.replace("_", "-"))
+    slot_group = str(seed.get("slotGroup") or "").strip() or "equipment"
+    slots = list(GEAR_EMBELLISHMENT_SLOT_GROUPS.get(slot_group) or [])
+    evidence_source = "wowhead_item+simulationcraft+method" if seed.get("methodListed") else "wowhead_item+simulationcraft"
+    source_refs = [
+        f"https://www.wowhead.com/item={item_id}/{wowhead_slug}",
+        f"https://www.wowhead.com/spell={spell_id}/{wowhead_slug}",
+        "https://raw.githubusercontent.com/simulationcraft/simc/midnight/engine/player/unique_gear_midnight.cpp",
+    ]
+    if seed.get("methodListed"):
+        source_refs.append("https://www.method.gg/guides/list-of-all-midnight-embellishments")
+    return {
+        "id": f"seed-embellishment-{key.replace('_', '-')}-rank-2",
+        "type": "embellishment",
+        "name": str(seed["name"]),
+        "slots": slots,
+        "simcOptions": {"embellishment": key},
+        "status": "verified",
         "payload": {
-            "source": "server_owned_midnight_rank_two_gem_seed",
+            "source": "simulationcraft_wowhead_db2_seed",
             "status": "verified",
+            "displayName": str(seed["name"]),
+            "displayLabel": str(seed["name"]),
+            "displayKind": "name",
+            "displayStatus": "verified",
+            "evidenceSource": evidence_source,
             "itemId": item_id,
             "item_id": item_id,
-            "gemItemId": item_id,
-            "gem_item_id": item_id,
-            "displayName": str(name),
-            "displayLabel": stat_summary,
-            "displayKind": "stat" if stat_summary else "",
-            "displayStatus": "verified" if stat_summary else "",
-            "statSummary": stat_summary,
-            "statDisplayStatus": "verified_tooltip_override" if stat_summary else "",
             "quality": "Quality 2",
             "qualityRank": 2,
-            "usageScope": "pve",
-            "usage_scope": "pve",
-            "evidenceSource": "wowhead_live_tooltip",
-            "fallbackEvidenceSource": "wowhead_item+battle_net_item_metadata",
-            "sourceRefs": [f"https://www.wowhead.com/item={item_id}"],
+            "slotGroup": slot_group,
+            "simcKey": key,
+            "simc_key": key,
+            "bonusId": None,
+            "bonus_id": None,
+            "effectId": simc_driver_spell_ids[0] if simc_driver_spell_ids else spell_id,
+            "effect_id": simc_driver_spell_ids[0] if simc_driver_spell_ids else spell_id,
+            "spellId": spell_id,
+            "spell_id": spell_id,
+            "simcDriverSpellIds": simc_driver_spell_ids,
+            "simc_driver_spell_ids": simc_driver_spell_ids,
+            "db2Category": "Tradeskill / Optional Reagents",
+            "db2_category": "Tradeskill / Optional Reagents",
+            "db2ReagentItemId": item_id,
+            "db2_reagent_item_id": item_id,
+            "db2BonusTreeId": None,
+            "db2_bonus_tree_id": None,
+            "db2BonusTreeEvidence": (
+                f"Wowhead item {item_id} is a Quality 2 +15 Recipe Difficulty optional reagent. "
+                f"{str(seed.get('scopeEvidence') or '').strip()} SimulationCraft registers "
+                f"Midnight embellishment special effect drivers {', '.join(simc_driver_spell_ids) or spell_id}."
+            ),
+            "sourceRefs": source_refs,
         },
     }
 
 
 DEFAULT_GEAR_MOD_SEED = [
     *[pve_rank_two_gem_seed(item_id, name) for item_id, name in PVE_RANK_TWO_GEM_SEEDS],
-    {
-        "id": "seed-embellishment-dawnthread-lining-rank-2",
-        "type": "embellishment",
-        "name": "晖晨线内衬",
-        "slots": GEAR_EMBELLISHMENT_ARMOR_SLOTS,
-        "simcOptions": {"embellishment": "dawnthread_lining"},
-        "status": "verified",
-        "payload": {
-            "source": "simulationcraft_wowhead_db2_seed",
-            "status": "verified",
-            "displayName": "晖晨线内衬",
-            "displayLabel": "晖晨线内衬",
-            "displayKind": "name",
-            "displayStatus": "verified",
-            "evidenceSource": "wowhead_item+simulationcraft",
-            "itemId": "222869",
-            "item_id": "222869",
-            "quality": "Quality 2",
-            "qualityRank": 2,
-            "slotGroup": "armor",
-            "simcKey": "dawnthread_lining",
-            "simc_key": "dawnthread_lining",
-            "bonusId": None,
-            "bonus_id": None,
-            "effectId": "457666",
-            "effect_id": "457666",
-            "spellId": "457665",
-            "spell_id": "457665",
-            "db2Category": "Tradeskill / Optional Reagents",
-            "db2_category": "Tradeskill / Optional Reagents",
-            "db2ReagentItemId": "222869",
-            "db2_reagent_item_id": "222869",
-            "db2BonusTreeId": None,
-            "db2_bonus_tree_id": None,
-            "db2BonusTreeEvidence": "Wowhead item 222869 is the +15 Recipe Difficulty optional reagent; SimulationCraft maps driver spell 457665 to dawn/dusk lining handling.",
-            "sourceRefs": [
-                "https://www.wowhead.com/item=222869/dawnthread-lining",
-                "https://raw.githubusercontent.com/simulationcraft/simc/midnight/engine/player/unique_gear_thewarwithin.cpp",
-            ],
-        },
-    },
-    {
-        "id": "seed-embellishment-duskthread-lining-rank-2",
-        "type": "embellishment",
-        "name": "萤暮线内衬",
-        "slots": GEAR_EMBELLISHMENT_ARMOR_SLOTS,
-        "simcOptions": {"embellishment": "duskthread_lining"},
-        "status": "verified",
-        "payload": {
-            "source": "simulationcraft_wowhead_db2_seed",
-            "status": "verified",
-            "displayName": "萤暮线内衬",
-            "displayLabel": "萤暮线内衬",
-            "displayKind": "name",
-            "displayStatus": "verified",
-            "evidenceSource": "wowhead_item+simulationcraft",
-            "itemId": "222872",
-            "item_id": "222872",
-            "quality": "Quality 2",
-            "qualityRank": 2,
-            "slotGroup": "armor",
-            "simcKey": "duskthread_lining",
-            "simc_key": "duskthread_lining",
-            "bonusId": None,
-            "bonus_id": None,
-            "effectId": "457674",
-            "effect_id": "457674",
-            "spellId": "457677",
-            "spell_id": "457677",
-            "db2Category": "Tradeskill / Optional Reagents",
-            "db2_category": "Tradeskill / Optional Reagents",
-            "db2ReagentItemId": "222872",
-            "db2_reagent_item_id": "222872",
-            "db2BonusTreeId": None,
-            "db2_bonus_tree_id": None,
-            "db2BonusTreeEvidence": "Wowhead item 222872 is the +15 Recipe Difficulty optional reagent; SimulationCraft maps driver spell 457677 to dawn/dusk lining handling.",
-            "sourceRefs": [
-                "https://www.wowhead.com/item=222872/duskthread-lining",
-                "https://raw.githubusercontent.com/simulationcraft/simc/midnight/engine/player/unique_gear_thewarwithin.cpp",
-            ],
-        },
-    },
-    {
-        "id": "seed-embellishment-elemental-focusing-lens-rank-2",
-        "type": "embellishment",
-        "name": "元素焦镜",
-        "slots": GEAR_EMBELLISHMENT_EQUIPMENT_SLOTS,
-        "simcOptions": {"embellishment": "elemental_focusing_lens"},
-        "status": "verified",
-        "payload": {
-            "source": "simulationcraft_wowhead_db2_seed",
-            "status": "verified",
-            "displayName": "元素焦镜",
-            "displayLabel": "元素焦镜",
-            "displayKind": "name",
-            "displayStatus": "verified",
-            "evidenceSource": "wowhead_item+simulationcraft",
-            "itemId": "213769",
-            "item_id": "213769",
-            "quality": "Quality 2",
-            "qualityRank": 2,
-            "slotGroup": "equipment",
-            "simcKey": "elemental_focusing_lens",
-            "simc_key": "elemental_focusing_lens",
-            "bonusId": None,
-            "bonus_id": None,
-            "effectId": "461177",
-            "effect_id": "461177",
-            "spellId": "461180",
-            "spell_id": "461180",
-            "db2Category": "Tradeskill / Optional Reagents",
-            "db2_category": "Tradeskill / Optional Reagents",
-            "db2ReagentItemId": "213769",
-            "db2_reagent_item_id": "213769",
-            "db2BonusTreeId": None,
-            "db2_bonus_tree_id": None,
-            "db2BonusTreeEvidence": "Wowhead item 213769 is the +15 Recipe Difficulty optional reagent; SimulationCraft maps the elemental_focusing_lens driver to spell 461180.",
-            "sourceRefs": [
-                "https://www.wowhead.com/item=213769/elemental-focusing-lens",
-                "https://raw.githubusercontent.com/simulationcraft/simc/midnight/engine/player/unique_gear_thewarwithin.cpp",
-            ],
-        },
-    },
+    *[midnight_optional_embellishment_seed(seed) for seed in MIDNIGHT_OPTIONAL_EMBELLISHMENT_SEEDS],
 ]
 
 GEAR_EMBELLISHMENT_LABELS_ZH = {
     "blue_silken_lining": "蓝色丝质内衬",
+    "arcanoweave_lining": "奥纹内衬",
+    "blessed_pango_charm": "圣佑穿山甲护符",
     "dawnthread_lining": "晖晨线内衬",
+    "darkmoon_sigil_blood": "暗月徽记：鲜血",
+    "darkmoon_sigil_hunt": "暗月徽记：狩猎",
+    "darkmoon_sigil_rot": "暗月徽记：腐朽",
+    "darkmoon_sigil_void": "暗月徽记：虚空",
+    "devouring_banding": "吞噬绑带",
     "duskthread_lining": "萤暮线内衬",
     "elemental_focusing_lens": "元素焦镜",
-    "arcanoweave_lining": "奥纹内衬",
+    "primal_spore_binding": "原始孢子缚带",
+    "prismatic_focusing_iris": "棱光聚焦之虹",
+    "stabilizing_gemstone_bandolier": "稳定式宝石弹药带",
+    "sunfire_silk_lining": "阳炎丝绸内衬",
 }
 
 GEAR_EMBELLISHMENT_EVIDENCE_SOURCES = {
     "blue_silken_lining": "server_owned_legacy_evidence_seed",
+    "arcanoweave_lining": "wowhead_item+simulationcraft",
+    "blessed_pango_charm": "wowhead_item+simulationcraft+method",
     "dawnthread_lining": "wowhead_item+simulationcraft",
+    "darkmoon_sigil_blood": "wowhead_item+simulationcraft+method",
+    "darkmoon_sigil_hunt": "wowhead_item+simulationcraft+method",
+    "darkmoon_sigil_rot": "wowhead_item+simulationcraft+method",
+    "darkmoon_sigil_void": "wowhead_item+simulationcraft+method",
+    "devouring_banding": "wowhead_item+simulationcraft+method",
     "duskthread_lining": "wowhead_item+simulationcraft",
     "elemental_focusing_lens": "wowhead_item+simulationcraft",
-    "arcanoweave_lining": "wowhead_item+simulationcraft",
+    "primal_spore_binding": "wowhead_item+simulationcraft+method",
+    "prismatic_focusing_iris": "wowhead_item+simulationcraft",
+    "stabilizing_gemstone_bandolier": "wowhead_item+simulationcraft",
+    "sunfire_silk_lining": "wowhead_item+simulationcraft",
 }
+
+def gear_embellishment_slot_group(option):
+    if not isinstance(option, dict):
+        return ""
+    payload = option.get("payload") if isinstance(option.get("payload"), dict) else {}
+    return str(option.get("slotGroup") or payload.get("slotGroup") or payload.get("slot_group") or "").strip().lower()
+
+
+def gear_item_type_context(item):
+    item = item if isinstance(item, dict) else {}
+    payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+    if not payload and isinstance(item.get("metadataPayload"), dict):
+        payload = item["metadataPayload"]
+    type_metadata = item_type_metadata_from_payload(payload) if payload else {}
+    slot = normalize_slot(item.get("slot") or item.get("simcSlot") or type_metadata.get("slot") or "")
+    armor_type = str(item.get("armorType") or type_metadata.get("armorType") or "").strip().lower()
+    weapon_type = str(item.get("weaponType") or type_metadata.get("weaponType") or "").strip().lower()
+    return slot, armor_type, weapon_type
+
+
+def gear_item_is_shield(item):
+    slot, armor_type, weapon_type = gear_item_type_context(item)
+    return slot == "off_hand" and (weapon_type == "shield" or armor_type == "shield")
+
+
+def gear_item_is_held_offhand(item):
+    slot, _armor_type, weapon_type = gear_item_type_context(item)
+    return slot == "off_hand" and weapon_type == "held in off-hand"
+
+
+def gear_embellishment_option_applies_to_item(option, item):
+    if not isinstance(option, dict):
+        return False
+    if item_builtin_embellishment_value(item):
+        return False
+    slot, _armor_type, _weapon_type = gear_item_type_context(item)
+    slot_group = gear_embellishment_slot_group(option)
+    if not slot_group:
+        return True
+    if slot_group == "equipment":
+        return slot in GEAR_EMBELLISHMENT_EQUIPMENT_SLOTS
+    if slot_group == "jewelry":
+        return slot in GEAR_EMBELLISHMENT_JEWELRY_SLOTS
+    if slot_group == "armor":
+        return slot in GEAR_EMBELLISHMENT_ARMOR_SLOTS or gear_item_is_shield(item)
+    if slot_group in {"weapon", "weapon_offhand"}:
+        return slot == "main_hand" or gear_item_is_held_offhand(item)
+    if slot_group == "weapon_armor":
+        return (
+            slot in GEAR_EMBELLISHMENT_ARMOR_SLOTS
+            or slot == "main_hand"
+            or gear_item_is_shield(item)
+            or gear_item_is_held_offhand(item)
+        )
+    return slot in GEAR_EMBELLISHMENT_SLOT_GROUPS.get(slot_group, [])
+
 
 DIFFICULTY_LABELS_ZH = {
     "normal": "普通",
@@ -7654,13 +7811,26 @@ def single_numeric_simc_option_value(simc_options, key):
     return len(parts) == 1 and bool(re.fullmatch(r"\d+", parts[0]))
 
 
+def gear_mod_option_is_supported_config_option(option_type, simc_options, payload=None):
+    option_type = str(option_type or "").strip().lower()
+    simc_options = simc_options if isinstance(simc_options, dict) else {}
+    if option_type == "enchant":
+        enchant_id = normalize_option_value(simc_options.get("enchant_id"))
+        if enchant_id in UNSUPPORTED_GEAR_CONFIG_ENCHANT_IDS:
+            return False
+    return True
+
+
 def upsert_gear_mod_option(conn, option):
     option_type = str(option.get("optionType") or option.get("type") or "").strip().lower()
     if option_type not in GEAR_MOD_OPTION_TYPES:
         return False
     simc_options = option.get("simcOptions") if isinstance(option.get("simcOptions"), dict) else {}
     simc_options = {key: value for key, value in simc_options.items() if key in SIMC_GEAR_OPTION_KEYS and normalize_option_value(value)}
+    payload = option.get("payload") if isinstance(option.get("payload"), dict) else {}
     if not simc_options or not gear_mod_option_has_executable_field(option_type, simc_options):
+        return False
+    if not gear_mod_option_is_supported_config_option(option_type, simc_options, payload):
         return False
     if option_type == "socket" and len(gem_item_ids_from_simc_options(simc_options)) != 1:
         return False
@@ -7711,7 +7881,7 @@ def upsert_gear_mod_option(conn, option):
             json.dumps(slots, ensure_ascii=False),
             json.dumps(simc_options, ensure_ascii=False),
             "verified",
-            json.dumps(option.get("payload") or {}, ensure_ascii=False),
+            json.dumps(payload, ensure_ascii=False),
             utc_now(),
         ),
     )
@@ -11933,6 +12103,8 @@ def gear_catalog_mod_option_coverage(conn):
             continue
         simc_options = safe_json_loads(simc_options_json, {})
         simc_options = simc_options if isinstance(simc_options, dict) else {}
+        if not gear_mod_option_is_supported_config_option(option_key, simc_options, payload):
+            continue
         if option_key in {"enchant", "embellishment"}:
             display_fields = gear_mod_option_display_fields(option_key, option_name, simc_options, payload)
             display_option = apply_gear_mod_option_display_fields(
@@ -11985,10 +12157,11 @@ def gear_catalog_mod_option_coverage(conn):
                     or (payload.get("metadataStatus") if len(gem_item_ids) == 1 else "")
                     or ""
                 ).strip()
+                has_verified_option_metadata = bool(option_icon and option_status == "verified")
+                has_verified_tooltip_display = bool(verified_socket_option_payload_stat_summary(payload, len(gem_item_ids)))
                 has_verified_metadata = bool(
                     str(gem_item_id or "").strip()
-                    and option_icon
-                    and option_status == "verified"
+                    and (has_verified_option_metadata or has_verified_tooltip_display)
                     and gem_metadata
                     and str(gem_metadata.get("iconUrl") or "").strip()
                     and str(gem_metadata.get("metadataStatus") or "") == "verified"
@@ -13952,6 +14125,8 @@ def gear_catalog_mod_options_by_slot(conn, option_type):
             for key, value in simc_options.items()
             if key in SIMC_GEAR_OPTION_KEYS
         }
+        if not gear_mod_option_is_supported_config_option(row[1], normalized_simc_options, payload):
+            continue
         display_fields = gear_mod_option_display_fields(row[1], row[2], normalized_simc_options, payload)
         display_label = str(display_fields.get("displayLabel") or row[2] or row[0]).strip()
         option = {
@@ -13982,6 +14157,16 @@ def gear_catalog_mod_options_by_slot(conn, option_type):
             "metadataStatus",
             "metadataSource",
             "metadataLocale",
+            "slotGroup",
+            "slot_group",
+            "uniqueEquipped",
+            "unique_equipped",
+            "uniqueGroup",
+            "unique_group",
+            "uniqueLimit",
+            "unique_limit",
+            "uniqueScope",
+            "unique_scope",
         ):
             if payload.get(key) not in (None, "", [], {}):
                 if key in {"displayName", "displayLabel", "displayKind", "displayStatus", "evidenceSource", "evidenceRef"} and option.get(key) not in (None, "", [], {}):
@@ -14038,12 +14223,13 @@ def verified_gem_metadata_records_for_socket_option(conn, option):
             or ""
         ).strip()
         has_verified_option_metadata = bool(option_icon and option_status == "verified")
+        has_verified_tooltip_display = bool(verified_socket_option_payload_stat_summary(payload, len(gem_item_ids)))
         has_verified_gem_metadata = bool(
             str(gem_metadata.get("iconUrl") or "").strip()
             and str(gem_metadata.get("metadataStatus") or "") == "verified"
             and str(gem_metadata.get("metadataSource") or "") == ITEM_METADATA_SOURCE
         )
-        if not has_verified_option_metadata or not has_verified_gem_metadata:
+        if not (has_verified_option_metadata or has_verified_tooltip_display) or not has_verified_gem_metadata:
             return []
         records.append(gem_metadata)
     return records
@@ -14633,7 +14819,10 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     item["modCapabilities"] = mod_capabilities
     item["socketOptions"] = socket_options if mod_capabilities["hasSocket"] else []
     item["enchantOptions"] = enchant_options if mod_capabilities["canEnchant"] else []
-    item["embellishmentOptions"] = embellishment_options if mod_capabilities["canEmbellish"] else []
+    filtered_embellishment_options = [
+        option for option in embellishment_options if gear_embellishment_option_applies_to_item(option, item)
+    ]
+    item["embellishmentOptions"] = filtered_embellishment_options if mod_capabilities["canEmbellish"] else []
     item["recommendationScore"] = max([int(source.get("recommendationScore") or 0) for source in compatible_sources] + [0])
     item["compatibility"] = catalog_compatibility(item, sources, variants, class_key, spec_key)
     if item["compatibility"]["status"] == "incompatible":
@@ -15366,7 +15555,11 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
                 for option in item.get("embellishmentOptions") or []
             )
             if not embellishment_options and items and any((item.get("modCapabilities") or {}).get("canEmbellish") for item in items):
-                embellishment_options = compact_gear_mod_options(embellishment_options_by_slot.get(slot, []))
+                embellishment_options = compact_gear_mod_options(
+                    option
+                    for option in embellishment_options_by_slot.get(slot, [])
+                    if any(gear_embellishment_option_applies_to_item(option, item) for item in items)
+                )
             items = compact_gear_candidates(items, include_mod_options=False)
         slot_group = {
             "slot": slot,
@@ -15708,7 +15901,7 @@ def item_type_metadata_from_payload(payload):
     if not weapon_type and slot == "off_hand":
         inventory_type = payload.get("inventory_type") if isinstance(payload.get("inventory_type"), dict) else {}
         inventory_key = re.sub(r"[^a-z0-9_]+", "_", str(inventory_type.get("type") or "").lower()).strip("_")
-        if inventory_key in {"holdable", "held_in_off_hand"}:
+        if inventory_key in {"holdable", "held_in_off_hand", "invtype_holdable"} or inventory_key.endswith("_holdable"):
             weapon_type = "Held In Off-hand"
     return {
         "armorType": armor_type,
@@ -16115,7 +16308,11 @@ def sanitize_gear_candidate_mod_options(item):
     cloned["modCapabilities"] = capabilities
     socket_options = visible_gear_mod_options(cloned.get("socketOptions") or [])
     enchant_options = visible_gear_mod_options(cloned.get("enchantOptions") or [])
-    embellishment_options = visible_gear_mod_options(cloned.get("embellishmentOptions") or [])
+    embellishment_options = [
+        option
+        for option in visible_gear_mod_options(cloned.get("embellishmentOptions") or [])
+        if gear_embellishment_option_applies_to_item(option, cloned)
+    ]
     cloned["socketOptions"] = socket_options if capabilities["hasSocket"] and allow_mod_options else []
     cloned["enchantOptions"] = enchant_options if capabilities["canEnchant"] and allow_mod_options else []
     cloned["embellishmentOptions"] = embellishment_options if capabilities["canEmbellish"] and allow_mod_options else []
@@ -16869,6 +17066,16 @@ COMPACT_GEAR_MOD_OPTION_KEYS = {
     "status",
     "itemStats",
     "statSummary",
+    "slotGroup",
+    "slot_group",
+    "uniqueEquipped",
+    "unique_equipped",
+    "uniqueGroup",
+    "unique_group",
+    "uniqueLimit",
+    "unique_limit",
+    "uniqueScope",
+    "unique_scope",
 }
 
 
@@ -18560,6 +18767,66 @@ def enhancement_options_for_type(item, option_type):
     return []
 
 
+def enhancement_option_payload(option):
+    if not isinstance(option, dict):
+        return {}
+    payload = option.get("payload")
+    return payload if isinstance(payload, dict) else {}
+
+
+def enhancement_option_first_value(option, keys):
+    if not isinstance(keys, (list, tuple)):
+        keys = [keys]
+    payload = enhancement_option_payload(option)
+    for source in (option if isinstance(option, dict) else {}, payload):
+        for key in keys:
+            value = source.get(key)
+            if value not in (None, "", [], {}):
+                return value
+    return None
+
+
+def socket_option_gem_ids(option):
+    if not isinstance(option, dict):
+        return []
+    simc_options = option.get("simcOptions") if isinstance(option.get("simcOptions"), dict) else {}
+    gem_ids = gem_item_ids_from_simc_options(simc_options)
+    if gem_ids:
+        return gem_ids
+    value = normalize_option_value(
+        option.get("gemItemId")
+        or option.get("gem_item_id")
+        or enhancement_option_payload(option).get("gemItemId")
+        or enhancement_option_payload(option).get("gem_item_id")
+    )
+    return [value] if value else []
+
+
+def enhancement_option_unique_group(option, option_type):
+    group = normalize_option_value(
+        enhancement_option_first_value(option, ("uniqueGroup", "unique_group", "uniqueKey", "unique_key"))
+    )
+    if group:
+        return group
+    if option_type == "socket" and any(gem_id in PRIMARY_STAT_GEM_IDS for gem_id in socket_option_gem_ids(option)):
+        return PRIMARY_STAT_GEM_UNIQUE_GROUP
+    return ""
+
+
+def enhancement_option_unique_limit(option, option_type):
+    raw_limit = enhancement_option_first_value(option, ("uniqueLimit", "unique_limit", "uniqueEquippedLimit", "unique_equipped_limit"))
+    if raw_limit not in (None, "", [], {}):
+        try:
+            limit = int(raw_limit)
+            if limit > 0:
+                return limit
+        except (TypeError, ValueError):
+            pass
+    if enhancement_option_unique_group(option, option_type):
+        return 1
+    return 0
+
+
 def enhancement_option_matches(option, enhancement, option_type):
     if not isinstance(option, dict):
         return False
@@ -18582,6 +18849,13 @@ def enhancement_option_matches(option, enhancement, option_type):
     if option_type == "embellishment":
         return bool(enhancement.get("embellishment") and normalize_option_value(simc_options.get("embellishment")) == enhancement.get("embellishment"))
     return False
+
+
+def matching_enhancement_option(item, enhancement, option_type):
+    for option in enhancement_options_for_type(item, option_type):
+        if enhancement_option_matches(option, enhancement, option_type):
+            return option
+    return None
 
 
 def item_has_independent_embellishment_capability(item):
@@ -18636,7 +18910,7 @@ def validate_enhancement_option(item, enhancement, option_type):
     options = enhancement_options_for_type(item, option_type)
     if not options:
         return False, f"{item.get('slot')} {option_type} option is not in verified rank-two catalog"
-    if not any(enhancement_option_matches(option, enhancement, option_type) for option in options):
+    if not matching_enhancement_option(item, enhancement, option_type):
         return False, f"{item.get('slot')} {option_type} option is not in verified rank-two catalog"
     return True, ""
 
@@ -18660,7 +18934,14 @@ def attach_catalog_enhancement_options(conn, items):
         slot = item.get("slot") or ""
         next_item = dict(item)
         for key, by_slot in options_by_type.items():
-            next_item[key] = by_slot.get(slot) or []
+            if key == "embellishmentOptions":
+                next_item[key] = [
+                    option
+                    for option in by_slot.get(slot) or []
+                    if gear_embellishment_option_applies_to_item(option, next_item)
+                ]
+            else:
+                next_item[key] = by_slot.get(slot) or []
         next_item["_catalogEnhancementOptionsAttached"] = True
         enhanced.append(next_item)
     return enhanced
@@ -18683,6 +18964,27 @@ def merge_websim_gear_enhancements(items, raw_enhancements, conn=None):
     for slot in normalized_enhancements:
         if slot not in by_slot:
             blockers.append(f"{slot} enhancement has missing selected gear")
+    socket_unique_groups = {}
+    for slot, enhancement in normalized_enhancements.items():
+        if slot not in by_slot or not enhancement.get("gem_id"):
+            continue
+        matched_option = matching_enhancement_option(by_slot[slot], enhancement, "socket")
+        unique_group = enhancement_option_unique_group(matched_option, "socket")
+        if not unique_group:
+            continue
+        unique_limit = enhancement_option_unique_limit(matched_option, "socket") or 1
+        state = socket_unique_groups.setdefault(unique_group, {"limit": unique_limit, "slots": []})
+        state["limit"] = min(state["limit"], unique_limit)
+        state["slots"].append(slot)
+    blocked_socket_unique_slots = {}
+    for unique_group, state in socket_unique_groups.items():
+        unique_limit = state.get("limit") or 1
+        slots = state.get("slots") or []
+        if len(slots) <= unique_limit:
+            continue
+        blockers.append(f"{unique_group} gem limit exceeded: {len(slots)}/{unique_limit}")
+        for slot in slots:
+            blocked_socket_unique_slots[slot] = unique_group
     enhanced = []
     for item in items:
         if not isinstance(item, dict):
@@ -18691,13 +18993,14 @@ def merge_websim_gear_enhancements(items, raw_enhancements, conn=None):
         enhancement = normalized_enhancements.get(slot) or {}
         next_item = dict(item)
         if enhancement.get("gem_id"):
-            valid, reason = validate_enhancement_option(next_item, enhancement, "socket")
-            if valid:
-                for key in ("gem_id", "gem_bonus_id", "gem_ilevel", "socketOptionId"):
-                    if enhancement.get(key):
-                        next_item[key] = enhancement[key]
-            else:
-                blockers.append(reason)
+            if slot not in blocked_socket_unique_slots:
+                valid, reason = validate_enhancement_option(next_item, enhancement, "socket")
+                if valid:
+                    for key in ("gem_id", "gem_bonus_id", "gem_ilevel", "socketOptionId"):
+                        if enhancement.get(key):
+                            next_item[key] = enhancement[key]
+                else:
+                    blockers.append(reason)
         if enhancement.get("enchant_id"):
             valid, reason = validate_enhancement_option(next_item, enhancement, "enchant")
             if valid:

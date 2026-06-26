@@ -1,6 +1,6 @@
 # 装备强化配置方案
 
-> 状态：v1 已完成生产热部署与本地收口，当前待随本轮提交合入远端。
+> 状态：v1.1 已完成生产热部署、生产数据刷新、本地回归和实施证据补录。
 > 来源：2026-06-24 本地讨论，围绕装备模拟如何处理宝石、附魔、美化、饰品特效和套装效果。
 
 ## 背景
@@ -36,7 +36,7 @@
 
 首版强化配置 catalog 只保留二星品质，不支持一星 / 低品质选项。虽然宝石和附魔的一星、二星会对应不同 `item_id`、`gem_id` 或 `enchant_id`，且 SimC 数值不同，但产品层面不提供低品质模拟入口，避免 UI、模板保存和 profile 生成出现额外分支。
 
-- 宝石：只导入 PVE Quality 2/2 宝石 item id，最终 profile 写对应二星 `gem_id`。当前生产 socket catalog 收敛为 20 个单颗宝石 seed，覆盖项链与双戒指；PVP 宝石、observed 多宝石组合和缺可读属性值的宝石不进入玩家可选项。
+- 宝石：只导入 PVE Quality 2/2 宝石 item id，最终 profile 写对应二星 `gem_id`。当前生产 socket catalog 收敛为 20 个单颗宝石 seed，覆盖项链与双戒指；PVP 宝石、observed 多宝石组合和缺可读属性值的宝石不进入玩家可选项。主属性宝石按当前赛季唯一规则处理，已选 1 颗后前端禁用其他主属性宝石，后端 serializer 继续把超过 1 颗的快照判为 blocker。
 - 附魔：只导入二星附魔 item id / `SpellItemEnchantmentID`，最终 profile 写对应二星 `enchant_id`。
 - 美化：UI 只展示二星 Optional Reagent；SimC 序列化仍按归一化 `embellishment=...` 写入，因为同一美化的一星 / 二星在 SimC 侧共享同一个美化效果 key。
 
@@ -61,13 +61,15 @@
 首版按 `slot_group` 过滤，不直接在 UI 写死每个 item：
 
 - `armor`：护甲类槽位，覆盖 `head/shoulder/back/chest/wrist/hands/waist/legs/feet`，例如 `arcanoweave_lining`、`sunfire_silk_lining`。
-- `weapon_offhand`：武器与副手，覆盖 `main_hand/off_hand`，例如 `darkmoon_sigil_hunt`、`darkmoon_sigil_blood`、`darkmoon_sigil_rot`、`darkmoon_sigil_void`。
+- `weapon_offhand`：武器与 Held In Off-hand 副手，覆盖 `main_hand` 以及 item type 为 `INVTYPE_HOLDABLE` / Held In Off-hand 的 `off_hand`，例如 `darkmoon_sigil_hunt`、`darkmoon_sigil_blood`、`darkmoon_sigil_rot`、`darkmoon_sigil_void`。盾牌不走暗月徽记链路。
 - `weapon_armor`：武器与护甲，覆盖 `main_hand/off_hand` 加护甲槽，例如 `devouring_banding`、`primal_spore_binding`。
 - `equipment`：大多数未美化装备，覆盖制造装备中可插入美化槽的通用部位，例如 `blessed_pango_charm`、`prismatic_focusing_iris`、`stabilizing_gemstone_bandolier`。
 - `engineering_boots`：工程靴子，UI 等价 `feet`，例如 `kinetic_ankle_primers`。
 - `engineering_equipment`：工程制造装备，需结合具体工程配方槽位校验，例如 `b1p_scorcher_of_souls`、`hu5h_nonchalant_pup`、`b0p_curator_of_booms`。
 
 后端保存时应记录 `simc_key`、展示名、item ids、`bonus_id`、`effect_id`、`spell_id`、DB2 category id、可用范围文案、`slot_group`、来源引用、状态和 blockers。前端只消费后端校验后的 options，不自行猜测适用范围。
+
+副手需要按装备类型二次分流，不能只看 `off_hand` 槽位。当前实现把盾牌视为 armor-like 可强化装备：可选 `armor`、`weapon_armor`、`equipment` 类美化，但不展示暗月徽记；Held In Off-hand 副手可选 `weapon_offhand`、`weapon_armor`、`equipment` 类美化，但不展示奥纹/阳炎这类护甲内衬。自带美化盾牌或副手继续只计入自带美化，不再提供独立美化选项。
 
 ## 数据模型
 
@@ -133,6 +135,40 @@
 - 前端：保存装备模板时写结构化 `gearBySlot/enhancementBySlot` 快照，`metadata.enhancementBySlot` 保留结构化选择；`rawString/profile` 的可执行 SimC 输出仍由后端确定性生成。
 - 生产：已执行后端热部署和生产 SQLite 刷新。相关备份包括 `/opt/wow-mini-program/backups/wow_news-before-rank-two-gems-20260625T045237Z.sqlite3`、`/opt/wow-mini-program/backups/wow_news-before-readable-mod-options-20260625T050309Z.sqlite3`、`/opt/wow-mini-program/backups/wow_news-before-live-gem-tooltips-20260625T060131Z.sqlite3`。
 - 验证：`tests/websim_payload_test.py`、`tests/news_backend_test.py`、`tests/builds-page.test.js` 覆盖 catalog 入库、二星过滤、美化上限、换装备 blocker、profile serializer、强化配置入口、可配置槽位过滤、同槽宝石/附魔/美化三组展示、确认按钮 draft 写回、美化 2 个上限和保存 payload。生产 `/api/data/health` 中 `modOptionStatus=verified`，公网 `/api/websim/gear?class=mage&spec=frost&compact=1` 验证 `neck/finger1/finger2` 均返回 20 个宝石选项。
+
+## v1.1 Midnight 制造美化映射收口
+
+本轮修正目标是把“制造业装备能否配置美化”从截图驱动改为后端统一读模型：同一个装备按钮、强化配置 sheet、属性概览和 SimC serializer 都消费同一份 `websim_gear_mod_options` 与装备 metadata 判定结果。
+
+当前生产默认独立美化 catalog 收敛为 11 个 Midnight optional reagent：
+
+- 护甲类：`arcanoweave_lining`、`sunfire_silk_lining`。
+- 通用装备类：`blessed_pango_charm`、`prismatic_focusing_iris`、`stabilizing_gemstone_bandolier`。
+- 武器/护甲类：`devouring_banding`、`primal_spore_binding`。
+- 武器/Held In Off-hand 类：`darkmoon_sigil_blood`、`darkmoon_sigil_hunt`、`darkmoon_sigil_rot`、`darkmoon_sigil_void`。
+
+旧 TWW 默认美化 `dawnthread_lining`、`duskthread_lining`、`elemental_focusing_lens` 不再作为 Midnight 默认可选种子；代码仅保留历史快照展示兼容，不让它们进入当前赛季玩家可选项。
+
+适用范围以三层证据合并：
+
+- SimC `embellishment_data_ptr.inc` 决定 profile 可消费 key、bonus/effect/spell 字段。
+- Wowhead 当前物品页提供 optional reagent 文案和适用范围，作为 slot group 的人可读证据。
+- Method 列表只用于其明确列出的 Midnight optional reagent 交叉确认，不把 Method 没列出的条目误报为缺失；Battle.net metadata 继续用于装备本体类型、图标、中文名、自带美化和唯一装备限制识别。
+
+实现边界：
+
+- 后端 `server/websim_payload.py` 负责归一化装备类型、过滤独立美化、统计自带美化和生成 serializer blocker。
+- 前端 `pages/builds/detail.js` 只镜像后端规则做交互即时反馈；最终保存和 SimC profile 仍以后端校验为准。
+- 装备按钮右上角根据当前槽位实际配置展示 `宝石`、`附魔`、`美化` 标签；标签来自已确认的 `enhancementBySlot` 与装备自带美化，不从全局计数反推。
+- 换装备时会重新裁剪不兼容配置，避免出现概览 `宝石 0/0`、`附魔 0/0` 但装备卡仍残留标签的状态。
+
+生产操作与证据：
+
+- 备份：`/opt/wow-mini-program/backups/wow_news-before-midnight-embellishment-options-20260626T015048Z.sqlite3`。
+- 热部署：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh`。
+- 数据刷新：刷新 11 个 embellishment option seed 后，补跑 Wago 附魔中文名同步，避免 observed enchant 因缺 display name 被 health 统计为 0。
+- 线上 health：`/health` 返回 OK；`/api/data/health` 中 `sourceCoverage.crafted=84`，`modOptionCoverage.socket=20`、`enchant=21`、`embellishment=11`、`crafted_stats=6`。
+- 线上 compact 抽样：`shaman/elemental` 的制造项链、戒指、武器、盾牌、Held In Off-hand 副手均按装备类型返回美化选项；盾牌不出现暗月徽记，Held In Off-hand 不出现奥纹/阳炎内衬；自带美化装备返回空独立美化列表但继续计入 `美化 1/2`。
 
 ## 后续切片建议
 

@@ -1444,6 +1444,79 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(response["readiness"]["enhancement"]["embellishmentUsed"], 1)
         self.assertEqual(response["readiness"]["enhancement"]["blockers"], [])
 
+    def test_structured_enhancement_snapshot_blocks_duplicate_primary_stat_gems(self):
+        response = self.websim_payload.build_websim_profile_response(
+            {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "gearSelection": {
+                    "items": [
+                        {
+                            "slot": "neck",
+                            "itemId": "250778",
+                            "name": "Socketed Amulet",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "simcReady": True,
+                            "modCapabilities": {"hasSocket": True},
+                            "socketOptions": [
+                                {
+                                    "id": "primary-gem-neck",
+                                    "type": "socket",
+                                    "displayLabel": "+32主属性",
+                                    "displayKind": "stat",
+                                    "displayStatus": "verified",
+                                    "evidenceSource": "wowhead_live_tooltip",
+                                    "status": "verified",
+                                    "simcOptions": {"gem_id": "240983"},
+                                    "payload": {
+                                        "qualityRank": 2,
+                                        "uniqueGroup": "primary_stat_gem",
+                                        "uniqueLimit": 1,
+                                    },
+                                }
+                            ],
+                        },
+                        {
+                            "slot": "finger1",
+                            "itemId": "250777",
+                            "name": "Socketed Band",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "simcReady": True,
+                            "modCapabilities": {"hasSocket": True},
+                            "socketOptions": [
+                                {
+                                    "id": "primary-gem-ring",
+                                    "type": "socket",
+                                    "displayLabel": "+23主属性",
+                                    "displayKind": "stat",
+                                    "displayStatus": "verified",
+                                    "evidenceSource": "wowhead_live_tooltip",
+                                    "status": "verified",
+                                    "simcOptions": {"gem_id": "240967"},
+                                    "payload": {
+                                        "qualityRank": 2,
+                                        "uniqueGroup": "primary_stat_gem",
+                                        "uniqueLimit": 1,
+                                    },
+                                }
+                            ],
+                        },
+                    ]
+                },
+                "enhancementBySlot": {
+                    "neck": {"socketOptionId": "primary-gem-neck", "gem_id": "240983"},
+                    "finger1": {"socketOptionId": "primary-gem-ring", "gem_id": "240967"},
+                },
+            }
+        )
+
+        blockers = response["readiness"]["enhancement"]["blockers"]
+        self.assertTrue(any("primary_stat_gem gem limit exceeded: 2/1" in blocker for blocker in blockers))
+        self.assertNotIn("gem_id=240983", response["profile"])
+        self.assertNotIn("gem_id=240967", response["profile"])
+
     def test_embellishment_does_not_make_base_item_variant_ready(self):
         item = self.websim_payload.normalize_gear_item(
             {
@@ -11178,6 +11251,58 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(compact[0]["displayLabel"], "朗多雷之锐")
         self.assertEqual(compact[0]["simcOptions"]["enchant_id"], "8017")
 
+    def test_display_ready_enchants_hide_observed_death_knight_runeforge(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            conn.executemany(
+                """
+                INSERT INTO websim_gear_mod_options
+                (id, option_type, name, applicable_slots_json, simc_options_json,
+                 status, payload_json, updated_at)
+                VALUES (?, 'enchant', ?, ?, ?, 'verified', ?, 'now')
+                """,
+                [
+                    (
+                        "observed-enchant-runeforge",
+                        "天启符文",
+                        json.dumps(["main_hand"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "6245"}, ensure_ascii=False),
+                        json.dumps(
+                            {
+                                "source": "observed_variant",
+                                "displayName": "天启符文",
+                                "displayStatus": "verified",
+                                "evidenceSource": "wago_db2_spell_item_enchantment",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    ),
+                    (
+                        "observed-enchant-real-weapon",
+                        "朗多雷之锐",
+                        json.dumps(["main_hand"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "8039"}, ensure_ascii=False),
+                        json.dumps(
+                            {
+                                "source": "observed_variant",
+                                "displayName": "朗多雷之锐",
+                                "displayStatus": "verified",
+                                "evidenceSource": "wago_db2_spell_item_enchantment",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    ),
+                ],
+            )
+            options = self.websim_payload.display_ready_gear_mod_options_by_slot(conn, "enchant")
+        finally:
+            conn.close()
+
+        main_hand_labels = [option["displayLabel"] for option in options["main_hand"]]
+        self.assertNotIn("天启符文", main_hand_labels)
+        self.assertIn("朗多雷之锐", main_hand_labels)
+
     def test_sync_wago_gear_mod_enchant_names_removes_unresolved_observed_enchants(self):
         conn = sqlite3.connect(self.db_path)
         original_wago = self.websim_payload.download_wago_db2_csv
@@ -11264,16 +11389,24 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(count, 3)
+        self.assertEqual(count, 11)
         self.assertFalse(any(options for options in socket_options.values()))
         self.assertFalse(any(options for options in enchant_options.values()))
         self.assertTrue(any(options for options in embellishment_options.values()))
         self.assertEqual(
             [row[0] for row in rows],
             [
-                "seed-embellishment-dawnthread-lining-rank-2",
-                "seed-embellishment-duskthread-lining-rank-2",
-                "seed-embellishment-elemental-focusing-lens-rank-2",
+                "seed-embellishment-arcanoweave-lining-rank-2",
+                "seed-embellishment-blessed-pango-charm-rank-2",
+                "seed-embellishment-darkmoon-sigil-blood-rank-2",
+                "seed-embellishment-darkmoon-sigil-hunt-rank-2",
+                "seed-embellishment-darkmoon-sigil-rot-rank-2",
+                "seed-embellishment-darkmoon-sigil-void-rank-2",
+                "seed-embellishment-devouring-banding-rank-2",
+                "seed-embellishment-primal-spore-binding-rank-2",
+                "seed-embellishment-prismatic-focusing-iris-rank-2",
+                "seed-embellishment-stabilizing-gemstone-bandolier-rank-2",
+                "seed-embellishment-sunfire-silk-lining-rank-2",
             ],
         )
         for _, payload_json in rows:
@@ -11293,6 +11426,164 @@ class WebSimPayloadTest(unittest.TestCase):
             self.assertTrue(self.websim_payload.text_contains_cjk(payload["displayName"]))
             self.assertEqual(payload["displayStatus"], "verified")
             self.assertTrue(payload["evidenceSource"])
+
+    def test_default_embellishment_catalog_includes_midnight_optional_reagent_slot_groups(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.sync_websim_gear_mod_options(conn)
+            embellishment_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "embellishment")
+        finally:
+            conn.close()
+
+        expected_darkmoon_sigils = [
+            "darkmoon_sigil_blood",
+            "darkmoon_sigil_hunt",
+            "darkmoon_sigil_rot",
+            "darkmoon_sigil_void",
+        ]
+        expected_armor = ["arcanoweave_lining", "sunfire_silk_lining"]
+        expected_weapon_armor = ["devouring_banding", "primal_spore_binding"]
+        expected_equipment = ["blessed_pango_charm", "prismatic_focusing_iris", "stabilizing_gemstone_bandolier"]
+
+        def embellishment_keys(slot):
+            return [
+                option["simcOptions"].get("embellishment")
+                for option in embellishment_options[slot]
+            ]
+
+        head_keys = sorted(embellishment_keys("head"))
+        neck_keys = sorted(embellishment_keys("neck"))
+        main_hand_keys = sorted(embellishment_keys("main_hand"))
+        off_hand_keys = sorted(embellishment_keys("off_hand"))
+        self.assertEqual(head_keys, sorted(expected_armor + expected_weapon_armor + expected_equipment))
+        self.assertEqual(neck_keys, sorted(expected_equipment))
+        self.assertEqual(main_hand_keys, sorted(expected_darkmoon_sigils + expected_weapon_armor + expected_equipment))
+        self.assertEqual(
+            off_hand_keys,
+            sorted(expected_darkmoon_sigils + expected_armor + expected_weapon_armor + expected_equipment),
+        )
+        self.assertNotIn("dawnthread_lining", head_keys)
+        self.assertNotIn("duskthread_lining", head_keys)
+        self.assertNotIn("elemental_focusing_lens", neck_keys)
+
+        options_by_key = {
+            option["simcOptions"]["embellishment"]: option
+            for option in embellishment_options["main_hand"]
+            if str(option["simcOptions"].get("embellishment") or "").startswith("darkmoon_sigil_")
+        }
+        self.assertEqual(sorted(options_by_key), expected_darkmoon_sigils)
+        for key in expected_darkmoon_sigils:
+            self.assertEqual(options_by_key[key]["slotGroup"], "weapon_offhand")
+        self.assertEqual(options_by_key["darkmoon_sigil_blood"]["displayLabel"], "暗月徽记：鲜血")
+        self.assertEqual(options_by_key["darkmoon_sigil_hunt"]["displayLabel"], "暗月徽记：狩猎")
+        self.assertEqual(options_by_key["darkmoon_sigil_rot"]["displayLabel"], "暗月徽记：腐朽")
+        self.assertEqual(options_by_key["darkmoon_sigil_void"]["displayLabel"], "暗月徽记：虚空")
+        head_options_by_key = {
+            option["simcOptions"]["embellishment"]: option
+            for option in embellishment_options["head"]
+        }
+        self.assertEqual(
+            head_options_by_key["arcanoweave_lining"]["payload"]["evidenceSource"],
+            "wowhead_item+simulationcraft",
+        )
+        self.assertFalse(
+            any(
+                "method.gg" in ref
+                for ref in head_options_by_key["arcanoweave_lining"]["payload"].get("sourceRefs") or []
+            )
+        )
+        self.assertEqual(
+            head_options_by_key["blessed_pango_charm"]["payload"]["evidenceSource"],
+            "wowhead_item+simulationcraft+method",
+        )
+        self.assertTrue(
+            any(
+                "method.gg" in ref
+                for ref in head_options_by_key["blessed_pango_charm"]["payload"].get("sourceRefs") or []
+            )
+        )
+
+    def test_gear_catalog_filters_embellishments_by_offhand_item_type(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.sync_websim_gear_mod_options(conn)
+            for item_id, name, inventory_type, item_subclass in [
+                ("271001", "Crafted Test Shield", {"type": "INVTYPE_SHIELD", "name": "Shield"}, {"id": 6, "name": "Shield"}),
+                ("271002", "Crafted Test Offhand", {"type": "INVTYPE_HOLDABLE", "name": "Held In Off-hand"}, {"id": 0, "name": "Miscellaneous"}),
+            ]:
+                self.websim_payload.save_websim_item_metadata(
+                    conn,
+                    item_id,
+                    {
+                        "id": int(item_id),
+                        "name": name,
+                        "inventory_type": inventory_type,
+                        "item_class": {"id": 4, "name": "Armor"},
+                        "item_subclass": item_subclass,
+                        "quality": {"name": "Epic"},
+                        "preview_item": {
+                            "stats": [
+                                {"type": {"type": "INTELLECT", "name": "Intellect"}, "value": 100},
+                                {"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 120},
+                            ],
+                        },
+                    },
+                    {"assets": [{"value": f"https://render.example/item-{item_id}.jpg"}]},
+                    fallback_name=name,
+                    english_payload={"name": name, "inventory_type": inventory_type},
+                    locale="en_US",
+                )
+                self.websim_payload.upsert_gear_source(
+                    conn,
+                    {
+                        "id": f"manual-{item_id}",
+                        "itemId": item_id,
+                        "sourceType": "crafted",
+                        "sourceLabel": "Crafting",
+                    },
+                )
+                self.websim_payload.upsert_gear_variant(
+                    conn,
+                    {
+                        "id": f"manual-{item_id}-crafted",
+                        "itemId": item_id,
+                        "slot": "off_hand",
+                        "variantKey": "crafted-285",
+                        "label": "Crafted 285",
+                        "sourceType": "crafted",
+                        "difficultyKey": "crafted_myth",
+                        "itemLevel": 285,
+                        "simcOptions": {"ilevel": "285", "crafted_stats": "32/49"},
+                        "status": "verified",
+                    },
+                )
+            payload = self.websim_payload.get_websim_gear(conn, "shaman", "elemental")
+        finally:
+            conn.close()
+
+        off_hand_group = next(group for group in payload["slotGroups"] if group["slot"] == "off_hand")
+        items_by_id = {item["itemId"]: item for item in off_hand_group["items"]}
+
+        def option_keys(item):
+            return sorted(
+                option["simcOptions"].get("embellishment")
+                for option in item.get("embellishmentOptions") or []
+            )
+
+        shield_keys = option_keys(items_by_id["271001"])
+        held_offhand_keys = option_keys(items_by_id["271002"])
+        self.assertIn("arcanoweave_lining", shield_keys)
+        self.assertIn("sunfire_silk_lining", shield_keys)
+        self.assertIn("devouring_banding", shield_keys)
+        self.assertNotIn("darkmoon_sigil_hunt", shield_keys)
+        self.assertIn("darkmoon_sigil_hunt", held_offhand_keys)
+        self.assertIn("devouring_banding", held_offhand_keys)
+        self.assertNotIn("arcanoweave_lining", held_offhand_keys)
+        self.assertNotIn("sunfire_silk_lining", held_offhand_keys)
 
     def test_gear_catalog_sync_loads_default_rank_two_pve_gem_seed_when_enabled(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
@@ -11330,7 +11621,7 @@ class WebSimPayloadTest(unittest.TestCase):
             self.assertEqual(payload["statDisplayStatus"], "verified_tooltip_override")
             self.assertEqual(payload["evidenceSource"], "wowhead_live_tooltip")
 
-        self.assertEqual(count, 23)
+        self.assertEqual(count, 31)
         self.assertEqual(len(rows), 20)
         self.assertIn("240912", gem_ids)
         self.assertIn("240971", gem_ids)
@@ -11345,6 +11636,32 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(len(socket_options["neck"]), 20)
         self.assertEqual(len(socket_options["finger1"]), 20)
         self.assertEqual(len(socket_options["finger2"]), 20)
+        primary_gem = payloads_by_gem_id["240983"]
+        self.assertEqual(primary_gem["uniqueGroup"], "primary_stat_gem")
+        self.assertEqual(primary_gem["uniqueLimit"], 1)
+        compact_primary = self.websim_payload.compact_gear_mod_options([primary_gem])[0]
+        self.assertEqual(compact_primary["uniqueGroup"], "primary_stat_gem")
+        self.assertEqual(compact_primary["uniqueLimit"], 1)
+
+    def test_default_embellishment_catalog_excludes_legacy_war_within_reagents(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.sync_websim_gear_mod_options(conn)
+            embellishment_options = self.websim_payload.gear_catalog_mod_options_by_slot(conn, "embellishment")
+        finally:
+            conn.close()
+
+        all_keys = {
+            option["simcOptions"].get("embellishment")
+            for options in embellishment_options.values()
+            for option in options
+        }
+        self.assertNotIn("dawnthread_lining", all_keys)
+        self.assertNotIn("duskthread_lining", all_keys)
+        self.assertNotIn("elemental_focusing_lens", all_keys)
+        self.assertIn("prismatic_focusing_iris", all_keys)
 
     def test_gear_catalog_sync_does_not_derive_socket_mod_options_from_observed_gem_variants(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
@@ -11403,7 +11720,7 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(count, 3)
+        self.assertEqual(count, 11)
         self.assertFalse(any(options for options in socket_options.values()))
         self.assertIn("socket-capable catalog items missing socket mod options", payload["blockers"])
 
@@ -11748,6 +12065,104 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(option["displayStatus"], "verified")
         self.assertEqual(option["evidenceSource"], "wowhead_live_tooltip")
 
+    def test_socket_mod_option_uses_verified_tooltip_payload_when_option_metadata_is_not_duplicated(self):
+        os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250777",
+                {
+                    "id": 250777,
+                    "name": "Crafted Catalog Band",
+                    "inventory_type": {"type": "INVTYPE_FINGER", "name": "Finger"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [{"type": {"type": "HASTE_RATING", "name": "Haste"}, "value": 123}],
+                        "sockets": [{"socket_type": {"type": "PRISMATIC", "name": "Prismatic Socket"}}],
+                    },
+                },
+                {"assets": [{"value": "https://render.example/item-250777.jpg"}]},
+                fallback_name="Crafted Catalog Band",
+                english_payload={"name": "Crafted Catalog Band", "inventory_type": {"name": "Finger"}},
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "240888",
+                {
+                    "id": 240888,
+                    "name": "无瑕迅捷榄石",
+                    "item_class": {"id": 3, "name": "宝石"},
+                    "quality": {"name": "精良"},
+                    "preview_item": {
+                        "gem_properties": {"effect": "+15 急速"},
+                    },
+                },
+                {"assets": [{"value": "https://render.example/gem-240888.jpg"}]},
+                fallback_name="无瑕迅捷榄石",
+                english_payload={"name": "Flawless Quick Emerald"},
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": "crafted-250777",
+                    "itemId": "250777",
+                    "sourceType": "crafted",
+                    "sourceLabel": "Crafting",
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": "crafted-250777-285",
+                    "itemId": "250777",
+                    "slot": "finger1",
+                    "variantKey": "crafted-285",
+                    "label": "Crafted 285",
+                    "sourceType": "crafted",
+                    "difficultyKey": "crafted_myth",
+                    "itemLevel": 285,
+                    "simcOptions": {"ilevel": "285", "crafted_stats": "32/49"},
+                    "status": "verified",
+                },
+            )
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "seed-socket-gem-240888-rank-2",
+                    "type": "socket",
+                    "name": "无瑕迅捷榄石",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "240888"},
+                    "status": "verified",
+                    "payload": {
+                        "source": "server_owned_midnight_rank_two_gem_seed",
+                        "gemItemId": "240888",
+                        "displayName": "无瑕迅捷榄石",
+                        "displayLabel": "+17急速",
+                        "displayKind": "stat",
+                        "displayStatus": "verified",
+                        "statSummary": "+17急速",
+                        "statDisplayStatus": "verified_tooltip_override",
+                        "qualityRank": 2,
+                        "evidenceSource": "wowhead_live_tooltip",
+                    },
+                },
+            )
+            compact_payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane", compact=True)
+            health = self.websim_payload.gear_catalog_health_payload(conn)
+        finally:
+            conn.close()
+
+        finger_group = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "finger1")
+        self.assertEqual(finger_group["socketOptions"][0]["displayLabel"], "+17急速")
+        self.assertEqual(finger_group["socketOptions"][0]["statSummary"], "+17急速")
+        self.assertEqual(finger_group["socketOptions"][0]["simcOptions"]["gem_id"], "240888")
+        self.assertNotIn("missingMetadataCount", health["details"]["modOptionCoverage"]["socket"])
+
     def test_compact_gear_payload_preserves_socket_enchant_and_embellishment_groups_for_same_slot(self):
         os.environ.pop("WOW_WEBSIM_GEAR_MOD_SEED", None)
         conn = sqlite3.connect(self.db_path)
@@ -11947,7 +12362,7 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(count, 4)
+        self.assertEqual(count, 12)
         enchant_option = next(option for option in enchant_options["finger1"] if option["simcOptions"].get("enchant_id") == "7967")
         self.assertFalse(any(options for options in socket_options.values()))
         self.assertEqual(enchant_option["simcOptions"]["enchant_id"], "7967")
@@ -11982,14 +12397,14 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(count, 4)
+        self.assertEqual(count, 12)
         option = next(
             option
             for option in options["wrist"]
             if option["simcOptions"].get("embellishment") == "blue_silken_lining"
         )
         self.assertEqual(option["payload"]["source"], "observed_variant")
-        self.assertEqual(coverage["embellishment"]["optionCount"], 4)
+        self.assertEqual(coverage["embellishment"]["optionCount"], 12)
         self.assertIn("wrist", coverage["embellishment"]["coveredSlots"])
 
     def test_sync_blizzard_gear_mod_option_metadata_enriches_rank_two_socket_seed(self):

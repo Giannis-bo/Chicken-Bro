@@ -100,6 +100,34 @@
 - `mage/frost` 腰部返回 `239649 / 殉难者的裹腰`、`239664 / 奥纹束带`、`239663 / 阳炎腰带`。
 - 抽样坏 ID 集合 `228843`、`239678`、`240951`、`240952`、`244764`、`251105`、`260370-260375`、`260377`、`244774` 没有任何一条以 `sourceTypes` 包含 `crafted` 的 compact 候选回流。
 
+## 2026-06-26 独立美化映射复审
+
+本轮在整库制造业来源审计之后，继续复审“制造业装备 + Optional Reagent 美化”的对应关系，重点修正副手槽位不能只按 `off_hand` 粗粒度判断的问题。
+
+当前独立美化 catalog 为 11 个 Midnight optional reagent：
+
+| 类型 | simc key | 当前适用范围 |
+|---|---|---|
+| 护甲 | `arcanoweave_lining`、`sunfire_silk_lining` | 护甲槽位；盾牌按 armor-like 处理，可展示；Held In Off-hand 不展示 |
+| 通用装备 | `blessed_pango_charm`、`prismatic_focusing_iris`、`stabilizing_gemstone_bandolier` | 未自带美化的制造装备通用槽位，包括首饰、武器、盾牌和 Held In Off-hand |
+| 武器 / 护甲 | `devouring_banding`、`primal_spore_binding` | 武器、护甲、盾牌、Held In Off-hand |
+| 武器 / Held In Off-hand | `darkmoon_sigil_blood`、`darkmoon_sigil_hunt`、`darkmoon_sigil_rot`、`darkmoon_sigil_void` | 武器和 Held In Off-hand；盾牌不展示 |
+
+证据链拆分如下：
+
+- SimC：确认 11 个 key 是当前可序列化的 Midnight embellishment profile 字段。
+- Wowhead：交叉确认每个 optional reagent 当前 tooltip 的适用范围。
+- Method：只作为其明确列出的 Blessed Pango Charm、Devouring Banding、Primal Spore Binding 和四个 Darkmoon Sigil 的交叉证据，不再用 Method 页面缺失来否定 Wowhead/SimC 均可确认的条目。
+- Battle.net metadata：用于区分 shield 与 Held In Off-hand、副手归一化、自带美化和装备本体中文展示。
+
+生产刷新后再次抽样：
+
+- `shaman/elemental`：`245769 / 艾林哈籁灯笼 / Held In Off-hand` 返回暗月、武器/护甲和通用装备类美化，不返回奥纹/阳炎；`237831 / 破法者的责难 / Shield` 返回护甲、武器/护甲和通用装备类美化，不返回暗月；`244472 / 骑士指挥官的雄关` 因自带美化不返回独立美化。
+- `paladin/protection`：制造盾牌规则与 `shaman/elemental` 一致，不出现暗月徽记。
+- `mage/frost`：Held In Off-hand 规则与 `shaman/elemental` 一致，暗月徽记可选，护甲内衬不可选。
+
+本轮不新增制造业来源 item，不改变 84 件 crafted source 口径；只修正强化配置读模型、前端交互过滤和生产 `websim_gear_mod_options` 当前赛季默认 seed。
+
 ## 后续更新规则
 
 - 每次周期性更新先更新 allowlist/exclusion，再 dry-run，不允许直接按装备名或截图修前端。

@@ -715,12 +715,37 @@
 }
 
 .gear-slot-card {
+  position: relative;
   min-width: 0;
   min-height: 118rpx;
   padding: 10rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.08);
   border-radius: 10rpx;
   background: #101010;
+}
+
+.gear-slot-enhancement-badges {
+  position: absolute;
+  top: 10rpx;
+  right: 10rpx;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6rpx;
+  max-width: 180rpx;
+  pointer-events: none;
+}
+
+.gear-slot-enhancement-badge {
+  flex: none;
+  padding: 3rpx 8rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.44);
+  border-radius: 6rpx;
+  background: rgba(16, 16, 16, 0.92);
+  color: #f8b700;
+  font-size: 18rpx;
+  font-weight: 900;
+  line-height: 1.1;
 }
 
 .gear-slot-card.verified {

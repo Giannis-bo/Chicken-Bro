@@ -94,6 +94,9 @@
 
         <view class="gear-slot-grid">
           <view class="gear-slot-card {{item.statusClass}}" wx:for="{{gearSlotRows}}" wx:key="slot" data-slot="{{item.slot}}" bindtap="openGearSlotSheet">
+            <view class="gear-slot-enhancement-badges" wx:if="{{item.enhancementBadgeLabels.length}}">
+              <text class="gear-slot-enhancement-badge" wx:for="{{item.enhancementBadgeLabels}}" wx:for-item="badgeLabel" wx:key="*this">{{badgeLabel}}</text>
+            </view>
             <view class="gear-slot-topline">
               <text class="gear-slot-label">{{item.label}}</text>
             </view>
@@ -105,7 +108,6 @@
               <view class="gear-copy">
                 <view class="gear-name-row">
                   <text class="gear-name">{{item.displayName}}</text>
-                  <text class="gear-embellishment-badge" wx:if="{{item.embellishmentBadgeLabel}}">{{item.embellishmentBadgeLabel}}</text>
                 </view>
                 <text class="gear-source" wx:if="{{item.ilevel}}">装等 {{item.ilevel}}</text>
               </view>

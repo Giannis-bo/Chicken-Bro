@@ -905,6 +905,9 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.doesNotMatch(wxml, /gearAttributePanel\.resourceRows/)
   assert.match(wxml, /class="gear-slot-grid"/)
   assert.match(wxml, /wx:for="\{\{gearSlotRows\}\}"/)
+  assert.match(wxml, /class="gear-slot-enhancement-badges" wx:if="\{\{item\.enhancementBadgeLabels\.length\}\}"/)
+  assert.match(wxml, /wx:for="\{\{item\.enhancementBadgeLabels\}\}"/)
+  assert.match(wxml, /class="gear-slot-enhancement-badge"/)
   assert.ok(wxml.indexOf('class="gear-attribute-panel"') < wxml.indexOf('class="gear-slot-grid"'))
   assert.ok(wxml.indexOf('class="gear-attribute-level"') < wxml.indexOf('class="gear-attribute-grid"'))
   assert.ok(wxml.indexOf('class="gear-attribute-action"') > wxml.indexOf('class="gear-attribute-panel"'))
@@ -1010,6 +1013,9 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(css, /\.gear-slot-grid/)
   assert.match(css, /\.gear-slot-grid\s*\{[\s\S]*gap:\s*8rpx;[\s\S]*margin-top:\s*12rpx;/)
   assert.match(css, /\.gear-slot-card\s*\{[\s\S]*min-height:\s*118rpx;[\s\S]*padding:\s*10rpx;/)
+  assert.match(css, /\.gear-slot-card\s*\{[\s\S]*position:\s*relative;/)
+  assert.match(css, /\.gear-slot-enhancement-badges\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*10rpx;[\s\S]*right:\s*10rpx;/)
+  assert.match(css, /\.gear-slot-enhancement-badge\s*\{[\s\S]*font-size:\s*18rpx;[\s\S]*font-weight:\s*900;/)
   assert.match(css, /\.gear-slot-card \.gear-name\s*\{[\s\S]*font-size:\s*22rpx;[\s\S]*line-height:\s*1\.28;/)
   assert.match(css, /\.gear-request-alert/)
   assert.doesNotMatch(css, /\.gear-trust-summary/)
@@ -1238,6 +1244,94 @@ test('gear attribute panel maps hybrid primary stat labels to the active spec', 
   assert.equal(page.data.gearAttributePanel.primaryStat, undefined)
   assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'agility').label, '敏捷')
   assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'agility').value, '80')
+})
+
+test('gear attribute panel includes selected gem stat bonuses', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection(['finger1', 'finger2'])
+  selection.finger1 = {
+    ...selection.finger1,
+    modCapabilities: { hasSocket: true, canEnchant: false, canEmbellish: false }
+  }
+  selection.finger2 = {
+    ...selection.finger2,
+    modCapabilities: { hasSocket: true, canEnchant: false, canEmbellish: false }
+  }
+  const gearPayload = {
+    slots,
+    replacementCandidates: [
+      {
+        slot: 'finger1',
+        simcSlot: 'finger1',
+        label: 'finger1',
+        items: [],
+        socketOptions: [
+          {
+            id: 'gem-primary',
+            displayLabel: '+32主属性',
+            displayKind: 'stat',
+            displayStatus: 'verified',
+            evidenceSource: 'live_tooltip_seed',
+            status: 'verified',
+            simcOptions: { gem_id: '240888', gem_ilevel: '707' },
+            payload: { qualityRank: 2 }
+          }
+        ]
+      },
+      {
+        slot: 'finger2',
+        simcSlot: 'finger2',
+        label: 'finger2',
+        items: [],
+        socketOptions: [
+          {
+            id: 'gem-mastery-crit',
+            statSummary: '+16精通 +7暴击',
+            displayKind: 'stat',
+            displayStatus: 'verified',
+            evidenceSource: 'live_tooltip_seed',
+            status: 'verified',
+            simcOptions: { gem_id: '240898', gem_ilevel: '707' },
+            payload: { qualityRank: 2 }
+          }
+        ]
+      }
+    ],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: false }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'gem', id: 'gem-primary' } }
+  })
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger2', type: 'gem', id: 'gem-mastery-crit' } }
+  })
+  pageConfig.confirmGearEnhancementSheet.call(page)
+
+  const panel = page.data.gearAttributePanel
+  assert.equal(panel.enhancementRows.find((row) => row.key === 'gem').value, '2/2')
+  assert.equal(panel.statRows.find((row) => row.key === 'intellect').value, '32')
+  assert.equal(panel.statRows.find((row) => row.key === 'mastery').value, '16')
+  assert.equal(panel.statRows.find((row) => row.key === 'crit').value, '7')
 })
 
 test('gear enhancement sheet filters configurable slots and disables extra embellishments at the cap', () => {
@@ -1622,7 +1716,393 @@ test('gear enhancement sheet shows socket enchant and embellishment groups for t
     enchant_id: '7967',
     embellishment: 'arcanoweave_lining'
   }))
+  const enhancedCard = page.data.gearSlotRows.find((row) => row.slot === 'finger1')
+  const untouchedCard = page.data.gearSlotRows.find((row) => row.slot === 'finger2')
+  assert.equal(JSON.stringify(enhancedCard.enhancementBadgeLabels), JSON.stringify(['宝石', '附魔', '美化']))
+  assert.equal(JSON.stringify(untouchedCard.enhancementBadgeLabels), JSON.stringify([]))
   assert.doesNotMatch(JSON.stringify(page.data.enhancementBySlot), /自然之怒|奥纹内衬|\+32主属性/)
+})
+
+test('gear enhancement sheet shows darkmoon sigils for crafted weapon slots', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  selection.main_hand = {
+    ...selection.main_hand,
+    displayName: '魔导师的法力之剑',
+    sourceType: 'crafted',
+    variantSource: 'crafted',
+    modCapabilities: { hasSocket: false, canEnchant: true, canEmbellish: true }
+  }
+  const gearPayload = {
+    slots,
+    replacementCandidates: [
+      {
+        slot: 'main_hand',
+        simcSlot: 'main_hand',
+        label: 'main_hand',
+        items: [],
+        embellishmentOptions: [
+          {
+            id: 'seed-embellishment-darkmoon-sigil-hunt-rank-2',
+            label: '暗月徽记：狩猎',
+            displayLabel: '暗月徽记：狩猎',
+            displayKind: 'name',
+            displayStatus: 'verified',
+            evidenceSource: 'wowhead_item+simulationcraft+method',
+            status: 'verified',
+            slotGroup: 'weapon',
+            simcOptions: { embellishment: 'darkmoon_sigil_hunt' },
+            payload: { qualityRank: 2, simcKey: 'darkmoon_sigil_hunt', slotGroup: 'weapon' }
+          }
+        ]
+      }
+    ],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, 'main_hand')
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.equipmentRows.map((row) => row.slot)), JSON.stringify(['main_hand']))
+  assert.equal(page.data.gearEnhancementSheet.equipmentRows[0].typeSummary, '美化')
+  assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options[0].label, '暗月徽记：狩猎')
+
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'main_hand', type: 'embellishment', id: 'seed-embellishment-darkmoon-sigil-hunt-rank-2' } }
+  })
+  pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.enhancementBySlot.main_hand.embellishment, 'darkmoon_sigil_hunt')
+})
+
+test('gear enhancement sheet filters off-hand embellishments by selected item type', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  const offHandOptions = [
+    {
+      id: 'seed-embellishment-darkmoon-sigil-hunt-rank-2',
+      label: '暗月徽记：狩猎',
+      displayLabel: '暗月徽记：狩猎',
+      displayKind: 'name',
+      displayStatus: 'verified',
+      status: 'verified',
+      slotGroup: 'weapon_offhand',
+      simcOptions: { embellishment: 'darkmoon_sigil_hunt' },
+      payload: { qualityRank: 2, simcKey: 'darkmoon_sigil_hunt', slotGroup: 'weapon_offhand' }
+    },
+    {
+      id: 'seed-embellishment-arcanoweave-lining-rank-2',
+      label: '奥纹内衬',
+      displayLabel: '奥纹内衬',
+      displayKind: 'name',
+      displayStatus: 'verified',
+      status: 'verified',
+      slotGroup: 'armor',
+      simcOptions: { embellishment: 'arcanoweave_lining' },
+      payload: { qualityRank: 2, simcKey: 'arcanoweave_lining', slotGroup: 'armor' }
+    },
+    {
+      id: 'seed-embellishment-devouring-banding-rank-2',
+      label: '吞噬绑带',
+      displayLabel: '吞噬绑带',
+      displayKind: 'name',
+      displayStatus: 'verified',
+      status: 'verified',
+      slotGroup: 'weapon_armor',
+      simcOptions: { embellishment: 'devouring_banding' },
+      payload: { qualityRank: 2, simcKey: 'devouring_banding', slotGroup: 'weapon_armor' }
+    },
+    {
+      id: 'seed-embellishment-blessed-pango-charm-rank-2',
+      label: '圣佑穿山甲护符',
+      displayLabel: '圣佑穿山甲护符',
+      displayKind: 'name',
+      displayStatus: 'verified',
+      status: 'verified',
+      slotGroup: 'equipment',
+      simcOptions: { embellishment: 'blessed_pango_charm' },
+      payload: { qualityRank: 2, simcKey: 'blessed_pango_charm', slotGroup: 'equipment' }
+    }
+  ]
+  const gearPayload = {
+    slots,
+    replacementCandidates: [
+      {
+        slot: 'off_hand',
+        simcSlot: 'off_hand',
+        label: 'off_hand',
+        items: [],
+        embellishmentOptions: offHandOptions
+      }
+    ],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'shaman', websimSpecKey: 'elemental' },
+      selectedGearBySlot: {
+        ...selection,
+        off_hand: {
+          ...selection.off_hand,
+          displayName: '破法者的责难',
+          sourceType: 'crafted',
+          variantSource: 'crafted',
+          weaponType: 'Shield',
+          armorType: 'Shield',
+          modCapabilities: { hasSocket: false, canEnchant: true, canEmbellish: true }
+        }
+      },
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.openGearEnhancementSheet.call(page)
+  const shieldLabels = Array.from(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options, (option) => option.label)
+  assert.deepEqual(shieldLabels, ['奥纹内衬', '吞噬绑带', '圣佑穿山甲护符'])
+
+  page.data.selectedGearBySlot.off_hand = {
+    ...page.data.selectedGearBySlot.off_hand,
+    displayName: '奥术灯笼',
+    weaponType: 'Held In Off-hand',
+    armorType: 'Miscellaneous'
+  }
+  pageConfig.openGearEnhancementSheet.call(page)
+  const heldOffhandLabels = Array.from(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options, (option) => option.label)
+  assert.deepEqual(heldOffhandLabels, ['暗月徽记：狩猎', '吞噬绑带', '圣佑穿山甲护符'])
+})
+
+test('gear enhancement sheet allows only one primary stat gem across jewelry slots', () => {
+  const toasts = []
+  const pageConfig = loadBuildsDetailPageConfig({ toasts })
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  selection.neck = {
+    ...selection.neck,
+    modCapabilities: { hasSocket: true, canEnchant: false, canEmbellish: false }
+  }
+  selection.finger1 = {
+    ...selection.finger1,
+    modCapabilities: { hasSocket: true, canEnchant: false, canEmbellish: false }
+  }
+  const primaryGemMetadata = {
+    qualityRank: 2,
+    uniqueGroup: 'primary_stat_gem',
+    uniqueLimit: 1
+  }
+  const gearPayload = {
+    slots,
+    replacementCandidates: [
+      {
+        slot: 'neck',
+        simcSlot: 'neck',
+        label: 'neck',
+        items: [],
+        socketOptions: [
+          {
+            id: 'gem-primary-neck',
+            displayLabel: '+32主属性',
+            displayKind: 'stat',
+            displayStatus: 'verified',
+            evidenceSource: 'battle_net_item_metadata',
+            status: 'verified',
+            simcOptions: { gem_id: '240983' },
+            payload: primaryGemMetadata
+          }
+        ]
+      },
+      {
+        slot: 'finger1',
+        simcSlot: 'finger1',
+        label: 'finger1',
+        items: [],
+        socketOptions: [
+          {
+            id: 'gem-primary-ring',
+            displayLabel: '+23主属性',
+            displayKind: 'stat',
+            displayStatus: 'verified',
+            evidenceSource: 'battle_net_item_metadata',
+            status: 'verified',
+            simcOptions: { gem_id: '240967' },
+            payload: primaryGemMetadata
+          },
+          {
+            id: 'gem-secondary-ring',
+            displayLabel: '+17急速',
+            displayKind: 'stat',
+            displayStatus: 'verified',
+            evidenceSource: 'battle_net_item_metadata',
+            status: 'verified',
+            simcOptions: { gem_id: '240888' },
+            payload: { qualityRank: 2 }
+          }
+        ]
+      }
+    ],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'neck', type: 'gem', id: 'gem-primary-neck' } }
+  })
+
+  const ringGemOptions = page.data.gearEnhancementSheet.gemRows.find((row) => row.slot === 'finger1').options
+  assert.equal(ringGemOptions.find((option) => option.id === 'gem-primary-ring').disabled, true)
+  assert.equal(ringGemOptions.find((option) => option.id === 'gem-secondary-ring').disabled, false)
+
+  page.data.gearEnhancementSheet.draftEnhancementBySlot.finger1 = {
+    socketOptionId: 'gem-primary-ring',
+    gem_id: '240967'
+  }
+  pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.enhancementBySlot.finger1, undefined)
+  assert.match(toasts.at(-1).title, /主属性宝石已超过上限 2\/1/)
+  assert.ok(page.data.gearEnhancementSheet.blockers.includes('主属性宝石已超过上限 2/1'))
+})
+
+test('gear slot enhancement badges ignore stale incompatible enhancement state', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  selection.neck = {
+    ...selection.neck,
+    modCapabilities: { hasSocket: false, canEnchant: false, canEmbellish: false }
+  }
+  selection.finger1 = {
+    ...selection.finger1,
+    modCapabilities: { hasSocket: false, canEnchant: false, canEmbellish: false }
+  }
+  const gearPayload = {
+    slots,
+    replacementCandidates: [],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {
+        neck: {
+          socketOptionId: 'stale-gem',
+          gem_id: '240888'
+        },
+        finger1: {
+          enchantOptionId: 'stale-enchant',
+          enchant_id: '7967'
+        }
+      }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'gem').value, '0/0')
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'enchant').value, '0/0')
+  assert.equal(JSON.stringify(page.data.gearSlotRows.find((row) => row.slot === 'neck').enhancementBadgeLabels), JSON.stringify([]))
+  assert.equal(JSON.stringify(page.data.gearSlotRows.find((row) => row.slot === 'finger1').enhancementBadgeLabels), JSON.stringify([]))
+})
+
+test('gear slot enhancement badges show existing item embellishments counted by the attribute panel', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection()
+  selection.back = {
+    ...selection.back,
+    displayName: '信徒的流丝罩袍',
+    embellishment: 'arcanoweave_lining',
+    modCapabilities: { hasSocket: false, canEnchant: true, canEmbellish: true }
+  }
+  selection.wrist = {
+    ...selection.wrist,
+    displayName: '破法者的护腕',
+    embellishment: 'arcanoweave_lining',
+    modCapabilities: { hasSocket: true, canEnchant: true, canEmbellish: true }
+  }
+  const gearPayload = {
+    classKey: 'deathknight',
+    specKey: 'blood',
+    slots,
+    replacementCandidates: [],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'deathknight', websimSpecKey: 'blood' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'embellishment').value, '2/2')
+  assert.equal(JSON.stringify(page.data.gearSlotRows.find((row) => row.slot === 'back').enhancementBadgeLabels), JSON.stringify(['美化']))
+  assert.equal(JSON.stringify(page.data.gearSlotRows.find((row) => row.slot === 'wrist').enhancementBadgeLabels), JSON.stringify(['美化']))
+  assert.equal(JSON.stringify(page.data.gearSlotRows.find((row) => row.slot === 'chest').enhancementBadgeLabels), JSON.stringify([]))
 })
 
 test('gear community templates derive readable names from class spec hero and source', async () => {
