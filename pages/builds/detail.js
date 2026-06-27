@@ -311,6 +311,39 @@ function verifiedGearStatSnapshot(snapshot) {
   return snapshot.statStatus === 'verified' ? snapshot : null
 }
 
+function compactGearStatSnapshotMetric(row) {
+  if (!row || typeof row !== 'object') return null
+  const metric = {
+    key: cleanGearString(row.key),
+    label: cleanGearString(row.label),
+    value: cleanGearString(row.value)
+  }
+  ;['rawValue', 'convertedValue', 'convertedRawValue', 'convertedSourceValue', 'convertedSourceUnit'].forEach((key) => {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== '') metric[key] = row[key]
+  })
+  return metric.value ? metric : null
+}
+
+function compactVerifiedGearStatSnapshot(snapshot) {
+  const source = verifiedGearStatSnapshot(snapshot)
+  if (!source) return null
+  const secondary = Array.isArray(source.secondary)
+    ? source.secondary.map(compactGearStatSnapshotMetric).filter(Boolean)
+    : []
+  return {
+    statStatus: 'verified',
+    statSource: cleanGearString(source.statSource),
+    simcVersion: cleanGearString(source.simcVersion),
+    checkedAt: cleanGearString(source.checkedAt),
+    classKey: cleanGearString(source.classKey),
+    specKey: cleanGearString(source.specKey),
+    maxLevel: source.maxLevel || 0,
+    primary: compactGearStatSnapshotMetric(source.primary),
+    secondary,
+    itemLevel: compactGearStatSnapshotMetric(source.itemLevel)
+  }
+}
+
 function gearStatSnapshotMetric(snapshot, key) {
   const source = verifiedGearStatSnapshot(snapshot)
   if (!source) return null
@@ -2237,6 +2270,7 @@ function gearTemplateSaveDraft(page, templateTitle) {
     }
   }
   const snapshot = gearTemplateSnapshot(selectedGearBySlot, enhancementBySlot, gearPayload)
+  const statSnapshot = compactVerifiedGearStatSnapshot(data.gearStatSnapshot)
   const defaultName = gearTemplateTitle(
     selectedDetail.className || selectedSpec.className || '',
     selectedDetail.specName || selectedSpec.title || selectedSpec.specName || '',
@@ -2261,6 +2295,7 @@ function gearTemplateSaveDraft(page, templateTitle) {
       statusLabel: status.statusLabel,
       source: '装备模拟器',
       metadata: {
+        ...(statSnapshot ? { statSnapshot } : {}),
         gearSnapshot: snapshot,
         gearBySlot: snapshot.gearBySlot,
         enhancementBySlot,

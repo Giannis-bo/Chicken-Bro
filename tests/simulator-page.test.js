@@ -78,6 +78,17 @@ const sampleGearTemplate = {
   updatedAt: '2026-06-19T09:00:00Z'
 }
 
+const sampleGearStatSnapshot = {
+  statStatus: 'verified',
+  primary: { key: 'intellect', label: 'Intellect', value: '12,345', rawValue: 12345 },
+  secondary: [
+    { key: 'crit', label: 'Crit', value: '994', rawValue: 994, convertedValue: '28.6%' },
+    { key: 'haste', label: 'Haste', value: '884', rawValue: 884, convertedValue: '18.3%' },
+    { key: 'mastery', label: 'Mastery', value: '773', rawValue: 773, convertedValue: '42.1%' },
+    { key: 'versatility', label: 'Versatility', value: '662', rawValue: 662, convertedValue: '8.2%' }
+  ]
+}
+
 const warriorTalentTemplate = {
   ...sampleTalentTemplate,
   id: 'talent-warrior',
@@ -137,12 +148,19 @@ test('simc page uses a fixed saved-template workflow without chat composer', () 
   assert.match(wxml, /bindtap="confirmTemplateSimulation"/)
   assert.match(wxml, /bindtap="submitConfirmedTask"/)
   assert.match(wxml, /blockedReasons/)
+  assert.match(wxml, /summary-layout/)
+  assert.match(wxml, /summary-left/)
+  assert.match(wxml, /summary-stat-panel/)
+  assert.match(wxml, /summaryStatPanel\.primary/)
+  assert.match(wxml, /summaryStatPanel\.secondaryRows/)
+  assert.match(wxml, /item\.percentText/)
   assert.match(wxml, /确认摘要/)
   assert.match(wxml, /种族/)
   assert.doesNotMatch(wxml, /chat-messages|chat-composer|textarea|chatInput|quickReplies/)
   assert.match(js, /fetchBuildTemplates/)
   assert.match(js, /selectedClassKey/)
   assert.match(js, /selectedRaceKey/)
+  assert.match(js, /summaryStatPanelFromSnapshot/)
   assert.match(js, /selectRace\(/)
   assert.match(js, /raceKey:\s*this\.data\.selectedRaceKey/)
   assert.match(js, /selectClass\(/)
@@ -164,6 +182,12 @@ test('simc page uses a fixed saved-template workflow without chat composer', () 
   assert.doesNotMatch(css, /\.picker-label/)
   assert.match(css, /\.picker-value/)
   assert.match(css, /\.confirm-summary/)
+  assert.match(css, /\.summary-layout/)
+  assert.match(css, /\.summary-left/)
+  assert.match(css, /\.summary-stat-panel/)
+  assert.match(css, /\.summary-left \.summary-value[\s\S]*white-space:\s*nowrap/)
+  assert.match(css, /\.summary-left \.summary-value[\s\S]*text-overflow:\s*ellipsis/)
+  assert.match(css, /\.summary-secondary-percent/)
   assert.match(css, /\.blocked-panel/)
   assert.doesNotMatch(css, /\.class-option|\.template-option/)
   assert.doesNotMatch(css, /\.chat-composer|\.chat-row-user|\.quick-reply/)
@@ -266,7 +290,124 @@ test('simc page loads saved talent and gear templates with empty states', async 
   assert.equal(page.data.selectedGearTemplate, null)
   assert.equal(page.data.emptyState.gear, '尚未保存装备模板')
   assert.equal(page.data.emptyState.talent, '')
+  assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['待计算', '待计算', '待计算', '待计算'])
   assert.equal(page.data.canConfirm, false)
+})
+
+test('simc page derives the summary stat panel from verified gear stat snapshots', async () => {
+  const gearWithStats = {
+    ...sampleGearTemplate,
+    title: 'Very long Arcane gear template title that should stay single line in summary',
+    metadata: { statSnapshot: sampleGearStatSnapshot }
+  }
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [gearWithStats] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+  await page.loadTemplateLists()
+  await flushPromises()
+
+  assert.equal(page.data.summaryStatPanel.primary.valueText, '12,345')
+  assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.key), ['crit', 'haste', 'mastery', 'versatility'])
+  assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['28.6%', '18.3%', '42.1%', '8.2%'])
+
+  page.applyAnalysisResult({
+    request: {
+      buildContext: {
+        details: {
+          statWeights: {
+            statSnapshot: {
+              ...sampleGearStatSnapshot,
+              primary: { key: 'intellect', label: 'Intellect', value: '13,000', rawValue: 13000 },
+              secondary: [
+                { key: 'crit', label: 'Crit', value: '1010', rawValue: 1010, convertedValue: '29.1%' },
+                ...sampleGearStatSnapshot.secondary.slice(1)
+              ]
+            }
+          }
+        }
+      }
+    },
+    agent: { status: 'template_ready', canSubmitTask: true, validation: { passed: true, errors: [] } },
+    simulation: { ran: false, error: '', metrics: {} },
+    recommendations: []
+  }, false, '')
+
+  assert.equal(page.data.summaryStatPanel.primary.valueText, '13,000')
+  assert.equal(page.data.summaryStatPanel.secondaryRows[0].percentText, '29.1%')
+})
+
+test('simc page refreshes summary stats for structured gear templates without cached snapshots', async () => {
+  const requests = []
+  const structuredGearTemplate = {
+    ...sampleGearTemplate,
+    rawString: JSON.stringify({
+      schemaRevision: 'websim-gear-enhancement-snapshot-v1',
+      gearBySlot: { head: { slot: 'head', itemId: '1', id: '1', ilevel: 707, bonus_id: '12345' } },
+      enhancementBySlot: {}
+    }),
+    metadata: { maxLevel: 90 }
+  }
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: (request) => {
+        requests.push(request)
+        return Promise.resolve({ payload: { ...sampleGearStatSnapshot, blockers: [] }, fromFallback: false, error: '' })
+      }
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [structuredGearTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+  await page.loadTemplateLists()
+  await flushPromises()
+
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0].classKey, 'mage')
+  assert.equal(requests[0].specKey, 'arcane')
+  assert.equal(requests[0].talents, sampleTalentTemplate.rawString)
+  assert.ok(requests[0].rawString.startsWith('{'))
+  assert.equal(page.data.summaryStatPanel.primary.valueText, '12,345')
+  assert.equal(page.data.summaryStatPanel.secondaryRows[0].percentText, '28.6%')
 })
 
 test('simc page reuses the same template payload for confirm and final submit', async () => {

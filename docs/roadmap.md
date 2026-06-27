@@ -4,6 +4,7 @@
 
 ## 近期落地证据
 
+- 2026-06-27：SimC 确认摘要改为左右两栏：左侧保留职业、种族、天赋、装备、场景信息，并对过长天赋/装备模板名单行省略；右侧消费装备模板 metadata 中的 verified `statSnapshot`，展示主属性以及暴击、急速、精通、全能四个副属性百分比。装备模板保存时只把轻量 SimC JSON 属性快照写入 metadata，不写入 `rawString`，避免 `checkedAt` 等快照字段造成同一装备重复模板；旧结构化装备模板缺少 verified 快照时，SimC 页会复用 `/api/websim/gear/stats` 后台补一次属性快照，失败则保持“待计算”状态，不在前端猜 rating 公式。证据：`pages/simulator/simc.*`、`pages/builds/detail.js`、`tests/simulator-page.test.js`、`tests/builds-page.test.js`。
 - 2026-06-26：天赋模拟与装备模拟的导入入口完成收口，按钮统一从“导入社区推荐”改为“导入”；点击后弹窗拆成两层，上层展示“我的保存”里的个人天赋/装备模板，下层保留社区推荐。天赋保存模板复用原有 WebSim 导入码应用链路，支持同专精直接写入与跨专精切换后应用；装备保存模板读取 `gearBySlot` 与 `enhancementBySlot` 快照，继续走武器规则、强化兼容性和属性刷新校验。证据：`pages/builds/talent-simulator.*`、`pages/builds/detail.*`、`pages/common/build-template-storage.js`、`tests/builds-page.test.js`。
 
 - 2026-06-26：首版上线范围完成二次收口。职业专精 tab 首版保留“天赋构筑”“装备模拟”“模拟 SimC”“任务列表”四个入口，并承接最近模拟任务列表；暂下掉“热门专精”“属性权重”和“输出循环”。PVE 专区暂时从 tabBar 与小程序页面注册中下线；智能分析 tab 首版只保留“炸鸡队长”，下掉“分析 WCL”，SimC 与任务列表迁入职业专精。上述暂缓能力的既有代码与历史证据保留，统一标记为待规划，后续重新规划入口、数据源和验收标准后再接回。证据：`app.json`、`server/builds/home-payload.js`、`pages/builds/builds-api.js`、`pages/builds/builds.*`、`pages/simulator/simulator-api.js`、`pages/simulator/simulator.*`、`server/simulator_payload.py`、`tests/navigation-bar.test.js`、`tests/builds-home-payload.test.js`、`tests/builds-page.test.js`、`tests/simulator-page.test.js`、`tests/frontend-api-client.test.js`、`tests/pve-page.test.js`、`tests/news_backend_test.py`。

@@ -5539,6 +5539,51 @@ test('gear template save asks for a name before storing neutral complete status'
   assert.equal(snapshot.schemaRevision, 'websim-gear-enhancement-snapshot-v1')
 })
 
+test('gear template save stores verified stat snapshot metadata for SimC summary', async () => {
+  const savedTemplates = []
+  const pageConfig = loadBuildsDetailPageConfig({ savedTemplates })
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const verifiedStatSnapshot = {
+    statStatus: 'verified',
+    primary: { key: 'intellect', label: 'Intellect', value: '12,345', rawValue: 12345 },
+    secondary: [
+      { key: 'crit', label: 'Crit', value: '994', rawValue: 994, convertedValue: '28.6%' },
+      { key: 'haste', label: 'Haste', value: '884', rawValue: 884, convertedValue: '18.3%' },
+      { key: 'mastery', label: 'Mastery', value: '773', rawValue: 773, convertedValue: '42.1%' },
+      { key: 'versatility', label: 'Versatility', value: '662', rawValue: 662, convertedValue: '8.2%' }
+    ]
+  }
+  const page = {
+    data: {
+      selectedDetail: { className: 'Mage', specName: 'Arcane', details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      selectedSpec: { className: 'Mage', title: 'Arcane', specName: 'Arcane', websimClassKey: 'mage', websimSpecKey: 'arcane' },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots,
+        maxLevel: 90,
+        gearSchemaRevision: 'websim-gear-simulator-v1'
+      },
+      selectedGearBySlot: completeGearSelection(),
+      enhancementBySlot: {},
+      gearStatSnapshot: verifiedStatSnapshot,
+      selectedGearTemplateScenarioIndex: 0
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.saveGearTemplate.call(page)
+  await pageConfig.confirmSaveGearTemplate.call(page)
+
+  assert.equal(savedTemplates.length, 1)
+  assert.equal(savedTemplates[0].metadata.statSnapshot.statStatus, 'verified')
+  assert.equal(savedTemplates[0].metadata.statSnapshot.primary.value, '12,345')
+  assert.deepEqual(savedTemplates[0].metadata.statSnapshot.secondary.map((row) => row.convertedValue), ['28.6%', '18.3%', '42.1%', '8.2%'])
+  const rawSnapshot = JSON.parse(savedTemplates[0].rawString)
+  assert.equal(rawSnapshot.statSnapshot, undefined)
+})
+
 test('gear template save stores structured enhancement snapshot for backend serialization', async () => {
   const savedTemplates = []
   const pageConfig = loadBuildsDetailPageConfig({ savedTemplates })

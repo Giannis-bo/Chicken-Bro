@@ -95,25 +95,39 @@
         <view class="section-header">
           <text class="section-title">确认摘要</text>
         </view>
-        <view class="summary-row">
-          <text class="summary-label">职业</text>
-          <text class="summary-value">{{selectedClassName || '未选择'}}</text>
-        </view>
-        <view class="summary-row">
-          <text class="summary-label">种族</text>
-          <text class="summary-value">{{selectedRaceName || '未选择'}}</text>
-        </view>
-        <view class="summary-row">
-          <text class="summary-label">天赋</text>
-          <text class="summary-value">{{selectedTalentTemplate ? selectedTalentTemplate.title : '未选择'}}</text>
-        </view>
-        <view class="summary-row">
-          <text class="summary-label">装备</text>
-          <text class="summary-value">{{selectedGearTemplate ? selectedGearTemplate.title : '未选择'}}</text>
-        </view>
-        <view class="summary-row">
-          <text class="summary-label">场景</text>
-          <text class="summary-value">{{selectedScenarioKey}}</text>
+        <view class="summary-layout">
+          <view class="summary-left">
+            <view class="summary-row">
+              <text class="summary-label">职业</text>
+              <text class="summary-value">{{selectedClassName || '未选择'}}</text>
+            </view>
+            <view class="summary-row">
+              <text class="summary-label">种族</text>
+              <text class="summary-value">{{selectedRaceName || '未选择'}}</text>
+            </view>
+            <view class="summary-row">
+              <text class="summary-label">天赋</text>
+              <text class="summary-value">{{selectedTalentTemplate ? selectedTalentTemplate.title : '未选择'}}</text>
+            </view>
+            <view class="summary-row">
+              <text class="summary-label">装备</text>
+              <text class="summary-value">{{selectedGearTemplate ? selectedGearTemplate.title : '未选择'}}</text>
+            </view>
+            <view class="summary-row">
+              <text class="summary-label">场景</text>
+              <text class="summary-value">{{selectedScenarioKey}}</text>
+            </view>
+          </view>
+          <view class="summary-stat-panel">
+            <view class="summary-stat-row summary-primary-row">
+              <text class="summary-stat-label">{{summaryStatPanel.primary.label}}</text>
+              <text class="summary-primary-value">{{summaryStatPanel.primary.valueText}}</text>
+            </view>
+            <view class="summary-stat-row" wx:for="{{summaryStatPanel.secondaryRows}}" wx:key="key">
+              <text class="summary-stat-label">{{item.label}}</text>
+              <text class="summary-secondary-percent">{{item.percentText}}</text>
+            </view>
+          </view>
         </view>
       </view>
 
