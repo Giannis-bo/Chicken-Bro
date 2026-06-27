@@ -46,16 +46,60 @@
   max-width: 180rpx;
   padding: 6rpx 18rpx;
   border-radius: 999rpx;
-  background: rgba(139, 63, 245, 0.18);
-  color: #c9a8ff;
+  background: rgba(255, 255, 255, 0.1);
+  color: #d8d8d8;
   font-size: 22rpx;
   font-weight: 800;
   line-height: 1.2;
 }
 
+.status-completed {
+  background: rgba(48, 190, 111, 0.18);
+  color: #62e58f;
+}
+
+.status-failed {
+  background: rgba(255, 91, 91, 0.18);
+  color: #ff7070;
+}
+
+.status-running {
+  background: rgba(248, 183, 0, 0.18);
+  color: #f8b700;
+}
+
+.status-blocked {
+  background: rgba(139, 63, 245, 0.18);
+  color: #c9a8ff;
+}
+
+.status-pending {
+  background: rgba(255, 255, 255, 0.1);
+  color: #d8d8d8;
+}
+
+.task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 12rpx;
+}
+
+.task-tag {
+  max-width: 100%;
+  padding: 5rpx 12rpx;
+  border-radius: 8rpx;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 1.25;
+  word-break: break-all;
+}
+
 .task-desc {
   display: block;
-  margin-top: 10rpx;
+  margin-top: 12rpx;
   color: #a7a7a7;
   font-size: 22rpx;
   line-height: 1.45;
@@ -63,10 +107,8 @@
   overflow-wrap: anywhere;
 }
 
-.task-meta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14rpx;
+.task-finished-at {
+  display: block;
   margin-top: 12rpx;
   color: rgba(248, 183, 0, 0.82);
   font-size: 21rpx;

@@ -22,14 +22,18 @@
           >
             <view class="task-row">
               <text class="task-title">{{item.title}}</text>
-              <text class="task-status">{{item.status}}</text>
+              <text class="task-status {{item.statusClass}}">{{item.statusText}}</text>
             </view>
-            <text class="task-desc" user-select="{{true}}">{{item.desc}}</text>
-            <view class="task-meta-row">
-              <text wx:if="{{item.scenarioText}}">{{item.scenarioText}}</text>
-              <text wx:if="{{item.dpsDisplay}}">{{item.dpsDisplay}}</text>
-              <text wx:if="{{!item.dpsDisplay && item.updatedAt}}">{{item.updatedAt}}</text>
+            <view class="task-tags" wx:if="{{item.tags.length}}">
+              <text
+                class="task-tag"
+                wx:for="{{item.tags}}"
+                wx:for-item="tag"
+                wx:key="key"
+              >{{tag.text}}</text>
             </view>
+            <text wx:if="{{item.desc}}" class="task-desc" user-select="{{true}}">{{item.desc}}</text>
+            <text class="task-finished-at">{{item.completionTimeText}}</text>
           </view>
         </view>
 

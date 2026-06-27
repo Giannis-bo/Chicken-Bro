@@ -1,7 +1,7 @@
 # 装备模拟全链路 Runbook
 
 > 适用范围：`/api/websim/gear` 装备模拟读模型、装备自建数据库、装备强化配置、制造业装备、全职业专精装备适配、前端展示、SimC profile serializer、生产刷新和回滚。
-> 最后更新：2026-06-26。
+> 最后更新：2026-06-27。
 
 本文是下一次大版本或赛季装备更新的执行手册。目标不是记录某一次修复，而是把“从上游 API 到线上 UI 和可执行 SimC profile”的完整链路固化成可复用流程。任何新版本装备更新，都应先按本文确认数据入口、证据门禁、审计 SQL、健康指标、全职业专精适配和回滚边界，再做写库或部署。
 
@@ -45,6 +45,8 @@ flowchart TD
   U --> V["gearBySlot / enhancementBySlot snapshot"]
   V --> W["merge_websim_gear_enhancements"]
   W --> X["/api/websim/profile SimC-ready response"]
+  V --> Y["gear template metadata.gearSnapshot"]
+  Y --> Z["SimC template task detail statSnapshot"]
 ```
 
 关键点：
@@ -53,6 +55,7 @@ flowchart TD
 - `websim_sync_state` 是发布和巡检的健康快照，但 `/api/data/health` 必须能重审当前 SQLite 事实，不能被旧快照遮蔽。
 - `/api/websim/gear?...compact=1` 是小程序主消费口，必须只返回 display-ready、当前职业专精适用、当前装备类型可用的候选和强化项。
 - `/api/websim/profile` 是最终 serializer gate；所有 UI 裁剪都只是体验优化，不是信任边界。
+- SimC 任务详情展示的角色属性来自 verified `statSnapshot` 或 stored `gearSnapshot` 的后端回放，不来自任务列表临时计算。
 
 ## 上游数据源与可信边界
 
@@ -84,6 +87,7 @@ flowchart TD
 | Read model | `get_websim_gear`、`get_websim_gear_catalog_items` | 按职业专精、槽位、装备类型、主属性、来源筛选 compact payload |
 | Compact payload | `compact_gear_candidate`、`compact_crafted_gear_variants`、`display_ready_gear_mod_options_by_slot` | 输出小程序显示字段，折叠制造业属性选项，过滤不可展示强化项 |
 | Serializer | `merge_websim_gear_enhancements`、`build_websim_profile_response` | 校验 saved snapshot，生成 SimC-ready profile 或 blockers |
+| Stat snapshot | `build_websim_gear_stats_response`、`backfill_simcraft_template_detail_stat_snapshot` | 用结构化 gear/talent 上下文生成 verified 角色属性快照，供 SimC 模板确认页和任务详情展示 |
 | API | `server/news_backend.py` | `/api/websim/gear`、`/api/websim/profile`、`/api/data/health` |
 | Frontend | `pages/builds/detail.*` | 装备栏、候选 sheet、详情、强化配置、保存模板；只消费后端结构化字段 |
 
@@ -98,7 +102,7 @@ flowchart TD
 | `websim_gear_variants` | SimC probe、observed promotion、Battle.net trusted preview、crafted backfill | `verified` 必须有 `itemStats` 或 `statSummary`；`partial` / `blocked` 必须有 blocker |
 | `websim_gear_mod_options` | socket/enchant/embellishment/crafted_stats sync | display-ready、单一 ID、槽位和装备类型规则正确；职业专属/临时效果默认 excluded |
 | `websim_sync_state` | full sync / catalog sync | 存 coverage 和 blocker 快照；发布报告读取 `/api/data/health` 复核当前事实 |
-| template tables | 用户保存/社区模板 | 保存结构化 `gearBySlot` / `enhancementBySlot`；最终可执行性以后端 serializer 为准 |
+| template tables | 用户保存/社区模板 | 保存结构化 `gearBySlot` / `enhancementBySlot`；装备模板 metadata 可保存 compact `gearSnapshot` 和 verified `statSnapshot`；最终可执行性以后端 serializer 为准 |
 
 ## 数据生产流程
 
@@ -340,8 +344,20 @@ Unsupported / excluded：
 - 装备详情展示后端提供的属性、武器单双手、唯一、美化等标签。
 - 强化配置 sheet 按后端返回的 `socketOptions` / `enchantOptions` / `embellishmentOptions` 展示；换装备后裁剪 stale draft。
 - 保存模板只保存结构化 `gearBySlot` / `enhancementBySlot` 快照；不要在前端拼 SimC profile 字符串。
+- 保存装备模板时可以写入 `metadata.gearSnapshot`，以及与当前 class/spec/race/scenario/talents/gear 签名匹配的 verified `metadata.statSnapshot`。不要保存 raw SimC stdout、完整 profile 或用于展示以外的临时计算字段。
 - 前端可以做即时交互镜像，例如美化上限、同槽自带美化裁剪、装备切换后移除不兼容强化项；但这些都必须以后端 serializer 再校验为准。
 - 不新增按名称或 ID 的临时特判。若 UI 需要新标签，先让后端 compact payload 输出结构化字段。
+
+## SimC 属性快照复用
+
+装备模拟链路会被 SimC 模板页和任务详情复用来展示“这次模拟对应的角色属性”。这不是列表 UI 字段，而是一条独立的 compact snapshot 合同：
+
+- `pages/simulator/simc.js` 在模板确认页请求 `/api/websim/gear/stats`，成功后只把 verified `statSnapshot` 写回装备模板 metadata。请求签名变化时，例如换种族、场景、天赋或装备，旧快照必须失效。
+- 最终提交 `mode=simcraft_template` 时，前端只携带结构化 `gearSnapshot` 和当前仍匹配的 compact `statSnapshot`。大体积 profile/rawString 不应靠前端 setData 长期保存。
+- 后端 `simcraft_template_report_stat_snapshot_from_request` 只接受 `statStatus=verified` 的快照，并裁剪为主属性 + 暴击/急速/精通/全能四项副属性。
+- 历史任务详情如果缺少 `simcReport.build.statSnapshot`，但 `request_json.templateContext.gear.metadata.gearSnapshot` 和天赋 rawString 仍完整，`backfill_simcraft_template_detail_stat_snapshot` 会用 `build_websim_gear_stats_response` 回放一次，并把 compact snapshot 写回 `analysis_json`。
+- 如果任务没有足够的 `gearSnapshot` 或天赋上下文，详情页应隐藏属性区，不显示 `待补`、不从 DPS 或装备名反推属性。
+- 任务列表只读 `simulator_tasks.summary_json`，不能为了 tag 或完成时间触发属性计算；属性快照只属于确认页和详情页。
 
 ## Serializer 合同
 

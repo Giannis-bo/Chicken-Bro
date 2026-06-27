@@ -5,20 +5,20 @@ function cleanTaskText(value) {
   return String(value === undefined || value === null ? '' : value).trim()
 }
 
-function taskSummary(task) {
-  const report = task && task.simcReportSummary ? task.simcReportSummary : {}
-  return cleanTaskText(report.summary) ||
-    cleanTaskText(task && task.summary) ||
-    cleanTaskText(task && task.briefConclusion) ||
-    cleanTaskText((task && task.recommendations && task.recommendations[0]) || '') ||
-    '任务已记录，等待可用结果。'
+const STATUS_VIEW = {
+  completed: { text: '已完成', className: 'status-completed' },
+  failed: { text: '失败', className: 'status-failed' },
+  running: { text: '进行中', className: 'status-running' },
+  queued: { text: '进行中', className: 'status-running' },
+  blocked: { text: '已阻断', className: 'status-blocked' },
+  ready: { text: '待提交', className: 'status-pending' }
 }
 
-function taskTitle(task) {
-  const report = task && task.simcReportSummary ? task.simcReportSummary : {}
-  return cleanTaskText(report.title) ||
-    cleanTaskText(task && task.question) ||
-    `${cleanTaskText(task && task.mode) || 'SimC'} 任务`
+function formatTaskTime(value) {
+  const text = cleanTaskText(value)
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/)
+  if (match) return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}`
+  return text
 }
 
 function taskStatus(task) {
@@ -29,16 +29,108 @@ function taskStatus(task) {
     'ready'
 }
 
+function taskStatusView(status) {
+  const key = cleanTaskText(status).toLowerCase()
+  if (STATUS_VIEW[key]) return STATUS_VIEW[key]
+  return { text: key || '待处理', className: 'status-pending' }
+}
+
+function taskBuild(task) {
+  const report = task && task.simcReportSummary ? task.simcReportSummary : {}
+  return (report.build && typeof report.build === 'object')
+    ? report.build
+    : ((task && task.build && typeof task.build === 'object') ? task.build : {})
+}
+
+function taskTiming(task) {
+  const report = task && task.simcReportSummary ? task.simcReportSummary : {}
+  return (report.timing && typeof report.timing === 'object') ? report.timing : {}
+}
+
+function terminalTaskTime(task, status) {
+  const timing = taskTiming(task)
+  const report = task && task.simcReportSummary ? task.simcReportSummary : {}
+  const terminalTime = cleanTaskText(timing.finishedAt)
+  if (terminalTime) return terminalTime
+  const statusKey = cleanTaskText(status).toLowerCase()
+  if (statusKey === 'completed' || statusKey === 'failed') {
+    return cleanTaskText(report.updatedAt || (task && (task.updatedAt || task.createdAt)))
+  }
+  return ''
+}
+
+function taskDisplayTime(task, status) {
+  const timing = taskTiming(task)
+  const report = task && task.simcReportSummary ? task.simcReportSummary : {}
+  return terminalTaskTime(task, status) ||
+    cleanTaskText(timing.startedAt || timing.queuedAt || report.updatedAt || (task && (task.updatedAt || task.createdAt)))
+}
+
+function taskScenarioText(scenario) {
+  const source = scenario && typeof scenario === 'object' ? scenario : {}
+  const key = cleanTaskText(source.key)
+  const targets = Number(source.targets || 0)
+  if (key === 'mythic_plus' || targets > 1) return `AOE${targets || 5}目标`
+  if (key === 'single' || targets === 1) return '单体'
+  return cleanTaskText(source.label) || key
+}
+
+function pushTaskTag(tags, key, value) {
+  const text = cleanTaskText(value)
+  if (!text) return
+  tags.push({ key, text })
+}
+
+function taskTags(task) {
+  const report = task && task.simcReportSummary ? task.simcReportSummary : {}
+  const build = taskBuild(task)
+  const tags = []
+  pushTaskTag(tags, 'race', build.raceName || build.raceKey)
+  pushTaskTag(tags, 'class', build.className || build.classKey)
+  pushTaskTag(tags, 'spec', build.specName || build.specKey)
+  pushTaskTag(tags, 'hero', build.heroLabel || build.heroName || build.heroKey)
+  pushTaskTag(tags, 'scenario', taskScenarioText(report.scenario || task && task.scenario))
+  return tags
+}
+
+function taskSummary(task, status) {
+  const report = task && task.simcReportSummary ? task.simcReportSummary : {}
+  const statusKey = cleanTaskText(status).toLowerCase()
+  if (statusKey === 'completed') return ''
+  if (statusKey === 'queued') return '任务已进入队列，等待后台执行。'
+  if (statusKey === 'running') return '任务正在后台执行。'
+  return cleanTaskText(report.summary) ||
+    cleanTaskText(task && task.summary) ||
+    cleanTaskText(task && task.briefConclusion) ||
+    cleanTaskText((task && task.recommendations && task.recommendations[0]) || '') ||
+    ''
+}
+
+function taskTitle(task, status) {
+  const report = task && task.simcReportSummary ? task.simcReportSummary : {}
+  const build = taskBuild(task)
+  const subject = `${cleanTaskText(build.specName || build.specKey)}${cleanTaskText(build.className || build.classKey)}`.trim() ||
+    cleanTaskText(report.title).replace(/\s*SimC\s*$/i, '') ||
+    cleanTaskText(task && task.question) ||
+    `${cleanTaskText(task && task.mode) || 'SimC'}任务`
+  const displayTime = formatTaskTime(taskDisplayTime(task, status)) || '时间待补'
+  return `${subject}_${displayTime}`
+}
+
 function normalizeTask(task) {
   const report = task && task.simcReportSummary ? task.simcReportSummary : {}
-  const scenario = report.scenario || {}
+  const status = taskStatus(task)
+  const statusView = taskStatusView(status)
+  const finishedAt = terminalTaskTime(task, status)
   return {
     taskId: cleanTaskText((task && (task.taskId || task.id)) || ''),
-    title: taskTitle(task),
-    status: taskStatus(task),
-    desc: taskSummary(task),
-    dpsDisplay: cleanTaskText(report.dpsDisplay),
-    scenarioText: cleanTaskText(scenario.label) || cleanTaskText(scenario.key),
+    title: taskTitle(task, status),
+    status,
+    statusText: statusView.text,
+    statusClass: statusView.className,
+    desc: taskSummary(task, status),
+    tags: taskTags(task),
+    completionTimeText: `完成时间：${formatTaskTime(finishedAt) || '未完成'}`,
     updatedAt: cleanTaskText(report.updatedAt || (task && (task.updatedAt || task.createdAt)))
   }
 }
@@ -75,7 +167,7 @@ Page({
         const tasks = payload && Array.isArray(payload.tasks) ? payload.tasks : []
         this.loadedOnce = true
         this.setData({
-          tasks: fromFallback ? [] : tasks.map(normalizeTask).filter((task) => task.taskId),
+          tasks: fromFallback ? [] : tasks.map((task) => this.normalizeTask(task)).filter((task) => task.taskId),
           fromFallback,
           requestError: error || ''
         })
@@ -98,5 +190,7 @@ Page({
     if (!taskId) return
     trackEvent('task_detail_view', { taskId, source: 'task_list' }, { page: 'pages/simulator/tasks' })
     wx.navigateTo({ url: `/pages/simulator/task-detail?id=${encodeURIComponent(taskId)}` })
-  }
+  },
+
+  normalizeTask
 })

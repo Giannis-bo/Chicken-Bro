@@ -135,7 +135,7 @@ function selectorSheetFor(type, data) {
   }
 }
 
-function compactTemplate(template) {
+function compactTemplate(template, options = {}) {
   if (!template) return null
   const compact = {
     id: template.id || '',
@@ -154,9 +154,12 @@ function compactTemplate(template) {
     source: template.source || ''
   }
   const metadata = template.metadata && typeof template.metadata === 'object' ? template.metadata : {}
+  const compactMetadata = {}
   if (metadata.gearSnapshot) {
-    compact.metadata = { gearSnapshot: metadata.gearSnapshot }
+    compactMetadata.gearSnapshot = metadata.gearSnapshot
   }
+  if (options.statSnapshot) compactMetadata.statSnapshot = options.statSnapshot
+  if (Object.keys(compactMetadata).length) compact.metadata = compactMetadata
   return compact
 }
 
@@ -858,6 +861,11 @@ Page({
 
   buildTemplatePayload(confirmOnly = true, saveTask = false) {
     if (!this.data.selectedClassKey || !this.data.selectedTalentTemplate || !this.data.selectedGearTemplate) return null
+    const statsRequest = summaryStatsRequestForSelection(this.data, { ignoreSnapshot: true })
+    const statSnapshot = statSnapshotFromTemplate(
+      this.data.selectedGearTemplate,
+      statsRequest ? summaryStatsRequestSignature(statsRequest) : ''
+    )
     return {
       mode: 'simcraft_template',
       confirmOnly,
@@ -869,7 +877,7 @@ Page({
       analysisType: this.data.selectedAnalysisType,
       templateContext: {
         talent: compactTemplate(this.data.selectedTalentTemplate),
-        gear: compactTemplate(this.data.selectedGearTemplate)
+        gear: compactTemplate(this.data.selectedGearTemplate, { statSnapshot })
       }
     }
   },

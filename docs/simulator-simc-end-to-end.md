@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make the simulator tab prove the first usable path: the mini program accepts a prompt, the backend extracts a SimCraft profile, runs server-side `simc`, and returns a readable result.
+Keep the simulator SimC path deterministic and evidence-bound: the mini program can still accept a raw prompt/profile, but the current core path is saved talent + gear templates -> backend validation -> queued SimC task -> task list/detail read model.
 
 ## Current Flow
 
@@ -20,7 +20,7 @@ Make the simulator tab prove the first usable path: the mini program accepts a p
 
 4. The backend extracts the fenced `simc` or `simulationcraft` code block.
 5. If a profile is present, the backend runs `WOW_SIMC_BIN` or a `simc`/`simulationcraft` binary on `PATH`.
-6. The response includes the normalized request, execution stages, simulation status, parsed DPS metric, real Mythic+ reference data, allowed-number guardrails, and concise Chinese recommendations.
+6. The legacy raw-profile response includes the normalized request, execution stages, simulation status, parsed DPS metric, reference data, allowed-number guardrails, and concise Chinese recommendations. The template path described below does not use LLM/Codex interpretation for final task execution.
 
 Task history uses `GET /api/simulator/tasks?guest=1` and `GET /api/simulator/task?id=...&guest=1`. Authenticated requests use Bearer token; guest mode is explicit and scoped by guest id.
 
@@ -59,9 +59,63 @@ Backend rules:
 - WebSim submissions must carry a canonical `profileSource=websim` profile only after server-side talent encoding succeeds and every core SimC gear slot except optional `off_hand` is SimC-ready.
 - `/api/websim/profile`, `/api/websim/simulate`, the saved task request, and the profile piped into `simc` must remain byte-for-byte consistent after normalization; otherwise the route is not considered a trustworthy WebSim-to-SimC path.
 - The LLM prompt must label gear rows as candidates and preserve source evidence, so the report explains what can be compared now and what still requires a character export.
-- Saved task detail pages show the build context summary but intentionally hide the full generated SimC template and raw SimC output.
+- Saved task detail pages intentionally hide the full generated SimC template and raw SimC output.
 
-The response adds an `agent` object:
+## Template Task Flow
+
+`mode=simcraft_template` is the current player-facing path for saved talent/gear templates. It has two different phases:
+
+1. Confirmation uses `confirmOnly=true`. The backend parses the selected talent template, parses or replays the structured gear template, validates class/spec/race/scenario, builds a deterministic draft profile, and returns `simcReport.schemaRevision=simc-report-v2`. Confirmation must not run SimC, call LLM, or call Codex Worker.
+2. Final submit uses `confirmOnly=false` and `saveTask=true`. The backend repeats validation, creates or reuses a queued `simulator_tasks` row, stores `request_json`, `analysis_json`, and `summary_json`, returns `taskId`, and starts the background runner when `WOW_SIMC_TEMPLATE_TASK_AUTORUN` allows it.
+3. The runner owns the state transition `queued -> running -> completed/failed`. It pipes the stored normalized profile to `simc`, parses DPS only from SimC output, records `taskTiming`, updates `analysis_json`, regenerates `summary_json`, and never calls LLM/Codex.
+4. Duplicate active submits are deduped by `simcTaskFingerprint`, which includes user/template/class/spec/race/scenario/analysis-type inputs. If the same task is already `queued` or `running`, the API returns the active task lock instead of inserting another row.
+
+The durable payload split is:
+
+- `request_json`: normalized executable request, including slim template context, `simcTaskFingerprint`, scenario, race, and the generated profile needed by the runner.
+- `analysis_json`: execution state and public `simcReport`; detail reads this after stripping profile/raw output/debug fields.
+- `summary_json`: compact task-list read model only. It contains state, title, build tags, scenario, DPS display for data compatibility, timing, and update time. The frontend task card intentionally does not display DPS or old benchmark copy.
+
+`summary_json` is added by migration marker `simulator_task_summary_v1`. Empty or legacy rows are backfilled by `backfill_simulator_task_summaries`; list reads still merge with a generated fallback from `request_json`/`analysis_json` so older tasks can recover race/class/spec/hero/scenario tags.
+
+## Task List Contract
+
+`GET /api/simulator/tasks` returns task rows scoped to the authenticated user or explicit guest id. For `simcraft_template` rows, consumers should read `task.simcReportSummary` instead of parsing full `analysis`.
+
+Frontend display rules in `pages/simulator/tasks.*`:
+
+- Title format is `专精职业_YYYY-MM-DD HH:mm`, for example `元素萨满祭司_2026-06-27 11:23`.
+- Status text is localized: `queued/running -> 进行中`, `completed -> 已完成`, `failed -> 失败`, `blocked -> 已阻断`; colors are orange/yellow for active, green for completed, red for failed, and purple for blocked.
+- Tags are value-only chips from summary build/scenario: race, class, spec, hero talent, and scenario. Do not render labels such as `种族：` or placeholder text such as `待补`.
+- Completion time is always shown as `完成时间：YYYY-MM-DD HH:mm` or `完成时间：未完成`.
+- Task cards must not show `SimC completed with xxx DPS` or `大秘境基准 xxx DPS`; those belong to detail/result views only when explicitly needed.
+
+## Task Detail Contract
+
+`GET /api/simulator/task?id=...` returns one task after owner/guest checks. For `simcraft_template` tasks, public detail must be stripped before it reaches the mini program:
+
+- Remove full `profile`, `draftProfile`, raw SimC stdout, `llm`, `codex`, `allowedNumbers`, and `guestId`.
+- Rebuild or normalize `simcReport` as `simc-report-v2`, then preserve any existing verified `simcReport.build.statSnapshot`.
+- Keep only player-facing result data: hero title, status, concise summary, DPS result if the final SimC run produced one, scenario display, and verified stat rows.
+- Do not render legacy AI report sections such as player question, build-context dump, report explanation, next actions, evidence lists, execution stages, generated SimC template, or raw SimC summary.
+
+Generated preview DPS remains hidden in detail. A generated template may prove that the profile shape is valid, but only a final SimC run with parsed DPS can display a DPS result.
+
+## Stat Snapshot Contract
+
+The current task detail can show the simulated character attributes only when a verified compact snapshot is available. The snapshot shape is `statStatus=verified`, one primary metric, and the secondary metrics `crit/haste/mastery/versatility` with display values and percentages when available.
+
+Snapshot sources, in priority order:
+
+1. `simcReport.build.statSnapshot` already stored in `analysis_json`.
+2. Verified `statSnapshot` carried by the submitted gear template metadata.
+3. A detail-time backfill from stored `gearSnapshot + talent rawString + class/spec/race/scenario`, using `build_websim_gear_stats_response`, written back into `analysis_json`.
+
+Frontend `pages/simulator/simc.js` only sends a cached `metadata.statSnapshot` when its request signature still matches the selected class/spec/race/scenario/talents/gear context. Stale snapshots must be omitted. The backend detail backfill is deliberately detail-only; list reads should not run stat calculations.
+
+Old tasks cannot always recover attributes. If neither a verified snapshot nor enough stored `gearSnapshot`/talent context exists, the detail page should simply omit stat rows instead of showing `待补` placeholders.
+
+Legacy `simcraft_agent` responses and template confirmation responses may add an `agent` object. Older examples look like:
 
 ```json
 {
@@ -88,7 +142,7 @@ The response adds an `agent` object:
 }
 ```
 
-Player-facing task details should lead with the simplified conclusion, then show at most three concise recommendations, SimC DPS, real Mythic+ reference data, and execution stages. The saved detail page intentionally does not render the full generated SimC template or raw SimC summary.
+Player-facing task details should lead with the simplified SimC result and run context. The current saved detail page intentionally does not render recommendations, Mythic+ benchmark text, execution stages, the full generated SimC template, or raw SimC summary.
 
 ## WCL And Chickenbro Entries
 
@@ -174,7 +228,7 @@ Chickenbro rules:
 - Natural-language-only prompts with missing specialization return `profile_check=blocked`, `simc_execution=skipped`, and `agent.status=needs_clarification`.
 - The highest-fidelity prompt format remains natural language plus a fenced SimC profile, because exported talents and gear are more accurate than generated defaults.
 - LLM output is optional. The deterministic SimC result and heuristic recommendation path must still return a useful conclusion when LLM credentials are absent.
-- Codex Worker remains optional and bounded. The main SimC request path is backend validation, then SimC execution, then optional LLM interpretation. Chickenbro uses a separate `/api/chickenbro/*` session/job boundary and deterministic fallback.
+- Codex Worker remains optional and bounded for legacy/adjacent flows. The `simcraft_template` final submit path is backend validation, queued task execution, and deterministic public `simcReport`; it must not call LLM or Codex Worker.
 - The mini program does not hold OpenAI, Codex, or SimC credentials. All execution stays behind the backend.
 
 ## SimC Conclusion Correctness Standard
@@ -192,8 +246,9 @@ Passing tests is not sufficient unless the tests assert the semantic correctness
 Required test coverage for future SimC changes:
 
 - Backend tests in `tests/news_backend_test.py` must cover DPS parsing from full SimC output before summary truncation, rejecting unrelated large numbers, generated-profile preview labeling, SimC failure wording, and Mythic+ reference guardrails.
+- Backend tests must also cover `simcraft_template` confirm-only behavior, queued final submit, active task lock reuse, runner success/failure state transitions, `summary_json` backfill, and task-detail stat snapshot backfill.
 - WebSim tests in `tests/websim_payload_test.py` must cover canonical profile reuse, full core gear gating, talent encoding failures, candidate gear blocking, and fake-SimC capture of the exact submitted profile.
-- Frontend tests in `tests/simulator-page.test.js` must cover the visible task-detail labels, units, and copy for generated preview metrics versus full `/simc` results.
+- Frontend tests in `tests/simulator-page.test.js` must cover the visible task-list title/status/tag/completion-time contract, removal of card DPS/benchmark copy, and task-detail labels, units, stat rows, and generated-preview hiding.
 - A deployable SimC change must pass `python3 -m unittest discover -s tests -p '*_test.py'`, `node --test tests/*.test.js`, local `python3 server/simulator_e2e_smoke.py`, and after deployment the live smoke command below.
 
 ## Verification
@@ -205,6 +260,14 @@ python3 -m unittest discover -s tests -p '*_test.py'
 node --test tests/*.test.js
 python3 server/simulator_e2e_smoke.py
 python3 server/simulator_e2e_smoke.py --base-url http://124.223.51.33 --timeout 90
+```
+
+Focused checks for this path:
+
+```bash
+python -m unittest tests.news_backend_test
+node --test tests/simulator-page.test.js tests/frontend-api-client.test.js
+git diff --check
 ```
 
 Simulated prompts already covered:

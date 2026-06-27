@@ -2076,7 +2076,8 @@ class NewsBackendTest(unittest.TestCase):
             AssertionError("simcraft_template submit must not call Codex Worker")
         )
         os.environ["WOW_SIMC_TEMPLATE_TASK_AUTORUN"] = "0"
-        request_payload = self.simc_template_payload(scenario="mythic_plus", analysis_type="stat_weights")
+        request_payload = self.simc_template_payload(scenario="mythic_plus", analysis_type="stat_weights", race="troll")
+        request_payload["raceName"] = "巨魔"
         request_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device"})
         try:
             analysis = self.backend.analyze_and_store_simulator_task(request_payload)
@@ -2096,7 +2097,8 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["simcReport"]["state"], "queued")
         self.assertEqual(analysis["simcReport"]["scenario"]["fightStyle"], "DungeonSlice")
         self.assertEqual(analysis["simcReport"]["scenario"]["targets"], 5)
-        self.assertEqual(analysis["simcReport"]["build"]["raceKey"], "")
+        self.assertEqual(analysis["simcReport"]["build"]["raceKey"], "troll")
+        self.assertEqual(analysis["simcReport"]["build"]["raceName"], "巨魔")
         self.assertFalse(analysis["simcReport"]["result"]["ran"])
         self.assertIn("fight_style=DungeonSlice", analysis["request"]["profile"])
         self.assertIn("desired_targets=5", analysis["request"]["profile"])
@@ -2107,17 +2109,31 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("allowedNumbers", analysis)
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
             row = conn.execute(
-                "SELECT status, request_json, analysis_json FROM simulator_tasks WHERE id = ?",
+                "SELECT status, request_json, analysis_json, summary_json FROM simulator_tasks WHERE id = ?",
                 (analysis["taskId"],),
             ).fetchone()
         self.assertEqual(row[0], "queued")
         stored_request = json.loads(row[1])
         stored_analysis = json.loads(row[2])
+        stored_summary = json.loads(row[3])
         self.assertEqual(stored_request["simcTaskFingerprint"], analysis["request"]["simcTaskFingerprint"])
         self.assertEqual(stored_analysis["agent"]["status"], "simc_queued")
+        self.assertEqual(stored_summary["state"], "queued")
+        self.assertEqual(stored_summary["build"]["raceName"], "巨魔")
+        self.assertEqual(stored_summary["build"]["className"], "法师")
+        self.assertEqual(stored_summary["build"]["specName"], "奥术")
+        self.assertEqual(stored_summary["build"]["heroKey"], "spellslinger")
+        self.assertEqual(stored_summary["scenario"]["key"], "mythic_plus")
+        self.assertEqual(stored_summary["timing"]["finishedAt"], "")
         tasks = self.backend.list_simulator_tasks("", allow_guest=True, guest_id="template-device")
-        self.assertEqual(tasks["tasks"][0]["simcReportSummary"]["state"], "queued")
-        self.assertEqual(tasks["tasks"][0]["simcReportSummary"]["scenario"]["key"], "mythic_plus")
+        task_summary = tasks["tasks"][0]["simcReportSummary"]
+        self.assertEqual(task_summary["state"], "queued")
+        self.assertEqual(task_summary["scenario"]["key"], "mythic_plus")
+        self.assertEqual(task_summary["build"]["raceName"], "巨魔")
+        self.assertEqual(task_summary["build"]["className"], "法师")
+        self.assertEqual(task_summary["build"]["specName"], "奥术")
+        self.assertEqual(task_summary["build"]["heroKey"], "spellslinger")
+        self.assertEqual(task_summary["timing"]["finishedAt"], "")
 
     def test_simcraft_template_final_submit_reuses_active_task_lock(self):
         self.seed_simc_template_websim_nodes()
@@ -2195,11 +2211,266 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("codex", detail["task"]["analysis"])
         self.assertNotIn("allowedNumbers", detail["task"]["analysis"])
         tasks = self.backend.list_simulator_tasks("", allow_guest=True, guest_id="template-device")
-        self.assertEqual(tasks["tasks"][0]["simcReportSummary"]["state"], "completed")
-        self.assertEqual(tasks["tasks"][0]["simcReportSummary"]["dpsDisplay"], "654321 DPS")
+        task_summary = tasks["tasks"][0]["simcReportSummary"]
+        self.assertEqual(task_summary["state"], "completed")
+        self.assertEqual(task_summary["dpsDisplay"], "654321 DPS")
+        self.assertEqual(task_summary["build"]["className"], "法师")
+        self.assertEqual(task_summary["build"]["specName"], "奥术")
+        self.assertEqual(task_summary["build"]["heroKey"], "spellslinger")
+        self.assertEqual(task_summary["timing"]["finishedAt"], completed["simcReport"]["timing"]["finishedAt"])
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
-            row = conn.execute("SELECT status FROM simulator_tasks WHERE id = ?", (queued["taskId"],)).fetchone()
+            row = conn.execute("SELECT status, summary_json FROM simulator_tasks WHERE id = ?", (queued["taskId"],)).fetchone()
         self.assertEqual(row[0], "completed")
+        stored_summary = json.loads(row[1])
+        self.assertEqual(stored_summary["state"], "completed")
+        self.assertEqual(stored_summary["dpsDisplay"], "654321 DPS")
+        self.assertEqual(stored_summary["build"]["className"], "法师")
+        self.assertEqual(stored_summary["build"]["specName"], "奥术")
+        self.assertEqual(stored_summary["build"]["heroKey"], "spellslinger")
+        self.assertEqual(stored_summary["timing"]["finishedAt"], completed["simcReport"]["timing"]["finishedAt"])
+
+    def test_simcraft_template_task_list_recovers_tags_from_stored_request(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-task-tags",
+            exchange_code=lambda code: {"openid": "openid-task-tags"},
+        )
+        user = self.backend.authenticate_token(login["accessToken"])
+        request_payload = self.simc_template_payload(scenario="mythic_plus", race="troll")
+        request_payload["raceName"] = "巨魔"
+        analysis_payload = {
+            "mode": "simcraft_template",
+            "status": "completed",
+            "simcReport": {
+                "schemaRevision": "simc-report-v2",
+                "state": "completed",
+                "title": "奥术法师 SimC",
+                "summary": "SimC completed with 654321 DPS.",
+                "statusText": "completed",
+                "scenario": {"key": "mythic_plus", "label": "大秘境基准", "targets": 5},
+                "result": {"dpsDisplay": "654321 DPS"},
+                "timing": {"finishedAt": "2026-06-27T04:21:17+00:00"},
+            },
+        }
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            conn.execute(
+                """
+                INSERT INTO simulator_tasks (
+                    id, user_id, mode, status, request_json, analysis_json, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "task-trimmed-summary-tags",
+                    user["id"],
+                    "simcraft_template",
+                    "completed",
+                    json.dumps(request_payload),
+                    json.dumps(analysis_payload),
+                    "2026-06-27T04:20:00+00:00",
+                    "2026-06-27T04:21:17+00:00",
+                ),
+            )
+            conn.commit()
+
+        tasks = self.backend.list_simulator_tasks(login["accessToken"])
+        task_summary = tasks["tasks"][0]["simcReportSummary"]
+
+        self.assertEqual(task_summary["build"]["raceName"], "巨魔")
+        self.assertEqual(task_summary["build"]["className"], "法师")
+        self.assertEqual(task_summary["build"]["specName"], "奥术")
+        self.assertEqual(task_summary["build"]["heroKey"], "spellslinger")
+        self.assertEqual(task_summary["scenario"]["key"], "mythic_plus")
+
+    def test_simcraft_template_task_summary_backfill_updates_empty_summary_json(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-task-backfill",
+            exchange_code=lambda code: {"openid": "openid-task-backfill"},
+        )
+        user = self.backend.authenticate_token(login["accessToken"])
+        request_payload = self.simc_template_payload(scenario="mythic_plus", race="troll")
+        request_payload["raceName"] = "巨魔"
+        analysis_payload = {
+            "mode": "simcraft_template",
+            "status": "completed",
+            "simulation": {"ran": True, "metrics": {"dps": "654321"}},
+            "simcReport": {
+                "schemaRevision": "simc-report-v2",
+                "state": "completed",
+                "title": "奥术法师 SimC",
+                "summary": "SimC completed with 654321 DPS.",
+                "statusText": "completed",
+                "scenario": {"key": "mythic_plus", "label": "大秘境基准", "targets": 5},
+                "result": {"dpsDisplay": "654321 DPS"},
+                "timing": {"finishedAt": "2026-06-27T04:21:17+00:00"},
+            },
+        }
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            conn.execute(
+                """
+                INSERT INTO simulator_tasks (
+                    id, user_id, mode, status, request_json, analysis_json, summary_json, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "task-empty-summary-json",
+                    user["id"],
+                    "simcraft_template",
+                    "completed",
+                    json.dumps(request_payload),
+                    json.dumps(analysis_payload),
+                    "{}",
+                    "2026-06-27T04:20:00+00:00",
+                    "2026-06-27T04:21:17+00:00",
+                ),
+            )
+            self.backend.backfill_simulator_task_summaries(conn)
+            row = conn.execute(
+                "SELECT summary_json FROM simulator_tasks WHERE id = ?",
+                ("task-empty-summary-json",),
+            ).fetchone()
+
+        task_summary = json.loads(row[0])
+        self.assertEqual(task_summary["state"], "completed")
+        self.assertEqual(task_summary["dpsDisplay"], "654321 DPS")
+        self.assertEqual(task_summary["build"]["raceName"], "巨魔")
+        self.assertEqual(task_summary["build"]["className"], "法师")
+        self.assertEqual(task_summary["build"]["specName"], "奥术")
+        self.assertEqual(task_summary["build"]["heroKey"], "spellslinger")
+        self.assertEqual(task_summary["scenario"]["key"], "mythic_plus")
+
+    def test_simcraft_template_task_detail_backfills_stat_snapshot_from_stored_gear_snapshot(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-task-stat-backfill",
+            exchange_code=lambda code: {"openid": "openid-task-stat-backfill"},
+        )
+        user = self.backend.authenticate_token(login["accessToken"])
+        request_payload = self.simc_template_payload(scenario="mythic_plus", race="troll")
+        request_payload["raceName"] = "Troll"
+        request_payload["templateContext"]["gear"]["metadata"] = {
+            "gearSnapshot": self.simc_template_structured_gear_snapshot(),
+        }
+        analysis_payload = {
+            "mode": "simcraft_template",
+            "status": "completed",
+            "simulation": {"ran": True, "metrics": {"dps": "654321"}},
+            "simcReport": {
+                "schemaRevision": "simc-report-v2",
+                "state": "completed",
+                "title": "Arcane Mage SimC",
+                "summary": "SimC completed with 654321 DPS.",
+                "statusText": "completed",
+                "scenario": {"key": "mythic_plus", "label": "Mythic+", "targets": 5},
+                "build": {
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "className": "Mage",
+                    "specName": "Arcane",
+                    "raceKey": "troll",
+                    "raceName": "Troll",
+                },
+                "result": {"dpsDisplay": "654321 DPS"},
+                "timing": {"finishedAt": "2026-06-27T04:21:17+00:00"},
+            },
+        }
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            conn.execute(
+                """
+                INSERT INTO simulator_tasks (
+                    id, user_id, mode, status, request_json, analysis_json, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "task-detail-stat-backfill",
+                    user["id"],
+                    "simcraft_template",
+                    "completed",
+                    json.dumps(request_payload),
+                    json.dumps(analysis_payload),
+                    "2026-06-27T04:20:00+00:00",
+                    "2026-06-27T04:21:17+00:00",
+                ),
+            )
+            conn.commit()
+
+        captured_requests = []
+
+        def fake_stats_response(payload, conn=None):
+            captured_requests.append(payload)
+            return self.simc_template_stat_snapshot()
+
+        with patch.object(self.backend, "build_websim_gear_stats_response", side_effect=fake_stats_response):
+            detail = self.backend.get_simulator_task(login["accessToken"], "task-detail-stat-backfill")
+
+        snapshot = detail["task"]["analysis"]["simcReport"]["build"]["statSnapshot"]
+        self.assertEqual(snapshot["statStatus"], "verified")
+        self.assertEqual(snapshot["primary"]["key"], "intellect")
+        self.assertEqual(captured_requests[0]["classKey"], "mage")
+        self.assertEqual(captured_requests[0]["specKey"], "arcane")
+        self.assertEqual(captured_requests[0]["raceKey"], "troll")
+        self.assertEqual(captured_requests[0]["scenarioKey"], "mythic_plus")
+        self.assertEqual(captured_requests[0]["talents"], request_payload["templateContext"]["talent"]["rawString"])
+        self.assertEqual(captured_requests[0]["metadata"]["gearSnapshot"]["schemaRevision"], "websim-gear-enhancement-snapshot-v1")
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            stored_analysis = json.loads(conn.execute(
+                "SELECT analysis_json FROM simulator_tasks WHERE id = ?",
+                ("task-detail-stat-backfill",),
+            ).fetchone()[0])
+        self.assertEqual(
+            stored_analysis["simcReport"]["build"]["statSnapshot"]["statStatus"],
+            "verified",
+        )
+
+    def test_simcraft_template_task_detail_ignores_stat_snapshot_backfill_failure(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-task-stat-backfill-failure",
+            exchange_code=lambda code: {"openid": "openid-task-stat-backfill-failure"},
+        )
+        user = self.backend.authenticate_token(login["accessToken"])
+        request_payload = self.simc_template_payload(scenario="mythic_plus", race="troll")
+        request_payload["templateContext"]["gear"]["metadata"] = {
+            "gearSnapshot": self.simc_template_structured_gear_snapshot(),
+        }
+        analysis_payload = {
+            "mode": "simcraft_template",
+            "status": "completed",
+            "simulation": {"ran": True, "metrics": {"dps": "654321"}},
+            "simcReport": {
+                "schemaRevision": "simc-report-v2",
+                "state": "completed",
+                "summary": "SimC completed with 654321 DPS.",
+                "scenario": {"key": "mythic_plus", "label": "Mythic+", "targets": 5},
+                "result": {"dpsDisplay": "654321 DPS"},
+                "timing": {"finishedAt": "2026-06-27T04:21:17+00:00"},
+            },
+        }
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            conn.execute(
+                """
+                INSERT INTO simulator_tasks (
+                    id, user_id, mode, status, request_json, analysis_json, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "task-detail-stat-backfill-failure",
+                    user["id"],
+                    "simcraft_template",
+                    "completed",
+                    json.dumps(request_payload),
+                    json.dumps(analysis_payload),
+                    "2026-06-27T04:20:00+00:00",
+                    "2026-06-27T04:21:17+00:00",
+                ),
+            )
+            conn.commit()
+
+        with patch.object(
+            self.backend,
+            "build_websim_gear_stats_response",
+            side_effect=RuntimeError("stats unavailable"),
+        ):
+            detail = self.backend.get_simulator_task(login["accessToken"], "task-detail-stat-backfill-failure")
+
+        build = detail["task"]["analysis"]["simcReport"]["build"]
+        self.assertNotIn("statSnapshot", build)
 
     def test_simcraft_template_task_runner_reports_failed_simc_without_dps_claim(self):
         self.seed_simc_template_websim_nodes()
@@ -3634,6 +3905,10 @@ class NewsBackendTest(unittest.TestCase):
                     "SELECT id, description FROM schema_migrations ORDER BY id"
                 ).fetchall()
             }
+            simulator_task_columns = {
+                row[1]
+                for row in conn.execute("PRAGMA table_info(simulator_tasks)").fetchall()
+            }
             with self.assertRaises(sqlite3.IntegrityError):
                 conn.execute(
                     """
@@ -3663,6 +3938,8 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(foreign_keys, 1)
         self.assertIn("core_schema_v1", migrations)
         self.assertIn("user_build_templates_v1", migrations)
+        self.assertIn("simulator_task_summary_v1", migrations)
+        self.assertIn("summary_json", simulator_task_columns)
 
     def test_init_db_skips_seed_writes_after_schema_is_initialized(self):
         self.backend.init_db()
@@ -3671,6 +3948,10 @@ class NewsBackendTest(unittest.TestCase):
             self.backend,
             "seed_news_sources",
             side_effect=AssertionError("init_db should not write seed data once initialized"),
+        ), patch.object(
+            self.backend,
+            "backfill_simulator_task_summaries",
+            side_effect=AssertionError("init_db should not scan simulator tasks once initialized"),
         ):
             self.backend.init_db()
 

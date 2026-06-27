@@ -935,6 +935,7 @@ test('simc page invalidates cached summary stats when the race changes', async (
   assert.equal(requests.length, 1)
   assert.equal(requests[0].raceKey, 'human')
   assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['计算中', '计算中', '计算中', '计算中'])
+  assert.equal(((page.buildTemplatePayload(true, false).templateContext.gear.metadata || {}).statSnapshot), undefined)
 
   resolveStats({ payload: { ...sampleGearStatSnapshot, blockers: [] }, fromFallback: false, error: '' })
   await flushPromises()
@@ -1021,7 +1022,7 @@ test('simc page reuses the same template payload for confirm and final submit', 
   assert.equal(requests[0].request.analysisType, 'baseline')
   assert.equal(requests[0].request.templateContext.talent.id, 'talent-1')
   assert.equal(requests[0].request.templateContext.gear.id, 'gear-1')
-  assert.deepEqual(requests[0].request.templateContext.gear.metadata, { gearSnapshot })
+  assert.deepEqual(requests[0].request.templateContext.gear.metadata, { gearSnapshot, statSnapshot: sampleGearStatSnapshot })
   assert.equal(requests[1].request.confirmOnly, false)
   assert.equal(requests[1].request.saveTask, true)
   assert.deepEqual(requests[1].request.templateContext, requests[0].request.templateContext)
@@ -1312,6 +1313,114 @@ test('simulator task list has a dedicated page and opens task details', () => {
   assert.match(wxml, /任务列表/)
   assert.match(css, /\.task-list-page/)
   assert.match(css, /\.task-list-card/)
+})
+
+test('simulator task list localizes SimC task cards with tags and finish time', () => {
+  const pageDefinition = loadPageModule('../pages/simulator/tasks.js', {
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorTasks: () => Promise.resolve({ payload: { tasks: [] }, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const wxml = fs.readFileSync('pages/simulator/tasks.wxml', 'utf8')
+  const css = fs.readFileSync('pages/simulator/tasks.wxss', 'utf8')
+
+  const completed = pageDefinition.normalizeTask({
+    taskId: 'task-shaman-completed',
+    mode: 'simcraft_template',
+    status: 'completed',
+    createdAt: '2026-06-27T04:20:00+00:00',
+    updatedAt: '2026-06-27T04:21:17+00:00',
+    simcReportSummary: {
+      state: 'completed',
+      title: 'Elemental Shaman SimC',
+      summary: 'SimC completed with 73680.202 DPS.',
+      statusText: 'completed',
+      dpsDisplay: '73680.202 DPS',
+      scenario: { key: 'mythic_plus', label: '大秘境基准', targets: 5 },
+      build: {
+        raceName: '巨魔',
+        className: '萨满祭祀',
+        specName: '元素',
+        heroLabel: '风暴使者'
+      },
+      timing: { finishedAt: '2026-06-27T04:21:17+00:00' },
+      updatedAt: '2026-06-27T04:21:17+00:00'
+    }
+  })
+  const failed = pageDefinition.normalizeTask({
+    taskId: 'task-shaman-failed',
+    mode: 'simcraft_template',
+    status: 'failed',
+    updatedAt: '2026-06-27T04:22:17+00:00',
+    simcReportSummary: {
+      state: 'failed',
+      summary: "Error: Invalid 'class_talents'.",
+      scenario: { key: 'single', targets: 1 },
+      build: { raceName: '兽人', className: '萨满祭祀', specName: '元素', heroKey: 'stormbringer' },
+      timing: { finishedAt: '2026-06-27T04:22:17+00:00' }
+    }
+  })
+  const running = pageDefinition.normalizeTask({
+    taskId: 'task-shaman-running',
+    mode: 'simcraft_template',
+    status: 'running',
+    updatedAt: '2026-06-27T04:23:17+00:00',
+    simcReportSummary: {
+      state: 'running',
+      summary: 'SimC task is running; results will appear in the task list.',
+      scenario: { key: 'mythic_plus', targets: 5 },
+      build: { className: '萨满祭祀', specName: '元素' },
+      timing: {}
+    }
+  })
+
+  assert.equal(completed.title, '元素萨满祭祀_2026-06-27 04:21')
+  assert.equal(completed.statusText, '已完成')
+  assert.equal(completed.statusClass, 'status-completed')
+  assert.equal(completed.desc, '')
+  assert.equal(completed.dpsDisplay, undefined)
+  assert.deepEqual(completed.tags.map((item) => item.text), [
+    '巨魔',
+    '萨满祭祀',
+    '元素',
+    '风暴使者',
+    'AOE5目标'
+  ])
+  assert.ok(completed.tags.every((item) => !item.text.includes('：')))
+  assert.equal(completed.completionTimeText, '完成时间：2026-06-27 04:21')
+
+  assert.equal(failed.statusText, '失败')
+  assert.equal(failed.statusClass, 'status-failed')
+  assert.match(failed.desc, /Invalid 'class_talents'/)
+  assert.ok(failed.tags.some((item) => item.text === '单体'))
+  assert.equal(failed.completionTimeText, '完成时间：2026-06-27 04:22')
+
+  assert.equal(running.statusText, '进行中')
+  assert.equal(running.statusClass, 'status-running')
+  assert.deepEqual(running.tags.map((item) => item.text), [
+    '萨满祭祀',
+    '元素',
+    'AOE5目标'
+  ])
+  assert.ok(running.tags.every((item) => item.text !== '待补'))
+  assert.equal(running.completionTimeText, '完成时间：未完成')
+
+  assert.match(wxml, /item\.statusText/)
+  assert.match(wxml, /item\.statusClass/)
+  assert.match(wxml, /item\.tags/)
+  assert.match(wxml, /item\.completionTimeText/)
+  assert.doesNotMatch(wxml, /dpsDisplay/)
+  assert.doesNotMatch(wxml, /大秘境基准/)
+  assert.match(css, /\.status-completed/)
+  assert.match(css, /\.status-failed/)
+  assert.match(css, /\.status-running/)
+  assert.match(css, /\.task-tag/)
+  assert.match(css, /\.task-finished-at/)
 })
 
 test('chickenbro page submits messages through independent chat API', async () => {

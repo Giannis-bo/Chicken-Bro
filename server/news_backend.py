@@ -166,6 +166,7 @@ SCHEMA_MIGRATIONS = [
     ("core_schema_v1", "Core news, auth, simulator, WebSim, and analytics tables are initialized."),
     ("user_build_templates_v1", "Authenticated user build template sync table is initialized."),
     ("chickenbro_backend_v1", "Chickenbro sessions, messages, jobs, structured memory, and playstyle profiles are initialized."),
+    ("simulator_task_summary_v1", "Simulator tasks persist a compact list summary read model."),
 ]
 CHICKENBRO_PROFILE_STATUSES = {"published", "partial", "stale", "blocked", "needs_review"}
 CHICKENBRO_JOB_STATUSES = {"queued", "running", "succeeded", "failed", "timed_out"}
@@ -504,12 +505,14 @@ def init_db():
                 status TEXT NOT NULL,
                 request_json TEXT NOT NULL,
                 analysis_json TEXT NOT NULL,
+                summary_json TEXT NOT NULL DEFAULT '{}',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 FOREIGN KEY(user_id) REFERENCES wechat_users(id)
             )
             """
         )
+        ensure_simulator_task_columns(conn)
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS user_build_templates (
@@ -738,6 +741,13 @@ def ensure_article_columns(conn):
     for name in text_columns:
         if name not in columns:
             conn.execute(f"ALTER TABLE news_articles ADD COLUMN {name} TEXT NOT NULL DEFAULT ''")
+
+
+def ensure_simulator_task_columns(conn):
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(simulator_tasks)").fetchall()}
+    if "summary_json" not in columns:
+        conn.execute("ALTER TABLE simulator_tasks ADD COLUMN summary_json TEXT NOT NULL DEFAULT '{}'")
+        backfill_simulator_task_summaries(conn)
 
 
 def seed_news_sources(conn):
@@ -3096,6 +3106,71 @@ def simcraft_template_report_stat_snapshot_from_request(request, build_context, 
     return {}
 
 
+def simcraft_template_report_stat_snapshot_from_analysis(analysis):
+    source = analysis if isinstance(analysis, dict) else {}
+    report = source.get("simcReport") if isinstance(source.get("simcReport"), dict) else {}
+    build = report.get("build") if isinstance(report.get("build"), dict) else {}
+    return simcraft_template_report_stat_snapshot(build.get("statSnapshot"))
+
+
+def simcraft_template_stat_snapshot_request_payload(request):
+    source = request if isinstance(request, dict) else {}
+    template_context = source.get("templateContext") if isinstance(source.get("templateContext"), dict) else {}
+    talent = template_context.get("talent") if isinstance(template_context.get("talent"), dict) else {}
+    gear = template_context.get("gear") if isinstance(template_context.get("gear"), dict) else {}
+    metadata = gear.get("metadata") if isinstance(gear.get("metadata"), dict) else {}
+    gear_snapshot = metadata.get("gearSnapshot") if isinstance(metadata.get("gearSnapshot"), dict) else None
+    raw_string = str(gear.get("rawString") or "").strip()
+    if not raw_string and gear_snapshot:
+        raw_string = json.dumps(gear_snapshot, ensure_ascii=False)
+    talents = str(talent.get("rawString") or "").strip()
+    if not raw_string or not talents:
+        return {}
+    payload = {
+        "classKey": clean_text(source.get("classKey") or gear.get("classKey") or talent.get("classKey"), 64),
+        "specKey": clean_text(source.get("specKey") or gear.get("specKey") or talent.get("specKey"), 64),
+        "raceKey": clean_text(source.get("raceKey"), 64),
+        "level": source.get("level") or metadata.get("maxLevel") or 90,
+        "scenarioKey": clean_text(source.get("scenarioKey") or gear.get("scenarioKey"), 64),
+        "talents": talents,
+        "rawString": raw_string,
+        "metadata": {},
+    }
+    if gear_snapshot:
+        payload["metadata"]["gearSnapshot"] = gear_snapshot
+    return payload
+
+
+def backfill_simcraft_template_detail_stat_snapshot(task_id, row_status, request_payload, analysis_payload):
+    if simcraft_template_report_stat_snapshot_from_analysis(analysis_payload):
+        return analysis_payload
+    stats_request = simcraft_template_stat_snapshot_request_payload(request_payload)
+    if not stats_request:
+        return analysis_payload
+    with db_connection() as conn:
+        try:
+            snapshot = simcraft_template_report_stat_snapshot(
+                build_websim_gear_stats_response(stats_request, conn=conn)
+            )
+        except Exception:
+            return analysis_payload
+        if not snapshot:
+            return analysis_payload
+        updated = json_clone(analysis_payload if isinstance(analysis_payload, dict) else {})
+        report = updated.get("simcReport") if isinstance(updated.get("simcReport"), dict) else None
+        if not report:
+            report = build_simcraft_template_report({**updated, "request": request_payload}, row_status=row_status)
+        build = report.get("build") if isinstance(report.get("build"), dict) else {}
+        build["statSnapshot"] = snapshot
+        report["build"] = build
+        updated["simcReport"] = report
+        conn.execute(
+            "UPDATE simulator_tasks SET analysis_json = ? WHERE id = ?",
+            (json.dumps(updated, ensure_ascii=False), task_id),
+        )
+        return updated
+
+
 def build_simcraft_template_report(analysis, row_status="", timing=None):
     source = analysis if isinstance(analysis, dict) else {}
     request = source.get("request") if isinstance(source.get("request"), dict) else {}
@@ -3121,6 +3196,8 @@ def build_simcraft_template_report(analysis, row_status="", timing=None):
         "specKey": clean_text(talent.get("specKey") or gear.get("specKey"), 64),
         "className": class_name,
         "specName": spec_name,
+        "heroKey": clean_text(build_context.get("heroKey") or talent.get("heroKey") or gear.get("heroKey"), 64),
+        "heroLabel": clean_text(build_context.get("heroLabel") or talent.get("heroLabel") or gear.get("heroLabel"), 100),
         "raceKey": clean_text(request.get("raceKey") or build_context.get("raceKey"), 64),
         "raceName": clean_text(request.get("raceName") or build_context.get("raceName"), 80),
         "talentTemplate": {
@@ -3169,20 +3246,99 @@ def attach_simcraft_template_report(analysis, row_status="", timing=None):
     return analysis
 
 
-def simcraft_template_report_summary_payload(analysis, row_status="", updated_at=""):
+def merge_non_empty_dict(preferred, fallback):
+    result = dict(fallback if isinstance(fallback, dict) else {})
+    for key, value in (preferred if isinstance(preferred, dict) else {}).items():
+        if value not in (None, "", [], {}):
+            result[key] = value
+    return result
+
+
+def merge_simcraft_template_report_for_summary(report, rebuilt_report):
+    if not isinstance(report, dict):
+        return rebuilt_report if isinstance(rebuilt_report, dict) else {}
+    merged = {**(rebuilt_report if isinstance(rebuilt_report, dict) else {}), **report}
+    for key in ("build", "scenario", "timing", "result", "messages"):
+        merged[key] = merge_non_empty_dict(report.get(key), (rebuilt_report or {}).get(key))
+    return merged
+
+
+def simcraft_template_report_summary_payload(analysis, row_status="", updated_at="", request_payload=None):
     source = analysis if isinstance(analysis, dict) else {}
+    request_fallback = request_payload if isinstance(request_payload, dict) else {}
+    if request_fallback and not isinstance(source.get("request"), dict):
+        source = {**source, "request": request_fallback}
     report = source.get("simcReport") if isinstance(source.get("simcReport"), dict) else None
-    if not report:
-        report = build_simcraft_template_report(source, row_status=row_status)
+    report_build = report.get("build") if isinstance(report, dict) and isinstance(report.get("build"), dict) else {}
+    report_timing = report.get("timing") if isinstance(report, dict) and isinstance(report.get("timing"), dict) else {}
+    missing_build_context = any(
+        report_build.get(key) in (None, "")
+        for key in ("className", "specName", "heroKey", "raceName")
+    )
+    if not report or missing_build_context or not report_timing:
+        report = merge_simcraft_template_report_for_summary(
+            report,
+            build_simcraft_template_report(source, row_status=row_status),
+        )
+        report_build = report.get("build") if isinstance(report.get("build"), dict) else {}
+        report_timing = report.get("timing") if isinstance(report.get("timing"), dict) else {}
+    summary_build = {
+        key: report_build.get(key, "")
+        for key in ("classKey", "specKey", "className", "specName", "heroKey", "heroLabel", "raceKey", "raceName")
+        if report_build.get(key, "") not in (None, "")
+    }
+    summary_timing = {
+        "queuedAt": report_timing.get("queuedAt", ""),
+        "startedAt": report_timing.get("startedAt", ""),
+        "finishedAt": report_timing.get("finishedAt", ""),
+        "elapsedMs": report_timing.get("elapsedMs"),
+    }
     return {
         "state": report.get("state", row_status or ""),
         "title": report.get("title", ""),
         "summary": report.get("summary", ""),
         "dpsDisplay": (report.get("result") or {}).get("dpsDisplay", ""),
         "scenario": report.get("scenario") or {},
+        "build": summary_build,
+        "timing": summary_timing,
         "statusText": report.get("statusText", ""),
         "updatedAt": updated_at,
     }
+
+
+def merge_simcraft_template_task_summary(stored_summary, generated_summary):
+    if not isinstance(stored_summary, dict) or not stored_summary:
+        return generated_summary
+    merged = {**(generated_summary if isinstance(generated_summary, dict) else {}), **stored_summary}
+    for key in ("build", "scenario", "timing"):
+        merged[key] = merge_non_empty_dict(stored_summary.get(key), (generated_summary or {}).get(key))
+    return merged
+
+
+def backfill_simulator_task_summaries(conn):
+    rows = conn.execute(
+        """
+        SELECT id, status, request_json, analysis_json, summary_json, updated_at
+        FROM simulator_tasks
+        WHERE mode = 'simcraft_template'
+        """
+    ).fetchall()
+    for row in rows:
+        request_payload = safe_json_loads(row[2], {}, f"simulator task request {row[0]}")
+        analysis_payload = safe_json_loads(row[3], {}, f"simulator task analysis {row[0]}")
+        stored_summary = safe_json_loads(row[4], {}, f"simulator task summary {row[0]}")
+        generated_summary = simcraft_template_report_summary_payload(
+            analysis_payload,
+            row_status=row[1],
+            updated_at=row[5],
+            request_payload=request_payload,
+        )
+        merged_summary = merge_simcraft_template_task_summary(stored_summary, generated_summary)
+        if merged_summary != stored_summary:
+            conn.execute(
+                "UPDATE simulator_tasks SET summary_json = ? WHERE id = ?",
+                (json.dumps(merged_summary, ensure_ascii=False), row[0]),
+            )
 
 
 def public_simcraft_template_request(request_payload):
@@ -3223,7 +3379,16 @@ def public_simcraft_template_analysis(analysis, row_status="", strip_profile=Fal
     if not isinstance(analysis, dict) or analysis.get("mode") != "simcraft_template":
         return analysis
     public = json_clone(analysis)
+    existing_report = public.get("simcReport") if isinstance(public.get("simcReport"), dict) else {}
+    existing_build = existing_report.get("build") if isinstance(existing_report.get("build"), dict) else {}
+    existing_stat_snapshot = simcraft_template_report_stat_snapshot(existing_build.get("statSnapshot"))
     attach_simcraft_template_report(public, row_status=row_status)
+    if existing_stat_snapshot:
+        report = public.get("simcReport") if isinstance(public.get("simcReport"), dict) else {}
+        build = report.get("build") if isinstance(report.get("build"), dict) else {}
+        build["statSnapshot"] = existing_stat_snapshot
+        report["build"] = build
+        public["simcReport"] = report
     public.pop("llm", None)
     public.pop("codex", None)
     public.pop("allowedNumbers", None)
@@ -3395,11 +3560,17 @@ def enqueue_simcraft_template_task(request_payload, access_token=""):
             fingerprint,
             timing=queued_timing,
         )
+        queued_summary = simcraft_template_report_summary_payload(
+            queued_analysis,
+            row_status="queued",
+            updated_at=now,
+            request_payload=stored_request,
+        )
         conn.execute(
             """
             INSERT INTO simulator_tasks (
-                id, user_id, mode, status, request_json, analysis_json, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                id, user_id, mode, status, request_json, analysis_json, summary_json, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 task_id,
@@ -3408,6 +3579,7 @@ def enqueue_simcraft_template_task(request_payload, access_token=""):
                 "queued",
                 json.dumps(stored_request, ensure_ascii=False),
                 json.dumps(queued_analysis, ensure_ascii=False),
+                json.dumps(queued_summary, ensure_ascii=False),
                 now,
                 now,
             ),
@@ -3447,9 +3619,15 @@ def mark_simcraft_template_task_running(conn, row, request_payload, analysis_pay
         "reason": "simc task running",
     }
     attach_simcraft_template_report(running, row_status="running", timing=timing)
+    running_summary = simcraft_template_report_summary_payload(
+        running,
+        row_status="running",
+        updated_at=now,
+        request_payload=request_payload,
+    )
     conn.execute(
-        "UPDATE simulator_tasks SET status = ?, analysis_json = ?, updated_at = ? WHERE id = ?",
-        ("running", json.dumps(running, ensure_ascii=False), now, row[0]),
+        "UPDATE simulator_tasks SET status = ?, analysis_json = ?, summary_json = ?, updated_at = ? WHERE id = ?",
+        ("running", json.dumps(running, ensure_ascii=False), json.dumps(running_summary, ensure_ascii=False), now, row[0]),
     )
     return running
 
@@ -3489,6 +3667,12 @@ def run_simcraft_template_task(task_id):
     analysis["taskTiming"] = timing
     analysis["taskLock"] = {"active": False, "taskId": task_id, "status": final_status, "reason": "task_finished"}
     attach_simcraft_template_report(analysis, row_status=final_status, timing=timing)
+    final_summary = simcraft_template_report_summary_payload(
+        analysis,
+        row_status=final_status,
+        updated_at=finished_at,
+        request_payload=request_payload,
+    )
     with db_connection() as conn:
         owner = conn.execute(
             "SELECT id, openid, nickname, avatar_url FROM wechat_users WHERE id = ?",
@@ -3503,8 +3687,8 @@ def run_simcraft_template_task(task_id):
             }
         now = finished_at
         conn.execute(
-            "UPDATE simulator_tasks SET status = ?, analysis_json = ?, updated_at = ? WHERE id = ?",
-            (final_status, json.dumps(analysis, ensure_ascii=False), now, task_id),
+            "UPDATE simulator_tasks SET status = ?, analysis_json = ?, summary_json = ?, updated_at = ? WHERE id = ?",
+            (final_status, json.dumps(analysis, ensure_ascii=False), json.dumps(final_summary, ensure_ascii=False), now, task_id),
         )
     return public_simcraft_template_analysis(analysis, row_status=final_status)
 
@@ -3542,12 +3726,22 @@ def analyze_and_store_simulator_task(request_data, access_token=""):
     }
     if request_payload.get("mode") == "simcraft_template":
         attach_simcraft_template_report(analysis)
+    summary_payload = (
+        simcraft_template_report_summary_payload(
+            analysis,
+            row_status=analysis.get("status", ""),
+            updated_at=now,
+            request_payload=stored_request,
+        )
+        if request_payload.get("mode") == "simcraft_template"
+        else {}
+    )
     with db_connection() as conn:
         conn.execute(
             """
             INSERT INTO simulator_tasks (
-                id, user_id, mode, status, request_json, analysis_json, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                id, user_id, mode, status, request_json, analysis_json, summary_json, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 task_id,
@@ -3556,6 +3750,7 @@ def analyze_and_store_simulator_task(request_data, access_token=""):
                 analysis.get("status", ""),
                 json.dumps(stored_request, ensure_ascii=False),
                 json.dumps(analysis, ensure_ascii=False),
+                json.dumps(summary_payload, ensure_ascii=False),
                 now,
                 now,
             ),
@@ -3577,7 +3772,7 @@ def list_simulator_tasks(access_token, allow_guest=False, guest_id=""):
     with db_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, mode, status, request_json, analysis_json, created_at, updated_at
+            SELECT id, mode, status, request_json, analysis_json, summary_json, created_at, updated_at
             FROM simulator_tasks
             WHERE user_id = ?
             ORDER BY created_at DESC
@@ -3601,15 +3796,18 @@ def list_simulator_tasks(access_token, allow_guest=False, guest_id=""):
             "status": row[2],
             "question": question,
             "recommendations": analysis_payload.get("recommendations", []),
-            "createdAt": row[5],
-            "updatedAt": row[6],
+            "createdAt": row[6],
+            "updatedAt": row[7],
         }
         if row[1] == "simcraft_template":
-            task["simcReportSummary"] = simcraft_template_report_summary_payload(
+            stored_summary = safe_json_loads(row[5], {}, f"simulator task summary {row[0]}")
+            generated_summary = simcraft_template_report_summary_payload(
                 analysis_payload,
                 row_status=row[2],
-                updated_at=row[6],
+                updated_at=row[7],
+                request_payload=request_payload,
             )
+            task["simcReportSummary"] = merge_simcraft_template_task_summary(stored_summary, generated_summary)
         tasks.append(task)
     return {"user": user, "tasks": tasks}
 
@@ -3635,6 +3833,13 @@ def get_simulator_task(access_token, task_id, allow_guest=False, guest_id=""):
 
     request_payload = safe_json_loads(row[3], {}, f"simulator task request {row[0]}")
     analysis_payload = safe_json_loads(row[4], {}, f"simulator task analysis {row[0]}")
+    if row[1] == "simcraft_template":
+        analysis_payload = backfill_simcraft_template_detail_stat_snapshot(
+            row[0],
+            row[2],
+            request_payload,
+            analysis_payload,
+        )
     question = (
         request_payload.get("question")
         or request_payload.get("prompt")

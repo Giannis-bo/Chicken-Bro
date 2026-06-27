@@ -65,7 +65,9 @@ test('news and home module surfaces stay compact enough for mini-program first s
 
   const buildsCss = read('pages/builds/builds.wxss')
   assert.match(block(buildsCss, '.query-card'), /min-height:\s*152rpx;/)
-  assert.match(block(buildsCss, '.task-empty'), /padding:\s*24rpx;/)
+
+  const tasksCss = read('pages/simulator/tasks.wxss')
+  assert.match(block(tasksCss, '.task-loading,\n.task-empty'), /padding:\s*24rpx;/)
 
   const pveCss = read('pages/pve/pve.wxss')
   assert.match(block(pveCss, '.zone-item'), /min-height:\s*136rpx;/)
