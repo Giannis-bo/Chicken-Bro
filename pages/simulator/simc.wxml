@@ -50,9 +50,11 @@
               <text class="picker-value">{{selectedTalentTemplate ? selectedTalentTemplate.title : '尚未保存天赋模板'}}</text>
             </view>
           </picker>
-        </view>
-        <view class="empty-state" wx:if="{{emptyState.talent}}">
-          <text>{{emptyState.talent}}</text>
+          <view class="selector-picker selector-disabled" wx:else>
+            <view class="toolbar-picker toolbar-picker-disabled">
+              <text class="picker-value">{{emptyState.talent || '尚未保存天赋模板'}}</text>
+            </view>
+          </view>
         </view>
       </view>
 
@@ -67,9 +69,11 @@
               <text class="picker-value">{{selectedGearTemplate ? selectedGearTemplate.title : '尚未保存装备模板'}}</text>
             </view>
           </picker>
-        </view>
-        <view class="empty-state" wx:if="{{emptyState.gear}}">
-          <text>{{emptyState.gear}}</text>
+          <view class="selector-picker selector-disabled" wx:else>
+            <view class="toolbar-picker toolbar-picker-disabled">
+              <text class="picker-value">{{emptyState.gear || '尚未保存装备模板'}}</text>
+            </view>
+          </view>
         </view>
       </view>
 

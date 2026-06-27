@@ -1,7 +1,7 @@
 const { requestSimulatorAnalysis } = require('./simulator-api')
 const { fallbackBuildsHome, requestBuildsHome } = require('../builds/builds-api')
 const { requestWebsimGearStats } = require('../builds/websim-api')
-const { fetchBuildTemplates, listBuildTemplates } = require('../common/build-template-storage')
+const { fetchBuildTemplates, listBuildTemplates, syncBuildTemplate } = require('../common/build-template-storage')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
 const SIMC_PAGE_ROUTE = ['pages', 'simulator', 'simc'].join('/')
@@ -94,6 +94,14 @@ const SUMMARY_SECONDARY_STATS = [
   { key: 'versatility', label: '全能' }
 ]
 
+const SUMMARY_STAT_PENDING_TEXT = {
+  pending: '待计算',
+  loading: '计算中',
+  missingTalent: '缺天赋',
+  missingGear: '缺装备',
+  unavailable: '不可用'
+}
+
 function cleanSummaryText(value) {
   return String(value === undefined || value === null ? '' : value).trim()
 }
@@ -102,9 +110,16 @@ function verifiedSummarySnapshot(snapshot) {
   return snapshot && typeof snapshot === 'object' && snapshot.statStatus === 'verified' ? snapshot : null
 }
 
-function statSnapshotFromTemplate(template) {
+function summaryStatsRequestSignature(request) {
+  return JSON.stringify(request || {})
+}
+
+function statSnapshotFromTemplate(template, expectedSignature = '') {
   const metadata = (template && template.metadata) || {}
-  return verifiedSummarySnapshot(metadata.statSnapshot || metadata.gearStatSnapshot || null)
+  const snapshot = verifiedSummarySnapshot(metadata.statSnapshot || metadata.gearStatSnapshot || null)
+  const storedSignature = cleanSummaryText(metadata.statSnapshotSignature || '')
+  if (snapshot && storedSignature && expectedSignature && storedSignature !== expectedSignature) return null
+  return snapshot
 }
 
 function statSnapshotFromAnalysis(payload) {
@@ -123,8 +138,9 @@ function summaryMetricValue(row, fallback) {
   return value || fallback
 }
 
-function summaryMetricPercent(row) {
-  if (!row || typeof row !== 'object') return '待计算'
+function summaryMetricPercent(row, fallback) {
+  const fallbackText = fallback || SUMMARY_STAT_PENDING_TEXT.pending
+  if (!row || typeof row !== 'object') return fallbackText
   const converted = cleanSummaryText(row && row.convertedValue)
   if (converted) return converted
   const raw = Number(row && row.convertedRawValue)
@@ -132,19 +148,20 @@ function summaryMetricPercent(row) {
     const rounded = Math.round(raw * 10) / 10
     return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}%`
   }
-  return '待计算'
+  return fallbackText
 }
 
-function summaryStatPanelFromSnapshot(snapshot) {
+function summaryStatPanelFromSnapshot(snapshot, pendingText = SUMMARY_STAT_PENDING_TEXT.pending) {
   const source = verifiedSummarySnapshot(snapshot)
   const secondary = Array.isArray(source && source.secondary) ? source.secondary : []
   const primary = source && source.primary ? source.primary : null
+  const fallbackText = source ? SUMMARY_STAT_PENDING_TEXT.pending : pendingText
   return {
     statStatus: source ? 'verified' : 'pending',
     primary: {
       key: cleanSummaryText(primary && primary.key) || 'primary',
       label: cleanSummaryText(primary && primary.label) || '主属性',
-      valueText: summaryMetricValue(primary, '待计算')
+      valueText: summaryMetricValue(primary, fallbackText)
     },
     secondaryRows: SUMMARY_SECONDARY_STATS.map((definition) => {
       const row = secondary.find((item) => item && item.key === definition.key) || null
@@ -152,14 +169,25 @@ function summaryStatPanelFromSnapshot(snapshot) {
         key: definition.key,
         label: cleanSummaryText(row && row.label) || definition.label,
         valueText: summaryMetricValue(row, ''),
-        percentText: summaryMetricPercent(row)
+        percentText: summaryMetricPercent(row, fallbackText)
       }
     })
   }
 }
 
-function summaryStatPanelFromTemplate(template) {
-  return summaryStatPanelFromSnapshot(statSnapshotFromTemplate(template))
+function summaryPendingTextForSelection(selection, fallbackText = SUMMARY_STAT_PENDING_TEXT.pending) {
+  if (!selection || !selection.selectedGearTemplate) return SUMMARY_STAT_PENDING_TEXT.missingGear
+  if (!selection.selectedTalentTemplate) return SUMMARY_STAT_PENDING_TEXT.missingTalent
+  return fallbackText
+}
+
+function summaryStatPanelForSelection(selection, fallbackText = SUMMARY_STAT_PENDING_TEXT.pending) {
+  const request = summaryStatsRequestForSelection(selection, { ignoreSnapshot: true })
+  const snapshot = statSnapshotFromTemplate(
+    selection && selection.selectedGearTemplate,
+    request ? summaryStatsRequestSignature(request) : ''
+  )
+  return summaryStatPanelFromSnapshot(snapshot, snapshot ? SUMMARY_STAT_PENDING_TEXT.pending : summaryPendingTextForSelection(selection, fallbackText))
 }
 
 function summaryStatPanelFromAnalysis(payload, fallbackTemplate) {
@@ -173,22 +201,49 @@ function structuredGearTemplateRaw(template) {
   return metadata.gearSnapshot ? JSON.stringify(metadata.gearSnapshot) : ''
 }
 
-function summaryStatsRequestForSelection(data) {
+function summaryStatsRequestForSelection(data, options = {}) {
   const gearTemplate = data && data.selectedGearTemplate
   const talentTemplate = data && data.selectedTalentTemplate
-  if (!gearTemplate || !talentTemplate || statSnapshotFromTemplate(gearTemplate)) return null
+  if (!gearTemplate || !talentTemplate) return null
   const rawString = structuredGearTemplateRaw(gearTemplate)
   if (!rawString) return null
   const metadata = gearTemplate.metadata && typeof gearTemplate.metadata === 'object' ? gearTemplate.metadata : {}
-  return {
+  const request = {
     classKey: data.selectedClassKey || gearTemplate.classKey || talentTemplate.classKey || 'mage',
     specKey: gearTemplate.specKey || talentTemplate.specKey || 'arcane',
+    raceKey: data.selectedRaceKey || '',
     level: Number(metadata.maxLevel) || 90,
     scenarioKey: data.selectedScenarioKey || gearTemplate.scenarioKey || 'single',
     talents: talentTemplate.rawString || '',
     rawString,
     metadata: metadata.gearSnapshot ? { gearSnapshot: metadata.gearSnapshot } : {}
   }
+  if (!options.ignoreSnapshot && statSnapshotFromTemplate(gearTemplate, summaryStatsRequestSignature(request))) return null
+  return request
+}
+
+function templateWithStatSnapshot(template, snapshot, signature = '') {
+  const source = verifiedSummarySnapshot(snapshot)
+  if (!template || !source) return template || null
+  return {
+    ...template,
+    metadata: {
+      ...((template && template.metadata) || {}),
+      statSnapshot: source,
+      statSnapshotSignature: signature,
+      statSnapshotSource: source.statSource || 'simulationcraft_json'
+    }
+  }
+}
+
+function replaceTemplateById(templates, template) {
+  if (!template || !template.id) return templates || []
+  return (templates || []).map((item) => (item && item.id === template.id ? template : item))
+}
+
+function persistStatSnapshotTemplate(template) {
+  if (!template || typeof syncBuildTemplate !== 'function') return Promise.resolve(null)
+  return syncBuildTemplate(template).catch(() => null)
 }
 
 function templateClassKey(template) {
@@ -282,6 +337,7 @@ function snapshotSelection(data) {
   return {
     selectedClassKey: data.selectedClassKey || '',
     selectedRaceKey: data.selectedRaceKey || '',
+    selectedScenarioKey: data.selectedScenarioKey || 'single',
     selectedTalentTemplate: data.selectedTalentTemplate || null,
     selectedGearTemplate: data.selectedGearTemplate || null
   }
@@ -321,7 +377,13 @@ function buildTemplateListState(classSource, talentTemplates, gearTemplates, pre
     selectedGearTemplateIndex,
     selectedTalentTemplate,
     selectedGearTemplate,
-    summaryStatPanel: summaryStatPanelFromTemplate(selectedGearTemplate),
+    summaryStatPanel: summaryStatPanelForSelection({
+      selectedClassKey,
+      selectedRaceKey: raceState.selectedRaceKey,
+      selectedScenarioKey: previous.selectedScenarioKey || 'single',
+      selectedTalentTemplate,
+      selectedGearTemplate
+    }),
     emptyState: {
       class: classOptions.length ? '' : '暂无可选择职业',
       talent: templateEmptyText('talent', talentList),
@@ -400,21 +462,40 @@ Page({
   refreshSummaryStatsForSelection() {
     const request = summaryStatsRequestForSelection(this.data)
     if (!request) return Promise.resolve(null)
-    const signature = JSON.stringify(request)
+    const signature = summaryStatsRequestSignature(request)
     if (this.data.summaryStatsLoading || this.data.summaryStatsRequestSignature === signature) {
       return Promise.resolve(null)
     }
     this.setData({
       summaryStatsLoading: true,
-      summaryStatsRequestSignature: signature
+      summaryStatsRequestSignature: signature,
+      summaryStatPanel: summaryStatPanelForSelection(this.data, SUMMARY_STAT_PENDING_TEXT.loading)
     })
     return requestWebsimGearStats(request).then(({ payload }) => {
       if (this.data.summaryStatsRequestSignature !== signature) return payload
       const snapshot = verifiedSummarySnapshot(payload)
       if (snapshot) {
-        this.setData({ summaryStatPanel: summaryStatPanelFromSnapshot(snapshot) })
+        const nextGearTemplate = templateWithStatSnapshot(this.data.selectedGearTemplate, snapshot, signature)
+        this.setData({
+          selectedGearTemplate: nextGearTemplate,
+          gearTemplates: replaceTemplateById(this.data.gearTemplates, nextGearTemplate),
+          allGearTemplates: replaceTemplateById(this.data.allGearTemplates, nextGearTemplate),
+          summaryStatPanel: summaryStatPanelFromSnapshot(snapshot)
+        })
+        persistStatSnapshotTemplate(nextGearTemplate)
+      } else {
+        this.setData({
+          summaryStatPanel: summaryStatPanelForSelection(this.data, SUMMARY_STAT_PENDING_TEXT.unavailable)
+        })
       }
       return payload
+    }).catch(() => {
+      if (this.data.summaryStatsRequestSignature === signature) {
+        this.setData({
+          summaryStatPanel: summaryStatPanelForSelection(this.data, SUMMARY_STAT_PENDING_TEXT.unavailable)
+        })
+      }
+      return null
     }).finally(() => {
       if (this.data.summaryStatsRequestSignature === signature) {
         this.setData({ summaryStatsLoading: false })
@@ -532,6 +613,7 @@ Page({
     this.setData({
       selectedTalentTemplateIndex: index,
       selectedTalentTemplate: template,
+      summaryStatPanel: summaryStatPanelForSelection({ ...this.data, selectedTalentTemplate: template }),
       canConfirm: !!(this.data.selectedClassKey && template && this.data.selectedGearTemplate),
       canSubmitTask: false,
       taskSubmitted: false,
@@ -552,7 +634,7 @@ Page({
     this.setData({
       selectedGearTemplateIndex: index,
       selectedGearTemplate: template,
-      summaryStatPanel: summaryStatPanelFromTemplate(template),
+      summaryStatPanel: summaryStatPanelForSelection({ ...this.data, selectedGearTemplate: template }),
       canConfirm: !!(this.data.selectedClassKey && this.data.selectedTalentTemplate && template),
       canSubmitTask: false,
       taskSubmitted: false,

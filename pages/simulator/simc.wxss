@@ -130,6 +130,10 @@
   min-width: 0;
 }
 
+.selector-disabled {
+  opacity: 0.78;
+}
+
 .toolbar-picker {
   display: flex;
   align-items: center;
@@ -140,6 +144,15 @@
   background: #101214;
   gap: 10rpx;
   overflow: hidden;
+}
+
+.toolbar-picker-disabled {
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.toolbar-picker-disabled .picker-value {
+  color: rgba(255, 255, 255, 0.52);
 }
 
 .picker-value {

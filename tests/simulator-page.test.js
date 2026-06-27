@@ -290,8 +290,17 @@ test('simc page loads saved talent and gear templates with empty states', async 
   assert.equal(page.data.selectedGearTemplate, null)
   assert.equal(page.data.emptyState.gear, '尚未保存装备模板')
   assert.equal(page.data.emptyState.talent, '')
-  assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['待计算', '待计算', '待计算', '待计算'])
+  assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['缺装备', '缺装备', '缺装备', '缺装备'])
   assert.equal(page.data.canConfirm, false)
+})
+
+test('simc page keeps empty talent and gear template selectors compact', () => {
+  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
+
+  assert.match(wxml, /selector-picker selector-disabled[\s\S]*emptyState\.talent/)
+  assert.match(wxml, /selector-picker selector-disabled[\s\S]*emptyState\.gear/)
+  assert.doesNotMatch(wxml, /<view class="empty-state" wx:if="\{\{emptyState\.talent\}\}">/)
+  assert.doesNotMatch(wxml, /<view class="empty-state" wx:if="\{\{emptyState\.gear\}\}">/)
 })
 
 test('simc page derives the summary stat panel from verified gear stat snapshots', async () => {
@@ -359,6 +368,11 @@ test('simc page derives the summary stat panel from verified gear stat snapshots
 
 test('simc page refreshes summary stats for structured gear templates without cached snapshots', async () => {
   const requests = []
+  const syncedTemplates = []
+  let resolveStats
+  const statsResponse = new Promise((resolve) => {
+    resolveStats = resolve
+  })
   const structuredGearTemplate = {
     ...sampleGearTemplate,
     rawString: JSON.stringify({
@@ -376,7 +390,7 @@ test('simc page refreshes summary stats for structured gear templates without ca
     '../pages/builds/websim-api.js': {
       requestWebsimGearStats: (request) => {
         requests.push(request)
-        return Promise.resolve({ payload: { ...sampleGearStatSnapshot, blockers: [] }, fromFallback: false, error: '' })
+        return statsResponse
       }
     },
     '../pages/common/build-template-storage.js': {
@@ -386,7 +400,95 @@ test('simc page refreshes summary stats for structured gear templates without ca
         error: ''
       }),
       listBuildTemplates: () => [],
-      buildTemplateSummary: () => []
+      buildTemplateSummary: () => [],
+      syncBuildTemplate: (template) => {
+        syncedTemplates.push(template)
+        return Promise.resolve({ payload: { template, templates: [template] }, fromFallback: false, error: '' })
+      }
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+
+  const loadPromise = page.loadTemplateLists()
+  await flushPromises()
+
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0].classKey, 'mage')
+  assert.equal(requests[0].specKey, 'arcane')
+  assert.equal(requests[0].talents, sampleTalentTemplate.rawString)
+  assert.ok(requests[0].rawString.startsWith('{'))
+  assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['计算中', '计算中', '计算中', '计算中'])
+
+  resolveStats({ payload: { ...sampleGearStatSnapshot, blockers: [] }, fromFallback: false, error: '' })
+  await loadPromise
+  await flushPromises()
+  await flushPromises()
+
+  assert.equal(page.data.summaryStatPanel.primary.valueText, '12,345')
+  assert.equal(page.data.summaryStatPanel.secondaryRows[0].percentText, '28.6%')
+  assert.equal(syncedTemplates.length, 1)
+  assert.equal(syncedTemplates[0].metadata.statSnapshot.statStatus, 'verified')
+  assert.equal(page.data.selectedGearTemplate.metadata.statSnapshot.statStatus, 'verified')
+})
+
+test('simc page invalidates cached summary stats when the race changes', async () => {
+  const requests = []
+  let resolveStats
+  const statsResponse = new Promise((resolve) => {
+    resolveStats = resolve
+  })
+  const rawString = JSON.stringify({
+    schemaRevision: 'websim-gear-enhancement-snapshot-v1',
+    gearBySlot: { head: { slot: 'head', itemId: '1', id: '1', ilevel: 707, bonus_id: '12345' } },
+    enhancementBySlot: {}
+  })
+  const cachedRequest = {
+    classKey: 'mage',
+    specKey: 'arcane',
+    raceKey: 'troll',
+    level: 90,
+    scenarioKey: 'single',
+    talents: sampleTalentTemplate.rawString,
+    rawString,
+    metadata: {}
+  }
+  const structuredGearTemplate = {
+    ...sampleGearTemplate,
+    rawString,
+    metadata: {
+      maxLevel: 90,
+      statSnapshot: sampleGearStatSnapshot,
+      statSnapshotSignature: JSON.stringify(cachedRequest)
+    }
+  }
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: (request) => {
+        requests.push(request)
+        return statsResponse
+      }
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [structuredGearTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => [],
+      syncBuildTemplate: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
     },
     '../pages/simulator/simulator-api.js': {
       requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
@@ -401,13 +503,18 @@ test('simc page refreshes summary stats for structured gear templates without ca
   await page.loadTemplateLists()
   await flushPromises()
 
-  assert.equal(requests.length, 1)
-  assert.equal(requests[0].classKey, 'mage')
-  assert.equal(requests[0].specKey, 'arcane')
-  assert.equal(requests[0].talents, sampleTalentTemplate.rawString)
-  assert.ok(requests[0].rawString.startsWith('{'))
-  assert.equal(page.data.summaryStatPanel.primary.valueText, '12,345')
+  assert.equal(requests.length, 0)
   assert.equal(page.data.summaryStatPanel.secondaryRows[0].percentText, '28.6%')
+
+  page.selectRace({ detail: { value: 0 } })
+  await flushPromises()
+
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0].raceKey, 'human')
+  assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['计算中', '计算中', '计算中', '计算中'])
+
+  resolveStats({ payload: { ...sampleGearStatSnapshot, blockers: [] }, fromFallback: false, error: '' })
+  await flushPromises()
 })
 
 test('simc page reuses the same template payload for confirm and final submit', async () => {
