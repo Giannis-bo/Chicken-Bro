@@ -124,10 +124,13 @@ test('simc page uses a fixed saved-template workflow without chat composer', () 
   const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
   const css = fs.readFileSync('pages/simulator/simc.wxss', 'utf8')
 
-  assert.match(wxml, /picker[\s\S]*range="\{\{classOptions\}\}"[\s\S]*bindchange="selectClass"/)
-  assert.match(wxml, /picker[\s\S]*range="\{\{raceOptions\}\}"[\s\S]*bindchange="selectRace"/)
-  assert.match(wxml, /picker[\s\S]*range="\{\{talentTemplates\}\}"[\s\S]*bindchange="selectTalentTemplate"/)
-  assert.match(wxml, /picker[\s\S]*range="\{\{gearTemplates\}\}"[\s\S]*bindchange="selectGearTemplate"/)
+  assert.match(wxml, /data-selector="class"[\s\S]*bindtap="openSelectorSheet"/)
+  assert.match(wxml, /data-selector="race"[\s\S]*bindtap="openSelectorSheet"/)
+  assert.match(wxml, /data-selector="talent"[\s\S]*bindtap="openSelectorSheet"/)
+  assert.match(wxml, /data-selector="gear"[\s\S]*bindtap="openSelectorSheet"/)
+  assert.match(wxml, /selectorSheet\.visible/)
+  assert.match(wxml, /selectSelectorOption/)
+  assert.doesNotMatch(wxml, /<picker\b/)
   assert.match(wxml, /class="template-selector compact-selector class-selector"/)
   assert.match(wxml, /class="template-selector compact-selector"/)
   assert.match(wxml, /selector-row/)
@@ -135,6 +138,7 @@ test('simc page uses a fixed saved-template workflow without chat composer', () 
   assert.doesNotMatch(wxml, /picker-label/)
   assert.match(wxml, /picker-value/)
   assert.match(wxml, /template-selector/)
+  assert.doesNotMatch(wxml, /template-workspace/)
   assert.match(wxml, /talentTemplates/)
   assert.match(wxml, /gearTemplates/)
   assert.match(wxml, /scenarioOptions/)
@@ -169,6 +173,8 @@ test('simc page uses a fixed saved-template workflow without chat composer', () 
   assert.match(js, /selectedTalentTemplateIndex/)
   assert.match(js, /selectedGearTemplateIndex/)
   assert.match(js, /buildTemplatePayload\(/)
+  assert.match(js, /openSelectorSheet\(/)
+  assert.match(js, /selectSelectorOption\(/)
   assert.match(js, /mode:\s*'simcraft_template'/)
   assert.match(js, /buildTemplatePayload\(true,\s*false\)/)
   assert.match(js, /confirmOnly:\s*false/)
@@ -176,9 +182,14 @@ test('simc page uses a fixed saved-template workflow without chat composer', () 
   assert.match(js, /allowInsecureGuestRequest:\s*true/)
   assert.doesNotMatch(js, /mode:\s*'simcraft_agent'|sendChatMessage|sendChatContent|useQuickReply|buildPromptFromContext/)
   assert.match(css, /\.template-selector/)
+  assert.doesNotMatch(css, /\.template-workspace/)
+  assert.match(css, /\.template-hero \+ \.template-selector/)
   assert.match(css, /\.compact-selector/)
   assert.match(css, /\.selector-row/)
   assert.match(css, /\.toolbar-picker/)
+  assert.match(css, /\.selector-sheet-mask/)
+  assert.match(css, /\.selector-sheet/)
+  assert.match(css, /\.selector-sheet-option/)
   assert.doesNotMatch(css, /\.picker-label/)
   assert.match(css, /\.picker-value/)
   assert.match(css, /\.confirm-summary/)
@@ -191,6 +202,214 @@ test('simc page uses a fixed saved-template workflow without chat composer', () 
   assert.match(css, /\.blocked-panel/)
   assert.doesNotMatch(css, /\.class-option|\.template-option/)
   assert.doesNotMatch(css, /\.chat-composer|\.chat-row-user|\.quick-reply/)
+})
+
+test('simc action buttons avoid native loading overlay flicker', () => {
+  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
+  const css = fs.readFileSync('pages/simulator/simc.wxss', 'utf8')
+  const pageBlock = (css.match(/\.simc-page\s*\{[^}]*\}/) || [''])[0]
+  const actionBarBlock = (css.match(/\.action-bar\s*\{[^}]*\}/) || [''])[0]
+
+  assert.doesNotMatch(wxml, /<picker\b/)
+  assert.doesNotMatch(wxml, /<scroll-view\b/)
+  assert.doesNotMatch(wxml, /<button\b/)
+  assert.doesNotMatch(wxml, /\sloading="\{\{(?:confirming|submittingTask)\}\}"/)
+  assert.doesNotMatch(wxml, /type="list"/)
+  assert.doesNotMatch(wxml, /template-workspace/)
+  assert.match(wxml, /button-spinner/)
+  assert.match(wxml, /校验中/)
+  assert.match(wxml, /提交中/)
+  assert.match(css, /(?:^|\n)page\s*\{[^}]*background:\s*#060606/)
+  assert.doesNotMatch(css, /\.template-workspace/)
+  assert.match(pageBlock, /min-height:\s*100vh/)
+  assert.match(css, /\.template-hero \+ \.template-selector\s*\{[\s\S]*margin-top:\s*14rpx/)
+  assert.match(actionBarBlock, /position:\s*fixed/)
+  assert.match(actionBarBlock, /background:\s*#060606/)
+  assert.match(css, /\.button-spinner/)
+  assert.match(css, /@keyframes\s+button-spin/)
+})
+
+test('simc custom selector sheet applies race choices without native picker events', async () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: {
+          templates: type === 'talent'
+            ? [sampleTalentTemplate, warriorTalentTemplate]
+            : [sampleGearTemplate, warriorGearTemplate]
+        },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+  await page.loadTemplateLists()
+  await flushPromises()
+
+  page.openSelectorSheet({ currentTarget: { dataset: { selector: 'race' } } })
+  assert.equal(page.data.selectorSheet.visible, true)
+  assert.equal(page.data.selectorSheet.type, 'race')
+  assert.equal(page.data.selectorSheet.title, '选择种族')
+  assert.equal(page.data.selectorSheet.options[0].label, '人类')
+  assert.equal(page.data.selectorSheet.options.some((item) => item.selected && item.key === page.data.selectedRaceKey), true)
+
+  page.setData({
+    canSubmitTask: true,
+    taskSubmitted: true,
+    latestAnalysis: { agent: { status: 'template_ready' } }
+  })
+  page.selectSelectorOption({ currentTarget: { dataset: { index: 1 } } })
+
+  assert.equal(page.data.selectorSheet.visible, false)
+  assert.equal(page.data.selectedRaceKey, 'dwarf')
+  assert.equal(page.data.selectedRaceName, '矮人')
+  assert.equal(page.data.canSubmitTask, false)
+  assert.equal(page.data.taskSubmitted, false)
+  assert.equal(page.data.latestAnalysis, null)
+})
+
+test('simc page does not duplicate template loading on initial show', async () => {
+  let buildsHomeRequests = 0
+  let fetchTalentRequests = 0
+  let fetchGearRequests = 0
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => {
+        buildsHomeRequests += 1
+        return Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: false, error: '' })
+      }
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => {
+        if (type === 'talent') fetchTalentRequests += 1
+        if (type === 'gear') fetchGearRequests += 1
+        return Promise.resolve({
+          payload: {
+            templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplate]
+          },
+          fromFallback: false,
+          error: ''
+        })
+      },
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+
+  page.onLoad({})
+  page.onShow()
+  await flushPromises()
+  await flushPromises()
+
+  assert.equal(buildsHomeRequests, 1)
+  assert.equal(fetchTalentRequests, 1)
+  assert.equal(fetchGearRequests, 1)
+})
+
+test('simc page keeps local template state when remote template loading fails', async () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.reject(new Error('home timeout'))
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: () => Promise.reject(new Error('template timeout')),
+      listBuildTemplates: (type) => (type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplate]),
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+
+  await page.loadTemplateLists()
+  await flushPromises()
+
+  assert.equal(page.data.loadingTemplates, false)
+  assert.equal(page.data.fromFallback, true)
+  assert.match(page.data.requestError, /home timeout|template timeout/)
+  assert.equal(page.data.selectedClassKey, 'mage')
+  assert.equal(page.data.selectedTalentTemplate.id, 'talent-1')
+  assert.equal(page.data.selectedGearTemplate.id, 'gear-1')
+  assert.equal(page.data.canConfirm, true)
+})
+
+test('simc page ignores stale template responses after a newer selection', async () => {
+  let resolveHome
+  let resolveTalent
+  let resolveGear
+  const remoteHome = new Promise((resolve) => { resolveHome = resolve })
+  const remoteTalent = new Promise((resolve) => { resolveTalent = resolve })
+  const remoteGear = new Promise((resolve) => { resolveGear = resolve })
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => remoteHome
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => (type === 'talent' ? remoteTalent : remoteGear),
+      listBuildTemplates: (type) => (type === 'talent'
+        ? [sampleTalentTemplate, warriorTalentTemplate]
+        : [sampleGearTemplate, warriorGearTemplate]),
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+  const loading = page.loadTemplateLists()
+  assert.equal(page.data.selectedClassKey, 'warrior')
+
+  page.selectClass({ detail: { value: 0 } })
+  assert.equal(page.data.selectedClassKey, 'mage')
+
+  resolveHome({ payload: { classOptions: simcClassOptions }, fromFallback: false, error: '' })
+  resolveTalent({ payload: { templates: [warriorTalentTemplate] }, fromFallback: false, error: '' })
+  resolveGear({ payload: { templates: [warriorGearTemplate] }, fromFallback: false, error: '' })
+  await loading
+  await flushPromises()
+
+  assert.equal(page.data.selectedClassKey, 'mage')
+  assert.equal(page.data.selectedTalentTemplate && page.data.selectedTalentTemplate.id, 'talent-1')
+  assert.equal(page.data.selectedGearTemplate && page.data.selectedGearTemplate.id, 'gear-1')
+  assert.equal(page.data.canConfirm, true)
 })
 
 test('simc page defaults to the most recent template class and filters picker templates', async () => {
@@ -297,8 +516,8 @@ test('simc page loads saved talent and gear templates with empty states', async 
 test('simc page keeps empty talent and gear template selectors compact', () => {
   const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
 
-  assert.match(wxml, /selector-picker selector-disabled[\s\S]*emptyState\.talent/)
-  assert.match(wxml, /selector-picker selector-disabled[\s\S]*emptyState\.gear/)
+  assert.match(wxml, /data-selector="talent"[\s\S]*emptyState\.talent/)
+  assert.match(wxml, /data-selector="gear"[\s\S]*emptyState\.gear/)
   assert.doesNotMatch(wxml, /<view class="empty-state" wx:if="\{\{emptyState\.talent\}\}">/)
   assert.doesNotMatch(wxml, /<view class="empty-state" wx:if="\{\{emptyState\.gear\}\}">/)
 })
@@ -437,6 +656,75 @@ test('simc page refreshes summary stats for structured gear templates without ca
   assert.equal(syncedTemplates.length, 1)
   assert.equal(syncedTemplates[0].metadata.statSnapshot.statStatus, 'verified')
   assert.equal(page.data.selectedGearTemplate.metadata.statSnapshot.statStatus, 'verified')
+})
+
+test('simc page clears pending summary stat refresh when selection no longer has a stats request', async () => {
+  const requests = []
+  let resolveStats
+  const statsResponse = new Promise((resolve) => {
+    resolveStats = resolve
+  })
+  const structuredGearTemplate = {
+    ...sampleGearTemplate,
+    rawString: JSON.stringify({
+      schemaRevision: 'websim-gear-enhancement-snapshot-v1',
+      gearBySlot: { head: { slot: 'head', itemId: '1', id: '1', ilevel: 707, bonus_id: '12345' } },
+      enhancementBySlot: {}
+    }),
+    metadata: { maxLevel: 90 }
+  }
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: (request) => {
+        requests.push(request)
+        return statsResponse
+      }
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [structuredGearTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => [],
+      syncBuildTemplate: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+
+  await page.loadTemplateLists()
+  await flushPromises()
+
+  assert.equal(requests.length, 1)
+  assert.equal(page.data.summaryStatsLoading, true)
+
+  page.selectClass({ detail: { value: 2 } })
+
+  assert.equal(page.data.selectedClassKey, 'priest')
+  assert.equal(page.data.selectedGearTemplate, null)
+  assert.equal(page.data.summaryStatsRequestSignature, '')
+  assert.equal(page.data.summaryStatsLoading, false)
+
+  resolveStats({ payload: { ...sampleGearStatSnapshot, blockers: [] }, fromFallback: false, error: '' })
+  await flushPromises()
+  await flushPromises()
+
+  assert.equal(page.data.selectedClassKey, 'priest')
+  assert.equal(page.data.selectedGearTemplate, null)
+  assert.equal(page.data.summaryStatPanel.primary.valueText, '缺装备')
 })
 
 test('simc page explains blocked summary stat snapshots', async () => {
@@ -647,6 +935,94 @@ test('simc page reuses the same template payload for confirm and final submit', 
   assert.deepEqual(requests[1].options, { auth: true, allowInsecureGuestRequest: true })
 })
 
+test('simc page surfaces confirm request failures without leaving loading stuck', async () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.reject(new Error('confirm timeout'))
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+  await page.loadTemplateLists()
+  await flushPromises()
+
+  const result = await page.confirmTemplateSimulation()
+
+  assert.equal(result, null)
+  assert.equal(page.data.confirming, false)
+  assert.equal(page.data.canSubmitTask, false)
+  assert.equal(page.data.taskSubmitted, false)
+  assert.match(page.data.requestError, /confirm timeout/)
+  assert.deepEqual(page.data.blockedReasons, ['confirm timeout'])
+})
+
+test('simc page surfaces submit request failures while keeping retry available', async () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.reject(new Error('submit timeout'))
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const originalWx = global.wx
+  global.wx = { showToast() {} }
+  try {
+    const page = createPageInstance(pageDefinition)
+    await page.loadTemplateLists()
+    await flushPromises()
+    const confirmedPayload = page.buildTemplatePayload(true, false)
+    page.setData({
+      canSubmitTask: true,
+      confirmedPayload
+    })
+
+    const result = await page.submitConfirmedTask()
+
+    assert.equal(result, null)
+    assert.equal(page.data.submittingTask, false)
+    assert.equal(page.data.canSubmitTask, true)
+    assert.equal(page.data.taskSubmitted, false)
+    assert.equal(page.data.submittedTaskId, '')
+    assert.match(page.data.requestError, /submit timeout/)
+    assert.deepEqual(page.data.blockedReasons, ['submit timeout'])
+  } finally {
+    global.wx = originalWx
+  }
+})
+
 test('simc page exposes deterministic blocked reasons from template validation', () => {
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
     '../pages/common/build-template-storage.js': {
@@ -702,6 +1078,48 @@ test('simc page surfaces confirm preview report finding', () => {
 
   assert.equal(page.data.resultSummary, 'Template payload validated; confirmOnly did not execute SimC.')
   assert.match(wxml, /resultSummary/)
+})
+
+test('simc page stores only compact analysis state after validation', () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: () => Promise.resolve({ payload: { templates: [] }, fromFallback: true, error: '' }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+  page.applyAnalysisResult({
+    agent: { status: 'template_ready', canSubmitTask: true, validation: { passed: true, errors: [] } },
+    request: {
+      buildContext: {
+        details: {
+          gear: { simcItems: Array.from({ length: 16 }, (_, index) => `slot_${index}=item,id=${index}`) },
+          talents: { importCode: 'websim:very-large-talent-code' }
+        }
+      }
+    },
+    profile: 'head=item,id=1\n'.repeat(800),
+    report: {
+      topFindings: [{ text: 'Template payload validated; confirmOnly did not execute SimC.' }]
+    }
+  }, false, '')
+
+  assert.deepEqual(page.data.latestAnalysis, {
+    agent: {
+      status: 'template_ready'
+    }
+  })
+  assert.equal(page.data.canSubmitTask, true)
+  assert.equal(page.data.resultSummary, 'Template payload validated; confirmOnly did not execute SimC.')
 })
 
 test('smart analysis tab only keeps the chickenbro coach entry', () => {

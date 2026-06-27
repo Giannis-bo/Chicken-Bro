@@ -15703,6 +15703,43 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("class_talents=1001:1", executed_profile)
         self.assertIn("calculate_scale_factors=0", executed_profile)
 
+    def test_http_websim_gear_stats_accepts_websim_export_code_without_selected_nodes(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+        finally:
+            conn.close()
+        simc_bin = Path(self.tmp.name) / "fake-export-code-gear-stats-simc"
+        captured_profile = Path(self.tmp.name) / "export-code-gear-stats-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'STAT SNAPSHOT: Intellect=12345 Stamina=54321 Crit=2345 Haste=3456 Mastery=4567 Versatility=5678\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+
+        result = self.post_backend_json(
+            "/api/websim/gear/stats",
+            self.websim_encoder_payload({
+                "talents": (
+                    "websim:mage:arcane:spellslinger:"
+                    "simc-class-1001-mage-arcane:1,"
+                    "simc-spec-2001-mage-arcane:1,"
+                    "simc-hero-3001-mage-arcane-spellslinger:1"
+                ),
+                "talentState": {"selectedNodes": []},
+            }),
+        )
+
+        self.assertEqual(result["statStatus"], "verified", result.get("blockers"))
+        self.assertTrue(captured_profile.exists())
+        executed_profile = captured_profile.read_text(encoding="utf-8")
+        self.assertIn("class_talents=1001:1", executed_profile)
+        self.assertIn("spec_talents=2001:1", executed_profile)
+        self.assertIn("hero_talents=3001:1", executed_profile)
+
     def test_http_websim_gear_stats_prefers_simc_json_character_snapshot(self):
         conn = sqlite3.connect(self.db_path)
         try:

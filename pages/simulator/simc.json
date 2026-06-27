@@ -1,4 +1,6 @@
 {
+  "backgroundColor": "#060606",
+  "backgroundTextStyle": "dark",
   "usingComponents": {
     "navigation-bar": "/components/navigation-bar/navigation-bar"
   }

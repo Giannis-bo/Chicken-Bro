@@ -1880,6 +1880,70 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("talents=CAE_OFFICIAL_IMPORT_CODE", draft_profile)
         self.assertNotIn("class_talents=", draft_profile)
 
+    def test_simcraft_template_confirm_accepts_complete_gear_with_warnings(self):
+        payload = self.simc_template_payload(talent_raw="talents=CAE_OFFICIAL_IMPORT_CODE")
+        payload["templateContext"]["gear"]["status"] = "complete_with_warnings"
+        payload["templateContext"]["gear"]["statusLabel"] = "完整配置 · 来源待补"
+
+        analysis = self.backend.analyze_and_store_simulator_task(payload)
+
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertTrue(analysis["agent"]["canSubmitTask"])
+        self.assertNotIn("gear template must be complete", analysis["simulation"].get("error", ""))
+        self.assertEqual(len(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]), 16)
+
+    def test_simc_profile_validation_rejects_talent_line_entries_without_rank(self):
+        from server import simulator_payload
+
+        validation = simulator_payload.validate_agent_simc_profile(
+            "\n".join(
+                [
+                    'shaman="Generated_Elemental_Shaman"',
+                    "level=90",
+                    "race=tauren",
+                    "role=spell",
+                    "spec=elemental",
+                    "class_talents=127855:",
+                    "spec_talents=127856:1",
+                ]
+            )
+        )
+
+        self.assertFalse(validation["passed"])
+        self.assertIn("invalid class_talents entry: 127855:", validation["errors"])
+
+    def test_generated_profile_preserves_long_build_context_talent_lines(self):
+        from server import simulator_payload
+
+        class_line = (
+            "class_talents="
+            "127861:1/127856:1/127871:1/127880:1/127853:1/127877:1/"
+            "127864:1/127893:1/127890:1/127863:1/127888:1/127855:2/"
+            "127892:1/127851:1/136585:1/127910:1/127884:1/127909:1"
+        )
+        context = simulator_payload.normalize_build_context({
+            "specId": "shaman-elemental",
+            "className": "萨满祭司",
+            "specName": "元素",
+            "details": {
+                "talents": {
+                    "simcLines": [class_line],
+                    "encodingStatus": "encoded",
+                },
+            },
+        })
+
+        profile = simulator_payload.build_generated_simc_profile(
+            simulator_payload.spec_info_from_keys("shaman", "elemental"),
+            None,
+            context,
+            [],
+        )
+
+        self.assertEqual(context["details"]["talents"]["simcLines"], [class_line])
+        self.assertIn("127855:2", profile)
+        self.assertNotIn("127855:\n", profile)
+
     def test_simcraft_template_confirm_returns_deterministic_preview_report(self):
         self.seed_simc_template_websim_nodes()
         analysis = self.backend.analyze_and_store_simulator_task(self.simc_template_payload())
@@ -1948,6 +2012,38 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("calculate_scale_factors=1", executed_profile)
         self.assertEqual(analysis["request"]["profile"], executed_profile.strip())
         self.assertEqual(analysis["request"]["templateContext"]["talent"]["id"], "talent-template-1")
+
+    def test_simcraft_template_final_submit_does_not_save_failed_simc_task(self):
+        self.seed_simc_template_websim_nodes()
+        simc_bin = Path(self.tmp.name) / "fake-simc-template-final-failure"
+        captured_profile = Path(self.tmp.name) / "captured-template-final-failure-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'Error: Initialization error: bad profile\\n' >&2\n"
+            "exit 1\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        request_payload = self.simc_template_payload()
+        request_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device"})
+        try:
+            analysis = self.backend.analyze_and_store_simulator_task(request_payload)
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+
+        self.assertTrue(captured_profile.exists())
+        self.assertFalse(analysis.get("taskId"))
+        self.assertEqual(analysis["agent"]["status"], "simc_failed")
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
+        self.assertFalse(analysis["simulation"]["ran"])
+        self.assertIn("Initialization error", analysis["simulation"]["error"])
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            count = conn.execute("SELECT COUNT(*) FROM simulator_tasks").fetchone()[0]
+            user_count = conn.execute("SELECT COUNT(*) FROM wechat_users").fetchone()[0]
+        self.assertEqual(count, 0)
+        self.assertEqual(user_count, 0)
 
     def test_simc_agent_generates_template_from_natural_language(self):
         self.patch_simc_confirmation_llm(

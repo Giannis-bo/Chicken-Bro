@@ -20352,6 +20352,19 @@ def encode_websim_talents(conn, payload):
     encoding = blank_talent_encoding()
     external_code = external_talent_import_code(source)
     if not selected_rows:
+        parsed_export = parse_websim_talent_export_code(
+            source.get("websimExportCode") or source.get("talents") or source.get("talentImport") or ""
+        )
+        if parsed_export:
+            source = {
+                **source,
+                "classKey": source.get("classKey") or parsed_export.get("classKey") or "",
+                "specKey": source.get("specKey") or parsed_export.get("specKey") or "",
+                "heroKey": source.get("heroKey") or parsed_export.get("heroKey") or "",
+                "talentState": parsed_export.get("talentState") or {},
+            }
+            selected_rows = websim_selected_talent_nodes(source)
+    if not selected_rows:
         if external_code:
             encoding.update({
                 "status": "external",

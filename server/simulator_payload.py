@@ -31,6 +31,8 @@ except ImportError:
 
 DEFAULT_SIMC_VERSION_FILE = "/var/lib/wow-backend/simc-version.json"
 SIMC_AGENT_FORBIDDEN_KEYS = {"html", "json", "output", "save", "xml"}
+SIMC_AGENT_TALENT_LINE_KEYS = {"class_talents", "spec_talents", "hero_talents"}
+SIMC_AGENT_TALENT_ENTRY_RE = re.compile(r"^\d+:[1-9]\d*$")
 SIMC_AGENT_OFF_TOPIC_PATTERNS = [
     "代打",
     "卡bug",
@@ -745,6 +747,17 @@ def clean_context_list(values, limit=6):
     return [clean_context_value(item, 120) for item in values[:limit] if clean_context_value(item, 120)]
 
 
+def clean_context_simc_lines(values, limit=8):
+    if not isinstance(values, list):
+        return []
+    lines = []
+    for item in values[:limit]:
+        line = clean_context_value(item, 6000)
+        if line and "=" in line:
+            lines.append(line)
+    return lines
+
+
 def clean_context_rows(values, fields, limit=6):
     if not isinstance(values, list):
         return []
@@ -913,7 +926,7 @@ def normalize_build_context(value):
         "details": {
             "talents": {
                 "importCode": clean_context_value(talents.get("importCode"), 400),
-                "simcLines": clean_context_list(talents.get("simcLines"), 6),
+                "simcLines": clean_context_simc_lines(talents.get("simcLines"), 8),
                 "encodingStatus": clean_context_value(talents.get("encodingStatus"), 40),
                 "sourceName": clean_context_value(talents.get("sourceName"), 80),
                 "sourceUrl": clean_context_value(talents.get("sourceUrl"), 180),
@@ -938,7 +951,7 @@ def normalize_build_context(value):
                 "heroKey": clean_context_value(simulator_talent.get("heroKey"), 80),
                 "scenarioKey": clean_context_value(simulator_talent.get("scenarioKey"), 80),
                 "encodingStatus": clean_context_value(simulator_talent.get("encodingStatus"), 40),
-                "simcLines": clean_context_list(simulator_talent.get("simcLines"), 8),
+                "simcLines": clean_context_simc_lines(simulator_talent.get("simcLines"), 8),
                 "importCode": clean_context_value(simulator_talent.get("importCode"), 400),
                 "summary": clean_context_value(simulator_talent.get("summary"), 260),
                 "simcHint": clean_context_value(simulator_talent.get("simcHint"), 80),
@@ -1540,8 +1553,17 @@ def validate_agent_simc_profile(profile):
         key = stripped.split("=", 1)[0].strip().lower()
         if key in SIMC_AGENT_FORBIDDEN_KEYS:
             errors.append(f"forbidden simc output option: {key}")
+        if key in SIMC_AGENT_TALENT_LINE_KEYS:
+            value = stripped.split("=", 1)[1].strip()
+            entries = [entry.strip() for entry in value.split("/")]
+            if not entries or not any(entries):
+                errors.append(f"invalid {key}: missing talent entries")
+                continue
+            for entry in entries:
+                if not entry or not SIMC_AGENT_TALENT_ENTRY_RE.match(entry):
+                    errors.append(f"invalid {key} entry: {entry or '<empty>'}")
     has_talent_input = any(
-        line.strip().split("=", 1)[0].strip().lower() in {"talents", "class_talents", "spec_talents", "hero_talents"}
+        line.strip().split("=", 1)[0].strip().lower() in {"talents", *SIMC_AGENT_TALENT_LINE_KEYS}
         for line in text.splitlines()
         if "=" in line
     )
@@ -3024,6 +3046,7 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
     status = "template_ready" if validation["passed"] and confirm_only else (
         "simc_completed" if simulation.get("ran") else ("template_invalid" if not validation["passed"] else "simc_failed")
     )
+    can_submit_task = validation["passed"] if confirm_only else bool(validation["passed"] and simulation.get("ran"))
     agent = {
         "status": status,
         "round": 1,
@@ -3035,7 +3058,7 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
         "quickReplies": [],
         "draftProfile": draft_profile,
         "validation": validation,
-        "canSubmitTask": validation["passed"],
+        "canSubmitTask": can_submit_task,
         "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
         "scenario": scenario,
     }

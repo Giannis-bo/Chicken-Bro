@@ -2398,6 +2398,7 @@ SIMCRAFT_TEMPLATE_SCENARIOS = {
 }
 
 SIMCRAFT_TEMPLATE_ANALYSIS_TYPES = {"baseline", "stat_weights"}
+SIMCRAFT_TEMPLATE_READY_GEAR_STATUSES = {"complete", "complete_with_warnings"}
 
 
 def simcraft_template_record(source, template_type):
@@ -2570,7 +2571,7 @@ def prepare_simcraft_template_request(request_payload):
         and (talent_template["classKey"], talent_template["specKey"]) != (gear_template["classKey"], gear_template["specKey"])
     ):
         errors.append("template class/spec mismatch")
-    if gear_template["status"] != "complete":
+    if gear_template["status"] not in SIMCRAFT_TEMPLATE_READY_GEAR_STATUSES:
         errors.append("gear template must be complete")
 
     with db_connection() as conn:
@@ -2662,11 +2663,23 @@ def prepare_simcraft_template_request(request_payload):
     return prepared
 
 
+def should_store_simulator_task(request_payload, analysis):
+    if not isinstance(request_payload, dict) or not isinstance(analysis, dict):
+        return True
+    if request_payload.get("mode") != "simcraft_template":
+        return True
+    agent = analysis.get("agent") if isinstance(analysis.get("agent"), dict) else {}
+    simulation = analysis.get("simulation") if isinstance(analysis.get("simulation"), dict) else {}
+    return agent.get("status") == "simc_completed" and bool(simulation.get("ran"))
+
+
 def analyze_and_store_simulator_task(request_data, access_token=""):
     request_payload = dict(request_data or {})
     if request_payload.get("mode") == "simcraft_template":
         request_payload = prepare_simcraft_template_request(request_payload)
     analysis = analyze_simulator_request(request_payload)
+    if not should_store_simulator_task(request_payload, analysis):
+        return analysis
     user = authenticate_token(access_token)
     if not user and request_payload.get("saveTask"):
         user = guest_simulator_user(request_payload.get("guestId"))

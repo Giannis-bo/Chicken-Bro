@@ -58,6 +58,83 @@ const DEFAULT_RACE_BY_CLASS = {
   warrior: 'orc'
 }
 
+const SELECTOR_META = {
+  class: { title: '选择职业', kicker: '职业' },
+  race: { title: '选择种族', kicker: '种族' },
+  talent: { title: '选择天赋模板', kicker: '天赋模板' },
+  gear: { title: '选择装备模板', kicker: '装备模板' }
+}
+
+function emptySelectorSheet() {
+  return {
+    visible: false,
+    type: '',
+    title: '',
+    kicker: '',
+    options: [],
+    emptyText: ''
+  }
+}
+
+function templateSelectorDesc(template) {
+  const parts = [
+    cleanSummaryText(template && template.specName),
+    cleanSummaryText(template && template.heroLabel),
+    cleanSummaryText(template && template.status)
+  ].filter(Boolean)
+  return parts.join(' / ')
+}
+
+function selectorOptionsFor(type, data) {
+  if (type === 'class') {
+    return (data.classOptions || []).map((item, index) => ({
+      key: item.key || `class-${index}`,
+      label: item.name || item.key || '未命名职业',
+      desc: '',
+      selected: index === data.selectedClassIndex
+    }))
+  }
+  if (type === 'race') {
+    return (data.raceOptions || []).map((item, index) => ({
+      key: item.key || `race-${index}`,
+      label: item.name || item.key || '未命名种族',
+      desc: '',
+      selected: index === data.selectedRaceIndex
+    }))
+  }
+  if (type === 'talent') {
+    return (data.talentTemplates || []).map((item, index) => ({
+      key: item.id || `talent-${index}`,
+      label: item.title || item.name || '未命名天赋模板',
+      desc: templateSelectorDesc(item),
+      selected: index === data.selectedTalentTemplateIndex
+    }))
+  }
+  if (type === 'gear') {
+    return (data.gearTemplates || []).map((item, index) => ({
+      key: item.id || `gear-${index}`,
+      label: item.title || item.name || '未命名装备模板',
+      desc: templateSelectorDesc(item),
+      selected: index === data.selectedGearTemplateIndex
+    }))
+  }
+  return []
+}
+
+function selectorSheetFor(type, data) {
+  const meta = SELECTOR_META[type]
+  if (!meta) return emptySelectorSheet()
+  const options = selectorOptionsFor(type, data || {})
+  return {
+    visible: true,
+    type,
+    title: meta.title,
+    kicker: meta.kicker,
+    options,
+    emptyText: options.length ? '' : '暂无可选项'
+  }
+}
+
 function compactTemplate(template) {
   if (!template) return null
   return {
@@ -112,6 +189,27 @@ function verifiedSummarySnapshot(snapshot) {
 
 function summaryStatsRequestSignature(request) {
   return JSON.stringify(request || {})
+}
+
+function summaryStatsInvalidationState() {
+  return {
+    summaryStatsLoading: false,
+    summaryStatsRequestSignature: ''
+  }
+}
+
+function requestFailureMessage(error, fallbackText = 'request failed') {
+  return cleanSummaryText(error && error.message) || fallbackText
+}
+
+function compactAnalysisState(payload) {
+  const status = cleanSummaryText(((payload || {}).agent || {}).status)
+  if (!status) return null
+  return {
+    agent: {
+      status
+    }
+  }
 }
 
 function statSnapshotFromTemplate(template, expectedSignature = '') {
@@ -453,11 +551,15 @@ Page({
     requestError: '',
     fromFallback: true,
     summaryStatsLoading: false,
-    summaryStatsRequestSignature: ''
+    summaryStatsRequestSignature: '',
+    selectorSheet: emptySelectorSheet()
   },
 
   onLoad(options) {
     this.analyticsStartedAt = Date.now()
+    this.hasShownOnce = false
+    this.templateLoadRequestId = 0
+    this.selectionRevision = 0
     trackPageView(SIMC_PAGE_ROUTE, {
       source: options && options.from ? options.from : 'simulator'
     })
@@ -465,7 +567,12 @@ Page({
   },
 
   onShow() {
-    if (this.analyticsStartedAt) this.loadTemplateLists()
+    if (!this.analyticsStartedAt) return
+    if (!this.hasShownOnce) {
+      this.hasShownOnce = true
+      return
+    }
+    this.loadTemplateLists()
   },
 
   onUnload() {
@@ -520,6 +627,11 @@ Page({
   },
 
   loadTemplateLists() {
+    const requestId = (this.templateLoadRequestId || 0) + 1
+    this.templateLoadRequestId = requestId
+    const loadSelectionRevision = this.selectionRevision || 0
+    const isCurrentLoad = () => requestId === this.templateLoadRequestId
+    const isCurrentSelection = () => loadSelectionRevision === (this.selectionRevision || 0)
     const selection = snapshotSelection(this.data)
     const localTalentTemplates = normalizeTemplateList(listBuildTemplates('talent'))
     const localGearTemplates = normalizeTemplateList(listBuildTemplates('gear'))
@@ -533,6 +645,7 @@ Page({
     this.refreshSummaryStatsForSelection()
     return Promise.all([requestBuildsHome(), fetchBuildTemplates('talent'), fetchBuildTemplates('gear')])
       .then(([homeResult, talentResult, gearResult]) => {
+        if (!isCurrentLoad() || !isCurrentSelection()) return null
         const homePayload = homeResult.payload || fallbackPayload || {}
         const classOptions = Array.isArray(homePayload.classOptions) ? homePayload.classOptions : localClassOptions
         const talentTemplates = normalizeTemplateList((talentResult.payload || {}).templates || localTalentTemplates)
@@ -545,9 +658,18 @@ Page({
           requestError: homeResult.error || talentResult.error || gearResult.error || ''
         })
         this.refreshSummaryStatsForSelection()
+        return null
+      })
+      .catch((error) => {
+        if (!isCurrentLoad() || !isCurrentSelection()) return null
+        this.setData({
+          fromFallback: true,
+          requestError: cleanSummaryText(error && error.message) || 'template loading failed'
+        })
+        return null
       })
       .finally(() => {
-        this.setData({ loadingTemplates: false })
+        if (isCurrentLoad()) this.setData({ loadingTemplates: false })
       })
   },
 
@@ -556,7 +678,12 @@ Page({
     return templates.find((item) => item.id === id) || null
   },
 
+  markSelectionChanged() {
+    this.selectionRevision = (this.selectionRevision || 0) + 1
+  },
+
   refreshSelectionState() {
+    this.markSelectionChanged()
     const listState = buildTemplateListState(
       this.data.classOptions,
       this.data.allTalentTemplates.length ? this.data.allTalentTemplates : this.data.talentTemplates,
@@ -571,9 +698,34 @@ Page({
       confirmedPayload: null,
       blockedReasons: [],
       latestAnalysis: null,
-      summaryStatsRequestSignature: ''
+      ...summaryStatsInvalidationState()
     })
     this.refreshSummaryStatsForSelection()
+  },
+
+  openSelectorSheet(event) {
+    const type = String(((event.currentTarget || {}).dataset || {}).selector || '').trim()
+    const sheet = selectorSheetFor(type, this.data)
+    if (!sheet.type || !sheet.options.length) return
+    this.setData({ selectorSheet: sheet })
+  },
+
+  closeSelectorSheet() {
+    this.setData({ selectorSheet: emptySelectorSheet() })
+  },
+
+  selectSelectorOption(event) {
+    const index = Number(((event.currentTarget || {}).dataset || {}).index)
+    const type = this.data.selectorSheet && this.data.selectorSheet.type
+    const options = (this.data.selectorSheet && this.data.selectorSheet.options) || []
+    if (!Number.isInteger(index) || index < 0 || index >= options.length) return
+    this.setData({ selectorSheet: emptySelectorSheet() })
+    const pickerEvent = { detail: { value: index } }
+    if (type === 'class') return this.selectClass(pickerEvent)
+    if (type === 'race') return this.selectRace(pickerEvent)
+    if (type === 'talent') return this.selectTalentTemplate(pickerEvent)
+    if (type === 'gear') return this.selectGearTemplate(pickerEvent)
+    return null
   },
 
   selectClass(event) {
@@ -582,6 +734,7 @@ Page({
     const selectedClass = this.data.classOptions[index] || null
     const classKey = selectedClass ? selectedClass.key : ''
     if (!classKey) return
+    this.markSelectionChanged()
     const listState = buildTemplateListState(
       this.data.classOptions,
       this.data.allTalentTemplates,
@@ -596,7 +749,7 @@ Page({
       confirmedPayload: null,
       blockedReasons: [],
       latestAnalysis: null,
-      summaryStatsRequestSignature: ''
+      ...summaryStatsInvalidationState()
     })
     this.refreshSummaryStatsForSelection()
   },
@@ -606,6 +759,7 @@ Page({
     if (!Number.isInteger(index) || index < 0 || index >= this.data.raceOptions.length) return
     const selectedRace = this.data.raceOptions[index] || null
     if (!selectedRace || !selectedRace.key) return
+    this.markSelectionChanged()
     this.setData({
       selectedRaceIndex: index,
       selectedRaceKey: selectedRace.key,
@@ -615,7 +769,7 @@ Page({
       confirmedPayload: null,
       blockedReasons: [],
       latestAnalysis: null,
-      summaryStatsRequestSignature: ''
+      ...summaryStatsInvalidationState()
     })
     this.refreshSummaryStatsForSelection()
   },
@@ -626,6 +780,7 @@ Page({
     if (!Number.isInteger(index) || index < 0 || index >= this.data.talentTemplates.length) return
     const template = this.data.talentTemplates[index] || null
     if (template && templateClassKey(template) !== this.data.selectedClassKey) return
+    this.markSelectionChanged()
     this.setData({
       selectedTalentTemplateIndex: index,
       selectedTalentTemplate: template,
@@ -636,7 +791,7 @@ Page({
       confirmedPayload: null,
       blockedReasons: [],
       latestAnalysis: null,
-      summaryStatsRequestSignature: ''
+      ...summaryStatsInvalidationState()
     })
     this.refreshSummaryStatsForSelection()
   },
@@ -647,6 +802,7 @@ Page({
     if (!Number.isInteger(index) || index < 0 || index >= this.data.gearTemplates.length) return
     const template = this.data.gearTemplates[index] || null
     if (template && templateClassKey(template) !== this.data.selectedClassKey) return
+    this.markSelectionChanged()
     this.setData({
       selectedGearTemplateIndex: index,
       selectedGearTemplate: template,
@@ -657,7 +813,7 @@ Page({
       confirmedPayload: null,
       blockedReasons: [],
       latestAnalysis: null,
-      summaryStatsRequestSignature: ''
+      ...summaryStatsInvalidationState()
     })
     this.refreshSummaryStatsForSelection()
   },
@@ -665,6 +821,7 @@ Page({
   selectScenario(event) {
     const key = event.currentTarget.dataset.key || 'single'
     if (!SCENARIO_OPTIONS.some((item) => item.key === key)) return
+    this.markSelectionChanged()
     this.setData({
       selectedScenarioKey: key,
       canSubmitTask: false,
@@ -672,7 +829,7 @@ Page({
       confirmedPayload: null,
       blockedReasons: [],
       latestAnalysis: null,
-      summaryStatsRequestSignature: ''
+      ...summaryStatsInvalidationState()
     })
     this.refreshSummaryStatsForSelection()
   },
@@ -724,7 +881,7 @@ Page({
     const blockedReasons = this.blockedReasonsFromAnalysis(payload)
     const ready = !!(agent.canSubmitTask || agent.status === 'template_ready') && !blockedReasons.length
     this.setData({
-      latestAnalysis: payload || null,
+      latestAnalysis: compactAnalysisState(payload),
       fromFallback: !!fromFallback,
       requestError: error || '',
       blockedReasons,
@@ -751,6 +908,18 @@ Page({
     return requestSimulatorAnalysis(requestPayload).then(({ payload, fromFallback, error }) => {
       this.applyAnalysisResult(payload, fromFallback, error)
       return payload
+    }).catch((error) => {
+      const message = requestFailureMessage(error, 'confirm failed')
+      this.setData({
+        latestAnalysis: null,
+        fromFallback: true,
+        requestError: message,
+        blockedReasons: [message],
+        resultSummary: '',
+        canSubmitTask: false,
+        taskSubmitted: false
+      })
+      return null
     }).finally(() => {
       this.setData({ confirming: false })
     })
@@ -787,6 +956,23 @@ Page({
           wx.showToast({ title: saved ? '任务已提交' : '提交失败', icon: 'none' })
         }
         return payload
+      })
+      .catch((error) => {
+        const message = requestFailureMessage(error, 'submit failed')
+        this.setData({
+          latestAnalysis: null,
+          fromFallback: true,
+          requestError: message,
+          blockedReasons: [message],
+          resultSummary: '',
+          taskSubmitted: false,
+          submittedTaskId: '',
+          canSubmitTask: !!this.data.confirmedPayload && !!this.data.canSubmitTask
+        })
+        if (typeof wx !== 'undefined' && wx.showToast) {
+          wx.showToast({ title: '提交失败', icon: 'none' })
+        }
+        return null
       })
       .finally(() => {
         this.setData({ submittingTask: false })
