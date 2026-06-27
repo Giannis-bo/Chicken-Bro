@@ -369,8 +369,18 @@ class NewsBackendTest(unittest.TestCase):
             lines.append(",".join(parts))
         return "\n".join(lines)
 
-    def simc_template_payload(self, *, talent_raw=None, gear_raw=None, talent_spec="arcane", gear_spec="arcane", scenario="single", analysis_type="baseline"):
-        return {
+    def simc_template_payload(
+        self,
+        *,
+        talent_raw=None,
+        gear_raw=None,
+        talent_spec="arcane",
+        gear_spec="arcane",
+        scenario="single",
+        analysis_type="baseline",
+        race="",
+    ):
+        payload = {
             "mode": "simcraft_template",
             "confirmOnly": True,
             "saveTask": False,
@@ -403,6 +413,9 @@ class NewsBackendTest(unittest.TestCase):
                 },
             },
         }
+        if race:
+            payload["raceKey"] = race
+        return payload
 
     def official_discovered_article(self, article_id, day=19):
         return {
@@ -1680,6 +1693,20 @@ class NewsBackendTest(unittest.TestCase):
 
         self.assertIn("main_hand=bellamys_final_judgement,id=249277,ilevel=289,bonus_id=13654,enchant_id=3368", frost_profile)
         self.assertIn("main_hand=bellamys_final_judgement,id=249277,ilevel=289,bonus_id=13654,enchant_id=6245", unholy_profile)
+
+    def test_simcraft_template_confirm_uses_selected_race(self):
+        self.seed_simc_template_websim_nodes()
+
+        analysis = self.backend.analyze_and_store_simulator_task(
+            self.simc_template_payload(race="void_elf")
+        )
+        draft_profile = analysis["agent"]["draftProfile"]
+
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertEqual(analysis["request"]["raceKey"], "void_elf")
+        self.assertEqual(analysis["request"]["buildContext"]["raceKey"], "void_elf")
+        self.assertIn("race=void_elf", draft_profile)
+        self.assertNotIn("race=troll", draft_profile)
 
     def test_simcraft_template_confirm_serializes_structured_gear_enhancement_snapshot(self):
         self.seed_simc_template_websim_nodes()

@@ -11,6 +11,52 @@ const SCENARIO_OPTIONS = [
   { key: 'mythic_plus', title: '大秘境', desc: 'DungeonSlice 6 分钟，5 目标' }
 ]
 
+const RACE_OPTIONS = [
+  { key: 'human', name: '人类' },
+  { key: 'dwarf', name: '矮人' },
+  { key: 'night_elf', name: '暗夜精灵' },
+  { key: 'gnome', name: '侏儒' },
+  { key: 'draenei', name: '德莱尼' },
+  { key: 'worgen', name: '狼人' },
+  { key: 'pandaren_alliance', name: '联盟熊猫人' },
+  { key: 'void_elf', name: '虚空精灵' },
+  { key: 'lightforged_draenei', name: '光铸德莱尼' },
+  { key: 'dark_iron_dwarf', name: '黑铁矮人' },
+  { key: 'kul_tiran', name: '库尔提拉斯人' },
+  { key: 'mechagnome', name: '机械侏儒' },
+  { key: 'orc', name: '兽人' },
+  { key: 'undead', name: '亡灵' },
+  { key: 'tauren', name: '牛头人' },
+  { key: 'troll', name: '巨魔' },
+  { key: 'blood_elf', name: '血精灵' },
+  { key: 'goblin', name: '地精' },
+  { key: 'pandaren_horde', name: '部落熊猫人' },
+  { key: 'nightborne', name: '夜之子' },
+  { key: 'highmountain_tauren', name: '至高岭牛头人' },
+  { key: 'maghar_orc', name: '玛格汉兽人' },
+  { key: 'zandalari_troll', name: '赞达拉巨魔' },
+  { key: 'vulpera', name: '狐人' },
+  { key: 'pandaren', name: '熊猫人' },
+  { key: 'dracthyr', name: '龙希尔' },
+  { key: 'earthen', name: '土灵' }
+]
+
+const DEFAULT_RACE_BY_CLASS = {
+  deathknight: 'orc',
+  demonhunter: 'night_elf',
+  druid: 'night_elf',
+  evoker: 'dracthyr',
+  hunter: 'orc',
+  mage: 'troll',
+  monk: 'pandaren',
+  paladin: 'human',
+  priest: 'void_elf',
+  rogue: 'blood_elf',
+  shaman: 'tauren',
+  warlock: 'orc',
+  warrior: 'orc'
+}
+
 function compactTemplate(template) {
   if (!template) return null
   return {
@@ -98,6 +144,25 @@ function classIndexFor(classOptions, classKey) {
   return (classOptions || []).findIndex((item) => item.key === key)
 }
 
+function raceIndexFor(raceOptions, raceKey) {
+  const key = String(raceKey || '').trim()
+  if (!key) return -1
+  return (raceOptions || []).findIndex((item) => item.key === key)
+}
+
+function raceStateForClass(classKey, previousRaceKey = '') {
+  const defaultRaceKey = DEFAULT_RACE_BY_CLASS[String(classKey || '').trim()] || 'troll'
+  const selectedRaceKey = raceIndexFor(RACE_OPTIONS, previousRaceKey) >= 0 ? previousRaceKey : defaultRaceKey
+  const selectedRaceIndex = Math.max(0, raceIndexFor(RACE_OPTIONS, selectedRaceKey))
+  const selectedRace = RACE_OPTIONS[selectedRaceIndex] || RACE_OPTIONS[0]
+  return {
+    raceOptions: RACE_OPTIONS,
+    selectedRaceIndex,
+    selectedRaceKey: selectedRace ? selectedRace.key : '',
+    selectedRaceName: selectedRace ? selectedRace.name : ''
+  }
+}
+
 function templateIndexFor(templates, template) {
   if (!template || !template.id) return -1
   return (templates || []).findIndex((item) => item.id === template.id)
@@ -111,6 +176,7 @@ function templateEmptyText(type, filteredTemplates) {
 function snapshotSelection(data) {
   return {
     selectedClassKey: data.selectedClassKey || '',
+    selectedRaceKey: data.selectedRaceKey || '',
     selectedTalentTemplate: data.selectedTalentTemplate || null,
     selectedGearTemplate: data.selectedGearTemplate || null
   }
@@ -127,6 +193,7 @@ function buildTemplateListState(classSource, talentTemplates, gearTemplates, pre
     : (classIndexFor(classOptions, recentClassKey) >= 0 ? recentClassKey : '')
   const selectedClassIndex = selectedClassKey ? classIndexFor(classOptions, selectedClassKey) : 0
   const currentClass = selectedClassKey ? classOptions[selectedClassIndex] || null : null
+  const raceState = raceStateForClass(selectedClassKey, previous.selectedRaceKey)
   const talentList = filterTemplatesByClass(allTalentTemplates, selectedClassKey)
   const gearList = filterTemplatesByClass(allGearTemplates, selectedClassKey)
   const previousTalentIndex = templateIndexFor(talentList, previous.selectedTalentTemplate)
@@ -142,6 +209,7 @@ function buildTemplateListState(classSource, talentTemplates, gearTemplates, pre
     selectedClassIndex,
     selectedClassKey,
     selectedClassName: currentClass ? currentClass.name : '',
+    ...raceState,
     talentTemplates: talentList,
     gearTemplates: gearList,
     selectedTalentTemplateIndex,
@@ -165,9 +233,13 @@ Page({
     allTalentTemplates: [],
     allGearTemplates: [],
     classOptions: [],
+    raceOptions: RACE_OPTIONS,
     selectedClassIndex: 0,
     selectedClassKey: '',
     selectedClassName: '',
+    selectedRaceIndex: 0,
+    selectedRaceKey: 'troll',
+    selectedRaceName: '巨魔',
     talentTemplates: [],
     gearTemplates: [],
     selectedTalentTemplateIndex: 0,
@@ -292,6 +364,23 @@ Page({
     })
   },
 
+  selectRace(event) {
+    const index = Number((event.detail || {}).value)
+    if (!Number.isInteger(index) || index < 0 || index >= this.data.raceOptions.length) return
+    const selectedRace = this.data.raceOptions[index] || null
+    if (!selectedRace || !selectedRace.key) return
+    this.setData({
+      selectedRaceIndex: index,
+      selectedRaceKey: selectedRace.key,
+      selectedRaceName: selectedRace.name || selectedRace.key,
+      canSubmitTask: false,
+      taskSubmitted: false,
+      confirmedPayload: null,
+      blockedReasons: [],
+      latestAnalysis: null
+    })
+  },
+
   selectTalentTemplate(event) {
     if (!this.data.selectedClassKey) return
     const index = Number((event.detail || {}).value)
@@ -348,6 +437,8 @@ Page({
       confirmOnly,
       saveTask,
       classKey: this.data.selectedClassKey,
+      raceKey: this.data.selectedRaceKey,
+      raceName: this.data.selectedRaceName,
       scenarioKey: this.data.selectedScenarioKey,
       analysisType: this.data.selectedAnalysisType,
       templateContext: {
@@ -403,6 +494,7 @@ Page({
     this.setData({ confirming: true, confirmedPayload: requestPayload, blockedReasons: [] })
     trackEvent('simc_template_confirm', {
       classKey: requestPayload.classKey,
+      raceKey: requestPayload.raceKey,
       scenarioKey: requestPayload.scenarioKey,
       analysisType: requestPayload.analysisType,
       talentTemplateId: requestPayload.templateContext.talent.id,
@@ -428,6 +520,7 @@ Page({
     this.setData({ submittingTask: true })
     trackEvent('simc_template_submit', {
       classKey: requestPayload.classKey,
+      raceKey: requestPayload.raceKey,
       scenarioKey: requestPayload.scenarioKey,
       analysisType: requestPayload.analysisType,
       talentTemplateId: requestPayload.templateContext.talent.id,

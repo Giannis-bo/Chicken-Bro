@@ -393,10 +393,52 @@ def build_simc_agent_spec_patterns():
 SIMC_AGENT_CLASS_PATTERNS = build_simc_agent_class_patterns()
 SIMC_AGENT_SPEC_PATTERNS = build_simc_agent_spec_patterns()
 SIMC_AGENT_CLASS_KEYS = {entry["key"] for entry in SIMC_AGENT_CLASS_REGISTRY}
+SIMC_PROFILE_RACE_KEYS = {
+    "blood_elf",
+    "dark_iron_dwarf",
+    "draenei",
+    "dracthyr",
+    "dwarf",
+    "earthen",
+    "gnome",
+    "goblin",
+    "highmountain_tauren",
+    "human",
+    "kul_tiran",
+    "lightforged_draenei",
+    "maghar_orc",
+    "mechagnome",
+    "night_elf",
+    "nightborne",
+    "orc",
+    "pandaren",
+    "pandaren_alliance",
+    "pandaren_horde",
+    "tauren",
+    "troll",
+    "undead",
+    "void_elf",
+    "vulpera",
+    "worgen",
+    "zandalari_troll",
+}
+SIMC_PROFILE_RACE_ALIASES = {
+    "draenai": "draenei",
+}
 SIMC_AGENT_DEFAULT_RACE_BY_CLASS = {
+    "deathknight": "orc",
     "demonhunter": "night_elf",
+    "druid": "night_elf",
     "evoker": "dracthyr",
+    "hunter": "orc",
+    "mage": "troll",
+    "monk": "pandaren",
     "paladin": "human",
+    "priest": "void_elf",
+    "rogue": "blood_elf",
+    "shaman": "tauren",
+    "warlock": "orc",
+    "warrior": "orc",
 }
 SIMC_AGENT_SPEC_BY_KEY = {
     f'{entry["key"]}-{spec["key"]}': {
@@ -687,6 +729,16 @@ def clean_context_value(value, limit=240):
     return str(value or "").strip()[:limit]
 
 
+def normalize_simc_race(value):
+    key = re.sub(r"[^a-z0-9_]+", "_", str(value or "").strip().lower()).strip("_")
+    key = SIMC_PROFILE_RACE_ALIASES.get(key, key)
+    return key if key in SIMC_PROFILE_RACE_KEYS else ""
+
+
+def default_simc_race_for_class(class_key):
+    return SIMC_AGENT_DEFAULT_RACE_BY_CLASS.get(str(class_key or "").strip(), "troll")
+
+
 def clean_context_list(values, limit=6):
     if not isinstance(values, list):
         return []
@@ -835,6 +887,12 @@ def normalize_build_context(value):
     simulator_state = value.get("simulatorState") if isinstance(value.get("simulatorState"), dict) else {}
     simulator_talent = simulator_state.get("talent") if isinstance(simulator_state.get("talent"), dict) else {}
     simulator_gear = simulator_state.get("gear") if isinstance(simulator_state.get("gear"), dict) else {}
+    profile_options = simulator_state.get("profileOptions") if isinstance(simulator_state.get("profileOptions"), dict) else {}
+    race_key = normalize_simc_race(
+        first_present(value, ["raceKey", "race"])
+        or first_present(profile_options, ["raceKey", "race"])
+    )
+    race_name = clean_context_value(value.get("raceName") or profile_options.get("raceName"), 80)
     gear_items = clean_simc_gear_items(
         first_present(gear, ["simcItems", "selectedItems", "items"], [])
         or first_present(simulator_gear, ["selectedItems", "simcItems", "items"], [])
@@ -843,6 +901,8 @@ def normalize_build_context(value):
         "specId": clean_context_value(value.get("specId"), 80),
         "className": clean_context_value(value.get("className"), 40),
         "specName": clean_context_value(value.get("specName"), 40),
+        "raceKey": race_key,
+        "raceName": race_name,
         "role": clean_context_value(value.get("role"), 40),
         "activeQueryKey": clean_context_value(value.get("activeQueryKey"), 40),
         "activeQueryTitle": clean_context_value(value.get("activeQueryTitle"), 80),
@@ -868,6 +928,10 @@ def normalize_build_context(value):
             },
         },
         "simulatorState": {
+            "profileOptions": {
+                "raceKey": race_key,
+                "raceName": race_name,
+            },
             "talent": {
                 "selectedNodes": clean_context_rows(simulator_talent.get("selectedNodes"), ["id", "rank", "tree", "name"], 120),
                 "websimExportCode": clean_context_value(simulator_talent.get("websimExportCode"), 1200),
@@ -916,6 +980,15 @@ def build_context_talent_import_code(context):
     if not context:
         return ""
     return (((context.get("details") or {}).get("talents") or {}).get("importCode") or "").strip()
+
+
+def build_context_simc_race(context, class_key):
+    race = normalize_simc_race((context or {}).get("raceKey") or (context or {}).get("race"))
+    if race:
+        return race
+    profile_options = (((context or {}).get("simulatorState") or {}).get("profileOptions") or {})
+    race = normalize_simc_race(profile_options.get("raceKey") or profile_options.get("race"))
+    return race or default_simc_race_for_class(class_key)
 
 
 def build_context_talent_simc_lines(context):
@@ -968,11 +1041,11 @@ def build_simc_agent_missing_slots(source_profile, generated_profile, spec_info,
 def build_generated_simc_profile(spec_info, item_level, build_context=None, gear_items=None):
     if not spec_info:
         return ""
-    default_race = SIMC_AGENT_DEFAULT_RACE_BY_CLASS.get(spec_info["class"], "troll")
+    race = build_context_simc_race(build_context, spec_info["class"])
     lines = [
         f'{spec_info["class"]}="{spec_info["actor"]}"',
         f"level={int_env('WOW_SIMC_AGENT_DEFAULT_LEVEL', 90)}",
-        f"race={default_race}",
+        f"race={race}",
         f'role={spec_info["role"]}',
         f'spec={spec_info["spec"]}',
     ]
@@ -2900,6 +2973,8 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
         "runSimulation": False,
         "buildContext": build_context,
         "templateContext": template_context,
+        "raceKey": build_context.get("raceKey", "") if build_context else "",
+        "raceName": build_context.get("raceName", "") if build_context else "",
         "scenarioKey": str(source.get("scenarioKey") or "single").strip() or "single",
         "analysisType": intent,
         "confirmOnly": bool(source.get("confirmOnly")),

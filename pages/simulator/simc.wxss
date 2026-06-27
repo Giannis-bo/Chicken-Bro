@@ -111,7 +111,8 @@
   min-width: 0;
 }
 
-.class-selector .selector-title-group {
+.class-selector .selector-title-group,
+.race-selector .selector-title-group {
   width: 96rpx;
 }
 

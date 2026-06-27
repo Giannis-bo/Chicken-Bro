@@ -26,6 +26,19 @@
         </view>
       </view>
 
+      <view class="template-selector compact-selector race-selector">
+        <view class="selector-row">
+          <view class="selector-title-group">
+            <text class="section-title">种族</text>
+          </view>
+          <picker class="selector-picker" mode="selector" range="{{raceOptions}}" range-key="name" value="{{selectedRaceIndex}}" bindchange="selectRace">
+            <view class="toolbar-picker">
+              <text class="picker-value">{{selectedRaceName || '请选择种族'}}</text>
+            </view>
+          </picker>
+        </view>
+      </view>
+
       <view class="template-selector compact-selector">
         <view class="selector-row">
           <view class="selector-title-group">
@@ -85,6 +98,10 @@
         <view class="summary-row">
           <text class="summary-label">职业</text>
           <text class="summary-value">{{selectedClassName || '未选择'}}</text>
+        </view>
+        <view class="summary-row">
+          <text class="summary-label">种族</text>
+          <text class="summary-value">{{selectedRaceName || '未选择'}}</text>
         </view>
         <view class="summary-row">
           <text class="summary-label">天赋</text>

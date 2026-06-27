@@ -35,6 +35,7 @@ try:
         analyze_simulator_request,
         build_simulator_home_payload,
         clean_simc_gear_items,
+        normalize_simc_race,
         normalize_simc_slot,
         warcraftlogs_credentials_state,
     )
@@ -98,6 +99,7 @@ except ImportError:
         analyze_simulator_request,
         build_simulator_home_payload,
         clean_simc_gear_items,
+        normalize_simc_race,
         normalize_simc_slot,
         warcraftlogs_credentials_state,
     )
@@ -2545,6 +2547,8 @@ def prepare_simcraft_template_request(request_payload):
     gear_template = simcraft_template_record(template_context.get("gear"), "gear")
     scenario_key = clean_text(source.get("scenarioKey"), 64) or "single"
     analysis_type = clean_text(source.get("analysisType"), 64) or "baseline"
+    race_key = normalize_simc_race(source.get("raceKey") or source.get("race"))
+    race_name = clean_text(source.get("raceName"), 80)
     errors = []
     if scenario_key not in SIMCRAFT_TEMPLATE_SCENARIOS:
         errors.append(f"unsupported scenario: {scenario_key}")
@@ -2586,6 +2590,8 @@ def prepare_simcraft_template_request(request_payload):
         "specId": f'{talent_template.get("classKey")}-{talent_template.get("specKey")}',
         "className": talent_template.get("className") or talent_template.get("classKey"),
         "specName": talent_template.get("specName") or talent_template.get("specKey"),
+        "raceKey": race_key,
+        "raceName": race_name,
         "role": "",
         "activeQueryKey": "simcraft_template",
         "activeQueryTitle": "SimC 模板组合",
@@ -2611,6 +2617,10 @@ def prepare_simcraft_template_request(request_payload):
             "statWeights": {"stats": []},
         },
         "simulatorState": {
+            "profileOptions": {
+                "raceKey": race_key,
+                "raceName": race_name,
+            },
             "talent": {
                 "selectedNodes": talent_context.get("selectedNodes", []),
                 "websimExportCode": talent_context.get("websimExportCode", ""),
@@ -2632,6 +2642,8 @@ def prepare_simcraft_template_request(request_payload):
     prepared = dict(source)
     prepared.update({
         "mode": "simcraft_template",
+        "raceKey": race_key,
+        "raceName": race_name,
         "scenarioKey": scenario_key,
         "analysisType": analysis_type,
         "message": f"{build_context['specName']}{build_context['className']} · {scenario['label']} · {analysis_type}",
