@@ -322,6 +322,9 @@
     <view class="gear-enhancement-empty" wx:if="{{gearEnhancementSheet.emptyText}}">
       <text>{{gearEnhancementSheet.emptyText}}</text>
     </view>
+    <view class="gear-enhancement-warnings" wx:if="{{gearEnhancementSheet.warnings.length}}">
+      <text class="gear-enhancement-warning" wx:for="{{gearEnhancementSheet.warnings}}" wx:key="*this">{{item}}</text>
+    </view>
     <view class="gear-enhancement-blockers" wx:if="{{gearEnhancementSheet.blockers.length}}">
       <text class="gear-enhancement-blocker" wx:for="{{gearEnhancementSheet.blockers}}" wx:key="*this">{{item}}</text>
     </view>

@@ -2749,6 +2749,72 @@ test('gear enhancement sheet filters off-hand enchants by item type and hides cl
   assert.deepEqual(offhandWeaponLabels, ['朗多雷之锐'])
 })
 
+test('gear enhancement sheet warns death knights that ordinary weapon enchants override runeforge', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const selection = {
+    main_hand: {
+      slot: 'main_hand',
+      simcSlot: 'main_hand',
+      itemId: '249277',
+      id: '249277',
+      displayName: "Bellamy's Final Judgement",
+      weaponType: 'Two-Handed Sword',
+      ilevel: 289,
+      bonus_id: '13654',
+      simcReady: true,
+      modCapabilities: { hasSocket: false, canEnchant: true, canEmbellish: false }
+    }
+  }
+  const gearPayload = {
+    classKey: 'deathknight',
+    specKey: 'unholy',
+    slots: [{ slot: 'main_hand', simcSlot: 'main_hand', label: 'main_hand' }],
+    replacementCandidates: [
+      {
+        slot: 'main_hand',
+        simcSlot: 'main_hand',
+        label: 'main_hand',
+        items: [],
+        enchantOptions: [
+          {
+            id: 'ordinary-main-hand-enchant',
+            label: 'Ordinary Weapon Enchant',
+            displayLabel: 'Ordinary Weapon Enchant',
+            displayKind: 'name',
+            displayStatus: 'verified',
+            status: 'verified',
+            simcOptions: { enchant_id: '8039' },
+            payload: { displayStatus: 'verified', evidenceSource: 'wago_db2_spell_item_enchantment' }
+          }
+        ]
+      }
+    ],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'deathknight', websimSpecKey: 'unholy' },
+      selectedGearBySlot: selection,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.gearEnhancementSheet.activeEnchantRows.length, 0)
+  assert.match(JSON.stringify(page.data.gearEnhancementSheet.warnings), /DK runeforge/)
+})
+
 test('gear enhancement confirm prunes stale off-hand weapon enchant on held offhand', () => {
   const pageConfig = loadBuildsDetailPageConfig()
   const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))

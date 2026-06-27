@@ -23,6 +23,11 @@ except ImportError:
     except ImportError:
         run_codex_job = None
 
+try:
+    from .simc_profile_policy import dk_default_runeforge_enchant_id
+except ImportError:
+    from simc_profile_policy import dk_default_runeforge_enchant_id
+
 
 DEFAULT_SIMC_VERSION_FILE = "/var/lib/wow-backend/simc-version.json"
 SIMC_AGENT_FORBIDDEN_KEYS = {"html", "json", "output", "save", "xml"}
@@ -801,6 +806,25 @@ def build_simc_gear_lines(items):
     return lines
 
 
+def simc_profile_items_with_class_defaults(items, spec_info):
+    if not isinstance(spec_info, dict):
+        return items or []
+    result = []
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        next_item = dict(item)
+        default_runeforge = dk_default_runeforge_enchant_id(
+            spec_info.get("class"),
+            spec_info.get("spec"),
+            next_item.get("slot") or next_item.get("simcSlot"),
+        )
+        if default_runeforge and not next_item.get("enchant_id"):
+            next_item["enchant_id"] = default_runeforge
+        result.append(next_item)
+    return result
+
+
 def normalize_build_context(value):
     if not isinstance(value, dict):
         return None
@@ -959,7 +983,11 @@ def build_generated_simc_profile(spec_info, item_level, build_context=None, gear
         lines.append(f"talents={talent_code}")
     else:
         lines.extend(build_context_talent_simc_lines(build_context))
-    lines.extend(build_simc_gear_lines(gear_items or build_context_gear_items(build_context)))
+    profile_items = simc_profile_items_with_class_defaults(
+        gear_items or build_context_gear_items(build_context),
+        spec_info,
+    )
+    lines.extend(build_simc_gear_lines(profile_items))
     return "\n".join(lines)
 
 

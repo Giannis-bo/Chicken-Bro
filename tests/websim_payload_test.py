@@ -11872,6 +11872,110 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("天启符文", main_hand_labels)
         self.assertIn("朗多雷之锐", main_hand_labels)
 
+    def test_display_ready_enchants_hide_observed_frost_death_knight_runeforge(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            conn.executemany(
+                """
+                INSERT INTO websim_gear_mod_options
+                (id, option_type, name, applicable_slots_json, simc_options_json,
+                 status, payload_json, updated_at)
+                VALUES (?, 'enchant', ?, ?, ?, 'verified', ?, 'now')
+                """,
+                [
+                    (
+                        "observed-enchant-frost-runeforge",
+                        "Rune of the Fallen Crusader",
+                        json.dumps(["main_hand"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "3368"}, ensure_ascii=False),
+                        json.dumps(
+                            {
+                                "source": "observed_variant",
+                                "displayName": "Rune of the Fallen Crusader",
+                                "displayStatus": "verified",
+                                "evidenceSource": "simulationcraft_mid1_profile",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    ),
+                    (
+                        "observed-enchant-real-weapon",
+                        "Ordinary Weapon Enchant",
+                        json.dumps(["main_hand"], ensure_ascii=False),
+                        json.dumps({"enchant_id": "8039"}, ensure_ascii=False),
+                        json.dumps(
+                            {
+                                "source": "observed_variant",
+                                "displayName": "Ordinary Weapon Enchant",
+                                "displayStatus": "verified",
+                                "evidenceSource": "wago_db2_spell_item_enchantment",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    ),
+                ],
+            )
+            options = self.websim_payload.display_ready_gear_mod_options_by_slot(conn, "enchant")
+            coverage = self.websim_payload.gear_catalog_mod_option_coverage(conn)
+        finally:
+            conn.close()
+
+        main_hand_enchant_ids = {
+            option.get("simcOptions", {}).get("enchant_id")
+            for option in options["main_hand"]
+        }
+        main_hand_labels = [option["displayLabel"] for option in options["main_hand"]]
+        self.assertNotIn("Rune of the Fallen Crusader", main_hand_labels)
+        self.assertNotIn("3368", main_hand_enchant_ids)
+        self.assertIn("8039", main_hand_enchant_ids)
+        excluded_values = {
+            example.get("simcValue")
+            for example in coverage["enchant"].get("excludedExamples", [])
+        }
+        self.assertIn("3368", excluded_values)
+
+    def test_death_knight_serializer_blocks_ordinary_weapon_enchant_over_runeforge(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "ordinary-main-hand-enchant",
+                    "type": "enchant",
+                    "name": "Ordinary Weapon Enchant",
+                    "slots": ["main_hand"],
+                    "simcOptions": {"enchant_id": "8039"},
+                    "payload": {
+                        "source": "observed_variant",
+                        "displayName": "Ordinary Weapon Enchant",
+                        "displayStatus": "verified",
+                        "evidenceSource": "wago_db2_spell_item_enchantment",
+                    },
+                },
+            )
+            enhanced, readiness = self.websim_payload.merge_websim_gear_enhancements(
+                [
+                    {
+                        "slot": "main_hand",
+                        "itemId": "249277",
+                        "name": "Bellamy's Final Judgement",
+                        "weaponType": "Two-Handed Sword",
+                        "modCapabilities": {"canEnchant": True},
+                    }
+                ],
+                {"main_hand": {"enchant_id": "8039"}},
+                conn,
+                class_key="deathknight",
+                spec_key="unholy",
+            )
+        finally:
+            conn.close()
+
+        self.assertNotEqual(enhanced[0].get("enchant_id"), "8039")
+        self.assertTrue(any("DK runeforge" in blocker for blocker in readiness["blockers"]))
+
     def test_display_ready_enchants_hide_class_only_precombat_enchants(self):
         conn = sqlite3.connect(self.db_path)
         try:

@@ -21,6 +21,17 @@ from pathlib import Path
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
+try:
+    from .simc_profile_policy import (
+        dk_default_runeforge_enchant_id,
+        dk_ordinary_weapon_enchant_blocker,
+    )
+except ImportError:
+    from simc_profile_policy import (
+        dk_default_runeforge_enchant_id,
+        dk_ordinary_weapon_enchant_blocker,
+    )
+
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
@@ -242,6 +253,10 @@ GEAR_CONFIG_ENCHANT_EXCLUDED_CATEGORIES = {
     "temporary_enchant",
 }
 GEAR_CONFIG_ENCHANT_ID_POLICIES = {
+    "3368": {
+        "configCategory": "runeforge",
+        "exclusionReason": "DK runeforge observed on Frost Death Knight weapons, not a general gear enchant.",
+    },
     "6245": {
         "configCategory": "runeforge",
         "exclusionReason": "DK runeforge observed on weapons, not a general gear enchant.",
@@ -20901,13 +20916,17 @@ def merge_websim_gear_enhancements(items, raw_enhancements, conn=None, class_key
                 else:
                     blockers.append(reason)
         if enhancement.get("enchant_id"):
-            valid, reason = validate_enhancement_option(next_item, enhancement, "enchant")
-            if valid:
-                next_item["enchant_id"] = enhancement["enchant_id"]
-                if enhancement.get("enchantOptionId"):
-                    next_item["enchantOptionId"] = enhancement["enchantOptionId"]
+            blocker = dk_ordinary_weapon_enchant_blocker(class_key, slot, enhancement.get("enchant_id"))
+            if blocker:
+                blockers.append(f"{slot} {blocker}")
             else:
-                blockers.append(reason)
+                valid, reason = validate_enhancement_option(next_item, enhancement, "enchant")
+                if valid:
+                    next_item["enchant_id"] = enhancement["enchant_id"]
+                    if enhancement.get("enchantOptionId"):
+                        next_item["enchantOptionId"] = enhancement["enchantOptionId"]
+                else:
+                    blockers.append(reason)
         if enhancement.get("embellishment"):
             if item_builtin_embellishment_value(next_item):
                 blockers.append(f"{slot} embellishment incompatible with built-in embellishment")
@@ -20921,6 +20940,15 @@ def merge_websim_gear_enhancements(items, raw_enhancements, conn=None, class_key
                         next_item["embellishmentOptionId"] = enhancement["embellishmentOptionId"]
                 else:
                     blockers.append(reason)
+        built_in_enchant_blocker = dk_ordinary_weapon_enchant_blocker(class_key, slot, next_item.get("enchant_id"))
+        if built_in_enchant_blocker:
+            blockers.append(f"{slot} {built_in_enchant_blocker}")
+            next_item.pop("enchant_id", None)
+            next_item.pop("enchantOptionId", None)
+        default_runeforge = dk_default_runeforge_enchant_id(class_key, spec_key, slot)
+        if default_runeforge and not next_item.get("enchant_id"):
+            next_item["enchant_id"] = default_runeforge
+            next_item["runeforgeStatus"] = "default_verified"
         next_item["missingFields"] = gear_item_missing_fields(next_item)
         next_item["simcReady"] = gear_item_simc_ready(next_item)
         next_item.pop("_catalogEnhancementOptionsAttached", None)

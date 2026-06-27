@@ -1646,6 +1646,41 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("main_hand=template_main_hand,id=250015,ilevel=289,bonus_id=13534/6652,crafted_stats=32/49", draft_profile)
         self.assertEqual(len(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]), 16)
 
+    def test_generated_death_knight_template_profile_defaults_verified_runeforge(self):
+        from server import simulator_payload
+
+        frost_profile = simulator_payload.build_generated_simc_profile(
+            simulator_payload.spec_info_from_keys("deathknight", "frost"),
+            None,
+            {"details": {"talents": {"importCode": "DK_FROST_CODE"}}},
+            [
+                {
+                    "slot": "main_hand",
+                    "name": "bellamys_final_judgement",
+                    "id": "249277",
+                    "ilevel": "289",
+                    "bonus_id": "13654",
+                }
+            ],
+        )
+        unholy_profile = simulator_payload.build_generated_simc_profile(
+            simulator_payload.spec_info_from_keys("deathknight", "unholy"),
+            None,
+            {"details": {"talents": {"importCode": "DK_UNHOLY_CODE"}}},
+            [
+                {
+                    "slot": "main_hand",
+                    "name": "bellamys_final_judgement",
+                    "id": "249277",
+                    "ilevel": "289",
+                    "bonus_id": "13654",
+                }
+            ],
+        )
+
+        self.assertIn("main_hand=bellamys_final_judgement,id=249277,ilevel=289,bonus_id=13654,enchant_id=3368", frost_profile)
+        self.assertIn("main_hand=bellamys_final_judgement,id=249277,ilevel=289,bonus_id=13654,enchant_id=6245", unholy_profile)
+
     def test_simcraft_template_confirm_serializes_structured_gear_enhancement_snapshot(self):
         self.seed_simc_template_websim_nodes()
         from server import websim_payload

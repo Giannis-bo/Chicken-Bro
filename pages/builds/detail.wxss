@@ -1567,6 +1567,7 @@ button.gear-enhancement-option[disabled] {
 }
 
 .gear-enhancement-empty,
+.gear-enhancement-warnings,
 .gear-enhancement-blockers {
   margin-top: 16rpx;
 }
@@ -1582,6 +1583,14 @@ button.gear-enhancement-option[disabled] {
 }
 
 .gear-enhancement-blocker {
+  margin-top: 8rpx;
+  color: #d9a441;
+  font-size: 18rpx;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.gear-enhancement-warning {
   margin-top: 8rpx;
   color: #d9a441;
   font-size: 18rpx;

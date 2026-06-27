@@ -1452,13 +1452,38 @@ function enchantOptionAppliesToItem(option, item) {
   return offhandWeaponEnchantTypes.has(weaponType)
 }
 
-function enhancementOptionsForSlot(gearPayload, item, optionKey) {
+function rawEnhancementOptionsForSlot(gearPayload, item, optionKey) {
   const slot = item && (item.slot || item.simcSlot)
-  const options = uniqueEnhancementOptions([
+  return uniqueEnhancementOptions([
     ...((item && Array.isArray(item[optionKey])) ? item[optionKey] : []),
     ...gearGroupOptionsForSlot(gearPayload, slot, optionKey)
   ])
+}
+
+function isDeathKnightGearPayload(gearPayload) {
+  const key = cleanGearString(gearPayload && (gearPayload.classKey || gearPayload.websimClassKey)).toLowerCase().replace(/[^a-z0-9]+/g, '')
+  return key === 'deathknight' || key === 'dk'
+}
+
+function isWeaponEnchantSlot(slot) {
+  return slot === 'main_hand' || slot === 'off_hand'
+}
+
+function deathKnightRuneforgeWarningForItem(gearPayload, item) {
+  if (!isDeathKnightGearPayload(gearPayload)) return ''
+  const { slot } = gearItemTypeContext(item)
+  if (!isWeaponEnchantSlot(slot)) return ''
+  const options = rawEnhancementOptionsForSlot(gearPayload, item, 'enchantOptions')
+    .filter((option) => enchantOptionAppliesToItem(option, item))
+  if (!options.length || gearItemEnchantCapacity(item) <= 0) return ''
+  return 'DK runeforge: 死亡骑士默认使用符文熔铸；普通武器附魔会覆盖符文熔铸，当前默认隐藏。'
+}
+
+function enhancementOptionsForSlot(gearPayload, item, optionKey) {
+  const options = rawEnhancementOptionsForSlot(gearPayload, item, optionKey)
   if (optionKey === 'enchantOptions') {
+    const { slot } = gearItemTypeContext(item)
+    if (isDeathKnightGearPayload(gearPayload) && isWeaponEnchantSlot(slot)) return []
     return options.filter((option) => enchantOptionAppliesToItem(option, item))
   }
   if (optionKey === 'embellishmentOptions') {
@@ -1782,6 +1807,7 @@ function emptyGearEnhancementSheet() {
     embellishmentRows: [],
     embellishmentUsed: 0,
     embellishmentMax: gearEnhancementMax,
+    warnings: [],
     blockers: [],
     emptyText: ''
   }
@@ -1847,6 +1873,7 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
   const gemRows = []
   const enchantRows = []
   const embellishmentRows = []
+  const warnings = []
   const blockers = []
   if (embellishmentUsed > gearEnhancementMax) {
     blockers.push(`美化已超过上限 ${embellishmentUsed}/${gearEnhancementMax}`)
@@ -1866,6 +1893,8 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
     const socketOptions = enhancementOptionsForSlot(gearPayload, item, 'socketOptions')
     const enchantOptions = enhancementOptionsForSlot(gearPayload, item, 'enchantOptions')
     const embellishmentOptions = enhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions')
+    const runeforgeWarning = deathKnightRuneforgeWarningForItem(gearPayload, item)
+    if (runeforgeWarning && !warnings.includes(runeforgeWarning)) warnings.push(runeforgeWarning)
     if (socketOptions.length && itemSupportsEnhancement(item, 'gem', socketOptions)) {
       const row = enhancementRow(slot, item, socketOptions, selected, 'gem', (option, isSelected) => {
         if (isSelected) return false
@@ -1925,6 +1954,7 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
     embellishmentRows,
     embellishmentUsed,
     embellishmentMax: gearEnhancementMax,
+    warnings,
     blockers,
     emptyText
   }
