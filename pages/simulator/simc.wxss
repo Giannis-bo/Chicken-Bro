@@ -299,6 +299,15 @@
   line-height: 1.25;
 }
 
+.summary-stat-note {
+  display: block;
+  margin-top: 8rpx;
+  color: rgba(255, 176, 168, 0.9);
+  font-size: 19rpx;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 .blocked-panel {
   border-color: rgba(232, 92, 92, 0.38);
   background: rgba(232, 92, 92, 0.1);

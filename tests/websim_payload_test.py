@@ -15761,6 +15761,41 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("json=", captured_profile.read_text(encoding="utf-8"))
         self.assertNotIn("999999", json.dumps(result))
 
+    def test_http_websim_gear_stats_accepts_bonus_id_only_saved_snapshot_items(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+        finally:
+            conn.close()
+        simc_bin = Path(self.tmp.name) / "fake-bonus-only-gear-stats-simc"
+        captured_profile = Path(self.tmp.name) / "bonus-only-gear-stats-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'STAT SNAPSHOT: Intellect=12345 Stamina=54321 Crit=2345 Haste=3456 Mastery=4567 Versatility=5678\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        items = self.full_core_simc_gear_items()
+        for item in items:
+            if item["slot"] == "waist":
+                item.pop("ilevel", None)
+                item["sourceType"] = "crafted"
+                item["bonus_id"] = "1808/8960/12214"
+
+        result = self.post_backend_json(
+            "/api/websim/gear/stats",
+            self.websim_encoder_payload({"gearSelection": {"items": items}}),
+        )
+
+        self.assertEqual(result["statStatus"], "verified", result.get("blockers"))
+        self.assertTrue(captured_profile.exists())
+        profile = captured_profile.read_text(encoding="utf-8")
+        self.assertTrue(result["gearReadiness"]["fullReady"])
+        self.assertIn("waist=verified_waist,id=250008,bonus_id=1808/8960/12214", profile)
+        self.assertNotIn("waist=verified_waist,id=250008,ilevel=", profile)
+
     def test_http_websim_gear_stats_fake_snapshot_smoke_for_core_specs(self):
         specs = [
             ("mage", "frost", "Intellect", "intellect"),

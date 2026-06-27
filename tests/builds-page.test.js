@@ -3152,6 +3152,82 @@ test('gear community templates derive readable names from class spec hero and so
   assert.equal(page.data.activeGearCommunityTemplates[1].displaySourceName, 'Raider.IO 观测')
 })
 
+test('gear load preserves matched SimC-ready candidate evidence before saving templates', async () => {
+  const savedTemplates = []
+  const selectedGear = completeGearSelection()
+  selectedGear.waist = {
+    slot: 'waist',
+    simcSlot: 'waist',
+    itemId: '244611',
+    id: '244611',
+    displayName: 'Crafted waist from equipped set',
+    sourceType: 'crafted',
+    bonus_id: '1808/8960/12214',
+    simcReady: false,
+    missingFields: ['ilevel']
+  }
+  const simcReadyWaist = {
+    slot: 'waist',
+    simcSlot: 'waist',
+    itemId: '244611',
+    id: '244611',
+    name: 'world_tenders_barkclasp',
+    displayName: 'World Tender waist from SimC preset',
+    sourceType: 'simcPreset',
+    bonus_id: '1808/8960/12214',
+    simcReady: true,
+    missingFields: []
+  }
+  const gearPayload = {
+    classKey: 'shaman',
+    specKey: 'elemental',
+    maxLevel: 90,
+    gearSchemaRevision: 'websim-gear-simulator-v1',
+    slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    replacementCandidates: canonicalGearSlots.map((slot) => ({
+      slot,
+      simcSlot: slot,
+      label: slot,
+      items: slot === 'waist' ? [simcReadyWaist] : []
+    })),
+    equippedSet: selectedGear,
+    slotReadiness: {},
+    readiness: { fullReady: true },
+    communityTemplates: []
+  }
+  const pageConfig = loadBuildsDetailPageConfig({
+    savedTemplates,
+    requestWebsimGear: () => Promise.resolve({ payload: gearPayload, fromFallback: false, error: '' })
+  })
+  const page = {
+    data: {
+      selectedDetail: { className: '萨满祭司', specName: '元素', details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { className: '萨满祭司', title: '元素', specName: '元素', websimClassKey: 'shaman', websimSpecKey: 'elemental' },
+      selectedGearBySlot: {},
+      gearSelectionKey: '',
+      gearSlotRows: [],
+      gearSlotSheet: {},
+      gearCommunityTemplateSheet: { visible: false },
+      selectedGearTemplateScenarioIndex: 0
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.loadWebsimGearForSelection.call(page, { selectedSpec: page.data.selectedSpec })
+  await new Promise((resolve) => setImmediate(resolve))
+  await confirmGearTemplateSave(pageConfig, page)
+
+  assert.equal(savedTemplates.length, 1)
+  const snapshot = JSON.parse(savedTemplates[0].rawString)
+  assert.equal(snapshot.gearBySlot.waist.simcReady, true)
+  assert.equal(snapshot.gearBySlot.waist.sourceType, 'simcPreset')
+  assert.deepEqual(snapshot.gearBySlot.waist.missingFields || [], [])
+  assert.equal(snapshot.gearBySlot.waist.name, 'world_tenders_barkclasp')
+})
+
 test('gear detail marks backend fallback and blocks empty community imports', async () => {
   const toasts = []
   const pageConfig = loadBuildsDetailPageConfig({

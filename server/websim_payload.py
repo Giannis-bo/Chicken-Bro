@@ -17118,6 +17118,8 @@ def gear_item_missing_fields(item):
         missing.append("itemId")
     if item.get("id") and source_type in SIMC_READY_SOURCE_TYPES:
         return missing
+    if item.get("id") and item.get("bonus_id"):
+        return missing
     if item.get("id") and item.get("ilevel") and item.get("simcIlevelOnly"):
         return missing
     if source_type in {"verifiedLoot", "loot"}:

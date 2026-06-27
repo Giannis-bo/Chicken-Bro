@@ -439,6 +439,59 @@ test('simc page refreshes summary stats for structured gear templates without ca
   assert.equal(page.data.selectedGearTemplate.metadata.statSnapshot.statStatus, 'verified')
 })
 
+test('simc page explains blocked summary stat snapshots', async () => {
+  const structuredGearTemplate = {
+    ...sampleGearTemplate,
+    rawString: JSON.stringify({
+      schemaRevision: 'websim-gear-enhancement-snapshot-v1',
+      gearBySlot: { waist: { slot: 'waist', itemId: '244611', id: '244611', bonus_id: '1808/8960/12214' } },
+      enhancementBySlot: {}
+    }),
+    metadata: { maxLevel: 90 }
+  }
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: () => Promise.resolve({
+        payload: {
+          statStatus: 'blocked',
+          blockers: ['Missing core SimC gear slots: waist, feet.']
+        },
+        fromFallback: false,
+        error: ''
+      })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [structuredGearTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => [],
+      syncBuildTemplate: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+
+  await page.loadTemplateLists()
+  await flushPromises()
+
+  assert.equal(page.data.summaryStatPanel.noteText, '缺少可执行装备槽位：waist, feet')
+  assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['不可用', '不可用', '不可用', '不可用'])
+})
+
 test('simc page invalidates cached summary stats when the race changes', async () => {
   const requests = []
   let resolveStats

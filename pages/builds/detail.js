@@ -2361,6 +2361,31 @@ function matchingGearCandidateForItem(payload, slot, item) {
   return items.find((candidate) => normalizedGearItemId(candidate) === itemId) || null
 }
 
+function applySimcReadyCandidateEvidence(enriched, candidate, item) {
+  if (!candidate || !candidate.simcReady || (item && item.simcReady)) return enriched
+  ;[
+    'sourceType',
+    'source',
+    'sourceName',
+    'displaySourceName',
+    'name',
+    'variantSource',
+    'variantDifficultyKey',
+    'blockers',
+    'variantBlockers',
+    'missingFields',
+    'simcReady',
+    'simcIlevelOnly'
+  ].forEach((key) => {
+    if (['missingFields', 'blockers', 'variantBlockers'].includes(key)) {
+      if (Object.prototype.hasOwnProperty.call(candidate, key)) enriched[key] = candidate[key]
+      return
+    }
+    if (!gearValueMissing(candidate[key])) enriched[key] = candidate[key]
+  })
+  return enriched
+}
+
 function enrichedGearItemFromCandidates(payload, slot, item) {
   if (!item) return item
   const candidate = matchingGearCandidateForItem(payload, slot, item)
@@ -2402,7 +2427,7 @@ function enrichedGearItemFromCandidates(payload, slot, item) {
   if (gearSourceValueNeedsEnrichment(item.sourceType) && !gearSourceValueNeedsEnrichment(candidate.sourceType)) {
     enriched.sourceType = candidate.sourceType
   }
-  return enriched
+  return applySimcReadyCandidateEvidence(enriched, candidate, item)
 }
 
 function equippedSetToSelection(equippedSet, payload) {

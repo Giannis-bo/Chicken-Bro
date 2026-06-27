@@ -151,13 +151,25 @@ function summaryMetricPercent(row, fallback) {
   return fallbackText
 }
 
-function summaryStatPanelFromSnapshot(snapshot, pendingText = SUMMARY_STAT_PENDING_TEXT.pending) {
+function summaryStatBlockerText(payload) {
+  const blockers = Array.isArray(payload && payload.blockers) ? payload.blockers : []
+  const text = cleanSummaryText(blockers[0] || '')
+  if (!text) return ''
+  const missingSlots = text.match(/^Missing core SimC gear slots:\s*(.+?)\.?$/i)
+  if (missingSlots) return `缺少可执行装备槽位：${missingSlots[1]}`
+  if (/selected candidate item\(s\) are missing SimC fields/i.test(text)) return '部分装备缺少 SimC 字段'
+  if (/backend unavailable|missing api base url/i.test(text)) return '属性计算接口暂不可用'
+  return text
+}
+
+function summaryStatPanelFromSnapshot(snapshot, pendingText = SUMMARY_STAT_PENDING_TEXT.pending, noteText = '') {
   const source = verifiedSummarySnapshot(snapshot)
   const secondary = Array.isArray(source && source.secondary) ? source.secondary : []
   const primary = source && source.primary ? source.primary : null
   const fallbackText = source ? SUMMARY_STAT_PENDING_TEXT.pending : pendingText
   return {
     statStatus: source ? 'verified' : 'pending',
+    noteText: cleanSummaryText(noteText),
     primary: {
       key: cleanSummaryText(primary && primary.key) || 'primary',
       label: cleanSummaryText(primary && primary.label) || '主属性',
@@ -173,6 +185,10 @@ function summaryStatPanelFromSnapshot(snapshot, pendingText = SUMMARY_STAT_PENDI
       }
     })
   }
+}
+
+function summaryStatPanelFromBlockedPayload(payload, pendingText = SUMMARY_STAT_PENDING_TEXT.unavailable) {
+  return summaryStatPanelFromSnapshot(null, pendingText, summaryStatBlockerText(payload))
 }
 
 function summaryPendingTextForSelection(selection, fallbackText = SUMMARY_STAT_PENDING_TEXT.pending) {
@@ -485,14 +501,14 @@ Page({
         persistStatSnapshotTemplate(nextGearTemplate)
       } else {
         this.setData({
-          summaryStatPanel: summaryStatPanelForSelection(this.data, SUMMARY_STAT_PENDING_TEXT.unavailable)
+          summaryStatPanel: summaryStatPanelFromBlockedPayload(payload)
         })
       }
       return payload
     }).catch(() => {
       if (this.data.summaryStatsRequestSignature === signature) {
         this.setData({
-          summaryStatPanel: summaryStatPanelForSelection(this.data, SUMMARY_STAT_PENDING_TEXT.unavailable)
+          summaryStatPanel: summaryStatPanelFromBlockedPayload({ blockers: ['backend unavailable'] })
         })
       }
       return null

@@ -131,6 +131,7 @@
               <text class="summary-stat-label">{{item.label}}</text>
               <text class="summary-secondary-percent">{{item.percentText}}</text>
             </view>
+            <text class="summary-stat-note" wx:if="{{summaryStatPanel.noteText}}">{{summaryStatPanel.noteText}}</text>
           </view>
         </view>
       </view>
