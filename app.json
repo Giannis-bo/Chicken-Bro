@@ -10,6 +10,7 @@
     "pages/simulator/simulator",
     "pages/simulator/simc",
     "pages/simulator/chickenbro",
+    "pages/simulator/tasks",
     "pages/simulator/task-detail",
     "pages/profile/profile"
   ],

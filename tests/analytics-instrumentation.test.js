@@ -18,6 +18,7 @@ test('mini program pages emit the first-pass analytics event surface', () => {
     'pages/simulator/simulator.js',
     'pages/simulator/simc.js',
     'pages/simulator/wcl.js',
+    'pages/simulator/tasks.js',
     'pages/simulator/task-detail.js',
     'pages/common/analytics-client.js'
   ].map(read).join('\n')
@@ -47,6 +48,7 @@ test('mini program pages emit the first-pass analytics event surface', () => {
     'simc_template_confirm',
     'simc_template_submit',
     'wcl_submit',
+    'task_list_view',
     'task_detail_view'
   ].forEach((eventName) => {
     assert.match(files, new RegExp(eventName))

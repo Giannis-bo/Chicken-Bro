@@ -1,6 +1,101 @@
 const { requestSimulatorTaskDetail } = require('./simulator-api')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
+const DETAIL_SECONDARY_STATS = [
+  { key: 'crit', label: '暴击' },
+  { key: 'haste', label: '急速' },
+  { key: 'mastery', label: '精通' },
+  { key: 'versatility', label: '全能' }
+]
+
+function cleanDetailText(value) {
+  return String(value === undefined || value === null ? '' : value).trim()
+}
+
+function verifiedDetailStatSnapshot(snapshot) {
+  return snapshot && typeof snapshot === 'object' && snapshot.statStatus === 'verified' ? snapshot : null
+}
+
+function detailMetricValue(row) {
+  const value = cleanDetailText(row && row.value)
+  if (value) return value
+  const raw = row && row.rawValue
+  if (raw !== undefined && raw !== null && raw !== '') return cleanDetailText(raw)
+  return ''
+}
+
+function detailMetricPercent(row) {
+  const converted = cleanDetailText(row && row.convertedValue)
+  if (converted) return converted
+  const raw = Number(row && row.convertedRawValue)
+  if (Number.isFinite(raw)) {
+    const rounded = Math.round(raw * 10) / 10
+    return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}%`
+  }
+  return detailMetricValue(row)
+}
+
+function detailStatRows(snapshot) {
+  const source = verifiedDetailStatSnapshot(snapshot)
+  if (!source) return []
+  const rows = []
+  const primary = source.primary && typeof source.primary === 'object' ? source.primary : null
+  const primaryValue = detailMetricValue(primary)
+  if (primaryValue) {
+    rows.push({
+      key: cleanDetailText(primary && primary.key) || 'primary',
+      label: cleanDetailText(primary && primary.label) || '主属性',
+      valueText: primaryValue
+    })
+  }
+  const secondary = Array.isArray(source.secondary) ? source.secondary : []
+  DETAIL_SECONDARY_STATS.forEach((definition) => {
+    const row = secondary.find((item) => item && item.key === definition.key) || null
+    const valueText = detailMetricPercent(row)
+    if (valueText) {
+      rows.push({
+        key: definition.key,
+        label: cleanDetailText(row && row.label) || definition.label,
+        valueText
+      })
+    }
+  })
+  return rows
+}
+
+function firstVerifiedDetailStatSnapshot(...values) {
+  for (const value of values) {
+    const snapshot = verifiedDetailStatSnapshot(value)
+    if (snapshot) return snapshot
+  }
+  return null
+}
+
+function durationText(seconds) {
+  const value = Number(seconds || 0)
+  if (!Number.isFinite(value) || value <= 0) return ''
+  const minutes = Math.round(value / 60)
+  return minutes > 0 ? `${minutes}分钟` : `${value}秒`
+}
+
+function scenarioDisplayText(scenario) {
+  const source = scenario && typeof scenario === 'object' ? scenario : {}
+  const key = cleanDetailText(source.key)
+  const label = cleanDetailText(source.label)
+  const targets = Number(source.targets || 0)
+  if (key === 'mythic_plus' || targets > 1) return `大秘境 AOE ${targets || 5}目标`
+  if (key === 'single' || targets === 1) return `单体 ${targets || 1}目标`
+  return label || key
+}
+
+function scenarioMetaText(scenario) {
+  const source = scenario && typeof scenario === 'object' ? scenario : {}
+  return [
+    cleanDetailText(source.fightStyle),
+    durationText(source.durationSeconds)
+  ].filter(Boolean).join(' · ')
+}
+
 Page({
   data: {
     navTitle: '任务详情',
@@ -56,51 +151,59 @@ Page({
     const agent = analysis.agent || {}
     const simulation = analysis.simulation || {}
     const metrics = simulation.metrics || {}
-    const question = task.question || request.question || request.prompt || request.message || '未记录玩家问题'
-    const modeText = this.modeText(task.mode || request.mode || analysisRequest.mode || '')
-    const recommendations = (analysis.recommendations || task.recommendations || []).slice(0, 3)
-    const mythicPlusReference = analysis.mythicPlusReference || null
+    const simcReport = analysis.simcReport || {}
+    const simcReportResult = simcReport.result || {}
+    const simcReportBuild = simcReport.build || {}
+    const simcReportScenario = simcReport.scenario || {}
+    const mode = task.mode || request.mode || analysisRequest.mode || analysis.mode || ''
+    const modeText = this.modeText(mode)
+    const isSimcraftTemplateMode = mode === 'simcraft_template' || analysis.mode === 'simcraft_template'
+    const recommendations = isSimcraftTemplateMode
+      ? []
+      : (analysis.recommendations || task.recommendations || []).slice(0, 3)
     const buildContext = analysisRequest.buildContext || request.buildContext || null
     const isPreviewSimc = this.isPreviewSimc(task, request, analysisRequest, simulation)
-    const report = analysis.report || {}
-    const reportFindings = this.reportFindings(report)
-    const reportActions = this.reportTextList(report.nextActions)
-    const reportLimitations = this.reportTextList(report.limitations)
-    const simcDps = isPreviewSimc ? '' : (metrics.dps || '')
-    const simcMetricLabel = simulation.metricLabel || (isPreviewSimc ? '正式 SimC DPS' : 'DPS')
-    const simcUnitText = simulation.metricUnit || (isPreviewSimc ? '需要完整 /simc 导出' : '伤害/秒')
-    const simcDisplayValue = simcDps || (isPreviewSimc ? '未执行正式模拟' : '未解析')
-    const mythicPlusReferenceText = mythicPlusReference
-      ? (mythicPlusReference.comparisonText || `${mythicPlusReference.avgDps || ''} / ${mythicPlusReference.maxDps || ''}`)
-      : ''
-    const briefConclusion = isPreviewSimc
+    const simcDps = isPreviewSimc ? '' : (simcReportResult.dps || metrics.dps || '')
+    const simcMetricLabel = simcReportResult.metricLabel || simulation.metricLabel || (isPreviewSimc ? '正式 SimC DPS' : 'DPS')
+    const simcUnitText = simcReportResult.metricUnit || simulation.metricUnit || (isPreviewSimc ? '需要完整 /simc 导出' : '伤害/秒')
+    const simcDisplayValue = (isPreviewSimc ? '' : simcReportResult.dpsDisplay) || simcDps || (isPreviewSimc ? '未执行正式模拟' : '未解析')
+    const statSnapshot = firstVerifiedDetailStatSnapshot(
+      simcReportBuild.statSnapshot,
+      request.statSnapshot,
+      analysisRequest.statSnapshot,
+      (((buildContext || {}).details || {}).gear || {}).statSnapshot,
+      (((request.templateContext || {}).gear || {}).metadata || {}).statSnapshot,
+      (((analysisRequest.templateContext || {}).gear || {}).metadata || {}).statSnapshot
+    )
+    const statRows = detailStatRows(statSnapshot)
+    const scenarioSource = Object.keys(simcReportScenario).length
+      ? simcReportScenario
+      : { key: request.scenarioKey || analysisRequest.scenarioKey || '', targets: 0 }
+    const scenarioDisplay = scenarioDisplayText(scenarioSource)
+    const briefConclusion = simcReport.summary || (isPreviewSimc
       ? '已生成可执行 SimC 模板；未执行正式 SimC DPS 模拟。请提供完整 /simc 导出后再给出可用于对比的输出。'
       : (simcDps
           ? `SimC 已跑通，当前模板约 ${simcDps} DPS（${simcUnitText}）。`
-          : (recommendations[0] || (simulation.error ? `SimC 未产出可用 DPS：${simulation.error}` : '任务已记录，等待可用结果。')))
+          : (recommendations[0] || (simulation.error ? `SimC 未产出可用 DPS：${simulation.error}` : '任务已记录，等待可用结果。'))))
     return {
-      ...task,
-      question,
-      questionSummary: this.summarizeTaskQuestion(question),
-      heroTitle: this.heroTitle(modeText, buildContext),
+      taskId: task.taskId || task.id || '',
+      id: task.id || task.taskId || '',
+      mode,
+      createdAt: task.createdAt || '',
+      updatedAt: task.updatedAt || '',
+      heroTitle: simcReport.title || this.heroTitle(modeText, buildContext),
       modeText,
-      statusText: task.status || analysis.status || 'ready',
+      statusText: simcReport.statusText || task.status || analysis.status || 'ready',
       briefConclusion,
-      recommendations,
-      reportFindings,
-      reportActions,
-      reportLimitations,
-      hasReportExplanation: !!(reportFindings.length || reportActions.length || reportLimitations.length),
-      mythicPlusReference,
-      mythicPlusReferenceText,
-      buildContext,
-      buildContextText: this.buildContextText(buildContext),
-      stages: analysis.stages || [],
       simcDps,
       simcDisplayValue,
       simcMetricLabel,
       simcUnitText,
-      simcStatusText: isPreviewSimc ? '需完整 /simc' : (simulation.ran ? '已跑通' : (simulation.error ? '未跑通' : '待执行')),
+      simcStatusText: simcReport.statusText || (isPreviewSimc ? '需完整 /simc' : (simulation.ran ? '已跑通' : (simulation.error ? '未跑通' : '待执行'))),
+      hasRunContext: !!(scenarioDisplay || statRows.length),
+      scenarioDisplayText: scenarioDisplay,
+      scenarioMetaText: scenarioMetaText(scenarioSource),
+      statRows,
       createdAtText: task.createdAt || ''
     }
   },
@@ -112,31 +215,8 @@ Page({
       (task && task.profileSource === 'generated')
   },
 
-  reportTextList(values, limit = 5) {
-    if (!Array.isArray(values)) return []
-    return values
-      .map((item) => String(item || '').trim())
-      .filter(Boolean)
-      .slice(0, limit)
-  },
-
-  reportFindings(report) {
-    const findings = Array.isArray(report && report.topFindings) ? report.topFindings : []
-    return findings
-      .slice(0, 3)
-      .map((item) => {
-        const text = String((item && item.text) || '').trim()
-        const evidenceRefs = Array.isArray(item && item.evidenceRefs) ? item.evidenceRefs : []
-        const evidenceText = evidenceRefs
-          .map((ref) => String(ref || '').trim())
-          .filter(Boolean)
-          .join(' / ')
-        return text ? { text, evidenceText } : null
-      })
-      .filter(Boolean)
-  },
-
   modeText(mode) {
+    if (mode === 'simcraft_template') return 'SimC 模板'
     if (mode === 'simcraft_agent') return 'SimC 任务'
     if (mode === 'simcraft') return 'SimC 分析'
     if (mode === 'wcl') return 'WCL 分析'
@@ -147,43 +227,5 @@ Page({
     const context = buildContext || {}
     const specTitle = `${context.specName || ''}${context.className || ''}`.trim()
     return specTitle ? `${modeText} · ${specTitle}` : modeText
-  },
-
-  summarizeTaskQuestion(question) {
-    const lines = String(question || '')
-      .split(/\n+/)
-      .map((line) => line.replace(/^第\d+轮玩家：/, '').trim())
-      .filter(Boolean)
-    const summaryLines = []
-    lines.forEach((line) => {
-      if (/^(天赋导入代码|前端天赋模拟器已选择节点|天赋模拟摘要|装备候选|装备获取进度|装备下一步|属性趋势|样本窗口)：/.test(line)) return
-      if (/^[A-Za-z0-9+/=]{48,}$/.test(line)) return
-      summaryLines.push(line)
-    })
-    const summary = summaryLines.slice(0, 2).join('\n') || lines.slice(0, 1).join('\n')
-    return this.truncateText(summary || question, 120)
-  },
-
-  truncateText(text, maxLength) {
-    const value = String(text || '').trim()
-    if (value.length <= maxLength) return value
-    return `${value.slice(0, maxLength - 1)}…`
-  },
-
-  buildContextText(context) {
-    if (!context) return ''
-    const details = context.details || {}
-    const talents = details.talents || {}
-    const gearRows = (details.gear && details.gear.gear) || []
-    const gearNames = gearRows.slice(0, 3).map((item) => item.name).filter(Boolean).join('、')
-    const title = `${context.specName || ''}${context.className || ''}`
-    const source = context.sourceName || talents.sourceName || ''
-    return [
-      title ? `专精：${title}` : '',
-      context.activeQueryTitle ? `入口：${context.activeQueryTitle}` : '',
-      talents.importCode ? '已带入天赋导入代码' : '',
-      gearNames ? `装备候选：${gearNames}` : '',
-      source ? `来源：${source}` : ''
-    ].filter(Boolean).join('；')
   }
 })

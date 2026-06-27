@@ -3019,7 +3019,8 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
     request_data["profile"] = draft_profile
     request_data["mythicPlusReference"] = build_mythic_plus_reference(draft_profile, scenario)
     confirm_only = bool(source.get("confirmOnly"))
-    request_data["runSimulation"] = validation["passed"] and not confirm_only
+    execute_simc = bool(source.get("executeSimc") or source.get("_executeSimcTask"))
+    request_data["runSimulation"] = validation["passed"] and execute_simc and not confirm_only
 
     if validation["passed"] and confirm_only:
         simulation = {
@@ -3029,8 +3030,16 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
             "error": "",
             "metrics": {},
         }
-    elif validation["passed"]:
+    elif validation["passed"] and execute_simc:
         simulation = run_simcraft(draft_profile)
+    elif validation["passed"]:
+        simulation = {
+            "ran": False,
+            "available": bool(simc_binary()),
+            "summary": "",
+            "error": "",
+            "metrics": {},
+        }
     else:
         simulation = {
             "ran": False,
@@ -3043,7 +3052,7 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
     simulation["metrics"] = simulation.get("metrics") or parse_simcraft_metrics(simulation.get("summary", ""))
     simulation = apply_simulation_metric_metadata(request_data, simulation)
     simulation = apply_simc_benchmark(request_data, simulation)
-    status = "template_ready" if validation["passed"] and confirm_only else (
+    status = "template_ready" if validation["passed"] and (confirm_only or not execute_simc) else (
         "simc_completed" if simulation.get("ran") else ("template_invalid" if not validation["passed"] else "simc_failed")
     )
     can_submit_task = validation["passed"] if confirm_only else bool(validation["passed"] and simulation.get("ran"))
@@ -3062,13 +3071,8 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
         "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
         "scenario": scenario,
     }
-    if confirm_only:
-        llm_result = skipped_llm_result("template confirm only")
-    elif validation["passed"]:
-        llm_result = call_llm(build_llm_prompt(request_data, simulation))
-    else:
-        llm_result = skipped_llm_result("template invalid")
-    codex_result = call_codex_worker(request_data, simulation, codex_runner=codex_runner) if validation["passed"] and not confirm_only else skipped_codex_worker_result("template confirmation" if confirm_only else "template invalid")
+    llm_result = skipped_llm_result("simcraft template deterministic path")
+    codex_result = skipped_codex_worker_result("simcraft template deterministic path")
     return build_simc_agent_payload(request_data, simulation, agent, llm_result, codex_result)
 
 

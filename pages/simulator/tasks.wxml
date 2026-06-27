@@ -1,0 +1,43 @@
+<view class="page-shell task-list-page">
+  <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
+  <scroll-view class="page-scroll" scroll-y type="list">
+    <view class="page-content task-list-content">
+      <view class="section task-list-section">
+        <view class="section-header">
+          <text class="section-title">任务列表</text>
+          <text class="section-action">最近记录</text>
+        </view>
+
+        <view class="task-loading" wx:if="{{loading}}">
+          <text>加载中</text>
+        </view>
+
+        <view class="task-list" wx:elif="{{tasks.length}}">
+          <view
+            class="task-list-card"
+            wx:for="{{tasks}}"
+            wx:key="taskId"
+            data-task-id="{{item.taskId}}"
+            bindtap="openTaskDetail"
+          >
+            <view class="task-row">
+              <text class="task-title">{{item.title}}</text>
+              <text class="task-status">{{item.status}}</text>
+            </view>
+            <text class="task-desc" user-select="{{true}}">{{item.desc}}</text>
+            <view class="task-meta-row">
+              <text wx:if="{{item.scenarioText}}">{{item.scenarioText}}</text>
+              <text wx:if="{{item.dpsDisplay}}">{{item.dpsDisplay}}</text>
+              <text wx:if="{{!item.dpsDisplay && item.updatedAt}}">{{item.updatedAt}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="task-empty" wx:else>
+          <text>暂无任务记录</text>
+          <text wx:if="{{requestError}}" class="task-error">{{requestError}}</text>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</view>

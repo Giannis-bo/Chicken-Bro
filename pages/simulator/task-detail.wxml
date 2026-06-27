@@ -19,59 +19,6 @@
 
         <view class="section">
           <view class="section-header">
-            <text class="section-title">玩家问题</text>
-            <text class="section-action">{{detail.modeText}}</text>
-          </view>
-          <text class="task-desc detail-text detail-question-text" user-select="{{true}}">{{detail.questionSummary}}</text>
-        </view>
-
-        <view class="section build-context-box" wx:if="{{detail.buildContextText}}">
-          <view class="section-header">
-            <text class="section-title">构筑上下文</text>
-            <text class="section-action">职业专精</text>
-          </view>
-          <text class="task-desc detail-text" user-select="{{true}}">{{detail.buildContextText}}</text>
-        </view>
-
-        <view class="section" wx:if="{{detail.recommendations.length}}">
-          <view class="section-header">
-            <text class="section-title">AI 结论</text>
-            <text class="section-action">{{detail.recommendations.length}} 条</text>
-          </view>
-          <view class="detail-list">
-            <view class="detail-list-item" wx:for="{{detail.recommendations}}" wx:key="*this">
-              <text user-select="{{true}}">{{item}}</text>
-            </view>
-          </view>
-        </view>
-
-        <view class="section report-explanation-box" wx:if="{{detail.hasReportExplanation}}">
-          <view class="section-header">
-            <text class="section-title">报告解释</text>
-            <text class="section-action">Evidence</text>
-          </view>
-          <view class="detail-list" wx:if="{{detail.reportFindings.length}}">
-            <view class="detail-list-item report-finding" wx:for="{{detail.reportFindings}}" wx:key="text">
-              <text user-select="{{true}}">{{item.text}}</text>
-              <text wx:if="{{item.evidenceText}}" class="report-evidence" user-select="{{true}}">{{item.evidenceText}}</text>
-            </view>
-          </view>
-          <view class="report-sublist" wx:if="{{detail.reportActions.length}}">
-            <text class="report-subtitle">下一步</text>
-            <view class="report-note-row" wx:for="{{detail.reportActions}}" wx:key="*this">
-              <text user-select="{{true}}">{{item}}</text>
-            </view>
-          </view>
-          <view class="report-sublist" wx:if="{{detail.reportLimitations.length}}">
-            <text class="report-subtitle">限制</text>
-            <view class="report-note-row" wx:for="{{detail.reportLimitations}}" wx:key="*this">
-              <text user-select="{{true}}">{{item}}</text>
-            </view>
-          </view>
-        </view>
-
-        <view class="section">
-          <view class="section-header">
             <text class="section-title">SimC 结果</text>
             <text class="section-action">{{detail.simcStatusText}}</text>
           </view>
@@ -84,41 +31,20 @@
           </view>
         </view>
 
-        <view class="section" wx:if="{{detail.mythicPlusReference}}">
+        <view class="section simc-context-section" wx:if="{{detail.hasRunContext}}">
           <view class="section-header">
-            <text class="section-title">真实大秘境对标</text>
-            <text class="section-action">{{detail.mythicPlusReferenceText}}</text>
+            <text class="section-title">模拟上下文</text>
+            <text class="section-action">{{detail.scenarioDisplayText}}</text>
           </view>
-          <view class="benchmark-grid">
-            <view class="benchmark-cell">
-              <text class="benchmark-label">专精</text>
-              <text class="benchmark-value">{{detail.mythicPlusReference.specName}}</text>
-            </view>
-            <view class="benchmark-cell">
-              <text class="benchmark-label">最高钥石</text>
-              <text class="benchmark-value">{{detail.mythicPlusReference.maxKey}}</text>
-            </view>
+          <view class="context-card" wx:if="{{detail.scenarioDisplayText}}">
+            <text class="benchmark-label">场景</text>
+            <text class="benchmark-value">{{detail.scenarioDisplayText}}</text>
+            <text class="benchmark-unit" wx:if="{{detail.scenarioMetaText}}">{{detail.scenarioMetaText}}</text>
           </view>
-          <text class="task-desc detail-text" user-select="{{true}}">{{detail.mythicPlusReference.sampleWindow}}</text>
-          <view class="detail-list">
-            <view class="detail-list-item" wx:for="{{detail.mythicPlusReference.sources}}" wx:key="name">
-              <text user-select="{{true}}">{{item.name}}：{{item.evidence}}</text>
-            </view>
-          </view>
-        </view>
-
-        <view class="section" wx:if="{{detail.stages.length}}">
-          <view class="section-header">
-            <text class="section-title">执行阶段</text>
-            <text class="section-action">Pipeline</text>
-          </view>
-          <view class="detail-list">
-            <view class="stage-row" wx:for="{{detail.stages}}" wx:key="key">
-              <view>
-                <text class="stage-title">{{item.title}}</text>
-                <text class="stage-summary">{{item.summary}}</text>
-              </view>
-              <text class="task-status">{{item.status}}</text>
+          <view class="stat-context-grid" wx:if="{{detail.statRows.length}}">
+            <view class="stat-context-cell" wx:for="{{detail.statRows}}" wx:key="key">
+              <text class="benchmark-label">{{item.label}}</text>
+              <text class="benchmark-value">{{item.valueText}}</text>
             </view>
           </view>
         </view>

@@ -37,6 +37,7 @@ try:
         clean_simc_gear_items,
         normalize_simc_race,
         normalize_simc_slot,
+        simc_version_status,
         warcraftlogs_credentials_state,
     )
     try:
@@ -101,6 +102,7 @@ except ImportError:
         clean_simc_gear_items,
         normalize_simc_race,
         normalize_simc_slot,
+        simc_version_status,
         warcraftlogs_credentials_state,
     )
     try:
@@ -294,6 +296,15 @@ def int_env(name, default):
         return int(os.environ.get(name, str(default)))
     except (TypeError, ValueError):
         return default
+
+
+def bool_env(name, default=False):
+    value = str(os.environ.get(name, "")).strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return default
 
 
 def websim_gear_build_worker_limit():
@@ -1801,6 +1812,69 @@ def news_health_component():
     )
 
 
+def template_simc_bridge_health_component(conn):
+    rows = conn.execute(
+        f"""
+        SELECT {BUILD_TEMPLATE_SELECT_COLUMNS}
+        FROM user_build_templates
+        ORDER BY updated_at DESC, created_at DESC
+        LIMIT 200
+        """
+    ).fetchall()
+    counts = {"ready": 0, "partial": 0, "blocked": 0, "total": 0}
+    blockers = []
+    samples = []
+    for row in rows:
+        template = public_build_template_from_row(row, conn=conn)
+        readiness = template.get("simcraftReadiness") if isinstance(template, dict) else {}
+        status = readiness.get("status") if isinstance(readiness, dict) else "blocked"
+        if status not in {"ready", "partial", "blocked"}:
+            status = "blocked"
+        counts[status] += 1
+        counts["total"] += 1
+        template_blockers = readiness.get("blockers") if isinstance(readiness, dict) else []
+        blockers.extend(template_blockers or [])
+        if len(samples) < 8:
+            samples.append({
+                "id": template.get("id", ""),
+                "type": template.get("type", ""),
+                "title": template.get("title", ""),
+                "status": status,
+                "blockers": (template_blockers or [])[:3],
+            })
+
+    simc_version = simc_version_status()
+    update_available = bool(simc_version.get("updateAvailable"))
+    blockers = simcraft_template_unique_messages(blockers)
+    warnings = []
+    if counts["total"] <= 0:
+        warnings.append("no saved build templates available for template SimC bridge sampling")
+        status = "partial"
+    elif counts["blocked"] and not counts["ready"]:
+        status = "blocked"
+    elif counts["blocked"] or counts["partial"] or update_available:
+        status = "partial"
+    else:
+        status = "verified"
+    if update_available:
+        warnings.append("SimulationCraft update available")
+
+    return data_health_component(
+        "template_simc_bridge",
+        "Template to SimC bridge",
+        status,
+        checked_at=utc_now(),
+        details={
+            "simcraftVersion": simc_version,
+            "templateReadiness": counts,
+            "sampleLimit": 200,
+            "samples": samples,
+            "warnings": warnings,
+        },
+        blockers=blockers[:8],
+    )
+
+
 def build_data_health_payload():
     init_db()
     components = [
@@ -1905,6 +1979,8 @@ def build_data_health_payload():
                 blockers=talent_catalog.get("blockers") or [],
             )
         )
+
+        components.append(template_simc_bridge_health_component(conn))
 
         community = community_talent_sync_state(conn)
         components.append(
@@ -2187,6 +2263,8 @@ def normalize_build_template_payload(record):
         simc_lines = []
     simc_lines = [clean_text(line, 2000) for line in simc_lines if clean_text(line, 2000)]
     metadata = source.get("metadata") if isinstance(source.get("metadata"), dict) else {}
+    if template_type == "gear" and isinstance(metadata.get("gearSnapshot"), dict) and not raw_string.strip().startswith("{"):
+        raw_string = clean_text(json.dumps(metadata.get("gearSnapshot"), ensure_ascii=False), 20000)
     status = clean_text(source.get("status"), 64) or ("saved" if template_type == "talent" else "complete")
     title = clean_text(source.get("title"), 200) or ("Talent Template" if template_type == "talent" else "Gear Template")
     now = utc_now()
@@ -2215,7 +2293,7 @@ def normalize_build_template_payload(record):
     }
 
 
-def public_build_template_from_row(row):
+def public_build_template_from_row(row, conn=None):
     if not row:
         return None
     simc_lines = safe_json_loads(row[13], [], f"build template simc lines {row[0]}")
@@ -2224,7 +2302,7 @@ def public_build_template_from_row(row):
         simc_lines = []
     if not isinstance(metadata, dict):
         metadata = {}
-    return {
+    template = {
         "id": row[0],
         "clientId": row[1],
         "type": row[2],
@@ -2248,6 +2326,8 @@ def public_build_template_from_row(row):
         "updatedAt": row[20],
         "remote": True,
     }
+    template["simcraftReadiness"] = simcraft_template_readiness(template, conn=conn)
+    return template
 
 
 def list_user_build_templates(access_token, template_type=""):
@@ -2271,10 +2351,11 @@ def list_user_build_templates(access_token, template_type=""):
             """,
             tuple(params),
         ).fetchall()
+        templates = [public_build_template_from_row(row, conn=conn) for row in rows]
     return {
         "user": user,
         "schemaVersion": BUILD_TEMPLATE_SCHEMA_VERSION,
-        "templates": [public_build_template_from_row(row) for row in rows],
+        "templates": templates,
     }
 
 
@@ -2353,7 +2434,7 @@ def save_user_build_template(access_token, record):
             """,
             (user["id"], template_id),
         ).fetchone()
-    return public_build_template_from_row(row)
+        return public_build_template_from_row(row, conn=conn)
 
 
 def delete_user_build_template(access_token, template_id):
@@ -2403,6 +2484,7 @@ SIMCRAFT_TEMPLATE_READY_GEAR_STATUSES = {"complete", "complete_with_warnings"}
 
 def simcraft_template_record(source, template_type):
     record = source if isinstance(source, dict) else {}
+    metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
     return {
         "id": clean_text(record.get("id") or record.get("clientId"), 128),
         "type": clean_text(record.get("type") or record.get("templateType"), 32) or template_type,
@@ -2418,7 +2500,35 @@ def simcraft_template_record(source, template_type):
         "scenarioTitle": clean_text(record.get("scenarioTitle") or record.get("scenario_title"), 120),
         "status": clean_text(record.get("status"), 64),
         "source": clean_text(record.get("source"), 120),
+        "metadata": metadata,
     }
+
+
+def simcraft_template_unique_messages(values):
+    result = []
+    for value in values or []:
+        text = str(value or "").strip()
+        if text and text not in result:
+            result.append(text)
+    return result
+
+
+def simcraft_template_gear_snapshot_raw(metadata):
+    source = metadata if isinstance(metadata, dict) else {}
+    snapshot = source.get("gearSnapshot")
+    if isinstance(snapshot, dict):
+        return json.dumps(snapshot, ensure_ascii=False)
+    if isinstance(snapshot, str):
+        return clean_text(snapshot, 20000)
+    return ""
+
+
+def simcraft_template_effective_gear_raw(raw_string, metadata=None):
+    text = str(raw_string or "").strip()
+    snapshot_raw = simcraft_template_gear_snapshot_raw(metadata)
+    if snapshot_raw and not text.startswith("{"):
+        return snapshot_raw
+    return text
 
 
 def parse_simcraft_template_gear_line(line):
@@ -2446,8 +2556,8 @@ def parse_simcraft_template_gear_line(line):
     return normalized[0], ""
 
 
-def parse_simcraft_template_gear_raw(raw_string, class_key="", spec_key="", conn=None):
-    text = str(raw_string or "").strip()
+def parse_simcraft_template_gear_raw(raw_string, class_key="", spec_key="", conn=None, metadata=None):
+    text = simcraft_template_effective_gear_raw(raw_string, metadata)
     if text.startswith("{"):
         payload = build_websim_profile_response(
             {
@@ -2493,6 +2603,91 @@ def parse_simcraft_template_gear_raw(raw_string, class_key="", spec_key="", conn
     if missing_slots:
         errors.append(f"missing gear slots: {', '.join(missing_slots)}")
     return items if not errors else [], errors
+
+
+def simcraft_template_empty_readiness(template_type, checked_at=None):
+    return {
+        "status": "blocked",
+        "profileSource": "",
+        "checkedAt": checked_at or utc_now(),
+        "blockers": [],
+        "warnings": [],
+        "talent": {} if template_type == "talent" else None,
+        "gear": {} if template_type == "gear" else None,
+    }
+
+
+def simcraft_template_talent_readiness(record, conn=None):
+    template = simcraft_template_record(record, "talent")
+    readiness = simcraft_template_empty_readiness("talent")
+    blockers = []
+    if template["type"] != "talent":
+        blockers.append("talent template is required")
+    context, errors = simcraft_template_talent_context(conn, template)
+    blockers.extend(errors)
+    blockers = simcraft_template_unique_messages(blockers)
+    readiness.update({
+        "status": "blocked" if blockers else "ready",
+        "profileSource": "" if blockers else "template",
+        "blockers": blockers,
+        "talent": {
+            "encodingStatus": context.get("encodingStatus", ""),
+            "simcLineCount": len(context.get("simcLines") or []),
+            "hasImportCode": bool(context.get("importCode")),
+            "selectedNodeCount": len(context.get("selectedNodes") or []),
+            "heroKey": context.get("heroKey", "") or template.get("heroKey", ""),
+        },
+    })
+    return readiness
+
+
+def simcraft_template_gear_readiness(record, conn=None):
+    template = simcraft_template_record(record, "gear")
+    readiness = simcraft_template_empty_readiness("gear")
+    blockers = []
+    if template["type"] != "gear":
+        blockers.append("gear template is required")
+    if template["status"] not in SIMCRAFT_TEMPLATE_READY_GEAR_STATUSES:
+        blockers.append("gear template must be complete")
+    gear_items, errors = parse_simcraft_template_gear_raw(
+        template.get("rawString"),
+        template.get("classKey") or "",
+        template.get("specKey") or "",
+        conn=conn,
+        metadata=template.get("metadata") or {},
+    )
+    blockers.extend(errors)
+    blockers = simcraft_template_unique_messages(blockers)
+    parsed_slots = [item.get("slot", "") for item in gear_items if isinstance(item, dict)]
+    snapshot_raw = simcraft_template_gear_snapshot_raw(template.get("metadata") or {})
+    raw_string = str(template.get("rawString") or "").strip()
+    readiness.update({
+        "status": "blocked" if blockers else "ready",
+        "profileSource": "" if blockers else "template",
+        "blockers": blockers,
+        "gear": {
+            "parsedSlots": parsed_slots,
+            "parsedSlotCount": len(parsed_slots),
+            "requiredSlots": SIMCRAFT_TEMPLATE_REQUIRED_GEAR_SLOTS,
+            "rawSource": "metadata.gearSnapshot" if snapshot_raw and not raw_string.startswith("{") else "rawString",
+        },
+    })
+    return readiness
+
+
+def simcraft_template_readiness(record, conn=None):
+    source = record if isinstance(record, dict) else {}
+    if conn is None:
+        with db_connection() as active_conn:
+            return simcraft_template_readiness(source, conn=active_conn)
+    template_type = clean_text(source.get("type") or source.get("templateType"), 32)
+    if template_type == "talent":
+        return simcraft_template_talent_readiness(source, conn=conn)
+    if template_type == "gear":
+        return simcraft_template_gear_readiness(source, conn=conn)
+    readiness = simcraft_template_empty_readiness(template_type or "unknown")
+    readiness["blockers"] = ["invalid build template type"]
+    return readiness
 
 
 def simcraft_template_talent_context(conn, talent_template):
@@ -2581,6 +2776,7 @@ def prepare_simcraft_template_request(request_payload):
             gear_template.get("classKey") or "",
             gear_template.get("specKey") or "",
             conn=conn,
+            metadata=gear_template.get("metadata") or {},
         )
     errors.extend(talent_errors)
     errors.extend(gear_errors)
@@ -2673,12 +2869,658 @@ def should_store_simulator_task(request_payload, analysis):
     return agent.get("status") == "simc_completed" and bool(simulation.get("ran"))
 
 
+SIMCRAFT_TEMPLATE_TASK_ACTIVE_STATUSES = {"queued", "running"}
+
+
+def is_simcraft_template_final_submit(request_payload):
+    source = request_payload if isinstance(request_payload, dict) else {}
+    return (
+        source.get("mode") == "simcraft_template"
+        and bool(source.get("saveTask"))
+        and not bool(source.get("confirmOnly"))
+    )
+
+
+def json_clone(value):
+    return json.loads(json.dumps(value, ensure_ascii=False))
+
+
+def simcraft_template_task_fingerprint(request_payload):
+    source = request_payload if isinstance(request_payload, dict) else {}
+    build_context = source.get("buildContext") if isinstance(source.get("buildContext"), dict) else {}
+    details = build_context.get("details") if isinstance(build_context.get("details"), dict) else {}
+    template_context = source.get("templateContext") if isinstance(source.get("templateContext"), dict) else {}
+    talent = template_context.get("talent") if isinstance(template_context.get("talent"), dict) else {}
+    gear = template_context.get("gear") if isinstance(template_context.get("gear"), dict) else {}
+    fingerprint_source = {
+        "mode": "simcraft_template",
+        "classKey": source.get("classKey") or talent.get("classKey") or gear.get("classKey") or "",
+        "raceKey": source.get("raceKey") or build_context.get("raceKey") or "",
+        "scenarioKey": source.get("scenarioKey") or "single",
+        "analysisType": source.get("analysisType") or "baseline",
+        "talent": {
+            "id": talent.get("id") or talent.get("clientId") or "",
+            "rawString": talent.get("rawString") or "",
+            "classKey": talent.get("classKey") or "",
+            "specKey": talent.get("specKey") or "",
+            "heroKey": talent.get("heroKey") or "",
+        },
+        "gear": {
+            "id": gear.get("id") or gear.get("clientId") or "",
+            "rawString": gear.get("rawString") or "",
+            "classKey": gear.get("classKey") or "",
+            "specKey": gear.get("specKey") or "",
+            "status": gear.get("status") or "",
+        },
+        "talentInput": (details.get("talents") or {}) if isinstance(details.get("talents"), dict) else {},
+        "gearItems": (source.get("gearSelection") or {}).get("items") if isinstance(source.get("gearSelection"), dict) else [],
+    }
+    encoded = json.dumps(fingerprint_source, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def simulator_task_owner_payload(user):
+    return {
+        "id": user["id"],
+        "openid": user["openid"],
+        "nickname": user["nickname"],
+        "avatarUrl": user["avatarUrl"],
+    }
+
+
+def iso_elapsed_ms(started_at, finished_at):
+    try:
+        start = datetime.fromisoformat(str(started_at or ""))
+        finish = datetime.fromisoformat(str(finished_at or ""))
+    except ValueError:
+        return None
+    return max(0, int((finish - start).total_seconds() * 1000))
+
+
+def simcraft_template_state(analysis, row_status=""):
+    status = str(row_status or analysis.get("status") or "").strip()
+    if status in {"queued", "running", "completed", "failed", "blocked"}:
+        return status
+    agent = analysis.get("agent") if isinstance(analysis.get("agent"), dict) else {}
+    simulation = analysis.get("simulation") if isinstance(analysis.get("simulation"), dict) else {}
+    agent_status = str(agent.get("status") or "").strip()
+    if agent_status == "template_ready":
+        return "ready"
+    if agent_status in {"template_blocked", "template_invalid"}:
+        return "blocked"
+    if agent_status == "simc_queued":
+        return "queued"
+    if agent_status == "simc_running":
+        return "running"
+    if agent_status == "simc_completed" and simulation.get("ran"):
+        return "completed"
+    if agent_status == "simc_failed":
+        return "failed"
+    if simulation.get("ran"):
+        return "completed"
+    if simulation.get("error"):
+        return "failed"
+    return "ready"
+
+
+def simcraft_template_report_messages(state, analysis, dps):
+    agent = analysis.get("agent") if isinstance(analysis.get("agent"), dict) else {}
+    simulation = analysis.get("simulation") if isinstance(analysis.get("simulation"), dict) else {}
+    validation = agent.get("validation") if isinstance(agent.get("validation"), dict) else {}
+    blockers = []
+    for item in validation.get("errors") or []:
+        append_unique_text(blockers, item)
+    if state in {"blocked", "failed"}:
+        append_unique_text(blockers, simulation.get("error"))
+    warnings = []
+    for item in validation.get("warnings") or []:
+        append_unique_text(warnings, item)
+    next_actions_by_state = {
+        "ready": ["Submit this template combination to run SimC."],
+        "queued": ["Open the task list after the backend SimC run finishes."],
+        "running": ["Wait for the backend SimC run to finish; the result will update in the task list."],
+        "completed": ["Use this result as the baseline for this saved template combination."],
+        "failed": ["Review the SimC error, template data, and SimC version before submitting again."],
+        "blocked": ["Fix the template blockers before submitting a SimC task."],
+    }
+    evidence_refs = []
+    if dps:
+        evidence_refs.append("simc.dps")
+    if state in {"ready", "queued", "running", "blocked"}:
+        evidence_refs.append("simc.template")
+    if blockers:
+        evidence_refs.append("simc.error")
+    return {
+        "blockers": blockers,
+        "warnings": warnings,
+        "nextActions": next_actions_by_state.get(state, []),
+        "evidenceRefs": evidence_refs,
+    }
+
+
+def simcraft_template_report_summary(state, dps, blockers):
+    if state == "ready":
+        return "Template payload validated; submit to run SimC."
+    if state == "queued":
+        return "SimC task accepted and queued; results will appear in the task list."
+    if state == "running":
+        return "SimC task is running; results will appear in the task list."
+    if state == "completed" and dps:
+        return f"SimC completed with {dps} DPS."
+    if state == "completed":
+        return "SimC completed but no parseable DPS was found."
+    if state == "blocked":
+        return "; ".join(blockers[:3]) if blockers else "Template validation blocked this SimC task."
+    if state == "failed":
+        return "; ".join(blockers[:3]) if blockers else "SimC did not complete."
+    return "SimC report is not available yet."
+
+
+def simcraft_template_report_timing(analysis, timing=None):
+    source = timing if isinstance(timing, dict) else analysis.get("taskTiming")
+    source = source if isinstance(source, dict) else {}
+    queued_at = clean_text(source.get("queuedAt") or analysis.get("createdAt"), 64)
+    started_at = clean_text(source.get("startedAt"), 64)
+    finished_at = clean_text(source.get("finishedAt"), 64)
+    elapsed_ms = source.get("elapsedMs")
+    if elapsed_ms is None and started_at and finished_at:
+        elapsed_ms = iso_elapsed_ms(started_at, finished_at)
+    return {
+        "queuedAt": queued_at,
+        "startedAt": started_at,
+        "finishedAt": finished_at,
+        "elapsedMs": elapsed_ms,
+    }
+
+
+SIMCRAFT_TEMPLATE_REPORT_SECONDARY_STATS = {"crit", "haste", "mastery", "versatility"}
+
+
+def simcraft_template_report_stat_metric(source):
+    row = source if isinstance(source, dict) else {}
+    key = clean_text(row.get("key"), 64)
+    label = clean_text(row.get("label"), 80)
+    value = clean_text(row.get("value"), 64)
+    converted_value = clean_text(row.get("convertedValue"), 64)
+    metric = {}
+    if key:
+        metric["key"] = key
+    if label:
+        metric["label"] = label
+    if value:
+        metric["value"] = value
+    if converted_value:
+        metric["convertedValue"] = converted_value
+    for numeric_key in ("rawValue", "convertedRawValue"):
+        numeric_value = row.get(numeric_key)
+        if isinstance(numeric_value, (int, float)) and not isinstance(numeric_value, bool):
+            metric[numeric_key] = numeric_value
+    return metric
+
+
+def simcraft_template_report_stat_snapshot(source):
+    snapshot = source if isinstance(source, dict) else {}
+    if snapshot.get("statStatus") != "verified":
+        return {}
+    primary = simcraft_template_report_stat_metric(snapshot.get("primary"))
+    secondary = []
+    for row in snapshot.get("secondary") or []:
+        metric = simcraft_template_report_stat_metric(row)
+        if metric.get("key") in SIMCRAFT_TEMPLATE_REPORT_SECONDARY_STATS:
+            secondary.append(metric)
+    result = {
+        "statStatus": "verified",
+        "primary": primary,
+        "secondary": secondary,
+    }
+    stat_source = clean_text(snapshot.get("statSource"), 80)
+    if stat_source:
+        result["statSource"] = stat_source
+    return result
+
+
+def simcraft_template_report_stat_snapshot_from_request(request, build_context, gear_template):
+    details = build_context.get("details") if isinstance(build_context.get("details"), dict) else {}
+    gear_details = details.get("gear") if isinstance(details.get("gear"), dict) else {}
+    metadata = gear_template.get("metadata") if isinstance(gear_template.get("metadata"), dict) else {}
+    candidates = [
+        metadata.get("statSnapshot"),
+        metadata.get("gearStatSnapshot"),
+        request.get("statSnapshot") if isinstance(request, dict) else None,
+        gear_details.get("statSnapshot"),
+    ]
+    for candidate in candidates:
+        snapshot = simcraft_template_report_stat_snapshot(candidate)
+        if snapshot:
+            return snapshot
+    return {}
+
+
+def build_simcraft_template_report(analysis, row_status="", timing=None):
+    source = analysis if isinstance(analysis, dict) else {}
+    request = source.get("request") if isinstance(source.get("request"), dict) else {}
+    build_context = request.get("buildContext") if isinstance(request.get("buildContext"), dict) else {}
+    template_context = request.get("templateContext") if isinstance(request.get("templateContext"), dict) else {}
+    talent = template_context.get("talent") if isinstance(template_context.get("talent"), dict) else {}
+    gear = template_context.get("gear") if isinstance(template_context.get("gear"), dict) else {}
+    simulation = source.get("simulation") if isinstance(source.get("simulation"), dict) else {}
+    metrics = simulation.get("metrics") if isinstance(simulation.get("metrics"), dict) else {}
+    dps = clean_text(metrics.get("dps"), 64)
+    state = simcraft_template_state(source, row_status=row_status)
+    messages = simcraft_template_report_messages(state, source, dps)
+    scenario_key = clean_text(request.get("scenarioKey"), 64) or "single"
+    scenario = dict(SIMCRAFT_TEMPLATE_SCENARIOS.get(scenario_key) or SIMCRAFT_TEMPLATE_SCENARIOS["single"])
+    scenario["key"] = scenario_key
+    class_name = clean_text(build_context.get("className") or talent.get("className") or gear.get("className"), 80)
+    spec_name = clean_text(build_context.get("specName") or talent.get("specName") or gear.get("specName"), 80)
+    title_subject = f"{spec_name}{class_name}".strip() or "Template"
+    summary = simcraft_template_report_summary(state, dps, messages["blockers"])
+    stat_snapshot = simcraft_template_report_stat_snapshot_from_request(request, build_context, gear)
+    build_payload = {
+        "classKey": clean_text(talent.get("classKey") or gear.get("classKey"), 64),
+        "specKey": clean_text(talent.get("specKey") or gear.get("specKey"), 64),
+        "className": class_name,
+        "specName": spec_name,
+        "raceKey": clean_text(request.get("raceKey") or build_context.get("raceKey"), 64),
+        "raceName": clean_text(request.get("raceName") or build_context.get("raceName"), 80),
+        "talentTemplate": {
+            "id": clean_text(talent.get("id") or talent.get("clientId"), 128),
+            "title": clean_text(talent.get("title") or talent.get("name"), 160),
+        },
+        "gearTemplate": {
+            "id": clean_text(gear.get("id") or gear.get("clientId"), 128),
+            "title": clean_text(gear.get("title") or gear.get("name"), 160),
+        },
+    }
+    if stat_snapshot:
+        build_payload["statSnapshot"] = stat_snapshot
+    return {
+        "schemaRevision": "simc-report-v2",
+        "state": state,
+        "title": f"{title_subject} SimC",
+        "summary": summary,
+        "statusText": state,
+        "profileSource": "template",
+        "scenario": {
+            "key": scenario_key,
+            "label": scenario.get("label", ""),
+            "fightStyle": scenario.get("fightStyle", ""),
+            "targets": scenario.get("targets", 0),
+            "durationSeconds": scenario.get("durationSeconds", 0),
+        },
+        "build": build_payload,
+        "result": {
+            "ran": bool(simulation.get("ran")),
+            "hasDps": bool(dps),
+            "dps": dps,
+            "dpsDisplay": f"{dps} DPS" if dps else "",
+            "metricLabel": clean_text(simulation.get("metricLabel"), 64) or "DPS",
+            "metricUnit": clean_text(simulation.get("metricUnit"), 64) or "伤害/秒",
+        },
+        "timing": simcraft_template_report_timing(source, timing=timing),
+        "messages": messages,
+    }
+
+
+def attach_simcraft_template_report(analysis, row_status="", timing=None):
+    if not isinstance(analysis, dict) or analysis.get("mode") != "simcraft_template":
+        return analysis
+    analysis["simcReport"] = build_simcraft_template_report(analysis, row_status=row_status, timing=timing)
+    return analysis
+
+
+def simcraft_template_report_summary_payload(analysis, row_status="", updated_at=""):
+    source = analysis if isinstance(analysis, dict) else {}
+    report = source.get("simcReport") if isinstance(source.get("simcReport"), dict) else None
+    if not report:
+        report = build_simcraft_template_report(source, row_status=row_status)
+    return {
+        "state": report.get("state", row_status or ""),
+        "title": report.get("title", ""),
+        "summary": report.get("summary", ""),
+        "dpsDisplay": (report.get("result") or {}).get("dpsDisplay", ""),
+        "scenario": report.get("scenario") or {},
+        "statusText": report.get("statusText", ""),
+        "updatedAt": updated_at,
+    }
+
+
+def public_simcraft_template_request(request_payload):
+    request = json_clone(request_payload if isinstance(request_payload, dict) else {})
+    request.pop("profile", None)
+    request.pop("guestId", None)
+    request.pop("_executeSimcTask", None)
+    template_context = request.get("templateContext") if isinstance(request.get("templateContext"), dict) else {}
+    slim_context = {}
+    for key in ("talent", "gear"):
+        template = template_context.get(key) if isinstance(template_context.get(key), dict) else {}
+        slim_context[key] = {
+            field: template.get(field)
+            for field in (
+                "id",
+                "clientId",
+                "type",
+                "templateType",
+                "title",
+                "name",
+                "classKey",
+                "className",
+                "specKey",
+                "specName",
+                "heroKey",
+                "heroLabel",
+                "status",
+                "updatedAt",
+            )
+            if template.get(field) not in (None, "")
+        }
+    if slim_context:
+        request["templateContext"] = slim_context
+    return request
+
+
+def public_simcraft_template_analysis(analysis, row_status="", strip_profile=False):
+    if not isinstance(analysis, dict) or analysis.get("mode") != "simcraft_template":
+        return analysis
+    public = json_clone(analysis)
+    attach_simcraft_template_report(public, row_status=row_status)
+    public.pop("llm", None)
+    public.pop("codex", None)
+    public.pop("allowedNumbers", None)
+    if strip_profile:
+        public["request"] = public_simcraft_template_request(public.get("request") or {})
+        agent = public.get("agent") if isinstance(public.get("agent"), dict) else {}
+        agent.pop("draftProfile", None)
+        public["agent"] = agent
+    simulation = public.get("simulation") if isinstance(public.get("simulation"), dict) else {}
+    simulation["summary"] = ""
+    public["simulation"] = simulation
+    public["stages"] = [
+        stage for stage in (public.get("stages") or [])
+        if not (isinstance(stage, dict) and stage.get("key") == "ai_interpretation")
+    ]
+    return public
+
+
+def simcraft_template_queue_analysis(confirm_analysis, request_payload, task_id, user, fingerprint, task_lock=None, timing=None):
+    analysis = json_clone(confirm_analysis)
+    request = analysis.get("request") if isinstance(analysis.get("request"), dict) else {}
+    request["confirmOnly"] = False
+    request["saveTask"] = True
+    request["runSimulation"] = False
+    request["simcTaskFingerprint"] = fingerprint
+    analysis["request"] = request
+    analysis["taskId"] = task_id
+    analysis["status"] = "queued"
+    analysis["owner"] = simulator_task_owner_payload(user)
+    analysis["taskLock"] = task_lock or {
+        "active": True,
+        "taskId": task_id,
+        "status": "queued",
+        "reason": "simc_task_queued",
+    }
+    if timing:
+        analysis["taskTiming"] = timing
+    agent = analysis.get("agent") if isinstance(analysis.get("agent"), dict) else {}
+    agent["status"] = "simc_queued"
+    agent["canSubmitTask"] = False
+    analysis["agent"] = agent
+    simulation = analysis.get("simulation") if isinstance(analysis.get("simulation"), dict) else {}
+    simulation.update({"ran": False, "summary": "", "error": "", "metrics": {}, "status": "queued"})
+    analysis["simulation"] = simulation
+    for stage in analysis.get("stages") or []:
+        if isinstance(stage, dict) and stage.get("key") == "simc_execution":
+            stage.update({
+                "status": "queued",
+                "summary": "SimC task has been queued for backend execution.",
+                "metric": "",
+            })
+    analysis["evidenceState"] = {
+        "phase": "queued",
+        "profileSource": "template",
+        "simcRan": False,
+        "hasDps": False,
+        "blockers": [],
+    }
+    analysis["runPolicy"] = {
+        "policy": "queued",
+        "profileSource": "template",
+        "canRunSimc": True,
+        "didRunSimc": False,
+        "requiresFullProfile": False,
+        "validationPassed": True,
+        "reason": "simc task queued",
+    }
+    analysis["report"] = {
+        "schemaRevision": "simc-report-v1",
+        "source": "deterministic_queued",
+        "fallbackReason": "queued",
+        "topFindings": [{
+            "text": "SimC task accepted and queued; results will appear in the task list.",
+            "evidenceRefs": ["simc.taskQueued", "simc.template"],
+        }],
+        "nextActions": ["Open the task list after the backend SimC run finishes."],
+        "limitations": ["No DPS is available until the queued SimC task completes."],
+    }
+    analysis["recommendations"] = ["SimC task has been queued. Check the task list for the completed result."]
+    if isinstance(analysis.get("llm"), dict):
+        analysis["llm"]["called"] = False
+        analysis["llm"]["content"] = ""
+        analysis["llm"]["error"] = ""
+    if isinstance(analysis.get("codex"), dict):
+        analysis["codex"]["called"] = False
+        analysis["codex"]["status"] = "skipped"
+        analysis["codex"]["reason"] = "simcraft template deterministic path"
+    attach_simcraft_template_report(analysis, row_status="queued", timing=analysis.get("taskTiming"))
+    return analysis
+
+
+def active_simcraft_template_task(conn, user_id, fingerprint):
+    rows = conn.execute(
+        """
+        SELECT id, status, request_json, analysis_json, created_at, updated_at
+        FROM simulator_tasks
+        WHERE user_id = ? AND mode = 'simcraft_template' AND status IN ('queued', 'running')
+        ORDER BY created_at DESC
+        LIMIT 20
+        """,
+        (user_id,),
+    ).fetchall()
+    for row in rows:
+        request_payload = safe_json_loads(row[2], {}, f"simcraft template task request {row[0]}")
+        if request_payload.get("simcTaskFingerprint") != fingerprint:
+            continue
+        analysis = safe_json_loads(row[3], {}, f"simcraft template task analysis {row[0]}")
+        if not isinstance(analysis, dict):
+            analysis = {}
+        analysis["taskId"] = row[0]
+        analysis["status"] = row[1]
+        analysis["taskLock"] = {
+            "active": True,
+            "taskId": row[0],
+            "status": row[1],
+            "reason": "active_simc_task",
+        }
+        attach_simcraft_template_report(analysis, row_status=row[1])
+        return public_simcraft_template_analysis(analysis, row_status=row[1])
+    return None
+
+
+def simcraft_template_task_autorun_enabled():
+    return bool_env("WOW_SIMC_TEMPLATE_TASK_AUTORUN", True)
+
+
+def start_simcraft_template_task_runner(task_id):
+    if not simcraft_template_task_autorun_enabled():
+        return False
+    thread = threading.Thread(target=run_simcraft_template_task, args=(task_id,), daemon=True)
+    thread.start()
+    return True
+
+
+def enqueue_simcraft_template_task(request_payload, access_token=""):
+    prepared = prepare_simcraft_template_request(request_payload)
+    confirm_payload = dict(prepared)
+    confirm_payload["confirmOnly"] = True
+    confirm_payload["saveTask"] = False
+    validation_analysis = analyze_simulator_request(confirm_payload)
+    agent = validation_analysis.get("agent") if isinstance(validation_analysis.get("agent"), dict) else {}
+    if agent.get("status") != "template_ready" or not agent.get("canSubmitTask"):
+        return validation_analysis
+
+    user = authenticate_token(access_token)
+    if not user:
+        user = guest_simulator_user(prepared.get("guestId"))
+    if not user:
+        return validation_analysis
+
+    fingerprint = simcraft_template_task_fingerprint(prepared)
+    task_id = uuid.uuid4().hex
+    stored_request = dict(prepared)
+    stored_request.pop("guestId", None)
+    stored_request["confirmOnly"] = False
+    stored_request["saveTask"] = True
+    stored_request["simcTaskFingerprint"] = fingerprint
+    now = utc_now()
+    with db_connection() as conn:
+        existing = active_simcraft_template_task(conn, user["id"], fingerprint)
+        if existing:
+            return existing
+        queued_timing = {"queuedAt": now, "startedAt": "", "finishedAt": "", "elapsedMs": None}
+        queued_analysis = simcraft_template_queue_analysis(
+            validation_analysis,
+            stored_request,
+            task_id,
+            user,
+            fingerprint,
+            timing=queued_timing,
+        )
+        conn.execute(
+            """
+            INSERT INTO simulator_tasks (
+                id, user_id, mode, status, request_json, analysis_json, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                task_id,
+                user["id"],
+                "simcraft_template",
+                "queued",
+                json.dumps(stored_request, ensure_ascii=False),
+                json.dumps(queued_analysis, ensure_ascii=False),
+                now,
+                now,
+            ),
+        )
+    start_simcraft_template_task_runner(task_id)
+    return public_simcraft_template_analysis(queued_analysis)
+
+
+def mark_simcraft_template_task_running(conn, row, request_payload, analysis_payload):
+    now = utc_now()
+    running = json_clone(analysis_payload if isinstance(analysis_payload, dict) else {})
+    running["status"] = "running"
+    running["updatedAt"] = now
+    timing = running.get("taskTiming") if isinstance(running.get("taskTiming"), dict) else {}
+    timing["startedAt"] = now
+    timing["finishedAt"] = ""
+    timing["elapsedMs"] = None
+    running["taskTiming"] = timing
+    agent = running.get("agent") if isinstance(running.get("agent"), dict) else {}
+    agent["status"] = "simc_running"
+    agent["canSubmitTask"] = False
+    running["agent"] = agent
+    running["evidenceState"] = {
+        "phase": "running",
+        "profileSource": "template",
+        "simcRan": False,
+        "hasDps": False,
+        "blockers": [],
+    }
+    running["runPolicy"] = {
+        "policy": "running",
+        "profileSource": "template",
+        "canRunSimc": True,
+        "didRunSimc": False,
+        "requiresFullProfile": False,
+        "validationPassed": True,
+        "reason": "simc task running",
+    }
+    attach_simcraft_template_report(running, row_status="running", timing=timing)
+    conn.execute(
+        "UPDATE simulator_tasks SET status = ?, analysis_json = ?, updated_at = ? WHERE id = ?",
+        ("running", json.dumps(running, ensure_ascii=False), now, row[0]),
+    )
+    return running
+
+
+def run_simcraft_template_task(task_id):
+    init_db()
+    with db_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT id, user_id, mode, status, request_json, analysis_json, created_at, updated_at
+            FROM simulator_tasks
+            WHERE id = ? AND mode = 'simcraft_template'
+            """,
+            (task_id,),
+        ).fetchone()
+        if not row:
+            raise KeyError("simcraft template task not found")
+        request_payload = safe_json_loads(row[4], {}, f"simcraft template task request {row[0]}")
+        analysis_payload = safe_json_loads(row[5], {}, f"simcraft template task analysis {row[0]}")
+        if row[3] not in SIMCRAFT_TEMPLATE_TASK_ACTIVE_STATUSES:
+            return analysis_payload
+        running_analysis = mark_simcraft_template_task_running(conn, row, request_payload, analysis_payload)
+
+    run_request = dict(request_payload)
+    run_request["confirmOnly"] = False
+    run_request["saveTask"] = True
+    run_request["_executeSimcTask"] = True
+    analysis = analyze_simulator_request(run_request)
+    final_status = "completed" if bool((analysis.get("simulation") or {}).get("ran")) else "failed"
+    analysis = dict(analysis)
+    analysis["taskId"] = task_id
+    analysis["status"] = final_status
+    finished_at = utc_now()
+    timing = running_analysis.get("taskTiming") if isinstance(running_analysis.get("taskTiming"), dict) else {}
+    timing["finishedAt"] = finished_at
+    timing["elapsedMs"] = iso_elapsed_ms(timing.get("startedAt"), finished_at)
+    analysis["taskTiming"] = timing
+    analysis["taskLock"] = {"active": False, "taskId": task_id, "status": final_status, "reason": "task_finished"}
+    attach_simcraft_template_report(analysis, row_status=final_status, timing=timing)
+    with db_connection() as conn:
+        owner = conn.execute(
+            "SELECT id, openid, nickname, avatar_url FROM wechat_users WHERE id = ?",
+            (row[1],),
+        ).fetchone()
+        if owner:
+            analysis["owner"] = {
+                "id": owner[0],
+                "openid": owner[1],
+                "nickname": owner[2],
+                "avatarUrl": owner[3],
+            }
+        now = finished_at
+        conn.execute(
+            "UPDATE simulator_tasks SET status = ?, analysis_json = ?, updated_at = ? WHERE id = ?",
+            (final_status, json.dumps(analysis, ensure_ascii=False), now, task_id),
+        )
+    return public_simcraft_template_analysis(analysis, row_status=final_status)
+
+
 def analyze_and_store_simulator_task(request_data, access_token=""):
     request_payload = dict(request_data or {})
+    if is_simcraft_template_final_submit(request_payload):
+        return enqueue_simcraft_template_task(request_payload, access_token=access_token)
     if request_payload.get("mode") == "simcraft_template":
         request_payload = prepare_simcraft_template_request(request_payload)
     analysis = analyze_simulator_request(request_payload)
+    if request_payload.get("mode") == "simcraft_template":
+        attach_simcraft_template_report(analysis)
     if not should_store_simulator_task(request_payload, analysis):
+        if request_payload.get("mode") == "simcraft_template":
+            return public_simcraft_template_analysis(analysis)
         return analysis
     user = authenticate_token(access_token)
     if not user and request_payload.get("saveTask"):
@@ -2698,6 +3540,8 @@ def analyze_and_store_simulator_task(request_data, access_token=""):
         "nickname": user["nickname"],
         "avatarUrl": user["avatarUrl"],
     }
+    if request_payload.get("mode") == "simcraft_template":
+        attach_simcraft_template_report(analysis)
     with db_connection() as conn:
         conn.execute(
             """
@@ -2716,6 +3560,8 @@ def analyze_and_store_simulator_task(request_data, access_token=""):
                 now,
             ),
         )
+    if request_payload.get("mode") == "simcraft_template":
+        return public_simcraft_template_analysis(analysis)
     return analysis
 
 
@@ -2749,17 +3595,22 @@ def list_simulator_tasks(access_token, allow_guest=False, guest_id=""):
             or request_payload.get("message")
             or ""
         )
-        tasks.append(
-            {
-                "taskId": row[0],
-                "mode": row[1],
-                "status": row[2],
-                "question": question,
-                "recommendations": analysis_payload.get("recommendations", []),
-                "createdAt": row[5],
-                "updatedAt": row[6],
-            }
-        )
+        task = {
+            "taskId": row[0],
+            "mode": row[1],
+            "status": row[2],
+            "question": question,
+            "recommendations": analysis_payload.get("recommendations", []),
+            "createdAt": row[5],
+            "updatedAt": row[6],
+        }
+        if row[1] == "simcraft_template":
+            task["simcReportSummary"] = simcraft_template_report_summary_payload(
+                analysis_payload,
+                row_status=row[2],
+                updated_at=row[6],
+            )
+        tasks.append(task)
     return {"user": user, "tasks": tasks}
 
 
@@ -2790,6 +3641,16 @@ def get_simulator_task(access_token, task_id, allow_guest=False, guest_id=""):
         or request_payload.get("message")
         or ""
     )
+    public_analysis = (
+        public_simcraft_template_analysis(analysis_payload, row_status=row[2], strip_profile=True)
+        if row[1] == "simcraft_template"
+        else analysis_payload
+    )
+    public_request = (
+        public_simcraft_template_request(request_payload)
+        if row[1] == "simcraft_template"
+        else request_payload
+    )
     return {
         "user": user,
         "task": {
@@ -2797,9 +3658,9 @@ def get_simulator_task(access_token, task_id, allow_guest=False, guest_id=""):
             "mode": row[1],
             "status": row[2],
             "question": question,
-            "recommendations": analysis_payload.get("recommendations", []),
-            "request": request_payload,
-            "analysis": analysis_payload,
+            "recommendations": public_analysis.get("recommendations", []),
+            "request": public_request,
+            "analysis": public_analysis,
             "createdAt": row[5],
             "updatedAt": row[6],
         },

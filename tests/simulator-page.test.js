@@ -655,7 +655,89 @@ test('simc page refreshes summary stats for structured gear templates without ca
   assert.equal(page.data.summaryStatPanel.secondaryRows[0].percentText, '28.6%')
   assert.equal(syncedTemplates.length, 1)
   assert.equal(syncedTemplates[0].metadata.statSnapshot.statStatus, 'verified')
-  assert.equal(page.data.selectedGearTemplate.metadata.statSnapshot.statStatus, 'verified')
+  assert.equal(page.data.selectedGearTemplate.metadata.statSnapshot, undefined)
+})
+
+test('simc page does not rewrite large gear template objects when summary stats refresh completes', async () => {
+  const updates = []
+  const syncedTemplates = []
+  let resolveStats
+  const statsResponse = new Promise((resolve) => {
+    resolveStats = resolve
+  })
+  const gearSnapshot = {
+    schemaRevision: 'websim-gear-enhancement-snapshot-v1',
+    gearBySlot: {
+      head: {
+        slot: 'head',
+        itemId: '1',
+        id: '1',
+        ilevel: 707,
+        bonus_id: '12345',
+        debugPayload: 'x'.repeat(1024 * 256)
+      }
+    },
+    enhancementBySlot: {}
+  }
+  const structuredGearTemplate = {
+    ...sampleGearTemplate,
+    rawString: 'legacy metadata snapshot',
+    metadata: { maxLevel: 90, gearSnapshot }
+  }
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: () => statsResponse
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [structuredGearTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => [],
+      syncBuildTemplate: (template) => {
+        syncedTemplates.push(template)
+        return Promise.resolve({ payload: { template, templates: [template] }, fromFallback: false, error: '' })
+      }
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+  const originalSetData = page.setData
+  page.setData = function setData(update) {
+    updates.push(update || {})
+    return originalSetData.call(this, update)
+  }
+
+  const loadPromise = page.loadTemplateLists()
+  await flushPromises()
+  updates.length = 0
+
+  resolveStats({ payload: { ...sampleGearStatSnapshot, blockers: [] }, fromFallback: false, error: '' })
+  await loadPromise
+  await flushPromises()
+  await flushPromises()
+
+  const templateRewriteUpdates = updates.filter((update) => (
+    Object.prototype.hasOwnProperty.call(update, 'selectedGearTemplate') ||
+    Object.prototype.hasOwnProperty.call(update, 'gearTemplates') ||
+    Object.prototype.hasOwnProperty.call(update, 'allGearTemplates')
+  ))
+  assert.deepEqual(templateRewriteUpdates, [])
+  assert.equal(page.data.summaryStatPanel.primary.valueText, '12,345')
+  assert.equal(syncedTemplates[0].metadata.statSnapshot.statStatus, 'verified')
 })
 
 test('simc page clears pending summary stat refresh when selection no longer has a stats request', async () => {
@@ -860,6 +942,16 @@ test('simc page invalidates cached summary stats when the race changes', async (
 
 test('simc page reuses the same template payload for confirm and final submit', async () => {
   const requests = []
+  const gearSnapshot = {
+    schemaRevision: 'websim-gear-enhancement-snapshot-v1',
+    gearBySlot: { head: { slot: 'head', itemId: '250001', simcReady: true } },
+    enhancementBySlot: {}
+  }
+  const gearTemplateWithSnapshot = {
+    ...sampleGearTemplate,
+    rawString: 'gear snapshot stored in metadata',
+    metadata: { gearSnapshot, statSnapshot: sampleGearStatSnapshot }
+  }
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
     '../pages/builds/builds-api.js': {
       fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
@@ -867,7 +959,7 @@ test('simc page reuses the same template payload for confirm and final submit', 
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: (type) => Promise.resolve({
-        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplate] },
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [gearTemplateWithSnapshot] },
         fromFallback: true,
         error: ''
       }),
@@ -880,10 +972,12 @@ test('simc page reuses the same template payload for confirm and final submit', 
         return Promise.resolve({
           payload: {
             mode: 'simcraft_template',
-            status: 'ready',
+            status: request.saveTask ? 'queued' : 'ready',
             taskId: request.saveTask ? 'task-1' : '',
             request,
-            agent: { status: 'template_ready', canSubmitTask: true, validation: { passed: true, errors: [] } },
+            agent: request.saveTask
+              ? { status: 'simc_queued', canSubmitTask: false, validation: { passed: true, errors: [] } }
+              : { status: 'template_ready', canSubmitTask: true, validation: { passed: true, errors: [] } },
             simulation: { ran: false, error: '', metrics: {} },
             recommendations: ['模板组合已确认，可以提交执行 SimC。']
           },
@@ -900,8 +994,9 @@ test('simc page reuses the same template payload for confirm and final submit', 
   })
   const originalWx = global.wx
   global.wx = { showToast() {} }
+  let page
   try {
-    const page = createPageInstance(pageDefinition)
+    page = createPageInstance(pageDefinition)
     await page.loadTemplateLists()
     await flushPromises()
     const raceIndex = page.data.raceOptions.findIndex((item) => item.key === 'void_elf')
@@ -926,6 +1021,7 @@ test('simc page reuses the same template payload for confirm and final submit', 
   assert.equal(requests[0].request.analysisType, 'baseline')
   assert.equal(requests[0].request.templateContext.talent.id, 'talent-1')
   assert.equal(requests[0].request.templateContext.gear.id, 'gear-1')
+  assert.deepEqual(requests[0].request.templateContext.gear.metadata, { gearSnapshot })
   assert.equal(requests[1].request.confirmOnly, false)
   assert.equal(requests[1].request.saveTask, true)
   assert.deepEqual(requests[1].request.templateContext, requests[0].request.templateContext)
@@ -933,6 +1029,9 @@ test('simc page reuses the same template payload for confirm and final submit', 
   assert.equal(requests[1].request.raceKey, requests[0].request.raceKey)
   assert.equal(requests[1].request.scenarioKey, requests[0].request.scenarioKey)
   assert.deepEqual(requests[1].options, { auth: true, allowInsecureGuestRequest: true })
+  assert.equal(page.data.taskSubmitted, true)
+  assert.equal(page.data.submittedTaskId, 'task-1')
+  assert.equal(page.data.canSubmitTask, false)
 })
 
 test('simc page surfaces confirm request failures without leaving loading stuck', async () => {
@@ -1108,6 +1207,12 @@ test('simc page stores only compact analysis state after validation', () => {
       }
     },
     profile: 'head=item,id=1\n'.repeat(800),
+    simcReport: {
+      schemaRevision: 'simc-report-v2',
+      state: 'ready',
+      summary: 'Template payload validated; submit to run SimC.',
+      result: { ran: false, hasDps: false, dps: '', dpsDisplay: '' }
+    },
     report: {
       topFindings: [{ text: 'Template payload validated; confirmOnly did not execute SimC.' }]
     }
@@ -1116,10 +1221,18 @@ test('simc page stores only compact analysis state after validation', () => {
   assert.deepEqual(page.data.latestAnalysis, {
     agent: {
       status: 'template_ready'
+    },
+    simcReport: {
+      schemaRevision: 'simc-report-v2',
+      state: 'ready',
+      summary: 'Template payload validated; submit to run SimC.',
+      result: { ran: false, hasDps: false, dps: '', dpsDisplay: '' }
     }
   })
+  assert.equal(page.data.latestAnalysis.request, undefined)
+  assert.equal(page.data.latestAnalysis.profile, undefined)
   assert.equal(page.data.canSubmitTask, true)
-  assert.equal(page.data.resultSummary, 'Template payload validated; confirmOnly did not execute SimC.')
+  assert.equal(page.data.resultSummary, 'Template payload validated; submit to run SimC.')
 })
 
 test('smart analysis tab only keeps the chickenbro coach entry', () => {
@@ -1135,6 +1248,7 @@ test('smart analysis tab only keeps the chickenbro coach entry', () => {
   assert.ok(app.pages.includes('pages/simulator/simc'))
   assert.ok(!app.pages.includes('pages/simulator/wcl'))
   assert.ok(app.pages.includes('pages/simulator/chickenbro'))
+  assert.ok(app.pages.includes('pages/simulator/tasks'))
   assert.ok(app.pages.includes('pages/simulator/task-detail'))
   assert.match(wxml, /<view class="hero simulator-hero">/)
   assert.doesNotMatch(wxml, /class="metrics"/)
@@ -1179,6 +1293,25 @@ test('smart analysis tab only keeps the chickenbro coach entry', () => {
   assert.match(chickenbroWxml, /assistantPayload\.limitations && assistantPayload\.limitations\.length/)
   assert.match(chickenbroWxml, /job\.status/)
   assert.match(chickenbroCss, /\.chickenbro-hero/)
+})
+
+test('simulator task list has a dedicated page and opens task details', () => {
+  const app = JSON.parse(fs.readFileSync('app.json', 'utf8'))
+  const js = fs.readFileSync('pages/simulator/tasks.js', 'utf8')
+  const wxml = fs.readFileSync('pages/simulator/tasks.wxml', 'utf8')
+  const css = fs.readFileSync('pages/simulator/tasks.wxss', 'utf8')
+
+  assert.ok(app.pages.includes('pages/simulator/tasks'))
+  assert.match(js, /requestSimulatorTasks/)
+  assert.match(js, /loadSimulatorTasks/)
+  assert.match(js, /openTaskDetail\(event\)/)
+  assert.match(js, /\/pages\/simulator\/task-detail\?id=/)
+  assert.match(wxml, /wx:for="\{\{tasks\}\}"/)
+  assert.match(wxml, /data-task-id="\{\{item\.taskId\}\}"/)
+  assert.match(wxml, /bindtap="openTaskDetail"/)
+  assert.match(wxml, /任务列表/)
+  assert.match(css, /\.task-list-page/)
+  assert.match(css, /\.task-list-card/)
 })
 
 test('chickenbro page submits messages through independent chat API', async () => {
@@ -1303,42 +1436,49 @@ test('simulator task detail page renders saved task analysis', () => {
   assert.match(js, /loadTaskDetail\(options\.id/)
   assert.match(js, /normalizeTaskDetail\(task\)/)
   assert.match(wxml, /任务详情/)
-  assert.match(wxml, /玩家问题/)
-  assert.match(wxml, /AI 结论/)
-  assert.match(wxml, /真实大秘境对标/)
-  assert.match(wxml, /执行阶段/)
+  assert.doesNotMatch(wxml, /玩家问题/)
+  assert.doesNotMatch(wxml, /构筑上下文/)
+  assert.doesNotMatch(wxml, /报告解释/)
+  assert.doesNotMatch(wxml, /Evidence/)
+  assert.doesNotMatch(wxml, /下一步/)
+  assert.doesNotMatch(wxml, /AI/)
+  assert.doesNotMatch(wxml, /真实大秘境对标/)
+  assert.doesNotMatch(wxml, /执行阶段/)
+  assert.doesNotMatch(wxml, /Pipeline/)
   assert.doesNotMatch(wxml, /生成的 SimC 模板/)
   assert.doesNotMatch(wxml, /SimC 执行摘要/)
-  assert.match(wxml, /detail\.recommendations/)
-  assert.match(wxml, /detail\.mythicPlusReference/)
-  assert.match(wxml, /detail\.mythicPlusReferenceText/)
-  assert.match(wxml, /detail\.buildContextText/)
-  assert.match(wxml, /detail\.stages/)
+  assert.doesNotMatch(wxml, /detail\.recommendations/)
+  assert.doesNotMatch(wxml, /detail\.mythicPlusReference/)
+  assert.doesNotMatch(wxml, /detail\.mythicPlusReferenceText/)
+  assert.doesNotMatch(wxml, /detail\.buildContextText/)
+  assert.doesNotMatch(wxml, /detail\.stages/)
   assert.doesNotMatch(wxml, /detail\.draftProfile/)
   assert.doesNotMatch(wxml, /detail\.simulationSummary/)
   assert.doesNotMatch(wxml, /detail\.llmContent/)
   assert.doesNotMatch(wxml, /AI 解读/)
   assert.match(wxml, /detail\.heroTitle/)
-  assert.match(wxml, /detail\.questionSummary/)
+  assert.doesNotMatch(wxml, /detail\.questionSummary/)
   assert.doesNotMatch(wxml, /class="detail-title">\{\{detail\.question\}\}/)
-  assert.match(js, /summarizeTaskQuestion\(question\)/)
   assert.match(js, /heroTitle/)
-  assert.match(js, /questionSummary/)
+  assert.doesNotMatch(js, /questionSummary/)
+  assert.doesNotMatch(js, /mythicPlusReference/)
   assert.match(js, /simcMetricLabel/)
   assert.match(js, /simcUnitText/)
   assert.match(js, /simcDisplayValue/)
   assert.match(wxml, /detail\.simcDisplayValue/)
   assert.match(wxml, /detail\.simcMetricLabel/)
   assert.match(wxml, /detail\.simcUnitText/)
-  assert.match(wxml, /detail\.reportFindings/)
-  assert.match(wxml, /detail\.reportActions/)
-  assert.match(wxml, /detail\.reportLimitations/)
+  assert.match(wxml, /detail\.scenarioDisplayText/)
+  assert.match(wxml, /detail\.scenarioMetaText/)
+  assert.match(wxml, /detail\.statRows/)
+  assert.doesNotMatch(wxml, /detail\.reportFindings/)
+  assert.doesNotMatch(wxml, /detail\.reportActions/)
+  assert.doesNotMatch(wxml, /detail\.reportLimitations/)
   assert.match(wxml, /detail\.briefConclusion/)
   assert.match(api, /requestSimulatorTaskDetail\(taskId\)/)
   assert.match(css, /\.task-detail-hero/)
   assert.match(css, /word-break:\s*break-all/)
   assert.match(css, /white-space:\s*pre-wrap/)
-  assert.match(css, /\.build-context-box/)
   assert.doesNotMatch(css, /\.detail-code/)
 })
 
@@ -1381,9 +1521,10 @@ test('task detail normalizes long build prompts into a compact report header', (
   })
 
   assert.equal(normalized.heroTitle, 'SimC 任务 · 冰霜法师')
-  assert.match(normalized.questionSummary, /冰霜法师的天赋构筑/)
-  assert.doesNotMatch(normalized.questionSummary, new RegExp(longTalentCode))
-  assert.ok(normalized.questionSummary.length < normalized.question.length)
+  assert.equal(normalized.question, undefined)
+  assert.equal(normalized.questionSummary, undefined)
+  assert.equal(normalized.buildContext, undefined)
+  assert.equal(normalized.buildContextText, undefined)
 })
 
 test('task detail hides generated SimC preview DPS values from the report', () => {
@@ -1423,7 +1564,7 @@ test('task detail hides generated SimC preview DPS values from the report', () =
   assert.doesNotMatch(normalized.briefConclusion, /26\.129/)
 })
 
-test('task detail exposes structured SimC report explanation', () => {
+test('task detail exposes structured SimC result without report explanation', () => {
   let pageDefinition = null
   const originalPage = global.Page
   global.Page = (definition) => {
@@ -1448,6 +1589,40 @@ test('task detail exposes structured SimC report explanation', () => {
       },
       simulation: { ran: false, error: '', metrics: {} },
       recommendations: ['Submit the confirmed task to run full SimC.'],
+      simcReport: {
+        schemaRevision: 'simc-report-v2',
+        state: 'completed',
+        title: 'Arcane Mage SimC',
+        summary: 'SimC completed with 654321 DPS.',
+        statusText: 'completed',
+        scenario: { key: 'mythic_plus', label: '大秘境基准', fightStyle: 'DungeonSlice', targets: 5, durationSeconds: 360 },
+        build: {
+          statSnapshot: {
+            statStatus: 'verified',
+            primary: { key: 'intellect', label: '智力', value: '2,624', rawValue: 2624 },
+            secondary: [
+              { key: 'crit', label: '暴击', value: '8,100', convertedValue: '25%' },
+              { key: 'haste', label: '急速', value: '3,497', convertedValue: '10.8%' },
+              { key: 'mastery', label: '精通', value: '12,440', convertedValue: '78.7%' },
+              { key: 'versatility', label: '全能', value: '300', convertedValue: '1%' }
+            ]
+          }
+        },
+        result: {
+          ran: true,
+          hasDps: true,
+          dps: '654321',
+          dpsDisplay: '654321 DPS',
+          metricLabel: 'DPS',
+          metricUnit: '伤害/秒'
+        },
+        messages: {
+          blockers: [],
+          warnings: [],
+          nextActions: ['Use this as the baseline.'],
+          evidenceRefs: ['simc.dps']
+        }
+      },
       report: {
         source: 'deterministic_confirm_preview',
         topFindings: [
@@ -1462,14 +1637,79 @@ test('task detail exposes structured SimC report explanation', () => {
     }
   })
 
-  assert.deepEqual(normalized.reportFindings, [
-    {
-      text: 'Template payload validated; confirmOnly did not execute SimC.',
-      evidenceText: 'simc.confirmOnly / simc.template'
-    }
+  assert.equal(normalized.reportFindings, undefined)
+  assert.equal(normalized.reportActions, undefined)
+  assert.equal(normalized.reportLimitations, undefined)
+  assert.equal(normalized.hasReportExplanation, undefined)
+  assert.equal(normalized.briefConclusion, 'SimC completed with 654321 DPS.')
+  assert.equal(normalized.simcDps, '654321')
+  assert.equal(normalized.simcDisplayValue, '654321 DPS')
+  assert.equal(normalized.scenarioDisplayText, '大秘境 AOE 5目标')
+  assert.equal(normalized.scenarioMetaText, 'DungeonSlice · 6分钟')
+  assert.deepEqual(normalized.statRows.map((item) => [item.label, item.valueText]), [
+    ['智力', '2,624'],
+    ['暴击', '25%'],
+    ['急速', '10.8%'],
+    ['精通', '78.7%'],
+    ['全能', '1%']
   ])
-  assert.deepEqual(normalized.reportActions, ['Submit the task when ready.'])
-  assert.deepEqual(normalized.reportLimitations, ['No DPS is available until final submit runs SimC.'])
+})
+
+test('task detail hides legacy LLM report fields for SimC template tasks', () => {
+  let pageDefinition = null
+  const originalPage = global.Page
+  global.Page = (definition) => {
+    pageDefinition = definition
+  }
+  delete require.cache[require.resolve('../pages/simulator/task-detail.js')]
+  require('../pages/simulator/task-detail.js')
+  global.Page = originalPage
+
+  const normalized = pageDefinition.normalizeTaskDetail({
+    taskId: 'task-legacy-template',
+    mode: 'simcraft_template',
+    question: 'Run saved template',
+    request: {
+      mode: 'simcraft_template'
+    },
+    analysis: {
+      mode: 'simcraft_template',
+      request: { mode: 'simcraft_template' },
+      simulation: {
+        ran: true,
+        error: '',
+        metricLabel: 'DPS',
+        metricUnit: '伤害/秒',
+        metrics: { dps: '73680.202' }
+      },
+      recommendations: ['请选择同职业专精的完整天赋模板和 16 槽装备模板后再提交。'],
+      report: {
+        topFindings: [
+          { text: 'SimC completed with DPS 73680.202.', evidenceRefs: ['simc.dps'] },
+          { text: 'SimC DPS falls within a broad sanity window around the attached external Mythic+ reference.', evidenceRefs: ['simc.benchmark'] }
+        ],
+        nextActions: ['请选择同职业专精的完整天赋模板和 16 槽装备模板后再提交。'],
+        limitations: [
+          'Only numbers listed in allowedNumbers are treated as evidence.',
+          'LLM prose is explanatory and cannot create new numeric facts.'
+        ]
+      },
+      allowedNumbers: [{ key: 'simc.dps', value: '73680.202' }],
+      llm: { called: false, content: '' },
+      codex: { worker: 'unused' }
+    }
+  })
+
+  assert.equal(normalized.modeText, 'SimC 模板')
+  assert.equal(normalized.simcDps, '73680.202')
+  assert.equal(normalized.simcDisplayValue, '73680.202')
+  assert.equal(normalized.recommendations, undefined)
+  assert.equal(normalized.reportFindings, undefined)
+  assert.equal(normalized.reportActions, undefined)
+  assert.equal(normalized.reportLimitations, undefined)
+  assert.equal(normalized.hasReportExplanation, undefined)
+  assert.equal(normalized.analysis, undefined)
+  assert.equal(normalized.request, undefined)
 })
 
 test('dormant wcl analysis page is not registered in the first-version app', () => {

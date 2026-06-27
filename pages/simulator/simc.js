@@ -137,7 +137,7 @@ function selectorSheetFor(type, data) {
 
 function compactTemplate(template) {
   if (!template) return null
-  return {
+  const compact = {
     id: template.id || '',
     type: template.type || '',
     title: template.title || '',
@@ -153,6 +153,11 @@ function compactTemplate(template) {
     status: template.status || '',
     source: template.source || ''
   }
+  const metadata = template.metadata && typeof template.metadata === 'object' ? template.metadata : {}
+  if (metadata.gearSnapshot) {
+    compact.metadata = { gearSnapshot: metadata.gearSnapshot }
+  }
+  return compact
 }
 
 function uniqueList(values) {
@@ -187,8 +192,29 @@ function verifiedSummarySnapshot(snapshot) {
   return snapshot && typeof snapshot === 'object' && snapshot.statStatus === 'verified' ? snapshot : null
 }
 
+function stableTextHash(value) {
+  const text = String(value === undefined || value === null ? '' : value)
+  let hash = 2166136261
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0).toString(36)
+}
+
 function summaryStatsRequestSignature(request) {
-  return JSON.stringify(request || {})
+  const raw = JSON.stringify(request || {})
+  if (raw.length <= 4096) return raw
+  return JSON.stringify({
+    classKey: request && request.classKey,
+    specKey: request && request.specKey,
+    raceKey: request && request.raceKey,
+    level: request && request.level,
+    scenarioKey: request && request.scenarioKey,
+    talentsHash: stableTextHash(request && request.talents),
+    rawStringHash: stableTextHash(request && request.rawString),
+    metadataHash: stableTextHash(JSON.stringify((request && request.metadata) || {}))
+  })
 }
 
 function summaryStatsInvalidationState() {
@@ -205,11 +231,15 @@ function requestFailureMessage(error, fallbackText = 'request failed') {
 function compactAnalysisState(payload) {
   const status = cleanSummaryText(((payload || {}).agent || {}).status)
   if (!status) return null
-  return {
+  const compact = {
     agent: {
       status
     }
   }
+  if (payload && payload.simcReport) {
+    compact.simcReport = payload.simcReport
+  }
+  return compact
 }
 
 function statSnapshotFromTemplate(template, expectedSignature = '') {
@@ -348,11 +378,6 @@ function templateWithStatSnapshot(template, snapshot, signature = '') {
       statSnapshotSource: source.statSource || 'simulationcraft_json'
     }
   }
-}
-
-function replaceTemplateById(templates, template) {
-  if (!template || !template.id) return templates || []
-  return (templates || []).map((item) => (item && item.id === template.id ? template : item))
 }
 
 function persistStatSnapshotTemplate(template) {
@@ -600,9 +625,6 @@ Page({
       if (snapshot) {
         const nextGearTemplate = templateWithStatSnapshot(this.data.selectedGearTemplate, snapshot, signature)
         this.setData({
-          selectedGearTemplate: nextGearTemplate,
-          gearTemplates: replaceTemplateById(this.data.gearTemplates, nextGearTemplate),
-          allGearTemplates: replaceTemplateById(this.data.allGearTemplates, nextGearTemplate),
           summaryStatPanel: summaryStatPanelFromSnapshot(snapshot)
         })
         persistStatSnapshotTemplate(nextGearTemplate)
@@ -868,6 +890,8 @@ Page({
   },
 
   resultSummaryFromAnalysis(payload) {
+    const simcReport = (payload && payload.simcReport) || {}
+    if (simcReport.summary) return cleanSummaryText(simcReport.summary)
     const report = (payload && payload.report) || {}
     const findings = Array.isArray(report.topFindings) ? report.topFindings : []
     const finding = findings.find((item) => item && String(item.text || '').trim())

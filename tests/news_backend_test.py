@@ -369,6 +369,37 @@ class NewsBackendTest(unittest.TestCase):
             lines.append(",".join(parts))
         return "\n".join(lines)
 
+    def simc_template_structured_gear_snapshot(self):
+        gear_by_slot = {}
+        for line in self.simc_template_full_gear_raw().splitlines():
+            head, *parts = line.split(",")
+            slot, _, name = head.partition("=")
+            item = {"slot": slot, "simcSlot": slot, "name": name, "displayName": name, "simcReady": True}
+            for part in parts:
+                key, _, value = part.partition("=")
+                item[key] = value
+                if key == "id":
+                    item["itemId"] = value
+            gear_by_slot[slot] = item
+        return {
+            "schemaRevision": "websim-gear-enhancement-snapshot-v1",
+            "gearBySlot": gear_by_slot,
+            "enhancementBySlot": {},
+        }
+
+    def simc_template_stat_snapshot(self):
+        return {
+            "statStatus": "verified",
+            "statSource": "simulationcraft_json",
+            "primary": {"key": "intellect", "label": "智力", "value": "2,624", "rawValue": 2624},
+            "secondary": [
+                {"key": "crit", "label": "暴击", "value": "8,100", "convertedValue": "25%"},
+                {"key": "haste", "label": "急速", "value": "3,497", "convertedValue": "10.8%"},
+                {"key": "mastery", "label": "精通", "value": "12,440", "convertedValue": "78.7%"},
+                {"key": "versatility", "label": "全能", "value": "300", "convertedValue": "1%"},
+            ],
+        }
+
     def simc_template_payload(
         self,
         *,
@@ -1648,7 +1679,8 @@ class NewsBackendTest(unittest.TestCase):
         self.assertTrue(analysis["agent"]["canSubmitTask"])
         self.assertFalse(analysis["simulation"]["ran"])
         self.assertFalse(captured_profile.exists())
-        self.assertFalse(analysis["llm"]["called"])
+        self.assertNotIn("llm", analysis)
+        self.assertNotIn("codex", analysis)
         self.assertEqual(analysis["request"]["profileSource"], "template")
         self.assertIn("class_talents=1001:1", draft_profile)
         self.assertIn("spec_talents=2001:1", draft_profile)
@@ -1892,6 +1924,19 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("gear template must be complete", analysis["simulation"].get("error", ""))
         self.assertEqual(len(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]), 16)
 
+    def test_simcraft_template_confirm_uses_metadata_gear_snapshot_fallback(self):
+        self.seed_simc_template_websim_nodes()
+        payload = self.simc_template_payload(gear_raw="saved gear snapshot lives in metadata")
+        payload["templateContext"]["gear"]["metadata"] = {
+            "gearSnapshot": self.simc_template_structured_gear_snapshot()
+        }
+
+        analysis = self.backend.analyze_and_store_simulator_task(payload)
+
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertEqual(len(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]), 16)
+        self.assertIn("head=template_head,id=250001", analysis["agent"]["draftProfile"])
+
     def test_simc_profile_validation_rejects_talent_line_entries_without_rank(self):
         from server import simulator_payload
 
@@ -1956,6 +2001,33 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["report"]["topFindings"][0]["evidenceRefs"], ["simc.confirmOnly", "simc.template"])
         self.assertIn("validated", analysis["report"]["topFindings"][0]["text"])
         self.assertIn("did not execute SimC", analysis["report"]["topFindings"][0]["text"])
+        self.assertEqual(analysis["simcReport"]["schemaRevision"], "simc-report-v2")
+        self.assertEqual(analysis["simcReport"]["state"], "ready")
+        self.assertEqual(analysis["simcReport"]["profileSource"], "template")
+        self.assertEqual(analysis["simcReport"]["scenario"]["fightStyle"], "Patchwerk")
+        self.assertEqual(analysis["simcReport"]["scenario"]["targets"], 1)
+        self.assertFalse(analysis["simcReport"]["result"]["ran"])
+        self.assertEqual(analysis["simcReport"]["build"]["talentTemplate"]["id"], "talent-template-1")
+        self.assertEqual(analysis["simcReport"]["build"]["gearTemplate"]["id"], "gear-template-1")
+        self.assertNotIn("llm", analysis)
+        self.assertNotIn("codex", analysis)
+        self.assertNotIn("allowedNumbers", analysis)
+
+    def test_simcraft_template_report_carries_compact_stat_snapshot(self):
+        self.seed_simc_template_websim_nodes()
+        payload = self.simc_template_payload(scenario="mythic_plus")
+        payload["templateContext"]["gear"]["metadata"] = {
+            "statSnapshot": self.simc_template_stat_snapshot(),
+        }
+
+        analysis = self.backend.analyze_and_store_simulator_task(payload)
+
+        snapshot = analysis["simcReport"]["build"]["statSnapshot"]
+        self.assertEqual(snapshot["statStatus"], "verified")
+        self.assertEqual(snapshot["primary"]["label"], "智力")
+        self.assertEqual(snapshot["secondary"][0]["key"], "crit")
+        self.assertEqual(snapshot["secondary"][0]["convertedValue"], "25%")
+        self.assertEqual(analysis["simcReport"]["scenario"]["targets"], 5)
 
     def test_simcraft_template_blocks_mismatched_class_spec(self):
         analysis = self.backend.analyze_and_store_simulator_task(
@@ -1971,6 +2043,8 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["report"]["source"], "deterministic_blocked")
         self.assertEqual(analysis["report"]["topFindings"][0]["evidenceRefs"], ["simc.templateValidation"])
         self.assertIn("template class/spec mismatch", analysis["report"]["topFindings"][0]["text"])
+        self.assertEqual(analysis["simcReport"]["state"], "blocked")
+        self.assertIn("template class/spec mismatch", analysis["simcReport"]["messages"]["blockers"])
 
     def test_simcraft_template_blocks_incomplete_gear_template(self):
         gear_raw = "\n".join(self.simc_template_full_gear_raw().splitlines()[:15])
@@ -1982,11 +2056,102 @@ class NewsBackendTest(unittest.TestCase):
         self.assertFalse(analysis["agent"]["canSubmitTask"])
         self.assertIn("missing gear slots: off_hand", analysis["simulation"]["error"])
         self.assertEqual(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"], [])
+        self.assertEqual(analysis["simcReport"]["state"], "blocked")
+        self.assertIn("missing gear slots: off_hand", analysis["simcReport"]["summary"])
 
-    def test_simcraft_template_final_submit_reuses_template_payload_runs_simc_and_saves_task(self):
+    def test_simcraft_template_final_submit_queues_task_without_simc_llm_or_codex(self):
         self.seed_simc_template_websim_nodes()
-        simc_bin = Path(self.tmp.name) / "fake-simc-template-final"
-        captured_profile = Path(self.tmp.name) / "captured-template-final-profile.txt"
+        from server import simulator_payload
+
+        original_run_simcraft = simulator_payload.run_simcraft
+        original_call_llm = simulator_payload.call_llm
+        original_call_codex_worker = simulator_payload.call_codex_worker
+        simulator_payload.run_simcraft = lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("final submit must not run SimC synchronously")
+        )
+        simulator_payload.call_llm = lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("simcraft_template submit must not call LLM")
+        )
+        simulator_payload.call_codex_worker = lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("simcraft_template submit must not call Codex Worker")
+        )
+        os.environ["WOW_SIMC_TEMPLATE_TASK_AUTORUN"] = "0"
+        request_payload = self.simc_template_payload(scenario="mythic_plus", analysis_type="stat_weights")
+        request_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device"})
+        try:
+            analysis = self.backend.analyze_and_store_simulator_task(request_payload)
+        finally:
+            os.environ.pop("WOW_SIMC_TEMPLATE_TASK_AUTORUN", None)
+            simulator_payload.run_simcraft = original_run_simcraft
+            simulator_payload.call_llm = original_call_llm
+            simulator_payload.call_codex_worker = original_call_codex_worker
+
+        self.assertFalse(analysis["simulation"]["ran"])
+        self.assertEqual(analysis["status"], "queued")
+        self.assertEqual(analysis["agent"]["status"], "simc_queued")
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
+        self.assertTrue(analysis["taskId"])
+        self.assertEqual(analysis["runPolicy"]["policy"], "queued")
+        self.assertEqual(analysis["evidenceState"]["phase"], "queued")
+        self.assertEqual(analysis["simcReport"]["state"], "queued")
+        self.assertEqual(analysis["simcReport"]["scenario"]["fightStyle"], "DungeonSlice")
+        self.assertEqual(analysis["simcReport"]["scenario"]["targets"], 5)
+        self.assertEqual(analysis["simcReport"]["build"]["raceKey"], "")
+        self.assertFalse(analysis["simcReport"]["result"]["ran"])
+        self.assertIn("fight_style=DungeonSlice", analysis["request"]["profile"])
+        self.assertIn("desired_targets=5", analysis["request"]["profile"])
+        self.assertIn("calculate_scale_factors=1", analysis["request"]["profile"])
+        self.assertEqual(analysis["request"]["templateContext"]["talent"]["id"], "talent-template-1")
+        self.assertNotIn("llm", analysis)
+        self.assertNotIn("codex", analysis)
+        self.assertNotIn("allowedNumbers", analysis)
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            row = conn.execute(
+                "SELECT status, request_json, analysis_json FROM simulator_tasks WHERE id = ?",
+                (analysis["taskId"],),
+            ).fetchone()
+        self.assertEqual(row[0], "queued")
+        stored_request = json.loads(row[1])
+        stored_analysis = json.loads(row[2])
+        self.assertEqual(stored_request["simcTaskFingerprint"], analysis["request"]["simcTaskFingerprint"])
+        self.assertEqual(stored_analysis["agent"]["status"], "simc_queued")
+        tasks = self.backend.list_simulator_tasks("", allow_guest=True, guest_id="template-device")
+        self.assertEqual(tasks["tasks"][0]["simcReportSummary"]["state"], "queued")
+        self.assertEqual(tasks["tasks"][0]["simcReportSummary"]["scenario"]["key"], "mythic_plus")
+
+    def test_simcraft_template_final_submit_reuses_active_task_lock(self):
+        self.seed_simc_template_websim_nodes()
+        os.environ["WOW_SIMC_TEMPLATE_TASK_AUTORUN"] = "0"
+        request_payload = self.simc_template_payload()
+        request_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device"})
+        try:
+            first = self.backend.analyze_and_store_simulator_task(request_payload)
+            second = self.backend.analyze_and_store_simulator_task(request_payload)
+        finally:
+            os.environ.pop("WOW_SIMC_TEMPLATE_TASK_AUTORUN", None)
+
+        self.assertEqual(second["taskId"], first["taskId"])
+        self.assertEqual(second["status"], "queued")
+        self.assertTrue(second["taskLock"]["active"])
+        self.assertEqual(second["taskLock"]["reason"], "active_simc_task")
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            count = conn.execute("SELECT COUNT(*) FROM simulator_tasks").fetchone()[0]
+        self.assertEqual(count, 1)
+
+    def test_simcraft_template_task_runner_completes_queued_task(self):
+        self.seed_simc_template_websim_nodes()
+        from server import simulator_payload
+
+        original_call_llm = simulator_payload.call_llm
+        original_call_codex_worker = simulator_payload.call_codex_worker
+        simulator_payload.call_llm = lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("simcraft_template runner must not call LLM")
+        )
+        simulator_payload.call_codex_worker = lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("simcraft_template runner must not call Codex Worker")
+        )
+        simc_bin = Path(self.tmp.name) / "fake-simc-template-runner"
+        captured_profile = Path(self.tmp.name) / "captured-template-runner-profile.txt"
         simc_bin.write_text(
             "#!/bin/sh\n"
             f"cat > {captured_profile}\n"
@@ -1995,55 +2160,76 @@ class NewsBackendTest(unittest.TestCase):
         )
         simc_bin.chmod(0o755)
         os.environ["WOW_SIMC_BIN"] = str(simc_bin)
-        request_payload = self.simc_template_payload(scenario="mythic_plus", analysis_type="stat_weights")
+        os.environ["WOW_SIMC_TEMPLATE_TASK_AUTORUN"] = "0"
+        request_payload = self.simc_template_payload()
         request_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device"})
         try:
-            analysis = self.backend.analyze_and_store_simulator_task(request_payload)
+            queued = self.backend.analyze_and_store_simulator_task(request_payload)
+            completed = self.backend.run_simcraft_template_task(queued["taskId"])
         finally:
             os.environ.pop("WOW_SIMC_BIN", None)
+            os.environ.pop("WOW_SIMC_TEMPLATE_TASK_AUTORUN", None)
+            simulator_payload.call_llm = original_call_llm
+            simulator_payload.call_codex_worker = original_call_codex_worker
 
         executed_profile = captured_profile.read_text(encoding="utf-8")
-        self.assertTrue(analysis["simulation"]["ran"])
-        self.assertEqual(analysis["simulation"]["metrics"]["dps"], "654321")
-        self.assertEqual(analysis["agent"]["status"], "simc_completed")
-        self.assertTrue(analysis["taskId"])
-        self.assertIn("fight_style=DungeonSlice", executed_profile)
-        self.assertIn("desired_targets=5", executed_profile)
-        self.assertIn("calculate_scale_factors=1", executed_profile)
-        self.assertEqual(analysis["request"]["profile"], executed_profile.strip())
-        self.assertEqual(analysis["request"]["templateContext"]["talent"]["id"], "talent-template-1")
+        self.assertEqual(completed["status"], "completed")
+        self.assertTrue(completed["simulation"]["ran"])
+        self.assertEqual(completed["simulation"]["metrics"]["dps"], "654321")
+        self.assertEqual(completed["agent"]["status"], "simc_completed")
+        self.assertEqual(completed["simcReport"]["state"], "completed")
+        self.assertEqual(completed["simcReport"]["result"]["dps"], "654321")
+        self.assertEqual(completed["simcReport"]["result"]["dpsDisplay"], "654321 DPS")
+        self.assertTrue(completed["simcReport"]["timing"]["startedAt"])
+        self.assertTrue(completed["simcReport"]["timing"]["finishedAt"])
+        self.assertIsInstance(completed["simcReport"]["timing"]["elapsedMs"], int)
+        self.assertIn("fight_style=Patchwerk", executed_profile)
+        detail = self.backend.get_simulator_task("", queued["taskId"], allow_guest=True, guest_id="template-device")
+        self.assertEqual(detail["task"]["status"], "completed")
+        self.assertEqual(detail["task"]["analysis"]["simulation"]["metrics"]["dps"], "654321")
+        self.assertEqual(detail["task"]["analysis"]["simcReport"]["result"]["dps"], "654321")
+        self.assertNotIn("profile", detail["task"]["analysis"]["request"])
+        self.assertNotIn("draftProfile", detail["task"]["analysis"]["agent"])
+        self.assertEqual(detail["task"]["analysis"]["simulation"]["summary"], "")
+        self.assertNotIn("llm", detail["task"]["analysis"])
+        self.assertNotIn("codex", detail["task"]["analysis"])
+        self.assertNotIn("allowedNumbers", detail["task"]["analysis"])
+        tasks = self.backend.list_simulator_tasks("", allow_guest=True, guest_id="template-device")
+        self.assertEqual(tasks["tasks"][0]["simcReportSummary"]["state"], "completed")
+        self.assertEqual(tasks["tasks"][0]["simcReportSummary"]["dpsDisplay"], "654321 DPS")
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            row = conn.execute("SELECT status FROM simulator_tasks WHERE id = ?", (queued["taskId"],)).fetchone()
+        self.assertEqual(row[0], "completed")
 
-    def test_simcraft_template_final_submit_does_not_save_failed_simc_task(self):
+    def test_simcraft_template_task_runner_reports_failed_simc_without_dps_claim(self):
         self.seed_simc_template_websim_nodes()
-        simc_bin = Path(self.tmp.name) / "fake-simc-template-final-failure"
-        captured_profile = Path(self.tmp.name) / "captured-template-final-failure-profile.txt"
+        simc_bin = Path(self.tmp.name) / "fake-simc-template-failed"
         simc_bin.write_text(
             "#!/bin/sh\n"
-            f"cat > {captured_profile}\n"
-            "printf 'Error: Initialization error: bad profile\\n' >&2\n"
+            "cat > /dev/null\n"
+            "printf 'invalid talent input from SimulationCraft\\n' >&2\n"
             "exit 1\n",
             encoding="utf-8",
         )
         simc_bin.chmod(0o755)
         os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        os.environ["WOW_SIMC_TEMPLATE_TASK_AUTORUN"] = "0"
         request_payload = self.simc_template_payload()
-        request_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device"})
+        request_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device-failed"})
         try:
-            analysis = self.backend.analyze_and_store_simulator_task(request_payload)
+            queued = self.backend.analyze_and_store_simulator_task(request_payload)
+            failed = self.backend.run_simcraft_template_task(queued["taskId"])
         finally:
             os.environ.pop("WOW_SIMC_BIN", None)
+            os.environ.pop("WOW_SIMC_TEMPLATE_TASK_AUTORUN", None)
 
-        self.assertTrue(captured_profile.exists())
-        self.assertFalse(analysis.get("taskId"))
-        self.assertEqual(analysis["agent"]["status"], "simc_failed")
-        self.assertFalse(analysis["agent"]["canSubmitTask"])
-        self.assertFalse(analysis["simulation"]["ran"])
-        self.assertIn("Initialization error", analysis["simulation"]["error"])
-        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
-            count = conn.execute("SELECT COUNT(*) FROM simulator_tasks").fetchone()[0]
-            user_count = conn.execute("SELECT COUNT(*) FROM wechat_users").fetchone()[0]
-        self.assertEqual(count, 0)
-        self.assertEqual(user_count, 0)
+        self.assertEqual(failed["status"], "failed")
+        self.assertFalse(failed["simulation"]["ran"])
+        self.assertEqual(failed["simcReport"]["state"], "failed")
+        self.assertFalse(failed["simcReport"]["result"]["hasDps"])
+        self.assertEqual(failed["simcReport"]["result"]["dps"], "")
+        self.assertIn("invalid talent input", failed["simcReport"]["summary"])
+        self.assertIn("invalid talent input", failed["simcReport"]["messages"]["blockers"][0])
 
     def test_simc_agent_generates_template_from_natural_language(self):
         self.patch_simc_confirmation_llm(
@@ -3586,6 +3772,83 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(gear["simcLines"], [])
         self.assertEqual({item["rawString"] for item in listed}, {talent["rawString"], gear["rawString"]})
 
+    def test_user_build_templates_include_backend_simcraft_readiness(self):
+        self.seed_simc_template_websim_nodes()
+        login = self.backend.login_with_wechat_code(
+            "wx-code-template-readiness",
+            exchange_code=lambda code: {"openid": "openid-template-readiness"},
+        )
+
+        talent = self.backend.save_user_build_template(
+            login["accessToken"],
+            {
+                "type": "talent",
+                "title": "Arcane WebSim Talent",
+                "rawString": "websim:mage:arcane:spellslinger:simc-class-1001-mage-arcane:1,simc-spec-2001-mage-arcane:1,simc-hero-3001-mage-arcane-spellslinger:1",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "heroKey": "spellslinger",
+                "status": "saved",
+            },
+        )
+        gear = self.backend.save_user_build_template(
+            login["accessToken"],
+            {
+                "type": "gear",
+                "title": "Arcane Complete Gear",
+                "rawString": self.simc_template_full_gear_raw(),
+                "classKey": "mage",
+                "specKey": "arcane",
+                "status": "complete",
+            },
+        )
+        blocked = self.backend.save_user_build_template(
+            login["accessToken"],
+            {
+                "type": "gear",
+                "title": "Reference Only Gear",
+                "rawString": self.simc_template_full_gear_raw(),
+                "classKey": "mage",
+                "specKey": "arcane",
+                "status": "source_reference",
+            },
+        )
+        listed = self.backend.list_user_build_templates(login["accessToken"])["templates"]
+
+        self.assertEqual(talent["simcraftReadiness"]["status"], "ready")
+        self.assertEqual(talent["simcraftReadiness"]["profileSource"], "template")
+        self.assertEqual(talent["simcraftReadiness"]["talent"]["encodingStatus"], "encoded")
+        self.assertEqual(gear["simcraftReadiness"]["status"], "ready")
+        self.assertEqual(gear["simcraftReadiness"]["gear"]["parsedSlotCount"], 16)
+        self.assertEqual(blocked["simcraftReadiness"]["status"], "blocked")
+        self.assertIn("gear template must be complete", blocked["simcraftReadiness"]["blockers"])
+        self.assertTrue(all("simcraftReadiness" in item for item in listed))
+
+    def test_user_build_template_save_canonicalizes_metadata_gear_snapshot(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-template-gear-snapshot",
+            exchange_code=lambda code: {"openid": "openid-template-gear-snapshot"},
+        )
+
+        gear = self.backend.save_user_build_template(
+            login["accessToken"],
+            {
+                "type": "gear",
+                "title": "Metadata Snapshot Gear",
+                "rawString": "metadata snapshot placeholder",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "status": "complete",
+                "metadata": {"gearSnapshot": self.simc_template_structured_gear_snapshot()},
+            },
+        )
+        listed = self.backend.list_user_build_templates(login["accessToken"])["templates"]
+
+        self.assertTrue(gear["rawString"].startswith("{"))
+        self.assertEqual(gear["simcraftReadiness"]["status"], "ready")
+        self.assertEqual(gear["simcraftReadiness"]["gear"]["rawSource"], "rawString")
+        self.assertEqual(listed[0]["rawString"], gear["rawString"])
+
     def test_http_me_build_templates_requires_auth_and_supports_crud(self):
         login = self.backend.login_with_wechat_code(
             "wx-code-template-http",
@@ -3926,6 +4189,65 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(details["catalogContract"]["sourceStatus"], "simc")
         self.assertEqual(details["catalogContract"]["coverage"]["covered"], 1)
         self.assertEqual(details["catalogContract"]["coverage"]["total"], 3)
+
+    def test_data_health_payload_includes_template_simc_bridge_component(self):
+        self.seed_simc_template_websim_nodes()
+        version_file = Path(self.tmp.name) / "simc-version.json"
+        version_file.write_text(
+            json.dumps(
+                {
+                    "checkedAt": "2026-06-27T08:00:00+00:00",
+                    "localTag": "1205-2026-06-27-local",
+                    "latestTag": "1205-2026-06-27-local",
+                    "updateAvailable": False,
+                    "source": "dockerhub",
+                    "image": "simulationcraftorg/simc:1205-2026-06-27-local",
+                }
+            ),
+            encoding="utf-8",
+        )
+        os.environ["WOW_SIMC_VERSION_FILE"] = str(version_file)
+        login = self.backend.login_with_wechat_code(
+            "wx-code-template-health",
+            exchange_code=lambda code: {"openid": "openid-template-health"},
+        )
+        try:
+            self.backend.save_user_build_template(
+                login["accessToken"],
+                {
+                    "type": "talent",
+                    "title": "Health Talent",
+                    "rawString": "websim:mage:arcane:spellslinger:simc-class-1001-mage-arcane:1,simc-spec-2001-mage-arcane:1,simc-hero-3001-mage-arcane-spellslinger:1",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "heroKey": "spellslinger",
+                    "status": "saved",
+                },
+            )
+            self.backend.save_user_build_template(
+                login["accessToken"],
+                {
+                    "type": "gear",
+                    "title": "Health Gear",
+                    "rawString": self.simc_template_full_gear_raw(),
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "status": "complete",
+                },
+            )
+
+            payload = self.backend.build_data_health_payload()
+        finally:
+            os.environ.pop("WOW_SIMC_VERSION_FILE", None)
+
+        component = {item["key"]: item for item in payload["components"]}["template_simc_bridge"]
+
+        self.assertEqual(component["status"], "verified")
+        self.assertEqual(component["details"]["simcraftVersion"]["localTag"], "1205-2026-06-27-local")
+        self.assertEqual(component["details"]["templateReadiness"]["ready"], 2)
+        self.assertEqual(component["details"]["templateReadiness"]["blocked"], 0)
+        self.assertEqual(component["details"]["templateReadiness"]["total"], 2)
+        self.assertEqual(component["blockers"], [])
 
     def test_data_health_payload_exposes_catalog_contract_for_core_catalogs(self):
         import server.websim_payload as websim_payload

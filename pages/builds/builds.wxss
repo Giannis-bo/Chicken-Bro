@@ -31,8 +31,7 @@
   color: rgba(225, 226, 229, 0.8);
 }
 
-.query-section,
-.task-section {
+.query-section {
   border-color: rgba(255, 255, 255, 0.08);
   background: #151515;
 }
@@ -97,32 +96,4 @@
   color: #f8b700;
   font-size: 22rpx;
   font-weight: 800;
-}
-
-.task-status {
-  background: rgba(139, 63, 245, 0.18);
-  color: #c9a8ff;
-}
-
-.task-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-}
-
-.task-empty {
-  padding: 24rpx;
-  border: 1rpx dashed rgba(255, 255, 255, 0.12);
-  border-radius: 12rpx;
-  color: #8e8e8e;
-  text-align: center;
-  font-size: 23rpx;
-}
-
-.task-desc {
-  display: block;
-  margin-top: 8rpx;
-  color: #8e8e8e;
-  font-size: 22rpx;
-  line-height: 1.45;
 }
