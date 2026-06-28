@@ -113,11 +113,169 @@ const warriorGearTemplate = {
   updatedAt: '2026-06-20T09:00:00Z'
 }
 
+const shamanTalentTemplate = {
+  ...sampleTalentTemplate,
+  id: 'talent-shaman',
+  title: '元素萨满 Talent',
+  rawString: 'websim:shaman:elemental:stormbringer:n1:1',
+  classKey: 'shaman',
+  className: '萨满祭司',
+  specKey: 'elemental',
+  specName: '元素',
+  updatedAt: '2026-06-22T10:00:00Z'
+}
+
+const shamanGearTemplate = {
+  ...sampleGearTemplate,
+  id: 'gear-shaman',
+  title: '元素萨满 Gear',
+  rawString: 'head=helm,id=21\nneck=amulet,id=22',
+  classKey: 'shaman',
+  className: '萨满祭司',
+  specKey: 'elemental',
+  specName: '元素',
+  updatedAt: '2026-06-22T09:00:00Z'
+}
+
 const simcClassOptions = [
   { name: 'Mage', key: 'mage', specializations: [{ title: 'Arcane', websimClassKey: 'mage', websimSpecKey: 'arcane' }] },
   { name: 'Warrior', key: 'warrior', specializations: [{ title: 'Arms', websimClassKey: 'warrior', websimSpecKey: 'arms' }] },
   { name: 'Priest', key: 'priest', specializations: [{ title: 'Discipline', websimClassKey: 'priest', websimSpecKey: 'discipline' }] }
 ]
+
+const simcClassOptionsWithShaman = [
+  ...simcClassOptions,
+  { name: '萨满祭司', key: 'shaman', specializations: [{ title: '元素', websimClassKey: 'shaman', websimSpecKey: 'elemental' }] }
+]
+
+test('simc page exposes single aoe5 and approximate mythic plus scenarios', () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptionsWithShaman }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptionsWithShaman }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: () => Promise.resolve({ payload: { templates: [] }, fromFallback: true, error: '' }),
+      listBuildTemplates: () => [],
+      syncBuildTemplate: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
+  const page = createPageInstance(pageDefinition)
+
+  assert.deepEqual(pageDefinition.data.scenarioOptions.map((item) => item.key), ['single', 'aoe_5', 'mythic_plus'])
+  assert.deepEqual(pageDefinition.data.scenarioOptions.map((item) => item.desc), [
+    '固定单目标，5分钟',
+    '固定5目标，5分钟',
+    '平均4目标，6分钟'
+  ])
+  assert.match(wxml, /selectedScenarioTitle/)
+  assert.equal(page.data.selectedScenarioTitle, '单体')
+  page.selectScenario({ currentTarget: { dataset: { key: 'mythic_plus' } } })
+  assert.equal(page.data.selectedScenarioKey, 'mythic_plus')
+  assert.equal(page.data.selectedScenarioTitle, '近似大秘境')
+})
+
+test('simc page keeps submission setup compact and scrollable', () => {
+  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
+  const css = fs.readFileSync('pages/simulator/simc.wxss', 'utf8')
+
+  assert.match(wxml, /<scroll-view class="page-scroll simc-scroll" scroll-y type="list">/)
+  assert.match(wxml, /identity-selector-row/)
+  assert.match(wxml, /class="template-selector compact-selector class-selector identity-selector-card"/)
+  assert.match(wxml, /class="template-selector compact-selector race-selector identity-selector-card"/)
+  assert.match(wxml, /class="template-selector scenario-selector"/)
+  assert.match(css, /\.simc-scroll\s*\{[\s\S]*min-height:\s*0/)
+  assert.match(css, /\.simc-page\s*\{[\s\S]*padding:[^;]*calc\(150rpx \+ env\(safe-area-inset-bottom\)\)/)
+  assert.match(css, /\.identity-selector-row\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/)
+  assert.match(css, /\.segmented-row\s*\{[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/)
+})
+
+test('simc page exposes combat preparation policy and temporary buff toggles before validation', () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptionsWithShaman }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptionsWithShaman }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: () => Promise.resolve({ payload: { templates: [] }, fromFallback: true, error: '' }),
+      listBuildTemplates: () => [],
+      syncBuildTemplate: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
+  const page = createPageInstance(pageDefinition)
+
+  assert.match(wxml, /combat-preparation-panel/)
+  assert.match(wxml, /combatPreparationRows/)
+  assert.doesNotMatch(wxml, /后端校验/)
+  assert.doesNotMatch(wxml, /preparation-policy-desc/)
+  assert.match(wxml, /temporaryBuffOptions/)
+  assert.match(wxml, /toggleTemporaryBuff/)
+  assert.deepEqual(page.data.temporaryBuffOptions.map((item) => item.key), ['bloodlust', 'combatPotion', 'weaponOil'])
+  assert.equal(page.data.temporaryBuffOptions.some((item) => item.enabled), false)
+})
+
+test('simc page names the selected class combat buffs before validation', async () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptionsWithShaman }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptionsWithShaman }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate, shamanTalentTemplate] : [sampleGearTemplate, shamanGearTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      syncBuildTemplate: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+  await page.loadTemplateLists()
+  await flushPromises()
+
+  assert.equal(page.data.selectedClassKey, 'shaman')
+  assert.equal(page.data.selectedTalentTemplate.specKey, 'elemental')
+  assert.equal(page.data.combatPreparationRows[0].label, '团队增益')
+  assert.equal(page.data.combatPreparationRows[0].value, '天怒')
+  assert.equal(page.data.combatPreparationRows[1].label, '职业准备')
+  assert.equal(page.data.combatPreparationRows[1].value, '无增益')
+})
 
 test('simc page uses a fixed saved-template workflow without chat composer', () => {
   const js = fs.readFileSync('pages/simulator/simc.js', 'utf8')
@@ -131,7 +289,7 @@ test('simc page uses a fixed saved-template workflow without chat composer', () 
   assert.match(wxml, /selectorSheet\.visible/)
   assert.match(wxml, /selectSelectorOption/)
   assert.doesNotMatch(wxml, /<picker\b/)
-  assert.match(wxml, /class="template-selector compact-selector class-selector"/)
+  assert.match(wxml, /class="template-selector compact-selector class-selector identity-selector-card"/)
   assert.match(wxml, /class="template-selector compact-selector"/)
   assert.match(wxml, /selector-row/)
   assert.match(wxml, /toolbar-picker/)
@@ -183,7 +341,7 @@ test('simc page uses a fixed saved-template workflow without chat composer', () 
   assert.doesNotMatch(js, /mode:\s*'simcraft_agent'|sendChatMessage|sendChatContent|useQuickReply|buildPromptFromContext/)
   assert.match(css, /\.template-selector/)
   assert.doesNotMatch(css, /\.template-workspace/)
-  assert.match(css, /\.template-hero \+ \.template-selector/)
+  assert.match(css, /\.template-hero \+ \.identity-selector-row/)
   assert.match(css, /\.compact-selector/)
   assert.match(css, /\.selector-row/)
   assert.match(css, /\.toolbar-picker/)
@@ -208,21 +366,23 @@ test('simc action buttons avoid native loading overlay flicker', () => {
   const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
   const css = fs.readFileSync('pages/simulator/simc.wxss', 'utf8')
   const pageBlock = (css.match(/\.simc-page\s*\{[^}]*\}/) || [''])[0]
+  const scrollBlock = (css.match(/\.simc-scroll\s*\{[^}]*\}/) || [''])[0]
   const actionBarBlock = (css.match(/\.action-bar\s*\{[^}]*\}/) || [''])[0]
 
   assert.doesNotMatch(wxml, /<picker\b/)
-  assert.doesNotMatch(wxml, /<scroll-view\b/)
+  assert.match(wxml, /<scroll-view class="page-scroll simc-scroll" scroll-y type="list">/)
   assert.doesNotMatch(wxml, /<button\b/)
   assert.doesNotMatch(wxml, /\sloading="\{\{(?:confirming|submittingTask)\}\}"/)
-  assert.doesNotMatch(wxml, /type="list"/)
   assert.doesNotMatch(wxml, /template-workspace/)
   assert.match(wxml, /button-spinner/)
   assert.match(wxml, /校验中/)
   assert.match(wxml, /提交中/)
   assert.match(css, /(?:^|\n)page\s*\{[^}]*background:\s*#060606/)
   assert.doesNotMatch(css, /\.template-workspace/)
-  assert.match(pageBlock, /min-height:\s*100vh/)
-  assert.match(css, /\.template-hero \+ \.template-selector\s*\{[\s\S]*margin-top:\s*14rpx/)
+  assert.match(pageBlock, /min-height:\s*100%/)
+  assert.match(scrollBlock, /min-height:\s*0/)
+  assert.match(scrollBlock, /height:\s*0/)
+  assert.match(css, /\.template-hero \+ \.identity-selector-row\s*\{[\s\S]*margin-top:\s*14rpx/)
   assert.match(actionBarBlock, /position:\s*fixed/)
   assert.match(actionBarBlock, /background:\s*#060606/)
   assert.match(css, /\.button-spinner/)
@@ -257,6 +417,7 @@ test('simc custom selector sheet applies race choices without native picker even
       trackPageView: () => Promise.resolve(false)
     }
   })
+  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
   const page = createPageInstance(pageDefinition)
   await page.loadTemplateLists()
   await flushPromises()
@@ -319,6 +480,7 @@ test('simc page does not duplicate template loading on initial show', async () =
       trackPageView: () => Promise.resolve(false)
     }
   })
+  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
   const page = createPageInstance(pageDefinition)
 
   page.onLoad({})
@@ -1020,6 +1182,7 @@ test('simc page reuses the same template payload for confirm and final submit', 
   assert.equal(requests[0].request.raceKey, 'void_elf')
   assert.equal(requests[0].request.scenarioKey, 'mythic_plus')
   assert.equal(requests[0].request.analysisType, 'baseline')
+  assert.deepEqual(requests[0].request.temporaryBuffs, {})
   assert.equal(requests[0].request.templateContext.talent.id, 'talent-1')
   assert.equal(requests[0].request.templateContext.gear.id, 'gear-1')
   assert.deepEqual(requests[0].request.templateContext.gear.metadata, { gearSnapshot, statSnapshot: sampleGearStatSnapshot })
@@ -1029,10 +1192,76 @@ test('simc page reuses the same template payload for confirm and final submit', 
   assert.equal(requests[1].request.classKey, requests[0].request.classKey)
   assert.equal(requests[1].request.raceKey, requests[0].request.raceKey)
   assert.equal(requests[1].request.scenarioKey, requests[0].request.scenarioKey)
+  assert.deepEqual(requests[1].request.temporaryBuffs, requests[0].request.temporaryBuffs)
   assert.deepEqual(requests[1].options, { auth: true, allowInsecureGuestRequest: true })
   assert.equal(page.data.taskSubmitted, true)
   assert.equal(page.data.submittedTaskId, 'task-1')
   assert.equal(page.data.canSubmitTask, false)
+})
+
+test('simc page sends selected temporary combat buffs with confirm and submit payloads', async () => {
+  const requests = []
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: () => Promise.resolve({ payload: sampleGearStatSnapshot, fromFallback: false, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplate] },
+        fromFallback: false,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      syncBuildTemplate: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: (request, options) => {
+        requests.push({ request, options })
+        return Promise.resolve({
+          payload: {
+            taskId: request.saveTask ? 'task-temp-buffs' : '',
+            agent: { status: 'template_ready', canSubmitTask: true, validation: { passed: true, errors: [] } },
+            simcReport: {
+              schemaRevision: 'simc-report-v2',
+              state: 'ready',
+              summary: 'Template payload validated; submit to run SimC.',
+              result: { ran: false, hasDps: false, dps: '', dpsDisplay: '' }
+            }
+          },
+          fromFallback: false,
+          error: ''
+        })
+      }
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const originalWx = global.wx
+  global.wx = { showToast() {} }
+  try {
+    const page = createPageInstance(pageDefinition)
+    await page.loadTemplateLists()
+    await flushPromises()
+    page.toggleTemporaryBuff({ currentTarget: { dataset: { key: 'bloodlust' } } })
+    page.toggleTemporaryBuff({ currentTarget: { dataset: { key: 'combatPotion' } } })
+    await page.confirmTemplateSimulation()
+    await flushPromises()
+    await page.submitConfirmedTask()
+    await flushPromises()
+  } finally {
+    global.wx = originalWx
+  }
+
+  assert.equal(requests.length, 2)
+  assert.deepEqual(requests[0].request.temporaryBuffs, { bloodlust: true, combatPotion: true })
+  assert.deepEqual(requests[1].request.temporaryBuffs, { bloodlust: true, combatPotion: true })
 })
 
 test('simc page surfaces confirm request failures without leaving loading stuck', async () => {
@@ -1196,6 +1425,7 @@ test('simc page stores only compact analysis state after validation', () => {
       trackPageView: () => Promise.resolve(false)
     }
   })
+  const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
   const page = createPageInstance(pageDefinition)
   page.applyAnalysisResult({
     agent: { status: 'template_ready', canSubmitTask: true, validation: { passed: true, errors: [] } },
@@ -1212,6 +1442,11 @@ test('simc page stores only compact analysis state after validation', () => {
       schemaRevision: 'simc-report-v2',
       state: 'ready',
       summary: 'Template payload validated; submit to run SimC.',
+      preparation: {
+        schemaRevision: 'simc-preparation-v1',
+        summary: 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Arcane Intellect.',
+        items: []
+      },
       result: { ran: false, hasDps: false, dps: '', dpsDisplay: '' }
     },
     report: {
@@ -1227,6 +1462,11 @@ test('simc page stores only compact analysis state after validation', () => {
       schemaRevision: 'simc-report-v2',
       state: 'ready',
       summary: 'Template payload validated; submit to run SimC.',
+      preparation: {
+        schemaRevision: 'simc-preparation-v1',
+        summary: 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Arcane Intellect.',
+        items: []
+      },
       result: { ran: false, hasDps: false, dps: '', dpsDisplay: '' }
     }
   })
@@ -1234,6 +1474,8 @@ test('simc page stores only compact analysis state after validation', () => {
   assert.equal(page.data.latestAnalysis.profile, undefined)
   assert.equal(page.data.canSubmitTask, true)
   assert.equal(page.data.resultSummary, 'Template payload validated; submit to run SimC.')
+  assert.match(wxml, /latestAnalysis\.simcReport\.preparation\.summary/)
+  assert.match(wxml, /模拟增益/)
 })
 
 test('smart analysis tab only keeps the chickenbro coach entry', () => {
@@ -1348,6 +1590,9 @@ test('simulator task list localizes SimC task cards with tags and finish time', 
         specName: '元素',
         heroLabel: '风暴使者'
       },
+      preparation: {
+        summary: 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Skyfury.'
+      },
       timing: { finishedAt: '2026-06-27T04:21:17+00:00' },
       updatedAt: '2026-06-27T04:21:17+00:00'
     }
@@ -1378,18 +1623,32 @@ test('simulator task list localizes SimC task cards with tags and finish time', 
       timing: {}
     }
   })
+  const aoe = pageDefinition.normalizeTask({
+    taskId: 'task-shaman-aoe',
+    mode: 'simcraft_template',
+    status: 'running',
+    updatedAt: '2026-06-27T04:24:17+00:00',
+    simcReportSummary: {
+      state: 'running',
+      summary: 'SimC task is running; results will appear in the task list.',
+      scenario: { key: 'aoe_5', targets: 5 },
+      build: { className: '萨满祭祀', specName: '元素' },
+      timing: {}
+    }
+  })
 
   assert.equal(completed.title, '元素萨满祭祀_2026-06-27 04:21')
   assert.equal(completed.statusText, '已完成')
   assert.equal(completed.statusClass, 'status-completed')
   assert.equal(completed.desc, '')
+  assert.equal(completed.preparationSummary, 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Skyfury.')
   assert.equal(completed.dpsDisplay, undefined)
   assert.deepEqual(completed.tags.map((item) => item.text), [
     '巨魔',
     '萨满祭祀',
     '元素',
     '风暴使者',
-    'AOE5目标'
+    '近似大秘境'
   ])
   assert.ok(completed.tags.every((item) => !item.text.includes('：')))
   assert.equal(completed.completionTimeText, '完成时间：2026-06-27 04:21')
@@ -1405,14 +1664,20 @@ test('simulator task list localizes SimC task cards with tags and finish time', 
   assert.deepEqual(running.tags.map((item) => item.text), [
     '萨满祭祀',
     '元素',
-    'AOE5目标'
+    '近似大秘境'
   ])
   assert.ok(running.tags.every((item) => item.text !== '待补'))
   assert.equal(running.completionTimeText, '完成时间：未完成')
+  assert.deepEqual(aoe.tags.map((item) => item.text), [
+    '萨满祭祀',
+    '元素',
+    'AOE5目标'
+  ])
 
   assert.match(wxml, /item\.statusText/)
   assert.match(wxml, /item\.statusClass/)
   assert.match(wxml, /item\.tags/)
+  assert.match(wxml, /item\.preparationSummary/)
   assert.match(wxml, /item\.completionTimeText/)
   assert.doesNotMatch(wxml, /dpsDisplay/)
   assert.doesNotMatch(wxml, /大秘境基准/)
@@ -1645,6 +1910,7 @@ test('task detail hides generated SimC preview DPS values from the report', () =
   delete require.cache[require.resolve('../pages/simulator/task-detail.js')]
   require('../pages/simulator/task-detail.js')
   global.Page = originalPage
+  const wxml = fs.readFileSync('pages/simulator/task-detail.wxml', 'utf8')
 
   const normalized = pageDefinition.normalizeTaskDetail({
     taskId: 'task-preview',
@@ -1682,6 +1948,7 @@ test('task detail exposes structured SimC result without report explanation', ()
   delete require.cache[require.resolve('../pages/simulator/task-detail.js')]
   require('../pages/simulator/task-detail.js')
   global.Page = originalPage
+  const wxml = fs.readFileSync('pages/simulator/task-detail.wxml', 'utf8')
 
   const normalized = pageDefinition.normalizeTaskDetail({
     taskId: 'task-report',
@@ -1705,6 +1972,10 @@ test('task detail exposes structured SimC result without report explanation', ()
         summary: 'SimC completed with 654321 DPS.',
         statusText: 'completed',
         scenario: { key: 'mythic_plus', label: '大秘境基准', fightStyle: 'DungeonSlice', targets: 5, durationSeconds: 360 },
+        preparation: {
+          summary: 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Arcane Intellect.',
+          items: []
+        },
         build: {
           statSnapshot: {
             statStatus: 'verified',
@@ -1753,7 +2024,10 @@ test('task detail exposes structured SimC result without report explanation', ()
   assert.equal(normalized.briefConclusion, 'SimC completed with 654321 DPS.')
   assert.equal(normalized.simcDps, '654321')
   assert.equal(normalized.simcDisplayValue, '654321 DPS')
-  assert.equal(normalized.scenarioDisplayText, '大秘境 AOE 5目标')
+  assert.equal(normalized.preparationSummary, 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Arcane Intellect.')
+  assert.match(wxml, /detail\.preparationSummary/)
+  assert.match(wxml, /模拟增益/)
+  assert.equal(normalized.scenarioDisplayText, '近似大秘境')
   assert.equal(normalized.scenarioMetaText, 'DungeonSlice · 6分钟')
   assert.deepEqual(normalized.statRows.map((item) => [item.label, item.valueText]), [
     ['智力', '2,624'],

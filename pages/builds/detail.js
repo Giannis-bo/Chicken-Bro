@@ -23,15 +23,16 @@ const payload = fallbackPayload && Array.isArray(fallbackPayload.quickActions) ?
 const defaultSpecId = '法师-冰霜'
 const simulatorDefaults = {
   talentScenarios: [
-    { key: 'mythicPlus', title: '大秘境', label: '多目标', simcHint: '大秘境多目标' },
-    { key: 'singleTarget', title: '单体', label: '5 分钟', simcHint: '单体 5 分钟' },
-    { key: 'raid', title: '团本', label: 'Boss', simcHint: '团本 Boss' }
+    { key: 'single', title: '单体', label: '1目标', simcHint: '单体 5 分钟' },
+    { key: 'aoe_5', title: '5目标AOE', label: '5目标', simcHint: '5目标 AOE' },
+    { key: 'mythic_plus', title: '近似大秘境', label: 'DungeonSlice', simcHint: '近似大秘境' }
   ]
 }
 const talentScenarios = simulatorDefaults.talentScenarios
 const gearTemplateScenarios = [
   { key: 'single', title: '单体' },
-  { key: 'mythic_plus', title: '大秘境' },
+  { key: 'aoe_5', title: '5目标AOE' },
+  { key: 'mythic_plus', title: '近似大秘境' },
   { key: 'raid', title: '团本' }
 ]
 const GEAR_ENHANCEMENT_SNAPSHOT_REVISION = 'websim-gear-enhancement-snapshot-v1'

@@ -2009,9 +2009,63 @@ class NewsBackendTest(unittest.TestCase):
         self.assertFalse(analysis["simcReport"]["result"]["ran"])
         self.assertEqual(analysis["simcReport"]["build"]["talentTemplate"]["id"], "talent-template-1")
         self.assertEqual(analysis["simcReport"]["build"]["gearTemplate"]["id"], "gear-template-1")
+        self.assertIn("optimal_raid=0", analysis["request"]["profile"])
+        self.assertIn("override.arcane_intellect=1", analysis["request"]["profile"])
+        self.assertNotIn("override.skyfury=1", analysis["request"]["profile"])
+        self.assertEqual(analysis["simcReport"]["preparation"]["evidenceState"], "verified")
+        self.assertIn("Arcane Intellect", analysis["simcReport"]["preparation"]["summary"])
         self.assertNotIn("llm", analysis)
         self.assertNotIn("codex", analysis)
         self.assertNotIn("allowedNumbers", analysis)
+
+    def test_simcraft_template_profile_only_applies_self_class_raid_buff(self):
+        request_payload = self.simc_template_payload(
+            talent_raw="C4DAshamanexternal",
+            talent_spec="elemental",
+            gear_spec="elemental",
+            race="tauren",
+        )
+        for template_type in ("talent", "gear"):
+            request_payload["templateContext"][template_type].update({
+                "classKey": "shaman",
+                "className": "Shaman",
+                "specKey": "elemental",
+                "specName": "Elemental",
+                "heroKey": "",
+                "heroLabel": "",
+            })
+
+        analysis = self.backend.analyze_and_store_simulator_task(request_payload)
+        profile = analysis["request"]["profile"]
+        preparation = analysis["simcReport"]["preparation"]
+
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertIn("optimal_raid=0", profile)
+        self.assertIn("override.skyfury=1", profile)
+        self.assertNotIn("override.arcane_intellect=1", profile)
+        self.assertNotIn("override.power_word_fortitude=1", profile)
+        self.assertEqual(preparation["classKey"], "shaman")
+        self.assertEqual(preparation["specKey"], "elemental")
+        self.assertEqual(preparation["evidenceState"], "verified")
+        self.assertIn("Skyfury", preparation["summary"])
+
+    def test_simcraft_template_temporary_buffs_are_reported_but_not_serialized_until_verified(self):
+        request_payload = self.simc_template_payload()
+        request_payload["temporaryBuffs"] = {"bloodlust": True, "combatPotion": True}
+
+        analysis = self.backend.analyze_and_store_simulator_task(request_payload)
+        profile = analysis["request"]["profile"]
+        preparation = analysis["simcReport"]["preparation"]
+        temporary = next(item for item in preparation["items"] if item["key"] == "temporary_combat_buffs")
+
+        self.assertEqual(preparation["evidenceState"], "partial")
+        self.assertIn("selected temporary combat buffs", preparation["summary"])
+        self.assertIn("Bloodlust", preparation["summary"])
+        self.assertEqual(temporary["state"], "enabled")
+        self.assertIn("Bloodlust", temporary["summary"])
+        self.assertIn("Combat potion", temporary["summary"])
+        self.assertNotIn("bloodlust=1", profile)
+        self.assertNotIn("potion=", profile)
 
     def test_simcraft_template_report_carries_compact_stat_snapshot(self):
         self.seed_simc_template_websim_nodes()
@@ -2148,6 +2202,23 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(task_summary["build"]["specName"], "奥术")
         self.assertEqual(task_summary["build"]["heroKey"], "spellslinger")
         self.assertEqual(task_summary["timing"]["finishedAt"], "")
+
+    def test_simcraft_template_aoe5_scenario_uses_patchwerk_five_targets(self):
+        self.seed_simc_template_websim_nodes()
+        request_payload = self.simc_template_payload(scenario="aoe_5", analysis_type="baseline", race="troll")
+        request_payload.update({"confirmOnly": True, "saveTask": False})
+
+        analysis = self.backend.analyze_and_store_simulator_task(request_payload)
+
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertEqual(analysis["simcReport"]["scenario"]["key"], "aoe_5")
+        self.assertEqual(analysis["simcReport"]["scenario"]["fightStyle"], "Patchwerk")
+        self.assertEqual(analysis["simcReport"]["scenario"]["targets"], 5)
+        self.assertIn("fight_style=Patchwerk", analysis["request"]["profile"])
+        self.assertIn("desired_targets=5", analysis["request"]["profile"])
+        self.assertIn("max_time=300", analysis["request"]["profile"])
+        self.assertNotIn("fight_style=DungeonSlice", analysis["request"]["profile"])
+        self.assertFalse(analysis["request"].get("mythicPlusReference"))
 
     def test_simcraft_template_task_list_prefers_stored_summary_after_snapshot_changes(self):
         self.seed_simc_template_websim_nodes()

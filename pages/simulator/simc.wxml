@@ -1,6 +1,7 @@
 <view class="page-shell simc-page-shell">
   <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
-  <view class="simc-page">
+  <scroll-view class="page-scroll simc-scroll" scroll-y type="list">
+    <view class="simc-page">
     <view class="template-hero">
       <view>
         <text class="context-kicker">{{kicker}}</text>
@@ -9,7 +10,8 @@
       <text class="context-desc">{{desc}}</text>
     </view>
 
-    <view class="template-selector compact-selector class-selector">
+    <view class="identity-selector-row">
+        <view class="template-selector compact-selector class-selector identity-selector-card">
           <view class="selector-row">
             <view class="selector-title-group">
               <text class="section-title">职业</text>
@@ -25,7 +27,7 @@
           </view>
         </view>
 
-        <view class="template-selector compact-selector race-selector">
+        <view class="template-selector compact-selector race-selector identity-selector-card">
           <view class="selector-row">
             <view class="selector-title-group">
               <text class="section-title">种族</text>
@@ -37,6 +39,7 @@
             </view>
           </view>
         </view>
+    </view>
 
         <view class="template-selector compact-selector">
           <view class="selector-row">
@@ -66,7 +69,7 @@
           </view>
         </view>
 
-        <view class="template-selector">
+        <view class="template-selector scenario-selector">
           <view class="section-header">
             <text class="section-title">场景预设</text>
           </view>
@@ -80,6 +83,35 @@
             >
               <text class="segment-title">{{item.title}}</text>
               <text class="segment-desc">{{item.desc}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="combat-preparation-panel">
+          <view class="section-header">
+            <text class="section-title">战斗增益</text>
+          </view>
+          <view class="preparation-policy-list">
+            <view class="preparation-policy-row" wx:for="{{combatPreparationRows}}" wx:key="key">
+              <text class="preparation-policy-label">{{item.label}}</text>
+              <text class="preparation-policy-value">{{item.value}}</text>
+            </view>
+          </view>
+          <view class="temporary-buff-list">
+            <view
+              class="temporary-buff-row {{item.enabled ? 'temporary-buff-enabled' : ''}}"
+              wx:for="{{temporaryBuffOptions}}"
+              wx:key="key"
+              data-key="{{item.key}}"
+              bindtap="toggleTemporaryBuff"
+            >
+              <view class="temporary-buff-copy">
+                <text class="temporary-buff-title">{{item.title}}</text>
+                <text class="temporary-buff-desc">{{item.desc}}</text>
+              </view>
+              <view class="temporary-buff-toggle {{item.enabled ? 'temporary-buff-toggle-on' : ''}}">
+                <view class="temporary-buff-knob"></view>
+              </view>
             </view>
           </view>
         </view>
@@ -108,7 +140,7 @@
               </view>
               <view class="summary-row">
                 <text class="summary-label">场景</text>
-                <text class="summary-value">{{selectedScenarioKey}}</text>
+                <text class="summary-value">{{selectedScenarioTitle || selectedScenarioKey}}</text>
               </view>
             </view>
             <view class="summary-stat-panel">
@@ -137,7 +169,23 @@
           <text class="result-desc">{{resultSummary}}</text>
         </view>
 
-    <view class="action-bar">
+        <view class="preparation-panel" wx:if="{{latestAnalysis && latestAnalysis.simcReport && latestAnalysis.simcReport.preparation && latestAnalysis.simcReport.preparation.summary}}">
+          <view class="section-header">
+            <text class="section-title">模拟增益</text>
+            <text class="section-meta">{{latestAnalysis.simcReport.preparation.evidenceState}}</text>
+          </view>
+          <text class="preparation-summary">{{latestAnalysis.simcReport.preparation.summary}}</text>
+          <view class="preparation-list" wx:if="{{latestAnalysis.simcReport.preparation.items && latestAnalysis.simcReport.preparation.items.length}}">
+            <view class="preparation-row" wx:for="{{latestAnalysis.simcReport.preparation.items}}" wx:key="key">
+              <text class="preparation-label">{{item.label}}</text>
+              <text class="preparation-state">{{item.state}}</text>
+            </view>
+          </view>
+        </view>
+    </view>
+  </scroll-view>
+
+  <view class="action-bar">
       <view
         class="confirm-button action-button {{!canConfirm || confirming || submittingTask ? 'action-disabled' : ''}} {{confirming ? 'action-loading' : ''}}"
         bindtap="confirmTemplateSimulation"
@@ -152,10 +200,10 @@
         <view class="button-spinner" wx:if="{{submittingTask}}"></view>
         <text class="button-label">{{submittingTask ? '提交中' : (taskSubmitted ? '任务已提交' : '提交任务')}}</text>
       </view>
-    </view>
+  </view>
 
-    <view class="selector-sheet-mask" wx:if="{{selectorSheet.visible}}" catchtap="closeSelectorSheet"></view>
-    <view class="selector-sheet" wx:if="{{selectorSheet.visible}}">
+  <view class="selector-sheet-mask" wx:if="{{selectorSheet.visible}}" catchtap="closeSelectorSheet"></view>
+  <view class="selector-sheet" wx:if="{{selectorSheet.visible}}">
       <view class="selector-sheet-handle"></view>
       <view class="selector-sheet-header">
         <view class="selector-sheet-title-group">
@@ -182,6 +230,5 @@
           <text>{{selectorSheet.emptyText}}</text>
         </view>
       </view>
-    </view>
   </view>
 </view>

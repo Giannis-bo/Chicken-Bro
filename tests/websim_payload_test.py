@@ -1376,6 +1376,62 @@ class WebSimPayloadTest(unittest.TestCase):
         )
         self.assertIn("fight_style=Patchwerk", profile)
 
+    def test_build_websim_profile_supports_aoe5_patchwerk_scenario(self):
+        profile = self.websim_payload.build_websim_profile(
+            {
+                "classKey": "shaman",
+                "specKey": "elemental",
+                "race": "dark_iron_dwarf",
+                "name": "aoe probe",
+                "talents": "C4DA",
+                "scenarioKey": "aoe_5",
+                "gearSelection": {
+                    "items": [
+                        {
+                            "slot": "main_hand",
+                            "itemId": "251083",
+                            "name": "Main Hand",
+                            "ilevel": 298,
+                            "bonus_id": "12806/13577",
+                            "simcReady": True,
+                        }
+                    ]
+                },
+            }
+        )
+
+        self.assertIn("fight_style=Patchwerk", profile)
+        self.assertIn("desired_targets=5", profile)
+        self.assertIn("max_time=300", profile)
+        self.assertNotIn("fight_style=DungeonSlice", profile)
+
+    def test_build_websim_profile_uses_self_class_buff_policy(self):
+        mage_profile = self.websim_payload.build_websim_profile(
+            {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "talents": "C4DA",
+                "scenarioKey": "single",
+                "gearSelection": {"items": []},
+            }
+        )
+        shaman_profile = self.websim_payload.build_websim_profile(
+            {
+                "classKey": "shaman",
+                "specKey": "elemental",
+                "talents": "C4DA",
+                "scenarioKey": "single",
+                "gearSelection": {"items": []},
+            }
+        )
+
+        self.assertIn("optimal_raid=0", mage_profile)
+        self.assertIn("override.arcane_intellect=1", mage_profile)
+        self.assertNotIn("override.skyfury=1", mage_profile)
+        self.assertIn("optimal_raid=0", shaman_profile)
+        self.assertIn("override.skyfury=1", shaman_profile)
+        self.assertNotIn("override.arcane_intellect=1", shaman_profile)
+
     def test_build_websim_profile_merges_structured_enhancement_snapshot(self):
         response = self.websim_payload.build_websim_profile_response(
             {

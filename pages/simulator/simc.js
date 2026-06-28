@@ -8,9 +8,64 @@ const SIMC_PAGE_ROUTE = ['pages', 'simulator', 'simc'].join('/')
 const fallbackPayload = fallbackBuildsHome()
 
 const SCENARIO_OPTIONS = [
-  { key: 'single', title: '单体', desc: 'Patchwerk 5 分钟，1 目标' },
-  { key: 'mythic_plus', title: '大秘境', desc: 'DungeonSlice 6 分钟，5 目标' }
+  { key: 'single', title: '单体', desc: '固定单目标，5分钟' },
+  { key: 'aoe_5', title: '5目标AOE', desc: '固定5目标，5分钟' },
+  { key: 'mythic_plus', title: '近似大秘境', desc: '平均4目标，6分钟' }
 ]
+
+function scenarioOptionForKey(key) {
+  return SCENARIO_OPTIONS.find((item) => item.key === key) || null
+}
+
+function scenarioTitleForKey(key) {
+  const option = scenarioOptionForKey(key)
+  return option ? option.title : cleanSummaryText(key)
+}
+
+const TEMPORARY_BUFF_OPTIONS = [
+  {
+    key: 'bloodlust',
+    title: '嗜血 / 英勇',
+    desc: '临时团队爆发，默认关闭'
+  },
+  {
+    key: 'combatPotion',
+    title: '爆发药水',
+    desc: '通用战斗药水，默认关闭'
+  },
+  {
+    key: 'weaponOil',
+    title: '武器涂油',
+    desc: '临时武器强化，默认关闭'
+  }
+]
+
+const SELF_CLASS_RAID_BUFFS = {
+  druid: { label: '野性印记' },
+  mage: { label: '奥术智慧' },
+  priest: { label: '真言术：韧' },
+  shaman: { label: '天怒' },
+  warrior: { label: '战斗怒吼' }
+}
+
+const SPEC_COMBAT_PREPARATION = {
+  'shaman:enhancement': {
+    label: '风怒武器、火舌武器',
+    copy: '增强萨满会识别风怒武器、火舌武器；当前仍待 SimC profile smoke 验证，暂不自动写入。'
+  },
+  'rogue:assassination': {
+    label: '盗贼毒药',
+    copy: '刺杀盗贼会识别毒药准备；当前仍待 SimC profile smoke 验证，暂不自动写入。'
+  },
+  'rogue:outlaw': {
+    label: '盗贼毒药',
+    copy: '狂徒盗贼会识别毒药准备；当前仍待 SimC profile smoke 验证，暂不自动写入。'
+  },
+  'rogue:subtlety': {
+    label: '盗贼毒药',
+    copy: '敏锐盗贼会识别毒药准备；当前仍待 SimC profile smoke 验证，暂不自动写入。'
+  }
+}
 
 const RACE_OPTIONS = [
   { key: 'human', name: '人类' },
@@ -225,6 +280,55 @@ function summaryStatsInvalidationState() {
     summaryStatsLoading: false,
     summaryStatsRequestSignature: ''
   }
+}
+
+function defaultTemporaryBuffOptions() {
+  return TEMPORARY_BUFF_OPTIONS.map((item) => ({ ...item, enabled: false }))
+}
+
+function selectedTemporaryBuffs(options) {
+  const selected = {}
+  ;(options || []).forEach((item) => {
+    if (item && item.key && item.enabled) selected[item.key] = true
+  })
+  return selected
+}
+
+function selectedSpecKey(data) {
+  return cleanSummaryText(
+    (data.selectedTalentTemplate && data.selectedTalentTemplate.specKey)
+    || (data.selectedGearTemplate && data.selectedGearTemplate.specKey)
+    || ''
+  )
+}
+
+function selectedSpecName(data) {
+  return cleanSummaryText(
+    (data.selectedTalentTemplate && data.selectedTalentTemplate.specName)
+    || (data.selectedGearTemplate && data.selectedGearTemplate.specName)
+    || ''
+  )
+}
+
+function combatPreparationRowsForSelection(data) {
+  const source = data || {}
+  const classKey = cleanSummaryText(source.selectedClassKey)
+  const specKey = selectedSpecKey(source)
+  const raidBuff = SELF_CLASS_RAID_BUFFS[classKey] || null
+  const specPreparation = SPEC_COMBAT_PREPARATION[`${classKey}:${specKey}`] || null
+
+  return [
+    {
+      key: 'raid_buff',
+      label: '团队增益',
+      value: raidBuff ? raidBuff.label : '无增益'
+    },
+    {
+      key: 'spec_preparation',
+      label: '职业准备',
+      value: specPreparation ? specPreparation.label : '无增益'
+    }
+  ]
 }
 
 function requestFailureMessage(error, fallbackText = 'request failed') {
@@ -505,6 +609,9 @@ function buildTemplateListState(classSource, talentTemplates, gearTemplates, pre
   const selectedGearTemplateIndex = previousGearIndex >= 0 ? previousGearIndex : 0
   const selectedTalentTemplate = talentList[selectedTalentTemplateIndex] || null
   const selectedGearTemplate = gearList[selectedGearTemplateIndex] || null
+  const selectedScenarioKey = scenarioOptionForKey(previous.selectedScenarioKey)
+    ? previous.selectedScenarioKey
+    : 'single'
   return {
     allTalentTemplates,
     allGearTemplates,
@@ -519,10 +626,18 @@ function buildTemplateListState(classSource, talentTemplates, gearTemplates, pre
     selectedGearTemplateIndex,
     selectedTalentTemplate,
     selectedGearTemplate,
+    selectedScenarioKey,
+    selectedScenarioTitle: scenarioTitleForKey(selectedScenarioKey),
+    combatPreparationRows: combatPreparationRowsForSelection({
+      selectedClassKey,
+      selectedClassName: currentClass ? currentClass.name : '',
+      selectedTalentTemplate,
+      selectedGearTemplate
+    }),
     summaryStatPanel: summaryStatPanelForSelection({
       selectedClassKey,
       selectedRaceKey: raceState.selectedRaceKey,
-      selectedScenarioKey: previous.selectedScenarioKey || 'single',
+      selectedScenarioKey,
       selectedTalentTemplate,
       selectedGearTemplate
     }),
@@ -558,7 +673,10 @@ Page({
     selectedGearTemplate: null,
     summaryStatPanel: summaryStatPanelFromSnapshot(null),
     scenarioOptions: SCENARIO_OPTIONS,
+    combatPreparationRows: combatPreparationRowsForSelection({}),
+    temporaryBuffOptions: defaultTemporaryBuffOptions(),
     selectedScenarioKey: 'single',
+    selectedScenarioTitle: scenarioTitleForKey('single'),
     selectedAnalysisType: 'baseline',
     emptyState: {
       class: '',
@@ -809,6 +927,7 @@ Page({
     this.setData({
       selectedTalentTemplateIndex: index,
       selectedTalentTemplate: template,
+      combatPreparationRows: combatPreparationRowsForSelection({ ...this.data, selectedTalentTemplate: template }),
       summaryStatPanel: summaryStatPanelForSelection({ ...this.data, selectedTalentTemplate: template }),
       canConfirm: !!(this.data.selectedClassKey && template && this.data.selectedGearTemplate),
       canSubmitTask: false,
@@ -831,6 +950,7 @@ Page({
     this.setData({
       selectedGearTemplateIndex: index,
       selectedGearTemplate: template,
+      combatPreparationRows: combatPreparationRowsForSelection({ ...this.data, selectedGearTemplate: template }),
       summaryStatPanel: summaryStatPanelForSelection({ ...this.data, selectedGearTemplate: template }),
       canConfirm: !!(this.data.selectedClassKey && this.data.selectedTalentTemplate && template),
       canSubmitTask: false,
@@ -845,10 +965,12 @@ Page({
 
   selectScenario(event) {
     const key = event.currentTarget.dataset.key || 'single'
-    if (!SCENARIO_OPTIONS.some((item) => item.key === key)) return
+    const option = scenarioOptionForKey(key)
+    if (!option) return
     this.markSelectionChanged()
     this.setData({
       selectedScenarioKey: key,
+      selectedScenarioTitle: option.title,
       canSubmitTask: false,
       taskSubmitted: false,
       confirmedPayload: null,
@@ -857,6 +979,23 @@ Page({
       ...summaryStatsInvalidationState()
     })
     this.refreshSummaryStatsForSelection()
+  },
+
+  toggleTemporaryBuff(event) {
+    const key = String((((event || {}).currentTarget || {}).dataset || {}).key || '').trim()
+    if (!key) return
+    const temporaryBuffOptions = (this.data.temporaryBuffOptions || []).map((item) => (
+      item.key === key ? { ...item, enabled: !item.enabled } : item
+    ))
+    this.markSelectionChanged()
+    this.setData({
+      temporaryBuffOptions,
+      canSubmitTask: false,
+      taskSubmitted: false,
+      confirmedPayload: null,
+      blockedReasons: [],
+      latestAnalysis: null
+    })
   },
 
   buildTemplatePayload(confirmOnly = true, saveTask = false) {
@@ -875,6 +1014,7 @@ Page({
       raceName: this.data.selectedRaceName,
       scenarioKey: this.data.selectedScenarioKey,
       analysisType: this.data.selectedAnalysisType,
+      temporaryBuffs: selectedTemporaryBuffs(this.data.temporaryBuffOptions),
       templateContext: {
         talent: compactTemplate(this.data.selectedTalentTemplate),
         gear: compactTemplate(this.data.selectedGearTemplate, { statSnapshot })

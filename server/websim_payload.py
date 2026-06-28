@@ -32,6 +32,11 @@ except ImportError:
         dk_ordinary_weapon_enchant_blocker,
     )
 
+try:
+    from .simc_preparation import apply_simc_preparation_lines, simc_preparation_payload, simc_preparation_report
+except ImportError:
+    from simc_preparation import apply_simc_preparation_lines, simc_preparation_payload, simc_preparation_report
+
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
@@ -1986,8 +1991,8 @@ WEAPON_SUBCLASS_NAMES = {
 
 SCENARIOS = [
     {"key": "single", "title": "单体", "fightStyle": "Patchwerk", "targets": 1, "durationSeconds": 300},
-    {"key": "mythic_plus", "title": "大秘境", "fightStyle": "DungeonSlice", "targets": 5, "durationSeconds": 360},
-    {"key": "cleave", "title": "顺劈", "fightStyle": "HecticAddCleave", "targets": 3, "durationSeconds": 300},
+    {"key": "aoe_5", "title": "5目标AOE", "fightStyle": "Patchwerk", "targets": 5, "durationSeconds": 300},
+    {"key": "mythic_plus", "title": "近似大秘境", "fightStyle": "DungeonSlice", "targets": 5, "durationSeconds": 360},
 ]
 
 FALLBACK_LOOT = [
@@ -21004,6 +21009,7 @@ def build_websim_profile(payload, conn=None):
             lines.append(f"talents={talents}")
     gear_payload = websim_selected_gear_payload(source, class_key, spec_key, conn=conn)
     lines.extend(build_websim_gear_lines(gear_payload["simcItems"]))
+    preparation = apply_simc_preparation_lines(lines, class_key=class_key, spec_key=spec_key)
     scenario = selected_scenario(source.get("scenarioKey"))
     lines.extend(
         [
@@ -21053,6 +21059,8 @@ def build_websim_profile_response(payload, conn=None):
         "talentEncoding": talent_encoding,
         "profileReadiness": websim_profile_readiness_payload(gear_payload["readiness"], talent_encoding),
     }
+    preparation = simc_preparation_payload(class_key, spec_key)
+    response["preparation"] = simc_preparation_report(preparation)
     return response
 
 

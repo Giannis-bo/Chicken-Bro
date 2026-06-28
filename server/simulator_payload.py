@@ -28,6 +28,11 @@ try:
 except ImportError:
     from simc_profile_policy import dk_default_runeforge_enchant_id
 
+try:
+    from .simc_preparation import apply_simc_preparation_lines, simc_preparation_payload, simc_preparation_report
+except ImportError:
+    from simc_preparation import apply_simc_preparation_lines, simc_preparation_payload, simc_preparation_report
+
 
 DEFAULT_SIMC_VERSION_FILE = "/var/lib/wow-backend/simc-version.json"
 SIMC_AGENT_FORBIDDEN_KEYS = {"html", "json", "output", "save", "xml"}
@@ -1090,11 +1095,13 @@ def simc_agent_iterations(profile_source):
     return int_env("WOW_SIMC_AGENT_ITERATIONS", 10000)
 
 
-def build_agent_simc_profile(profile, intent, scenario, profile_source=""):
+def build_agent_simc_profile(profile, intent, scenario, profile_source="", temporary_buffs=None):
     lines = [line.rstrip() for line in str(profile or "").splitlines() if line.strip()]
     if not lines:
         return ""
     lines.append("")
+    if profile_source not in {"explicit", "prompt"}:
+        apply_simc_preparation_lines(lines, temporary_buffs=temporary_buffs)
     append_simc_option(lines, "iterations", simc_agent_iterations(profile_source))
     append_simc_option(lines, "fight_style", scenario["fightStyle"])
     append_simc_option(lines, "desired_targets", scenario["targets"])
@@ -1125,6 +1132,9 @@ def simc_profile_spec_key(profile):
 
 def build_mythic_plus_reference(profile, scenario):
     if not scenario or scenario.get("targets", 1) <= 1:
+        return None
+    scenario_key = str(scenario.get("key") or "").strip()
+    if scenario_key and scenario_key != "mythic_plus":
         return None
     spec_key = simc_profile_spec_key(profile)
     if not spec_key:
@@ -1222,6 +1232,9 @@ def apply_simc_benchmark(request_data, simulation):
 
 def build_mythic_plus_reference_from_slots(filled_slots, scenario):
     if not scenario or scenario.get("targets", 1) <= 1:
+        return None
+    scenario_key = str(scenario.get("key") or "").strip()
+    if scenario_key and scenario_key != "mythic_plus":
         return None
     if not filled_slots or not filled_slots.get("class") or not filled_slots.get("spec"):
         return None
@@ -2906,18 +2919,26 @@ SIMCRAFT_TEMPLATE_SCENARIOS = {
         "targets": 1,
         "label": "单体基准",
     },
+    "aoe_5": {
+        "fightStyle": "Patchwerk",
+        "durationSeconds": 300,
+        "targets": 5,
+        "label": "5目标AOE基准",
+    },
     "mythic_plus": {
         "fightStyle": "DungeonSlice",
         "durationSeconds": 360,
         "targets": 5,
-        "label": "大秘境基准",
+        "label": "近似大秘境",
     },
 }
 
 
 def simcraft_template_scenario(source):
     key = str((source or {}).get("scenarioKey") or "single").strip()
-    return SIMCRAFT_TEMPLATE_SCENARIOS.get(key) or SIMCRAFT_TEMPLATE_SCENARIOS["single"]
+    scenario = dict(SIMCRAFT_TEMPLATE_SCENARIOS.get(key) or SIMCRAFT_TEMPLATE_SCENARIOS["single"])
+    scenario["key"] = key if key in SIMCRAFT_TEMPLATE_SCENARIOS else "single"
+    return scenario
 
 
 def simcraft_template_intent(source):
@@ -2999,6 +3020,7 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
         "raceName": build_context.get("raceName", "") if build_context else "",
         "scenarioKey": str(source.get("scenarioKey") or "single").strip() or "single",
         "analysisType": intent,
+        "temporaryBuffs": source.get("temporaryBuffs") if isinstance(source.get("temporaryBuffs"), dict) else {},
         "confirmOnly": bool(source.get("confirmOnly")),
         "saveTask": bool(source.get("saveTask")),
     }
@@ -3014,9 +3036,12 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
         return simcraft_template_blocked_payload(source, request_data, ["missing gear template SimC items"], scenario, spec_info)
 
     base_profile = build_generated_simc_profile(spec_info, None, build_context, gear_items)
-    draft_profile = build_agent_simc_profile(base_profile, intent, scenario, "template")
+    temporary_buffs = request_data.get("temporaryBuffs") if isinstance(request_data.get("temporaryBuffs"), dict) else {}
+    preparation = simc_preparation_payload(spec_info.get("class"), spec_info.get("spec"), temporary_buffs=temporary_buffs)
+    draft_profile = build_agent_simc_profile(base_profile, intent, scenario, "template", temporary_buffs=temporary_buffs)
     validation = validate_agent_simc_profile(draft_profile)
     request_data["profile"] = draft_profile
+    request_data["preparation"] = simc_preparation_report(preparation)
     request_data["mythicPlusReference"] = build_mythic_plus_reference(draft_profile, scenario)
     confirm_only = bool(source.get("confirmOnly"))
     execute_simc = bool(source.get("executeSimc") or source.get("_executeSimcTask"))

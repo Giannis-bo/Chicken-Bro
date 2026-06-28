@@ -153,6 +153,10 @@
   border-color: rgba(64, 180, 136, 0.2);
 }
 
+.simc-preparation-section {
+  border-color: rgba(248, 183, 0, 0.18);
+}
+
 .context-card {
   padding: 18rpx;
   border-radius: 12rpx;
@@ -196,6 +200,13 @@
   font-weight: 900;
   line-height: 1.3;
   word-break: break-all;
+}
+
+.preparation-detail-text {
+  color: rgba(255, 225, 154, 0.92);
+  font-size: 23rpx;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .stage-row {

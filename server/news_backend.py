@@ -41,6 +41,7 @@ try:
         simc_version_status,
         warcraftlogs_credentials_state,
     )
+    from .simc_preparation import simc_preparation_payload, simc_preparation_report
     try:
         from .codex_worker import run_codex_job
     except ImportError:
@@ -107,6 +108,7 @@ except ImportError:
         simc_version_status,
         warcraftlogs_credentials_state,
     )
+    from simc_preparation import simc_preparation_payload, simc_preparation_report
     try:
         from codex_worker import run_codex_job
     except ImportError:
@@ -2735,7 +2737,8 @@ SIMCRAFT_TEMPLATE_REQUIRED_GEAR_SLOTS = [
 
 SIMCRAFT_TEMPLATE_SCENARIOS = {
     "single": {"label": "单体基准", "fightStyle": "Patchwerk", "targets": 1, "durationSeconds": 300},
-    "mythic_plus": {"label": "大秘境基准", "fightStyle": "DungeonSlice", "targets": 5, "durationSeconds": 360},
+    "aoe_5": {"label": "5目标AOE基准", "fightStyle": "Patchwerk", "targets": 5, "durationSeconds": 300},
+    "mythic_plus": {"label": "近似大秘境", "fightStyle": "DungeonSlice", "targets": 5, "durationSeconds": 360},
 }
 
 SIMCRAFT_TEMPLATE_ANALYSIS_TYPES = {"baseline", "stat_weights"}
@@ -3461,6 +3464,12 @@ def build_simcraft_template_report(analysis, row_status="", timing=None):
     }
     if stat_snapshot:
         build_payload["statSnapshot"] = stat_snapshot
+    preparation = request.get("preparation") if isinstance(request.get("preparation"), dict) else {}
+    if not preparation:
+        temporary_buffs = request.get("temporaryBuffs") if isinstance(request.get("temporaryBuffs"), dict) else {}
+        preparation = simc_preparation_report(
+            simc_preparation_payload(build_payload.get("classKey"), build_payload.get("specKey"), temporary_buffs=temporary_buffs)
+        )
     return {
         "schemaRevision": "simc-report-v2",
         "state": state,
@@ -3475,6 +3484,7 @@ def build_simcraft_template_report(analysis, row_status="", timing=None):
             "targets": scenario.get("targets", 0),
             "durationSeconds": scenario.get("durationSeconds", 0),
         },
+        "preparation": preparation,
         "build": build_payload,
         "result": {
             "ran": bool(simulation.get("ran")),
@@ -3508,7 +3518,7 @@ def merge_simcraft_template_report_for_summary(report, rebuilt_report):
     if not isinstance(report, dict):
         return rebuilt_report if isinstance(rebuilt_report, dict) else {}
     merged = {**(rebuilt_report if isinstance(rebuilt_report, dict) else {}), **report}
-    for key in ("build", "scenario", "timing", "result", "messages"):
+    for key in ("build", "scenario", "timing", "result", "messages", "preparation"):
         merged[key] = merge_non_empty_dict(report.get(key), (rebuilt_report or {}).get(key))
     return merged
 
@@ -3549,6 +3559,7 @@ def simcraft_template_report_summary_payload(analysis, row_status="", updated_at
         "summary": report.get("summary", ""),
         "dpsDisplay": (report.get("result") or {}).get("dpsDisplay", ""),
         "scenario": report.get("scenario") or {},
+        "preparation": report.get("preparation") or {},
         "build": summary_build,
         "timing": summary_timing,
         "statusText": report.get("statusText", ""),
@@ -3560,7 +3571,7 @@ def merge_simcraft_template_task_summary(stored_summary, generated_summary):
     if not isinstance(stored_summary, dict) or not stored_summary:
         return generated_summary
     merged = {**(generated_summary if isinstance(generated_summary, dict) else {}), **stored_summary}
-    for key in ("build", "scenario", "timing"):
+    for key in ("build", "scenario", "timing", "preparation"):
         merged[key] = merge_non_empty_dict(stored_summary.get(key), (generated_summary or {}).get(key))
     return merged
 

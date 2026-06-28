@@ -83,7 +83,8 @@ function scenarioDisplayText(scenario) {
   const key = cleanDetailText(source.key)
   const label = cleanDetailText(source.label)
   const targets = Number(source.targets || 0)
-  if (key === 'mythic_plus' || targets > 1) return `大秘境 AOE ${targets || 5}目标`
+  if (key === 'mythic_plus') return '近似大秘境'
+  if (key === 'aoe_5' || targets > 1) return `AOE ${targets || 5}目标`
   if (key === 'single' || targets === 1) return `单体 ${targets || 1}目标`
   return label || key
 }
@@ -155,6 +156,7 @@ Page({
     const simcReportResult = simcReport.result || {}
     const simcReportBuild = simcReport.build || {}
     const simcReportScenario = simcReport.scenario || {}
+    const simcReportPreparation = simcReport.preparation || {}
     const mode = task.mode || request.mode || analysisRequest.mode || analysis.mode || ''
     const modeText = this.modeText(mode)
     const isSimcraftTemplateMode = mode === 'simcraft_template' || analysis.mode === 'simcraft_template'
@@ -203,6 +205,7 @@ Page({
       hasRunContext: !!(scenarioDisplay || statRows.length),
       scenarioDisplayText: scenarioDisplay,
       scenarioMetaText: scenarioMetaText(scenarioSource),
+      preparationSummary: simcReportPreparation.summary || '',
       statRows,
       createdAtText: task.createdAt || ''
     }

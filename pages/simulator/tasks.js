@@ -70,7 +70,8 @@ function taskScenarioText(scenario) {
   const source = scenario && typeof scenario === 'object' ? scenario : {}
   const key = cleanTaskText(source.key)
   const targets = Number(source.targets || 0)
-  if (key === 'mythic_plus' || targets > 1) return `AOE${targets || 5}目标`
+  if (key === 'mythic_plus') return '近似大秘境'
+  if (key === 'aoe_5' || targets > 1) return `AOE${targets || 5}目标`
   if (key === 'single' || targets === 1) return '单体'
   return cleanTaskText(source.label) || key
 }
@@ -106,6 +107,12 @@ function taskSummary(task, status) {
     ''
 }
 
+function taskPreparationSummary(task) {
+  const report = task && task.simcReportSummary ? task.simcReportSummary : {}
+  const preparation = report.preparation && typeof report.preparation === 'object' ? report.preparation : {}
+  return cleanTaskText(preparation.summary)
+}
+
 function taskTitle(task, status) {
   const report = task && task.simcReportSummary ? task.simcReportSummary : {}
   const build = taskBuild(task)
@@ -129,6 +136,7 @@ function normalizeTask(task) {
     statusText: statusView.text,
     statusClass: statusView.className,
     desc: taskSummary(task, status),
+    preparationSummary: taskPreparationSummary(task),
     tags: taskTags(task),
     completionTimeText: `完成时间：${formatTaskTime(finishedAt) || '未完成'}`,
     updatedAt: cleanTaskText(report.updatedAt || (task && (task.updatedAt || task.createdAt)))

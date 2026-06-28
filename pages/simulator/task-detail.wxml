@@ -49,6 +49,15 @@
           </view>
         </view>
 
+        <view class="section simc-preparation-section" wx:if="{{detail.preparationSummary}}">
+          <view class="section-header">
+            <text class="section-title">模拟增益</text>
+          </view>
+          <view class="context-card">
+            <text class="benchmark-value preparation-detail-text">{{detail.preparationSummary}}</text>
+          </view>
+        </view>
+
       </view>
 
       <view wx:else class="section loading-section">

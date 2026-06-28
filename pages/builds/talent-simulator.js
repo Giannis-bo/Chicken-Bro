@@ -28,9 +28,9 @@ const PAGE_ROUTE = 'pages/builds/talent-simulator'
 const defaultSpecId = '法师-冰霜'
 const fallbackPayload = fallbackBuildsHome()
 const defaultScenarios = [
-  { key: 'mythic_plus', title: '大秘境', fightStyle: 'DungeonSlice', targets: 5, durationSeconds: 360 },
   { key: 'single', title: '单体', fightStyle: 'Patchwerk', targets: 1, durationSeconds: 300 },
-  { key: 'cleave', title: '顺劈', fightStyle: 'HecticAddCleave', targets: 3, durationSeconds: 300 }
+  { key: 'aoe_5', title: '5目标AOE', fightStyle: 'Patchwerk', targets: 5, durationSeconds: 300 },
+  { key: 'mythic_plus', title: '近似大秘境', fightStyle: 'DungeonSlice', targets: 5, durationSeconds: 360 }
 ]
 const TREE_ORDER = ['class', 'hero', 'spec']
 const TREE_LABELS = {
@@ -486,9 +486,9 @@ Page({
     ...selectedState(findSpecSelection(defaultSpecId, fallbackPayload.classOptions).classIndex, findSpecSelection(defaultSpecId, fallbackPayload.classOptions).specIndex, fallbackPayload.classOptions),
     websimClasses: [],
     scenarioOptions: defaultScenarios,
-    selectedScenarioIndex: 0,
+    selectedScenarioIndex: 2,
     scenarioKey: 'mythic_plus',
-    selectedScenarioTitle: '大秘境',
+    selectedScenarioTitle: '近似大秘境',
     classKey: 'mage',
     specKey: 'frost',
     heroKey: '',
@@ -576,9 +576,14 @@ Page({
     this.setData({ loading: true, statusText: '正在连接 WebSim 数据' })
     requestWebsimBootstrap().then(({ payload, fromFallback, error }) => {
       const scenarios = Array.isArray(payload.scenarios) && payload.scenarios.length ? payload.scenarios : defaultScenarios
+      const selectedScenario = scenarios.find((item) => item.key === this.data.scenarioKey) || scenarios[0] || {}
+      const selectedScenarioIndex = Math.max(0, scenarios.findIndex((item) => item.key === selectedScenario.key))
       this.setData({
         websimClasses: payload.classes || [],
         scenarioOptions: scenarios,
+        selectedScenarioIndex,
+        scenarioKey: selectedScenario.key || '',
+        selectedScenarioTitle: selectedScenario.title || '',
         currentSeason: payload.currentSeason || payload,
         fromFallback,
         requestError: error || ''

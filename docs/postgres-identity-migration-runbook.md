@@ -382,6 +382,23 @@ Completed under the active-goal authorization:
 - Main-service protected PG smoke on `127.0.0.1:8787` created a temporary PG formal user/token, verified `/api/data/health` read a temporary PG cache marker, enforced unauthenticated template `401`, updated profile, saved/listed/deleted a build template, read a seeded SimC task list/detail snapshot, created/read a Chickenbro session/job, and wrote an analytics event. Cleanup left `userIdentityRows=0`, `analyticsRows=0`, and restored the PG cache marker.
 - Public URL smoke after cutover: `http://124.223.51.33/health`, `/api/news/home`, `/api/websim/gear?class=mage&spec=frost&compact=1`, and `/api/websim/talents?class=mage&spec=frost&hero=spellslinger` all returned `200`.
 
+## Dev-Debug Runtime Repoint 2026-06-28
+
+The mini program is still in WeChat Developer Tools testing and is not formally launched. To keep developer-testing personal data out of `wow_prod`, the active `wow-backend` service was repointed to `WOW_DATABASE_URL=postgresql://wow_app@127.0.0.1:5432/wow_test` while keeping `WOW_DATABASE_RUNTIME=postgres_personal` and `PGPASSFILE=/home/ubuntu/.pgpass`.
+
+- Before cleanup, `wow_prod` had `identity.users=1`, `identity.user_identities=1`, `app.simulator_tasks=2`, and `app.build_templates=0`; the two remote templates reported by the tester were not present in PostgreSQL and were likely only in the mini program local `wow_build_templates_v1` cache.
+- The affected production personal rows were backed up to `/opt/wow-mini-program/backups/wow_prod-personal-test-assets-before-clean-20260628T020757Z.sql`.
+- Cleanup used count assertions before deleting the one test identity, cascading the two SimC task rows. Post-cleanup `wow_prod` personal counts were `identity.users=0`, `identity.user_identities=0`, `identity.auth_tokens=0`, `app.build_templates=0`, `app.simulator_tasks=0`, `app.chickenbro_sessions=0`, `app.chickenbro_messages=0`, `app.agent_jobs=0`, and `knowledge.user_context_summaries=0`.
+- The previous service env was backed up to `/etc/wow-backend.env.before-wow-test-runtime-20260628T020838Z`, then `/etc/wow-backend.env` was updated to point at `wow_test` and `wow-backend` was restarted.
+- Verification after restart: service `active`; `/health`, `/api/news/home`, `/api/websim/gear?class=mage&spec=frost&compact=1`, and `/api/simulator/home` returned `200`; both `wow_prod` and `wow_test` reported `identity.users=0`, `app.build_templates=0`, and `app.simulator_tasks=0` immediately after the switch.
+
+Follow-up stuck-task fix:
+
+- Two dev-debug SimC template tasks submitted to `wow_test` at `2026-06-28 10:14 +08` remained `queued` because the deployed `server/news_backend.py` and `server/postgres_personal_store.py` were behind the local post-cutover code. The request path inserted into PostgreSQL, but the background runner still used the old SQLite-only lookup and logged `KeyError: 'simcraft template task not found'`.
+- Local regression coverage for the intended behavior passed: `python -m unittest tests.database_adapter_test.DatabaseAdapterTest.test_news_backend_runs_simcraft_template_task_from_postgres_personal_store tests.postgres_personal_store_test.PostgresPersonalStoreTest.test_simcraft_template_runner_methods_use_postgres_task_table`.
+- Hot update scope was limited to `server/news_backend.py` and `server/postgres_personal_store.py`; remote originals were backed up under `/opt/wow-mini-program/.codex-backups/20260628T022140Z-pg-simc-runner`, `python3 -m py_compile` passed for both files, and `wow-backend` restarted `active`.
+- The two queued rows were then rerun with the full service SimC environment. Final `wow_test.app.simulator_tasks` statuses were `completed`, with DPS `73504.874` and `73450.168`; `last_error` was empty for both rows.
+
 Still not done:
 
 - This is a `postgres_personal` hybrid production runtime, not a full backend `db_connection()` cutover. SQLite remains the fallback for routes that have not been moved behind a PostgreSQL store seam.

@@ -70,6 +70,22 @@ Backend rules:
 3. The runner owns the state transition `queued -> running -> completed/failed`. It pipes the stored normalized profile to `simc`, parses DPS only from SimC output, records `taskTiming`, updates `analysis_json`, regenerates `summary_json`, and never calls LLM/Codex.
 4. Duplicate active submits are deduped by `simcTaskFingerprint`, which includes user/template/class/spec/race/scenario/analysis-type inputs. If the same task is already `queued` or `running`, the API returns the active task lock instead of inserting another row.
 
+The player-facing scenario contract is intentionally small:
+
+- `single`: `fight_style=Patchwerk`, `desired_targets=1`, `max_time=300`.
+- `aoe_5`: `fight_style=Patchwerk`, `desired_targets=5`, `max_time=300`.
+- `mythic_plus`: `fight_style=DungeonSlice`, `desired_targets=5`, `max_time=360`; this is a SimC dungeon approximation, not a real route or a stable 5-target AOE target dummy.
+
+Do not label `DungeonSlice` as `AOE5目标`. Only `aoe_5` may use that label. Real Mythic+ reference windows may attach to `mythic_plus`; they must not attach to the 5-target target-dummy scenario.
+
+Generated template/WebSim profiles also carry a combat-preparation contract:
+
+- Generated profiles must set `optimal_raid=0` before adding explicit preparation lines. This prevents SimC's generic raid preset from silently granting cross-class buffs.
+- Self-class raid buffs are on by default only for the profile's own class and only when the SimC override token is verified, such as `override.arcane_intellect=1` for mage and `override.skyfury=1` for shaman. A priest profile must not receive mage/shaman buffs.
+- Spec/class preparations such as Enhancement shaman weapon imbues and rogue poisons require their own class/spec evidence chain. A token found in the production SimC binary is not enough; the exact generated profile must pass an executable smoke before the line is marked `verified` and allowed to affect trusted DPS copy.
+- Generic temporary effects such as weapon oil, combat potion, and Bloodlust/Heroism are off by default and must stay behind explicit user-facing toggles.
+- `simcReport.preparation` is the player-facing read model for this policy. Task submit, task list, and task detail should show the preparation summary/evidence state without exposing raw profile text.
+
 The durable payload split is:
 
 - `request_json`: normalized executable request, including slim template context, `simcTaskFingerprint`, scenario, race, and the generated profile needed by the runner.
@@ -247,6 +263,7 @@ Required test coverage for future SimC changes:
 
 - Backend tests in `tests/news_backend_test.py` must cover DPS parsing from full SimC output before summary truncation, rejecting unrelated large numbers, generated-profile preview labeling, SimC failure wording, and Mythic+ reference guardrails.
 - Backend tests must also cover `simcraft_template` confirm-only behavior, queued final submit, active task lock reuse, runner success/failure state transitions, `summary_json` backfill, and task-detail stat snapshot backfill.
+- Backend and WebSim tests must cover combat-preparation profile policy: `optimal_raid=0`, own-class raid buff only, no cross-class raid buffs, partial/pending state for class/spec preparations without executable SimC smoke evidence, and public `simcReport.preparation` copy.
 - WebSim tests in `tests/websim_payload_test.py` must cover canonical profile reuse, full core gear gating, talent encoding failures, candidate gear blocking, and fake-SimC capture of the exact submitted profile.
 - Frontend tests in `tests/simulator-page.test.js` must cover the visible task-list title/status/tag/completion-time contract, removal of card DPS/benchmark copy, and task-detail labels, units, stat rows, and generated-preview hiding.
 - A deployable SimC change must pass `python3 -m unittest discover -s tests -p '*_test.py'`, `node --test tests/*.test.js`, local `python3 server/simulator_e2e_smoke.py`, and after deployment the live smoke command below.
