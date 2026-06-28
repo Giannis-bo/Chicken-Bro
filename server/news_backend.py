@@ -82,6 +82,7 @@ try:
         import_talent_api_payload,
         encode_websim_talents,
         parse_websim_talent_export_code,
+        simcraft_known_compatibility_blockers,
         validate_talent_api_payload,
     )
 except ImportError:
@@ -149,6 +150,7 @@ except ImportError:
         import_talent_api_payload,
         encode_websim_talents,
         parse_websim_talent_export_code,
+        simcraft_known_compatibility_blockers,
         validate_talent_api_payload,
     )
 
@@ -2743,6 +2745,7 @@ SIMCRAFT_TEMPLATE_SCENARIOS = {
 
 SIMCRAFT_TEMPLATE_ANALYSIS_TYPES = {"baseline", "stat_weights"}
 SIMCRAFT_TEMPLATE_READY_GEAR_STATUSES = {"complete", "complete_with_warnings"}
+SIMCRAFT_TEMPLATE_STAT_SNAPSHOT_REQUIRED_ERROR = "gear stat snapshot is not verified"
 
 
 def simcraft_template_record(source, template_type):
@@ -2774,6 +2777,21 @@ def simcraft_template_unique_messages(values):
         if text and text not in result:
             result.append(text)
     return result
+
+
+def simcraft_template_has_verified_stat_snapshot(source, gear_template):
+    request = source if isinstance(source, dict) else {}
+    template = gear_template if isinstance(gear_template, dict) else {}
+    metadata = template.get("metadata") if isinstance(template.get("metadata"), dict) else {}
+    candidates = [
+        metadata.get("statSnapshot"),
+        metadata.get("gearStatSnapshot"),
+        request.get("statSnapshot"),
+    ]
+    for candidate in candidates:
+        if isinstance(candidate, dict) and candidate.get("statStatus") == "verified":
+            return True
+    return False
 
 
 def simcraft_template_gear_snapshot_raw(metadata):
@@ -3008,7 +3026,9 @@ def prepare_simcraft_template_request(request_payload):
     analysis_type = clean_text(source.get("analysisType"), 64) or "baseline"
     race_key = normalize_simc_race(source.get("raceKey") or source.get("race"))
     race_name = clean_text(source.get("raceName"), 80)
+    source_validation = source.get("templateValidation") if isinstance(source.get("templateValidation"), dict) else {}
     errors = []
+    errors.extend([str(item) for item in source_validation.get("errors") or [] if str(item or "").strip()])
     if scenario_key not in SIMCRAFT_TEMPLATE_SCENARIOS:
         errors.append(f"unsupported scenario: {scenario_key}")
     if analysis_type not in SIMCRAFT_TEMPLATE_ANALYSIS_TYPES:
@@ -3043,6 +3063,15 @@ def prepare_simcraft_template_request(request_payload):
         )
     errors.extend(talent_errors)
     errors.extend(gear_errors)
+    compatibility_errors = simcraft_known_compatibility_blockers(
+        talent_template.get("classKey"),
+        talent_template.get("specKey"),
+        (talent_context or {}).get("heroKey") or talent_template.get("heroKey"),
+        scenario_key,
+    )
+    errors.extend(compatibility_errors)
+    if not compatibility_errors and not simcraft_template_has_verified_stat_snapshot(source, gear_template):
+        errors.append(SIMCRAFT_TEMPLATE_STAT_SNAPSHOT_REQUIRED_ERROR)
 
     scenario = SIMCRAFT_TEMPLATE_SCENARIOS.get(scenario_key) or SIMCRAFT_TEMPLATE_SCENARIOS["single"]
     simc_items = gear_items if not errors else []
@@ -3133,6 +3162,14 @@ def should_store_simulator_task(request_payload, analysis):
 
 
 SIMCRAFT_TEMPLATE_TASK_ACTIVE_STATUSES = {"queued", "running"}
+
+
+def simcraft_template_active_task_limit():
+    return max(1, int_env("WOW_SIMC_TEMPLATE_ACTIVE_TASK_LIMIT", 2))
+
+
+def simcraft_template_active_limit_message(active_count, limit):
+    return f"已有 {active_count} 个模拟任务正在排队或运行，请等待前面的任务完成后再提交。"
 
 
 def is_simcraft_template_final_submit(request_payload):
@@ -3741,6 +3778,65 @@ def simcraft_template_queue_analysis(confirm_analysis, request_payload, task_id,
     return analysis
 
 
+def simcraft_template_active_task_limit_analysis(confirm_analysis, active_count, limit):
+    analysis = json_clone(confirm_analysis)
+    message = simcraft_template_active_limit_message(active_count, limit)
+    analysis["status"] = "blocked"
+    analysis["updatedAt"] = utc_now()
+    analysis["taskLock"] = {
+        "active": True,
+        "taskId": "",
+        "status": "blocked",
+        "reason": "active_simc_task_limit",
+        "activeCount": active_count,
+        "limit": limit,
+    }
+    agent = analysis.get("agent") if isinstance(analysis.get("agent"), dict) else {}
+    validation = agent.get("validation") if isinstance(agent.get("validation"), dict) else {}
+    validation["passed"] = False
+    errors = [str(item) for item in validation.get("errors") or [] if str(item).strip()]
+    if message not in errors:
+        errors.append(message)
+    validation["errors"] = errors
+    agent["validation"] = validation
+    agent["status"] = "task_limit_reached"
+    agent["canSubmitTask"] = False
+    analysis["agent"] = agent
+    simulation = analysis.get("simulation") if isinstance(analysis.get("simulation"), dict) else {}
+    simulation.update({"ran": False, "summary": "", "error": message, "metrics": {}, "status": "blocked"})
+    analysis["simulation"] = simulation
+    analysis["evidenceState"] = {
+        "phase": "blocked",
+        "profileSource": "template",
+        "simcRan": False,
+        "hasDps": False,
+        "blockers": [message],
+    }
+    analysis["runPolicy"] = {
+        "policy": "blocked",
+        "profileSource": "template",
+        "canRunSimc": False,
+        "didRunSimc": False,
+        "requiresFullProfile": False,
+        "validationPassed": False,
+        "reason": "active simc task limit",
+    }
+    analysis["report"] = {
+        "schemaRevision": "simc-report-v1",
+        "source": "deterministic_blocked",
+        "fallbackReason": "active_simc_task_limit",
+        "topFindings": [{
+            "text": message,
+            "evidenceRefs": ["simc.activeTaskLimit"],
+        }],
+        "nextActions": ["Wait for an active SimC task to finish before submitting another one."],
+        "limitations": ["No new SimC task was queued."],
+    }
+    analysis["recommendations"] = [message]
+    attach_simcraft_template_report(analysis, row_status="blocked")
+    return public_simcraft_template_analysis(analysis, row_status="blocked")
+
+
 def active_simcraft_template_task_from_rows(rows, fingerprint):
     for row in rows:
         request_payload = safe_json_loads(row[2], {}, f"simcraft template task request {row[0]}")
@@ -3762,8 +3858,8 @@ def active_simcraft_template_task_from_rows(rows, fingerprint):
     return None
 
 
-def active_simcraft_template_task(conn, user_id, fingerprint):
-    rows = conn.execute(
+def active_simcraft_template_task_rows(conn, user_id):
+    return conn.execute(
         """
         SELECT id, status, request_json, analysis_json, created_at, updated_at
         FROM simulator_tasks
@@ -3773,7 +3869,10 @@ def active_simcraft_template_task(conn, user_id, fingerprint):
         """,
         (user_id,),
     ).fetchall()
-    return active_simcraft_template_task_from_rows(rows, fingerprint)
+
+
+def active_simcraft_template_task(conn, user_id, fingerprint):
+    return active_simcraft_template_task_from_rows(active_simcraft_template_task_rows(conn, user_id), fingerprint)
 
 
 def simcraft_template_task_autorun_enabled():
@@ -3814,12 +3913,16 @@ def enqueue_simcraft_template_task(request_payload, access_token=""):
     now = utc_now()
     store = personal_data_store()
     if store:
+        active_rows = store.active_simulator_task_rows(user["id"])
         existing = active_simcraft_template_task_from_rows(
-            store.active_simulator_task_rows(user["id"]),
+            active_rows,
             fingerprint,
         )
         if existing:
             return existing
+        active_limit = simcraft_template_active_task_limit()
+        if len(active_rows) >= active_limit:
+            return simcraft_template_active_task_limit_analysis(validation_analysis, len(active_rows), active_limit)
         queued_timing = {"queuedAt": now, "startedAt": "", "finishedAt": "", "elapsedMs": None}
         queued_analysis = simcraft_template_queue_analysis(
             validation_analysis,
@@ -3851,9 +3954,13 @@ def enqueue_simcraft_template_task(request_payload, access_token=""):
         )
     else:
         with db_connection() as conn:
-            existing = active_simcraft_template_task(conn, user["id"], fingerprint)
+            active_rows = active_simcraft_template_task_rows(conn, user["id"])
+            existing = active_simcraft_template_task_from_rows(active_rows, fingerprint)
             if existing:
                 return existing
+            active_limit = simcraft_template_active_task_limit()
+            if len(active_rows) >= active_limit:
+                return simcraft_template_active_task_limit_analysis(validation_analysis, len(active_rows), active_limit)
             queued_timing = {"queuedAt": now, "startedAt": "", "finishedAt": "", "elapsedMs": None}
             queued_analysis = simcraft_template_queue_analysis(
                 validation_analysis,

@@ -1371,7 +1371,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("spec=arcane", profile)
         self.assertIn("talents=C4DA", profile)
         self.assertIn(
-            "head=voidbreaker_s_veil,id=250060,ilevel=289,bonus_id=13534,gem_id=240983,enchant_id=8017,embellishment=blue_silken_lining",
+            "head=voidbreakers_veil,id=250060,ilevel=289,bonus_id=13534,gem_id=240983,enchant_id=8017,embellishment=blue_silken_lining",
             profile,
         )
         self.assertIn("fight_style=Patchwerk", profile)
@@ -14761,6 +14761,71 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("talents=websim:", profile)
         self.assertIn("head=verified_head,id=250001,ilevel=289,bonus_id=13534", profile)
 
+    def test_profile_response_hydrates_placeholder_item_name_from_observed_gear(self):
+        import server.raiderio_payload as raiderio_payload
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            raiderio_payload.write_cache(
+                conn,
+                {
+                    "sourceStatus": "verified",
+                    "checkedAt": "2026-06-28T00:00:00+00:00",
+                    "expiresAt": "2999-01-01T00:00:00+00:00",
+                    "staleAt": "2999-01-02T00:00:00+00:00",
+                    "specAggregates": [
+                        {
+                            "classKey": "deathknight",
+                            "specKey": "unholy",
+                            "observedGear": [
+                                {
+                                    "slot": "hands",
+                                    "name": "Relentless Rider's Bonegrasps",
+                                    "itemId": 249971,
+                                }
+                            ],
+                        }
+                    ],
+                },
+            )
+            conn.commit()
+            snapshot = {
+                "schemaRevision": "websim-gear-enhancement-snapshot-v1",
+                "gearBySlot": {
+                    "hands": {
+                        "slot": "hands",
+                        "simcSlot": "hands",
+                        "name": "item_249971",
+                        "displayName": "冷厉骑手的骨握",
+                        "localizedName": "冷厉骑手的骨握",
+                        "itemId": "249971",
+                        "id": "249971",
+                        "ilevel": 289,
+                        "bonus_id": "40/12675/12806/13335/13337/13574",
+                        "simcReady": True,
+                    }
+                },
+                "enhancementBySlot": {},
+            }
+
+            response = self.websim_payload.build_websim_profile_response(
+                {
+                    "classKey": "deathknight",
+                    "specKey": "unholy",
+                    "rawString": json.dumps(snapshot, ensure_ascii=False),
+                },
+                conn=conn,
+            )
+        finally:
+            conn.close()
+
+        self.assertIn(
+            "hands=relentless_riders_bonegrasps,id=249971,ilevel=289,bonus_id=40/12675/12806/13335/13337/13574",
+            response["profile"],
+        )
+        self.assertNotIn("hands=item_249971", response["profile"])
+
     def test_websim_talent_encoding_rejects_invalid_or_fallback_nodes(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -15854,6 +15919,60 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("json=", captured_profile.read_text(encoding="utf-8"))
         self.assertNotIn("999999", json.dumps(result))
 
+    def test_http_websim_gear_stats_accepts_json_with_trivial_item_name_diagnostics(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+        finally:
+            conn.close()
+        simc_bin = Path(self.tmp.name) / "fake-json-trivial-diagnostics-simc.py"
+        captured_profile = Path(self.tmp.name) / "json-trivial-diagnostics-profile.txt"
+        captured_profile_literal = json.dumps(str(captured_profile))
+        simc_bin.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json, pathlib, re, sys\n"
+            "profile = sys.stdin.read()\n"
+            f"pathlib.Path({captured_profile_literal}).write_text(profile, encoding='utf-8')\n"
+            "match = re.search(r'^json=(.+)$', profile, re.M)\n"
+            "if not match:\n"
+            "    raise SystemExit('missing json output path')\n"
+            "path = pathlib.Path(match.group(1).strip())\n"
+            "path.write_text(json.dumps({\n"
+            "    'version': '1205-01',\n"
+            "    'sim': {'players': [{\n"
+            "        'name': 'websim_unholy',\n"
+            "        'race': 'troll',\n"
+            "        'level': 90,\n"
+            "        'specialization': 'Unholy Death Knight',\n"
+            "        'gear': {'hands': {'ilevel': 289}, 'main_hand': {'ilevel': 289}},\n"
+            "        'collected_data': {'buffed_stats': {\n"
+            "            'attribute': {'strength': 2703, 'stamina': 20067},\n"
+            "            'stats': {\n"
+            "                'crit_rating': 994, 'crit_pct': 0.25,\n"
+            "                'haste_rating': 554, 'haste_pct': 0.112,\n"
+            "                'mastery_rating': 545, 'mastery_pct': 0.819,\n"
+            "                'versatility_rating': 83, 'versatility_pct': 0.04,\n"
+            "            },\n"
+            "        }},\n"
+            "    }]},\n"
+            "}, ensure_ascii=False), encoding='utf-8')\n"
+            "sys.stderr.write(\"Trivial: Player 'websim_unholy' at slot hands has inconsistency between name 'item_249971' and 'relentless_riders_bonegrasps' for id 249971\\n\")\n"
+            "sys.exit(1)\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+
+        result = self.post_backend_json("/api/websim/gear/stats", self.websim_encoder_payload())
+
+        self.assertEqual(result["statStatus"], "verified", result.get("blockers"))
+        self.assertEqual(result["statSource"], "simulationcraft_json")
+        self.assertEqual(result["primary"]["key"], "strength")
+        self.assertEqual(result["primary"]["value"], "2,703")
+        self.assertEqual(result["blockers"], [])
+        self.assertTrue(any("inconsistency between name" in item for item in result.get("simcWarnings") or []))
+        self.assertTrue(captured_profile.exists())
+
     def test_http_websim_gear_stats_accepts_bonus_id_only_saved_snapshot_items(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -15975,6 +16094,78 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(any("Missing core SimC gear slots" in blocker for blocker in result["blockers"]))
         self.assertFalse(captured_profile.exists())
 
+    def test_http_websim_gear_stats_blocks_known_unholy_rider_simc_crash_without_running(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.insert_websim_talent(
+                conn,
+                "simc-class-1001-deathknight-unholy",
+                "class",
+                1001,
+                1,
+                1,
+                "Class Talent",
+                class_key="deathknight",
+                spec_key="unholy",
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-spec-2001-deathknight-unholy",
+                "spec",
+                2001,
+                1,
+                2,
+                "Spec Talent",
+                class_key="deathknight",
+                spec_key="unholy",
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-3001-deathknight-unholy-rider_of_the_apocalypse",
+                "hero",
+                3001,
+                2,
+                1,
+                "Hero Talent",
+                class_key="deathknight",
+                spec_key="unholy",
+                hero_key="rider_of_the_apocalypse",
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        simc_bin = Path(self.tmp.name) / "fake-known-crash-should-not-run"
+        captured_profile = Path(self.tmp.name) / "known-crash-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'STAT SNAPSHOT: Strength=2703 Stamina=20067 Crit=994 Haste=554 Mastery=545 Versatility=83\\n'\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        selected_nodes = [
+            {"id": "simc-class-1001-deathknight-unholy", "rank": 1},
+            {"id": "simc-spec-2001-deathknight-unholy", "rank": 1},
+            {"id": "simc-hero-3001-deathknight-unholy-rider_of_the_apocalypse", "rank": 1},
+        ]
+
+        result = self.post_backend_json(
+            "/api/websim/gear/stats",
+            self.websim_encoder_payload({
+                "classKey": "deathknight",
+                "specKey": "unholy",
+                "talents": "websim:deathknight:unholy:rider_of_the_apocalypse:"
+                + ",".join(f"{item['id']}:{item['rank']}" for item in selected_nodes),
+                "gearSelection": {"items": self.full_core_simc_gear_items()},
+            }),
+        )
+
+        self.assertEqual(result["statStatus"], "blocked")
+        self.assertTrue(any("邪恶死亡骑士" in blocker and "天启骑士" in blocker for blocker in result["blockers"]))
+        self.assertFalse(captured_profile.exists())
+
     def test_http_websim_gear_stats_blocks_when_simc_is_unavailable(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -16011,6 +16202,36 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("SimC output did not include a parseable stat snapshot", result["blockers"])
         self.assertTrue(captured_profile.exists())
         self.assertNotIn("999999", json.dumps(result))
+
+    def test_http_websim_gear_stats_sanitizes_simc_crashes(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+        finally:
+            conn.close()
+        simc_bin = Path(self.tmp.name) / "fake-crashed-gear-stats-simc"
+        captured_profile = Path(self.tmp.name) / "crashed-gear-stats-profile.txt"
+        simc_bin.write_text(
+            "#!/bin/sh\n"
+            f"cat > {captured_profile}\n"
+            "printf 'sim_signal_handler: Segmentation fault! Iteration=0 Seed=-6016506965595101173 TargetHealth=0\\n\\n"
+            "sim_signal_handler: Segmentation fault! Thread=1 Iteration=-1 Seed=15740702310078284102 (15740702310078284103) TargetHealth=0\\n' >&2\n"
+            "exit 139\n",
+            encoding="utf-8",
+        )
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+
+        result = self.post_backend_json("/api/websim/gear/stats", self.websim_encoder_payload())
+        serialized = json.dumps(result, ensure_ascii=False)
+
+        self.assertEqual(result["statStatus"], "blocked")
+        self.assertTrue(any("SimC" in blocker and "崩溃" in blocker for blocker in result["blockers"]))
+        self.assertTrue(captured_profile.exists())
+        self.assertNotIn("sim_signal_handler", serialized)
+        self.assertNotIn("Segmentation fault", serialized)
+        self.assertNotIn("Seed=", serialized)
+        self.assertNotIn("TargetHealth", serialized)
 
     def test_http_websim_gear_stats_parses_snapshot_after_truncated_summary(self):
         conn = sqlite3.connect(self.db_path)

@@ -165,20 +165,21 @@
         </view>
 
         <view class="result-panel" wx:if="{{latestAnalysis && latestAnalysis.agent && !blockedReasons.length}}">
-          <text class="result-title">{{latestAnalysis.agent.status}}</text>
+          <text class="result-title">{{latestAnalysis.agent.statusText}}</text>
           <text class="result-desc">{{resultSummary}}</text>
         </view>
 
-        <view class="preparation-panel" wx:if="{{latestAnalysis && latestAnalysis.simcReport && latestAnalysis.simcReport.preparation && latestAnalysis.simcReport.preparation.summary}}">
+        <view class="preparation-panel" wx:if="{{latestAnalysis && latestAnalysis.preparation && latestAnalysis.preparation.hasRows}}">
           <view class="section-header">
-            <text class="section-title">模拟增益</text>
-            <text class="section-meta">{{latestAnalysis.simcReport.preparation.evidenceState}}</text>
+            <text class="section-title">战斗增益</text>
           </view>
-          <text class="preparation-summary">{{latestAnalysis.simcReport.preparation.summary}}</text>
-          <view class="preparation-list" wx:if="{{latestAnalysis.simcReport.preparation.items && latestAnalysis.simcReport.preparation.items.length}}">
-            <view class="preparation-row" wx:for="{{latestAnalysis.simcReport.preparation.items}}" wx:key="key">
-              <text class="preparation-label">{{item.label}}</text>
-              <text class="preparation-state">{{item.state}}</text>
+          <view class="preparation-list">
+            <view class="preparation-row" wx:for="{{latestAnalysis.preparation.rows}}" wx:key="key">
+              <view class="preparation-copy">
+                <text class="preparation-label">{{item.label}}</text>
+                <text class="preparation-value">{{item.valueText}}</text>
+              </view>
+              <text class="preparation-state">{{item.stateText}}</text>
             </view>
           </view>
         </view>
@@ -194,11 +195,12 @@
         <text class="button-label">{{confirming ? '校验中' : '校验组合'}}</text>
       </view>
       <view
-        class="submit-button task-submit-button action-button {{canSubmitTask ? 'submit-ready' : ''}} {{!canSubmitTask || submittingTask || taskSubmitted ? 'action-disabled' : ''}} {{submittingTask ? 'action-loading' : ''}}"
+        class="submit-button task-submit-button action-button {{canSubmitTask ? 'submit-ready' : ''}} {{!canSubmitTask || submittingTask || taskSubmitted || activeTaskLimitReached ? 'action-disabled' : ''}} {{activeTaskLimitReached ? 'active-limit' : ''}} {{submittingTask ? 'action-loading' : ''}}"
         bindtap="submitConfirmedTask"
       >
         <view class="button-spinner" wx:if="{{submittingTask}}"></view>
-        <text class="button-label">{{submittingTask ? '提交中' : (taskSubmitted ? '任务已提交' : '提交任务')}}</text>
+        <text class="button-label active-limit-label" wx:if="{{activeTaskLimitReached && !submittingTask && !taskSubmitted}}">已有2个任务</text>
+        <text class="button-label" wx:if="{{!(activeTaskLimitReached && !submittingTask && !taskSubmitted)}}">{{submittingTask ? '提交中' : (taskSubmitted ? '任务已提交' : '提交任务')}}</text>
       </view>
   </view>
 

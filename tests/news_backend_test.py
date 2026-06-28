@@ -441,6 +441,7 @@ class NewsBackendTest(unittest.TestCase):
                     "specKey": gear_spec,
                     "specName": "奥术",
                     "status": "complete",
+                    "metadata": {"statSnapshot": self.simc_template_stat_snapshot()},
                 },
             },
         }
@@ -1928,7 +1929,8 @@ class NewsBackendTest(unittest.TestCase):
         self.seed_simc_template_websim_nodes()
         payload = self.simc_template_payload(gear_raw="saved gear snapshot lives in metadata")
         payload["templateContext"]["gear"]["metadata"] = {
-            "gearSnapshot": self.simc_template_structured_gear_snapshot()
+            "gearSnapshot": self.simc_template_structured_gear_snapshot(),
+            "statSnapshot": self.simc_template_stat_snapshot(),
         }
 
         analysis = self.backend.analyze_and_store_simulator_task(payload)
@@ -2112,6 +2114,103 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"], [])
         self.assertEqual(analysis["simcReport"]["state"], "blocked")
         self.assertIn("missing gear slots: off_hand", analysis["simcReport"]["summary"])
+
+    def test_simcraft_template_blocks_missing_verified_stat_snapshot(self):
+        self.seed_simc_template_websim_nodes()
+        payload = self.simc_template_payload()
+        payload["templateContext"]["gear"].pop("metadata", None)
+
+        analysis = self.backend.analyze_and_store_simulator_task(payload)
+
+        self.assertEqual(analysis["agent"]["status"], "template_blocked")
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
+        self.assertIn("gear stat snapshot is not verified", analysis["agent"]["validation"]["errors"])
+        self.assertIn("gear stat snapshot is not verified", analysis["simcReport"]["messages"]["blockers"])
+        self.assertEqual(analysis["simcReport"]["state"], "blocked")
+
+    def test_simcraft_template_blocks_known_unholy_rider_simc_crash_even_with_verified_snapshot(self):
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            self.backend.ensure_websim_tables(conn)
+            self.insert_websim_talent(
+                conn,
+                "simc-class-1001-deathknight-unholy",
+                "class",
+                1001,
+                1,
+                1,
+                "Class Talent",
+                class_key="deathknight",
+                spec_key="unholy",
+                class_id=6,
+                spec_id=252,
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-spec-2001-deathknight-unholy",
+                "spec",
+                2001,
+                1,
+                2,
+                "Spec Talent",
+                class_key="deathknight",
+                spec_key="unholy",
+                class_id=6,
+                spec_id=252,
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-3001-deathknight-unholy-rider_of_the_apocalypse",
+                "hero",
+                3001,
+                2,
+                1,
+                "Hero Talent",
+                class_key="deathknight",
+                spec_key="unholy",
+                hero_key="rider_of_the_apocalypse",
+                class_id=6,
+                spec_id=252,
+            )
+            conn.commit()
+        payload = self.simc_template_payload()
+        talent_raw = (
+            "websim:deathknight:unholy:rider_of_the_apocalypse:"
+            "simc-class-1001-deathknight-unholy:1,"
+            "simc-spec-2001-deathknight-unholy:1,"
+            "simc-hero-3001-deathknight-unholy-rider_of_the_apocalypse:1"
+        )
+        payload["templateContext"]["talent"].update({
+            "title": "死亡骑士-邪恶-天启骑士",
+            "rawString": talent_raw,
+            "classKey": "deathknight",
+            "className": "死亡骑士",
+            "specKey": "unholy",
+            "specName": "邪恶",
+            "heroKey": "rider_of_the_apocalypse",
+        })
+        payload["templateContext"]["gear"].update({
+            "title": "死亡骑士-邪恶-单体",
+            "classKey": "deathknight",
+            "className": "死亡骑士",
+            "specKey": "unholy",
+            "specName": "邪恶",
+            "metadata": {"statSnapshot": self.simc_template_stat_snapshot()},
+        })
+
+        analysis = self.backend.analyze_and_store_simulator_task(payload)
+
+        self.assertEqual(analysis["agent"]["status"], "template_blocked")
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
+        self.assertTrue(any("邪恶死亡骑士" in error and "天启骑士" in error for error in analysis["agent"]["validation"]["errors"]))
+        self.assertFalse(any("gear stat snapshot" in error for error in analysis["agent"]["validation"]["errors"]))
+        self.assertEqual(analysis["simcReport"]["state"], "blocked")
+        self.assertTrue(any("邪恶死亡骑士" in blocker for blocker in analysis["simcReport"]["messages"]["blockers"]))
+
+        payload["templateContext"]["gear"].pop("metadata", None)
+        missing_snapshot_analysis = self.backend.analyze_and_store_simulator_task(payload)
+        missing_snapshot_errors = missing_snapshot_analysis["agent"]["validation"]["errors"]
+        self.assertTrue(any("邪恶死亡骑士" in error and "天启骑士" in error for error in missing_snapshot_errors))
+        self.assertFalse(any("gear stat snapshot" in error for error in missing_snapshot_errors))
 
     def test_simcraft_template_final_submit_queues_task_without_simc_llm_or_codex(self):
         self.seed_simc_template_websim_nodes()
@@ -2339,6 +2438,39 @@ class NewsBackendTest(unittest.TestCase):
             count = conn.execute("SELECT COUNT(*) FROM simulator_tasks").fetchone()[0]
         self.assertEqual(count, 1)
 
+    def test_simcraft_template_final_submit_blocks_third_active_task_for_same_player(self):
+        self.seed_simc_template_websim_nodes()
+        os.environ["WOW_SIMC_TEMPLATE_TASK_AUTORUN"] = "0"
+        try:
+            first_payload = self.simc_template_payload(scenario="single")
+            first_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device-limit"})
+            second_payload = self.simc_template_payload(scenario="aoe_5")
+            second_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device-limit"})
+            third_payload = self.simc_template_payload(scenario="mythic_plus")
+            third_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device-limit"})
+
+            first = self.backend.analyze_and_store_simulator_task(first_payload)
+            second = self.backend.analyze_and_store_simulator_task(second_payload)
+            third = self.backend.analyze_and_store_simulator_task(third_payload)
+        finally:
+            os.environ.pop("WOW_SIMC_TEMPLATE_TASK_AUTORUN", None)
+
+        self.assertEqual(first["status"], "queued")
+        self.assertEqual(second["status"], "queued")
+        self.assertNotEqual(second["taskId"], first["taskId"])
+        self.assertEqual(third["status"], "blocked")
+        self.assertFalse(third["agent"]["canSubmitTask"])
+        self.assertEqual(third["taskLock"]["reason"], "active_simc_task_limit")
+        self.assertEqual(third["taskLock"]["activeCount"], 2)
+        self.assertEqual(third["taskLock"]["limit"], 2)
+        self.assertIn("2", third["simulation"]["error"])
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            rows = conn.execute(
+                "SELECT status FROM simulator_tasks WHERE user_id = ? ORDER BY created_at",
+                (first["owner"]["id"],),
+            ).fetchall()
+        self.assertEqual([row[0] for row in rows], ["queued", "queued"])
+
     def test_simcraft_template_task_runner_completes_queued_task(self):
         self.seed_simc_template_websim_nodes()
         from server import simulator_payload
@@ -2429,6 +2561,82 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(stored_summary["build"]["specName"], "奥术")
         self.assertEqual(stored_summary["build"]["heroKey"], "spellslinger")
         self.assertEqual(stored_summary["timing"]["finishedAt"], completed["simcReport"]["timing"]["finishedAt"])
+
+    def test_simcraft_template_task_runner_accepts_dps_with_trivial_item_name_diagnostics(self):
+        self.seed_simc_template_websim_nodes()
+        from server import simulator_payload
+
+        simc_bin = Path(self.tmp.name) / "fake-simc-template-trivial-diagnostic"
+        simc_bin.write_text("#!/bin/sh\n", encoding="utf-8")
+        simc_bin.chmod(0o755)
+
+        class FakeSimcResult:
+            returncode = 1
+            stdout = "Player: TemplateUnholyDK\n  DPS=654321 DPS-Error=0/0.00%\n"
+            stderr = (
+                "Trivial: Player 'websim_unholy' at slot hands has inconsistency between name "
+                "'item_249971' and 'relentless_riders_bonegrasps' for id 249971\n"
+            )
+
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        os.environ["WOW_SIMC_TEMPLATE_TASK_AUTORUN"] = "0"
+        request_payload = self.simc_template_payload()
+        request_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device-trivial"})
+        try:
+            with patch.object(simulator_payload, "run_simcraft_process", return_value=FakeSimcResult()):
+                queued = self.backend.analyze_and_store_simulator_task(request_payload)
+                completed = self.backend.run_simcraft_template_task(queued["taskId"])
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+            os.environ.pop("WOW_SIMC_TEMPLATE_TASK_AUTORUN", None)
+
+        self.assertEqual(completed["status"], "completed")
+        self.assertTrue(completed["simulation"]["ran"])
+        self.assertEqual(completed["simulation"]["metrics"]["dps"], "654321")
+        self.assertEqual(completed["simcReport"]["state"], "completed")
+        self.assertEqual(completed["simcReport"]["result"]["dps"], "654321")
+        self.assertEqual(completed["simulation"].get("error"), "")
+
+    def test_simcraft_template_task_runner_uses_template_timeout_without_changing_profile(self):
+        self.seed_simc_template_websim_nodes()
+        from server import simulator_payload
+
+        simc_bin = Path(self.tmp.name) / "fake-simc-template-timeout"
+        simc_bin.write_text("#!/bin/sh\n", encoding="utf-8")
+        simc_bin.chmod(0o755)
+        captured = {}
+
+        class FakeSimcResult:
+            returncode = 0
+            stdout = "Player: TemplateArcaneMage\n  DPS=654321 DPS-Error=0/0.00%\n"
+            stderr = ""
+
+        def fake_run_simcraft_process(binary, profile, timeout_seconds=None):
+            captured["binary"] = binary
+            captured["profile"] = profile
+            captured["timeout_seconds"] = timeout_seconds
+            return FakeSimcResult()
+
+        os.environ["WOW_SIMC_BIN"] = str(simc_bin)
+        os.environ["WOW_SIMC_TEMPLATE_TASK_AUTORUN"] = "0"
+        os.environ["WOW_SIMC_TEMPLATE_TIMEOUT_SECONDS"] = "123"
+        request_payload = self.simc_template_payload(scenario="aoe_5")
+        request_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device-timeout"})
+        try:
+            with patch.object(simulator_payload, "run_simcraft_process", side_effect=fake_run_simcraft_process):
+                queued = self.backend.analyze_and_store_simulator_task(request_payload)
+                completed = self.backend.run_simcraft_template_task(queued["taskId"])
+        finally:
+            os.environ.pop("WOW_SIMC_BIN", None)
+            os.environ.pop("WOW_SIMC_TEMPLATE_TASK_AUTORUN", None)
+            os.environ.pop("WOW_SIMC_TEMPLATE_TIMEOUT_SECONDS", None)
+
+        self.assertEqual(completed["status"], "completed")
+        self.assertEqual(captured["timeout_seconds"], 123)
+        self.assertIn("iterations=10000", captured["profile"])
+        self.assertIn("fight_style=Patchwerk", captured["profile"])
+        self.assertIn("desired_targets=5", captured["profile"])
+        self.assertIn("max_time=300", captured["profile"])
 
     def test_simcraft_template_task_list_recovers_tags_from_stored_request(self):
         login = self.backend.login_with_wechat_code(

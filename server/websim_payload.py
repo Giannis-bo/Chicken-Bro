@@ -2080,6 +2080,45 @@ def slugify(value, fallback="item"):
     return text[:80] if text else fallback
 
 
+def simc_item_name_is_placeholder(value, item_id=""):
+    item_id = normalize_option_value(item_id)
+    name = slugify(value, "")
+    if not name:
+        return True
+    if name in {"item", "selected_item"}:
+        return True
+    return bool(item_id and name == f"item_{item_id}")
+
+
+def canonical_simc_item_name(value, item_id=""):
+    name = slugify(str(value or "").replace("'", "").replace("\u2019", ""), "")
+    if not name or simc_item_name_is_placeholder(name, item_id):
+        return ""
+    return name
+
+
+def canonical_simc_item_name_from_record(record, item_id=""):
+    if not isinstance(record, dict):
+        return ""
+    payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
+    metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
+    candidates = [
+        record.get("englishName"),
+        metadata.get("englishName"),
+        record.get("itemName"),
+        record.get("name"),
+        record.get("displayName"),
+        record.get("localizedName"),
+        payload.get("englishName"),
+        payload.get("name"),
+    ]
+    for candidate in candidates:
+        name = canonical_simc_item_name(candidate, item_id)
+        if name:
+            return name
+    return ""
+
+
 def normalized_item_alias(value):
     return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
 
@@ -16213,6 +16252,7 @@ def gear_catalog_base_item_from_row(row):
         "itemId": item_id,
         "name": row[1],
         "displayName": row[1],
+        "englishName": metadata.get("englishName") or "",
         "slot": row[2],
         "quality": row[3],
         "iconUrl": row[4],
@@ -17444,11 +17484,12 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
     source_type = raw_source_type(first_matching_value(value, ["sourceType", "type"], default_source_type))
     if not source_type:
         source_type = "manual" if value.get("ilevel") else "candidate"
+    simc_item_name = canonical_simc_item_name_from_record(value, item_id) or f"item_{item_id}"
     item = {
         "slot": slot,
         "simcSlot": slot,
         "itemId": item_id,
-        "name": slugify(value.get("name"), f"item_{item_id}"),
+        "name": simc_item_name,
         "id": item_id,
         "displayName": str(value.get("displayName") or value.get("name") or f"Item {item_id}")[:160],
         "localizedName": str(value.get("localizedName") or value.get("displayName") or "")[:160],
@@ -17605,6 +17646,146 @@ def normalize_gear_item_list(items, class_key="", spec_key="", default_source_ty
         if item:
             normalized.append(item)
     return normalized
+
+
+def gear_item_needs_simc_name_hydration(item):
+    if not isinstance(item, dict):
+        return False
+    item_id = item.get("itemId") or item.get("id")
+    return bool(item_id and simc_item_name_is_placeholder(item.get("name"), item_id))
+
+
+def catalog_simc_item_names_by_id(conn, item_ids):
+    if conn is None or not item_ids:
+        return {}
+    try:
+        placeholders = ",".join("?" for _ in item_ids)
+        rows = conn.execute(
+            f"""
+            SELECT id, name, payload_json
+            FROM websim_items
+            WHERE id IN ({placeholders})
+            """,
+            [str(item_id) for item_id in item_ids],
+        ).fetchall()
+    except sqlite3.Error:
+        return {}
+    names = {}
+    for row in rows:
+        item_id = str(row[0] or "")
+        payload = safe_json_loads(row[2], {})
+        record = {
+            "itemId": item_id,
+            "displayName": row[1] or "",
+            "payload": payload if isinstance(payload, dict) else {},
+        }
+        metadata = record["payload"].get("_metadata") if isinstance(record["payload"].get("_metadata"), dict) else {}
+        if metadata.get("englishName"):
+            record["englishName"] = metadata.get("englishName")
+        name = canonical_simc_item_name_from_record(record, item_id)
+        if name:
+            names[item_id] = name
+    return names
+
+
+def preset_simc_item_names_by_id(conn, item_ids, class_key="", spec_key=""):
+    if conn is None or not item_ids:
+        return {}
+    try:
+        rows = conn.execute(
+            """
+            SELECT id, class_key, spec_key, name, profile, payload_json
+            FROM websim_profile_presets
+            WHERE class_key = ? AND spec_key = ?
+            """,
+            (slugify(class_key, ""), slugify(spec_key, "")),
+        ).fetchall()
+    except sqlite3.Error:
+        return {}
+    wanted = {str(item_id) for item_id in item_ids}
+    names = {}
+    for row in rows:
+        preset = {
+            "id": row[0],
+            "classKey": row[1],
+            "specKey": row[2],
+            "name": row[3],
+            "profile": row[4],
+            "payload": safe_json_loads(row[5], {}),
+        }
+        for item in preset_gear_items(preset):
+            item_id = str(item.get("itemId") or item.get("id") or "")
+            if item_id not in wanted or item_id in names:
+                continue
+            name = canonical_simc_item_name_from_record(item, item_id)
+            if name:
+                names[item_id] = name
+    return names
+
+
+def observed_simc_item_names_by_id(conn, item_ids, class_key="", spec_key=""):
+    if conn is None or not item_ids:
+        return {}
+    try:
+        try:
+            from .raiderio_payload import get_raiderio_payload
+        except ImportError:
+            from raiderio_payload import get_raiderio_payload
+        raiderio = get_raiderio_payload(conn, allow_sync=False)
+    except Exception:
+        return {}
+    wanted = {str(item_id) for item_id in item_ids}
+    class_key = slugify(class_key, "")
+    spec_key = slugify(spec_key, "")
+    names = {}
+    for observed_class, observed_spec, _context, gear in observed_gear_spec_entries(raiderio):
+        if observed_class != class_key or observed_spec != spec_key:
+            continue
+        for item in gear or []:
+            if not isinstance(item, dict):
+                continue
+            item_id = str(item.get("itemId") or item.get("item_id") or item.get("id") or "")
+            if item_id not in wanted or item_id in names:
+                continue
+            name = canonical_simc_item_name_from_record(item, item_id)
+            if name:
+                names[item_id] = name
+    return names
+
+
+def hydrate_simc_item_names(items, class_key="", spec_key="", conn=None):
+    if conn is None:
+        return items
+    needed_ids = []
+    seen = set()
+    for item in items or []:
+        if not gear_item_needs_simc_name_hydration(item):
+            continue
+        item_id = str(item.get("itemId") or item.get("id") or "")
+        if item_id and item_id not in seen:
+            seen.add(item_id)
+            needed_ids.append(item_id)
+    if not needed_ids:
+        return items
+    names = {}
+    for resolver in (
+        lambda: catalog_simc_item_names_by_id(conn, needed_ids),
+        lambda: preset_simc_item_names_by_id(conn, needed_ids, class_key, spec_key),
+        lambda: observed_simc_item_names_by_id(conn, needed_ids, class_key, spec_key),
+    ):
+        for item_id, name in resolver().items():
+            names.setdefault(item_id, name)
+    if not names:
+        return items
+    hydrated = []
+    for item in items or []:
+        if not gear_item_needs_simc_name_hydration(item):
+            hydrated.append(item)
+            continue
+        item_id = str(item.get("itemId") or item.get("id") or "")
+        name = names.get(item_id)
+        hydrated.append({**item, "name": name} if name else item)
+    return hydrated
 
 
 def gear_items_by_item_id(items):
@@ -19808,6 +19989,68 @@ def simcraft_item_resolution_warnings(*texts):
     return warnings[:8]
 
 
+def simcraft_item_name_diagnostics(*texts):
+    warnings = []
+    seen = set()
+    for text in texts:
+        for line in str(text or "").splitlines():
+            stripped = line.strip()
+            normalized = stripped.lower()
+            if not stripped:
+                continue
+            if not normalized.startswith("trivial: player "):
+                continue
+            if "has inconsistency between name" not in normalized or " for id " not in normalized:
+                continue
+            if stripped in seen:
+                continue
+            seen.add(stripped)
+            warnings.append(stripped[:400])
+    return warnings[:8]
+
+
+def simcraft_only_item_name_diagnostics(text):
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    if not lines:
+        return False
+    diagnostics = simcraft_item_name_diagnostics(text)
+    return len(diagnostics) == len(lines)
+
+
+SIMCRAFT_STAT_SNAPSHOT_CRASH_MESSAGE = "SimC 属性计算崩溃：当前组合暂时无法完成装备属性校验，请稍后重试，或更换天赋、装备或场景。"
+SIMCRAFT_UNHOLY_RIDER_CRASH_BLOCKER = (
+    "当前 SimC 版本对“邪恶死亡骑士 + 天启骑士”组合存在已知崩溃问题，"
+    "暂不能校验或提交；请改用其他英雄天赋，或等待 SimC 上游修复后重新校验。"
+)
+
+
+def simcraft_process_crashed(*texts):
+    text = "\n".join(str(item or "") for item in texts)
+    return bool(re.search(r"sim_signal_handler|segmentation fault|\bsigsegv\b|\bsignal\s*11\b", text, re.IGNORECASE))
+
+
+def simcraft_stat_snapshot_error_message(*texts):
+    if simcraft_process_crashed(*texts):
+        return SIMCRAFT_STAT_SNAPSHOT_CRASH_MESSAGE
+    return ""
+
+
+def simcraft_known_compatibility_blockers(class_key, spec_key, hero_key="", scenario_key=""):
+    normalized_class = slugify(class_key, "")
+    normalized_spec = slugify(spec_key, "")
+    requested_hero = slugify(hero_key, "")
+    if not requested_hero:
+        return []
+    normalized_hero = hero_tree_for(normalized_class, normalized_spec, requested_hero)
+    if (
+        normalized_class == "deathknight"
+        and normalized_spec == "unholy"
+        and normalized_hero == "rider_of_the_apocalypse"
+    ):
+        return [SIMCRAFT_UNHOLY_RIDER_CRASH_BLOCKER]
+    return []
+
+
 def run_windows_fake_simc_script(binary, profile):
     if os.name != "nt":
         return None
@@ -19907,8 +20150,14 @@ def run_websim_stat_simcraft(profile):
             "jsonPayload": json_payload,
             "jsonError": json_error,
             "itemResolutionWarnings": simcraft_item_resolution_warnings(stdout, stderr),
+            "itemNameDiagnostics": simcraft_item_name_diagnostics(stdout, stderr),
             "summary": output[:4000],
-            "error": "" if result.returncode == 0 else (stderr or stdout or f"simc exited {result.returncode}")[:1000],
+            "error": ""
+            if result.returncode == 0
+            else (
+                simcraft_stat_snapshot_error_message(stderr, stdout)
+                or (stderr or stdout or f"simc exited {result.returncode}")[:1000]
+            ),
         }
 
 
@@ -20384,6 +20633,7 @@ def encode_websim_talents(conn, payload):
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
     hero_key = hero_tree_for(class_key, spec_key, slugify(source.get("heroKey"), ""))
+    encoding.update({"classKey": class_key, "specKey": spec_key, "heroKey": hero_key})
     talent_payload, nodes_by_id = build_websim_authority_nodes(conn, class_key, spec_key, hero_key)
     encoding["source"] = talent_payload.get("talentStatus") or "unknown"
     if talent_payload.get("talentStatus") == "fallback":
@@ -21067,6 +21317,7 @@ def build_websim_profile_response(payload, conn=None):
 def websim_selected_gear_payload(source, class_key, spec_key, conn=None):
     raw_items, raw_enhancements = websim_gear_items_and_enhancements_from_source(source)
     items = normalize_websim_gear_items(raw_items, class_key, spec_key)
+    items = hydrate_simc_item_names(items, class_key, spec_key, conn=conn)
     items, enhancement_readiness = merge_websim_gear_enhancements(
         items,
         raw_enhancements,
@@ -21110,7 +21361,21 @@ def build_websim_gear_stats_response(payload, conn=None):
     gear_payload = websim_selected_gear_payload(request_source, class_key, spec_key, conn=conn)
     readiness = gear_payload["readiness"]
     talent_encoding = encode_websim_talents(conn, request_source) if conn is not None else blank_talent_encoding("failed", "none")
+    parsed_export = parse_websim_talent_export_code(
+        request_source.get("websimExportCode") or request_source.get("talents") or request_source.get("talentImport") or ""
+    )
+    explicit_hero_key = (
+        request_source.get("heroKey")
+        or talent_encoding.get("heroKey")
+        or ((parsed_export or {}).get("heroKey") if isinstance(parsed_export, dict) else "")
+    )
     blockers = websim_gear_stats_blockers(readiness, talent_encoding)
+    blockers.extend(simcraft_known_compatibility_blockers(
+        class_key,
+        spec_key,
+        explicit_hero_key,
+        request_source.get("scenarioKey"),
+    ))
     if blockers:
         return blocked_stat_snapshot(
             blockers,
@@ -21123,15 +21388,24 @@ def build_websim_gear_stats_response(payload, conn=None):
 
     profile = build_websim_profile(request_source, conn=conn)
     simc_result = run_websim_stat_simcraft(profile)
+    item_name_diagnostics = simc_result.get("itemNameDiagnostics") or []
+    can_use_json_after_trivial_exit = (
+        simc_result.get("jsonPayload")
+        and item_name_diagnostics
+        and simcraft_only_item_name_diagnostics(simc_result.get("stderr") or simc_result.get("error") or "")
+    )
     if not simc_result.get("ran"):
-        return blocked_stat_snapshot(
-            [simc_result.get("error") or "SimC stat snapshot could not run"],
-            class_key=class_key,
-            spec_key=spec_key,
-            level=level,
-            gear_readiness_payload=readiness,
-            talent_encoding=talent_encoding,
-        )
+        if can_use_json_after_trivial_exit:
+            pass
+        else:
+            return blocked_stat_snapshot(
+                [simc_result.get("error") or "SimC stat snapshot could not run"],
+                class_key=class_key,
+                spec_key=spec_key,
+                level=level,
+                gear_readiness_payload=readiness,
+                talent_encoding=talent_encoding,
+            )
 
     item_resolution_warnings = simc_result.get("itemResolutionWarnings") or []
     if item_resolution_warnings:
@@ -21162,6 +21436,8 @@ def build_websim_gear_stats_response(payload, conn=None):
         "simcItems": gear_payload["simcItems"],
         "gearSchemaRevision": GEAR_SCHEMA_REVISION,
     })
+    if item_name_diagnostics:
+        snapshot["simcWarnings"] = unique_text_list([*(snapshot.get("simcWarnings") or []), *item_name_diagnostics])
     if snapshot.get("statStatus") != "verified":
         snapshot["blockers"] = snapshot.get("blockers") or ["SimC output did not include a parseable stat snapshot"]
         if simc_result.get("jsonError") and simc_result.get("jsonError") not in snapshot["blockers"]:

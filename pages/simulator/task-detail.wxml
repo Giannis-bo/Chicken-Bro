@@ -49,12 +49,18 @@
           </view>
         </view>
 
-        <view class="section simc-preparation-section" wx:if="{{detail.preparationSummary}}">
+        <view class="section simc-combat-buffs-section" wx:if="{{detail.hasCombatBuffRows}}">
           <view class="section-header">
-            <text class="section-title">模拟增益</text>
+            <text class="section-title">战斗增益</text>
           </view>
-          <view class="context-card">
-            <text class="benchmark-value preparation-detail-text">{{detail.preparationSummary}}</text>
+          <view class="combat-buff-list">
+            <view class="combat-buff-row" wx:for="{{detail.combatBuffRows}}" wx:key="key">
+              <view class="combat-buff-copy">
+                <text class="benchmark-label">{{item.label}}</text>
+                <text class="benchmark-value combat-buff-value">{{item.valueText}}</text>
+              </view>
+              <text class="combat-buff-state">{{item.stateText}}</text>
+            </view>
           </view>
         </view>
 

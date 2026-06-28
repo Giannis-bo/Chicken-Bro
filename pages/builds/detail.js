@@ -934,11 +934,55 @@ function cleanGearString(value) {
   return String(value === undefined || value === null ? '' : value).trim()
 }
 
+function gearIssueSlotLabel(value) {
+  const key = cleanGearString(value).replace(/\.$/, '')
+  return gearSlotDisplayLabels[key] || key
+}
+
+function localizedGearIssueSlotList(value) {
+  return cleanGearString(value)
+    .replace(/\.$/, '')
+    .split(',')
+    .map((item) => gearIssueSlotLabel(item.trim()))
+    .filter(Boolean)
+    .join('、')
+}
+
+function localizedGearMissingSlotsIssue(value) {
+  const text = cleanGearString(value)
+  const match = text.match(/^(?:Missing core SimC gear slots|missing gear slots):\s*(.+?)\.?$/i)
+  if (!match) return ''
+  const slots = localizedGearIssueSlotList(match[1])
+  return slots ? `缺少可执行装备槽位：${slots}` : '缺少可执行装备槽位'
+}
+
+function localizedGearItemNameDiagnostic(value) {
+  const text = cleanGearString(value)
+  const match = text.match(/^Trivial:\s*Player\b.*?\bat slot\s+([a-z0-9_]+)\b.*?has inconsistency between name\b/i)
+  if (!match) return ''
+  const slot = gearIssueSlotLabel(match[1])
+  return `${slot}装备数据不一致：装备名称和物品 ID 对不上，请重新选择或保存${slot}。`
+}
+
+function localizedGearFieldIssue(value) {
+  const text = cleanGearString(value)
+  const missingItemId = text.match(/^missing item id for gear slot:\s*([a-z0-9_]+)\.?$/i)
+  if (missingItemId) return `${gearIssueSlotLabel(missingItemId[1])}缺少物品 ID`
+  return ''
+}
+
 function localizedGearIssue(value) {
   const text = String(value || '').trim()
   const normalized = text.toLowerCase()
   if (!text) return ''
+  const missingSlots = localizedGearMissingSlotsIssue(text)
+  if (missingSlots) return missingSlots
+  const itemNameDiagnostic = localizedGearItemNameDiagnostic(text)
+  if (itemNameDiagnostic) return itemNameDiagnostic
+  const fieldIssue = localizedGearFieldIssue(text)
+  if (fieldIssue) return fieldIssue
   if (normalized.includes('deterministic simc variant')) return '缺少确定 SimC 变体'
+  if (normalized.includes('simc json did not include target item stats') || normalized.includes('simulationcraft item stats')) return 'SimC 属性待回填'
   if (normalized.includes('bonus_id/gem_id/enchant_id')) return '缺少 bonus/宝石/附魔'
   if (normalized.includes('missing item id') || normalized === 'itemid' || normalized === 'item id') return '缺少物品 ID'
   if (normalized.includes('item level') || normalized === 'ilevel' || normalized === 'itemlevel') return '缺少装等'
@@ -948,6 +992,8 @@ function localizedGearIssue(value) {
   if (normalized.includes('observed gear source is not verified')) return '观测来源未验证'
   if (normalized.includes('crafted variant missing deterministic simc options')) return '制造变体缺少确定 SimC 字段'
   if (normalized.includes('missing item')) return '缺少装备'
+  if (/traceback|^command\b|\bitem_\d+\b|\bwebsim_[a-z0-9_]+\b|\bsimulationcraft\b/.test(normalized)) return '装备模拟数据暂不可用'
+  if (normalized.includes('simc') && /(failed|error|invalid|unable|missing|could not|timeout|timed out|parseable)/.test(normalized)) return '装备模拟数据暂不可用'
   return text
 }
 
@@ -2588,7 +2634,7 @@ function decorateGearCommunityTemplate(template) {
   const blockers = stringList((template && template.blockers) || ((template && template.payload) || {}).blockers)
   const canApplyGear = !!(template && template.canApplyGear !== false && readySlotCount > 0 && !sourceReference && normalizedStatus !== 'blocked' && normalizedSourceStatus !== 'blocked')
   const displaySourceName = gearCommunitySourceDisplayName(template)
-  const blockerLabel = blockers[0] || (sourceReference ? '仅作为来源参考，不可直接导入' : '')
+  const blockerLabel = gearIssueText(blockers) || (sourceReference ? '仅作为来源参考，不可直接导入' : '')
   return {
     ...(template || {}),
     status: normalizedStatus,

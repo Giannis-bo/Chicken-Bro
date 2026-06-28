@@ -3930,7 +3930,7 @@ test('gear slot sheet exposes source reference and blocker trust states', () => 
     id: '250999',
     displayName: 'Broken Hood',
     sourceType: 'raid',
-    blockers: ['missing item id'],
+    blockers: ["Trivial: Player 'websim_unholy' at slot hands has inconsistency between name 'item_249971' and 'relentless_riders_bonegrasps' for id 249971"],
     simcReady: false
   }
   const gearPayload = {
@@ -3980,7 +3980,8 @@ test('gear slot sheet exposes source reference and blocker trust states', () => 
   pageConfig.selectGearCandidate.call(page, { currentTarget: { dataset: { index: 1 } } })
 
   assert.equal(page.data.gearSlotSheet.activeTrustLabel, '阻断')
-  assert.match(page.data.gearSlotSheet.activeTrustText, /缺少物品 ID/)
+  assert.match(page.data.gearSlotSheet.activeTrustText, /手套装备数据不一致：装备名称和物品 ID 对不上，请重新选择或保存手套。/)
+  assert.doesNotMatch(page.data.gearSlotSheet.activeTrustText, /Trivial|websim_unholy|item_249971|inconsistency/)
 })
 
 test('gear candidate detail prefers stat summary without duplicating stat arrays', () => {
@@ -5297,7 +5298,7 @@ test('gear community template import blocks source reference templates and surfa
   assert.equal(template.statusLabel, '来源参考')
   assert.equal(template.canApplyGear, false)
   assert.match(template.missingSlotLabel, /缺 15 槽/)
-  assert.match(template.blockerLabel, /missing deterministic SimC variant preset/)
+  assert.match(template.blockerLabel, /缺少确定 SimC 变体/)
 
   pageConfig.applyGearCommunityTemplate.call(page, { currentTarget: { dataset: { id: 'guide-reference' } } })
 

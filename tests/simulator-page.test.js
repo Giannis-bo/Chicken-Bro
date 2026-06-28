@@ -6,6 +6,16 @@ function flushPromises() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function expectedLocalMinute(value) {
+  const date = new Date(value)
+  const pad = (part) => String(part).padStart(2, '0')
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate())
+  ].join('-') + ` ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 function loadPageModule(modulePath, stubs) {
   let pageDefinition = null
   const originalPage = global.Page
@@ -87,6 +97,11 @@ const sampleGearStatSnapshot = {
     { key: 'mastery', label: 'Mastery', value: '773', rawValue: 773, convertedValue: '42.1%' },
     { key: 'versatility', label: 'Versatility', value: '662', rawValue: 662, convertedValue: '8.2%' }
   ]
+}
+
+const sampleGearTemplateWithStatSnapshot = {
+  ...sampleGearTemplate,
+  metadata: { statSnapshot: sampleGearStatSnapshot }
 }
 
 const warriorTalentTemplate = {
@@ -818,6 +833,7 @@ test('simc page refreshes summary stats for structured gear templates without ca
   assert.equal(syncedTemplates.length, 1)
   assert.equal(syncedTemplates[0].metadata.statSnapshot.statStatus, 'verified')
   assert.equal(page.data.selectedGearTemplate.metadata.statSnapshot, undefined)
+  assert.equal(page.buildTemplatePayload(true, false).templateContext.gear.metadata.statSnapshot.statStatus, 'verified')
 })
 
 test('simc page does not rewrite large gear template objects when summary stats refresh completes', async () => {
@@ -1020,8 +1036,216 @@ test('simc page explains blocked summary stat snapshots', async () => {
   await page.loadTemplateLists()
   await flushPromises()
 
-  assert.equal(page.data.summaryStatPanel.noteText, '缺少可执行装备槽位：waist, feet')
+  assert.equal(page.data.summaryStatPanel.noteText, '缺少可执行装备槽位：腰带、脚部')
   assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['不可用', '不可用', '不可用', '不可用'])
+})
+
+test('simc page does not leak raw simc diagnostics in blocked summary stat notes', async () => {
+  const rawDiagnostic = "Trivial: Player 'websim_unholy' at slot hands has inconsistency between name 'item_249971' and 'relentless_riders_bonegrasps' for id 249971"
+  const structuredGearTemplate = {
+    ...sampleGearTemplate,
+    title: '邪 DK 装备',
+    rawString: JSON.stringify({
+      schemaRevision: 'websim-gear-enhancement-snapshot-v1',
+      gearBySlot: { hands: { slot: 'hands', itemId: '249971', id: '249971', bonus_id: '13534' } },
+      enhancementBySlot: {}
+    }),
+    metadata: { maxLevel: 90 }
+  }
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: () => Promise.resolve({
+        payload: {
+          statStatus: 'blocked',
+          blockers: [rawDiagnostic]
+        },
+        fromFallback: false,
+        error: ''
+      })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [structuredGearTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => [],
+      syncBuildTemplate: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+
+  await page.loadTemplateLists()
+  await flushPromises()
+
+  assert.equal(page.data.summaryStatPanel.noteText, '手套装备数据不一致：装备名称和物品 ID 对不上，请重新选择或保存手套。')
+  assert.doesNotMatch(page.data.summaryStatPanel.noteText, /Trivial|websim_unholy|item_249971|inconsistency/)
+  assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['不可用', '不可用', '不可用', '不可用'])
+})
+
+test('simc page does not leak raw simc crashes in blocked summary stat notes', async () => {
+  const rawDiagnostic = [
+    'sim_signal_handler: Segmentation fault! Iteration=0 Seed=-6016506965595101173 TargetHealth=0',
+    'sim_signal_handler: Segmentation fault! Thread=1 Iteration=-1 Seed=15740702310078284102 (15740702310078284103) TargetHealth=0'
+  ].join('\n\n')
+  const structuredGearTemplate = {
+    ...sampleGearTemplate,
+    rawString: JSON.stringify({
+      schemaRevision: 'websim-gear-enhancement-snapshot-v1',
+      gearBySlot: { hands: { slot: 'hands', itemId: '249971', id: '249971', bonus_id: '13534' } },
+      enhancementBySlot: {}
+    }),
+    metadata: { maxLevel: 90 }
+  }
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: () => Promise.resolve({
+        payload: {
+          statStatus: 'blocked',
+          blockers: [rawDiagnostic]
+        },
+        fromFallback: false,
+        error: ''
+      })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [structuredGearTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => [],
+      syncBuildTemplate: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+
+  await page.loadTemplateLists()
+  await flushPromises()
+
+  assert.match(page.data.summaryStatPanel.noteText, /SimC/)
+  assert.doesNotMatch(page.data.summaryStatPanel.noteText, /sim_signal_handler|Segmentation fault|Seed=|TargetHealth/)
+  assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['不可用', '不可用', '不可用', '不可用'])
+})
+
+test('simc page localizes raw simc diagnostics in blocked validation reasons', async () => {
+  const rawDiagnostic = "Trivial: Player 'websim_unholy' at slot hands has inconsistency between name 'item_249971' and 'relentless_riders_bonegrasps' for id 249971"
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: () => Promise.resolve({ payload: sampleGearStatSnapshot, fromFallback: false, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: () => Promise.resolve({ payload: { templates: [] }, fromFallback: true, error: '' }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => [],
+      syncBuildTemplate: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' }),
+      requestSimulatorTasks: () => Promise.resolve({ payload: { tasks: [] }, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+
+  page.applyAnalysisResult({
+    agent: { status: 'blocked', canSubmitTask: false, validation: { errors: [] } },
+    simulation: { error: rawDiagnostic },
+    evidenceState: { blockers: [] }
+  }, false, '')
+
+  assert.deepEqual(page.data.blockedReasons, ['手套装备数据不一致：装备名称和物品 ID 对不上，请重新选择或保存手套。'])
+  assert.doesNotMatch(page.data.blockedReasons.join(' '), /Trivial|websim_unholy|item_249971|inconsistency/)
+})
+
+test('simc page blocks confirm when gear stat snapshot is unavailable', async () => {
+  let analysisCalls = 0
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: () => Promise.resolve({ payload: { templates: [] }, fromFallback: true, error: '' }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => {
+        analysisCalls += 1
+        return Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+      }
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+  const blockedGearTemplate = {
+    ...sampleGearTemplate,
+    metadata: {
+      statSnapshot: {
+        statStatus: 'blocked',
+        blockers: ['missing item id for gear slot: hands', 'bonus_id/gem_id/enchant_id']
+      }
+    }
+  }
+  page.setData({
+    selectedClassKey: 'mage',
+    selectedRaceKey: 'troll',
+    selectedScenarioKey: 'single',
+    selectedAnalysisType: 'baseline',
+    selectedTalentTemplate: sampleTalentTemplate,
+    selectedGearTemplate: blockedGearTemplate,
+    canConfirm: true,
+    summaryStatPanel: {
+      statStatus: 'pending',
+      noteText: '装备属性暂不可用：部分装备数据需要重新校验',
+      primary: { label: '主属性', valueText: '不可用' },
+      secondaryRows: []
+    }
+  })
+
+  const result = await page.confirmTemplateSimulation()
+
+  assert.equal(result, null)
+  assert.equal(analysisCalls, 0)
+  assert.equal(page.data.confirming, false)
+  assert.equal(page.data.canSubmitTask, false)
+  assert.equal(page.data.validatedCanSubmitTask, false)
+  assert.deepEqual(page.data.blockedReasons, ['装备属性未通过校验：手套缺少物品 ID；缺少 bonus/宝石/附魔字段'])
 })
 
 test('simc page invalidates cached summary stats when the race changes', async () => {
@@ -1197,6 +1421,8 @@ test('simc page reuses the same template payload for confirm and final submit', 
   assert.equal(page.data.taskSubmitted, true)
   assert.equal(page.data.submittedTaskId, 'task-1')
   assert.equal(page.data.canSubmitTask, false)
+  assert.equal((page.data.latestAnalysis && page.data.latestAnalysis.agent) || null, null)
+  assert.equal(page.data.resultSummary, '')
 })
 
 test('simc page sends selected temporary combat buffs with confirm and submit payloads', async () => {
@@ -1211,7 +1437,7 @@ test('simc page sends selected temporary combat buffs with confirm and submit pa
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: (type) => Promise.resolve({
-        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplate] },
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplateWithStatSnapshot] },
         fromFallback: false,
         error: ''
       }),
@@ -1272,7 +1498,7 @@ test('simc page surfaces confirm request failures without leaving loading stuck'
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: (type) => Promise.resolve({
-        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplate] },
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplateWithStatSnapshot] },
         fromFallback: true,
         error: ''
       }),
@@ -1310,7 +1536,7 @@ test('simc page surfaces submit request failures while keeping retry available',
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: (type) => Promise.resolve({
-        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplate] },
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplateWithStatSnapshot] },
         fromFallback: true,
         error: ''
       }),
@@ -1352,6 +1578,143 @@ test('simc page surfaces submit request failures while keeping retry available',
   }
 })
 
+test('simc page blocks submit when two active template tasks already exist', async () => {
+  let analysisCalls = 0
+  const activeTasks = [
+    { taskId: 'task-active-1', mode: 'simcraft_template', status: 'queued' },
+    { taskId: 'task-active-2', mode: 'simcraft_template', status: 'running' },
+    { taskId: 'task-done', mode: 'simcraft_template', status: 'completed' }
+  ]
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: () => Promise.resolve({ payload: { templates: [] }, fromFallback: true, error: '' }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorTasks: () => Promise.resolve({ payload: { tasks: activeTasks }, fromFallback: false, error: '' }),
+      requestSimulatorAnalysis: () => {
+        analysisCalls += 1
+        return Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+      }
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+  page.setData({
+    canSubmitTask: true,
+    confirmedPayload: {
+      mode: 'simcraft_template',
+      confirmOnly: true,
+      saveTask: false,
+      classKey: 'mage',
+      raceKey: 'troll',
+      scenarioKey: 'single',
+      analysisType: 'baseline',
+      templateContext: { talent: sampleTalentTemplate, gear: sampleGearTemplate }
+    }
+  })
+
+  await page.refreshActiveTaskGate()
+  const result = await page.submitConfirmedTask()
+
+  assert.equal(result, null)
+  assert.equal(analysisCalls, 0)
+  assert.equal(page.data.activeTaskCount, 2)
+  assert.equal(page.data.activeTaskLimitReached, true)
+  assert.equal(page.data.canSubmitTask, false)
+  assert.match(page.data.activeTaskLimitMessage, /2/)
+})
+
+test('simc page keeps submit blocked when backend reports active task limit', async () => {
+  let analysisCalls = 0
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: () => Promise.resolve({ payload: { templates: [] }, fromFallback: true, error: '' }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => []
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorTasks: () => Promise.resolve({ payload: { tasks: [] }, fromFallback: false, error: '' }),
+      requestSimulatorAnalysis: () => {
+        analysisCalls += 1
+        return Promise.resolve({
+          payload: {
+            mode: 'simcraft_template',
+            status: 'blocked',
+            taskLock: {
+              active: true,
+              reason: 'active_simc_task_limit',
+              activeCount: 2,
+              limit: 2
+            },
+            agent: {
+              status: 'task_limit_reached',
+              canSubmitTask: false,
+              validation: { passed: false, errors: ['已有 2 个模拟任务正在排队或运行，请等待前面的任务完成后再提交。'] }
+            },
+            simulation: {
+              ran: false,
+              error: '已有 2 个模拟任务正在排队或运行，请等待前面的任务完成后再提交。',
+              metrics: {}
+            },
+            recommendations: ['已有 2 个模拟任务正在排队或运行，请等待前面的任务完成后再提交。']
+          },
+          fromFallback: false,
+          error: ''
+        })
+      }
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const originalWx = global.wx
+  global.wx = { showToast() {} }
+  try {
+    const page = createPageInstance(pageDefinition)
+    page.setData({
+      canSubmitTask: true,
+      confirmedPayload: {
+        mode: 'simcraft_template',
+        confirmOnly: true,
+        saveTask: false,
+        classKey: 'mage',
+        raceKey: 'troll',
+        scenarioKey: 'single',
+        analysisType: 'baseline',
+        templateContext: { talent: sampleTalentTemplate, gear: sampleGearTemplate }
+      }
+    })
+
+    const result = await page.submitConfirmedTask()
+
+    assert.equal(result.status, 'blocked')
+    assert.equal(analysisCalls, 1)
+    assert.equal(page.data.activeTaskLimitReached, true)
+    assert.equal(page.data.activeTaskCount, 2)
+    assert.equal(page.data.canSubmitTask, false)
+    assert.match(page.data.activeTaskLimitMessage, /2/)
+    assert.deepEqual(page.data.blockedReasons, ['已有 2 个模拟任务正在排队或运行，请等待前面的任务完成后再提交。'])
+  } finally {
+    global.wx = originalWx
+  }
+})
+
 test('simc page exposes deterministic blocked reasons from template validation', () => {
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
     '../pages/common/build-template-storage.js': {
@@ -1375,7 +1738,7 @@ test('simc page exposes deterministic blocked reasons from template validation',
     recommendations: []
   }, false, '')
 
-  assert.deepEqual(page.data.blockedReasons, ['template class/spec mismatch', 'missing gear slots: off_hand'])
+  assert.deepEqual(page.data.blockedReasons, ['template class/spec mismatch', '缺少可执行装备槽位：副手'])
   assert.equal(page.data.canSubmitTask, false)
 })
 
@@ -1405,7 +1768,7 @@ test('simc page surfaces confirm preview report finding', () => {
     recommendations: ['Generic ready message.']
   }, false, '')
 
-  assert.equal(page.data.resultSummary, 'Template payload validated; confirmOnly did not execute SimC.')
+  assert.equal(page.data.resultSummary, '当前天赋、装备和场景已通过校验，可以提交任务开始运行 SimC。')
   assert.match(wxml, /resultSummary/)
 })
 
@@ -1444,8 +1807,34 @@ test('simc page stores only compact analysis state after validation', () => {
       summary: 'Template payload validated; submit to run SimC.',
       preparation: {
         schemaRevision: 'simc-preparation-v1',
-        summary: 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Arcane Intellect.',
-        items: []
+        summary: 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Skyfury; selected temporary combat buffs: Bloodlust/Heroism, Combat potion, Weapon oil or sharpening stone.',
+        evidenceState: 'partial',
+        items: [
+          {
+            key: 'optimal_raid',
+            category: 'raid_buff_baseline',
+            label: 'Full raid buff package',
+            state: 'disabled',
+            summary: 'SimulationCraft optimal_raid is disabled; only backend-verified self-class buffs may be added.',
+            evidenceState: 'verified'
+          },
+          {
+            key: 'skyfury',
+            category: 'self_class_raid_buff',
+            label: 'Skyfury',
+            state: 'enabled',
+            summary: "Only the player's own class raid buff is enabled: Skyfury.",
+            evidenceState: 'verified'
+          },
+          {
+            key: 'temporary_combat_buffs',
+            category: 'temporary_combat_buffs',
+            label: 'Temporary combat buffs',
+            state: 'enabled',
+            summary: 'Bloodlust/Heroism, Combat potion, Weapon oil or sharpening stone',
+            evidenceState: 'partial'
+          }
+        ]
       },
       result: { ran: false, hasDps: false, dps: '', dpsDisplay: '' }
     },
@@ -1456,26 +1845,33 @@ test('simc page stores only compact analysis state after validation', () => {
 
   assert.deepEqual(page.data.latestAnalysis, {
     agent: {
-      status: 'template_ready'
+      status: 'template_ready',
+      statusText: '组合校验通过'
     },
     simcReport: {
       schemaRevision: 'simc-report-v2',
       state: 'ready',
-      summary: 'Template payload validated; submit to run SimC.',
-      preparation: {
-        schemaRevision: 'simc-preparation-v1',
-        summary: 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Arcane Intellect.',
-        items: []
-      },
       result: { ran: false, hasDps: false, dps: '', dpsDisplay: '' }
+    },
+    preparation: {
+      hasRows: true,
+      rows: [
+        { key: 'skyfury', label: '团队增益', valueText: '天怒', stateText: '已开启' },
+        { key: 'temporary_combat_buffs', label: '临时增益', valueText: '嗜血 / 英勇、爆发药水、武器涂油', stateText: '已选择' }
+      ]
     }
   })
   assert.equal(page.data.latestAnalysis.request, undefined)
   assert.equal(page.data.latestAnalysis.profile, undefined)
   assert.equal(page.data.canSubmitTask, true)
-  assert.equal(page.data.resultSummary, 'Template payload validated; submit to run SimC.')
-  assert.match(wxml, /latestAnalysis\.simcReport\.preparation\.summary/)
-  assert.match(wxml, /模拟增益/)
+  assert.equal(page.data.resultSummary, '当前天赋、装备和场景已通过校验，可以提交任务开始运行 SimC。')
+  assert.doesNotMatch(wxml, /latestAnalysis\.simcReport\.preparation\.summary/)
+  assert.doesNotMatch(wxml, /latestAnalysis\.simcReport\.preparation\.evidenceState/)
+  assert.doesNotMatch(wxml, /latestAnalysis\.simcReport\.preparation\.items/)
+  assert.doesNotMatch(wxml, /模拟增益/)
+  assert.match(wxml, /latestAnalysis\.preparation\.rows/)
+  assert.match(wxml, /statusText/)
+  assert.match(wxml, /战斗增益/)
 })
 
 test('smart analysis tab only keeps the chickenbro coach entry', () => {
@@ -1597,6 +1993,18 @@ test('simulator task list localizes SimC task cards with tags and finish time', 
       updatedAt: '2026-06-27T04:21:17+00:00'
     }
   })
+  const completedSameInstant = pageDefinition.normalizeTask({
+    taskId: 'task-shaman-completed-local',
+    mode: 'simcraft_template',
+    status: 'completed',
+    updatedAt: '2026-06-27T12:21:17+08:00',
+    simcReportSummary: {
+      state: 'completed',
+      scenario: { key: 'single', targets: 1 },
+      build: { className: '萨满祭祀', specName: '元素' },
+      timing: { finishedAt: '2026-06-27T12:21:17+08:00' }
+    }
+  })
   const failed = pageDefinition.normalizeTask({
     taskId: 'task-shaman-failed',
     mode: 'simcraft_template',
@@ -1604,9 +2012,12 @@ test('simulator task list localizes SimC task cards with tags and finish time', 
     updatedAt: '2026-06-27T04:22:17+00:00',
     simcReportSummary: {
       state: 'failed',
-      summary: "Error: Invalid 'class_talents'.",
+      summary: "Command '['/opt/wow-simc/current/simc', '-']' timed out after 45 seconds",
       scenario: { key: 'single', targets: 1 },
       build: { raceName: '兽人', className: '萨满祭祀', specName: '元素', heroKey: 'stormbringer' },
+      preparation: {
+        summary: 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Skyfury; selected temporary combat buffs: Bloodlust/Heroism, Combat potion, Weapon oil or sharpening stone.'
+      },
       timing: { finishedAt: '2026-06-27T04:22:17+00:00' }
     }
   })
@@ -1637,11 +2048,13 @@ test('simulator task list localizes SimC task cards with tags and finish time', 
     }
   })
 
-  assert.equal(completed.title, '元素萨满祭祀_2026-06-27 04:21')
+  assert.equal(completed.title, `元素萨满祭祀_${expectedLocalMinute('2026-06-27T04:21:17+00:00')}`)
+  assert.equal(completedSameInstant.title, completed.title)
+  assert.equal(completedSameInstant.completionTimeText, completed.completionTimeText)
   assert.equal(completed.statusText, '已完成')
   assert.equal(completed.statusClass, 'status-completed')
   assert.equal(completed.desc, '')
-  assert.equal(completed.preparationSummary, 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Skyfury.')
+  assert.equal(completed.preparationSummary, undefined)
   assert.equal(completed.dpsDisplay, undefined)
   assert.deepEqual(completed.tags.map((item) => item.text), [
     '巨魔',
@@ -1651,13 +2064,14 @@ test('simulator task list localizes SimC task cards with tags and finish time', 
     '近似大秘境'
   ])
   assert.ok(completed.tags.every((item) => !item.text.includes('：')))
-  assert.equal(completed.completionTimeText, '完成时间：2026-06-27 04:21')
+  assert.equal(completed.completionTimeText, `完成时间：${expectedLocalMinute('2026-06-27T04:21:17+00:00')}`)
 
   assert.equal(failed.statusText, '失败')
   assert.equal(failed.statusClass, 'status-failed')
-  assert.match(failed.desc, /Invalid 'class_talents'/)
+  assert.equal(failed.desc, 'SimC 执行超时：当前组合已经入队并开始运行，但本次模拟超过 45 秒未完成。可以稍后重试，或等待前面的任务完成后再提交。')
+  assert.equal(failed.preparationSummary, undefined)
   assert.ok(failed.tags.some((item) => item.text === '单体'))
-  assert.equal(failed.completionTimeText, '完成时间：2026-06-27 04:22')
+  assert.equal(failed.completionTimeText, `完成时间：${expectedLocalMinute('2026-06-27T04:22:17+00:00')}`)
 
   assert.equal(running.statusText, '进行中')
   assert.equal(running.statusClass, 'status-running')
@@ -1677,10 +2091,11 @@ test('simulator task list localizes SimC task cards with tags and finish time', 
   assert.match(wxml, /item\.statusText/)
   assert.match(wxml, /item\.statusClass/)
   assert.match(wxml, /item\.tags/)
-  assert.match(wxml, /item\.preparationSummary/)
+  assert.doesNotMatch(wxml, /item\.preparationSummary/)
   assert.match(wxml, /item\.completionTimeText/)
   assert.doesNotMatch(wxml, /dpsDisplay/)
   assert.doesNotMatch(wxml, /大秘境基准/)
+  assert.doesNotMatch(wxml, /task-preparation/)
   assert.match(css, /\.status-completed/)
   assert.match(css, /\.status-failed/)
   assert.match(css, /\.status-running/)
@@ -1973,8 +2388,41 @@ test('task detail exposes structured SimC result without report explanation', ()
         statusText: 'completed',
         scenario: { key: 'mythic_plus', label: '大秘境基准', fightStyle: 'DungeonSlice', targets: 5, durationSeconds: 360 },
         preparation: {
-          summary: 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Arcane Intellect.',
-          items: []
+          summary: 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Skyfury; selected temporary combat buffs: Bloodlust/Heroism, Combat potion.',
+          items: [
+            {
+              key: 'optimal_raid',
+              category: 'raid_buff_baseline',
+              label: 'Full raid buff package',
+              state: 'disabled',
+              summary: 'SimulationCraft optimal_raid is disabled; only backend-verified self-class buffs may be added.',
+              evidenceState: 'verified'
+            },
+            {
+              key: 'skyfury',
+              category: 'self_class_raid_buff',
+              label: 'Skyfury',
+              state: 'enabled',
+              summary: "Only the player's own class raid buff is enabled: Skyfury.",
+              evidenceState: 'verified'
+            },
+            {
+              key: 'enhancement_weapon_imbues',
+              category: 'spec_combat_preparation',
+              label: 'Enhancement weapon imbues',
+              state: 'pending_evidence',
+              summary: 'Windfury Weapon and Flametongue Weapon are pending current-profile SimC smoke before default injection.',
+              evidenceState: 'partial'
+            },
+            {
+              key: 'temporary_combat_buffs',
+              category: 'temporary_combat_buffs',
+              label: 'Temporary combat buffs',
+              state: 'enabled',
+              summary: 'Bloodlust/Heroism, Combat potion, Weapon oil or sharpening stone',
+              evidenceState: 'partial'
+            }
+          ]
         },
         build: {
           statSnapshot: {
@@ -2024,9 +2472,17 @@ test('task detail exposes structured SimC result without report explanation', ()
   assert.equal(normalized.briefConclusion, 'SimC completed with 654321 DPS.')
   assert.equal(normalized.simcDps, '654321')
   assert.equal(normalized.simcDisplayValue, '654321 DPS')
-  assert.equal(normalized.preparationSummary, 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Arcane Intellect.')
-  assert.match(wxml, /detail\.preparationSummary/)
-  assert.match(wxml, /模拟增益/)
+  assert.equal(normalized.preparationSummary, undefined)
+  assert.equal(normalized.hasCombatBuffRows, true)
+  assert.deepEqual(normalized.combatBuffRows, [
+    { key: 'skyfury', label: '团队增益', valueText: '天怒', stateText: '已开启' },
+    { key: 'enhancement_weapon_imbues', label: '职业准备', valueText: '风怒武器、火舌武器', stateText: '待验证' },
+    { key: 'temporary_combat_buffs', label: '临时增益', valueText: '嗜血 / 英勇、爆发药水、武器涂油', stateText: '已选择' }
+  ])
+  assert.doesNotMatch(wxml, /detail\.preparationSummary/)
+  assert.doesNotMatch(wxml, /模拟增益/)
+  assert.match(wxml, /detail\.combatBuffRows/)
+  assert.match(wxml, /战斗增益/)
   assert.equal(normalized.scenarioDisplayText, '近似大秘境')
   assert.equal(normalized.scenarioMetaText, 'DungeonSlice · 6分钟')
   assert.deepEqual(normalized.statRows.map((item) => [item.label, item.valueText]), [
@@ -2036,6 +2492,167 @@ test('task detail exposes structured SimC result without report explanation', ()
     ['精通', '78.7%'],
     ['全能', '1%']
   ])
+})
+
+test('task detail shows unselected temporary combat buffs without backend prose', () => {
+  let pageDefinition = null
+  const originalPage = global.Page
+  global.Page = (definition) => {
+    pageDefinition = definition
+  }
+  delete require.cache[require.resolve('../pages/simulator/task-detail.js')]
+  require('../pages/simulator/task-detail.js')
+  global.Page = originalPage
+
+  const normalized = pageDefinition.normalizeTaskDetail({
+    taskId: 'task-temp-disabled',
+    mode: 'simcraft_template',
+    request: {},
+    analysis: {
+      simcReport: {
+        schemaRevision: 'simc-report-v2',
+        state: 'completed',
+        title: 'Elemental Shaman SimC',
+        summary: 'SimC completed with 73450.168 DPS.',
+        statusText: 'completed',
+        preparation: {
+          summary: 'SimC buffs: optimal_raid=0; self-class raid buff enabled: Skyfury; temporary combat buffs are off by default.',
+          items: [
+            {
+              key: 'temporary_combat_buffs',
+              category: 'temporary_combat_buffs',
+              label: 'Temporary combat buffs',
+              state: 'disabled',
+              summary: 'Bloodlust/Heroism, combat potion, and temporary weapon buffs are off by default.',
+              evidenceState: 'verified'
+            }
+          ]
+        },
+        result: {
+          ran: true,
+          hasDps: true,
+          dps: '73450.168',
+          dpsDisplay: '73450.168 DPS'
+        }
+      }
+    }
+  })
+
+  assert.deepEqual(normalized.combatBuffRows, [
+    { key: 'temporary_combat_buffs', label: '临时增益', valueText: '未选择', stateText: '未选择' }
+  ])
+})
+
+test('task detail localizes failed SimC timeout summaries', () => {
+  let pageDefinition = null
+  const originalPage = global.Page
+  global.Page = (definition) => {
+    pageDefinition = definition
+  }
+  delete require.cache[require.resolve('../pages/simulator/task-detail.js')]
+  require('../pages/simulator/task-detail.js')
+  global.Page = originalPage
+
+  const normalized = pageDefinition.normalizeTaskDetail({
+    taskId: 'task-timeout',
+    mode: 'simcraft_template',
+    status: 'failed',
+    request: {},
+    analysis: {
+      simulation: {
+        ran: false,
+        error: "Command '['/opt/wow-simc/current/simc', '-']' timed out after 45 seconds",
+        metrics: {}
+      },
+      simcReport: {
+        schemaRevision: 'simc-report-v2',
+        state: 'failed',
+        title: 'Elemental Shaman SimC',
+        summary: "Command '['/opt/wow-simc/current/simc', '-']' timed out after 45 seconds",
+        statusText: 'failed',
+        result: { ran: false, hasDps: false, dps: '', dpsDisplay: '' }
+      }
+    }
+  })
+
+  assert.equal(normalized.statusText, 'failed')
+  assert.equal(normalized.briefConclusion, 'SimC 执行超时：当前组合已经开始运行，但本次模拟超过 45 秒未完成。可以稍后重试，或等待前面的任务完成后再提交。')
+  assert.doesNotMatch(normalized.briefConclusion, /Command|\[|timed out/i)
+})
+
+test('task detail does not leak raw simc diagnostics from legacy simulation errors', () => {
+  let pageDefinition = null
+  const originalPage = global.Page
+  global.Page = (definition) => {
+    pageDefinition = definition
+  }
+  delete require.cache[require.resolve('../pages/simulator/task-detail.js')]
+  require('../pages/simulator/task-detail.js')
+  global.Page = originalPage
+
+  const normalized = pageDefinition.normalizeTaskDetail({
+    taskId: 'task-raw-diagnostic',
+    mode: 'simcraft_template',
+    status: 'ready',
+    request: {},
+    analysis: {
+      simulation: {
+        ran: false,
+        error: "Trivial: Player 'websim_unholy' at slot hands has inconsistency between name 'item_249971' and 'relentless_riders_bonegrasps' for id 249971",
+        metrics: {}
+      },
+      simcReport: {
+        schemaRevision: 'simc-report-v2',
+        state: '',
+        title: 'Unholy Death Knight SimC',
+        summary: '',
+        statusText: '',
+        result: { ran: false, hasDps: false, dps: '', dpsDisplay: '' }
+      }
+    }
+  })
+
+  assert.equal(normalized.briefConclusion, '手套装备数据不一致：装备名称和物品 ID 对不上，请重新选择或保存手套。')
+  assert.doesNotMatch(normalized.briefConclusion, /Trivial|websim_unholy|item_249971|inconsistency/)
+})
+
+test('task detail does not leak raw simc crashes from legacy simulation errors', () => {
+  let pageDefinition = null
+  const originalPage = global.Page
+  global.Page = (definition) => {
+    pageDefinition = definition
+  }
+  delete require.cache[require.resolve('../pages/simulator/task-detail.js')]
+  require('../pages/simulator/task-detail.js')
+  global.Page = originalPage
+
+  const normalized = pageDefinition.normalizeTaskDetail({
+    taskId: 'task-raw-crash',
+    mode: 'simcraft_template',
+    status: 'ready',
+    request: {},
+    analysis: {
+      simulation: {
+        ran: false,
+        error: [
+          'sim_signal_handler: Segmentation fault! Iteration=0 Seed=-6016506965595101173 TargetHealth=0',
+          'sim_signal_handler: Segmentation fault! Thread=1 Iteration=-1 Seed=15740702310078284102 (15740702310078284103) TargetHealth=0'
+        ].join('\n\n'),
+        metrics: {}
+      },
+      simcReport: {
+        schemaRevision: 'simc-report-v2',
+        state: '',
+        title: 'Unholy Death Knight SimC',
+        summary: '',
+        statusText: '',
+        result: { ran: false, hasDps: false, dps: '', dpsDisplay: '' }
+      }
+    }
+  })
+
+  assert.match(normalized.briefConclusion, /SimC/)
+  assert.doesNotMatch(normalized.briefConclusion, /sim_signal_handler|Segmentation fault|Seed=|TargetHealth/)
 })
 
 test('task detail hides legacy LLM report fields for SimC template tasks', () => {

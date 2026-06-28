@@ -33,7 +33,6 @@
               >{{tag.text}}</text>
             </view>
             <text wx:if="{{item.desc}}" class="task-desc" user-select="{{true}}">{{item.desc}}</text>
-            <text wx:if="{{item.preparationSummary}}" class="task-preparation" user-select="{{true}}">{{item.preparationSummary}}</text>
             <text class="task-finished-at">{{item.completionTimeText}}</text>
           </view>
         </view>

@@ -2424,7 +2424,69 @@ def call_codex_worker(request_data, simulation, codex_runner=None):
     }
 
 
-def run_simcraft(profile):
+SIMCRAFT_TEMPLATE_TIMEOUT_DEFAULTS = {
+    "single": 120,
+    "aoe_5": 180,
+    "mythic_plus": 240,
+}
+
+
+def optional_int_env(name):
+    if name not in os.environ:
+        return None
+    return int_env(name, 0)
+
+
+def simcraft_template_timeout_seconds(source):
+    request = source if isinstance(source, dict) else {}
+    general_timeout = optional_int_env("WOW_SIMC_TEMPLATE_TIMEOUT_SECONDS")
+    analysis_type = str(request.get("analysisType") or "").strip()
+    if analysis_type == "stat_weights":
+        stat_timeout = optional_int_env("WOW_SIMC_TEMPLATE_STAT_WEIGHTS_TIMEOUT_SECONDS")
+        if stat_timeout is not None:
+            return stat_timeout
+        if general_timeout is not None:
+            return general_timeout
+        return 360
+    scenario_key = str(request.get("scenarioKey") or "single").strip() or "single"
+    scenario_env = f"WOW_SIMC_TEMPLATE_{re.sub(r'[^A-Za-z0-9]+', '_', scenario_key).upper()}_TIMEOUT_SECONDS"
+    scenario_timeout = optional_int_env(scenario_env)
+    if scenario_timeout is not None:
+        return scenario_timeout
+    if general_timeout is not None:
+        return general_timeout
+    return SIMCRAFT_TEMPLATE_TIMEOUT_DEFAULTS.get(scenario_key, 180)
+
+
+def simcraft_item_name_diagnostics(*texts):
+    warnings = []
+    seen = set()
+    for text in texts:
+        for line in str(text or "").splitlines():
+            stripped = line.strip()
+            normalized = stripped.lower()
+            if not stripped:
+                continue
+            if not normalized.startswith("trivial: player "):
+                continue
+            if "has inconsistency between name" not in normalized or " for id " not in normalized:
+                continue
+            if stripped in seen:
+                continue
+            seen.add(stripped)
+            warnings.append(stripped[:400])
+    return warnings[:8]
+
+
+def simcraft_only_item_name_diagnostics(text):
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    if not lines:
+        return False
+    diagnostics = simcraft_item_name_diagnostics(text)
+    return len(diagnostics) == len(lines)
+
+
+def run_simcraft(profile, timeout_seconds=None):
     binary = simc_binary()
     if not binary:
         return {"ran": False, "available": False, "summary": "", "error": "simcraft binary not found"}
@@ -2432,22 +2494,33 @@ def run_simcraft(profile):
         return {"ran": False, "available": True, "summary": "", "error": "empty profile"}
 
     try:
-        result = run_simcraft_process(binary, profile)
+        result = run_simcraft_process(binary, profile, timeout_seconds=timeout_seconds)
     except (OSError, subprocess.TimeoutExpired) as error:
         return {"ran": False, "available": True, "summary": "", "error": str(error)}
 
-    output = (result.stdout or result.stderr or "").strip()
+    stdout = result.stdout or ""
+    stderr = result.stderr or ""
+    output = (stdout or stderr or "").strip()
     metrics = parse_simcraft_metrics(output)
+    item_name_diagnostics = simcraft_item_name_diagnostics(stderr)
+    trivial_item_name_exit = (
+        result.returncode != 0
+        and bool(metrics.get("dps"))
+        and bool(item_name_diagnostics)
+        and simcraft_only_item_name_diagnostics(stderr)
+    )
+    ran = result.returncode == 0 or trivial_item_name_exit
     return {
-        "ran": result.returncode == 0,
+        "ran": ran,
         "available": True,
         "summary": output[:4000],
         "metrics": metrics,
-        "error": "" if result.returncode == 0 else (result.stderr or f"simc exited {result.returncode}")[:1000],
+        "error": "" if ran else (stderr or f"simc exited {result.returncode}")[:1000],
+        **({"simcWarnings": item_name_diagnostics} if item_name_diagnostics else {}),
     }
 
 
-def run_simcraft_process(binary, profile):
+def run_simcraft_process(binary, profile, timeout_seconds=None):
     try:
         return subprocess.run(
             [binary, "-"],
@@ -2456,7 +2529,7 @@ def run_simcraft_process(binary, profile):
             encoding="utf-8",
             errors="replace",
             capture_output=True,
-            timeout=int_env("WOW_SIMC_TIMEOUT_SECONDS", 45),
+            timeout=timeout_seconds if timeout_seconds is not None else int_env("WOW_SIMC_TIMEOUT_SECONDS", 45),
             check=False,
         )
     except OSError:
@@ -3056,7 +3129,7 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
             "metrics": {},
         }
     elif validation["passed"] and execute_simc:
-        simulation = run_simcraft(draft_profile)
+        simulation = run_simcraft(draft_profile, timeout_seconds=simcraft_template_timeout_seconds(request_data))
     elif validation["passed"]:
         simulation = {
             "ran": False,

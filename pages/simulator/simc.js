@@ -1,4 +1,4 @@
-const { requestSimulatorAnalysis } = require('./simulator-api')
+const { requestSimulatorAnalysis, requestSimulatorTasks } = require('./simulator-api')
 const { fallbackBuildsHome, requestBuildsHome } = require('../builds/builds-api')
 const { requestWebsimGearStats } = require('../builds/websim-api')
 const { fetchBuildTemplates, listBuildTemplates, syncBuildTemplate } = require('../common/build-template-storage')
@@ -6,6 +6,8 @@ const { trackEvent, trackPageLeave, trackPageView } = require('../common/analyti
 
 const SIMC_PAGE_ROUTE = ['pages', 'simulator', 'simc'].join('/')
 const fallbackPayload = fallbackBuildsHome()
+const ACTIVE_SIMC_TASK_LIMIT = 2
+const ACTIVE_SIMC_TASK_STATUSES = { queued: true, running: true }
 
 const SCENARIO_OPTIONS = [
   { key: 'single', title: '单体', desc: '固定单目标，5分钟' },
@@ -20,6 +22,42 @@ function scenarioOptionForKey(key) {
 function scenarioTitleForKey(key) {
   const option = scenarioOptionForKey(key)
   return option ? option.title : cleanSummaryText(key)
+}
+
+function activeTaskLimitMessage(activeCount, limit = ACTIVE_SIMC_TASK_LIMIT) {
+  const count = Number(activeCount) || limit
+  return `已有 ${count} 个模拟任务正在排队或运行，请等待前面的任务完成后再提交。`
+}
+
+function taskActiveState(task) {
+  const report = task && task.simcReportSummary ? task.simcReportSummary : {}
+  return cleanSummaryText(report.state || task && task.status).toLowerCase()
+}
+
+function taskMode(task) {
+  const report = task && task.simcReportSummary ? task.simcReportSummary : {}
+  return cleanSummaryText(task && task.mode || report.mode || '')
+}
+
+function activeSimcTemplateTaskCount(tasks) {
+  return (Array.isArray(tasks) ? tasks : []).filter((task) => {
+    const mode = taskMode(task)
+    if (mode && mode !== 'simcraft_template') return false
+    return !!ACTIVE_SIMC_TASK_STATUSES[taskActiveState(task)]
+  }).length
+}
+
+function taskLimitStateFromPayload(payload, fallbackLimit = ACTIVE_SIMC_TASK_LIMIT) {
+  const lock = payload && payload.taskLock
+  if (!lock || lock.reason !== 'active_simc_task_limit') return null
+  const limit = Number(lock.limit) || fallbackLimit
+  const activeCount = Number(lock.activeCount) || limit
+  return {
+    activeTaskCount: activeCount,
+    activeTaskLimit: limit,
+    activeTaskLimitReached: true,
+    activeTaskLimitMessage: activeTaskLimitMessage(activeCount, limit)
+  }
 }
 
 const TEMPORARY_BUFF_OPTIONS = [
@@ -65,6 +103,53 @@ const SPEC_COMBAT_PREPARATION = {
     label: '盗贼毒药',
     copy: '敏锐盗贼会识别毒药准备；当前仍待 SimC profile smoke 验证，暂不自动写入。'
   }
+}
+
+const ANALYSIS_STATUS_TEXT = {
+  template_ready: '组合校验通过',
+  queued: '任务已提交',
+  running: '正在模拟',
+  completed: '模拟完成',
+  failed: '模拟失败'
+}
+
+const PREPARATION_CATEGORY_LABELS = {
+  self_class_raid_buff: '团队增益',
+  spec_combat_preparation: '职业准备',
+  temporary_combat_buffs: '临时增益'
+}
+
+const PREPARATION_STATE_LABELS = {
+  enabled: '已开启',
+  disabled: '未开启',
+  pending_evidence: '待验证',
+  not_applicable: '无增益'
+}
+
+const PREPARATION_VALUE_LABELS = {
+  'Mark of the Wild': '野性印记',
+  'Arcane Intellect': '奥术智慧',
+  'Power Word: Fortitude': '真言术：韧',
+  Skyfury: '天怒',
+  'Battle Shout': '战斗怒吼',
+  'Enhancement weapon imbues': '风怒武器、火舌武器',
+  'Rogue poisons': '盗贼毒药',
+  'Bloodlust/Heroism': '嗜血 / 英勇',
+  'Combat potion': '爆发药水',
+  'Weapon oil or sharpening stone': '武器涂油'
+}
+
+const PREPARATION_VALUE_ALIASES = {
+  'mark of the wild': '野性印记',
+  'arcane intellect': '奥术智慧',
+  'power word: fortitude': '真言术：韧',
+  skyfury: '天怒',
+  'battle shout': '战斗怒吼',
+  'enhancement weapon imbues': '风怒武器、火舌武器',
+  'rogue poisons': '盗贼毒药',
+  'bloodlust/heroism': '嗜血 / 英勇',
+  'combat potion': '爆发药水',
+  'weapon oil or sharpening stone': '武器涂油'
 }
 
 const RACE_OPTIONS = [
@@ -242,8 +327,125 @@ const SUMMARY_STAT_PENDING_TEXT = {
   unavailable: '不可用'
 }
 
+const SIMC_SLOT_LABELS = {
+  head: '头部',
+  neck: '项链',
+  shoulder: '肩部',
+  back: '披风',
+  chest: '胸甲',
+  wrist: '护腕',
+  hands: '手套',
+  waist: '腰带',
+  legs: '腿部',
+  feet: '脚部',
+  finger1: '戒指1',
+  finger2: '戒指2',
+  trinket1: '饰品1',
+  trinket2: '饰品2',
+  main_hand: '主手',
+  off_hand: '副手'
+}
+
+const SIMC_FIELD_LABELS = {
+  ilevel: '装等',
+  itemid: '物品 ID',
+  'item id': '物品 ID',
+  item_id: '物品 ID',
+  bonus_id: 'bonus',
+  gem_id: '宝石',
+  enchant_id: '附魔',
+  crafted_stats: '制造属性',
+  'bonus_id/gem_id/enchant_id': 'bonus/宝石/附魔'
+}
+
+const SIMC_ENHANCEMENT_LABELS = {
+  socket: '宝石',
+  enchant: '附魔',
+  embellishment: '美化',
+  gear: '装备'
+}
+
 function cleanSummaryText(value) {
   return String(value === undefined || value === null ? '' : value).trim()
+}
+
+function simcSlotLabel(value) {
+  const key = cleanSummaryText(value).replace(/\.$/, '')
+  return SIMC_SLOT_LABELS[key] || key
+}
+
+function localizedSimcSlotList(value) {
+  return cleanSummaryText(value)
+    .replace(/\.$/, '')
+    .split(',')
+    .map((item) => simcSlotLabel(item.trim()))
+    .filter(Boolean)
+    .join('、')
+}
+
+function localizedMissingGearSlotsText(value) {
+  const text = cleanSummaryText(value)
+  const match = text.match(/^(?:Missing core SimC gear slots|missing gear slots):\s*(.+?)\.?$/i)
+  if (!match) return ''
+  const slots = localizedSimcSlotList(match[1])
+  return slots ? `缺少可执行装备槽位：${slots}` : '缺少可执行装备槽位'
+}
+
+function localizedItemNameDiagnosticText(value) {
+  const text = cleanSummaryText(value)
+  const match = text.match(/^Trivial:\s*Player\b.*?\bat slot\s+([a-z0-9_]+)\b.*?has inconsistency between name\b/i)
+  if (!match) return ''
+  const slot = simcSlotLabel(match[1])
+  return `${slot}装备数据不一致：装备名称和物品 ID 对不上，请重新选择或保存${slot}。`
+}
+
+function localizedMissingFieldLabel(value) {
+  const key = cleanSummaryText(value).toLowerCase()
+  return SIMC_FIELD_LABELS[key] || key
+}
+
+function localizedMissingFieldList(value) {
+  return cleanSummaryText(value)
+    .replace(/\.$/, '')
+    .split(',')
+    .map((item) => localizedMissingFieldLabel(item))
+    .filter(Boolean)
+    .join('、')
+}
+
+function localizedGearFieldDiagnosticText(value) {
+  const text = cleanSummaryText(value)
+  const missingItemId = text.match(/^missing item id for gear slot:\s*([a-z0-9_]+)\.?$/i)
+  if (missingItemId) return `${simcSlotLabel(missingItemId[1])}缺少物品 ID`
+  const missingSlotField = text.match(/^([a-z0-9_]+)\s+missing\s+(.+?)\.?$/i)
+  if (missingSlotField) {
+    const fields = localizedMissingFieldList(missingSlotField[2])
+    return `${simcSlotLabel(missingSlotField[1])}缺少${fields || '可执行装备字段'}`
+  }
+  const normalized = text.toLowerCase()
+  if (/^selected candidate item\(s\) are missing simc fields/.test(normalized)) {
+    return '部分已选装备缺少 SimC 字段，请回到装备模板检查阻断项。'
+  }
+  if (SIMC_FIELD_LABELS[normalized]) return `缺少 ${SIMC_FIELD_LABELS[normalized]}字段`
+  return ''
+}
+
+function localizedEnhancementDiagnosticText(value) {
+  const text = cleanSummaryText(value)
+  const match = text.match(/^([a-z0-9_]+)\s+(socket|enchant|embellishment|gear)\b/i)
+  if (match) {
+    const slot = simcSlotLabel(match[1])
+    const typeLabel = SIMC_ENHANCEMENT_LABELS[match[2].toLowerCase()] || '增益'
+    if (/missing selected gear/i.test(text)) return `${slot}缺少已选装备，无法应用${typeLabel}。`
+    if (/not in verified rank-two catalog/i.test(text)) return `${slot}${typeLabel}未通过验证：不在已验证目录中。`
+    if (/incompatible/i.test(text)) return `${slot}${typeLabel}与当前装备不兼容。`
+  }
+  const limit = text.match(/^(primary_stat_gem gem|embellishment) limit exceeded:\s*(\d+)\/(\d+)/i)
+  if (limit) {
+    const label = limit[1].toLowerCase().startsWith('primary') ? '主属性宝石' : '美化'
+    return `${label}已超过上限 ${limit[2]}/${limit[3]}`
+  }
+  return ''
 }
 
 function verifiedSummarySnapshot(snapshot) {
@@ -278,7 +480,9 @@ function summaryStatsRequestSignature(request) {
 function summaryStatsInvalidationState() {
   return {
     summaryStatsLoading: false,
-    summaryStatsRequestSignature: ''
+    summaryStatsRequestSignature: '',
+    summaryStatSnapshot: null,
+    summaryStatSnapshotSignature: ''
   }
 }
 
@@ -335,37 +539,163 @@ function requestFailureMessage(error, fallbackText = 'request failed') {
   return cleanSummaryText(error && error.message) || fallbackText
 }
 
+const SIMC_STAT_SNAPSHOT_CRASH_TEXT = 'SimC 属性计算崩溃：当前组合暂时无法完成装备属性校验，请稍后重试，或更换天赋、装备或场景。'
+const SIMC_TASK_CRASH_TEXT = 'SimC 执行失败：当前组合运行时崩溃，后端未能产出可用结果。请稍后重试，或检查天赋、装备和场景。'
+
+function isRawSimcCrashDiagnostic(text) {
+  return /sim_signal_handler|segmentation fault|\bsigsegv\b|\bsignal\s*11\b/i.test(cleanSummaryText(text))
+}
+
+function localizedSimcUserText(value) {
+  const text = cleanSummaryText(value)
+  if (!text) return ''
+  const missingGearSlots = localizedMissingGearSlotsText(text)
+  if (missingGearSlots) return missingGearSlots
+  const itemNameDiagnostic = localizedItemNameDiagnosticText(text)
+  if (itemNameDiagnostic) return itemNameDiagnostic
+  const gearFieldDiagnostic = localizedGearFieldDiagnosticText(text)
+  if (gearFieldDiagnostic) return gearFieldDiagnostic
+  const enhancementDiagnostic = localizedEnhancementDiagnosticText(text)
+  if (enhancementDiagnostic) return enhancementDiagnostic
+  if (isRawSimcCrashDiagnostic(text)) return SIMC_TASK_CRASH_TEXT
+  const timeout = text.match(/timed out after\s+(\d+)\s+seconds?/i)
+  if (timeout) {
+    return `SimC 执行超时：当前组合已经开始运行，但本次模拟超过 ${timeout[1]} 秒未完成。可以稍后重试，或等待前面的任务完成后再提交。`
+  }
+  if (/Invalid 'class_talents'/i.test(text)) {
+    return 'SimC 执行失败：当前天赋字符串不被 SimC 识别。请重新保存天赋模板，或更换模板后再试。'
+  }
+  if (/no parseable dps/i.test(text)) {
+    return 'SimC 执行失败：本次运行没有解析到可用 DPS 结果。请稍后重试，或检查当前模板。'
+  }
+  if (/traceback|^command\b|\bitem_\d+\b|\bwebsim_[a-z0-9_]+\b|\bsimulationcraft\b/i.test(text)) {
+    return 'SimC 执行失败：后端未能完成当前组合模拟。请稍后重试，或检查天赋、装备和场景。'
+  }
+  if (/simc/i.test(text) && /(failed|error|invalid|unable|missing|could not|timeout|timed out|parseable)/i.test(text)) {
+    return 'SimC 执行失败：后端未能完成当前组合模拟。请稍后重试，或检查天赋、装备和场景。'
+  }
+  return text
+}
+
+function analysisStatusText(status) {
+  const key = cleanSummaryText(status)
+  return ANALYSIS_STATUS_TEXT[key] || key
+}
+
+function preparationValueLabel(value) {
+  const text = cleanSummaryText(value)
+  const normalized = text.replace(/\.$/, '').replace(/^and\s+/i, '').trim().toLowerCase()
+  return PREPARATION_VALUE_LABELS[text] || PREPARATION_VALUE_ALIASES[normalized] || text
+}
+
+function temporaryBuffText(summary, state) {
+  if (state === 'disabled') return '未选择'
+  const text = cleanSummaryText(summary)
+  if (!text) return state === 'enabled' ? '已选择' : ''
+  return text
+    .split(',')
+    .map((item) => preparationValueLabel(item))
+    .filter(Boolean)
+    .join('、') || text
+}
+
+function preparationValueText(item) {
+  const category = cleanSummaryText(item && item.category)
+  const state = cleanSummaryText(item && item.state)
+  if (category === 'temporary_combat_buffs') {
+    return temporaryBuffText(item && item.summary, state)
+  }
+  if (category === 'self_class_raid_buff' && state === 'not_applicable') return '无增益'
+  return preparationValueLabel(item && item.label) || cleanSummaryText(item && item.summary)
+}
+
+function preparationStateText(item, category) {
+  const state = cleanSummaryText(item && item.state)
+  if (category === 'temporary_combat_buffs' && state === 'enabled') return '已选择'
+  if (category === 'temporary_combat_buffs' && state === 'disabled') return '未选择'
+  return PREPARATION_STATE_LABELS[state] || state || cleanSummaryText(item && item.evidenceState)
+}
+
+function preparationRows(preparation) {
+  const source = preparation && typeof preparation === 'object' ? preparation : {}
+  const items = Array.isArray(source.items) ? source.items : []
+  return items
+    .map((item) => {
+      const category = cleanSummaryText(item && item.category)
+      const label = PREPARATION_CATEGORY_LABELS[category]
+      if (!label) return null
+      const valueText = preparationValueText(item)
+      if (!valueText) return null
+      return {
+        key: cleanSummaryText(item && item.key) || category,
+        label,
+        valueText,
+        stateText: preparationStateText(item, category)
+      }
+    })
+    .filter(Boolean)
+}
+
 function compactAnalysisState(payload) {
   const status = cleanSummaryText(((payload || {}).agent || {}).status)
   if (!status) return null
   const compact = {
     agent: {
-      status
+      status,
+      statusText: analysisStatusText(status)
     }
   }
-  if (payload && payload.simcReport) {
-    compact.simcReport = payload.simcReport
+  const simcReport = payload && payload.simcReport
+  if (simcReport) {
+    compact.simcReport = {
+      schemaRevision: simcReport.schemaRevision,
+      state: simcReport.state,
+      result: simcReport.result || {}
+    }
+    const rows = preparationRows(simcReport.preparation)
+    if (rows.length) {
+      compact.preparation = {
+        hasRows: true,
+        rows
+      }
+    }
   }
   return compact
 }
 
+function analysisWithoutStatusCard(analysis) {
+  if (!analysis || typeof analysis !== 'object') return null
+  const compact = { ...analysis }
+  delete compact.agent
+  return Object.keys(compact).length ? compact : null
+}
+
 function statSnapshotFromTemplate(template, expectedSignature = '') {
   const metadata = (template && template.metadata) || {}
-  const snapshot = verifiedSummarySnapshot(metadata.statSnapshot || metadata.gearStatSnapshot || null)
+  const snapshot = verifiedSummarySnapshot(statSnapshotPayloadFromTemplate(template))
   const storedSignature = cleanSummaryText(metadata.statSnapshotSignature || '')
   if (snapshot && storedSignature && expectedSignature && storedSignature !== expectedSignature) return null
   return snapshot
 }
 
+function statSnapshotPayloadFromTemplate(template) {
+  const metadata = (template && template.metadata) || {}
+  const snapshot = metadata.statSnapshot || metadata.gearStatSnapshot || null
+  return snapshot && typeof snapshot === 'object' ? snapshot : null
+}
+
 function statSnapshotFromAnalysis(payload) {
+  return verifiedSummarySnapshot(statSnapshotPayloadFromAnalysis(payload))
+}
+
+function statSnapshotPayloadFromAnalysis(payload) {
   const details = (((payload || {}).request || {}).buildContext || {}).details || {}
   const statWeights = details.statWeights || {}
-  return verifiedSummarySnapshot(
-    (payload && payload.statSnapshot) ||
+  const snapshot = (payload && payload.statSnapshot) ||
     statWeights.statSnapshot ||
     ((payload && payload.request) || {}).statSnapshot ||
     null
-  )
+  return snapshot && typeof snapshot === 'object' ? snapshot : null
 }
 
 function summaryMetricValue(row, fallback) {
@@ -388,13 +718,35 @@ function summaryMetricPercent(row, fallback) {
 
 function summaryStatBlockerText(payload) {
   const blockers = Array.isArray(payload && payload.blockers) ? payload.blockers : []
-  const text = cleanSummaryText(blockers[0] || '')
+  const messages = uniqueList(blockers.map(summarySingleStatBlockerText).filter(Boolean))
+  return messages.slice(0, 3).join('；')
+}
+
+function summarySingleStatBlockerText(value) {
+  const text = cleanSummaryText(value)
   if (!text) return ''
-  const missingSlots = text.match(/^Missing core SimC gear slots:\s*(.+?)\.?$/i)
-  if (missingSlots) return `缺少可执行装备槽位：${missingSlots[1]}`
-  if (/selected candidate item\(s\) are missing SimC fields/i.test(text)) return '部分装备缺少 SimC 字段'
+  const missingSlots = localizedMissingGearSlotsText(text)
+  if (missingSlots) return missingSlots
+  const itemNameDiagnostic = localizedItemNameDiagnosticText(text)
+  if (itemNameDiagnostic) return itemNameDiagnostic
+  const gearFieldDiagnostic = localizedGearFieldDiagnosticText(text)
+  if (gearFieldDiagnostic) return gearFieldDiagnostic
+  const enhancementDiagnostic = localizedEnhancementDiagnosticText(text)
+  if (enhancementDiagnostic) return enhancementDiagnostic
+  if (isRawSimcCrashDiagnostic(text)) return SIMC_STAT_SNAPSHOT_CRASH_TEXT
   if (/backend unavailable|missing api base url/i.test(text)) return '属性计算接口暂不可用'
-  return text
+  const localized = localizedSimcUserText(text)
+  if (localized !== text) return localized
+  if (/traceback|^command\b|\bitem_\d+\b|\bwebsim_[a-z0-9_]+\b|\bsimulationcraft\b|seed=|targethealth=/i.test(text)) {
+    return '装备属性暂不可用：后端未能完成当前装备属性计算'
+  }
+  return localized
+}
+
+function summaryStatBlockerTextFromTemplate(template) {
+  const snapshot = statSnapshotPayloadFromTemplate(template)
+  if (!snapshot || snapshot.statStatus === 'verified') return ''
+  return summaryStatBlockerText(snapshot)
 }
 
 function summaryStatPanelFromSnapshot(snapshot, pendingText = SUMMARY_STAT_PENDING_TEXT.pending, noteText = '') {
@@ -438,11 +790,65 @@ function summaryStatPanelForSelection(selection, fallbackText = SUMMARY_STAT_PEN
     selection && selection.selectedGearTemplate,
     request ? summaryStatsRequestSignature(request) : ''
   )
-  return summaryStatPanelFromSnapshot(snapshot, snapshot ? SUMMARY_STAT_PENDING_TEXT.pending : summaryPendingTextForSelection(selection, fallbackText))
+  if (snapshot) return summaryStatPanelFromSnapshot(snapshot, SUMMARY_STAT_PENDING_TEXT.pending)
+  const blockerText = summaryStatBlockerTextFromTemplate(selection && selection.selectedGearTemplate)
+  if (blockerText) return summaryStatPanelFromSnapshot(null, SUMMARY_STAT_PENDING_TEXT.unavailable, blockerText)
+  return summaryStatPanelFromSnapshot(null, summaryPendingTextForSelection(selection, fallbackText))
 }
 
-function summaryStatPanelFromAnalysis(payload, fallbackTemplate) {
-  return summaryStatPanelFromSnapshot(statSnapshotFromAnalysis(payload) || statSnapshotFromTemplate(fallbackTemplate))
+function statSnapshotForSelection(data) {
+  const request = summaryStatsRequestForSelection(data, { ignoreSnapshot: true })
+  const signature = request ? summaryStatsRequestSignature(request) : ''
+  const current = verifiedSummarySnapshot(data && data.summaryStatSnapshot)
+  if (current && signature && cleanSummaryText(data && data.summaryStatSnapshotSignature) === signature) {
+    return current
+  }
+  return statSnapshotFromTemplate(
+    data && data.selectedGearTemplate,
+    signature
+  )
+}
+
+function gearStatValidationMessage(data) {
+  if (!data || !data.selectedTalentTemplate || !data.selectedGearTemplate) return ''
+  const request = summaryStatsRequestForSelection(data, { ignoreSnapshot: true })
+  if (statSnapshotForSelection(data)) return ''
+  const panel = data.summaryStatPanel || {}
+  const note = cleanSummaryText(panel.noteText)
+  if (data.summaryStatsLoading) return '装备属性正在计算：请等待属性计算完成后再校验组合。'
+  const templateBlocker = summaryStatBlockerTextFromTemplate(data.selectedGearTemplate)
+  if (templateBlocker) return `装备属性未通过校验：${templateBlocker}`
+  if (note) {
+    const detail = note.replace(/^装备属性(?:暂)?不可用[:：]?/, '').trim()
+    return `装备属性未通过校验：${detail || note}`
+  }
+  if (!request) return '装备属性未完成校验：当前装备模板缺少可计算的装备快照。'
+  return '装备属性未完成校验：请等待属性计算完成后再校验组合。'
+}
+
+function templateValidationForSelection(data) {
+  const errors = []
+  const statMessage = gearStatValidationMessage(data)
+  if (statMessage) errors.push(statMessage)
+  return {
+    passed: !errors.length,
+    errors,
+    warnings: []
+  }
+}
+
+function summaryStatPanelFromAnalysis(payload, fallbackTemplate, currentPanel) {
+  const snapshot = statSnapshotFromAnalysis(payload) || statSnapshotFromTemplate(fallbackTemplate)
+  if (snapshot) return summaryStatPanelFromSnapshot(snapshot)
+  const payloadSnapshot = statSnapshotPayloadFromAnalysis(payload)
+  if (payloadSnapshot && payloadSnapshot.statStatus !== 'verified') {
+    const blockerText = summaryStatBlockerText(payloadSnapshot)
+    if (blockerText) return summaryStatPanelFromSnapshot(null, SUMMARY_STAT_PENDING_TEXT.unavailable, blockerText)
+  }
+  const templateBlocker = summaryStatBlockerTextFromTemplate(fallbackTemplate)
+  if (templateBlocker) return summaryStatPanelFromSnapshot(null, SUMMARY_STAT_PENDING_TEXT.unavailable, templateBlocker)
+  if (currentPanel && currentPanel.noteText) return currentPanel
+  return summaryStatPanelFromSnapshot(null)
 }
 
 function structuredGearTemplateRaw(template) {
@@ -672,6 +1078,8 @@ Page({
     selectedTalentTemplate: null,
     selectedGearTemplate: null,
     summaryStatPanel: summaryStatPanelFromSnapshot(null),
+    summaryStatSnapshot: null,
+    summaryStatSnapshotSignature: '',
     scenarioOptions: SCENARIO_OPTIONS,
     combatPreparationRows: combatPreparationRowsForSelection({}),
     temporaryBuffOptions: defaultTemporaryBuffOptions(),
@@ -688,8 +1096,14 @@ Page({
     submittingTask: false,
     canConfirm: false,
     canSubmitTask: false,
+    validatedCanSubmitTask: false,
     taskSubmitted: false,
     submittedTaskId: '',
+    activeTaskCount: 0,
+    activeTaskLimit: ACTIVE_SIMC_TASK_LIMIT,
+    activeTaskLimitReached: false,
+    activeTaskLimitMessage: '',
+    activeTaskLimitLoading: false,
     confirmedPayload: null,
     latestAnalysis: null,
     resultSummary: '',
@@ -710,6 +1124,7 @@ Page({
       source: options && options.from ? options.from : 'simulator'
     })
     this.loadTemplateLists()
+    this.refreshActiveTaskGate()
   },
 
   onShow() {
@@ -719,12 +1134,33 @@ Page({
       return
     }
     this.loadTemplateLists()
+    this.refreshActiveTaskGate()
   },
 
   onUnload() {
     trackPageLeave(SIMC_PAGE_ROUTE, this.analyticsStartedAt, {
       taskSubmitted: this.data.taskSubmitted,
       taskId: this.data.submittedTaskId || ''
+    })
+  },
+
+  refreshActiveTaskGate() {
+    if (typeof requestSimulatorTasks !== 'function') return Promise.resolve(false)
+    this.setData({ activeTaskLimitLoading: true })
+    return requestSimulatorTasks().then(({ payload }) => {
+      const tasks = payload && Array.isArray(payload.tasks) ? payload.tasks : []
+      const activeCount = activeSimcTemplateTaskCount(tasks)
+      const limit = Number(this.data.activeTaskLimit) || ACTIVE_SIMC_TASK_LIMIT
+      const limitReached = activeCount >= limit
+      this.setData({
+        activeTaskCount: activeCount,
+        activeTaskLimitReached: limitReached,
+        activeTaskLimitMessage: limitReached ? activeTaskLimitMessage(activeCount, limit) : '',
+        canSubmitTask: !!this.data.validatedCanSubmitTask && !limitReached
+      })
+      return limitReached
+    }).catch(() => false).finally(() => {
+      this.setData({ activeTaskLimitLoading: false })
     })
   },
 
@@ -746,19 +1182,25 @@ Page({
       if (snapshot) {
         const nextGearTemplate = templateWithStatSnapshot(this.data.selectedGearTemplate, snapshot, signature)
         this.setData({
-          summaryStatPanel: summaryStatPanelFromSnapshot(snapshot)
+          summaryStatPanel: summaryStatPanelFromSnapshot(snapshot),
+          summaryStatSnapshot: snapshot,
+          summaryStatSnapshotSignature: signature
         })
         persistStatSnapshotTemplate(nextGearTemplate)
       } else {
         this.setData({
-          summaryStatPanel: summaryStatPanelFromBlockedPayload(payload)
+          summaryStatPanel: summaryStatPanelFromBlockedPayload(payload),
+          summaryStatSnapshot: null,
+          summaryStatSnapshotSignature: ''
         })
       }
       return payload
     }).catch(() => {
       if (this.data.summaryStatsRequestSignature === signature) {
         this.setData({
-          summaryStatPanel: summaryStatPanelFromBlockedPayload({ blockers: ['backend unavailable'] })
+          summaryStatPanel: summaryStatPanelFromBlockedPayload({ blockers: ['backend unavailable'] }),
+          summaryStatSnapshot: null,
+          summaryStatSnapshotSignature: ''
         })
       }
       return null
@@ -837,6 +1279,7 @@ Page({
       ...listState,
       canConfirm: !!(listState.selectedClassKey && listState.selectedTalentTemplate && listState.selectedGearTemplate),
       canSubmitTask: false,
+      validatedCanSubmitTask: false,
       taskSubmitted: false,
       confirmedPayload: null,
       blockedReasons: [],
@@ -888,6 +1331,7 @@ Page({
       ...listState,
       canConfirm: !!(listState.selectedClassKey && listState.selectedTalentTemplate && listState.selectedGearTemplate),
       canSubmitTask: false,
+      validatedCanSubmitTask: false,
       taskSubmitted: false,
       confirmedPayload: null,
       blockedReasons: [],
@@ -908,6 +1352,7 @@ Page({
       selectedRaceKey: selectedRace.key,
       selectedRaceName: selectedRace.name || selectedRace.key,
       canSubmitTask: false,
+      validatedCanSubmitTask: false,
       taskSubmitted: false,
       confirmedPayload: null,
       blockedReasons: [],
@@ -931,6 +1376,7 @@ Page({
       summaryStatPanel: summaryStatPanelForSelection({ ...this.data, selectedTalentTemplate: template }),
       canConfirm: !!(this.data.selectedClassKey && template && this.data.selectedGearTemplate),
       canSubmitTask: false,
+      validatedCanSubmitTask: false,
       taskSubmitted: false,
       confirmedPayload: null,
       blockedReasons: [],
@@ -954,6 +1400,7 @@ Page({
       summaryStatPanel: summaryStatPanelForSelection({ ...this.data, selectedGearTemplate: template }),
       canConfirm: !!(this.data.selectedClassKey && this.data.selectedTalentTemplate && template),
       canSubmitTask: false,
+      validatedCanSubmitTask: false,
       taskSubmitted: false,
       confirmedPayload: null,
       blockedReasons: [],
@@ -972,6 +1419,7 @@ Page({
       selectedScenarioKey: key,
       selectedScenarioTitle: option.title,
       canSubmitTask: false,
+      validatedCanSubmitTask: false,
       taskSubmitted: false,
       confirmedPayload: null,
       blockedReasons: [],
@@ -991,6 +1439,7 @@ Page({
     this.setData({
       temporaryBuffOptions,
       canSubmitTask: false,
+      validatedCanSubmitTask: false,
       taskSubmitted: false,
       confirmedPayload: null,
       blockedReasons: [],
@@ -1000,11 +1449,8 @@ Page({
 
   buildTemplatePayload(confirmOnly = true, saveTask = false) {
     if (!this.data.selectedClassKey || !this.data.selectedTalentTemplate || !this.data.selectedGearTemplate) return null
-    const statsRequest = summaryStatsRequestForSelection(this.data, { ignoreSnapshot: true })
-    const statSnapshot = statSnapshotFromTemplate(
-      this.data.selectedGearTemplate,
-      statsRequest ? summaryStatsRequestSignature(statsRequest) : ''
-    )
+    const statSnapshot = statSnapshotForSelection(this.data)
+    const templateValidation = templateValidationForSelection(this.data)
     return {
       mode: 'simcraft_template',
       confirmOnly,
@@ -1015,6 +1461,7 @@ Page({
       scenarioKey: this.data.selectedScenarioKey,
       analysisType: this.data.selectedAnalysisType,
       temporaryBuffs: selectedTemporaryBuffs(this.data.temporaryBuffOptions),
+      templateValidation,
       templateContext: {
         talent: compactTemplate(this.data.selectedTalentTemplate),
         gear: compactTemplate(this.data.selectedGearTemplate, { statSnapshot })
@@ -1034,12 +1481,16 @@ Page({
       ...(validation.errors || []),
       ...(evidenceState.blockers || []),
       ...simulationErrors
-    ])
+    ]).map(localizedSimcUserText).filter(Boolean)
   },
 
   resultSummaryFromAnalysis(payload) {
     const simcReport = (payload && payload.simcReport) || {}
-    if (simcReport.summary) return cleanSummaryText(simcReport.summary)
+    const agent = (payload && payload.agent) || {}
+    if (agent.status === 'template_ready' || simcReport.state === 'ready') {
+      return '当前天赋、装备和场景已通过校验，可以提交任务开始运行 SimC。'
+    }
+    if (simcReport.summary) return localizedSimcUserText(simcReport.summary)
     const report = (payload && payload.report) || {}
     const findings = Array.isArray(report.topFindings) ? report.topFindings : []
     const finding = findings.find((item) => item && String(item.text || '').trim())
@@ -1052,15 +1503,20 @@ Page({
     const agent = (payload && payload.agent) || {}
     const blockedReasons = this.blockedReasonsFromAnalysis(payload)
     const ready = !!(agent.canSubmitTask || agent.status === 'template_ready') && !blockedReasons.length
+    const limitState = taskLimitStateFromPayload(payload, this.data.activeTaskLimit)
+    const activeTaskLimitReached = limitState ? limitState.activeTaskLimitReached : this.data.activeTaskLimitReached
     this.setData({
       latestAnalysis: compactAnalysisState(payload),
       fromFallback: !!fromFallback,
       requestError: error || '',
       blockedReasons,
       resultSummary: this.resultSummaryFromAnalysis(payload),
-      summaryStatPanel: summaryStatPanelFromAnalysis(payload, this.data.selectedGearTemplate),
-      canSubmitTask: ready,
+      summaryStatPanel: summaryStatPanelFromAnalysis(payload, this.data.selectedGearTemplate, this.data.summaryStatPanel),
+      validatedCanSubmitTask: ready,
+      canSubmitTask: ready && !activeTaskLimitReached,
       taskSubmitted: this.data.taskSubmitted && ready
+        && !activeTaskLimitReached,
+      ...(limitState || {})
     })
   },
 
@@ -1068,6 +1524,21 @@ Page({
     if (!this.data.canConfirm || this.data.confirming) return Promise.resolve(null)
     const requestPayload = this.buildTemplatePayload(true, false)
     if (!requestPayload) return Promise.resolve(null)
+    const validationErrors = ((requestPayload.templateValidation || {}).errors || []).filter(Boolean)
+    if (validationErrors.length) {
+      this.setData({
+        latestAnalysis: null,
+        confirmedPayload: null,
+        requestError: '',
+        blockedReasons: validationErrors,
+        resultSummary: '',
+        canSubmitTask: false,
+        validatedCanSubmitTask: false,
+        taskSubmitted: false,
+        confirming: false
+      })
+      return Promise.resolve(null)
+    }
     this.setData({ confirming: true, confirmedPayload: requestPayload, blockedReasons: [] })
     trackEvent('simc_template_confirm', {
       classKey: requestPayload.classKey,
@@ -1089,6 +1560,7 @@ Page({
         blockedReasons: [message],
         resultSummary: '',
         canSubmitTask: false,
+        validatedCanSubmitTask: false,
         taskSubmitted: false
       })
       return null
@@ -1101,12 +1573,33 @@ Page({
     if (!this.data.canSubmitTask || this.data.submittingTask || this.data.taskSubmitted) return Promise.resolve(null)
     const basePayload = this.data.confirmedPayload || this.buildTemplatePayload(true, false)
     if (!basePayload) return Promise.resolve(null)
+    const validationErrors = ((basePayload.templateValidation || {}).errors || []).filter(Boolean)
+    if (validationErrors.length) {
+      this.setData({
+        latestAnalysis: null,
+        requestError: '',
+        blockedReasons: validationErrors,
+        resultSummary: '',
+        canSubmitTask: false,
+        validatedCanSubmitTask: false,
+        taskSubmitted: false,
+        submittedTaskId: ''
+      })
+      return Promise.resolve(null)
+    }
     const requestPayload = {
       ...basePayload,
       confirmOnly: false,
       saveTask: true
     }
-    this.setData({ submittingTask: true })
+    return this.refreshActiveTaskGate().then((limitReached) => {
+      if (limitReached) {
+        if (typeof wx !== 'undefined' && wx.showToast) {
+          wx.showToast({ title: this.data.activeTaskLimitMessage || '已有任务运行中', icon: 'none' })
+        }
+        return null
+      }
+      this.setData({ submittingTask: true })
     trackEvent('simc_template_submit', {
       classKey: requestPayload.classKey,
       raceKey: requestPayload.raceKey,
@@ -1122,7 +1615,9 @@ Page({
         this.setData({
           taskSubmitted: saved,
           submittedTaskId: (payload && payload.taskId) || '',
-          canSubmitTask: !saved && this.data.canSubmitTask
+          canSubmitTask: !saved && this.data.canSubmitTask,
+          latestAnalysis: saved ? analysisWithoutStatusCard(this.data.latestAnalysis) : this.data.latestAnalysis,
+          resultSummary: saved ? '' : this.data.resultSummary
         })
         if (typeof wx !== 'undefined' && wx.showToast) {
           wx.showToast({ title: saved ? '任务已提交' : '提交失败', icon: 'none' })
@@ -1139,7 +1634,7 @@ Page({
           resultSummary: '',
           taskSubmitted: false,
           submittedTaskId: '',
-          canSubmitTask: !!this.data.confirmedPayload && !!this.data.canSubmitTask
+          canSubmitTask: !!this.data.confirmedPayload && !!this.data.canSubmitTask && !this.data.activeTaskLimitReached
         })
         if (typeof wx !== 'undefined' && wx.showToast) {
           wx.showToast({ title: '提交失败', icon: 'none' })
@@ -1149,5 +1644,6 @@ Page({
       .finally(() => {
         this.setData({ submittingTask: false })
       })
+    })
   }
 })

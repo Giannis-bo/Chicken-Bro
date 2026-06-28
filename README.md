@@ -98,7 +98,7 @@ WOW_NEWS_PORT=8787 python3 server/news_backend.py
 
 资讯详情公共 payload 只发布同时满足 `contentStatus=ready`、`licenseStatus=approved`、`verificationStatus=official_verified`、`translationStatus=llm`、`translationFidelity=source_translation`、`sourceTier=official` 的文章：中文标题为主，保留 `originalTitle` 作为原题副标题，正文仅使用 `bodyBlocksZh` 块级渲染，tag 使用 `tagItems` 中文 chip，`sourceBadges` 与来源信息一并保留，公共 API 不返回原文正文。自动采集首版优先覆盖 Blizzard 官方文章；Wowhead / Icy Veins 等第三方来源未确认授权前只做 reference-only 发现/佐证，不进入公共 payload；正文抓取、LLM 逐块直译、授权门禁、官方校验或质检失败时记录在 refresh run 中，不发布给前端。
 
-SimC 分析返回 `evidenceState`、`runPolicy`、`allowedNumbers` 和结构化 `report`；LLM 报告只能引用 allowedNumbers 内的数字，否则回退后端 deterministic report。WCL 分析当前只完成 report URL/code/fight 解析和缺凭据阻断；没有 `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET` 时返回 `blocked/missing_credentials`，不会调用 LLM 伪造日志结论。
+SimC 模板链路分为“确认”和“任务执行”两段：`mode=simcraft_template` 的确认阶段只做后端解析、装备属性快照校验、已知 SimC 兼容性阻断和紧凑 `simcReport`，不调用 LLM 或 Codex Worker；最终提交在校验通过后创建后台 `simulator_tasks`，由 runner 异步执行并把结果写回任务列表/详情。相同玩家同一时间最多保留 2 个 `queued/running` 模板任务，相同 fingerprint 会复用活动任务；单体、5目标 AOE、近似大秘境的 `fight_style/desired_targets/max_time/iterations=10000` 不因超时而降级。当前已知 `邪恶死亡骑士 + 天启骑士` 在 upstream SimC 会崩溃，后端会在属性快照和模板确认阶段直接返回中文 blocker，不启动 SimC。WCL 分析当前只完成 report URL/code/fight 解析和缺凭据阻断；没有 `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET` 时返回 `blocked/missing_credentials`，不会调用 LLM 伪造日志结论。
 
 LLM 和 SimCraft 由服务器环境控制：
 
@@ -112,6 +112,10 @@ LLM 和 SimCraft 由服务器环境控制：
 - `WOW_WARCRAFTLOGS_API_KEY`：Warcraft Logs v1 API key；可作为 v1 REST 凭据被 health/WCL 启动层识别，但完整日志 GraphQL 抽取仍需要后续实现或 v2 OAuth 凭据。
 - `WOW_SIMC_BIN`：默认 `/opt/wow-simc/current/simc`，部署脚本会从官方源码构建 CLI。
 - `WOW_SIMC_VERSION_FILE`：默认 `/var/lib/wow-backend/simc-version.json`，由定时任务写入当前镜像 tag 与最新 tag。
+- `WOW_SIMC_TEMPLATE_TIMEOUT_SECONDS`：模板任务 SimC 进程超时的统一覆盖；未设置时按场景使用单体 `120` 秒、5目标 AOE `180` 秒、近似大秘境 `240` 秒。
+- `WOW_SIMC_TEMPLATE_STAT_WEIGHTS_TIMEOUT_SECONDS`：属性权重模板任务的专用超时覆盖；未设置时默认 `360` 秒。
+- `WOW_SIMC_TEMPLATE_ACTIVE_TASK_LIMIT`：同一玩家同时 `queued/running` 的模板任务上限，默认 `2`。
+- `WOW_WEBSIM_GEAR_STATS_TIMEOUT_SECONDS`：装备属性快照预检超时，默认 `45` 秒；该值不限制后台模板任务执行。
 - `WOW_CODEX_BIN`：默认 `/usr/local/bin/codex`，用于低频 Agent Worker。
 - `WOW_CODEX_HOME`：默认 `/home/ubuntu/.codex`，只存服务器本地 Codex 配置和认证缓存。
 - `WOW_CODEX_JOBS_DIR`：默认 `/var/lib/wow-backend/codex-jobs`，每个 Codex job 使用独立目录。
