@@ -207,6 +207,78 @@ class PostgresShadowMigrationTest(unittest.TestCase):
         self.assertTrue(conn.committed)
         self.assertFalse(conn.rolled_back)
 
+    def test_reconcile_public_cache_deletes_natural_key_gear_conflicts_before_upsert(self):
+        from server.migrations.postgres import shadow_migrate
+
+        plan = minimal_plan()
+        plan["tables"]["cache.websim_gear_variants"] = [
+            {
+                "id": "55555555-5555-4555-8555-555555555555",
+                "item_id": "151299",
+                "variant_key": "needs-variant",
+                "readiness": "partial",
+                "slot": "trinket1",
+                "label": "Needs variant",
+                "source_type": "official",
+                "difficulty_key": "needs-variant",
+                "item_level": 0,
+                "simc_options_json": {},
+                "status": "partial",
+                "blockers_json": [],
+                "payload_json": {},
+                "updated_at": "2026-06-28T12:00:00+00:00",
+            }
+        ]
+        plan["tables"]["cache.websim_gear_mod_options"] = [
+            {
+                "id": "66666666-6666-4666-8666-666666666666",
+                "variant_id": "55555555-5555-4555-8555-555555555555",
+                "option_key": "socket-a",
+                "is_visible": True,
+                "option_type": "socket",
+                "name": "Socket",
+                "applicable_slots_json": ["trinket1"],
+                "simc_options_json": {},
+                "status": "verified",
+                "payload_json": {},
+                "updated_at": "2026-06-28T12:00:00+00:00",
+            }
+        ]
+        conn = FakeConnection()
+
+        shadow_migrate.execute_copy_plan(
+            conn,
+            plan,
+            source_sqlite_path="fresh.sqlite3",
+            reconcile_public_cache=True,
+        )
+
+        statements = conn.cursor_instance.statements
+        variant_delete = "DELETE FROM cache.websim_gear_variants WHERE item_id = %s AND variant_key = %s AND id <> %s"
+        option_delete = "DELETE FROM cache.websim_gear_mod_options WHERE variant_id = %s AND option_key = %s AND id <> %s"
+        self.assertIn(variant_delete, statements)
+        self.assertIn(option_delete, statements)
+        self.assertLess(
+            statements.index(variant_delete),
+            next(index for index, item in enumerate(statements) if item.startswith("INSERT INTO cache.websim_gear_variants")),
+        )
+        self.assertLess(
+            statements.index(option_delete),
+            next(index for index, item in enumerate(statements) if item.startswith("INSERT INTO cache.websim_gear_mod_options")),
+        )
+        self.assertIn(
+            ("151299", "needs-variant", "55555555-5555-4555-8555-555555555555"),
+            conn.cursor_instance.params,
+        )
+        self.assertIn(
+            (
+                "55555555-5555-4555-8555-555555555555",
+                "socket-a",
+                "66666666-6666-4666-8666-666666666666",
+            ),
+            conn.cursor_instance.params,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

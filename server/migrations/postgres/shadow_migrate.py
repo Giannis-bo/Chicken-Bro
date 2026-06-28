@@ -26,6 +26,10 @@ PRIMARY_KEY_COLUMNS = {
     "cache.websim_season_state": "key",
     "cache.raiderio_cache": "cache_key",
 }
+RECONCILE_NATURAL_KEY_COLUMNS = {
+    "cache.websim_gear_variants": ("item_id", "variant_key"),
+    "cache.websim_gear_mod_options": ("variant_id", "option_key"),
+}
 PUBLIC_CACHE_SCHEMA_PREFIXES = ("content.", "cache.")
 
 
@@ -105,6 +109,23 @@ def insert_statement(table, reconcile_public_cache=False):
     )
 
 
+def delete_conflicting_public_cache_rows(cur, table, rows):
+    natural_columns = RECONCILE_NATURAL_KEY_COLUMNS.get(table)
+    if not natural_columns or not rows:
+        return 0
+    conflict_column = PRIMARY_KEY_COLUMNS.get(table, "id")
+    deleted = 0
+    predicates = " AND ".join(f"{column} = %s" for column in natural_columns)
+    for row in rows:
+        natural_values = [pg_value(column, row.get(column)) for column in natural_columns]
+        cur.execute(
+            f"DELETE FROM {table} WHERE {predicates} AND {conflict_column} <> %s",
+            [*natural_values, pg_value(conflict_column, row.get(conflict_column))],
+        )
+        deleted += 1
+    return deleted
+
+
 def verify_table_count(cur, table, rows):
     if not rows:
         return 0
@@ -151,6 +172,8 @@ def execute_copy_plan(pg_conn, plan, source_sqlite_path="", reconcile_public_cac
         with pg_conn.cursor() as cur:
             for table in ordered_tables(plan):
                 rows = plan["tables"][table]
+                if reconcile_public_cache and public_cache_table(table):
+                    delete_conflicting_public_cache_rows(cur, table, rows)
                 statement = insert_statement(table, reconcile_public_cache=reconcile_public_cache)
                 columns = data_copy_plan.SQL_COLUMNS[table]
                 for row in rows:
