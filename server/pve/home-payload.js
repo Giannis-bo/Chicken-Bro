@@ -151,7 +151,7 @@ const specRecord = (role, tier, rank, className, specName, classSlug, specSlug, 
 
 const specLadderRecords = [
   specRecord('dps', 'S', 1, '唤魔师', '增辉', 'evoker', 'augmentation', 4253, 11942, 88.12, 107.96, 280340, 72.4, 82.7, 96.1),
-  specRecord('dps', 'S', 2, '恶魔猎手', '吞噬者', 'demon-hunter', 'devourer', 4214, 18669, 85.86, 107.96, 433255, 70.8, 80.9, 94.7),
+  specRecord('dps', 'S', 2, '恶魔猎手', '噬灭', 'demon-hunter', 'devourer', 4214, 18669, 85.86, 107.96, 433255, 70.8, 80.9, 94.7),
   specRecord('dps', 'S', 3, '死亡骑士', '邪恶', 'death-knight', 'unholy', 4206, 29041, 86.67, 107.96, 673521, 71.1, 81.8, 95.3),
   specRecord('dps', 'A', 4, '战士', '武器', 'warrior', 'arms', 4119, 8628, 81.23, 105.96, 198832, 66.5, 76.2, 90.4),
   specRecord('dps', 'A', 5, '潜行者', '狂徒', 'rogue', 'outlaw', 4109, 3393, 77.20, 105.68, 77954, 62.4, 72.1, 87.6),
@@ -289,7 +289,7 @@ const sourceBackedItems = {
     {
       title: '最高层数样本',
       value: '+21',
-      desc: '第 3 周已出现 +21 顶层记录；可读数据列出热门坦克/治疗与邪恶、恶魔、增辉、吞噬者等 6 个专精样本。',
+      desc: '第 3 周已出现 +21 顶层记录；可读数据列出热门坦克/治疗与邪恶、恶魔、增辉、噬灭等 6 个专精样本。',
       sourceName: 'Icy Veins / Raider.IO',
       sourceUrl: 'https://www.icy-veins.com/wow/news/the-most-played-specs-and-groups-and-dps-logs-of-midnight-mythic-season-1/',
       publishedAt: '2026-06-07',

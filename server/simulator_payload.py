@@ -134,6 +134,7 @@ WOWGG_MYTHIC_PLUS_SNAPSHOT = {
     "deathknight-unholy": {"specName": "邪恶死亡骑士", "role": "dps", "avgDps": "206K", "maxDps": "299K", "maxKey": "+24", "sourcePath": "dps"},
     "demonhunter-havoc": {"specName": "浩劫恶魔猎手", "role": "dps", "avgDps": "171K", "maxDps": "245K", "maxKey": "+23", "sourcePath": "dps"},
     "demonhunter-vengeance": {"specName": "复仇恶魔猎手", "role": "tank", "avgDps": "104K", "maxDps": "162K", "maxKey": "+22", "sourcePath": "tank"},
+    "demonhunter-devourer": {"specName": "噬灭恶魔猎手", "role": "dps", "avgDps": "171K", "maxDps": "245K", "maxKey": "+23", "sourcePath": "dps"},
     "druid-balance": {"specName": "平衡德鲁伊", "role": "dps", "avgDps": "156K", "maxDps": "231K", "maxKey": "+22", "sourcePath": "dps"},
     "druid-feral": {"specName": "野性德鲁伊", "role": "dps", "avgDps": "175K", "maxDps": "280K", "maxKey": "+24", "sourcePath": "dps"},
     "druid-guardian": {"specName": "守护德鲁伊", "role": "tank", "avgDps": "120K", "maxDps": "213K", "maxKey": "+24", "sourcePath": "tank"},
@@ -244,6 +245,7 @@ SIMC_AGENT_CLASS_REGISTRY = [
         "specs": [
             {"label": "浩劫", "key": "havoc", "role": "attack", "aliases": ["浩劫dh", "havoc demon hunter"]},
             {"label": "复仇", "key": "vengeance", "role": "tank", "aliases": ["复仇dh", "vengeance demon hunter"]},
+            {"label": "噬灭", "key": "devourer", "role": "attack", "aliases": ["噬灭dh", "噬灭恶魔猎手", "吞噬者dh", "吞噬者恶魔猎手", "devourer demon hunter"]},
         ],
     },
     {

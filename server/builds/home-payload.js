@@ -63,7 +63,7 @@ const trustedBuildSources = [
 
 const classes = [
   ['死亡骑士', ['鲜血', '冰霜', '邪恶']],
-  ['恶魔猎手', ['浩劫', '复仇']],
+  ['恶魔猎手', ['浩劫', '复仇', '噬灭']],
   ['德鲁伊', ['平衡', '野性', '守护', '恢复']],
   ['唤魔师', ['湮灭', '恩护', '增辉']],
   ['猎人', ['野兽控制', '射击', '生存']],
@@ -149,6 +149,7 @@ const specSlugByName = {
   '邪恶': 'unholy',
   '浩劫': 'havoc',
   '复仇': 'vengeance',
+  '噬灭': 'devourer',
   '平衡': 'balance',
   '野性': 'feral',
   '守护': 'guardian',
@@ -187,6 +188,7 @@ const websimSpecKeyByName = {
   '邪恶': 'unholy',
   '浩劫': 'havoc',
   '复仇': 'vengeance',
+  '噬灭': 'devourer',
   '平衡': 'balance',
   '野性': 'feral',
   '守护': 'guardian',
@@ -343,6 +345,7 @@ const archonSnapshots = {
   '死亡骑士-邪恶': { statPriority: 'Strength > Mastery > Crit > Haste > Vers', gear: ["Relentless Rider's Crown", "Masterwork Sin'dorei Amulet", 'Shoulderplates of Frozen Blood'], talentPopularity: '0.7%', maxKey: '+24' },
   '恶魔猎手-浩劫': { statPriority: 'Agility > Crit > Mastery > Haste > Vers', gear: ["Devouring Reaver's Intake", "Masterwork Sin'dorei Amulet", "Devouring Reaver's Exhaustplates"], talentPopularity: '7.4%', maxKey: '+22' },
   '恶魔猎手-复仇': { statPriority: 'Agility > Haste > Crit > Mastery > Vers', gear: ["Devouring Reaver's Intake", 'Necklace of the Twisting Void', "Devouring Reaver's Exhaustplates"], talentPopularity: '6.2%', maxKey: '+22' },
+  '恶魔猎手-噬灭': { statPriority: 'Agility > Haste > Crit > Mastery > Vers', gear: ["Devouring Reaver's Intake", "Masterwork Sin'dorei Amulet", "Devouring Reaver's Exhaustplates"], talentPopularity: '5.8%', maxKey: '+23' },
   '德鲁伊-平衡': { statPriority: 'Intellect > Mastery > Haste > Crit > Vers', gear: ['Branches of the Luminous Bloom', "Masterwork Sin'dorei Amulet", 'Seedpods of the Luminous Bloom'], talentPopularity: '29.5%', maxKey: '+22' },
   '德鲁伊-野性': { statPriority: 'Agility > Mastery > Haste > Crit > Vers', gear: ['Branches of the Luminous Bloom', "Masterwork Sin'dorei Amulet", 'Seedpods of the Luminous Bloom'], talentPopularity: '73.5%', maxKey: '+23' },
   '德鲁伊-守护': { statPriority: 'Agility > Haste > Vers > Mastery > Crit', gear: ['Branches of the Luminous Bloom', 'Necklace of the Twisting Void', 'Seedpods of the Luminous Bloom'], talentPopularity: '31.0%', maxKey: '+24' },

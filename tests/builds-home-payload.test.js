@@ -22,7 +22,7 @@ test('builds the specialization tab payload without legacy BD metrics', () => {
   )
   assert.equal(payload.featuredSpecializations.length, 0)
   assert.equal(payload.classOptions.length, 13)
-  assert.equal(payload.classOptions.flatMap((item) => item.specializations).length, 39)
+  assert.equal(payload.classOptions.flatMap((item) => item.specializations).length, 40)
   assert.equal(payload.specializations, undefined)
   assert.ok(
     Buffer.byteLength(JSON.stringify(payload), 'utf8') < 45000,
@@ -157,12 +157,18 @@ test('all intel specializations have real module data without local placeholders
   }
 })
 
-test('all 39 specializations expose structured source-backed data without placeholders', () => {
+test('all 40 specializations expose structured source-backed data without placeholders', () => {
   const payload = buildSpecializationHomePayload()
   const specializations = payload.classOptions.flatMap((item) => item.specializations)
   const placeholderPattern = /本地尚未写入|请以详情页来源字段|已完成检索的专精|装备列表按|属性模块需要|循环拆分为|暂无|待补充/
 
-  assert.equal(specializations.length, 39)
+  assert.equal(specializations.length, 40)
+
+  const devourer = specializations.find((item) => item.websimClassKey === 'demonhunter' && item.websimSpecKey === 'devourer')
+  assert.ok(devourer, 'builds home should expose Devourer Demon Hunter')
+  assert.equal(devourer.className, '恶魔猎手')
+  assert.equal(devourer.specName, '噬灭')
+  assert.equal(devourer.role, '近战输出')
 
   for (const specialization of specializations) {
     const detail = getSpecializationDetail(specialization.id)

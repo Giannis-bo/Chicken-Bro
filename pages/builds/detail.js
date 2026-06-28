@@ -113,6 +113,7 @@ const gearSpecLabels = {
   unholy: '邪恶',
   havoc: '浩劫',
   vengeance: '复仇',
+  devourer: '噬灭',
   balance: '平衡',
   feral: '野性',
   guardian: '守护',
@@ -181,7 +182,8 @@ const gearCommunitySourceLabels = {
   simc_preset: 'SimC 预设',
   observed_profile: 'Raider.IO 观测',
   raiderio_observed: 'Raider.IO 观测',
-  raiderio: 'Raider.IO 观测'
+  raiderio: 'Raider.IO 观测',
+  default_template: '默认模板'
 }
 const gearPrimaryStatLabels = {
   strength: '力量',

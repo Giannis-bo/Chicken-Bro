@@ -61,6 +61,7 @@ try:
         latest_stat_weight_run_payload,
     )
     from .websim_payload import (
+        COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
@@ -129,6 +130,7 @@ except ImportError:
         latest_stat_weight_run_payload,
     )
     from websim_payload import (
+        COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
@@ -2215,11 +2217,27 @@ def build_data_health_payload():
         components.append(template_simc_bridge_health_component(conn))
 
         community = community_talent_sync_state(conn)
+        community_sync_run = get_sync_state(conn, COMMUNITY_TEMPLATE_SYNC_RUN_KEY) or {}
+        community_gear = community_sync_run.get("gear") if isinstance(community_sync_run.get("gear"), dict) else {}
+        default_gear_templates = (
+            community_gear.get("defaultTemplates")
+            if isinstance(community_gear.get("defaultTemplates"), dict)
+            else {}
+        )
+        gear_templates = community_gear.get("templates") if isinstance(community_gear.get("templates"), dict) else {}
+        real_community_templates = (
+            community_gear.get("realCommunityTemplates")
+            if isinstance(community_gear.get("realCommunityTemplates"), dict)
+            else {}
+        )
+        community_status = community.get("sourceStatus")
+        if default_gear_templates.get("blockedSpecCount") and community_status in {"synced", "verified"}:
+            community_status = "partial"
         components.append(
             data_health_component(
                 "community_templates",
-                "Community talent templates",
-                community.get("sourceStatus"),
+                "Community talent and gear templates",
+                community_status,
                 checked_at=community.get("checkedAt") or "",
                 details={
                     "templates": community.get("templates") or {},
@@ -2229,12 +2247,20 @@ def build_data_health_payload():
                     "dedupedCount": community.get("dedupedCount") or 0,
                     "hiddenDuplicateCount": community.get("hiddenDuplicateCount") or 0,
                     "wclTemplateSource": (community.get("sources") or {}).get("warcraftlogs") or {},
+                    "gearTemplates": gear_templates,
+                    "realCommunityGearTemplates": real_community_templates,
+                    "defaultGearTemplates": default_gear_templates,
+                    "lastSyncRun": community_sync_run.get("scanRunId") or default_gear_templates.get("lastSyncRun") or "",
                 },
                 blockers=[
                     error
                     for source in (community.get("sources") or {}).values()
                     for error in (source.get("errors") or [])
-                ][:8],
+                ][:8] + [
+                    blocker.get("reason") or blocker.get("specId") or "default gear template blocked"
+                    for blocker in (default_gear_templates.get("blockers") or [])[:8]
+                    if isinstance(blocker, dict)
+                ],
             )
         )
 

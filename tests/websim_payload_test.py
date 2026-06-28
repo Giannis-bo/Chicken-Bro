@@ -209,6 +209,137 @@ class WebSimPayloadTest(unittest.TestCase):
             payload.update(extra)
         return payload
 
+    def seed_verified_stat_weight_cache(self, conn, class_key="mage", spec_key="frost"):
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS build_stat_weight_cache (
+                class_key TEXT NOT NULL,
+                spec_key TEXT NOT NULL,
+                scenario_key TEXT NOT NULL,
+                status TEXT NOT NULL,
+                value_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                stale_at TEXT NOT NULL,
+                PRIMARY KEY (class_key, spec_key, scenario_key)
+            )
+            """
+        )
+        payload = {
+            "schemaRevision": "build-stat-weights-v1",
+            "classKey": class_key,
+            "specKey": spec_key,
+            "scenarioKey": "mplus_mixed_route",
+            "sourceStatus": "verified",
+            "checkedAt": "2026-06-28T00:00:00+00:00",
+            "weights": [
+                {"key": "intellect", "name": "智力", "kind": "primary", "value": "2.40", "percent": 100},
+                {"key": "haste", "name": "急速", "kind": "secondary", "value": "1.30", "percent": 100},
+                {"key": "crit", "name": "暴击", "kind": "secondary", "value": "1.10", "percent": 85},
+                {"key": "mastery", "name": "精通", "kind": "secondary", "value": "0.90", "percent": 69},
+                {"key": "versatility", "name": "全能", "kind": "secondary", "value": "0.70", "percent": 54},
+            ],
+            "validation": {"sampleCount": 5, "simcSuccessCount": 2, "blockers": []},
+        }
+        conn.execute(
+            """
+            INSERT INTO build_stat_weight_cache
+            (class_key, spec_key, scenario_key, status, value_json, updated_at, expires_at, stale_at)
+            VALUES (?, ?, ?, 'verified', ?, '2026-06-28T00:00:00+00:00', '2026-06-29T00:00:00+00:00', '2026-07-02T00:00:00+00:00')
+            """,
+            (class_key, spec_key, "mplus_mixed_route", json.dumps(payload, ensure_ascii=False)),
+        )
+
+    def seed_verified_default_template_catalog(self, conn, class_key="mage", spec_key="frost"):
+        self.websim_payload.ensure_websim_tables(conn)
+        slot_inventory = {
+            "head": "HEAD",
+            "neck": "NECK",
+            "shoulder": "SHOULDER",
+            "back": "CLOAK",
+            "chest": "CHEST",
+            "wrist": "WRIST",
+            "hands": "HANDS",
+            "waist": "WAIST",
+            "legs": "LEGS",
+            "feet": "FEET",
+            "finger1": "FINGER",
+            "finger2": "FINGER",
+            "trinket1": "TRINKET",
+            "trinket2": "TRINKET",
+            "main_hand": "WEAPON",
+            "off_hand": "HOLDABLE",
+        }
+        for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1):
+            item_id = str(260000 + index)
+            item_class = {"id": 2, "name": "Weapon"} if slot == "main_hand" else {"id": 4, "name": "Armor"}
+            item_subclass = (
+                {"id": 15, "name": "Dagger"}
+                if slot == "main_hand"
+                else {"id": 0, "name": "Miscellaneous"} if slot == "off_hand" else {"id": 1, "name": "Cloth"}
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                item_id,
+                {
+                    "id": int(item_id),
+                    "name": f"默认模板 {slot}",
+                    "inventory_type": {"type": slot_inventory[slot], "name": slot_inventory[slot]},
+                    "item_class": item_class,
+                    "item_subclass": item_subclass,
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [
+                            {"type": {"type": "INTELLECT", "name": "智力"}, "value": 1000 + index},
+                            {"type": {"type": "HASTE_RATING", "name": "急速"}, "value": 300 + index},
+                        ]
+                    },
+                },
+                fallback_slot=slot,
+                fallback_name=f"Default Template {slot}",
+                english_payload={"name": f"Default Template {slot}", "inventory_type": {"name": slot_inventory[slot]}},
+                locale="zh_CN",
+            )
+            self.websim_payload.upsert_gear_source(
+                conn,
+                {
+                    "id": f"default-source-{slot}",
+                    "itemId": item_id,
+                    "sourceType": "dungeon",
+                    "sourceLabel": f"默认模板测试来源 {slot}",
+                    "instanceId": "558",
+                    "difficultyKey": "mythic",
+                    "seasonRevision": "season-test",
+                    "payload": {"classKeys": [class_key], "specKeys": [spec_key]},
+                },
+            )
+            self.websim_payload.upsert_gear_variant(
+                conn,
+                {
+                    "id": f"default-variant-{slot}",
+                    "itemId": item_id,
+                    "slot": slot,
+                    "variantKey": "mythic-707",
+                    "label": "Mythic 707",
+                    "sourceType": "dungeon",
+                    "difficultyKey": "mythic",
+                    "itemLevel": 707,
+                    "simcOptions": {"bonus_id": f"18{index:03d}"},
+                    "status": "verified",
+                    "payload": {
+                        "classKeys": [class_key],
+                        "specKeys": [spec_key],
+                        "statDisplayStatus": "verified_variant",
+                        "statSource": "simulationcraft",
+                        "itemStats": [
+                            {"key": "intellect", "label": "智力", "value": 1000 + index},
+                            {"key": "haste_rating", "label": "急速", "value": 300 + index},
+                        ],
+                        "statSummary": f"智力 {1000 + index}；急速 {300 + index}",
+                    },
+                },
+            )
+
     def post_backend_json(self, path, payload):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -3620,6 +3751,52 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual([item["slot"] for item in template["gearItems"]], ["head"])
         self.assertIn("head=", template["rawString"])
         self.assertNotIn("display_only_neck", template["rawString"])
+
+    def test_community_gear_sync_creates_default_template_from_verified_evidence(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_verified_stat_weight_cache(conn, "mage", "frost")
+            self.seed_verified_default_template_catalog(conn, "mage", "frost")
+            expected_classes = [{"key": "mage", "label": "Mage", "specs": ["frost"]}]
+            with patch.object(self.websim_payload, "WOW_CLASSES", expected_classes):
+                result = self.websim_payload.sync_community_gear_templates(conn, scan_run_id="test-default-template")
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        self.assertEqual(result["defaultTemplates"]["coveredSpecCount"], 1)
+        self.assertEqual(result["defaultTemplates"]["missingSpecCount"], 0)
+        self.assertEqual(result["defaultTemplates"]["blockedSpecCount"], 0)
+        template = next(item for item in payload["communityTemplates"] if item["sourceKey"] == "default_template")
+        self.assertEqual(template["sourceName"], "默认模板")
+        self.assertEqual(template["status"], "complete")
+        self.assertEqual(template["readySlotCount"], 16)
+        self.assertEqual(template["missingSlots"], [])
+        self.assertEqual(template["scenarioKey"], "mplus_mixed_route")
+        self.assertEqual(template["enhancementReadiness"]["status"], "partial")
+        self.assertIn("trinket effects are not optimized", template["templateEvidence"]["warnings"])
+        self.assertEqual(template["templateEvidence"]["statWeightRevision"], "build-stat-weights-v1")
+        self.assertTrue(all(item["simcReady"] for item in template["gearItems"]))
+
+    def test_community_gear_sync_reports_missing_default_template_evidence(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            expected_classes = [{"key": "mage", "label": "Mage", "specs": ["frost"]}]
+            with patch.object(self.websim_payload, "WOW_CLASSES", expected_classes):
+                result = self.websim_payload.sync_community_gear_templates(conn, scan_run_id="test-missing-default-template")
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        self.assertEqual(result["defaultTemplates"]["coveredSpecCount"], 0)
+        self.assertEqual(result["defaultTemplates"]["missingSpecCount"], 1)
+        self.assertEqual(result["defaultTemplates"]["blockedSpecCount"], 1)
+        self.assertEqual(result["defaultTemplates"]["missingSpecs"], ["mage:frost"])
+        self.assertTrue(any("stat weight" in item["reason"] for item in result["defaultTemplates"]["blockers"]))
+        self.assertFalse(any(item.get("sourceKey") == "default_template" for item in payload["communityTemplates"]))
 
     def test_websim_gear_payload_exposes_catalog_sources_variants_and_mods(self):
         conn = sqlite3.connect(self.db_path)
@@ -14825,6 +15002,14 @@ class WebSimPayloadTest(unittest.TestCase):
             response["profile"],
         )
         self.assertNotIn("hands=item_249971", response["profile"])
+
+    def test_classes_payload_labels_devourer_demon_hunter_as_xiemie(self):
+        demonhunter = next(item for item in self.websim_payload.classes_payload() if item["key"] == "demonhunter")
+        devourer = next(spec for spec in demonhunter["specs"] if spec["key"] == "devourer")
+
+        self.assertEqual(devourer["label"], "噬灭")
+        self.assertEqual(devourer["labelEn"], "Devourer")
+        self.assertEqual([hero["key"] for hero in devourer["heroTrees"]], ["annihilator", "void_scarred"])
 
     def test_websim_talent_encoding_rejects_invalid_or_fallback_nodes(self):
         conn = sqlite3.connect(self.db_path)

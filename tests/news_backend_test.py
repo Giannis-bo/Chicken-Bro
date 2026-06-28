@@ -33,6 +33,7 @@ SIMC_AGENT_SPEC_CASES = [
     ("死亡骑士", "邪恶", "deathknight", "unholy"),
     ("恶魔猎手", "浩劫", "demonhunter", "havoc"),
     ("恶魔猎手", "复仇", "demonhunter", "vengeance"),
+    ("恶魔猎手", "噬灭", "demonhunter", "devourer"),
     ("德鲁伊", "平衡", "druid", "balance"),
     ("德鲁伊", "野性", "druid", "feral"),
     ("德鲁伊", "守护", "druid", "guardian"),
@@ -3416,7 +3417,7 @@ class NewsBackendTest(unittest.TestCase):
             "error": "",
         }
         try:
-            self.assertEqual(len(SIMC_AGENT_SPEC_CASES), 39)
+            self.assertEqual(len(SIMC_AGENT_SPEC_CASES), 40)
             for class_label, spec_label, class_key, spec_key in SIMC_AGENT_SPEC_CASES:
                 with self.subTest(spec=f"{spec_label}{class_label}"):
                     analysis = self.backend.analyze_simulator_request(
@@ -3458,7 +3459,7 @@ class NewsBackendTest(unittest.TestCase):
         expected_keys = {f"{class_key}-{spec_key}" for _, _, class_key, spec_key in SIMC_AGENT_SPEC_CASES}
 
         self.assertEqual(set(simulator_payload.MYTHIC_PLUS_DPS_REFERENCES), expected_keys)
-        self.assertEqual(len(simulator_payload.MYTHIC_PLUS_DPS_REFERENCES), 39)
+        self.assertEqual(len(simulator_payload.MYTHIC_PLUS_DPS_REFERENCES), 40)
         for spec_key, reference in simulator_payload.MYTHIC_PLUS_DPS_REFERENCES.items():
             with self.subTest(spec=spec_key):
                 self.assertNotIn("待实时刷新", json.dumps(reference, ensure_ascii=False))
@@ -5028,6 +5029,57 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(component["details"]["dedupedCount"], 72)
         self.assertEqual(component["details"]["hiddenDuplicateCount"], 18)
         self.assertEqual(component["details"]["wclTemplateSource"]["status"], "missing_credentials")
+
+    def test_data_health_payload_includes_default_gear_template_coverage(self):
+        import server.websim_payload as websim_payload
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            websim_payload.ensure_websim_tables(conn)
+            websim_payload.set_sync_state(
+                conn,
+                websim_payload.COMMUNITY_TALENT_SYNC_KEY,
+                {
+                    "sourceStatus": "partial",
+                    "templateRevision": "community-template-v1-test",
+                    "scanCoverage": {"totalSpecCount": 40, "coveredSpecCount": 40, "missingSpecs": []},
+                    "dedupedCount": 72,
+                    "hiddenDuplicateCount": 0,
+                    "sources": {},
+                    "templates": {"total": 80, "verified": 80, "blocked": 0},
+                    "checkedAt": "2026-06-28T08:00:00+00:00",
+                },
+            )
+            websim_payload.set_sync_state(
+                conn,
+                websim_payload.COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
+                {
+                    "scanRunId": "community-template-health-test",
+                    "sourceStatus": "partial",
+                    "gear": {
+                        "defaultTemplates": {
+                            "coveredSpecCount": 39,
+                            "missingSpecCount": 1,
+                            "blockedSpecCount": 1,
+                            "missingSpecs": ["demonhunter:devourer"],
+                            "blockers": [
+                                {
+                                    "classKey": "demonhunter",
+                                    "specKey": "devourer",
+                                    "reason": "missing verified stat weight cache",
+                                }
+                            ],
+                        }
+                    },
+                },
+            )
+            conn.commit()
+
+        payload = self.backend.build_data_health_payload()
+        component = {item["key"]: item for item in payload["components"]}["community_templates"]
+
+        self.assertEqual(component["details"]["defaultGearTemplates"]["coveredSpecCount"], 39)
+        self.assertEqual(component["details"]["defaultGearTemplates"]["missingSpecs"], ["demonhunter:devourer"])
+        self.assertEqual(component["details"]["defaultGearTemplates"]["blockers"][0]["reason"], "missing verified stat weight cache")
 
     def test_data_health_websim_sync_uses_ok_state_without_legacy_counts(self):
         import server.websim_payload as websim_payload

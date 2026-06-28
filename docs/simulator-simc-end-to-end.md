@@ -42,7 +42,7 @@ Agent behavior:
 - Natural-language-only requests identify intent, infer class/spec/item level/scenario when possible, and ask for the smallest missing playable slot.
 - Clarification is no longer hard-capped at three rounds. The agent keeps asking for the smallest missing playable slot until it can produce a validated SimC template.
 - Off-topic requests such as代打、卡 bug、外挂、无关代码或剧情问题 return `agent.status=off_topic` and refocus the player on SimC simulation.
-- When the request includes a known class/spec, the backend can generate a minimal executable SimC template for all 13 classes and 39 specializations without per-spec special-case logic.
+- When the request includes a known class/spec, the backend can generate a minimal executable SimC template for all 13 classes and 40 specializations, including `demonhunter/devourer` (`噬灭`), without per-spec special-case logic.
 - A fenced `/simc` export is converted into an executable template by appending controlled backend defaults such as `iterations`, `fight_style`, `desired_targets`, `max_time`, and scale-factor settings when the player asks for stat weights.
 - Mythic+ multi-target scenarios attach a WoW.gg Midnight Week 12 reference before the final report. DPS and tank specs use Avg DPS / Max DPS / Max Key; healer specs also include Avg HPS / Max HPS so the report does not judge healers by DPS alone.
 - Codex Worker is skipped until a validated executable template exists. The main path remains deterministic validation, server-side SimC execution, and optional LLM interpretation.

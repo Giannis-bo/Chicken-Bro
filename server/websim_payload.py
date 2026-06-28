@@ -243,6 +243,11 @@ COMMUNITY_TALENT_SYNC_KEY = "community_talent_templates"
 COMMUNITY_TALENT_TEMPLATE_LIMIT_PER_SPEC = 3
 COMMUNITY_TEMPLATE_SYNC_RUN_KEY = "community_template_sync_latest"
 COMMUNITY_TEMPLATE_REVISION = "community-template-v1"
+DEFAULT_GEAR_TEMPLATE_SOURCE_KEY = "default_template"
+DEFAULT_GEAR_TEMPLATE_SOURCE_NAME = "默认模板"
+DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY = "mplus_mixed_route"
+DEFAULT_GEAR_TEMPLATE_ILEVEL_GUARDRAIL = 6
+DEFAULT_GEAR_TEMPLATE_TRINKET_WARNING = "trinket effects are not optimized"
 TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
 TALENT_CATALOG_REVISION = "websim-talent-catalog-v1"
 GEAR_SCHEMA_REVISION = "websim-gear-simulator-v1"
@@ -391,6 +396,7 @@ SPEC_LABELS_ZH = {
     "unholy": "邪恶",
     "havoc": "浩劫",
     "vengeance": "复仇",
+    "devourer": "噬灭",
     "balance": "平衡",
     "feral": "野性",
     "guardian": "守护",
@@ -16388,6 +16394,7 @@ def gear_template_sort_key(template):
     return (
         1 if template.get("status") == "complete" else 0,
         1 if template.get("sourceStatus") in {"synced", "verified"} else 0,
+        0 if template.get("sourceKey") == DEFAULT_GEAR_TEMPLATE_SOURCE_KEY else 1,
         int(template.get("readySlotCount") or 0),
         str(template.get("updatedAt") or ""),
         str(template.get("name") or ""),
@@ -16404,6 +16411,393 @@ def dedupe_gear_community_templates(templates):
         template["sourceRefs"] = normalize_source_refs(template.get("sourceRefs") or [gear_template_source_ref(template)])
         prepared.append(template)
     return dedupe_templates_by_signature(prepared, gear_template_signature, gear_template_sort_key)
+
+
+def sqlite_table_exists(conn, table_name):
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        (str(table_name or ""),),
+    ).fetchone()
+    return bool(row)
+
+
+def default_template_float_value(value):
+    if value in ("", None):
+        return None
+    try:
+        return float(str(value).strip().replace("%", ""))
+    except (TypeError, ValueError):
+        return None
+
+
+DEFAULT_TEMPLATE_STAT_ALIASES = {
+    "critical_strike": "crit",
+    "criticalstrike": "crit",
+    "crit_rating": "crit",
+    "critical_strike_rating": "crit",
+    "haste_rating": "haste",
+    "mastery_rating": "mastery",
+    "vers": "versatility",
+    "versatility_rating": "versatility",
+}
+
+
+def default_template_stat_key(value):
+    key = re.sub(r"[^a-z0-9_]+", "_", str(value or "").strip().lower()).strip("_")
+    return DEFAULT_TEMPLATE_STAT_ALIASES.get(key, key)
+
+
+def default_template_secondary_weight_scores(payload):
+    weights = {}
+    for row in (payload or {}).get("weights") or []:
+        if not isinstance(row, dict):
+            continue
+        key = default_template_stat_key(row.get("key") or row.get("statKey") or row.get("name"))
+        if key not in {"crit", "haste", "mastery", "versatility"}:
+            continue
+        score = default_template_float_value(row.get("percent"))
+        if score is None:
+            score = default_template_float_value(row.get("value") or row.get("score"))
+        if score is None:
+            continue
+        weights[key] = score
+    return weights
+
+
+def read_default_template_stat_weight(conn, class_key, spec_key, scenario_key=DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY):
+    if not sqlite_table_exists(conn, "build_stat_weight_cache"):
+        return None, {}, ["missing verified stat weight cache"]
+    row = conn.execute(
+        """
+        SELECT value_json, status, updated_at, expires_at, stale_at
+        FROM build_stat_weight_cache
+        WHERE class_key = ? AND spec_key = ? AND scenario_key = ?
+        """,
+        (class_key, spec_key, scenario_key),
+    ).fetchone()
+    if not row:
+        return None, {}, ["missing verified stat weight cache"]
+    payload = safe_json_loads(row[0], {})
+    payload = payload if isinstance(payload, dict) else {}
+    payload.setdefault("sourceStatus", row[1])
+    payload.setdefault("updatedAt", row[2])
+    payload.setdefault("expiresAt", row[3])
+    payload.setdefault("staleAt", row[4])
+    status = str(payload.get("sourceStatus") or payload.get("status") or row[1] or "").strip().lower()
+    if status != "verified":
+        return payload, {}, [f"stat weight cache is not verified: {status or 'unknown'}"]
+    weights = default_template_secondary_weight_scores(payload)
+    missing = [key for key in ("crit", "haste", "mastery", "versatility") if key not in weights]
+    if missing:
+        return payload, weights, [f"stat weight cache missing secondary weights: {', '.join(missing)}"]
+    return payload, weights, []
+
+
+def default_template_item_stat_score(item, weights):
+    score = 0.0
+    for stat in (item or {}).get("itemStats") or (item or {}).get("stats") or []:
+        if not isinstance(stat, dict):
+            continue
+        key = default_template_stat_key(stat.get("key") or stat.get("statKey") or stat.get("name") or stat.get("label"))
+        if key not in weights:
+            continue
+        value = simc_numeric_stat_value(stat.get("value"))
+        if value is None:
+            value = positive_int_value(stat.get("value"))
+        score += float(value or 0) * float(weights.get(key) or 0)
+    return score
+
+
+def default_template_source_reference_blocked(item):
+    if not isinstance(item, dict):
+        return True
+    records = [item]
+    for key in ("sources", "sourceRefs", "variants"):
+        records.extend(row for row in item.get(key) or [] if isinstance(row, dict))
+    for record in records:
+        status = normalized_source_validation_status(record)
+        if status in {"source_reference", "source_discrepancy"}:
+            return True
+        raw_status = str(record.get("status") or record.get("sourceStatus") or record.get("variantStatus") or "").strip().lower()
+        if raw_status in {"source_reference", "source-reference"}:
+            return True
+    return False
+
+
+def default_template_candidate_allowed(item):
+    if not isinstance(item, dict):
+        return False
+    if not item.get("simcReady") or gear_candidate_incompatible(item):
+        return False
+    if not gear_candidate_visible_for_replacement(item):
+        return False
+    if default_template_source_reference_blocked(item):
+        return False
+    source_types = gear_candidate_source_types(item)
+    if not (source_types & OFFICIAL_REPLACEMENT_SOURCE_TYPES):
+        return False
+    status = str(item.get("variantStatus") or "").strip().lower()
+    if status != "verified":
+        return False
+    if not gear_candidate_has_verified_stats(item):
+        return False
+    return True
+
+
+def default_template_source_quality_score(item):
+    source_types = gear_candidate_source_types(item)
+    if source_types & {"raid", "tier_set"}:
+        return 4
+    if source_types & {"dungeon", "mythic_plus", "mythicplus"}:
+        return 3
+    return 1
+
+
+def default_template_candidate_score(item, slot, weights):
+    item_level = positive_int_value(item.get("ilevel") or item.get("itemLevel"))
+    guardrail_bucket = item_level // DEFAULT_GEAR_TEMPLATE_ILEVEL_GUARDRAIL
+    base = (
+        guardrail_bucket,
+        item_level if slot in {"trinket1", "trinket2"} else default_template_item_stat_score(item, weights),
+        default_template_source_quality_score(item),
+        gear_candidate_quality_score(item),
+    )
+    return base
+
+
+def default_template_unique_key(item):
+    if not isinstance(item, dict):
+        return ""
+    if unique_equipped_bool(item.get("uniqueEquipped") or item.get("unique_equipped")):
+        return str(item.get("uniqueGroup") or item.get("uniqueEquippedCategory") or item.get("itemId") or item.get("id") or "").strip()
+    return ""
+
+
+def default_template_unique_limit(item):
+    limit = positive_int_value((item or {}).get("uniqueLimit") or (item or {}).get("unique_limit"))
+    return limit or 1
+
+
+def default_template_candidate_unique_allowed(item, unique_counts):
+    key = default_template_unique_key(item)
+    if not key:
+        return True
+    return int(unique_counts.get(key) or 0) < default_template_unique_limit(item)
+
+
+def select_default_template_candidate(slot, candidates, weights, selected_item_ids, unique_counts):
+    ordered = sorted(
+        [item for item in candidates or [] if default_template_candidate_allowed(item)],
+        key=lambda item: default_template_candidate_score(item, slot, weights),
+        reverse=True,
+    )
+    for allow_duplicate in (False, True):
+        for item in ordered:
+            item_id = str(item.get("itemId") or item.get("id") or "").strip()
+            if not allow_duplicate and item_id and item_id in selected_item_ids:
+                continue
+            if not default_template_candidate_unique_allowed(item, unique_counts):
+                continue
+            return item
+    return None
+
+
+def default_template_blocker(class_key, spec_key, reason, *, missing_slots=None):
+    class_label = CLASS_LABELS_ZH.get(class_key, class_key)
+    spec_label = SPEC_LABELS_ZH.get(spec_key, SPEC_LABELS.get(spec_key, spec_key))
+    return {
+        "classKey": class_key,
+        "specKey": spec_key,
+        "specId": f"{class_key}:{spec_key}",
+        "className": class_label,
+        "specName": spec_label,
+        "reason": str(reason or "default template evidence missing"),
+        "missingSlots": list(missing_slots or []),
+        "path": "sync community templates -> default gear template builder",
+    }
+
+
+def default_template_top_blockers(blockers):
+    grouped = {}
+    for blocker in blockers or []:
+        if not isinstance(blocker, dict):
+            continue
+        reason = str(blocker.get("reason") or "unknown").strip()
+        entry = grouped.setdefault(reason, {"reason": reason, "count": 0, "specs": []})
+        entry["count"] += 1
+        spec_id = blocker.get("specId") or f"{blocker.get('classKey')}:{blocker.get('specKey')}"
+        if spec_id and spec_id not in entry["specs"]:
+            entry["specs"].append(spec_id)
+    return sorted(grouped.values(), key=lambda item: (-item["count"], item["reason"]))[:8]
+
+
+def default_gear_template_coverage_payload(total_specs, covered_specs, blockers, scan_run_id=""):
+    blockers = [item for item in blockers or [] if isinstance(item, dict)]
+    missing_specs = [item.get("specId") for item in blockers if item.get("specId")]
+    return {
+        "sourceKey": DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+        "sourceName": DEFAULT_GEAR_TEMPLATE_SOURCE_NAME,
+        "templateRevision": COMMUNITY_TEMPLATE_REVISION,
+        "scenarioKey": DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY,
+        "totalSpecCount": int(total_specs or 0),
+        "coveredSpecCount": len(covered_specs or []),
+        "missingSpecCount": len(missing_specs),
+        "blockedSpecCount": len(blockers),
+        "coveredSpecs": list(covered_specs or []),
+        "missingSpecs": missing_specs,
+        "blockedSpecs": missing_specs,
+        "blockers": blockers[:80],
+        "topBlockers": default_template_top_blockers(blockers),
+        "lastSyncRun": scan_run_id,
+        "checkedAt": utc_now(),
+    }
+
+
+def default_template_non_dps_warning(class_key, spec_key):
+    if (
+        (class_key, spec_key)
+        in {
+            ("deathknight", "blood"),
+            ("demonhunter", "vengeance"),
+            ("druid", "guardian"),
+            ("monk", "brewmaster"),
+            ("paladin", "protection"),
+            ("warrior", "protection"),
+            ("druid", "restoration"),
+            ("evoker", "preservation"),
+            ("monk", "mistweaver"),
+            ("paladin", "holy"),
+            ("priest", "discipline"),
+            ("priest", "holy"),
+            ("shaman", "restoration"),
+            ("evoker", "augmentation"),
+        }
+    ):
+        return "non-pure DPS specs use M+ mixed-route secondary weights; not a survivability, healing, or group-benefit optimum"
+    return ""
+
+
+def build_default_community_gear_template(conn, class_key, spec_key, catalog_items=None, season=None):
+    stat_weight, weights, stat_blockers = read_default_template_stat_weight(conn, class_key, spec_key)
+    if stat_blockers:
+        return None, [default_template_blocker(class_key, spec_key, stat_blockers[0])]
+
+    season = season or get_active_season_payload(conn)
+    catalog_items = catalog_items if catalog_items is not None else get_websim_gear_catalog_items(conn, class_key, spec_key, season)
+    prepared_items = apply_spec_primary_stat_display_to_items(
+        [sanitize_gear_candidate_mod_options(item) for item in catalog_items or []],
+        class_key,
+        spec_key,
+    )
+    grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
+    for item in prepared_items:
+        if not isinstance(item, dict) or gear_candidate_incompatible(item):
+            continue
+        for candidate_slot in gear_candidate_slots(item, item.get("classKey") or class_key, item.get("specKey") or spec_key):
+            if candidate_slot in grouped:
+                grouped[candidate_slot].append(gear_candidate_for_slot(item, candidate_slot))
+
+    selected = []
+    selected_item_ids = set()
+    unique_counts = {}
+    missing_slots = []
+    for slot in CANONICAL_GEAR_SLOTS:
+        candidate = select_default_template_candidate(slot, unique_gear_candidates(grouped.get(slot, [])), weights, selected_item_ids, unique_counts)
+        if not candidate:
+            missing_slots.append(slot)
+            continue
+        item_id = str(candidate.get("itemId") or candidate.get("id") or "").strip()
+        if item_id:
+            selected_item_ids.add(item_id)
+        unique_key = default_template_unique_key(candidate)
+        if unique_key:
+            unique_counts[unique_key] = int(unique_counts.get(unique_key) or 0) + 1
+        selected.append(candidate)
+
+    if missing_slots:
+        reason = f"missing verified current-season SimC-ready candidates for slots: {', '.join(missing_slots)}"
+        return None, [default_template_blocker(class_key, spec_key, reason, missing_slots=missing_slots)]
+
+    enhanced_items, enhancement_readiness = merge_websim_gear_enhancements(selected, {}, conn, class_key, spec_key)
+    enhancement_readiness = dict(enhancement_readiness or {})
+    enhancement_readiness["status"] = "blocked" if enhancement_readiness.get("blockers") else "partial"
+    enhancement_readiness["scope"] = "optional_enhancements"
+    ready_by_slot = gear_items_by_slot(enhanced_items, class_key, spec_key)
+    enhanced_items = [ready_by_slot[slot] for slot in CANONICAL_GEAR_SLOTS if slot in ready_by_slot]
+    missing_after_enhancement = [slot for slot in CANONICAL_GEAR_SLOTS if slot not in ready_by_slot]
+    if missing_after_enhancement:
+        reason = f"serializer precheck removed slots after enhancement merge: {', '.join(missing_after_enhancement)}"
+        return None, [default_template_blocker(class_key, spec_key, reason, missing_slots=missing_after_enhancement)]
+    if enhancement_readiness.get("blockers"):
+        return None, [
+            default_template_blocker(
+                class_key,
+                spec_key,
+                f"enhancement/weapon readiness blocked default template: {enhancement_readiness['blockers'][0]}",
+            )
+        ]
+    raw_lines = build_websim_gear_lines(enhanced_items)
+    if len(raw_lines) != len(CANONICAL_GEAR_SLOTS):
+        missing_line_slots = [
+            slot
+            for slot, item in ready_by_slot.items()
+            if slot in CANONICAL_GEAR_SLOTS and not item.get("simcReady")
+        ]
+        reason = "serializer failed to produce 16 SimC-ready gear lines"
+        return None, [default_template_blocker(class_key, spec_key, reason, missing_slots=missing_line_slots)]
+
+    warnings = [DEFAULT_GEAR_TEMPLATE_TRINKET_WARNING]
+    non_dps_warning = default_template_non_dps_warning(class_key, spec_key)
+    if non_dps_warning:
+        warnings.append(non_dps_warning)
+    catalog_state = gear_catalog_sync_state(conn)
+    evidence = {
+        "sourceKey": DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+        "sourceName": DEFAULT_GEAR_TEMPLATE_SOURCE_NAME,
+        "scenarioKey": DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY,
+        "statWeightRevision": stat_weight.get("schemaRevision") or "",
+        "statWeightStatus": stat_weight.get("sourceStatus") or stat_weight.get("status") or "",
+        "statWeightCheckedAt": stat_weight.get("checkedAt") or stat_weight.get("updatedAt") or "",
+        "gearCatalogRevision": catalog_state.get("schemaRevision") or GEAR_CATALOG_REVISION,
+        "gearCatalogStatus": catalog_state.get("status") or "",
+        "selectionPolicy": "verified current-season SimC-ready candidates; item-level guardrail plus secondary stat weights",
+        "warnings": warnings,
+    }
+    payload = {
+        "scenarioKey": DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY,
+        "enhancementReadiness": enhancement_readiness,
+        "templateEvidence": evidence,
+    }
+    class_label = CLASS_LABELS_ZH.get(class_key, class_key)
+    spec_label = SPEC_LABELS_ZH.get(spec_key, SPEC_LABELS.get(spec_key, spec_key))
+    template = {
+        "id": f"default-template-{class_key}-{spec_key}-{DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY}",
+        "name": f"{DEFAULT_GEAR_TEMPLATE_SOURCE_NAME} · {class_label}{spec_label}",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "classLabel": class_label,
+        "specLabel": spec_label,
+        "sourceKey": DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+        "sourceName": DEFAULT_GEAR_TEMPLATE_SOURCE_NAME,
+        "sourceUrl": "",
+        "sourceStatus": "verified",
+        "status": "complete",
+        "updatedAt": utc_now(),
+        "analysisWindow": "默认模板由 verified 当前赛季装备候选和 M+ mixed-route 绿字权重生成；不代表真实社区样本或 BiS。",
+        "gearItems": enhanced_items,
+        "rawString": "\n".join(raw_lines),
+        "readySlotCount": len(enhanced_items),
+        "missingSlots": [],
+        "canApplyGear": True,
+        "scenarioKey": DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY,
+        "enhancementReadiness": enhancement_readiness,
+        "templateEvidence": evidence,
+        "payload": payload,
+    }
+    template["signature"] = gear_template_signature(template)
+    template["sourceRefs"] = normalize_source_refs([gear_template_source_ref(template)])
+    template["templateRevision"] = COMMUNITY_TEMPLATE_REVISION
+    return template, []
 
 
 def gear_community_template_from_preset(preset, class_key, spec_key):
@@ -16571,6 +16965,7 @@ def websim_gear_community_template_sync_state(templates):
         source_status = "synced"
     simc_templates = [item for item in templates if item.get("sourceName") == "SimC preset"]
     observed_templates = [item for item in templates if item.get("sourceName") == "Raider.IO observed gear"]
+    default_templates = [item for item in templates if item.get("sourceKey") == DEFAULT_GEAR_TEMPLATE_SOURCE_KEY]
     sources = {}
     if simc_templates:
         sources["simc_presets"] = {
@@ -16582,6 +16977,12 @@ def websim_gear_community_template_sync_state(templates):
         sources["observed_profile"] = {
             "status": "partial" if any(item.get("status") == "partial" for item in observed_templates) else "synced",
             "sourceName": "Raider.IO observed gear",
+            "errors": [],
+        }
+    if default_templates:
+        sources[DEFAULT_GEAR_TEMPLATE_SOURCE_KEY] = {
+            "status": "partial" if any(item.get("status") == "partial" for item in default_templates) else "verified",
+            "sourceName": DEFAULT_GEAR_TEMPLATE_SOURCE_NAME,
             "errors": [],
         }
     if not sources:
@@ -16611,6 +17012,20 @@ def normalize_community_gear_template(template, class_key="", spec_key=""):
     source = template if isinstance(template, dict) else {}
     class_key = slugify(source.get("classKey") or class_key, "mage")
     spec_key = slugify(source.get("specKey") or spec_key, "arcane")
+    payload = source.get("payload") if isinstance(source.get("payload"), dict) else {}
+    scenario_key = str(source.get("scenarioKey") or payload.get("scenarioKey") or "").strip()
+    enhancement_readiness = source.get("enhancementReadiness") if isinstance(source.get("enhancementReadiness"), dict) else payload.get("enhancementReadiness")
+    enhancement_readiness = enhancement_readiness if isinstance(enhancement_readiness, dict) else {}
+    template_evidence = source.get("templateEvidence") if isinstance(source.get("templateEvidence"), dict) else payload.get("templateEvidence")
+    template_evidence = template_evidence if isinstance(template_evidence, dict) else {}
+    if scenario_key or enhancement_readiness or template_evidence:
+        payload = dict(payload)
+        if scenario_key:
+            payload["scenarioKey"] = scenario_key
+        if enhancement_readiness:
+            payload["enhancementReadiness"] = enhancement_readiness
+        if template_evidence:
+            payload["templateEvidence"] = template_evidence
     gear_items = normalize_websim_gear_items(source.get("gearItems") or [], class_key, spec_key)
     if not gear_items and source.get("rawString"):
         gear_items = [
@@ -16647,9 +17062,15 @@ def normalize_community_gear_template(template, class_key="", spec_key=""):
         "readySlotCount": len(gear_items),
         "missingSlots": missing_slots,
         "canApplyGear": bool(gear_items),
-        "payload": source.get("payload") if isinstance(source.get("payload"), dict) else {},
+        "payload": payload,
         "scanRunId": str(source.get("scanRunId") or source.get("scan_run_id") or "").strip(),
     }
+    if scenario_key:
+        normalized["scenarioKey"] = scenario_key
+    if enhancement_readiness:
+        normalized["enhancementReadiness"] = enhancement_readiness
+    if template_evidence:
+        normalized["templateEvidence"] = template_evidence
     normalized["signature"] = str(source.get("signature") or gear_template_signature(normalized)).strip()
     normalized["sourceRefs"] = normalize_source_refs(source.get("sourceRefs") or [gear_template_source_ref(normalized)])
     normalized["templateRevision"] = COMMUNITY_TEMPLATE_REVISION
@@ -16731,6 +17152,7 @@ def get_persisted_community_gear_templates(conn, class_key, spec_key):
     ).fetchall()
     templates = []
     for row in rows:
+        payload = safe_json_loads(row[16], {}) or {}
         templates.append({
             "id": row[0],
             "classKey": row[1],
@@ -16748,7 +17170,10 @@ def get_persisted_community_gear_templates(conn, class_key, spec_key):
             "readySlotCount": int(row[13] or 0),
             "missingSlots": safe_json_loads(row[14], []) or [],
             "analysisWindow": row[15],
-            "payload": safe_json_loads(row[16], {}) or {},
+            "payload": payload,
+            "scenarioKey": payload.get("scenarioKey") or "",
+            "enhancementReadiness": payload.get("enhancementReadiness") if isinstance(payload.get("enhancementReadiness"), dict) else {},
+            "templateEvidence": payload.get("templateEvidence") if isinstance(payload.get("templateEvidence"), dict) else {},
             "updatedAt": row[17],
             "expiresAt": row[18],
             "scanRunId": row[19],
@@ -16764,10 +17189,17 @@ def sync_community_gear_templates(conn, scan_run_id=""):
     complete = 0
     partial = 0
     blocked = 0
+    total_specs = 0
+    real_covered_specs = []
+    real_missing_specs = []
+    default_covered_specs = []
+    default_blockers = []
     signatures = set()
+    season = get_active_season_payload(conn)
     for klass in WOW_CLASSES:
         class_key = klass["key"]
         for spec in klass.get("specs") or []:
+            total_specs += 1
             spec_key = spec.get("key") if isinstance(spec, dict) else spec
             rows = conn.execute(
                 """
@@ -16792,7 +17224,7 @@ def sync_community_gear_templates(conn, scan_run_id=""):
                 for row in rows
             ]
             templates = websim_gear_community_templates(presets, class_key, spec_key)
-            catalog_items = get_websim_gear_catalog_items(conn, class_key, spec_key)
+            catalog_items = get_websim_gear_catalog_items(conn, class_key, spec_key, season)
             observed_template = gear_community_template_from_observed_items(
                 observed_profile_baseline_items(catalog_items, class_key, spec_key),
                 class_key,
@@ -16800,6 +17232,23 @@ def sync_community_gear_templates(conn, scan_run_id=""):
             )
             if observed_template:
                 templates.append(observed_template)
+            real_templates = dedupe_gear_community_templates(templates)
+            if real_templates:
+                real_covered_specs.append(f"{class_key}:{spec_key}")
+            else:
+                real_missing_specs.append(f"{class_key}:{spec_key}")
+            default_template, template_blockers = build_default_community_gear_template(
+                conn,
+                class_key,
+                spec_key,
+                catalog_items=catalog_items,
+                season=season,
+            )
+            if default_template:
+                templates.append(default_template)
+                default_covered_specs.append(f"{class_key}:{spec_key}")
+            else:
+                default_blockers.extend(template_blockers)
             for template in dedupe_gear_community_templates(templates):
                 template["scanRunId"] = scan_run_id
                 saved = upsert_community_gear_template(conn, template)
@@ -16822,7 +17271,16 @@ def sync_community_gear_templates(conn, scan_run_id=""):
     ).fetchall()
     for _, count in rows:
         hidden += max(0, int(count or 0) - 1)
-    source_status = "synced" if complete and not partial else ("partial" if total else "blocked")
+    default_templates = default_gear_template_coverage_payload(
+        total_specs,
+        default_covered_specs,
+        default_blockers,
+        scan_run_id=scan_run_id,
+    )
+    if default_templates["blockedSpecCount"]:
+        source_status = "partial" if total else "blocked"
+    else:
+        source_status = "synced" if complete and not partial else ("partial" if total else "blocked")
     return {
         "sourceStatus": source_status,
         "templateRevision": community_template_revision_from_signatures(signatures),
@@ -16832,6 +17290,18 @@ def sync_community_gear_templates(conn, scan_run_id=""):
             "partial": partial,
             "blocked": blocked,
         },
+        "realCommunityTemplates": {
+            "templateRevision": COMMUNITY_TEMPLATE_REVISION,
+            "totalSpecCount": total_specs,
+            "coveredSpecCount": len(real_covered_specs),
+            "missingSpecCount": len(real_missing_specs),
+            "blockedSpecCount": 0,
+            "coveredSpecs": real_covered_specs,
+            "missingSpecs": real_missing_specs,
+            "topBlockers": [],
+            "lastSyncRun": scan_run_id,
+        },
+        "defaultTemplates": default_templates,
         "dedupedCount": len(signatures),
         "hiddenDuplicateCount": hidden,
         "checkedAt": utc_now(),

@@ -1,7 +1,7 @@
 # 社区模板导入全链路 Runbook
 
 > 适用范围：社区天赋模板、社区装备模板、Raider.IO / WCL / manual fixtures / WebSim baseline 来源、SQLite 入库、`communityTemplates` read model、前端导入 sheet、个人模板保存、`/api/websim/profile` 最终校验、health 和回滚。
-> 最后更新：2026-06-26。
+> 最后更新：2026-06-28。
 
 本文是“导入社区天赋 / 装备推荐”的执行手册。它不重新定义天赋树规则，也不重新定义装备 catalog；这两部分分别由 [全职业天赋模拟全链路 Runbook](talent-simulation-full-chain-runbook.md) 和 [装备模拟全链路 Runbook](gear-simulation-full-chain-runbook.md) 负责。本文只管外部或派生模板如何进入推荐、展示、应用和保存链路。
 
@@ -13,6 +13,7 @@
 - Per-spec cap：天赋模板展示按当前 `classKey + specKey` 收敛，每个专精最多 3 条，不能有重复公开身份。
 - Fail-closed import：无法解析成当前 WebSim 节点或 canonical gear snapshot 的模板不能标为可编辑；raw import code 只能走 SimC-only / external 路径。
 - Full-spec fallback：真实社区样本不足时，允许用 `websim_baseline` 为每个 expected spec 生成 1 条可编辑天赋兜底；该兜底必须点满三棵树并通过 `encode_websim_talents`。
+- Default gear fallback：真实社区装备样本不足时，允许用 `default_template` 为每个 expected spec 生成 1 条装备兜底；它只来自 verified 当前赛季 catalog 和 verified `mplus_mixed_route` 绿字权重，不冒充真实社区样本，不宣称 BiS。
 - No implicit writes：`GET /api/websim/talents`、`GET /api/websim/gear`、`/api/data/health` 都不得触发外部同步或 DB 写入。
 - Approval gate：下载、远端刷新、生产 DB 写入、部署和外部数据落盘都需要 owner 明确批准。
 
@@ -24,10 +25,12 @@ flowchart TD
   C["Warcraft Logs / future sources"] --> B
   D["manual fixtures"] --> E["explicit community sync"]
   F["websim_talents backend authority"] --> G["WebSim baseline generator"]
+  R["verified gear catalog + stat weights"] --> S["default gear template builder"]
 
   B --> H["talent loadout / gear snapshot extraction"]
   E --> H
   G --> H
+  S --> K
 
   H --> I["validate visual/editable state"]
   I --> J["websim_community_talent_templates"]
@@ -48,6 +51,7 @@ flowchart TD
 - 天赋可编辑模板必须有 `websimExportCode` 和 `talentState.selectedNodes`。
 - 装备可编辑模板必须能映射到 canonical slots 和结构化 `gearBySlot / enhancementBySlot`。
 - baseline 只解决“全职业专精有可编辑起点”，不代表 BiS、排行榜、玩家样本或强度结论。
+- `default_template` 只解决“装备模拟可导入起点”，不代表真实玩家样本、社区强度或毕业配装。
 
 ## 来源与可信边界
 
@@ -57,6 +61,7 @@ flowchart TD
 | Warcraft Logs | 后续高质量战斗样本入口 | 凭据可用、授权边界清楚、样本窗口可追踪、可解析成模板字段 | 缺凭据时不得伪造 WCL 模板 |
 | Manual fixture | 小范围开发和 smoke 种子 | 显式 sync 写入；带 source/status/checkedAt；能通过后端 validator | 不能由 GET 自动 bootstrap |
 | WebSim baseline | 缺真实样本专精的可编辑兜底 | 当前 `websim_talents` 能生成三树满点状态，且 `encode_websim_talents` 返回 encoded | 不能显示为 Raider.IO/WCL；不能参与玩家强度结论 |
+| Default gear template | 缺真实装备模板专精的可导入兜底 | 16 个 canonical 装备槽完整、候选均为当前赛季 compatible + SimC-ready + verified variant，且 serializer 能生成 16 行 | 不能显示为 Raider.IO/WCL；不能使用 `source_reference`、partial、错季或缺绿字权重候选 |
 | SimC raw `talents=` code | SimC-only external 输入 | class/spec 已知，raw code 保留原样，profile serializer 可 fail-closed | 不能强行反解到 WebSim 可视化节点 |
 | 前端临时状态 | 交互预览 | 只作为待校验输入提交 | 不能作为可信模板或 SimC profile |
 
@@ -126,6 +131,26 @@ flowchart TD
 
 装备模板继续由 `/api/websim/gear` 输出 `communityTemplates`，并遵守装备模拟 Runbook 的 source / variant / mod-option 门禁。
 
+### 默认装备模板
+
+`sync_community_gear_templates` 的装备阶段顺序是：
+
+1. 归档真实样本 / SimC preset 装备模板。
+2. 读取 verified 当前赛季 gear catalog、verified `mplus_mixed_route` stat weight cache、武器规则和 mod option catalog。
+3. 生成 `sourceKey=default_template`、`sourceName=默认模板` 的兜底模板。
+4. 运行 `merge_websim_gear_enhancements` 和 SimC gear line serializer。
+5. dedupe、入库、输出 health / run summary。
+
+默认装备模板生成门禁：
+
+- `status=complete` 只要求 16 个 canonical 装备槽完整且 serializer 可执行。
+- 宝石、附魔、美化、`crafted_stats` 属于独立 `enhancementReadiness`，不得影响 16 槽完整性的定义。
+- 缺绿字权重、缺 verified 当前赛季候选、候选为 `source_reference` / partial / blocked / 错季、武器规则失败或 serializer 失败时，不生成默认模板。
+- blocker 必须写入 sync run 的 `gear.defaultTemplates.blockers`，包含 class/spec、原因、缺失槽位和补齐路径。
+- 评分使用“装等护栏 + 绿字权重”：装等跨档保护高装等，同档或接近装等内按副属性权重排序。
+- 饰品必须补满两槽，但 `templateEvidence.warnings` 必须说明 `trinket effects are not optimized`。
+- 坦克、治疗、增辉等非纯 DPS 专精可用 M+ mixed-route 权重做副属性排序，但必须说明这不是生存、治疗量或团队收益最优结论。
+
 装备导入必须：
 
 - 只应用当前 class/spec 可用的 canonical slot。
@@ -138,6 +163,7 @@ flowchart TD
 - 直接信任 Raider.IO/WCL 装备属性。
 - 把缺 `bonus_id/gem_id/enchant_id/crafted_stats` 的展示候选保存为 SimC-ready。
 - 前端按装备名、slot 文案或 item id 猜可执行字段。
+- 把 `default_template` 包装成真实社区样本、排行榜推荐或 BiS 结论。
 
 ## Health 和验收
 
@@ -151,6 +177,14 @@ flowchart TD
 - `dedupedCount`
 - `hiddenDuplicateCount`
 - `templateRevision`
+- `gearTemplates`
+- `realCommunityGearTemplates.coveredSpecCount`
+- `realCommunityGearTemplates.missingSpecs`
+- `defaultGearTemplates.coveredSpecCount`
+- `defaultGearTemplates.missingSpecs`
+- `defaultGearTemplates.blockers`
+- `defaultGearTemplates.topBlockers`
+- `defaultGearTemplates.lastSyncRun`
 
 上线验收必须跑：
 
@@ -175,6 +209,8 @@ flowchart TD
 
 - 当前 40 spec 的 `/api/websim/gear?compact=1` 可返回 payload。
 - `communityTemplates` 不含跨职业 / 跨专精不兼容模板。
+- `default_template` 若出现，必须带 `scenarioKey`、`enhancementReadiness`、`statWeightRevision`、`gearCatalogRevision` 和 `templateEvidence`。
+- 缺证据专精必须出现在 `gear.defaultTemplates.missingSpecs` / blockers，而不是静默缺失。
 - 可应用模板仍由 serializer 返回 `profileReadiness`。
 
 ## 只读审计 SQL
@@ -201,6 +237,13 @@ select id, class_key, spec_key, hero_key, source_key, status, json_extract(paylo
 from websim_community_talent_templates
 where source_key = 'websim_baseline'
 order by class_key, spec_key;
+
+select class_key, spec_key, source_key, source_name, status, ready_slot_count,
+       json_extract(payload_json, '$.scenarioKey') as scenario_key,
+       json_extract(payload_json, '$.templateEvidence.statWeightRevision') as stat_weight_revision
+from websim_community_gear_templates
+where source_key = 'default_template'
+order by class_key, spec_key;
 ```
 
 ## 刷新和发布顺序
@@ -208,10 +251,10 @@ order by class_key, spec_key;
 1. 确认 owner 已批准外部刷新、生产写库和部署。
 2. 备份生产 SQLite。
 3. 先确认天赋和装备 authority 当前 health。
-4. 显式运行 `sync_community_talent_templates`。
+4. 显式运行社区模板同步：真实样本 / SimC preset 归档 -> 默认装备模板生成 -> dedupe -> health/run summary。
 5. 只读审计 source/status/count。
 6. 跑 40 专精天赋矩阵。
-7. 跑装备 import smoke。
+7. 跑装备 import smoke，并确认 `defaultGearTemplates` 覆盖或 blocker。
 8. 代码热部署。
 9. 公网 `/health` 和 `/api/data/health`。
 10. 抽样小程序关键接口。

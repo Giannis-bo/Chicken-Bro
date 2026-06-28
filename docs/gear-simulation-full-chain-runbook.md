@@ -1,7 +1,7 @@
 # 装备模拟全链路 Runbook
 
 > 适用范围：`/api/websim/gear` 装备模拟读模型、装备自建数据库、装备强化配置、制造业装备、全职业专精装备适配、前端展示、SimC profile serializer、生产刷新和回滚。
-> 最后更新：2026-06-27。
+> 最后更新：2026-06-28。
 
 本文是下一次大版本或赛季装备更新的执行手册。目标不是记录某一次修复，而是把“从上游 API 到线上 UI 和可执行 SimC profile”的完整链路固化成可复用流程。任何新版本装备更新，都应先按本文确认数据入口、证据门禁、审计 SQL、健康指标、全职业专精适配和回滚边界，再做写库或部署。
 
@@ -12,6 +12,8 @@
 - Backend-owned contract：前端只消费 `/api/websim/gear` 的结构化 payload，不按物品名、附魔名、职业名或 ID 打补丁。
 - Serializer fail-closed：即使前端提交了 stale 或不兼容的 `gearBySlot` / `enhancementBySlot`，后端 `merge_websim_gear_enhancements` 也必须阻断，而不是生成错误 SimC gear line。
 - 全职业覆盖：装备候选、武器栏位、护甲类型、主属性、制造业属性搭配、附魔/美化选项，都必须按 40 个职业专精矩阵验证。
+- 默认模板诚实展示：`default_template / 默认模板` 只能作为社区装备样本不足时的兜底导入入口，不是 Raider.IO/WCL 玩家样本，不是 BiS，不输出强度结论。
+- 完整状态拆分：装备模板 `status=complete` 只表示 16 个 canonical 槽位完整且 SimC serializer 可执行；宝石、附魔、美化和 `crafted_stats` readiness 必须通过独立 `enhancementReadiness` 表达。
 - 可回滚：任何生产写库前必须备份 SQLite；任何代码部署前必须能区分“代码回滚”和“DB 回滚”。
 - 不下载不写入：拉取远端数据、下载外部文件、生产 SSH/DB 写入、Wago/SimC 数据刷新，都必须先取得 owner 明确批准。
 
@@ -88,6 +90,7 @@ flowchart TD
 | Compact payload | `compact_gear_candidate`、`compact_crafted_gear_variants`、`display_ready_gear_mod_options_by_slot` | 输出小程序显示字段，折叠制造业属性选项，过滤不可展示强化项 |
 | Serializer | `merge_websim_gear_enhancements`、`build_websim_profile_response` | 校验 saved snapshot，生成 SimC-ready profile 或 blockers |
 | Stat snapshot | `build_websim_gear_stats_response`、`backfill_simcraft_template_detail_stat_snapshot` | 用结构化 gear/talent 上下文生成 verified 角色属性快照，供 SimC 模板确认页和任务详情展示 |
+| Default templates | `sync_community_gear_templates`、`build_default_community_gear_template` | 用 verified 当前赛季候选和 verified `mplus_mixed_route` 绿字权重生成 `默认模板` 兜底，并把缺证据专精写入 sync run / health |
 | API | `server/news_backend.py` | `/api/websim/gear`、`/api/websim/profile`、`/api/data/health` |
 | Frontend | `pages/builds/detail.*` | 装备栏、候选 sheet、详情、强化配置、保存模板；只消费后端结构化字段 |
 
@@ -174,9 +177,22 @@ order by option_type, status;
 11. `sync_wago_gear_mod_option_display_names`：补齐附魔中文 display name。
 12. `sync_blizzard_gear_mod_option_metadata`：补齐宝石等 option 的 item metadata。
 13. `sync_websim_gear_catalog`：重建 catalog 健康快照。
-14. `/api/data/health`：发布前最终审计。
+14. `sync_community_gear_templates`：归档真实装备样本 / SimC preset 后生成默认装备模板；缺证据时只写 blocker，不落库兜底模板。
+15. `/api/data/health`：发布前最终审计。
 
 除非在事故修复中明确隔离范围，否则不要跳过最后的 catalog rebuild 和 health 复核。
+
+### 默认装备模板生成门禁
+
+默认装备模板 builder 只消费当前 SQLite 已有证据，不触发外部下载或生产 backfill：
+
+- 输入：verified 当前赛季 gear catalog、verified `build_stat_weight_cache(class_key, spec_key, mplus_mixed_route)`、武器规则、mod option catalog。
+- 候选池：当前赛季、当前 class/spec compatible、SimC-ready、verified variant，且不能是 `source_reference`、partial、blocked、错季或 observed-only 未提升候选。
+- 评分：先按 `DEFAULT_GEAR_TEMPLATE_ILEVEL_GUARDRAIL` 保护装等大档，再在同档或接近装等内按副属性权重排序。
+- 饰品：补满 `trinket1/trinket2`，但 `templateEvidence.warnings` 固定说明饰品特效未优化。
+- 非纯 DPS：坦克、治疗、增辉使用 M+ mixed-route 副属性权重，只能作为通用可执行起点，不得声称生存、治疗量或团队收益最优。
+- 输出：`sourceKey=default_template`、`sourceName=默认模板`、`scenarioKey`、`enhancementReadiness`、`statWeightRevision`、`gearCatalogRevision`、`templateEvidence`。
+- 失败：缺权重、缺槽、武器规则不兼容、唯一装备超限或 serializer 无法生成 16 行时，`sync_community_gear_templates` 在 `defaultTemplates.blockers` 报告 class/spec、原因、缺失槽位和补齐路径，不生成模板。
 
 ## 入库门禁
 

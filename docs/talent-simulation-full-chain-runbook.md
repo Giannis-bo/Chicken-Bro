@@ -1,7 +1,7 @@
 # 全职业天赋模拟全链路 Runbook
 
 > 适用范围：`/api/websim/talents` 天赋读模型、SimC trait data、Wago trait edges、Blizzard spell/media、社区天赋模板、SQLite catalog、前端原生天赋模拟器、`/api/talents/*`、`/api/websim/profile`、`/api/websim/simulate`、health 和回滚。
-> 最后更新：2026-06-26。
+> 最后更新：2026-06-28。
 
 本文是天赋模拟器后续版本和赛季更新的执行手册。它不要求天赋侧机械复刻装备侧的 item/source/variant/mod-option 模型；天赋侧真正要对齐的是四个治理原则：后端权威读模型、证据优先、前端 consumer-only、serializer fail-closed。
 
@@ -14,6 +14,7 @@
 - Serializer fail-closed：`/api/websim/profile` 和 `/api/websim/simulate` 只要天赋 encoding 或装备 readiness 失败，就返回明确 blocker，不把缺天赋行的 profile 包装成 ready。
 - 外部导入码保守处理：官方/第三方 import code 无法解析成 WebSim 节点时，只作为 `talents=<code>` 的 SimC-only 输入，不强行映射到可视化树。
 - 全职业覆盖：任何规则或数据更新都必须覆盖 40 个职业专精和 80 个英雄树组合，失败项需要 class/spec/hero/node/reason。
+- 专精身份：40 专精矩阵包含 `demonhunter/devourer`，中文主展示名为 `噬灭`；内部 key 固定使用 `devourer`。
 - 不下载不写入：下载外部文件、拉取远端数据、生产 DB 写入、部署、SimC/Wago/Blizzard 刷新，都必须先取得 owner 明确批准。
 
 ## 端到端链路
@@ -195,7 +196,7 @@ order by status, source_status;
 
 审计目标：
 
-- 是否有 40 个 expected spec 覆盖。
+- 是否有 40 个 expected spec 覆盖，并包含 `demonhunter:devourer` / `恶魔猎手 · 噬灭`。
 - 是否有 80 个 expected class/spec/hero 覆盖。
 - class/spec/hero 三类 tree type 是否都有节点。
 - 是否有 spell detail、description、icon 缺口。
