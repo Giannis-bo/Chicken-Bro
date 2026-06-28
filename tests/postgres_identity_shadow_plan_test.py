@@ -885,3 +885,79 @@ class PostgresIdentityShadowPlanTest(unittest.TestCase):
         self.assertIsNone(task["heartbeat_at"])
         self.assertFalse(task["cancel_requested"])
         self.assertEqual(task["last_error"], "")
+
+    def test_data_copy_plan_dedupes_gear_variants_by_item_and_variant_key(self):
+        from server.migrations.postgres import data_copy_plan, identity_shadow_plan
+
+        conn = sqlite3.connect(":memory:")
+        conn.execute(
+            """
+            CREATE TABLE websim_gear_variants (
+                id TEXT PRIMARY KEY,
+                item_id TEXT NOT NULL,
+                slot TEXT NOT NULL,
+                variant_key TEXT NOT NULL,
+                label TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                difficulty_key TEXT NOT NULL,
+                item_level INTEGER NOT NULL,
+                simc_options_json TEXT NOT NULL,
+                status TEXT NOT NULL,
+                blockers_json TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.executemany(
+            """
+            INSERT INTO websim_gear_variants (
+                id, item_id, slot, variant_key, label, source_type, difficulty_key,
+                item_level, simc_options_json, status, blockers_json, payload_json, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    "loot-partial-151299-shoulder",
+                    "151299",
+                    "shoulder",
+                    "needs-variant",
+                    "Dungeon partial",
+                    "dungeon",
+                    "needs-variant",
+                    0,
+                    "{}",
+                    "partial",
+                    "[]",
+                    "{}",
+                    "2026-06-28T12:02:00+00:00",
+                ),
+                (
+                    "set-partial-1332-151299-shoulder",
+                    "151299",
+                    "shoulder",
+                    "needs-variant",
+                    "Tier partial",
+                    "tier_set",
+                    "needs-variant",
+                    0,
+                    "{}",
+                    "partial",
+                    "[]",
+                    "{}",
+                    "2026-06-28T12:01:00+00:00",
+                ),
+            ],
+        )
+
+        rows = data_copy_plan.build_websim_gear_variant_rows(conn)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            rows[0]["id"],
+            identity_shadow_plan.stable_pg_uuid(
+                "cache.websim_gear_variants",
+                "set-partial-1332-151299-shoulder",
+            ),
+        )
+        self.assertEqual(rows[0]["source_type"], "tier_set")

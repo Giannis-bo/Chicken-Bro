@@ -1105,11 +1105,31 @@ def build_websim_gear_variant_rows(conn):
         SELECT id, item_id, slot, variant_key, label, source_type, difficulty_key,
                item_level, simc_options_json, status, blockers_json, payload_json, updated_at
         FROM websim_gear_variants
-        ORDER BY item_id, item_level DESC, id
+        ORDER BY item_id, variant_key,
+                 CASE status
+                    WHEN 'verified' THEN 0
+                    WHEN 'partial' THEN 1
+                    ELSE 2
+                 END,
+                 item_level DESC,
+                 CASE source_type
+                    WHEN 'tier_set' THEN 0
+                    WHEN 'raid' THEN 1
+                    WHEN 'dungeon' THEN 2
+                    ELSE 3
+                 END,
+                 updated_at DESC,
+                 id
         """
     ).fetchall()
-    return [
-        {
+    output = []
+    seen_variant_keys = set()
+    for row in rows:
+        natural_key = (row[1], row[3])
+        if natural_key in seen_variant_keys:
+            continue
+        seen_variant_keys.add(natural_key)
+        output.append({
             "id": pg_uuid("cache.websim_gear_variants", row[0]),
             "item_id": row[1],
             "variant_key": row[3],
@@ -1124,9 +1144,8 @@ def build_websim_gear_variant_rows(conn):
             "blockers_json": safe_json_loads(row[10], []),
             "payload_json": safe_json_loads(row[11], {}),
             "updated_at": row[12],
-        }
-        for row in rows
-    ]
+        })
+    return output
 
 
 def build_websim_gear_mod_option_rows(conn):
