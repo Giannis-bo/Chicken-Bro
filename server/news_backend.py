@@ -31,6 +31,7 @@ try:
     )
     from .news_collector import canonical_article_key, collect_feed_articles, merge_articles
     from .news_translator import body_blocks_text, localize_article, normalize_body_blocks, source_body_quality_issue, visible_translation_issues
+    from .db import connect_postgres, database_config_from_env, sqlite_connection
     from .simulator_payload import (
         analyze_simulator_request,
         build_simulator_home_payload,
@@ -96,6 +97,7 @@ except ImportError:
     )
     from news_collector import canonical_article_key, collect_feed_articles, merge_articles
     from news_translator import body_blocks_text, localize_article, normalize_body_blocks, source_body_quality_issue, visible_translation_issues
+    from db import connect_postgres, database_config_from_env, sqlite_connection
     from simulator_payload import (
         analyze_simulator_request,
         build_simulator_home_payload,
@@ -153,6 +155,8 @@ PROJECT_DIR = BASE_DIR.parent
 WEBSIM_DIR = PROJECT_DIR / "websim"
 SEED_PATH = BASE_DIR / "news" / "articles.seed.json"
 DB_PATH = Path(os.environ.get("WOW_NEWS_DB", BASE_DIR / "data" / "wow_news.sqlite3"))
+DB_CONFIG = database_config_from_env()
+DB_PATH = DB_CONFIG.sqlite_path or DB_PATH
 HOST = os.environ.get("WOW_NEWS_HOST", "0.0.0.0")
 PORT = int(os.environ.get("WOW_NEWS_PORT", "8787"))
 ENABLE_COLLECTORS = os.environ.get("WOW_NEWS_ENABLE_COLLECTORS", "0") == "1"
@@ -167,6 +171,7 @@ SCHEMA_MIGRATIONS = [
     ("user_build_templates_v1", "Authenticated user build template sync table is initialized."),
     ("chickenbro_backend_v1", "Chickenbro sessions, messages, jobs, structured memory, and playstyle profiles are initialized."),
     ("simulator_task_summary_v1", "Simulator tasks persist a compact list summary read model."),
+    ("simulator_task_worker_ready_v1", "Simulator tasks reserve worker-ready queue governance fields."),
 ]
 CHICKENBRO_PROFILE_STATUSES = {"published", "partial", "stale", "blocked", "needs_review"}
 CHICKENBRO_JOB_STATUSES = {"queued", "running", "succeeded", "failed", "timed_out"}
@@ -292,6 +297,16 @@ def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def public_row_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    return value
+
+
 def int_env(name, default):
     try:
         return int(os.environ.get(name, str(default)))
@@ -336,19 +351,68 @@ def run_websim_gear_build(build_payload):
 
 @contextmanager
 def db_connection():
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.execute("PRAGMA busy_timeout = 30000")
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = WAL")
-    try:
+    config = database_config_from_env()
+    if config.backend != "sqlite":
+        if not postgres_personal_runtime_enabled(config):
+            raise RuntimeError("PostgreSQL runtime is not enabled in this phase")
+        sqlite_path = DB_PATH
+    else:
+        sqlite_path = config.sqlite_path
+    with sqlite_connection(sqlite_path) as conn:
         yield conn
-        conn.commit()
-    finally:
-        conn.close()
+
+
+def postgres_personal_runtime_enabled(config=None):
+    active_config = config or database_config_from_env()
+    runtime = os.environ.get("WOW_DATABASE_RUNTIME", "").strip()
+    return active_config.backend == "postgres" and runtime == "postgres_personal"
+
+
+def personal_data_store():
+    config = database_config_from_env()
+    if not postgres_personal_runtime_enabled(config):
+        return None
+    try:
+        from .postgres_personal_store import PostgresPersonalStore
+    except ImportError:
+        from postgres_personal_store import PostgresPersonalStore
+    return PostgresPersonalStore(lambda: connect_postgres(config.database_url))
+
+
+def analytics_data_store():
+    config = database_config_from_env()
+    if not postgres_personal_runtime_enabled(config):
+        return None
+    try:
+        from .postgres_analytics_store import PostgresAnalyticsStore
+    except ImportError:
+        from postgres_analytics_store import PostgresAnalyticsStore
+    return PostgresAnalyticsStore(lambda: connect_postgres(config.database_url))
+
+
+def content_data_store():
+    config = database_config_from_env()
+    if not postgres_personal_runtime_enabled(config):
+        return None
+    try:
+        from .postgres_content_store import PostgresContentStore
+    except ImportError:
+        from postgres_content_store import PostgresContentStore
+    return PostgresContentStore(lambda: connect_postgres(config.database_url))
+
+
+def cache_data_store():
+    config = database_config_from_env()
+    if not postgres_personal_runtime_enabled(config):
+        return None
+    try:
+        from .postgres_cache_store import PostgresCacheStore
+    except ImportError:
+        from postgres_cache_store import PostgresCacheStore
+    return PostgresCacheStore(lambda: connect_postgres(config.database_url))
 
 
 def init_db():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with db_connection() as conn:
         ensure_schema_migrations(conn)
         if all_schema_migrations_recorded(conn):
@@ -506,6 +570,14 @@ def init_db():
                 request_json TEXT NOT NULL,
                 analysis_json TEXT NOT NULL,
                 summary_json TEXT NOT NULL DEFAULT '{}',
+                queued_at TEXT NOT NULL DEFAULT '',
+                started_at TEXT NOT NULL DEFAULT '',
+                finished_at TEXT NOT NULL DEFAULT '',
+                attempt INTEGER NOT NULL DEFAULT 0,
+                locked_by TEXT NOT NULL DEFAULT '',
+                heartbeat_at TEXT NOT NULL DEFAULT '',
+                cancel_requested INTEGER NOT NULL DEFAULT 0,
+                last_error TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 FOREIGN KEY(user_id) REFERENCES wechat_users(id)
@@ -748,6 +820,22 @@ def ensure_simulator_task_columns(conn):
     if "summary_json" not in columns:
         conn.execute("ALTER TABLE simulator_tasks ADD COLUMN summary_json TEXT NOT NULL DEFAULT '{}'")
         backfill_simulator_task_summaries(conn)
+        columns.add("summary_json")
+    worker_ready_columns = {
+        "queued_at": "TEXT NOT NULL DEFAULT ''",
+        "started_at": "TEXT NOT NULL DEFAULT ''",
+        "finished_at": "TEXT NOT NULL DEFAULT ''",
+        "attempt": "INTEGER NOT NULL DEFAULT 0",
+        "locked_by": "TEXT NOT NULL DEFAULT ''",
+        "heartbeat_at": "TEXT NOT NULL DEFAULT ''",
+        "cancel_requested": "INTEGER NOT NULL DEFAULT 0",
+        "last_error": "TEXT NOT NULL DEFAULT ''",
+    }
+    for name, definition in worker_ready_columns.items():
+        if name not in columns:
+            conn.execute(f"ALTER TABLE simulator_tasks ADD COLUMN {name} {definition}")
+            columns.add(name)
+    conn.execute("UPDATE simulator_tasks SET queued_at = created_at WHERE queued_at = ''")
 
 
 def seed_news_sources(conn):
@@ -1413,7 +1501,9 @@ def audit_existing_public_articles(conn):
 
 
 def refresh_articles(refresh_mode, collector_enabled=None):
-    init_db()
+    store = content_data_store()
+    if not store:
+        init_db()
     seed_articles = load_seed_articles()
     collected_articles = []
     discovered_articles = []
@@ -1443,12 +1533,20 @@ def refresh_articles(refresh_mode, collector_enabled=None):
         seed_articles = [article for article in seed_articles if canonical_article_key(article) not in collected_keys or is_source_translation(article)]
 
     refreshed_at = utc_now()
-    with db_connection() as conn:
+    if store:
+        store.seed_sources(NEWS_SOURCE_REGISTRY, refreshed_at)
         if should_collect and discovered_collected_count:
-            enqueue_discovered_articles(conn, discovered_articles, refreshed_at)
+            store.enqueue_discovered_articles(discovered_articles, refreshed_at)
             for article in duplicate_seed_articles:
-                mark_queue_article(conn, article, "blocked", "duplicate_seed_source_translation", refreshed_at, increment_attempts=False)
-        queued_articles = load_queued_articles(conn, process_limit) if should_collect else []
+                store.mark_queue_article(article, "blocked", "duplicate_seed_source_translation", refreshed_at, increment_attempts=False)
+        queued_articles = store.load_queued_articles(process_limit) if should_collect else []
+    else:
+        with db_connection() as conn:
+            if should_collect and discovered_collected_count:
+                enqueue_discovered_articles(conn, discovered_articles, refreshed_at)
+                for article in duplicate_seed_articles:
+                    mark_queue_article(conn, article, "blocked", "duplicate_seed_source_translation", refreshed_at, increment_attempts=False)
+            queued_articles = load_queued_articles(conn, process_limit) if should_collect else []
 
     accepted = []
     blocked = []
@@ -1487,6 +1585,56 @@ def refresh_articles(refresh_mode, collector_enabled=None):
         for article in processed
         if article.get("detailError") or article.get("fetchError")
     ]
+    if store:
+        for article in processed:
+            store.persist_news_raw_article(article, refreshed_at)
+            store.persist_news_evidence(article, refreshed_at)
+            if should_collect and article.get("id"):
+                queue_status, queue_error = queue_status_for_reviewed_article(article)
+                store.mark_queue_article(article, queue_status, queue_error, refreshed_at)
+        for article in accepted:
+            store.save_public_article(article, refreshed_at)
+        if accepted_ids and not should_collect:
+            store.delete_public_articles_not_in(accepted_ids)
+        audited_blocked = store.audit_existing_public_articles(public_body_quality_issue)
+        if audited_blocked:
+            blocked.extend(audited_blocked)
+            rejected += len(audited_blocked)
+        summary = store.queue_summary(collector_errors)
+        store.record_refresh_run(
+            refresh_mode,
+            refreshed_at,
+            len(accepted),
+            rejected,
+            {
+                "seedCount": len(seed_articles),
+                "collectorEnabled": should_collect,
+                "collectorLimit": collector_limit,
+                "discoveryLimit": collector_limit,
+                "processLimit": process_limit,
+                "discoveredCount": discovered_collected_count,
+                "queuedCount": summary["queuedCount"],
+                "processedCount": len(processed),
+                "publishedCount": len(accepted),
+                "blockedCount": len(blocked),
+                "retryableCount": summary["retryableCount"],
+                "oldestBacklogAge": summary["oldestBacklogAge"],
+                "sourceCoverage": summary["sourceCoverage"],
+                "collectedDiscoveredCount": discovered_collected_count,
+                "collectedCount": len(collected_articles),
+                "collectorDuplicateSeedSkippedCount": skipped_seed_duplicate_count,
+                "collectorErrors": collector_errors,
+                "sourceFetchErrors": collector_errors + source_fetch_errors,
+                "translationIssueCount": len(translation_issues),
+                "translationIssues": translation_issues[:20],
+                "blockedArticleCount": len(blocked),
+                "blockedArticles": blocked[:20],
+                "verificationCounts": counts,
+                "licenseBlockedCount": counts.get("license_blocked", 0),
+                "conflictArticles": conflict_articles[:20],
+            },
+        )
+        return {"refreshMode": refresh_mode, "lastRefreshedAt": refreshed_at}
     with db_connection() as conn:
         for article in processed:
             persist_news_raw_article(conn, article, refreshed_at)
@@ -1622,6 +1770,12 @@ def refresh_articles(refresh_mode, collector_enabled=None):
 
 
 def latest_refresh_state():
+    store = content_data_store()
+    if store:
+        state = store.latest_refresh_state()
+        if state:
+            return state
+        return refresh_articles("bootstrap", collector_enabled=False)
     init_db()
     with db_connection() as conn:
         row = conn.execute(
@@ -1636,6 +1790,13 @@ def latest_refresh_state():
 
 
 def latest_refresh_run_payload():
+    store = content_data_store()
+    if store:
+        payload = store.latest_refresh_run_payload()
+        if payload:
+            return payload
+        latest_refresh_state()
+        return latest_refresh_run_payload()
     init_db()
     with db_connection() as conn:
         row = conn.execute(
@@ -1749,6 +1910,60 @@ def data_health_overall_status(components):
     if any(status == "missing_credentials" for status in statuses):
         return "missing_credentials"
     return "blocked"
+
+
+def gear_catalog_health_payload_from_sync_state(state):
+    state = state if isinstance(state, dict) else {}
+    variant_readiness = {
+        "verified": state.get("verifiedCount") or 0,
+        "partial": state.get("partialCount") or 0,
+        "blocked": state.get("blockedCount") or 0,
+        "total": state.get("variantCount") or 0,
+    }
+    blockers = state.get("blockers") if isinstance(state.get("blockers"), list) else []
+    if not blockers and not state.get("itemCount"):
+        blockers = ["gear catalog has not been synced"]
+    return {
+        "status": state.get("status") or "blocked",
+        "checkedAt": state.get("checkedAt") or state.get("updatedAt") or "",
+        "details": {
+            "itemCount": state.get("itemCount") or 0,
+            "sourceCount": state.get("sourceCount") or 0,
+            "variantCount": state.get("variantCount") or 0,
+            "modOptionCount": state.get("modOptionCount") or 0,
+            "verifiedCount": state.get("verifiedCount") or 0,
+            "partialCount": state.get("partialCount") or 0,
+            "blockedCount": state.get("blockedCount") or 0,
+            "observedVariantCount": state.get("observedVariantCount") or 0,
+            "verifiedObservedVariantCount": state.get("verifiedObservedVariantCount") or 0,
+            "partialObservedVariantCount": state.get("partialObservedVariantCount") or 0,
+            "blockedObservedVariantCount": state.get("blockedObservedVariantCount") or 0,
+            "variantReadiness": variant_readiness,
+            "itemDatabaseRevision": state.get("itemDatabaseRevision") or "",
+            "variantRevision": state.get("variantRevision") or state.get("itemDatabaseRevision") or "",
+            "schemaRevision": state.get("schemaRevision") or "",
+            "catalogContract": state.get("catalogContract") or {},
+            "observedBackfill": state.get("observedBackfill") or {},
+            "slotCoverage": state.get("slotCoverage") or {},
+            "sourceCoverage": state.get("sourceCoverage") or {},
+            "sourceGapCoverage": state.get("sourceGapCoverage") or {},
+            "modOptionCoverage": state.get("modOptionCoverage") or {},
+            "weaponRuleCoverage": state.get("weaponRuleCoverage") or {},
+            "itemMetadata": state.get("itemMetadata") or {},
+            "seasonSourceCoverage": state.get("seasonSourceCoverage") or {},
+            "topBlockers": state.get("topBlockers") or [],
+            "dataReadiness": state.get("dataReadiness") or {
+                "status": state.get("status") or "blocked",
+                "blockers": blockers,
+            },
+            "simulationReadiness": state.get("simulationReadiness") or {
+                "status": state.get("status") or "blocked",
+                "blockers": blockers,
+                **variant_readiness,
+            },
+        },
+        "blockers": blockers[:8],
+    }
 
 
 def blizzard_api_health_component():
@@ -1887,6 +2102,9 @@ def template_simc_bridge_health_component(conn):
 
 def build_data_health_payload():
     init_db()
+    cache_store = cache_data_store()
+    pg_websim_state = cache_store.get_sync_state("websim_sync") if cache_store else {}
+    pg_gear_state = cache_store.get_sync_state("gearCatalog") if cache_store else {}
     components = [
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
         news_health_component(),
@@ -1930,11 +2148,11 @@ def build_data_health_payload():
             )
         )
 
-        websim_state = get_sync_state(conn, "websim_sync") or {}
+        websim_state = pg_websim_state or get_sync_state(conn, "websim_sync") or {}
         websim_errors = websim_state.get("errors") if isinstance(websim_state.get("errors"), list) else []
         websim_simc = websim_state.get("simc") if isinstance(websim_state.get("simc"), dict) else {}
         websim_gear = websim_state.get("gearCatalog") if isinstance(websim_state.get("gearCatalog"), dict) else {}
-        standalone_gear = get_sync_state(conn, "gearCatalog") or {}
+        standalone_gear = pg_gear_state or get_sync_state(conn, "gearCatalog") or {}
         if isinstance(standalone_gear, dict) and standalone_gear:
             websim_gear = standalone_gear
         websim_season = websim_state.get("currentSeason") if isinstance(websim_state.get("currentSeason"), dict) else {}
@@ -1966,7 +2184,7 @@ def build_data_health_payload():
             )
         )
 
-        gear_catalog = gear_catalog_health_payload(conn)
+        gear_catalog = gear_catalog_health_payload_from_sync_state(pg_gear_state) if pg_gear_state else gear_catalog_health_payload(conn)
         components.append(
             data_health_component(
                 "gear_catalog",
@@ -2086,6 +2304,9 @@ def exchange_wechat_code(code):
 
 
 def upsert_wechat_user(openid, unionid=""):
+    store = personal_data_store()
+    if store:
+        return store.upsert_wechat_user(openid, unionid or "", now=utc_now())
     now = utc_now()
     with db_connection() as conn:
         conn.execute(
@@ -2112,6 +2333,10 @@ def create_auth_token(user_id):
     token = f"wow_{secrets.token_urlsafe(32)}"
     created_at = utc_now()
     expires_at = auth_token_expires_at()
+    store = personal_data_store()
+    if store:
+        store.create_auth_token(user_id, token, created_at, expires_at)
+        return token, expires_at
     with db_connection() as conn:
         conn.execute(
             "INSERT INTO auth_tokens (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
@@ -2146,6 +2371,9 @@ def bearer_token_from_headers(headers):
 def authenticate_token(token):
     if not token:
         return None
+    store = personal_data_store()
+    if store:
+        return store.authenticate_token(token, now=utc_now())
     init_db()
     with db_connection() as conn:
         row = conn.execute(
@@ -2179,6 +2407,9 @@ def find_guest_simulator_user(guest_id=""):
     guest_openid = guest_openid_from_id(guest_id)
     if not guest_openid:
         return None
+    store = personal_data_store()
+    if store:
+        return store.find_wechat_user_by_openid(guest_openid)
     init_db()
     with db_connection() as conn:
         row = conn.execute(
@@ -2202,6 +2433,8 @@ def append_unique_text(values, text):
 
 
 def safe_json_loads(value, fallback, label):
+    if isinstance(value, (dict, list)):
+        return value
     try:
         return json.loads(value or "")
     except (TypeError, json.JSONDecodeError) as error:
@@ -2217,6 +2450,9 @@ def update_user_profile(access_token, profile):
     nickname = clean_text(profile.get("nickname"), 64)
     avatar_url = clean_text(profile.get("avatarUrl") or profile.get("avatar_url"), 500)
     now = utc_now()
+    store = personal_data_store()
+    if store:
+        return store.update_user_profile(user["id"], nickname, avatar_url, now)
     with db_connection() as conn:
         conn.execute(
             """
@@ -2345,6 +2581,14 @@ def list_user_build_templates(access_token, template_type=""):
     if not user:
         raise PermissionError("invalid auth token")
     normalized_type = clean_text(template_type, 32)
+    store = personal_data_store()
+    if store:
+        store_type = normalized_type if normalized_type in VALID_BUILD_TEMPLATE_TYPES else ""
+        return {
+            "user": user,
+            "schemaVersion": BUILD_TEMPLATE_SCHEMA_VERSION,
+            "templates": store.list_build_templates(user["id"], store_type),
+        }
     params = [user["id"]]
     where = "WHERE user_id = ?"
     if normalized_type in VALID_BUILD_TEMPLATE_TYPES:
@@ -2374,6 +2618,9 @@ def save_user_build_template(access_token, record):
     if not user:
         raise PermissionError("invalid auth token")
     normalized = normalize_build_template_payload(record)
+    store = personal_data_store()
+    if store:
+        return store.save_build_template(user["id"], normalized)
     with db_connection() as conn:
         existing = conn.execute(
             """
@@ -2454,6 +2701,9 @@ def delete_user_build_template(access_token, template_id):
     normalized_id = clean_text(template_id, 128)
     if not normalized_id:
         raise KeyError("build template not found")
+    store = personal_data_store()
+    if store:
+        return store.delete_build_template(user["id"], normalized_id)
     with db_connection() as conn:
         cursor = conn.execute(
             "DELETE FROM user_build_templates WHERE user_id = ? AND id = ?",
@@ -3480,17 +3730,7 @@ def simcraft_template_queue_analysis(confirm_analysis, request_payload, task_id,
     return analysis
 
 
-def active_simcraft_template_task(conn, user_id, fingerprint):
-    rows = conn.execute(
-        """
-        SELECT id, status, request_json, analysis_json, created_at, updated_at
-        FROM simulator_tasks
-        WHERE user_id = ? AND mode = 'simcraft_template' AND status IN ('queued', 'running')
-        ORDER BY created_at DESC
-        LIMIT 20
-        """,
-        (user_id,),
-    ).fetchall()
+def active_simcraft_template_task_from_rows(rows, fingerprint):
     for row in rows:
         request_payload = safe_json_loads(row[2], {}, f"simcraft template task request {row[0]}")
         if request_payload.get("simcTaskFingerprint") != fingerprint:
@@ -3509,6 +3749,20 @@ def active_simcraft_template_task(conn, user_id, fingerprint):
         attach_simcraft_template_report(analysis, row_status=row[1])
         return public_simcraft_template_analysis(analysis, row_status=row[1])
     return None
+
+
+def active_simcraft_template_task(conn, user_id, fingerprint):
+    rows = conn.execute(
+        """
+        SELECT id, status, request_json, analysis_json, created_at, updated_at
+        FROM simulator_tasks
+        WHERE user_id = ? AND mode = 'simcraft_template' AND status IN ('queued', 'running')
+        ORDER BY created_at DESC
+        LIMIT 20
+        """,
+        (user_id,),
+    ).fetchall()
+    return active_simcraft_template_task_from_rows(rows, fingerprint)
 
 
 def simcraft_template_task_autorun_enabled():
@@ -3547,8 +3801,12 @@ def enqueue_simcraft_template_task(request_payload, access_token=""):
     stored_request["saveTask"] = True
     stored_request["simcTaskFingerprint"] = fingerprint
     now = utc_now()
-    with db_connection() as conn:
-        existing = active_simcraft_template_task(conn, user["id"], fingerprint)
+    store = personal_data_store()
+    if store:
+        existing = active_simcraft_template_task_from_rows(
+            store.active_simulator_task_rows(user["id"]),
+            fingerprint,
+        )
         if existing:
             return existing
         queued_timing = {"queuedAt": now, "startedAt": "", "finishedAt": "", "elapsedMs": None}
@@ -3566,29 +3824,65 @@ def enqueue_simcraft_template_task(request_payload, access_token=""):
             updated_at=now,
             request_payload=stored_request,
         )
-        conn.execute(
-            """
-            INSERT INTO simulator_tasks (
-                id, user_id, mode, status, request_json, analysis_json, summary_json, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                task_id,
-                user["id"],
-                "simcraft_template",
-                "queued",
-                json.dumps(stored_request, ensure_ascii=False),
-                json.dumps(queued_analysis, ensure_ascii=False),
-                json.dumps(queued_summary, ensure_ascii=False),
-                now,
-                now,
-            ),
+        store.insert_simulator_task(
+            {
+                "id": task_id,
+                "user_id": user["id"],
+                "mode": "simcraft_template",
+                "status": "queued",
+                "request_json": stored_request,
+                "analysis_json": queued_analysis,
+                "summary_json": queued_summary,
+                "queued_at": now,
+                "created_at": now,
+                "updated_at": now,
+            }
         )
+    else:
+        with db_connection() as conn:
+            existing = active_simcraft_template_task(conn, user["id"], fingerprint)
+            if existing:
+                return existing
+            queued_timing = {"queuedAt": now, "startedAt": "", "finishedAt": "", "elapsedMs": None}
+            queued_analysis = simcraft_template_queue_analysis(
+                validation_analysis,
+                stored_request,
+                task_id,
+                user,
+                fingerprint,
+                timing=queued_timing,
+            )
+            queued_summary = simcraft_template_report_summary_payload(
+                queued_analysis,
+                row_status="queued",
+                updated_at=now,
+                request_payload=stored_request,
+            )
+            conn.execute(
+                """
+                INSERT INTO simulator_tasks (
+                    id, user_id, mode, status, request_json, analysis_json, summary_json,
+                    queued_at, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    task_id,
+                    user["id"],
+                    "simcraft_template",
+                    "queued",
+                    json.dumps(stored_request, ensure_ascii=False),
+                    json.dumps(queued_analysis, ensure_ascii=False),
+                    json.dumps(queued_summary, ensure_ascii=False),
+                    now,
+                    now,
+                    now,
+                ),
+            )
     start_simcraft_template_task_runner(task_id)
     return public_simcraft_template_analysis(queued_analysis)
 
 
-def mark_simcraft_template_task_running(conn, row, request_payload, analysis_payload):
+def simcraft_template_task_running_payload(row, request_payload, analysis_payload):
     now = utc_now()
     running = json_clone(analysis_payload if isinstance(analysis_payload, dict) else {})
     running["status"] = "running"
@@ -3625,14 +3919,86 @@ def mark_simcraft_template_task_running(conn, row, request_payload, analysis_pay
         updated_at=now,
         request_payload=request_payload,
     )
+    return running, running_summary, now
+
+
+def mark_simcraft_template_task_running(conn, row, request_payload, analysis_payload):
+    running, running_summary, now = simcraft_template_task_running_payload(row, request_payload, analysis_payload)
     conn.execute(
-        "UPDATE simulator_tasks SET status = ?, analysis_json = ?, summary_json = ?, updated_at = ? WHERE id = ?",
-        ("running", json.dumps(running, ensure_ascii=False), json.dumps(running_summary, ensure_ascii=False), now, row[0]),
+        """
+        UPDATE simulator_tasks
+        SET status = ?, analysis_json = ?, summary_json = ?, started_at = ?,
+            attempt = attempt + 1, updated_at = ?
+        WHERE id = ?
+        """,
+        ("running", json.dumps(running, ensure_ascii=False), json.dumps(running_summary, ensure_ascii=False), now, now, row[0]),
     )
     return running
 
 
+def complete_simcraft_template_task_analysis(task_id, request_payload, running_analysis):
+    public_task_id = public_row_value(task_id)
+    run_request = dict(request_payload)
+    run_request["confirmOnly"] = False
+    run_request["saveTask"] = True
+    run_request["_executeSimcTask"] = True
+    analysis = analyze_simulator_request(run_request)
+    final_status = "completed" if bool((analysis.get("simulation") or {}).get("ran")) else "failed"
+    analysis = dict(analysis)
+    analysis["taskId"] = public_task_id
+    analysis["status"] = final_status
+    if not isinstance(analysis.get("owner"), dict) and isinstance(running_analysis.get("owner"), dict):
+        analysis["owner"] = running_analysis["owner"]
+    finished_at = utc_now()
+    timing = running_analysis.get("taskTiming") if isinstance(running_analysis.get("taskTiming"), dict) else {}
+    timing["finishedAt"] = finished_at
+    timing["elapsedMs"] = iso_elapsed_ms(timing.get("startedAt"), finished_at)
+    analysis["taskTiming"] = timing
+    analysis["taskLock"] = {"active": False, "taskId": public_task_id, "status": final_status, "reason": "task_finished"}
+    attach_simcraft_template_report(analysis, row_status=final_status, timing=timing)
+    final_summary = simcraft_template_report_summary_payload(
+        analysis,
+        row_status=final_status,
+        updated_at=finished_at,
+        request_payload=request_payload,
+    )
+    final_error = ""
+    if final_status == "failed":
+        final_error = str(
+            (analysis.get("simulation") or {}).get("error")
+            or (analysis.get("simcReport") or {}).get("summary")
+            or "simcraft task failed"
+        )
+    return analysis, final_status, final_summary, final_error, finished_at
+
+
+def run_simcraft_template_task_postgres(store, task_id):
+    row = store.get_simcraft_template_task_for_runner(task_id)
+    if not row:
+        raise KeyError("simcraft template task not found")
+    request_payload = safe_json_loads(row[4], {}, f"simcraft template task request {row[0]}")
+    analysis_payload = safe_json_loads(row[5], {}, f"simcraft template task analysis {row[0]}")
+    if row[3] not in SIMCRAFT_TEMPLATE_TASK_ACTIVE_STATUSES:
+        return analysis_payload
+    running_analysis, running_summary, started_at = simcraft_template_task_running_payload(
+        row,
+        request_payload,
+        analysis_payload,
+    )
+    store.mark_simcraft_template_task_running(row[0], running_analysis, running_summary, started_at)
+    analysis, final_status, final_summary, final_error, finished_at = complete_simcraft_template_task_analysis(
+        row[0],
+        request_payload,
+        running_analysis,
+    )
+    store.finish_simcraft_template_task(row[0], final_status, analysis, final_summary, finished_at, final_error)
+    return public_simcraft_template_analysis(analysis, row_status=final_status)
+
+
 def run_simcraft_template_task(task_id):
+    store = personal_data_store()
+    if store:
+        return run_simcraft_template_task_postgres(store, task_id)
     init_db()
     with db_connection() as conn:
         row = conn.execute(
@@ -3651,27 +4017,10 @@ def run_simcraft_template_task(task_id):
             return analysis_payload
         running_analysis = mark_simcraft_template_task_running(conn, row, request_payload, analysis_payload)
 
-    run_request = dict(request_payload)
-    run_request["confirmOnly"] = False
-    run_request["saveTask"] = True
-    run_request["_executeSimcTask"] = True
-    analysis = analyze_simulator_request(run_request)
-    final_status = "completed" if bool((analysis.get("simulation") or {}).get("ran")) else "failed"
-    analysis = dict(analysis)
-    analysis["taskId"] = task_id
-    analysis["status"] = final_status
-    finished_at = utc_now()
-    timing = running_analysis.get("taskTiming") if isinstance(running_analysis.get("taskTiming"), dict) else {}
-    timing["finishedAt"] = finished_at
-    timing["elapsedMs"] = iso_elapsed_ms(timing.get("startedAt"), finished_at)
-    analysis["taskTiming"] = timing
-    analysis["taskLock"] = {"active": False, "taskId": task_id, "status": final_status, "reason": "task_finished"}
-    attach_simcraft_template_report(analysis, row_status=final_status, timing=timing)
-    final_summary = simcraft_template_report_summary_payload(
-        analysis,
-        row_status=final_status,
-        updated_at=finished_at,
-        request_payload=request_payload,
+    analysis, final_status, final_summary, final_error, finished_at = complete_simcraft_template_task_analysis(
+        row[0],
+        request_payload,
+        running_analysis,
     )
     with db_connection() as conn:
         owner = conn.execute(
@@ -3687,8 +4036,21 @@ def run_simcraft_template_task(task_id):
             }
         now = finished_at
         conn.execute(
-            "UPDATE simulator_tasks SET status = ?, analysis_json = ?, summary_json = ?, updated_at = ? WHERE id = ?",
-            (final_status, json.dumps(analysis, ensure_ascii=False), json.dumps(final_summary, ensure_ascii=False), now, task_id),
+            """
+            UPDATE simulator_tasks
+            SET status = ?, analysis_json = ?, summary_json = ?, finished_at = ?,
+                last_error = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                final_status,
+                json.dumps(analysis, ensure_ascii=False),
+                json.dumps(final_summary, ensure_ascii=False),
+                now,
+                final_error,
+                now,
+                task_id,
+            ),
         )
     return public_simcraft_template_analysis(analysis, row_status=final_status)
 
@@ -3736,25 +4098,41 @@ def analyze_and_store_simulator_task(request_data, access_token=""):
         if request_payload.get("mode") == "simcraft_template"
         else {}
     )
-    with db_connection() as conn:
-        conn.execute(
-            """
-            INSERT INTO simulator_tasks (
-                id, user_id, mode, status, request_json, analysis_json, summary_json, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                task_id,
-                user["id"],
-                analysis.get("mode", ""),
-                analysis.get("status", ""),
-                json.dumps(stored_request, ensure_ascii=False),
-                json.dumps(analysis, ensure_ascii=False),
-                json.dumps(summary_payload, ensure_ascii=False),
-                now,
-                now,
-            ),
+    store = personal_data_store()
+    if store:
+        store.insert_simulator_task(
+            {
+                "id": task_id,
+                "user_id": user["id"],
+                "mode": analysis.get("mode", ""),
+                "status": analysis.get("status", ""),
+                "request_json": stored_request,
+                "analysis_json": analysis,
+                "summary_json": summary_payload,
+                "created_at": now,
+                "updated_at": now,
+            }
         )
+    else:
+        with db_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO simulator_tasks (
+                    id, user_id, mode, status, request_json, analysis_json, summary_json, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    task_id,
+                    user["id"],
+                    analysis.get("mode", ""),
+                    analysis.get("status", ""),
+                    json.dumps(stored_request, ensure_ascii=False),
+                    json.dumps(analysis, ensure_ascii=False),
+                    json.dumps(summary_payload, ensure_ascii=False),
+                    now,
+                    now,
+                ),
+            )
     if request_payload.get("mode") == "simcraft_template":
         return public_simcraft_template_analysis(analysis)
     return analysis
@@ -3769,17 +4147,21 @@ def list_simulator_tasks(access_token, allow_guest=False, guest_id=""):
             return {"user": None, "tasks": []}
         raise PermissionError("invalid auth token")
 
-    with db_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT id, mode, status, request_json, analysis_json, summary_json, created_at, updated_at
-            FROM simulator_tasks
-            WHERE user_id = ?
-            ORDER BY created_at DESC
-            LIMIT 50
-            """,
-            (user["id"],),
-        ).fetchall()
+    store = personal_data_store()
+    if store:
+        rows = store.list_simulator_task_rows(user["id"])
+    else:
+        with db_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, mode, status, request_json, analysis_json, summary_json, created_at, updated_at
+                FROM simulator_tasks
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                LIMIT 50
+                """,
+                (user["id"],),
+            ).fetchall()
     tasks = []
     for row in rows:
         request_payload = safe_json_loads(row[3], {}, f"simulator task request {row[0]}")
@@ -3791,13 +4173,13 @@ def list_simulator_tasks(access_token, allow_guest=False, guest_id=""):
             or ""
         )
         task = {
-            "taskId": row[0],
-            "mode": row[1],
-            "status": row[2],
+            "taskId": public_row_value(row[0]),
+            "mode": public_row_value(row[1]),
+            "status": public_row_value(row[2]),
             "question": question,
             "recommendations": analysis_payload.get("recommendations", []),
-            "createdAt": row[6],
-            "updatedAt": row[7],
+            "createdAt": public_row_value(row[6]),
+            "updatedAt": public_row_value(row[7]),
         }
         if row[1] == "simcraft_template":
             stored_summary = safe_json_loads(row[5], {}, f"simulator task summary {row[0]}")
@@ -3819,21 +4201,27 @@ def get_simulator_task(access_token, task_id, allow_guest=False, guest_id=""):
     if not user:
         raise PermissionError("invalid auth token")
 
-    with db_connection() as conn:
-        row = conn.execute(
-            """
-            SELECT id, mode, status, request_json, analysis_json, created_at, updated_at
-            FROM simulator_tasks
-            WHERE user_id = ? AND id = ?
-            """,
-            (user["id"], task_id),
-        ).fetchone()
+    store = personal_data_store()
+    should_backfill_detail = False
+    if store:
+        row = store.get_simulator_task_row(user["id"], task_id)
+    else:
+        should_backfill_detail = True
+        with db_connection() as conn:
+            row = conn.execute(
+                """
+                SELECT id, mode, status, request_json, analysis_json, created_at, updated_at
+                FROM simulator_tasks
+                WHERE user_id = ? AND id = ?
+                """,
+                (user["id"], task_id),
+            ).fetchone()
     if not row:
         raise KeyError("simulator task not found")
 
     request_payload = safe_json_loads(row[3], {}, f"simulator task request {row[0]}")
     analysis_payload = safe_json_loads(row[4], {}, f"simulator task analysis {row[0]}")
-    if row[1] == "simcraft_template":
+    if row[1] == "simcraft_template" and should_backfill_detail:
         analysis_payload = backfill_simcraft_template_detail_stat_snapshot(
             row[0],
             row[2],
@@ -3859,15 +4247,15 @@ def get_simulator_task(access_token, task_id, allow_guest=False, guest_id=""):
     return {
         "user": user,
         "task": {
-            "taskId": row[0],
-            "mode": row[1],
-            "status": row[2],
+            "taskId": public_row_value(row[0]),
+            "mode": public_row_value(row[1]),
+            "status": public_row_value(row[2]),
             "question": question,
             "recommendations": public_analysis.get("recommendations", []),
             "request": public_request,
             "analysis": public_analysis,
-            "createdAt": row[5],
-            "updatedAt": row[6],
+            "createdAt": public_row_value(row[5]),
+            "updatedAt": public_row_value(row[6]),
         },
     }
 
@@ -4465,6 +4853,12 @@ def create_chickenbro_session(access_token="", guest_id="", metadata=None):
     session_id = uuid.uuid4().hex
     title = clean_text(metadata.get("title") or "炸鸡队长对话", 80)
     product_phase = normalize_chickenbro_phase(metadata.get("productPhase") or metadata.get("phase"))
+    store = personal_data_store()
+    if store:
+        return {
+            "user": user,
+            "session": store.create_chickenbro_session(user["id"], title, product_phase, metadata, now),
+        }
     with db_connection() as conn:
         conn.execute(
             """
@@ -4683,6 +5077,69 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
         }
 
 
+def send_chickenbro_message_postgres(store, user, payload, message, context, codex_runner=None):
+    requested_session_id = clean_text(payload.get("sessionId"), 80)
+    if requested_session_id:
+        session = store.get_chickenbro_session(user["id"], requested_session_id)["session"]
+    else:
+        metadata = {
+            "createdFrom": "message",
+            "context": sanitize_chickenbro_request_context(context),
+        }
+        session = store.create_chickenbro_session(
+            user["id"],
+            clean_text(message, 36) or "炸鸡队长对话",
+            normalize_chickenbro_phase(context.get("productPhase") or context.get("phase")),
+            metadata,
+            utc_now(),
+        )
+
+    existing_profile = store.load_chickenbro_user_profile(user["id"])
+    user_profile = merge_chickenbro_user_profile(existing_profile, context, message)
+    store.upsert_chickenbro_user_profile(user["id"], user_profile, utc_now())
+    bounded_context = build_chickenbro_bounded_context(message, context, user_profile=user_profile)
+    sanitized_request = {
+        "message": message,
+        "context": sanitize_chickenbro_request_context(context),
+        "sessionId": session["sessionId"],
+    }
+    user_message = store.insert_chickenbro_message(
+        user["id"],
+        session["sessionId"],
+        "user",
+        message,
+        {"context": sanitized_request["context"]},
+        now=utc_now(),
+    )
+    job_id = store.insert_agent_job(user["id"], session["sessionId"], sanitized_request, bounded_context, utc_now())
+    started_at = utc_now()
+    store.update_agent_job(user["id"], job_id, "running", started_at=started_at, now=started_at)
+
+    agent_result = run_chickenbro_agent(bounded_context, codex_runner=codex_runner)
+    answer_payload = agent_result["answer"]
+    job_status = "timed_out" if (agent_result.get("codex") or {}).get("status") == "timed_out" else "succeeded"
+    finished_at = utc_now()
+    store.update_agent_job(user["id"], job_id, job_status, result=agent_result, finished_at=finished_at, now=finished_at)
+    assistant_message = store.insert_chickenbro_message(
+        user["id"],
+        session["sessionId"],
+        "assistant",
+        answer_payload.get("answer", ""),
+        answer_payload,
+        agent_job_id=job_id,
+        now=finished_at,
+    )
+    store.touch_chickenbro_session(user["id"], session["sessionId"], finished_at)
+    return {
+        "mode": "chickenbro",
+        "user": user,
+        "session": session,
+        "userMessage": user_message,
+        "assistantMessage": assistant_message,
+        "job": store.get_chickenbro_job(user["id"], job_id),
+    }
+
+
 def send_chickenbro_message(payload, access_token="", codex_runner=None):
     payload = payload if isinstance(payload, dict) else {}
     message = clean_text(payload.get("message") or payload.get("prompt") or payload.get("question"), 4000)
@@ -4691,6 +5148,9 @@ def send_chickenbro_message(payload, access_token="", codex_runner=None):
     context = payload.get("context") if isinstance(payload.get("context"), dict) else {}
     guest_id = payload.get("guestId") or context.get("guestId") or ""
     user = resolve_chickenbro_user(access_token, guest_id, create_guest=True)
+    store = personal_data_store()
+    if store:
+        return send_chickenbro_message_postgres(store, user, payload, message, context, codex_runner=codex_runner)
 
     with db_connection() as conn:
         session = find_or_create_chickenbro_session(conn, user, payload.get("sessionId"), message, context)
@@ -4755,6 +5215,10 @@ def get_chickenbro_session(access_token, session_id, allow_guest=False, guest_id
         user = find_guest_simulator_user(guest_id)
     if not user:
         raise PermissionError("invalid auth token")
+    store = personal_data_store()
+    if store:
+        session_payload = store.get_chickenbro_session(user["id"], session_id)
+        return {"user": user, **session_payload}
     with db_connection() as conn:
         row = conn.execute(
             """
@@ -4787,6 +5251,9 @@ def get_chickenbro_job(access_token, job_id, allow_guest=False, guest_id=""):
         user = find_guest_simulator_user(guest_id)
     if not user:
         raise PermissionError("invalid auth token")
+    store = personal_data_store()
+    if store:
+        return {"user": user, "job": store.get_chickenbro_job(user["id"], job_id)}
     with db_connection() as conn:
         row = conn.execute(
             """
@@ -4803,6 +5270,15 @@ def get_chickenbro_job(access_token, job_id, allow_guest=False, guest_id=""):
 
 
 def load_articles():
+    store = content_data_store()
+    if store:
+        articles = store.load_articles()
+        if not articles:
+            refresh_articles("bootstrap", collector_enabled=False)
+            articles = store.load_articles()
+        if articles and not any(is_valid_article(article) for article in articles):
+            return []
+        return articles
     init_db()
     with db_connection() as conn:
         rows = conn.execute(
@@ -4919,9 +5395,15 @@ def row_to_article(row):
 
 
 def get_article_detail(article_id):
-    init_db()
     if not article_id:
         return None
+    store = content_data_store()
+    if store:
+        article = store.get_article(article_id)
+        if not article or not is_valid_article(article):
+            return None
+        return article
+    init_db()
     with db_connection() as conn:
         row = conn.execute(
             """
@@ -5115,15 +5597,87 @@ def get_pve_module_payload(module_key):
 
 
 def runtime_season_payload():
+    store = cache_data_store()
+    if store:
+        try:
+            payload = store.get_active_season_payload()
+        except Exception:
+            payload = {}
+        if isinstance(payload, dict) and payload.get("dataStatus") == "verified":
+            return payload
     init_db()
     with db_connection() as conn:
         return get_active_season_payload(conn)
 
 
 def runtime_season_payload_with_raiderio():
+    season = runtime_season_payload()
     init_db()
     with db_connection() as conn:
-        return enrich_game_season_payload(get_active_season_payload(conn), get_raiderio_payload(conn))
+        return enrich_game_season_payload(season, get_raiderio_payload(conn))
+
+
+def runtime_websim_loot_payload(filters):
+    store = cache_data_store()
+    if store:
+        try:
+            payload = store.get_websim_loot(filters)
+        except Exception:
+            payload = {}
+        if isinstance(payload, dict) and (payload.get("dataStatus") == "verified" or payload.get("items")):
+            return payload
+    init_db()
+    with db_connection() as conn:
+        return get_websim_loot(conn, filters)
+
+
+def websim_gear_payload_has_items(payload):
+    if not isinstance(payload, dict):
+        return False
+    for group in payload.get("replacementCandidates") or []:
+        if isinstance(group, dict) and group.get("items"):
+            return True
+    return bool(payload.get("catalogItems"))
+
+
+def runtime_websim_gear_payload(class_key, spec_key, compact=False):
+    store = cache_data_store()
+    if store:
+        try:
+            payload = store.get_websim_gear(class_key, spec_key, compact=compact)
+        except Exception:
+            payload = {}
+        if (
+            isinstance(payload, dict)
+            and payload.get("dataStatus") == "verified"
+            and websim_gear_payload_has_items(payload)
+        ):
+            return payload
+    init_db()
+    with db_connection() as conn:
+        return get_websim_gear(conn, class_key, spec_key, compact=compact)
+
+
+def websim_talent_payload_has_nodes(payload):
+    return isinstance(payload, dict) and bool(payload.get("nodes"))
+
+
+def runtime_websim_talents_payload(class_key, spec_key, hero_key=""):
+    store = cache_data_store()
+    if store:
+        try:
+            payload = store.get_websim_talents(class_key, spec_key, hero_key)
+        except Exception:
+            payload = {}
+        if (
+            isinstance(payload, dict)
+            and payload.get("dataStatus") == "verified"
+            and websim_talent_payload_has_nodes(payload)
+        ):
+            return payload
+    init_db()
+    with db_connection() as conn:
+        return get_websim_talents(conn, class_key, spec_key, hero_key)
 
 
 def safe_positive_int(value):
@@ -5345,6 +5899,26 @@ def admin_analytics_response(handler, path, query):
     if not analytics_admin_authorized(handler.headers):
         json_response(handler, 401, {"error": "unauthorized"})
         return
+    store = analytics_data_store()
+    if store:
+        if path == "/api/admin/analytics/summary":
+            json_response(handler, 200, store.analytics_summary(query))
+            return
+        if path == "/api/admin/analytics/pages":
+            json_response(handler, 200, store.analytics_pages(query))
+            return
+        if path == "/api/admin/analytics/features":
+            json_response(handler, 200, store.analytics_features(query))
+            return
+        if path == "/api/admin/analytics/simulator" and hasattr(store, "analytics_simulator"):
+            json_response(handler, 200, store.analytics_simulator(query))
+            return
+        if path == "/api/admin/analytics/events":
+            json_response(handler, 200, store.analytics_events(query))
+            return
+        if path == "/api/admin/analytics/users":
+            json_response(handler, 200, store.analytics_users(query))
+            return
     init_db()
     with db_connection() as conn:
         if path == "/api/admin/analytics/summary":
@@ -5371,6 +5945,15 @@ def admin_analytics_response(handler, path, query):
 def record_analytics_request(handler, payload):
     access_token = bearer_token_from_headers(handler.headers)
     user = authenticate_token(access_token) if access_token else None
+    store = analytics_data_store()
+    if store:
+        return store.record_events(
+            payload,
+            user_id=user["id"] if user else None,
+            client_id=handler.headers.get("X-Wow-Client-Id", ""),
+            session_id=handler.headers.get("X-Wow-Session-Id", ""),
+            platform=handler.headers.get("X-Wow-Platform", "miniprogram"),
+        )
     init_db()
     with db_connection() as conn:
         return record_events(
@@ -5683,33 +6266,27 @@ class Handler(BaseHTTPRequestHandler):
                 json_response(self, 200, get_websim_assets(conn, filters))
             return
         if path == "/api/talents/tree":
-            init_db()
-            with db_connection() as conn:
-                json_response(
-                    self,
-                    200,
-                    get_websim_talents(
-                        conn,
-                        query.get("class", query.get("classKey", ["mage"]))[0],
-                        query.get("spec", query.get("specKey", ["arcane"]))[0],
-                        query.get("hero", query.get("heroKey", [""]))[0],
-                    ),
-                )
+            json_response(
+                self,
+                200,
+                runtime_websim_talents_payload(
+                    query.get("class", query.get("classKey", ["mage"]))[0],
+                    query.get("spec", query.get("specKey", ["arcane"]))[0],
+                    query.get("hero", query.get("heroKey", [""]))[0],
+                ),
+            )
             return
         if path == "/api/websim/talents":
             query = parse_qs(urlparse(self.path).query)
-            init_db()
-            with db_connection() as conn:
-                json_response(
-                    self,
-                    200,
-                    get_websim_talents(
-                        conn,
-                        query.get("class", query.get("classKey", ["mage"]))[0],
-                        query.get("spec", query.get("specKey", ["arcane"]))[0],
-                        query.get("hero", query.get("heroKey", [""]))[0],
-                    ),
-                )
+            json_response(
+                self,
+                200,
+                runtime_websim_talents_payload(
+                    query.get("class", query.get("classKey", ["mage"]))[0],
+                    query.get("spec", query.get("specKey", ["arcane"]))[0],
+                    query.get("hero", query.get("heroKey", [""]))[0],
+                ),
+            )
             return
         if path == "/api/websim/gear":
             query = parse_qs(urlparse(self.path).query)
@@ -5722,9 +6299,7 @@ class Handler(BaseHTTPRequestHandler):
             spec_key = query.get("spec", query.get("specKey", ["arcane"]))[0]
 
             def build_payload():
-                init_db()
-                with db_connection() as conn:
-                    return get_websim_gear(conn, class_key, spec_key, compact=compact)
+                return runtime_websim_gear_payload(class_key, spec_key, compact=compact)
 
             json_response(self, 200, run_websim_gear_build(build_payload))
             return
@@ -5736,9 +6311,7 @@ class Handler(BaseHTTPRequestHandler):
                 "slot": query.get("slot", [""])[0],
                 "q": query.get("q", [""])[0],
             }
-            init_db()
-            with db_connection() as conn:
-                json_response(self, 200, get_websim_loot(conn, filters))
+            json_response(self, 200, runtime_websim_loot_payload(filters))
             return
         if path == "/api/simulator/tasks":
             query = parse_qs(urlparse(self.path).query)
@@ -5838,6 +6411,10 @@ class Handler(BaseHTTPRequestHandler):
                 json_response(self, 401, {"error": "unauthorized"})
                 return
             payload = read_json_body(self)
+            store = analytics_data_store()
+            if store:
+                json_response(self, 200, store.rollup_daily_metrics(payload.get("date", "")))
+                return
             init_db()
             with db_connection() as conn:
                 json_response(self, 200, rollup_daily_metrics(conn, payload.get("date", "")))

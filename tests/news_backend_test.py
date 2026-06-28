@@ -2109,10 +2109,24 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("allowedNumbers", analysis)
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
             row = conn.execute(
-                "SELECT status, request_json, analysis_json, summary_json FROM simulator_tasks WHERE id = ?",
+                """
+                SELECT status, request_json, analysis_json, summary_json,
+                       queued_at, started_at, finished_at, attempt, locked_by,
+                       heartbeat_at, cancel_requested, last_error
+                FROM simulator_tasks
+                WHERE id = ?
+                """,
                 (analysis["taskId"],),
             ).fetchone()
         self.assertEqual(row[0], "queued")
+        self.assertTrue(row[4])
+        self.assertEqual(row[5], "")
+        self.assertEqual(row[6], "")
+        self.assertEqual(row[7], 0)
+        self.assertEqual(row[8], "")
+        self.assertEqual(row[9], "")
+        self.assertEqual(row[10], 0)
+        self.assertEqual(row[11], "")
         stored_request = json.loads(row[1])
         stored_analysis = json.loads(row[2])
         stored_summary = json.loads(row[3])
@@ -2134,6 +2148,106 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(task_summary["build"]["specName"], "奥术")
         self.assertEqual(task_summary["build"]["heroKey"], "spellslinger")
         self.assertEqual(task_summary["timing"]["finishedAt"], "")
+
+    def test_simcraft_template_task_list_prefers_stored_summary_after_snapshot_changes(self):
+        self.seed_simc_template_websim_nodes()
+        os.environ["WOW_SIMC_TEMPLATE_TASK_AUTORUN"] = "0"
+        request_payload = self.simc_template_payload(scenario="mythic_plus", race="troll")
+        request_payload["raceName"] = "巨魔"
+        request_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device-summary"})
+        try:
+            analysis = self.backend.analyze_and_store_simulator_task(request_payload)
+        finally:
+            os.environ.pop("WOW_SIMC_TEMPLATE_TASK_AUTORUN", None)
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            row = conn.execute(
+                "SELECT request_json, analysis_json FROM simulator_tasks WHERE id = ?",
+                (analysis["taskId"],),
+            ).fetchone()
+            stored_request = json.loads(row[0])
+            stored_analysis = json.loads(row[1])
+            stored_request["templateContext"]["talent"]["specName"] = "changed-after-submit"
+            stored_request["templateContext"]["gear"]["specName"] = "changed-after-submit"
+            stored_analysis["simcReport"]["build"]["specName"] = "changed-after-submit"
+            conn.execute(
+                "UPDATE simulator_tasks SET request_json = ?, analysis_json = ? WHERE id = ?",
+                (
+                    json.dumps(stored_request, ensure_ascii=False),
+                    json.dumps(stored_analysis, ensure_ascii=False),
+                    analysis["taskId"],
+                ),
+            )
+            conn.commit()
+
+        tasks = self.backend.list_simulator_tasks("", allow_guest=True, guest_id="template-device-summary")
+        task_summary = tasks["tasks"][0]["simcReportSummary"]
+        self.assertEqual(task_summary["build"]["specName"], "奥术")
+        self.assertNotEqual(task_summary["build"]["specName"], "changed-after-submit")
+
+    def test_simcraft_template_task_detail_uses_submit_time_template_snapshot(self):
+        self.seed_simc_template_websim_nodes()
+        os.environ["WOW_SIMC_TEMPLATE_TASK_AUTORUN"] = "0"
+        request_payload = self.simc_template_payload()
+        request_payload.update({"confirmOnly": False, "saveTask": True, "guestId": "template-device-detail"})
+        try:
+            analysis = self.backend.analyze_and_store_simulator_task(request_payload)
+        finally:
+            os.environ.pop("WOW_SIMC_TEMPLATE_TASK_AUTORUN", None)
+
+        changed_at = "2026-06-27T10:00:00+00:00"
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            user_id = conn.execute(
+                "SELECT user_id FROM simulator_tasks WHERE id = ?",
+                (analysis["taskId"],),
+            ).fetchone()[0]
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO user_build_templates (
+                    id, user_id, client_id, template_type, title, class_key, class_name,
+                    spec_key, spec_name, hero_key, hero_label, scenario_key, scenario_title,
+                    raw_string, simc_lines_json, status, status_label, source, metadata_json,
+                    schema_version, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "talent-template-1",
+                    user_id,
+                    "talent-template-1",
+                    "talent",
+                    "changed-after-submit",
+                    "mage",
+                    "法师",
+                    "fire",
+                    "changed-after-submit",
+                    "flamestrike",
+                    "changed-after-submit",
+                    "",
+                    "",
+                    "websim:changed-after-submit",
+                    "[]",
+                    "saved",
+                    "Saved",
+                    "test",
+                    "{}",
+                    1,
+                    changed_at,
+                    changed_at,
+                ),
+            )
+            conn.commit()
+
+        detail = self.backend.get_simulator_task(
+            "",
+            analysis["taskId"],
+            allow_guest=True,
+            guest_id="template-device-detail",
+        )
+        talent_snapshot = detail["task"]["request"]["templateContext"]["talent"]
+        self.assertEqual(talent_snapshot["id"], "talent-template-1")
+        self.assertEqual(talent_snapshot["title"], "奥法 WebSim 天赋")
+        self.assertEqual(talent_snapshot["specName"], "奥术")
+        self.assertNotEqual(talent_snapshot["title"], "changed-after-submit")
 
     def test_simcraft_template_final_submit_reuses_active_task_lock(self):
         self.seed_simc_template_websim_nodes()
@@ -2219,8 +2333,24 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(task_summary["build"]["heroKey"], "spellslinger")
         self.assertEqual(task_summary["timing"]["finishedAt"], completed["simcReport"]["timing"]["finishedAt"])
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
-            row = conn.execute("SELECT status, summary_json FROM simulator_tasks WHERE id = ?", (queued["taskId"],)).fetchone()
+            row = conn.execute(
+                """
+                SELECT status, summary_json, queued_at, started_at, finished_at,
+                       attempt, locked_by, heartbeat_at, cancel_requested, last_error
+                FROM simulator_tasks
+                WHERE id = ?
+                """,
+                (queued["taskId"],),
+            ).fetchone()
         self.assertEqual(row[0], "completed")
+        self.assertTrue(row[2])
+        self.assertTrue(row[3])
+        self.assertTrue(row[4])
+        self.assertEqual(row[5], 1)
+        self.assertEqual(row[6], "")
+        self.assertEqual(row[7], "")
+        self.assertEqual(row[8], 0)
+        self.assertEqual(row[9], "")
         stored_summary = json.loads(row[1])
         self.assertEqual(stored_summary["state"], "completed")
         self.assertEqual(stored_summary["dpsDisplay"], "654321 DPS")
@@ -2501,6 +2631,21 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(failed["simcReport"]["result"]["dps"], "")
         self.assertIn("invalid talent input", failed["simcReport"]["summary"])
         self.assertIn("invalid talent input", failed["simcReport"]["messages"]["blockers"][0])
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            row = conn.execute(
+                """
+                SELECT status, queued_at, started_at, finished_at, attempt, last_error
+                FROM simulator_tasks
+                WHERE id = ?
+                """,
+                (queued["taskId"],),
+            ).fetchone()
+        self.assertEqual(row[0], "failed")
+        self.assertTrue(row[1])
+        self.assertTrue(row[2])
+        self.assertTrue(row[3])
+        self.assertEqual(row[4], 1)
+        self.assertIn("invalid talent input", row[5])
 
     def test_simc_agent_generates_template_from_natural_language(self):
         self.patch_simc_confirmation_llm(
@@ -3939,7 +4084,29 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("core_schema_v1", migrations)
         self.assertIn("user_build_templates_v1", migrations)
         self.assertIn("simulator_task_summary_v1", migrations)
+        self.assertIn("simulator_task_worker_ready_v1", migrations)
         self.assertIn("summary_json", simulator_task_columns)
+
+    def test_simulator_tasks_include_worker_ready_columns(self):
+        self.backend.init_db()
+
+        with self.backend.db_connection() as conn:
+            columns = {
+                row[1]
+                for row in conn.execute("PRAGMA table_info(simulator_tasks)").fetchall()
+            }
+
+        for field in (
+            "queued_at",
+            "started_at",
+            "finished_at",
+            "attempt",
+            "locked_by",
+            "heartbeat_at",
+            "cancel_requested",
+            "last_error",
+        ):
+            self.assertIn(field, columns)
 
     def test_init_db_skips_seed_writes_after_schema_is_initialized(self):
         self.backend.init_db()
@@ -5085,6 +5252,38 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("mplus_fortified", memory_json)
         self.assertNotIn("RAW_LOG_SHOULD_NOT_ENTER_MEMORY", memory_json)
         self.assertNotIn("SIMC_PROFILE_SHOULD_NOT_ENTER_MEMORY", memory_json)
+
+    def test_chickenbro_guest_policy_requires_explicit_identity_context(self):
+        self.backend.init_db()
+
+        with self.assertRaises(PermissionError):
+            self.backend.resolve_chickenbro_user(access_token="", guest_id="", create_guest=False)
+
+        with self.assertRaises(PermissionError):
+            self.backend.resolve_chickenbro_user(
+                access_token="",
+                guest_id="unknown-chickenbro-device",
+                create_guest=False,
+            )
+
+    def test_chickenbro_explicit_guest_creation_remains_current_compatibility_path(self):
+        self.backend.init_db()
+
+        user = self.backend.resolve_chickenbro_user(
+            access_token="",
+            guest_id="explicit-chickenbro-device",
+            create_guest=True,
+        )
+
+        self.assertTrue(user["openid"].startswith("guest-simulator-"))
+        self.assertEqual(
+            self.backend.resolve_chickenbro_user(
+                access_token="",
+                guest_id="explicit-chickenbro-device",
+                create_guest=False,
+            )["id"],
+            user["id"],
+        )
 
     def test_chickenbro_profile_gate_uses_published_global_profile_and_partial_cn_as_background(self):
         self.seed_chickenbro_profile(status="partial", sourceStatus="partial")
