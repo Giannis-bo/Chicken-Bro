@@ -125,9 +125,10 @@
 
 ## 后端实现
 
-当前为了适配新服务器的最小环境，后端使用 Python 标准库：
+当前后端入口仍使用 Python 标准库 HTTP server。数据存储处于 PG hybrid 阶段：`WOW_DATABASE_RUNTIME=postgres_personal` 时，新闻 refresh / article read model 可通过 `server/postgres_content_store.py` 读写 PostgreSQL；SQLite 仍作为 fallback、历史种子和回滚来源。
 
-- `server/news_backend.py`：HTTP API、SQLite 初始化、来源注册表、discovery queue、raw/evidence 记录、可信发布门禁、刷新记录、payload 构建。
+- `server/news_backend.py`：HTTP API、runtime store 选择、来源注册表、discovery queue、raw/evidence 记录、可信发布门禁、刷新记录、payload 构建。
+- `server/postgres_content_store.py`：`postgres_personal` hybrid runtime 下的新闻 content seam，负责 `content.sources/raw_articles/article_evidence/articles/discovery_queue/refresh_runs`。
 - `server/news_collector.py`：无依赖 RSS / Atom / HTML / Blizzard Forums 采集器，负责列表发现、Blizzard 官方详情页正文块抽取、官方论坛主题发现、标准化日期、版本事件识别、频道分类、来源证据和去重。
 - `server/news_translator.py`：负责 LLM 中文化 schema、tag 白名单、逐块原文直译、完整正文质检、`translationFidelity=source_translation` 和 `ready / blocked` 发布状态。
 - `server/news/articles.seed.json`：第一版已核验来源的新闻种子。
@@ -147,7 +148,7 @@
 
 ```text
 WOW_NEWS_ENABLE_COLLECTORS=0  # 默认，仅读取已核验种子
-WOW_NEWS_ENABLE_COLLECTORS=1  # 启用 RSS / Atom 采集并写入 SQLite
+WOW_NEWS_ENABLE_COLLECTORS=1  # 启用 RSS / Atom 采集并写入当前 runtime store
 WOW_NEWS_DISCOVERY_LIMIT=10  # 每个来源每轮至少发现的条数；旧 WOW_NEWS_MAX_COLLECTED_ARTICLES 会被视为下限输入
 WOW_NEWS_PROCESS_LIMIT=5  # 每轮从 discovery queue 处理的条数，建议 3-5
 WOW_LLM_TIMEOUT_SECONDS=45  # 单次 LLM 翻译请求超时

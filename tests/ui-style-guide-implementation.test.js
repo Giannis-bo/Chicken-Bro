@@ -46,9 +46,7 @@ test('top-level module heroes use black iron and gold as the dominant visual sys
   const heroChecks = [
     ['pages/builds/builds.wxss', '.builds-hero', /#17120d/, /#8b3ff5\s+150%/],
     ['pages/pve/pve.wxss', '.pve-hero', /#17120d/, /#7a1116\s+0%/],
-    ['pages/simulator/simulator.wxss', '.simulator-hero', /#17120d/, /#493477\s+0%/],
-    ['pages/simulator/wcl.wxss', '.wcl-hero', /#17120d/, /#3a2a0b\s+0%/],
-    ['pages/simulator/chickenbro.wxss', '.chickenbro-hero', /#17120d/, /#1c705f\s+0%/]
+    ['pages/simulator/wcl.wxss', '.wcl-hero', /#17120d/, /#3a2a0b\s+0%/]
   ]
 
   for (const [file, selector, expected, oldDominant] of heroChecks) {
@@ -56,6 +54,12 @@ test('top-level module heroes use black iron and gold as the dominant visual sys
     assert.match(heroBlock, expected, `${selector} should use the shared warm panel base`)
     assert.doesNotMatch(heroBlock, oldDominant, `${selector} should keep class color as accent only`)
   }
+
+  const simulatorChat = block(read('pages/simulator/simulator.wxss'), '.chickenbro-chat-shell')
+  const chickenbroChat = block(read('pages/simulator/chickenbro.wxss'), '.chickenbro-chat-shell')
+  assert.match(simulatorChat, /background:\s*#060606;/)
+  assert.match(chickenbroChat, /background:\s*#060606;/)
+  assert.match(block(read('pages/simulator/simulator.wxss'), '.chat-header-action'), /color:\s*#5bd6b4;/)
 })
 
 test('news and home module surfaces stay compact enough for mini-program first screens', () => {
@@ -73,15 +77,16 @@ test('news and home module surfaces stay compact enough for mini-program first s
   assert.match(block(pveCss, '.zone-item'), /min-height:\s*136rpx;/)
 
   const simulatorCss = read('pages/simulator/simulator.wxss')
-  assert.match(block(simulatorCss, '.analysis-module-card'), /min-height:\s*156rpx;/)
-  assert.match(block(simulatorCss, '.analysis-module-card'), /padding:\s*20rpx;/)
+  assert.match(block(simulatorCss, '.chat-input-bar'), /position:\s*fixed;/)
+  assert.match(block(simulatorCss, '.chat-bubble'), /max-width:\s*82%;/)
+  assert.match(block(simulatorCss, '.chat-bubble'), /padding:\s*18rpx\s+20rpx;/)
 })
 
 test('primary form actions stay inside the compact 72rpx button rhythm', () => {
   const checks = [
     ['pages/simulator/simc.wxss', '.confirm-button,\n.submit-button'],
     ['pages/simulator/wcl.wxss', '.submit-button'],
-    ['pages/simulator/chickenbro.wxss', '.submit-button']
+    ['pages/simulator/chickenbro.wxss', '.send-button']
   ]
 
   for (const [file, selector] of checks) {

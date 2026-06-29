@@ -1,6 +1,6 @@
 # 社区模板导入全链路 Runbook
 
-> 适用范围：社区天赋模板、社区装备模板、Raider.IO / WCL / manual fixtures / WebSim baseline 来源、SQLite 入库、`communityTemplates` read model、前端导入 sheet、个人模板保存、`/api/websim/profile` 最终校验、health 和回滚。
+> 适用范围：社区天赋模板、社区装备模板、Raider.IO / WCL / manual fixtures / WebSim baseline 来源、SQLite / PostgreSQL hybrid 入库、`communityTemplates` read model、前端导入 sheet、个人模板保存、`/api/websim/profile` 最终校验、health 和回滚。
 > 最后更新：2026-06-29。
 
 本文是“导入社区天赋 / 装备推荐”的执行手册。它不重新定义天赋树规则，也不重新定义装备 catalog；这两部分分别由 [全职业天赋模拟全链路 Runbook](talent-simulation-full-chain-runbook.md) 和 [装备模拟全链路 Runbook](gear-simulation-full-chain-runbook.md) 负责。本文只管外部或派生模板如何进入推荐、展示、应用和保存链路。
@@ -288,7 +288,7 @@ order by class_key, spec_key;
 ## 刷新和发布顺序
 
 1. 确认 owner 已批准外部刷新、生产写库和部署。
-2. 备份生产 SQLite。
+2. 备份当前 runtime 相关数据库：SQLite fallback 文件，以及当前 `WOW_DATABASE_RUNTIME=postgres_personal` 指向的 PostgreSQL target（开发工具阶段通常是 `wow_test`；正式发布 cutover 后才是 `wow_prod`）。
 3. 先确认天赋和装备 authority 当前 health。
 4. 显式运行社区模板同步：真实样本 / SimC preset 归档 -> 默认装备模板生成 -> dedupe -> health/run summary。
 5. 只读审计 source/status/count。
@@ -302,5 +302,5 @@ order by class_key, spec_key;
 ## 回滚
 
 - 代码回滚：回滚 `server/websim_payload.py`、前端 import sheet 相关文件和文档链接，然后热部署。
-- DB 回滚：停止服务，恢复写库前 SQLite 备份，重启服务，再跑 `/health` 和 `/api/data/health`。
+- DB 回滚：停止服务，按写入实际落点恢复 SQLite 和 / 或 PostgreSQL 备份，重启服务，再跑 `/health` 和 `/api/data/health`。
 - 数据局部回滚：如只需撤销 baseline，可删除 `source_key='websim_baseline'` 的模板并重建 `community_talent_templates` sync state；执行前仍需备份。

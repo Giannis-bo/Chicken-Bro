@@ -1,26 +1,27 @@
 # WOW Mini Program
 
-魔兽世界辅助小程序，面向正式服与测试服玩家，提供资讯追踪、职业专精查询、大秘境 / 团本数据专区，以及带 AI 辅助能力的构筑模拟器。
+魔兽世界辅助小程序，面向正式服与测试服玩家，提供资讯追踪、职业专精查询、WebSim / SimC 构筑模拟，以及“炸鸡队长”智能分析聊天入口。
 
 ## 项目目标
 
-首版围绕 4 个核心能力展开：
+当前小程序主流程围绕 4 个底部 tab 展开：
 
 1. **资讯追踪**：关注最新正式服以及测试服资讯，包括游戏玩法、版本变动和职业强度变化。
-2. **职业专精查询**：学习最高端玩家的职业专精构筑，包括天赋构筑、装备模拟、属性权重和输出循环。
-3. **大秘境和团队 raid 专区**：按当前赛季展示大秘境队伍天梯、职业天梯、赛季副本，以及团队 raid 首杀战报和 boss 攻略入口。
-4. **构筑模拟器**：提供 AI 功能辅助玩家跑 SimCraft、分析 WCL 数据、比较配装收益和定位战斗问题。
+2. **职业专精查询与模拟**：学习职业 / 专精入口，进入天赋模拟器、装备模拟、SimC 任务提交和任务列表。
+3. **智能分析**：直接进入“炸鸡队长”聊天，后端优先走 Codex，失败或证据不足时清晰降级。
+4. **我的**：角色偏好、收藏职业、订阅与个人模板 / 任务资产的账号化边界。
+
+PVE 专区、WCL 深度日志复盘、完整公共知识库和复杂后台管理仍保留为后续 / 待规划能力；已有代码和接口只作为历史、后台或兼容入口，不再作为当前 tab 主流程。
 
 ## 当前界面
 
-小程序目前采用 5 个底部 tab：
+小程序目前采用 4 个底部 tab：
 
 | Tab | 页面 | 说明 |
 | --- | --- | --- |
 | 最新资讯 | `pages/news/news` | 由 Lighthouse 轻量后端提供正式服、测试服、职业强度动态、完整中文详情与来源记录 |
-| 职业专精 | `pages/builds/builds` | 高端玩家构筑、天赋构筑、装备模拟、属性权重与输出循环 |
-| PVE专区 | `pages/pve/pve` | 当前赛季大秘境专区、团队 raid 专区、来源和分析窗口 |
-| 智能分析 | `pages/simulator/simulator` | SimCraft、WCL、配装对比、AI 分析建议；职业专精详情可带入天赋/装备上下文生成 SimC 任务 |
+| 职业专精 | `pages/builds/builds` | 当前主入口为天赋构筑、装备模拟、模拟 SimC、任务列表；热门专精、属性权重和输出循环仍按证据状态保留为后续能力 |
+| 智能分析 | `pages/simulator/simulator` | 直接渲染“炸鸡队长”聊天页，支持左右气泡、底部输入、新话题和话题抽屉；`/api/simulator/home` 仅作为兼容 payload |
 | 我的 | `pages/profile/profile` | 角色偏好、收藏职业、订阅与数据源设置 |
 
 ## 目录结构
@@ -35,19 +36,21 @@
 ├── pages/
 │   ├── builds/
 │   │   ├── builds.*             # 职业专精入口
-│   │   ├── detail.*             # 属性、循环、装备模拟详情
+│   │   ├── detail.*             # 装备模拟和保留的职业详情容器
 │   │   ├── intel.*              # 职业情报页
 │   │   ├── talent-simulator.*   # 原生 WebSim 天赋模拟器
 │   │   └── websim-api.js
 │   ├── common/                  # API、鉴权、埋点、本地模板和游戏资产工具
 │   ├── news/
 │   ├── profile/
-│   ├── pve/
+│   ├── pve/                     # 已有页面，当前未注册为 tab，后续待规划恢复
 │   └── simulator/
-│       ├── simulator.*          # 智能分析入口
-│       ├── simc.*               # SimC 对话/提交
-│       ├── wcl.*                # WCL 日志入口
-│       ├── chickenbro.*         # 炸鸡队长证据教练
+│       ├── simulator.*          # 智能分析入口，直接复用炸鸡队长聊天控制器
+│       ├── chickenbro-chat.js   # 炸鸡队长共享聊天状态/请求/降级逻辑
+│       ├── chickenbro.*         # 炸鸡队长独立页面，同一聊天体验
+│       ├── simc.*               # SimC 模板确认/任务提交，由职业专精入口进入
+│       ├── tasks.*              # SimC 任务列表
+│       ├── wcl.*                # WCL 日志入口，当前未注册到小程序 pages
 │       └── task-detail.*        # 已保存任务详情
 ├── project.config.json
 ├── server/
@@ -80,19 +83,14 @@ WOW_NEWS_PORT=8787 python3 server/news_backend.py
 
 - 基础与健康：`GET /health`、`GET /api/data/health`、`GET /api/game/season`
 - 资讯：`GET /api/news/home`、`GET /api/news/list`、`GET /api/news/article?id=...`、`GET /api/news/refresh-runs/latest`、`POST /api/news/refresh?mode=scheduled`
-- 职业专精 / PVE：`GET /api/builds/home`、`GET /api/builds/intel`、`GET /api/builds/detail?id=法师-冰霜`、`GET /api/builds/stat-weights/refresh-runs/latest`、`GET /api/pve/home`、`GET /api/pve/module?key=bossGuides`
+- 职业专精 / PVE：`GET /api/builds/home`、`GET /api/builds/intel`、`GET /api/builds/detail?id=法师-冰霜`、`GET /api/builds/stat-weights/refresh-runs/latest`、`GET /api/pve/home`、`GET /api/pve/module?key=bossGuides`。PVE 接口保留兼容与后台验证，当前没有底部 tab。
 - WebSim / 天赋 / 装备：`GET /api/websim/bootstrap`、`GET /api/websim/assets`、`GET /api/websim/talents`、`GET /api/talents/tree`、`GET /api/websim/gear?class=mage&spec=frost&compact=1`、`GET /api/websim/loot?instanceId=...`、`POST /api/websim/profile`、`POST /api/websim/gear/stats`、`POST /api/websim/simulate`、`POST /api/talents/validate`、`POST /api/talents/export`、`POST /api/talents/import`
 - 账号与模板：`POST /api/auth/wechat-login`、`POST /api/me/profile`、`GET /api/me/build-templates?type=talent`、`POST /api/me/build-templates`、`DELETE /api/me/build-templates?id=...`
-- 智能分析：`GET /api/simulator/home`、`POST /api/simulator/analyze`、`GET /api/simulator/tasks?guest=1`、`GET /api/simulator/task?id=...&guest=1`
+- 智能分析 / SimC：`GET /api/simulator/home`、`POST /api/simulator/analyze`、`GET /api/simulator/tasks?guest=1`、`GET /api/simulator/task?id=...&guest=1`。当前 `pages/simulator/simulator` 不再先展示模块卡片，而是直接进入 Chickenbro；SimC 页面从职业专精入口进入。
 - 炸鸡队长：`POST /api/chickenbro/messages`、`POST /api/chickenbro/sessions`、`GET /api/chickenbro/sessions?id=...`、`GET /api/chickenbro/jobs?id=...`、`GET /api/chickenbro/profiles?classKey=...&specKey=...`
 - 埋点和管理：`POST /api/analytics/events`、`GET /admin/analytics`、`GET /api/admin/analytics/*`、`POST /api/admin/analytics/rollup`、`GET /admin/gates`、`GET /api/admin/gates/*`
 
 账号写接口统一使用 Bearer token。小程序 API client 在明文 HTTP + auth 场景会拒绝发送 token 并回退到本地数据；个人模板会先写入本地 `wow_build_templates_v1`，只有 HTTPS/合法域名可用时才同步到 `/api/me/build-templates`。
-
-- `GET /api/simulator/home`
-- `POST /api/simulator/analyze`
-- `GET /api/simulator/tasks?guest=1`
-- `GET /api/simulator/task?id=...&guest=1`
 
 小程序默认在开发版访问 `http://124.223.51.33`。体验版/正式版需要通过 `getApp().globalData.backendApiBaseUrl`、本地缓存 `wow_backend_api_base_url`，或构建环境变量 `WOW_BACKEND_API_BASE_URL` 配置 HTTPS 合法域名；未配置时会使用本地 fallback payload，避免空屏。
 
@@ -101,6 +99,8 @@ WOW_NEWS_PORT=8787 python3 server/news_backend.py
 后台门禁治理台 `/admin/gates` 面向 owner 查看新闻、天赋和装备数据从上游、规则审计、证据链、入库到前端/SimC 消费的状态。`/api/admin/gates/summary|records|queue|diagnoses` 都需要 admin Bearer token；左侧“新闻资讯 / 天赋树 / 装备库”会按 `domain` 过滤记录。诊断写入只记录人工判断和审计日志，不会把 `blocked` / `partial` 改成 `verified`，也不会绕过系统门禁发布内容或启动 SimC。
 
 SimC 模板链路分为“确认”和“任务执行”两段：`mode=simcraft_template` 的确认阶段只做后端解析、装备属性快照校验、已知 SimC 兼容性阻断和紧凑 `simcReport`，不调用 LLM 或 Codex Worker；最终提交在校验通过后创建后台 `simulator_tasks`，由 runner 异步执行并把结果写回任务列表/详情。相同玩家同一时间最多保留 2 个 `queued/running` 模板任务，相同 fingerprint 会复用活动任务；单体、5目标 AOE、近似大秘境的 `fight_style/desired_targets/max_time/iterations=10000` 不因超时而降级。当前已知 `邪恶死亡骑士 + 天启骑士` 在 upstream SimC 会崩溃，后端会在属性快照和模板确认阶段直接返回中文 blocker，不启动 SimC。WCL 分析当前只完成 report URL/code/fight 解析和缺凭据阻断；没有 `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET` 时返回 `blocked/missing_credentials`，不会调用 LLM 伪造日志结论。
+
+炸鸡队长链路使用独立 `/api/chickenbro/*`。前端只发送短消息和有限上下文，完整 raw log、完整 SimC profile、token 和 secret 不进入小程序或 Codex prompt。后端负责 scope 判断、bounded context、Codex runner、schema 校验、数字白名单、owner/guest 隔离和 fallback。当前线上可通过 `WOW_CHICKENBRO_CODEX_ENABLED=1` 进入 direct Codex chat 体验：没有 published profile 时也可以先让 Codex 做魔兽范围内的自然对话，但不得把通用知识包装成本地证据；Codex 不可用、超时、schema 不合规或输出未经批准的数字时返回 deterministic fallback。
 
 LLM 和 SimCraft 由服务器环境控制：
 
@@ -123,6 +123,9 @@ LLM 和 SimCraft 由服务器环境控制：
 - `WOW_CODEX_HOME`：默认 `/home/ubuntu/.codex`，只存服务器本地 Codex 配置和认证缓存。
 - `WOW_CODEX_JOBS_DIR`：默认 `/var/lib/wow-backend/codex-jobs`，每个 Codex job 使用独立目录。
 - `WOW_CODEX_SANDBOX`：默认 `workspace-write`；后端用户任务不要使用 `danger-full-access`。
+- `WOW_CHICKENBRO_CODEX_ENABLED`：设为 `1` 时，Chickenbro 消息会在 scope 和 owner/guest 门禁通过后尝试走 Codex runner；未设置或 Codex 不可用时走 deterministic fallback。
+
+数据库运行时当前为 PostgreSQL hybrid seam：`WOW_DATABASE_RUNTIME=postgres_personal` 会让身份、个人模板、SimC 任务、Chickenbro 会话 / job、analytics、news content 和 WebSim/cache 读模型通过 PostgreSQL seam，SQLite 仍作为未迁移域和回滚备份存在。开发工具阶段线上服务当前指向 `wow_test`，避免把测试个人资产写入 `wow_prod`；正式发布切到 `wow_prod` 前需要单独审批、备份和 smoke。
 
 生产环境密钥放在服务器 `/etc/wow-backend.env`，例如：
 

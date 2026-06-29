@@ -1,6 +1,19 @@
 # PostgreSQL Identity Migration Runbook
 
-This runbook governs the phased PostgreSQL and strong-identity migration. Phase 1 is local-only: it adds compatibility code, target schema artifacts, tests, and rollback boundaries while keeping SQLite as the runtime database. Later phases may provision PostgreSQL and run approved shadow migrations, but runtime cutover still requires a dated cutover section and verified rollback path.
+This runbook governs the phased PostgreSQL and strong-identity migration.
+
+## Current Status
+
+As of 2026-06-29, the repository has moved past the original Phase 1 SQLite-only state:
+
+- `wow-lighthouse` has PostgreSQL 16.14 on `127.0.0.1:5432`; `wow_dev`, `wow_test`, and `wow_prod` exist with migrations `0001` through `0009` applied.
+- The active backend uses `WOW_DATABASE_RUNTIME=postgres_personal`.
+- Because the mini program is still in WeChat Developer Tools testing and not formally launched, the active service is intentionally pointed at `wow_test`, not `wow_prod`.
+- Identity/profile, personal build templates, SimC task snapshots, Chickenbro sessions/messages/jobs, analytics, news content, and WebSim/cache read-model seams can use PostgreSQL through runtime stores.
+- SQLite remains a compatibility fallback, historical source, backup, and rollback input for domains that have not moved behind a PostgreSQL seam.
+- `wow_prod` cutover rehearsal and public/cache reconciliation were completed, but formal launch cutover to `wow_prod` still requires a new dated approval, fresh backup, environment switch, restart, and smoke.
+
+Older sections below describe the sequence used to reach this state. Treat statements such as “Phase 1 is local-only” or “SQLite remains the runtime database” as historical phase notes unless they are explicitly repeated in this current-status section.
 
 ## Non-Negotiable Gates
 
@@ -12,9 +25,9 @@ Owner approval is required before any of these actions:
 - systemd environment switch to `WOW_DATABASE_URL`.
 - Deployment or service restart.
 
-Do not treat `WOW_DATABASE_URL` as a production cutover switch until this runbook is updated with a dated cutover section and the owner approves that section.
+Do not treat changing `WOW_DATABASE_URL` to a different target, especially `wow_prod`, as a routine config edit. Runtime seam activation has already happened, but database target changes still require a dated cutover section, owner approval, backup, rollback path, restart, and smoke.
 
-2026-06-27 owner note: for this active goal, the owner authorized cloud-server PostgreSQL provisioning, planned migration rehearsal, and execution according to the agent's plan without another confirmation. This authorization has been used for PostgreSQL installation, database/schema provisioning, `wow_test` / `wow_prod` guarded shadow migrations, public content/cache data copy, and SQLite-compatible `wow-backend` deployment/restart. It has not been used to switch `WOW_DATABASE_URL` or production runtime to PostgreSQL.
+2026-06-27 owner note: for that active goal, the owner authorized cloud-server PostgreSQL provisioning, planned migration rehearsal, and execution according to the agent's plan without another confirmation. This authorization has been used for PostgreSQL installation, database/schema provisioning, `wow_test` / `wow_prod` guarded shadow migrations, public content/cache data copy, runtime seam deployment, and later dev-debug repointing to `wow_test`. It does not authorize future unreviewed target switches or formal launch cutover to `wow_prod`.
 
 ## Phase 1 Local Setup
 
@@ -401,13 +414,13 @@ Follow-up stuck-task fix:
 
 Still not done:
 
-- This is a `postgres_personal` hybrid production runtime, not a full backend `db_connection()` cutover. SQLite remains the fallback for routes that have not been moved behind a PostgreSQL store seam.
+- This is a `postgres_personal` hybrid runtime seam, not a full backend `db_connection()` cutover. The active dev-debug service is pointed at `wow_test`; SQLite remains the fallback for routes that have not been moved behind a PostgreSQL store seam.
 - Guest-owned historical data and legacy auth tokens remain intentionally unmigrated. If formal authenticated SQLite users appear later, run a fresh identity/app reconciliation before relying on those rows in PG.
 - Embedding Provider and independent worker execution remain planned but not implemented.
 
 ## Runtime Cutover Checklist
 
-The hybrid production runtime cutover is complete. Any future full PostgreSQL `db_connection()` cutover still requires:
+The `postgres_personal` hybrid runtime seam is implemented. A formal `wow_prod` launch cutover, or any future full PostgreSQL `db_connection()` cutover, still requires:
 
 - Fresh production SQLite backup path recorded in `docs/roadmap.md`.
 - PostgreSQL schema and privileges re-verified on the target database.

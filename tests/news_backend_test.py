@@ -5818,6 +5818,47 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("只回答魔兽世界正式服和 PTR", result["assistantMessage"]["content"])
         self.assertEqual(result["job"]["result"]["topic"]["status"], "out_of_scope")
 
+    def test_chickenbro_missing_profile_still_calls_codex_for_direct_chat(self):
+        captured = {}
+
+        def fake_codex_runner(prompt, **kwargs):
+            captured["prompt"] = prompt
+            captured["schema"] = kwargs.get("schema")
+            return {
+                "status": "succeeded",
+                "lastMessage": json.dumps(
+                    {
+                        "answer": "我可以先按通用冰DK改动讨论思路，但当前没有本地已发布画像，所以不会给出强度、排名或日志结论。",
+                        "confidence": "low",
+                        "priorityActions": [
+                            {"title": "先补充专精、场景、SimC 或 WCL 证据。", "evidenceRefs": []}
+                        ],
+                        "evidenceRefs": [],
+                        "limitations": ["missing_published_profile"],
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+
+        result = self.backend.send_chickenbro_message(
+            {
+                "message": "看看12.1冰DK改动了哪些",
+                "guestId": "missing-profile-codex-device",
+                "context": {"classKey": "deathknight", "specKey": "frost", "scenarioKey": "mplus_fortified"},
+            },
+            codex_runner=fake_codex_runner,
+        )
+
+        prompt_payload = json.loads(captured["prompt"])
+        self.assertIn("boundedContext", prompt_payload)
+        self.assertTrue(any("direct Codex chat" in item for item in prompt_payload["instructions"]))
+        self.assertFalse(any("只能使用 boundedContext 中的事实" in item for item in prompt_payload["instructions"]))
+        self.assertIs(captured["schema"]["additionalProperties"], False)
+        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "codex")
+        self.assertEqual(result["job"]["result"]["validation"]["status"], "passed")
+        self.assertEqual(result["job"]["result"]["codex"]["status"], "succeeded")
+        self.assertIn("通用冰DK", result["assistantMessage"]["content"])
+
     def test_chickenbro_invalid_codex_output_downgrades_to_deterministic_answer(self):
         self.seed_chickenbro_profile()
 
@@ -5887,6 +5928,53 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIs(schema["additionalProperties"], False)
         action_items = schema["properties"]["priorityActions"]["items"]
         self.assertIs(action_items["additionalProperties"], False)
+
+    def test_chickenbro_default_runner_uses_codex_when_enabled(self):
+        self.seed_chickenbro_profile()
+        captured = {}
+        previous_env = os.environ.get("WOW_CHICKENBRO_CODEX_ENABLED")
+        previous_runner = self.backend.run_codex_job
+
+        def fake_run_codex_job(prompt, **kwargs):
+            captured["prompt"] = prompt
+            captured["schema"] = kwargs.get("schema")
+            return {
+                "status": "succeeded",
+                "lastMessage": json.dumps(
+                    {
+                        "answer": "先根据 profile.summary 安排强韧波次爆发。",
+                        "confidence": "medium",
+                        "priorityActions": [
+                            {"title": "围绕强韧小怪波次规划爆发。", "evidenceRefs": ["profile.summary"]}
+                        ],
+                        "evidenceRefs": ["profile.summary"],
+                        "limitations": ["缺少玩家自己的 WCL 和完整 SimC。"],
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+
+        try:
+            os.environ["WOW_CHICKENBRO_CODEX_ENABLED"] = "1"
+            self.backend.run_codex_job = fake_run_codex_job
+            result = self.backend.send_chickenbro_message(
+                {
+                    "message": "奥法强韧大秘境怎么优化？",
+                    "guestId": "default-codex-device",
+                    "context": {"classKey": "mage", "specKey": "arcane", "scenarioKey": "mplus_fortified"},
+                },
+            )
+        finally:
+            self.backend.run_codex_job = previous_runner
+            if previous_env is None:
+                os.environ.pop("WOW_CHICKENBRO_CODEX_ENABLED", None)
+            else:
+                os.environ["WOW_CHICKENBRO_CODEX_ENABLED"] = previous_env
+
+        self.assertIn("boundedContext", json.loads(captured["prompt"]))
+        self.assertIs(captured["schema"]["additionalProperties"], False)
+        self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "codex")
+        self.assertEqual(result["job"]["result"]["codex"]["status"], "succeeded")
 
     def test_http_chickenbro_api_supports_guest_session_job_and_owner_isolation(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)

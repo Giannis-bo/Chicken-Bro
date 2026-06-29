@@ -88,6 +88,16 @@
 - 阻断态直接说缺什么，例如 `缺少 16 槽装备配置`，不要写泛化失败文案。
 - AI / LLM 相关文案必须区分“证据事实”和“解释建议”，不能把推理包装成已验证结果。
 
+## 智能分析聊天 UI
+
+`pages/simulator/simulator` 当前首屏就是“炸鸡队长”聊天，而不是模块卡片 hub。新增或调整智能分析 UI 时保持以下约束：
+
+- 消息区使用左右气泡：炸鸡队长在左，用户在右；长消息在气泡内换行，不撑破 scroll-view。
+- 底部输入区固定在页面底部，包含 textarea、发送按钮和“新话题”入口；键盘弹起、长文本输入和发送中状态不得遮挡最后一条消息。
+- 话题列表使用抽屉或独立列表页，不常驻挤压聊天主视图。
+- 发送后必须显示“发送中 / 生成中 / 已完成 / 失败”等明确状态；后端 fallback 也要展示为有效回复，不能空白等待。
+- 回答依据、fallback、scope refusal、缺证据和 blocked 状态可以作为紧凑证据面板展示，但不能比主聊天内容更抢占首屏。
+
 ## 新 UI 检查清单
 
 提交任何小程序 UI 前，至少检查：
@@ -108,5 +118,6 @@
 - `app.wxss` 的通用 section、hero、card、badge、button 规则应成为默认入口。
 - `websim/app.css` 中更强的暗铁/深棕/金边气质可作为 WoW 工具面板参考。
 - `pages/builds/detail.*`、`pages/simulator/simc.*` 已有紧凑 action row 和 picker 行，应优先复用这种布局。
+- `pages/simulator/simulator.*`、`pages/simulator/chickenbro.*`、`pages/simulator/chickenbro-chat.js` 是智能分析聊天形态的当前基准：左 / 右气泡、fixed composer、新话题和 topic drawer 优先于卡片式模块入口。
 - `pages/news/news.*` 的大 banner 后续可逐步压缩，避免资讯首屏占用过高。
 - `pages/pve/detail.*` 的 chart table 是移动端高密度数据展示参考，后续排行类模块优先复用这种表格转译方式。

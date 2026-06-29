@@ -1,7 +1,7 @@
 # 装备模拟全链路 Runbook
 
 > 适用范围：`/api/websim/gear` 装备模拟读模型、装备自建数据库、装备强化配置、制造业装备、全职业专精装备适配、前端展示、SimC profile serializer、生产刷新和回滚。
-> 最后更新：2026-06-28。
+> 最后更新：2026-06-29。
 
 本文是下一次大版本或赛季装备更新的执行手册。目标不是记录某一次修复，而是把“从上游 API 到线上 UI 和可执行 SimC profile”的完整链路固化成可复用流程。任何新版本装备更新，都应先按本文确认数据入口、证据门禁、审计 SQL、健康指标、全职业专精适配和回滚边界，再做写库或部署。
 
@@ -14,7 +14,7 @@
 - 全职业覆盖：装备候选、武器栏位、护甲类型、主属性、制造业属性搭配、附魔/美化选项，都必须按 40 个职业专精矩阵验证。
 - 默认模板诚实展示：`default_template / 默认模板` 只能作为社区装备样本不足时的兜底导入入口，不是 Raider.IO/WCL 玩家样本，不是 BiS，不输出强度结论。
 - 完整状态拆分：装备模板 `status=complete` 只表示 16 个 canonical 槽位完整且 SimC serializer 可执行；宝石、附魔、美化和 `crafted_stats` readiness 必须通过独立 `enhancementReadiness` 表达。
-- 可回滚：任何生产写库前必须备份 SQLite；任何代码部署前必须能区分“代码回滚”和“DB 回滚”。
+- 可回滚：任何生产写库前必须备份实际写入的数据库。当前 `WOW_DATABASE_RUNTIME=postgres_personal` 下通常需要同时考虑 SQLite fallback 和 PostgreSQL target；任何代码部署前必须能区分“代码回滚”和“DB 回滚”。
 - 不下载不写入：拉取远端数据、下载外部文件、生产 SSH/DB 写入、Wago/SimC 数据刷新，都必须先取得 owner 明确批准。
 
 ## 端到端链路
@@ -54,7 +54,7 @@ flowchart TD
 关键点：
 
 - 上游数据只负责生产候选和证据，不能直接绕过 DB 进入 UI。
-- `websim_sync_state` 是发布和巡检的健康快照，但 `/api/data/health` 必须能重审当前 SQLite 事实，不能被旧快照遮蔽。
+- `websim_sync_state` 是发布和巡检的健康快照，但 `/api/data/health` 必须能重审当前 runtime 事实，不能被旧快照遮蔽。SQLite fallback 与 PostgreSQL read-model seam 的状态不一致时，文档和交付说明必须写清楚实际消费的是哪一个 target。
 - `/api/websim/gear?...compact=1` 是小程序主消费口，必须只返回 display-ready、当前职业专精适用、当前装备类型可用的候选和强化项。
 - `/api/websim/profile` 是最终 serializer gate；所有 UI 裁剪都只是体验优化，不是信任边界。
 - SimC 任务详情展示的角色属性来自 verified `statSnapshot` 或 stored `gearSnapshot` 的后端回放，不来自任务列表临时计算。
@@ -162,7 +162,7 @@ order by option_type, status;
 
 ### 3. 备份和刷新顺序
 
-生产写库前先备份 SQLite，并在发布记录里写出路径。推荐刷新顺序：
+生产写库前先备份实际写入的数据库，并在发布记录里写出路径。当前开发工具阶段的 PG hybrid runtime 通常写 `wow_test`；正式发布 cutover 后才写 `wow_prod`。推荐刷新顺序：
 
 1. `sync_simc_generated_data`：更新 SimC generated/preset 基线。
 2. `sync_blizzard_journal`：同步当前赛季 journal loot，确保 limits 无截断。
@@ -184,7 +184,7 @@ order by option_type, status;
 
 ### 默认装备模板生成门禁
 
-默认装备模板 builder 只消费当前 SQLite 已有证据，不触发外部下载或生产 backfill：
+默认装备模板 builder 只消费当前 runtime read model 已有证据，不触发外部下载或生产 backfill：
 
 - 输入：verified 当前赛季 gear catalog、verified `build_stat_weight_cache(class_key, spec_key, mplus_mixed_route)`、武器规则、mod option catalog。
 - 候选池：当前赛季、当前 class/spec compatible、SimC-ready、verified variant，且不能是 `source_reference`、partial、blocked、错季或 observed-only 未提升候选。
@@ -446,7 +446,7 @@ order by count(*) desc;
 
 ### C. 生产写库
 
-- 备份 SQLite，记录完整路径。
+- 备份实际写入的 SQLite / PostgreSQL target，记录完整路径。
 - 按“数据生产流程”顺序刷新。
 - 每个阶段输出 counts 和 examples，不只看成功/失败。
 - 发现 partial 时先分类：真实上游缺口、规则缺口、metadata 缺口、SimC 缺口、误入库残留。
@@ -497,7 +497,7 @@ curl -fsS "$BASE_URL/api/websim/gear?class=mage&spec=frost&compact=1"
 适用：UI 展示、read model、serializer 逻辑错误，但 DB 数据仍可信。
 
 - 回滚代码版本或重新部署上一版。
-- 不动 SQLite。
+- 不动数据库。
 - 复核 `/health`、`/api/data/health` 和关键 compact payload。
 
 ### DB 回滚
@@ -506,7 +506,7 @@ curl -fsS "$BASE_URL/api/websim/gear?class=mage&spec=frost&compact=1"
 
 - 停止会继续写库的同步 job。
 - 备份当前坏库以便事后分析。
-- 恢复本轮写库前 SQLite 备份。
+- 恢复本轮写库前的 SQLite / PostgreSQL target 备份，按实际写入落点处理。
 - 重启服务或 reload DB 连接。
 - 复核 `/api/data/health` 和关键 compact payload。
 - 在 roadmap / plan 记录坏库原因和恢复路径。

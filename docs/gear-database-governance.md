@@ -3,6 +3,7 @@
 > 适用范围：职业详情页装备模拟、WebSim gear API、装备来源与变体健康检查。12.1 大量装备更新时，按本文作为入库、审计、发布和问题上报标准。
 > 全链路手册：装备模拟从上游 API 到校验、审计、入库、全职业专精适配、前端展示、serializer、发布和回滚，按 [装备模拟全链路 Runbook](gear-simulation-full-chain-runbook.md) 执行。
 > 实施方案：周期性更新和后续工程任务按 [装备自建数据库实施方案 v2](plans/2026-06-25-gear-database-implementation-plan-v2.md) 执行。
+> 当前运行时：`WOW_DATABASE_RUNTIME=postgres_personal` 下，装备 / 天赋 / season read model 可以从 PostgreSQL cache seam 读取，SQLite 仍作为 fallback 和历史来源；治理规则适用于两种存储落点。
 
 ## 目标
 
@@ -128,7 +129,7 @@
 
 ### 1. 写库前只读审计
 
-- 先备份生产 SQLite，并记录备份路径；没有备份不写库。
+- 先备份实际写入的 SQLite / PostgreSQL target，并记录备份路径；没有备份不写库。
 - 只读查询当前 `websim_items`、`websim_gear_sources`、`websim_gear_variants`、`websim_gear_mod_options` 的总量、目标 item 命中情况、已有 source / variant 状态和 stale 行。
 - 审计重点包括：缺 metadata、sourceType 污染、旧 `needs-variant`、旧赛季 source、旧展示标签、verified 缺属性、crafted 轨道异常装等、`crafted_stats` 应有未有或不该有却残留。
 - 对新增候选先生成 dry-run 差异：新增 item 数、source 数、variant 数、mod option 数、verified / partial / blocked 数、top blockers。dry-run 中无法解释的行不能进入正式写库。

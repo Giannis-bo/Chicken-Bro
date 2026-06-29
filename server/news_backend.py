@@ -4842,14 +4842,24 @@ def build_chickenbro_bounded_context(message, context, user_profile=None):
 
 
 def chickenbro_prompt_from_context(bounded_context):
+    if bounded_context.get("usableProfiles"):
+        instructions = [
+            "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
+            "只能使用 boundedContext 中的事实、证据引用和 allowedNumbers。",
+            "不要编造 DPS、排名、分位、日志发现或来源。",
+            "输出 JSON：answer, confidence, priorityActions, evidenceRefs, limitations。",
+        ]
+    else:
+        instructions = [
+            "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
+            "这是 direct Codex chat 模式：当前没有本地 published profile，可以基于你的通用魔兽知识和用户问题先做自然对话。",
+            "不要把通用知识包装成本地证据；没有 boundedContext 证据时 evidenceRefs 保持为空，并在 limitations 里说明未经过本地证据验证。",
+            "不要编造 DPS、排名、分位、日志发现或来源。",
+            "输出 JSON：answer, confidence, priorityActions, evidenceRefs, limitations。",
+        ]
     return json.dumps(
         {
-            "instructions": [
-                "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
-                "只能使用 boundedContext 中的事实、证据引用和 allowedNumbers。",
-                "不要编造 DPS、排名、分位、日志发现或来源。",
-                "输出 JSON：answer, confidence, priorityActions, evidenceRefs, limitations。",
-            ],
+            "instructions": instructions,
             "boundedContext": bounded_context,
         },
         ensure_ascii=False,
@@ -5259,15 +5269,6 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
             "validation": {"status": "skipped", "reason": "out_of_scope"},
             "codex": {"status": "skipped"},
         }
-    if not bounded_context.get("usableProfiles"):
-        answer = deterministic_chickenbro_answer(bounded_context)
-        return {
-            "answer": answer,
-            "topic": bounded_context.get("topic"),
-            "validation": {"status": "skipped", "reason": "missing_published_profile"},
-            "codex": {"status": "skipped"},
-        }
-
     runner = codex_runner or default_chickenbro_codex_runner
     prompt = chickenbro_prompt_from_context(bounded_context)
     schema = {

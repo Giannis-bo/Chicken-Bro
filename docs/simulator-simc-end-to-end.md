@@ -6,9 +6,11 @@ Keep the simulator SimC path deterministic and evidence-bound: the mini program 
 
 ## Current Flow
 
-1. `pages/simulator/simulator` renders the 智能分析 hub from `GET /api/simulator/home`. Current modules are `simc`, `wcl`, `chickenbro`, and `tasks`.
-2. `pages/simulator/simc` renders the SimC conversation/submission path.
-3. The SimC page posts to `POST /api/simulator/analyze` with:
+1. `pages/simulator/simulator` is the 智能分析 tab and now renders the 炸鸡队长 chat surface directly through `pages/simulator/chickenbro-chat.js`. It no longer asks the player to choose SimC / WCL / Chickenbro cards first.
+2. `GET /api/simulator/home` remains a compatibility payload for backend smoke and older clients, but it is not the current mini-program first screen.
+3. `pages/simulator/chickenbro` is an independent route that uses the same shared chat controller as the tab entry.
+4. `pages/simulator/simc` is still the SimC submission path, but the player-facing entry is now from `pages/builds/builds` quick action `simc`, saved templates, or direct navigation during development.
+5. The SimC page posts to `POST /api/simulator/analyze` with:
 
 ```json
 {
@@ -18,15 +20,15 @@ Keep the simulator SimC path deterministic and evidence-bound: the mini program 
 }
 ```
 
-4. The backend extracts the fenced `simc` or `simulationcraft` code block.
-5. If a profile is present, the backend runs `WOW_SIMC_BIN` or a `simc`/`simulationcraft` binary on `PATH`.
-6. The legacy raw-profile response includes the normalized request, execution stages, simulation status, parsed DPS metric, reference data, allowed-number guardrails, and concise Chinese recommendations. The template path described below does not use LLM/Codex interpretation for final task execution.
+6. The backend extracts the fenced `simc` or `simulationcraft` code block.
+7. If a profile is present, the backend runs `WOW_SIMC_BIN` or a `simc`/`simulationcraft` binary on `PATH`.
+8. The legacy raw-profile response includes the normalized request, execution stages, simulation status, parsed DPS metric, reference data, allowed-number guardrails, and concise Chinese recommendations. The template path described below does not use LLM/Codex interpretation for final task execution.
 
 Task history uses `GET /api/simulator/tasks?guest=1` and `GET /api/simulator/task?id=...&guest=1`. Authenticated requests use Bearer token; guest mode is explicit and scoped by guest id.
 
-## SimC Agent Flow
+## Legacy SimC Agent Flow
 
-The simulator tab now uses `mode=simcraft_agent` for the primary player-facing path. This mode treats the textarea as a conversation entry instead of a raw profile-only form:
+`mode=simcraft_agent` remains a supported backend mode for legacy or direct SimC routes. It is no longer the 智能分析 tab's primary first screen. This mode treats the textarea as a conversation entry instead of a raw profile-only form:
 
 ```json
 {
@@ -49,7 +51,7 @@ Agent behavior:
 
 ## Builds-to-SimC Linkage
 
-The 职业专精 detail page is now a first-class SimC entry point. When a player taps `带当前构筑去 SimC`, the mini program stores a compact `buildContext` locally and navigates to `/pages/simulator/simc?from=builds`. The SimC page reads that context, shows the imported source, and automatically sends a confirmation prompt with the current specialization, active query, talent import code, gear candidates, stat trend, source name, publication date, and analysis window.
+The 职业专精 tab is now a first-class SimC entry point. The current `pages/builds/builds` quick action `simc` navigates to `/pages/simulator/simc?from=builds`, and `tasks` navigates to `/pages/simulator/tasks?from=builds`. Older detail-page `buildContext` imports may still fill class/spec/talent context when present, but the current player-facing stable path is saved talent + gear templates -> SimC confirmation -> queued task -> task list/detail.
 
 Backend rules:
 
@@ -162,15 +164,17 @@ Player-facing task details should lead with the simplified SimC result and run c
 
 ## WCL And Chickenbro Entries
 
-`pages/simulator/wcl` is the WCL input surface. The backend parses report URL/code/fight and blocks deterministically when the report is missing or credentials are unavailable. Without `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET` or another supported WCL credential, the system must not call LLM to fabricate log conclusions.
+`pages/simulator/wcl` remains a WCL input surface in code, but it is not registered in `app.json` and is not part of the current 智能分析 first screen. The backend parses report URL/code/fight and blocks deterministically when the report is missing or credentials are unavailable. Without `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET` or another supported WCL credential, the system must not call LLM to fabricate log conclusions.
 
-`pages/simulator/chickenbro` is the current 炸鸡队长证据教练 entry. It posts to `POST /api/chickenbro/messages` and can read `GET /api/chickenbro/sessions`, `GET /api/chickenbro/jobs`, and `GET /api/chickenbro/profiles`.
+`pages/simulator/simulator` and `pages/simulator/chickenbro` are the current 炸鸡队长 chat entries. Both use `pages/simulator/chickenbro-chat.js`, post to `POST /api/chickenbro/messages`, and can read `GET /api/chickenbro/sessions`, `GET /api/chickenbro/jobs`, and `GET /api/chickenbro/profiles`.
 
 Chickenbro rules:
 
 - Frontend sends a short message plus bounded context such as `productPhase`, `region`, `classKey`, `specKey`, and `scenarioKey`; it does not send raw DB access, API keys, full logs, or complete SimC profiles to an LLM.
 - Backend stores lightweight sessions/messages/jobs, builds a bounded context, validates topic scope and allowed numbers, then either runs the configured Codex runner or returns deterministic fallback.
+- `WOW_CHICKENBRO_CODEX_ENABLED=1` enables the Codex runner. Without a published profile, the backend may use direct Codex chat mode for in-scope WoW questions so the player can test the conversation feel, but the answer must not present general model knowledge as local evidence.
 - `published` spec profiles may support conclusions; `partial` profiles are background only; `stale` / `blocked` / `needs_review` profiles do not enter the conclusion chain.
+- Codex output must pass `validate_chickenbro_codex_output`. Schema failure, unknown evidence refs, unapproved numbers, timeout, or missing runner falls back to deterministic response.
 - The frontend fallback explicitly says the backend is unavailable and must not substitute fake coaching conclusions.
 
 ## Response Shape

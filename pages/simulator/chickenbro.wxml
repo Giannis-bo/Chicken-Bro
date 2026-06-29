@@ -1,76 +1,97 @@
-<view class="page-shell">
-  <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
-  <scroll-view class="page-scroll" scroll-y type="list">
-    <view class="page-content">
-      <view class="hero chickenbro-hero">
+<view class="page-shell chickenbro-page-shell">
+  <navigation-bar title="{{navTitle}}" back="{{showBack}}" color="#FFFFFF" background="#111111"></navigation-bar>
+
+  <view class="chickenbro-chat-shell chickenbro-route-shell">
+    <view class="chat-header">
+      <view class="chat-title-block">
         <text class="hero-kicker">{{kicker}}</text>
-        <text class="hero-title">{{title}}</text>
-        <text class="hero-desc">{{desc}}</text>
+        <text class="chat-title">{{title}}</text>
+        <text class="chat-desc">{{desc}}</text>
       </view>
-
-      <view class="section chickenbro-panel">
-        <view class="section-header">
-          <text class="section-title">对话输入</text>
-          <text class="section-action">{{loading ? '发送中' : (session && session.sessionId ? '继续会话' : '新会话')}}</text>
-        </view>
-        <textarea
-          class="chickenbro-context"
-          value="{{contextDraft}}"
-          maxlength="240"
-          auto-height="{{false}}"
-          bindinput="updateContextDraft"
-          placeholder="class=mage spec=arcane scenario=mplus_fortified"
-        />
-        <textarea
-          class="chickenbro-input"
-          value="{{chickenbroPrompt}}"
-          maxlength="3000"
-          auto-height="{{false}}"
-          bindinput="updateChickenbroPrompt"
-          placeholder="粘贴角色、SimC、WCL 或你已确认的证据"
-        />
-        <button class="submit-button" loading="{{loading}}" disabled="{{loading}}" bindtap="submitChickenbroMessage">发送给炸鸡队长</button>
-        <text class="request-error" wx:if="{{requestError}}">{{requestError}}</text>
-      </view>
-
-      <view class="section" wx:if="{{chatMessages.length}}">
-        <view class="section-header">
-          <text class="section-title">对话</text>
-          <text class="section-action">{{job ? job.status : ''}}</text>
-        </view>
-        <view class="chat-list">
-          <view class="chat-message {{item.role === 'assistant' ? 'assistant-message' : 'user-message'}}" wx:for="{{chatMessages}}" wx:key="messageId">
-            <text class="chat-role">{{item.role === 'assistant' ? '炸鸡队长' : '玩家'}}</text>
-            <text class="chat-content" user-select="{{true}}">{{item.content}}</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="section" wx:if="{{assistantPayload.answerSource}}">
-        <view class="section-header">
-          <text class="section-title">回答依据</text>
-          <text class="section-action">{{assistantPayload.confidence}}</text>
-        </view>
-        <view class="task-list">
-          <view class="task-card coach-action-card" wx:for="{{assistantPayload.priorityActions}}" wx:key="title">
-            <text class="task-title">优先行动</text>
-            <text class="task-desc" user-select="{{true}}">{{item.title}}</text>
-            <text class="coach-evidence-refs" user-select="{{true}}">{{item.evidenceRefs}}</text>
-          </view>
-          <view class="task-card coach-summary-card" wx:if="{{assistantPayload.evidenceRefs && assistantPayload.evidenceRefs.length}}">
-            <text class="task-title">证据引用</text>
-            <view class="coach-chip-list">
-              <text class="coach-chip" wx:for="{{assistantPayload.evidenceRefs}}" wx:key="*this">{{item}}</text>
-            </view>
-          </view>
-          <view class="task-card coach-missing-card" wx:if="{{assistantPayload.limitations && assistantPayload.limitations.length}}">
-            <text class="task-title">限制</text>
-            <view class="coach-chip-list">
-              <text class="coach-chip" wx:for="{{assistantPayload.limitations}}" wx:key="*this">{{item}}</text>
-            </view>
-          </view>
-        </view>
+      <view class="chat-header-action" bindtap="toggleTopicDrawer">
+        <text>话题</text>
       </view>
     </view>
-  </scroll-view>
+
+    <scroll-view
+      class="chat-scroll"
+      scroll-y
+      type="list"
+      enhanced="{{true}}"
+      show-scrollbar="{{false}}"
+      scroll-into-view="{{scrollAnchor}}"
+    >
+      <view class="chat-message-list">
+        <view
+          id="{{item.messageId}}"
+          class="chat-message-row {{item.role === 'user' ? 'message-row-user' : 'message-row-assistant'}}"
+          wx:for="{{chatMessages}}"
+          wx:key="messageId"
+        >
+          <view class="chat-bubble {{item.role === 'user' ? 'bubble-user' : 'bubble-assistant'}} {{item.status === 'pending' ? 'bubble-pending' : ''}} {{item.status === 'failed' ? 'bubble-failed' : ''}}">
+            <text class="chat-role chat-speaker">{{item.role === 'user' ? '你' : '炸鸡队长'}}</text>
+            <text class="chat-content" user-select="{{true}}">{{item.content}}</text>
+            <text class="chat-meta" wx:if="{{item.statusText}}">{{item.statusText}}</text>
+          </view>
+        </view>
+
+        <view class="answer-evidence" wx:if="{{assistantPayload.answerSource}}">
+          <view class="answer-evidence-header">
+            <text class="answer-evidence-title">回答依据</text>
+            <text class="answer-evidence-source">{{assistantPayload.answerSource}} · {{assistantPayload.confidence}}</text>
+          </view>
+          <view class="answer-action" wx:for="{{assistantPayload.priorityActions}}" wx:key="title">
+            <text class="answer-action-title">{{item.title}}</text>
+            <text class="answer-action-ref" wx:if="{{item.evidenceRefs && item.evidenceRefs.length}}">{{item.evidenceRefs}}</text>
+          </view>
+          <view class="coach-chip-list" wx:if="{{assistantPayload.evidenceRefs && assistantPayload.evidenceRefs.length}}">
+            <text class="coach-chip" wx:for="{{assistantPayload.evidenceRefs}}" wx:key="*this">{{item}}</text>
+          </view>
+          <view class="coach-chip-list" wx:if="{{assistantPayload.limitations && assistantPayload.limitations.length}}">
+            <text class="coach-chip limitation-chip" wx:for="{{assistantPayload.limitations}}" wx:key="*this">{{item}}</text>
+          </view>
+        </view>
+
+        <view id="chat-bottom" class="chat-bottom-anchor"></view>
+      </view>
+    </scroll-view>
+
+    <view class="chat-status-row" wx:if="{{generationStatusText || requestError}}">
+      <text class="chat-status-text">{{requestError || generationStatusText}}</text>
+      <text class="chat-status-job" wx:if="{{job && job.status}}">{{job.status}}</text>
+    </view>
+
+    <view class="chat-input-bar">
+      <view class="topic-shortcut" bindtap="startNewTopic">
+        <text>新话题</text>
+      </view>
+      <textarea
+        class="chat-input"
+        value="{{chatDraft}}"
+        maxlength="1000"
+        auto-height="{{false}}"
+        fixed="{{true}}"
+        cursor-spacing="20"
+        adjust-position="{{false}}"
+        disabled="{{loading}}"
+        bindinput="updateChatDraft"
+        placeholder="问炸鸡队长"
+      />
+      <view class="send-button {{loading ? 'send-button-loading' : ''}}" bindtap="submitChickenbroMessage">
+        <text>{{loading ? '生成中' : '发送'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="topic-drawer-mask" wx:if="{{topicDrawerVisible}}" bindtap="closeTopicDrawer"></view>
+  <view class="topic-drawer" wx:if="{{topicDrawerVisible}}">
+    <view class="topic-drawer-header">
+      <text class="topic-drawer-title">话题列表</text>
+      <text class="topic-drawer-close" bindtap="closeTopicDrawer">关闭</text>
+    </view>
+    <view class="topic-item active-topic">
+      <text class="topic-title">{{session && session.title ? session.title : '当前话题'}}</text>
+      <text class="topic-meta">{{job && job.status ? job.status : generationStatusText}}</text>
+    </view>
+  </view>
 </view>

@@ -1874,7 +1874,7 @@ test('simc page stores only compact analysis state after validation', () => {
   assert.match(wxml, /战斗增益/)
 })
 
-test('smart analysis tab only keeps the chickenbro coach entry', () => {
+test('smart analysis tab opens directly as the chickenbro chat surface', () => {
   const app = JSON.parse(fs.readFileSync('app.json', 'utf8'))
   const js = fs.readFileSync('pages/simulator/simulator.js', 'utf8')
   const wxml = fs.readFileSync('pages/simulator/simulator.wxml', 'utf8')
@@ -1889,17 +1889,30 @@ test('smart analysis tab only keeps the chickenbro coach entry', () => {
   assert.ok(app.pages.includes('pages/simulator/chickenbro'))
   assert.ok(app.pages.includes('pages/simulator/tasks'))
   assert.ok(app.pages.includes('pages/simulator/task-detail'))
-  assert.match(wxml, /<view class="hero simulator-hero">/)
+  assert.match(wxml, /<view class="chickenbro-chat-shell simulator-chat-shell">/)
   assert.doesNotMatch(wxml, /class="metrics"/)
   assert.doesNotMatch(wxml, /metric-card/)
-  assert.match(wxml, /analysis-modules/)
-  assert.match(wxml, /wx:for="\{\{analysisModules\}\}"/)
+  assert.doesNotMatch(wxml, /analysis-modules/)
+  assert.doesNotMatch(wxml, /wx:for="\{\{analysisModules\}\}"/)
+  assert.match(wxml, /chatMessages/)
+  assert.match(wxml, /scroll-into-view="\{\{scrollAnchor\}\}"/)
+  assert.match(wxml, /class="chat-message-row \{\{item\.role === 'user' \? 'message-row-user' : 'message-row-assistant'\}\}"/)
+  assert.match(wxml, /class="chat-input-bar"/)
+  assert.match(wxml, /bindinput="updateChatDraft"/)
+  assert.match(wxml, /bindtap="submitChickenbroMessage"/)
+  assert.match(wxml, /bindtap="startNewTopic"/)
+  assert.match(wxml, /bindtap="toggleTopicDrawer"/)
+  assert.match(wxml, /topicDrawerVisible/)
+  assert.doesNotMatch(wxml, /contextDraft/)
   assert.doesNotMatch(wxml, /scroll-into-view="\{\{scrollTarget\}\}"/)
   assert.doesNotMatch(wxml, /id="task-section"/)
   assert.doesNotMatch(wxml, /任务列表/)
   assert.doesNotMatch(wxml, /data-task-id="\{\{item\.taskId\}\}"/)
   assert.doesNotMatch(wxml, /bindtap="openTaskDetail"/)
-  assert.match(js, /openAnalysisModule\(event\)/)
+  assert.match(js, /createChickenbroChatPage/)
+  assert.match(js, /requestChickenbroMessage/)
+  assert.doesNotMatch(js, /openAnalysisModule\(event\)/)
+  assert.doesNotMatch(js, /requestSimulatorHome/)
   assert.doesNotMatch(js, /openTaskDetail\(event\)/)
   assert.doesNotMatch(js, /loadSimulatorTasks/)
   assert.doesNotMatch(js, /scrollTarget/)
@@ -1907,7 +1920,7 @@ test('smart analysis tab only keeps the chickenbro coach entry', () => {
   assert.doesNotMatch(js, /taskId:\s*task\.taskId/)
   assert.doesNotMatch(js, /wx\.navigateTo\(\{[\s\S]*\/pages\/simulator\/simc/)
   assert.doesNotMatch(js, /\/pages\/simulator\/wcl/)
-  assert.match(js, /wx\.navigateTo\(\{[\s\S]*\/pages\/simulator\/chickenbro/)
+  assert.doesNotMatch(js, /wx\.navigateTo\(\{[\s\S]*\/pages\/simulator\/chickenbro/)
   assert.doesNotMatch(js, /\/pages\/simulator\/task-detail\?id=/)
   assert.match(api, /navTitle:\s*'智能分析'/)
   assert.match(api, /analysisModules:\s*\[/)
@@ -1918,20 +1931,88 @@ test('smart analysis tab only keeps the chickenbro coach entry', () => {
   assert.match(api, /key:\s*'chickenbro'/)
   assert.match(api, /title:\s*'炸鸡队长'/)
   assert.doesNotMatch(api, /title:\s*'任务列表'/)
-  assert.match(css, /\.analysis-modules/)
-  assert.match(css, /\.analysis-module-card/)
-  assert.match(css, /\.module-chickenbro/)
+  assert.match(css, /\.simulator-chat-shell/)
+  assert.match(css, /\.chat-input-bar/)
+  assert.match(css, /\.message-row-user/)
+  assert.match(css, /\.topic-drawer/)
+  assert.doesNotMatch(css, /\.analysis-modules/)
+  assert.doesNotMatch(css, /\.analysis-module-card/)
+  assert.doesNotMatch(css, /\.module-chickenbro/)
   assert.match(chickenbroJs, /requestChickenbroMessage/)
   assert.doesNotMatch(chickenbroJs, /requestSimulatorAnalysis/)
   assert.match(chickenbroWxml, /chatMessages/)
   assert.match(chickenbroWxml, /wx:key="messageId"/)
-  assert.match(chickenbroWxml, /session && session\.sessionId/)
-  assert.match(chickenbroWxml, /job \? job\.status : ''/)
+  assert.match(chickenbroWxml, /scroll-into-view="\{\{scrollAnchor\}\}"/)
+  assert.match(chickenbroWxml, /topicDrawerVisible/)
+  assert.doesNotMatch(chickenbroWxml, /contextDraft/)
   assert.match(chickenbroWxml, /assistantPayload\.priorityActions/)
   assert.match(chickenbroWxml, /assistantPayload\.evidenceRefs && assistantPayload\.evidenceRefs\.length/)
   assert.match(chickenbroWxml, /assistantPayload\.limitations && assistantPayload\.limitations\.length/)
   assert.match(chickenbroWxml, /job\.status/)
-  assert.match(chickenbroCss, /\.chickenbro-hero/)
+  assert.match(chickenbroCss, /\.chickenbro-chat-shell/)
+})
+
+test('smart analysis tab submits chickenbro chat messages without leaving the page', async () => {
+  let capturedRequest = null
+  const pageDefinition = loadPageModule('../pages/simulator/simulator.js', {
+    '../pages/simulator/simulator-api.js': {
+      requestChickenbroMessage: (request) => {
+        capturedRequest = request
+        return Promise.resolve({
+          payload: {
+            mode: 'chickenbro',
+            session: { sessionId: 'session-smart-1', title: '奥法强韧怎么打？' },
+            job: { jobId: 'job-smart-1', status: 'succeeded' },
+            userMessage: { messageId: 'message-user-smart-1', role: 'user', content: '奥法强韧怎么打？' },
+            assistantMessage: {
+              messageId: 'message-assistant-smart-1',
+              role: 'assistant',
+              content: '当前先按缺证据路径处理，不编造 DPS 或排名。',
+              payload: {
+                answerSource: 'deterministic_fallback',
+                confidence: 'low',
+                priorityActions: [{ title: '补齐 SimC 或 WCL 证据。', evidenceRefs: [] }],
+                evidenceRefs: [],
+                limitations: ['missing_published_profile']
+              }
+            }
+          },
+          fromFallback: false,
+          error: ''
+        })
+      }
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const originalWx = global.wx
+  global.wx = { showToast() {} }
+  try {
+    const page = createPageInstance(pageDefinition)
+    page.setData({ chatDraft: '奥法强韧怎么打？' })
+    page.submitChickenbroMessage()
+
+    assert.equal(page.data.loading, true)
+    assert.equal(page.data.chatMessages.some((item) => item.status === 'pending'), true)
+
+    await flushPromises()
+    await flushPromises()
+
+    assert.equal(capturedRequest.message, '奥法强韧怎么打？')
+    assert.equal(capturedRequest.context.classKey, 'mage')
+    assert.equal(capturedRequest.context.specKey, 'arcane')
+    assert.equal(capturedRequest.context.scenarioKey, 'mplus_fortified')
+    assert.equal(page.data.session.sessionId, 'session-smart-1')
+    assert.equal(page.data.job.status, 'succeeded')
+    assert.equal(page.data.loading, false)
+    assert.equal(page.data.chatMessages.some((item) => item.status === 'pending'), false)
+    assert.equal(page.data.assistantPayload.answerSource, 'deterministic_fallback')
+  } finally {
+    global.wx = originalWx
+  }
 })
 
 test('simulator task list has a dedicated page and opens task details', () => {
@@ -2146,8 +2227,7 @@ test('chickenbro page submits messages through independent chat API', async () =
   try {
     const page = createPageInstance(pageDefinition)
     page.setData({
-      chickenbroPrompt: '奥法强韧怎么打？',
-      contextDraft: 'class=mage spec=arcane scenario=mplus_fortified'
+      chatDraft: '奥法强韧怎么打？'
     })
     page.submitChickenbroMessage()
     await flushPromises()
@@ -2159,7 +2239,7 @@ test('chickenbro page submits messages through independent chat API', async () =
     assert.equal(capturedRequest.context.scenarioKey, 'mplus_fortified')
     assert.equal(page.data.session.sessionId, 'session-1')
     assert.equal(page.data.job.status, 'succeeded')
-    assert.equal(page.data.chatMessages.length, 2)
+    assert.equal(page.data.chatMessages.length, 3)
     assert.equal(page.data.assistantPayload.priorityActions[0].title, '确认大波次爆发窗口')
     assert.equal(page.data.assistantPayload.evidenceRefs[0], 'profile.summary')
     assert.equal(page.data.assistantPayload.limitations[0], 'partial_profiles_background_only')
@@ -2184,8 +2264,7 @@ test('chickenbro page surfaces request failures without leaving loading stuck', 
   try {
     const page = createPageInstance(pageDefinition)
     page.setData({
-      chickenbroPrompt: '奥法强韧怎么打？',
-      contextDraft: 'class=mage spec=arcane scenario=mplus_fortified',
+      chatDraft: '奥法强韧怎么打？',
       session: { sessionId: 'session-before-failure' },
       job: { jobId: 'old-job', status: 'succeeded' },
       chatMessages: [{ messageId: 'old-message', role: 'assistant', content: '旧回复' }],
@@ -2205,7 +2284,8 @@ test('chickenbro page surfaces request failures without leaving loading stuck', 
     assert.equal(page.data.fromFallback, true)
     assert.equal(page.data.session.sessionId, 'session-before-failure')
     assert.equal(page.data.job, null)
-    assert.deepEqual(page.data.chatMessages, [])
+    assert.equal(page.data.chatMessages.length, 3)
+    assert.equal(page.data.chatMessages[2].status, 'failed')
     assert.deepEqual(page.data.assistantPayload.priorityActions, [])
     assert.deepEqual(page.data.assistantPayload.evidenceRefs, [])
     assert.deepEqual(page.data.assistantPayload.limitations, [])

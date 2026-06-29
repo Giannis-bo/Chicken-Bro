@@ -2,12 +2,14 @@
 
 ## 产品目标
 
-`职业专精` tab 是构筑学习与模拟入口，不再只是“BD 文案列表”。当前实现围绕四个入口：
+`职业专精` tab 是构筑学习与模拟入口，不再只是“BD 文案列表”。当前小程序首页实现围绕四个入口：
 
 - 天赋构筑：进入原生 WebSim 天赋模拟器。
 - 装备模拟：在职业 / 专精上下文内替换 16 个 canonical 槽位、检查 SimC 可执行状态并保存装备模板。
-- 属性权重：展示样本、SimC scale factor、来源窗口和解释，不把通用趋势包装成个人结论。
-- 输出循环：按职业 / 专精展示可练习的起手、爆发、平稳期和场景处理。
+- 模拟 SimC：进入 `pages/simulator/simc`，按已保存天赋 / 装备模板做确认、入队和任务执行。
+- 任务列表：进入 `pages/simulator/tasks`，查看当前 owner / guest 范围内的 SimC 模板任务。
+
+热门专精、属性权重和输出循环仍保留为后续 / 待规划或后台证据能力：后端已有 stat weight 同步和刷新记录，详情 payload 可以携带证据状态，但当前首页不再把它们作为四个主入口。
 
 首页保留 `职业情报` 入口，用于聚合赛季状态、来源、样本和近期趋势；它不替代详情页与模拟器。
 
@@ -18,7 +20,7 @@
 - `pages/builds/builds`：tab 首页，请求 `/api/builds/home`，展示四个主入口和职业情报入口。
 - `pages/builds/intel`：职业情报页，请求 `/api/builds/intel`。
 - `pages/builds/talent-simulator`：原生 WebSim 天赋模拟器，请求 `/api/websim/bootstrap`、`/api/websim/talents`，并通过 `/api/talents/*` 完成校验、导入和导出。
-- `pages/builds/detail`：承载装备模拟、属性权重和输出循环。`query=talents` 会重定向到 `talent-simulator`。
+- `pages/builds/detail`：承载装备模拟和保留的职业详情容器。`query=talents` 会重定向到 `talent-simulator`；`query=simc` / `query=tasks` 已由首页入口直接导航到 simulator 相关页面。属性权重、输出循环等内容不得在缺证据时包装成当前强结论。
 - `pages/builds/websim-api.js`：WebSim/装备相关前端 API client 和 fallback。
 
 `/api/builds/home` 仍返回当前 `WOW_CLASSES` 全职业 / 专精矩阵的 `classOptions`，前端同时保留本地 fallback，防止 API 不可用时空屏。远端 payload 可更新 `quickActions`、`trustedSources`、`analysisWindow`、当前赛季字段和来源状态，但不能让无来源结论进入页面。
@@ -27,7 +29,7 @@
 
 `server/builds/home-payload.js` 定义职业专精基础契约：
 
-- `buildSpecializationHomePayload()`：tab 首页、当前 `WOW_CLASSES` 全职业 / 专精矩阵、四个入口、可信来源、当前赛季和 Raider.IO 状态。
+- `buildSpecializationHomePayload()`：tab 首页、当前 `WOW_CLASSES` 全职业 / 专精矩阵、天赋构筑 / 装备模拟 / 模拟 SimC / 任务列表四个入口、可信来源、当前赛季和 Raider.IO 状态。
 - `buildSpecializationIntelPayload()`：职业情报聚合。
 - `getSpecializationDetail(id)`：某职业 / 专精的天赋、装备、属性权重和循环基础详情。
 
@@ -71,13 +73,13 @@
 
 ## 当前实现状态
 
-线上当前赛季来源覆盖已经能通过 `/api/game/season` 和 `/api/data/health` 验证：
+线上当前赛季和数据健康以 `/api/game/season` 和 `/api/data/health` 为准。当前可确认的分层状态是：
 
-- M+ 当前池：执政团之座、艾杰斯亚学院、节点希纳斯、萨隆矿坑、迈萨拉洞窟、通天峰、风行者之塔、魔导师平台。
-- 团本当前池：The Voidspire、The Dreamrift、March on Quel'Danas、Sporefall。
-- `gear_catalog` 暴露 M+ `8/8`、团本 `4/4` 和 per-instance coverage。
+- Raider.IO 赛季缓存可用，当前 season slug 为 Midnight S1 相关口径。
+- `/api/game/season` 和 `/api/data/health` 可以返回 M+ / 团本池、来源状态、blockers 和下一步，但当 deterministic SimC variant preset、SimC JSON 目标属性、Battle.net 凭据或同步数据不完整时，会把 season / sync / catalog 标为 `partial` 或 `blocked`。
 - `/api/websim/gear` 对职业 / 专精返回 16 槽 readiness 和 compact payload；保存装备模板必须补齐 canonical 16 槽，off-hand 只在双手/无副手合理场景可空。
 
+历史上已验证过的 M+ 池包括执政团之座、艾杰斯亚学院、节点希纳斯、萨隆矿坑、迈萨拉洞窟、通天峰、风行者之塔、魔导师平台；团本池包括 The Voidspire、The Dreamrift、March on Quel'Danas、Sporefall。文档或 UI 不得仅因为历史覆盖通过就把当前 health 写成全量 verified；必须以线上 payload 的当前 `status`、`blockers` 和 `checkedAt` 为准。
 整体 catalog 仍可能是 `partial`。当前主要缺口是 deterministic SimC variant preset、少量天赋 spell detail、社区模板/WCL 凭据或 stat weight 数据，不影响已验证来源覆盖的表达，但会阻断强模拟结论。
 
 天赋链路的长期执行手册见 [全职业天赋模拟全链路 Runbook](talent-simulation-full-chain-runbook.md)。版本或赛季更新时先按该文档确认 SimC trait data、Wago trait edges、Blizzard spell/media、社区模板、health readiness、profile/simulate fail-closed 和回滚边界。

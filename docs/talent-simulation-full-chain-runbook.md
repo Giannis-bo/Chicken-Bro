@@ -1,14 +1,14 @@
 # 全职业天赋模拟全链路 Runbook
 
-> 适用范围：`/api/websim/talents` 天赋读模型、SimC trait data、Wago trait edges、Blizzard spell/media、社区天赋模板、SQLite catalog、前端原生天赋模拟器、`/api/talents/*`、`/api/websim/profile`、`/api/websim/simulate`、health 和回滚。
-> 最后更新：2026-06-28。
+> 适用范围：`/api/websim/talents` 天赋读模型、SimC trait data、Wago trait edges、Blizzard spell/media、社区天赋模板、SQLite / PostgreSQL hybrid catalog、前端原生天赋模拟器、`/api/talents/*`、`/api/websim/profile`、`/api/websim/simulate`、health 和回滚。
+> 最后更新：2026-06-29。
 
 本文是天赋模拟器后续版本和赛季更新的执行手册。它不要求天赋侧机械复刻装备侧的 item/source/variant/mod-option 模型；天赋侧真正要对齐的是四个治理原则：后端权威读模型、证据优先、前端 consumer-only、serializer fail-closed。
 
 ## 总原则
 
 - Backend authority：天赋树结构、父子依赖、choice 互斥、点数门槛、默认赠送点、SimC entry 编码都以后端 `websim_talents` 和 backend validator 为准。
-- Read-only read model：`GET /api/websim/talents` 只能读取当前 SQLite 事实，不触发社区模板同步、远端刷新或 DB 写入。
+- Read-only read model：`GET /api/websim/talents` 只能读取当前 runtime 事实，不触发社区模板同步、远端刷新或 DB 写入。`postgres_personal` 下可走 PostgreSQL cache seam，SQLite 仍是 fallback。
 - Evidence-first：SimC generated trait data 是可执行编码主来源；Wago trait edges、Blizzard spell/media 和社区模板只按各自证据等级参与补充，不伪装成官方 verified。
 - Frontend consumer-only：`pages/builds/talent-simulator.*` 只做交互镜像和可视化 export code，不生成 `class_talents/spec_talents/hero_talents`，不推断后端规则。
 - Serializer fail-closed：`/api/websim/profile` 和 `/api/websim/simulate` 只要天赋 encoding 或装备 readiness 失败，就返回明确 blocker，不把缺天赋行的 profile 包装成 ready。
@@ -201,13 +201,13 @@ order by status, source_status;
 - class/spec/hero 三类 tree type 是否都有节点。
 - 是否有 spell detail、description、icon 缺口。
 - 社区模板是否只保留 visual loadout 可解析的可视化模板；raw import-only 模板不得强行展示为可编辑。
-- `websim_sync_state` 是否和当前 SQLite 事实一致；health 必须能重审事实，不只信旧快照。
+- `websim_sync_state` 是否和当前 runtime 事实一致；health 必须能重审事实，不只信旧快照。
 
 ## 刷新和发布顺序
 
 任何刷新前先确认版本范围、备份路径和 owner 批准。推荐顺序：
 
-1. 备份 SQLite。
+1. 备份实际写入的 SQLite / PostgreSQL target。
 2. `sync_simc_generated_data` 更新 trait data、profile presets 和 SimC build。
 3. Wago/Spell detail 同步补齐 trait edge、spell text、icon。
 4. 显式运行 `sync_community_talent_templates`，不得靠 GET 自动触发。

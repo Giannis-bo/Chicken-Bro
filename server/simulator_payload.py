@@ -1675,20 +1675,20 @@ def build_simulator_home_payload():
     version_status = simc_version_status()
     return {
         "navTitle": "智能分析",
-        "kicker": "能力 04",
+        "kicker": "智能分析",
         "title": "智能分析",
-        "desc": "首版智能分析只保留炸鸡队长，围绕已有证据给出下一步建议。",
+        "desc": "直接进入炸鸡队长聊天；后端优先走 Codex，失败或缺证据时清晰降级。",
         "analysisModules": [
             {
                 "key": "chickenbro",
                 "badge": "01",
                 "title": "炸鸡队长",
-                "desc": "把已有 SimC 与角色上下文整理成证据受限的下一步建议，缺证据时只列缺失项。",
-                "action": "进入教练",
+                "desc": "围绕魔兽正式服和 PTR/Beta 问题对话；通用聊天不伪装成本地证据。",
+                "action": "开始聊天",
             },
         ],
         "quickActions": [
-            {"key": "chickenbro", "title": "炸鸡队长", "desc": "进入证据教练。"},
+            {"key": "chickenbro", "title": "炸鸡队长", "desc": "进入聊天。"},
         ],
         "capabilities": {
             "simcraft": has_simc,
