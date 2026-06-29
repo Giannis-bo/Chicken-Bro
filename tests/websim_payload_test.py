@@ -209,7 +209,7 @@ class WebSimPayloadTest(unittest.TestCase):
             payload.update(extra)
         return payload
 
-    def seed_verified_stat_weight_cache(self, conn, class_key="mage", spec_key="frost"):
+    def seed_verified_stat_weight_cache(self, conn, class_key="mage", spec_key="frost", status="verified", blockers=None):
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS build_stat_weight_cache (
@@ -230,8 +230,9 @@ class WebSimPayloadTest(unittest.TestCase):
             "classKey": class_key,
             "specKey": spec_key,
             "scenarioKey": "mplus_mixed_route",
-            "sourceStatus": "verified",
+            "sourceStatus": status,
             "checkedAt": "2026-06-28T00:00:00+00:00",
+            "translationStatus": "llm" if status == "verified" else "blocked",
             "weights": [
                 {"key": "intellect", "name": "智力", "kind": "primary", "value": "2.40", "percent": 100},
                 {"key": "haste", "name": "急速", "kind": "secondary", "value": "1.30", "percent": 100},
@@ -239,15 +240,16 @@ class WebSimPayloadTest(unittest.TestCase):
                 {"key": "mastery", "name": "精通", "kind": "secondary", "value": "0.90", "percent": 69},
                 {"key": "versatility", "name": "全能", "kind": "secondary", "value": "0.70", "percent": 54},
             ],
-            "validation": {"sampleCount": 5, "simcSuccessCount": 2, "blockers": []},
+            "validation": {"sampleCount": 5, "simcSuccessCount": 2, "blockers": blockers or []},
+            "blockers": blockers or [],
         }
         conn.execute(
             """
             INSERT INTO build_stat_weight_cache
             (class_key, spec_key, scenario_key, status, value_json, updated_at, expires_at, stale_at)
-            VALUES (?, ?, ?, 'verified', ?, '2026-06-28T00:00:00+00:00', '2026-06-29T00:00:00+00:00', '2026-07-02T00:00:00+00:00')
+            VALUES (?, ?, ?, ?, ?, '2026-06-28T00:00:00+00:00', '2026-06-29T00:00:00+00:00', '2026-07-02T00:00:00+00:00')
             """,
-            (class_key, spec_key, "mplus_mixed_route", json.dumps(payload, ensure_ascii=False)),
+            (class_key, spec_key, "mplus_mixed_route", status, json.dumps(payload, ensure_ascii=False)),
         )
 
     def seed_verified_default_template_catalog(self, conn, class_key="mage", spec_key="frost"):
@@ -339,6 +341,38 @@ class WebSimPayloadTest(unittest.TestCase):
                     },
                 },
             )
+
+    def insert_verified_talent_template(self, conn, class_key, spec_key, source_key):
+        hero_key = self.websim_payload.hero_tree_for(class_key, spec_key, "")
+        now = "2026-06-28T00:00:00+00:00"
+        conn.execute(
+            """
+            INSERT INTO websim_community_talent_templates
+            (
+                id, class_key, spec_key, hero_key, scenario_key, name, flow_label,
+                source_key, source_name, source_url, raw_import_code, websim_export_code,
+                talent_state_json, sample_count, max_key_level, analysis_window,
+                source_status, status, payload_json, updated_at, expires_at
+            )
+            VALUES (?, ?, ?, ?, 'mythic_plus', ?, 'M+', ?, ?, '', ?, ?, ?, 5, 20, 'test window',
+                    'synced', 'verified', ?, ?, ?)
+            """,
+            (
+                f"{source_key}-{class_key}-{spec_key}",
+                class_key,
+                spec_key,
+                hero_key,
+                f"{source_key} {class_key} {spec_key}",
+                source_key,
+                source_key,
+                f"raw-{class_key}-{spec_key}",
+                f"websim:{class_key}:{spec_key}:{hero_key}:test:1",
+                json.dumps({"selectedNodes": []}, ensure_ascii=False),
+                json.dumps({"sourceKey": source_key}, ensure_ascii=False),
+                now,
+                "2026-06-29T00:00:00+00:00",
+            ),
+        )
 
     def post_backend_json(self, path, payload):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
@@ -3797,6 +3831,100 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(result["defaultTemplates"]["missingSpecs"], ["mage:frost"])
         self.assertTrue(any("stat weight" in item["reason"] for item in result["defaultTemplates"]["blockers"]))
         self.assertFalse(any(item.get("sourceKey") == "default_template" for item in payload["communityTemplates"]))
+
+    def test_template_evidence_audit_splits_default_real_and_talent_layers(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.seed_verified_default_template_catalog(conn, "mage", "arcane")
+            self.seed_verified_stat_weight_cache(conn, "mage", "fire")
+            self.insert_verified_talent_template(conn, "mage", "arcane", "websim_baseline")
+            self.insert_verified_talent_template(conn, "mage", "fire", "raiderio")
+            community_state = {
+                "sourceStatus": "partial",
+                "sources": {
+                    "warcraftlogs": {
+                        "status": "missing_credentials",
+                        "sourceName": "Warcraft Logs",
+                        "errors": [],
+                    }
+                },
+                "checkedAt": "2026-06-28T00:00:00+00:00",
+            }
+            community_sync_run = {
+                "scanRunId": "audit-test",
+                "gear": {
+                    "realCommunityTemplates": {
+                        "coveredSpecs": ["mage:fire"],
+                        "missingSpecs": ["mage:arcane"],
+                    }
+                },
+            }
+            expected_classes = [{"key": "mage", "label": "Mage", "specs": ["arcane", "fire"]}]
+            with patch.object(self.websim_payload, "WOW_CLASSES", expected_classes):
+                audit = self.websim_payload.template_evidence_audit_payload(
+                    conn,
+                    community_state=community_state,
+                    community_sync_run=community_sync_run,
+                )
+        finally:
+            conn.close()
+
+        self.assertEqual(audit["defaultGear"]["summary"]["totalSpecCount"], 2)
+        self.assertEqual(audit["defaultGear"]["summary"]["coveredSpecCount"], 0)
+        default_rows = {row["specId"]: row for row in audit["defaultGear"]["matrix"]}
+        self.assertEqual(default_rows["mage:arcane"]["firstBlockingGate"], "statWeightGate")
+        self.assertEqual(default_rows["mage:arcane"]["statWeightGate"]["status"], "blocked")
+        self.assertEqual(default_rows["mage:arcane"]["gearCandidateGate"]["status"], "not_reached")
+        self.assertEqual(default_rows["mage:arcane"]["gearCandidateGate"]["diagnostic"]["status"], "diagnostic")
+        self.assertEqual(default_rows["mage:arcane"]["gearCandidateGate"]["diagnostic"]["observedStatus"], "passed")
+        self.assertEqual(default_rows["mage:fire"]["firstBlockingGate"], "gearCandidateGate")
+        self.assertEqual(default_rows["mage:fire"]["statWeightGate"]["status"], "passed")
+        self.assertEqual(default_rows["mage:fire"]["gearCandidateGate"]["status"], "blocked")
+        self.assertEqual(default_rows["mage:fire"]["nextAction"], "backfill_simc_ready_gear")
+
+        real_rows = {row["specId"]: row for row in audit["realCommunityGear"]["matrix"]}
+        self.assertEqual(real_rows["mage:fire"]["status"], "passed")
+        self.assertEqual(real_rows["mage:arcane"]["status"], "blocked")
+
+        talent = audit["communityTalent"]["summary"]
+        self.assertEqual(talent["realCoveredSpecCount"], 1)
+        self.assertEqual(talent["fallbackCoveredSpecCount"], 1)
+        self.assertEqual(talent["fallbackOnlySpecCount"], 1)
+        self.assertFalse(any(item["reasonCategory"] == "unknown" for item in talent["topBlockers"]))
+        talent_rows = {row["specId"]: row for row in audit["communityTalent"]["matrix"]}
+        self.assertEqual(talent_rows["mage:arcane"]["status"], "partial")
+        self.assertEqual(talent_rows["mage:fire"]["status"], "passed")
+        self.assertEqual(audit["sourceDependencies"]["warcraftlogs"]["status"], "missing_credentials")
+        self.assertNotIn(
+            "missing_credentials",
+            [row.get("firstBlockingGate") for row in audit["realCommunityGear"]["matrix"]],
+        )
+
+    def test_template_evidence_audit_counts_partial_stat_weight_payload_weights(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.seed_verified_stat_weight_cache(
+                conn,
+                "demonhunter",
+                "devourer",
+                status="partial",
+                blockers=["translation_blocked: unexpected_llm_numbers: 37.19, 27.19"],
+            )
+            expected_classes = [{"key": "demonhunter", "label": "Demon Hunter", "specs": ["devourer"]}]
+            with patch.object(self.websim_payload, "WOW_CLASSES", expected_classes):
+                audit = self.websim_payload.template_evidence_audit_payload(conn)
+        finally:
+            conn.close()
+
+        row = audit["defaultGear"]["matrix"][0]
+        self.assertEqual(row["status"], "partial")
+        self.assertEqual(row["firstBlockingGate"], "statWeightGate")
+        self.assertEqual(row["statWeightGate"]["reasonCategory"], "translation_guard")
+        self.assertEqual(row["statWeightGate"]["counts"]["simcSuccessCount"], 2)
+        self.assertEqual(row["statWeightGate"]["counts"]["weightCount"], 4)
+        self.assertEqual(row["gearCandidateGate"]["status"], "not_reached")
 
     def test_websim_gear_payload_exposes_catalog_sources_variants_and_mods(self):
         conn = sqlite3.connect(self.db_path)

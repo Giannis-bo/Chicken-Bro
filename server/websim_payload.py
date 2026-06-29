@@ -248,6 +248,7 @@ DEFAULT_GEAR_TEMPLATE_SOURCE_NAME = "默认模板"
 DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY = "mplus_mixed_route"
 DEFAULT_GEAR_TEMPLATE_ILEVEL_GUARDRAIL = 6
 DEFAULT_GEAR_TEMPLATE_TRINKET_WARNING = "trinket effects are not optimized"
+TEMPLATE_EVIDENCE_AUDIT_REVISION = "template-evidence-audit-v1"
 TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
 TALENT_CATALOG_REVISION = "websim-talent-catalog-v1"
 GEAR_SCHEMA_REVISION = "websim-gear-simulator-v1"
@@ -16650,6 +16651,622 @@ def default_gear_template_coverage_payload(total_specs, covered_specs, blockers,
         "topBlockers": default_template_top_blockers(blockers),
         "lastSyncRun": scan_run_id,
         "checkedAt": utc_now(),
+    }
+
+
+def template_audit_expected_specs():
+    specs = []
+    for klass in WOW_CLASSES:
+        class_key = str(klass.get("key") or "").strip()
+        if not class_key:
+            continue
+        for raw_spec in klass.get("specs") or []:
+            spec_key = str(raw_spec.get("key") if isinstance(raw_spec, dict) else raw_spec or "").strip()
+            if not spec_key:
+                continue
+            specs.append(
+                {
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "specId": f"{class_key}:{spec_key}",
+                    "className": CLASS_LABELS_ZH.get(class_key, klass.get("label") or class_key),
+                    "specName": SPEC_LABELS_ZH.get(spec_key, SPEC_LABELS.get(spec_key, spec_key)),
+                }
+            )
+    return specs
+
+
+def template_audit_gate(status, reason="", reason_category="", counts=None, **extra):
+    gate = {
+        "status": status,
+        "reason": str(reason or ""),
+        "reasonCategory": str(reason_category or ""),
+    }
+    if counts is not None:
+        gate["counts"] = counts if isinstance(counts, dict) else {}
+    for key, value in extra.items():
+        if value is not None:
+            gate[key] = value
+    return gate
+
+
+def template_audit_payload_blocker_text(payload):
+    if not isinstance(payload, dict):
+        return ""
+    blockers = []
+    if isinstance(payload.get("blockers"), list):
+        blockers.extend(str(item or "") for item in payload.get("blockers") or [])
+    validation = payload.get("validation") if isinstance(payload.get("validation"), dict) else {}
+    if isinstance(validation.get("blockers"), list):
+        blockers.extend(str(item or "") for item in validation.get("blockers") or [])
+    return " ".join(blockers)
+
+
+def template_audit_reason_category(reason, payload=None):
+    text = " ".join([str(reason or ""), template_audit_payload_blocker_text(payload)]).lower()
+    if "dungeon slice is disabled" in text or "enable_dungeon_slice" in text:
+        return "simc_dungeon_slice_disabled"
+    if "translation_blocked" in text or "strong_claim_blocked" in text:
+        return "translation_guard"
+    if "missing verified stat weight cache" in text:
+        return "missing_stat_weight_cache"
+    if "stat weight cache is not verified: partial" in text:
+        return "stat_weight_partial"
+    if "stat weight cache is not verified" in text:
+        return "stat_weight_blocked"
+    if "missing verified current-season simc-ready candidates" in text:
+        return "missing_simc_ready_gear_candidates"
+    if "serializer" in text:
+        return "serializer_blocked"
+    if "enhancement" in text or "weapon readiness" in text:
+        return "enhancement_blocked"
+    if "raider.io" in text and "sample" in text:
+        return "raiderio_sample_gap"
+    if "representative profile" in text or "simc-ready gear" in text:
+        return "missing_representative_profile"
+    if "missing table" in text or "no such table" in text:
+        return "missing_cache_table"
+    if "real community" in text:
+        return "missing_real_community_gear_template"
+    if "community talent" in text:
+        return "missing_real_community_talent_template"
+    return "unknown"
+
+
+def template_audit_next_action(reason_category):
+    return {
+        "simc_dungeon_slice_disabled": "audit_enable_dungeon_slice",
+        "missing_stat_weight_cache": "backfill_stat_weight_cache",
+        "stat_weight_partial": "refresh_stat_weight_evidence",
+        "stat_weight_blocked": "refresh_stat_weight_evidence",
+        "translation_guard": "review_translation_guard",
+        "missing_simc_ready_gear_candidates": "backfill_simc_ready_gear",
+        "serializer_blocked": "fix_simc_serializer_precheck",
+        "enhancement_blocked": "backfill_enhancement_options",
+        "raiderio_sample_gap": "collect_raiderio_samples",
+        "missing_representative_profile": "collect_simc_ready_representative_profiles",
+        "missing_cache_table": "run_cache_schema_sync",
+        "missing_real_community_gear_template": "collect_real_community_gear_samples",
+        "missing_real_community_talent_template": "collect_real_community_talent_templates",
+    }.get(reason_category or "", "review_evidence_blocker")
+
+
+def template_audit_stat_counts(payload, weights):
+    payload = payload if isinstance(payload, dict) else {}
+    validation = payload.get("validation") if isinstance(payload.get("validation"), dict) else {}
+    observed_weights = weights if weights else default_template_secondary_weight_scores(payload)
+    return {
+        "sampleCount": positive_int_value(validation.get("sampleCount") or payload.get("sampleCount")),
+        "profileCount": positive_int_value(validation.get("profileCount") or payload.get("profileCount")),
+        "simcSuccessCount": positive_int_value(validation.get("simcSuccessCount") or payload.get("simcSuccessCount")),
+        "simcErrorCount": positive_int_value(validation.get("simcErrorCount")),
+        "weightCount": len(observed_weights or []),
+        "translationStatus": str(payload.get("translationStatus") or "").strip(),
+        "sourceStatus": str(payload.get("sourceStatus") or payload.get("status") or "").strip(),
+    }
+
+
+def template_audit_stat_weight_gate(conn, spec):
+    payload, weights, blockers = read_default_template_stat_weight(
+        conn,
+        spec["classKey"],
+        spec["specKey"],
+        DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY,
+    )
+    counts = template_audit_stat_counts(payload, weights)
+    if not blockers:
+        return template_audit_gate(
+            "passed",
+            reason_category="",
+            counts=counts,
+            scenarioKey=DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY,
+            builderRequired=True,
+        )
+    reason = blockers[0]
+    source_status = counts.get("sourceStatus")
+    status = "partial" if source_status in {"partial", "stale"} else "blocked"
+    category = template_audit_reason_category(reason, payload)
+    return template_audit_gate(
+        status,
+        reason,
+        category,
+        counts=counts,
+        scenarioKey=DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY,
+        builderRequired=True,
+        nextAction=template_audit_next_action(category),
+    )
+
+
+def default_template_candidate_rejection_reasons(item):
+    reasons = []
+    if not isinstance(item, dict):
+        return ["invalid_candidate"]
+    if gear_candidate_incompatible(item):
+        reasons.append("incompatible")
+    if not item.get("simcReady"):
+        reasons.append("not_simc_ready")
+    if not gear_candidate_visible_for_replacement(item):
+        reasons.append("not_visible")
+    if default_template_source_reference_blocked(item):
+        reasons.append("source_reference")
+    if not (gear_candidate_source_types(item) & OFFICIAL_REPLACEMENT_SOURCE_TYPES):
+        reasons.append("non_official_source")
+    if str(item.get("variantStatus") or "").strip().lower() != "verified":
+        reasons.append("variant_not_verified")
+    if not gear_candidate_has_verified_stats(item):
+        reasons.append("stats_not_verified")
+    return reasons or ["unknown_rejection"]
+
+
+def template_audit_top_counts(counts, limit=8):
+    rows = [
+        {"reasonCategory": str(key), "count": int(value or 0)}
+        for key, value in (counts or {}).items()
+        if int(value or 0) > 0
+    ]
+    return sorted(rows, key=lambda item: (-item["count"], item["reasonCategory"]))[:limit]
+
+
+def default_template_candidate_diagnostic(conn, spec, catalog_items=None, season=None):
+    if not sqlite_table_exists(conn, "websim_gear_variants"):
+        return {
+            "status": "diagnostic",
+            "observedStatus": "blocked",
+            "reason": "missing table: websim_gear_variants",
+            "reasonCategory": "missing_cache_table",
+            "totalSlotCount": len(CANONICAL_GEAR_SLOTS),
+            "readySlotCount": 0,
+            "missingSlots": list(CANONICAL_GEAR_SLOTS),
+            "candidateCount": 0,
+            "topReasons": [{"reasonCategory": "missing_cache_table", "count": 1}],
+        }
+    try:
+        season = season or get_active_season_payload(conn)
+        raw_items = catalog_items if catalog_items is not None else get_websim_gear_catalog_items(
+            conn,
+            spec["classKey"],
+            spec["specKey"],
+            season,
+        )
+    except (sqlite3.Error, ValueError) as error:
+        reason = f"gear catalog diagnostic failed: {error}"
+        return {
+            "status": "diagnostic",
+            "observedStatus": "blocked",
+            "reason": reason,
+            "reasonCategory": template_audit_reason_category(reason),
+            "totalSlotCount": len(CANONICAL_GEAR_SLOTS),
+            "readySlotCount": 0,
+            "missingSlots": list(CANONICAL_GEAR_SLOTS),
+            "candidateCount": 0,
+            "topReasons": [{"reasonCategory": template_audit_reason_category(reason), "count": 1}],
+        }
+    prepared_items = apply_spec_primary_stat_display_to_items(
+        [sanitize_gear_candidate_mod_options(item) for item in raw_items or [] if isinstance(item, dict)],
+        spec["classKey"],
+        spec["specKey"],
+    )
+    grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
+    reason_counts = {}
+    for item in prepared_items:
+        for candidate_slot in gear_candidate_slots(item, item.get("classKey") or spec["classKey"], item.get("specKey") or spec["specKey"]):
+            if candidate_slot not in grouped:
+                continue
+            candidate = gear_candidate_for_slot(item, candidate_slot)
+            grouped[candidate_slot].append(candidate)
+    slot_rows = []
+    for slot in CANONICAL_GEAR_SLOTS:
+        candidates = unique_gear_candidates(grouped.get(slot, []))
+        allowed_count = 0
+        for candidate in candidates:
+            if default_template_candidate_allowed(candidate):
+                allowed_count += 1
+            else:
+                for reason in default_template_candidate_rejection_reasons(candidate):
+                    reason_counts[reason] = int(reason_counts.get(reason) or 0) + 1
+        slot_rows.append(
+            {
+                "slot": slot,
+                "candidateCount": len(candidates),
+                "simcReadyCandidateCount": allowed_count,
+                "status": "passed" if allowed_count else "blocked",
+            }
+        )
+    missing_slots = [row["slot"] for row in slot_rows if row["status"] != "passed"]
+    observed_status = "passed" if not missing_slots else "blocked"
+    return {
+        "status": "diagnostic",
+        "observedStatus": observed_status,
+        "reason": "" if observed_status == "passed" else "missing verified current-season SimC-ready candidates",
+        "reasonCategory": "" if observed_status == "passed" else "missing_simc_ready_gear_candidates",
+        "totalSlotCount": len(CANONICAL_GEAR_SLOTS),
+        "readySlotCount": len(CANONICAL_GEAR_SLOTS) - len(missing_slots),
+        "missingSlots": missing_slots,
+        "candidateCount": sum(row["candidateCount"] for row in slot_rows),
+        "topReasons": template_audit_top_counts(reason_counts),
+        "slotMatrix": slot_rows,
+    }
+
+
+def template_audit_downstream_gate(previous_gate, gate_name, diagnostic=None):
+    reason = f"{previous_gate} did not pass"
+    gate = template_audit_gate("not_reached", reason, "not_reached", blockedBy=previous_gate)
+    if diagnostic is not None:
+        gate["diagnostic"] = diagnostic
+    return gate
+
+
+def default_template_evidence_audit_row(conn, spec, season=None):
+    stat_gate = template_audit_stat_weight_gate(conn, spec)
+    catalog_items = None
+    if sqlite_table_exists(conn, "websim_gear_variants"):
+        try:
+            catalog_items = get_websim_gear_catalog_items(conn, spec["classKey"], spec["specKey"], season)
+        except sqlite3.Error:
+            catalog_items = None
+    gear_diagnostic = default_template_candidate_diagnostic(conn, spec, catalog_items=catalog_items, season=season)
+    gear_gate = template_audit_downstream_gate("statWeightGate", "gearCandidateGate", gear_diagnostic)
+    enhancement_gate = template_audit_downstream_gate("gearCandidateGate", "enhancementGate")
+    serializer_gate = template_audit_downstream_gate("enhancementGate", "serializerGate")
+    first_blocking_gate = "statWeightGate"
+    eligible = False
+    next_action = stat_gate.get("nextAction") or template_audit_next_action(stat_gate.get("reasonCategory"))
+
+    if stat_gate["status"] == "passed":
+        if gear_diagnostic.get("observedStatus") != "passed":
+            gear_gate = template_audit_gate(
+                "blocked",
+                gear_diagnostic.get("reason") or "missing verified current-season SimC-ready candidates",
+                gear_diagnostic.get("reasonCategory") or "missing_simc_ready_gear_candidates",
+                counts={
+                    "readySlotCount": gear_diagnostic.get("readySlotCount") or 0,
+                    "totalSlotCount": gear_diagnostic.get("totalSlotCount") or len(CANONICAL_GEAR_SLOTS),
+                    "candidateCount": gear_diagnostic.get("candidateCount") or 0,
+                },
+                missingSlots=gear_diagnostic.get("missingSlots") or [],
+                diagnostic=gear_diagnostic,
+                nextAction="backfill_simc_ready_gear",
+            )
+            first_blocking_gate = "gearCandidateGate"
+            next_action = "backfill_simc_ready_gear"
+        else:
+            template, blockers = build_default_community_gear_template(
+                conn,
+                spec["classKey"],
+                spec["specKey"],
+                catalog_items=catalog_items,
+                season=season,
+            )
+            if template:
+                gear_gate = template_audit_gate(
+                    "passed",
+                    counts={
+                        "readySlotCount": gear_diagnostic.get("readySlotCount") or len(CANONICAL_GEAR_SLOTS),
+                        "totalSlotCount": len(CANONICAL_GEAR_SLOTS),
+                    },
+                    diagnostic=gear_diagnostic,
+                )
+                enhancement_gate = template_audit_gate("passed", counts=template.get("enhancementReadiness") or {})
+                serializer_gate = template_audit_gate(
+                    "passed",
+                    counts={"rawLineCount": len((template.get("rawString") or "").splitlines())},
+                )
+                first_blocking_gate = ""
+                eligible = True
+                next_action = ""
+            else:
+                blocker = blockers[0] if blockers else default_template_blocker(spec["classKey"], spec["specKey"], "default template blocked")
+                reason = blocker.get("reason") or "default template blocked"
+                category = template_audit_reason_category(reason)
+                gate_name = "gearCandidateGate"
+                if category == "enhancement_blocked":
+                    gate_name = "enhancementGate"
+                elif category == "serializer_blocked":
+                    gate_name = "serializerGate"
+                gear_gate = template_audit_gate("passed", diagnostic=gear_diagnostic)
+                if gate_name == "gearCandidateGate":
+                    gear_gate = template_audit_gate(
+                        "blocked",
+                        reason,
+                        category,
+                        missingSlots=blocker.get("missingSlots") or [],
+                        diagnostic=gear_diagnostic,
+                        nextAction=template_audit_next_action(category),
+                    )
+                elif gate_name == "enhancementGate":
+                    enhancement_gate = template_audit_gate("blocked", reason, category, nextAction=template_audit_next_action(category))
+                else:
+                    enhancement_gate = template_audit_gate("passed")
+                    serializer_gate = template_audit_gate("blocked", reason, category, nextAction=template_audit_next_action(category))
+                first_blocking_gate = gate_name
+                next_action = template_audit_next_action(category)
+
+    return {
+        **spec,
+        "status": "passed" if eligible else ("partial" if stat_gate["status"] == "partial" else "blocked"),
+        "eligible": eligible,
+        "firstBlockingGate": first_blocking_gate,
+        "statWeightGate": stat_gate,
+        "gearCandidateGate": gear_gate,
+        "enhancementGate": enhancement_gate,
+        "serializerGate": serializer_gate,
+        "nextAction": next_action,
+    }
+
+
+def template_audit_top_blockers(rows):
+    grouped = {}
+    for row in rows or []:
+        if row.get("eligible") or row.get("status") == "passed":
+            continue
+        gate_name = row.get("firstBlockingGate") or "unknown"
+        gate = row.get(gate_name) if isinstance(row.get(gate_name), dict) else {}
+        category = gate.get("reasonCategory") or row.get("reasonCategory") or "unknown"
+        key = f"{gate_name}:{category}"
+        entry = grouped.setdefault(
+            key,
+            {
+                "gate": gate_name,
+                "reasonCategory": category,
+                "count": 0,
+                "specs": [],
+                "nextAction": row.get("nextAction") or gate.get("nextAction") or template_audit_next_action(category),
+            },
+        )
+        entry["count"] += 1
+        if row.get("specId"):
+            entry["specs"].append(row["specId"])
+    return sorted(grouped.values(), key=lambda item: (-item["count"], item["gate"], item["reasonCategory"]))[:8]
+
+
+def template_audit_section_summary(rows):
+    total = len(rows or [])
+    covered = sum(1 for row in rows or [] if row.get("eligible") or row.get("status") == "passed")
+    partial = sum(1 for row in rows or [] if row.get("status") == "partial")
+    blocked = total - covered
+    return {
+        "totalSpecCount": total,
+        "coveredSpecCount": covered,
+        "partialSpecCount": partial,
+        "blockedSpecCount": blocked,
+        "topBlockers": template_audit_top_blockers(rows),
+    }
+
+
+def default_gear_template_evidence_audit(conn, expected_specs):
+    season = get_active_season_payload(conn)
+    matrix = [default_template_evidence_audit_row(conn, spec, season=season) for spec in expected_specs]
+    summary = template_audit_section_summary(matrix)
+    summary["scenarioKey"] = DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY
+    stat_matrix = []
+    for row in matrix:
+        stat_gate = row.get("statWeightGate") or {}
+        stat_matrix.append(
+            {
+                "specId": row.get("specId") or "",
+                "status": stat_gate.get("status") or "",
+                "reasonCategory": stat_gate.get("reasonCategory") or "",
+                "counts": stat_gate.get("counts") or {},
+                "nextAction": stat_gate.get("nextAction") or "",
+            }
+        )
+    return {
+        "sourceKey": DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+        "unlockScenarioKey": DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY,
+        "statusPolicy": "requires mplus_mixed_route verified stat weights; single and aoe scenarios are diagnostic only",
+        "summary": summary,
+        "statWeightBlockerMatrix": stat_matrix,
+        "matrix": matrix,
+    }
+
+
+def real_community_gear_covered_specs_from_run(community_sync_run):
+    gear = community_sync_run.get("gear") if isinstance(community_sync_run, dict) else {}
+    gear = gear if isinstance(gear, dict) else {}
+    summary = gear.get("realCommunityTemplates") if isinstance(gear.get("realCommunityTemplates"), dict) else {}
+    covered = {str(item) for item in summary.get("coveredSpecs") or [] if str(item).strip()}
+    missing = {str(item) for item in summary.get("missingSpecs") or [] if str(item).strip()}
+    return covered, missing, bool(summary)
+
+
+def real_community_gear_template_counts(conn):
+    if not sqlite_table_exists(conn, "websim_community_gear_templates"):
+        return {}
+    rows = conn.execute(
+        """
+        SELECT class_key, spec_key, source_key, status, COUNT(*)
+        FROM websim_community_gear_templates
+        WHERE source_key != ? AND status IN ('complete', 'partial')
+        GROUP BY class_key, spec_key, source_key, status
+        """,
+        (DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,),
+    ).fetchall()
+    counts = {}
+    for class_key, spec_key, source_key, status, count in rows:
+        spec_id = f"{class_key}:{spec_key}"
+        entry = counts.setdefault(spec_id, {"total": 0, "sources": {}, "statuses": {}})
+        entry["total"] += int(count or 0)
+        entry["sources"][source_key] = int(entry["sources"].get(source_key) or 0) + int(count or 0)
+        entry["statuses"][status] = int(entry["statuses"].get(status) or 0) + int(count or 0)
+    return counts
+
+
+def real_community_gear_evidence_audit(conn, expected_specs, community_sync_run=None):
+    covered_from_run, missing_from_run, has_run_summary = real_community_gear_covered_specs_from_run(community_sync_run or {})
+    template_counts = real_community_gear_template_counts(conn)
+    covered = covered_from_run if has_run_summary else set(template_counts.keys())
+    matrix = []
+    for spec in expected_specs:
+        spec_id = spec["specId"]
+        counts = template_counts.get(spec_id) or {}
+        has_real = spec_id in covered and spec_id not in missing_from_run
+        status = "passed" if has_real else "blocked"
+        category = "" if has_real else "missing_real_community_gear_template"
+        matrix.append(
+            {
+                **spec,
+                "status": status,
+                "firstBlockingGate": "" if has_real else "realCommunityGearSample",
+                "reasonCategory": category,
+                "templateCount": int(counts.get("total") or 0),
+                "sourceCounts": counts.get("sources") or {},
+                "statusCounts": counts.get("statuses") or {},
+                "nextAction": "" if has_real else template_audit_next_action(category),
+            }
+        )
+    summary = template_audit_section_summary(matrix)
+    summary["missingSpecCount"] = summary["blockedSpecCount"]
+    return {
+        "countingPolicy": "real samples only; default_template is excluded and cannot fill this coverage",
+        "summary": summary,
+        "matrix": matrix,
+    }
+
+
+def community_talent_template_counts(conn):
+    if not sqlite_table_exists(conn, "websim_community_talent_templates"):
+        return {}
+    rows = conn.execute(
+        """
+        SELECT class_key, spec_key, source_key, COUNT(*)
+        FROM websim_community_talent_templates
+        WHERE status = 'verified'
+        GROUP BY class_key, spec_key, source_key
+        """
+    ).fetchall()
+    counts = {}
+    for class_key, spec_key, source_key, count in rows:
+        spec_id = f"{class_key}:{spec_key}"
+        entry = counts.setdefault(spec_id, {"real": 0, "fallback": 0, "sources": {}})
+        if source_key == "websim_baseline":
+            entry["fallback"] += int(count or 0)
+        else:
+            entry["real"] += int(count or 0)
+        entry["sources"][source_key] = int(entry["sources"].get(source_key) or 0) + int(count or 0)
+    return counts
+
+
+def community_talent_evidence_audit(conn, expected_specs):
+    counts_by_spec = community_talent_template_counts(conn)
+    matrix = []
+    real_covered = 0
+    fallback_covered = 0
+    fallback_only = 0
+    for spec in expected_specs:
+        counts = counts_by_spec.get(spec["specId"]) or {"real": 0, "fallback": 0, "sources": {}}
+        real_count = int(counts.get("real") or 0)
+        fallback_count = int(counts.get("fallback") or 0)
+        if real_count:
+            status = "passed"
+            first_blocking_gate = ""
+            category = ""
+            next_action = ""
+            real_covered += 1
+        elif fallback_count:
+            status = "partial"
+            first_blocking_gate = "realCommunityTalent"
+            category = "missing_real_community_talent_template"
+            next_action = template_audit_next_action(category)
+            fallback_only += 1
+        else:
+            status = "blocked"
+            first_blocking_gate = "communityTalentTemplate"
+            category = "missing_real_community_talent_template"
+            next_action = template_audit_next_action(category)
+        if fallback_count:
+            fallback_covered += 1
+        matrix.append(
+            {
+                **spec,
+                "status": status,
+                "realStatus": "passed" if real_count else "blocked",
+                "fallbackStatus": "passed" if fallback_count else "blocked",
+                "realTemplateCount": real_count,
+                "fallbackTemplateCount": fallback_count,
+                "sourceCounts": counts.get("sources") or {},
+                "firstBlockingGate": first_blocking_gate,
+                "reasonCategory": category,
+                "nextAction": next_action,
+            }
+        )
+    summary = template_audit_section_summary(matrix)
+    summary.update(
+        {
+            "realCoveredSpecCount": real_covered,
+            "fallbackCoveredSpecCount": fallback_covered,
+            "fallbackOnlySpecCount": fallback_only,
+            "usableSpecCount": len([row for row in matrix if row["realTemplateCount"] or row["fallbackTemplateCount"]]),
+            "countingPolicy": "real community talent coverage is counted separately from websim_baseline fallback",
+        }
+    )
+    return {
+        "fallbackSourceKey": "websim_baseline",
+        "countingPolicy": "fallback templates do not fill real community template coverage",
+        "summary": summary,
+        "matrix": matrix,
+    }
+
+
+def template_audit_source_dependencies(community_state):
+    sources = community_state.get("sources") if isinstance(community_state, dict) else {}
+    wcl = sources.get("warcraftlogs") if isinstance(sources, dict) else {}
+    if not isinstance(wcl, dict):
+        wcl = {}
+    return {
+        "warcraftlogs": {
+            "status": wcl.get("status") or "missing_credentials",
+            "sourceName": wcl.get("sourceName") or "Warcraft Logs",
+            "countingPolicy": "independent source dependency; not duplicated as 40 per-spec blockers",
+            "errorCount": len(wcl.get("errors") or []) if isinstance(wcl.get("errors"), list) else 0,
+        }
+    }
+
+
+def template_evidence_audit_payload(conn, community_state=None, community_sync_run=None):
+    expected_specs = template_audit_expected_specs()
+    community_state = community_state if isinstance(community_state, dict) else community_talent_sync_state(conn)
+    community_sync_run = community_sync_run if isinstance(community_sync_run, dict) else get_sync_state(conn, COMMUNITY_TEMPLATE_SYNC_RUN_KEY) or {}
+    default_gear = default_gear_template_evidence_audit(conn, expected_specs)
+    real_gear = real_community_gear_evidence_audit(conn, expected_specs, community_sync_run=community_sync_run)
+    community_talent = community_talent_evidence_audit(conn, expected_specs)
+    return {
+        "schemaRevision": TEMPLATE_EVIDENCE_AUDIT_REVISION,
+        "checkedAt": utc_now(),
+        "status": "diagnostic",
+        "summary": {
+            "totalSpecCount": len(expected_specs),
+            "defaultGearCoveredSpecCount": default_gear["summary"]["coveredSpecCount"],
+            "realCommunityGearCoveredSpecCount": real_gear["summary"]["coveredSpecCount"],
+            "realCommunityTalentCoveredSpecCount": community_talent["summary"]["realCoveredSpecCount"],
+            "fallbackTalentCoveredSpecCount": community_talent["summary"]["fallbackCoveredSpecCount"],
+            "topBlockers": default_gear["summary"]["topBlockers"][:4]
+            + real_gear["summary"]["topBlockers"][:2]
+            + community_talent["summary"]["topBlockers"][:2],
+        },
+        "defaultGear": default_gear,
+        "realCommunityGear": real_gear,
+        "communityTalent": community_talent,
+        "sourceDependencies": template_audit_source_dependencies(community_state),
     }
 
 

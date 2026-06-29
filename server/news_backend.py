@@ -84,6 +84,7 @@ try:
         encode_websim_talents,
         parse_websim_talent_export_code,
         simcraft_known_compatibility_blockers,
+        template_evidence_audit_payload,
         validate_talent_api_payload,
     )
 except ImportError:
@@ -153,6 +154,7 @@ except ImportError:
         encode_websim_talents,
         parse_websim_talent_export_code,
         simcraft_known_compatibility_blockers,
+        template_evidence_audit_payload,
         validate_talent_api_payload,
     )
 
@@ -2230,6 +2232,11 @@ def build_data_health_payload():
             if isinstance(community_gear.get("realCommunityTemplates"), dict)
             else {}
         )
+        template_evidence_audit = template_evidence_audit_payload(
+            conn,
+            community_state=community,
+            community_sync_run=community_sync_run,
+        )
         community_status = community.get("sourceStatus")
         if default_gear_templates.get("blockedSpecCount") and community_status in {"synced", "verified"}:
             community_status = "partial"
@@ -2250,6 +2257,7 @@ def build_data_health_payload():
                     "gearTemplates": gear_templates,
                     "realCommunityGearTemplates": real_community_templates,
                     "defaultGearTemplates": default_gear_templates,
+                    "templateEvidenceAudit": template_evidence_audit,
                     "lastSyncRun": community_sync_run.get("scanRunId") or default_gear_templates.get("lastSyncRun") or "",
                 },
                 blockers=[

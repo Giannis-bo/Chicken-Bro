@@ -240,6 +240,21 @@ def simc_role(class_key, spec_key):
     return "spell" if primary_stat_key(class_key, spec_key) == "intellect" else "attack"
 
 
+def stat_weight_forced_profile_options(spec_meta, scenario):
+    class_key = str((spec_meta or {}).get("classKey") or "").strip().lower()
+    spec_key = str((spec_meta or {}).get("specKey") or "").strip().lower()
+    scenario_key = str((scenario or {}).get("key") or "").strip()
+    fight_style = str((scenario or {}).get("fightStyle") or "").strip()
+    if (
+        class_key == "demonhunter"
+        and spec_key == "devourer"
+        and scenario_key == "mplus_mixed_route"
+        and fight_style == "DungeonSlice"
+    ):
+        return ["demonhunter.enable_dungeon_slice=1"]
+    return []
+
+
 def specialization_registry():
     specs = []
     for klass in WOW_CLASSES:
@@ -373,6 +388,7 @@ def build_stat_weight_profile(candidate, spec_meta, scenario):
     actor = slugify(candidate.get("name") or f"{class_key}_{spec_key}", f"{class_key}_{spec_key}")
     primary = primary_stat_key(class_key, spec_key)
     scale_only = ",".join([SIMC_PRIMARY_KEYS[primary], *SECONDARY_KEYS])
+    forced_options = stat_weight_forced_profile_options(spec_meta, scenario)
     lines = [
         f'{class_key}="{actor}"',
         f"level={int_env('WOW_STAT_WEIGHTS_LEVEL', 90)}",
@@ -386,6 +402,7 @@ def build_stat_weight_profile(candidate, spec_meta, scenario):
         f"desired_targets={scenario['targets']}",
         f"max_time={scenario['durationSeconds']}",
         "vary_combat_length=0.2",
+        *forced_options,
         "calculate_scale_factors=1",
         f"scale_only={scale_only}",
     ]
@@ -494,7 +511,8 @@ def simc_build_label():
     if not path:
         return ""
     try:
-        payload = json.loads(open(path, "r", encoding="utf-8").read())
+        with open(path, "r", encoding="utf-8") as handle:
+            payload = json.loads(handle.read())
     except (OSError, json.JSONDecodeError):
         return ""
     return str(payload.get("localTag") or payload.get("image") or payload.get("latestTag") or "")
@@ -670,6 +688,7 @@ def build_scenario_payload(conn, spec_meta, scenario, raiderio, aggregate, ready
     checked_at = utc_now_iso()
     raiderio_summary = public_raiderio_summary(raiderio, aggregate)
     source_status = raiderio.get("sourceStatus") or "blocked"
+    forced_options = stat_weight_forced_profile_options(spec_meta, scenario)
     blockers = []
     simc_results = []
     simc_errors = []
@@ -777,6 +796,7 @@ def build_scenario_payload(conn, spec_meta, scenario, raiderio, aggregate, ready
             "raiderioStatus": source_status,
             "raiderioCheckedAt": raiderio.get("checkedAt") or "",
             "simcBuild": simc_build_label(),
+            "forcedOptions": forced_options,
             "gearSchemaRevision": GEAR_SCHEMA_REVISION,
             "blockers": blockers[:8],
         },

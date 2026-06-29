@@ -5081,6 +5081,86 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(component["details"]["defaultGearTemplates"]["missingSpecs"], ["demonhunter:devourer"])
         self.assertEqual(component["details"]["defaultGearTemplates"]["blockers"][0]["reason"], "missing verified stat weight cache")
 
+    def test_data_health_payload_exposes_template_evidence_audit_read_only(self):
+        import server.websim_payload as websim_payload
+
+        expected_classes = [{"key": "demonhunter", "label": "Demon Hunter", "specs": ["devourer"]}]
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            websim_payload.ensure_websim_tables(conn)
+            websim_payload.set_sync_state(
+                conn,
+                websim_payload.COMMUNITY_TALENT_SYNC_KEY,
+                {
+                    "sourceStatus": "partial",
+                    "templateRevision": "community-template-v1-test",
+                    "scanCoverage": {"totalSpecCount": 1, "coveredSpecCount": 0, "missingSpecs": ["demonhunter:devourer"]},
+                    "dedupedCount": 0,
+                    "hiddenDuplicateCount": 0,
+                    "sources": {
+                        "warcraftlogs": {
+                            "status": "missing_credentials",
+                            "sourceName": "Warcraft Logs",
+                            "errors": ["missing credentials"],
+                        }
+                    },
+                    "templates": {"total": 0, "verified": 0, "blocked": 0},
+                    "checkedAt": "2026-06-28T08:00:00+00:00",
+                },
+            )
+            websim_payload.set_sync_state(
+                conn,
+                websim_payload.COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
+                {
+                    "scanRunId": "community-template-health-audit-test",
+                    "sourceStatus": "partial",
+                    "gear": {
+                        "realCommunityTemplates": {
+                            "coveredSpecs": [],
+                            "missingSpecs": ["demonhunter:devourer"],
+                        },
+                        "defaultTemplates": {
+                            "coveredSpecCount": 0,
+                            "missingSpecCount": 1,
+                            "blockedSpecCount": 1,
+                            "missingSpecs": ["demonhunter:devourer"],
+                            "blockers": [
+                                {
+                                    "classKey": "demonhunter",
+                                    "specKey": "devourer",
+                                    "specId": "demonhunter:devourer",
+                                    "reason": "stat weight cache is not verified: blocked",
+                                }
+                            ],
+                        },
+                    },
+                },
+            )
+            conn.commit()
+
+        with patch.object(websim_payload, "WOW_CLASSES", expected_classes), patch.object(
+            self.backend,
+            "sync_raiderio_cache",
+            side_effect=AssertionError("health must be read-only"),
+        ):
+            payload = self.backend.build_data_health_payload()
+
+        component = {item["key"]: item for item in payload["components"]}["community_templates"]
+        audit = component["details"]["templateEvidenceAudit"]
+        dumped = json.dumps(audit, ensure_ascii=False)
+
+        self.assertEqual(component["status"], "partial")
+        self.assertEqual(audit["schemaRevision"], "template-evidence-audit-v1")
+        self.assertEqual(set(["defaultGear", "realCommunityGear", "communityTalent"]).issubset(audit), True)
+        self.assertEqual(audit["defaultGear"]["unlockScenarioKey"], "mplus_mixed_route")
+        self.assertEqual(audit["defaultGear"]["matrix"][0]["specId"], "demonhunter:devourer")
+        self.assertEqual(audit["defaultGear"]["matrix"][0]["firstBlockingGate"], "statWeightGate")
+        self.assertEqual(audit["realCommunityGear"]["summary"]["coveredSpecCount"], 0)
+        self.assertEqual(audit["communityTalent"]["summary"]["realCoveredSpecCount"], 0)
+        self.assertEqual(audit["sourceDependencies"]["warcraftlogs"]["status"], "missing_credentials")
+        self.assertNotIn("profileUrl", dumped)
+        self.assertNotIn("rawProfile", dumped)
+        self.assertNotIn("secret", dumped.lower())
+
     def test_data_health_websim_sync_uses_ok_state_without_legacy_counts(self):
         import server.websim_payload as websim_payload
 

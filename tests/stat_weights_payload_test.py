@@ -216,6 +216,52 @@ class StatWeightsPayloadTest(unittest.TestCase):
         self.assertEqual(cached["sourceStatus"], "partial")
         self.assertTrue(any("below verified threshold" in item for item in cached["blockers"]))
 
+    def test_devourer_mixed_route_stat_weight_profile_forces_dungeon_slice_only(self):
+        candidate = {"name": "Devourer Rio", "importCode": "CAE_DEVOURER", "gearItems": []}
+        devourer = {
+            "classKey": "demonhunter",
+            "specKey": "devourer",
+            "className": "Demon Hunter",
+            "specName": "Devourer",
+            "role": "dps",
+            "primaryStat": "agility",
+        }
+        havoc = {**devourer, "specKey": "havoc", "specName": "Havoc"}
+        mixed = next(item for item in stat_weights_payload.MPLUS_SCENARIOS if item["key"] == "mplus_mixed_route")
+        single = next(item for item in stat_weights_payload.MPLUS_SCENARIOS if item["key"] == "mplus_single_boss")
+
+        self.assertIn("demonhunter.enable_dungeon_slice=1", stat_weights_payload.build_stat_weight_profile(candidate, devourer, mixed))
+        self.assertNotIn("demonhunter.enable_dungeon_slice=1", stat_weights_payload.build_stat_weight_profile(candidate, devourer, single))
+        self.assertNotIn("demonhunter.enable_dungeon_slice=1", stat_weights_payload.build_stat_weight_profile(candidate, havoc, mixed))
+
+        version_file = Path(self.tmp.name) / "simc-version.json"
+        version_file.write_text(json.dumps({"localTag": "midnight-16b061b"}), encoding="utf-8")
+        os.environ["WOW_SIMC_VERSION_FILE"] = str(version_file)
+        captured_profiles = []
+
+        def fake_simc(profile):
+            captured_profiles.append(profile)
+            return {"ran": True, "available": True, "rawOutput": fake_scale_factor_output(), "error": ""}
+
+        with closing(self.connection()) as conn, patch.object(
+            stat_weights_payload,
+            "run_stat_weight_simcraft",
+            side_effect=fake_simc,
+        ), patch.object(stat_weights_payload, "call_chat_completion", return_value=fake_translation_response()):
+            payload = stat_weights_payload.build_scenario_payload(
+                conn,
+                devourer,
+                mixed,
+                {"sourceStatus": "synced", "checkedAt": "2026-06-28T00:00:00+00:00"},
+                {"sampleCount": 5},
+                [candidate],
+                [],
+            )
+
+        self.assertEqual(payload["validation"]["forcedOptions"], ["demonhunter.enable_dungeon_slice=1"])
+        self.assertEqual(payload["validation"]["simcBuild"], "midnight-16b061b")
+        self.assertTrue(any("demonhunter.enable_dungeon_slice=1" in profile for profile in captured_profiles))
+
     def test_parser_ignores_non_final_scale_factor_mentions(self):
         output = """
 Generating Baseline profiles.
