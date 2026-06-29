@@ -31,7 +31,7 @@ Cloud provision status as of 2026-06-28: `wow-lighthouse` has PostgreSQL 16.14 i
 | News | `news_articles`, `news_sources`, `news_raw_articles`, `news_article_evidence`, `news_refresh_runs` | 可审计内容发布 | 公共 payload 只发布通过授权、官方校验和 source translation 门禁的内容。 |
 | WebSim/Game Cache | `websim_sync_state`, `websim_season_state`, `websim_season_dungeons`, `websim_instances`, `websim_encounters`, `websim_loot`, `websim_items`, `websim_item_aliases`, `websim_gear_sources`, `websim_gear_variants`, `websim_gear_mod_options`, `websim_item_sets`, `websim_talents`, `websim_spell_details`, `websim_profile_presets`, `websim_community_*`, `websim_asset_registry`, `websim_translations`, Raider.IO/stat weight cache, `chickenbro_spec_profiles` | 可重建 Season Data Cache | 缺凭据、过期或对账失败时必须降级为 `partial`、`stale` 或 `blocked`；本地只保存规范化证据、索引、读取模型和健康状态，不作为人工维护的真理库。炸鸡队长 `published` 画像可支撑结论，`partial` 只做背景，`stale/blocked/needs_review` 不进入结论链路。 |
 | Analytics | `analytics_events`, `analytics_user_links`, `analytics_daily_metrics` | 事件与聚合 | 事件接口记录页面、功能、会话和客户端 hash；不存用户提交的 prompt/profile 原文；可归档，不能混入用户资产表。 |
-| Ops | `schema_migrations`, `websim_sync_state`, `agent_jobs` | 运维控制面 | 记录已初始化的 schema 能力、同步状态和后台 agent 任务状态。`agent_jobs` 记录 queued/running/succeeded/failed/timed_out 和 bounded context/result，用户可见历史仍由对应业务表承载。 |
+| Ops | `schema_migrations`, `websim_sync_state`, `agent_jobs`, `admin_gate_diagnoses`, `ops_audit_logs` | 运维控制面 | 记录已初始化的 schema 能力、同步状态、后台 agent 任务状态、门禁 gap 诊断和运维审计。`agent_jobs` 记录 queued/running/succeeded/failed/timed_out 和 bounded context/result，用户可见历史仍由对应业务表承载；`admin_gate_diagnoses` 只保存人工诊断事实，不修改源记录、health component 或公开 payload。 |
 
 ## Migration 规则
 
@@ -43,6 +43,7 @@ Cloud provision status as of 2026-06-28: `wow-lighthouse` has PostgreSQL 16.14 i
   - `chickenbro_backend_v1`
   - `simulator_task_summary_v1`
   - `simulator_task_worker_ready_v1`
+  - `admin_gate_diagnostics_v1`
 - 新增用户写表前必须先补 migration 标记、owner 字段、外键和权限测试。
 
 ## SimC 任务表边界
@@ -97,6 +98,17 @@ Cloud provision status as of 2026-06-28: `wow-lighthouse` has PostgreSQL 16.14 i
 - `pending_official_audit`
 
 任何 key/token/secret 文本都必须在 payload 中被脱敏。
+
+## 后台门禁诊断表
+
+`/admin/gates` 和 `/api/admin/gates/*` 是 owner-facing 只读治理台与诊断入口。`summary`、`records` 和 `queue` 只读取新闻、天赋、装备和 health 现有状态，不触发 sync、fetch、LLM 或 SimC；`POST /api/admin/gates/diagnoses` 只写入 `admin_gate_diagnoses` 和 `ops_audit_logs`。
+
+诊断表的信任边界：
+
+- `target_domain` / `target_type` / `target_id` 指向被诊断的系统记录。
+- `reason` / `note` / `diagnosis_type` 表示人工判断，不能覆盖 `sourceStatus`、`status`、blocker 或 health component。
+- `record_fingerprint` 记录诊断时的系统门禁快照；底层记录后续重验通过时，队列层可以把诊断显示为 resolved，但不需要人工改源数据。
+- 诊断 payload 只能保存脱敏摘要、状态和 blocker，不保存完整新闻原文、完整 SimC profile、token、raw request 或用户私密内容。
 
 ## 备份和上线检查
 

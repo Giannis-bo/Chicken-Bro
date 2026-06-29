@@ -126,5 +126,5 @@ WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
 
 ## 已知风险
 
-- 2026-06-12：`/admin/analytics` 管理报表当前通过 `http://124.223.51.33/admin/analytics` 暴露，浏览器提交 `WOW_ANALYTICS_ADMIN_TOKEN` 时会经过明文 HTTP 传输。该 token 只应保存在服务器 `/etc/wow-backend.env` 或本地安全记录中，不要写入仓库、日志或截图。
-- 上线前加固项：为管理报表接入 HTTPS 正式域名；在 nginx 层增加访问控制，例如 IP 白名单、Basic Auth 或仅内网/VPN 访问；完成切换后轮换 `WOW_ANALYTICS_ADMIN_TOKEN`。
+- 2026-06-12 / 2026-06-29：`/admin/analytics` 和 `/admin/gates` 管理页当前通过 `http://124.223.51.33` 暴露，浏览器提交 `WOW_ANALYTICS_ADMIN_TOKEN` 或 `WOW_ADMIN_TOKEN` 时会经过明文 HTTP 传输。token 只应保存在服务器 `/etc/wow-backend.env`、本机安全记录或受信任浏览器本地存储中，不要写入仓库、日志或截图。
+- 上线前加固项：为管理页接入 HTTPS 正式域名；在 nginx 层增加访问控制，例如 IP 白名单、Basic Auth 或仅内网/VPN 访问；完成切换后轮换 `WOW_ANALYTICS_ADMIN_TOKEN` 和 `WOW_ADMIN_TOKEN`。

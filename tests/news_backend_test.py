@@ -6358,6 +6358,326 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("<td>${String(value ?? '')}</td>", html)
         self.assertNotIn("<code>${JSON.stringify(item.properties)}</code>", html)
 
+    def test_admin_gates_summary_requires_token_and_uses_health_components(self):
+        os.environ["WOW_ADMIN_TOKEN"] = "admin-token"
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/api/admin/gates/summary"
+            with self.assertRaises(HTTPError) as raised:
+                urlopen(url, timeout=5)
+            self.assertEqual(raised.exception.code, 401)
+
+            request = Request(url, headers={"Authorization": "Bearer admin-token"})
+            with urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+            os.environ.pop("WOW_ADMIN_TOKEN", None)
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(payload["schemaRevision"], "admin-gates-summary-v1")
+        self.assertEqual(payload["productRule"]["systemGate"], "consumption_fact")
+        self.assertEqual(payload["productRule"]["humanJudgement"], "diagnostic_fact")
+        self.assertTrue(any(item["key"] == "news" for item in payload["modules"]))
+        self.assertTrue(any(item["key"] == "gear_catalog" for item in payload["modules"]))
+        self.assertIn("blocked", payload["statusCounts"])
+        self.assertIn("diagnosticQueue", payload)
+
+    def test_admin_token_authorization_is_fixed_env_secret_without_expiry(self):
+        os.environ["WOW_ADMIN_TOKEN"] = "fixed-admin-token"
+        try:
+            self.assertTrue(
+                self.backend.admin_authorized({"Authorization": "Bearer fixed-admin-token"})
+            )
+            with patch.object(self.backend, "utc_now", return_value="2099-01-01T00:00:00+00:00"):
+                self.assertTrue(
+                    self.backend.admin_authorized({"Authorization": "Bearer fixed-admin-token"})
+                )
+        finally:
+            os.environ.pop("WOW_ADMIN_TOKEN", None)
+
+    def test_admin_gates_summary_uses_lightweight_health_without_full_template_audit(self):
+        with patch.object(
+            self.backend,
+            "template_evidence_audit_payload",
+            return_value={"schemaRevision": "template-evidence-audit-v1", "fullMatrix": "unexpected"},
+        ) as full_audit:
+            payload = self.backend.admin_gate_summary_payload()
+
+        full_audit.assert_not_called()
+        self.assertEqual(payload["schemaRevision"], "admin-gates-summary-v1")
+        self.assertTrue(any(item["key"] == "community_templates" for item in payload["modules"]))
+
+    def test_admin_gates_records_are_full_record_level_read_only_and_redacted(self):
+        with self.backend.db_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO news_raw_articles (
+                    id, source_id, source_name, source_tier, canonical_url,
+                    original_title, original_summary, original_body, body_blocks_json,
+                    published_at, fetched_at, fetch_error, license_status,
+                    verification_status, canonical_topic_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "raw-1",
+                    "blizzard",
+                    "Blizzard News",
+                    "official",
+                    "https://example.com/raw",
+                    "Arms Warrior Tuning",
+                    "Short summary",
+                    "Full internal body with Bearer secret-token and private payload",
+                    json.dumps([{"type": "paragraph", "text": "Full internal body"}]),
+                    "2026-06-29",
+                    "2026-06-29T00:00:00+00:00",
+                    "",
+                    "approved",
+                    "official_verified",
+                    "topic-1",
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO news_discovery_queue (
+                    id, canonical_topic_id, source_id, source_name, source_tier,
+                    source_url, original_title, published_at, status, attempts,
+                    last_error, payload_json, discovered_at, updated_at, processed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "queue-1",
+                    "topic-1",
+                    "blizzard",
+                    "Blizzard News",
+                    "official",
+                    "https://example.com/raw",
+                    "Arms Warrior Tuning",
+                    "2026-06-29",
+                    "blocked",
+                    1,
+                    "invalid_llm_translation",
+                    json.dumps({"rawBody": "Full internal body with Bearer secret-token"}),
+                    "2026-06-29T00:00:00+00:00",
+                    "2026-06-29T00:01:00+00:00",
+                    "",
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO news_discovery_queue (
+                    id, canonical_topic_id, source_id, source_name, source_tier,
+                    source_url, original_title, published_at, status, attempts,
+                    last_error, payload_json, discovered_at, updated_at, processed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "queue-duplicate",
+                    "topic-duplicate",
+                    "blizzard",
+                    "Blizzard News",
+                    "official",
+                    "https://example.com/duplicate",
+                    "Existing Hotfix",
+                    "2026-06-29",
+                    "blocked",
+                    0,
+                    "duplicate_seed_source_translation",
+                    "{}",
+                    "2026-06-29T00:00:00+00:00",
+                    "2026-06-29T00:02:00+00:00",
+                    "",
+                ),
+            )
+            conn.commit()
+
+        with patch.object(self.backend, "refresh_articles", side_effect=AssertionError("admin records must be read-only")):
+            payload = self.backend.admin_gate_records_payload({"domain": ["news"], "limit": ["20"]})
+
+        rendered = json.dumps(payload, ensure_ascii=False)
+        self.assertEqual(payload["schemaRevision"], "admin-gates-records-v1")
+        self.assertEqual(payload["records"][0]["domain"], "news")
+        self.assertEqual(payload["records"][0]["status"], "blocked")
+        self.assertIn("Arms Warrior Tuning", rendered)
+        self.assertIn("https://example.com/raw", rendered)
+        blocker_titles = [
+            detail["title"]
+            for record in payload["records"]
+            for detail in record.get("blockerDetails", [])
+        ]
+        self.assertIn("LLM 翻译未通过校验", blocker_titles)
+        self.assertIn("已存在同源译文，阻止重复发布", blocker_titles)
+        self.assertNotIn("secret-token", rendered)
+        self.assertNotIn("Full internal body", rendered)
+
+    def test_admin_gates_diagnosis_records_gap_without_mutating_source_status(self):
+        with self.backend.db_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO websim_community_gear_templates (
+                    id, class_key, spec_key, name, source_key,
+                    source_name, source_url, source_status, status, signature,
+                    source_refs_json, gear_items_json, raw_string, ready_slot_count,
+                    missing_slots_json, analysis_window, payload_json, updated_at,
+                    expires_at, scan_run_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "gear-template-1",
+                    "warrior",
+                    "arms",
+                    "武器战社区装备",
+                    "raiderio",
+                    "Raider.IO",
+                    "https://raider.io/example",
+                    "partial",
+                    "blocked",
+                    "sig-gear-1",
+                    json.dumps([{"sourceKey": "raiderio", "status": "partial"}]),
+                    json.dumps([{"slot": "main_hand", "itemId": 1}]),
+                    "main_hand=valid_weapon,id=1",
+                    1,
+                    json.dumps(["off_hand"]),
+                    "2026-W26",
+                    json.dumps({"gearBySlot": {"main_hand": {"itemId": 1}}}),
+                    "2026-06-29T00:00:00+00:00",
+                    "",
+                    "scan-1",
+                ),
+            )
+            conn.commit()
+
+        diagnosis = self.backend.create_admin_gate_diagnosis(
+            {
+                "targetDomain": "gear",
+                "targetType": "community_gear_template",
+                "targetId": "gear-template-1",
+                "diagnosis": "system_gap_suspected",
+                "gapType": "parser_or_mapping_bug",
+                "reason": "owner believes serializer rejected a valid weapon mapping",
+                "note": "Check arms warrior main hand mapping.",
+            },
+            actor="owner",
+        )
+
+        with self.backend.db_connection() as conn:
+            status_row = conn.execute(
+                "SELECT source_status, status FROM websim_community_gear_templates WHERE id = ?",
+                ("gear-template-1",),
+            ).fetchone()
+            diagnosis_count = conn.execute("SELECT COUNT(*) FROM admin_gate_diagnoses").fetchone()[0]
+            audit_count = conn.execute(
+                "SELECT COUNT(*) FROM ops_audit_logs WHERE action = ? AND target_id = ?",
+                ("admin_gate.diagnose", "gear-template-1"),
+            ).fetchone()[0]
+
+        self.assertEqual(diagnosis["resolutionStatus"], "open")
+        self.assertEqual(status_row, ("partial", "blocked"))
+        self.assertEqual(diagnosis_count, 1)
+        self.assertEqual(audit_count, 1)
+
+    def test_admin_gates_queue_and_diagnoses_resolve_when_system_status_passes(self):
+        with self.backend.db_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO websim_community_gear_templates (
+                    id, class_key, spec_key, name, source_key,
+                    source_name, source_url, source_status, status, signature,
+                    source_refs_json, gear_items_json, raw_string, ready_slot_count,
+                    missing_slots_json, analysis_window, payload_json, updated_at,
+                    expires_at, scan_run_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "gear-template-2",
+                    "warrior",
+                    "arms",
+                    "武器战社区装备",
+                    "raiderio",
+                    "Raider.IO",
+                    "https://raider.io/example",
+                    "partial",
+                    "blocked",
+                    "sig-gear-2",
+                    json.dumps([{"sourceKey": "raiderio", "status": "partial"}]),
+                    "[]",
+                    "",
+                    0,
+                    json.dumps(["main_hand"]),
+                    "2026-W26",
+                    "{}",
+                    "2026-06-29T00:00:00+00:00",
+                    "",
+                    "scan-1",
+                ),
+            )
+            conn.commit()
+
+        self.backend.create_admin_gate_diagnosis(
+            {
+                "targetDomain": "gear",
+                "targetType": "community_gear_template",
+                "targetId": "gear-template-2",
+                "diagnosis": "system_gap_suspected",
+                "gapType": "parser_or_mapping_bug",
+                "reason": "owner found a likely false blocker",
+            },
+            actor="owner",
+        )
+        queue_before = self.backend.admin_gate_queue_payload({"domain": ["gear"]})
+        self.assertTrue(any(item["targetId"] == "gear-template-2" for item in queue_before["items"]))
+
+        with self.backend.db_connection() as conn:
+            conn.execute(
+                """
+                UPDATE websim_community_gear_templates
+                SET source_status = 'verified', status = 'complete', missing_slots_json = '[]'
+                WHERE id = ?
+                """,
+                ("gear-template-2",),
+            )
+            conn.commit()
+
+        queue_after = self.backend.admin_gate_queue_payload({"domain": ["gear"]})
+        diagnoses = self.backend.admin_gate_diagnoses_payload({})
+
+        self.assertFalse(any(item["targetId"] == "gear-template-2" for item in queue_after["items"]))
+        resolved = next(item for item in diagnoses["items"] if item["targetId"] == "gear-template-2")
+        self.assertEqual(resolved["resolutionStatus"], "resolved")
+
+    def test_admin_gates_page_exposes_governance_navigation(self):
+        html = self.backend.admin_gates_page()
+
+        self.assertIn("门禁治理台", html)
+        self.assertIn("验证 gap 诊断队列", html)
+        self.assertNotIn("微信扫码登录", html)
+        self.assertNotIn("/api/admin/auth/status", html)
+        self.assertNotIn("/api/admin/auth/wechat-url", html)
+        self.assertNotIn("adminSessionAuthenticated", html)
+        self.assertIn("/api/admin/gates/summary", html)
+        self.assertIn("function escapeHtml(value)", html)
+        self.assertIn("请输入固定 WOW_ADMIN_TOKEN", html)
+        self.assertIn("保存后会写入当前浏览器本机存储", html)
+        self.assertIn("保存 token 到本机", html)
+        self.assertIn("清除本机 token", html)
+        self.assertIn("const ADMIN_TOKEN_STORAGE_KEY = 'wowAdminToken'", html)
+        self.assertIn("localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY", html)
+        self.assertIn("localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY)", html)
+        self.assertIn("loadSavedAdminToken()", html)
+        self.assertIn("function showAdminGateError", html)
+
+    def test_admin_gates_page_navigation_filters_record_domains(self):
+        html = self.backend.admin_gates_page()
+
+        self.assertIn("data-admin-gate-nav", html)
+        self.assertIn("document.getElementById('nav').addEventListener('click'", html)
+        self.assertIn("const domainByNavKey = { news:'news', talents:'talents', gear:'gear' }", html)
+        self.assertIn("document.getElementById('domain').value = domain", html)
+        self.assertIn("selectAdminGateNav(item.dataset.adminGateNav)", html)
+
 
 if __name__ == "__main__":
     unittest.main()

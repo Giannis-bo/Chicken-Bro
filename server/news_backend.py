@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import parse_qs, urlencode, unquote, urlparse
 from urllib.request import urlopen
 
 try:
@@ -180,6 +180,7 @@ SCHEMA_MIGRATIONS = [
     ("chickenbro_backend_v1", "Chickenbro sessions, messages, jobs, structured memory, and playstyle profiles are initialized."),
     ("simulator_task_summary_v1", "Simulator tasks persist a compact list summary read model."),
     ("simulator_task_worker_ready_v1", "Simulator tasks reserve worker-ready queue governance fields."),
+    ("admin_gate_diagnostics_v1", "Admin gate diagnostics and audit log overlay tables are initialized."),
 ]
 CHICKENBRO_PROFILE_STATUSES = {"published", "partial", "stale", "blocked", "needs_review"}
 CHICKENBRO_JOB_STATUSES = {"queued", "running", "succeeded", "failed", "timed_out"}
@@ -638,6 +639,7 @@ def init_db():
         ensure_chickenbro_tables(conn)
         ensure_websim_tables(conn)
         ensure_analytics_tables(conn)
+        ensure_admin_gate_tables(conn)
         prune_expired_auth_tokens(conn)
         record_schema_migrations(conn)
 
@@ -681,6 +683,53 @@ def record_schema_migrations(conn):
             """,
             (migration_id, description, now),
         )
+
+
+def ensure_admin_gate_tables(conn):
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS admin_gate_diagnoses (
+            id TEXT PRIMARY KEY,
+            target_domain TEXT NOT NULL,
+            target_type TEXT NOT NULL,
+            target_id TEXT NOT NULL,
+            diagnosis TEXT NOT NULL,
+            gap_type TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            note TEXT NOT NULL DEFAULT '',
+            actor TEXT NOT NULL DEFAULT '',
+            target_fingerprint TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL DEFAULT ''
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_admin_gate_diagnoses_target
+        ON admin_gate_diagnoses (target_domain, target_type, target_id, created_at DESC)
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ops_audit_logs (
+            id TEXT PRIMARY KEY,
+            actor TEXT NOT NULL DEFAULT '',
+            action TEXT NOT NULL,
+            target_type TEXT NOT NULL DEFAULT '',
+            target_id TEXT NOT NULL DEFAULT '',
+            payload_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_ops_audit_logs_target
+        ON ops_audit_logs (target_type, target_id, created_at DESC)
+        """
+    )
 
 
 def ensure_chickenbro_tables(conn):
@@ -2108,7 +2157,39 @@ def template_simc_bridge_health_component(conn):
     )
 
 
-def build_data_health_payload():
+def lightweight_template_evidence_audit_payload(community_state=None, community_sync_run=None):
+    community_state = community_state if isinstance(community_state, dict) else {}
+    community_sync_run = community_sync_run if isinstance(community_sync_run, dict) else {}
+    gear = community_sync_run.get("gear") if isinstance(community_sync_run.get("gear"), dict) else {}
+    default_templates = gear.get("defaultTemplates") if isinstance(gear.get("defaultTemplates"), dict) else {}
+    real_gear = gear.get("realCommunityTemplates") if isinstance(gear.get("realCommunityTemplates"), dict) else {}
+    scan_coverage = community_state.get("scanCoverage") if isinstance(community_state.get("scanCoverage"), dict) else {}
+    templates = community_state.get("templates") if isinstance(community_state.get("templates"), dict) else {}
+    real_covered_specs = real_gear.get("coveredSpecs") if isinstance(real_gear.get("coveredSpecs"), list) else []
+    fallback_talent_count = int(templates.get("verified") or 0) if isinstance(templates, dict) else 0
+    total_specs = (
+        int(scan_coverage.get("totalSpecCount") or 0)
+        or int(default_templates.get("totalSpecCount") or 0)
+        or 0
+    )
+    return {
+        "schemaRevision": "template-evidence-audit-v1",
+        "checkedAt": utc_now(),
+        "status": "deferred",
+        "deferred": True,
+        "deferredReason": "full per-spec evidence matrix is skipped for admin summary performance",
+        "summary": {
+            "totalSpecCount": total_specs,
+            "defaultGearCoveredSpecCount": int(default_templates.get("coveredSpecCount") or 0),
+            "realCommunityGearCoveredSpecCount": int(real_gear.get("coveredSpecCount") or len(real_covered_specs) or 0),
+            "realCommunityTalentCoveredSpecCount": int(scan_coverage.get("coveredSpecCount") or 0),
+            "fallbackTalentCoveredSpecCount": fallback_talent_count,
+            "topBlockers": (default_templates.get("topBlockers") or [])[:4],
+        },
+    }
+
+
+def build_data_health_payload(*, include_template_evidence_audit=True):
     init_db()
     cache_store = cache_data_store()
     pg_websim_state = cache_store.get_sync_state("websim_sync") if cache_store else {}
@@ -2232,11 +2313,17 @@ def build_data_health_payload():
             if isinstance(community_gear.get("realCommunityTemplates"), dict)
             else {}
         )
-        template_evidence_audit = template_evidence_audit_payload(
-            conn,
-            community_state=community,
-            community_sync_run=community_sync_run,
-        )
+        if include_template_evidence_audit:
+            template_evidence_audit = template_evidence_audit_payload(
+                conn,
+                community_state=community,
+                community_sync_run=community_sync_run,
+            )
+        else:
+            template_evidence_audit = lightweight_template_evidence_audit_payload(
+                community_state=community,
+                community_sync_run=community_sync_run,
+            )
         community_status = community.get("sourceStatus")
         if default_gear_templates.get("blockedSpecCount") and community_status in {"synced", "verified"}:
             community_status = "partial"
@@ -6094,6 +6181,1042 @@ def admin_analytics_response(handler, path, query):
     json_response(handler, 404, {"error": "not_found"})
 
 
+ADMIN_GATE_DIAGNOSES = {
+    "system_gap_suspected",
+    "evidence_missing",
+    "rule_too_strict",
+    "parser_or_mapping_bug",
+    "stale_or_not_resynced",
+    "source_conflict_needs_policy",
+}
+ADMIN_GATE_GAP_TYPES = {
+    "system_gap_suspected",
+    "evidence_missing",
+    "rule_too_strict",
+    "parser_or_mapping_bug",
+    "stale_or_not_resynced",
+    "source_conflict_needs_policy",
+    "source_ref_missing",
+    "serializer_blocked",
+    "stat_weight_gate",
+    "class_spec_mapping",
+}
+ADMIN_GATE_PASS_STATUSES = {"verified", "synced", "ready", "complete", "published", "passed"}
+ADMIN_GATE_QUEUE_STATUSES = {
+    "partial",
+    "stale",
+    "blocked",
+    "missing_credentials",
+    "pending_official_audit",
+    "source_reference",
+}
+
+
+def admin_expected_token():
+    return (
+        os.environ.get("WOW_ADMIN_TOKEN", "").strip()
+        or os.environ.get("WOW_ANALYTICS_ADMIN_TOKEN", "").strip()
+    )
+
+
+def admin_bearer_authorized(headers):
+    expected = admin_expected_token()
+    if not expected:
+        return False
+    return secrets.compare_digest(bearer_token_from_headers(headers), expected)
+
+
+def admin_authorized(headers):
+    return admin_bearer_authorized(headers)
+
+
+def sqlite_has_table(conn, table_name):
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table_name,),
+        ).fetchone()
+        return bool(row)
+    except sqlite3.Error:
+        return False
+
+
+def admin_query_value(query, key, default=""):
+    value = query.get(key, default) if isinstance(query, dict) else default
+    if isinstance(value, list):
+        value = value[0] if value else default
+    return str(value if value is not None else default).strip()
+
+
+def admin_query_limit(query, default=50, maximum=200):
+    try:
+        value = int(admin_query_value(query, "limit", str(default)) or default)
+    except ValueError:
+        value = default
+    return max(1, min(maximum, value))
+
+
+def admin_gate_status(*statuses, blockers=None):
+    normalized = []
+    for status in statuses:
+        raw = str(status or "").strip().lower()
+        if not raw:
+            continue
+        if raw in ADMIN_GATE_PASS_STATUSES:
+            normalized.append("verified")
+        else:
+            normalized.append(normalize_data_health_status(raw))
+    blocker_list = [item for item in (blockers or []) if str(item or "").strip()]
+    if "missing_credentials" in normalized:
+        return "missing_credentials"
+    if "source_reference" in normalized:
+        return "source_reference"
+    if "blocked" in normalized or blocker_list:
+        return "blocked"
+    if "stale" in normalized:
+        return "stale"
+    if "pending_official_audit" in normalized:
+        return "pending_official_audit"
+    if normalized and all(status == "verified" for status in normalized):
+        return "verified"
+    return "partial" if normalized else "blocked"
+
+
+def admin_gate_summarize_text(value, limit=180):
+    text = redact_health_text(value)
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) > limit:
+        return f"{text[:limit - 1]}…"
+    return text
+
+
+def admin_gate_blocker_detail(blocker):
+    code = admin_gate_summarize_text(blocker, 220)
+    normalized = code.lower()
+    if normalized == "invalid_llm_translation" or "invalid_llm_translation" in normalized:
+        return {
+            "code": code,
+            "title": "LLM 翻译未通过校验",
+            "explanation": "上游原文已经采集到，但中文本地化、摘要或结构化结果没有通过系统校验。系统会阻止发布，避免把不完整、不忠实或结构异常的译文展示给前端。",
+            "action": "先重跑新闻翻译审计；如果持续失败，检查 translator prompt、JSON 解析、忠实度校验和原文长度处理。",
+        }
+    if normalized == "duplicate_seed_source_translation" or "duplicate_seed_source_translation" in normalized:
+        return {
+            "code": code,
+            "title": "已存在同源译文，阻止重复发布",
+            "explanation": "发现队列里的文章与已有种子内容或已入库来源译文指向同一 canonical topic。系统阻止新增一条重复新闻，这通常不是内容质量问题。",
+            "action": "如果已有文章正确，保持阻断即可；如果需要更新内容，应走更新已有文章或重新翻译同一 canonical topic，而不是新增发布。",
+        }
+    if "translation" in normalized:
+        return {
+            "code": code,
+            "title": "翻译链路未通过",
+            "explanation": "新闻进入了采集队列，但翻译、摘要或发布校验链路返回了阻断信号。",
+            "action": "查看原始采集内容和翻译运行日志，修复后重跑新闻 refresh。",
+        }
+    return {
+        "code": code,
+        "title": "系统门禁阻断",
+        "explanation": "该记录存在系统门禁 blocker，当前不能被前端消费。",
+        "action": "查看原始数据、规则审计和证据链，修复对应采集、解析或规则问题后重跑审计。",
+    }
+
+
+def admin_gate_json_summary(value, fallback):
+    return sanitize_health_value(safe_json_loads(value, fallback, "admin gate payload"))
+
+
+def admin_gate_record(domain, target_type, target_id, title, *, status="", source_status="", source_name="", source_url="", checked_at="", blockers=None, facets=None, stages=None, raw_summary=None, evidence=None):
+    blockers = [admin_gate_summarize_text(item, 220) for item in (blockers or []) if str(item or "").strip()]
+    effective_status = admin_gate_status(source_status, status, blockers=blockers)
+    return {
+        "id": f"{domain}:{target_type}:{target_id}",
+        "domain": domain,
+        "targetType": target_type,
+        "targetId": str(target_id or ""),
+        "title": admin_gate_summarize_text(title or target_id or target_type, 120),
+        "status": effective_status,
+        "sourceStatus": normalize_data_health_status(source_status or status or effective_status),
+        "rawStatus": str(status or ""),
+        "sourceName": admin_gate_summarize_text(source_name, 120),
+        "sourceUrl": admin_gate_summarize_text(source_url, 260),
+        "checkedAt": checked_at or "",
+        "blockers": blockers,
+        "blockerDetails": [admin_gate_blocker_detail(item) for item in blockers],
+        "severity": admin_gate_severity(effective_status, domain, target_type),
+        "facets": facets or {},
+        "stages": stages or admin_gate_default_stages(effective_status, blockers),
+        "rawSummary": sanitize_health_value(raw_summary or {}),
+        "evidence": sanitize_health_value(evidence or {}),
+    }
+
+
+def admin_gate_default_stages(status, blockers):
+    upstream = "passed" if status not in {"blocked", "missing_credentials"} else "partial"
+    audit = "blocked" if status in {"blocked", "missing_credentials"} else ("partial" if status != "verified" else "passed")
+    return [
+        {"key": "upstream", "title": "上游原始数据摘要", "status": upstream},
+        {"key": "rules", "title": "规则审计", "status": audit},
+        {"key": "evidence", "title": "证据链", "status": audit, "blockers": blockers[:3]},
+        {"key": "storage", "title": "入库状态", "status": "passed"},
+        {"key": "consumption", "title": "前端/SimC 消费状态", "status": "passed" if status == "verified" else "blocked"},
+    ]
+
+
+def admin_gate_severity(status, domain, target_type):
+    if status == "verified":
+        return "ok"
+    if domain == "gear" and target_type in {"community_gear_template", "gear_variant"}:
+        return "blocks_simc_or_strong_claim"
+    if domain == "talents" and "template" in target_type:
+        return "blocks_frontend_template"
+    if domain == "news":
+        return "blocks_frontend_publish"
+    return "blocks_diagnostic_or_record"
+
+
+def admin_gate_record_passed(record):
+    if not isinstance(record, dict):
+        return False
+    if record.get("blockers"):
+        return False
+    return record.get("status") == "verified" and record.get("sourceStatus") in {"verified"}
+
+
+def admin_gate_record_fingerprint(record):
+    material = {
+        "status": record.get("status") if isinstance(record, dict) else "",
+        "sourceStatus": record.get("sourceStatus") if isinstance(record, dict) else "",
+        "blockers": record.get("blockers") if isinstance(record, dict) else [],
+    }
+    raw = json.dumps(material, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def collect_admin_news_records(conn):
+    records = []
+    if sqlite_has_table(conn, "news_discovery_queue"):
+        rows = conn.execute(
+            """
+            SELECT id, canonical_topic_id, source_id, source_name, source_tier,
+                   source_url, original_title, published_at, status, attempts,
+                   last_error, payload_json, discovered_at, updated_at, processed_at
+            FROM news_discovery_queue
+            ORDER BY updated_at DESC, discovered_at DESC
+            LIMIT 500
+            """
+        ).fetchall()
+        for row in rows:
+            payload = admin_gate_json_summary(row[11], {})
+            blockers = [row[10]] if row[10] else []
+            records.append(admin_gate_record(
+                "news",
+                "news_discovery_queue",
+                row[0],
+                row[6],
+                status=row[8],
+                source_status="verified" if row[8] == "published" else row[8],
+                source_name=row[3],
+                source_url=row[5],
+                checked_at=row[13] or row[12] or "",
+                blockers=blockers,
+                facets={
+                    "sourceKey": row[2],
+                    "sourceTier": row[4],
+                    "canonicalTopicId": row[1],
+                    "attempts": row[9],
+                },
+                raw_summary={
+                    "originalTitle": row[6],
+                    "publishedAt": row[7],
+                    "payloadKeys": sorted(payload.keys())[:12] if isinstance(payload, dict) else [],
+                },
+                evidence={
+                    "contentGate": "discovery_queue",
+                    "processedAt": row[14] or "",
+                },
+            ))
+    if sqlite_has_table(conn, "news_articles"):
+        rows = conn.execute(
+            """
+            SELECT id, title, source_name, source_url, published_at, updated_at,
+                   content_status, translation_status, license_status,
+                   verification_status, translation_fidelity, blocked_reason
+            FROM news_articles
+            ORDER BY updated_at DESC
+            LIMIT 500
+            """
+        ).fetchall()
+        for row in rows:
+            status = "published" if row[6] == "ready" else row[6]
+            blockers = [row[11]] if row[11] else []
+            records.append(admin_gate_record(
+                "news",
+                "news_article",
+                row[0],
+                row[1],
+                status=status,
+                source_status="verified" if row[6] == "ready" else row[6],
+                source_name=row[2],
+                source_url=row[3],
+                checked_at=row[5],
+                blockers=blockers,
+                facets={
+                    "contentStatus": row[6],
+                    "translationStatus": row[7],
+                    "licenseStatus": row[8],
+                    "verificationStatus": row[9],
+                    "translationFidelity": row[10],
+                    "publishedAt": row[4],
+                },
+                raw_summary={"title": row[1], "publishedAt": row[4]},
+                evidence={"contentGate": "public_article"},
+            ))
+    return records
+
+
+def collect_admin_talent_records(conn):
+    records = []
+    if sqlite_has_table(conn, "websim_community_talent_templates"):
+        rows = conn.execute(
+            """
+            SELECT id, class_key, spec_key, hero_key, scenario_key, name,
+                   source_key, source_name, source_url, source_status, status,
+                   sample_count, max_key_level, analysis_window, payload_json,
+                   updated_at, expires_at, signature, source_refs_json, scan_run_id
+            FROM websim_community_talent_templates
+            ORDER BY updated_at DESC
+            LIMIT 500
+            """
+        ).fetchall()
+        for row in rows:
+            payload = admin_gate_json_summary(row[14], {})
+            refs = admin_gate_json_summary(row[18], [])
+            records.append(admin_gate_record(
+                "talents",
+                "community_talent_template",
+                row[0],
+                row[5],
+                status=row[10],
+                source_status=row[9],
+                source_name=row[7],
+                source_url=row[8],
+                checked_at=row[15],
+                blockers=payload.get("blockers") if isinstance(payload, dict) else [],
+                facets={
+                    "classKey": row[1],
+                    "specKey": row[2],
+                    "heroKey": row[3],
+                    "scenarioKey": row[4],
+                    "sourceKey": row[6],
+                    "sampleCount": row[11],
+                    "maxKeyLevel": row[12],
+                    "analysisWindow": row[13],
+                    "signature": row[17],
+                    "scanRunId": row[19],
+                },
+                raw_summary={"name": row[5], "expiresAt": row[16]},
+                evidence={"sourceRefs": refs[:5] if isinstance(refs, list) else []},
+            ))
+    if sqlite_has_table(conn, "websim_talents"):
+        rows = conn.execute(
+            """
+            SELECT class_key, spec_key, COUNT(*) AS node_count, MAX(updated_at)
+            FROM websim_talents
+            GROUP BY class_key, spec_key
+            ORDER BY class_key, spec_key
+            LIMIT 500
+            """
+        ).fetchall()
+        for row in rows:
+            records.append(admin_gate_record(
+                "talents",
+                "talent_tree",
+                f"{row[0]}:{row[1]}",
+                f"{row[0]} / {row[1]} talent tree",
+                status="verified" if int(row[2] or 0) > 0 else "blocked",
+                source_status="verified" if int(row[2] or 0) > 0 else "blocked",
+                checked_at=row[3] or "",
+                blockers=[] if int(row[2] or 0) > 0 else ["talent tree has no nodes"],
+                facets={"classKey": row[0], "specKey": row[1], "nodeCount": row[2]},
+                raw_summary={"nodeCount": row[2]},
+                evidence={"catalog": "websim_talents"},
+            ))
+    return records
+
+
+def collect_admin_gear_records(conn):
+    records = []
+    if sqlite_has_table(conn, "websim_community_gear_templates"):
+        rows = conn.execute(
+            """
+            SELECT id, class_key, spec_key, name, source_key, source_name,
+                   source_url, source_status, status, signature, source_refs_json,
+                   gear_items_json, raw_string, ready_slot_count, missing_slots_json,
+                   analysis_window, payload_json, updated_at, expires_at, scan_run_id
+            FROM websim_community_gear_templates
+            ORDER BY updated_at DESC
+            LIMIT 500
+            """
+        ).fetchall()
+        for row in rows:
+            missing_slots = admin_gate_json_summary(row[14], [])
+            payload = admin_gate_json_summary(row[16], {})
+            blockers = payload.get("blockers") if isinstance(payload, dict) else []
+            if missing_slots:
+                blockers = [*(blockers or []), f"missing slots: {', '.join(str(item) for item in missing_slots[:6])}"]
+            records.append(admin_gate_record(
+                "gear",
+                "community_gear_template",
+                row[0],
+                row[3],
+                status=row[8],
+                source_status=row[7],
+                source_name=row[5],
+                source_url=row[6],
+                checked_at=row[17],
+                blockers=blockers,
+                facets={
+                    "classKey": row[1],
+                    "specKey": row[2],
+                    "sourceKey": row[4],
+                    "signature": row[9],
+                    "readySlotCount": row[13],
+                    "missingSlots": missing_slots,
+                    "analysisWindow": row[15],
+                    "scanRunId": row[19],
+                },
+                raw_summary={
+                    "name": row[3],
+                    "readySlotCount": row[13],
+                    "rawLineCount": len([line for line in str(row[12] or "").splitlines() if line.strip()]),
+                    "expiresAt": row[18],
+                },
+                evidence={
+                    "sourceRefs": admin_gate_json_summary(row[10], [])[:5],
+                    "templateEvidence": payload.get("templateEvidence") if isinstance(payload, dict) else {},
+                },
+            ))
+    if sqlite_has_table(conn, "websim_gear_variants"):
+        rows = conn.execute(
+            """
+            SELECT v.id, v.item_id, COALESCE(i.name, v.item_id), v.slot,
+                   v.label, v.source_type, v.difficulty_key, v.item_level,
+                   v.status, v.blockers_json, v.payload_json, v.updated_at
+            FROM websim_gear_variants v
+            LEFT JOIN websim_items i ON i.id = v.item_id
+            ORDER BY v.updated_at DESC
+            LIMIT 500
+            """
+        ).fetchall()
+        for row in rows:
+            blockers = admin_gate_json_summary(row[9], [])
+            payload = admin_gate_json_summary(row[10], {})
+            records.append(admin_gate_record(
+                "gear",
+                "gear_variant",
+                row[0],
+                row[2],
+                status=row[8],
+                source_status=row[8],
+                source_name=row[5],
+                checked_at=row[11],
+                blockers=blockers if isinstance(blockers, list) else [],
+                facets={
+                    "itemId": row[1],
+                    "slot": row[3],
+                    "label": row[4],
+                    "sourceType": row[5],
+                    "difficultyKey": row[6],
+                    "itemLevel": row[7],
+                },
+                raw_summary={"payloadKeys": sorted(payload.keys())[:12] if isinstance(payload, dict) else []},
+                evidence={"variant": "websim_gear_variants"},
+            ))
+    return records
+
+
+def collect_admin_gate_records(conn, query=None):
+    query = query or {}
+    domain = admin_query_value(query, "domain", "")
+    requested = {domain} if domain else {"news", "talents", "gear"}
+    records = []
+    if "news" in requested:
+        records.extend(collect_admin_news_records(conn))
+    if "talents" in requested or "talent" in requested:
+        records.extend(collect_admin_talent_records(conn))
+    if "gear" in requested:
+        records.extend(collect_admin_gear_records(conn))
+    return filter_admin_gate_records(records, query)
+
+
+def filter_admin_gate_records(records, query):
+    status = admin_query_value(query, "status", "")
+    source = admin_query_value(query, "source", "").lower()
+    class_key = admin_query_value(query, "classKey", "")
+    spec_key = admin_query_value(query, "specKey", "")
+    search = admin_query_value(query, "q", "").lower()
+    filtered = []
+    for record in records:
+        facets = record.get("facets") if isinstance(record.get("facets"), dict) else {}
+        if status and record.get("status") != status:
+            continue
+        if source and source not in f"{record.get('sourceName', '')} {facets.get('sourceKey', '')} {facets.get('sourceType', '')}".lower():
+            continue
+        if class_key and facets.get("classKey") != class_key:
+            continue
+        if spec_key and facets.get("specKey") != spec_key:
+            continue
+        if search and search not in json.dumps(record, ensure_ascii=False).lower():
+            continue
+        filtered.append(record)
+    return filtered[:admin_query_limit(query)]
+
+
+def admin_gate_records_payload(query):
+    init_db()
+    with db_connection() as conn:
+        records = collect_admin_gate_records(conn, query)
+    return {
+        "schemaRevision": "admin-gates-records-v1",
+        "records": records,
+        "count": len(records),
+        "filters": {
+            "domain": admin_query_value(query, "domain", ""),
+            "status": admin_query_value(query, "status", ""),
+            "source": admin_query_value(query, "source", ""),
+            "classKey": admin_query_value(query, "classKey", ""),
+            "specKey": admin_query_value(query, "specKey", ""),
+            "q": admin_query_value(query, "q", ""),
+        },
+    }
+
+
+def find_admin_gate_record(conn, domain, target_type, target_id):
+    records = collect_admin_gate_records(conn, {"domain": [domain], "limit": ["200"]})
+    for record in records:
+        if record.get("targetType") == target_type and record.get("targetId") == target_id:
+            return record
+    return None
+
+
+def admin_gate_diagnosis_from_row(row, record=None):
+    payload = admin_gate_json_summary(row[11], {})
+    record = record or {}
+    resolved = bool(record and admin_gate_record_passed(record))
+    return {
+        "id": row[0],
+        "targetDomain": row[1],
+        "targetType": row[2],
+        "targetId": row[3],
+        "diagnosis": row[4],
+        "gapType": row[5],
+        "reason": row[6],
+        "note": row[7],
+        "actor": row[8],
+        "targetFingerprint": row[9],
+        "resolutionStatus": "resolved" if resolved else "open",
+        "currentStatus": record.get("status") or "",
+        "currentSourceStatus": record.get("sourceStatus") or "",
+        "createdAt": row[10],
+        "updatedAt": row[12],
+        "expiresAt": row[13],
+        "payload": payload,
+    }
+
+
+def create_admin_gate_diagnosis(payload, actor="admin"):
+    init_db()
+    target_domain = str(payload.get("targetDomain") or payload.get("domain") or "").strip()
+    target_type = str(payload.get("targetType") or "").strip()
+    target_id = str(payload.get("targetId") or "").strip()
+    diagnosis = str(payload.get("diagnosis") or "system_gap_suspected").strip()
+    gap_type = str(payload.get("gapType") or diagnosis).strip()
+    reason = admin_gate_summarize_text(payload.get("reason") or "", 500)
+    note = admin_gate_summarize_text(payload.get("note") or "", 1000)
+    if not target_domain or not target_type or not target_id:
+        raise ValueError("targetDomain, targetType and targetId are required")
+    if diagnosis not in ADMIN_GATE_DIAGNOSES:
+        raise ValueError("invalid admin gate diagnosis")
+    if gap_type not in ADMIN_GATE_GAP_TYPES:
+        raise ValueError("invalid admin gate gap type")
+    if not reason:
+        raise ValueError("diagnosis reason is required")
+    now = utc_now()
+    diagnosis_id = f"agd-{uuid.uuid4()}"
+    with db_connection() as conn:
+        ensure_admin_gate_tables(conn)
+        record = find_admin_gate_record(conn, target_domain, target_type, target_id)
+        fingerprint = admin_gate_record_fingerprint(record or {"status": "missing_target"})
+        safe_payload = {
+            "targetTitle": (record or {}).get("title", ""),
+            "targetStatus": (record or {}).get("status", ""),
+            "targetSourceStatus": (record or {}).get("sourceStatus", ""),
+            "blockers": (record or {}).get("blockers", [])[:8],
+        }
+        conn.execute(
+            """
+            INSERT INTO admin_gate_diagnoses (
+                id, target_domain, target_type, target_id, diagnosis, gap_type,
+                reason, note, actor, target_fingerprint, created_at, updated_at,
+                expires_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                diagnosis_id,
+                target_domain,
+                target_type,
+                target_id,
+                diagnosis,
+                gap_type,
+                reason,
+                note,
+                actor,
+                fingerprint,
+                now,
+                now,
+                str(payload.get("expiresAt") or ""),
+            ),
+        )
+        audit_id = f"audit-{uuid.uuid4()}"
+        conn.execute(
+            """
+            INSERT INTO ops_audit_logs (
+                id, actor, action, target_type, target_id, payload_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                audit_id,
+                actor,
+                "admin_gate.diagnose",
+                target_type,
+                target_id,
+                json.dumps(
+                    {
+                        "diagnosisId": diagnosis_id,
+                        "targetDomain": target_domain,
+                        "diagnosis": diagnosis,
+                        "gapType": gap_type,
+                        "reason": reason,
+                        **safe_payload,
+                    },
+                    ensure_ascii=False,
+                ),
+                now,
+            ),
+        )
+        conn.commit()
+        row = conn.execute(
+            """
+            SELECT id, target_domain, target_type, target_id, diagnosis, gap_type,
+                   reason, note, actor, target_fingerprint, created_at, '{}',
+                   updated_at, expires_at
+            FROM admin_gate_diagnoses WHERE id = ?
+            """,
+            (diagnosis_id,),
+        ).fetchone()
+    return admin_gate_diagnosis_from_row(row, record)
+
+
+def admin_gate_diagnoses_payload(query):
+    init_db()
+    domain = admin_query_value(query, "domain", "")
+    status = admin_query_value(query, "resolutionStatus", "")
+    with db_connection() as conn:
+        ensure_admin_gate_tables(conn)
+        rows = conn.execute(
+            """
+            SELECT id, target_domain, target_type, target_id, diagnosis, gap_type,
+                   reason, note, actor, target_fingerprint, created_at, '{}',
+                   updated_at, expires_at
+            FROM admin_gate_diagnoses
+            ORDER BY created_at DESC
+            LIMIT 500
+            """
+        ).fetchall()
+        items = []
+        for row in rows:
+            if domain and row[1] != domain:
+                continue
+            record = find_admin_gate_record(conn, row[1], row[2], row[3])
+            item = admin_gate_diagnosis_from_row(row, record)
+            if status and item["resolutionStatus"] != status:
+                continue
+            items.append(item)
+    return {
+        "schemaRevision": "admin-gates-diagnoses-v1",
+        "items": items[:admin_query_limit(query)],
+        "count": len(items[:admin_query_limit(query)]),
+    }
+
+
+def admin_gate_queue_payload(query):
+    init_db()
+    domain = admin_query_value(query, "domain", "")
+    with db_connection() as conn:
+        records = collect_admin_gate_records(conn, {"domain": [domain], "limit": ["200"]} if domain else {"limit": ["200"]})
+        diagnoses_rows = conn.execute(
+            """
+            SELECT id, target_domain, target_type, target_id, diagnosis, gap_type,
+                   reason, note, actor, target_fingerprint, created_at, '{}',
+                   updated_at, expires_at
+            FROM admin_gate_diagnoses
+            ORDER BY created_at DESC
+            LIMIT 500
+            """
+        ).fetchall() if sqlite_has_table(conn, "admin_gate_diagnoses") else []
+        diagnoses_by_target = {}
+        for row in diagnoses_rows:
+            diagnoses_by_target.setdefault((row[1], row[2], row[3]), []).append(row)
+
+    items = []
+    for record in records:
+        if admin_gate_record_passed(record):
+            continue
+        if record.get("status") not in ADMIN_GATE_QUEUE_STATUSES and not record.get("blockers"):
+            continue
+        key = (record.get("domain"), record.get("targetType"), record.get("targetId"))
+        open_diagnoses = [
+            admin_gate_diagnosis_from_row(row, record)
+            for row in diagnoses_by_target.get(key, [])
+            if admin_gate_diagnosis_from_row(row, record)["resolutionStatus"] == "open"
+        ]
+        items.append({
+            "id": f"queue:{record['id']}",
+            "targetDomain": record.get("domain"),
+            "targetType": record.get("targetType"),
+            "targetId": record.get("targetId"),
+            "title": record.get("title"),
+            "status": record.get("status"),
+            "sourceStatus": record.get("sourceStatus"),
+            "severity": record.get("severity"),
+            "blockers": record.get("blockers", [])[:5],
+            "blockerDetails": record.get("blockerDetails", [])[:5],
+            "diagnoses": open_diagnoses,
+            "checkedAt": record.get("checkedAt", ""),
+        })
+    severity = admin_query_value(query, "severity", "")
+    if severity:
+        items = [item for item in items if item.get("severity") == severity]
+    return {
+        "schemaRevision": "admin-gates-queue-v1",
+        "items": items[:admin_query_limit(query)],
+        "count": len(items[:admin_query_limit(query)]),
+    }
+
+
+def admin_gate_summary_payload():
+    health = build_data_health_payload(include_template_evidence_audit=False)
+    components = health.get("components") if isinstance(health.get("components"), list) else []
+    status_counts = {status: 0 for status in DATA_HEALTH_STATUSES}
+    for component in components:
+        status = component.get("status") or "blocked"
+        status_counts[status] = status_counts.get(status, 0) + 1
+    queue = admin_gate_queue_payload({"limit": ["25"]})
+    return {
+        "schemaRevision": "admin-gates-summary-v1",
+        "checkedAt": utc_now(),
+        "productRule": {
+            "systemGate": "consumption_fact",
+            "humanJudgement": "diagnostic_fact",
+            "manualVerifiedOverride": False,
+            "manualPublishOverride": False,
+        },
+        "navigation": [
+            {"key": "overview", "label": "总览"},
+            {"key": "news", "label": "新闻资讯"},
+            {"key": "talents", "label": "天赋树"},
+            {"key": "gear", "label": "装备库"},
+            {"key": "queue", "label": "验证 gap 诊断队列"},
+            {"key": "diagnoses", "label": "诊断记录"},
+            {"key": "system", "label": "系统状态"},
+        ],
+        "overallStatus": health.get("overallStatus") or data_health_overall_status(components),
+        "statusCounts": status_counts,
+        "modules": [
+            {
+                "key": component.get("key", ""),
+                "title": component.get("title", ""),
+                "status": component.get("status", ""),
+                "checkedAt": component.get("checkedAt", ""),
+                "blockers": (component.get("blockers") or [])[:5],
+                "topBlockers": ((component.get("details") or {}).get("topBlockers") or [])[:5],
+            }
+            for component in components
+        ],
+        "diagnosticQueue": {
+            "count": queue.get("count", 0),
+            "items": queue.get("items", [])[:8],
+        },
+        "sourceHealth": health,
+    }
+
+
+def admin_gate_record_detail_payload(domain, target_type, target_id):
+    init_db()
+    with db_connection() as conn:
+        record = find_admin_gate_record(conn, domain, target_type, target_id)
+    if not record:
+        return {}
+    return {
+        "schemaRevision": "admin-gates-record-detail-v1",
+        "record": record,
+        "sections": record.get("stages", []),
+    }
+
+
+def admin_gates_response(handler, path, query):
+    if not admin_authorized(handler.headers):
+        json_response(handler, 401, {"error": "unauthorized"})
+        return
+    if path == "/api/admin/gates/summary":
+        json_response(handler, 200, admin_gate_summary_payload())
+        return
+    if path == "/api/admin/gates/records":
+        json_response(handler, 200, admin_gate_records_payload(query))
+        return
+    if path.startswith("/api/admin/gates/records/"):
+        record_id = unquote(path.removeprefix("/api/admin/gates/records/"))
+        parts = record_id.split(":", 2)
+        if len(parts) == 3:
+            payload = admin_gate_record_detail_payload(parts[0], parts[1], parts[2])
+            json_response(handler, 200 if payload else 404, payload or {"error": "admin_gate_record_not_found"})
+        else:
+            json_response(handler, 400, {"error": "invalid_admin_gate_record_id"})
+        return
+    if path == "/api/admin/gates/queue":
+        json_response(handler, 200, admin_gate_queue_payload(query))
+        return
+    if path == "/api/admin/gates/diagnoses":
+        json_response(handler, 200, admin_gate_diagnoses_payload(query))
+        return
+    json_response(handler, 404, {"error": "not_found"})
+
+
+def admin_gates_page():
+    return """<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>门禁治理台</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0d1117; --panel:#161b22; --line:#30363d; --text:#e6edf3; --muted:#8b949e; --gold:#f0b429; --red:#f85149; --green:#3fb950; --blue:#58a6ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; letter-spacing:0; }
+    .shell { display:grid; grid-template-columns:220px 1fr 340px; min-height:100vh; }
+    aside { border-right:1px solid var(--line); padding:20px; background:#010409; }
+    main { padding:22px; min-width:0; }
+    .right { border-left:1px solid var(--line); padding:22px; background:#0b1017; }
+    h1,h2,h3,p { margin-top:0; }
+    h1 { font-size:24px; margin-bottom:4px; }
+    h2 { font-size:18px; margin:18px 0 10px; }
+    .muted { color:var(--muted); }
+    input,select,button,textarea { width:100%; border:1px solid var(--line); border-radius:6px; background:#0d1117; color:var(--text); padding:9px 10px; font:inherit; }
+    button { cursor:pointer; background:var(--gold); color:#111; border-color:var(--gold); font-weight:700; }
+    nav button { margin-bottom:8px; background:#161b22; color:var(--text); border-color:var(--line); text-align:left; }
+    nav button.active { border-color:var(--gold); color:var(--gold); background:#1f252d; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+    .card { border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:14px; }
+    .metric { font-size:26px; color:var(--gold); font-weight:800; }
+    .status { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:2px 8px; font-size:12px; color:var(--muted); }
+    .status.verified { color:var(--green); border-color:rgba(63,185,80,.4); }
+    .status.blocked, .status.missing_credentials { color:var(--red); border-color:rgba(248,81,73,.4); }
+    .status.partial, .status.pending_official_audit, .status.source_reference { color:var(--gold); border-color:rgba(240,180,41,.4); }
+    table { width:100%; border-collapse:collapse; margin-top:10px; font-size:13px; }
+    th,td { border-bottom:1px solid var(--line); padding:8px; text-align:left; vertical-align:top; }
+    th { color:var(--muted); font-weight:700; }
+    .toolbar { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; margin:14px 0; align-items:end; }
+    .queue-item { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:10px; background:var(--panel); }
+    .notice { border:1px solid var(--line); border-radius:8px; padding:10px; margin:10px 0; color:var(--muted); background:#0d1117; }
+    .notice.error { color:var(--red); border-color:rgba(248,81,73,.45); }
+    .small { font-size:12px; }
+    .auth-panel { border:1px solid var(--line); border-radius:8px; padding:10px; margin:14px 0; background:#0d1117; }
+    .auth-panel button, .auth-panel input { margin-top:8px; }
+    .token-actions { display:grid; grid-template-columns:1fr; gap:6px; margin-top:6px; }
+    .token-actions button { background:#161b22; color:var(--text); border-color:var(--line); }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <h1>门禁治理台</h1>
+      <p class="muted small">系统门禁是消费事实，人工判断是诊断事实。</p>
+      <div class="auth-panel">
+        <p id="authStatus" class="muted small">请输入固定 WOW_ADMIN_TOKEN。</p>
+        <input id="token" type="password" placeholder="WOW_ADMIN_TOKEN">
+        <div class="token-actions">
+          <button id="saveToken" type="button">保存 token 到本机</button>
+          <button id="clearToken" type="button">清除本机 token</button>
+        </div>
+        <p class="muted small">保存后会写入当前浏览器本机存储，后续自动加载。</p>
+      </div>
+      <h2>导航</h2>
+      <nav id="nav"></nav>
+    </aside>
+    <main>
+      <div id="adminGateMessage" class="notice">请输入固定 WOW_ADMIN_TOKEN 后加载。</div>
+      <section class="card">
+        <h2>治理驾驶舱</h2>
+        <div id="summary" class="grid"><div class="card muted">等待加载线上门禁数据。</div></div>
+      </section>
+      <section>
+        <h2>全量记录</h2>
+        <div class="toolbar">
+          <select id="domain"><option value="">全部模块</option><option value="news">新闻资讯</option><option value="talents">天赋树</option><option value="gear">装备库</option></select>
+          <select id="status"><option value="">全部状态</option><option value="verified">verified</option><option value="partial">partial</option><option value="blocked">blocked</option><option value="missing_credentials">missing_credentials</option><option value="source_reference">source_reference</option></select>
+          <input id="q" placeholder="搜索标题、来源、blocker">
+          <button id="load">加载</button>
+        </div>
+        <table id="records"><tr><td class="muted">登录后加载线上门禁数据。</td></tr></table>
+      </section>
+    </main>
+    <section class="right">
+      <h2>验证 gap 诊断队列</h2>
+      <div id="queue"><p class="muted">等待加载诊断队列。</p></div>
+      <h2>提交诊断</h2>
+      <textarea id="diagnosisPayload" rows="9" spellcheck="false" placeholder='{"targetDomain":"gear","targetType":"community_gear_template","targetId":"...","diagnosis":"system_gap_suspected","gapType":"parser_or_mapping_bug","reason":"..."}'></textarea>
+      <button id="submitDiagnosis">记录诊断</button>
+      <p id="diagnosisResult" class="muted small"></p>
+    </section>
+  </div>
+  <script>
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+    const ADMIN_TOKEN_STORAGE_KEY = 'wowAdminToken';
+    let currentAdminGateNav = 'overview';
+    const domainByNavKey = { news:'news', talents:'talents', gear:'gear' };
+    function token() { return document.getElementById('token').value.trim(); }
+    function loadSavedAdminToken() {
+      try {
+        const saved = localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) || '';
+        if (saved) document.getElementById('token').value = saved;
+        return saved;
+      } catch (error) {
+        return '';
+      }
+    }
+    function saveAdminToken() {
+      const value = token();
+      if (!value) {
+        showAuthStatus('请输入 token 后再保存到本机。', true);
+        return;
+      }
+      try {
+        localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, value);
+        showAuthStatus('token 已保存到本机浏览器。');
+      } catch (error) {
+        showAuthStatus('token 保存失败：浏览器禁止本地存储。', true);
+      }
+    }
+    function clearSavedAdminToken() {
+      try {
+        localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+      } catch (error) {}
+      document.getElementById('token').value = '';
+      showAuthStatus('本机保存的 token 已清除。');
+    }
+    function showAuthStatus(message, isError = false) {
+      const node = document.getElementById('authStatus');
+      node.className = isError ? 'notice error small' : 'muted small';
+      node.textContent = message;
+    }
+    function showAdminGateError(message) {
+      const node = document.getElementById('adminGateMessage');
+      node.className = 'notice error';
+      node.textContent = message || '加载失败';
+    }
+    function clearAdminGateError() {
+      const node = document.getElementById('adminGateMessage');
+      node.className = 'notice';
+      node.textContent = '正在加载线上门禁数据...';
+    }
+    async function api(path, options = {}) {
+      if (!token()) throw new Error('请输入固定 WOW_ADMIN_TOKEN 后加载');
+      const headers = { 'Content-Type':'application/json', ...(options.headers || {}) };
+      if (token()) headers.Authorization = `Bearer ${token()}`;
+      const res = await fetch(path, { ...options, credentials:'same-origin', headers });
+      if (!res.ok) throw new Error(res.status === 401 ? '认证失败：请检查 WOW_ADMIN_TOKEN' : `HTTP ${res.status}`);
+      return res.json();
+    }
+    function statusPill(value) { return `<span class="status ${escapeHtml(value)}">${escapeHtml(value)}</span>`; }
+    function blockerText(item) {
+      const details = item.blockerDetails || [];
+      if (details.length) {
+        return details.map(detail => `${detail.title}：${detail.explanation} 建议：${detail.action}（${detail.code}）`).join(' / ');
+      }
+      return (item.blockers || []).join(' / ');
+    }
+    function renderAdminGateNav(items) {
+      document.getElementById('nav').innerHTML = items.map(item => `<button type="button" data-admin-gate-nav="${escapeHtml(item.key)}" class="${item.key === currentAdminGateNav ? 'active' : ''}">${escapeHtml(item.label)}</button>`).join('');
+    }
+    function setAdminGateDomainFilter(domain) {
+      document.getElementById('domain').value = domain;
+    }
+    function selectAdminGateNav(key) {
+      currentAdminGateNav = key || 'overview';
+      if (currentAdminGateNav === 'overview') {
+        setAdminGateDomainFilter('');
+        document.getElementById('status').value = '';
+        document.getElementById('q').value = '';
+      } else {
+        const domain = domainByNavKey[currentAdminGateNav] || '';
+        document.getElementById('domain').value = domain;
+      }
+      refreshAdminGates();
+    }
+    async function loadSummary() {
+      const data = await api('/api/admin/gates/summary');
+      renderAdminGateNav(data.navigation);
+      document.getElementById('summary').innerHTML = Object.entries(data.statusCounts).map(([key, value]) => `<div class="card"><div>${escapeHtml(key)}</div><div class="metric">${escapeHtml(value)}</div></div>`).join('');
+      document.getElementById('queue').innerHTML = data.diagnosticQueue.items.map(item => `<div class="queue-item"><strong>${escapeHtml(item.title)}</strong><div>${statusPill(item.status)} ${escapeHtml(item.severity)}</div><p class="muted small">${escapeHtml(blockerText(item))}</p></div>`).join('') || '<p class="muted">暂无待诊断项</p>';
+    }
+    async function loadRecords() {
+      const params = new URLSearchParams();
+      ['domain','status','q'].forEach(id => { const value = document.getElementById(id).value.trim(); if (value) params.set(id, value); });
+      const data = await api(`/api/admin/gates/records?${params}`);
+      document.getElementById('records').innerHTML = '<tr><th>模块</th><th>标题</th><th>状态</th><th>来源</th><th>Blockers</th></tr>' +
+        (data.records.length ? data.records.map(item => `<tr><td>${escapeHtml(item.domain)}</td><td>${escapeHtml(item.title)}<br><span class="muted small">${escapeHtml(item.targetType)} / ${escapeHtml(item.targetId)}</span></td><td>${statusPill(item.status)}</td><td>${escapeHtml(item.sourceName)}<br><span class="muted small">${escapeHtml(item.sourceUrl)}</span></td><td>${escapeHtml(blockerText(item))}</td></tr>`).join('') : '<tr><td colspan="5" class="muted">当前过滤条件下没有记录。</td></tr>');
+    }
+    async function refreshAdminGates() {
+      try {
+        clearAdminGateError();
+        await Promise.all([loadSummary(), loadRecords()]);
+        document.getElementById('adminGateMessage').textContent = '已加载线上门禁数据。';
+      } catch (error) {
+        showAdminGateError(error.message || String(error));
+      }
+    }
+    document.getElementById('load').addEventListener('click', refreshAdminGates);
+    document.getElementById('nav').addEventListener('click', (event) => {
+      const item = event.target.closest('[data-admin-gate-nav]');
+      if (!item) return;
+      selectAdminGateNav(item.dataset.adminGateNav);
+    });
+    document.getElementById('saveToken').addEventListener('click', () => {
+      saveAdminToken();
+      refreshAdminGates();
+    });
+    document.getElementById('clearToken').addEventListener('click', clearSavedAdminToken);
+    document.getElementById('submitDiagnosis').addEventListener('click', async () => {
+      try {
+        const payload = JSON.parse(document.getElementById('diagnosisPayload').value || '{}');
+        const result = await api('/api/admin/gates/diagnoses', { method:'POST', body: JSON.stringify(payload) });
+        document.getElementById('diagnosisResult').textContent = `已记录：${result.id}`;
+        await Promise.all([loadSummary(), loadRecords()]);
+      } catch (error) {
+        document.getElementById('diagnosisResult').textContent = error.message || String(error);
+        showAdminGateError(error.message || String(error));
+      }
+    });
+    loadSavedAdminToken();
+    if (token()) refreshAdminGates();
+  </script>
+</body>
+</html>"""
+
+
 def record_analytics_request(handler, payload):
     access_token = bearer_token_from_headers(handler.headers)
     user = authenticate_token(access_token) if access_token else None
@@ -6312,6 +7435,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/admin/analytics":
             text_response(self, 200, analytics_admin_page(), "text/html; charset=utf-8")
+            return
+        if path == "/admin/gates":
+            text_response(self, 200, admin_gates_page(), "text/html; charset=utf-8")
+            return
+        if path.startswith("/api/admin/gates/"):
+            admin_gates_response(self, path, query)
             return
         if path.startswith("/api/admin/analytics/"):
             admin_analytics_response(self, path, query)
@@ -6570,6 +7699,15 @@ class Handler(BaseHTTPRequestHandler):
             init_db()
             with db_connection() as conn:
                 json_response(self, 200, rollup_daily_metrics(conn, payload.get("date", "")))
+            return
+        if parsed.path == "/api/admin/gates/diagnoses":
+            if not admin_authorized(self.headers):
+                json_response(self, 401, {"error": "unauthorized"})
+                return
+            try:
+                json_response(self, 200, create_admin_gate_diagnosis(read_json_body(self), actor="admin"))
+            except ValueError as error:
+                json_response(self, 400, {"error": "admin_gate_diagnosis_invalid", "message": str(error)})
             return
         if parsed.path == "/api/auth/wechat-login":
             try:
