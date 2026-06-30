@@ -3,9 +3,11 @@ import unittest
 
 
 class FakeCursor:
-    def __init__(self, rows=None, rowcounts=None):
+    def __init__(self, rows=None, rowcounts=None, rowsets=None):
         self.rows = list(rows or [])
         self.rowcounts = list(rowcounts or [])
+        self.rowsets = rowsets or {}
+        self.current_rows = None
         self.rowcount = 0
         self.statements = []
         self.params = []
@@ -17,24 +19,38 @@ class FakeCursor:
         return False
 
     def execute(self, sql, params=None):
-        self.statements.append(" ".join(sql.split()))
+        normalized_sql = " ".join(sql.split())
+        self.statements.append(normalized_sql)
         self.params.append(tuple(params or ()))
         self.rowcount = self.rowcounts.pop(0) if self.rowcounts else 1
+        self.current_rows = None
+        for marker, rows in self.rowsets.items():
+            if marker in normalized_sql:
+                self.current_rows = list(rows)
+                break
 
     def fetchone(self):
+        if self.current_rows is not None:
+            if not self.current_rows:
+                return None
+            return self.current_rows.pop(0)
         if not self.rows:
             return None
         return self.rows.pop(0)
 
     def fetchall(self):
+        if self.current_rows is not None:
+            rows = list(self.current_rows)
+            self.current_rows = []
+            return rows
         rows = self.rows
         self.rows = []
         return rows
 
 
 class FakeConnection:
-    def __init__(self, rows=None, rowcounts=None):
-        self.cursor_instance = FakeCursor(rows=rows, rowcounts=rowcounts)
+    def __init__(self, rows=None, rowcounts=None, rowsets=None):
+        self.cursor_instance = FakeCursor(rows=rows, rowcounts=rowcounts, rowsets=rowsets)
         self.committed = False
         self.rolled_back = False
 
@@ -178,6 +194,63 @@ class PostgresContentStoreTest(unittest.TestCase):
         self.assertIn("INSERT INTO content.refresh_runs", run_conn.cursor_instance.statements[0])
         self.assertEqual(state["refreshMode"], "scheduled")
         self.assertEqual(payload["publishedCount"], 1)
+
+    def test_admin_gate_news_records_read_content_runtime_tables(self):
+        from server.postgres_content_store import PostgresContentStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM content.discovery_queue": [
+                    (
+                        "queue-pg-1",
+                        "topic-pg-1",
+                        "blizzard",
+                        "Blizzard News",
+                        "official",
+                        "https://example.com/queued",
+                        "Queued Article",
+                        "2026-06-30T00:00:00+00:00",
+                        "blocked",
+                        2,
+                        "invalid_llm_translation",
+                        {"rawBody": "redacted by caller"},
+                        "2026-06-30T00:00:00+00:00",
+                        "2026-06-30T00:01:00+00:00",
+                        None,
+                    )
+                ],
+                "FROM content.articles": [
+                    (
+                        "article-pg-1",
+                        "Published Article",
+                        "Blizzard News",
+                        "https://example.com/published",
+                        "2026-06-30T00:00:00+00:00",
+                        "2026-06-30T00:02:00+00:00",
+                        "ready",
+                        "llm",
+                        "approved",
+                        "official_verified",
+                        "source_translation",
+                        "",
+                        "职业强度变化",
+                        "正式服",
+                        ["class-change"],
+                    )
+                ],
+            }
+        )
+        store = PostgresContentStore(lambda: conn)
+
+        records = store.admin_gate_news_records()
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(records["discoveryQueue"][0]["id"], "queue-pg-1")
+        self.assertEqual(records["articles"][0]["id"], "article-pg-1")
+        self.assertEqual(records["articles"][0]["channel"], "职业强度变化")
+        self.assertEqual(records["articles"][0]["tags"], ["class-change"])
+        self.assertIn("FROM content.discovery_queue", sql)
+        self.assertIn("FROM content.articles", sql)
 
 
 if __name__ == "__main__":

@@ -27,6 +27,12 @@ This repository maintains a project roadmap as shared context for all agents and
 - Before commit, push, deployment, or handoff, review the diff against the roadmap and current plan boundaries, fix technically valid findings, and re-run the relevant verification.
 - Treat older plan documents as historical implementation evidence; current review practice is defined by this section and the active task scope.
 
+## Cloud Deployment Approval
+
+- For this repository, routine operations on the known cloud server do not require an extra approval prompt once the user asks for deployment, sync, smoke, or remote verification work.
+- Covered operations include SSH inspection, remote backups, applying repository-owned database migrations, copying changed project files to the existing deployment directory, restarting existing services, checking logs, and HTTP smoke tests.
+- This does not turn downloads, dependency installation, repository cloning/pulling, or remote git push/pull into implicit actions; those still follow the Network / Download Approval rule unless the user explicitly includes them in the current request.
+
 ## Scope Boundaries
 
 - The roadmap is the long-lived product and engineering control plane. It does not replace detailed task plans.

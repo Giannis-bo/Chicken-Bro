@@ -430,7 +430,7 @@ class PostgresContentStore:
                     self._article_select_sql()
                     + """
                     WHERE content_status = 'ready'
-                    ORDER BY importance DESC, published_at DESC NULLS LAST
+                    ORDER BY published_at DESC NULLS LAST, importance DESC
                     """
                 )
                 rows = cur.fetchall()
@@ -453,6 +453,75 @@ class PostgresContentStore:
                 )
                 row = cur.fetchone()
         return _article_from_row(row)
+
+    def admin_gate_news_records(self):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, canonical_topic_id, source_key, source_name, source_tier,
+                           source_url, original_title, published_at, status, attempts,
+                           last_error, payload_json, discovered_at, updated_at, processed_at
+                    FROM content.discovery_queue
+                    ORDER BY updated_at DESC, discovered_at DESC
+                    LIMIT 500
+                    """
+                )
+                queue_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT id, title, source_name, source_url, published_at, updated_at,
+                           content_status, translation_status, license_status,
+                           verification_status, translation_fidelity, blocked_reason,
+                           channel, category, tags_json
+                    FROM content.articles
+                    ORDER BY updated_at DESC
+                    LIMIT 500
+                    """
+                )
+                article_rows = cur.fetchall()
+        return {
+            "discoveryQueue": [
+                {
+                    "id": _text(row[0]),
+                    "canonicalTopicId": _text(row[1]),
+                    "sourceId": _text(row[2]),
+                    "sourceName": _text(row[3]),
+                    "sourceTier": _text(row[4]),
+                    "sourceUrl": _text(row[5]),
+                    "originalTitle": _text(row[6]),
+                    "publishedAt": _text(row[7]),
+                    "status": _text(row[8]),
+                    "attempts": int(row[9] or 0),
+                    "lastError": _text(row[10]),
+                    "payload": _json_value(row[11], {}),
+                    "discoveredAt": _text(row[12]),
+                    "updatedAt": _text(row[13]),
+                    "processedAt": _text(row[14]),
+                }
+                for row in queue_rows
+            ],
+            "articles": [
+                {
+                    "id": _text(row[0]),
+                    "title": _text(row[1]),
+                    "sourceName": _text(row[2]),
+                    "sourceUrl": _text(row[3]),
+                    "publishedAt": _text(row[4]),
+                    "updatedAt": _text(row[5]),
+                    "contentStatus": _text(row[6]),
+                    "translationStatus": _text(row[7]),
+                    "licenseStatus": _text(row[8]),
+                    "verificationStatus": _text(row[9]),
+                    "translationFidelity": _text(row[10]),
+                    "blockedReason": _text(row[11]),
+                    "channel": _text(row[12]),
+                    "category": _text(row[13]),
+                    "tags": _json_value(row[14], []),
+                }
+                for row in article_rows
+            ],
+        }
 
     def enqueue_discovered_articles(self, articles, discovered_at):
         with self.connection() as conn:

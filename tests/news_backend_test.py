@@ -1242,6 +1242,57 @@ class NewsBackendTest(unittest.TestCase):
             [2, 1, 1],
         )
 
+    def test_news_home_and_list_prioritize_newest_published_articles(self):
+        def article(article_id, importance, published_at):
+            return {
+                "id": article_id,
+                "title": f"官方资讯 {article_id}",
+                "summary": "暴雪发布了新的正式服与测试服资讯。",
+                "channel": "正式服动态",
+                "category": "正式服动态",
+                "tags": ["content-update"],
+                "importance": importance,
+                "sourceName": "Blizzard News",
+                "sourceUrl": f"https://worldofwarcraft.blizzard.com/news/{article_id}",
+                "publishedAt": published_at,
+                "sourceNote": "暴雪官方 World of Warcraft 新闻详情页。",
+                "bodyZh": "中文正文：暴雪发布了完整资讯正文，覆盖版本变化、活动内容和玩家需要关注的后续时间点。",
+                "bodyBlocksZh": [
+                    {
+                        "type": "paragraph",
+                        "text": "中文正文：暴雪发布了完整资讯正文，覆盖版本变化、活动内容和玩家需要关注的后续时间点。",
+                    }
+                ],
+                "originalTitle": f"Official News {article_id}",
+                "tagItems": [{"id": "content-update", "label": "内容更新"}],
+                "contentStatus": "ready",
+                "licenseStatus": "approved",
+                "verificationStatus": "official_verified",
+                "translationStatus": "llm",
+                "translationFidelity": "source_translation",
+                "sourceTier": "official",
+                "sourceBadges": ["官方已核验", "全文翻译"],
+            }
+
+        with patch.object(
+            self.backend,
+            "load_articles",
+            return_value=[
+                article("old-important", 100, "2026-06-03"),
+                article("new-published", 86, "2026-06-29"),
+            ],
+        ), patch.object(
+            self.backend,
+            "latest_refresh_state",
+            return_value={"lastRefreshedAt": "2026-06-29T08:00:00+08:00", "refreshMode": "scheduled"},
+        ):
+            home = self.backend.build_home_payload()
+            list_payload = self.backend.build_article_list_payload({"type": "metric", "key": "today"})
+
+        self.assertEqual(home["heroNews"][0]["id"], "new-published")
+        self.assertEqual(home["highlights"][0]["id"], "new-published")
+        self.assertEqual(list_payload["articles"][0]["id"], "new-published")
+
     def test_load_articles_does_not_publish_seed_without_source_translation_when_collectors_are_missing(self):
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
             conn.execute(
@@ -6473,6 +6524,16 @@ class NewsBackendTest(unittest.TestCase):
         self.assertTrue(any(item["key"] == "gear_catalog" for item in payload["modules"]))
         self.assertIn("blocked", payload["statusCounts"])
         self.assertIn("diagnosticQueue", payload)
+        self.assertEqual(payload["statusLabels"]["blocked"], "已阻断")
+        queue_nav = next(item for item in payload["navigation"] if item["key"] == "queue")
+        self.assertEqual(queue_nav["label"], "待诊断阻断项")
+        modules_by_key = {item["key"]: item for item in payload["modules"]}
+        self.assertEqual(modules_by_key["backend"]["title"], "后端服务")
+        self.assertEqual(modules_by_key["news"]["title"], "新闻发布门禁")
+        self.assertEqual(modules_by_key["websim_sync"]["title"], "WebSim 同步状态")
+        self.assertEqual(modules_by_key["wcl_credentials"]["title"], "Warcraft Logs API 凭据")
+        self.assertIn("Warcraft Logs API 凭据未配置", " / ".join(modules_by_key["wcl_credentials"]["blockers"]))
+        self.assertNotIn("Warcraft Logs API credentials are not configured", json.dumps(payload["modules"], ensure_ascii=False))
 
     def test_admin_token_authorization_is_fixed_env_secret_without_expiry(self):
         os.environ["WOW_ADMIN_TOKEN"] = "fixed-admin-token"
@@ -6548,7 +6609,14 @@ class NewsBackendTest(unittest.TestCase):
                     "blocked",
                     1,
                     "invalid_llm_translation",
-                    json.dumps({"rawBody": "Full internal body with Bearer secret-token"}),
+                    json.dumps(
+                        {
+                            "rawBody": "Full internal body with Bearer secret-token",
+                            "channel": "职业强度变化",
+                            "category": "正式服",
+                            "tags": ["class-change"],
+                        }
+                    ),
                     "2026-06-29T00:00:00+00:00",
                     "2026-06-29T00:01:00+00:00",
                     "",
@@ -6574,16 +6642,51 @@ class NewsBackendTest(unittest.TestCase):
                     "blocked",
                     0,
                     "duplicate_seed_source_translation",
-                    "{}",
+                    json.dumps({"channel": "正式服动态", "category": "正式服"}),
                     "2026-06-29T00:00:00+00:00",
                     "2026-06-29T00:02:00+00:00",
                     "",
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO news_discovery_queue (
+                    id, canonical_topic_id, source_id, source_name, source_tier,
+                    source_url, original_title, published_at, status, attempts,
+                    last_error, payload_json, discovered_at, updated_at, processed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "queue-published",
+                    "topic-published",
+                    "blizzard",
+                    "Blizzard News",
+                    "official",
+                    "https://example.com/published",
+                    "Published Hotfix",
+                    "2026-06-28T08:00:00+00:00",
+                    "published",
+                    1,
+                    "",
+                    json.dumps({"channel": "测试服前瞻", "category": "测试服", "tags": ["ptr"]}),
+                    "2026-06-28T07:55:00+00:00",
+                    "2026-06-28T08:01:00+00:00",
+                    "2026-06-28T08:00:30+00:00",
                 ),
             )
             conn.commit()
 
         with patch.object(self.backend, "refresh_articles", side_effect=AssertionError("admin records must be read-only")):
             payload = self.backend.admin_gate_records_payload({"domain": ["news"], "limit": ["20"]})
+            category_filtered = self.backend.admin_gate_records_payload(
+                {"domain": ["news"], "field": ["category"], "q": ["正式服动态"], "limit": ["20"]}
+            )
+            publication_filtered = self.backend.admin_gate_records_payload(
+                {"domain": ["news"], "field": ["publication"], "q": ["未发布"], "limit": ["20"]}
+            )
+            status_filtered = self.backend.admin_gate_records_payload(
+                {"domain": ["news"], "status": ["blocked"], "limit": ["20"]}
+            )
 
         rendered = json.dumps(payload, ensure_ascii=False)
         self.assertEqual(payload["schemaRevision"], "admin-gates-records-v1")
@@ -6600,6 +6703,500 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("已存在同源译文，阻止重复发布", blocker_titles)
         self.assertNotIn("secret-token", rendered)
         self.assertNotIn("Full internal body", rendered)
+        records_by_id = {record["targetId"]: record for record in payload["records"]}
+        self.assertEqual(records_by_id["queue-1"]["articleCategory"]["label"], "职业强度变化")
+        self.assertEqual(records_by_id["queue-1"]["articleCategory"]["channel"], "职业强度变化")
+        self.assertEqual(records_by_id["queue-1"]["articleCategory"]["category"], "正式服")
+        self.assertEqual(records_by_id["queue-duplicate"]["articleCategory"]["label"], "正式服动态")
+        self.assertEqual(records_by_id["queue-published"]["articleCategory"]["label"], "测试服前瞻")
+        self.assertEqual(records_by_id["queue-published"]["publication"]["state"], "published")
+        self.assertEqual(records_by_id["queue-published"]["publication"]["stateLabel"], "已发布")
+        self.assertEqual(records_by_id["queue-published"]["publication"]["publishedAt"], "2026-06-28T08:00:00+00:00")
+        self.assertEqual(records_by_id["queue-1"]["publication"]["state"], "unpublished")
+        self.assertEqual(records_by_id["queue-1"]["publication"]["stateLabel"], "未发布")
+        self.assertEqual(records_by_id["queue-1"]["publication"]["capturedAt"], "2026-06-29T00:00:00+00:00")
+        self.assertEqual(records_by_id["queue-1"]["publication"]["unpublishedReason"], "invalid_llm_translation")
+        self.assertEqual([record["targetId"] for record in category_filtered["records"]], ["queue-duplicate"])
+        self.assertEqual(
+            {record["targetId"] for record in publication_filtered["records"]},
+            {"queue-1", "queue-duplicate"},
+        )
+        self.assertEqual(
+            {record["targetId"] for record in status_filtered["records"]},
+            {"queue-1", "queue-duplicate"},
+        )
+
+    def test_admin_gates_records_use_postgres_runtime_stores_when_available(self):
+        class FakeContentStore:
+            def admin_gate_news_records(self):
+                return {
+                    "discoveryQueue": [],
+                    "articles": [
+                        {
+                            "id": "pg-news-1",
+                            "title": "PG article",
+                            "sourceName": "Blizzard News",
+                            "sourceUrl": "https://example.com/pg-news",
+                            "channel": "职业强度变化",
+                            "category": "正式服",
+                            "publishedAt": "2026-06-30T00:00:00+00:00",
+                            "updatedAt": "2026-06-30T00:01:00+00:00",
+                            "contentStatus": "ready",
+                            "translationStatus": "llm",
+                            "licenseStatus": "approved",
+                            "verificationStatus": "official_verified",
+                            "translationFidelity": "source_translation",
+                            "blockedReason": "",
+                        }
+                    ],
+                }
+
+        class FakeCacheStore:
+            def admin_gate_talent_records(self):
+                return {
+                    "communityTalentTemplates": [
+                        {
+                            "id": "pg-template-1",
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "heroKey": "spellslinger",
+                            "scenarioKey": "mythic_plus",
+                            "name": "PG talent template",
+                            "sourceKey": "raiderio",
+                            "sourceName": "Raider.IO",
+                            "sourceUrl": "https://example.com/pg-template",
+                            "sourceStatus": "verified",
+                            "status": "verified",
+                            "sampleCount": 12,
+                            "maxKeyLevel": 10,
+                            "analysisWindow": "2026-W27",
+                            "payload": {},
+                            "updatedAt": "2026-06-30T00:02:00+00:00",
+                            "expiresAt": "2099-01-01T00:00:00+00:00",
+                            "signature": "sig-pg-template",
+                            "sourceRefs": [{"type": "raiderio"}],
+                            "scanRunId": "scan-pg",
+                        },
+                        {
+                            "id": "pg-template-blocked",
+                            "classKey": "warlock",
+                            "specKey": "demonology",
+                            "heroKey": "soul_harvester",
+                            "scenarioKey": "mythic_plus",
+                            "name": "Blocked talent template",
+                            "sourceKey": "wcl",
+                            "sourceName": "Warcraft Logs",
+                            "sourceUrl": "https://example.com/blocked-template",
+                            "sourceStatus": "blocked",
+                            "status": "blocked",
+                            "sampleCount": 0,
+                            "maxKeyLevel": 0,
+                            "analysisWindow": "2026-W27",
+                            "payload": {"blockers": ["invalid_talent_template"]},
+                            "updatedAt": "2026-06-30T00:02:30+00:00",
+                            "expiresAt": "2099-01-01T00:00:00+00:00",
+                            "signature": "sig-blocked-template",
+                            "sourceRefs": [{"type": "wcl"}],
+                            "scanRunId": "scan-pg",
+                        }
+                    ],
+                    "talentTrees": [
+                        {
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "nodeCount": 110,
+                            "updatedAt": "2026-06-30T00:03:00+00:00",
+                        }
+                    ],
+                }
+
+            def admin_gate_gear_records(self):
+                return {
+                    "communityGearTemplates": [
+                        {
+                            "id": "pg-gear-template-1",
+                            "classKey": "warrior",
+                            "specKey": "arms",
+                            "name": "PG gear template",
+                            "sourceKey": "raiderio",
+                            "sourceName": "Raider.IO",
+                            "sourceUrl": "https://example.com/pg-gear-template",
+                            "sourceStatus": "blocked",
+                            "status": "blocked",
+                            "readySlotCount": 4,
+                            "missingSlots": ["off_hand"],
+                            "analysisWindow": "2026-W27",
+                            "payload": {"blockers": ["missing required gear slots"]},
+                            "updatedAt": "2026-06-30T00:05:00+00:00",
+                            "expiresAt": "2099-01-01T00:00:00+00:00",
+                            "signature": "sig-pg-gear-template",
+                            "sourceRefs": [{"type": "raiderio"}],
+                            "scanRunId": "scan-pg",
+                        },
+                        {
+                            "id": "pg-gear-template-visible",
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "name": "PG visible gear template",
+                            "sourceKey": "raiderio",
+                            "sourceName": "Raider.IO",
+                            "sourceUrl": "https://example.com/pg-visible-gear-template",
+                            "sourceStatus": "verified",
+                            "status": "verified",
+                            "readySlotCount": 16,
+                            "missingSlots": [],
+                            "analysisWindow": "2026-W27",
+                            "payload": {},
+                            "updatedAt": "2026-06-30T00:06:00+00:00",
+                            "expiresAt": "2099-01-01T00:00:00+00:00",
+                            "signature": "sig-pg-visible-gear-template",
+                            "sourceRefs": [{"type": "raiderio"}],
+                            "scanRunId": "scan-pg",
+                        }
+                    ],
+                    "gearVariants": [
+                        {
+                            "id": "pg-variant-1",
+                            "itemId": "item-pg",
+                            "itemName": "PG gear item",
+                            "slot": "head",
+                            "label": "Mythic",
+                            "sourceType": "dungeon",
+                            "difficultyKey": "mythic",
+                            "itemLevel": 678,
+                            "status": "verified",
+                            "blockers": [],
+                            "payload": {
+                                "simcOptions": {"ilevel": 678},
+                                "requirements": {"playable_classes": {"classes": [{"id": 8}]}},
+                            },
+                            "updatedAt": "2026-06-30T00:04:00+00:00",
+                        },
+                        {
+                            "id": "pg-variant-blocked",
+                            "itemId": "item-pg-blocked",
+                            "itemName": "PG blocked gear item",
+                            "slot": "hands",
+                            "label": "Heroic",
+                            "sourceType": "raid",
+                            "difficultyKey": "heroic",
+                            "itemLevel": 665,
+                            "status": "blocked",
+                            "blockers": ["missing simc options"],
+                            "payload": {
+                                "requirements": {"playable_classes": {"classes": [{"id": 1}]}}
+                            },
+                            "updatedAt": "2026-06-30T00:03:30+00:00",
+                        }
+                    ]
+                }
+
+        with patch.object(self.backend, "content_data_store", return_value=FakeContentStore()), patch.object(
+            self.backend, "cache_data_store", return_value=FakeCacheStore()
+        ):
+            news_payload = self.backend.admin_gate_records_payload({"domain": ["news"], "limit": ["20"]})
+            talent_payload = self.backend.admin_gate_records_payload({"domain": ["talents"], "limit": ["20"]})
+            gear_payload = self.backend.admin_gate_records_payload({"domain": ["gear"], "limit": ["20"]})
+            gear_templates_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear_templates"], "limit": ["20"]}
+            )
+            news_category_source_miss = self.backend.admin_gate_records_payload(
+                {"domain": ["news"], "field": ["category"], "q": ["Blizzard"], "limit": ["20"]}
+            )
+            talent_template_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["talents"], "field": ["talentTemplate"], "q": ["PG talent"], "limit": ["20"]}
+            )
+            talent_class_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["talents"], "field": ["class"], "q": ["法师"], "limit": ["20"]}
+            )
+            talent_class_source_miss = self.backend.admin_gate_records_payload(
+                {"domain": ["talents"], "field": ["class"], "q": ["Raider.IO"], "limit": ["20"]}
+            )
+            talent_source_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["talents"], "field": ["source"], "q": ["Raider.IO"], "limit": ["20"]}
+            )
+            talent_status_verified_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["talents"], "status": ["verified"], "limit": ["20"]}
+            )
+            talent_blocked_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["talents"], "field": ["blocked"], "q": ["已阻断"], "limit": ["20"]}
+            )
+            talent_blocked_source_miss = self.backend.admin_gate_records_payload(
+                {"domain": ["talents"], "field": ["blocked"], "q": ["Raider.IO"], "limit": ["20"]}
+            )
+            talent_block_reason_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["talents"], "field": ["blockReason"], "q": ["invalid_talent_template"], "limit": ["20"]}
+            )
+            talent_visibility_visible_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["talents"], "field": ["visibility"], "q": ["已可见"], "limit": ["20"]}
+            )
+            talent_visibility_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["talents"], "field": ["visibility"], "q": ["不可见"], "limit": ["20"]}
+            )
+            gear_category_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear"], "field": ["category"], "q": ["头部"], "limit": ["20"]}
+            )
+            gear_source_slot_miss = self.backend.admin_gate_records_payload(
+                {"domain": ["gear"], "field": ["source"], "q": ["头部"], "limit": ["20"]}
+            )
+            gear_source_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear"], "field": ["source"], "q": ["dungeon"], "limit": ["20"]}
+            )
+            gear_drop_source_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear"], "field": ["dropSource"], "q": ["地下城"], "limit": ["20"]}
+            )
+            gear_class_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear"], "field": ["class"], "q": ["法师"], "limit": ["20"]}
+            )
+            gear_visibility_visible_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear"], "field": ["visibility"], "q": ["已可见"], "limit": ["20"]}
+            )
+            gear_visibility_hidden_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear"], "field": ["visibility"], "q": ["不可见"], "limit": ["20"]}
+            )
+            gear_template_class_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear_templates"], "field": ["class"], "q": ["法师"], "limit": ["20"]}
+            )
+            gear_template_visibility_visible_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear_templates"], "field": ["visibility"], "q": ["已可见"], "limit": ["20"]}
+            )
+            gear_template_visibility_hidden_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear_templates"], "field": ["visibility"], "q": ["不可见"], "limit": ["20"]}
+            )
+            talent_page_one = self.backend.admin_gate_records_payload(
+                {"domain": ["talents"], "page": ["1"], "pageSize": ["1"]}
+            )
+            talent_page_two = self.backend.admin_gate_records_payload(
+                {"domain": ["talents"], "page": ["2"], "pageSize": ["1"]}
+            )
+            talent_default_page = self.backend.admin_gate_records_payload({"domain": ["talents"]})
+
+        self.assertTrue(any(record["targetId"] == "pg-news-1" for record in news_payload["records"]))
+        pg_news = next(record for record in news_payload["records"] if record["targetId"] == "pg-news-1")
+        self.assertEqual(pg_news["articleCategory"]["label"], "职业强度变化")
+        self.assertEqual(pg_news["articleCategory"]["channel"], "职业强度变化")
+        self.assertEqual(pg_news["publication"]["state"], "published")
+        self.assertEqual(pg_news["publication"]["publishedAt"], "2026-06-30T00:00:00+00:00")
+        self.assertTrue(any(record["targetId"] == "pg-template-1" for record in talent_payload["records"]))
+        pg_template = next(record for record in talent_payload["records"] if record["targetId"] == "pg-template-1")
+        self.assertEqual(pg_template["talentCategory"]["classKey"], "mage")
+        self.assertEqual(pg_template["talentCategory"]["classLabel"], "法师")
+        self.assertEqual(pg_template["talentCategory"]["specKey"], "frost")
+        self.assertEqual(pg_template["talentCategory"]["sourceKind"], "community")
+        self.assertEqual(pg_template["talentCategory"]["sourceLabel"], "社区来源")
+        self.assertEqual(pg_template["talentPublication"]["state"], "visible")
+        self.assertEqual(pg_template["talentPublication"]["stateLabel"], "已可见")
+        self.assertEqual(pg_template["talentPublication"]["surface"], "天赋导入列表")
+        self.assertEqual(pg_template["talentBlockReason"]["state"], "clear")
+        pg_blocked_template = next(record for record in talent_payload["records"] if record["targetId"] == "pg-template-blocked")
+        self.assertEqual(pg_blocked_template["talentPublication"]["state"], "hidden")
+        self.assertEqual(pg_blocked_template["talentPublication"]["stateLabel"], "不可见")
+        self.assertEqual(pg_blocked_template["talentPublication"]["reason"], "invalid_talent_template")
+        self.assertEqual(pg_blocked_template["talentBlockReason"]["state"], "blocked")
+        self.assertEqual(pg_blocked_template["talentBlockReason"]["reason"], "invalid_talent_template")
+        baseline_blocked = self.backend.admin_gate_record(
+            "talents",
+            "community_talent_template",
+            "baseline-empty",
+            "WebSim 基线-法师-冰霜",
+            status="blocked",
+            source_status="blocked",
+            blockers=[],
+            facets={"sourceKey": "websim_baseline", "sampleCount": 0, "maxKeyLevel": 0},
+            evidence={
+                "sourceRefs": [
+                    {"sourceKey": "websim_baseline", "sourceStatus": "blocked", "sampleCount": 0, "maxKeyLevel": 0}
+                ]
+            },
+        )
+        self.assertEqual(baseline_blocked["talentBlockReason"]["state"], "blocked")
+        self.assertIn("sampleCount=0", baseline_blocked["talentBlockReason"]["reason"])
+        self.assertEqual(baseline_blocked["talentPublication"]["reason"], baseline_blocked["talentBlockReason"]["reason"])
+        pg_tree = next(record for record in talent_payload["records"] if record["targetId"] == "mage:frost")
+        self.assertEqual(pg_tree["talentCategory"]["classKey"], "mage")
+        self.assertEqual(pg_tree["talentCategory"]["classLabel"], "法师")
+        self.assertEqual(pg_tree["talentCategory"]["sourceKind"], "catalog")
+        self.assertEqual(pg_tree["talentCategory"]["sourceLabel"], "基础目录")
+        self.assertTrue(any(record["targetId"] == "pg-variant-1" for record in gear_payload["records"]))
+        pg_gear = next(record for record in gear_payload["records"] if record["targetId"] == "pg-variant-1")
+        self.assertEqual(pg_gear["gearCategory"]["slot"], "head")
+        self.assertEqual(pg_gear["gearCategory"]["slotLabel"], "头部")
+        self.assertEqual(pg_gear["gearCategory"]["sourceType"], "dungeon")
+        self.assertEqual(pg_gear["gearCategory"]["difficultyKey"], "mythic")
+        self.assertEqual(pg_gear["gearCategory"]["itemLevel"], 678)
+        self.assertEqual(pg_gear["gearCategory"]["classKeys"], ["mage"])
+        self.assertEqual(pg_gear["gearCategory"]["classLabels"], ["法师"])
+        self.assertEqual(pg_gear["gearVisibility"]["state"], "visible")
+        self.assertEqual(pg_gear["gearVisibility"]["stateLabel"], "已可见")
+        self.assertEqual(pg_gear["gearBlockReason"]["state"], "clear")
+        pg_blocked_gear = next(record for record in gear_payload["records"] if record["targetId"] == "pg-variant-blocked")
+        self.assertEqual(pg_blocked_gear["gearVisibility"]["state"], "hidden")
+        self.assertEqual(pg_blocked_gear["gearVisibility"]["stateLabel"], "不可见")
+        self.assertEqual(pg_blocked_gear["gearVisibility"]["reason"], "missing simc options")
+        self.assertEqual(pg_blocked_gear["gearBlockReason"]["state"], "blocked")
+        self.assertEqual({record["targetType"] for record in gear_payload["records"]}, {"gear_variant"})
+        self.assertEqual({record["targetType"] for record in gear_templates_payload["records"]}, {"community_gear_template"})
+        pg_gear_template = gear_templates_payload["records"][0]
+        self.assertEqual(pg_gear_template["domain"], "gear_templates")
+        self.assertEqual(pg_gear_template["gearCategory"]["classLabel"], "战士")
+        self.assertEqual(pg_gear_template["gearVisibility"]["state"], "hidden")
+        self.assertEqual(pg_gear_template["gearVisibility"]["stateLabel"], "不可见")
+        visible_gear_template = next(record for record in gear_templates_payload["records"] if record["targetId"] == "pg-gear-template-visible")
+        self.assertEqual(visible_gear_template["gearCategory"]["classLabel"], "法师")
+        self.assertEqual(visible_gear_template["gearVisibility"]["state"], "visible")
+        self.assertEqual(visible_gear_template["gearVisibility"]["stateLabel"], "已可见")
+        self.assertEqual(news_category_source_miss["records"], [])
+        self.assertEqual([record["targetId"] for record in talent_template_payload["records"]], ["pg-template-1"])
+        self.assertEqual(
+            {record["targetId"] for record in talent_class_payload["records"]},
+            {"pg-template-1", "mage:frost"},
+        )
+        self.assertEqual(talent_class_source_miss["records"], [])
+        self.assertEqual([record["targetId"] for record in talent_source_payload["records"]], ["pg-template-1"])
+        self.assertEqual(
+            {record["targetId"] for record in talent_status_verified_payload["records"]},
+            {"pg-template-1", "mage:frost"},
+        )
+        self.assertEqual([record["targetId"] for record in talent_blocked_payload["records"]], ["pg-template-blocked"])
+        self.assertEqual(talent_blocked_source_miss["records"], [])
+        self.assertEqual([record["targetId"] for record in talent_block_reason_payload["records"]], ["pg-template-blocked"])
+        self.assertEqual(
+            {record["targetId"] for record in talent_visibility_visible_payload["records"]},
+            {"pg-template-1", "mage:frost"},
+        )
+        self.assertEqual([record["targetId"] for record in talent_visibility_payload["records"]], ["pg-template-blocked"])
+        self.assertEqual([record["targetId"] for record in gear_category_payload["records"]], ["pg-variant-1"])
+        self.assertEqual(gear_source_slot_miss["records"], [])
+        self.assertEqual([record["targetId"] for record in gear_source_payload["records"]], ["pg-variant-1"])
+        self.assertEqual([record["targetId"] for record in gear_drop_source_payload["records"]], ["pg-variant-1"])
+        self.assertEqual([record["targetId"] for record in gear_class_payload["records"]], ["pg-variant-1"])
+        self.assertEqual([record["targetId"] for record in gear_visibility_visible_payload["records"]], ["pg-variant-1"])
+        self.assertEqual([record["targetId"] for record in gear_visibility_hidden_payload["records"]], ["pg-variant-blocked"])
+        self.assertEqual([record["targetId"] for record in gear_template_class_payload["records"]], ["pg-gear-template-visible"])
+        self.assertEqual([record["targetId"] for record in gear_template_visibility_visible_payload["records"]], ["pg-gear-template-visible"])
+        self.assertEqual([record["targetId"] for record in gear_template_visibility_hidden_payload["records"]], ["pg-gear-template-1"])
+        self.assertEqual(talent_page_one["pagination"]["page"], 1)
+        self.assertEqual(talent_page_one["pagination"]["pageSize"], 1)
+        self.assertEqual(talent_page_one["pagination"]["total"], 3)
+        self.assertEqual(talent_page_one["pagination"]["totalPages"], 3)
+        self.assertEqual(talent_page_one["count"], 1)
+        self.assertEqual(talent_page_two["count"], 1)
+        self.assertEqual(talent_page_one["records"][0]["targetId"], "pg-template-1")
+        self.assertEqual(talent_page_two["records"][0]["targetId"], "pg-template-blocked")
+        self.assertEqual(talent_default_page["pagination"]["pageSize"], 20)
+
+    def test_admin_gates_empty_postgres_gear_templates_do_not_fallback_to_sqlite(self):
+        class EmptyCacheStore:
+            def admin_gate_gear_records(self):
+                return {"communityGearTemplates": [], "gearVariants": []}
+
+        with patch.object(self.backend, "cache_data_store", return_value=EmptyCacheStore()), patch.object(
+            self.backend, "init_db", side_effect=AssertionError("must not fall back to SQLite when PG store is active")
+        ):
+            payload = self.backend.admin_gate_records_payload({"domain": ["gear_templates"], "limit": ["20"]})
+
+        self.assertEqual(payload["records"], [])
+        self.assertEqual(payload["pagination"]["total"], 0)
+
+    def test_admin_gates_record_detail_uses_postgres_runtime_store_when_available(self):
+        class FakeContentStore:
+            def admin_gate_news_records(self):
+                return {"discoveryQueue": [], "articles": []}
+
+        class FakeCacheStore:
+            def admin_gate_talent_records(self):
+                return {"communityTalentTemplates": [], "talentTrees": []}
+
+            def admin_gate_gear_records(self):
+                return {
+                    "gearVariants": [
+                        {
+                            "id": "pg-variant-detail",
+                            "itemId": "item-pg-detail",
+                            "itemName": "PG detail item",
+                            "slot": "head",
+                            "label": "Mythic",
+                            "sourceType": "dungeon",
+                            "difficultyKey": "mythic",
+                            "itemLevel": 678,
+                            "status": "verified",
+                            "blockers": [],
+                            "payload": {"simcOptions": {"ilevel": 678}},
+                            "updatedAt": "2026-06-30T00:04:00+00:00",
+                        }
+                    ]
+                }
+
+        with patch.object(self.backend, "content_data_store", return_value=FakeContentStore()), patch.object(
+            self.backend, "cache_data_store", return_value=FakeCacheStore()
+        ):
+            payload = self.backend.admin_gate_record_detail_payload("gear", "gear_variant", "pg-variant-detail")
+
+        self.assertEqual(payload["record"]["targetId"], "pg-variant-detail")
+        self.assertEqual(payload["record"]["evidence"]["runtimeStore"], "postgres_cache")
+
+    def test_admin_gates_diagnosis_uses_postgres_ops_store_when_available(self):
+        class FakeContentStore:
+            def admin_gate_news_records(self):
+                return {"discoveryQueue": [], "articles": []}
+
+        class FakeCacheStore:
+            def admin_gate_talent_records(self):
+                return {"communityTalentTemplates": [], "talentTrees": []}
+
+            def admin_gate_gear_records(self):
+                return {
+                    "gearVariants": [
+                        {
+                            "id": "pg-variant-2",
+                            "itemId": "item-pg-2",
+                            "itemName": "PG blocked item",
+                            "slot": "finger1",
+                            "label": "Partial",
+                            "sourceType": "dungeon",
+                            "difficultyKey": "mythic",
+                            "itemLevel": 678,
+                            "status": "blocked",
+                            "blockers": ["missing simc options"],
+                            "payload": {},
+                            "updatedAt": "2026-06-30T00:04:00+00:00",
+                        }
+                    ]
+                }
+
+        class FakeOpsStore:
+            def __init__(self):
+                self.created_entries = []
+
+            def create_admin_gate_diagnosis(self, entry, audit_payload):
+                self.created_entries.append((entry, audit_payload))
+                return {
+                    **entry,
+                    "id": "pg-diagnosis-1",
+                    "payload": {},
+                    "createdAt": entry["createdAt"],
+                    "updatedAt": entry["updatedAt"],
+                }
+
+        fake_ops = FakeOpsStore()
+        with patch.object(self.backend, "content_data_store", return_value=FakeContentStore()), patch.object(
+            self.backend, "cache_data_store", return_value=FakeCacheStore()
+        ), patch.object(self.backend, "ops_data_store", return_value=fake_ops, create=True):
+            diagnosis = self.backend.create_admin_gate_diagnosis(
+                {
+                    "targetDomain": "gear",
+                    "targetType": "gear_variant",
+                    "targetId": "pg-variant-2",
+                    "diagnosis": "system_gap_suspected",
+                    "gapType": "parser_or_mapping_bug",
+                    "reason": "owner believes this blocked PG variant should be rechecked",
+                },
+                actor="owner",
+            )
+
+        self.assertEqual(diagnosis["id"], "pg-diagnosis-1")
+        self.assertEqual(fake_ops.created_entries[0][0]["targetId"], "pg-variant-2")
+        self.assertEqual(fake_ops.created_entries[0][1]["targetStatus"], "blocked")
 
     def test_admin_gates_diagnosis_records_gap_without_mutating_source_status(self):
         with self.backend.db_connection() as conn:
@@ -6640,7 +7237,7 @@ class NewsBackendTest(unittest.TestCase):
 
         diagnosis = self.backend.create_admin_gate_diagnosis(
             {
-                "targetDomain": "gear",
+                "targetDomain": "gear_templates",
                 "targetType": "community_gear_template",
                 "targetId": "gear-template-1",
                 "diagnosis": "system_gap_suspected",
@@ -6706,7 +7303,7 @@ class NewsBackendTest(unittest.TestCase):
 
         self.backend.create_admin_gate_diagnosis(
             {
-                "targetDomain": "gear",
+                "targetDomain": "gear_templates",
                 "targetType": "community_gear_template",
                 "targetId": "gear-template-2",
                 "diagnosis": "system_gap_suspected",
@@ -6715,7 +7312,7 @@ class NewsBackendTest(unittest.TestCase):
             },
             actor="owner",
         )
-        queue_before = self.backend.admin_gate_queue_payload({"domain": ["gear"]})
+        queue_before = self.backend.admin_gate_queue_payload({"domain": ["gear_templates"]})
         self.assertTrue(any(item["targetId"] == "gear-template-2" for item in queue_before["items"]))
 
         with self.backend.db_connection() as conn:
@@ -6729,7 +7326,7 @@ class NewsBackendTest(unittest.TestCase):
             )
             conn.commit()
 
-        queue_after = self.backend.admin_gate_queue_payload({"domain": ["gear"]})
+        queue_after = self.backend.admin_gate_queue_payload({"domain": ["gear_templates"]})
         diagnoses = self.backend.admin_gate_diagnoses_payload({})
 
         self.assertFalse(any(item["targetId"] == "gear-template-2" for item in queue_after["items"]))
@@ -6740,7 +7337,27 @@ class NewsBackendTest(unittest.TestCase):
         html = self.backend.admin_gates_page()
 
         self.assertIn("门禁治理台", html)
-        self.assertIn("验证 gap 诊断队列", html)
+        self.assertIn("待诊断阻断项", html)
+        self.assertNotIn("验证 gap 诊断队列", html)
+        self.assertNotIn('class="right"', html)
+        self.assertIn('id="queueView"', html)
+        self.assertIn('data-admin-gate-view="queue"', html)
+        self.assertIn('id="recordsView" class="view" data-admin-gate-view="records"', html)
+        self.assertIn("const recordsNavs = ['news', 'talents', 'gear', 'gearTemplates'];", html)
+        self.assertNotIn("const recordsNavs = ['overview', 'news', 'talents', 'gear'];", html)
+        self.assertIn(".view.active.stack { display:grid; }", html)
+        self.assertIn(".stack { gap:14px; }", html)
+        self.assertNotIn("\n    .stack { display:grid;", html)
+        self.assertIn("function loadQueue()", html)
+        self.assertIn("function applyAdminGateView", html)
+        self.assertNotIn("data.diagnosticQueue.items.map", html)
+        self.assertIn("verified（已验证）", html)
+        self.assertIn("blocked（已阻断）", html)
+        self.assertIn("missing_credentials（缺少凭据）", html)
+        self.assertIn("pending_official_audit（待官方校验）", html)
+        self.assertIn("source_reference（仅作参考）", html)
+        self.assertIn("function statusText", html)
+        self.assertIn("function severityText", html)
         self.assertNotIn("微信扫码登录", html)
         self.assertNotIn("/api/admin/auth/status", html)
         self.assertNotIn("/api/admin/auth/wechat-url", html)
@@ -6756,13 +7373,106 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY)", html)
         self.assertIn("loadSavedAdminToken()", html)
         self.assertIn("function showAdminGateError", html)
+        self.assertIn("发布情况", html)
+        self.assertIn("<th>分类</th>", html)
+        self.assertIn('id="genericToolbar"', html)
+        self.assertIn('id="newsToolbar"', html)
+        self.assertIn('id="newsFilterKey"', html)
+        self.assertIn('id="newsFilterValue"', html)
+        self.assertIn('id="talentToolbar"', html)
+        self.assertIn('id="talentFilterKey"', html)
+        self.assertIn('id="talentFilterValue"', html)
+        self.assertIn('id="gearToolbar"', html)
+        self.assertIn('id="gearFilterKey"', html)
+        self.assertIn('id="gearFilterValue"', html)
+        self.assertIn('id="gearTemplateToolbar"', html)
+        self.assertIn('id="gearTemplateFilterKey"', html)
+        self.assertIn('id="gearTemplateFilterValue"', html)
+        self.assertIn("const newsFilterOptions", html)
+        self.assertIn("const talentFilterOptions", html)
+        self.assertIn("const gearFilterOptions", html)
+        self.assertIn("const gearTemplateFilterOptions", html)
+        self.assertIn("{ value:'category', label:'分类'", html)
+        self.assertIn("{ value:'status', label:'状态'", html)
+        self.assertIn("{ value:'publication', label:'发布情况'", html)
+        self.assertIn("{ value:'class', label:'职业'", html)
+        self.assertIn("value:'visibility'", html)
+        self.assertIn("label:'小程序可见性'", html)
+        self.assertIn("正式服动态", html)
+        self.assertIn("测试服前瞻", html)
+        self.assertIn("职业强度变化", html)
+        self.assertIn("战士", html)
+        self.assertIn("法师", html)
+        self.assertIn("萨满祭司", html)
+        self.assertIn("已可见", html)
+        self.assertIn("未发布", html)
+        self.assertIn("function updateNewsFilterValueOptions", html)
+        self.assertIn("function updateTalentFilterValueOptions", html)
+        self.assertIn("function updateGearFilterValueOptions", html)
+        self.assertIn("function updateGearTemplateFilterValueOptions", html)
+        self.assertIn("function applyRecordToolbarForDomain", html)
+        self.assertIn("function applyNewsFilterParams", html)
+        self.assertIn("function applyTalentFilterParams", html)
+        self.assertIn("function applyGearFilterParams", html)
+        self.assertIn("function applyGearTemplateFilterParams", html)
+        self.assertIn("document.getElementById('newsLoad').addEventListener", html)
+        self.assertIn("document.getElementById('talentLoad').addEventListener", html)
+        self.assertIn("document.getElementById('gearLoad').addEventListener", html)
+        self.assertIn("document.getElementById('gearTemplateLoad').addEventListener", html)
+        self.assertIn("function newsCategoryCell", html)
+        self.assertIn("articleCategory", html)
+        self.assertIn("function talentCategoryCell", html)
+        self.assertIn("talentCategory", html)
+        self.assertIn("function gearCategoryCell", html)
+        self.assertIn("gearCategory", html)
+        self.assertIn("gearVisibility", html)
+        self.assertIn("gearBlockReason", html)
+        self.assertIn("装备名称", html)
+        self.assertIn("部位", html)
+        self.assertIn("掉落来源", html)
+        self.assertIn("Block原因", html)
+        self.assertIn("装备模板", html)
+        self.assertIn("小程序是否可见", html)
+        self.assertIn("装备库记录", html)
+        self.assertIn("装备模板记录", html)
+        self.assertIn('id="field"', html)
+        self.assertIn("const adminGateFilterFields", html)
+        self.assertIn("function updateAdminGateFilterControls", html)
+        self.assertIn("全部展示字段", html)
+        self.assertIn("{ value:'talentTemplate', label:'天赋模板'", html)
+        self.assertIn("{ value:'class', label:'职业'", html)
+        self.assertIn("{ value:'source', label:'来源'", html)
+        self.assertIn("{ value:'blocked', label:'是否被阻断'", html)
+        self.assertIn("{ value:'blockReason', label:'阻断原因'", html)
+        self.assertIn("{ value:'visibility', label:'小程序可见'", html)
+        self.assertIn("社区来源", html)
+        self.assertIn("基础目录", html)
+        self.assertIn("小程序可见", html)
+        self.assertIn("阻断原因", html)
+        self.assertIn("function talentPublicationCell", html)
+        self.assertIn("function talentBlockReasonCell", html)
+        self.assertIn("talentPublication", html)
+        self.assertIn("talentBlockReason", html)
+        self.assertIn("发布时间", html)
+        self.assertIn("抓取时间", html)
+        self.assertIn("未发布原因", html)
+        self.assertIn("function newsPublicationCell", html)
+        self.assertIn('id="pageSize"', html)
+        self.assertIn('id="prevPage"', html)
+        self.assertIn('id="nextPage"', html)
+        self.assertIn('id="paginationSummary"', html)
+        self.assertIn("const ADMIN_GATE_DEFAULT_PAGE_SIZE = 20", html)
+        self.assertIn("function resetAdminGatePage", html)
+        self.assertIn("function renderRecordsPagination", html)
+        self.assertIn("params.set('page'", html)
+        self.assertIn("params.set('pageSize'", html)
 
     def test_admin_gates_page_navigation_filters_record_domains(self):
         html = self.backend.admin_gates_page()
 
         self.assertIn("data-admin-gate-nav", html)
         self.assertIn("document.getElementById('nav').addEventListener('click'", html)
-        self.assertIn("const domainByNavKey = { news:'news', talents:'talents', gear:'gear' }", html)
+        self.assertIn("const domainByNavKey = { news:'news', talents:'talents', gear:'gear', gearTemplates:'gear_templates' }", html)
         self.assertIn("document.getElementById('domain').value = domain", html)
         self.assertIn("selectAdminGateNav(item.dataset.adminGateNav)", html)
 

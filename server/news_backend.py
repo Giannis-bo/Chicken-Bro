@@ -62,14 +62,18 @@ try:
     )
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
+        ARMOR_SLOTS,
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
         build_websim_simulator_request,
+        CLASS_ARMOR_TYPES,
         community_talent_sync_state,
         enrich_build_gear_payload,
         ensure_websim_tables,
         gear_catalog_health_payload,
+        GAME_CLASS_ID_TO_KEY,
+        GEAR_SLOT_LABELS,
         talent_catalog_health_payload,
         export_talent_api_payload,
         get_active_season_payload,
@@ -81,11 +85,17 @@ try:
         get_websim_talents,
         get_active_season_payload,
         import_talent_api_payload,
+        item_type_metadata_from_payload,
+        normalized_armor_subclass,
         encode_websim_talents,
         parse_websim_talent_export_code,
+        payload_item_class_is_armor,
+        payload_playable_class_keys,
         simcraft_known_compatibility_blockers,
         template_evidence_audit_payload,
         validate_talent_api_payload,
+        WEAPON_SLOTS,
+        weapon_type_allowed_for_slot,
     )
 except ImportError:
     from analytics import (
@@ -132,14 +142,18 @@ except ImportError:
     )
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
+        ARMOR_SLOTS,
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
         build_websim_simulator_request,
+        CLASS_ARMOR_TYPES,
         community_talent_sync_state,
         enrich_build_gear_payload,
         ensure_websim_tables,
         gear_catalog_health_payload,
+        GAME_CLASS_ID_TO_KEY,
+        GEAR_SLOT_LABELS,
         talent_catalog_health_payload,
         export_talent_api_payload,
         get_active_season_payload,
@@ -151,11 +165,17 @@ except ImportError:
         get_websim_talents,
         get_active_season_payload,
         import_talent_api_payload,
+        item_type_metadata_from_payload,
+        normalized_armor_subclass,
         encode_websim_talents,
         parse_websim_talent_export_code,
+        payload_item_class_is_armor,
+        payload_playable_class_keys,
         simcraft_known_compatibility_blockers,
         template_evidence_audit_payload,
         validate_talent_api_payload,
+        WEAPON_SLOTS,
+        weapon_type_allowed_for_slot,
     )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -419,6 +439,17 @@ def cache_data_store():
     except ImportError:
         from postgres_cache_store import PostgresCacheStore
     return PostgresCacheStore(lambda: connect_postgres(config.database_url))
+
+
+def ops_data_store():
+    config = database_config_from_env()
+    if not postgres_personal_runtime_enabled(config):
+        return None
+    try:
+        from .postgres_ops_store import PostgresOpsStore
+    except ImportError:
+        from postgres_ops_store import PostgresOpsStore
+    return PostgresOpsStore(lambda: connect_postgres(config.database_url))
 
 
 def init_db():
@@ -1909,6 +1940,112 @@ DATA_HEALTH_STATUSES = [
     "pending_official_audit",
     "source_reference",
 ]
+ADMIN_GATE_STATUS_LABELS = {
+    "verified": "已验证",
+    "partial": "部分通过",
+    "stale": "已过期",
+    "blocked": "已阻断",
+    "missing_credentials": "缺少凭据",
+    "pending_official_audit": "待官方校验",
+    "source_reference": "仅作参考",
+    "passed": "已通过",
+    "synced": "已同步",
+    "ready": "已就绪",
+    "complete": "已完成",
+    "published": "已发布",
+    "open": "未解决",
+    "resolved": "已解决",
+}
+ADMIN_GATE_SEVERITY_LABELS = {
+    "ok": "正常",
+    "blocks_frontend_publish": "阻断前端发布",
+    "blocks_frontend_template": "阻断前端模板展示",
+    "blocks_simc_or_strong_claim": "阻断 SimC 或强结论",
+    "blocks_diagnostic_or_record": "影响诊断记录",
+}
+ADMIN_GATE_MODULE_LABELS = {
+    "backend": "后端服务",
+    "news": "新闻发布门禁",
+    "raiderio": "Raider.IO 缓存",
+    "websim_season": "WebSim 当前赛季",
+    "websim_sync": "WebSim 同步状态",
+    "gear_catalog": "权威装备库",
+    "talent_catalog": "权威天赋库",
+    "template_simc_bridge": "模板到 SimC 桥接",
+    "community_templates": "社区天赋与装备模板",
+    "stat_weights": "Raider.IO + SimC 属性权重",
+    "wcl_credentials": "Warcraft Logs API 凭据",
+    "blizzard_api": "Battle.net 游戏数据 API",
+}
+ADMIN_GATE_BLOCKER_LABELS = {
+    "missing deterministic SimC variant preset": "缺少确定性 SimC 装备变体预设",
+    "SimC JSON did not include target item stats": "SimC JSON 未包含目标物品属性",
+    "SimulationCraft update available": "SimulationCraft 有可用更新",
+    "websim cache sync did not complete successfully": "WebSim 缓存同步未成功完成",
+    "websim cache has not been synced": "WebSim 缓存尚未同步",
+    "Battle.net credentials are not configured.": "Battle.net 凭据未配置。",
+    "Warcraft Logs API credentials are not configured.": "Warcraft Logs API 凭据未配置。",
+    "default gear template blocked": "默认装备模板被阻断",
+    "no saved build templates available for template SimC bridge sampling": "没有可用于模板到 SimC 桥接抽样的已保存构筑模板",
+}
+
+
+def admin_gate_status_label(status):
+    value = str(status or "").strip().lower()
+    return ADMIN_GATE_STATUS_LABELS.get(value, value)
+
+
+def admin_gate_severity_label(severity):
+    value = str(severity or "").strip()
+    return ADMIN_GATE_SEVERITY_LABELS.get(value, value)
+
+
+def admin_gate_module_title(component):
+    component = component if isinstance(component, dict) else {}
+    key = str(component.get("key") or "").strip()
+    title = str(component.get("title") or "").strip()
+    return ADMIN_GATE_MODULE_LABELS.get(key) or ADMIN_GATE_MODULE_LABELS.get(title) or title or key
+
+
+def admin_gate_localized_blocker(blocker):
+    text = admin_gate_summarize_text(blocker, 260)
+    if not text:
+        return ""
+    if " / " in text:
+        return " / ".join(
+            admin_gate_localized_blocker(part.strip())
+            for part in text.split(" / ")
+            if part.strip()
+        )
+    if text in ADMIN_GATE_BLOCKER_LABELS:
+        return ADMIN_GATE_BLOCKER_LABELS[text]
+    if "WOW_WARCRAFTLOGS_CLIENT_ID" in text or "WOW_WARCRAFTLOGS_API_KEY" in text:
+        return "Warcraft Logs 凭据未配置（WOW_WARCRAFTLOGS_CLIENT_ID / WOW_WARCRAFTLOGS_CLIENT_SECRET 或 WOW_WARCRAFTLOGS_API_KEY）。"
+    observed = re.search(r"(\d+)\s+observed gear variants missing SimulationCraft item stats", text)
+    if observed:
+        return f"{observed.group(1)} 个已观测装备变体缺少 SimulationCraft 物品属性"
+    missing_talents = re.search(r"talent spell descriptions missing for (\d+) talent spells?", text)
+    if missing_talents:
+        return f"{missing_talents.group(1)} 个天赋法术缺少说明"
+    formula_talents = re.search(r"talent spell descriptions contain unresolved formula text for (\d+) talent spells?", text)
+    if formula_talents:
+        return f"{formula_talents.group(1)} 个天赋法术说明仍包含未解析公式文本"
+    stat_weight = re.search(r"stat weight cache is not verified:\s*([a-z_]+)", text, flags=re.I)
+    if stat_weight:
+        status = stat_weight.group(1).lower()
+        return f"属性权重缓存未通过验证：{admin_gate_status_label(status)}"
+    return text
+
+
+def admin_gate_localized_top_blocker(blocker):
+    if not isinstance(blocker, dict):
+        return {"reason": admin_gate_localized_blocker(blocker)}
+    localized = dict(blocker)
+    if localized.get("reason"):
+        localized["reason"] = admin_gate_localized_blocker(localized.get("reason"))
+    if localized.get("code"):
+        localized["code"] = admin_gate_localized_blocker(localized.get("code"))
+    return localized
 
 
 def normalize_data_health_status(status):
@@ -5532,7 +5669,7 @@ def load_articles():
                    translation_fidelity
             FROM news_articles
             WHERE content_status = 'ready'
-            ORDER BY importance DESC, published_at DESC
+            ORDER BY published_at DESC, importance DESC
             """
         ).fetchall()
     if not rows:
@@ -5549,7 +5686,7 @@ def load_articles():
                        translation_fidelity
                 FROM news_articles
                 WHERE content_status = 'ready'
-                ORDER BY importance DESC, published_at DESC
+                ORDER BY published_at DESC, importance DESC
                 """
             ).fetchall()
     articles = []
@@ -5594,11 +5731,11 @@ def dedupe_articles(articles):
     for article in articles:
         key = canonical_article_key(article)
         current = by_key.get(key)
-        if not current or (article.get("importance", 0), article.get("publishedAt", "")) > (current.get("importance", 0), current.get("publishedAt", "")):
+        if not current or (article.get("publishedAt", ""), article.get("importance", 0)) > (current.get("publishedAt", ""), current.get("importance", 0)):
             by_key[key] = article
     return sorted(
         by_key.values(),
-        key=lambda item: (item.get("importance", 0), item.get("publishedAt", "")),
+        key=lambda item: (item.get("publishedAt", ""), item.get("importance", 0)),
         reverse=True,
     )
 
@@ -5719,7 +5856,7 @@ def build_article_list_payload(query):
 def build_home_payload():
     state = latest_refresh_state()
     articles = dedupe_articles([article for article in load_articles() if is_valid_article(article)])
-    articles.sort(key=lambda item: (item.get("importance", 0), item.get("publishedAt", "")), reverse=True)
+    articles.sort(key=lambda item: (item.get("publishedAt", ""), item.get("importance", 0)), reverse=True)
     return {
         "navTitle": "最新资讯",
         "heroNews": articles[:3],
@@ -6249,12 +6386,28 @@ def admin_query_value(query, key, default=""):
     return str(value if value is not None else default).strip()
 
 
-def admin_query_limit(query, default=50, maximum=200):
+def admin_query_int(query, key, default, minimum=1, maximum=None):
     try:
-        value = int(admin_query_value(query, "limit", str(default)) or default)
+        value = int(admin_query_value(query, key, str(default)) or default)
     except ValueError:
         value = default
-    return max(1, min(maximum, value))
+    value = max(minimum, value)
+    return min(maximum, value) if maximum is not None else value
+
+
+def admin_query_limit(query, default=50, maximum=200):
+    return admin_query_int(query, "limit", default, maximum=maximum)
+
+
+def admin_query_page(query):
+    return admin_query_int(query, "page", 1)
+
+
+def admin_query_page_size(query, default=20, maximum=200):
+    raw_page_size = admin_query_value(query, "pageSize", "")
+    if not raw_page_size:
+        return admin_query_limit(query, default=default, maximum=maximum)
+    return admin_query_int(query, "pageSize", default, maximum=maximum)
 
 
 def admin_gate_status(*statuses, blockers=None):
@@ -6327,9 +6480,19 @@ def admin_gate_json_summary(value, fallback):
     return sanitize_health_value(safe_json_loads(value, fallback, "admin gate payload"))
 
 
-def admin_gate_record(domain, target_type, target_id, title, *, status="", source_status="", source_name="", source_url="", checked_at="", blockers=None, facets=None, stages=None, raw_summary=None, evidence=None):
+def admin_gate_record(domain, target_type, target_id, title, *, status="", source_status="", source_name="", source_url="", checked_at="", blockers=None, facets=None, stages=None, raw_summary=None, evidence=None, publication=None, article_category=None, talent_category=None, talent_publication=None, talent_block_reason=None, gear_category=None, gear_visibility=None, gear_block_reason=None):
     blockers = [admin_gate_summarize_text(item, 220) for item in (blockers or []) if str(item or "").strip()]
     effective_status = admin_gate_status(source_status, status, blockers=blockers)
+    source_status_value = normalize_data_health_status(source_status or status or effective_status)
+    severity = admin_gate_severity(effective_status, domain, target_type)
+    facets_value = facets if isinstance(facets, dict) else {}
+    evidence_value = evidence if isinstance(evidence, dict) else {}
+    if domain == "talents":
+        talent_block_reason = talent_block_reason or admin_gate_talent_block_reason(effective_status, blockers, facets_value, evidence_value)
+        talent_publication = talent_publication or admin_gate_talent_publication(target_type, effective_status, blockers, checked_at, talent_block_reason)
+    if domain in {"gear", "gear_templates"}:
+        gear_block_reason = gear_block_reason or admin_gate_gear_block_reason(effective_status, blockers, facets_value, evidence_value)
+        gear_visibility = gear_visibility or admin_gate_gear_visibility(target_type, effective_status, blockers, checked_at, gear_block_reason)
     return {
         "id": f"{domain}:{target_type}:{target_id}",
         "domain": domain,
@@ -6337,37 +6500,372 @@ def admin_gate_record(domain, target_type, target_id, title, *, status="", sourc
         "targetId": str(target_id or ""),
         "title": admin_gate_summarize_text(title or target_id or target_type, 120),
         "status": effective_status,
-        "sourceStatus": normalize_data_health_status(source_status or status or effective_status),
+        "statusLabel": admin_gate_status_label(effective_status),
+        "sourceStatus": source_status_value,
+        "sourceStatusLabel": admin_gate_status_label(source_status_value),
         "rawStatus": str(status or ""),
         "sourceName": admin_gate_summarize_text(source_name, 120),
         "sourceUrl": admin_gate_summarize_text(source_url, 260),
         "checkedAt": checked_at or "",
         "blockers": blockers,
         "blockerDetails": [admin_gate_blocker_detail(item) for item in blockers],
-        "severity": admin_gate_severity(effective_status, domain, target_type),
-        "facets": facets or {},
+        "severity": severity,
+        "severityLabel": admin_gate_severity_label(severity),
+        "facets": facets_value,
         "stages": stages or admin_gate_default_stages(effective_status, blockers),
         "rawSummary": sanitize_health_value(raw_summary or {}),
         "evidence": sanitize_health_value(evidence or {}),
+        "publication": sanitize_health_value(publication or {}),
+        "articleCategory": sanitize_health_value(article_category or {}),
+        "talentCategory": sanitize_health_value(talent_category or {}),
+        "talentPublication": sanitize_health_value(talent_publication or {}),
+        "talentBlockReason": sanitize_health_value(talent_block_reason or {}),
+        "gearCategory": sanitize_health_value(gear_category or {}),
+        "gearVisibility": sanitize_health_value(gear_visibility or {}),
+        "gearBlockReason": sanitize_health_value(gear_block_reason or {}),
+    }
+
+
+def admin_gate_talent_block_reason(status, blockers=None, facets=None, evidence=None):
+    status_value = str(status or "").strip() or "blocked"
+    blocker_list = [admin_gate_summarize_text(item, 220) for item in (blockers or []) if str(item or "").strip()]
+    if status_value == "verified" and not blocker_list:
+        return {
+            "state": "clear",
+            "stateLabel": "无阻断",
+            "reason": "无阻断",
+            "status": status_value,
+            "statusLabel": admin_gate_status_label(status_value),
+        }
+    if status_value in {"blocked", "missing_credentials"} or blocker_list:
+        state = "blocked"
+        state_label = "已阻断"
+    else:
+        state = "not_passed"
+        state_label = "未通过"
+    reason = blocker_list[0] if blocker_list else admin_gate_talent_context_reason(status_value, facets, evidence)
+    return {
+        "state": state,
+        "stateLabel": state_label,
+        "reason": reason,
+        "status": status_value,
+        "statusLabel": admin_gate_status_label(status_value),
+    }
+
+
+def admin_gate_talent_context_reason(status, facets=None, evidence=None):
+    facets = facets if isinstance(facets, dict) else {}
+    evidence = evidence if isinstance(evidence, dict) else {}
+    source_key = str(facets.get("sourceKey") or "").strip()
+    sample_count = admin_gate_int_value(facets.get("sampleCount"), 0)
+    max_key_level = admin_gate_int_value(facets.get("maxKeyLevel"), 0)
+    refs = evidence.get("sourceRefs") if isinstance(evidence.get("sourceRefs"), list) else []
+    ref = refs[0] if refs and isinstance(refs[0], dict) else {}
+    ref_source_key = str(ref.get("sourceKey") or "").strip()
+    if (source_key == "websim_baseline" or ref_source_key == "websim_baseline") and sample_count <= 0 and max_key_level <= 0:
+        return "WebSim 基线模板没有真实社区样本（sampleCount=0 / maxKeyLevel=0），系统不会把基线模板发布到小程序端。"
+    if source_key:
+        return f"{source_key} 来源状态为 {admin_gate_status_text(status)}，未达到 verified 发布门禁。"
+    return admin_gate_status_text(status)
+
+
+def admin_gate_status_text(status):
+    status_value = str(status or "").strip()
+    label = admin_gate_status_label(status_value)
+    return f"{status_value}（{label}）" if label and label != status_value else status_value
+
+
+def admin_gate_talent_publication(target_type, status, blockers=None, checked_at="", block_reason=None):
+    status_value = str(status or "").strip() or "blocked"
+    blocker_list = [admin_gate_summarize_text(item, 220) for item in (blockers or []) if str(item or "").strip()]
+    target_value = str(target_type or "").strip()
+    surface = "天赋导入列表" if target_value == "community_talent_template" else "天赋树基础数据"
+    is_visible = status_value == "verified"
+    if is_visible:
+        reason = f"状态 {status_value}，已进入小程序{surface}"
+    else:
+        block_reason = block_reason if isinstance(block_reason, dict) else {}
+        reason = blocker_list[0] if blocker_list else (block_reason.get("reason") or f"状态 {admin_gate_status_text(status_value)}，未进入小程序{surface}")
+    return {
+        "state": "visible" if is_visible else "hidden",
+        "stateLabel": "已可见" if is_visible else "不可见",
+        "visibleToMiniProgram": is_visible,
+        "surface": surface,
+        "reason": reason,
+        "visibleAt": (checked_at or "") if is_visible else "",
+    }
+
+
+def admin_gate_gear_block_reason(status, blockers=None, facets=None, evidence=None):
+    status_value = str(status or "").strip() or "blocked"
+    blocker_list = [admin_gate_summarize_text(item, 220) for item in (blockers or []) if str(item or "").strip()]
+    if status_value == "verified" and not blocker_list:
+        return {
+            "state": "clear",
+            "stateLabel": "无阻断",
+            "reason": "无阻断",
+            "status": status_value,
+            "statusLabel": admin_gate_status_label(status_value),
+        }
+    state = "blocked" if status_value in {"blocked", "missing_credentials"} or blocker_list else "not_passed"
+    return {
+        "state": state,
+        "stateLabel": "已阻断" if state == "blocked" else "未通过",
+        "reason": blocker_list[0] if blocker_list else admin_gate_status_text(status_value),
+        "status": status_value,
+        "statusLabel": admin_gate_status_label(status_value),
+    }
+
+
+def admin_gate_gear_visibility(target_type, status, blockers=None, checked_at="", block_reason=None):
+    status_value = str(status or "").strip() or "blocked"
+    target_value = str(target_type or "").strip()
+    surface = "装备库" if target_value == "gear_variant" else "装备模板"
+    is_visible = status_value == "verified"
+    block_reason = block_reason if isinstance(block_reason, dict) else {}
+    blocker_list = [admin_gate_summarize_text(item, 220) for item in (blockers or []) if str(item or "").strip()]
+    reason = (
+        f"状态 {status_value}，已进入小程序{surface}"
+        if is_visible
+        else (blocker_list[0] if blocker_list else (block_reason.get("reason") or f"状态 {admin_gate_status_text(status_value)}，未进入小程序{surface}"))
+    )
+    return {
+        "state": "visible" if is_visible else "hidden",
+        "stateLabel": "已可见" if is_visible else "不可见",
+        "visibleToMiniProgram": is_visible,
+        "surface": surface,
+        "reason": reason,
+        "visibleAt": (checked_at or "") if is_visible else "",
+    }
+
+
+def admin_gate_gear_class_keys_from_payload(payload, slot=""):
+    payload_value = payload if isinstance(payload, dict) else {}
+    class_keys = []
+    for key in payload_playable_class_keys(payload_value):
+        if key and key not in class_keys:
+            class_keys.append(key)
+    if class_keys:
+        return class_keys
+
+    slot_value = str(slot or "").strip()
+    if slot_value in ARMOR_SLOTS:
+        item_class = payload_value.get("item_class") if isinstance(payload_value.get("item_class"), dict) else {}
+        item_subclass = payload_value.get("item_subclass") if isinstance(payload_value.get("item_subclass"), dict) else {}
+        armor_type = normalized_armor_subclass(item_subclass)
+        if payload_item_class_is_armor(item_class) and armor_type and armor_type not in {"Miscellaneous", "Cosmetic"}:
+            return [
+                key
+                for key, expected_armor in CLASS_ARMOR_TYPES.items()
+                if str(expected_armor or "").lower() == str(armor_type or "").lower()
+            ]
+
+    if slot_value in WEAPON_SLOTS:
+        weapon_type = item_type_metadata_from_payload(payload_value).get("weaponType") or ""
+        if weapon_type:
+            return [
+                key
+                for key in WOW_CLASS_LABELS
+                if weapon_type_allowed_for_slot(key, "", slot_value, weapon_type)
+            ]
+
+    return []
+
+
+def admin_gate_gear_class_label_payload(class_keys):
+    keys = [str(item or "").strip() for item in (class_keys or []) if str(item or "").strip()]
+    labels = [admin_gate_talent_class_label(key) for key in keys]
+    return {
+        "classKeys": keys,
+        "classLabels": labels,
+        "classLabel": " / ".join(labels) if labels else "未标注职业",
+    }
+
+
+def admin_gate_news_publication(status, *, published_at="", captured_at="", unpublished_reason=""):
+    raw_status = str(status or "").strip().lower()
+    is_published = raw_status in {"published", "ready"}
+    return {
+        "state": "published" if is_published else "unpublished",
+        "stateLabel": "已发布" if is_published else "未发布",
+        "publishedAt": str(published_at or "") if is_published else "",
+        "capturedAt": str(captured_at or ""),
+        "unpublishedReason": "" if is_published else admin_gate_summarize_text(unpublished_reason or raw_status or "not_published", 220),
+    }
+
+
+def admin_gate_news_article_category(channel="", category="", tags=None):
+    channel_value = str(channel or "").strip()
+    category_value = str(category or "").strip()
+    tags_value = [str(item or "").strip() for item in (tags or []) if str(item or "").strip()]
+    known_channels = {item["title"] for item in CHANNELS}
+    if channel_value in known_channels:
+        label = channel_value
+    elif category_value in known_channels:
+        label = category_value
+    elif "ptr" in tags_value or category_value == "测试服":
+        label = "测试服前瞻"
+    elif "class-change" in tags_value:
+        label = "职业强度变化"
+    elif channel_value:
+        label = channel_value
+    elif category_value:
+        label = "正式服动态" if category_value == "正式服" else category_value
+    else:
+        label = "未分类"
+    return {
+        "label": admin_gate_summarize_text(label, 80),
+        "channel": admin_gate_summarize_text(channel_value, 80),
+        "category": admin_gate_summarize_text(category_value, 80),
+        "tags": tags_value[:8],
+    }
+
+
+WOW_CLASS_LABELS = {
+    "deathknight": "死亡骑士",
+    "demonhunter": "恶魔猎手",
+    "druid": "德鲁伊",
+    "evoker": "唤魔师",
+    "hunter": "猎人",
+    "mage": "法师",
+    "monk": "武僧",
+    "paladin": "圣骑士",
+    "priest": "牧师",
+    "rogue": "潜行者",
+    "shaman": "萨满祭司",
+    "warlock": "术士",
+    "warrior": "战士",
+}
+
+
+def admin_gate_talent_class_label(class_key):
+    class_value = str(class_key or "").strip()
+    normalized = class_value.lower().replace("-", "").replace("_", "")
+    return WOW_CLASS_LABELS.get(normalized) or class_value or "未知职业"
+
+
+def admin_gate_talent_record_category(class_key="", spec_key="", hero_key="", source_key="", target_type=""):
+    class_value = str(class_key or "").strip()
+    spec_value = str(spec_key or "").strip()
+    hero_value = str(hero_key or "").strip()
+    source_value = str(source_key or "").strip()
+    is_community = str(target_type or "").strip() == "community_talent_template" or bool(source_value)
+    class_label = admin_gate_talent_class_label(class_value)
+    return {
+        "label": admin_gate_summarize_text(class_label, 80),
+        "classKey": admin_gate_summarize_text(class_value, 80),
+        "classLabel": admin_gate_summarize_text(class_label, 80),
+        "specKey": admin_gate_summarize_text(spec_value, 80),
+        "heroKey": admin_gate_summarize_text(hero_value, 80),
+        "sourceKind": "community" if is_community else "catalog",
+        "sourceLabel": "社区来源" if is_community else "基础目录",
+        "sourceKey": admin_gate_summarize_text(source_value, 80),
+    }
+
+
+GEAR_SOURCE_LABELS = {
+    "catalog": "基础目录",
+    "crafted": "制造业",
+    "dungeon": "地下城",
+    "raid": "团本",
+    "observed_profile": "社区样本",
+    "verifiedLoot": "已验证掉落",
+    "verified_loot": "已验证掉落",
+    "default_template": "默认模板",
+    "websim_baseline": "WebSim 基线",
+}
+
+
+def admin_gate_int_value(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def admin_gate_gear_source_label(source_type):
+    value = str(source_type or "").strip()
+    return GEAR_SOURCE_LABELS.get(value) or GEAR_SOURCE_LABELS.get(value.lower()) or value or "未知来源"
+
+
+def admin_gate_gear_record_category(
+    target_type="",
+    *,
+    class_key="",
+    spec_key="",
+    source_key="",
+    slot="",
+    label="",
+    source_type="",
+    difficulty_key="",
+    item_level=0,
+    class_keys=None,
+    ready_slot_count=None,
+    missing_slots=None,
+):
+    target_value = str(target_type or "").strip()
+    source_value = str(source_key or source_type or "").strip()
+    if target_value == "community_gear_template":
+        class_value = str(class_key or "").strip()
+        spec_value = str(spec_key or "").strip()
+        class_label = admin_gate_talent_class_label(class_value)
+        missing_value = missing_slots if isinstance(missing_slots, list) else []
+        return {
+            "label": admin_gate_summarize_text(class_label, 80),
+            "classKey": admin_gate_summarize_text(class_value, 80),
+            "classLabel": admin_gate_summarize_text(class_label, 80),
+            "specKey": admin_gate_summarize_text(spec_value, 80),
+            "sourceKind": "community",
+            "sourceLabel": "社区来源",
+            "sourceKey": admin_gate_summarize_text(source_value, 80),
+            "readySlotCount": admin_gate_int_value(ready_slot_count, 0),
+            "missingSlotCount": len(missing_value),
+        }
+    slot_value = str(slot or "").strip()
+    slot_label = GEAR_SLOT_LABELS.get(slot_value) or slot_value or "未知槽位"
+    class_payload = admin_gate_gear_class_label_payload(class_keys or [])
+    return {
+        "label": admin_gate_summarize_text(slot_label, 80),
+        "slot": admin_gate_summarize_text(slot_value, 80),
+        "slotLabel": admin_gate_summarize_text(slot_label, 80),
+        "classKeys": class_payload["classKeys"],
+        "classLabels": class_payload["classLabels"],
+        "classLabel": admin_gate_summarize_text(class_payload["classLabel"], 120),
+        "sourceType": admin_gate_summarize_text(str(source_type or "").strip(), 80),
+        "sourceLabel": admin_gate_summarize_text(admin_gate_gear_source_label(source_type), 80),
+        "difficultyKey": admin_gate_summarize_text(str(difficulty_key or "").strip(), 80),
+        "variantLabel": admin_gate_summarize_text(str(label or "").strip(), 80),
+        "itemLevel": admin_gate_int_value(item_level, 0),
     }
 
 
 def admin_gate_default_stages(status, blockers):
     upstream = "passed" if status not in {"blocked", "missing_credentials"} else "partial"
     audit = "blocked" if status in {"blocked", "missing_credentials"} else ("partial" if status != "verified" else "passed")
-    return [
+    stages = [
         {"key": "upstream", "title": "上游原始数据摘要", "status": upstream},
         {"key": "rules", "title": "规则审计", "status": audit},
         {"key": "evidence", "title": "证据链", "status": audit, "blockers": blockers[:3]},
         {"key": "storage", "title": "入库状态", "status": "passed"},
         {"key": "consumption", "title": "前端/SimC 消费状态", "status": "passed" if status == "verified" else "blocked"},
     ]
+    for stage in stages:
+        stage["statusLabel"] = admin_gate_status_label(stage.get("status"))
+    return stages
+
+
+def admin_gate_record_domain_for_target(domain, target_type):
+    domain_value = str(domain or "").strip()
+    target_value = str(target_type or "").strip()
+    if target_value == "community_gear_template" and domain_value in {"gear", "gear_templates"}:
+        return "gear_templates"
+    return domain_value
 
 
 def admin_gate_severity(status, domain, target_type):
     if status == "verified":
         return "ok"
-    if domain == "gear" and target_type in {"community_gear_template", "gear_variant"}:
+    if domain in {"gear", "gear_templates"} and target_type in {"community_gear_template", "gear_variant"}:
         return "blocks_simc_or_strong_claim"
     if domain == "talents" and "template" in target_type:
         return "blocks_frontend_template"
@@ -6436,13 +6934,25 @@ def collect_admin_news_records(conn):
                     "contentGate": "discovery_queue",
                     "processedAt": row[14] or "",
                 },
+                publication=admin_gate_news_publication(
+                    row[8],
+                    published_at=row[7],
+                    captured_at=row[12],
+                    unpublished_reason=row[10],
+                ),
+                article_category=admin_gate_news_article_category(
+                    payload.get("channel") if isinstance(payload, dict) else "",
+                    payload.get("category") if isinstance(payload, dict) else "",
+                    payload.get("tags") if isinstance(payload, dict) else [],
+                ),
             ))
     if sqlite_has_table(conn, "news_articles"):
         rows = conn.execute(
             """
             SELECT id, title, source_name, source_url, published_at, updated_at,
                    content_status, translation_status, license_status,
-                   verification_status, translation_fidelity, blocked_reason
+                   verification_status, translation_fidelity, blocked_reason,
+                   channel, category, tags_json
             FROM news_articles
             ORDER BY updated_at DESC
             LIMIT 500
@@ -6472,6 +6982,17 @@ def collect_admin_news_records(conn):
                 },
                 raw_summary={"title": row[1], "publishedAt": row[4]},
                 evidence={"contentGate": "public_article"},
+                publication=admin_gate_news_publication(
+                    status,
+                    published_at=row[4],
+                    captured_at=row[5] if status != "published" else "",
+                    unpublished_reason=row[11] or row[6],
+                ),
+                article_category=admin_gate_news_article_category(
+                    row[12],
+                    row[13],
+                    admin_gate_json_summary(row[14], []),
+                ),
             ))
     return records
 
@@ -6518,6 +7039,7 @@ def collect_admin_talent_records(conn):
                 },
                 raw_summary={"name": row[5], "expiresAt": row[16]},
                 evidence={"sourceRefs": refs[:5] if isinstance(refs, list) else []},
+                talent_category=admin_gate_talent_record_category(row[1], row[2], row[3], row[6], "community_talent_template"),
             ))
     if sqlite_has_table(conn, "websim_talents"):
         rows = conn.execute(
@@ -6542,11 +7064,12 @@ def collect_admin_talent_records(conn):
                 facets={"classKey": row[0], "specKey": row[1], "nodeCount": row[2]},
                 raw_summary={"nodeCount": row[2]},
                 evidence={"catalog": "websim_talents"},
+                talent_category=admin_gate_talent_record_category(row[0], row[1], "", "", "talent_tree"),
             ))
     return records
 
 
-def collect_admin_gear_records(conn):
+def collect_admin_gear_template_records(conn):
     records = []
     if sqlite_has_table(conn, "websim_community_gear_templates"):
         rows = conn.execute(
@@ -6567,7 +7090,7 @@ def collect_admin_gear_records(conn):
             if missing_slots:
                 blockers = [*(blockers or []), f"missing slots: {', '.join(str(item) for item in missing_slots[:6])}"]
             records.append(admin_gate_record(
-                "gear",
+                "gear_templates",
                 "community_gear_template",
                 row[0],
                 row[3],
@@ -6597,13 +7120,27 @@ def collect_admin_gear_records(conn):
                     "sourceRefs": admin_gate_json_summary(row[10], [])[:5],
                     "templateEvidence": payload.get("templateEvidence") if isinstance(payload, dict) else {},
                 },
+                gear_category=admin_gate_gear_record_category(
+                    "community_gear_template",
+                    class_key=row[1],
+                    spec_key=row[2],
+                    source_key=row[4],
+                    ready_slot_count=row[13],
+                    missing_slots=missing_slots,
+                ),
             ))
+    return records
+
+
+def collect_admin_gear_records(conn):
+    records = []
     if sqlite_has_table(conn, "websim_gear_variants"):
         rows = conn.execute(
             """
             SELECT v.id, v.item_id, COALESCE(i.name, v.item_id), v.slot,
                    v.label, v.source_type, v.difficulty_key, v.item_level,
-                   v.status, v.blockers_json, v.payload_json, v.updated_at
+                   v.status, v.blockers_json, v.payload_json, i.payload_json,
+                   v.updated_at
             FROM websim_gear_variants v
             LEFT JOIN websim_items i ON i.id = v.item_id
             ORDER BY v.updated_at DESC
@@ -6613,6 +7150,12 @@ def collect_admin_gear_records(conn):
         for row in rows:
             blockers = admin_gate_json_summary(row[9], [])
             payload = admin_gate_json_summary(row[10], {})
+            item_payload = admin_gate_json_summary(row[11], {})
+            combined_payload = {
+                **(item_payload if isinstance(item_payload, dict) else {}),
+                **(payload if isinstance(payload, dict) else {}),
+            }
+            class_keys = admin_gate_gear_class_keys_from_payload(combined_payload, row[3])
             records.append(admin_gate_record(
                 "gear",
                 "gear_variant",
@@ -6621,7 +7164,7 @@ def collect_admin_gear_records(conn):
                 status=row[8],
                 source_status=row[8],
                 source_name=row[5],
-                checked_at=row[11],
+                checked_at=row[12],
                 blockers=blockers if isinstance(blockers, list) else [],
                 facets={
                     "itemId": row[1],
@@ -6630,17 +7173,309 @@ def collect_admin_gear_records(conn):
                     "sourceType": row[5],
                     "difficultyKey": row[6],
                     "itemLevel": row[7],
+                    "classKeys": class_keys,
                 },
-                raw_summary={"payloadKeys": sorted(payload.keys())[:12] if isinstance(payload, dict) else []},
+                raw_summary={"payloadKeys": sorted(combined_payload.keys())[:12] if isinstance(combined_payload, dict) else []},
                 evidence={"variant": "websim_gear_variants"},
+                gear_category=admin_gate_gear_record_category(
+                    "gear_variant",
+                    slot=row[3],
+                    label=row[4],
+                    source_type=row[5],
+                    difficulty_key=row[6],
+                    item_level=row[7],
+                    class_keys=class_keys,
+                ),
             ))
     return records
+
+
+def collect_admin_news_records_from_store(store):
+    payload = store.admin_gate_news_records()
+    queue_items = payload.get("discoveryQueue") if isinstance(payload, dict) else []
+    article_items = payload.get("articles") if isinstance(payload, dict) else []
+    records = []
+    for item in queue_items or []:
+        payload_summary = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+        blockers = [item.get("lastError")] if item.get("lastError") else []
+        records.append(admin_gate_record(
+            "news",
+            "news_discovery_queue",
+            item.get("id"),
+            item.get("originalTitle"),
+            status=item.get("status"),
+            source_status="verified" if item.get("status") == "published" else item.get("status"),
+            source_name=item.get("sourceName"),
+            source_url=item.get("sourceUrl"),
+            checked_at=item.get("updatedAt") or item.get("discoveredAt") or "",
+            blockers=blockers,
+            facets={
+                "sourceKey": item.get("sourceId") or "",
+                "sourceTier": item.get("sourceTier") or "",
+                "canonicalTopicId": item.get("canonicalTopicId") or "",
+                "attempts": item.get("attempts") or 0,
+            },
+            raw_summary={
+                "originalTitle": item.get("originalTitle") or "",
+                "publishedAt": item.get("publishedAt") or "",
+                "payloadKeys": sorted(payload_summary.keys())[:12] if isinstance(payload_summary, dict) else [],
+            },
+            evidence={
+                "contentGate": "discovery_queue",
+                "runtimeStore": "postgres_content",
+                "processedAt": item.get("processedAt") or "",
+            },
+            publication=admin_gate_news_publication(
+                item.get("status"),
+                published_at=item.get("publishedAt") or "",
+                captured_at=item.get("discoveredAt") or "",
+                unpublished_reason=item.get("lastError") or "",
+            ),
+            article_category=admin_gate_news_article_category(
+                payload_summary.get("channel") if isinstance(payload_summary, dict) else "",
+                payload_summary.get("category") if isinstance(payload_summary, dict) else "",
+                payload_summary.get("tags") if isinstance(payload_summary, dict) else [],
+            ),
+        ))
+    for item in article_items or []:
+        status = "published" if item.get("contentStatus") == "ready" else item.get("contentStatus")
+        blockers = [item.get("blockedReason")] if item.get("blockedReason") else []
+        records.append(admin_gate_record(
+            "news",
+            "news_article",
+            item.get("id"),
+            item.get("title"),
+            status=status,
+            source_status="verified" if item.get("contentStatus") == "ready" else item.get("contentStatus"),
+            source_name=item.get("sourceName"),
+            source_url=item.get("sourceUrl"),
+            checked_at=item.get("updatedAt") or "",
+            blockers=blockers,
+            facets={
+                "contentStatus": item.get("contentStatus") or "",
+                "translationStatus": item.get("translationStatus") or "",
+                "licenseStatus": item.get("licenseStatus") or "",
+                "verificationStatus": item.get("verificationStatus") or "",
+                "translationFidelity": item.get("translationFidelity") or "",
+                "publishedAt": item.get("publishedAt") or "",
+            },
+            raw_summary={"title": item.get("title") or "", "publishedAt": item.get("publishedAt") or ""},
+            evidence={"contentGate": "public_article", "runtimeStore": "postgres_content"},
+            publication=admin_gate_news_publication(
+                status,
+                published_at=item.get("publishedAt") or "",
+                captured_at=item.get("updatedAt") if status != "published" else "",
+                unpublished_reason=item.get("blockedReason") or item.get("contentStatus") or "",
+            ),
+            article_category=admin_gate_news_article_category(
+                item.get("channel") or "",
+                item.get("category") or "",
+                item.get("tags") or [],
+            ),
+        ))
+    return records
+
+
+def collect_admin_talent_records_from_store(store):
+    payload = store.admin_gate_talent_records()
+    template_items = payload.get("communityTalentTemplates") if isinstance(payload, dict) else []
+    tree_items = payload.get("talentTrees") if isinstance(payload, dict) else []
+    records = []
+    for item in template_items or []:
+        item_payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+        records.append(admin_gate_record(
+            "talents",
+            "community_talent_template",
+            item.get("id"),
+            item.get("name"),
+            status=item.get("status"),
+            source_status=item.get("sourceStatus"),
+            source_name=item.get("sourceName"),
+            source_url=item.get("sourceUrl"),
+            checked_at=item.get("updatedAt") or "",
+            blockers=item_payload.get("blockers") if isinstance(item_payload, dict) else [],
+            facets={
+                "classKey": item.get("classKey") or "",
+                "specKey": item.get("specKey") or "",
+                "heroKey": item.get("heroKey") or "",
+                "scenarioKey": item.get("scenarioKey") or "",
+                "sourceKey": item.get("sourceKey") or "",
+                "sampleCount": item.get("sampleCount") or 0,
+                "maxKeyLevel": item.get("maxKeyLevel") or 0,
+                "analysisWindow": item.get("analysisWindow") or "",
+                "signature": item.get("signature") or "",
+                "scanRunId": item.get("scanRunId") or "",
+            },
+            raw_summary={"name": item.get("name") or "", "expiresAt": item.get("expiresAt") or ""},
+            evidence={
+                "sourceRefs": (item.get("sourceRefs") or [])[:5] if isinstance(item.get("sourceRefs"), list) else [],
+                "runtimeStore": "postgres_cache",
+            },
+            talent_category=admin_gate_talent_record_category(
+                item.get("classKey") or "",
+                item.get("specKey") or "",
+                item.get("heroKey") or "",
+                item.get("sourceKey") or "",
+                "community_talent_template",
+            ),
+        ))
+    for item in tree_items or []:
+        node_count = int(item.get("nodeCount") or 0)
+        records.append(admin_gate_record(
+            "talents",
+            "talent_tree",
+            f"{item.get('classKey')}:{item.get('specKey')}",
+            f"{item.get('classKey')} / {item.get('specKey')} talent tree",
+            status="verified" if node_count > 0 else "blocked",
+            source_status="verified" if node_count > 0 else "blocked",
+            checked_at=item.get("updatedAt") or "",
+            blockers=[] if node_count > 0 else ["talent tree has no nodes"],
+            facets={"classKey": item.get("classKey") or "", "specKey": item.get("specKey") or "", "nodeCount": node_count},
+            raw_summary={"nodeCount": node_count},
+            evidence={"catalog": "websim_talents", "runtimeStore": "postgres_cache"},
+            talent_category=admin_gate_talent_record_category(
+                item.get("classKey") or "",
+                item.get("specKey") or "",
+                "",
+                "",
+                "talent_tree",
+            ),
+        ))
+    return records
+
+
+def collect_admin_gear_template_records_from_store(store):
+    payload = store.admin_gate_gear_records()
+    template_items = payload.get("communityGearTemplates") if isinstance(payload, dict) else []
+    records = []
+    for item in template_items or []:
+        item_payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+        missing_slots = item.get("missingSlots") if isinstance(item.get("missingSlots"), list) else []
+        blockers = item_payload.get("blockers") if isinstance(item_payload, dict) else []
+        if missing_slots:
+            blockers = [*(blockers or []), f"missing slots: {', '.join(str(slot) for slot in missing_slots[:6])}"]
+        records.append(admin_gate_record(
+            "gear_templates",
+            "community_gear_template",
+            item.get("id"),
+            item.get("name"),
+            status=item.get("status"),
+            source_status=item.get("sourceStatus"),
+            source_name=item.get("sourceName"),
+            source_url=item.get("sourceUrl"),
+            checked_at=item.get("updatedAt") or "",
+            blockers=blockers,
+            facets={
+                "classKey": item.get("classKey") or "",
+                "specKey": item.get("specKey") or "",
+                "sourceKey": item.get("sourceKey") or "",
+                "signature": item.get("signature") or "",
+                "readySlotCount": item.get("readySlotCount") or 0,
+                "missingSlots": missing_slots,
+                "analysisWindow": item.get("analysisWindow") or "",
+                "scanRunId": item.get("scanRunId") or "",
+            },
+            raw_summary={
+                "name": item.get("name") or "",
+                "readySlotCount": item.get("readySlotCount") or 0,
+                "expiresAt": item.get("expiresAt") or "",
+            },
+            evidence={
+                "sourceRefs": (item.get("sourceRefs") or [])[:5] if isinstance(item.get("sourceRefs"), list) else [],
+                "runtimeStore": "postgres_cache",
+            },
+            gear_category=admin_gate_gear_record_category(
+                "community_gear_template",
+                class_key=item.get("classKey") or "",
+                spec_key=item.get("specKey") or "",
+                source_key=item.get("sourceKey") or "",
+                ready_slot_count=item.get("readySlotCount") or 0,
+                missing_slots=missing_slots,
+            ),
+        ))
+    return records
+
+
+def collect_admin_gear_records_from_store(store):
+    payload = store.admin_gate_gear_records()
+    variant_items = payload.get("gearVariants") if isinstance(payload, dict) else []
+    records = []
+    for item in variant_items or []:
+        variant_payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+        item_payload = item.get("itemPayload") if isinstance(item.get("itemPayload"), dict) else {}
+        combined_payload = {**item_payload, **variant_payload}
+        blockers = item.get("blockers") if isinstance(item.get("blockers"), list) else []
+        class_keys = admin_gate_gear_class_keys_from_payload(combined_payload, item.get("slot") or "")
+        records.append(admin_gate_record(
+            "gear",
+            "gear_variant",
+            item.get("id"),
+            item.get("itemName") or item.get("itemId"),
+            status=item.get("status"),
+            source_status=item.get("status"),
+            source_name=item.get("sourceType"),
+            checked_at=item.get("updatedAt") or "",
+            blockers=blockers,
+            facets={
+                "itemId": item.get("itemId") or "",
+                "slot": item.get("slot") or "",
+                "label": item.get("label") or "",
+                "sourceType": item.get("sourceType") or "",
+                "difficultyKey": item.get("difficultyKey") or "",
+                "itemLevel": item.get("itemLevel") or 0,
+                "classKeys": class_keys,
+            },
+            raw_summary={"payloadKeys": sorted(combined_payload.keys())[:12] if isinstance(combined_payload, dict) else []},
+            evidence={"variant": "websim_gear_variants", "runtimeStore": "postgres_cache"},
+            gear_category=admin_gate_gear_record_category(
+                "gear_variant",
+                slot=item.get("slot") or "",
+                label=item.get("label") or "",
+                source_type=item.get("sourceType") or "",
+                difficulty_key=item.get("difficultyKey") or "",
+                item_level=item.get("itemLevel") or 0,
+                class_keys=class_keys,
+            ),
+        ))
+    return records
+
+
+def collect_admin_gate_records_from_runtime_stores(query=None):
+    query = query or {}
+    domain = admin_query_value(query, "domain", "")
+    requested = {domain} if domain else {"news", "talents", "gear", "gear_templates"}
+    records = []
+    used_runtime_store = False
+    if "news" in requested:
+        store = content_data_store()
+        if store and hasattr(store, "admin_gate_news_records"):
+            used_runtime_store = True
+            records.extend(collect_admin_news_records_from_store(store))
+    if "talents" in requested or "talent" in requested:
+        store = cache_data_store()
+        if store and hasattr(store, "admin_gate_talent_records"):
+            used_runtime_store = True
+            records.extend(collect_admin_talent_records_from_store(store))
+    if "gear" in requested:
+        store = cache_data_store()
+        if store and hasattr(store, "admin_gate_gear_records"):
+            used_runtime_store = True
+            records.extend(collect_admin_gear_records_from_store(store))
+    if "gear_templates" in requested:
+        store = cache_data_store()
+        if store and hasattr(store, "admin_gate_gear_records"):
+            used_runtime_store = True
+            template_records = collect_admin_gear_template_records_from_store(store)
+            records.extend(template_records)
+    if not used_runtime_store:
+        return None
+    return filter_admin_gate_records(records, query)
 
 
 def collect_admin_gate_records(conn, query=None):
     query = query or {}
     domain = admin_query_value(query, "domain", "")
-    requested = {domain} if domain else {"news", "talents", "gear"}
+    requested = {domain} if domain else {"news", "talents", "gear", "gear_templates"}
     records = []
     if "news" in requested:
         records.extend(collect_admin_news_records(conn))
@@ -6648,7 +7483,239 @@ def collect_admin_gate_records(conn, query=None):
         records.extend(collect_admin_talent_records(conn))
     if "gear" in requested:
         records.extend(collect_admin_gear_records(conn))
+    if "gear_templates" in requested:
+        records.extend(collect_admin_gear_template_records(conn))
     return filter_admin_gate_records(records, query)
+
+
+def admin_gate_filter_text(value):
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        return " ".join(admin_gate_filter_text(item) for item in value.values())
+    if isinstance(value, (list, tuple, set)):
+        return " ".join(admin_gate_filter_text(item) for item in value)
+    return str(value)
+
+
+def admin_gate_record_filter_fields(record):
+    domain = str(record.get("domain") or "").strip()
+    common = {
+        "title": [
+            record.get("title"),
+            record.get("targetType"),
+            record.get("targetId"),
+        ],
+        "status": [
+            record.get("status"),
+            record.get("statusLabel"),
+        ],
+        "source": [
+            record.get("sourceName"),
+            record.get("sourceUrl"),
+        ],
+        "blockers": [
+            record.get("blockers"),
+            record.get("blockerDetails"),
+        ],
+    }
+    if domain == "news":
+        fields = {
+            **common,
+            "category": [record.get("articleCategory")],
+            "publication": [record.get("publication")],
+        }
+        fields["all"] = [
+            fields["title"],
+            fields["category"],
+            fields["status"],
+            fields["publication"],
+            fields["source"],
+            fields["blockers"],
+        ]
+        return fields
+    if domain == "talents":
+        category = record.get("talentCategory") if isinstance(record.get("talentCategory"), dict) else {}
+        publication = record.get("talentPublication") if isinstance(record.get("talentPublication"), dict) else {}
+        block_reason = record.get("talentBlockReason") if isinstance(record.get("talentBlockReason"), dict) else {}
+        is_blocked = str(record.get("status") or "").strip() in {"blocked", "missing_credentials"}
+        blocked_text = ["已阻断", "被阻断", "blocked", record.get("status"), record.get("statusLabel")] if is_blocked else [
+            "未阻断",
+            "未被阻断",
+            "not blocked",
+            record.get("status"),
+            record.get("statusLabel"),
+        ]
+        fields = {
+            "talentTemplate": [
+                record.get("title"),
+                record.get("targetType"),
+                record.get("targetId"),
+            ],
+            "class": [
+                category.get("label"),
+                category.get("classKey"),
+                category.get("classLabel"),
+                category.get("specKey"),
+                category.get("heroKey"),
+            ],
+            "source": [
+                record.get("sourceName"),
+                record.get("sourceUrl"),
+                category.get("sourceKind"),
+                category.get("sourceLabel"),
+                category.get("sourceKey"),
+            ],
+            "blocked": blocked_text,
+            "blockReason": [
+                block_reason.get("state"),
+                block_reason.get("stateLabel"),
+                block_reason.get("reason"),
+                record.get("blockers"),
+            ],
+            "visibility": [
+                publication.get("state"),
+                publication.get("stateLabel"),
+                publication.get("surface"),
+                publication.get("reason"),
+                publication.get("visibleAt"),
+                "小程序可见" if publication.get("visibleToMiniProgram") else "小程序不可见",
+            ],
+        }
+        fields["title"] = fields["talentTemplate"]
+        fields["category"] = fields["class"]
+        fields["status"] = fields["blocked"]
+        fields["blockers"] = fields["blockReason"]
+        fields["all"] = [
+            fields["talentTemplate"],
+            fields["class"],
+            fields["source"],
+            fields["blocked"],
+            fields["blockReason"],
+            fields["visibility"],
+        ]
+        return fields
+    if domain == "gear":
+        category = record.get("gearCategory") if isinstance(record.get("gearCategory"), dict) else {}
+        visibility = record.get("gearVisibility") if isinstance(record.get("gearVisibility"), dict) else {}
+        block_reason = record.get("gearBlockReason") if isinstance(record.get("gearBlockReason"), dict) else {}
+        fields = {
+            "gearName": [
+                record.get("title"),
+                record.get("targetType"),
+                record.get("targetId"),
+                category.get("variantLabel"),
+                category.get("itemLevel"),
+            ],
+            "slot": [
+                category.get("slot"),
+                category.get("slotLabel"),
+                category.get("label"),
+            ],
+            "dropSource": [
+                record.get("sourceName"),
+                record.get("sourceUrl"),
+                category.get("sourceType"),
+                category.get("sourceLabel"),
+                category.get("difficultyKey"),
+            ],
+            "class": [
+                category.get("classKeys"),
+                category.get("classLabels"),
+                category.get("classLabel"),
+            ],
+            "visibility": [
+                visibility.get("state"),
+                visibility.get("stateLabel"),
+                visibility.get("surface"),
+                visibility.get("reason"),
+                visibility.get("visibleAt"),
+                "小程序可见" if visibility.get("visibleToMiniProgram") else "小程序不可见",
+            ],
+            "blockReason": [
+                block_reason.get("state"),
+                block_reason.get("stateLabel"),
+                block_reason.get("reason"),
+                record.get("blockers"),
+            ],
+        }
+        fields["title"] = fields["gearName"]
+        fields["category"] = [category]
+        fields["status"] = common["status"]
+        fields["source"] = fields["dropSource"]
+        fields["blockers"] = fields["blockReason"]
+        fields["all"] = [
+            fields["gearName"],
+            fields["slot"],
+            fields["dropSource"],
+            fields["status"],
+            fields["class"],
+            fields["visibility"],
+            fields["blockReason"],
+        ]
+        return fields
+    if domain == "gear_templates":
+        category = record.get("gearCategory") if isinstance(record.get("gearCategory"), dict) else {}
+        visibility = record.get("gearVisibility") if isinstance(record.get("gearVisibility"), dict) else {}
+        block_reason = record.get("gearBlockReason") if isinstance(record.get("gearBlockReason"), dict) else {}
+        fields = {
+            "template": common["title"],
+            "class": [
+                category.get("label"),
+                category.get("classKey"),
+                category.get("classLabel"),
+                category.get("specKey"),
+                category.get("sourceKind"),
+                category.get("sourceLabel"),
+            ],
+            "visibility": [
+                visibility.get("state"),
+                visibility.get("stateLabel"),
+                visibility.get("surface"),
+                visibility.get("reason"),
+                visibility.get("visibleAt"),
+                "小程序可见" if visibility.get("visibleToMiniProgram") else "小程序不可见",
+            ],
+            "blockReason": [
+                block_reason.get("state"),
+                block_reason.get("stateLabel"),
+                block_reason.get("reason"),
+                record.get("blockers"),
+            ],
+        }
+        fields["title"] = fields["template"]
+        fields["category"] = fields["class"]
+        fields["status"] = common["status"]
+        fields["source"] = [
+            *common["source"],
+            category.get("sourceKind"),
+            category.get("sourceLabel"),
+            category.get("sourceKey"),
+        ]
+        fields["blockers"] = fields["blockReason"]
+        fields["all"] = [
+            fields["title"],
+            fields["category"],
+            fields["status"],
+            fields["visibility"],
+            fields["source"],
+            fields["blockers"],
+        ]
+        return fields
+    fields = dict(common)
+    fields["all"] = [fields["title"], fields["status"], fields["source"], fields["blockers"]]
+    return fields
+
+
+def admin_gate_record_matches_search(record, search, field):
+    search_value = str(search or "").strip().lower()
+    if not search_value:
+        return True
+    fields = admin_gate_record_filter_fields(record)
+    field_value = str(field or "all").strip() or "all"
+    if field_value not in fields:
+        field_value = "all"
+    return search_value in admin_gate_filter_text(fields.get(field_value)).lower()
 
 
 def filter_admin_gate_records(records, query):
@@ -6657,6 +7724,7 @@ def filter_admin_gate_records(records, query):
     class_key = admin_query_value(query, "classKey", "")
     spec_key = admin_query_value(query, "specKey", "")
     search = admin_query_value(query, "q", "").lower()
+    field = admin_query_value(query, "field", "all")
     filtered = []
     for record in records:
         facets = record.get("facets") if isinstance(record.get("facets"), dict) else {}
@@ -6668,33 +7736,70 @@ def filter_admin_gate_records(records, query):
             continue
         if spec_key and facets.get("specKey") != spec_key:
             continue
-        if search and search not in json.dumps(record, ensure_ascii=False).lower():
+        if search and not admin_gate_record_matches_search(record, search, field):
             continue
         filtered.append(record)
-    return filtered[:admin_query_limit(query)]
+    return filtered
+
+
+def paginate_admin_gate_records(records, query):
+    page_size = admin_query_page_size(query)
+    total = len(records)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = min(admin_query_page(query), total_pages)
+    start = (page - 1) * page_size
+    end = start + page_size
+    return records[start:end], {
+        "page": page,
+        "pageSize": page_size,
+        "total": total,
+        "totalPages": total_pages,
+        "hasPrev": page > 1,
+        "hasNext": page < total_pages,
+    }
 
 
 def admin_gate_records_payload(query):
-    init_db()
-    with db_connection() as conn:
-        records = collect_admin_gate_records(conn, query)
+    records = collect_admin_gate_records_from_runtime_stores(query)
+    if records is None:
+        init_db()
+        with db_connection() as conn:
+            records = collect_admin_gate_records(conn, query)
+    page_records, pagination = paginate_admin_gate_records(records, query)
     return {
         "schemaRevision": "admin-gates-records-v1",
-        "records": records,
-        "count": len(records),
+        "records": page_records,
+        "count": len(page_records),
+        "totalCount": pagination["total"],
+        "pagination": pagination,
         "filters": {
             "domain": admin_query_value(query, "domain", ""),
             "status": admin_query_value(query, "status", ""),
             "source": admin_query_value(query, "source", ""),
             "classKey": admin_query_value(query, "classKey", ""),
             "specKey": admin_query_value(query, "specKey", ""),
+            "field": admin_query_value(query, "field", "all"),
             "q": admin_query_value(query, "q", ""),
+            "page": str(pagination["page"]),
+            "pageSize": str(pagination["pageSize"]),
         },
     }
 
 
 def find_admin_gate_record(conn, domain, target_type, target_id):
+    domain = admin_gate_record_domain_for_target(domain, target_type)
     records = collect_admin_gate_records(conn, {"domain": [domain], "limit": ["200"]})
+    for record in records:
+        if record.get("targetType") == target_type and record.get("targetId") == target_id:
+            return record
+    return None
+
+
+def find_admin_gate_record_runtime(domain, target_type, target_id):
+    domain = admin_gate_record_domain_for_target(domain, target_type)
+    records = collect_admin_gate_records_from_runtime_stores({"domain": [domain], "limit": ["200"]})
+    if records is None:
+        return None
     for record in records:
         if record.get("targetType") == target_type and record.get("targetId") == target_id:
             return record
@@ -6717,8 +7822,11 @@ def admin_gate_diagnosis_from_row(row, record=None):
         "actor": row[8],
         "targetFingerprint": row[9],
         "resolutionStatus": "resolved" if resolved else "open",
+        "resolutionStatusLabel": admin_gate_status_label("resolved" if resolved else "open"),
         "currentStatus": record.get("status") or "",
+        "currentStatusLabel": admin_gate_status_label(record.get("status") or ""),
         "currentSourceStatus": record.get("sourceStatus") or "",
+        "currentSourceStatusLabel": admin_gate_status_label(record.get("sourceStatus") or ""),
         "createdAt": row[10],
         "updatedAt": row[12],
         "expiresAt": row[13],
@@ -6726,11 +7834,39 @@ def admin_gate_diagnosis_from_row(row, record=None):
     }
 
 
+def admin_gate_diagnosis_from_mapping(item, record=None):
+    record = record or {}
+    resolved = bool(record and admin_gate_record_passed(record))
+    payload = sanitize_health_value(item.get("payload") if isinstance(item.get("payload"), dict) else {})
+    return {
+        "id": item.get("id") or "",
+        "targetDomain": item.get("targetDomain") or "",
+        "targetType": item.get("targetType") or "",
+        "targetId": item.get("targetId") or "",
+        "diagnosis": item.get("diagnosis") or "",
+        "gapType": item.get("gapType") or "",
+        "reason": item.get("reason") or "",
+        "note": item.get("note") or "",
+        "actor": item.get("actor") or "",
+        "targetFingerprint": item.get("targetFingerprint") or "",
+        "resolutionStatus": "resolved" if resolved else "open",
+        "resolutionStatusLabel": admin_gate_status_label("resolved" if resolved else "open"),
+        "currentStatus": record.get("status") or "",
+        "currentStatusLabel": admin_gate_status_label(record.get("status") or ""),
+        "currentSourceStatus": record.get("sourceStatus") or "",
+        "currentSourceStatusLabel": admin_gate_status_label(record.get("sourceStatus") or ""),
+        "createdAt": item.get("createdAt") or "",
+        "updatedAt": item.get("updatedAt") or "",
+        "expiresAt": item.get("expiresAt") or "",
+        "payload": payload,
+    }
+
+
 def create_admin_gate_diagnosis(payload, actor="admin"):
-    init_db()
     target_domain = str(payload.get("targetDomain") or payload.get("domain") or "").strip()
     target_type = str(payload.get("targetType") or "").strip()
     target_id = str(payload.get("targetId") or "").strip()
+    target_domain = admin_gate_record_domain_for_target(target_domain, target_type)
     diagnosis = str(payload.get("diagnosis") or "system_gap_suspected").strip()
     gap_type = str(payload.get("gapType") or diagnosis).strip()
     reason = admin_gate_summarize_text(payload.get("reason") or "", 500)
@@ -6745,6 +7881,44 @@ def create_admin_gate_diagnosis(payload, actor="admin"):
         raise ValueError("diagnosis reason is required")
     now = utc_now()
     diagnosis_id = f"agd-{uuid.uuid4()}"
+    runtime_ops_store = ops_data_store()
+    if runtime_ops_store and hasattr(runtime_ops_store, "create_admin_gate_diagnosis"):
+        record = find_admin_gate_record_runtime(target_domain, target_type, target_id)
+        fingerprint = admin_gate_record_fingerprint(record or {"status": "missing_target"})
+        safe_payload = {
+            "targetTitle": (record or {}).get("title", ""),
+            "targetStatus": (record or {}).get("status", ""),
+            "targetSourceStatus": (record or {}).get("sourceStatus", ""),
+            "blockers": (record or {}).get("blockers", [])[:8],
+        }
+        entry = {
+            "id": diagnosis_id,
+            "targetDomain": target_domain,
+            "targetType": target_type,
+            "targetId": target_id,
+            "diagnosis": diagnosis,
+            "gapType": gap_type,
+            "reason": reason,
+            "note": note,
+            "actor": actor,
+            "targetFingerprint": fingerprint,
+            "createdAt": now,
+            "updatedAt": now,
+            "expiresAt": str(payload.get("expiresAt") or ""),
+        }
+        stored = runtime_ops_store.create_admin_gate_diagnosis(
+            entry,
+            {
+                "targetDomain": target_domain,
+                "diagnosis": diagnosis,
+                "gapType": gap_type,
+                "reason": reason,
+                **safe_payload,
+            },
+        )
+        return admin_gate_diagnosis_from_mapping(stored, record)
+
+    init_db()
     with db_connection() as conn:
         ensure_admin_gate_tables(conn)
         record = find_admin_gate_record(conn, target_domain, target_type, target_id)
@@ -6820,9 +7994,27 @@ def create_admin_gate_diagnosis(payload, actor="admin"):
 
 
 def admin_gate_diagnoses_payload(query):
-    init_db()
     domain = admin_query_value(query, "domain", "")
     status = admin_query_value(query, "resolutionStatus", "")
+    runtime_ops_store = ops_data_store()
+    if runtime_ops_store and hasattr(runtime_ops_store, "list_admin_gate_diagnoses"):
+        rows = runtime_ops_store.list_admin_gate_diagnoses()
+        items = []
+        for row in rows:
+            if domain and row.get("targetDomain") != domain:
+                continue
+            record = find_admin_gate_record_runtime(row.get("targetDomain"), row.get("targetType"), row.get("targetId"))
+            item = admin_gate_diagnosis_from_mapping(row, record)
+            if status and item["resolutionStatus"] != status:
+                continue
+            items.append(item)
+        return {
+            "schemaRevision": "admin-gates-diagnoses-v1",
+            "items": items[:admin_query_limit(query)],
+            "count": len(items[:admin_query_limit(query)]),
+        }
+
+    init_db()
     with db_connection() as conn:
         ensure_admin_gate_tables(conn)
         rows = conn.execute(
@@ -6852,23 +8044,32 @@ def admin_gate_diagnoses_payload(query):
 
 
 def admin_gate_queue_payload(query):
-    init_db()
     domain = admin_query_value(query, "domain", "")
-    with db_connection() as conn:
-        records = collect_admin_gate_records(conn, {"domain": [domain], "limit": ["200"]} if domain else {"limit": ["200"]})
-        diagnoses_rows = conn.execute(
-            """
-            SELECT id, target_domain, target_type, target_id, diagnosis, gap_type,
-                   reason, note, actor, target_fingerprint, created_at, '{}',
-                   updated_at, expires_at
-            FROM admin_gate_diagnoses
-            ORDER BY created_at DESC
-            LIMIT 500
-            """
-        ).fetchall() if sqlite_has_table(conn, "admin_gate_diagnoses") else []
-        diagnoses_by_target = {}
-        for row in diagnoses_rows:
-            diagnoses_by_target.setdefault((row[1], row[2], row[3]), []).append(row)
+    records = collect_admin_gate_records_from_runtime_stores({"domain": [domain], "limit": ["200"]} if domain else {"limit": ["200"]})
+    runtime_ops_store = ops_data_store()
+    diagnoses_by_target = {}
+    if records is not None and runtime_ops_store and hasattr(runtime_ops_store, "list_admin_gate_diagnoses"):
+        for row in runtime_ops_store.list_admin_gate_diagnoses():
+            diagnoses_by_target.setdefault((row.get("targetDomain"), row.get("targetType"), row.get("targetId")), []).append(row)
+        diagnosis_builder = admin_gate_diagnosis_from_mapping
+    else:
+        init_db()
+        with db_connection() as conn:
+            if records is None:
+                records = collect_admin_gate_records(conn, {"domain": [domain], "limit": ["200"]} if domain else {"limit": ["200"]})
+            diagnoses_rows = conn.execute(
+                """
+                SELECT id, target_domain, target_type, target_id, diagnosis, gap_type,
+                       reason, note, actor, target_fingerprint, created_at, '{}',
+                       updated_at, expires_at
+                FROM admin_gate_diagnoses
+                ORDER BY created_at DESC
+                LIMIT 500
+                """
+            ).fetchall() if sqlite_has_table(conn, "admin_gate_diagnoses") else []
+            for row in diagnoses_rows:
+                diagnoses_by_target.setdefault((row[1], row[2], row[3]), []).append(row)
+        diagnosis_builder = admin_gate_diagnosis_from_row
 
     items = []
     for record in records:
@@ -6878,9 +8079,9 @@ def admin_gate_queue_payload(query):
             continue
         key = (record.get("domain"), record.get("targetType"), record.get("targetId"))
         open_diagnoses = [
-            admin_gate_diagnosis_from_row(row, record)
+            diagnosis_builder(row, record)
             for row in diagnoses_by_target.get(key, [])
-            if admin_gate_diagnosis_from_row(row, record)["resolutionStatus"] == "open"
+            if diagnosis_builder(row, record)["resolutionStatus"] == "open"
         ]
         items.append({
             "id": f"queue:{record['id']}",
@@ -6889,8 +8090,11 @@ def admin_gate_queue_payload(query):
             "targetId": record.get("targetId"),
             "title": record.get("title"),
             "status": record.get("status"),
+            "statusLabel": admin_gate_status_label(record.get("status")),
             "sourceStatus": record.get("sourceStatus"),
+            "sourceStatusLabel": admin_gate_status_label(record.get("sourceStatus")),
             "severity": record.get("severity"),
+            "severityLabel": admin_gate_severity_label(record.get("severity")),
             "blockers": record.get("blockers", [])[:5],
             "blockerDetails": record.get("blockerDetails", [])[:5],
             "diagnoses": open_diagnoses,
@@ -6928,20 +8132,32 @@ def admin_gate_summary_payload():
             {"key": "news", "label": "新闻资讯"},
             {"key": "talents", "label": "天赋树"},
             {"key": "gear", "label": "装备库"},
-            {"key": "queue", "label": "验证 gap 诊断队列"},
+            {"key": "gearTemplates", "label": "装备模板"},
+            {"key": "queue", "label": "待诊断阻断项"},
             {"key": "diagnoses", "label": "诊断记录"},
             {"key": "system", "label": "系统状态"},
         ],
         "overallStatus": health.get("overallStatus") or data_health_overall_status(components),
+        "overallStatusLabel": admin_gate_status_label(health.get("overallStatus") or data_health_overall_status(components)),
         "statusCounts": status_counts,
+        "statusLabels": {status: admin_gate_status_label(status) for status in DATA_HEALTH_STATUSES},
+        "severityLabels": ADMIN_GATE_SEVERITY_LABELS,
         "modules": [
             {
                 "key": component.get("key", ""),
-                "title": component.get("title", ""),
+                "title": admin_gate_module_title(component),
+                "rawTitle": component.get("title", ""),
                 "status": component.get("status", ""),
+                "statusLabel": admin_gate_status_label(component.get("status", "")),
                 "checkedAt": component.get("checkedAt", ""),
-                "blockers": (component.get("blockers") or [])[:5],
-                "topBlockers": ((component.get("details") or {}).get("topBlockers") or [])[:5],
+                "blockers": [
+                    admin_gate_localized_blocker(item)
+                    for item in (component.get("blockers") or [])[:5]
+                ],
+                "topBlockers": [
+                    admin_gate_localized_top_blocker(item)
+                    for item in ((component.get("details") or {}).get("topBlockers") or [])[:5]
+                ],
             }
             for component in components
         ],
@@ -6954,9 +8170,11 @@ def admin_gate_summary_payload():
 
 
 def admin_gate_record_detail_payload(domain, target_type, target_id):
-    init_db()
-    with db_connection() as conn:
-        record = find_admin_gate_record(conn, domain, target_type, target_id)
+    record = find_admin_gate_record_runtime(domain, target_type, target_id)
+    if record is None:
+        init_db()
+        with db_connection() as conn:
+            record = find_admin_gate_record(conn, domain, target_type, target_id)
     if not record:
         return {}
     return {
@@ -7005,30 +8223,43 @@ def admin_gates_page():
     :root { color-scheme: dark; --bg:#0d1117; --panel:#161b22; --line:#30363d; --text:#e6edf3; --muted:#8b949e; --gold:#f0b429; --red:#f85149; --green:#3fb950; --blue:#58a6ff; }
     * { box-sizing: border-box; }
     body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; letter-spacing:0; }
-    .shell { display:grid; grid-template-columns:220px 1fr 340px; min-height:100vh; }
+    .shell { display:grid; grid-template-columns:220px minmax(0,1fr); min-height:100vh; }
     aside { border-right:1px solid var(--line); padding:20px; background:#010409; }
-    main { padding:22px; min-width:0; }
-    .right { border-left:1px solid var(--line); padding:22px; background:#0b1017; }
+    main { padding:22px; min-width:0; max-width:1500px; width:100%; }
     h1,h2,h3,p { margin-top:0; }
     h1 { font-size:24px; margin-bottom:4px; }
     h2 { font-size:18px; margin:18px 0 10px; }
+    h3 { font-size:15px; margin:0 0 8px; }
     .muted { color:var(--muted); }
     input,select,button,textarea { width:100%; border:1px solid var(--line); border-radius:6px; background:#0d1117; color:var(--text); padding:9px 10px; font:inherit; }
     button { cursor:pointer; background:var(--gold); color:#111; border-color:var(--gold); font-weight:700; }
     nav button { margin-bottom:8px; background:#161b22; color:var(--text); border-color:var(--line); text-align:left; }
     nav button.active { border-color:var(--gold); color:var(--gold); background:#1f252d; }
     .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+    .module-grid, .queue-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; }
     .card { border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:14px; }
     .metric { font-size:26px; color:var(--gold); font-weight:800; }
     .status { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:2px 8px; font-size:12px; color:var(--muted); }
     .status.verified { color:var(--green); border-color:rgba(63,185,80,.4); }
     .status.blocked, .status.missing_credentials { color:var(--red); border-color:rgba(248,81,73,.4); }
     .status.partial, .status.pending_official_audit, .status.source_reference { color:var(--gold); border-color:rgba(240,180,41,.4); }
+    .category-pill { display:inline-block; border:1px solid rgba(88,166,255,.45); border-radius:999px; padding:2px 8px; color:var(--blue); font-size:12px; white-space:nowrap; }
     table { width:100%; border-collapse:collapse; margin-top:10px; font-size:13px; }
     th,td { border-bottom:1px solid var(--line); padding:8px; text-align:left; vertical-align:top; }
     th { color:var(--muted); font-weight:700; }
-    .toolbar { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; margin:14px 0; align-items:end; }
+    .toolbar { display:grid; grid-template-columns:1fr 1fr 1fr minmax(260px,1.4fr) auto; gap:8px; margin:14px 0; align-items:end; }
+    .toolbar[hidden] { display:none; }
+    .news-toolbar { grid-template-columns:minmax(160px,.8fr) minmax(220px,1fr) auto; }
+    .pagination { display:flex; align-items:center; gap:8px; justify-content:flex-end; margin-top:10px; flex-wrap:wrap; }
+    .pagination button { width:auto; min-width:76px; padding:7px 10px; }
+    .pagination button:disabled { opacity:.45; cursor:not-allowed; }
+    .pagination select { width:auto; min-width:112px; padding:7px 10px; }
+    .pagination .summary { min-width:160px; text-align:center; }
     .queue-item { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:10px; background:var(--panel); }
+    .view { display:none; }
+    .view.active { display:block; }
+    .view.active.stack { display:grid; }
+    .stack { gap:14px; }
     .notice { border:1px solid var(--line); border-radius:8px; padding:10px; margin:10px 0; color:var(--muted); background:#0d1117; }
     .notice.error { color:var(--red); border-color:rgba(248,81,73,.45); }
     .small { font-size:12px; }
@@ -7036,6 +8267,11 @@ def admin_gates_page():
     .auth-panel button, .auth-panel input { margin-top:8px; }
     .token-actions { display:grid; grid-template-columns:1fr; gap:6px; margin-top:6px; }
     .token-actions button { background:#161b22; color:var(--text); border-color:var(--line); }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns:1fr; }
+      aside { border-right:0; border-bottom:1px solid var(--line); }
+      .toolbar { grid-template-columns:1fr; }
+    }
   </style>
 </head>
 <body>
@@ -7057,37 +8293,308 @@ def admin_gates_page():
     </aside>
     <main>
       <div id="adminGateMessage" class="notice">请输入固定 WOW_ADMIN_TOKEN 后加载。</div>
-      <section class="card">
-        <h2>治理驾驶舱</h2>
-        <div id="summary" class="grid"><div class="card muted">等待加载线上门禁数据。</div></div>
+      <section id="overviewView" class="view active stack" data-admin-gate-view="overview">
+        <section class="card">
+          <h2>治理驾驶舱</h2>
+          <div id="summary" class="grid"><div class="card muted">等待加载线上门禁数据。</div></div>
+        </section>
+        <section>
+          <h2>模块概览</h2>
+          <div id="modules" class="module-grid"><div class="card muted">等待加载模块状态。</div></div>
+        </section>
       </section>
-      <section>
-        <h2>全量记录</h2>
-        <div class="toolbar">
-          <select id="domain"><option value="">全部模块</option><option value="news">新闻资讯</option><option value="talents">天赋树</option><option value="gear">装备库</option></select>
-          <select id="status"><option value="">全部状态</option><option value="verified">verified</option><option value="partial">partial</option><option value="blocked">blocked</option><option value="missing_credentials">missing_credentials</option><option value="source_reference">source_reference</option></select>
-          <input id="q" placeholder="搜索标题、来源、blocker">
+      <section id="recordsView" class="view" data-admin-gate-view="records">
+        <h2 id="recordsTitle">全量记录</h2>
+        <div id="genericToolbar" class="toolbar">
+          <select id="domain"><option value="">全部模块</option><option value="news">新闻资讯</option><option value="talents">天赋树</option><option value="gear">装备库</option><option value="gear_templates">装备模板</option></select>
+          <select id="status"><option value="">全部状态</option><option value="verified">verified（已验证）</option><option value="partial">partial（部分通过）</option><option value="stale">stale（已过期）</option><option value="blocked">blocked（已阻断）</option><option value="missing_credentials">missing_credentials（缺少凭据）</option><option value="pending_official_audit">pending_official_audit（待官方校验）</option><option value="source_reference">source_reference（仅作参考）</option></select>
+          <select id="field"></select>
+          <input id="q" placeholder="搜索当前模块展示字段">
           <button id="load">加载</button>
         </div>
+        <div id="newsToolbar" class="toolbar news-toolbar" hidden>
+          <select id="newsFilterKey"><option value="category">分类</option><option value="status">状态</option><option value="publication">发布情况</option></select>
+          <select id="newsFilterValue"></select>
+          <button id="newsLoad" type="button">加载</button>
+        </div>
+        <div id="talentToolbar" class="toolbar news-toolbar" hidden>
+          <select id="talentFilterKey"><option value="class">职业</option><option value="status">状态</option><option value="visibility">小程序可见性</option></select>
+          <select id="talentFilterValue"></select>
+          <button id="talentLoad" type="button">加载</button>
+        </div>
+        <div id="gearToolbar" class="toolbar news-toolbar" hidden>
+          <select id="gearFilterKey"><option value="dropSource">掉落来源</option><option value="class">职业</option><option value="visibility">小程序可见性</option></select>
+          <select id="gearFilterValue"></select>
+          <button id="gearLoad" type="button">加载</button>
+        </div>
+        <div id="gearTemplateToolbar" class="toolbar news-toolbar" hidden>
+          <select id="gearTemplateFilterKey"><option value="class">职业</option><option value="visibility">小程序是否可见</option></select>
+          <select id="gearTemplateFilterValue"></select>
+          <button id="gearTemplateLoad" type="button">加载</button>
+        </div>
         <table id="records"><tr><td class="muted">登录后加载线上门禁数据。</td></tr></table>
+        <div class="pagination" aria-label="记录分页">
+          <button id="prevPage" type="button">上一页</button>
+          <span id="paginationSummary" class="muted small summary">第 1 / 1 页，共 0 条</span>
+          <button id="nextPage" type="button">下一页</button>
+          <select id="pageSize" aria-label="单页展示数量">
+            <option value="20" selected>20 条/页</option>
+            <option value="50">50 条/页</option>
+            <option value="100">100 条/页</option>
+            <option value="200">200 条/页</option>
+          </select>
+        </div>
+      </section>
+      <section id="queueView" class="view stack" data-admin-gate-view="queue">
+        <section>
+          <h2>待诊断阻断项</h2>
+          <div id="queue" class="queue-list"><div class="queue-item muted">等待加载待诊断阻断项。</div></div>
+        </section>
+        <section class="card">
+          <h2>提交诊断</h2>
+          <textarea id="diagnosisPayload" rows="9" spellcheck="false" placeholder='{"targetDomain":"gear_templates","targetType":"community_gear_template","targetId":"...","diagnosis":"system_gap_suspected","gapType":"parser_or_mapping_bug","reason":"..."}'></textarea>
+          <button id="submitDiagnosis">记录诊断</button>
+          <p id="diagnosisResult" class="muted small"></p>
+        </section>
+      </section>
+      <section id="diagnosesView" class="view" data-admin-gate-view="diagnoses">
+        <h2>诊断记录</h2>
+        <div id="diagnoses"><p class="muted">等待加载诊断记录。</p></div>
+      </section>
+      <section id="systemView" class="view" data-admin-gate-view="system">
+        <h2>系统状态</h2>
+        <div id="systemHealth"><p class="muted">等待加载系统状态。</p></div>
       </section>
     </main>
-    <section class="right">
-      <h2>验证 gap 诊断队列</h2>
-      <div id="queue"><p class="muted">等待加载诊断队列。</p></div>
-      <h2>提交诊断</h2>
-      <textarea id="diagnosisPayload" rows="9" spellcheck="false" placeholder='{"targetDomain":"gear","targetType":"community_gear_template","targetId":"...","diagnosis":"system_gap_suspected","gapType":"parser_or_mapping_bug","reason":"..."}'></textarea>
-      <button id="submitDiagnosis">记录诊断</button>
-      <p id="diagnosisResult" class="muted small"></p>
-    </section>
   </div>
   <script>
     function escapeHtml(value) {
       return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     }
     const ADMIN_TOKEN_STORAGE_KEY = 'wowAdminToken';
+    const ADMIN_GATE_DEFAULT_PAGE_SIZE = 20;
     let currentAdminGateNav = 'overview';
-    const domainByNavKey = { news:'news', talents:'talents', gear:'gear' };
+    let adminGateRecordsPage = 1;
+    let latestAdminGateNavigation = [];
+    const domainByNavKey = { news:'news', talents:'talents', gear:'gear', gearTemplates:'gear_templates' };
+    const recordTitleByNavKey = { news:'新闻资讯记录', talents:'天赋树记录', gear:'装备库记录', gearTemplates:'装备模板记录' };
+    const statusLabels = { verified:'已验证', partial:'部分通过', stale:'已过期', blocked:'已阻断', missing_credentials:'缺少凭据', pending_official_audit:'待官方校验', source_reference:'仅作参考', passed:'已通过', synced:'已同步', ready:'已就绪', complete:'已完成', published:'已发布', open:'未解决', resolved:'已解决' };
+    const severityLabels = { ok:'正常', blocks_frontend_publish:'阻断前端发布', blocks_frontend_template:'阻断前端模板展示', blocks_simc_or_strong_claim:'阻断 SimC 或强结论', blocks_diagnostic_or_record:'影响诊断记录' };
+    const domainLabels = { news:'新闻资讯', talents:'天赋树', gear:'装备库', gear_templates:'装备模板' };
+    const adminGateFilterFields = {
+      news: [
+        { value:'all', label:'全部展示字段', placeholder:'搜索标题、分类、状态、发布情况、来源、Blockers' },
+        { value:'title', label:'标题', placeholder:'搜索标题、target type、target id' },
+        { value:'category', label:'分类', placeholder:'搜索正式服动态、测试服前瞻、职业强度变化或标签' },
+        { value:'status', label:'状态', placeholder:'搜索 verified、blocked、已验证、已阻断' },
+        { value:'publication', label:'发布情况', placeholder:'搜索已发布、未发布、发布时间、抓取时间或未发布原因' },
+        { value:'source', label:'来源', placeholder:'搜索来源名称或 URL' },
+        { value:'blockers', label:'Blockers', placeholder:'搜索 blocker 或诊断建议' },
+      ],
+      talents: [
+        { value:'all', label:'全部展示字段', placeholder:'搜索天赋模板、职业、来源、是否被阻断、阻断原因、小程序可见' },
+        { value:'talentTemplate', label:'天赋模板', placeholder:'搜索模板名、target type、target id' },
+        { value:'class', label:'职业', placeholder:'搜索职业、专精或英雄天赋' },
+        { value:'source', label:'来源', placeholder:'搜索来源名称、URL、社区来源或基础目录' },
+        { value:'blocked', label:'是否被阻断', placeholder:'搜索已阻断、未阻断、blocked 或 verified' },
+        { value:'blockReason', label:'阻断原因', placeholder:'搜索阻断原因、blocker 或未通过状态' },
+        { value:'visibility', label:'小程序可见', placeholder:'搜索已可见、不可见、天赋导入列表或原因' },
+      ],
+      gear: [
+        { value:'all', label:'全部展示字段', placeholder:'搜索装备名称、部位、掉落来源、状态、职业、小程序可见性、Block原因' },
+        { value:'gearName', label:'装备名称', placeholder:'搜索装备名、target type、target id' },
+        { value:'slot', label:'部位', placeholder:'搜索头部、手套、head、hands 等部位' },
+        { value:'dropSource', label:'掉落来源', placeholder:'搜索地下城、团本、制造业、dungeon、raid 等来源' },
+        { value:'status', label:'状态', placeholder:'搜索 verified、blocked、已验证、已阻断' },
+        { value:'class', label:'职业', placeholder:'搜索法师、战士、mage、warrior 等职业' },
+        { value:'visibility', label:'小程序可见性', placeholder:'搜索已可见、不可见' },
+        { value:'blockReason', label:'Block原因', placeholder:'搜索 blocker 或诊断建议' },
+      ],
+      gear_templates: [
+        { value:'all', label:'全部展示字段', placeholder:'搜索装备模板、职业、来源、状态、Blockers' },
+        { value:'title', label:'装备模板', placeholder:'搜索模板名、target type、target id' },
+        { value:'category', label:'职业', placeholder:'搜索职业、专精或社区来源' },
+        { value:'status', label:'状态', placeholder:'搜索 verified、blocked、已验证、已阻断' },
+        { value:'source', label:'来源', placeholder:'搜索来源名称或 URL' },
+        { value:'blockers', label:'Blockers', placeholder:'搜索 blocker 或诊断建议' },
+      ],
+      all: [
+        { value:'all', label:'全部展示字段', placeholder:'搜索当前模块展示字段' },
+        { value:'title', label:'标题', placeholder:'搜索标题、target type、target id' },
+        { value:'status', label:'状态', placeholder:'搜索状态' },
+        { value:'source', label:'来源', placeholder:'搜索来源名称或 URL' },
+        { value:'blockers', label:'Blockers', placeholder:'搜索 blocker 或诊断建议' },
+      ],
+    };
+    const newsFilterOptions = [
+      {
+        value:'category',
+        label:'分类',
+        queryField:'category',
+        values:[
+          { value:'', label:'全部分类' },
+          { value:'正式服动态', label:'正式服动态' },
+          { value:'测试服前瞻', label:'测试服前瞻' },
+          { value:'职业强度变化', label:'职业强度变化' },
+        ],
+      },
+      {
+        value:'status',
+        label:'状态',
+        queryField:'status',
+        values:[
+          { value:'', label:'全部状态' },
+          { value:'verified', label:'verified（已验证）' },
+          { value:'partial', label:'partial（部分通过）' },
+          { value:'stale', label:'stale（已过期）' },
+          { value:'blocked', label:'blocked（已阻断）' },
+          { value:'missing_credentials', label:'missing_credentials（缺少凭据）' },
+          { value:'pending_official_audit', label:'pending_official_audit（待官方校验）' },
+          { value:'source_reference', label:'source_reference（仅作参考）' },
+        ],
+      },
+      {
+        value:'publication',
+        label:'发布情况',
+        queryField:'publication',
+        values:[
+          { value:'', label:'全部发布情况' },
+          { value:'已发布', label:'已发布' },
+          { value:'未发布', label:'未发布' },
+        ],
+      },
+    ];
+    const talentFilterOptions = [
+      {
+        value:'class',
+        label:'职业',
+        queryField:'class',
+        values:[
+          { value:'', label:'全部职业' },
+          { value:'死亡骑士', label:'死亡骑士' },
+          { value:'恶魔猎手', label:'恶魔猎手' },
+          { value:'德鲁伊', label:'德鲁伊' },
+          { value:'唤魔师', label:'唤魔师' },
+          { value:'猎人', label:'猎人' },
+          { value:'法师', label:'法师' },
+          { value:'武僧', label:'武僧' },
+          { value:'圣骑士', label:'圣骑士' },
+          { value:'牧师', label:'牧师' },
+          { value:'潜行者', label:'潜行者' },
+          { value:'萨满祭司', label:'萨满祭司' },
+          { value:'术士', label:'术士' },
+          { value:'战士', label:'战士' },
+        ],
+      },
+      {
+        value:'status',
+        label:'状态',
+        queryField:'status',
+        values:[
+          { value:'', label:'全部状态' },
+          { value:'verified', label:'verified（已验证）' },
+          { value:'partial', label:'partial（部分通过）' },
+          { value:'stale', label:'stale（已过期）' },
+          { value:'blocked', label:'blocked（已阻断）' },
+          { value:'missing_credentials', label:'missing_credentials（缺少凭据）' },
+          { value:'pending_official_audit', label:'pending_official_audit（待官方校验）' },
+          { value:'source_reference', label:'source_reference（仅作参考）' },
+        ],
+      },
+      {
+        value:'visibility',
+        label:'小程序可见性',
+        queryField:'visibility',
+        values:[
+          { value:'', label:'全部可见性' },
+          { value:'已可见', label:'已可见' },
+          { value:'不可见', label:'不可见' },
+        ],
+      },
+    ];
+    const gearFilterOptions = [
+      {
+        value:'dropSource',
+        label:'掉落来源',
+        queryField:'dropSource',
+        values:[
+          { value:'', label:'全部掉落来源' },
+          { value:'地下城', label:'地下城' },
+          { value:'团本', label:'团本' },
+          { value:'制造业', label:'制造业' },
+          { value:'已验证掉落', label:'已验证掉落' },
+          { value:'社区样本', label:'社区样本' },
+          { value:'默认模板', label:'默认模板' },
+          { value:'WebSim 基线', label:'WebSim 基线' },
+        ],
+      },
+      {
+        value:'class',
+        label:'职业',
+        queryField:'class',
+        values:[
+          { value:'', label:'全部职业' },
+          { value:'死亡骑士', label:'死亡骑士' },
+          { value:'恶魔猎手', label:'恶魔猎手' },
+          { value:'德鲁伊', label:'德鲁伊' },
+          { value:'唤魔师', label:'唤魔师' },
+          { value:'猎人', label:'猎人' },
+          { value:'法师', label:'法师' },
+          { value:'武僧', label:'武僧' },
+          { value:'圣骑士', label:'圣骑士' },
+          { value:'牧师', label:'牧师' },
+          { value:'潜行者', label:'潜行者' },
+          { value:'萨满祭司', label:'萨满祭司' },
+          { value:'术士', label:'术士' },
+          { value:'战士', label:'战士' },
+          { value:'未标注职业', label:'未标注职业' },
+        ],
+      },
+      {
+        value:'visibility',
+        label:'小程序可见性',
+        queryField:'visibility',
+        values:[
+          { value:'', label:'全部可见性' },
+          { value:'已可见', label:'已可见' },
+          { value:'不可见', label:'不可见' },
+        ],
+      },
+    ];
+    const gearTemplateFilterOptions = [
+      {
+        value:'class',
+        label:'职业',
+        queryField:'class',
+        values:[
+          { value:'', label:'全部职业' },
+          { value:'死亡骑士', label:'死亡骑士' },
+          { value:'恶魔猎手', label:'恶魔猎手' },
+          { value:'德鲁伊', label:'德鲁伊' },
+          { value:'唤魔师', label:'唤魔师' },
+          { value:'猎人', label:'猎人' },
+          { value:'法师', label:'法师' },
+          { value:'武僧', label:'武僧' },
+          { value:'圣骑士', label:'圣骑士' },
+          { value:'牧师', label:'牧师' },
+          { value:'潜行者', label:'潜行者' },
+          { value:'萨满祭司', label:'萨满祭司' },
+          { value:'术士', label:'术士' },
+          { value:'战士', label:'战士' },
+          { value:'未标注职业', label:'未标注职业' },
+        ],
+      },
+      {
+        value:'visibility',
+        label:'小程序是否可见',
+        queryField:'visibility',
+        values:[
+          { value:'', label:'全部可见性' },
+          { value:'已可见', label:'已可见' },
+          { value:'不可见', label:'不可见' },
+        ],
+      },
+    ];
     function token() { return document.getElementById('token').value.trim(); }
     function loadSavedAdminToken() {
       try {
@@ -7141,7 +8648,21 @@ def admin_gates_page():
       if (!res.ok) throw new Error(res.status === 401 ? '认证失败：请检查 WOW_ADMIN_TOKEN' : `HTTP ${res.status}`);
       return res.json();
     }
-    function statusPill(value) { return `<span class="status ${escapeHtml(value)}">${escapeHtml(value)}</span>`; }
+    function withQuery(path, params) {
+      const query = params.toString();
+      return query ? `${path}?${query}` : path;
+    }
+    function statusText(value) {
+      const key = String(value ?? '').trim();
+      const label = statusLabels[key] || key;
+      return label && label !== key ? `${key}（${label}）` : key;
+    }
+    function severityText(value) {
+      const key = String(value ?? '').trim();
+      const label = severityLabels[key] || key;
+      return label && label !== key ? `${key}（${label}）` : key;
+    }
+    function statusPill(value) { return `<span class="status ${escapeHtml(value)}">${escapeHtml(statusText(value))}</span>`; }
     function blockerText(item) {
       const details = item.blockerDetails || [];
       if (details.length) {
@@ -7150,46 +8671,410 @@ def admin_gates_page():
       return (item.blockers || []).join(' / ');
     }
     function renderAdminGateNav(items) {
+      latestAdminGateNavigation = items || latestAdminGateNavigation;
       document.getElementById('nav').innerHTML = items.map(item => `<button type="button" data-admin-gate-nav="${escapeHtml(item.key)}" class="${item.key === currentAdminGateNav ? 'active' : ''}">${escapeHtml(item.label)}</button>`).join('');
     }
     function setAdminGateDomainFilter(domain) {
       document.getElementById('domain').value = domain;
     }
+    function resetAdminGatePage() {
+      adminGateRecordsPage = 1;
+    }
+    function recordsPageSize() {
+      const node = document.getElementById('pageSize');
+      return node ? (node.value || String(ADMIN_GATE_DEFAULT_PAGE_SIZE)) : String(ADMIN_GATE_DEFAULT_PAGE_SIZE);
+    }
+    function renderRecordsPagination(pagination) {
+      const page = Number((pagination || {}).page || adminGateRecordsPage || 1);
+      const pageSize = Number((pagination || {}).pageSize || recordsPageSize() || ADMIN_GATE_DEFAULT_PAGE_SIZE);
+      const total = Number((pagination || {}).total || 0);
+      const totalPages = Math.max(1, Number((pagination || {}).totalPages || 1));
+      adminGateRecordsPage = page;
+      document.getElementById('prevPage').disabled = !(pagination || {}).hasPrev;
+      document.getElementById('nextPage').disabled = !(pagination || {}).hasNext;
+      document.getElementById('paginationSummary').textContent = `第 ${page} / ${totalPages} 页，共 ${total} 条`;
+      const pageSizeNode = document.getElementById('pageSize');
+      if (pageSizeNode) pageSizeNode.value = String(pageSize);
+    }
+    function updateAdminGateFilterControls() {
+      const domain = document.getElementById('domain').value.trim() || 'all';
+      const fieldNode = document.getElementById('field');
+      const qNode = document.getElementById('q');
+      const options = adminGateFilterFields[domain] || adminGateFilterFields.all;
+      const current = fieldNode.value || 'all';
+      fieldNode.innerHTML = options.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join('');
+      fieldNode.value = options.some(item => item.value === current) ? current : 'all';
+      const selected = options.find(item => item.value === fieldNode.value) || options[0];
+      qNode.placeholder = selected.placeholder;
+    }
+    function currentNewsFilterOption() {
+      const key = document.getElementById('newsFilterKey').value || 'category';
+      return newsFilterOptions.find(item => item.value === key) || newsFilterOptions[0];
+    }
+    function updateNewsFilterValueOptions() {
+      const valueNode = document.getElementById('newsFilterValue');
+      const selected = currentNewsFilterOption();
+      const current = valueNode.value || '';
+      valueNode.innerHTML = selected.values.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join('');
+      valueNode.value = selected.values.some(item => item.value === current) ? current : '';
+    }
+    function currentTalentFilterOption() {
+      const key = document.getElementById('talentFilterKey').value || 'class';
+      return talentFilterOptions.find(item => item.value === key) || talentFilterOptions[0];
+    }
+    function updateTalentFilterValueOptions() {
+      const valueNode = document.getElementById('talentFilterValue');
+      const selected = currentTalentFilterOption();
+      const current = valueNode.value || '';
+      valueNode.innerHTML = selected.values.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join('');
+      valueNode.value = selected.values.some(item => item.value === current) ? current : '';
+    }
+    function currentGearFilterOption() {
+      const key = document.getElementById('gearFilterKey').value || 'dropSource';
+      return gearFilterOptions.find(item => item.value === key) || gearFilterOptions[0];
+    }
+    function updateGearFilterValueOptions() {
+      const valueNode = document.getElementById('gearFilterValue');
+      const selected = currentGearFilterOption();
+      const current = valueNode.value || '';
+      valueNode.innerHTML = selected.values.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join('');
+      valueNode.value = selected.values.some(item => item.value === current) ? current : '';
+    }
+    function currentGearTemplateFilterOption() {
+      const key = document.getElementById('gearTemplateFilterKey').value || 'class';
+      return gearTemplateFilterOptions.find(item => item.value === key) || gearTemplateFilterOptions[0];
+    }
+    function updateGearTemplateFilterValueOptions() {
+      const valueNode = document.getElementById('gearTemplateFilterValue');
+      const selected = currentGearTemplateFilterOption();
+      const current = valueNode.value || '';
+      valueNode.innerHTML = selected.values.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join('');
+      valueNode.value = selected.values.some(item => item.value === current) ? current : '';
+    }
+    function applyRecordToolbarForDomain(domain) {
+      const isNews = domain === 'news';
+      const isTalent = domain === 'talents';
+      const isGear = domain === 'gear';
+      const isGearTemplate = domain === 'gear_templates';
+      document.getElementById('genericToolbar').hidden = isNews || isTalent || isGear || isGearTemplate;
+      document.getElementById('newsToolbar').hidden = !isNews;
+      document.getElementById('talentToolbar').hidden = !isTalent;
+      document.getElementById('gearToolbar').hidden = !isGear;
+      document.getElementById('gearTemplateToolbar').hidden = !isGearTemplate;
+      if (isNews) {
+        updateNewsFilterValueOptions();
+      } else if (isTalent) {
+        updateTalentFilterValueOptions();
+      } else if (isGear) {
+        updateGearFilterValueOptions();
+      } else if (isGearTemplate) {
+        updateGearTemplateFilterValueOptions();
+      } else {
+        updateAdminGateFilterControls();
+      }
+    }
+    function applyNewsFilterParams(params) {
+      params.set('domain', 'news');
+      const selected = currentNewsFilterOption();
+      const value = document.getElementById('newsFilterValue').value.trim();
+      if (!value) return;
+      if (selected.queryField === 'status') {
+        params.set('status', value);
+        return;
+      }
+      params.set('field', selected.queryField);
+      params.set('q', value);
+    }
+    function applyTalentFilterParams(params) {
+      params.set('domain', 'talents');
+      const selected = currentTalentFilterOption();
+      const value = document.getElementById('talentFilterValue').value.trim();
+      if (!value) return;
+      if (selected.queryField === 'status') {
+        params.set('status', value);
+        return;
+      }
+      params.set('field', selected.queryField);
+      params.set('q', value);
+    }
+    function applyGearFilterParams(params) {
+      params.set('domain', 'gear');
+      const selected = currentGearFilterOption();
+      const value = document.getElementById('gearFilterValue').value.trim();
+      if (!value) return;
+      params.set('field', selected.queryField);
+      params.set('q', value);
+    }
+    function applyGearTemplateFilterParams(params) {
+      params.set('domain', 'gear_templates');
+      const selected = currentGearTemplateFilterOption();
+      const value = document.getElementById('gearTemplateFilterValue').value.trim();
+      if (!value) return;
+      params.set('field', selected.queryField);
+      params.set('q', value);
+    }
+    function adminGateShowsRecords() {
+      return ['news', 'talents', 'gear', 'gearTemplates'].includes(currentAdminGateNav);
+    }
+    function applyAdminGateView() {
+      const recordsNavs = ['news', 'talents', 'gear', 'gearTemplates'];
+      const active = recordsNavs.includes(currentAdminGateNav) ? 'records' : currentAdminGateNav;
+      document.querySelectorAll('[data-admin-gate-view]').forEach(node => {
+        const key = node.dataset.adminGateView;
+        const isActive = key === active;
+        node.classList.toggle('active', isActive);
+      });
+      document.getElementById('recordsTitle').textContent = recordTitleByNavKey[currentAdminGateNav] || '全量记录';
+      applyRecordToolbarForDomain(domainByNavKey[currentAdminGateNav] || document.getElementById('domain').value.trim());
+    }
     function selectAdminGateNav(key) {
       currentAdminGateNav = key || 'overview';
+      resetAdminGatePage();
       if (currentAdminGateNav === 'overview') {
         setAdminGateDomainFilter('');
         document.getElementById('status').value = '';
+        document.getElementById('field').value = 'all';
         document.getElementById('q').value = '';
       } else {
         const domain = domainByNavKey[currentAdminGateNav] || '';
         document.getElementById('domain').value = domain;
+        document.getElementById('field').value = 'all';
+        document.getElementById('q').value = '';
       }
+      applyRecordToolbarForDomain(domainByNavKey[currentAdminGateNav] || document.getElementById('domain').value.trim());
+      applyAdminGateView();
       refreshAdminGates();
+    }
+    function renderSummary(data) {
+      document.getElementById('summary').innerHTML = Object.entries(data.statusCounts || {}).map(([key, value]) => `<div class="card"><div>${escapeHtml(statusText(key))}</div><div class="metric">${escapeHtml(value)}</div></div>`).join('');
+    }
+    function renderModules(modules) {
+      document.getElementById('modules').innerHTML = (modules || []).map(item => {
+        const blockers = [...(item.blockers || []), ...(item.topBlockers || []).map(blocker => blocker.reason || blocker.code || '')].filter(Boolean).slice(0, 3);
+        return `<div class="card"><h3>${escapeHtml(item.title || item.key)}</h3><div>${statusPill(item.status)}</div><p class="muted small">${escapeHtml(item.checkedAt || '')}</p><p class="muted small">${escapeHtml(blockers.join(' / ') || '暂无 blocker')}</p></div>`;
+      }).join('') || '<div class="card muted">暂无模块状态。</div>';
+    }
+    function renderSystemHealth(data) {
+      const health = data.sourceHealth || {};
+      const modules = data.modules || [];
+      document.getElementById('systemHealth').innerHTML = `<div class="grid"><div class="card"><h3>overallStatus</h3>${statusPill(data.overallStatus || health.overallStatus || '')}</div><div class="card"><h3>checkedAt</h3><p class="muted small">${escapeHtml(data.checkedAt || '')}</p></div><div class="card"><h3>schemaRevision</h3><p class="muted small">${escapeHtml(data.schemaRevision || '')}</p></div></div><table><tr><th>模块</th><th>状态</th><th>检查时间</th><th>Blockers</th></tr>${modules.map(item => `<tr><td>${escapeHtml(item.title || item.key)}</td><td>${statusPill(item.status)}</td><td>${escapeHtml(item.checkedAt || '')}</td><td>${escapeHtml([...(item.blockers || []), ...(item.topBlockers || []).map(blocker => blocker.reason || blocker.code || '')].filter(Boolean).slice(0, 5).join(' / '))}</td></tr>`).join('')}</table>`;
     }
     async function loadSummary() {
       const data = await api('/api/admin/gates/summary');
       renderAdminGateNav(data.navigation);
-      document.getElementById('summary').innerHTML = Object.entries(data.statusCounts).map(([key, value]) => `<div class="card"><div>${escapeHtml(key)}</div><div class="metric">${escapeHtml(value)}</div></div>`).join('');
-      document.getElementById('queue').innerHTML = data.diagnosticQueue.items.map(item => `<div class="queue-item"><strong>${escapeHtml(item.title)}</strong><div>${statusPill(item.status)} ${escapeHtml(item.severity)}</div><p class="muted small">${escapeHtml(blockerText(item))}</p></div>`).join('') || '<p class="muted">暂无待诊断项</p>';
+      renderSummary(data);
+      renderModules(data.modules);
+      renderSystemHealth(data);
+      applyAdminGateView();
+    }
+    function newsPublicationCell(item) {
+      const publication = item.publication || {};
+      if (publication.state === 'published') {
+        const publishedAt = publication.publishedAt || (item.rawSummary || {}).publishedAt || '';
+        return `<div>${statusPill('published')}</div><p class="muted small">发布时间：${escapeHtml(publishedAt || '未记录')}</p>`;
+      }
+      const capturedAt = publication.capturedAt || item.checkedAt || '';
+      const reason = publication.unpublishedReason || blockerText(item) || item.rawStatus || item.status || '';
+      return `<div><span class="status blocked">未发布</span></div><p class="muted small">抓取时间：${escapeHtml(capturedAt || '未记录')}</p><p class="muted small">未发布原因：${escapeHtml(reason || '未记录')}</p>`;
+    }
+    function newsCategoryCell(item) {
+      const category = item.articleCategory || {};
+      const label = category.label || category.channel || category.category || '未分类';
+      const meta = [category.category, ...(category.tags || [])].filter(Boolean).slice(0, 4).join(' / ');
+      return `<span class="category-pill">${escapeHtml(label)}</span>${meta ? `<br><span class="muted small">${escapeHtml(meta)}</span>` : ''}`;
+    }
+    function talentCategoryCell(item) {
+      const category = item.talentCategory || {};
+      const label = category.classLabel || category.label || category.classKey || '未知职业';
+      const sourceLabel = category.sourceLabel || (category.sourceKind === 'community' ? '社区来源' : '基础目录');
+      const meta = [category.specKey, category.heroKey].filter(Boolean).join(' / ');
+      return `<span class="category-pill">${escapeHtml(label)}</span><br><span class="muted small">${escapeHtml(sourceLabel)}</span>${meta ? `<br><span class="muted small">${escapeHtml(meta)}</span>` : ''}`;
+    }
+    function talentPublicationCell(item) {
+      const publication = item.talentPublication || {};
+      const state = publication.state === 'visible' ? 'verified' : 'blocked';
+      const reason = publication.reason || '';
+      const visibleAt = publication.visibleAt || '';
+      return `<div>${statusPill(state)}</div><p class="muted small">${escapeHtml(publication.stateLabel || '未知')}</p><p class="muted small">${escapeHtml(publication.surface || '小程序')}</p>${visibleAt ? `<p class="muted small">可见时间：${escapeHtml(visibleAt)}</p>` : ''}${reason ? `<p class="muted small">${escapeHtml(reason)}</p>` : ''}`;
+    }
+    function talentBlockReasonCell(item) {
+      const blockReason = item.talentBlockReason || {};
+      const state = blockReason.state === 'clear' ? 'verified' : 'blocked';
+      const reason = blockReason.reason || blockerText(item) || '未记录';
+      return `<div>${statusPill(state)}</div><p class="muted small">${escapeHtml(blockReason.stateLabel || '')}</p><p class="muted small">${escapeHtml(reason)}</p>`;
+    }
+    function gearCategoryCell(item) {
+      const category = item.gearCategory || {};
+      const label = category.slotLabel || category.classLabel || category.label || '未分类';
+      const sourceLabel = category.sourceLabel || category.sourceType || '';
+      const variantMeta = [
+        category.sourceType,
+        category.difficultyKey,
+        category.itemLevel ? `ilvl ${category.itemLevel}` : '',
+      ].filter(Boolean).join(' / ');
+      const templateMeta = [
+        category.specKey,
+        category.readySlotCount ? `${category.readySlotCount}/16 ready` : '',
+        category.missingSlotCount ? `${category.missingSlotCount} missing` : '',
+      ].filter(Boolean).join(' / ');
+      const meta = item.targetType === 'community_gear_template' ? templateMeta : variantMeta;
+      return `<span class="category-pill">${escapeHtml(label)}</span>${sourceLabel ? `<br><span class="muted small">${escapeHtml(sourceLabel)}</span>` : ''}${meta ? `<br><span class="muted small">${escapeHtml(meta)}</span>` : ''}`;
+    }
+    function gearSlotCell(item) {
+      const category = item.gearCategory || {};
+      const label = category.slotLabel || category.slot || '未知部位';
+      const meta = category.slot && category.slot !== label ? category.slot : '';
+      return `<span class="category-pill">${escapeHtml(label)}</span>${meta ? `<br><span class="muted small">${escapeHtml(meta)}</span>` : ''}`;
+    }
+    function gearDropSourceCell(item) {
+      const category = item.gearCategory || {};
+      const label = category.sourceLabel || category.sourceType || item.sourceName || '未知来源';
+      const meta = [category.sourceType, category.difficultyKey, category.itemLevel ? `ilvl ${category.itemLevel}` : ''].filter(Boolean).join(' / ');
+      return `<span class="category-pill">${escapeHtml(label)}</span>${meta ? `<br><span class="muted small">${escapeHtml(meta)}</span>` : ''}`;
+    }
+    function gearClassCell(item) {
+      const category = item.gearCategory || {};
+      const labels = Array.isArray(category.classLabels) ? category.classLabels : [];
+      const label = labels.length ? labels.join(' / ') : (category.classLabel || '未标注职业');
+      const keys = Array.isArray(category.classKeys) ? category.classKeys.join(' / ') : '';
+      return `<span class="category-pill">${escapeHtml(label)}</span>${keys ? `<br><span class="muted small">${escapeHtml(keys)}</span>` : ''}`;
+    }
+    function gearVisibilityCell(item) {
+      const visibility = item.gearVisibility || {};
+      const state = visibility.state === 'visible' ? 'verified' : 'blocked';
+      const reason = visibility.reason || '';
+      return `<div>${statusPill(state)}</div><p class="muted small">${escapeHtml(visibility.stateLabel || '未知')}</p>${reason ? `<p class="muted small">${escapeHtml(reason)}</p>` : ''}`;
+    }
+    function gearBlockReasonCell(item) {
+      const blockReason = item.gearBlockReason || {};
+      const state = blockReason.state === 'clear' ? 'verified' : 'blocked';
+      const reason = blockReason.reason || blockerText(item) || '未记录';
+      return `<div>${statusPill(state)}</div><p class="muted small">${escapeHtml(blockReason.stateLabel || '')}</p><p class="muted small">${escapeHtml(reason)}</p>`;
     }
     async function loadRecords() {
       const params = new URLSearchParams();
-      ['domain','status','q'].forEach(id => { const value = document.getElementById(id).value.trim(); if (value) params.set(id, value); });
-      const data = await api(`/api/admin/gates/records?${params}`);
-      document.getElementById('records').innerHTML = '<tr><th>模块</th><th>标题</th><th>状态</th><th>来源</th><th>Blockers</th></tr>' +
-        (data.records.length ? data.records.map(item => `<tr><td>${escapeHtml(item.domain)}</td><td>${escapeHtml(item.title)}<br><span class="muted small">${escapeHtml(item.targetType)} / ${escapeHtml(item.targetId)}</span></td><td>${statusPill(item.status)}</td><td>${escapeHtml(item.sourceName)}<br><span class="muted small">${escapeHtml(item.sourceUrl)}</span></td><td>${escapeHtml(blockerText(item))}</td></tr>`).join('') : '<tr><td colspan="5" class="muted">当前过滤条件下没有记录。</td></tr>');
+      const domainValue = domainByNavKey[currentAdminGateNav] || document.getElementById('domain').value.trim();
+      if (domainValue === 'news') {
+        applyNewsFilterParams(params);
+      } else if (domainValue === 'talents') {
+        applyTalentFilterParams(params);
+      } else if (domainValue === 'gear') {
+        applyGearFilterParams(params);
+      } else if (domainValue === 'gear_templates') {
+        applyGearTemplateFilterParams(params);
+      } else {
+        updateAdminGateFilterControls();
+        ['domain','status','field','q'].forEach(id => { const value = document.getElementById(id).value.trim(); if (value) params.set(id, value); });
+      }
+      params.set('page', String(adminGateRecordsPage));
+      params.set('pageSize', recordsPageSize());
+      const data = await api(withQuery('/api/admin/gates/records', params));
+      const isNewsRecords = domainValue === 'news';
+      const isTalentRecords = domainValue === 'talents';
+      const isGearRecords = domainValue === 'gear';
+      const isGearTemplateRecords = domainValue === 'gear_templates';
+      const hasCategoryColumn = isNewsRecords || isTalentRecords || isGearTemplateRecords;
+      const header = isNewsRecords ? '<tr><th>模块</th><th>标题</th><th>分类</th><th>状态</th><th>发布情况</th><th>来源</th><th>Blockers</th></tr>' : (isTalentRecords ? '<tr><th>模块</th><th>标题</th><th>分类</th><th>状态</th><th>小程序可见</th><th>来源</th><th>阻断原因</th></tr>' : (isGearRecords ? '<tr><th>模块</th><th>装备名称</th><th>部位</th><th>掉落来源</th><th>状态</th><th>职业</th><th>小程序可见</th><th>Block原因</th></tr>' : (isGearTemplateRecords ? '<tr><th>模块</th><th>装备模板</th><th>职业</th><th>状态</th><th>小程序是否可见</th><th>来源</th><th>Blockers</th></tr>' : (hasCategoryColumn ? '<tr><th>模块</th><th>标题</th><th>分类</th><th>状态</th><th>来源</th><th>Blockers</th></tr>' : '<tr><th>模块</th><th>标题</th><th>状态</th><th>来源</th><th>Blockers</th></tr>'))));
+      const emptyColspan = isNewsRecords ? 7 : (isTalentRecords ? 7 : (isGearRecords ? 8 : (isGearTemplateRecords ? 7 : (hasCategoryColumn ? 6 : 5))));
+      const rows = data.records.length ? data.records.map(item => {
+        if (isGearRecords) {
+          return `<tr><td>${escapeHtml(domainLabels[item.domain] || item.domain)}</td><td>${escapeHtml(item.title)}<br><span class="muted small">${escapeHtml(item.targetType)} / ${escapeHtml(item.targetId)}</span></td><td>${gearSlotCell(item)}</td><td>${gearDropSourceCell(item)}</td><td>${statusPill(item.status)}</td><td>${gearClassCell(item)}</td><td>${gearVisibilityCell(item)}</td><td>${gearBlockReasonCell(item)}</td></tr>`;
+        }
+        if (isGearTemplateRecords) {
+          return `<tr><td>${escapeHtml(domainLabels[item.domain] || item.domain)}</td><td>${escapeHtml(item.title)}<br><span class="muted small">${escapeHtml(item.targetType)} / ${escapeHtml(item.targetId)}</span></td><td>${gearCategoryCell(item)}</td><td>${statusPill(item.status)}</td><td>${gearVisibilityCell(item)}</td><td>${escapeHtml(item.sourceName)}<br><span class="muted small">${escapeHtml(item.sourceUrl)}</span></td><td>${escapeHtml(blockerText(item))}</td></tr>`;
+        }
+        const publicationCell = isNewsRecords ? `<td>${newsPublicationCell(item)}</td>` : '';
+        const categoryCell = hasCategoryColumn ? `<td>${isNewsRecords ? newsCategoryCell(item) : (isTalentRecords ? talentCategoryCell(item) : gearCategoryCell(item))}</td>` : '';
+        const talentPublication = isTalentRecords ? `<td>${talentPublicationCell(item)}</td>` : '';
+        const blockerCell = isTalentRecords ? talentBlockReasonCell(item) : escapeHtml(blockerText(item));
+        return `<tr><td>${escapeHtml(domainLabels[item.domain] || item.domain)}</td><td>${escapeHtml(item.title)}<br><span class="muted small">${escapeHtml(item.targetType)} / ${escapeHtml(item.targetId)}</span></td>${categoryCell}<td>${statusPill(item.status)}</td>${publicationCell}${talentPublication}<td>${escapeHtml(item.sourceName)}<br><span class="muted small">${escapeHtml(item.sourceUrl)}</span></td><td>${blockerCell}</td></tr>`;
+      }).join('') : `<tr><td colspan="${emptyColspan}" class="muted">当前过滤条件下没有记录。</td></tr>`;
+      document.getElementById('records').innerHTML = header + rows;
+      renderRecordsPagination(data.pagination);
+    }
+    async function loadQueue() {
+      const data = await api('/api/admin/gates/queue?limit=80');
+      document.getElementById('queue').innerHTML = data.items.map(item => `<div class="queue-item"><h3>${escapeHtml(item.title)}</h3><div>${statusPill(item.status)} <span class="muted small">${escapeHtml(severityText(item.severity))}</span></div><p class="muted small">${escapeHtml(item.targetDomain)} / ${escapeHtml(item.targetType)} / ${escapeHtml(item.targetId)}</p><p class="muted small">${escapeHtml(blockerText(item))}</p><p class="muted small">未解决诊断：${escapeHtml((item.diagnoses || []).length)}</p></div>`).join('') || '<div class="queue-item muted">暂无待诊断阻断项。</div>';
+    }
+    async function loadDiagnoses() {
+      const data = await api('/api/admin/gates/diagnoses?limit=100');
+      document.getElementById('diagnoses').innerHTML = '<table><tr><th>目标</th><th>状态</th><th>诊断</th><th>原因</th><th>时间</th></tr>' +
+        (data.items.length ? data.items.map(item => `<tr><td>${escapeHtml(item.targetDomain)} / ${escapeHtml(item.targetType)} / ${escapeHtml(item.targetId)}</td><td>${statusPill(item.resolutionStatus)}<br>${statusPill(item.currentStatus)}</td><td>${escapeHtml(item.gapType || item.diagnosis)}</td><td>${escapeHtml(item.reason)}</td><td>${escapeHtml(item.createdAt)}</td></tr>`).join('') : '<tr><td colspan="5" class="muted">暂无诊断记录。</td></tr>') +
+        '</table>';
     }
     async function refreshAdminGates() {
       try {
         clearAdminGateError();
-        await Promise.all([loadSummary(), loadRecords()]);
+        const tasks = [loadSummary(), loadQueue(), loadDiagnoses()];
+        if (adminGateShowsRecords()) tasks.push(loadRecords());
+        await Promise.all(tasks);
         document.getElementById('adminGateMessage').textContent = '已加载线上门禁数据。';
       } catch (error) {
         showAdminGateError(error.message || String(error));
       }
     }
-    document.getElementById('load').addEventListener('click', refreshAdminGates);
+    document.getElementById('load').addEventListener('click', () => {
+      resetAdminGatePage();
+      refreshAdminGates();
+    });
+    document.getElementById('newsLoad').addEventListener('click', () => {
+      resetAdminGatePage();
+      refreshAdminGates();
+    });
+    document.getElementById('talentLoad').addEventListener('click', () => {
+      resetAdminGatePage();
+      refreshAdminGates();
+    });
+    document.getElementById('gearLoad').addEventListener('click', () => {
+      resetAdminGatePage();
+      refreshAdminGates();
+    });
+    document.getElementById('gearTemplateLoad').addEventListener('click', () => {
+      resetAdminGatePage();
+      refreshAdminGates();
+    });
+    document.getElementById('domain').addEventListener('change', () => {
+      resetAdminGatePage();
+      applyRecordToolbarForDomain(document.getElementById('domain').value.trim());
+    });
+    document.getElementById('status').addEventListener('change', resetAdminGatePage);
+    document.getElementById('field').addEventListener('change', () => {
+      resetAdminGatePage();
+      updateAdminGateFilterControls();
+    });
+    document.getElementById('newsFilterKey').addEventListener('change', () => {
+      resetAdminGatePage();
+      updateNewsFilterValueOptions();
+    });
+    document.getElementById('newsFilterValue').addEventListener('change', resetAdminGatePage);
+    document.getElementById('talentFilterKey').addEventListener('change', () => {
+      resetAdminGatePage();
+      updateTalentFilterValueOptions();
+    });
+    document.getElementById('talentFilterValue').addEventListener('change', resetAdminGatePage);
+    document.getElementById('gearFilterKey').addEventListener('change', () => {
+      resetAdminGatePage();
+      updateGearFilterValueOptions();
+    });
+    document.getElementById('gearFilterValue').addEventListener('change', resetAdminGatePage);
+    document.getElementById('gearTemplateFilterKey').addEventListener('change', () => {
+      resetAdminGatePage();
+      updateGearTemplateFilterValueOptions();
+    });
+    document.getElementById('gearTemplateFilterValue').addEventListener('change', resetAdminGatePage);
+    document.getElementById('pageSize').addEventListener('change', () => {
+      resetAdminGatePage();
+      refreshAdminGates();
+    });
+    document.getElementById('prevPage').addEventListener('click', () => {
+      if (adminGateRecordsPage <= 1) return;
+      adminGateRecordsPage -= 1;
+      refreshAdminGates();
+    });
+    document.getElementById('nextPage').addEventListener('click', () => {
+      adminGateRecordsPage += 1;
+      refreshAdminGates();
+    });
     document.getElementById('nav').addEventListener('click', (event) => {
       const item = event.target.closest('[data-admin-gate-nav]');
       if (!item) return;
@@ -7205,13 +9090,19 @@ def admin_gates_page():
         const payload = JSON.parse(document.getElementById('diagnosisPayload').value || '{}');
         const result = await api('/api/admin/gates/diagnoses', { method:'POST', body: JSON.stringify(payload) });
         document.getElementById('diagnosisResult').textContent = `已记录：${result.id}`;
-        await Promise.all([loadSummary(), loadRecords()]);
+        await Promise.all([loadSummary(), loadRecords(), loadQueue(), loadDiagnoses()]);
       } catch (error) {
         document.getElementById('diagnosisResult').textContent = error.message || String(error);
         showAdminGateError(error.message || String(error));
       }
     });
     loadSavedAdminToken();
+    updateAdminGateFilterControls();
+    updateNewsFilterValueOptions();
+    updateTalentFilterValueOptions();
+    updateGearFilterValueOptions();
+    updateGearTemplateFilterValueOptions();
+    applyAdminGateView();
     if (token()) refreshAdminGates();
   </script>
 </body>

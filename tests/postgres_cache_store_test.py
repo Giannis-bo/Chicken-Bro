@@ -358,6 +358,101 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_profile_presets", sql)
         self.assertIn("FROM cache.websim_community_talent_templates", sql)
 
+    def test_admin_gate_records_read_cache_runtime_tables(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "44444444-4444-4444-8444-444444444444",
+                        "mage",
+                        "frost",
+                        "spellslinger",
+                        "mythic_plus",
+                        "Template A",
+                        "raiderio",
+                        "Raider.IO",
+                        "https://example.test/template",
+                        "verified",
+                        "verified",
+                        12,
+                        10,
+                        "weekly",
+                        {"blockers": []},
+                        "2026-06-30T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "sig-a",
+                        [{"type": "raiderio"}],
+                        "scan-a",
+                    )
+                ],
+                "FROM cache.websim_talents GROUP BY": [
+                    ("mage", "frost", 110, "2026-06-30T00:00:00+00:00")
+                ],
+                "SELECT to_regclass": [("cache.websim_community_gear_templates",)],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "55555555-5555-4555-8555-555555555555",
+                        "warrior",
+                        "arms",
+                        "Gear Template A",
+                        "raiderio",
+                        "Raider.IO",
+                        "https://example.test/gear-template",
+                        "blocked",
+                        "blocked",
+                        "sig-gear-a",
+                        [{"type": "raiderio"}],
+                        [{"slot": "head"}],
+                        "head=item_a,id=1",
+                        1,
+                        ["hands"],
+                        "weekly",
+                        {"blockers": ["missing required gear slots"]},
+                        "2026-06-30T00:01:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-gear-a",
+                    )
+                ],
+                "FROM cache.websim_gear_variants": [
+                    (
+                        "22222222-2222-4222-8222-222222222222",
+                        "item-a",
+                        "Item A",
+                        "head",
+                        "Mythic Item A",
+                        "dungeon",
+                        "mythic",
+                        678,
+                        "verified",
+                        [],
+                        {"simcOptions": {"ilevel": 678}},
+                        {
+                            "item_class": {"id": 4, "name": "Armor"},
+                            "item_subclass": {"id": 1, "name": "Cloth"},
+                        },
+                        "2026-06-30T00:00:00+00:00",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        talents = store.admin_gate_talent_records()
+        gear = store.admin_gate_gear_records()
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(talents["communityTalentTemplates"][0]["id"], "44444444-4444-4444-8444-444444444444")
+        self.assertEqual(talents["talentTrees"][0]["nodeCount"], 110)
+        self.assertEqual(gear["communityGearTemplates"][0]["id"], "55555555-5555-4555-8555-555555555555")
+        self.assertEqual(gear["communityGearTemplates"][0]["missingSlots"], ["hands"])
+        self.assertEqual(gear["gearVariants"][0]["id"], "22222222-2222-4222-8222-222222222222")
+        self.assertIn("FROM cache.websim_community_talent_templates", sql)
+        self.assertIn("FROM cache.websim_talents", sql)
+        self.assertIn("FROM cache.websim_community_gear_templates", sql)
+        self.assertIn("FROM cache.websim_gear_variants", sql)
+
 
 if __name__ == "__main__":
     unittest.main()

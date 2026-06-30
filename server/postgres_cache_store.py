@@ -800,6 +800,146 @@ class PostgresCacheStore:
         payload["catalogItems"] = output_catalog_items[:120]
         return payload
 
+    def admin_gate_talent_records(self):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, class_key, spec_key, hero_key, scenario_key, name,
+                           source_key, source_name, source_url, source_status, status,
+                           sample_count, max_key_level, analysis_window, payload_json,
+                           updated_at, expires_at, signature, source_refs_json, scan_run_id
+                    FROM cache.websim_community_talent_templates
+                    ORDER BY updated_at DESC
+                    LIMIT 500
+                    """
+                )
+                template_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT class_key, spec_key, COUNT(*) AS node_count, MAX(updated_at)
+                    FROM cache.websim_talents
+                    GROUP BY class_key, spec_key
+                    ORDER BY class_key, spec_key
+                    LIMIT 500
+                    """
+                )
+                tree_rows = cur.fetchall()
+        return {
+            "communityTalentTemplates": [
+                {
+                    "id": str(row[0] or ""),
+                    "classKey": row[1] or "",
+                    "specKey": row[2] or "",
+                    "heroKey": row[3] or "",
+                    "scenarioKey": row[4] or "",
+                    "name": row[5] or "",
+                    "sourceKey": row[6] or "",
+                    "sourceName": row[7] or "",
+                    "sourceUrl": row[8] or "",
+                    "sourceStatus": row[9] or "",
+                    "status": row[10] or "",
+                    "sampleCount": _int_value(row[11]),
+                    "maxKeyLevel": _int_value(row[12]),
+                    "analysisWindow": row[13] or "",
+                    "payload": _json_value(row[14], {}),
+                    "updatedAt": str(row[15] or ""),
+                    "expiresAt": str(row[16] or ""),
+                    "signature": row[17] or "",
+                    "sourceRefs": _json_value(row[18], []),
+                    "scanRunId": row[19] or "",
+                }
+                for row in template_rows
+            ],
+            "talentTrees": [
+                {
+                    "classKey": row[0] or "",
+                    "specKey": row[1] or "",
+                    "nodeCount": _int_value(row[2]),
+                    "updatedAt": str(row[3] or ""),
+                }
+                for row in tree_rows
+            ],
+        }
+
+    def admin_gate_gear_records(self):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT to_regclass('cache.websim_community_gear_templates')")
+                has_gear_templates = bool((cur.fetchone() or [None])[0])
+                template_rows = []
+                if has_gear_templates:
+                    cur.execute(
+                        """
+                        SELECT id, class_key, spec_key, name, source_key, source_name,
+                               source_url, source_status, status, signature, source_refs_json,
+                               gear_items_json, raw_string, ready_slot_count, missing_slots_json,
+                               analysis_window, payload_json, updated_at, expires_at, scan_run_id
+                        FROM cache.websim_community_gear_templates
+                        ORDER BY updated_at DESC
+                        LIMIT 500
+                        """
+                    )
+                    template_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT v.id, v.item_id, COALESCE(NULLIF(i.name, ''), v.item_id),
+                           v.slot, v.label, v.source_type, v.difficulty_key, v.item_level,
+                           v.status, v.blockers_json, v.payload_json, i.payload_json,
+                           v.updated_at
+                    FROM cache.websim_gear_variants v
+                    LEFT JOIN cache.websim_items i ON i.id = v.item_id
+                    ORDER BY v.updated_at DESC
+                    LIMIT 500
+                    """
+                )
+                variant_rows = cur.fetchall()
+        return {
+            "communityGearTemplates": [
+                {
+                    "id": str(row[0] or ""),
+                    "classKey": row[1] or "",
+                    "specKey": row[2] or "",
+                    "name": row[3] or "",
+                    "sourceKey": row[4] or "",
+                    "sourceName": row[5] or "",
+                    "sourceUrl": row[6] or "",
+                    "sourceStatus": row[7] or "",
+                    "status": row[8] or "",
+                    "signature": row[9] or "",
+                    "sourceRefs": _json_value(row[10], []),
+                    "gearItems": _json_value(row[11], []),
+                    "rawString": row[12] or "",
+                    "readySlotCount": _int_value(row[13]),
+                    "missingSlots": _json_value(row[14], []),
+                    "analysisWindow": row[15] or "",
+                    "payload": _json_value(row[16], {}),
+                    "updatedAt": str(row[17] or ""),
+                    "expiresAt": str(row[18] or ""),
+                    "scanRunId": row[19] or "",
+                }
+                for row in template_rows
+            ],
+            "gearVariants": [
+                {
+                    "id": str(row[0] or ""),
+                    "itemId": str(row[1] or ""),
+                    "itemName": str(row[2] or ""),
+                    "slot": row[3] or "",
+                    "label": row[4] or "",
+                    "sourceType": row[5] or "",
+                    "difficultyKey": row[6] or "",
+                    "itemLevel": _int_value(row[7]),
+                    "status": row[8] or "",
+                    "blockers": _json_value(row[9], []),
+                    "payload": _json_value(row[10], {}),
+                    "itemPayload": _json_value(row[11], {}),
+                    "updatedAt": str(row[12] or ""),
+                }
+                for row in variant_rows
+            ],
+        }
+
     def get_websim_loot(self, filters=None, limit=120):
         filters = filters or {}
         season = self.get_active_season_payload()

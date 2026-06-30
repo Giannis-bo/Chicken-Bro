@@ -85,8 +85,9 @@ function isTrustedStory(story) {
 
 function sortStories(stories) {
   return [...stories].sort((a, b) => {
-    if (b.importance !== a.importance) return b.importance - a.importance
-    return b.publishedAt.localeCompare(a.publishedAt)
+    const dateOrder = b.publishedAt.localeCompare(a.publishedAt)
+    if (dateOrder !== 0) return dateOrder
+    return b.importance - a.importance
   })
 }
 

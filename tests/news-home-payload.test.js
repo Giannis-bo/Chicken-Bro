@@ -68,6 +68,16 @@ test('builds the news home payload expected by the first tab', () => {
   assert.ok(payload.highlights.length >= 3)
 })
 
+test('prioritizes newest published stories before older high-importance stories', () => {
+  const payload = buildNewsHomePayload([
+    article({ id: 'old-important', importance: 100, publishedAt: '2026-06-03' }),
+    article({ id: 'new-published', importance: 86, publishedAt: '2026-06-29' })
+  ])
+
+  assert.equal(payload.heroNews[0].id, 'new-published')
+  assert.equal(payload.highlights[0].id, 'new-published')
+})
+
 test('keeps source and publication evidence on every visible story', () => {
   const payload = buildNewsHomePayload([
     article({ id: 'a', importance: 100 }),

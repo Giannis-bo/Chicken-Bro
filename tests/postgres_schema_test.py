@@ -12,6 +12,7 @@ WEBSIM_SEASON_LOOT_CACHE = ROOT / "server" / "migrations" / "postgres" / "0006_w
 WEBSIM_GEAR_CATALOG_CACHE = ROOT / "server" / "migrations" / "postgres" / "0007_websim_gear_catalog_cache.sql"
 WEBSIM_TALENT_CACHE = ROOT / "server" / "migrations" / "postgres" / "0008_websim_talent_cache.sql"
 RUNTIME_RECONCILE_PRIVILEGES = ROOT / "server" / "migrations" / "postgres" / "0009_runtime_reconcile_privileges.sql"
+ADMIN_GATE_DIAGNOSTICS = ROOT / "server" / "migrations" / "postgres" / "0010_admin_gate_diagnostics.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -26,6 +27,7 @@ class PostgresSchemaTest(unittest.TestCase):
         cls.websim_gear_catalog_cache_sql = WEBSIM_GEAR_CATALOG_CACHE.read_text(encoding="utf-8")
         cls.websim_talent_cache_sql = WEBSIM_TALENT_CACHE.read_text(encoding="utf-8")
         cls.runtime_reconcile_privileges_sql = RUNTIME_RECONCILE_PRIVILEGES.read_text(encoding="utf-8")
+        cls.admin_gate_diagnostics_sql = ADMIN_GATE_DIAGNOSTICS.read_text(encoding="utf-8")
 
     def table_section(self, table_name):
         start = self.sql.index(f"CREATE TABLE IF NOT EXISTS {table_name}")
@@ -220,3 +222,20 @@ class PostgresSchemaTest(unittest.TestCase):
         for field in ("hero_key", "scenario_key", "raw_import_code", "websim_export_code", "talent_state_json", "source_refs_json"):
             self.assertIn(f"ADD COLUMN IF NOT EXISTS {field}", normalized)
         self.assertIn("0008_websim_talent_cache", normalized)
+
+    def test_admin_gate_diagnostics_migration_adds_pg_ops_table(self):
+        normalized = " ".join(self.admin_gate_diagnostics_sql.split())
+        self.assertIn("CREATE TABLE IF NOT EXISTS ops.admin_gate_diagnoses", normalized)
+        for field in (
+            "target_domain",
+            "target_type",
+            "target_id",
+            "diagnosis",
+            "gap_type",
+            "target_fingerprint",
+            "payload_json",
+        ):
+            self.assertIn(field, normalized)
+        self.assertIn("CREATE INDEX IF NOT EXISTS idx_ops_admin_gate_diagnoses_target", normalized)
+        self.assertIn("GRANT SELECT, INSERT, UPDATE, DELETE ON ops.admin_gate_diagnoses TO wow_app", normalized)
+        self.assertIn("0010_admin_gate_diagnostics", normalized)
