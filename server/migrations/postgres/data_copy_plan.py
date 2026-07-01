@@ -250,6 +250,28 @@ SQL_COLUMNS = {
         "payload_json",
         "updated_at",
     ),
+    "cache.websim_community_gear_templates": (
+        "id",
+        "class_key",
+        "spec_key",
+        "name",
+        "source_key",
+        "source_name",
+        "source_url",
+        "source_status",
+        "status",
+        "signature",
+        "source_refs_json",
+        "gear_items_json",
+        "raw_string",
+        "ready_slot_count",
+        "missing_slots_json",
+        "analysis_window",
+        "payload_json",
+        "updated_at",
+        "expires_at",
+        "scan_run_id",
+    ),
     "cache.websim_talents": (
         "id",
         "class_key",
@@ -1177,6 +1199,54 @@ def build_websim_gear_mod_option_rows(conn):
     ]
 
 
+def build_websim_community_gear_template_rows(conn):
+    if not identity_shadow_plan.table_exists(conn, "websim_community_gear_templates"):
+        return []
+    rows = conn.execute(
+        """
+        SELECT id, class_key, spec_key, name, source_key, source_name, source_url,
+               source_status, status, signature, source_refs_json, gear_items_json,
+               raw_string, ready_slot_count, missing_slots_json, analysis_window,
+               payload_json, updated_at, expires_at, scan_run_id
+        FROM websim_community_gear_templates
+        ORDER BY class_key, spec_key,
+                 CASE source_key
+                    WHEN 'default_template' THEN 1
+                    ELSE 0
+                 END,
+                 status,
+                 ready_slot_count DESC,
+                 updated_at DESC,
+                 id
+        """
+    ).fetchall()
+    return [
+        {
+            "id": row[0],
+            "class_key": row[1],
+            "spec_key": row[2],
+            "name": row[3],
+            "source_key": row[4],
+            "source_name": row[5],
+            "source_url": row[6],
+            "source_status": row[7],
+            "status": row[8],
+            "signature": row[9],
+            "source_refs_json": safe_json_loads(row[10], []),
+            "gear_items_json": safe_json_loads(row[11], []),
+            "raw_string": row[12] or "",
+            "ready_slot_count": optional_int(row[13]) or 0,
+            "missing_slots_json": safe_json_loads(row[14], []),
+            "analysis_window": row[15] or "",
+            "payload_json": safe_json_loads(row[16], {}),
+            "updated_at": row[17],
+            "expires_at": row[18],
+            "scan_run_id": row[19] or "",
+        }
+        for row in rows
+    ]
+
+
 def build_websim_talent_rows(conn):
     if not identity_shadow_plan.table_exists(conn, "websim_talents"):
         return []
@@ -1482,6 +1552,7 @@ def build_postgres_copy_plan(conn):
         "cache.websim_gear_sources": build_websim_gear_source_rows(conn),
         "cache.websim_gear_variants": build_websim_gear_variant_rows(conn),
         "cache.websim_gear_mod_options": build_websim_gear_mod_option_rows(conn),
+        "cache.websim_community_gear_templates": build_websim_community_gear_template_rows(conn),
         "cache.websim_talents": build_websim_talent_rows(conn),
         "cache.websim_profile_presets": build_websim_profile_preset_rows(conn),
         "cache.websim_spell_details": build_websim_spell_detail_rows(conn),

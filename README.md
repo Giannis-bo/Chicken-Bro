@@ -84,7 +84,7 @@ WOW_NEWS_PORT=8787 python3 server/news_backend.py
 - 基础与健康：`GET /health`、`GET /api/data/health`、`GET /api/game/season`
 - 资讯：`GET /api/news/home`、`GET /api/news/list`、`GET /api/news/article?id=...`、`GET /api/news/refresh-runs/latest`、`POST /api/news/refresh?mode=scheduled`
 - 职业专精 / PVE：`GET /api/builds/home`、`GET /api/builds/intel`、`GET /api/builds/detail?id=法师-冰霜`、`GET /api/builds/stat-weights/refresh-runs/latest`、`GET /api/pve/home`、`GET /api/pve/module?key=bossGuides`。PVE 接口保留兼容与后台验证，当前没有底部 tab。
-- WebSim / 天赋 / 装备：`GET /api/websim/bootstrap`、`GET /api/websim/assets`、`GET /api/websim/talents`、`GET /api/talents/tree`、`GET /api/websim/gear?class=mage&spec=frost&compact=1`、`GET /api/websim/loot?instanceId=...`、`POST /api/websim/profile`、`POST /api/websim/gear/stats`、`POST /api/websim/simulate`、`POST /api/talents/validate`、`POST /api/talents/export`、`POST /api/talents/import`
+- WebSim / 天赋 / 装备：`GET /api/websim/bootstrap`、`GET /api/websim/assets`、`GET /api/websim/talents`、`GET /api/websim/talents/import`、`GET /api/talents/tree`、`GET /api/websim/gear?class=mage&spec=frost&compact=1&mode=initial`、`GET /api/websim/gear?class=mage&spec=frost&compact=1&mode=slot&slot=head`、`GET /api/websim/loot?instanceId=...`、`POST /api/websim/profile`、`POST /api/websim/gear/stats`、`POST /api/websim/simulate`、`POST /api/talents/validate`、`POST /api/talents/export`、`POST /api/talents/import`
 - 账号与模板：`POST /api/auth/wechat-login`、`POST /api/me/profile`、`GET /api/me/build-templates?type=talent`、`POST /api/me/build-templates`、`DELETE /api/me/build-templates?id=...`
 - 智能分析 / SimC：`GET /api/simulator/home`、`POST /api/simulator/analyze`、`GET /api/simulator/tasks?guest=1`、`GET /api/simulator/task?id=...&guest=1`。当前 `pages/simulator/simulator` 不再先展示模块卡片，而是直接进入 Chickenbro；SimC 页面从职业专精入口进入。
 - 炸鸡队长：`POST /api/chickenbro/messages`、`POST /api/chickenbro/sessions`、`GET /api/chickenbro/sessions?id=...`、`GET /api/chickenbro/jobs?id=...`、`GET /api/chickenbro/profiles?classKey=...&specKey=...`
@@ -125,7 +125,7 @@ LLM 和 SimCraft 由服务器环境控制：
 - `WOW_CODEX_SANDBOX`：默认 `workspace-write`；后端用户任务不要使用 `danger-full-access`。
 - `WOW_CHICKENBRO_CODEX_ENABLED`：设为 `1` 时，Chickenbro 消息会在 scope 和 owner/guest 门禁通过后尝试走 Codex runner；未设置或 Codex 不可用时走 deterministic fallback。
 
-数据库运行时当前为 PostgreSQL hybrid seam：`WOW_DATABASE_RUNTIME=postgres_personal` 会让身份、个人模板、SimC 任务、Chickenbro 会话 / job、analytics、news content 和 WebSim/cache 读模型通过 PostgreSQL seam，SQLite 仍作为未迁移域和回滚备份存在。开发工具阶段线上服务当前指向 `wow_test`，避免把测试个人资产写入 `wow_prod`；正式发布切到 `wow_prod` 前需要单独审批、备份和 smoke。
+数据库运行时当前为 PostgreSQL hybrid seam：`WOW_DATABASE_RUNTIME=postgres_personal` 会让身份、个人模板、SimC 任务、Chickenbro 会话 / job、analytics、news content 和 WebSim/cache 读模型通过 PostgreSQL seam，SQLite 仍作为未迁移域和回滚备份存在。WebSim PG cache 包含装备来源/变体/改造选项、天赋、赛季/掉落和 `cache.websim_community_gear_templates`；装备接口在 season stale 时仍返回完整 schema 和当前 PG 状态，不用 SQLite fallback 掩盖 read-model 问题。开发工具阶段线上服务当前指向 `wow_test`，避免把测试个人资产写入 `wow_prod`；正式发布切到 `wow_prod` 前需要单独审批、备份和 smoke。
 
 生产环境密钥放在服务器 `/etc/wow-backend.env`，例如：
 

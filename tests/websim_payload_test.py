@@ -3742,6 +3742,117 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("slotGroups", payload)
         self.assertNotIn("catalogItems", payload)
 
+    def test_websim_gear_initial_mode_slims_candidate_details(self):
+        payload = {
+            "classKey": "mage",
+            "specKey": "arcane",
+            "slots": [{"slot": "head", "label": "头部"}],
+            "replacementCandidates": [
+                {
+                    "slot": "head",
+                    "label": "头部",
+                    "items": [
+                        {
+                            "itemId": f"item-{index}",
+                            "displayName": f"Candidate {index}",
+                            "slot": "head",
+                            "ilevel": 680 - index,
+                            "simcReady": True,
+                            "source": "Dungeon A",
+                            "sourceType": "dungeon",
+                            "bonus_id": "123",
+                            "sources": [{"label": "Dungeon A"} for _ in range(20)],
+                            "socketOptions": [{"id": f"gem-{index}-{option}"} for option in range(30)],
+                            "enchantOptions": [{"id": f"enchant-{index}-{option}"} for option in range(10)],
+                            "embellishmentOptions": [{"id": f"embellishment-{index}-{option}"} for option in range(10)],
+                            "variants": [{"id": f"variant-{index}-{variant}"} for variant in range(8)],
+                            "sourceRefs": [{"type": "journal"}],
+                            "observedProfileRefs": [{"profileId": "p1"}],
+                            "rawItem": {"large": True},
+                        }
+                        for index in range(8)
+                    ],
+                    "socketOptions": [{"id": f"group-gem-{option}"} for option in range(30)],
+                    "enchantOptions": [{"id": f"group-enchant-{option}"} for option in range(10)],
+                    "embellishmentOptions": [{"id": f"group-embellishment-{option}"} for option in range(10)],
+                }
+            ],
+            "equippedSet": {"head": {"itemId": "item-0", "slot": "head", "simcReady": True}},
+            "slotReadiness": {"head": {"status": "verified"}},
+            "baselineSet": [{"itemId": "item-0", "slot": "head", "simcReady": True}],
+            "communityTemplates": [{"id": "template-a", "gearItems": []}],
+            "readiness": {"fullReady": True},
+        }
+
+        initial = self.backend.websim_gear_payload_for_mode(payload, mode="initial", slot="")
+
+        self.assertEqual(initial["gearPayloadMode"], "initial")
+        self.assertIn("slots", initial)
+        self.assertIn("equippedSet", initial)
+        self.assertIn("slotReadiness", initial)
+        self.assertIn("baselineSet", initial)
+        self.assertIn("communityTemplates", initial)
+        head_group = initial["replacementCandidates"][0]
+        self.assertEqual(head_group["detailMode"], "partial")
+        self.assertLessEqual(len(head_group["items"]), 4)
+        slim_item = head_group["items"][0]
+        self.assertEqual(slim_item["itemId"], "item-0")
+        self.assertEqual(slim_item["bonus_id"], "123")
+        for heavy_key in (
+            "sources",
+            "socketOptions",
+            "enchantOptions",
+            "embellishmentOptions",
+            "variants",
+            "sourceRefs",
+            "observedProfileRefs",
+            "rawItem",
+        ):
+            self.assertNotIn(heavy_key, slim_item)
+
+    def test_websim_gear_slot_mode_returns_requested_slot_full_candidates(self):
+        payload = {
+            "classKey": "mage",
+            "specKey": "arcane",
+            "slots": [{"slot": "head", "label": "头部"}, {"slot": "wrist", "label": "护腕"}],
+            "replacementCandidates": [
+                {
+                    "slot": "head",
+                    "label": "头部",
+                    "items": [
+                        {
+                            "itemId": "item-head",
+                            "displayName": "Head Candidate",
+                            "slot": "head",
+                            "sources": [{"label": "Dungeon A"}],
+                            "socketOptions": [{"id": "gem-a"}],
+                            "variants": [{"id": "variant-a"}],
+                        }
+                    ],
+                },
+                {
+                    "slot": "wrist",
+                    "label": "护腕",
+                    "items": [{"itemId": "item-wrist", "displayName": "Wrist Candidate", "slot": "wrist"}],
+                },
+            ],
+            "equippedSet": {},
+            "slotReadiness": {},
+            "baselineSet": [],
+            "communityTemplates": [],
+            "readiness": {"fullReady": False},
+        }
+
+        detail = self.backend.websim_gear_payload_for_mode(payload, mode="slot", slot="head")
+
+        self.assertEqual(detail["gearPayloadMode"], "slot")
+        self.assertEqual(detail["gearSlot"], "head")
+        self.assertEqual([group["slot"] for group in detail["replacementCandidates"]], ["head"])
+        detail_item = detail["replacementCandidates"][0]["items"][0]
+        self.assertEqual(detail_item["sources"][0]["label"], "Dungeon A")
+        self.assertEqual(detail_item["socketOptions"][0]["id"], "gem-a")
+        self.assertEqual(detail_item["variants"][0]["id"], "variant-a")
+
     def test_websim_gear_payload_exposes_importable_community_templates(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -15999,6 +16110,65 @@ class WebSimPayloadTest(unittest.TestCase):
             "external_mage_arcane_spellslinger",
             [item["id"] for item in payload["communityTemplates"]],
         )
+
+    def test_http_websim_talent_import_route_returns_small_simc_ready_payload(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_active_season_payload(conn, self.websim_payload.current_season_payload())
+            now = self.websim_payload.utc_now()
+            conn.execute(
+                """
+                INSERT INTO websim_community_talent_templates (
+                    id, class_key, spec_key, hero_key, scenario_key, name, flow_label,
+                    source_key, source_name, source_url, raw_import_code, websim_export_code,
+                    talent_state_json, sample_count, max_key_level, analysis_window,
+                    source_status, status, payload_json, updated_at, expires_at,
+                    signature, source_refs_json, scan_run_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "talent-import-mage-frost-spellslinger",
+                    "mage",
+                    "frost",
+                    "spellslinger",
+                    "mythic_plus",
+                    "高层大秘 · 冰法",
+                    "Raider.IO",
+                    "raiderio",
+                    "Raider.IO",
+                    "https://example.com/talent",
+                    "CAEAAAAAAAAAAAAAAAAAAAAA",
+                    "websim:mage:frost",
+                    json.dumps({"selectedNodes": [{"id": "simc-node", "rank": 1}]}),
+                    50,
+                    20,
+                    "fixture",
+                    "verified",
+                    "verified",
+                    json.dumps({}),
+                    now,
+                    "2099-01-01T00:00:00+00:00",
+                    "sig-talent-import",
+                    json.dumps([{"type": "raiderio"}]),
+                    "scan-talent-import",
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        payload = self.get_backend_json("/api/websim/talents/import?class=mage&spec=frost&hero=spellslinger")
+
+        self.assertEqual(payload["classKey"], "mage")
+        self.assertEqual(payload["specKey"], "frost")
+        self.assertEqual(payload["heroKey"], "spellslinger")
+        self.assertEqual(payload["importCode"], "CAEAAAAAAAAAAAAAAAAAAAAA")
+        self.assertEqual(payload["source"], "community_template")
+        self.assertEqual(payload["sourceKey"], "raiderio")
+        self.assertEqual(payload["status"], "verified")
+        self.assertNotIn("nodes", payload)
+        self.assertNotIn("communityTemplates", payload)
 
     def test_http_websim_simulate_runs_encoded_profile_through_fake_simc(self):
         payload = self.websim_encoder_payload()

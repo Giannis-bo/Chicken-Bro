@@ -270,6 +270,62 @@ test('websim gear request uses the compact mobile payload with an explicit long 
   assert.equal(captured[0].timeout, 30000)
 })
 
+test('websim gear request forwards payload mode and slot parameters', async () => {
+  const captured = []
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    request: (options) => {
+      captured.push(options)
+      options.success({
+        statusCode: 200,
+        data: {
+          classKey: 'mage',
+          specKey: 'frost',
+          slots: [{ slot: 'head', label: '头部' }],
+          replacementCandidates: [{ slot: 'head', label: '头部', items: [] }],
+          equippedSet: {},
+          readiness: { fullReady: false }
+        }
+      })
+    }
+  }
+
+  const api = resetModule('../pages/builds/websim-api')
+  await api.requestWebsimGear({ classKey: 'mage', specKey: 'frost', mode: 'slot', slot: 'head' })
+
+  assert.match(captured[0].url, /\/api\/websim\/gear\?class=mage&spec=frost&compact=1&mode=slot&slot=head$/)
+})
+
+test('websim talent import request uses the narrow import endpoint', async () => {
+  const captured = []
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    request: (options) => {
+      captured.push(options)
+      options.success({
+        statusCode: 200,
+        data: {
+          classKey: 'mage',
+          specKey: 'frost',
+          heroKey: 'spellslinger',
+          importCode: 'CAEAAAAAAAAAAAAAAAAAAAAA',
+          status: 'verified',
+          source: 'community_template'
+        }
+      })
+    }
+  }
+
+  const api = resetModule('../pages/builds/websim-api')
+  const result = await api.requestWebsimTalentImport({ classKey: 'mage', specKey: 'frost', heroKey: 'spellslinger' })
+
+  assert.equal(result.payload.importCode, 'CAEAAAAAAAAAAAAAAAAAAAAA')
+  assert.match(captured[0].url, /\/api\/websim\/talents\/import\?class=mage&spec=frost&hero=spellslinger$/)
+  assert.equal(captured[0].timeout, 30000)
+})
+
 test('websim gear fallback keeps canonical slots visible when backend is unavailable', async () => {
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'release' } }),

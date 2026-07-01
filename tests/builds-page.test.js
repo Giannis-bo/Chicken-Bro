@@ -41,6 +41,7 @@ function loadBuildsDetailPageConfig(options = {}) {
         return {
           requestWebsimGear: options.requestWebsimGear || (() => Promise.resolve({ payload: {} })),
           requestWebsimGearStats: options.requestWebsimGearStats || (() => Promise.resolve({ payload: {} })),
+          requestWebsimTalentImport: options.requestWebsimTalentImport || (() => Promise.resolve({ payload: {} })),
           requestWebsimTalents: options.requestWebsimTalents || (() => Promise.resolve({ payload: {} }))
         }
       }
@@ -3469,6 +3470,169 @@ test('gear detail keeps heavy candidate payload out of setData while preserving 
   assert.equal(page.gearSlotCandidateCache.head[0].variants.length, 8)
 })
 
+test('gear detail loads initial gear payload first and fetches slot detail on demand', async () => {
+  const calls = []
+  const initialCandidate = {
+    slot: 'head',
+    itemId: '250060',
+    displayName: '虚空粉碎者的面纱',
+    simcReady: true,
+    detailMode: 'summary',
+    slotDetailAvailable: true
+  }
+  const detailCandidate = {
+    ...initialCandidate,
+    detailMode: 'complete',
+    sources: [{ sourceType: 'raid', label: '法力熔炉：欧米伽' }],
+    variants: [{ id: 'variant-a' }],
+    socketOptions: [{ id: 'socket-a', simcOptions: { gem_id: '213743' } }]
+  }
+  const basePayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    slots: [{ slot: 'head', simcSlot: 'head', label: '头部' }],
+    replacementCandidates: [{
+      slot: 'head',
+      simcSlot: 'head',
+      label: '头部',
+      detailMode: 'partial',
+      items: [initialCandidate]
+    }],
+    equippedSet: { head: initialCandidate },
+    slotReadiness: {},
+    readiness: { fullReady: false },
+    communityTemplates: [],
+    communityTemplateSync: { templates: { total: 0, verified: 0, partial: 0, blocked: 0 } },
+    catalogStatus: 'partial',
+    gearPayloadMode: 'initial'
+  }
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear: (params = {}) => {
+      calls.push(params)
+      if (params.mode === 'slot') {
+        return Promise.resolve({
+          payload: {
+            ...basePayload,
+            gearPayloadMode: 'slot',
+            gearSlot: params.slot,
+            replacementCandidates: [{
+              slot: params.slot,
+              simcSlot: params.slot,
+              label: '头部',
+              detailMode: 'complete',
+              items: [detailCandidate]
+            }]
+          },
+          fromFallback: false,
+          error: ''
+        })
+      }
+      return Promise.resolve({ payload: basePayload, fromFallback: false, error: '' })
+    }
+  })
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: {},
+      gearSelectionKey: '',
+      gearSlotRows: [],
+      gearSlotSheet: {},
+      gearCommunityTemplateSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.loadWebsimGearForSelection.call(page, { selectedSpec: page.data.selectedSpec })
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(calls[0].mode, 'initial')
+  await pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(calls[1].mode, 'slot')
+  assert.equal(calls[1].slot, 'head')
+  assert.equal(page.gearPayloadCache.replacementCandidates[0].detailMode, 'complete')
+  assert.equal(page.gearSlotCandidateCache.head[0].sources[0].label, '法力熔炉：欧米伽')
+  assert.equal(page.gearSlotCandidateCache.head[0].variants[0].id, 'variant-a')
+  assert.equal(page.data.gearSlotSheet.candidates[0].sources, undefined)
+})
+
+test('gear detail preserves initial slot candidates when slot detail request falls back', async () => {
+  const calls = []
+  const initialCandidate = {
+    slot: 'head',
+    itemId: '250060',
+    displayName: '虚空粉碎者的面纱',
+    simcReady: true,
+    detailMode: 'summary',
+    slotDetailAvailable: true
+  }
+  const basePayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    slots: [{ slot: 'head', simcSlot: 'head', label: '头部' }],
+    replacementCandidates: [{
+      slot: 'head',
+      simcSlot: 'head',
+      label: '头部',
+      detailMode: 'partial',
+      items: [initialCandidate]
+    }],
+    equippedSet: { head: initialCandidate },
+    slotReadiness: {},
+    readiness: { fullReady: false },
+    communityTemplates: [],
+    communityTemplateSync: { templates: { total: 0, verified: 0, partial: 0, blocked: 0 } },
+    catalogStatus: 'partial',
+    gearPayloadMode: 'initial'
+  }
+  const fallbackPayload = {
+    ...basePayload,
+    replacementCandidates: [{ slot: 'head', simcSlot: 'head', label: '头部', items: [] }],
+    gearPayloadMode: 'slot',
+    gearSlot: 'head',
+    dataStatus: 'blocked'
+  }
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear: (params = {}) => {
+      calls.push(params)
+      if (params.mode === 'slot') {
+        return Promise.resolve({ payload: fallbackPayload, fromFallback: true, error: 'request failed' })
+      }
+      return Promise.resolve({ payload: basePayload, fromFallback: false, error: '' })
+    }
+  })
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot: {},
+      gearSelectionKey: '',
+      gearSlotRows: [],
+      gearSlotSheet: {},
+      gearCommunityTemplateSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.loadWebsimGearForSelection.call(page, { selectedSpec: page.data.selectedSpec })
+  await new Promise((resolve) => setImmediate(resolve))
+  await pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(calls[1].mode, 'slot')
+  assert.equal(page.gearPayloadCache.replacementCandidates[0].items.length, 1)
+  assert.equal(page.data.gearSlotSheet.candidates.length, 1)
+  assert.equal(page.data.gearSlotSheet.candidates[0].displayName, '虚空粉碎者的面纱')
+})
+
 test('gear detail keeps catalog health gaps out of the top summary', () => {
   const pageConfig = loadBuildsDetailPageConfig()
   const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
@@ -5432,6 +5596,7 @@ test('gear detail requests SimC stat snapshot when gear and talents are complete
 
 test('gear detail requests SimC stat snapshot with community talent import when detail lacks code', async () => {
   let statsPayload = null
+  let importRequest = null
   let resolveStats
   const statsRequested = new Promise((resolve) => {
     resolveStats = resolve
@@ -5453,14 +5618,19 @@ test('gear detail requests SimC stat snapshot with community talent import when 
         communityTemplates: []
       }
     }),
-    requestWebsimTalents: () => Promise.resolve({
+    requestWebsimTalentImport: (params) => {
+      importRequest = params
+      return Promise.resolve({
       payload: {
-        communityTemplates: [
-          { id: 'blocked-template', canUseInSimc: false, rawImportCode: 'BLOCKED' },
-          { id: 'raiderio-mage-frost', canUseInSimc: true, rawImportCode: 'COMMUNITY-C4DA' }
-        ]
+          status: 'verified',
+          source: 'community_template',
+          importCode: 'COMMUNITY-C4DA'
       }
-    }),
+      })
+    },
+    requestWebsimTalents: () => {
+      throw new Error('gear stats talent import must use the narrow endpoint')
+    },
     requestWebsimGearStats: (payload) => {
       statsPayload = payload
       resolveStats()
@@ -5501,6 +5671,8 @@ test('gear detail requests SimC stat snapshot with community talent import when 
   await new Promise((resolve) => setImmediate(resolve))
 
   assert.equal(statsPayload.talents, 'COMMUNITY-C4DA')
+  assert.equal(importRequest.classKey, 'mage')
+  assert.equal(importRequest.specKey, 'frost')
   assert.equal(page.data.gearStatsTalentImport, 'COMMUNITY-C4DA')
   assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'crit').convertedValue, '28.6%')
 })

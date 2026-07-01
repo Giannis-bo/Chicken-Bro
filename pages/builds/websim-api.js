@@ -198,6 +198,35 @@ function requestWebsimTalents(params) {
   })
 }
 
+function fallbackWebsimTalentImport(params) {
+  const options = params || {}
+  const talents = fallbackWebsimTalents(options)
+  const template = (talents.communityTemplates || []).find((item) => item && (item.rawImportCode || item.importCode || item.talentImport))
+  return {
+    classKey: options.classKey || '',
+    specKey: options.specKey || '',
+    heroKey: options.heroKey || '',
+    importCode: template ? (template.rawImportCode || template.importCode || template.talentImport || '') : '',
+    source: 'community_template',
+    status: template ? 'verified' : 'blocked',
+    blockers: template ? [] : ['no SimC-ready community talent import']
+  }
+}
+
+function requestWebsimTalentImport(params) {
+  const options = params || {}
+  const query = [
+    `class=${encodeURIComponent(options.classKey || '')}`,
+    `spec=${encodeURIComponent(options.specKey || '')}`
+  ]
+  if (options.heroKey) query.push(`hero=${encodeURIComponent(options.heroKey)}`)
+  return requestJson(`/api/websim/talents/import?${query.join('&')}`, {
+    timeout: 30000,
+    fallback: () => fallbackWebsimTalentImport(options),
+    validate: (data) => data && typeof data.importCode === 'string' && data.status
+  })
+}
+
 function requestWebsimProfile(payload) {
   return requestJson('/api/websim/profile', {
     method: 'POST',
@@ -215,6 +244,8 @@ function requestWebsimGear(params) {
     `spec=${encodeURIComponent(options.specKey || '')}`
   ]
   if (options.compact !== false) query.push('compact=1')
+  if (options.mode) query.push(`mode=${encodeURIComponent(options.mode)}`)
+  if (options.slot) query.push(`slot=${encodeURIComponent(options.slot)}`)
   return requestJson(`/api/websim/gear?${query.join('&')}`, {
     timeout: 30000,
     fallback: () => fallbackWebsimGear(options),
@@ -238,10 +269,12 @@ module.exports = {
   fallbackWebsimGear,
   fallbackWebsimGearStats,
   fallbackWebsimProfile,
+  fallbackWebsimTalentImport,
   fallbackWebsimTalents,
   requestWebsimBootstrap,
   requestWebsimGear,
   requestWebsimGearStats,
   requestWebsimProfile,
+  requestWebsimTalentImport,
   requestWebsimTalents
 }

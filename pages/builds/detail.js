@@ -7,7 +7,7 @@ const {
 const {
   requestWebsimGear,
   requestWebsimGearStats,
-  requestWebsimTalents
+  requestWebsimTalentImport
 } = require('./websim-api')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 const { listBuildTemplates, syncBuildTemplate } = require('../common/build-template-storage')
@@ -1297,16 +1297,6 @@ function gearTalentImportForStats(data) {
     data && data.websimExportCode
   ]
   return candidates.map(simcTalentImportCandidate).find(Boolean) || ''
-}
-
-function gearStatsTalentImportFromTemplates(templates) {
-  return (Array.isArray(templates) ? templates : []).reduce((matched, template) => {
-    if (matched) return matched
-    if (!template || typeof template !== 'object') return ''
-    const status = cleanGearString(template.status || '').toLowerCase()
-    if (template.canUseInSimc === false || status === 'blocked') return ''
-    return cleanGearString(template.rawImportCode || template.importCode || template.talentImport)
-  }, '')
 }
 
 function gearStatsRequestForPage(page) {
@@ -2810,6 +2800,64 @@ function gearGroupsBySlot(payload) {
   return groups
 }
 
+function replaceGearSlotGroup(groups, detailGroups, slot) {
+  const source = Array.isArray(groups) ? groups : []
+  const detail = (Array.isArray(detailGroups) ? detailGroups : []).find((group) => (
+    group && (group.slot || group.simcSlot) === slot
+  ))
+  if (!detail) return source
+  let replaced = false
+  const next = source.map((group) => {
+    if (group && (group.slot || group.simcSlot) === slot) {
+      replaced = true
+      return detail
+    }
+    return group
+  })
+  if (!replaced) next.push(detail)
+  return next
+}
+
+function mergeGearSlotDetailPayload(basePayload, detailPayload, slot) {
+  if (!detailPayload || typeof detailPayload !== 'object') return basePayload || {}
+  const merged = { ...(basePayload || {}) }
+  if (Array.isArray(detailPayload.replacementCandidates)) {
+    merged.replacementCandidates = replaceGearSlotGroup(
+      merged.replacementCandidates,
+      detailPayload.replacementCandidates,
+      slot
+    )
+  }
+  if (Array.isArray(detailPayload.slotGroups)) {
+    merged.slotGroups = replaceGearSlotGroup(merged.slotGroups, detailPayload.slotGroups, slot)
+  }
+  return merged
+}
+
+function gearPayloadNeedsSlotDetail(page, slot) {
+  const payload = fullGearPayloadForPage(page) || {}
+  const cached = page && page.gearSlotCandidateCache && page.gearSlotCandidateCache[slot]
+  if (Array.isArray(cached) && cached.length && cached.every((item) => item && item.detailMode !== 'summary')) {
+    return false
+  }
+  const group = gearGroupsBySlot(payload)[slot] || {}
+  const items = Array.isArray(group.items) ? group.items : []
+  return payload.gearPayloadMode === 'initial' || group.detailMode === 'partial' || items.some((item) => item && item.detailMode === 'summary')
+}
+
+function loadGearSlotDetailForPage(page, slot) {
+  const selectedSpec = (page && page.data && page.data.selectedSpec) || {}
+  const keys = specWebsimKeys(selectedSpec)
+  const selectionKey = `${keys.classKey}:${keys.specKey}`
+  return requestWebsimGear({ ...keys, mode: 'slot', slot }).then(({ payload, error, fromFallback }) => {
+    if (!page || !page.data || page.data.gearSelectionKey !== selectionKey) return fullGearPayloadForPage(page)
+    if (fromFallback || error) return fullGearPayloadForPage(page)
+    const merged = mergeGearSlotDetailPayload(fullGearPayloadForPage(page) || {}, payload, slot)
+    page.gearPayloadCache = merged
+    return merged
+  })
+}
+
 function gearCandidateKey(item, slot, index) {
   const itemId = item.itemId || item.id || item.name || index
   return [
@@ -3807,7 +3855,7 @@ Page({
       gearEnhancementSheet: emptyGearEnhancementSheet(),
       gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
-    requestWebsimGear(keys).then(({ payload, error, fromFallback }) => {
+    requestWebsimGear({ ...keys, mode: 'initial' }).then(({ payload, error, fromFallback }) => {
       if (this.data.gearSelectionKey !== selectionKey) return
       this.gearPayloadCache = payload
       this.gearSlotCandidateCache = {}
@@ -3859,11 +3907,12 @@ Page({
     if (gearTalentImportForStats(this.data)) return Promise.resolve('')
     if (this.gearStatsTalentImportKey === selectionKey) return Promise.resolve(this.data.gearStatsTalentImport || '')
     this.gearStatsTalentImportKey = selectionKey
-    return requestWebsimTalents(keys).then(({ payload, error }) => {
+    return requestWebsimTalentImport(keys).then(({ payload, error }) => {
       if (this.data.gearSelectionKey !== selectionKey) return ''
-      const importCode = gearStatsTalentImportFromTemplates(payload && payload.communityTemplates)
+      const importCode = cleanGearString(payload && payload.importCode)
       if (!importCode) {
-        this.setData({ gearStatsTalentImportError: error || 'no SimC-ready community talent import' })
+        const blockers = payload && Array.isArray(payload.blockers) ? payload.blockers.join(' / ') : ''
+        this.setData({ gearStatsTalentImportError: error || blockers || 'no SimC-ready community talent import' })
         return ''
       }
       this.setData({
@@ -4005,29 +4054,42 @@ Page({
     })
   },
 
+  loadGearSlotDetail(slot) {
+    return loadGearSlotDetailForPage(this, slot)
+  },
+
   openGearSlotSheet(event) {
     const slot = event.currentTarget.dataset.slot || ''
-    if (!slot) return
-    const row = (this.data.gearSlotRows || []).find((item) => item.slot === slot) || {}
-    const candidates = buildGearCandidateRows(slot, fullGearPayloadForPage(this) || {}, this.data.selectedGearBySlot || {})
-    const selectedGear = ((this.data.selectedGearBySlot || {})[slot]) || {}
-    const selectedItemId = String(selectedGear.itemId || selectedGear.id || row.itemId || '')
-    const selectedCandidateIndex = Math.max(0, candidates.findIndex((item) => {
-      if (item.selected) return true
-      return selectedItemId && String(item.itemId || item.id || '') === selectedItemId
-    }))
-    this.gearSlotCandidateCache = {
-      ...(this.gearSlotCandidateCache || {}),
-      [slot]: candidates
-    }
-    this.setData({
-      gearSlotSheet: buildGearSlotSheet(slot, row, candidates, {
-        filterKey: 'all',
-        candidateIndex: selectedCandidateIndex,
-        variantKey: selectedGear.variantKey || row.variantKey || '',
-        craftedStatOptionKey: selectedGear.selectedCraftedStatKey || selectedGear.craftedStatOptionKey || row.selectedCraftedStatKey || row.craftedStatOptionKey || ''
+    if (!slot) return Promise.resolve()
+    const openWithCurrentPayload = () => {
+      const row = (this.data.gearSlotRows || []).find((item) => item.slot === slot) || {}
+      const candidates = buildGearCandidateRows(slot, fullGearPayloadForPage(this) || {}, this.data.selectedGearBySlot || {})
+      const selectedGear = ((this.data.selectedGearBySlot || {})[slot]) || {}
+      const selectedItemId = String(selectedGear.itemId || selectedGear.id || row.itemId || '')
+      const selectedCandidateIndex = Math.max(0, candidates.findIndex((item) => {
+        if (item.selected) return true
+        return selectedItemId && String(item.itemId || item.id || '') === selectedItemId
+      }))
+      this.gearSlotCandidateCache = {
+        ...(this.gearSlotCandidateCache || {}),
+        [slot]: candidates
+      }
+      this.setData({
+        gearSlotSheet: buildGearSlotSheet(slot, row, candidates, {
+          filterKey: 'all',
+          candidateIndex: selectedCandidateIndex,
+          variantKey: selectedGear.variantKey || row.variantKey || '',
+          craftedStatOptionKey: selectedGear.selectedCraftedStatKey || selectedGear.craftedStatOptionKey || row.selectedCraftedStatKey || row.craftedStatOptionKey || ''
+        })
       })
-    })
+    }
+    if (gearPayloadNeedsSlotDetail(this, slot)) {
+      return loadGearSlotDetailForPage(this, slot)
+        .catch(() => fullGearPayloadForPage(this))
+        .then(openWithCurrentPayload)
+    }
+    openWithCurrentPayload()
+    return Promise.resolve()
   },
 
   closeGearSlotSheet() {

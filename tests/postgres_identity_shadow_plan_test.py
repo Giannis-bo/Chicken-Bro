@@ -313,11 +313,13 @@ class PostgresIdentityShadowPlanTest(unittest.TestCase):
         from server.migrations.postgres import identity_shadow_plan
         from server.postgres_content_store import content_uuid
         from server import raiderio_payload
+        from server import websim_payload
 
         now = "2026-06-27T12:45:00+00:00"
         with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
             conn.execute("PRAGMA foreign_keys = ON")
             raiderio_payload.ensure_raiderio_tables(conn)
+            websim_payload.ensure_websim_tables(conn)
             conn.execute(
                 """
                 INSERT OR REPLACE INTO news_sources (
@@ -592,6 +594,70 @@ class PostgresIdentityShadowPlanTest(unittest.TestCase):
             )
             conn.execute(
                 """
+                INSERT INTO websim_community_gear_templates (
+                    id, class_key, spec_key, name, source_key, source_name, source_url,
+                    source_status, status, signature, source_refs_json, gear_items_json,
+                    raw_string, ready_slot_count, missing_slots_json, analysis_window,
+                    payload_json, updated_at, expires_at, scan_run_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "community-gear-mage-frost",
+                    "mage",
+                    "frost",
+                    "Raider.IO community gear",
+                    "raiderio_observed_profile",
+                    "Raider.IO observed gear",
+                    "https://example.com/community-gear",
+                    "synced",
+                    "complete",
+                    "sig-community-gear",
+                    json.dumps([{"type": "raiderio"}]),
+                    json.dumps([{"slot": "head", "itemId": "item-a", "simcReady": True}]),
+                    "head=item-a,bonus_id=1",
+                    16,
+                    json.dumps([]),
+                    "2026-W27",
+                    json.dumps({"templateEvidence": {"sourceKey": "raiderio_observed_profile"}}),
+                    now,
+                    "2099-01-01T00:00:00+00:00",
+                    "scan-pg",
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_community_gear_templates (
+                    id, class_key, spec_key, name, source_key, source_name, source_url,
+                    source_status, status, signature, source_refs_json, gear_items_json,
+                    raw_string, ready_slot_count, missing_slots_json, analysis_window,
+                    payload_json, updated_at, expires_at, scan_run_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "default-template-mage-frost-mplus-mixed-route",
+                    "mage",
+                    "frost",
+                    "默认模板 · 法师冰霜",
+                    "default_template",
+                    "默认模板",
+                    "",
+                    "verified",
+                    "complete",
+                    "sig-default-gear",
+                    json.dumps([{"type": "default_template"}]),
+                    json.dumps([{"slot": "head", "itemId": "item-a", "simcReady": True}]),
+                    "head=item-a,bonus_id=1",
+                    16,
+                    json.dumps([]),
+                    "默认模板由 verified 当前赛季装备候选和 M+ mixed-route 绿字权重生成。",
+                    json.dumps({"scenarioKey": "mplus_mixed_route", "templateEvidence": {"sourceKey": "default_template"}}),
+                    now,
+                    "2099-01-01T00:00:00+00:00",
+                    "scan-pg",
+                ),
+            )
+            conn.execute(
+                """
                 INSERT INTO websim_loot (
                     id, instance_id, encounter_id, item_id, name, slot, quality, icon_url,
                     payload_json, updated_at
@@ -652,6 +718,17 @@ class PostgresIdentityShadowPlanTest(unittest.TestCase):
         self.assertIsNone(plan["tables"]["cache.websim_gear_mod_options"][0]["variant_id"])
         self.assertTrue(plan["tables"]["cache.websim_gear_mod_options"][0]["is_visible"])
         self.assertEqual(plan["tables"]["cache.websim_gear_mod_options"][0]["applicable_slots_json"], ["trinket1"])
+        self.assertIn("cache.websim_community_gear_templates", plan["tables"])
+        self.assertEqual(
+            {row["source_key"] for row in plan["tables"]["cache.websim_community_gear_templates"]},
+            {"raiderio_observed_profile", "default_template"},
+        )
+        default_template = next(
+            row for row in plan["tables"]["cache.websim_community_gear_templates"] if row["source_key"] == "default_template"
+        )
+        self.assertEqual(default_template["source_name"], "默认模板")
+        self.assertEqual(default_template["ready_slot_count"], 16)
+        self.assertEqual(default_template["payload_json"]["scenarioKey"], "mplus_mixed_route")
         self.assertEqual(plan["tables"]["cache.websim_instances"][0]["id"], "1300")
         self.assertEqual(plan["tables"]["cache.websim_encounters"][0]["instance_id"], "1300")
         self.assertEqual(plan["tables"]["cache.websim_loot"][0]["item_id"], "item-a")
@@ -661,6 +738,7 @@ class PostgresIdentityShadowPlanTest(unittest.TestCase):
         self.assertEqual(plan["totals"]["rowsByTable"]["cache.websim_gear_sources"], 1)
         self.assertEqual(plan["totals"]["rowsByTable"]["cache.websim_gear_variants"], 1)
         self.assertEqual(plan["totals"]["rowsByTable"]["cache.websim_gear_mod_options"], 1)
+        self.assertEqual(plan["totals"]["rowsByTable"]["cache.websim_community_gear_templates"], 2)
         self.assertEqual(plan["totals"]["rowsByTable"]["cache.websim_loot"], 1)
 
     def test_data_copy_plan_preserves_duplicate_content_evidence_rows_by_sqlite_id(self):

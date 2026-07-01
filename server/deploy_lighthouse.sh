@@ -456,6 +456,12 @@ server {
     listen [::]:80 default_server;
     server_name _;
 
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_types application/json text/plain text/css application/javascript;
+    gzip_vary on;
+
     location / {
         proxy_pass http://127.0.0.1:8787;
         proxy_http_version 1.1;

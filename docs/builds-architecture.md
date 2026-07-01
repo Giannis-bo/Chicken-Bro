@@ -37,7 +37,9 @@
 
 - `GET /api/websim/talents?class=...&spec=...&hero=...` 返回 `nodes`、`treeSections`、`talentAuthority`、`talentReadiness` 和 `blockers`；该读模型必须保持纯只读，不触发社区模板同步或 DB 写入。
 - `POST /api/talents/validate|export|import` 复用同一套 backend authority，不能信任前端裁剪后的节点状态。
-- `GET /api/websim/gear?class=...&spec=...&compact=1` 返回 16 槽、`slotReadiness`、候选装备、来源、变体、宝石/附魔选项、`communityTemplates`、catalog 状态和 blocker。
+- `GET /api/websim/gear?class=...&spec=...&compact=1&mode=initial` 是小程序装备模拟首屏读模型：仍返回 16 槽、`equippedSet`、`readiness`、`slotReadiness`、`communityTemplates`、catalog 状态和 blocker，但每个候选组只保留 summary items，并标记 `slotDetailAvailable` / `fullItemCount`，避免首包拉完整装备明细。
+- `GET /api/websim/gear?class=...&spec=...&compact=1&mode=slot&slot=<slot>` 是按槽明细读模型，只返回目标槽位的完整候选装备、来源、变体、宝石/附魔/美化选项；前端选择某槽装备时再按需加载。
+- `GET /api/websim/talents/import?class=...&spec=...&hero=...` 返回窄 talent import code，用于装备属性快照或 SimC 模板确认在详情 payload 缺 talent code 时补齐后端权威编码；它不返回完整天赋树或社区模板列表。
 - `POST /api/websim/profile` 生成可提交 SimC 的 WebSim profile 前置 payload，并返回合并 talent/gear 的 `profileReadiness`。
 - `POST /api/websim/simulate` 只有在天赋编码成功且核心装备槽位 SimC-ready 时才提交到模拟链路。
 - `POST /api/websim/gear/stats` 保留给 WebSim/模拟器链路，不作为职业专精页的普通属性快照来源。
@@ -77,7 +79,7 @@
 
 - Raider.IO 赛季缓存可用，当前 season slug 为 Midnight S1 相关口径。
 - `/api/game/season` 和 `/api/data/health` 可以返回 M+ / 团本池、来源状态、blockers 和下一步，但当 deterministic SimC variant preset、SimC JSON 目标属性、Battle.net 凭据或同步数据不完整时，会把 season / sync / catalog 标为 `partial` 或 `blocked`。
-- `/api/websim/gear` 对职业 / 专精返回 16 槽 readiness 和 compact payload；保存装备模板必须补齐 canonical 16 槽，off-hand 只在双手/无副手合理场景可空。
+- `/api/websim/gear` 对职业 / 专精返回 16 槽 readiness 和 compact payload；首屏使用 `mode=initial`，装备抽屉/详情使用 `mode=slot`。即使 PostgreSQL season 状态为 `stale`，读模型也必须继续返回完整 schema 和已入库装备/模板，并把 stale/partial/blocker 显示为可信状态，而不是让前端退回空槽位 fallback。保存装备模板必须补齐 canonical 16 槽，off-hand 只在双手/无副手合理场景可空。
 
 历史上已验证过的 M+ 池包括执政团之座、艾杰斯亚学院、节点希纳斯、萨隆矿坑、迈萨拉洞窟、通天峰、风行者之塔、魔导师平台；团本池包括 The Voidspire、The Dreamrift、March on Quel'Danas、Sporefall。文档或 UI 不得仅因为历史覆盖通过就把当前 health 写成全量 verified；必须以线上 payload 的当前 `status`、`blockers` 和 `checkedAt` 为准。
 整体 catalog 仍可能是 `partial`。当前主要缺口是 deterministic SimC variant preset、少量天赋 spell detail、社区模板/WCL 凭据或 stat weight 数据，不影响已验证来源覆盖的表达，但会阻断强模拟结论。
@@ -96,7 +98,9 @@
 - `GET /api/data/health`
 - `GET /api/websim/bootstrap`
 - `GET /api/websim/talents?class=<classKey>&spec=<specKey>&hero=<heroKey>`
-- `GET /api/websim/gear?class=<classKey>&spec=<specKey>&compact=1`
+- `GET /api/websim/gear?class=<classKey>&spec=<specKey>&compact=1&mode=initial`
+- `GET /api/websim/gear?class=<classKey>&spec=<specKey>&compact=1&mode=slot&slot=<slot>`
+- `GET /api/websim/talents/import?class=<classKey>&spec=<specKey>&hero=<heroKey>`
 - `GET /api/websim/loot?instanceId=<instanceId>`
 - `POST /api/websim/profile`
 - `POST /api/websim/simulate`

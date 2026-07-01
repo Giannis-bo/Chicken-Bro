@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 from contextlib import contextmanager
+import copy
 import json
 from datetime import datetime, timezone
 
 try:
     from .websim_payload import (
         CANONICAL_GEAR_SLOTS,
+        COMMUNITY_TEMPLATE_REVISION,
         COMMUNITY_TALENT_SYNC_KEY,
         DEFAULT_LOCALE,
         GEAR_CATALOG_REVISION,
@@ -19,6 +21,7 @@ try:
         compact_gear_candidates,
         compact_gear_mod_options,
         dedupe_community_talent_templates_for_display,
+        dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
         enrich_catalog_item,
@@ -45,15 +48,18 @@ try:
         slugify,
         spec_label,
         talent_readiness_payload,
+        websim_talent_import_response,
         talent_spell_display_description,
         talent_tree_sections,
         unique_gear_candidates,
+        websim_gear_community_template_sync_state,
         websim_max_level,
         weapon_equipment_rule_payload,
     )
 except ImportError:
     from websim_payload import (
         CANONICAL_GEAR_SLOTS,
+        COMMUNITY_TEMPLATE_REVISION,
         COMMUNITY_TALENT_SYNC_KEY,
         DEFAULT_LOCALE,
         GEAR_CATALOG_REVISION,
@@ -67,6 +73,7 @@ except ImportError:
         compact_gear_candidates,
         compact_gear_mod_options,
         dedupe_community_talent_templates_for_display,
+        dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
         enrich_catalog_item,
@@ -93,9 +100,11 @@ except ImportError:
         slugify,
         spec_label,
         talent_readiness_payload,
+        websim_talent_import_response,
         talent_spell_display_description,
         talent_tree_sections,
         unique_gear_candidates,
+        websim_gear_community_template_sync_state,
         websim_max_level,
         weapon_equipment_rule_payload,
     )
@@ -107,6 +116,43 @@ def json_param(value):
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+PG_GEAR_PAYLOAD_CACHE = {}
+PG_GEAR_PAYLOAD_CACHE_MAX = 80
+
+
+def _pg_gear_payload_cache_get(fingerprint):
+    if not fingerprint or fingerprint not in PG_GEAR_PAYLOAD_CACHE:
+        return None
+    payload = PG_GEAR_PAYLOAD_CACHE.pop(fingerprint)
+    PG_GEAR_PAYLOAD_CACHE[fingerprint] = payload
+    return copy.deepcopy(payload)
+
+
+def _pg_gear_payload_cache_put(fingerprint, payload):
+    if not fingerprint or not isinstance(payload, dict):
+        return
+    if fingerprint in PG_GEAR_PAYLOAD_CACHE:
+        PG_GEAR_PAYLOAD_CACHE.pop(fingerprint)
+    while len(PG_GEAR_PAYLOAD_CACHE) >= PG_GEAR_PAYLOAD_CACHE_MAX:
+        PG_GEAR_PAYLOAD_CACHE.pop(next(iter(PG_GEAR_PAYLOAD_CACHE)))
+    PG_GEAR_PAYLOAD_CACHE[fingerprint] = copy.deepcopy(payload)
+
+
+def _datetime_value(value):
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _json_value(value, fallback):
@@ -124,6 +170,39 @@ def _int_value(value, fallback=0):
         return int(value)
     except (TypeError, ValueError):
         return fallback
+
+
+ADMIN_GATE_QUEUE_STATUSES = {
+    "partial",
+    "stale",
+    "blocked",
+    "missing_credentials",
+    "pending_official_audit",
+    "source_reference",
+}
+
+
+def _admin_gate_queue_summary(rows):
+    total = 0
+    domain_counts = {}
+    blocker_counts = {}
+    for domain, status, row_blockers in rows:
+        blockers = [str(item or "").strip() for item in (row_blockers or []) if str(item or "").strip()]
+        if status not in ADMIN_GATE_QUEUE_STATUSES and not blockers:
+            continue
+        domain_key = str(domain or "unknown")
+        total += 1
+        domain_counts[domain_key] = domain_counts.get(domain_key, 0) + 1
+        for blocker in blockers:
+            blocker_counts[blocker] = blocker_counts.get(blocker, 0) + 1
+    return {
+        "count": total,
+        "domainCounts": domain_counts,
+        "topBlockers": [
+            {"reason": reason, "count": count}
+            for reason, count in sorted(blocker_counts.items(), key=lambda item: (-item[1], item[0]))[:8]
+        ],
+    }
 
 
 class PostgresCacheStore:
@@ -194,10 +273,8 @@ class PostgresCacheStore:
                     WHERE key = 'active'
                       AND active = TRUE
                       AND data_status = 'verified'
-                      AND (expires_at IS NULL OR expires_at > %s)
                     LIMIT 1
-                    """,
-                    (utc_now(),),
+                    """
                 )
                 row = cur.fetchone()
                 if not row:
@@ -221,10 +298,14 @@ class PostgresCacheStore:
                 payload["seasonRevision"] = row[2]
                 payload["revision"] = row[2]
                 payload["locale"] = row[3] or DEFAULT_LOCALE
-                payload["dataStatus"] = row[4]
+                expired = bool(_datetime_value(row[6]) and _datetime_value(row[6]) <= datetime.now(timezone.utc))
+                payload["dataStatus"] = "stale" if expired else row[4]
                 payload["verifiedAt"] = str(row[5] or "")
                 payload["expiresAt"] = str(row[6] or "")
                 payload["sourceRefs"] = _json_value(row[7], [])
+                if expired:
+                    errors = payload.get("errors") if isinstance(payload.get("errors"), list) else []
+                    payload["errors"] = [*errors, "season cache expired"]
                 cur.execute(
                     """
                     SELECT dungeon_id, instance_id, name, short_name, timer_seconds, payload_json
@@ -508,6 +589,65 @@ class PostgresCacheStore:
             **season_metadata_fields(season),
         }
 
+    def get_websim_talent_import(self, class_key="mage", spec_key="arcane", hero_key=""):
+        season = self.get_active_season_payload()
+        class_key = slugify(class_key, "mage")
+        spec_key = slugify(spec_key, "arcane")
+        hero_key = hero_tree_for(class_key, spec_key, slugify(hero_key, ""))
+        if season.get("dataStatus") != "verified":
+            return websim_talent_import_response(
+                class_key,
+                spec_key,
+                hero_key,
+                blockers=season.get("errors") or ["active season is not verified"],
+            )
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, class_key, spec_key, hero_key, scenario_key, name,
+                           source_key, source_name, source_url, raw_import_code,
+                           source_status, status, sample_count, max_key_level,
+                           analysis_window, updated_at
+                    FROM cache.websim_community_talent_templates
+                    WHERE class_key = %s
+                      AND spec_key = %s
+                      AND status = 'verified'
+                      AND raw_import_code <> ''
+                    ORDER BY CASE WHEN hero_key = %s THEN 0 ELSE 1 END,
+                             max_key_level DESC, sample_count DESC, hero_key, name
+                    LIMIT 1
+                    """,
+                    (class_key, spec_key, hero_key),
+                )
+                row = cur.fetchone()
+        if not row:
+            return websim_talent_import_response(class_key, spec_key, hero_key)
+        return websim_talent_import_response(
+            class_key,
+            spec_key,
+            hero_key,
+            template={
+                "id": row[0],
+                "classKey": row[1],
+                "specKey": row[2],
+                "heroKey": row[3],
+                "scenarioKey": row[4],
+                "name": row[5],
+                "sourceKey": row[6],
+                "sourceName": row[7],
+                "sourceUrl": row[8],
+                "rawImportCode": row[9],
+                "sourceStatus": row[10],
+                "status": row[11],
+                "sampleCount": _int_value(row[12]),
+                "maxKeyLevel": _int_value(row[13]),
+                "analysisWindow": row[14] or "",
+                "updatedAt": str(row[15] or ""),
+                "canUseInSimc": True,
+            },
+        )
+
     def _gear_sources_by_item(self, rows):
         result = {}
         for row in rows:
@@ -605,6 +745,47 @@ class PostgresCacheStore:
                     result[slot].append(option)
         return result
 
+    def _gear_payload_fingerprint(self, cur, class_key, spec_key, compact, season, catalog_state):
+        cur.execute(
+            """
+            /* gear_payload_fingerprint */
+            SELECT 'websim_items' AS table_name, COUNT(*) AS row_count, MAX(updated_at)::text AS max_updated_at
+            FROM cache.websim_items
+            UNION ALL
+            SELECT 'websim_gear_sources', COUNT(*), MAX(updated_at)::text
+            FROM cache.websim_gear_sources
+            UNION ALL
+            SELECT 'websim_gear_variants', COUNT(*), MAX(updated_at)::text
+            FROM cache.websim_gear_variants
+            UNION ALL
+            SELECT 'websim_gear_mod_options', COUNT(*), MAX(updated_at)::text
+            FROM cache.websim_gear_mod_options
+            UNION ALL
+            SELECT 'websim_community_gear_templates', COUNT(*), MAX(updated_at)::text
+            FROM cache.websim_community_gear_templates
+            """
+        )
+        table_rows = tuple(
+            (str(row[0] or ""), _int_value(row[1]), str(row[2] or ""))
+            for row in cur.fetchall()
+        )
+        return (
+            "pg-websim-gear-v1",
+            class_key,
+            spec_key,
+            bool(compact),
+            season.get("seasonRevision") or season.get("revision") or "",
+            catalog_state.get("updatedAt") or catalog_state.get("checkedAt") or "",
+            catalog_state.get("status") or catalog_state.get("sourceStatus") or "",
+            catalog_state.get("schemaRevision") or "",
+            catalog_state.get("itemDatabaseRevision") or "",
+            catalog_state.get("variantRevision") or "",
+            season.get("dataStatus") or "",
+            season.get("expiresAt") or "",
+            tuple(str(item) for item in (season.get("errors") or [])),
+            table_rows,
+        )
+
     def _gear_catalog_items(self, item_rows, sources_by_item, variants_by_item, mod_options_by_slot, class_key, spec_key, season):
         catalog_items = []
         for row in item_rows:
@@ -646,6 +827,60 @@ class PostgresCacheStore:
                 catalog_items.append(sanitize_gear_candidate_mod_options(item))
         return catalog_items
 
+    def _gear_community_templates(self, cur, class_key, spec_key):
+        cur.execute(
+            """
+            SELECT id, class_key, spec_key, name, source_key, source_name, source_url,
+                   source_status, status, signature, source_refs_json, gear_items_json,
+                   raw_string, ready_slot_count, missing_slots_json, analysis_window,
+                   payload_json, updated_at, expires_at, scan_run_id
+            FROM cache.websim_community_gear_templates
+            WHERE class_key = %s AND spec_key = %s AND status IN ('complete', 'partial')
+            ORDER BY status, ready_slot_count DESC, updated_at DESC, name
+            LIMIT 80
+            """,
+            (class_key, spec_key),
+        )
+        templates = []
+        for row in cur.fetchall():
+            payload = _json_value(row[16], {})
+            gear_items = _json_value(row[11], [])
+            template = {
+                "id": str(row[0] or ""),
+                "classKey": row[1] or "",
+                "specKey": row[2] or "",
+                "name": row[3] or "",
+                "sourceKey": row[4] or "",
+                "sourceName": row[5] or "",
+                "sourceUrl": row[6] or "",
+                "sourceStatus": row[7] or "",
+                "status": row[8] or "",
+                "signature": row[9] or "",
+                "sourceRefs": normalize_source_refs(_json_value(row[10], [])),
+                "gearItems": gear_items,
+                "rawString": row[12] or "",
+                "readySlotCount": _int_value(row[13]),
+                "missingSlots": _json_value(row[14], []),
+                "analysisWindow": row[15] or "",
+                "payload": payload,
+                "updatedAt": str(row[17] or ""),
+                "expiresAt": str(row[18] or ""),
+                "scanRunId": row[19] or "",
+                "canApplyGear": bool(row[12] or gear_items),
+                "templateRevision": COMMUNITY_TEMPLATE_REVISION,
+            }
+            scenario_key = payload.get("scenarioKey") if isinstance(payload, dict) else ""
+            if scenario_key:
+                template["scenarioKey"] = scenario_key
+            enhancement_readiness = payload.get("enhancementReadiness") if isinstance(payload, dict) else {}
+            if isinstance(enhancement_readiness, dict) and enhancement_readiness:
+                template["enhancementReadiness"] = enhancement_readiness
+            template_evidence = payload.get("templateEvidence") if isinstance(payload, dict) else {}
+            if isinstance(template_evidence, dict) and template_evidence:
+                template["templateEvidence"] = template_evidence
+            templates.append(template)
+        return dedupe_gear_community_templates(templates)
+
     def get_websim_gear(self, class_key="mage", spec_key="arcane", compact=False):
         season = self.get_active_season_payload()
         class_key = slugify(class_key, "mage")
@@ -653,17 +888,18 @@ class PostgresCacheStore:
         compact = bool(compact)
         season_fields = season_metadata_fields(season)
         catalog_state = self.get_sync_state("gearCatalog")
-        if season.get("dataStatus") != "verified":
-            return {
-                "classKey": class_key,
-                "specKey": spec_key,
-                "replacementCandidates": [],
-                "catalogItems": [],
-                "catalogStatus": catalog_state.get("status") or "blocked",
-                **season_fields,
-            }
+        season_errors = season.get("errors") if isinstance(season.get("errors"), list) else []
+        catalog_blockers = [
+            *[str(item) for item in (catalog_state.get("blockers") or []) if str(item or "").strip()],
+            *[str(item) for item in season_errors if str(item or "").strip()],
+        ]
+        cache_fingerprint = None
         with self.connection() as conn:
             with conn.cursor() as cur:
+                cache_fingerprint = self._gear_payload_fingerprint(cur, class_key, spec_key, compact, season, catalog_state)
+                cached_payload = _pg_gear_payload_cache_get(cache_fingerprint)
+                if cached_payload is not None:
+                    return cached_payload
                 cur.execute(
                     """
                     SELECT id, item_id, source_type, source_key, source_label, instance_id,
@@ -705,6 +941,7 @@ class PostgresCacheStore:
                         item_ids,
                     )
                     item_rows = cur.fetchall()
+                community_templates = self._gear_community_templates(cur, class_key, spec_key)
         sources_by_item = self._gear_sources_by_item(source_rows)
         variants_by_item = self._gear_variants_by_item(variant_rows)
         raw_options_by_slot = {
@@ -763,8 +1000,8 @@ class PostgresCacheStore:
             "equippedSet": {},
             "slotReadiness": gear_slot_readiness(catalog_items, class_key, spec_key),
             "baselineSet": [],
-            "communityTemplates": [],
-            "communityTemplateSync": {"status": "blocked", "templateCount": 0},
+            "communityTemplates": community_templates,
+            "communityTemplateSync": websim_gear_community_template_sync_state(community_templates),
             "readiness": readiness,
             "statSnapshot": blocked_stat_snapshot(
                 ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
@@ -788,7 +1025,7 @@ class PostgresCacheStore:
             "itemDatabaseRevision": catalog_state.get("itemDatabaseRevision") or "",
             "variantRevision": catalog_state.get("variantRevision") or "",
             "catalogCheckedAt": catalog_state.get("checkedAt") or catalog_state.get("updatedAt") or "",
-            "catalogBlockers": catalog_state.get("blockers") or [],
+            "catalogBlockers": catalog_blockers,
             "maxLevel": websim_max_level(),
             "checkedAt": utc_now(),
             **season_fields,
@@ -798,7 +1035,59 @@ class PostgresCacheStore:
             payload["presets"] = []
             payload["candidateItems"] = []
         payload["catalogItems"] = output_catalog_items[:120]
+        if payload.get("replacementCandidates") or payload.get("dataStatus") in {"stale", "blocked"}:
+            _pg_gear_payload_cache_put(cache_fingerprint, payload)
         return payload
+
+    def admin_gate_queue_summary(self):
+        rows = []
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT 'talents' AS domain, status, payload_json->'blockers' AS blockers
+                    FROM cache.websim_community_talent_templates
+                    ORDER BY updated_at DESC
+                    LIMIT 500
+                    """
+                )
+                rows.extend((row[0], row[1] or "", _json_value(row[2], [])) for row in cur.fetchall())
+                cur.execute(
+                    """
+                    SELECT class_key, spec_key, COUNT(*) AS node_count
+                    FROM cache.websim_talents
+                    GROUP BY class_key, spec_key
+                    """
+                )
+                rows.extend(
+                    ("talents", "verified" if _int_value(row[2]) > 0 else "blocked", [] if _int_value(row[2]) > 0 else ["talent tree has no nodes"])
+                    for row in cur.fetchall()
+                )
+                cur.execute(
+                    """
+                    SELECT 'gear' AS domain, status, blockers_json
+                    FROM cache.websim_gear_variants
+                    """
+                )
+                rows.extend((row[0], row[1] or "", _json_value(row[2], [])) for row in cur.fetchall())
+                cur.execute("SELECT to_regclass('cache.websim_community_gear_templates')")
+                has_gear_templates = bool((cur.fetchone() or [None])[0])
+                if has_gear_templates:
+                    cur.execute(
+                        """
+                        SELECT status, payload_json->'blockers' AS blockers, missing_slots_json
+                        FROM cache.websim_community_gear_templates
+                        ORDER BY updated_at DESC
+                        LIMIT 500
+                        """
+                    )
+                    for row in cur.fetchall():
+                        blockers = _json_value(row[1], [])
+                        missing_slots = _json_value(row[2], [])
+                        if missing_slots:
+                            blockers = [*(blockers or []), f"missing slots: {', '.join(str(slot) for slot in missing_slots[:6])}"]
+                        rows.append(("gear_templates", row[0] or "", blockers))
+        return _admin_gate_queue_summary(rows)
 
     def admin_gate_talent_records(self):
         with self.connection() as conn:
@@ -862,7 +1151,7 @@ class PostgresCacheStore:
             ],
         }
 
-    def admin_gate_gear_records(self):
+    def admin_gate_gear_template_records(self):
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT to_regclass('cache.websim_community_gear_templates')")
@@ -881,6 +1170,37 @@ class PostgresCacheStore:
                         """
                     )
                     template_rows = cur.fetchall()
+        return {
+            "communityGearTemplates": [
+                {
+                    "id": str(row[0] or ""),
+                    "classKey": row[1] or "",
+                    "specKey": row[2] or "",
+                    "name": row[3] or "",
+                    "sourceKey": row[4] or "",
+                    "sourceName": row[5] or "",
+                    "sourceUrl": row[6] or "",
+                    "sourceStatus": row[7] or "",
+                    "status": row[8] or "",
+                    "signature": row[9] or "",
+                    "sourceRefs": _json_value(row[10], []),
+                    "gearItems": _json_value(row[11], []),
+                    "rawString": row[12] or "",
+                    "readySlotCount": _int_value(row[13]),
+                    "missingSlots": _json_value(row[14], []),
+                    "analysisWindow": row[15] or "",
+                    "payload": _json_value(row[16], {}),
+                    "updatedAt": str(row[17] or ""),
+                    "expiresAt": str(row[18] or ""),
+                    "scanRunId": row[19] or "",
+                }
+                for row in template_rows
+            ]
+        }
+
+    def admin_gate_gear_variant_records(self):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
                 cur.execute(
                     """
                     SELECT v.id, v.item_id, COALESCE(NULLIF(i.name, ''), v.item_id),
@@ -916,31 +1236,6 @@ class PostgresCacheStore:
                 )
                 variant_rows = cur.fetchall()
         return {
-            "communityGearTemplates": [
-                {
-                    "id": str(row[0] or ""),
-                    "classKey": row[1] or "",
-                    "specKey": row[2] or "",
-                    "name": row[3] or "",
-                    "sourceKey": row[4] or "",
-                    "sourceName": row[5] or "",
-                    "sourceUrl": row[6] or "",
-                    "sourceStatus": row[7] or "",
-                    "status": row[8] or "",
-                    "signature": row[9] or "",
-                    "sourceRefs": _json_value(row[10], []),
-                    "gearItems": _json_value(row[11], []),
-                    "rawString": row[12] or "",
-                    "readySlotCount": _int_value(row[13]),
-                    "missingSlots": _json_value(row[14], []),
-                    "analysisWindow": row[15] or "",
-                    "payload": _json_value(row[16], {}),
-                    "updatedAt": str(row[17] or ""),
-                    "expiresAt": str(row[18] or ""),
-                    "scanRunId": row[19] or "",
-                }
-                for row in template_rows
-            ],
             "gearVariants": [
                 {
                     "id": str(row[0] or ""),
@@ -962,6 +1257,109 @@ class PostgresCacheStore:
                 }
                 for row in variant_rows
             ],
+        }
+
+    def admin_gate_gear_variant_records_page(self, limit=20, offset=0):
+        limit = max(1, min(_int_value(limit, 20), 200))
+        offset = max(0, _int_value(offset, 0))
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM (
+                        SELECT 1
+                        FROM cache.websim_gear_variants
+                        GROUP BY item_id, slot
+                    ) grouped
+                    """
+                )
+                total_groups = _int_value((cur.fetchone() or [0])[0])
+                cur.execute(
+                    """
+                    SELECT item_id, slot, MAX(updated_at) AS latest_updated_at
+                    FROM cache.websim_gear_variants
+                    GROUP BY item_id, slot
+                    ORDER BY latest_updated_at DESC NULLS LAST, item_id, slot
+                    LIMIT %s OFFSET %s
+                    """,
+                    (limit, offset),
+                )
+                group_rows = cur.fetchall()
+                variant_rows = []
+                if group_rows:
+                    clauses = []
+                    params = []
+                    for item_id, slot, _updated_at in group_rows:
+                        clauses.append("(v.item_id = %s AND v.slot = %s)")
+                        params.extend([item_id, slot])
+                    cur.execute(
+                        f"""
+                        SELECT v.id, v.item_id, COALESCE(NULLIF(i.name, ''), v.item_id),
+                               v.slot, v.label, v.source_type, v.difficulty_key, v.item_level,
+                               v.simc_options_json, v.status, v.blockers_json, v.payload_json, i.payload_json,
+                               COALESCE((
+                                   SELECT s.source_label
+                                   FROM cache.websim_gear_sources s
+                                   WHERE s.item_id = v.item_id
+                                     AND s.source_type = v.source_type
+                                     AND (s.difficulty_key = v.difficulty_key OR s.difficulty_key = '' OR v.difficulty_key = '')
+                                   ORDER BY CASE WHEN s.difficulty_key = v.difficulty_key THEN 0 ELSE 1 END,
+                                            NULLIF(s.source_label, '') NULLS LAST,
+                                            s.updated_at DESC
+                                   LIMIT 1
+                               ), '') AS source_label,
+                               COALESCE((
+                                   SELECT s.instance_id
+                                   FROM cache.websim_gear_sources s
+                                   WHERE s.item_id = v.item_id
+                                     AND s.source_type = v.source_type
+                                     AND (s.difficulty_key = v.difficulty_key OR s.difficulty_key = '' OR v.difficulty_key = '')
+                                   ORDER BY CASE WHEN s.difficulty_key = v.difficulty_key THEN 0 ELSE 1 END,
+                                            NULLIF(s.source_label, '') NULLS LAST,
+                                            s.updated_at DESC
+                                   LIMIT 1
+                               ), '') AS source_instance_id,
+                               v.updated_at
+                        FROM cache.websim_gear_variants v
+                        LEFT JOIN cache.websim_items i ON i.id = v.item_id
+                        WHERE {" OR ".join(clauses)}
+                        ORDER BY v.updated_at DESC NULLS LAST
+                        """,
+                        tuple(params),
+                    )
+                    variant_rows = cur.fetchall()
+        return {
+            "totalGroups": total_groups,
+            "gearVariants": [
+                {
+                    "id": str(row[0] or ""),
+                    "itemId": str(row[1] or ""),
+                    "itemName": str(row[2] or ""),
+                    "slot": row[3] or "",
+                    "label": row[4] or "",
+                    "sourceType": row[5] or "",
+                    "difficultyKey": row[6] or "",
+                    "itemLevel": _int_value(row[7]),
+                    "simcOptions": _json_value(row[8], {}),
+                    "status": row[9] or "",
+                    "blockers": _json_value(row[10], []),
+                    "payload": _json_value(row[11], {}),
+                    "itemPayload": _json_value(row[12], {}),
+                    "sourceLabel": str(row[13] or ""),
+                    "sourceInstanceId": str(row[14] or ""),
+                    "updatedAt": str(row[15] or ""),
+                }
+                for row in variant_rows
+            ],
+        }
+
+    def admin_gate_gear_records(self):
+        template_payload = self.admin_gate_gear_template_records()
+        variant_payload = self.admin_gate_gear_variant_records()
+        return {
+            "communityGearTemplates": template_payload.get("communityGearTemplates", []),
+            "gearVariants": variant_payload.get("gearVariants", []),
         }
 
     def get_websim_loot(self, filters=None, limit=120):

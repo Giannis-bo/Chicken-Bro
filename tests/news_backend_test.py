@@ -1,3 +1,4 @@
+import gzip
 import os
 import json
 import sqlite3
@@ -5345,6 +5346,42 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("components", payload)
         self.assertTrue(any(item["key"] == "websim_season" for item in payload["components"]))
 
+    def test_data_health_route_skips_template_evidence_audit_by_default(self):
+        with patch.object(
+            self.backend,
+            "build_data_health_payload",
+            wraps=self.backend.build_data_health_payload,
+        ) as wrapped:
+            server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with urlopen(f"http://127.0.0.1:{server.server_port}/api/data/health", timeout=5) as response:
+                    self.assertEqual(response.status, 200)
+            finally:
+                server.shutdown()
+                thread.join(timeout=2)
+                server.server_close()
+        self.assertEqual(wrapped.call_args.kwargs.get("include_template_evidence_audit"), False)
+
+    def test_data_health_route_allows_explicit_template_evidence_audit(self):
+        with patch.object(
+            self.backend,
+            "build_data_health_payload",
+            wraps=self.backend.build_data_health_payload,
+        ) as wrapped:
+            server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                with urlopen(f"http://127.0.0.1:{server.server_port}/api/data/health?audit=1", timeout=5) as response:
+                    self.assertEqual(response.status, 200)
+            finally:
+                server.shutdown()
+                thread.join(timeout=2)
+                server.server_close()
+        self.assertEqual(wrapped.call_args.kwargs.get("include_template_evidence_audit"), True)
+
     def test_authenticated_simulator_analysis_is_saved_as_user_task(self):
         login = self.backend.login_with_wechat_code(
             "wx-code-3",
@@ -6027,6 +6064,24 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "codex")
         self.assertEqual(result["job"]["result"]["codex"]["status"], "succeeded")
 
+    def test_json_response_gzips_large_json_when_client_accepts_gzip(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/websim/bootstrap",
+                headers={"Accept-Encoding": "gzip"},
+            )
+            with urlopen(request, timeout=5) as response:
+                self.assertEqual(response.headers.get("Content-Encoding"), "gzip")
+                body = gzip.decompress(response.read())
+                self.assertIn(b"classes", body)
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+
     def test_http_chickenbro_api_supports_guest_session_job_and_owner_isolation(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -6559,6 +6614,79 @@ class NewsBackendTest(unittest.TestCase):
         full_audit.assert_not_called()
         self.assertEqual(payload["schemaRevision"], "admin-gates-summary-v1")
         self.assertTrue(any(item["key"] == "community_templates" for item in payload["modules"]))
+
+    def test_admin_gate_summary_uses_lightweight_queue_summary(self):
+        with patch.object(
+            self.backend,
+            "admin_gate_queue_payload",
+            side_effect=AssertionError("summary must not build full queue"),
+        ):
+            payload = self.backend.admin_gate_summary_payload()
+
+        self.assertIn("queueSummary", payload)
+        self.assertNotIn("items", payload["queueSummary"])
+
+    def test_admin_gate_summary_prefers_runtime_lightweight_queue_summary(self):
+        class ContentStore:
+            def admin_gate_queue_summary(self):
+                return {
+                    "count": 2,
+                    "domainCounts": {"news": 2},
+                    "topBlockers": [{"reason": "news blocked", "count": 2}],
+                }
+
+        class CacheStore:
+            def admin_gate_queue_summary(self):
+                return {
+                    "count": 3,
+                    "domainCounts": {"gear": 3},
+                    "topBlockers": [{"reason": "gear blocked", "count": 3}],
+                }
+
+            def admin_gate_gear_records(self):
+                raise AssertionError("summary must not build full gear records")
+
+        with patch.object(
+            self.backend,
+            "build_data_health_payload",
+            return_value={"components": []},
+        ), patch.object(self.backend, "content_data_store", return_value=ContentStore()), \
+             patch.object(self.backend, "cache_data_store", return_value=CacheStore()):
+            payload = self.backend.admin_gate_summary_payload()
+
+        self.assertEqual(payload["queueSummary"]["count"], 5)
+        self.assertEqual(payload["queueSummary"]["domainCounts"], {"news": 2, "gear": 3})
+        self.assertEqual(payload["queueSummary"]["topBlockers"][0]["reason"], "gear blocked")
+
+    def test_admin_gate_queue_without_domain_stops_after_limit(self):
+        calls = []
+
+        def fake_collect(query):
+            domain = (query or {}).get("domain", [""])[0]
+            calls.append(domain)
+            if not domain:
+                raise AssertionError("queue must load domains incrementally")
+            if domain != "news":
+                raise AssertionError(f"queue should stop before loading {domain}")
+            return [
+                self.backend.admin_gate_record(
+                    "news",
+                    "news_discovery_queue",
+                    f"news-{index}",
+                    f"News {index}",
+                    status="blocked",
+                    source_status="blocked",
+                    blockers=["blocked"],
+                )
+                for index in range(120)
+            ]
+
+        with patch.object(self.backend, "collect_admin_gate_records_from_runtime_stores", side_effect=fake_collect), \
+             patch.object(self.backend, "ops_data_store", return_value=None):
+            payload = self.backend.admin_gate_queue_payload({"limit": ["80"]})
+
+        self.assertEqual(len(payload["items"]), 80)
+        self.assertEqual(calls, ["news"])
 
     def test_admin_gates_records_are_full_record_level_read_only_and_redacted(self):
         with self.backend.db_connection() as conn:
@@ -7285,6 +7413,49 @@ class NewsBackendTest(unittest.TestCase):
                             "signature": "sig-pg-visible-gear-template",
                             "sourceRefs": [{"type": "raiderio"}],
                             "scanRunId": "scan-pg",
+                        },
+                        {
+                            "id": "pg-gear-template-baseline",
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "name": "SimC preset baseline",
+                            "sourceKey": "simc_preset",
+                            "sourceName": "SimC preset",
+                            "sourceUrl": "",
+                            "sourceStatus": "synced",
+                            "status": "complete",
+                            "readySlotCount": 16,
+                            "missingSlots": [],
+                            "analysisWindow": "SimC preset profile; 16/16 canonical gear slots ready.",
+                            "payload": {},
+                            "updatedAt": "2026-06-30T00:06:30+00:00",
+                            "expiresAt": "2099-01-01T00:00:00+00:00",
+                            "signature": "sig-pg-baseline-gear-template",
+                            "sourceRefs": [{"type": "simc_preset"}],
+                            "scanRunId": "scan-pg",
+                        },
+                        {
+                            "id": "pg-gear-template-default",
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "name": "默认模板 · 法师冰霜",
+                            "sourceKey": "default_template",
+                            "sourceName": "默认模板",
+                            "sourceUrl": "",
+                            "sourceStatus": "verified",
+                            "status": "complete",
+                            "readySlotCount": 16,
+                            "missingSlots": [],
+                            "analysisWindow": "默认模板由 verified 当前赛季装备候选和 M+ mixed-route 绿字权重生成。",
+                            "payload": {
+                                "scenarioKey": "mplus_mixed_route",
+                                "templateEvidence": {"sourceKey": "default_template"},
+                            },
+                            "updatedAt": "2026-06-30T00:07:00+00:00",
+                            "expiresAt": "2099-01-01T00:00:00+00:00",
+                            "signature": "sig-pg-default-gear-template",
+                            "sourceRefs": [{"type": "default_template"}],
+                            "scanRunId": "scan-pg",
                         }
                     ],
                     "gearVariants": [
@@ -7419,6 +7590,9 @@ class NewsBackendTest(unittest.TestCase):
             gear_template_visibility_hidden_payload = self.backend.admin_gate_records_payload(
                 {"domain": ["gear_templates"], "field": ["visibility"], "q": ["不可见"], "limit": ["20"]}
             )
+            gear_template_source_default_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear_templates"], "field": ["source"], "q": ["默认模板"], "limit": ["20"]}
+            )
             talent_page_one = self.backend.admin_gate_records_payload(
                 {"domain": ["talents"], "page": ["1"], "pageSize": ["1"]}
             )
@@ -7516,6 +7690,17 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(visible_gear_template["gearCategory"]["classLabel"], "法师")
         self.assertEqual(visible_gear_template["gearVisibility"]["state"], "visible")
         self.assertEqual(visible_gear_template["gearVisibility"]["stateLabel"], "已可见")
+        baseline_gear_template = next(record for record in gear_templates_payload["records"] if record["targetId"] == "pg-gear-template-baseline")
+        self.assertEqual(baseline_gear_template["gearCategory"]["classLabel"], "法师")
+        self.assertEqual(baseline_gear_template["gearCategory"]["sourceKind"], "baseline")
+        self.assertEqual(baseline_gear_template["gearCategory"]["sourceLabel"], "基线模板")
+        self.assertEqual(baseline_gear_template["gearCategory"]["sourceKey"], "simc_preset")
+        default_gear_template = next(record for record in gear_templates_payload["records"] if record["targetId"] == "pg-gear-template-default")
+        self.assertEqual(default_gear_template["gearCategory"]["classLabel"], "法师")
+        self.assertEqual(default_gear_template["gearCategory"]["sourceKind"], "baseline")
+        self.assertEqual(default_gear_template["gearCategory"]["sourceLabel"], "基线模板")
+        self.assertEqual(default_gear_template["gearCategory"]["sourceKey"], "default_template")
+        self.assertEqual(default_gear_template["sourceName"], "默认模板")
         self.assertEqual(news_category_source_miss["records"], [])
         self.assertEqual([record["targetId"] for record in talent_template_payload["records"]], ["pg-template-1"])
         self.assertEqual(
@@ -7546,9 +7731,16 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual([record["targetId"] for record in gear_item_type_payload["records"]], ["pg-variant-blocked"])
         self.assertEqual([record["targetId"] for record in gear_visibility_visible_payload["records"]], ["pg-variant-1"])
         self.assertEqual([record["targetId"] for record in gear_visibility_hidden_payload["records"]], ["pg-variant-blocked"])
-        self.assertEqual([record["targetId"] for record in gear_template_class_payload["records"]], ["pg-gear-template-visible"])
-        self.assertEqual([record["targetId"] for record in gear_template_visibility_visible_payload["records"]], ["pg-gear-template-visible"])
+        self.assertEqual(
+            {record["targetId"] for record in gear_template_class_payload["records"]},
+            {"pg-gear-template-visible", "pg-gear-template-baseline", "pg-gear-template-default"},
+        )
+        self.assertEqual(
+            {record["targetId"] for record in gear_template_visibility_visible_payload["records"]},
+            {"pg-gear-template-visible", "pg-gear-template-baseline", "pg-gear-template-default"},
+        )
         self.assertEqual([record["targetId"] for record in gear_template_visibility_hidden_payload["records"]], ["pg-gear-template-1"])
+        self.assertEqual([record["targetId"] for record in gear_template_source_default_payload["records"]], ["pg-gear-template-default"])
         self.assertEqual(talent_page_one["pagination"]["page"], 1)
         self.assertEqual(talent_page_one["pagination"]["pageSize"], 1)
         self.assertEqual(talent_page_one["pagination"]["total"], 3)
@@ -7558,6 +7750,51 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(talent_page_one["records"][0]["targetId"], "pg-template-1")
         self.assertEqual(talent_page_two["records"][0]["targetId"], "pg-template-blocked")
         self.assertEqual(talent_default_page["pagination"]["pageSize"], 20)
+
+    def test_admin_gates_gear_records_use_paged_postgres_store_when_unfiltered(self):
+        calls = []
+
+        class CacheStore:
+            def admin_gate_gear_variant_records_page(self, limit=20, offset=0):
+                calls.append((limit, offset))
+                return {
+                    "totalGroups": 42,
+                    "gearVariants": [
+                        {
+                            "id": "variant-page-1",
+                            "itemId": "250001",
+                            "itemName": "Paged Gear",
+                            "slot": "head",
+                            "label": "Champion",
+                            "sourceType": "dungeon",
+                            "difficultyKey": "mythic_plus",
+                            "itemLevel": 678,
+                            "simcOptions": {"ilevel": 678},
+                            "status": "partial",
+                            "blockers": ["stat source pending"],
+                            "payload": {},
+                            "itemPayload": {},
+                            "sourceLabel": "Paged Boss - Paged Dungeon",
+                            "sourceInstanceId": "9999",
+                            "updatedAt": "2026-07-01T00:00:00+00:00",
+                        }
+                    ],
+                }
+
+            def admin_gate_gear_variant_records(self):
+                raise AssertionError("unfiltered gear records should use the paged PG path")
+
+        with patch.object(self.backend, "cache_data_store", return_value=CacheStore()):
+            payload = self.backend.admin_gate_records_payload({
+                "domain": ["gear"],
+                "page": ["2"],
+                "pageSize": ["20"],
+            })
+
+        self.assertEqual(calls, [(20, 20)])
+        self.assertEqual(payload["count"], 1)
+        self.assertEqual(payload["pagination"]["total"], 42)
+        self.assertEqual(payload["records"][0]["targetId"], "variant-page-1")
 
     def test_admin_gates_empty_postgres_gear_templates_do_not_fallback_to_sqlite(self):
         class EmptyCacheStore:
@@ -7571,6 +7808,65 @@ class NewsBackendTest(unittest.TestCase):
 
         self.assertEqual(payload["records"], [])
         self.assertEqual(payload["pagination"]["total"], 0)
+
+    def test_admin_gates_gear_templates_use_narrow_postgres_store_method(self):
+        class NarrowTemplateStore:
+            def admin_gate_gear_template_records(self):
+                return {
+                    "communityGearTemplates": [
+                        {
+                            "id": "pg-gear-template-narrow",
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "name": "PG narrow gear template",
+                            "sourceKey": "raiderio",
+                            "sourceName": "Raider.IO",
+                            "sourceUrl": "https://example.com/pg-gear-template",
+                            "sourceStatus": "verified",
+                            "status": "verified",
+                            "readySlotCount": 16,
+                            "missingSlots": [],
+                            "analysisWindow": "2026-W27",
+                            "payload": {},
+                            "updatedAt": "2026-06-30T00:05:00+00:00",
+                            "expiresAt": "2099-01-01T00:00:00+00:00",
+                            "signature": "sig-pg-gear-template",
+                            "sourceRefs": [{"type": "raiderio"}],
+                            "scanRunId": "scan-pg",
+                        }
+                    ]
+                }
+
+            def admin_gate_gear_records(self):
+                raise AssertionError("gear_templates must not call the combined gear records path")
+
+        with patch.object(self.backend, "cache_data_store", return_value=NarrowTemplateStore()):
+            payload = self.backend.admin_gate_records_payload({"domain": ["gear_templates"], "limit": ["20"]})
+
+        self.assertEqual([record["targetId"] for record in payload["records"]], ["pg-gear-template-narrow"])
+
+    def test_runtime_websim_gear_returns_stale_postgres_payload_without_sqlite_fallback(self):
+        stale_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "dataStatus": "stale",
+            "catalogBlockers": ["season cache expired"],
+            "replacementCandidates": [],
+        }
+
+        class StaleGearStore:
+            def get_websim_gear(self, class_key, spec_key, compact=False):
+                return stale_payload
+
+        with patch.object(self.backend, "cache_data_store", return_value=StaleGearStore()), patch.object(
+            self.backend,
+            "init_db",
+            side_effect=AssertionError("stale PG gear payload must not fall back to SQLite"),
+        ):
+            payload = self.backend.runtime_websim_gear_payload("mage", "frost", compact=True)
+
+        self.assertIs(payload, stale_payload)
 
     def test_admin_gates_record_detail_uses_postgres_runtime_store_when_available(self):
         class FakeContentStore:
@@ -7825,6 +8121,10 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("function loadQueue()", html)
         self.assertIn("function applyAdminGateView", html)
         self.assertNotIn("data.diagnosticQueue.items.map", html)
+        self.assertNotIn("const tasks = [loadSummary(), loadQueue(), loadDiagnoses()];", html)
+        self.assertIn("const tasks = [loadSummary()];", html)
+        self.assertIn("if (currentAdminGateNav === 'queue') tasks.push(loadQueue());", html)
+        self.assertIn("if (currentAdminGateNav === 'diagnoses') tasks.push(loadDiagnoses());", html)
         self.assertIn("verified（已验证）", html)
         self.assertIn("blocked（已阻断）", html)
         self.assertIn("missing_credentials（缺少凭据）", html)

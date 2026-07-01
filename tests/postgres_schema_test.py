@@ -13,6 +13,7 @@ WEBSIM_GEAR_CATALOG_CACHE = ROOT / "server" / "migrations" / "postgres" / "0007_
 WEBSIM_TALENT_CACHE = ROOT / "server" / "migrations" / "postgres" / "0008_websim_talent_cache.sql"
 RUNTIME_RECONCILE_PRIVILEGES = ROOT / "server" / "migrations" / "postgres" / "0009_runtime_reconcile_privileges.sql"
 ADMIN_GATE_DIAGNOSTICS = ROOT / "server" / "migrations" / "postgres" / "0010_admin_gate_diagnostics.sql"
+WEBSIM_GEAR_TEMPLATE_CACHE = ROOT / "server" / "migrations" / "postgres" / "0011_websim_gear_template_cache.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -239,3 +240,29 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("CREATE INDEX IF NOT EXISTS idx_ops_admin_gate_diagnoses_target", normalized)
         self.assertIn("GRANT SELECT, INSERT, UPDATE, DELETE ON ops.admin_gate_diagnoses TO wow_app", normalized)
         self.assertIn("0010_admin_gate_diagnostics", normalized)
+
+    def test_websim_gear_template_cache_migration_adds_pg_read_model_table(self):
+        self.assertTrue(WEBSIM_GEAR_TEMPLATE_CACHE.exists(), "missing gear template PG cache migration")
+        normalized = " ".join(WEBSIM_GEAR_TEMPLATE_CACHE.read_text(encoding="utf-8").split())
+        self.assertIn("CREATE TABLE IF NOT EXISTS cache.websim_community_gear_templates", normalized)
+        for field in (
+            "class_key",
+            "spec_key",
+            "source_key",
+            "source_name",
+            "source_status",
+            "status",
+            "signature",
+            "source_refs_json",
+            "gear_items_json",
+            "raw_string",
+            "ready_slot_count",
+            "missing_slots_json",
+            "analysis_window",
+            "payload_json",
+            "scan_run_id",
+        ):
+            self.assertIn(field, normalized)
+        self.assertIn("CREATE INDEX IF NOT EXISTS idx_cache_websim_community_gear_templates_lookup", normalized)
+        self.assertIn("GRANT SELECT, INSERT, UPDATE, DELETE ON cache.websim_community_gear_templates TO wow_app", normalized)
+        self.assertIn("0011_websim_gear_template_cache", normalized)

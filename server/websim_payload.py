@@ -12827,6 +12827,97 @@ def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arca
     return deduped[:COMMUNITY_TALENT_TEMPLATE_LIMIT_PER_SPEC]
 
 
+def websim_talent_import_response(class_key, spec_key, hero_key="", template=None, blockers=None):
+    class_key = slugify(class_key, "mage")
+    spec_key = slugify(spec_key, "arcane")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(hero_key, ""))
+    if isinstance(template, dict):
+        import_code = str(template.get("rawImportCode") or template.get("importCode") or template.get("talentImport") or "").strip()
+        if import_code and template.get("canUseInSimc") is not False and template.get("status") != "blocked":
+            return {
+                "schemaRevision": "websim-talent-import-v1",
+                "classKey": class_key,
+                "specKey": spec_key,
+                "heroKey": hero_key,
+                "importCode": import_code,
+                "source": "community_template",
+                "sourceKey": template.get("sourceKey") or "",
+                "sourceName": template.get("sourceName") or "",
+                "templateId": template.get("id") or "",
+                "status": "verified",
+                "blockers": [],
+            }
+    return {
+        "schemaRevision": "websim-talent-import-v1",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "heroKey": hero_key,
+        "importCode": "",
+        "source": "community_template",
+        "status": "blocked",
+        "blockers": blockers or ["no SimC-ready community talent import"],
+    }
+
+
+def get_websim_talent_import(conn, class_key="mage", spec_key="arcane", hero_key=""):
+    ensure_websim_tables(conn)
+    season = get_active_season_payload(conn)
+    class_key = slugify(class_key, "mage")
+    spec_key = slugify(spec_key, "arcane")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(hero_key, ""))
+    if season.get("dataStatus") != "verified":
+        return websim_talent_import_response(
+            class_key,
+            spec_key,
+            hero_key,
+            blockers=season.get("errors") or ["active season is not verified"],
+        )
+    row = conn.execute(
+        """
+        SELECT id, class_key, spec_key, hero_key, scenario_key, name,
+               source_key, source_name, source_url, raw_import_code,
+               source_status, status, sample_count, max_key_level,
+               analysis_window, updated_at
+        FROM websim_community_talent_templates
+        WHERE class_key = ?
+          AND spec_key = ?
+          AND status = 'verified'
+          AND raw_import_code <> ''
+        ORDER BY CASE WHEN hero_key = ? THEN 0 ELSE 1 END,
+                 max_key_level DESC, sample_count DESC, hero_key, name
+        LIMIT 1
+        """,
+        (class_key, spec_key, hero_key),
+    ).fetchone()
+    template = None
+    if row:
+        template = {
+            "id": row[0],
+            "classKey": row[1],
+            "specKey": row[2],
+            "heroKey": row[3],
+            "scenarioKey": row[4],
+            "name": row[5],
+            "sourceKey": row[6],
+            "sourceName": row[7],
+            "sourceUrl": row[8],
+            "rawImportCode": row[9],
+            "sourceStatus": row[10],
+            "status": row[11],
+            "sampleCount": int(row[12] or 0),
+            "maxKeyLevel": int(row[13] or 0),
+            "analysisWindow": row[14] or "",
+            "updatedAt": row[15] or "",
+            "canUseInSimc": True,
+        }
+    return websim_talent_import_response(
+        class_key,
+        spec_key,
+        hero_key,
+        template=template,
+    )
+
+
 def sync_community_talent_templates(conn):
     ensure_websim_tables(conn)
     try:

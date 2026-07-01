@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import copy
+import gzip
 import hashlib
 import json
 import mimetypes
@@ -82,6 +84,7 @@ try:
         get_websim_bootstrap,
         get_websim_gear,
         get_websim_loot,
+        get_websim_talent_import,
         get_websim_talents,
         get_active_season_payload,
         import_talent_api_payload,
@@ -162,6 +165,7 @@ except ImportError:
         get_websim_bootstrap,
         get_websim_gear,
         get_websim_loot,
+        get_websim_talent_import,
         get_websim_talents,
         get_active_season_payload,
         import_talent_api_payload,
@@ -6017,19 +6021,145 @@ def websim_gear_payload_has_items(payload):
     return bool(payload.get("catalogItems"))
 
 
+WEBSIM_GEAR_INITIAL_CANDIDATE_LIMIT = 4
+WEBSIM_GEAR_INITIAL_CANDIDATE_KEYS = {
+    "id",
+    "itemId",
+    "key",
+    "slot",
+    "simcSlot",
+    "name",
+    "displayName",
+    "iconUrl",
+    "quality",
+    "ilevel",
+    "itemLevel",
+    "source",
+    "sourceName",
+    "sourceType",
+    "sourceStatus",
+    "status",
+    "dataStatus",
+    "difficultyKey",
+    "difficultyLabel",
+    "variantKey",
+    "defaultVariantKey",
+    "variantLabel",
+    "primaryStatKey",
+    "primaryStatLabel",
+    "bonus_id",
+    "gem_id",
+    "gem_bonus_id",
+    "gem_ilevel",
+    "enchant_id",
+    "crafted_stats",
+    "embellishment",
+    "craftedStatOptionKey",
+    "selectedCraftedStatKey",
+    "socketOptionLabel",
+    "enchantOptionLabel",
+    "embellishmentOptionLabel",
+    "armorType",
+    "weaponType",
+    "itemSetName",
+    "hasBuiltInEmbellishment",
+    "builtInEmbellishment",
+    "intrinsicEmbellishment",
+    "inherentEmbellishment",
+    "builtInEmbellishmentLabel",
+    "embellishmentSource",
+    "compatibility",
+    "missingFields",
+    "blockers",
+    "variantBlockers",
+    "simcReady",
+    "simcIlevelOnly",
+    "modCapabilities",
+}
+
+
+def websim_gear_initial_candidate(item):
+    if not isinstance(item, dict):
+        return item
+    slim = {
+        key: copy.deepcopy(item[key])
+        for key in WEBSIM_GEAR_INITIAL_CANDIDATE_KEYS
+        if key in item and item[key] not in (None, "")
+    }
+    sources = item.get("sources") if isinstance(item.get("sources"), list) else []
+    first_source = next((source for source in sources if isinstance(source, dict)), {})
+    if first_source:
+        slim.setdefault(
+            "source",
+            first_source.get("label") or first_source.get("sourceLabel") or first_source.get("source") or "",
+        )
+        slim.setdefault("sourceType", first_source.get("sourceType") or first_source.get("type") or "")
+    slim["detailMode"] = "summary"
+    slim["slotDetailAvailable"] = True
+    return slim
+
+
+def websim_gear_initial_group(group):
+    if not isinstance(group, dict):
+        return group
+    slim = {
+        key: copy.deepcopy(value)
+        for key, value in group.items()
+        if key != "items"
+    }
+    items = group.get("items") if isinstance(group.get("items"), list) else []
+    slim["items"] = [
+        websim_gear_initial_candidate(item)
+        for item in items[:WEBSIM_GEAR_INITIAL_CANDIDATE_LIMIT]
+    ]
+    slim["detailMode"] = "partial"
+    slim["fullItemCount"] = len(items)
+    return slim
+
+
+def websim_gear_payload_for_mode(payload, mode="", slot=""):
+    if not isinstance(payload, dict):
+        return payload
+    normalized_mode = str(mode or "").strip().lower()
+    normalized_slot = str(slot or "").strip()
+    if normalized_mode == "initial":
+        output = copy.deepcopy(payload)
+        output["gearPayloadMode"] = "initial"
+        output["gearInitialCandidateLimit"] = WEBSIM_GEAR_INITIAL_CANDIDATE_LIMIT
+        for group_key in ("replacementCandidates", "slotGroups"):
+            if isinstance(output.get(group_key), list):
+                output[group_key] = [websim_gear_initial_group(group) for group in output[group_key]]
+        return output
+    if normalized_mode == "slot" and normalized_slot:
+        output = copy.deepcopy(payload)
+        output["gearPayloadMode"] = "slot"
+        output["gearSlot"] = normalized_slot
+        for group_key in ("replacementCandidates", "slotGroups"):
+            if isinstance(output.get(group_key), list):
+                output[group_key] = [
+                    group
+                    for group in output[group_key]
+                    if isinstance(group, dict) and (group.get("slot") or group.get("simcSlot")) == normalized_slot
+                ]
+                for group in output[group_key]:
+                    group["detailMode"] = "complete"
+        return output
+    return payload
+
+
 def runtime_websim_gear_payload(class_key, spec_key, compact=False):
     store = cache_data_store()
+    allow_sqlite_fallback = os.environ.get("WOW_ALLOW_SQLITE_PUBLIC_CACHE_FALLBACK") == "1"
     if store:
         try:
             payload = store.get_websim_gear(class_key, spec_key, compact=compact)
         except Exception:
             payload = {}
-        if (
-            isinstance(payload, dict)
-            and payload.get("dataStatus") == "verified"
-            and websim_gear_payload_has_items(payload)
-        ):
-            return payload
+        if isinstance(payload, dict) and payload:
+            if payload.get("dataStatus") == "verified" and websim_gear_payload_has_items(payload):
+                return payload
+            if not allow_sqlite_fallback:
+                return payload
     init_db()
     with db_connection() as conn:
         return get_websim_gear(conn, class_key, spec_key, compact=compact)
@@ -6055,6 +6185,20 @@ def runtime_websim_talents_payload(class_key, spec_key, hero_key=""):
     init_db()
     with db_connection() as conn:
         return get_websim_talents(conn, class_key, spec_key, hero_key)
+
+
+def runtime_websim_talent_import_payload(class_key, spec_key, hero_key=""):
+    store = cache_data_store()
+    if store and hasattr(store, "get_websim_talent_import"):
+        try:
+            payload = store.get_websim_talent_import(class_key, spec_key, hero_key)
+        except Exception:
+            payload = {}
+        if isinstance(payload, dict) and payload:
+            return payload
+    init_db()
+    with db_connection() as conn:
+        return get_websim_talent_import(conn, class_key, spec_key, hero_key)
 
 
 def safe_positive_int(value):
@@ -7253,13 +7397,16 @@ def admin_gate_gear_record_category(
         spec_value = str(spec_key or "").strip()
         class_label = admin_gate_talent_class_label(class_value)
         missing_value = missing_slots if isinstance(missing_slots, list) else []
+        is_baseline_source = source_value in {"default_template", "simc_preset"}
+        source_kind = "baseline" if is_baseline_source else "community"
+        source_label = "基线模板" if is_baseline_source else "社区模板"
         return {
             "label": admin_gate_summarize_text(class_label, 80),
             "classKey": admin_gate_summarize_text(class_value, 80),
             "classLabel": admin_gate_summarize_text(class_label, 80),
             "specKey": admin_gate_summarize_text(spec_value, 80),
-            "sourceKind": "community",
-            "sourceLabel": "社区来源",
+            "sourceKind": source_kind,
+            "sourceLabel": source_label,
             "sourceKey": admin_gate_summarize_text(source_value, 80),
             "readySlotCount": admin_gate_int_value(ready_slot_count, 0),
             "missingSlotCount": len(missing_value),
@@ -7847,7 +7994,10 @@ def collect_admin_talent_records_from_store(store):
 
 
 def collect_admin_gear_template_records_from_store(store):
-    payload = store.admin_gate_gear_records()
+    if hasattr(store, "admin_gate_gear_template_records"):
+        payload = store.admin_gate_gear_template_records()
+    else:
+        payload = store.admin_gate_gear_records()
     template_items = payload.get("communityGearTemplates") if isinstance(payload, dict) else []
     records = []
     for item in template_items or []:
@@ -7979,7 +8129,10 @@ def collect_admin_gear_records_from_variant_items(variant_items, runtime_store="
 
 
 def collect_admin_gear_records_from_store(store):
-    payload = store.admin_gate_gear_records()
+    if hasattr(store, "admin_gate_gear_variant_records"):
+        payload = store.admin_gate_gear_variant_records()
+    else:
+        payload = store.admin_gate_gear_records()
     variant_items = payload.get("gearVariants") if isinstance(payload, dict) else []
     return collect_admin_gear_records_from_variant_items(variant_items, runtime_store="postgres_cache")
 
@@ -8002,12 +8155,12 @@ def collect_admin_gate_records_from_runtime_stores(query=None):
             records.extend(collect_admin_talent_records_from_store(store))
     if "gear" in requested:
         store = cache_data_store()
-        if store and hasattr(store, "admin_gate_gear_records"):
+        if store and (hasattr(store, "admin_gate_gear_variant_records") or hasattr(store, "admin_gate_gear_records")):
             used_runtime_store = True
             records.extend(collect_admin_gear_records_from_store(store))
     if "gear_templates" in requested:
         store = cache_data_store()
-        if store and hasattr(store, "admin_gate_gear_records"):
+        if store and (hasattr(store, "admin_gate_gear_template_records") or hasattr(store, "admin_gate_gear_records")):
             used_runtime_store = True
             template_records = collect_admin_gear_template_records_from_store(store)
             records.extend(template_records)
@@ -8030,6 +8183,9 @@ def collect_admin_gate_records(conn, query=None):
     if "gear_templates" in requested:
         records.extend(collect_admin_gear_template_records(conn))
     return filter_admin_gate_records(records, query)
+
+
+ADMIN_GATE_RECORD_DOMAINS = ["news", "talents", "gear", "gear_templates"]
 
 
 def admin_gate_filter_text(value):
@@ -8321,6 +8477,9 @@ def paginate_admin_gate_records(records, query):
 
 
 def admin_gate_records_payload(query):
+    paged_gear_payload = admin_gate_paged_gear_records_payload(query)
+    if paged_gear_payload is not None:
+        return paged_gear_payload
     records = collect_admin_gate_records_from_runtime_stores(query)
     if records is None:
         init_db()
@@ -8345,6 +8504,95 @@ def admin_gate_records_payload(query):
             "pageSize": str(pagination["pageSize"]),
         },
     }
+
+
+def admin_gate_paged_gear_records_payload(query):
+    if admin_query_value(query, "domain", "") != "gear":
+        return None
+    for key in ("status", "source", "classKey", "specKey", "q"):
+        if admin_query_value(query, key, ""):
+            return None
+    store = cache_data_store()
+    if not store or not hasattr(store, "admin_gate_gear_variant_records_page"):
+        return None
+    page_size = admin_query_page_size(query)
+    page = admin_query_page(query)
+    offset = (page - 1) * page_size
+    payload = store.admin_gate_gear_variant_records_page(limit=page_size, offset=offset)
+    if not isinstance(payload, dict):
+        return None
+    variant_items = payload.get("gearVariants") if isinstance(payload.get("gearVariants"), list) else []
+    records = collect_admin_gear_records_from_variant_items(variant_items, runtime_store="postgres_cache")
+    total = safe_positive_int(payload.get("totalGroups"))
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = min(page, total_pages)
+    return {
+        "schemaRevision": "admin-gates-records-v1",
+        "records": records,
+        "count": len(records),
+        "totalCount": total,
+        "pagination": {
+            "page": page,
+            "pageSize": page_size,
+            "total": total,
+            "totalPages": total_pages,
+            "hasPrev": page > 1,
+            "hasNext": page < total_pages,
+        },
+        "filters": {
+            "domain": "gear",
+            "status": "",
+            "source": "",
+            "classKey": "",
+            "specKey": "",
+            "field": admin_query_value(query, "field", "all"),
+            "q": "",
+            "page": str(page),
+            "pageSize": str(page_size),
+        },
+    }
+
+
+def merge_admin_gate_queue_summaries(*summaries):
+    total = 0
+    domain_counts = {}
+    blocker_counts = {}
+    used = False
+    for summary in summaries:
+        if not isinstance(summary, dict):
+            continue
+        used = True
+        total += safe_positive_int(summary.get("count"))
+        for domain, count in (summary.get("domainCounts") or {}).items():
+            key = str(domain or "unknown")
+            domain_counts[key] = domain_counts.get(key, 0) + safe_positive_int(count)
+        for item in summary.get("topBlockers") or []:
+            if not isinstance(item, dict):
+                continue
+            reason = str(item.get("reason") or "").strip()
+            if reason:
+                blocker_counts[reason] = blocker_counts.get(reason, 0) + (safe_positive_int(item.get("count")) or 1)
+    if not used:
+        return None
+    return {
+        "count": total,
+        "domainCounts": domain_counts,
+        "topBlockers": [
+            {"reason": reason, "count": count}
+            for reason, count in sorted(blocker_counts.items(), key=lambda item: (-item[1], item[0]))[:8]
+        ],
+    }
+
+
+def admin_gate_queue_summary_from_runtime_stores():
+    summaries = []
+    content_store = content_data_store()
+    if content_store and hasattr(content_store, "admin_gate_queue_summary"):
+        summaries.append(content_store.admin_gate_queue_summary())
+    cache_store = cache_data_store()
+    if cache_store and hasattr(cache_store, "admin_gate_queue_summary"):
+        summaries.append(cache_store.admin_gate_queue_summary())
+    return merge_admin_gate_queue_summaries(*summaries)
 
 
 def find_admin_gate_record(conn, domain, target_type, target_id):
@@ -8606,18 +8854,17 @@ def admin_gate_diagnoses_payload(query):
 
 def admin_gate_queue_payload(query):
     domain = admin_query_value(query, "domain", "")
-    records = collect_admin_gate_records_from_runtime_stores({"domain": [domain], "limit": ["200"]} if domain else {"limit": ["200"]})
+    limit = admin_query_limit(query)
+    severity = admin_query_value(query, "severity", "")
     runtime_ops_store = ops_data_store()
     diagnoses_by_target = {}
-    if records is not None and runtime_ops_store and hasattr(runtime_ops_store, "list_admin_gate_diagnoses"):
+    if runtime_ops_store and hasattr(runtime_ops_store, "list_admin_gate_diagnoses"):
         for row in runtime_ops_store.list_admin_gate_diagnoses():
             diagnoses_by_target.setdefault((row.get("targetDomain"), row.get("targetType"), row.get("targetId")), []).append(row)
         diagnosis_builder = admin_gate_diagnosis_from_mapping
     else:
         init_db()
         with db_connection() as conn:
-            if records is None:
-                records = collect_admin_gate_records(conn, {"domain": [domain], "limit": ["200"]} if domain else {"limit": ["200"]})
             diagnoses_rows = conn.execute(
                 """
                 SELECT id, target_domain, target_type, target_id, diagnosis, gap_type,
@@ -8632,42 +8879,98 @@ def admin_gate_queue_payload(query):
                 diagnoses_by_target.setdefault((row[1], row[2], row[3]), []).append(row)
         diagnosis_builder = admin_gate_diagnosis_from_row
 
+    def load_records(load_domain):
+        domain_query = {"domain": [load_domain], "limit": ["200"]} if load_domain else {"limit": ["200"]}
+        records = collect_admin_gate_records_from_runtime_stores(domain_query)
+        if records is None:
+            init_db()
+            with db_connection() as conn:
+                records = collect_admin_gate_records(conn, domain_query)
+        return records or []
+
+    def queue_items_from_records(records, remaining):
+        output = []
+        for record in records:
+            if admin_gate_record_passed(record):
+                continue
+            if record.get("status") not in ADMIN_GATE_QUEUE_STATUSES and not record.get("blockers"):
+                continue
+            key = (record.get("domain"), record.get("targetType"), record.get("targetId"))
+            open_diagnoses = []
+            for row in diagnoses_by_target.get(key, []):
+                diagnosis = diagnosis_builder(row, record)
+                if diagnosis["resolutionStatus"] == "open":
+                    open_diagnoses.append(diagnosis)
+            item = {
+                "id": f"queue:{record['id']}",
+                "targetDomain": record.get("domain"),
+                "targetType": record.get("targetType"),
+                "targetId": record.get("targetId"),
+                "title": record.get("title"),
+                "status": record.get("status"),
+                "statusLabel": admin_gate_status_label(record.get("status")),
+                "sourceStatus": record.get("sourceStatus"),
+                "sourceStatusLabel": admin_gate_status_label(record.get("sourceStatus")),
+                "severity": record.get("severity"),
+                "severityLabel": admin_gate_severity_label(record.get("severity")),
+                "blockers": record.get("blockers", [])[:5],
+                "blockerDetails": record.get("blockerDetails", [])[:5],
+                "diagnoses": open_diagnoses,
+                "checkedAt": record.get("checkedAt", ""),
+            }
+            if severity and item.get("severity") != severity:
+                continue
+            output.append(item)
+            if len(output) >= remaining:
+                break
+        return output
+
     items = []
-    for record in records:
+    domains = [domain] if domain else ADMIN_GATE_RECORD_DOMAINS
+    for load_domain in domains:
+        remaining = limit - len(items)
+        if remaining <= 0:
+            break
+        items.extend(queue_items_from_records(load_records(load_domain), remaining))
+    return {
+        "schemaRevision": "admin-gates-queue-v1",
+        "items": items[:limit],
+        "count": len(items[:limit]),
+    }
+
+
+def admin_gate_queue_summary_payload(records=None):
+    if records is None:
+        runtime_summary = admin_gate_queue_summary_from_runtime_stores()
+        if runtime_summary is not None:
+            return runtime_summary
+    records = records if records is not None else collect_admin_gate_records_from_runtime_stores({"limit": ["200"]})
+    if records is None:
+        init_db()
+        with db_connection() as conn:
+            records = collect_admin_gate_records(conn, {"limit": ["200"]})
+    counts = {}
+    top_blockers = {}
+    total = 0
+    for record in records or []:
         if admin_gate_record_passed(record):
             continue
         if record.get("status") not in ADMIN_GATE_QUEUE_STATUSES and not record.get("blockers"):
             continue
-        key = (record.get("domain"), record.get("targetType"), record.get("targetId"))
-        open_diagnoses = [
-            diagnosis_builder(row, record)
-            for row in diagnoses_by_target.get(key, [])
-            if diagnosis_builder(row, record)["resolutionStatus"] == "open"
-        ]
-        items.append({
-            "id": f"queue:{record['id']}",
-            "targetDomain": record.get("domain"),
-            "targetType": record.get("targetType"),
-            "targetId": record.get("targetId"),
-            "title": record.get("title"),
-            "status": record.get("status"),
-            "statusLabel": admin_gate_status_label(record.get("status")),
-            "sourceStatus": record.get("sourceStatus"),
-            "sourceStatusLabel": admin_gate_status_label(record.get("sourceStatus")),
-            "severity": record.get("severity"),
-            "severityLabel": admin_gate_severity_label(record.get("severity")),
-            "blockers": record.get("blockers", [])[:5],
-            "blockerDetails": record.get("blockerDetails", [])[:5],
-            "diagnoses": open_diagnoses,
-            "checkedAt": record.get("checkedAt", ""),
-        })
-    severity = admin_query_value(query, "severity", "")
-    if severity:
-        items = [item for item in items if item.get("severity") == severity]
+        total += 1
+        domain = record.get("domain") or "unknown"
+        counts[domain] = counts.get(domain, 0) + 1
+        for blocker in record.get("blockers") or []:
+            text = str(blocker or "").strip()
+            if text:
+                top_blockers[text] = top_blockers.get(text, 0) + 1
     return {
-        "schemaRevision": "admin-gates-queue-v1",
-        "items": items[:admin_query_limit(query)],
-        "count": len(items[:admin_query_limit(query)]),
+        "count": total,
+        "domainCounts": counts,
+        "topBlockers": [
+            {"reason": reason, "count": count}
+            for reason, count in sorted(top_blockers.items(), key=lambda item: (-item[1], item[0]))[:8]
+        ],
     }
 
 
@@ -8678,7 +8981,7 @@ def admin_gate_summary_payload():
     for component in components:
         status = component.get("status") or "blocked"
         status_counts[status] = status_counts.get(status, 0) + 1
-    queue = admin_gate_queue_payload({"limit": ["25"]})
+    queue_summary = admin_gate_queue_summary_payload()
     return {
         "schemaRevision": "admin-gates-summary-v1",
         "checkedAt": utc_now(),
@@ -8722,9 +9025,10 @@ def admin_gate_summary_payload():
             }
             for component in components
         ],
+        "queueSummary": queue_summary,
         "diagnosticQueue": {
-            "count": queue.get("count", 0),
-            "items": queue.get("items", [])[:8],
+            "count": queue_summary.get("count", 0),
+            "items": [],
         },
         "sourceHealth": health,
     }
@@ -9671,8 +9975,10 @@ def admin_gates_page():
     async function refreshAdminGates() {
       try {
         clearAdminGateError();
-        const tasks = [loadSummary(), loadQueue(), loadDiagnoses()];
+        const tasks = [loadSummary()];
         if (adminGateShowsRecords()) tasks.push(loadRecords());
+        if (currentAdminGateNav === 'queue') tasks.push(loadQueue());
+        if (currentAdminGateNav === 'diagnoses') tasks.push(loadDiagnoses());
         await Promise.all(tasks);
         document.getElementById('adminGateMessage').textContent = '已加载线上门禁数据。';
       } catch (error) {
@@ -9803,17 +10109,26 @@ def record_analytics_request(handler, payload):
         )
 
 
+def client_accepts_gzip(handler):
+    return "gzip" in str(handler.headers.get("Accept-Encoding", "")).lower()
+
+
 def json_response(handler, status, payload):
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    should_gzip = len(body) >= 1024 and client_accepts_gzip(handler)
+    output = gzip.compress(body, compresslevel=6) if should_gzip else body
     try:
         handler.send_response(status)
         handler.send_header("Content-Type", "application/json; charset=utf-8")
+        if should_gzip:
+            handler.send_header("Content-Encoding", "gzip")
+            handler.send_header("Vary", "Accept-Encoding")
         handler.send_header("Access-Control-Allow-Origin", "*")
         handler.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         handler.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Wow-Client-Id, X-Wow-Session-Id, X-Wow-Platform")
-        handler.send_header("Content-Length", str(len(body)))
+        handler.send_header("Content-Length", str(len(output)))
         handler.end_headers()
-        handler.wfile.write(body)
+        handler.wfile.write(output)
         return True
     except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
         return False
@@ -10011,7 +10326,8 @@ class Handler(BaseHTTPRequestHandler):
             static_response(self, path)
             return
         if path == "/api/data/health":
-            json_response(self, 200, build_data_health_payload())
+            include_audit = str(query.get("audit", [""])[0]).lower() in {"1", "true", "yes"}
+            json_response(self, 200, build_data_health_payload(include_template_evidence_audit=include_audit))
             return
         if path == "/api/news/home":
             json_response(self, 200, build_home_payload())
@@ -10119,6 +10435,18 @@ class Handler(BaseHTTPRequestHandler):
                 ),
             )
             return
+        if path == "/api/websim/talents/import":
+            query = parse_qs(urlparse(self.path).query)
+            json_response(
+                self,
+                200,
+                runtime_websim_talent_import_payload(
+                    query.get("class", query.get("classKey", ["mage"]))[0],
+                    query.get("spec", query.get("specKey", ["arcane"]))[0],
+                    query.get("hero", query.get("heroKey", [""]))[0],
+                ),
+            )
+            return
         if path == "/api/websim/talents":
             query = parse_qs(urlparse(self.path).query)
             json_response(
@@ -10140,9 +10468,12 @@ class Handler(BaseHTTPRequestHandler):
             )
             class_key = query.get("class", query.get("classKey", ["mage"]))[0]
             spec_key = query.get("spec", query.get("specKey", ["arcane"]))[0]
+            mode = query.get("mode", [""])[0]
+            slot = query.get("slot", [""])[0]
 
             def build_payload():
-                return runtime_websim_gear_payload(class_key, spec_key, compact=compact)
+                payload = runtime_websim_gear_payload(class_key, spec_key, compact=compact)
+                return websim_gear_payload_for_mode(payload, mode=mode, slot=slot)
 
             json_response(self, 200, run_websim_gear_build(build_payload))
             return

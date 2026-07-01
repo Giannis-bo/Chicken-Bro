@@ -27,6 +27,36 @@ def _json_value(value, fallback):
     return parsed if parsed is not None else fallback
 
 
+ADMIN_GATE_QUEUE_STATUSES = {
+    "partial",
+    "stale",
+    "blocked",
+    "missing_credentials",
+    "pending_official_audit",
+    "source_reference",
+}
+
+
+def _admin_gate_queue_summary(rows):
+    total = 0
+    blockers = {}
+    for status, row_blockers in rows:
+        blocker_values = [str(item or "").strip() for item in (row_blockers or []) if str(item or "").strip()]
+        if status not in ADMIN_GATE_QUEUE_STATUSES and not blocker_values:
+            continue
+        total += 1
+        for blocker in blocker_values:
+            blockers[blocker] = blockers.get(blocker, 0) + 1
+    return {
+        "count": total,
+        "domainCounts": {"news": total} if total else {},
+        "topBlockers": [
+            {"reason": reason, "count": count}
+            for reason, count in sorted(blockers.items(), key=lambda item: (-item[1], item[0]))[:8]
+        ],
+    }
+
+
 def _text(value):
     return str(value or "")
 
@@ -522,6 +552,31 @@ class PostgresContentStore:
                 for row in article_rows
             ],
         }
+
+    def admin_gate_queue_summary(self):
+        rows = []
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT status, last_error
+                    FROM content.discovery_queue
+                    ORDER BY updated_at DESC, discovered_at DESC
+                    LIMIT 500
+                    """
+                )
+                rows.extend((row[0] or "", [row[1]] if row[1] else []) for row in cur.fetchall())
+                cur.execute(
+                    """
+                    SELECT CASE WHEN content_status = 'ready' THEN 'published' ELSE content_status END,
+                           blocked_reason
+                    FROM content.articles
+                    ORDER BY updated_at DESC
+                    LIMIT 500
+                    """
+                )
+                rows.extend((row[0] or "", [row[1]] if row[1] else []) for row in cur.fetchall())
+        return _admin_gate_queue_summary(rows)
 
     def enqueue_discovered_articles(self, articles, discovered_at):
         with self.connection() as conn:

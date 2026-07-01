@@ -149,6 +149,185 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_encounters", sql)
         self.assertIn("FROM cache.websim_loot", sql)
 
+    def test_expired_active_season_is_returned_as_stale_not_missing(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2000-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        season = store.get_active_season_payload()
+
+        self.assertEqual(season["seasonRevision"], "season-pg-1")
+        self.assertEqual(season["dataStatus"], "stale")
+        self.assertIn("season cache expired", season["errors"])
+
+    def test_websim_gear_reports_expired_pg_season_as_stale_blocker(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2000-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "status": "verified",
+                            "schemaRevision": "gear-catalog-test",
+                            "blockers": [],
+                        },
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("mage", "frost", compact=True)
+
+        self.assertEqual(payload["dataStatus"], "stale")
+        self.assertEqual(len(payload["replacementCandidates"]), 16)
+        self.assertEqual(payload["replacementCandidates"][0]["slot"], "head")
+        self.assertEqual(payload["replacementCandidates"][0]["items"], [])
+        self.assertIn("slots", payload)
+        self.assertIsInstance(payload["equippedSet"], dict)
+        self.assertIn("readiness", payload)
+        self.assertIn("season cache expired", payload["catalogBlockers"])
+
+    def test_websim_gear_keeps_cached_read_model_when_pg_season_is_stale(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2000-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "status": "partial",
+                            "schemaRevision": "gear-catalog-test",
+                            "itemDatabaseRevision": "items-rev",
+                            "variantRevision": "variants-rev",
+                            "itemCount": 1,
+                            "sourceCount": 1,
+                            "variantCount": 1,
+                            "verifiedCount": 1,
+                            "blockers": ["missing deterministic SimC variant preset"],
+                        },
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_gear_sources": [
+                    (
+                        "11111111-1111-4111-8111-111111111111",
+                        "item-a",
+                        "dungeon",
+                        "source-a",
+                        "Encounter A",
+                        "1300",
+                        "encounter-a",
+                        "mythic",
+                        "season-pg-1",
+                        {"recommendationScore": 88},
+                        "2026-06-28T01:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_gear_variants": [
+                    (
+                        "22222222-2222-4222-8222-222222222222",
+                        "item-a",
+                        "trinket1",
+                        "item-a-mythic",
+                        "Mythic Item A",
+                        "dungeon",
+                        "mythic",
+                        678,
+                        {"ilevel": 678},
+                        "verified",
+                        [],
+                        {"sourceStatus": "verified"},
+                        "2026-06-28T01:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_gear_mod_options": [],
+                "FROM cache.websim_items": [
+                    (
+                        "item-a",
+                        "Item A",
+                        "trinket1",
+                        678,
+                        {
+                            "id": "item-a",
+                            "name": "Item A",
+                            "slot": "trinket1",
+                            "quality": "epic",
+                            "iconUrl": "https://render.worldofwarcraft.com/icon-a.jpg",
+                            "sourceStatus": "verified",
+                        },
+                        "verified",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("mage", "arcane", compact=True)
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        trinket_groups = [group for group in payload["replacementCandidates"] if group["slot"] == "trinket1"]
+        self.assertEqual(payload["dataStatus"], "stale")
+        self.assertIn("slots", payload)
+        self.assertIsInstance(payload["equippedSet"], dict)
+        self.assertIn("readiness", payload)
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertTrue(trinket_groups)
+        trinket_group = trinket_groups[0]
+        self.assertEqual(trinket_group["items"][0]["itemId"], "item-a")
+        self.assertIn("season cache expired", payload["catalogBlockers"])
+        self.assertIn("missing deterministic SimC variant preset", payload["catalogBlockers"])
+        self.assertIn("FROM cache.websim_gear_sources", sql)
+        self.assertIn("FROM cache.websim_gear_variants", sql)
+
     def test_gear_read_model_uses_cache_schema_catalog_rows(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -264,6 +443,213 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_gear_mod_options", sql)
         self.assertIn("FROM cache.websim_items", sql)
 
+    def test_gear_read_model_exposes_pg_community_templates_for_import(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "status": "partial",
+                            "schemaRevision": "gear-catalog-test",
+                            "blockers": [],
+                        },
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+                "gear_payload_fingerprint": [
+                    ("websim_items", 0, ""),
+                    ("websim_gear_sources", 0, ""),
+                    ("websim_gear_variants", 0, ""),
+                    ("websim_gear_mod_options", 0, ""),
+                    ("websim_community_gear_templates", 1, "2026-06-28T01:00:00+00:00"),
+                ],
+                "FROM cache.websim_gear_sources": [],
+                "FROM cache.websim_gear_variants": [],
+                "FROM cache.websim_gear_mod_options": [],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "44444444-4444-4444-8444-444444444444",
+                        "mage",
+                        "frost",
+                        "Frost Gear Template",
+                        "simc_preset",
+                        "SimC preset",
+                        "https://example.test/gear",
+                        "synced",
+                        "complete",
+                        "sig-gear-a",
+                        [{"type": "simc"}],
+                        [{"slot": "head", "itemId": "250101", "simcReady": True}],
+                        "head=template_helm,id=250101,ilevel=289",
+                        16,
+                        [],
+                        "weekly",
+                        {"scenarioKey": "mplus_mixed_route"},
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-a",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("mage", "frost", compact=True)
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertTrue(payload["communityTemplates"])
+        template = payload["communityTemplates"][0]
+        self.assertEqual(template["id"], "44444444-4444-4444-8444-444444444444")
+        self.assertEqual(template["status"], "complete")
+        self.assertTrue(template["canApplyGear"])
+        self.assertEqual(template["scenarioKey"], "mplus_mixed_route")
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["verified"], 1)
+        self.assertIn("FROM cache.websim_community_gear_templates", sql)
+
+    def test_gear_read_model_caches_repeated_payload_when_fingerprint_unchanged(self):
+        import server.postgres_cache_store as postgres_cache_store
+
+        if hasattr(postgres_cache_store, "PG_GEAR_PAYLOAD_CACHE"):
+            postgres_cache_store.PG_GEAR_PAYLOAD_CACHE.clear()
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "status": "verified",
+                            "schemaRevision": "gear-catalog-test",
+                            "itemDatabaseRevision": "items-rev",
+                            "variantRevision": "variants-rev",
+                            "blockers": [],
+                        },
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+                "gear_payload_fingerprint": [
+                    ("websim_items", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_sources", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_variants", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_mod_options", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_community_gear_templates", 1, "2026-06-28T01:00:00+00:00"),
+                ],
+                "FROM cache.websim_gear_sources": [
+                    (
+                        "11111111-1111-4111-8111-111111111111",
+                        "item-a",
+                        "dungeon",
+                        "source-a",
+                        "Encounter A",
+                        "1300",
+                        "encounter-a",
+                        "mythic",
+                        "season-pg-1",
+                        {"recommendationScore": 88},
+                        "2026-06-28T01:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_gear_variants": [
+                    (
+                        "22222222-2222-4222-8222-222222222222",
+                        "item-a",
+                        "trinket1",
+                        "item-a-mythic",
+                        "Mythic Item A",
+                        "dungeon",
+                        "mythic",
+                        678,
+                        {"ilevel": 678},
+                        "verified",
+                        [],
+                        {"sourceStatus": "verified"},
+                        "2026-06-28T01:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_gear_mod_options": [
+                    (
+                        "33333333-3333-4333-8333-333333333333",
+                        "socket",
+                        "socket-a",
+                        "Gem A",
+                        ["trinket1"],
+                        {"gem_id": "213743"},
+                        "verified",
+                        {"displayLabel": "Gem A"},
+                        "2026-06-28T01:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "item-a",
+                        "Item A",
+                        "trinket1",
+                        678,
+                        {
+                            "id": "item-a",
+                            "name": "Item A",
+                            "slot": "trinket1",
+                            "quality": "epic",
+                            "iconUrl": "https://render.worldofwarcraft.com/icon-a.jpg",
+                            "sourceStatus": "verified",
+                        },
+                        "verified",
+                    )
+                ],
+            }
+        )
+        store = postgres_cache_store.PostgresCacheStore(lambda: conn)
+
+        first = store.get_websim_gear("mage", "arcane", compact=True)
+        second = store.get_websim_gear("mage", "arcane", compact=True)
+
+        source_build_queries = [
+            sql for sql in conn.cursor_instance.statements if "SELECT id, item_id, source_type" in sql
+        ]
+        variant_build_queries = [
+            sql for sql in conn.cursor_instance.statements if "SELECT id, item_id, slot, variant_key" in sql
+        ]
+        mod_option_build_queries = [
+            sql for sql in conn.cursor_instance.statements if "SELECT id, option_type, option_key" in sql
+        ]
+        item_build_queries = [
+            sql for sql in conn.cursor_instance.statements if "SELECT id, name, slot, item_level" in sql
+        ]
+        self.assertEqual(first["replacementCandidates"], second["replacementCandidates"])
+        self.assertEqual(len(source_build_queries), 1)
+        self.assertEqual(len(variant_build_queries), 1)
+        self.assertEqual(len(mod_option_build_queries), 1)
+        self.assertEqual(len(item_build_queries), 1)
+
     def test_talent_read_model_uses_cache_schema_rows(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -357,6 +743,58 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_talents", sql)
         self.assertIn("FROM cache.websim_profile_presets", sql)
         self.assertIn("FROM cache.websim_community_talent_templates", sql)
+
+    def test_talent_import_read_model_uses_narrow_template_query(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "44444444-4444-4444-8444-444444444444",
+                        "mage",
+                        "frost",
+                        "spellslinger",
+                        "mythic_plus",
+                        "Template A",
+                        "raiderio",
+                        "Raider.IO",
+                        "https://example.test/template",
+                        "CAEAAAAAAAAAAAAAAAAAAAAA",
+                        "verified",
+                        "verified",
+                        12,
+                        10,
+                        "weekly",
+                        "2026-06-30T00:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_talents": [("mage", "frost", 110, "2026-06-30T00:00:00+00:00")],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_talent_import("mage", "frost", "spellslinger")
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(payload["importCode"], "CAEAAAAAAAAAAAAAAAAAAAAA")
+        self.assertEqual(payload["source"], "community_template")
+        self.assertEqual(payload["status"], "verified")
+        self.assertNotIn("FROM cache.websim_talents", sql)
 
     def test_admin_gate_records_read_cache_runtime_tables(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -459,6 +897,67 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_community_gear_templates", sql)
         self.assertIn("FROM cache.websim_gear_variants", sql)
         self.assertNotRegex(sql, r"FROM cache\.websim_gear_variants v[\s\S]+LIMIT 500")
+
+    def test_admin_gate_gear_template_records_do_not_query_variants(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "SELECT to_regclass": [("cache.websim_community_gear_templates",)],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "55555555-5555-4555-8555-555555555555",
+                        "warrior",
+                        "arms",
+                        "Gear Template A",
+                        "raiderio",
+                        "Raider.IO",
+                        "https://example.test/gear-template",
+                        "blocked",
+                        "blocked",
+                        "sig-gear-a",
+                        [{"type": "raiderio"}],
+                        [{"slot": "head"}],
+                        "head=item_a,id=1",
+                        1,
+                        ["hands"],
+                        "weekly",
+                        {"blockers": ["missing required gear slots"]},
+                        "2026-06-30T00:01:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-gear-a",
+                    )
+                ],
+                "FROM cache.websim_gear_variants": [
+                    (
+                        "unexpected",
+                        "item-a",
+                        "Item A",
+                        "head",
+                        "Mythic Item A",
+                        "dungeon",
+                        "mythic",
+                        678,
+                        {},
+                        "verified",
+                        [],
+                        {},
+                        {},
+                        "",
+                        "",
+                        "2026-06-30T00:00:00+00:00",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.admin_gate_gear_template_records()
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(len(templates["communityGearTemplates"]), 1)
+        self.assertEqual(templates["communityGearTemplates"][0]["id"], "55555555-5555-4555-8555-555555555555")
+        self.assertNotIn("FROM cache.websim_gear_variants", sql)
 
 
 if __name__ == "__main__":
