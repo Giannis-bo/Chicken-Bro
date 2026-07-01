@@ -425,13 +425,16 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         "dungeon",
                         "mythic",
                         678,
+                        {"ilevel": 678},
                         "verified",
                         [],
-                        {"simcOptions": {"ilevel": 678}},
+                        {},
                         {
                             "item_class": {"id": 4, "name": "Armor"},
                             "item_subclass": {"id": 1, "name": "Cloth"},
                         },
+                        "Arcane Warden - Magisters' Terrace",
+                        "1300",
                         "2026-06-30T00:00:00+00:00",
                     )
                 ],
@@ -448,10 +451,14 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(gear["communityGearTemplates"][0]["id"], "55555555-5555-4555-8555-555555555555")
         self.assertEqual(gear["communityGearTemplates"][0]["missingSlots"], ["hands"])
         self.assertEqual(gear["gearVariants"][0]["id"], "22222222-2222-4222-8222-222222222222")
+        self.assertEqual(gear["gearVariants"][0]["simcOptions"], {"ilevel": 678})
+        self.assertEqual(gear["gearVariants"][0]["sourceLabel"], "Arcane Warden - Magisters' Terrace")
+        self.assertEqual(gear["gearVariants"][0]["sourceInstanceId"], "1300")
         self.assertIn("FROM cache.websim_community_talent_templates", sql)
         self.assertIn("FROM cache.websim_talents", sql)
         self.assertIn("FROM cache.websim_community_gear_templates", sql)
         self.assertIn("FROM cache.websim_gear_variants", sql)
+        self.assertNotRegex(sql, r"FROM cache\.websim_gear_variants v[\s\S]+LIMIT 500")
 
 
 if __name__ == "__main__":

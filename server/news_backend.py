@@ -6379,6 +6379,13 @@ def sqlite_has_table(conn, table_name):
         return False
 
 
+def sqlite_table_columns(conn, table_name):
+    try:
+        return {row[1] for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()}
+    except sqlite3.Error:
+        return set()
+
+
 def admin_query_value(query, key, default=""):
     value = query.get(key, default) if isinstance(query, dict) else default
     if isinstance(value, list):
@@ -6682,6 +6689,161 @@ def admin_gate_gear_class_label_payload(class_keys):
     }
 
 
+GEAR_ARMOR_TYPE_LABELS = {
+    "Cloth": "布甲",
+    "Leather": "皮甲",
+    "Mail": "锁甲",
+    "Plate": "板甲",
+    "Shield": "盾牌",
+    "Cosmetic": "外观",
+    "Miscellaneous": "其他护甲",
+}
+
+GEAR_WEAPON_TYPE_LABELS = {
+    "Dagger": "匕首",
+    "Fist Weapon": "拳套",
+    "One-Handed Axe": "单手斧",
+    "One-Handed Mace": "单手锤",
+    "One-Handed Sword": "单手剑",
+    "Warglaive": "战刃",
+    "Wand": "魔杖",
+    "Two-Handed Axe": "双手斧",
+    "Two-Handed Mace": "双手锤",
+    "Two-Handed Sword": "双手剑",
+    "Polearm": "长柄武器",
+    "Staff": "法杖",
+    "Bow": "弓",
+    "Crossbow": "弩",
+    "Gun": "枪械",
+    "Held In Off-hand": "副手物品",
+    "Shield": "盾牌",
+}
+
+GEAR_JEWELRY_SLOT_LABELS = {
+    "neck": "项链",
+    "finger": "戒指",
+    "finger1": "戒指",
+    "finger2": "戒指",
+    "trinket": "饰品",
+    "trinket1": "饰品",
+    "trinket2": "饰品",
+}
+
+GEAR_MISC_SLOT_TYPE_LABELS = {
+    "back": "披风",
+    "shirt": "衬衣",
+    "tabard": "战袍",
+}
+
+
+def admin_gate_nested_dict(payload, keys):
+    source = payload if isinstance(payload, dict) else {}
+    for key in keys:
+        value = source.get(key)
+        if isinstance(value, dict):
+            return value
+    return {}
+
+
+def admin_gate_gear_item_type_metadata_payload(payload, slot=""):
+    source = payload if isinstance(payload, dict) else {}
+    normalized = dict(source)
+    item_class = admin_gate_nested_dict(source, ("item_class", "itemClass", "item_class_payload", "class"))
+    item_subclass = admin_gate_nested_dict(source, ("item_subclass", "itemSubclass", "itemSubClass", "subclass"))
+    inventory_type = admin_gate_nested_dict(source, ("inventory_type", "inventoryType", "inventory"))
+    if item_class and not isinstance(normalized.get("item_class"), dict):
+        normalized["item_class"] = item_class
+    if item_subclass and not isinstance(normalized.get("item_subclass"), dict):
+        normalized["item_subclass"] = item_subclass
+    if inventory_type and not isinstance(normalized.get("inventory_type"), dict):
+        normalized["inventory_type"] = inventory_type
+    if slot and not normalized.get("slot"):
+        normalized["slot"] = slot
+    return normalized
+
+
+def admin_gate_gear_item_type_key(value):
+    return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "_", str(value or "").strip().lower()).strip("_") or "unknown"
+
+
+def admin_gate_gear_item_type_payload(payload=None, slot=""):
+    slot_value = str(slot or "").strip()
+    if slot_value in GEAR_JEWELRY_SLOT_LABELS:
+        label = GEAR_JEWELRY_SLOT_LABELS[slot_value]
+        return {
+            "itemTypeKey": slot_value,
+            "itemTypeLabel": label,
+            "itemTypeGroupKey": "jewelry",
+            "itemTypeGroupLabel": "首饰",
+            "itemTypeRaw": slot_value,
+            "itemTypeAliases": [label, "首饰", slot_value],
+        }
+
+    metadata_payload = admin_gate_gear_item_type_metadata_payload(payload, slot_value)
+    type_metadata = item_type_metadata_from_payload(metadata_payload)
+    weapon_type = str(type_metadata.get("weaponType") or "").strip()
+    if weapon_type:
+        label = GEAR_WEAPON_TYPE_LABELS.get(weapon_type) or weapon_type
+        return {
+            "itemTypeKey": admin_gate_gear_item_type_key(weapon_type),
+            "itemTypeLabel": admin_gate_summarize_text(label, 80),
+            "itemTypeGroupKey": "weapon",
+            "itemTypeGroupLabel": "武器类型",
+            "itemTypeRaw": admin_gate_summarize_text(weapon_type, 80),
+            "itemTypeAliases": [label, "武器类型", weapon_type, admin_gate_gear_item_type_key(weapon_type)],
+        }
+
+    armor_type = str(type_metadata.get("armorType") or "").strip()
+    if armor_type:
+        label = GEAR_ARMOR_TYPE_LABELS.get(armor_type) or armor_type
+        return {
+            "itemTypeKey": admin_gate_gear_item_type_key(armor_type),
+            "itemTypeLabel": admin_gate_summarize_text(label, 80),
+            "itemTypeGroupKey": "armor",
+            "itemTypeGroupLabel": "护甲类型",
+            "itemTypeRaw": admin_gate_summarize_text(armor_type, 80),
+            "itemTypeAliases": [label, "护甲类型", armor_type, admin_gate_gear_item_type_key(armor_type)],
+        }
+
+    if slot_value in GEAR_MISC_SLOT_TYPE_LABELS:
+        label = GEAR_MISC_SLOT_TYPE_LABELS[slot_value]
+        return {
+            "itemTypeKey": slot_value,
+            "itemTypeLabel": label,
+            "itemTypeGroupKey": "misc",
+            "itemTypeGroupLabel": "其他",
+            "itemTypeRaw": slot_value,
+            "itemTypeAliases": [label, "其他", slot_value],
+        }
+
+    if slot_value in ARMOR_SLOTS:
+        return {
+            "itemTypeKey": "armor",
+            "itemTypeLabel": "护甲",
+            "itemTypeGroupKey": "armor",
+            "itemTypeGroupLabel": "护甲类型",
+            "itemTypeRaw": slot_value,
+            "itemTypeAliases": ["护甲", "护甲类型", slot_value],
+        }
+    if slot_value in WEAPON_SLOTS:
+        return {
+            "itemTypeKey": "weapon",
+            "itemTypeLabel": "武器",
+            "itemTypeGroupKey": "weapon",
+            "itemTypeGroupLabel": "武器类型",
+            "itemTypeRaw": slot_value,
+            "itemTypeAliases": ["武器", "武器类型", slot_value],
+        }
+    return {
+        "itemTypeKey": "unknown",
+        "itemTypeLabel": "未标注分类",
+        "itemTypeGroupKey": "unknown",
+        "itemTypeGroupLabel": "未标注分类",
+        "itemTypeRaw": slot_value,
+        "itemTypeAliases": ["未标注分类", slot_value],
+    }
+
+
 def admin_gate_news_publication(status, *, published_at="", captured_at="", unpublished_reason=""):
     raw_status = str(status or "").strip().lower()
     is_published = raw_status in {"published", "ready"}
@@ -6775,6 +6937,21 @@ GEAR_SOURCE_LABELS = {
     "websim_baseline": "WebSim 基线",
 }
 
+GEAR_SOURCE_INSTANCE_ALIASES = {
+    "Magisters' Terrace": ["Magisters Terrace", "魔导师平台"],
+    "Maisara Caverns": ["迈萨拉洞窟"],
+    "Nexus-Point Xenas": ["节点希纳斯"],
+    "Windrunner Spire": ["风行者之塔"],
+    "Algeth'ar Academy": ["艾杰斯亚学院"],
+    "Pit of Saron": ["萨隆矿坑"],
+    "Seat of the Triumvirate": ["The Seat of the Triumvirate", "执政团之座"],
+    "Skyreach": ["通天峰"],
+    "The Voidspire": ["虚影尖塔"],
+    "The Dreamrift": ["梦境裂隙"],
+    "March on Quel'Danas": ["进军奎尔丹纳斯"],
+    "Sporefall": ["孢陨幽境"],
+}
+
 
 def admin_gate_int_value(value, default=0):
     try:
@@ -6788,6 +6965,268 @@ def admin_gate_gear_source_label(source_type):
     return GEAR_SOURCE_LABELS.get(value) or GEAR_SOURCE_LABELS.get(value.lower()) or value or "未知来源"
 
 
+def admin_gate_gear_source_instance_label(source_type="", source_detail_label="", source_instance_label=""):
+    source_type_value = str(source_type or "").strip().lower()
+    if source_type_value not in {"dungeon", "raid"}:
+        return ""
+    explicit = str(source_instance_label or "").strip()
+    if explicit:
+        return explicit
+    detail = str(source_detail_label or "").strip()
+    if not detail:
+        return ""
+    for separator in (" - ", " – ", " — "):
+        if separator in detail:
+            tail = detail.rsplit(separator, 1)[-1].strip()
+            if tail:
+                return tail
+    return detail
+
+
+def admin_gate_gear_source_instance_terms(instance_label):
+    label = str(instance_label or "").strip()
+    if not label:
+        return []
+    normalized = label.lower().replace("’", "'")
+    terms = [label]
+    for canonical, aliases in GEAR_SOURCE_INSTANCE_ALIASES.items():
+        candidates = [canonical, *(aliases or [])]
+        normalized_candidates = [str(item or "").lower().replace("’", "'") for item in candidates]
+        if normalized in normalized_candidates:
+            for item in candidates:
+                if item and item not in terms:
+                    terms.append(item)
+            break
+    return terms
+
+
+ADMIN_GATE_GEAR_VARIANT_STATUS_RANK = {
+    "verified": 4,
+    "complete": 4,
+    "synced": 3,
+    "partial": 2,
+    "source_reference": 1,
+    "blocked": 0,
+}
+
+
+def admin_gate_unique_text_list(values):
+    result = []
+    seen = set()
+    for value in values or []:
+        if isinstance(value, (list, tuple, set)):
+            nested = admin_gate_unique_text_list(value)
+            for item in nested:
+                key = str(item or "").strip().lower()
+                if key and key not in seen:
+                    result.append(item)
+                    seen.add(key)
+            continue
+        text = str(value or "").strip()
+        key = text.lower()
+        if text and key not in seen:
+            result.append(text)
+            seen.add(key)
+    return result
+
+
+def admin_gate_gear_variant_blockers(item):
+    blockers = item.get("blockers") if isinstance(item, dict) and isinstance(item.get("blockers"), list) else []
+    return [str(blocker or "").strip() for blocker in blockers if str(blocker or "").strip()]
+
+
+def admin_gate_gear_variant_status_rank(item):
+    status = str((item or {}).get("status") or "").strip().lower()
+    return ADMIN_GATE_GEAR_VARIANT_STATUS_RANK.get(status, 0)
+
+
+def admin_gate_gear_variant_simc_options(item):
+    if not isinstance(item, dict):
+        return {}
+    candidates = []
+    if isinstance(item.get("simcOptions"), dict):
+        candidates.append(item.get("simcOptions"))
+    payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+    for key in ("simcOptions", "simc_options", "simc_options_json"):
+        if isinstance(payload.get(key), dict):
+            candidates.append(payload.get(key))
+    merged = {}
+    for candidate in candidates:
+        for key, value in (candidate or {}).items():
+            if value not in (None, "", [], {}):
+                merged[str(key)] = value
+    return merged
+
+
+def admin_gate_gear_variant_display_ready(item):
+    if not isinstance(item, dict):
+        return False
+    blockers = admin_gate_gear_variant_blockers(item)
+    return admin_gate_status(item.get("status"), blockers=blockers) == "verified"
+
+
+def admin_gate_gear_variant_sort_key(item):
+    simc_options = admin_gate_gear_variant_simc_options(item)
+    return (
+        1 if admin_gate_gear_variant_display_ready(item) else 0,
+        admin_gate_gear_variant_status_rank(item),
+        1 if simc_options else 0,
+        admin_gate_int_value((item or {}).get("itemLevel"), 0),
+        str((item or {}).get("updatedAt") or ""),
+        str((item or {}).get("id") or ""),
+    )
+
+
+def admin_gate_gear_variant_internal_label(label="", difficulty_key=""):
+    label_value = str(label or "").strip().lower()
+    difficulty_value = str(difficulty_key or "").strip().lower()
+    return difficulty_value == "observed_profile" or label_value.startswith("observed")
+
+
+def admin_gate_gear_variant_display_label(item, item_level=0):
+    if not isinstance(item, dict):
+        return ""
+    label = str(item.get("label") or item.get("difficultyKey") or "").strip()
+    difficulty_key = str(item.get("difficultyKey") or "").strip()
+    if admin_gate_gear_variant_internal_label(label, difficulty_key):
+        return ""
+    if item_level > 0:
+        label = re.sub(rf"\s*(?:ilvl\s*)?{re.escape(str(item_level))}\s*$", "", label, flags=re.IGNORECASE).strip()
+    return label
+
+
+def admin_gate_gear_variant_display_group_key(item, has_item_level_variant=False):
+    item_level = admin_gate_int_value((item or {}).get("itemLevel"), 0)
+    if has_item_level_variant and item_level > 0:
+        return ("item-level", item_level)
+    label = admin_gate_gear_variant_display_label(item, item_level)
+    return (
+        "variant",
+        label.lower(),
+        str((item or {}).get("difficultyKey") or "").strip().lower(),
+        admin_gate_status((item or {}).get("status"), blockers=admin_gate_gear_variant_blockers(item or {})),
+        item_level,
+    )
+
+
+def admin_gate_gear_variant_display_representative_key(item):
+    item_level = admin_gate_int_value((item or {}).get("itemLevel"), 0)
+    label = admin_gate_gear_variant_display_label(item, item_level)
+    simc_options = admin_gate_gear_variant_simc_options(item)
+    return (
+        1 if admin_gate_gear_variant_display_ready(item) else 0,
+        admin_gate_gear_variant_status_rank(item),
+        1 if label else 0,
+        1 if simc_options else 0,
+        str((item or {}).get("updatedAt") or ""),
+        str((item or {}).get("id") or ""),
+    )
+
+
+def admin_gate_gear_variant_display_order_key(item):
+    item_level = admin_gate_int_value((item or {}).get("itemLevel"), 0)
+    label = admin_gate_gear_variant_display_label(item, item_level)
+    return (
+        1 if admin_gate_gear_variant_display_ready(item) else 0,
+        admin_gate_gear_variant_status_rank(item),
+        item_level,
+        1 if label else 0,
+        str((item or {}).get("updatedAt") or ""),
+        str((item or {}).get("id") or ""),
+    )
+
+
+def admin_gate_gear_variant_display_rows(variant_items):
+    ranked = sorted(
+        [item for item in (variant_items or []) if isinstance(item, dict)],
+        key=admin_gate_gear_variant_sort_key,
+        reverse=True,
+    )
+    if not ranked:
+        return []
+    has_item_level_variant = any(admin_gate_int_value(item.get("itemLevel"), 0) > 0 for item in ranked)
+    display_groups = {}
+    for item in ranked:
+        item_level = admin_gate_int_value(item.get("itemLevel"), 0)
+        if has_item_level_variant and item_level <= 0:
+            continue
+        key = admin_gate_gear_variant_display_group_key(item, has_item_level_variant)
+        current = display_groups.get(key)
+        if current is None or admin_gate_gear_variant_display_representative_key(item) > admin_gate_gear_variant_display_representative_key(current):
+            display_groups[key] = item
+    rows = []
+    for item in sorted(display_groups.values(), key=admin_gate_gear_variant_display_order_key, reverse=True):
+        item_level = admin_gate_int_value(item.get("itemLevel"), 0)
+        blockers = admin_gate_gear_variant_blockers(item)
+        status = admin_gate_status(item.get("status"), blockers=blockers)
+        label = admin_gate_gear_variant_display_label(item, item_level)
+        rows.append({
+            "id": admin_gate_summarize_text(str(item.get("id") or "").strip(), 100),
+            "label": admin_gate_summarize_text(label, 80),
+            "difficultyKey": admin_gate_summarize_text(str(item.get("difficultyKey") or "").strip(), 80),
+            "itemLevel": item_level,
+            "status": status,
+            "statusLabel": admin_gate_status_label(status),
+        })
+    return rows[:12]
+
+
+def admin_gate_gear_variant_group_key(item):
+    if not isinstance(item, dict):
+        return ("unknown", "")
+    item_id = str(item.get("itemId") or "").strip()
+    slot = str(item.get("slot") or "").strip()
+    if item_id and slot:
+        return ("item-slot", item_id, slot)
+    if item_id:
+        return ("item", item_id)
+    return ("variant", str(item.get("id") or ""))
+
+
+def admin_gate_gear_variant_source_instance_terms(item):
+    if not isinstance(item, dict):
+        return []
+    source_label = item.get("sourceLabel") or ""
+    instance_label = admin_gate_gear_source_instance_label(
+        item.get("sourceType") or "",
+        source_label,
+        item.get("sourceInstanceLabel") or "",
+    )
+    return admin_gate_unique_text_list([
+        item.get("sourceInstanceId") or "",
+        instance_label,
+        admin_gate_gear_source_instance_terms(instance_label),
+        source_label,
+    ])
+
+
+def admin_gate_primary_gear_variants(variant_items):
+    grouped = {}
+    for item in variant_items or []:
+        if not isinstance(item, dict):
+            continue
+        grouped.setdefault(admin_gate_gear_variant_group_key(item), []).append(item)
+    primary_items = []
+    for group_items in grouped.values():
+        ranked = sorted(group_items, key=admin_gate_gear_variant_sort_key, reverse=True)
+        if not ranked:
+            continue
+        primary = dict(ranked[0])
+        primary["adminGateVariantCount"] = len(group_items)
+        primary["adminGateVerifiedVariantCount"] = len([item for item in group_items if admin_gate_gear_variant_display_ready(item)])
+        primary["adminGateBlockedVariantCount"] = len(group_items) - primary["adminGateVerifiedVariantCount"]
+        primary["adminGateVariantIds"] = [str(item.get("id") or "") for item in group_items if str(item.get("id") or "").strip()]
+        primary["adminGateVariants"] = admin_gate_gear_variant_display_rows(group_items)
+        primary["adminGateSourceInstanceTerms"] = admin_gate_unique_text_list(
+            term
+            for item in group_items
+            for term in admin_gate_gear_variant_source_instance_terms(item)
+        )
+        primary["adminGateLatestUpdatedAt"] = max([str(item.get("updatedAt") or "") for item in group_items] + [""])
+        primary_items.append(primary)
+    return sorted(primary_items, key=lambda item: str(item.get("adminGateLatestUpdatedAt") or item.get("updatedAt") or ""), reverse=True)
+
+
 def admin_gate_gear_record_category(
     target_type="",
     *,
@@ -6797,9 +7236,13 @@ def admin_gate_gear_record_category(
     slot="",
     label="",
     source_type="",
+    source_detail_label="",
+    source_instance_id="",
+    source_instance_label="",
     difficulty_key="",
     item_level=0,
     class_keys=None,
+    item_type_payload=None,
     ready_slot_count=None,
     missing_slots=None,
 ):
@@ -6824,6 +7267,9 @@ def admin_gate_gear_record_category(
     slot_value = str(slot or "").strip()
     slot_label = GEAR_SLOT_LABELS.get(slot_value) or slot_value or "未知槽位"
     class_payload = admin_gate_gear_class_label_payload(class_keys or [])
+    item_type_payload_value = admin_gate_gear_item_type_payload(item_type_payload, slot_value)
+    source_detail_value = str(source_detail_label or "").strip()
+    source_instance_value = admin_gate_gear_source_instance_label(source_type, source_detail_value, source_instance_label)
     return {
         "label": admin_gate_summarize_text(slot_label, 80),
         "slot": admin_gate_summarize_text(slot_value, 80),
@@ -6831,8 +7277,18 @@ def admin_gate_gear_record_category(
         "classKeys": class_payload["classKeys"],
         "classLabels": class_payload["classLabels"],
         "classLabel": admin_gate_summarize_text(class_payload["classLabel"], 120),
+        "itemTypeKey": admin_gate_summarize_text(item_type_payload_value["itemTypeKey"], 80),
+        "itemTypeLabel": admin_gate_summarize_text(item_type_payload_value["itemTypeLabel"], 80),
+        "itemTypeGroupKey": admin_gate_summarize_text(item_type_payload_value["itemTypeGroupKey"], 80),
+        "itemTypeGroupLabel": admin_gate_summarize_text(item_type_payload_value["itemTypeGroupLabel"], 80),
+        "itemTypeRaw": admin_gate_summarize_text(item_type_payload_value["itemTypeRaw"], 80),
+        "itemTypeAliases": item_type_payload_value["itemTypeAliases"],
         "sourceType": admin_gate_summarize_text(str(source_type or "").strip(), 80),
         "sourceLabel": admin_gate_summarize_text(admin_gate_gear_source_label(source_type), 80),
+        "sourceDetailLabel": admin_gate_summarize_text(source_detail_value, 140),
+        "sourceInstanceId": admin_gate_summarize_text(str(source_instance_id or "").strip(), 80),
+        "sourceInstanceLabel": admin_gate_summarize_text(source_instance_value, 100),
+        "sourceInstanceAliases": admin_gate_gear_source_instance_terms(source_instance_value),
         "difficultyKey": admin_gate_summarize_text(str(difficulty_key or "").strip(), 80),
         "variantLabel": admin_gate_summarize_text(str(label or "").strip(), 80),
         "itemLevel": admin_gate_int_value(item_level, 0),
@@ -7135,58 +7591,104 @@ def collect_admin_gear_template_records(conn):
 def collect_admin_gear_records(conn):
     records = []
     if sqlite_has_table(conn, "websim_gear_variants"):
+        variant_columns = sqlite_table_columns(conn, "websim_gear_variants")
+
+        def variant_expr(column, default="''"):
+            return f"v.{column}" if column in variant_columns else default
+
+        variant_id_expr = variant_expr("id")
+        item_id_expr = variant_expr("item_id")
+        slot_expr = variant_expr("slot")
+        label_expr = variant_expr("label")
+        source_type_expr = variant_expr("source_type")
+        difficulty_expr = variant_expr("difficulty_key")
+        item_level_expr = variant_expr("item_level", "0")
+        simc_options_expr = variant_expr("simc_options_json", "'{}'")
+        status_expr = variant_expr("status")
+        blockers_expr = variant_expr("blockers_json", "'[]'")
+        payload_expr = variant_expr("payload_json", "'{}'")
+        updated_expr = variant_expr("updated_at")
+        order_expr = "v.updated_at DESC" if "updated_at" in variant_columns else "v.id"
+        source_label_expr = "''"
+        source_instance_expr = "''"
+        if sqlite_has_table(conn, "websim_gear_sources"):
+            source_columns = sqlite_table_columns(conn, "websim_gear_sources")
+            can_match_source = (
+                {"item_id", "source_type", "source_label"}.issubset(source_columns)
+                and {"item_id", "source_type"}.issubset(variant_columns)
+            )
+            has_source_difficulty = "difficulty_key" in source_columns and "difficulty_key" in variant_columns
+            if can_match_source:
+                source_match_parts = [
+                    "s.item_id = v.item_id",
+                    "s.source_type = v.source_type",
+                ]
+                if has_source_difficulty:
+                    source_match_parts.append(
+                        "(s.difficulty_key = v.difficulty_key OR s.difficulty_key = '' OR v.difficulty_key = '')"
+                    )
+                source_match = " AND ".join(source_match_parts)
+                source_order_parts = []
+                source_order_parts.append("NULLIF(s.source_label, '')")
+                if "updated_at" in source_columns:
+                    source_order_parts.append("s.updated_at DESC")
+                source_order = f"ORDER BY {', '.join(source_order_parts)}" if source_order_parts else ""
+                source_label_expr = f"""
+                    COALESCE((
+                        SELECT s.source_label
+                        FROM websim_gear_sources s
+                        WHERE {source_match}
+                        {source_order}
+                        LIMIT 1
+                    ), '')
+                """
+                if "instance_id" in source_columns:
+                    source_instance_expr = f"""
+                        COALESCE((
+                            SELECT s.instance_id
+                            FROM websim_gear_sources s
+                            WHERE {source_match}
+                            {source_order}
+                            LIMIT 1
+                        ), '')
+                    """
         rows = conn.execute(
-            """
-            SELECT v.id, v.item_id, COALESCE(i.name, v.item_id), v.slot,
-                   v.label, v.source_type, v.difficulty_key, v.item_level,
-                   v.status, v.blockers_json, v.payload_json, i.payload_json,
-                   v.updated_at
+            f"""
+            SELECT {variant_id_expr}, {item_id_expr}, COALESCE(NULLIF(i.name, ''), {item_id_expr}),
+                   {slot_expr}, {label_expr}, {source_type_expr}, {difficulty_expr},
+                   {item_level_expr}, {simc_options_expr}, {status_expr}, {blockers_expr}, {payload_expr},
+                   COALESCE(i.payload_json, '{{}}'),
+                   {source_label_expr}, {source_instance_expr},
+                   {updated_expr}
             FROM websim_gear_variants v
             LEFT JOIN websim_items i ON i.id = v.item_id
-            ORDER BY v.updated_at DESC
-            LIMIT 500
+            ORDER BY {order_expr}
             """
         ).fetchall()
+        variant_items = []
         for row in rows:
-            blockers = admin_gate_json_summary(row[9], [])
-            payload = admin_gate_json_summary(row[10], {})
-            item_payload = admin_gate_json_summary(row[11], {})
-            combined_payload = {
-                **(item_payload if isinstance(item_payload, dict) else {}),
-                **(payload if isinstance(payload, dict) else {}),
-            }
-            class_keys = admin_gate_gear_class_keys_from_payload(combined_payload, row[3])
-            records.append(admin_gate_record(
-                "gear",
-                "gear_variant",
-                row[0],
-                row[2],
-                status=row[8],
-                source_status=row[8],
-                source_name=row[5],
-                checked_at=row[12],
-                blockers=blockers if isinstance(blockers, list) else [],
-                facets={
-                    "itemId": row[1],
-                    "slot": row[3],
-                    "label": row[4],
-                    "sourceType": row[5],
-                    "difficultyKey": row[6],
-                    "itemLevel": row[7],
-                    "classKeys": class_keys,
-                },
-                raw_summary={"payloadKeys": sorted(combined_payload.keys())[:12] if isinstance(combined_payload, dict) else []},
-                evidence={"variant": "websim_gear_variants"},
-                gear_category=admin_gate_gear_record_category(
-                    "gear_variant",
-                    slot=row[3],
-                    label=row[4],
-                    source_type=row[5],
-                    difficulty_key=row[6],
-                    item_level=row[7],
-                    class_keys=class_keys,
-                ),
-            ))
+            blockers = admin_gate_json_summary(row[10], [])
+            payload = admin_gate_json_summary(row[11], {})
+            item_payload = admin_gate_json_summary(row[12], {})
+            variant_items.append({
+                "id": row[0],
+                "itemId": row[1],
+                "itemName": row[2],
+                "slot": row[3],
+                "label": row[4],
+                "sourceType": row[5],
+                "difficultyKey": row[6],
+                "itemLevel": row[7],
+                "simcOptions": admin_gate_json_summary(row[8], {}),
+                "status": row[9],
+                "blockers": blockers if isinstance(blockers, list) else [],
+                "payload": payload if isinstance(payload, dict) else {},
+                "itemPayload": item_payload if isinstance(item_payload, dict) else {},
+                "sourceLabel": row[13],
+                "sourceInstanceId": row[14],
+                "updatedAt": row[15],
+            })
+        records.extend(collect_admin_gear_records_from_variant_items(variant_items))
     return records
 
 
@@ -7396,16 +7898,56 @@ def collect_admin_gear_template_records_from_store(store):
     return records
 
 
-def collect_admin_gear_records_from_store(store):
-    payload = store.admin_gate_gear_records()
-    variant_items = payload.get("gearVariants") if isinstance(payload, dict) else []
+def collect_admin_gear_records_from_variant_items(variant_items, runtime_store=""):
     records = []
-    for item in variant_items or []:
+    for item in admin_gate_primary_gear_variants(variant_items):
         variant_payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
         item_payload = item.get("itemPayload") if isinstance(item.get("itemPayload"), dict) else {}
         combined_payload = {**item_payload, **variant_payload}
+        simc_options = admin_gate_gear_variant_simc_options(item)
+        if simc_options:
+            combined_payload["simcOptions"] = simc_options
         blockers = item.get("blockers") if isinstance(item.get("blockers"), list) else []
         class_keys = admin_gate_gear_class_keys_from_payload(combined_payload, item.get("slot") or "")
+        source_detail_label = item.get("sourceLabel") or ""
+        source_instance_id = item.get("sourceInstanceId") or ""
+        source_instance_label = item.get("sourceInstanceLabel") or ""
+        variant_ids = item.get("adminGateVariantIds") if isinstance(item.get("adminGateVariantIds"), list) else []
+        evidence = {
+            "variant": "websim_gear_variants",
+            "representativeVariantId": item.get("id") or "",
+            "variantIds": variant_ids[:12],
+        }
+        if runtime_store:
+            evidence["runtimeStore"] = runtime_store
+        raw_summary = {
+            "payloadKeys": sorted(combined_payload.keys())[:12] if isinstance(combined_payload, dict) else [],
+            "variantCount": item.get("adminGateVariantCount") or 1,
+            "verifiedVariantCount": item.get("adminGateVerifiedVariantCount") or 0,
+            "blockedOrPartialVariantCount": item.get("adminGateBlockedVariantCount") or 0,
+        }
+        gear_category = admin_gate_gear_record_category(
+            "gear_variant",
+            slot=item.get("slot") or "",
+            label=item.get("label") or "",
+            source_type=item.get("sourceType") or "",
+            source_detail_label=source_detail_label,
+            source_instance_id=source_instance_id,
+            source_instance_label=source_instance_label,
+            difficulty_key=item.get("difficultyKey") or "",
+            item_level=item.get("itemLevel") or 0,
+            class_keys=class_keys,
+            item_type_payload=combined_payload,
+        )
+        source_terms = item.get("adminGateSourceInstanceTerms")
+        if isinstance(source_terms, list) and source_terms:
+            gear_category["sourceInstanceAliases"] = admin_gate_unique_text_list([
+                gear_category.get("sourceInstanceAliases") or [],
+                source_terms,
+            ])
+        variants = item.get("adminGateVariants")
+        if isinstance(variants, list) and variants:
+            gear_category["variants"] = variants
         records.append(admin_gate_record(
             "gear",
             "gear_variant",
@@ -7421,23 +7963,25 @@ def collect_admin_gear_records_from_store(store):
                 "slot": item.get("slot") or "",
                 "label": item.get("label") or "",
                 "sourceType": item.get("sourceType") or "",
+                "sourceDetailLabel": source_detail_label,
+                "sourceInstanceId": source_instance_id,
+                "sourceInstanceLabel": source_instance_label,
                 "difficultyKey": item.get("difficultyKey") or "",
                 "itemLevel": item.get("itemLevel") or 0,
                 "classKeys": class_keys,
+                "variantIds": variant_ids,
             },
-            raw_summary={"payloadKeys": sorted(combined_payload.keys())[:12] if isinstance(combined_payload, dict) else []},
-            evidence={"variant": "websim_gear_variants", "runtimeStore": "postgres_cache"},
-            gear_category=admin_gate_gear_record_category(
-                "gear_variant",
-                slot=item.get("slot") or "",
-                label=item.get("label") or "",
-                source_type=item.get("sourceType") or "",
-                difficulty_key=item.get("difficultyKey") or "",
-                item_level=item.get("itemLevel") or 0,
-                class_keys=class_keys,
-            ),
+            raw_summary=raw_summary,
+            evidence=evidence,
+            gear_category=gear_category,
         ))
     return records
+
+
+def collect_admin_gear_records_from_store(store):
+    payload = store.admin_gate_gear_records()
+    variant_items = payload.get("gearVariants") if isinstance(payload, dict) else []
+    return collect_admin_gear_records_from_variant_items(variant_items, runtime_store="postgres_cache")
 
 
 def collect_admin_gate_records_from_runtime_stores(query=None):
@@ -7617,12 +8161,28 @@ def admin_gate_record_filter_fields(record):
                 record.get("sourceUrl"),
                 category.get("sourceType"),
                 category.get("sourceLabel"),
+                category.get("sourceDetailLabel"),
+                category.get("sourceInstanceLabel"),
                 category.get("difficultyKey"),
+            ],
+            "sourceInstance": [
+                category.get("sourceInstanceId"),
+                category.get("sourceInstanceLabel"),
+                category.get("sourceInstanceAliases"),
+                category.get("sourceDetailLabel"),
             ],
             "class": [
                 category.get("classKeys"),
                 category.get("classLabels"),
                 category.get("classLabel"),
+            ],
+            "itemType": [
+                category.get("itemTypeKey"),
+                category.get("itemTypeLabel"),
+                category.get("itemTypeGroupKey"),
+                category.get("itemTypeGroupLabel"),
+                category.get("itemTypeRaw"),
+                category.get("itemTypeAliases"),
             ],
             "visibility": [
                 visibility.get("state"),
@@ -7648,8 +8208,9 @@ def admin_gate_record_filter_fields(record):
             fields["gearName"],
             fields["slot"],
             fields["dropSource"],
+            fields["sourceInstance"],
             fields["status"],
-            fields["class"],
+            fields["itemType"],
             fields["visibility"],
             fields["blockReason"],
         ]
@@ -8244,12 +8805,17 @@ def admin_gates_page():
     .status.blocked, .status.missing_credentials { color:var(--red); border-color:rgba(248,81,73,.4); }
     .status.partial, .status.pending_official_audit, .status.source_reference { color:var(--gold); border-color:rgba(240,180,41,.4); }
     .category-pill { display:inline-block; border:1px solid rgba(88,166,255,.45); border-radius:999px; padding:2px 8px; color:var(--blue); font-size:12px; white-space:nowrap; }
+    .variant-list { display:flex; flex-wrap:wrap; gap:4px 6px; margin-top:6px; }
+    .variant-chip { display:inline-flex; align-items:center; gap:4px; border:1px solid rgba(63,185,80,.4); border-radius:999px; padding:2px 7px; color:var(--green); font-size:12px; white-space:nowrap; }
+    .variant-chip.partial { color:var(--gold); border-color:rgba(240,180,41,.4); }
+    .variant-chip.blocked, .variant-chip.missing_credentials { color:var(--red); border-color:rgba(248,81,73,.4); }
     table { width:100%; border-collapse:collapse; margin-top:10px; font-size:13px; }
     th,td { border-bottom:1px solid var(--line); padding:8px; text-align:left; vertical-align:top; }
     th { color:var(--muted); font-weight:700; }
     .toolbar { display:grid; grid-template-columns:1fr 1fr 1fr minmax(260px,1.4fr) auto; gap:8px; margin:14px 0; align-items:end; }
     .toolbar[hidden] { display:none; }
     .news-toolbar { grid-template-columns:minmax(160px,.8fr) minmax(220px,1fr) auto; }
+    .gear-toolbar { grid-template-columns:minmax(160px,.7fr) minmax(180px,.8fr) minmax(220px,1fr) auto; }
     .pagination { display:flex; align-items:center; gap:8px; justify-content:flex-end; margin-top:10px; flex-wrap:wrap; }
     .pagination button { width:auto; min-width:76px; padding:7px 10px; }
     .pagination button:disabled { opacity:.45; cursor:not-allowed; }
@@ -8322,9 +8888,10 @@ def admin_gates_page():
           <select id="talentFilterValue"></select>
           <button id="talentLoad" type="button">加载</button>
         </div>
-        <div id="gearToolbar" class="toolbar news-toolbar" hidden>
-          <select id="gearFilterKey"><option value="dropSource">掉落来源</option><option value="class">职业</option><option value="visibility">小程序可见性</option></select>
+        <div id="gearToolbar" class="toolbar news-toolbar gear-toolbar" hidden>
+          <select id="gearFilterKey"><option value="dropSource">掉落来源</option><option value="itemType">装备分类</option><option value="visibility">小程序可见性</option></select>
           <select id="gearFilterValue"></select>
+          <select id="gearSourceInstanceValue" hidden></select>
           <button id="gearLoad" type="button">加载</button>
         </div>
         <div id="gearTemplateToolbar" class="toolbar news-toolbar" hidden>
@@ -8401,12 +8968,13 @@ def admin_gates_page():
         { value:'visibility', label:'小程序可见', placeholder:'搜索已可见、不可见、天赋导入列表或原因' },
       ],
       gear: [
-        { value:'all', label:'全部展示字段', placeholder:'搜索装备名称、部位、掉落来源、状态、职业、小程序可见性、Block原因' },
+        { value:'all', label:'全部展示字段', placeholder:'搜索装备名称、部位、掉落来源、状态、装备分类、小程序可见性、Block原因' },
         { value:'gearName', label:'装备名称', placeholder:'搜索装备名、target type、target id' },
         { value:'slot', label:'部位', placeholder:'搜索头部、手套、head、hands 等部位' },
         { value:'dropSource', label:'掉落来源', placeholder:'搜索地下城、团本、制造业、dungeon、raid 等来源' },
+        { value:'sourceInstance', label:'具体副本 / 团本', placeholder:'搜索 Magisters Terrace、The Voidspire、通天峰等具体来源' },
         { value:'status', label:'状态', placeholder:'搜索 verified、blocked、已验证、已阻断' },
-        { value:'class', label:'职业', placeholder:'搜索法师、战士、mage、warrior 等职业' },
+        { value:'itemType', label:'装备分类', placeholder:'搜索护甲类型、武器类型、首饰、布甲、法杖、饰品等分类' },
         { value:'visibility', label:'小程序可见性', placeholder:'搜索已可见、不可见' },
         { value:'blockReason', label:'Block原因', placeholder:'搜索 blocker 或诊断建议' },
       ],
@@ -8529,25 +9097,40 @@ def admin_gates_page():
         ],
       },
       {
-        value:'class',
-        label:'职业',
-        queryField:'class',
+        value:'itemType',
+        label:'装备分类',
+        queryField:'itemType',
         values:[
-          { value:'', label:'全部职业' },
-          { value:'死亡骑士', label:'死亡骑士' },
-          { value:'恶魔猎手', label:'恶魔猎手' },
-          { value:'德鲁伊', label:'德鲁伊' },
-          { value:'唤魔师', label:'唤魔师' },
-          { value:'猎人', label:'猎人' },
-          { value:'法师', label:'法师' },
-          { value:'武僧', label:'武僧' },
-          { value:'圣骑士', label:'圣骑士' },
-          { value:'牧师', label:'牧师' },
-          { value:'潜行者', label:'潜行者' },
-          { value:'萨满祭司', label:'萨满祭司' },
-          { value:'术士', label:'术士' },
-          { value:'战士', label:'战士' },
-          { value:'未标注职业', label:'未标注职业' },
+          { value:'', label:'全部装备分类' },
+          { value:'护甲类型', label:'护甲类型' },
+          { value:'布甲', label:'布甲' },
+          { value:'皮甲', label:'皮甲' },
+          { value:'锁甲', label:'锁甲' },
+          { value:'板甲', label:'板甲' },
+          { value:'武器类型', label:'武器类型' },
+          { value:'匕首', label:'匕首' },
+          { value:'拳套', label:'拳套' },
+          { value:'单手斧', label:'单手斧' },
+          { value:'单手锤', label:'单手锤' },
+          { value:'单手剑', label:'单手剑' },
+          { value:'战刃', label:'战刃' },
+          { value:'魔杖', label:'魔杖' },
+          { value:'双手斧', label:'双手斧' },
+          { value:'双手锤', label:'双手锤' },
+          { value:'双手剑', label:'双手剑' },
+          { value:'长柄武器', label:'长柄武器' },
+          { value:'法杖', label:'法杖' },
+          { value:'弓', label:'弓' },
+          { value:'弩', label:'弩' },
+          { value:'枪械', label:'枪械' },
+          { value:'盾牌', label:'盾牌' },
+          { value:'副手物品', label:'副手物品' },
+          { value:'首饰', label:'首饰' },
+          { value:'项链', label:'项链' },
+          { value:'戒指', label:'戒指' },
+          { value:'饰品', label:'饰品' },
+          { value:'披风', label:'披风' },
+          { value:'未标注分类', label:'未标注分类' },
         ],
       },
       {
@@ -8561,6 +9144,24 @@ def admin_gates_page():
         ],
       },
     ];
+    const gearSourceInstanceOptions = {
+      dungeon: [
+        { value:"Magisters' Terrace", label:"Magisters' Terrace / 魔导师平台" },
+        { value:'Maisara Caverns', label:'Maisara Caverns / 迈萨拉洞窟' },
+        { value:'Nexus-Point Xenas', label:'Nexus-Point Xenas / 节点希纳斯' },
+        { value:'Windrunner Spire', label:'Windrunner Spire / 风行者之塔' },
+        { value:"Algeth'ar Academy", label:"Algeth'ar Academy / 艾杰斯亚学院" },
+        { value:'Pit of Saron', label:'Pit of Saron / 萨隆矿坑' },
+        { value:'Seat of the Triumvirate', label:'Seat of the Triumvirate / 执政团之座' },
+        { value:'Skyreach', label:'Skyreach / 通天峰' },
+      ],
+      raid: [
+        { value:'The Voidspire', label:'The Voidspire / 虚影尖塔' },
+        { value:'The Dreamrift', label:'The Dreamrift / 梦境裂隙' },
+        { value:"March on Quel'Danas", label:"March on Quel'Danas / 进军奎尔丹纳斯" },
+        { value:'Sporefall', label:'Sporefall / 孢陨幽境' },
+      ],
+    };
     const gearTemplateFilterOptions = [
       {
         value:'class',
@@ -8739,6 +9340,32 @@ def admin_gates_page():
       const current = valueNode.value || '';
       valueNode.innerHTML = selected.values.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join('');
       valueNode.value = selected.values.some(item => item.value === current) ? current : '';
+      updateGearSourceInstanceOptions();
+    }
+    function gearSourceInstanceKind() {
+      const selected = currentGearFilterOption();
+      if (selected.value !== 'dropSource') return '';
+      const sourceValue = document.getElementById('gearFilterValue').value.trim();
+      if (sourceValue === '地下城') return 'dungeon';
+      if (sourceValue === '团本') return 'raid';
+      return '';
+    }
+    function updateGearSourceInstanceOptions() {
+      const valueNode = document.getElementById('gearSourceInstanceValue');
+      const kind = gearSourceInstanceKind();
+      const options = kind ? (gearSourceInstanceOptions[kind] || []) : [];
+      const current = valueNode.value || '';
+      if (!options.length) {
+        valueNode.hidden = true;
+        valueNode.innerHTML = '';
+        valueNode.value = '';
+        return;
+      }
+      valueNode.hidden = false;
+      const allLabel = kind === 'raid' ? '全部团本' : '全部地下城';
+      const values = [{ value:'', label:allLabel }, ...options];
+      valueNode.innerHTML = values.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join('');
+      valueNode.value = values.some(item => item.value === current) ? current : '';
     }
     function currentGearTemplateFilterOption() {
       const key = document.getElementById('gearTemplateFilterKey').value || 'class';
@@ -8802,6 +9429,12 @@ def admin_gates_page():
       const selected = currentGearFilterOption();
       const value = document.getElementById('gearFilterValue').value.trim();
       if (!value) return;
+      const sourceInstanceValue = document.getElementById('gearSourceInstanceValue').value.trim();
+      if (selected.queryField === 'dropSource' && sourceInstanceValue && !document.getElementById('gearSourceInstanceValue').hidden) {
+        params.set('field', 'sourceInstance');
+        params.set('q', sourceInstanceValue);
+        return;
+      }
       params.set('field', selected.queryField);
       params.set('q', value);
     }
@@ -8926,18 +9559,51 @@ def admin_gates_page():
       const meta = category.slot && category.slot !== label ? category.slot : '';
       return `<span class="category-pill">${escapeHtml(label)}</span>${meta ? `<br><span class="muted small">${escapeHtml(meta)}</span>` : ''}`;
     }
+    function gearSourceDetailWithoutInstance(detail, instance) {
+      let value = String(detail || '').trim();
+      const instanceValue = String(instance || '').trim();
+      if (!value || !instanceValue) return value;
+      if (value === instanceValue) return '';
+      [' - ', ' – ', ' — ', ' / '].forEach(separator => {
+        const suffix = `${separator}${instanceValue}`;
+        const prefix = `${instanceValue}${separator}`;
+        if (value.endsWith(suffix)) value = value.slice(0, -suffix.length).trim();
+        if (value.startsWith(prefix)) value = value.slice(prefix.length).trim();
+      });
+      return value === instanceValue ? '' : value;
+    }
+    function gearVariantListCell(category) {
+      const variants = Array.isArray(category.variants) ? category.variants : [];
+      if (!variants.length) return '';
+      return `<div class="variant-list">${variants.map(variant => {
+        const label = variant.label || '';
+        const itemLevel = variant.itemLevel ? `ilvl ${variant.itemLevel}` : '';
+        const statusClass = String(variant.status || '').replace(/[^a-z0-9_-]/gi, '');
+        const text = [label, itemLevel].filter(Boolean).join(' ') || variant.statusLabel || '变体';
+        return `<span class="variant-chip ${escapeHtml(statusClass)}">${escapeHtml(text)}</span>`;
+      }).join('')}</div>`;
+    }
     function gearDropSourceCell(item) {
       const category = item.gearCategory || {};
       const label = category.sourceLabel || category.sourceType || item.sourceName || '未知来源';
-      const meta = [category.sourceType, category.difficultyKey, category.itemLevel ? `ilvl ${category.itemLevel}` : ''].filter(Boolean).join(' / ');
-      return `<span class="category-pill">${escapeHtml(label)}</span>${meta ? `<br><span class="muted small">${escapeHtml(meta)}</span>` : ''}`;
+      const sourceDetail = gearSourceDetailWithoutInstance(category.sourceDetailLabel, category.sourceInstanceLabel);
+      const variantList = gearVariantListCell(category);
+      const fallbackVariantMeta = variantList ? '' : [
+        category.difficultyKey,
+        category.itemLevel ? `ilvl ${category.itemLevel}` : '',
+      ].filter(Boolean).join(' / ');
+      const meta = [
+        sourceDetail,
+        fallbackVariantMeta,
+      ].filter(Boolean).join(' / ');
+      return `<span class="category-pill">${escapeHtml(label)}</span>${meta ? `<br><span class="muted small">${escapeHtml(meta)}</span>` : ''}${variantList}`;
     }
-    function gearClassCell(item) {
+    function gearItemTypeCell(item) {
       const category = item.gearCategory || {};
-      const labels = Array.isArray(category.classLabels) ? category.classLabels : [];
-      const label = labels.length ? labels.join(' / ') : (category.classLabel || '未标注职业');
-      const keys = Array.isArray(category.classKeys) ? category.classKeys.join(' / ') : '';
-      return `<span class="category-pill">${escapeHtml(label)}</span>${keys ? `<br><span class="muted small">${escapeHtml(keys)}</span>` : ''}`;
+      const label = category.itemTypeLabel || '未标注分类';
+      const raw = category.itemTypeRaw && category.itemTypeRaw !== label ? category.itemTypeRaw : '';
+      const meta = [category.itemTypeGroupLabel, raw].filter(Boolean).join(' / ');
+      return `<span class="category-pill">${escapeHtml(label)}</span>${meta ? `<br><span class="muted small">${escapeHtml(meta)}</span>` : ''}`;
     }
     function gearVisibilityCell(item) {
       const visibility = item.gearVisibility || {};
@@ -8974,11 +9640,11 @@ def admin_gates_page():
       const isGearRecords = domainValue === 'gear';
       const isGearTemplateRecords = domainValue === 'gear_templates';
       const hasCategoryColumn = isNewsRecords || isTalentRecords || isGearTemplateRecords;
-      const header = isNewsRecords ? '<tr><th>模块</th><th>标题</th><th>分类</th><th>状态</th><th>发布情况</th><th>来源</th><th>Blockers</th></tr>' : (isTalentRecords ? '<tr><th>模块</th><th>标题</th><th>分类</th><th>状态</th><th>小程序可见</th><th>来源</th><th>阻断原因</th></tr>' : (isGearRecords ? '<tr><th>模块</th><th>装备名称</th><th>部位</th><th>掉落来源</th><th>状态</th><th>职业</th><th>小程序可见</th><th>Block原因</th></tr>' : (isGearTemplateRecords ? '<tr><th>模块</th><th>装备模板</th><th>职业</th><th>状态</th><th>小程序是否可见</th><th>来源</th><th>Blockers</th></tr>' : (hasCategoryColumn ? '<tr><th>模块</th><th>标题</th><th>分类</th><th>状态</th><th>来源</th><th>Blockers</th></tr>' : '<tr><th>模块</th><th>标题</th><th>状态</th><th>来源</th><th>Blockers</th></tr>'))));
-      const emptyColspan = isNewsRecords ? 7 : (isTalentRecords ? 7 : (isGearRecords ? 8 : (isGearTemplateRecords ? 7 : (hasCategoryColumn ? 6 : 5))));
+      const header = isNewsRecords ? '<tr><th>模块</th><th>标题</th><th>分类</th><th>状态</th><th>发布情况</th><th>来源</th><th>Blockers</th></tr>' : (isTalentRecords ? '<tr><th>模块</th><th>标题</th><th>分类</th><th>状态</th><th>小程序可见</th><th>来源</th><th>阻断原因</th></tr>' : (isGearRecords ? '<tr><th>装备名称</th><th>部位</th><th>掉落来源</th><th>状态</th><th>装备分类</th><th>小程序可见</th><th>Block原因</th></tr>' : (isGearTemplateRecords ? '<tr><th>模块</th><th>装备模板</th><th>职业</th><th>状态</th><th>小程序是否可见</th><th>来源</th><th>Blockers</th></tr>' : (hasCategoryColumn ? '<tr><th>模块</th><th>标题</th><th>分类</th><th>状态</th><th>来源</th><th>Blockers</th></tr>' : '<tr><th>模块</th><th>标题</th><th>状态</th><th>来源</th><th>Blockers</th></tr>'))));
+      const emptyColspan = isNewsRecords ? 7 : (isTalentRecords ? 7 : (isGearRecords ? 7 : (isGearTemplateRecords ? 7 : (hasCategoryColumn ? 6 : 5))));
       const rows = data.records.length ? data.records.map(item => {
         if (isGearRecords) {
-          return `<tr><td>${escapeHtml(domainLabels[item.domain] || item.domain)}</td><td>${escapeHtml(item.title)}<br><span class="muted small">${escapeHtml(item.targetType)} / ${escapeHtml(item.targetId)}</span></td><td>${gearSlotCell(item)}</td><td>${gearDropSourceCell(item)}</td><td>${statusPill(item.status)}</td><td>${gearClassCell(item)}</td><td>${gearVisibilityCell(item)}</td><td>${gearBlockReasonCell(item)}</td></tr>`;
+          return `<tr><td>${escapeHtml(item.title)}</td><td>${gearSlotCell(item)}</td><td>${gearDropSourceCell(item)}</td><td>${statusPill(item.status)}</td><td>${gearItemTypeCell(item)}</td><td>${gearVisibilityCell(item)}</td><td>${gearBlockReasonCell(item)}</td></tr>`;
         }
         if (isGearTemplateRecords) {
           return `<tr><td>${escapeHtml(domainLabels[item.domain] || item.domain)}</td><td>${escapeHtml(item.title)}<br><span class="muted small">${escapeHtml(item.targetType)} / ${escapeHtml(item.targetId)}</span></td><td>${gearCategoryCell(item)}</td><td>${statusPill(item.status)}</td><td>${gearVisibilityCell(item)}</td><td>${escapeHtml(item.sourceName)}<br><span class="muted small">${escapeHtml(item.sourceUrl)}</span></td><td>${escapeHtml(blockerText(item))}</td></tr>`;
@@ -9056,7 +9722,11 @@ def admin_gates_page():
       resetAdminGatePage();
       updateGearFilterValueOptions();
     });
-    document.getElementById('gearFilterValue').addEventListener('change', resetAdminGatePage);
+    document.getElementById('gearFilterValue').addEventListener('change', () => {
+      resetAdminGatePage();
+      updateGearSourceInstanceOptions();
+    });
+    document.getElementById('gearSourceInstanceValue').addEventListener('change', resetAdminGatePage);
     document.getElementById('gearTemplateFilterKey').addEventListener('change', () => {
       resetAdminGatePage();
       updateGearTemplateFilterValueOptions();

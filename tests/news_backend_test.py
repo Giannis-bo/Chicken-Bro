@@ -6726,6 +6726,439 @@ class NewsBackendTest(unittest.TestCase):
             {"queue-1", "queue-duplicate"},
         )
 
+    def test_admin_gates_records_filter_sqlite_gear_source_instance(self):
+        with self.backend.db_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO websim_items (
+                    id, name, slot, quality, icon_url, payload_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "item-skyreach-head",
+                    "Skyreach Hood",
+                    "head",
+                    "epic",
+                    "",
+                    json.dumps({
+                        "classes": ["mage"],
+                        "item_class": {"id": 4, "name": "Armor"},
+                        "item_subclass": {"id": 1, "name": "Cloth"},
+                    }),
+                    "2026-06-30T00:00:00+00:00",
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_gear_sources (
+                    id, item_id, source_type, source_label, instance_id, encounter_id,
+                    difficulty_key, season_revision, payload_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "source-skyreach-head",
+                    "item-skyreach-head",
+                    "dungeon",
+                    "Ranjit - Skyreach",
+                    "1208",
+                    "encounter-ranjit",
+                    "mythic",
+                    "midnight-s3",
+                    "{}",
+                    "2026-06-30T00:01:00+00:00",
+                ),
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_gear_variants (
+                    id, item_id, slot, variant_key, label, source_type, difficulty_key,
+                    item_level, simc_options_json, status, blockers_json, payload_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "variant-skyreach-head",
+                    "item-skyreach-head",
+                    "head",
+                    "mythic",
+                    "Mythic",
+                    "dungeon",
+                    "mythic",
+                    678,
+                    "{}",
+                    "verified",
+                    "[]",
+                    json.dumps({"classes": ["mage"]}),
+                    "2026-06-30T00:02:00+00:00",
+                ),
+            )
+            conn.commit()
+
+        payload = self.backend.admin_gate_records_payload(
+            {"domain": ["gear"], "field": ["sourceInstance"], "q": ["通天峰"], "limit": ["20"]}
+        )
+
+        self.assertEqual([record["targetId"] for record in payload["records"]], ["variant-skyreach-head"])
+        category = payload["records"][0]["gearCategory"]
+        self.assertEqual(category["sourceInstanceId"], "1208")
+        self.assertEqual(category["sourceInstanceLabel"], "Skyreach")
+        self.assertIn("通天峰", category["sourceInstanceAliases"])
+        self.assertEqual(category["itemTypeLabel"], "布甲")
+        self.assertEqual(category["itemTypeGroupLabel"], "护甲类型")
+
+        item_type_payload = self.backend.admin_gate_records_payload(
+            {"domain": ["gear"], "field": ["itemType"], "q": ["布甲"], "limit": ["20"]}
+        )
+        self.assertEqual([record["targetId"] for record in item_type_payload["records"]], ["variant-skyreach-head"])
+
+    def test_admin_gates_records_gear_prefers_verified_variant_over_partial_placeholder(self):
+        class FakeCacheStore:
+            def admin_gate_gear_records(self):
+                return {
+                    "communityGearTemplates": [],
+                    "gearVariants": [
+                        {
+                            "id": "shield-placeholder",
+                            "itemId": "251105",
+                            "itemName": "破法者之盾",
+                            "slot": "off_hand",
+                            "label": "needs-variant",
+                            "sourceType": "dungeon",
+                            "sourceLabel": "Selin Fireheart - Magisters' Terrace",
+                            "sourceInstanceId": "585",
+                            "sourceInstanceLabel": "Magisters' Terrace",
+                            "difficultyKey": "needs-variant",
+                            "itemLevel": 0,
+                            "status": "partial",
+                            "blockers": ["missing deterministic SimC variant preset"],
+                            "payload": {},
+                            "itemPayload": {
+                                "item_class": {"id": 4, "name": "Armor"},
+                                "item_subclass": {"id": 6, "name": "Shield"},
+                            },
+                            "updatedAt": "2026-06-30T08:00:00+00:00",
+                        },
+                        {
+                            "id": "shield-champion",
+                            "itemId": "251105",
+                            "itemName": "破法者之盾",
+                            "slot": "off_hand",
+                            "label": "勇士",
+                            "sourceType": "dungeon",
+                            "sourceLabel": "Selin Fireheart - Magisters' Terrace",
+                            "sourceInstanceId": "585",
+                            "sourceInstanceLabel": "Magisters' Terrace",
+                            "difficultyKey": "champion",
+                            "itemLevel": 263,
+                            "status": "verified",
+                            "blockers": [],
+                            "simcOptions": {"bonus_id": "1111"},
+                            "payload": {},
+                            "itemPayload": {
+                                "item_class": {"id": 4, "name": "Armor"},
+                                "item_subclass": {"id": 6, "name": "Shield"},
+                            },
+                            "updatedAt": "2026-06-29T06:00:00+00:00",
+                        },
+                        {
+                            "id": "shield-hero",
+                            "itemId": "251105",
+                            "itemName": "破法者之盾",
+                            "slot": "off_hand",
+                            "label": "英雄",
+                            "sourceType": "dungeon",
+                            "sourceLabel": "Selin Fireheart - Magisters' Terrace",
+                            "sourceInstanceId": "585",
+                            "sourceInstanceLabel": "Magisters' Terrace",
+                            "difficultyKey": "hero",
+                            "itemLevel": 276,
+                            "status": "verified",
+                            "blockers": [],
+                            "simcOptions": {"bonus_id": "2222"},
+                            "payload": {},
+                            "itemPayload": {
+                                "item_class": {"id": 4, "name": "Armor"},
+                                "item_subclass": {"id": 6, "name": "Shield"},
+                            },
+                            "updatedAt": "2026-06-29T07:00:00+00:00",
+                        },
+                        {
+                            "id": "shield-mythic",
+                            "itemId": "251105",
+                            "itemName": "破法者之盾",
+                            "slot": "off_hand",
+                            "label": "神话",
+                            "sourceType": "dungeon",
+                            "sourceLabel": "Selin Fireheart - Magisters' Terrace",
+                            "sourceInstanceId": "585",
+                            "sourceInstanceLabel": "Magisters' Terrace",
+                            "difficultyKey": "myth",
+                            "itemLevel": 289,
+                            "status": "verified",
+                            "blockers": [],
+                            "simcOptions": {"bonus_id": "1234"},
+                            "payload": {},
+                            "itemPayload": {
+                                "item_class": {"id": 4, "name": "Armor"},
+                                "item_subclass": {"id": 6, "name": "Shield"},
+                            },
+                            "updatedAt": "2026-06-29T08:00:00+00:00",
+                        },
+                    ],
+                }
+
+        with patch.object(self.backend, "cache_data_store", return_value=FakeCacheStore()):
+            name_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear"], "field": ["gearName"], "q": ["破法者之盾"], "limit": ["20"]}
+            )
+            instance_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear"], "field": ["sourceInstance"], "q": ["魔导师平台"], "limit": ["20"]}
+            )
+
+        self.assertEqual(name_payload["totalCount"], 1)
+        record = name_payload["records"][0]
+        self.assertEqual(record["targetId"], "shield-mythic")
+        self.assertEqual(record["status"], "verified")
+        self.assertEqual(record["gearVisibility"]["state"], "visible")
+        self.assertEqual(record["gearBlockReason"]["state"], "clear")
+        self.assertEqual(record["gearCategory"]["variantLabel"], "神话")
+        self.assertEqual(record["gearCategory"]["itemLevel"], 289)
+        self.assertEqual(record["rawSummary"]["variantCount"], 4)
+        self.assertEqual(record["rawSummary"]["verifiedVariantCount"], 3)
+        self.assertEqual(record["rawSummary"]["blockedOrPartialVariantCount"], 1)
+        self.assertEqual(
+            [variant["itemLevel"] for variant in record["gearCategory"]["variants"]],
+            [289, 276, 263],
+        )
+        self.assertEqual(
+            [variant["label"] for variant in record["gearCategory"]["variants"]],
+            ["神话", "英雄", "勇士"],
+        )
+        self.assertNotIn("missing deterministic SimC variant preset", json.dumps(record, ensure_ascii=False))
+        self.assertEqual([item["targetId"] for item in instance_payload["records"]], ["shield-mythic"])
+
+    def test_admin_gate_gear_variant_display_rows_dedupes_observed_item_levels(self):
+        rows = self.backend.admin_gate_gear_variant_display_rows([
+            {
+                "id": "observed-289-a",
+                "label": "Observed 289",
+                "difficultyKey": "observed_profile",
+                "itemLevel": 289,
+                "status": "verified",
+                "blockers": [],
+                "simcOptions": {"bonus_id": "1111"},
+                "updatedAt": "2026-07-01T01:00:00+00:00",
+            },
+            {
+                "id": "observed-289-b",
+                "label": "Observed 289",
+                "difficultyKey": "observed_profile",
+                "itemLevel": 289,
+                "status": "verified",
+                "blockers": [],
+                "simcOptions": {"bonus_id": "2222"},
+                "updatedAt": "2026-07-01T01:01:00+00:00",
+            },
+            {
+                "id": "myth-289",
+                "label": "神话 289",
+                "difficultyKey": "myth",
+                "itemLevel": 289,
+                "status": "verified",
+                "blockers": [],
+                "simcOptions": {"bonus_id": "3333"},
+                "updatedAt": "2026-06-30T01:00:00+00:00",
+            },
+            {
+                "id": "observed-298",
+                "label": "Observed 298",
+                "difficultyKey": "observed_profile",
+                "itemLevel": 298,
+                "status": "verified",
+                "blockers": [],
+                "simcOptions": {"bonus_id": "4444"},
+                "updatedAt": "2026-07-01T01:02:00+00:00",
+            },
+            {
+                "id": "void-298",
+                "label": "虚空晋升 298",
+                "difficultyKey": "void_upgrade",
+                "itemLevel": 298,
+                "status": "verified",
+                "blockers": [],
+                "simcOptions": {"bonus_id": "5555"},
+                "updatedAt": "2026-06-30T01:01:00+00:00",
+            },
+            {
+                "id": "hero-276",
+                "label": "英雄 276",
+                "difficultyKey": "hero",
+                "itemLevel": 276,
+                "status": "verified",
+                "blockers": [],
+                "simcOptions": {"bonus_id": "6666"},
+                "updatedAt": "2026-06-30T01:02:00+00:00",
+            },
+        ])
+
+        self.assertEqual(
+            [(row["label"], row["difficultyKey"], row["itemLevel"]) for row in rows],
+            [("虚空晋升", "void_upgrade", 298), ("神话", "myth", 289), ("英雄", "hero", 276)],
+        )
+        self.assertNotIn("Observed", json.dumps(rows, ensure_ascii=False))
+
+    def test_admin_gate_gear_variant_display_rows_prefers_verified_over_partial_label(self):
+        rows = self.backend.admin_gate_gear_variant_display_rows([
+            {
+                "id": "partial-named-289",
+                "label": "神话 289",
+                "difficultyKey": "myth",
+                "itemLevel": 289,
+                "status": "partial",
+                "blockers": ["missing deterministic SimC variant preset"],
+                "updatedAt": "2026-07-01T02:00:00+00:00",
+            },
+            {
+                "id": "observed-verified-289",
+                "label": "Observed 289",
+                "difficultyKey": "observed_profile",
+                "itemLevel": 289,
+                "status": "verified",
+                "blockers": [],
+                "simcOptions": {"bonus_id": "1111"},
+                "updatedAt": "2026-07-01T01:00:00+00:00",
+            },
+        ])
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["status"], "verified")
+        self.assertEqual(rows[0]["difficultyKey"], "observed_profile")
+        self.assertEqual(rows[0]["itemLevel"], 289)
+        self.assertEqual(rows[0]["label"], "")
+
+    def test_admin_gates_records_sqlite_source_instance_filter_uses_all_variants_before_limit(self):
+        with self.backend.db_connection() as conn:
+            conn.executemany(
+                """
+                INSERT INTO websim_items (
+                    id, name, slot, quality, icon_url, payload_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        f"noise-item-{index}",
+                        f"Noise Item {index}",
+                        "head",
+                        "epic",
+                        "",
+                        "{}",
+                        f"2026-06-30T09:{index % 60:02d}:00+00:00",
+                    )
+                    for index in range(501)
+                ]
+                + [
+                    (
+                        "251105",
+                        "破法者之盾",
+                        "off_hand",
+                        "epic",
+                        "",
+                        json.dumps({
+                            "item_class": {"id": 4, "name": "Armor"},
+                            "item_subclass": {"id": 6, "name": "Shield"},
+                        }),
+                        "2026-06-29T00:00:00+00:00",
+                    )
+                ],
+            )
+            conn.executemany(
+                """
+                INSERT INTO websim_gear_sources (
+                    id, item_id, source_type, source_label, instance_id, encounter_id,
+                    difficulty_key, season_revision, payload_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        f"noise-source-{index}",
+                        f"noise-item-{index}",
+                        "dungeon",
+                        "Ranjit - Skyreach",
+                        "1208",
+                        "encounter-ranjit",
+                        "mythic",
+                        "midnight-s3",
+                        "{}",
+                        f"2026-06-30T09:{index % 60:02d}:30+00:00",
+                    )
+                    for index in range(501)
+                ]
+                + [
+                    (
+                        "source-shield-magisters",
+                        "251105",
+                        "dungeon",
+                        "Selin Fireheart - Magisters' Terrace",
+                        "585",
+                        "encounter-selin",
+                        "myth",
+                        "midnight-s3",
+                        "{}",
+                        "2026-06-29T00:00:30+00:00",
+                    )
+                ],
+            )
+            conn.executemany(
+                """
+                INSERT INTO websim_gear_variants (
+                    id, item_id, slot, variant_key, label, source_type, difficulty_key,
+                    item_level, simc_options_json, status, blockers_json, payload_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        f"noise-variant-{index}",
+                        f"noise-item-{index}",
+                        "head",
+                        "mythic",
+                        "Mythic",
+                        "dungeon",
+                        "mythic",
+                        678,
+                        json.dumps({"bonus_id": str(9000 + index)}),
+                        "verified",
+                        "[]",
+                        "{}",
+                        f"2026-06-30T10:{index % 60:02d}:00+00:00",
+                    )
+                    for index in range(501)
+                ]
+                + [
+                    (
+                        "shield-mythic",
+                        "251105",
+                        "off_hand",
+                        "myth",
+                        "神话",
+                        "dungeon",
+                        "myth",
+                        289,
+                        json.dumps({"bonus_id": "1234"}),
+                        "verified",
+                        "[]",
+                        "{}",
+                        "2026-06-29T00:01:00+00:00",
+                    )
+                ],
+            )
+            conn.commit()
+
+        payload = self.backend.admin_gate_records_payload(
+            {"domain": ["gear"], "field": ["sourceInstance"], "q": ["魔导师平台"], "limit": ["20"]}
+        )
+
+        self.assertEqual([record["targetId"] for record in payload["records"]], ["shield-mythic"])
+        self.assertEqual(payload["records"][0]["gearVisibility"]["state"], "visible")
+
     def test_admin_gates_records_use_postgres_runtime_stores_when_available(self):
         class FakeContentStore:
             def admin_gate_news_records(self):
@@ -6862,6 +7295,9 @@ class NewsBackendTest(unittest.TestCase):
                             "slot": "head",
                             "label": "Mythic",
                             "sourceType": "dungeon",
+                            "sourceLabel": "Arcane Warden - Magisters' Terrace",
+                            "sourceInstanceId": "1300",
+                            "sourceInstanceLabel": "Magisters' Terrace",
                             "difficultyKey": "mythic",
                             "itemLevel": 678,
                             "status": "verified",
@@ -6870,21 +7306,32 @@ class NewsBackendTest(unittest.TestCase):
                                 "simcOptions": {"ilevel": 678},
                                 "requirements": {"playable_classes": {"classes": [{"id": 8}]}},
                             },
+                            "itemPayload": {
+                                "item_class": {"id": 4, "name": "Armor"},
+                                "item_subclass": {"id": 1, "name": "Cloth"},
+                            },
                             "updatedAt": "2026-06-30T00:04:00+00:00",
                         },
                         {
                             "id": "pg-variant-blocked",
                             "itemId": "item-pg-blocked",
                             "itemName": "PG blocked gear item",
-                            "slot": "hands",
+                            "slot": "main_hand",
                             "label": "Heroic",
                             "sourceType": "raid",
+                            "sourceLabel": "Voidbinder - The Voidspire",
+                            "sourceInstanceId": "1400",
+                            "sourceInstanceLabel": "The Voidspire",
                             "difficultyKey": "heroic",
                             "itemLevel": 665,
                             "status": "blocked",
                             "blockers": ["missing simc options"],
                             "payload": {
                                 "requirements": {"playable_classes": {"classes": [{"id": 1}]}}
+                            },
+                            "itemPayload": {
+                                "item_class": {"id": 2, "name": "Weapon"},
+                                "item_subclass": {"id": 10, "name": "Staff"},
                             },
                             "updatedAt": "2026-06-30T00:03:30+00:00",
                         }
@@ -6945,8 +7392,17 @@ class NewsBackendTest(unittest.TestCase):
             gear_drop_source_payload = self.backend.admin_gate_records_payload(
                 {"domain": ["gear"], "field": ["dropSource"], "q": ["地下城"], "limit": ["20"]}
             )
+            gear_dungeon_instance_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear"], "field": ["sourceInstance"], "q": ["Magisters' Terrace"], "limit": ["20"]}
+            )
+            gear_raid_instance_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear"], "field": ["sourceInstance"], "q": ["The Voidspire"], "limit": ["20"]}
+            )
             gear_class_payload = self.backend.admin_gate_records_payload(
                 {"domain": ["gear"], "field": ["class"], "q": ["法师"], "limit": ["20"]}
+            )
+            gear_item_type_payload = self.backend.admin_gate_records_payload(
+                {"domain": ["gear"], "field": ["itemType"], "q": ["武器类型"], "limit": ["20"]}
             )
             gear_visibility_visible_payload = self.backend.admin_gate_records_payload(
                 {"domain": ["gear"], "field": ["visibility"], "q": ["已可见"], "limit": ["20"]}
@@ -7022,10 +7478,16 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(pg_gear["gearCategory"]["slot"], "head")
         self.assertEqual(pg_gear["gearCategory"]["slotLabel"], "头部")
         self.assertEqual(pg_gear["gearCategory"]["sourceType"], "dungeon")
+        self.assertEqual(pg_gear["gearCategory"]["sourceLabel"], "地下城")
+        self.assertEqual(pg_gear["gearCategory"]["sourceDetailLabel"], "Arcane Warden - Magisters' Terrace")
+        self.assertEqual(pg_gear["gearCategory"]["sourceInstanceId"], "1300")
+        self.assertEqual(pg_gear["gearCategory"]["sourceInstanceLabel"], "Magisters' Terrace")
         self.assertEqual(pg_gear["gearCategory"]["difficultyKey"], "mythic")
         self.assertEqual(pg_gear["gearCategory"]["itemLevel"], 678)
         self.assertEqual(pg_gear["gearCategory"]["classKeys"], ["mage"])
         self.assertEqual(pg_gear["gearCategory"]["classLabels"], ["法师"])
+        self.assertEqual(pg_gear["gearCategory"]["itemTypeLabel"], "布甲")
+        self.assertEqual(pg_gear["gearCategory"]["itemTypeGroupLabel"], "护甲类型")
         self.assertEqual(pg_gear["gearVisibility"]["state"], "visible")
         self.assertEqual(pg_gear["gearVisibility"]["stateLabel"], "已可见")
         self.assertEqual(pg_gear["gearBlockReason"]["state"], "clear")
@@ -7034,6 +7496,15 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(pg_blocked_gear["gearVisibility"]["stateLabel"], "不可见")
         self.assertEqual(pg_blocked_gear["gearVisibility"]["reason"], "missing simc options")
         self.assertEqual(pg_blocked_gear["gearBlockReason"]["state"], "blocked")
+        self.assertEqual(pg_blocked_gear["gearCategory"]["itemTypeLabel"], "法杖")
+        self.assertEqual(pg_blocked_gear["gearCategory"]["itemTypeGroupLabel"], "武器类型")
+        trinket_category = self.backend.admin_gate_gear_record_category(
+            "gear_variant",
+            slot="trinket1",
+            item_type_payload={},
+        )
+        self.assertEqual(trinket_category["itemTypeLabel"], "饰品")
+        self.assertEqual(trinket_category["itemTypeGroupLabel"], "首饰")
         self.assertEqual({record["targetType"] for record in gear_payload["records"]}, {"gear_variant"})
         self.assertEqual({record["targetType"] for record in gear_templates_payload["records"]}, {"community_gear_template"})
         pg_gear_template = gear_templates_payload["records"][0]
@@ -7069,7 +7540,10 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(gear_source_slot_miss["records"], [])
         self.assertEqual([record["targetId"] for record in gear_source_payload["records"]], ["pg-variant-1"])
         self.assertEqual([record["targetId"] for record in gear_drop_source_payload["records"]], ["pg-variant-1"])
+        self.assertEqual([record["targetId"] for record in gear_dungeon_instance_payload["records"]], ["pg-variant-1"])
+        self.assertEqual([record["targetId"] for record in gear_raid_instance_payload["records"]], ["pg-variant-blocked"])
         self.assertEqual([record["targetId"] for record in gear_class_payload["records"]], ["pg-variant-1"])
+        self.assertEqual([record["targetId"] for record in gear_item_type_payload["records"]], ["pg-variant-blocked"])
         self.assertEqual([record["targetId"] for record in gear_visibility_visible_payload["records"]], ["pg-variant-1"])
         self.assertEqual([record["targetId"] for record in gear_visibility_hidden_payload["records"]], ["pg-variant-blocked"])
         self.assertEqual([record["targetId"] for record in gear_template_class_payload["records"]], ["pg-gear-template-visible"])
@@ -7385,6 +7859,15 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn('id="gearToolbar"', html)
         self.assertIn('id="gearFilterKey"', html)
         self.assertIn('id="gearFilterValue"', html)
+        self.assertIn('id="gearSourceInstanceValue"', html)
+        self.assertIn(
+            '<select id="gearFilterKey"><option value="dropSource">掉落来源</option><option value="itemType">装备分类</option><option value="visibility">小程序可见性</option></select>',
+            html,
+        )
+        self.assertNotIn(
+            '<select id="gearFilterKey"><option value="dropSource">掉落来源</option><option value="class">职业</option><option value="visibility">小程序可见性</option></select>',
+            html,
+        )
         self.assertIn('id="gearTemplateToolbar"', html)
         self.assertIn('id="gearTemplateFilterKey"', html)
         self.assertIn('id="gearTemplateFilterValue"', html)
@@ -7396,6 +7879,7 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("{ value:'status', label:'状态'", html)
         self.assertIn("{ value:'publication', label:'发布情况'", html)
         self.assertIn("{ value:'class', label:'职业'", html)
+        self.assertIn("{ value:'itemType', label:'装备分类'", html)
         self.assertIn("value:'visibility'", html)
         self.assertIn("label:'小程序可见性'", html)
         self.assertIn("正式服动态", html)
@@ -7409,11 +7893,13 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("function updateNewsFilterValueOptions", html)
         self.assertIn("function updateTalentFilterValueOptions", html)
         self.assertIn("function updateGearFilterValueOptions", html)
+        self.assertIn("function updateGearSourceInstanceOptions", html)
         self.assertIn("function updateGearTemplateFilterValueOptions", html)
         self.assertIn("function applyRecordToolbarForDomain", html)
         self.assertIn("function applyNewsFilterParams", html)
         self.assertIn("function applyTalentFilterParams", html)
         self.assertIn("function applyGearFilterParams", html)
+        self.assertIn("sourceInstance", html)
         self.assertIn("function applyGearTemplateFilterParams", html)
         self.assertIn("document.getElementById('newsLoad').addEventListener", html)
         self.assertIn("document.getElementById('talentLoad').addEventListener", html)
@@ -7424,12 +7910,24 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("function talentCategoryCell", html)
         self.assertIn("talentCategory", html)
         self.assertIn("function gearCategoryCell", html)
+        self.assertIn("function gearItemTypeCell", html)
         self.assertIn("gearCategory", html)
         self.assertIn("gearVisibility", html)
         self.assertIn("gearBlockReason", html)
         self.assertIn("装备名称", html)
+        self.assertIn("<th>装备名称</th><th>部位</th><th>掉落来源</th>", html)
+        self.assertNotIn("<th>模块</th><th>装备名称</th>", html)
+        self.assertNotIn("${escapeHtml(item.targetType)} / ${escapeHtml(item.targetId)}</span></td><td>${gearSlotCell(item)}</td>", html)
+        self.assertIn("function gearVariantListCell", html)
+        self.assertIn("function gearSourceDetailWithoutInstance", html)
         self.assertIn("部位", html)
         self.assertIn("掉落来源", html)
+        self.assertIn("装备分类", html)
+        self.assertIn("护甲类型", html)
+        self.assertIn("武器类型", html)
+        self.assertIn("首饰", html)
+        self.assertIn("<th>状态</th><th>装备分类</th><th>小程序可见</th>", html)
+        self.assertNotIn("<th>状态</th><th>职业</th><th>小程序可见</th>", html)
         self.assertIn("Block原因", html)
         self.assertIn("装备模板", html)
         self.assertIn("小程序是否可见", html)

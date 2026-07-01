@@ -885,12 +885,33 @@ class PostgresCacheStore:
                     """
                     SELECT v.id, v.item_id, COALESCE(NULLIF(i.name, ''), v.item_id),
                            v.slot, v.label, v.source_type, v.difficulty_key, v.item_level,
-                           v.status, v.blockers_json, v.payload_json, i.payload_json,
+                           v.simc_options_json, v.status, v.blockers_json, v.payload_json, i.payload_json,
+                           COALESCE((
+                               SELECT s.source_label
+                               FROM cache.websim_gear_sources s
+                               WHERE s.item_id = v.item_id
+                                 AND s.source_type = v.source_type
+                                 AND (s.difficulty_key = v.difficulty_key OR s.difficulty_key = '' OR v.difficulty_key = '')
+                               ORDER BY CASE WHEN s.difficulty_key = v.difficulty_key THEN 0 ELSE 1 END,
+                                        NULLIF(s.source_label, '') NULLS LAST,
+                                        s.updated_at DESC
+                               LIMIT 1
+                           ), '') AS source_label,
+                           COALESCE((
+                               SELECT s.instance_id
+                               FROM cache.websim_gear_sources s
+                               WHERE s.item_id = v.item_id
+                                 AND s.source_type = v.source_type
+                                 AND (s.difficulty_key = v.difficulty_key OR s.difficulty_key = '' OR v.difficulty_key = '')
+                               ORDER BY CASE WHEN s.difficulty_key = v.difficulty_key THEN 0 ELSE 1 END,
+                                        NULLIF(s.source_label, '') NULLS LAST,
+                                        s.updated_at DESC
+                               LIMIT 1
+                           ), '') AS source_instance_id,
                            v.updated_at
                     FROM cache.websim_gear_variants v
                     LEFT JOIN cache.websim_items i ON i.id = v.item_id
                     ORDER BY v.updated_at DESC
-                    LIMIT 500
                     """
                 )
                 variant_rows = cur.fetchall()
@@ -930,11 +951,14 @@ class PostgresCacheStore:
                     "sourceType": row[5] or "",
                     "difficultyKey": row[6] or "",
                     "itemLevel": _int_value(row[7]),
-                    "status": row[8] or "",
-                    "blockers": _json_value(row[9], []),
-                    "payload": _json_value(row[10], {}),
-                    "itemPayload": _json_value(row[11], {}),
-                    "updatedAt": str(row[12] or ""),
+                    "simcOptions": _json_value(row[8], {}),
+                    "status": row[9] or "",
+                    "blockers": _json_value(row[10], []),
+                    "payload": _json_value(row[11], {}),
+                    "itemPayload": _json_value(row[12], {}),
+                    "sourceLabel": str(row[13] or ""),
+                    "sourceInstanceId": str(row[14] or ""),
+                    "updatedAt": str(row[15] or ""),
                 }
                 for row in variant_rows
             ],

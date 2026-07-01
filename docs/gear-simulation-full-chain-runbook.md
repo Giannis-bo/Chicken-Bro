@@ -350,6 +350,7 @@ Unsupported / excluded：
 - 同一装备不能因为有多个 source/variant 造成重复候选；source filter 计数要与可见候选一致。
 - `slotReadiness`、`catalogHealthSummary`、`weaponRule` 要帮助前端和 smoke 判断是否有规则缺口。
 - read model 可以保留 partial 候选详情，但不能让 partial 成为可保存/可执行配置。
+- 后台门禁治理台 `装备库` 主视图必须与本读模型对齐：按 `itemId + slot` 聚合、以 verified / SimC-ready 代表变体决定主状态，partial / needs-variant / observed 技术行只作为诊断证据或去重后的装等轨道展示。
 
 ## 前端 UI 合同
 

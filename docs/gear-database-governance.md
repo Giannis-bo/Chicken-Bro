@@ -45,6 +45,16 @@
 
 `298` 不是普通神话满级。只有存在赛季规则或明确证据的武器、饰品、孢陨幽境特殊掉落、套装特殊部位，才能写 `void_upgrade`。12.1 开季时必须先更新轨道配置和证据规则，再跑入库。
 
+## 后台门禁装备库口径
+
+后台门禁治理台的 `装备库` 主视图是 `/api/websim/gear` 小程序可展示读模型的治理镜像，不是 `websim_gear_variants` 原始行浏览器。owner 在主表看到的可见性必须与玩家实际能在小程序候选中看到的装备一致。
+
+- 主表按 `itemId + slot` 聚合变体，并选择 verified / SimC-ready 的代表变体作为装备状态、可见性和 block 文案来源。
+- PostgreSQL runtime store 必须先按 DB 条件读取完整候选集合，再做副本、装备名、分类和可见性筛选；不能先按最近更新时间截断一批变体再在内存筛选。
+- 同一装备同时存在 `needs-variant`、`partial` 或 blocker 占位变体和 verified 可用变体时，主表以 verified 可用变体为准；占位变体只进入计数、诊断或后续明细视图。
+- 掉落来源列展示 owner 需要的去重装等轨道，例如 `虚空晋升 298`、`神话 289`、`英雄 276`、`勇士 263`；同一 item level 下多条 `observed_profile` 技术变体只折叠为一条 `ilvl xxx` 或对应人类可读轨道。
+- 真正没有 verified / SimC-ready 变体的装备仍保持 fail-closed，显示 blocked 或不可见，并保留具体 blocker。
+
 ## 制造业入库逻辑
 
 制造业装备作为一等 `crafted` catalog source 入库，不恢复旧的 ungoverned crafted seed。旧环境变量 `WOW_WEBSIM_CRAFTED_GEAR_SEED` 仍必须被忽略；同步普通装备目录时只允许保留 governed crafted rows，非 governed 旧行要被清理。
