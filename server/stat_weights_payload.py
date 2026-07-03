@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from statistics import median
 
 try:
+    from .db import require_sqlite_runtime_enabled
     from .llm_client import call_chat_completion, llm_model
     from .raiderio_payload import (
         aggregate_by_spec,
@@ -32,6 +33,7 @@ try:
         websim_simc_binary,
     )
 except ImportError:
+    from db import require_sqlite_runtime_enabled
     from llm_client import call_chat_completion, llm_model
     from raiderio_payload import (
         aggregate_by_spec,
@@ -684,7 +686,15 @@ def role_boundary_warnings(spec_meta):
     return []
 
 
-def build_scenario_payload(conn, spec_meta, scenario, raiderio, aggregate, ready_profiles, blocked_profile_notes):
+def build_scenario_payload_with_previous(
+    spec_meta,
+    scenario,
+    raiderio,
+    aggregate,
+    ready_profiles,
+    blocked_profile_notes,
+    previous=None,
+):
     checked_at = utc_now_iso()
     raiderio_summary = public_raiderio_summary(raiderio, aggregate)
     source_status = raiderio.get("sourceStatus") or "blocked"
@@ -736,7 +746,7 @@ def build_scenario_payload(conn, spec_meta, scenario, raiderio, aggregate, ready
     translation, translation_error = (None, "")
     if weights:
         translation, translation_error = translate_stat_weight_evidence(evidence)
-    previous = read_cached_stat_weight(conn, spec_meta["classKey"], spec_meta["specKey"], scenario["key"])
+    previous = previous if isinstance(previous, dict) else {}
     translation_status = "blocked"
     summary_zh = ""
     recommendations_zh = []
@@ -803,6 +813,19 @@ def build_scenario_payload(conn, spec_meta, scenario, raiderio, aggregate, ready
         "blockers": blockers[:8],
     }
     return payload
+
+
+def build_scenario_payload(conn, spec_meta, scenario, raiderio, aggregate, ready_profiles, blocked_profile_notes):
+    previous = read_cached_stat_weight(conn, spec_meta["classKey"], spec_meta["specKey"], scenario["key"])
+    return build_scenario_payload_with_previous(
+        spec_meta,
+        scenario,
+        raiderio,
+        aggregate,
+        ready_profiles,
+        blocked_profile_notes,
+        previous=previous,
+    )
 
 
 def sync_stat_weight_cache(conn, raiderio_payload=None, refresh_mode="scheduled"):
@@ -1001,5 +1024,6 @@ def latest_stat_weight_run_payload(conn):
 
 
 if __name__ == "__main__":
+    require_sqlite_runtime_enabled("stat_weights_payload")
     with sqlite3.connect(os.environ.get("WOW_NEWS_DB", "server/data/wow_news.sqlite3")) as connection:
         print(json.dumps(sync_stat_weight_cache(connection), ensure_ascii=False, indent=2))

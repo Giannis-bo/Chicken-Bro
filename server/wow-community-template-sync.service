@@ -8,7 +8,7 @@ Type=oneshot
 User=ubuntu
 WorkingDirectory=/opt/wow-mini-program
 EnvironmentFile=-/etc/wow-backend.env
-Environment=WOW_NEWS_DB=/opt/wow-mini-program/server/data/wow_news.sqlite3
+Environment=WOW_DATABASE_RUNTIME=postgres_only
 Environment=WOW_COMMUNITY_TEMPLATE_SYNC_MODE=scheduled
 Environment=WOW_RAIDERIO_RUN_PAGES=25
 Environment=WOW_RAIDERIO_PROFILE_LIMIT=200

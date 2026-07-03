@@ -25,6 +25,7 @@ PRIMARY_KEY_COLUMNS = {
     "content.sources": "source_key",
     "cache.websim_season_state": "key",
     "cache.raiderio_cache": "cache_key",
+    "cache.stat_weight_cache": "cache_key",
 }
 RECONCILE_NATURAL_KEY_COLUMNS = {
     "cache.websim_gear_variants": ("item_id", "variant_key"),

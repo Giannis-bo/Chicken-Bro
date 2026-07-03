@@ -96,9 +96,9 @@ WOW_NEWS_PORT=8787 python3 server/news_backend.py
 
 资讯详情公共 payload 只发布同时满足 `contentStatus=ready`、`licenseStatus=approved`、`verificationStatus=official_verified`、`translationStatus=llm`、`translationFidelity=source_translation`、`sourceTier=official` 的文章：中文标题为主，保留 `originalTitle` 作为原题副标题，正文仅使用 `bodyBlocksZh` 块级渲染，tag 使用 `tagItems` 中文 chip，`sourceBadges` 与来源信息一并保留，公共 API 不返回原文正文。自动采集首版优先覆盖 Blizzard 官方文章；Wowhead / Icy Veins 等第三方来源未确认授权前只做 reference-only 发现/佐证，不进入公共 payload；正文抓取、LLM 逐块直译、授权门禁、官方校验或质检失败时记录在 refresh run 中，不发布给前端。
 
-后台门禁治理台 `/admin/gates` 面向 owner 查看新闻、天赋和装备数据从上游、规则审计、证据链、入库到前端/SimC 消费的状态。`/api/admin/gates/summary|records|queue|diagnoses` 都需要 admin Bearer token；在 `WOW_DATABASE_RUNTIME=postgres_personal` 下，records / record detail / queue 走 PostgreSQL content/cache runtime store，诊断写入 `ops.admin_gate_diagnoses` 并审计到 `ops.audit_logs`，SQLite 只作为无 PG runtime 时的 fallback。左侧“新闻资讯 / 天赋树 / 装备库 / 装备模板”会按 `domain` 过滤记录；新闻按分类、状态、发布情况筛选，天赋按职业、状态、小程序可见性筛选，装备库按掉落来源、具体掉落来源、装备分类和小程序可见性筛选，装备模板按职业、小程序是否可见筛选。装备库主表对齐 `/api/websim/gear` 的小程序可展示口径：同一 `itemId + slot` 的多个变体聚合成一条主记录，优先展示 verified / SimC-ready 代表变体；`needs-variant`、`partial` 或 `observed_profile` 技术占位只作为诊断证据，不会把整件装备显示成不可见。掉落来源列展示去重后的装等轨道 chip，并隐藏重复副本名和 raw variant id。“待诊断阻断项”是独立工作台，不再作为总览页常驻右栏。治理台状态统一显示为 `english（中文）`，例如 `blocked（已阻断）`。诊断写入只记录人工判断和审计日志，不会把 `blocked` / `partial` 改成 `verified`，也不会绕过系统门禁发布内容或启动 SimC。
+后台门禁治理台 `/admin/gates` 面向 owner 查看新闻、天赋和装备数据从上游、规则审计、证据链、入库到前端/SimC 消费的状态。`/api/admin/gates/summary|records|queue|diagnoses` 都需要 admin Bearer token；在 `WOW_DATABASE_RUNTIME=postgres_only` 下，records / record detail / queue 走 PostgreSQL content/cache runtime store，诊断写入 `ops.admin_gate_diagnoses` 并审计到 `ops.audit_logs`。缺少 PG runtime store 时接口返回 blocked / runtimeBlockers，不回退 SQLite。左侧“新闻资讯 / 天赋树 / 装备库 / 装备模板”会按 `domain` 过滤记录；新闻按分类、状态、发布情况筛选，天赋按职业、状态、小程序可见性筛选，装备库按掉落来源、具体掉落来源、装备分类和小程序可见性筛选，装备模板按职业、小程序是否可见筛选。装备库主表对齐 `/api/websim/gear` 的小程序可展示口径：同一 `itemId + slot` 的多个变体聚合成一条主记录，优先展示 verified / SimC-ready 代表变体；`needs-variant`、`partial` 或 `observed_profile` 技术占位只作为诊断证据，不会把整件装备显示成不可见。掉落来源列展示去重后的装等轨道 chip，并隐藏重复副本名和 raw variant id。“待诊断阻断项”是独立工作台，不再作为总览页常驻右栏。治理台状态统一显示为 `english（中文）`，例如 `blocked（已阻断）`。诊断写入只记录人工判断和审计日志，不会把 `blocked` / `partial` 改成 `verified`，也不会绕过系统门禁发布内容或启动 SimC。
 
-SimC 模板链路分为“确认”和“任务执行”两段：`mode=simcraft_template` 的确认阶段只做后端解析、装备属性快照校验、已知 SimC 兼容性阻断和紧凑 `simcReport`，不调用 LLM 或 Codex Worker；最终提交在校验通过后创建后台 `simulator_tasks`，由 runner 异步执行并把结果写回任务列表/详情。相同玩家同一时间最多保留 2 个 `queued/running` 模板任务，相同 fingerprint 会复用活动任务；单体、5目标 AOE、近似大秘境的 `fight_style/desired_targets/max_time/iterations=10000` 不因超时而降级。当前已知 `邪恶死亡骑士 + 天启骑士` 在 upstream SimC 会崩溃，后端会在属性快照和模板确认阶段直接返回中文 blocker，不启动 SimC。WCL 分析当前只完成 report URL/code/fight 解析和缺凭据阻断；没有 `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET` 时返回 `blocked/missing_credentials`，不会调用 LLM 伪造日志结论。
+SimC 模板链路分为“确认”和“任务执行”两段：`mode=simcraft_template` 的确认阶段只做后端解析、装备属性快照校验、已知 SimC 兼容性阻断和紧凑 `simcReport`，不调用 LLM 或 Codex Worker；最终提交在校验通过后创建后台 `simulator_tasks`，由 runner 异步执行并把结果写回任务列表/详情。相同玩家同一时间最多保留 2 个 `queued/running` 模板任务，相同 fingerprint 会复用活动任务；单体、5目标 AOE、近似大秘境的 `fight_style/desired_targets/max_time/iterations=10000` 不因超时而降级。当前已知 `邪恶死亡骑士 + 天启骑士` 在 upstream SimC 会崩溃，后端会在属性快照和模板确认阶段直接返回中文 blocker，不启动 SimC。WCL 分析当前完成 report URL/code/fight 解析、v2 OAuth 凭据识别和 GraphQL 探针；缺凭据时返回 `blocked/missing_credentials`，凭据已配置但缺 report evidence / combatantinfo 抽取时仍返回 `partial` 或 evidence blocker，不会调用 LLM 伪造日志结论。
 
 炸鸡队长链路使用独立 `/api/chickenbro/*`。前端只发送短消息和有限上下文，完整 raw log、完整 SimC profile、token 和 secret 不进入小程序或 Codex prompt。后端负责 scope 判断、bounded context、Codex runner、schema 校验、数字白名单、owner/guest 隔离和 fallback。当前线上可通过 `WOW_CHICKENBRO_CODEX_ENABLED=1` 进入 direct Codex chat 体验：没有 published profile 时也可以先让 Codex 做魔兽范围内的自然对话，但不得把通用知识包装成本地证据；Codex 不可用、超时、schema 不合规或输出未经批准的数字时返回 deterministic fallback。
 
@@ -110,7 +110,7 @@ LLM 和 SimCraft 由服务器环境控制：
 - `WOW_BLIZZARD_CLIENT_ID` / `WOW_BLIZZARD_CLIENT_SECRET`：Battle.net API client credentials，仅放服务器；缺失时 WebSim 赛季、装备和天赋数据会进入 `blocked` 状态，不展示可能过期的副本池。
 - `WOW_BLIZZARD_REGION`：默认 `us`。
 - `WOW_BLIZZARD_LOCALE`：默认 `zh_CN`；`WOW_BLIZZARD_LOCALES` 默认 `zh_CN,zh_TW,en_US`，用于官方中文优先、本地化缺失时回退。
-- `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET`：Warcraft Logs v2 API credentials；缺失时 WCL 分析和 data health 明确标为 `missing_credentials`。
+- `WOW_WARCRAFTLOGS_CLIENT_ID` / `WOW_WARCRAFTLOGS_CLIENT_SECRET`：Warcraft Logs v2 API credentials；缺失时 WCL 分析和 data health 明确标为 `missing_credentials`。线上当前已配置 v2 OAuth，GraphQL endpoint 可访问，但社区模板和日志复盘仍需要 report evidence / combatantinfo 抽取能力才能从 `partial` 升级为 verified。
 - `WOW_WARCRAFTLOGS_API_KEY`：Warcraft Logs v1 API key；可作为 v1 REST 凭据被 health/WCL 启动层识别，但完整日志 GraphQL 抽取仍需要后续实现或 v2 OAuth 凭据。
 - `WOW_ADMIN_TOKEN`：后台门禁治理台固定 admin token；未设置时兼容回退到 `WOW_ANALYTICS_ADMIN_TOKEN`。只允许保存在服务器环境或本地安全记录中，不提交仓库，不放进小程序端。
 - `WOW_SIMC_BIN`：默认 `/opt/wow-simc/current/simc`，部署脚本会从官方源码构建 CLI。
@@ -125,7 +125,7 @@ LLM 和 SimCraft 由服务器环境控制：
 - `WOW_CODEX_SANDBOX`：默认 `workspace-write`；后端用户任务不要使用 `danger-full-access`。
 - `WOW_CHICKENBRO_CODEX_ENABLED`：设为 `1` 时，Chickenbro 消息会在 scope 和 owner/guest 门禁通过后尝试走 Codex runner；未设置或 Codex 不可用时走 deterministic fallback。
 
-数据库运行时当前为 PostgreSQL hybrid seam：`WOW_DATABASE_RUNTIME=postgres_personal` 会让身份、个人模板、SimC 任务、Chickenbro 会话 / job、analytics、news content 和 WebSim/cache 读模型通过 PostgreSQL seam，SQLite 仍作为未迁移域和回滚备份存在。WebSim PG cache 包含装备来源/变体/改造选项、天赋、赛季/掉落和 `cache.websim_community_gear_templates`；装备接口在 season stale 时仍返回完整 schema 和当前 PG 状态，不用 SQLite fallback 掩盖 read-model 问题。开发工具阶段线上服务当前指向 `wow_test`，避免把测试个人资产写入 `wow_prod`；正式发布切到 `wow_prod` 前需要单独审批、备份和 smoke。
+数据库运行时当前为 PostgreSQL-only：`WOW_DATABASE_RUNTIME=postgres_only`（或本地验证时 `WOW_SQLITE_RUNTIME_DISABLED=1`）会让身份、个人模板、SimC 任务、Chickenbro 会话 / job、analytics、news content、Raider.IO/stat weight cache、WebSim/cache 读模型、health 和 admin gates 都通过 PostgreSQL store。SQLite 只允许作为一次性迁移源、历史备份或离线审计输入；线上公开接口、同步任务和健康检查不能读取 SQLite 或用 SQLite fallback 掩盖 PG 数据缺口。WebSim PG cache 包含装备来源/变体/改造选项、天赋、赛季/掉落、`cache.websim_community_gear_templates`、`cache.stat_weight_cache` 和 `cache.websim_asset_registry`；装备接口在 season stale 时仍返回完整 schema 和当前 PG 状态。PG-only 同步入口走 `server/postgres_cache_sync.py`：WebSim SimC generated data 会直接写 `cache.websim_talents` / `cache.websim_profile_presets` / `cache.websim_spell_details`，Blizzard journal 子阶段会写 PG season/dungeon/instance/encounter/item/loot rows 并从 loot 派生 `gearCatalog` skeleton，stat weights、community templates、Raider.IO observed backfill 和显式 seed crafted backfill 也写入 PostgreSQL cache/sync state；缺样本、缺 seed、缺抽取或缺 SimC evidence 时必须写 PostgreSQL `blocked` / `partial` root cause，不允许回 SQLite。
 
 生产环境密钥放在服务器 `/etc/wow-backend.env`，例如：
 
@@ -166,7 +166,7 @@ printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
 WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
 ```
 
-部署脚本默认只重启后端并做轻量 smoke，不会自动启动长耗时同步任务；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 时才会启动 `wow-websim-sync`、`wow-stat-weights-sync` 和 `wow-community-template-sync`。如服务器或用户变化，可通过环境变量覆盖：
+部署脚本会安装并启用 PG-native sync timers：`wow-websim-sync.timer`、`wow-stat-weights-sync.timer`、`wow-community-template-sync.timer` 和 `wow-gear-observed-backfill.timer`，这些 unit 不配置 `WOW_NEWS_DB`。默认部署只重启后端并做轻量 smoke，不额外 no-block 启动一次同步服务；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 时才会在 smoke 后启动 `wow-websim-sync`、`wow-stat-weights-sync`、`wow-community-template-sync` 和 `wow-gear-observed-backfill`。如服务器或用户变化，可通过环境变量覆盖：
 
 ```bash
 WOW_LIGHTHOUSE_HOST=124.223.51.33 WOW_LIGHTHOUSE_USER=ubuntu ./server/deploy_lighthouse.sh

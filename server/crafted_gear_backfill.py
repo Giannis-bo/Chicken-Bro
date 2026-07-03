@@ -7,8 +7,24 @@ import sys
 from pathlib import Path
 
 try:
+    from .db import (
+        connect_postgres,
+        database_config_from_env,
+        postgres_only_runtime_enabled,
+        require_sqlite_runtime_enabled,
+        sqlite_migration_source_enabled,
+    )
+    from .postgres_cache_sync import run_crafted_gear_backfill_postgres
     from . import websim_payload
 except ImportError:
+    from db import (
+        connect_postgres,
+        database_config_from_env,
+        postgres_only_runtime_enabled,
+        require_sqlite_runtime_enabled,
+        sqlite_migration_source_enabled,
+    )
+    from postgres_cache_sync import run_crafted_gear_backfill_postgres
     import websim_payload
 
 
@@ -89,6 +105,10 @@ CURATED_CRAFTED_METADATA_ITEMS = {
 
 
 def connect_backfill_db(db_path=DB_PATH):
+    if postgres_only_runtime_enabled() and not sqlite_migration_source_enabled():
+        config = database_config_from_env()
+        return connect_postgres(config.database_url)
+    require_sqlite_runtime_enabled("crafted_gear_backfill")
     timeout_ms = max(1000, int(DEFAULT_SQLITE_BUSY_TIMEOUT_MS or 30000))
     conn = sqlite3.connect(db_path, timeout=max(1, timeout_ms // 1000))
     conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
@@ -610,6 +630,10 @@ def main(argv=None):
     if not args.from_metadata and not args.from_simc_presets and not args.seed_json:
         print("error: pass --from-metadata, --from-simc-presets, or --seed-json", file=sys.stderr)
         return 2
+    if postgres_only_runtime_enabled() and not sqlite_migration_source_enabled():
+        summary = run_crafted_gear_backfill_postgres()
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 0
     conn = connect_backfill_db(args.db)
     try:
         if args.seed_json:

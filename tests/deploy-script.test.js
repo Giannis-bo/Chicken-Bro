@@ -15,20 +15,14 @@ test('lighthouse deploy script supports a no-download hot deploy mode', () => {
   assert.match(script, /WOW_DEPLOY_SKIP_BOOTSTRAP/)
   assert.match(script, /WOW_DEPLOY_START_ASYNC_SYNCS/)
   assert.match(script, /Skipping remote bootstrap/)
-  assert.match(script, /Skipping async sync starts/)
+  assert.match(script, /Skipping PG-native async sync starts/)
   assert.match(script, /gzip on;/)
   assert.match(script, /gzip_types application\/json text\/plain text\/css application\/javascript;/)
   assert.match(script, /gzip_vary on;/)
-  assert.match(script, /systemctl start --no-block wow-websim-sync\.service/)
   assert.match(script, /wow-stat-weights-sync\.service/)
   assert.match(script, /wow-stat-weights-sync\.timer/)
-  assert.match(script, /systemctl start --no-block wow-stat-weights-sync\.service/)
   assert.match(script, /wow-community-template-sync\.service/)
   assert.match(script, /wow-community-template-sync\.timer/)
-  assert.match(script, /systemctl start --no-block wow-community-template-sync\.service/)
-  assert.doesNotMatch(script, /systemctl start wow-websim-sync\.service \|\|/)
-  assert.doesNotMatch(script, /systemctl start wow-stat-weights-sync\.service \|\|/)
-  assert.doesNotMatch(script, /systemctl start wow-community-template-sync\.service \|\|/)
 
   const skipBranch = script.indexOf('if [[ "${SKIP_BOOTSTRAP}" == "1" ]]')
   const bootstrapBranch = script.indexOf('else # full remote bootstrap')
@@ -47,29 +41,32 @@ test('lighthouse deploy script supports a no-download hot deploy mode', () => {
   }
 })
 
-test('lighthouse deploy script requires explicit opt-in before starting long sync jobs', () => {
+test('lighthouse deploy script enables PG-native sync timers in PG-only mode', () => {
   const script = fs.readFileSync(scriptPath, 'utf8')
   const smokeIndex = script.indexOf('curl -fsS http://127.0.0.1/api/builds/home >/dev/null')
   assert.ok(smokeIndex > 0, 'missing builds home smoke check')
   const optInIndex = script.indexOf('if [[ "${START_ASYNC_SYNCS}" == "1" ]]')
   assert.ok(optInIndex > smokeIndex, 'async sync opt-in gate must run after API smoke checks')
+  assert.match(script, /PG-native sync timers enabled/)
+
+  for (const enableCommand of [
+    'sudo systemctl enable --now wow-websim-sync.timer',
+    'sudo systemctl enable --now wow-stat-weights-sync.timer',
+    'sudo systemctl enable --now wow-community-template-sync.timer',
+    'sudo systemctl enable --now wow-gear-observed-backfill.timer'
+  ]) {
+    const enableIndex = script.indexOf(enableCommand)
+    assert.ok(enableIndex > 0 && enableIndex < smokeIndex, `${enableCommand} must run before API smoke checks`)
+  }
 
   for (const startCommand of [
     'sudo systemctl start --no-block wow-websim-sync.service',
     'sudo systemctl start --no-block wow-stat-weights-sync.service',
-    'sudo systemctl start --no-block wow-community-template-sync.service'
+    'sudo systemctl start --no-block wow-community-template-sync.service',
+    'sudo systemctl start --no-block wow-gear-observed-backfill.service'
   ]) {
     const startIndex = script.indexOf(startCommand)
-    assert.ok(startIndex > optInIndex, `${startCommand} must stay behind the explicit async sync opt-in gate`)
-  }
-
-  for (const stopCommand of [
-    'sudo systemctl stop wow-websim-sync.service >/dev/null 2>&1 || true',
-    'sudo systemctl stop wow-stat-weights-sync.service >/dev/null 2>&1 || true',
-    'sudo systemctl stop wow-community-template-sync.service >/dev/null 2>&1 || true'
-  ]) {
-    const stopIndex = script.indexOf(stopCommand)
-    assert.ok(stopIndex > 0 && stopIndex < smokeIndex, `${stopCommand} must run before API smoke checks`)
+    assert.ok(startIndex > optInIndex, `${startCommand} must stay behind async sync opt-in`)
   }
 })
 
@@ -77,9 +74,26 @@ test('community template sync has a six-hour persistent systemd timer', () => {
   const service = fs.readFileSync('server/wow-community-template-sync.service', 'utf8')
   const timer = fs.readFileSync('server/wow-community-template-sync.timer', 'utf8')
 
+  assert.match(service, /Environment=WOW_DATABASE_RUNTIME=postgres_only/)
+  assert.doesNotMatch(service, /WOW_NEWS_DB/)
   assert.match(service, /ExecStart=\/usr\/bin\/flock -w 7200 \/run\/lock\/wow-mini-program-sync\.lock \/usr\/bin\/python3 \/opt\/wow-mini-program\/server\/community_template_sync\.py/)
   assert.match(service, /TimeoutStartSec=180min/)
   assert.match(timer, /OnBootSec=12min/)
   assert.match(timer, /OnUnitActiveSec=6h/)
   assert.match(timer, /Persistent=true/)
+})
+
+test('production systemd units do not configure SQLite runtime paths', () => {
+  for (const unit of [
+    'server/wow-backend.service',
+    'server/wow-websim-sync.service',
+    'server/wow-stat-weights-sync.service',
+    'server/wow-community-template-sync.service',
+    'server/wow-gear-observed-backfill.service'
+  ]) {
+    const service = fs.readFileSync(unit, 'utf8')
+    assert.match(service, /Environment=WOW_DATABASE_RUNTIME=postgres_only/, `${unit} must opt into PG-only runtime`)
+    assert.doesNotMatch(service, /WOW_NEWS_DB/, `${unit} must not configure WOW_NEWS_DB`)
+    assert.doesNotMatch(service, /server\/data\/wow_news\.sqlite3/, `${unit} must not pass the runtime SQLite file`)
+  }
 })

@@ -11,9 +11,25 @@ import time
 from pathlib import Path
 
 try:
+    from .db import (
+        connect_postgres,
+        database_config_from_env,
+        postgres_only_runtime_enabled,
+        require_sqlite_runtime_enabled,
+        sqlite_migration_source_enabled,
+    )
+    from .postgres_cache_sync import run_gear_observed_backfill_postgres
     from . import raiderio_payload
     from . import websim_payload
 except ImportError:
+    from db import (
+        connect_postgres,
+        database_config_from_env,
+        postgres_only_runtime_enabled,
+        require_sqlite_runtime_enabled,
+        sqlite_migration_source_enabled,
+    )
+    from postgres_cache_sync import run_gear_observed_backfill_postgres
     import raiderio_payload
     import websim_payload
 
@@ -58,6 +74,10 @@ def print_stage(event):
 
 
 def connect_backfill_db(db_path=DB_PATH):
+    if postgres_only_runtime_enabled() and not sqlite_migration_source_enabled():
+        config = database_config_from_env()
+        return connect_postgres(config.database_url)
+    require_sqlite_runtime_enabled("gear_observed_backfill")
     timeout_ms = max(1000, int(DEFAULT_SQLITE_BUSY_TIMEOUT_MS or 30000))
     conn = sqlite3.connect(db_path, timeout=max(1, timeout_ms // 1000))
     conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
@@ -65,6 +85,10 @@ def connect_backfill_db(db_path=DB_PATH):
 
 
 def connect_readonly_backfill_db(db_path=DB_PATH):
+    if postgres_only_runtime_enabled() and not sqlite_migration_source_enabled():
+        config = database_config_from_env()
+        return connect_postgres(config.database_url)
+    require_sqlite_runtime_enabled("gear_observed_backfill read-only source")
     timeout_ms = max(1000, int(DEFAULT_SQLITE_BUSY_TIMEOUT_MS or 30000))
     db_uri = Path(db_path).resolve().as_uri() + "?mode=ro&immutable=1"
     conn = sqlite3.connect(db_uri, timeout=max(1, timeout_ms // 1000), uri=True)
@@ -1548,7 +1572,9 @@ def main(argv=None):
     parser.add_argument("--simc-timeout-seconds", type=int, default=DEFAULT_SIMC_TIMEOUT_SECONDS)
     parser.add_argument("--json", action="store_true", help="Emit compact JSON summary.")
     args = parser.parse_args(argv)
-    if args.plan_only:
+    if postgres_only_runtime_enabled() and not sqlite_migration_source_enabled():
+        summary = run_gear_observed_backfill_postgres()
+    elif args.plan_only:
         summary = plan_gear_observed_backfill(
             args.db,
             target_limit=args.target_limit,
@@ -1574,7 +1600,7 @@ def main(argv=None):
             stage_callback=print_stage,
         )
     print(json.dumps(summary, ensure_ascii=False, indent=None if args.json else 2))
-    return 0 if summary.get("status") in {"ok", "partial"} else 1
+    return 0 if summary.get("runner") == "postgres" or summary.get("status") in {"ok", "partial"} else 1
 
 
 if __name__ == "__main__":

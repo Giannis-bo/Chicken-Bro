@@ -1,6 +1,6 @@
 # 社区模板导入全链路 Runbook
 
-> 适用范围：社区天赋模板、社区装备模板、Raider.IO / WCL / manual fixtures / WebSim baseline 来源、SQLite / PostgreSQL hybrid 入库、`communityTemplates` read model、前端导入 sheet、个人模板保存、`/api/websim/profile` 最终校验、health 和回滚。
+> 适用范围：社区天赋模板、社区装备模板、Raider.IO / WCL / manual fixtures / WebSim baseline 来源、PostgreSQL-only 入库、`communityTemplates` read model、前端导入 sheet、个人模板保存、`/api/websim/profile` 最终校验、health 和回滚。
 > 最后更新：2026-06-29。
 
 本文是“导入社区天赋 / 装备推荐”的执行手册。它不重新定义天赋树规则，也不重新定义装备 catalog；这两部分分别由 [全职业天赋模拟全链路 Runbook](talent-simulation-full-chain-runbook.md) 和 [装备模拟全链路 Runbook](gear-simulation-full-chain-runbook.md) 负责。本文只管外部或派生模板如何进入推荐、展示、应用和保存链路。
@@ -58,7 +58,7 @@ flowchart TD
 | 来源 | 用途 | 可标为 verified 的条件 | 不可做的事 |
 | --- | --- | --- | --- |
 | Raider.IO profile / run | 真实玩家天赋和装备样本 | class/spec/hero/scenario 可归属；structured loadout 或 gear snapshot 可解析；去重后仍有可执行字段 | 不能把 profile API 的装备属性当成生产属性来源 |
-| Warcraft Logs | 后续高质量战斗样本入口 | 凭据可用、授权边界清楚、样本窗口可追踪、可解析成模板字段 | 缺凭据时不得伪造 WCL 模板 |
+| Warcraft Logs | 后续高质量战斗样本入口 | v2 OAuth 凭据可用、授权边界清楚、样本窗口可追踪，且 report evidence / combatantinfo 可解析成模板字段 | 缺凭据或缺抽取能力时不得伪造 WCL 模板；凭据已配置但无可解析样本时保持 `partial` |
 | Manual fixture | 小范围开发和 smoke 种子 | 显式 sync 写入；带 source/status/checkedAt；能通过后端 validator | 不能由 GET 自动 bootstrap |
 | WebSim baseline | 缺真实样本专精的可编辑兜底 | 当前 `websim_talents` 能生成三树满点状态，且 `encode_websim_talents` 返回 encoded | 不能显示为 Raider.IO/WCL；不能参与玩家强度结论 |
 | Default gear template | 缺真实装备模板专精的可导入兜底 | 16 个 canonical 装备槽完整、候选均为当前赛季 compatible + SimC-ready + verified variant，且 serializer 能生成 16 行 | 不能显示为 Raider.IO/WCL；不能使用 `source_reference`、partial、错季或缺绿字权重候选 |
@@ -159,7 +159,7 @@ flowchart TD
 - `defaultGear.statWeightBlockerMatrix` 是 owner-facing 的紧凑矩阵，只能包含 spec、status、原因分类、聚合 counts 和 `nextAction`，不得输出玩家 URL、完整 profile、secret 或可直接执行的危险命令。
 - `realCommunityGear` 只统计 Raider.IO/WCL/SimC preset/observed profile 等真实装备样本；`default_template` 不得填平真实社区装备样本缺口。
 - `communityTalent` 必须分开统计真实社区天赋模板和 `websim_baseline` 兜底；`websim_baseline` 可作为可编辑兜底，但不能填平真实社区天赋样本缺口。
-- `sourceDependencies.warcraftlogs.status=missing_credentials` 只作为独立 source dependency 展示，不复制成 40 个 spec blocker。
+- `sourceDependencies.warcraftlogs.status` 只作为独立 source dependency 展示，不复制成 40 个 spec blocker；`missing_credentials` 表示 key 未配置，`partial` 可表示 v2 OAuth 已配置但缺 report evidence / combatantinfo 抽取。
 - 审计 status 语义固定：`passed` = 实际检查并通过；`blocked` = 实际检查并确定阻断；`partial` = 有证据但不足以解锁；`not_reached` = builder 因前置 blocker 没走到该层；`diagnostic` = 审计旁路观察线索，不等于 builder 已通过。
 
 噬灭 DH DungeonSlice 边界：
@@ -288,7 +288,7 @@ order by class_key, spec_key;
 ## 刷新和发布顺序
 
 1. 确认 owner 已批准外部刷新、生产写库和部署。
-2. 备份当前 runtime 相关数据库：SQLite fallback 文件，以及当前 `WOW_DATABASE_RUNTIME=postgres_personal` 指向的 PostgreSQL target（开发工具阶段通常是 `wow_test`；正式发布 cutover 后才是 `wow_prod`）。
+2. 备份当前 runtime 相关数据库：当前 `WOW_DATABASE_RUNTIME=postgres_only` 指向的 PostgreSQL target；如需读取历史 SQLite 迁移源，也先复制 SQLite 文件并记录路径。SQLite 备份不作为线上 fallback。
 3. 先确认天赋和装备 authority 当前 health。
 4. 显式运行社区模板同步：真实样本 / SimC preset 归档 -> 默认装备模板生成 -> dedupe -> health/run summary。
 5. 只读审计 source/status/count。
@@ -302,5 +302,5 @@ order by class_key, spec_key;
 ## 回滚
 
 - 代码回滚：回滚 `server/websim_payload.py`、前端 import sheet 相关文件和文档链接，然后热部署。
-- DB 回滚：停止服务，按写入实际落点恢复 SQLite 和 / 或 PostgreSQL 备份，重启服务，再跑 `/health` 和 `/api/data/health`。
+- DB 回滚：停止服务，按写入实际落点恢复 PostgreSQL 备份，重启服务，再跑 `/health` 和 `/api/data/health`。历史 SQLite 备份只能用于重新迁移或离线比对。
 - 数据局部回滚：如只需撤销 baseline，可删除 `source_key='websim_baseline'` 的模板并重建 `community_talent_templates` sync state；执行前仍需备份。

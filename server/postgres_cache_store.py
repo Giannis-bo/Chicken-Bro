@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 import copy
 import json
+import uuid
 from datetime import datetime, timezone
 
 try:
@@ -17,6 +18,7 @@ try:
         active_catalog_sources_for_replacement,
         blocked_stat_snapshot,
         class_label,
+        classes_payload,
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
@@ -29,6 +31,7 @@ try:
         fallback_text_for,
         fallback_presets,
         game_asset_from_icon_url,
+        game_asset_from_registry_row,
         gear_candidate_for_slot,
         gear_candidate_quality_score,
         gear_candidate_slots,
@@ -42,16 +45,23 @@ try:
         normalize_slot,
         normalize_current_season_raid_pool_payload,
         normalize_gear_item,
+        normalize_community_gear_template,
+        normalize_community_talent_template,
         sanitize_gear_candidate_mod_options,
+        SCENARIOS,
         scenario_title,
         season_metadata_fields,
+        simc_version_payload,
         slugify,
         spec_label,
         talent_readiness_payload,
         websim_talent_import_response,
         talent_spell_display_description,
         talent_tree_sections,
+        unique_text_list,
         unique_gear_candidates,
+        unique_locale_preferences,
+        websim_gear_community_templates,
         websim_gear_community_template_sync_state,
         websim_max_level,
         weapon_equipment_rule_payload,
@@ -69,6 +79,7 @@ except ImportError:
         active_catalog_sources_for_replacement,
         blocked_stat_snapshot,
         class_label,
+        classes_payload,
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
@@ -81,6 +92,7 @@ except ImportError:
         fallback_text_for,
         fallback_presets,
         game_asset_from_icon_url,
+        game_asset_from_registry_row,
         gear_candidate_for_slot,
         gear_candidate_quality_score,
         gear_candidate_slots,
@@ -94,19 +106,41 @@ except ImportError:
         normalize_slot,
         normalize_current_season_raid_pool_payload,
         normalize_gear_item,
+        normalize_community_gear_template,
+        normalize_community_talent_template,
         sanitize_gear_candidate_mod_options,
+        SCENARIOS,
         scenario_title,
         season_metadata_fields,
+        simc_version_payload,
         slugify,
         spec_label,
         talent_readiness_payload,
         websim_talent_import_response,
         talent_spell_display_description,
         talent_tree_sections,
+        unique_text_list,
         unique_gear_candidates,
+        unique_locale_preferences,
+        websim_gear_community_templates,
         websim_gear_community_template_sync_state,
         websim_max_level,
         weapon_equipment_rule_payload,
+    )
+
+try:
+    from .stat_weights_payload import (
+        MPLUS_SCENARIOS,
+        merge_stat_weight_section,
+        scenario_blocked_payload,
+        with_cache_freshness,
+    )
+except ImportError:
+    from stat_weights_payload import (
+        MPLUS_SCENARIOS,
+        merge_stat_weight_section,
+        scenario_blocked_payload,
+        with_cache_freshness,
     )
 
 
@@ -155,6 +189,13 @@ def _datetime_value(value):
     return parsed.astimezone(timezone.utc)
 
 
+def _timestamp_expired(value, now=None):
+    parsed = _datetime_value(value)
+    if parsed is None:
+        return False
+    return parsed <= (now or datetime.now(timezone.utc))
+
+
 def _json_value(value, fallback):
     if isinstance(value, (dict, list)):
         return value
@@ -170,6 +211,15 @@ def _int_value(value, fallback=0):
         return int(value)
     except (TypeError, ValueError):
         return fallback
+
+
+def _template_count_bucket(status):
+    normalized = str(status or "blocked").strip() or "blocked"
+    if normalized in {"verified", "complete"}:
+        return "verified"
+    if normalized in {"partial", "stale"}:
+        return "partial"
+    return "blocked"
 
 
 ADMIN_GATE_QUEUE_STATUSES = {
@@ -261,6 +311,1129 @@ class PostgresCacheStore:
             state = {}
         state["updatedAt"] = str(row[1] or "")
         return state
+
+    def save_raiderio_payload(self, payload):
+        payload = payload if isinstance(payload, dict) else {}
+        fetched_at = payload.get("checkedAt") or payload.get("updatedAt") or utc_now()
+        expires_at = payload.get("expiresAt") or None
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO cache.raiderio_cache (cache_key, payload_json, fetched_at, expires_at)
+                    VALUES ('raiderio_payload_v1', %s::jsonb, %s, %s)
+                    ON CONFLICT (cache_key) DO UPDATE SET
+                        payload_json = EXCLUDED.payload_json,
+                        fetched_at = EXCLUDED.fetched_at,
+                        expires_at = EXCLUDED.expires_at
+                    """,
+                    (json_param(payload), fetched_at, expires_at),
+                )
+        return {"ok": True, "cacheKey": "raiderio_payload_v1", "fetchedAt": fetched_at}
+
+    def save_stat_weight_payload(self, payload):
+        payload = payload if isinstance(payload, dict) else {}
+        cache_key = ":".join(
+            [
+                slugify(payload.get("classKey"), ""),
+                slugify(payload.get("specKey"), ""),
+                str(payload.get("scenarioKey") or "").strip(),
+            ]
+        )
+        if cache_key.count(":") != 2 or cache_key.startswith(":") or "::" in cache_key:
+            return {"ok": False, "error": "invalid_stat_weight_cache_key"}
+        status = payload.get("sourceStatus") or payload.get("status") or "blocked"
+        computed_at = payload.get("checkedAt") or payload.get("updatedAt") or utc_now()
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO cache.stat_weight_cache (cache_key, payload_json, computed_at, source_status)
+                    VALUES (%s, %s::jsonb, %s, %s)
+                    ON CONFLICT (cache_key) DO UPDATE SET
+                        payload_json = EXCLUDED.payload_json,
+                        computed_at = EXCLUDED.computed_at,
+                        source_status = EXCLUDED.source_status
+                    """,
+                    (cache_key, json_param(payload), computed_at, status),
+                )
+        return {"ok": True, "cacheKey": cache_key, "sourceStatus": status}
+
+    def replace_websim_journal_data(self, data):
+        data = data if isinstance(data, dict) else {}
+        season = data.get("season") if isinstance(data.get("season"), dict) else {}
+        instances = [item for item in (data.get("instances") or []) if isinstance(item, dict)]
+        now = utc_now()
+        season_id = str(season.get("seasonId") or season.get("id") or "active").strip() or "active"
+        season_revision = str(season.get("seasonRevision") or season.get("revision") or season_id).strip() or season_id
+        counts = {"dungeons": 0, "instances": 0, "encounters": 0, "items": 0, "loot": 0}
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE cache.websim_season_state SET active = FALSE WHERE active = TRUE")
+                cur.execute(
+                    """
+                    INSERT INTO cache.websim_season_state (
+                        key, season_id, season_label, season_revision, locale, data_status,
+                        verified_at, expires_at, source_refs_json, payload_json, active, updated_at
+                    ) VALUES ('active', %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, TRUE, %s)
+                    ON CONFLICT (key) DO UPDATE SET
+                        season_id = EXCLUDED.season_id,
+                        season_label = EXCLUDED.season_label,
+                        season_revision = EXCLUDED.season_revision,
+                        locale = EXCLUDED.locale,
+                        data_status = EXCLUDED.data_status,
+                        verified_at = EXCLUDED.verified_at,
+                        expires_at = EXCLUDED.expires_at,
+                        source_refs_json = EXCLUDED.source_refs_json,
+                        payload_json = EXCLUDED.payload_json,
+                        active = TRUE,
+                        updated_at = EXCLUDED.updated_at
+                    """,
+                    (
+                        season_id,
+                        season.get("seasonLabel") or season.get("label") or season_id,
+                        season_revision,
+                        season.get("locale") or DEFAULT_LOCALE,
+                        season.get("dataStatus") or season.get("status") or "blocked",
+                        season.get("verifiedAt") or None,
+                        season.get("expiresAt") or None,
+                        json_param(season.get("sourceRefs") or []),
+                        json_param(season),
+                        now,
+                    ),
+                )
+                cur.execute("DELETE FROM cache.websim_loot")
+                cur.execute("DELETE FROM cache.websim_encounters")
+                cur.execute("DELETE FROM cache.websim_instances")
+                cur.execute("DELETE FROM cache.websim_season_dungeons WHERE season_revision = %s", (season_revision,))
+                for dungeon in [item for item in (season.get("dungeons") or []) if isinstance(item, dict)]:
+                    dungeon_id = str(dungeon.get("dungeonId") or dungeon.get("id") or dungeon.get("instanceId") or "").strip()
+                    instance_id = str(dungeon.get("instanceId") or dungeon.get("id") or "").strip()
+                    if not dungeon_id and not instance_id:
+                        continue
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_season_dungeons (
+                            id, season_id, season_revision, dungeon_id, instance_id, name,
+                            short_name, timer_seconds, payload_json, updated_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                            season_id = EXCLUDED.season_id,
+                            season_revision = EXCLUDED.season_revision,
+                            dungeon_id = EXCLUDED.dungeon_id,
+                            instance_id = EXCLUDED.instance_id,
+                            name = EXCLUDED.name,
+                            short_name = EXCLUDED.short_name,
+                            timer_seconds = EXCLUDED.timer_seconds,
+                            payload_json = EXCLUDED.payload_json,
+                            updated_at = EXCLUDED.updated_at
+                        """,
+                        (
+                            f"{season_revision}:{dungeon_id or instance_id}",
+                            season_id,
+                            season_revision,
+                            dungeon_id or instance_id,
+                            instance_id or dungeon_id,
+                            dungeon.get("name") or dungeon_id or instance_id,
+                            dungeon.get("shortName") or dungeon.get("short_name") or "",
+                            _int_value(dungeon.get("timerSeconds") or dungeon.get("timer_seconds")),
+                            json_param(dungeon),
+                            now,
+                        ),
+                    )
+                    counts["dungeons"] += 1
+                for instance in instances:
+                    instance_id = str(instance.get("instanceId") or instance.get("id") or "").strip()
+                    if not instance_id:
+                        continue
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_instances (id, name, category, payload_json, updated_at)
+                        VALUES (%s, %s, %s, %s::jsonb, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                            name = EXCLUDED.name,
+                            category = EXCLUDED.category,
+                            payload_json = EXCLUDED.payload_json,
+                            updated_at = EXCLUDED.updated_at
+                        """,
+                        (
+                            instance_id,
+                            instance.get("name") or f"Instance {instance_id}",
+                            instance.get("category") or "Dungeon",
+                            json_param(instance),
+                            now,
+                        ),
+                    )
+                    counts["instances"] += 1
+                    encounters = [item for item in (instance.get("encounters") or []) if isinstance(item, dict)]
+                    for encounter in encounters:
+                        encounter_id = str(encounter.get("encounterId") or encounter.get("id") or "").strip()
+                        if not encounter_id:
+                            continue
+                        cur.execute(
+                            """
+                            INSERT INTO cache.websim_encounters (id, instance_id, name, payload_json, updated_at)
+                            VALUES (%s, %s, %s, %s::jsonb, %s)
+                            ON CONFLICT (id) DO UPDATE SET
+                                instance_id = EXCLUDED.instance_id,
+                                name = EXCLUDED.name,
+                                payload_json = EXCLUDED.payload_json,
+                                updated_at = EXCLUDED.updated_at
+                            """,
+                            (
+                                encounter_id,
+                                instance_id,
+                                encounter.get("name") or f"Encounter {encounter_id}",
+                                json_param(encounter),
+                                now,
+                            ),
+                        )
+                        counts["encounters"] += 1
+                        for item in [value for value in (encounter.get("items") or []) if isinstance(value, dict)]:
+                            item_id = str(item.get("itemId") or item.get("id") or "").strip()
+                            if not item_id:
+                                continue
+                            payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+                            item_level = _int_value(item.get("itemLevel") or payload.get("item_level") or payload.get("level"))
+                            cur.execute(
+                                """
+                                INSERT INTO cache.websim_items (id, name, slot, item_level, payload_json, source_status, updated_at)
+                                VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s)
+                                ON CONFLICT (id) DO UPDATE SET
+                                    name = EXCLUDED.name,
+                                    slot = EXCLUDED.slot,
+                                    item_level = EXCLUDED.item_level,
+                                    payload_json = EXCLUDED.payload_json,
+                                    source_status = EXCLUDED.source_status,
+                                    updated_at = EXCLUDED.updated_at
+                                """,
+                                (
+                                    item_id,
+                                    item.get("name") or f"Item {item_id}",
+                                    normalize_slot(item.get("slot") or payload.get("slot") or payload.get("inventoryType") or ""),
+                                    item_level or None,
+                                    json_param({**payload, "quality": item.get("quality") or "", "iconUrl": item.get("iconUrl") or ""}),
+                                    item.get("sourceStatus") or item.get("metadataStatus") or "verified",
+                                    now,
+                                ),
+                            )
+                            counts["items"] += 1
+                            loot_id = str(item.get("lootId") or item.get("id") or f"{instance_id}:{encounter_id}:{item_id}")
+                            cur.execute(
+                                """
+                                INSERT INTO cache.websim_loot (
+                                    id, instance_id, encounter_id, item_id, name, slot,
+                                    quality, icon_url, payload_json, updated_at
+                                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
+                                ON CONFLICT (id) DO UPDATE SET
+                                    instance_id = EXCLUDED.instance_id,
+                                    encounter_id = EXCLUDED.encounter_id,
+                                    item_id = EXCLUDED.item_id,
+                                    name = EXCLUDED.name,
+                                    slot = EXCLUDED.slot,
+                                    quality = EXCLUDED.quality,
+                                    icon_url = EXCLUDED.icon_url,
+                                    payload_json = EXCLUDED.payload_json,
+                                    updated_at = EXCLUDED.updated_at
+                                """,
+                                (
+                                    loot_id,
+                                    instance_id,
+                                    encounter_id,
+                                    item_id,
+                                    item.get("name") or f"Item {item_id}",
+                                    normalize_slot(item.get("slot") or payload.get("slot") or ""),
+                                    item.get("quality") or "",
+                                    item.get("iconUrl") or "",
+                                    json_param(item),
+                                    now,
+                                ),
+                            )
+                            counts["loot"] += 1
+        return counts
+
+    def _deterministic_uuid(self, kind, value):
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, f"wow-mini-program:{kind}:{value}"))
+
+    def rebuild_websim_gear_catalog_from_loot(self, season=None):
+        season = season if isinstance(season, dict) else {}
+        season_revision = season.get("seasonRevision") or season.get("revision") or ""
+        now = utc_now()
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT l.id, l.item_id, l.slot, l.name, l.instance_id, COALESCE(i.name, ''),
+                           COALESCE(i.category, ''), l.encounter_id, COALESCE(e.name, '')
+                    FROM cache.websim_loot l
+                    LEFT JOIN cache.websim_instances i ON i.id = l.instance_id
+                    LEFT JOIN cache.websim_encounters e ON e.id = l.encounter_id
+                    ORDER BY i.name, e.name, l.name
+                    """
+                )
+                rows = cur.fetchall()
+                cur.execute("DELETE FROM cache.websim_gear_sources WHERE source_key LIKE 'loot:%'")
+                cur.execute(
+                    """
+                    DELETE FROM cache.websim_gear_variants
+                    WHERE variant_key = 'needs-variant'
+                      AND COALESCE(payload_json->>'sourceKey', '') LIKE 'loot:%'
+                    """
+                )
+                item_ids = set()
+                variant_keys = set()
+                source_count = 0
+                for row in rows:
+                    loot_id = str(row[0] or "")
+                    item_id = str(row[1] or "")
+                    if not loot_id or not item_id:
+                        continue
+                    source_count += 1
+                    source_type = "raid" if str(row[6] or "").lower() == "raid" else "dungeon"
+                    label = " - ".join([part for part in [row[8], row[5]] if part]) or row[3] or "Official loot"
+                    source_key = f"loot:{loot_id}"
+                    difficulty_key = "needs-variant"
+                    source_payload = {
+                        "sourceKey": source_key,
+                        "sourceType": source_type,
+                        "sourceLabel": label,
+                        "instanceId": row[4] or "",
+                        "encounterId": row[7] or "",
+                        "difficultyKey": difficulty_key,
+                        "seasonRevision": season_revision,
+                        "sourceStatus": "verified",
+                    }
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_gear_sources (
+                            id, item_id, source_type, source_key, source_label, instance_id,
+                            encounter_id, difficulty_key, season_revision, payload_json, updated_at
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                            item_id = EXCLUDED.item_id,
+                            source_type = EXCLUDED.source_type,
+                            source_key = EXCLUDED.source_key,
+                            source_label = EXCLUDED.source_label,
+                            instance_id = EXCLUDED.instance_id,
+                            encounter_id = EXCLUDED.encounter_id,
+                            difficulty_key = EXCLUDED.difficulty_key,
+                            season_revision = EXCLUDED.season_revision,
+                            payload_json = EXCLUDED.payload_json,
+                            updated_at = EXCLUDED.updated_at
+                        """,
+                        (
+                            self._deterministic_uuid("gear-source", source_key),
+                            item_id,
+                            source_type,
+                            source_key,
+                            label,
+                            row[4] or "",
+                            row[7] or "",
+                            difficulty_key,
+                            season_revision,
+                            json_param(source_payload),
+                            now,
+                        ),
+                    )
+                    slot = normalize_slot(row[2] or "")
+                    blockers = ["missing deterministic SimC variant preset"]
+                    variant_payload = {
+                        **source_payload,
+                        "slot": slot,
+                        "itemName": row[3] or "",
+                        "variantKey": "needs-variant",
+                        "difficultyKey": difficulty_key,
+                        "itemLevel": 0,
+                        "status": "partial",
+                        "blockers": blockers,
+                    }
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_gear_variants (
+                            id, item_id, variant_key, readiness, slot, label, source_type,
+                            difficulty_key, item_level, simc_options_json, status, blockers_json,
+                            payload_json, updated_at
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s::jsonb, %s)
+                        ON CONFLICT (item_id, variant_key) DO UPDATE SET
+                            readiness = EXCLUDED.readiness,
+                            slot = EXCLUDED.slot,
+                            label = EXCLUDED.label,
+                            source_type = EXCLUDED.source_type,
+                            difficulty_key = EXCLUDED.difficulty_key,
+                            item_level = EXCLUDED.item_level,
+                            simc_options_json = EXCLUDED.simc_options_json,
+                            status = EXCLUDED.status,
+                            blockers_json = EXCLUDED.blockers_json,
+                            payload_json = EXCLUDED.payload_json,
+                            updated_at = EXCLUDED.updated_at
+                        """,
+                        (
+                            self._deterministic_uuid("gear-variant", f"{source_key}:needs-variant"),
+                            item_id,
+                            "needs-variant",
+                            "partial",
+                            slot,
+                            row[3] or "Needs variant",
+                            source_type,
+                            difficulty_key,
+                            0,
+                            json_param({}),
+                            "partial",
+                            json_param(blockers),
+                            json_param(variant_payload),
+                            now,
+                        ),
+                    )
+                    item_ids.add(item_id)
+                    variant_keys.add((item_id, "needs-variant"))
+        has_sources = source_count > 0
+        variant_count = len(variant_keys)
+        state = {
+            "runner": "postgres",
+            "status": "partial" if has_sources else "blocked",
+            "checkedAt": now,
+            "schemaRevision": GEAR_CATALOG_REVISION,
+            "itemCount": len(item_ids),
+            "sourceCount": source_count,
+            "variantCount": variant_count,
+            "verifiedCount": 0,
+            "partialCount": variant_count,
+            "blockedCount": 0,
+            "blockers": [] if has_sources else ["PostgreSQL WebSim loot cache is empty"],
+            "dataReadiness": {
+                "status": "partial" if has_sources else "blocked",
+                "sourceStatus": "verified" if has_sources else "blocked",
+                "variantStatus": "partial" if has_sources else "blocked",
+                "blockers": [] if has_sources else ["PostgreSQL WebSim loot cache is empty"],
+            },
+        }
+        self.save_sync_state("gearCatalog", state, now)
+        return state
+
+    def replace_simc_generated_data(self, data):
+        data = data if isinstance(data, dict) else {}
+        talents = [item for item in (data.get("talents") or []) if isinstance(item, dict)]
+        presets = [item for item in (data.get("presets") or []) if isinstance(item, dict)]
+        spell_details = [item for item in (data.get("spellDetails") or []) if isinstance(item, dict)]
+        now = utc_now()
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                if data.get("source"):
+                    cur.execute("DELETE FROM cache.websim_talents")
+                    cur.execute("DELETE FROM cache.websim_profile_presets")
+                for talent in talents:
+                    payload = dict(talent.get("payload") or talent)
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_talents (
+                            id, class_key, spec_key, tree_id, row_index, col_index,
+                            spell_id, name, payload_json, updated_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                            class_key = EXCLUDED.class_key,
+                            spec_key = EXCLUDED.spec_key,
+                            tree_id = EXCLUDED.tree_id,
+                            row_index = EXCLUDED.row_index,
+                            col_index = EXCLUDED.col_index,
+                            spell_id = EXCLUDED.spell_id,
+                            name = EXCLUDED.name,
+                            payload_json = EXCLUDED.payload_json,
+                            updated_at = EXCLUDED.updated_at
+                        """,
+                        (
+                            str(talent.get("id") or ""),
+                            talent.get("classKey") or "",
+                            talent.get("specKey") or "",
+                            talent.get("treeId") or "",
+                            _int_value(talent.get("row")),
+                            _int_value(talent.get("col")),
+                            _int_value(talent.get("spellId")),
+                            talent.get("name") or "",
+                            json_param(payload),
+                            now,
+                        ),
+                    )
+                for preset in presets:
+                    payload = {key: value for key, value in preset.items() if key != "profile"}
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_profile_presets (
+                            id, class_key, spec_key, name, profile, payload_json, updated_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                            class_key = EXCLUDED.class_key,
+                            spec_key = EXCLUDED.spec_key,
+                            name = EXCLUDED.name,
+                            profile = EXCLUDED.profile,
+                            payload_json = EXCLUDED.payload_json,
+                            updated_at = EXCLUDED.updated_at
+                        """,
+                        (
+                            str(preset.get("id") or ""),
+                            preset.get("classKey") or "",
+                            preset.get("specKey") or "",
+                            preset.get("name") or "",
+                            preset.get("profile") or "",
+                            json_param(payload),
+                            now,
+                        ),
+                    )
+                for detail in spell_details:
+                    spell_id = _int_value(detail.get("spellId"))
+                    if spell_id <= 0:
+                        continue
+                    payload = {
+                        "source": detail.get("source") or "simulationcraft",
+                        "spellId": spell_id,
+                        "rank": detail.get("rank") or "",
+                        "tooltip": detail.get("tooltip") or "",
+                        "spellTextSource": data.get("spellTextSource") or "",
+                        "spellLocalizationSource": data.get("spellLocalizationSource") or "",
+                    }
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_spell_details (
+                            id, spell_id, name, description, icon_url, locale, payload_json, updated_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                            name = CASE
+                                WHEN cache.websim_spell_details.name = ''
+                                  OR COALESCE(cache.websim_spell_details.payload_json->>'source', '') = 'simulationcraft'
+                                THEN EXCLUDED.name
+                                ELSE cache.websim_spell_details.name
+                            END,
+                            description = CASE
+                                WHEN cache.websim_spell_details.description = ''
+                                  OR COALESCE(cache.websim_spell_details.payload_json->>'source', '') = 'simulationcraft'
+                                THEN EXCLUDED.description
+                                ELSE cache.websim_spell_details.description
+                            END,
+                            icon_url = CASE
+                                WHEN cache.websim_spell_details.icon_url = ''
+                                  OR COALESCE(cache.websim_spell_details.payload_json->>'source', '') = 'simulationcraft'
+                                THEN EXCLUDED.icon_url
+                                ELSE cache.websim_spell_details.icon_url
+                            END,
+                            locale = CASE
+                                WHEN COALESCE(cache.websim_spell_details.payload_json->>'source', '') = 'simulationcraft'
+                                THEN EXCLUDED.locale
+                                ELSE cache.websim_spell_details.locale
+                            END,
+                            payload_json = CASE
+                                WHEN cache.websim_spell_details.description = ''
+                                  OR COALESCE(cache.websim_spell_details.payload_json->>'source', '') = 'simulationcraft'
+                                THEN EXCLUDED.payload_json
+                                ELSE cache.websim_spell_details.payload_json
+                            END,
+                            updated_at = CASE
+                                WHEN cache.websim_spell_details.description = ''
+                                  OR COALESCE(cache.websim_spell_details.payload_json->>'source', '') = 'simulationcraft'
+                                THEN EXCLUDED.updated_at
+                                ELSE cache.websim_spell_details.updated_at
+                            END
+                        """,
+                        (
+                            str(spell_id),
+                            spell_id,
+                            detail.get("name") or "",
+                            detail.get("description") or "",
+                            detail.get("iconUrl") or "",
+                            detail.get("locale") or "en_US",
+                            json_param(payload),
+                            now,
+                        ),
+                    )
+        return {
+            "talents": len(talents),
+            "profiles": len(presets),
+            "presets": len(presets),
+            "spellDetails": len(spell_details),
+            "spellIcons": int(data.get("spellIcons") or 0),
+            "spellLocalizations": int(data.get("spellLocalizations") or 0),
+            "dependencies": int(data.get("dependencies") or 0),
+            "build": data.get("build") or "",
+            "source": data.get("source") or "",
+            "spellTextSource": data.get("spellTextSource") or "",
+            "spellIconSource": data.get("spellIconSource") or "",
+            "spellLocalizationSource": data.get("spellLocalizationSource") or "",
+            "traitEdgeSource": data.get("traitEdgeSource") or "",
+        }
+
+    def _status_counts(self, table_name):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT status, COUNT(*)
+                    FROM {table_name}
+                    WHERE expires_at IS NULL OR expires_at > now()
+                    GROUP BY status
+                    """
+                )
+                rows = cur.fetchall()
+        counts = {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
+        for status, count in rows:
+            normalized = _template_count_bucket(status)
+            value = _int_value(count)
+            counts["total"] += value
+            counts[normalized] = counts.get(normalized, 0) + value
+        return counts
+
+    def community_talent_template_counts(self):
+        return self._status_counts("cache.websim_community_talent_templates")
+
+    def community_gear_template_counts(self):
+        return self._status_counts("cache.websim_community_gear_templates")
+
+    def replace_community_talent_templates(self, templates, scan_run_id=""):
+        counts = {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
+        normalized_rows = []
+        for template in templates or []:
+            if not isinstance(template, dict):
+                continue
+            normalized = normalize_community_talent_template(
+                {
+                    **template,
+                    "scanRunId": template.get("scanRunId") or scan_run_id,
+                },
+                template.get("sourceKey", "manual_fixture"),
+                template.get("sourceStatus", "partial"),
+            )
+            payload = dict(normalized.get("payload") or {})
+            payload.setdefault("legacyId", normalized["id"])
+            normalized["payload"] = payload
+            bucket = _template_count_bucket(normalized.get("status"))
+            counts["total"] += 1
+            counts[bucket] += 1
+            normalized_rows.append(normalized)
+        if not normalized_rows:
+            return counts
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                for normalized in normalized_rows:
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_community_talent_templates (
+                            id, class_key, spec_key, source_key, payload_json, updated_at,
+                            hero_key, scenario_key, name, flow_label, source_name, source_url,
+                            raw_import_code, websim_export_code, talent_state_json,
+                            sample_count, max_key_level, analysis_window, source_status,
+                            status, expires_at, signature, source_refs_json, scan_run_id
+                        ) VALUES (
+                            %s, %s, %s, %s, %s::jsonb, %s,
+                            %s, %s, %s, %s, %s, %s,
+                            %s, %s, %s::jsonb,
+                            %s, %s, %s, %s,
+                            %s, %s, %s, %s::jsonb, %s
+                        )
+                        ON CONFLICT (id) DO UPDATE SET
+                            class_key = EXCLUDED.class_key,
+                            spec_key = EXCLUDED.spec_key,
+                            source_key = EXCLUDED.source_key,
+                            payload_json = EXCLUDED.payload_json,
+                            updated_at = EXCLUDED.updated_at,
+                            hero_key = EXCLUDED.hero_key,
+                            scenario_key = EXCLUDED.scenario_key,
+                            name = EXCLUDED.name,
+                            flow_label = EXCLUDED.flow_label,
+                            source_name = EXCLUDED.source_name,
+                            source_url = EXCLUDED.source_url,
+                            raw_import_code = EXCLUDED.raw_import_code,
+                            websim_export_code = EXCLUDED.websim_export_code,
+                            talent_state_json = EXCLUDED.talent_state_json,
+                            sample_count = EXCLUDED.sample_count,
+                            max_key_level = EXCLUDED.max_key_level,
+                            analysis_window = EXCLUDED.analysis_window,
+                            source_status = EXCLUDED.source_status,
+                            status = EXCLUDED.status,
+                            expires_at = EXCLUDED.expires_at,
+                            signature = EXCLUDED.signature,
+                            source_refs_json = EXCLUDED.source_refs_json,
+                            scan_run_id = EXCLUDED.scan_run_id
+                        """,
+                        (
+                            self._deterministic_uuid("community-talent-template", normalized["id"]),
+                            normalized["classKey"],
+                            normalized["specKey"],
+                            normalized["sourceKey"],
+                            json_param(normalized["payload"]),
+                            normalized["updatedAt"],
+                            normalized["heroKey"],
+                            normalized["scenarioKey"],
+                            normalized["name"],
+                            normalized["flowLabel"],
+                            normalized["sourceName"],
+                            normalized["sourceUrl"],
+                            normalized["rawImportCode"],
+                            normalized["websimExportCode"],
+                            json_param(normalized["talentState"]),
+                            normalized["sampleCount"],
+                            normalized["maxKeyLevel"],
+                            normalized["analysisWindow"],
+                            normalized["sourceStatus"],
+                            normalized["status"],
+                            normalized["expiresAt"] or None,
+                            normalized["signature"],
+                            json_param(normalized["sourceRefs"]),
+                            normalized["scanRunId"],
+                        ),
+                    )
+        return counts
+
+    def replace_community_gear_templates(self, templates, scan_run_id=""):
+        counts = {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
+        normalized_rows = []
+        for template in templates or []:
+            if not isinstance(template, dict):
+                continue
+            normalized = normalize_community_gear_template(
+                {
+                    **template,
+                    "scanRunId": template.get("scanRunId") or scan_run_id,
+                }
+            )
+            bucket = _template_count_bucket(normalized.get("status"))
+            counts["total"] += 1
+            counts[bucket] += 1
+            normalized_rows.append(normalized)
+        if not normalized_rows:
+            return counts
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                for normalized in normalized_rows:
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_community_gear_templates (
+                            id, class_key, spec_key, name, source_key, source_name, source_url,
+                            source_status, status, signature, source_refs_json, gear_items_json,
+                            raw_string, ready_slot_count, missing_slots_json, analysis_window,
+                            payload_json, updated_at, expires_at, scan_run_id
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s::jsonb, %s::jsonb,
+                            %s, %s, %s::jsonb, %s,
+                            %s::jsonb, %s, %s, %s
+                        )
+                        ON CONFLICT (id) DO UPDATE SET
+                            class_key = EXCLUDED.class_key,
+                            spec_key = EXCLUDED.spec_key,
+                            name = EXCLUDED.name,
+                            source_key = EXCLUDED.source_key,
+                            source_name = EXCLUDED.source_name,
+                            source_url = EXCLUDED.source_url,
+                            source_status = EXCLUDED.source_status,
+                            status = EXCLUDED.status,
+                            signature = EXCLUDED.signature,
+                            source_refs_json = EXCLUDED.source_refs_json,
+                            gear_items_json = EXCLUDED.gear_items_json,
+                            raw_string = EXCLUDED.raw_string,
+                            ready_slot_count = EXCLUDED.ready_slot_count,
+                            missing_slots_json = EXCLUDED.missing_slots_json,
+                            analysis_window = EXCLUDED.analysis_window,
+                            payload_json = EXCLUDED.payload_json,
+                            updated_at = EXCLUDED.updated_at,
+                            expires_at = EXCLUDED.expires_at,
+                            scan_run_id = EXCLUDED.scan_run_id
+                        """,
+                        (
+                            normalized["id"],
+                            normalized["classKey"],
+                            normalized["specKey"],
+                            normalized["name"],
+                            normalized["sourceKey"],
+                            normalized["sourceName"],
+                            normalized["sourceUrl"],
+                            normalized["sourceStatus"],
+                            normalized["status"],
+                            normalized["signature"],
+                            json_param(normalized["sourceRefs"]),
+                            json_param(normalized["gearItems"]),
+                            normalized["rawString"],
+                            normalized["readySlotCount"],
+                            json_param(normalized["missingSlots"]),
+                            normalized["analysisWindow"],
+                            json_param(normalized["payload"]),
+                            normalized["updatedAt"],
+                            normalized["expiresAt"] or None,
+                            normalized["scanRunId"],
+                        ),
+                    )
+        return counts
+
+    def build_community_gear_templates(self, scan_run_id=""):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, class_key, spec_key, name, profile, payload_json, updated_at
+                    FROM cache.websim_profile_presets
+                    WHERE spec_key != 'class'
+                    ORDER BY class_key, spec_key, name
+                    LIMIT 800
+                    """
+                )
+                rows = cur.fetchall()
+        presets_by_spec = {}
+        for row in rows:
+            class_key = slugify(row[1], "")
+            spec_key = slugify(row[2], "")
+            if not class_key or not spec_key:
+                continue
+            presets_by_spec.setdefault((class_key, spec_key), []).append(
+                {
+                    "id": row[0],
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "name": row[3],
+                    "profile": row[4],
+                    "payload": _json_value(row[5], {}),
+                    "updatedAt": str(row[6] or ""),
+                }
+            )
+        templates = []
+        for (class_key, spec_key), presets in presets_by_spec.items():
+            for template in websim_gear_community_templates(presets, class_key, spec_key):
+                templates.append({**template, "scanRunId": scan_run_id})
+        return dedupe_gear_community_templates(templates)
+
+    def _backfill_simc_options(self, item, item_level):
+        options = {}
+        if item_level:
+            options["ilevel"] = str(item_level)
+        for key in ("bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats", "embellishment"):
+            value = item.get(key) or item.get(key.replace("_", ""))
+            if value not in (None, "", [], {}):
+                options[key] = str(value)
+        return options
+
+    def _write_backfill_gear_rows(self, rows):
+        counts = {"itemCount": 0, "sourceCount": 0, "variantCount": 0, "partialCount": 0, "blockedCount": 0, "errors": []}
+        prepared = []
+        seen_variants = set()
+        for row in rows or []:
+            if not isinstance(row, dict):
+                continue
+            item_id = str(row.get("itemId") or row.get("item_id") or row.get("id") or "").strip()
+            slot = normalize_slot(row.get("slot") or row.get("simcSlot") or "")
+            try:
+                item_level = int(row.get("itemLevel") or row.get("ilevel") or 0)
+            except (TypeError, ValueError):
+                item_level = 0
+            source_type = str(row.get("sourceType") or "").strip()
+            if not item_id or not slot or not item_level or not source_type:
+                counts["blockedCount"] += 1
+                counts["errors"].append(f"skipped backfill item missing required fields: {item_id or 'unknown'}")
+                continue
+            simc_options = self._backfill_simc_options(row, item_level)
+            status = "verified" if len(simc_options) > 1 else "partial"
+            if status == "partial":
+                counts["partialCount"] += 1
+            difficulty_key = str(row.get("difficultyKey") or source_type).strip()
+            variant_key = str(row.get("variantKey") or f"{difficulty_key}-{slot}-{item_level}-{json_param(simc_options)}")
+            variant_identity = (item_id, variant_key)
+            if variant_identity in seen_variants:
+                continue
+            seen_variants.add(variant_identity)
+            prepared.append(
+                {
+                    **row,
+                    "itemId": item_id,
+                    "slot": slot,
+                    "itemLevel": item_level,
+                    "sourceType": source_type,
+                    "sourceKey": str(row.get("sourceKey") or f"{source_type}:{item_id}:{slot}").strip(),
+                    "sourceLabel": str(row.get("sourceLabel") or row.get("sourceName") or source_type).strip(),
+                    "difficultyKey": difficulty_key,
+                    "variantKey": variant_key,
+                    "status": str(row.get("status") or status).strip(),
+                    "simcOptions": simc_options,
+                }
+            )
+        if not prepared:
+            counts["sourceStatus"] = "blocked"
+            counts["status"] = "blocked"
+            if not counts["errors"]:
+                counts["errors"].append("no PG-native gear backfill rows were eligible")
+            return counts
+        now = utc_now()
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                for row in prepared:
+                    item_id = row["itemId"]
+                    item_level = row["itemLevel"]
+                    source_type = row["sourceType"]
+                    status = row["status"]
+                    source_key = row["sourceKey"]
+                    variant_key = row["variantKey"]
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_items (id, name, slot, item_level, payload_json, source_status, updated_at)
+                        VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                            name = COALESCE(NULLIF(EXCLUDED.name, ''), cache.websim_items.name),
+                            slot = COALESCE(NULLIF(EXCLUDED.slot, ''), cache.websim_items.slot),
+                            item_level = COALESCE(EXCLUDED.item_level, cache.websim_items.item_level),
+                            payload_json = EXCLUDED.payload_json,
+                            source_status = EXCLUDED.source_status,
+                            updated_at = EXCLUDED.updated_at
+                        """,
+                        (
+                            item_id,
+                            row.get("name") or row.get("itemName") or f"Item {item_id}",
+                            row["slot"],
+                            item_level,
+                            json_param(row),
+                            status,
+                            now,
+                        ),
+                    )
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_gear_sources (
+                            id, item_id, source_type, source_key, payload_json, updated_at,
+                            source_label, instance_id, encounter_id, difficulty_key, season_revision
+                        ) VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                            source_type = EXCLUDED.source_type,
+                            source_key = EXCLUDED.source_key,
+                            payload_json = EXCLUDED.payload_json,
+                            updated_at = EXCLUDED.updated_at,
+                            source_label = EXCLUDED.source_label,
+                            instance_id = EXCLUDED.instance_id,
+                            encounter_id = EXCLUDED.encounter_id,
+                            difficulty_key = EXCLUDED.difficulty_key,
+                            season_revision = EXCLUDED.season_revision
+                        """,
+                        (
+                            self._deterministic_uuid("gear-backfill-source", f"{source_type}:{source_key}"),
+                            item_id,
+                            source_type,
+                            source_key,
+                            json_param(row),
+                            now,
+                            row["sourceLabel"],
+                            row.get("instanceId") or "",
+                            row.get("encounterId") or "",
+                            row["difficultyKey"],
+                            row.get("seasonRevision") or "",
+                        ),
+                    )
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_gear_variants (
+                            id, item_id, variant_key, readiness, payload_json, updated_at,
+                            slot, label, source_type, difficulty_key, item_level,
+                            simc_options_json, status, blockers_json
+                        ) VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb)
+                        ON CONFLICT (item_id, variant_key) DO UPDATE SET
+                            readiness = EXCLUDED.readiness,
+                            payload_json = EXCLUDED.payload_json,
+                            updated_at = EXCLUDED.updated_at,
+                            slot = EXCLUDED.slot,
+                            label = EXCLUDED.label,
+                            source_type = EXCLUDED.source_type,
+                            difficulty_key = EXCLUDED.difficulty_key,
+                            item_level = EXCLUDED.item_level,
+                            simc_options_json = EXCLUDED.simc_options_json,
+                            status = EXCLUDED.status,
+                            blockers_json = EXCLUDED.blockers_json
+                        """,
+                        (
+                            self._deterministic_uuid("gear-backfill-variant", f"{item_id}:{variant_key}"),
+                            item_id,
+                            variant_key,
+                            status,
+                            json_param(row),
+                            now,
+                            row["slot"],
+                            row.get("label") or row.get("name") or f"{source_type} {item_id}",
+                            source_type,
+                            row["difficultyKey"],
+                            item_level,
+                            json_param(row["simcOptions"]),
+                            status,
+                            json_param(row.get("blockers") or []),
+                        ),
+                    )
+                    counts["itemCount"] += 1
+                    counts["sourceCount"] += 1
+                    counts["variantCount"] += 1
+        counts["sourceStatus"] = "partial" if counts["partialCount"] or counts["blockedCount"] else "verified"
+        counts["status"] = counts["sourceStatus"]
+        return counts
+
+    def backfill_observed_gear_from_raiderio(self, raiderio_payload, mode="scheduled"):
+        rows = []
+        profile_count = 0
+        for profile in (raiderio_payload or {}).get("profiles") or []:
+            if not isinstance(profile, dict):
+                continue
+            profile_count += 1
+            profile_ref = profile.get("profileUrl") or profile.get("url") or profile.get("name") or ""
+            for item in profile.get("gear") or []:
+                if not isinstance(item, dict):
+                    continue
+                rows.append(
+                    {
+                        **item,
+                        "sourceType": "observed_profile",
+                        "difficultyKey": "observed_profile",
+                        "sourceKey": f"observed:{profile_ref}:{item.get('itemId') or item.get('id')}",
+                        "sourceLabel": f"Raider.IO observed profile: {profile.get('name') or 'profile'}",
+                        "profileUrl": profile.get("profileUrl") or "",
+                        "classKey": profile.get("classKey") or item.get("classKey") or "",
+                        "specKey": profile.get("specKey") or item.get("specKey") or "",
+                    }
+                )
+        result = self._write_backfill_gear_rows(rows)
+        result["runner"] = "postgres"
+        result["mode"] = mode
+        result["observedProfileCount"] = profile_count
+        return result
+
+    def backfill_crafted_gear_from_seed(self, items, mode="scheduled"):
+        rows = []
+        for item in items or []:
+            if not isinstance(item, dict):
+                continue
+            item_level = item.get("itemLevel") or item.get("ilevel") or 0
+            crafted_stats = item.get("crafted_stats") or item.get("craftedStats") or ""
+            rows.append(
+                {
+                    **item,
+                    "itemLevel": item_level,
+                    "crafted_stats": crafted_stats,
+                    "sourceType": "crafted",
+                    "difficultyKey": item.get("difficultyKey") or "crafted_myth",
+                    "sourceKey": f"crafted:{item.get('itemId') or item.get('id')}:{item_level}:{crafted_stats}",
+                    "sourceLabel": item.get("sourceLabel") or "PG-native crafted gear seed",
+                    "variantKey": item.get("variantKey") or f"crafted-{item_level}-{crafted_stats or 'fixed'}",
+                }
+            )
+        result = self._write_backfill_gear_rows(rows)
+        result["runner"] = "postgres"
+        result["mode"] = mode
+        result["seedItemCount"] = len(items or [])
+        return result
+
+    def get_raiderio_payload(self):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT payload_json, fetched_at, expires_at
+                    FROM cache.raiderio_cache
+                    WHERE cache_key = 'raiderio_payload_v1'
+                    LIMIT 1
+                    """
+                )
+                row = cur.fetchone()
+        if not row:
+            return {
+                "sourceStatus": "blocked",
+                "status": "blocked",
+                "errors": ["PostgreSQL Raider.IO cache is missing"],
+            }
+        payload = _json_value(row[0], {})
+        if not isinstance(payload, dict):
+            payload = {}
+        payload.setdefault("checkedAt", str(row[1] or ""))
+        payload.setdefault("updatedAt", str(row[1] or ""))
+        payload.setdefault("expiresAt", str(row[2] or ""))
+        payload.setdefault("sourceStatus", payload.get("status") or "blocked")
+        return payload
+
+    def get_stat_weight_payload(self, class_key, spec_key, scenario_key):
+        cache_key = f"{slugify(class_key, '')}:{slugify(spec_key, '')}:{str(scenario_key or '').strip()}"
+        if cache_key.count(":") != 2 or cache_key.startswith(":") or "::" in cache_key:
+            return None
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT payload_json, source_status, computed_at
+                    FROM cache.stat_weight_cache
+                    WHERE cache_key = %s
+                    LIMIT 1
+                    """,
+                    (cache_key,),
+                )
+                row = cur.fetchone()
+        if not row:
+            return None
+        payload = _json_value(row[0], {})
+        if not isinstance(payload, dict):
+            payload = {}
+        payload.setdefault("classKey", slugify(class_key, ""))
+        payload.setdefault("specKey", slugify(spec_key, ""))
+        payload.setdefault("scenarioKey", scenario_key)
+        payload.setdefault("sourceStatus", row[1] or payload.get("status") or "blocked")
+        payload.setdefault("status", payload.get("sourceStatus") or "blocked")
+        payload.setdefault("checkedAt", str(row[2] or ""))
+        payload.setdefault("updatedAt", str(row[2] or ""))
+        return payload
+
+    def latest_stat_weight_run_payload(self):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT source_status, computed_at
+                    FROM cache.stat_weight_cache
+                    ORDER BY computed_at DESC
+                    LIMIT 400
+                    """
+                )
+                rows = cur.fetchall()
+        if not rows:
+            return {
+                "refreshMode": "",
+                "refreshedAt": "",
+                "status": "blocked",
+                "sourceStatus": "blocked",
+                "acceptedCount": 0,
+                "blockedCount": 0,
+                "errors": ["PostgreSQL stat weight cache is empty"],
+            }
+        accepted_statuses = {"verified", "partial", "stale"}
+        accepted = sum(1 for row in rows if str(row[0] or "").strip() in accepted_statuses)
+        blocked = len(rows) - accepted
+        status = "verified" if accepted and not blocked else ("partial" if accepted else "blocked")
+        latest = max((str(row[1] or "") for row in rows), default="")
+        return {
+            "refreshMode": "postgres_cache",
+            "refreshedAt": latest,
+            "status": status,
+            "sourceStatus": status,
+            "acceptedCount": accepted,
+            "blockedCount": blocked,
+            "specCount": 0,
+            "scenarioCount": len(rows),
+            "errors": [],
+        }
+
+    def enrich_builds_detail_stat_weights(self, payload):
+        if not isinstance(payload, dict):
+            return payload
+        details = payload.get("details") if isinstance(payload.get("details"), dict) else {}
+        if "statWeights" not in details:
+            return payload
+        existing = details.get("statWeights") if isinstance(details.get("statWeights"), dict) else {}
+        class_key = payload.get("websimClassKey") or payload.get("classKey") or ""
+        spec_key = payload.get("websimSpecKey") or payload.get("specKey") or ""
+        if not class_key or not spec_key:
+            return payload
+        scenario_payloads = []
+        for scenario in MPLUS_SCENARIOS:
+            cached = with_cache_freshness(self.get_stat_weight_payload(class_key, spec_key, scenario["key"]))
+            scenario_payloads.append(cached or scenario_blocked_payload(class_key, spec_key, scenario, "PostgreSQL stat weight cache is empty"))
+        next_details = dict(details)
+        next_details["statWeights"] = merge_stat_weight_section(existing, scenario_payloads)
+        result = dict(payload)
+        result["details"] = next_details
+        return result
 
     def get_active_season_payload(self):
         with self.connection() as conn:
@@ -363,6 +1536,114 @@ class PostgresCacheStore:
             {"id": row[0], "name": row[1], "category": row[2], "encounters": encounters.get(row[0], [])}
             for row in rows
         ]
+
+    def get_websim_default_selection(self):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT p.class_key, p.spec_key
+                    FROM cache.websim_profile_presets p
+                    WHERE p.spec_key != 'class'
+                      AND EXISTS (
+                        SELECT 1 FROM cache.websim_talents t
+                        WHERE t.class_key = p.class_key
+                          AND t.spec_key = p.spec_key
+                      )
+                    ORDER BY p.class_key, p.spec_key
+                    LIMIT 1
+                    """
+                )
+                row = cur.fetchone()
+                if not row:
+                    cur.execute(
+                        """
+                        SELECT class_key, spec_key, COUNT(*) AS node_count
+                        FROM cache.websim_talents
+                        WHERE spec_key != 'class'
+                        GROUP BY class_key, spec_key
+                        ORDER BY node_count DESC, class_key, spec_key
+                        LIMIT 1
+                        """
+                    )
+                    row = cur.fetchone()
+        return {
+            "classKey": row[0] if row else "mage",
+            "specKey": row[1] if row else "arcane",
+        }
+
+    def get_websim_bootstrap(self):
+        season = self.get_active_season_payload()
+        season_fields = season_metadata_fields(season)
+        return {
+            "navTitle": "WebSim",
+            "title": "SimC 构筑工坊",
+            "region": "us",
+            "locale": season_fields["locale"],
+            "localeFallbacks": unique_locale_preferences(season_fields["locale"]),
+            "classes": classes_payload(),
+            "gearSlots": gear_slot_payload(),
+            "scenarios": SCENARIOS,
+            "instances": self.get_websim_instances(),
+            "syncState": self.get_sync_state("websim_sync") or {"ok": False, "errors": ["PostgreSQL websim cache has not been synced"]},
+            "defaultSelection": self.get_websim_default_selection(),
+            "simcraftVersion": simc_version_payload(),
+            **season_fields,
+        }
+
+    def get_websim_assets(self, filters=None):
+        filters = filters or {}
+        where = []
+        params = []
+        mapping = {
+            "entityType": "entity_type",
+            "entityId": "entity_id",
+            "context": "context_key",
+            "contextKey": "context_key",
+            "status": "status",
+            "source": "source",
+        }
+        for key, column in mapping.items():
+            value = filters.get(key)
+            if value in (None, ""):
+                continue
+            where.append(f"{column} = %s")
+            params.append(str(value))
+        try:
+            limit = max(1, min(int(filters.get("limit") or 200), 1000))
+        except (TypeError, ValueError):
+            limit = 200
+        query = """
+            SELECT id, entity_type, entity_id, context_key, asset_type, icon_url, resolution_tier,
+                   source, status, semantic_tags_json, usage_json, fallback_text, payload_json
+            FROM cache.websim_asset_registry
+        """
+        if where:
+            query += " WHERE " + " AND ".join(where)
+        query += " ORDER BY entity_type, entity_id, context_key LIMIT %s"
+        try:
+            with self.connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(query, [*params, limit])
+                    rows = cur.fetchall()
+        except Exception as error:
+            return {
+                "assets": [],
+                "counts": {"byStatus": {}, "bySource": {}},
+                "status": "blocked",
+                "blockers": [f"PostgreSQL WebSim asset registry is not available: {error}"],
+            }
+        assets = [game_asset_from_registry_row(row) for row in rows]
+        counts = {"byStatus": {}, "bySource": {}}
+        for asset in assets:
+            counts["byStatus"][asset["status"]] = counts["byStatus"].get(asset["status"], 0) + 1
+            counts["bySource"][asset["source"]] = counts["bySource"].get(asset["source"], 0) + 1
+        return {
+            "assets": assets,
+            "counts": counts,
+            "status": "verified" if assets else "empty",
+            "blockers": [],
+        }
 
     def _talent_authority_payload(self, talent_status, season, nodes, sync_state):
         simc_state = sync_state.get("simc") if isinstance(sync_state.get("simc"), dict) else {}
@@ -486,15 +1767,6 @@ class PostgresCacheStore:
         class_key = slugify(class_key, "mage")
         spec_key = slugify(spec_key, "arcane")
         hero_key = hero_tree_for(class_key, spec_key, slugify(hero_key, ""))
-        if season.get("dataStatus") != "verified":
-            return {
-                "classKey": class_key,
-                "specKey": spec_key,
-                "heroKey": hero_key,
-                "nodes": [],
-                "talentStatus": "blocked",
-                **season_metadata_fields(season),
-            }
         sync_state = self.get_sync_state("websim_sync")
         community_state = self.get_sync_state(COMMUNITY_TALENT_SYNC_KEY)
         with self.connection() as conn:
@@ -551,7 +1823,7 @@ class PostgresCacheStore:
             talent_spell_display_description(row[9] or "")[1] == "ready" and str(row[10] or "").strip()
             for row in filtered_rows
         )
-        talent_status = "verified" if nodes and has_spell_details else "simc"
+        talent_status = "verified" if nodes and season.get("dataStatus") == "verified" and has_spell_details else "simc"
         tree_sections = talent_tree_sections(class_key, spec_key, hero_key)
         talent_authority = self._talent_authority_payload(talent_status, season, nodes, sync_state)
         talent_readiness = talent_readiness_payload(
@@ -572,6 +1844,7 @@ class PostgresCacheStore:
                 "blocked": 0,
             },
         )
+        season_blockers = season.get("errors") if isinstance(season.get("errors"), list) else []
         return {
             "classKey": class_key,
             "specKey": spec_key,
@@ -579,7 +1852,7 @@ class PostgresCacheStore:
             "talentSchemaRevision": TALENT_SCHEMA_REVISION,
             "talentAuthority": talent_authority,
             "talentReadiness": talent_readiness,
-            "blockers": talent_readiness.get("blockers") or [],
+            "blockers": unique_text_list([*(talent_readiness.get("blockers") or []), *season_blockers]),
             "nodes": nodes,
             "presets": presets,
             "communityTemplates": community_templates,
@@ -1114,6 +2387,8 @@ class PostgresCacheStore:
                     """
                 )
                 tree_rows = cur.fetchall()
+        now = datetime.now(timezone.utc)
+        template_rows = [row for row in template_rows if not _timestamp_expired(row[16], now)]
         return {
             "communityTalentTemplates": [
                 {

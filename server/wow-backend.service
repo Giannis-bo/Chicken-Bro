@@ -8,10 +8,10 @@ Type=simple
 User=ubuntu
 WorkingDirectory=/opt/wow-mini-program
 EnvironmentFile=-/etc/wow-backend.env
+Environment=WOW_DATABASE_RUNTIME=postgres_only
 Environment=WOW_NEWS_HOST=127.0.0.1
 Environment=WOW_NEWS_PORT=8787
 Environment=WOW_NEWS_ENABLE_COLLECTORS=1
-Environment=WOW_NEWS_DB=/opt/wow-mini-program/server/data/wow_news.sqlite3
 Environment=WOW_NEWS_MAX_COLLECTED_ARTICLES=1
 Environment=WOW_LLM_TIMEOUT_SECONDS=45
 Environment=WOW_LLM_MODEL=deepseek-v4-flash

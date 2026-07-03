@@ -683,6 +683,84 @@ class PostgresIdentityShadowPlanTest(unittest.TestCase):
                 """,
                 ("raiderio:season", json.dumps({"sourceStatus": "verified"}), now, now, now),
             )
+            conn.execute(
+                """
+                CREATE TABLE build_stat_weight_cache (
+                    class_key TEXT NOT NULL,
+                    spec_key TEXT NOT NULL,
+                    scenario_key TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    value_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    stale_at TEXT NOT NULL,
+                    PRIMARY KEY (class_key, spec_key, scenario_key)
+                )
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO build_stat_weight_cache (
+                    class_key, spec_key, scenario_key, status, value_json,
+                    updated_at, expires_at, stale_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "mage",
+                    "frost",
+                    "mplus_mixed_route",
+                    "verified",
+                    json.dumps({"weights": [{"key": "haste", "value": 1.2}], "sourceStatus": "verified"}),
+                    now,
+                    now,
+                    now,
+                ),
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS websim_asset_registry (
+                    id TEXT PRIMARY KEY,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    context_key TEXT NOT NULL,
+                    asset_type TEXT NOT NULL,
+                    icon_url TEXT NOT NULL,
+                    resolution_tier TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    semantic_tags_json TEXT NOT NULL,
+                    usage_json TEXT NOT NULL,
+                    fallback_text TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_asset_registry (
+                    id, entity_type, entity_id, context_key, asset_type, icon_url,
+                    resolution_tier, source, status, semantic_tags_json, usage_json,
+                    fallback_text, payload_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "asset-item-a",
+                    "item",
+                    "item-a",
+                    "inventory",
+                    "icon",
+                    "https://render.worldofwarcraft.com/icon-a.jpg",
+                    "icon_56",
+                    "battle_net",
+                    "verified",
+                    json.dumps(["gear"]),
+                    json.dumps(["websim"]),
+                    "Item A",
+                    json.dumps({"id": "asset-item-a", "status": "verified"}),
+                    now,
+                ),
+            )
             conn.commit()
 
         with self.backend.db_connection() as conn:
@@ -733,6 +811,12 @@ class PostgresIdentityShadowPlanTest(unittest.TestCase):
         self.assertEqual(plan["tables"]["cache.websim_encounters"][0]["instance_id"], "1300")
         self.assertEqual(plan["tables"]["cache.websim_loot"][0]["item_id"], "item-a")
         self.assertEqual(plan["tables"]["cache.raiderio_cache"][0]["cache_key"], "raiderio:season")
+        self.assertEqual(plan["tables"]["cache.stat_weight_cache"][0]["cache_key"], "mage:frost:mplus_mixed_route")
+        self.assertEqual(plan["tables"]["cache.stat_weight_cache"][0]["source_status"], "verified")
+        self.assertEqual(plan["tables"]["cache.stat_weight_cache"][0]["payload_json"]["scenarioKey"], "mplus_mixed_route")
+        self.assertEqual(plan["tables"]["cache.websim_asset_registry"][0]["id"], "asset-item-a")
+        self.assertEqual(plan["tables"]["cache.websim_asset_registry"][0]["semantic_tags_json"], ["gear"])
+        self.assertEqual(plan["tables"]["cache.websim_asset_registry"][0]["payload_json"]["status"], "verified")
         self.assertEqual(plan["totals"]["rowsByTable"]["content.articles"], 1)
         self.assertEqual(plan["totals"]["rowsByTable"]["cache.websim_sync_state"], 1)
         self.assertEqual(plan["totals"]["rowsByTable"]["cache.websim_gear_sources"], 1)
@@ -740,6 +824,8 @@ class PostgresIdentityShadowPlanTest(unittest.TestCase):
         self.assertEqual(plan["totals"]["rowsByTable"]["cache.websim_gear_mod_options"], 1)
         self.assertEqual(plan["totals"]["rowsByTable"]["cache.websim_community_gear_templates"], 2)
         self.assertEqual(plan["totals"]["rowsByTable"]["cache.websim_loot"], 1)
+        self.assertEqual(plan["totals"]["rowsByTable"]["cache.stat_weight_cache"], 1)
+        self.assertEqual(plan["totals"]["rowsByTable"]["cache.websim_asset_registry"], 1)
 
     def test_data_copy_plan_preserves_duplicate_content_evidence_rows_by_sqlite_id(self):
         from server.migrations.postgres import data_copy_plan

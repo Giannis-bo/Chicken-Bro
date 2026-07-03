@@ -7,6 +7,7 @@ import unittest
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +17,7 @@ class DatabaseAdapterTest(unittest.TestCase):
     def tearDown(self):
         os.environ.pop("WOW_DATABASE_URL", None)
         os.environ.pop("WOW_DATABASE_RUNTIME", None)
+        os.environ.pop("WOW_SQLITE_RUNTIME_DISABLED", None)
         os.environ.pop("WOW_NEWS_DB", None)
 
     def test_sqlite_is_default_backend(self):
@@ -80,6 +82,56 @@ class DatabaseAdapterTest(unittest.TestCase):
                 foreign_keys = conn.execute("PRAGMA foreign_keys").fetchone()[0]
 
         self.assertEqual(foreign_keys, 1)
+
+    def test_postgres_only_runtime_creates_pg_stores_and_blocks_sqlite_connection(self):
+        import server.news_backend as backend
+
+        os.environ["WOW_DATABASE_URL"] = "postgresql://wow_app@localhost/wow_test"
+        os.environ["WOW_DATABASE_RUNTIME"] = "postgres_only"
+        backend = importlib.reload(backend)
+
+        self.assertTrue(backend.postgres_runtime_enabled())
+        self.assertIsNotNone(backend.personal_data_store())
+        self.assertIsNotNone(backend.content_data_store())
+        self.assertIsNotNone(backend.cache_data_store())
+        self.assertIsNotNone(backend.analytics_data_store())
+        self.assertIsNotNone(backend.ops_data_store())
+        with self.assertRaisesRegex(RuntimeError, "SQLite runtime is disabled"):
+            with backend.db_connection():
+                pass
+
+    def test_news_backend_main_skips_sqlite_init_in_postgres_only_runtime(self):
+        import server.news_backend as backend
+
+        os.environ["WOW_DATABASE_URL"] = "postgresql://wow_app@localhost/wow_test"
+        os.environ["WOW_DATABASE_RUNTIME"] = "postgres_only"
+        backend = importlib.reload(backend)
+        server = Mock()
+
+        with patch.object(backend, "init_db", side_effect=AssertionError("init_db must not run in PG-only mode")) as init_db, patch.object(
+            backend,
+            "latest_refresh_state",
+            return_value={"dataStatus": "blocked"},
+        ) as latest_refresh_state, patch.object(backend, "ThreadingHTTPServer", return_value=server):
+            backend.main()
+
+        init_db.assert_not_called()
+        latest_refresh_state.assert_called_once()
+        server.serve_forever.assert_called_once()
+
+    def test_sqlite_runtime_disabled_env_blocks_sqlite_connection(self):
+        import server.news_backend as backend
+
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ.pop("WOW_DATABASE_URL", None)
+            os.environ.pop("WOW_DATABASE_RUNTIME", None)
+            os.environ["WOW_SQLITE_RUNTIME_DISABLED"] = "1"
+            os.environ["WOW_NEWS_DB"] = str(Path(tmp) / "disabled.sqlite3")
+            backend = importlib.reload(backend)
+
+            with self.assertRaisesRegex(RuntimeError, "SQLite runtime is disabled"):
+                with backend.db_connection():
+                    pass
 
     def test_news_backend_db_connection_uses_sqlite_fallback(self):
         import server.news_backend as backend

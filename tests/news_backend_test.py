@@ -5302,6 +5302,117 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(gear_catalog["seasonSourceCoverage"]["mythicPlus"]["sourceItemCount"], 203)
         self.assertEqual(gear_catalog["seasonSourceCoverage"]["instances"][0]["sourceItemCount"], 24)
 
+    def test_pg_only_data_health_uses_postgres_state_without_sqlite(self):
+        community_sync_key = self.backend.COMMUNITY_TEMPLATE_SYNC_RUN_KEY
+
+        class ContentStore:
+            def latest_refresh_run_payload(self):
+                return {
+                    "refreshMode": "scheduled",
+                    "refreshedAt": "2026-07-03T00:00:00+00:00",
+                    "acceptedCount": 2,
+                    "blockedArticleCount": 0,
+                    "queuedCount": 0,
+                    "retryableCount": 0,
+                    "discoveredCount": 2,
+                    "processedCount": 2,
+                    "publishedCount": 2,
+                    "sourceFetchErrors": [],
+                    "collectorErrors": [],
+                }
+
+        class CacheStore:
+            def get_sync_state(self, key):
+                states = {
+                    "websim_sync": {
+                        "ok": False,
+                        "dataStatus": "blocked",
+                        "checkedAt": "2026-07-03T00:01:00+00:00",
+                        "errors": ["PostgreSQL WebSim sync state is blocked"],
+                        "simc": {"talents": 5246, "profiles": 50},
+                    },
+                    "gearCatalog": {
+                        "status": "blocked",
+                        "checkedAt": "2026-07-03T00:02:00+00:00",
+                        "itemCount": 0,
+                        "variantCount": 0,
+                        "blockers": ["PostgreSQL gear catalog is empty"],
+                    },
+                    community_sync_key: {
+                        "scanRunId": "pg-only-health",
+                        "gear": {
+                            "templates": {"total": 0, "verified": 0, "blocked": 0},
+                            "defaultTemplates": {"blockedSpecCount": 0},
+                        },
+                    },
+                    "community_talent_templates": {
+                        "sourceStatus": "blocked",
+                        "checkedAt": "2026-07-03T00:03:00+00:00",
+                        "templates": {"total": 0, "verified": 0, "blocked": 0},
+                        "sources": {},
+                    },
+                    "raiderio": {
+                        "sourceStatus": "blocked",
+                        "checkedAt": "2026-07-03T00:04:00+00:00",
+                        "errors": ["PostgreSQL Raider.IO cache is empty"],
+                    },
+                    "stat_weights_sync": {
+                        "sourceStatus": "partial",
+                        "status": "partial",
+                        "refreshedAt": "2026-07-03T00:05:00+00:00",
+                        "acceptedCount": 11,
+                        "blockedCount": 109,
+                        "raiderioStatus": "verified",
+                        "specCount": 40,
+                        "scenarioCount": 3,
+                        "errors": [],
+                    },
+                }
+                return states.get(key, {})
+
+            def get_active_season_payload(self):
+                return {
+                    "seasonId": "season-pg",
+                    "seasonRevision": "season-pg-rev",
+                    "locale": "zh_CN",
+                    "dataStatus": "stale",
+                    "verifiedAt": "2026-07-02T00:00:00+00:00",
+                    "expiresAt": "2026-07-03T00:00:00+00:00",
+                    "errors": ["season cache expired"],
+                }
+
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                "WOW_DATABASE_RUNTIME": "postgres_only",
+            },
+        ), patch.object(self.backend, "content_data_store", return_value=ContentStore()), patch.object(
+            self.backend, "cache_data_store", return_value=CacheStore()
+        ), patch.object(
+            self.backend,
+            "init_db",
+            side_effect=AssertionError("PG-only health must not initialize SQLite"),
+        ), patch.object(
+            self.backend,
+            "db_connection",
+            side_effect=AssertionError("PG-only health must not open SQLite"),
+        ):
+            payload = self.backend.build_data_health_payload(include_template_evidence_audit=False)
+
+        components = {item["key"]: item for item in payload["components"]}
+        self.assertEqual(components["news"]["status"], "verified")
+        self.assertEqual(components["websim_season"]["status"], "stale")
+        self.assertEqual(components["websim_sync"]["status"], "blocked")
+        self.assertEqual(components["websim_sync"]["details"]["talentCount"], 5246)
+        self.assertEqual(components["websim_sync"]["details"]["profileCount"], 50)
+        self.assertEqual(components["gear_catalog"]["status"], "blocked")
+        self.assertEqual(components["raiderio"]["blockers"], ["PostgreSQL Raider.IO cache is empty"])
+        self.assertEqual(components["stat_weights"]["status"], "partial")
+        self.assertEqual(components["stat_weights"]["checkedAt"], "2026-07-03T00:05:00+00:00")
+        self.assertEqual(components["stat_weights"]["details"]["acceptedCount"], 11)
+        self.assertIn("PostgreSQL WebSim sync state is blocked", components["websim_sync"]["blockers"])
+
     def test_data_health_accepts_warcraftlogs_v1_api_key_without_exposing_secret(self):
         os.environ["WOW_WARCRAFTLOGS_API_KEY"] = "fake-wcl-v1-key"
 
@@ -6352,6 +6463,366 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(payload["simulation"]["metrics"]["dps"], "130001")
         self.assertEqual(payload["request"]["profileSource"], "prompt")
         self.assertIn('mage="路由测试"', captured_profile.read_text(encoding="utf-8"))
+
+    def test_pg_only_websim_profile_route_does_not_open_sqlite(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                    "WOW_DATABASE_RUNTIME": "postgres_only",
+                },
+            ), patch.object(
+                self.backend,
+                "init_db",
+                side_effect=AssertionError("PG-only websim profile must not initialize SQLite"),
+            ), patch.object(
+                self.backend,
+                "db_connection",
+                side_effect=AssertionError("PG-only websim profile must not open SQLite"),
+            ):
+                request = Request(
+                    f"http://127.0.0.1:{server.server_port}/api/websim/profile",
+                    data=json.dumps(
+                        {
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "talents": "C4DAAAAAAAAAAAAAAAAAAAAAAA",
+                            "gear": [],
+                        }
+                    ).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(request, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("talents=C4DA", payload["profile"])
+        self.assertEqual(payload["profileReadiness"]["talentReady"], True)
+
+    def test_pg_only_websim_gear_stats_route_returns_blocked_without_sqlite(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                    "WOW_DATABASE_RUNTIME": "postgres_only",
+                },
+            ), patch.object(
+                self.backend,
+                "init_db",
+                side_effect=AssertionError("PG-only gear stats must not initialize SQLite"),
+            ), patch.object(
+                self.backend,
+                "db_connection",
+                side_effect=AssertionError("PG-only gear stats must not open SQLite"),
+            ):
+                request = Request(
+                    f"http://127.0.0.1:{server.server_port}/api/websim/gear/stats",
+                    data=json.dumps(
+                        {
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "talents": "C4DAAAAAAAAAAAAAAAAAAAAAAA",
+                            "gear": [],
+                        }
+                    ).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(request, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(payload["statStatus"], "blocked")
+        self.assertIn("selected gear is not fully SimC-ready", payload["blockers"])
+
+    def test_pg_only_public_builds_and_pve_routes_do_not_open_sqlite(self):
+        class CacheStore:
+            def get_raiderio_payload(self):
+                return {
+                    "sourceStatus": "blocked",
+                    "status": "blocked",
+                    "errors": ["PG Raider.IO fixture"],
+                }
+
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                "WOW_DATABASE_RUNTIME": "postgres_only",
+            },
+        ), patch.object(self.backend, "cache_data_store", return_value=CacheStore()), patch.object(
+            self.backend,
+            "init_db",
+            side_effect=AssertionError("PG-only public routes must not initialize SQLite"),
+        ), patch.object(
+            self.backend,
+            "db_connection",
+            side_effect=AssertionError("PG-only public routes must not open SQLite"),
+        ):
+            builds_home = self.backend.get_builds_home_payload()
+            builds_intel = self.backend.get_builds_intel_payload()
+            builds_detail = self.backend.get_builds_detail_payload("mage-arcane")
+            pve_home = self.backend.get_pve_home_payload()
+            pve_module = self.backend.get_pve_module_payload("teamLadder")
+
+        self.assertIsInstance(builds_home, dict)
+        self.assertIsInstance(builds_intel, dict)
+        self.assertIsInstance(pve_home, dict)
+        self.assertIsInstance(pve_module, dict)
+        for payload in (builds_home, builds_intel, pve_home, pve_module):
+            self.assertNotIn("raiderioError", payload)
+        if builds_detail:
+            self.assertIn("gearMetadataError", builds_detail)
+            self.assertIn("PostgreSQL", builds_detail["gearMetadataError"])
+
+    def test_pg_only_websim_bootstrap_and_assets_routes_do_not_open_sqlite(self):
+        class CacheStore:
+            def get_websim_bootstrap(self):
+                return {
+                    "navTitle": "WebSim",
+                    "title": "SimC 构筑工坊",
+                    "dataStatus": "verified",
+                    "instances": [],
+                    "syncState": {"ok": True},
+                }
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                    "WOW_DATABASE_RUNTIME": "postgres_only",
+                },
+            ), patch.object(self.backend, "cache_data_store", return_value=CacheStore()), patch.object(
+                self.backend,
+                "init_db",
+                side_effect=AssertionError("PG-only WebSim GET routes must not initialize SQLite"),
+            ), patch.object(
+                self.backend,
+                "db_connection",
+                side_effect=AssertionError("PG-only WebSim GET routes must not open SQLite"),
+            ):
+                with urlopen(f"http://127.0.0.1:{server.server_port}/api/websim/bootstrap", timeout=5) as response:
+                    bootstrap = json.loads(response.read().decode("utf-8"))
+                    bootstrap_status = response.status
+                with urlopen(f"http://127.0.0.1:{server.server_port}/api/websim/assets", timeout=5) as response:
+                    assets = json.loads(response.read().decode("utf-8"))
+                    assets_status = response.status
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(bootstrap_status, 200)
+        self.assertEqual(bootstrap["navTitle"], "WebSim")
+        self.assertEqual(assets_status, 200)
+        self.assertEqual(assets["assets"], [])
+        self.assertEqual(assets["status"], "blocked")
+        self.assertIn("PostgreSQL WebSim asset registry is not available", assets["blockers"])
+
+    def test_pg_only_talent_mutation_routes_do_not_open_sqlite(self):
+        class CacheStore:
+            def get_websim_talents(self, class_key="mage", spec_key="arcane", hero_key=""):
+                return {
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "heroKey": hero_key,
+                    "talentStatus": "verified",
+                    "nodes": [],
+                    "talentAuthority": {"runtime": {"status": "verified"}},
+                    "talentReadiness": {"status": "verified", "blockers": []},
+                    "blockers": [],
+                }
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                    "WOW_DATABASE_RUNTIME": "postgres_only",
+                },
+            ), patch.object(self.backend, "cache_data_store", return_value=CacheStore()), patch.object(
+                self.backend,
+                "init_db",
+                side_effect=AssertionError("PG-only talent routes must not initialize SQLite"),
+            ), patch.object(
+                self.backend,
+                "db_connection",
+                side_effect=AssertionError("PG-only talent routes must not open SQLite"),
+            ):
+                payloads = {}
+                for route in ("validate", "export", "import"):
+                    request = Request(
+                        f"http://127.0.0.1:{server.server_port}/api/talents/{route}",
+                        data=json.dumps(
+                            {
+                                "classKey": "mage",
+                                "specKey": "frost",
+                                "talents": "C4DAAAAAAAAAAAAAAAAAAAAAAA",
+                            }
+                        ).encode("utf-8"),
+                        headers={"Content-Type": "application/json"},
+                        method="POST",
+                    )
+                    with urlopen(request, timeout=5) as response:
+                        payloads[route] = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(payloads["validate"]["status"], "external")
+        self.assertEqual(payloads["export"]["validation"]["status"], "external")
+        self.assertEqual(payloads["import"]["validation"]["status"], "external")
+
+    def test_pg_only_stat_weight_latest_route_do_not_open_sqlite(self):
+        test_case = self
+
+        class CacheStore:
+            def get_sync_state(self, key):
+                test_case.assertEqual(key, "stat_weights_sync")
+                return {
+                    "sourceStatus": "blocked",
+                    "status": "blocked",
+                    "checkedAt": "2026-07-03T00:00:00+00:00",
+                    "errors": ["PG stat weight fixture"],
+                }
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                    "WOW_DATABASE_RUNTIME": "postgres_only",
+                },
+            ), patch.object(self.backend, "cache_data_store", return_value=CacheStore()), patch.object(
+                self.backend,
+                "init_db",
+                side_effect=AssertionError("PG-only stat weights must not initialize SQLite"),
+            ), patch.object(
+                self.backend,
+                "db_connection",
+                side_effect=AssertionError("PG-only stat weights must not open SQLite"),
+            ):
+                with urlopen(
+                    f"http://127.0.0.1:{server.server_port}/api/builds/stat-weights/refresh-runs/latest",
+                    timeout=5,
+                ) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                    status = response.status
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["sourceStatus"], "blocked")
+        self.assertIn("PG stat weight fixture", payload["errors"])
+
+    def test_pg_only_websim_simulate_route_do_not_open_sqlite(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                    "WOW_DATABASE_RUNTIME": "postgres_only",
+                },
+            ), patch.object(
+                self.backend,
+                "init_db",
+                side_effect=AssertionError("PG-only simulate must not initialize SQLite"),
+            ), patch.object(
+                self.backend,
+                "db_connection",
+                side_effect=AssertionError("PG-only simulate must not open SQLite"),
+            ):
+                request = Request(
+                    f"http://127.0.0.1:{server.server_port}/api/websim/simulate",
+                    data=json.dumps(
+                        {
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "talents": "C4DAAAAAAAAAAAAAAAAAAAAAAA",
+                            "gear": [],
+                            "saveTask": False,
+                        }
+                    ).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(request, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                    status = response.status
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(payload["talentEncoding"]["status"], "external")
+
+    def test_pg_only_news_routes_return_blocked_without_sqlite_when_content_store_missing(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                    "WOW_DATABASE_RUNTIME": "postgres_only",
+                },
+            ), patch.object(self.backend, "content_data_store", return_value=None), patch.object(
+                self.backend,
+                "init_db",
+                side_effect=AssertionError("PG-only news routes must not initialize SQLite"),
+            ), patch.object(
+                self.backend,
+                "db_connection",
+                side_effect=AssertionError("PG-only news routes must not open SQLite"),
+            ):
+                with urlopen(f"http://127.0.0.1:{server.server_port}/api/news/home", timeout=5) as response:
+                    home = json.loads(response.read().decode("utf-8"))
+                    home_status = response.status
+                with urlopen(
+                    f"http://127.0.0.1:{server.server_port}/api/news/refresh-runs/latest",
+                    timeout=5,
+                ) as response:
+                    latest = json.loads(response.read().decode("utf-8"))
+                    latest_status = response.status
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(home_status, 200)
+        self.assertEqual(home["dataStatus"], "blocked")
+        self.assertIn("PostgreSQL content store is not available", home["errors"])
+        self.assertEqual(latest_status, 200)
+        self.assertEqual(latest["dataStatus"], "blocked")
 
     def test_http_get_latest_news_refresh_run_route_returns_quality_summary(self):
         self.backend.refresh_articles("scheduled")
@@ -7751,6 +8222,64 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(talent_page_two["records"][0]["targetId"], "pg-template-blocked")
         self.assertEqual(talent_default_page["pagination"]["pageSize"], 20)
 
+    def test_admin_gate_talent_records_from_store_omit_expired_templates(self):
+        class FakeCacheStore:
+            def admin_gate_talent_records(self):
+                return {
+                    "communityTalentTemplates": [
+                        {
+                            "id": "expired-template",
+                            "classKey": "deathknight",
+                            "specKey": "unholy",
+                            "heroKey": "rider_of_the_apocalypse",
+                            "scenarioKey": "mythic_plus",
+                            "name": "Expired Raider.IO template",
+                            "sourceKey": "raiderio",
+                            "sourceName": "Raider.IO",
+                            "sourceUrl": "https://example.com/expired-template",
+                            "sourceStatus": "synced",
+                            "status": "blocked",
+                            "sampleCount": 496,
+                            "maxKeyLevel": 24,
+                            "analysisWindow": "stale window",
+                            "payload": {"errors": ["unknown structured talent entry"]},
+                            "updatedAt": "2026-06-28T12:28:54+00:00",
+                            "expiresAt": "2026-06-29T12:34:15+00:00",
+                            "signature": "sig-expired",
+                            "sourceRefs": [{"type": "raiderio"}],
+                            "scanRunId": "scan-expired",
+                        },
+                        {
+                            "id": "fresh-template",
+                            "classKey": "deathknight",
+                            "specKey": "unholy",
+                            "heroKey": "rider_of_the_apocalypse",
+                            "scenarioKey": "mythic_plus",
+                            "name": "Fresh Raider.IO template",
+                            "sourceKey": "raiderio",
+                            "sourceName": "Raider.IO",
+                            "sourceUrl": "https://example.com/fresh-template",
+                            "sourceStatus": "synced",
+                            "status": "verified",
+                            "sampleCount": 499,
+                            "maxKeyLevel": 24,
+                            "analysisWindow": "fresh window",
+                            "payload": {},
+                            "updatedAt": "2026-07-02T21:21:01+00:00",
+                            "expiresAt": "2099-01-01T00:00:00+00:00",
+                            "signature": "sig-fresh",
+                            "sourceRefs": [{"type": "raiderio"}],
+                            "scanRunId": "scan-fresh",
+                        },
+                    ],
+                    "talentTrees": [],
+                }
+
+        with patch.object(self.backend, "utc_now", return_value="2026-07-03T00:00:00+00:00"):
+            records = self.backend.collect_admin_talent_records_from_store(FakeCacheStore())
+
+        self.assertEqual([record["targetId"] for record in records], ["fresh-template"])
+
     def test_admin_gates_gear_records_use_paged_postgres_store_when_unfiltered(self):
         calls = []
 
@@ -7808,6 +8337,78 @@ class NewsBackendTest(unittest.TestCase):
 
         self.assertEqual(payload["records"], [])
         self.assertEqual(payload["pagination"]["total"], 0)
+
+    def test_pg_only_admin_gate_records_do_not_fallback_to_sqlite_when_runtime_store_missing(self):
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                "WOW_DATABASE_RUNTIME": "postgres_only",
+            },
+        ), patch.object(self.backend, "content_data_store", return_value=None), patch.object(
+            self.backend, "cache_data_store", return_value=None
+        ), patch.object(
+            self.backend,
+            "init_db",
+            side_effect=AssertionError("PG-only admin records must not initialize SQLite"),
+        ), patch.object(
+            self.backend,
+            "db_connection",
+            side_effect=AssertionError("PG-only admin records must not open SQLite"),
+        ):
+            payload = self.backend.admin_gate_records_payload({"domain": ["talents"], "limit": ["20"]})
+
+        self.assertEqual(payload["records"], [])
+        self.assertEqual(payload["totalCount"], 0)
+        self.assertIn("PostgreSQL runtime store is not available", payload["runtimeBlockers"])
+
+    def test_pg_only_admin_gate_queue_do_not_fallback_to_sqlite_when_runtime_store_missing(self):
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                "WOW_DATABASE_RUNTIME": "postgres_only",
+            },
+        ), patch.object(self.backend, "content_data_store", return_value=None), patch.object(
+            self.backend, "cache_data_store", return_value=None
+        ), patch.object(
+            self.backend, "ops_data_store", return_value=None
+        ), patch.object(
+            self.backend,
+            "init_db",
+            side_effect=AssertionError("PG-only admin queue must not initialize SQLite"),
+        ), patch.object(
+            self.backend,
+            "db_connection",
+            side_effect=AssertionError("PG-only admin queue must not open SQLite"),
+        ):
+            payload = self.backend.admin_gate_queue_payload({"domain": ["talents"], "limit": ["20"]})
+
+        self.assertEqual(payload["items"], [])
+        self.assertEqual(payload["count"], 0)
+        self.assertIn("PostgreSQL runtime store is not available", payload["runtimeBlockers"])
+
+    def test_pg_only_admin_gate_detail_do_not_fallback_to_sqlite_when_runtime_store_missing(self):
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                "WOW_DATABASE_RUNTIME": "postgres_only",
+            },
+        ), patch.object(self.backend, "content_data_store", return_value=None), patch.object(
+            self.backend, "cache_data_store", return_value=None
+        ), patch.object(
+            self.backend,
+            "init_db",
+            side_effect=AssertionError("PG-only admin detail must not initialize SQLite"),
+        ), patch.object(
+            self.backend,
+            "db_connection",
+            side_effect=AssertionError("PG-only admin detail must not open SQLite"),
+        ):
+            payload = self.backend.admin_gate_record_detail_payload("talents", "community_talent_template", "missing")
+
+        self.assertEqual(payload, {})
 
     def test_admin_gates_gear_templates_use_narrow_postgres_store_method(self):
         class NarrowTemplateStore:
@@ -7867,6 +8468,100 @@ class NewsBackendTest(unittest.TestCase):
             payload = self.backend.runtime_websim_gear_payload("mage", "frost", compact=True)
 
         self.assertIs(payload, stale_payload)
+
+    def test_pg_only_runtime_ignores_sqlite_public_cache_fallback_flag_for_gear(self):
+        stale_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "dataStatus": "stale",
+            "catalogBlockers": ["season cache expired"],
+            "replacementCandidates": [],
+        }
+
+        class StaleGearStore:
+            def get_websim_gear(self, class_key, spec_key, compact=False):
+                return stale_payload
+
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                "WOW_DATABASE_RUNTIME": "postgres_only",
+                "WOW_ALLOW_SQLITE_PUBLIC_CACHE_FALLBACK": "1",
+            },
+        ), patch.object(self.backend, "cache_data_store", return_value=StaleGearStore()), patch.object(
+            self.backend,
+            "init_db",
+            side_effect=AssertionError("PG-only gear must not initialize SQLite"),
+        ), patch.object(
+            self.backend,
+            "db_connection",
+            side_effect=AssertionError("PG-only gear must not open SQLite"),
+        ):
+            payload = self.backend.runtime_websim_gear_payload("mage", "frost", compact=True)
+
+        self.assertIs(payload, stale_payload)
+
+    def test_pg_only_runtime_returns_blocked_talent_payload_without_sqlite_fallback(self):
+        blocked_payload = {
+            "schemaRevision": "websim-talents-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "heroKey": "spellslinger",
+            "dataStatus": "blocked",
+            "talentStatus": "blocked",
+            "nodes": [],
+            "blockers": ["PostgreSQL talent cache is missing verified nodes"],
+        }
+
+        class BlockedTalentStore:
+            def get_websim_talents(self, class_key, spec_key, hero_key=""):
+                return blocked_payload
+
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                "WOW_DATABASE_RUNTIME": "postgres_only",
+            },
+        ), patch.object(self.backend, "cache_data_store", return_value=BlockedTalentStore()), patch.object(
+            self.backend,
+            "init_db",
+            side_effect=AssertionError("PG-only talents must not initialize SQLite"),
+        ), patch.object(
+            self.backend,
+            "db_connection",
+            side_effect=AssertionError("PG-only talents must not open SQLite"),
+        ):
+            payload = self.backend.runtime_websim_talents_payload("mage", "frost", "spellslinger")
+
+        self.assertIs(payload, blocked_payload)
+
+    def test_pg_only_runtime_returns_blocked_talent_import_without_sqlite_fallback(self):
+        class EmptyTalentImportStore:
+            def get_websim_talent_import(self, class_key, spec_key, hero_key=""):
+                return {}
+
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                "WOW_DATABASE_RUNTIME": "postgres_only",
+            },
+        ), patch.object(self.backend, "cache_data_store", return_value=EmptyTalentImportStore()), patch.object(
+            self.backend,
+            "init_db",
+            side_effect=AssertionError("PG-only talent import must not initialize SQLite"),
+        ), patch.object(
+            self.backend,
+            "db_connection",
+            side_effect=AssertionError("PG-only talent import must not open SQLite"),
+        ):
+            payload = self.backend.runtime_websim_talent_import_payload("mage", "frost", "spellslinger")
+
+        self.assertEqual(payload["status"], "blocked")
+        self.assertIn("PostgreSQL talent import cache is missing", payload["blockers"])
 
     def test_admin_gates_record_detail_uses_postgres_runtime_store_when_available(self):
         class FakeContentStore:

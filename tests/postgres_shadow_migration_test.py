@@ -279,6 +279,94 @@ class PostgresShadowMigrationTest(unittest.TestCase):
             conn.cursor_instance.params,
         )
 
+    def test_reconcile_public_cache_serializes_new_cache_json_fields(self):
+        from server.migrations.postgres import shadow_migrate
+
+        plan = minimal_plan()
+        plan["tables"]["cache.stat_weight_cache"] = [
+            {
+                "cache_key": "mage:frost:mplus_mixed_route",
+                "payload_json": {"weights": [{"key": "haste", "value": 1.2}]},
+                "computed_at": "2026-07-03T04:00:00+00:00",
+                "source_status": "verified",
+            }
+        ]
+        plan["tables"]["cache.websim_asset_registry"] = [
+            {
+                "id": "asset-item-a",
+                "entity_type": "item",
+                "entity_id": "item-a",
+                "context_key": "inventory",
+                "asset_type": "icon",
+                "icon_url": "https://render.worldofwarcraft.com/icon-a.jpg",
+                "resolution_tier": "icon_56",
+                "source": "battle_net",
+                "status": "verified",
+                "semantic_tags_json": ["gear"],
+                "usage_json": ["websim"],
+                "fallback_text": "Item A",
+                "payload_json": {"status": "verified"},
+                "updated_at": "2026-07-03T04:00:00+00:00",
+            }
+        ]
+        plan["tables"]["cache.websim_community_gear_templates"] = [
+            {
+                "id": "gear-template-a",
+                "class_key": "mage",
+                "spec_key": "frost",
+                "scenario_key": "mplus_mixed_route",
+                "source_key": "default_template",
+                "source_name": "Default",
+                "source_url": "",
+                "status": "complete",
+                "template_type": "default",
+                "gear_items_json": [{"slot": "head", "itemId": "item-a"}],
+                "missing_slots_json": ["neck"],
+                "blockers_json": [],
+                "sample_count": 1,
+                "updated_at": "2026-07-03T04:00:00+00:00",
+                "expires_at": "2026-07-04T04:00:00+00:00",
+                "payload_json": {"status": "complete"},
+            }
+        ]
+        conn = FakeConnection()
+
+        result = shadow_migrate.execute_copy_plan(
+            conn,
+            plan,
+            source_sqlite_path="fresh.sqlite3",
+            reconcile_public_cache=True,
+        )
+
+        statements = conn.cursor_instance.statements
+        self.assertTrue(
+            any(
+                "INSERT INTO cache.stat_weight_cache" in item
+                and "payload_json = EXCLUDED.payload_json" in item
+                for item in statements
+            )
+        )
+        self.assertTrue(
+            any(
+                "INSERT INTO cache.websim_asset_registry" in item
+                and "semantic_tags_json = EXCLUDED.semantic_tags_json" in item
+                for item in statements
+            )
+        )
+        self.assertTrue(
+            any(
+                "INSERT INTO cache.websim_community_gear_templates" in item
+                and "gear_items_json = EXCLUDED.gear_items_json" in item
+                for item in statements
+            )
+        )
+        flattened_params = [value for params in conn.cursor_instance.params for value in params]
+        self.assertFalse(
+            any(isinstance(value, (dict, list)) for value in flattened_params),
+            "copy execution must serialize json/jsonb params before psycopg adaptation",
+        )
+        self.assertEqual(result["verifiedRows"], 9)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,9 +5,13 @@ import sqlite3
 from pathlib import Path
 
 try:
+    from .db import postgres_only_runtime_enabled, require_sqlite_runtime_enabled
+    from .postgres_cache_sync import sync_raiderio_cache_postgres, sync_stat_weight_cache_postgres
     from .raiderio_payload import get_raiderio_payload, sync_raiderio_cache
     from .stat_weights_payload import sync_stat_weight_cache
 except ImportError:
+    from db import postgres_only_runtime_enabled, require_sqlite_runtime_enabled
+    from postgres_cache_sync import sync_raiderio_cache_postgres, sync_stat_weight_cache_postgres
     from raiderio_payload import get_raiderio_payload, sync_raiderio_cache
     from stat_weights_payload import sync_stat_weight_cache
 
@@ -17,6 +21,7 @@ DB_PATH = Path(os.environ.get("WOW_NEWS_DB", BASE_DIR / "data" / "wow_news.sqlit
 
 
 def connect_db():
+    require_sqlite_runtime_enabled("stat_weights_sync")
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA busy_timeout = 30000")
@@ -26,6 +31,17 @@ def connect_db():
 
 def main():
     payload = {"raiderio": {}, "statWeights": {}}
+    if postgres_only_runtime_enabled():
+        try:
+            payload["raiderio"] = sync_raiderio_cache_postgres()
+        except Exception as error:
+            payload["raiderio"] = {"sourceStatus": "blocked", "runner": "postgres", "errors": [str(error)]}
+        payload["statWeights"] = sync_stat_weight_cache_postgres(
+            raiderio_payload=payload["raiderio"],
+            refresh_mode=os.environ.get("WOW_STAT_WEIGHTS_REFRESH_MODE", "scheduled"),
+        )
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
     with connect_db() as conn:
         try:
             payload["raiderio"] = sync_raiderio_cache(conn)

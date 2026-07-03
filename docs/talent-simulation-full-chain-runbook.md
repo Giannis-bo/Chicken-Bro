@@ -1,6 +1,6 @@
 # 全职业天赋模拟全链路 Runbook
 
-> 适用范围：`/api/websim/talents` 天赋读模型、SimC trait data、Wago trait edges、Blizzard spell/media、社区天赋模板、SQLite / PostgreSQL hybrid catalog、前端原生天赋模拟器、`/api/talents/*`、`/api/websim/profile`、`/api/websim/simulate`、health 和回滚。
+> 适用范围：`/api/websim/talents` 天赋读模型、SimC trait data、Wago trait edges、Blizzard spell/media、社区天赋模板、PostgreSQL-only catalog、前端原生天赋模拟器、`/api/talents/*`、`/api/websim/profile`、`/api/websim/simulate`、health 和回滚。
 > 最后更新：2026-06-29。
 
 本文是天赋模拟器后续版本和赛季更新的执行手册。它不要求天赋侧机械复刻装备侧的 item/source/variant/mod-option 模型；天赋侧真正要对齐的是四个治理原则：后端权威读模型、证据优先、前端 consumer-only、serializer fail-closed。
@@ -8,7 +8,7 @@
 ## 总原则
 
 - Backend authority：天赋树结构、父子依赖、choice 互斥、点数门槛、默认赠送点、SimC entry 编码都以后端 `websim_talents` 和 backend validator 为准。
-- Read-only read model：`GET /api/websim/talents` 只能读取当前 runtime 事实，不触发社区模板同步、远端刷新或 DB 写入。`postgres_personal` 下可走 PostgreSQL cache seam，SQLite 仍是 fallback。
+- Read-only read model：`GET /api/websim/talents` 只能读取当前 PostgreSQL runtime 事实，不触发社区模板同步、远端刷新、DB 写入或 SQLite fallback。PG 数据缺失/过期/阻断时必须暴露 `blocked` / `partial` / blocker。
 - Evidence-first：SimC generated trait data 是可执行编码主来源；Wago trait edges、Blizzard spell/media 和社区模板只按各自证据等级参与补充，不伪装成官方 verified。
 - Frontend consumer-only：`pages/builds/talent-simulator.*` 只做交互镜像和可视化 export code，不生成 `class_talents/spec_talents/hero_talents`，不推断后端规则。
 - Serializer fail-closed：`/api/websim/profile` 和 `/api/websim/simulate` 只要天赋 encoding 或装备 readiness 失败，就返回明确 blocker，不把缺天赋行的 profile 包装成 ready。
@@ -248,8 +248,8 @@ python3 -m unittest tests.news_backend_test.NewsBackendTest.test_data_health_pay
 
 DB 回滚：
 
-- 使用刷新前 SQLite 备份恢复。
-- 恢复后立即只读检查 `websim_talents`、`websim_spell_details`、`websim_profile_presets`、`websim_community_talent_templates` 和 `websim_sync_state`。
+- 使用刷新前 PostgreSQL 备份恢复。历史 SQLite 备份只能作为重新迁移或离线比对输入，不能恢复成线上 runtime。
+- 恢复后立即只读检查 PG `cache.websim_talents`、`cache.websim_spell_details`、`cache.websim_profile_presets`、`cache.websim_community_talent_templates` 和 `cache.websim_sync_state`。
 - 重新跑 `/api/data/health`，确认 catalog revision 和 blockers 与恢复状态一致。
 
 事故降级：

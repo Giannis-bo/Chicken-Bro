@@ -387,6 +387,28 @@ SQL_COLUMNS = {
         "fetched_at",
         "expires_at",
     ),
+    "cache.stat_weight_cache": (
+        "cache_key",
+        "payload_json",
+        "computed_at",
+        "source_status",
+    ),
+    "cache.websim_asset_registry": (
+        "id",
+        "entity_type",
+        "entity_id",
+        "context_key",
+        "asset_type",
+        "icon_url",
+        "resolution_tier",
+        "source",
+        "status",
+        "semantic_tags_json",
+        "usage_json",
+        "fallback_text",
+        "payload_json",
+        "updated_at",
+    ),
 }
 
 JSON_COLUMNS = {
@@ -411,6 +433,10 @@ JSON_COLUMNS = {
     "simc_options_json",
     "blockers_json",
     "talent_state_json",
+    "semantic_tags_json",
+    "usage_json",
+    "gear_items_json",
+    "missing_slots_json",
 }
 
 
@@ -1528,6 +1554,75 @@ def build_raiderio_cache_rows(conn):
     return output
 
 
+def build_stat_weight_cache_rows(conn):
+    if not identity_shadow_plan.table_exists(conn, "build_stat_weight_cache"):
+        return []
+    rows = conn.execute(
+        """
+        SELECT class_key, spec_key, scenario_key, status, value_json, updated_at
+        FROM build_stat_weight_cache
+        ORDER BY class_key, spec_key, scenario_key
+        """
+    ).fetchall()
+    output = []
+    for row in rows:
+        class_key = str(row[0] or "").strip()
+        spec_key = str(row[1] or "").strip()
+        scenario_key = str(row[2] or "").strip()
+        if not class_key or not spec_key or not scenario_key:
+            continue
+        payload = safe_json_loads(row[4], {})
+        if not isinstance(payload, dict):
+            payload = {}
+        payload.setdefault("classKey", class_key)
+        payload.setdefault("specKey", spec_key)
+        payload.setdefault("scenarioKey", scenario_key)
+        payload.setdefault("sourceStatus", row[3] or "blocked")
+        payload.setdefault("updatedAt", row[5])
+        output.append(
+            {
+                "cache_key": f"{class_key}:{spec_key}:{scenario_key}",
+                "payload_json": payload,
+                "computed_at": row[5],
+                "source_status": row[3] or payload.get("sourceStatus") or payload.get("status") or "blocked",
+            }
+        )
+    return output
+
+
+def build_websim_asset_registry_rows(conn):
+    if not identity_shadow_plan.table_exists(conn, "websim_asset_registry"):
+        return []
+    rows = conn.execute(
+        """
+        SELECT id, entity_type, entity_id, context_key, asset_type, icon_url,
+               resolution_tier, source, status, semantic_tags_json, usage_json,
+               fallback_text, payload_json, updated_at
+        FROM websim_asset_registry
+        ORDER BY entity_type, entity_id, context_key, id
+        """
+    ).fetchall()
+    return [
+        {
+            "id": row[0],
+            "entity_type": row[1],
+            "entity_id": row[2],
+            "context_key": row[3],
+            "asset_type": row[4],
+            "icon_url": row[5],
+            "resolution_tier": row[6],
+            "source": row[7],
+            "status": row[8],
+            "semantic_tags_json": safe_json_loads(row[9], []),
+            "usage_json": safe_json_loads(row[10], []),
+            "fallback_text": row[11],
+            "payload_json": safe_json_loads(row[12], {}),
+            "updated_at": row[13],
+        }
+        for row in rows
+    ]
+
+
 def build_postgres_copy_plan(conn):
     identity_plan = identity_shadow_plan.build_identity_shadow_plan(conn)
     users = user_mapping(identity_plan)
@@ -1563,6 +1658,8 @@ def build_postgres_copy_plan(conn):
         "cache.websim_encounters": build_websim_encounter_rows(conn),
         "cache.websim_loot": build_websim_loot_rows(conn),
         "cache.raiderio_cache": build_raiderio_cache_rows(conn),
+        "cache.stat_weight_cache": build_stat_weight_cache_rows(conn),
+        "cache.websim_asset_registry": build_websim_asset_registry_rows(conn),
     }
     rows_by_table = {table: len(rows) for table, rows in tables.items()}
     return {

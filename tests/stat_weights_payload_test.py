@@ -216,6 +216,57 @@ class StatWeightsPayloadTest(unittest.TestCase):
         self.assertEqual(cached["sourceStatus"], "partial")
         self.assertTrue(any("below verified threshold" in item for item in cached["blockers"]))
 
+    def test_build_scenario_payload_with_previous_reuses_pg_cached_translation(self):
+        spec_meta = {
+            "classKey": "mage",
+            "specKey": "frost",
+            "specId": "mage-frost",
+            "className": "法师",
+            "specName": "冰霜",
+            "role": "dps",
+            "primaryStat": "intellect",
+        }
+        scenario = next(item for item in stat_weights_payload.MPLUS_SCENARIOS if item["key"] == "mplus_mixed_route")
+        previous = {
+            "translationStatus": "llm",
+            "summaryZh": "复用的中文摘要。",
+            "recommendationsZh": ["复用上一轮翻译。"],
+            "warningsZh": ["上一轮边界。"],
+            "expiresAt": "2099-01-01T00:00:00+00:00",
+        }
+        ready_profiles = [
+            {"name": "Rio0", "importCode": "CAE_FAKE_LOADOUT_0", "gearItems": full_gear_items(0)},
+            {"name": "Rio1", "importCode": "CAE_FAKE_LOADOUT_1", "gearItems": full_gear_items(100)},
+        ]
+
+        with patch.object(
+            stat_weights_payload,
+            "run_stat_weight_simcraft",
+            return_value={"ran": True, "available": True, "rawOutput": fake_scale_factor_output(), "error": ""},
+        ), patch.object(
+            stat_weights_payload,
+            "call_chat_completion",
+            return_value={"error": "llm unavailable", "content": ""},
+        ), patch.object(
+            stat_weights_payload,
+            "read_cached_stat_weight",
+            side_effect=AssertionError("PG-native helper must not read SQLite cache"),
+        ):
+            payload = stat_weights_payload.build_scenario_payload_with_previous(
+                spec_meta,
+                scenario,
+                {"sourceStatus": "synced", "checkedAt": "2026-07-03T00:00:00+00:00"},
+                {"sampleCount": 5},
+                ready_profiles,
+                [],
+                previous=previous,
+            )
+
+        self.assertEqual(payload["sourceStatus"], "verified")
+        self.assertEqual(payload["translationStatus"], "llm_reused")
+        self.assertEqual(payload["summaryZh"], "复用的中文摘要。")
+        self.assertEqual(payload["recommendationsZh"], ["复用上一轮翻译。"])
+
     def test_devourer_mixed_route_stat_weight_profile_forces_dungeon_slice_only(self):
         candidate = {"name": "Devourer Rio", "importCode": "CAE_DEVOURER", "gearItems": []}
         devourer = {

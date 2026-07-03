@@ -1,37 +1,36 @@
 # PostgreSQL Identity Migration Runbook
 
-This runbook governs the phased PostgreSQL and strong-identity migration.
+This runbook governs the phased PostgreSQL and strong-identity migration. It is now a historical migration runbook; the current runtime contract is documented in [database-architecture.md](database-architecture.md) and the active PG-only cutover plan.
 
 ## Current Status
 
-As of 2026-06-29, the repository has moved past the original Phase 1 SQLite-only state:
+As of 2026-07-03, the repository has moved past the original Phase 1 SQLite-only state and the later `postgres_personal` hybrid rehearsal:
 
-- `wow-lighthouse` has PostgreSQL 16.14 on `127.0.0.1:5432`; `wow_dev`, `wow_test`, and `wow_prod` exist with migrations `0001` through `0009` applied.
-- The active backend uses `WOW_DATABASE_RUNTIME=postgres_personal`.
-- Because the mini program is still in WeChat Developer Tools testing and not formally launched, the active service is intentionally pointed at `wow_test`, not `wow_prod`.
-- Identity/profile, personal build templates, SimC task snapshots, Chickenbro sessions/messages/jobs, analytics, news content, and WebSim/cache read-model seams can use PostgreSQL through runtime stores.
-- SQLite remains a compatibility fallback, historical source, backup, and rollback input for domains that have not moved behind a PostgreSQL seam.
-- `wow_prod` cutover rehearsal and public/cache reconciliation were completed, but formal launch cutover to `wow_prod` still requires a new dated approval, fresh backup, environment switch, restart, and smoke.
+- `wow-lighthouse` has PostgreSQL 16.14 on `127.0.0.1:5432`; `wow_dev`, `wow_test`, and `wow_prod` exist with the PostgreSQL migration series.
+- The active backend target is `WOW_DATABASE_RUNTIME=postgres_only`.
+- Identity/profile, personal build templates, SimC task snapshots, Chickenbro sessions/messages/jobs, analytics, news content, WebSim/cache read models, health, and admin gates must use PostgreSQL runtime stores.
+- SQLite remains only a historical source, migration input, offline audit input, backup, or rollback artifact. It is not a compatibility fallback for online runtime.
+- Any database target change still requires a dated cutover section, fresh backup, environment switch, restart, and smoke.
 
-Older sections below describe the sequence used to reach this state. Treat statements such as “Phase 1 is local-only” or “SQLite remains the runtime database” as historical phase notes unless they are explicitly repeated in this current-status section.
+Older sections below describe the sequence used to reach this state. Treat statements such as “Phase 1 is local-only”, “SQLite remains the runtime database”, “SQLite fallback”, or “`postgres_personal` active backend” as historical phase notes unless they are explicitly repeated in this current-status section.
 
 ## Non-Negotiable Gates
 
 Owner approval is required before any of these actions:
 
-- Production SQLite backup.
+- Historical SQLite backup or migration-source read.
 - Production PostgreSQL database creation.
 - Production data copy or shadow migration.
 - systemd environment switch to `WOW_DATABASE_URL`.
 - Deployment or service restart.
 
-Do not treat changing `WOW_DATABASE_URL` to a different target, especially `wow_prod`, as a routine config edit. Runtime seam activation has already happened, but database target changes still require a dated cutover section, owner approval, backup, rollback path, restart, and smoke.
+Do not treat changing `WOW_DATABASE_URL` to a different target as a routine config edit. Runtime seam activation has already happened, but database target changes still require a dated cutover section, owner approval, backup, rollback path, restart, and smoke.
 
 2026-06-27 owner note: for that active goal, the owner authorized cloud-server PostgreSQL provisioning, planned migration rehearsal, and execution according to the agent's plan without another confirmation. This authorization has been used for PostgreSQL installation, database/schema provisioning, `wow_test` / `wow_prod` guarded shadow migrations, public content/cache data copy, runtime seam deployment, and later dev-debug repointing to `wow_test`. It does not authorize future unreviewed target switches or formal launch cutover to `wow_prod`.
 
 ## Phase 1 Local Setup
 
-Phase 1 uses SQLite by default:
+Historical Phase 1 used SQLite by default. These checks are retained for migration compatibility evidence, not as current runtime guidance:
 
 ```bash
 python -m unittest tests.database_adapter_test
@@ -55,7 +54,7 @@ Local backup:
 powershell -NoProfile -Command "Copy-Item -LiteralPath $env:WOW_NEWS_DB -Destination ($env:WOW_NEWS_DB + '.backup-' + (Get-Date -Format yyyyMMddTHHmmssZ))"
 ```
 
-Production backup requires owner approval before running:
+Historical SQLite backup template. Use before one-shot migration or offline audit reads; do not restore this file as a runtime fallback:
 
 ```bash
 ssh wow-lighthouse 'sudo install -d -m 700 -o ubuntu -g ubuntu /opt/wow-mini-program/backups && sudo cp /opt/wow-mini-program/server/data/wow_news.sqlite3 /opt/wow-mini-program/backups/wow_news-before-postgres-identity-$(date -u +%Y%m%dT%H%M%SZ).sqlite3'

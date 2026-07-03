@@ -744,6 +744,96 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_profile_presets", sql)
         self.assertIn("FROM cache.websim_community_talent_templates", sql)
 
+    def test_talent_read_model_keeps_pg_nodes_when_season_is_stale(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2000-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "checkedAt": "2026-06-28T01:01:00+00:00",
+                            "simc": {"build": "12.0.5.67823", "traitEdgeSource": "simc"},
+                            "sourceStatus": "partial",
+                            "templates": {"total": 1, "verified": 1, "blocked": 0},
+                        },
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_talents": [
+                    (
+                        "talent-a",
+                        "mage",
+                        "frost",
+                        "spec",
+                        1,
+                        2,
+                        12345,
+                        "Talent A",
+                        {"treeType": "spec", "rankEntries": [{"spellId": 12345, "points": 1}]},
+                        "Deals frost damage.",
+                        "https://render.worldofwarcraft.com/spell-a.jpg",
+                        {"source": "simulationcraft"},
+                    )
+                ],
+                "FROM cache.websim_profile_presets": [],
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "44444444-4444-4444-8444-444444444444",
+                        "mage",
+                        "frost",
+                        "spellslinger",
+                        "mythic_plus",
+                        "Template A",
+                        "M+",
+                        "manual_fixture",
+                        "Manual Fixture",
+                        "https://example.test/template",
+                        "talents=abc",
+                        "websim:mage:frost",
+                        {"selectedNodes": [{"id": "talent-a", "rank": 1}]},
+                        12,
+                        10,
+                        "weekly",
+                        "verified",
+                        "verified",
+                        {"playerId": "mage-a", "heroLabel": "Spellslinger"},
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "sig-a",
+                        [{"type": "manual"}],
+                        "scan-a",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_talents("mage", "frost", "spellslinger")
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(payload["dataStatus"], "stale")
+        self.assertEqual(payload["talentStatus"], "simc")
+        self.assertEqual(payload["nodes"][0]["id"], "talent-a")
+        self.assertEqual(payload["communityTemplates"][0]["status"], "verified")
+        self.assertIn("season cache expired", payload["blockers"])
+        self.assertIn("FROM cache.websim_talents", sql)
+        self.assertIn("FROM cache.websim_community_talent_templates", sql)
+
     def test_talent_import_read_model_uses_narrow_template_query(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -898,6 +988,67 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_gear_variants", sql)
         self.assertNotRegex(sql, r"FROM cache\.websim_gear_variants v[\s\S]+LIMIT 500")
 
+    def test_admin_gate_talent_records_omit_expired_community_templates(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "expired-template",
+                        "deathknight",
+                        "unholy",
+                        "rider_of_the_apocalypse",
+                        "mythic_plus",
+                        "Expired Raider.IO template",
+                        "raiderio",
+                        "Raider.IO",
+                        "https://example.test/expired",
+                        "synced",
+                        "blocked",
+                        496,
+                        24,
+                        "stale window",
+                        {"errors": ["unknown structured talent entry"]},
+                        "2026-06-28T12:28:54+00:00",
+                        "2026-06-29T12:34:15+00:00",
+                        "sig-expired",
+                        [{"type": "raiderio"}],
+                        "scan-expired",
+                    ),
+                    (
+                        "fresh-template",
+                        "deathknight",
+                        "unholy",
+                        "rider_of_the_apocalypse",
+                        "mythic_plus",
+                        "Fresh Raider.IO template",
+                        "raiderio",
+                        "Raider.IO",
+                        "https://example.test/fresh",
+                        "synced",
+                        "verified",
+                        499,
+                        24,
+                        "fresh window",
+                        {},
+                        "2026-07-02T21:21:01+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "sig-fresh",
+                        [{"type": "raiderio"}],
+                        "scan-fresh",
+                    ),
+                ],
+                "FROM cache.websim_talents GROUP BY": [],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        talents = store.admin_gate_talent_records()
+
+        ids = [item["id"] for item in talents["communityTalentTemplates"]]
+        self.assertEqual(ids, ["fresh-template"])
+
     def test_admin_gate_gear_template_records_do_not_query_variants(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -958,6 +1109,477 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(len(templates["communityGearTemplates"]), 1)
         self.assertEqual(templates["communityGearTemplates"][0]["id"], "55555555-5555-4555-8555-555555555555")
         self.assertNotIn("FROM cache.websim_gear_variants", sql)
+
+    def test_stat_weight_read_model_uses_cache_schema(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        stat_payload = {
+            "classKey": "mage",
+            "specKey": "frost",
+            "scenarioKey": "mplus_mixed_route",
+            "sourceStatus": "verified",
+            "expiresAt": "2099-01-01T00:00:00+00:00",
+            "staleAt": "2099-01-02T00:00:00+00:00",
+            "weights": [{"key": "haste", "value": 1.2}],
+        }
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.stat_weight_cache WHERE cache_key": [
+                    (stat_payload, "verified", "2026-07-03T00:00:00+00:00"),
+                ],
+                "FROM cache.stat_weight_cache ORDER BY": [
+                    ("verified", "2026-07-03T00:00:00+00:00"),
+                    ("blocked", "2026-07-03T00:01:00+00:00"),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        cached = store.get_stat_weight_payload("mage", "frost", "mplus_mixed_route")
+        latest = store.latest_stat_weight_run_payload()
+        detail = store.enrich_builds_detail_stat_weights(
+            {
+                "classKey": "mage",
+                "specKey": "frost",
+                "details": {"statWeights": {"stats": []}},
+            }
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(cached["sourceStatus"], "verified")
+        self.assertEqual(latest["sourceStatus"], "partial")
+        self.assertEqual(latest["acceptedCount"], 1)
+        self.assertEqual(latest["blockedCount"], 1)
+        self.assertEqual(detail["details"]["statWeights"]["sourceStatus"], "verified")
+        self.assertIn("FROM cache.stat_weight_cache", sql)
+
+    def test_asset_read_model_uses_cache_schema(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_asset_registry": [
+                    (
+                        "asset-item-a",
+                        "item",
+                        "item-a",
+                        "inventory",
+                        "icon",
+                        "https://render.worldofwarcraft.com/icon-a.jpg",
+                        "icon_56",
+                        "battle_net",
+                        "verified",
+                        ["gear"],
+                        ["websim"],
+                        "Item A",
+                        {"id": "asset-item-a", "status": "verified"},
+                    )
+                ]
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_assets({"entityType": "item", "entityId": "item-a"})
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(payload["status"], "verified")
+        self.assertEqual(payload["assets"][0]["id"], "asset-item-a")
+        self.assertEqual(payload["counts"]["byStatus"]["verified"], 1)
+        self.assertIn("FROM cache.websim_asset_registry", sql)
+
+    def test_postgres_native_sync_writers_use_cache_schema(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        store.save_raiderio_payload(
+            {
+                "sourceStatus": "synced",
+                "checkedAt": "2026-07-03T01:00:00+00:00",
+                "expiresAt": "2026-07-03T07:00:00+00:00",
+            }
+        )
+        store.save_stat_weight_payload(
+            {
+                "classKey": "mage",
+                "specKey": "frost",
+                "scenarioKey": "mplus_mixed_route",
+                "sourceStatus": "blocked",
+                "checkedAt": "2026-07-03T01:01:00+00:00",
+            }
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("INSERT INTO cache.raiderio_cache", sql)
+        self.assertIn("ON CONFLICT (cache_key) DO UPDATE", sql)
+        self.assertIn("INSERT INTO cache.stat_weight_cache", sql)
+        self.assertIn("ON CONFLICT (cache_key) DO UPDATE", sql)
+        self.assertTrue(conn.committed)
+
+    def test_postgres_native_community_template_counts_use_cache_schema(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_talent_templates": [
+                    ("verified", 2),
+                    ("blocked", 1),
+                ],
+                "FROM cache.websim_community_gear_templates": [
+                    ("partial", 3),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        talent_counts = store.community_talent_template_counts()
+        gear_counts = store.community_gear_template_counts()
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(talent_counts["total"], 3)
+        self.assertEqual(talent_counts["verified"], 2)
+        self.assertEqual(talent_counts["blocked"], 1)
+        self.assertEqual(gear_counts["total"], 3)
+        self.assertEqual(gear_counts["partial"], 3)
+        self.assertIn("FROM cache.websim_community_talent_templates", sql)
+        self.assertIn("FROM cache.websim_community_gear_templates", sql)
+
+    def test_postgres_native_community_template_writers_use_cache_schema(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        talent_counts = store.replace_community_talent_templates(
+            [
+                {
+                    "id": "template-a",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "heroKey": "spellslinger",
+                    "scenarioKey": "mythic_plus",
+                    "name": "Template A",
+                    "flowLabel": "主流",
+                    "sourceKey": "raiderio",
+                    "sourceName": "Raider.IO",
+                    "sourceUrl": "https://raider.io/template-a",
+                    "rawImportCode": "CAE_FAKE",
+                    "websimExportCode": "",
+                    "talentState": {"selectedNodes": [{"id": "node-a", "rank": 1}]},
+                    "sampleCount": 3,
+                    "maxKeyLevel": 12,
+                    "analysisWindow": "test window",
+                    "sourceStatus": "verified",
+                    "status": "verified",
+                    "payload": {"playerId": "Mage A"},
+                    "signature": "sig-template-a",
+                    "sourceRefs": [{"sourceKey": "raiderio"}],
+                    "scanRunId": "scan-a",
+                },
+                {
+                    "id": "template-blocked",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "sourceKey": "warcraftlogs",
+                    "sourceStatus": "blocked",
+                    "status": "blocked",
+                    "payload": {"errors": ["missing talent state"]},
+                },
+            ],
+            scan_run_id="scan-a",
+        )
+        gear_counts = store.replace_community_gear_templates(
+            [
+                {
+                    "id": "gear-template-a",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "name": "Gear Template A",
+                    "sourceKey": "default_template",
+                    "sourceName": "默认模板",
+                    "sourceStatus": "verified",
+                    "status": "complete",
+                    "signature": "sig-gear-a",
+                    "sourceRefs": [{"sourceKey": "default_template"}],
+                    "gearItems": [{"slot": "head", "itemId": "190001", "simcReady": True}],
+                    "rawString": "head=item",
+                    "readySlotCount": 1,
+                    "missingSlots": [],
+                    "analysisWindow": "gear window",
+                    "payload": {"scenarioKey": "mplus_mixed_route"},
+                    "scanRunId": "scan-a",
+                }
+            ],
+            scan_run_id="scan-a",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(talent_counts["verified"], 1)
+        self.assertEqual(talent_counts["blocked"], 1)
+        self.assertEqual(gear_counts["partial"], 1)
+        self.assertIn("INSERT INTO cache.websim_community_talent_templates", sql)
+        self.assertIn("ON CONFLICT (id) DO UPDATE", sql)
+        self.assertIn("INSERT INTO cache.websim_community_gear_templates", sql)
+        self.assertTrue(conn.committed)
+
+    def test_postgres_native_observed_and_crafted_backfill_writers_use_cache_schema(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        observed = store.backfill_observed_gear_from_raiderio(
+            {
+                "sourceStatus": "verified",
+                "profiles": [
+                    {
+                        "name": "Mage A",
+                        "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "gear": [
+                            {
+                                "itemId": "190001",
+                                "name": "Observed Helm",
+                                "slot": "head",
+                                "ilevel": 707,
+                                "bonus_id": "1808",
+                            }
+                        ],
+                    }
+                ],
+            },
+            mode="test",
+        )
+        crafted = store.backfill_crafted_gear_from_seed(
+            [
+                {
+                    "itemId": "260100",
+                    "name": "Crafted Sword",
+                    "slot": "main_hand",
+                    "itemLevel": 285,
+                    "crafted_stats": "32/49",
+                }
+            ],
+            mode="test",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        params = repr(conn.cursor_instance.params)
+        self.assertEqual(observed["variantCount"], 1)
+        self.assertEqual(crafted["variantCount"], 1)
+        self.assertIn("INSERT INTO cache.websim_items", sql)
+        self.assertIn("INSERT INTO cache.websim_gear_sources", sql)
+        self.assertIn("INSERT INTO cache.websim_gear_variants", sql)
+        self.assertIn("observed_profile", params)
+        self.assertIn("crafted", params)
+        self.assertTrue(conn.committed)
+
+    def test_build_community_gear_templates_uses_pg_profile_presets(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_profile_presets": [
+                    (
+                        "preset-a",
+                        "mage",
+                        "frost",
+                        "Preset A",
+                        "head=observed_helm,id=190001,ilevel=707,bonus_id=1808",
+                        {},
+                        "2026-07-03T00:00:00+00:00",
+                    )
+                ]
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_community_gear_templates(scan_run_id="scan-a")
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0]["classKey"], "mage")
+        self.assertEqual(templates[0]["specKey"], "frost")
+        self.assertEqual(templates[0]["scanRunId"], "scan-a")
+        self.assertIn("FROM cache.websim_profile_presets", sql)
+
+    def test_postgres_native_simc_generated_data_writer_uses_cache_schema(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        counts = store.replace_simc_generated_data(
+            {
+                "talents": [
+                    {
+                        "id": "talent-a",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "treeId": "tree-a",
+                        "row": 1,
+                        "col": 2,
+                        "spellId": 123,
+                        "name": "Talent A",
+                        "payload": {"treeType": "spec"},
+                    }
+                ],
+                "presets": [
+                    {
+                        "id": "preset-a",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "name": "Preset A",
+                        "profile": "mage=frost",
+                    }
+                ],
+                "spellDetails": [
+                    {
+                        "spellId": 123,
+                        "name": "Talent A",
+                        "description": "A spell",
+                        "iconUrl": "https://example.test/icon.jpg",
+                        "locale": "zh_CN",
+                    }
+                ],
+                "source": "simc",
+                "build": "simc-build",
+            }
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(counts["talents"], 1)
+        self.assertEqual(counts["profiles"], 1)
+        self.assertEqual(counts["presets"], 1)
+        self.assertEqual(counts["spellDetails"], 1)
+        self.assertIn("DELETE FROM cache.websim_talents", sql)
+        self.assertIn("DELETE FROM cache.websim_profile_presets", sql)
+        self.assertIn("INSERT INTO cache.websim_talents", sql)
+        self.assertIn("INSERT INTO cache.websim_profile_presets", sql)
+        self.assertIn("INSERT INTO cache.websim_spell_details", sql)
+        self.assertIn("COALESCE(cache.websim_spell_details.payload_json->>'source', '') = 'simulationcraft'", sql)
+        self.assertIn("ELSE cache.websim_spell_details.description", sql)
+
+    def test_postgres_native_journal_writer_uses_cache_schema(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        counts = store.replace_websim_journal_data(
+            {
+                "season": {
+                    "seasonId": "season-pg",
+                    "seasonLabel": "Season PG",
+                    "seasonRevision": "season-pg-rev",
+                    "locale": "zh_CN",
+                    "dataStatus": "verified",
+                    "verifiedAt": "2026-07-03T01:00:00+00:00",
+                    "expiresAt": "2026-07-04T01:00:00+00:00",
+                    "sourceRefs": [{"source": "blizzard"}],
+                    "dungeons": [
+                        {
+                            "id": "dungeon-a",
+                            "instanceId": "1300",
+                            "name": "Dungeon A",
+                            "shortName": "DA",
+                            "timerSeconds": 1800,
+                        }
+                    ],
+                },
+                "instances": [
+                    {
+                        "id": "1300",
+                        "name": "Dungeon A",
+                        "category": "Dungeon",
+                        "encounters": [
+                            {
+                                "id": "9001",
+                                "name": "Boss A",
+                                "items": [
+                                    {
+                                        "id": "loot-1300-9001-111",
+                                        "itemId": "111",
+                                        "name": "Item A",
+                                        "slot": "head",
+                                        "quality": "epic",
+                                        "iconUrl": "https://example.test/item-a.jpg",
+                                        "payload": {"item_level": 678},
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(counts["dungeons"], 1)
+        self.assertEqual(counts["instances"], 1)
+        self.assertEqual(counts["encounters"], 1)
+        self.assertEqual(counts["items"], 1)
+        self.assertEqual(counts["loot"], 1)
+        self.assertIn("DELETE FROM cache.websim_loot", sql)
+        self.assertIn("DELETE FROM cache.websim_encounters", sql)
+        self.assertIn("DELETE FROM cache.websim_instances", sql)
+        self.assertIn("INSERT INTO cache.websim_season_state", sql)
+        self.assertIn("INSERT INTO cache.websim_season_dungeons", sql)
+        self.assertIn("INSERT INTO cache.websim_instances", sql)
+        self.assertIn("INSERT INTO cache.websim_encounters", sql)
+        self.assertIn("INSERT INTO cache.websim_items", sql)
+        self.assertIn("INSERT INTO cache.websim_loot", sql)
+
+    def test_postgres_native_gear_catalog_writer_derives_loot_sources(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_loot l": [
+                    (
+                        "loot-1300-9001-111",
+                        "111",
+                        "head",
+                        "Item A",
+                        "1300",
+                        "Dungeon A",
+                        "Dungeon",
+                        "9001",
+                        "Boss A",
+                    ),
+                    (
+                        "loot-1301-9002-111",
+                        "111",
+                        "head",
+                        "Item A",
+                        "1301",
+                        "Dungeon B",
+                        "Dungeon",
+                        "9002",
+                        "Boss B",
+                    )
+                ]
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        state = store.rebuild_websim_gear_catalog_from_loot(
+            {"seasonRevision": "season-pg-rev", "dataStatus": "verified"}
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(state["runner"], "postgres")
+        self.assertEqual(state["itemCount"], 1)
+        self.assertEqual(state["sourceCount"], 2)
+        self.assertEqual(state["variantCount"], 1)
+        self.assertEqual(state["partialCount"], 1)
+        self.assertIn("INSERT INTO cache.websim_gear_sources", sql)
+        self.assertIn("source_label, instance_id, encounter_id, difficulty_key, season_revision", sql)
+        self.assertIn("INSERT INTO cache.websim_gear_variants", sql)
+        self.assertIn("slot, label, source_type, difficulty_key, item_level, simc_options_json, status, blockers_json", sql)
+        self.assertIn("INSERT INTO cache.websim_sync_state", sql)
 
 
 if __name__ == "__main__":

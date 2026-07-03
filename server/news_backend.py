@@ -33,7 +33,14 @@ try:
     )
     from .news_collector import canonical_article_key, collect_feed_articles, merge_articles
     from .news_translator import body_blocks_text, localize_article, normalize_body_blocks, source_body_quality_issue, visible_translation_issues
-    from .db import connect_postgres, database_config_from_env, sqlite_connection
+    from .db import (
+        connect_postgres,
+        database_config_from_env,
+        postgres_only_runtime_enabled,
+        postgres_runtime_enabled,
+        sqlite_connection,
+        sqlite_runtime_disabled,
+    )
     from .simulator_payload import (
         analyze_simulator_request,
         build_simulator_home_payload,
@@ -64,6 +71,7 @@ try:
     )
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
+        COMMUNITY_TALENT_SYNC_KEY,
         ARMOR_SLOTS,
         build_websim_profile,
         build_websim_gear_stats_response,
@@ -88,6 +96,7 @@ try:
         get_websim_talents,
         get_active_season_payload,
         import_talent_api_payload,
+        websim_talent_import_response,
         item_type_metadata_from_payload,
         normalized_armor_subclass,
         encode_websim_talents,
@@ -114,7 +123,14 @@ except ImportError:
     )
     from news_collector import canonical_article_key, collect_feed_articles, merge_articles
     from news_translator import body_blocks_text, localize_article, normalize_body_blocks, source_body_quality_issue, visible_translation_issues
-    from db import connect_postgres, database_config_from_env, sqlite_connection
+    from db import (
+        connect_postgres,
+        database_config_from_env,
+        postgres_only_runtime_enabled,
+        postgres_runtime_enabled,
+        sqlite_connection,
+        sqlite_runtime_disabled,
+    )
     from simulator_payload import (
         analyze_simulator_request,
         build_simulator_home_payload,
@@ -145,6 +161,7 @@ except ImportError:
     )
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
+        COMMUNITY_TALENT_SYNC_KEY,
         ARMOR_SLOTS,
         build_websim_profile,
         build_websim_gear_stats_response,
@@ -169,6 +186,7 @@ except ImportError:
         get_websim_talents,
         get_active_season_payload,
         import_talent_api_payload,
+        websim_talent_import_response,
         item_type_metadata_from_payload,
         normalized_armor_subclass,
         encode_websim_talents,
@@ -385,8 +403,10 @@ def run_websim_gear_build(build_payload):
 @contextmanager
 def db_connection():
     config = database_config_from_env()
+    if sqlite_runtime_disabled():
+        raise RuntimeError("SQLite runtime is disabled; use PostgreSQL runtime stores or explicit migration tooling")
     if config.backend != "sqlite":
-        if not postgres_personal_runtime_enabled(config):
+        if not postgres_runtime_enabled(config):
             raise RuntimeError("PostgreSQL runtime is not enabled in this phase")
         sqlite_path = DB_PATH
     else:
@@ -396,9 +416,7 @@ def db_connection():
 
 
 def postgres_personal_runtime_enabled(config=None):
-    active_config = config or database_config_from_env()
-    runtime = os.environ.get("WOW_DATABASE_RUNTIME", "").strip()
-    return active_config.backend == "postgres" and runtime == "postgres_personal"
+    return postgres_runtime_enabled(config)
 
 
 def personal_data_store():
@@ -1268,6 +1286,14 @@ def parse_iso_datetime(value):
         return None
 
 
+def timestamp_expired(value, now=None):
+    parsed = parse_iso_datetime(value)
+    if parsed is None:
+        return False
+    current = parse_iso_datetime(now or utc_now()) or datetime.now(timezone.utc)
+    return parsed <= current
+
+
 def queue_payload_for_article(article):
     queued = dict(article)
     queued["canonicalTopicId"] = queued.get("canonicalTopicId") or canonical_topic_id(queued)
@@ -1868,6 +1894,13 @@ def latest_refresh_state():
         if state:
             return state
         return refresh_articles("bootstrap", collector_enabled=False)
+    if postgres_only_runtime_enabled():
+        return {
+            "refreshMode": "blocked",
+            "lastRefreshedAt": "",
+            "dataStatus": "blocked",
+            "errors": ["PostgreSQL content store is not available"],
+        }
     init_db()
     with db_connection() as conn:
         row = conn.execute(
@@ -1889,6 +1922,21 @@ def latest_refresh_run_payload():
             return payload
         latest_refresh_state()
         return latest_refresh_run_payload()
+    if postgres_only_runtime_enabled():
+        return {
+            "refreshMode": "blocked",
+            "refreshedAt": "",
+            "acceptedCount": 0,
+            "rejectedCount": 0,
+            "collectorEnabled": False,
+            "sourceFetchErrors": [],
+            "translationIssueCount": 0,
+            "translationIssues": [],
+            "blockedArticleCount": 0,
+            "blockedArticles": [],
+            "dataStatus": "blocked",
+            "errors": ["PostgreSQL content store is not available"],
+        }
     init_db()
     with db_connection() as conn:
         row = conn.execute(
@@ -2197,8 +2245,8 @@ def warcraftlogs_api_health_component():
     )
 
 
-def news_health_component():
-    latest = latest_refresh_run_payload()
+def news_health_component_from_latest(latest):
+    latest = latest if isinstance(latest, dict) else {}
     accepted = int(latest.get("acceptedCount") or 0)
     blocked = int(latest.get("blockedArticleCount") or latest.get("rejectedCount") or 0)
     queued = int(latest.get("queuedCount") or 0)
@@ -2233,6 +2281,10 @@ def news_health_component():
         },
         blockers=errors[:5],
     )
+
+
+def news_health_component():
+    return news_health_component_from_latest(latest_refresh_run_payload())
 
 
 def template_simc_bridge_health_component(conn):
@@ -2330,7 +2382,276 @@ def lightweight_template_evidence_audit_payload(community_state=None, community_
     }
 
 
+def postgres_only_sync_state(cache_store, key, default_blocker):
+    if cache_store and hasattr(cache_store, "get_sync_state"):
+        try:
+            state = cache_store.get_sync_state(key)
+        except Exception as error:
+            return {"sourceStatus": "blocked", "status": "blocked", "errors": [str(error)]}
+        if isinstance(state, dict) and state:
+            return state
+    return {"sourceStatus": "blocked", "status": "blocked", "errors": [default_blocker]}
+
+
+def postgres_only_stat_weights_sync_state(cache_store):
+    if cache_store and hasattr(cache_store, "get_sync_state"):
+        for key in ("stat_weights_sync", "stat_weights"):
+            try:
+                state = cache_store.get_sync_state(key)
+            except Exception as error:
+                return {"sourceStatus": "blocked", "status": "blocked", "errors": [str(error)]}
+            if isinstance(state, dict) and state:
+                return state
+    return {"sourceStatus": "blocked", "status": "blocked", "errors": ["PostgreSQL stat weights state is missing"]}
+
+
+def postgres_only_latest_refresh_state(content_store):
+    if content_store and hasattr(content_store, "latest_refresh_run_payload"):
+        try:
+            latest = content_store.latest_refresh_run_payload()
+        except Exception as error:
+            return {
+                "refreshMode": "postgres_only",
+                "refreshedAt": "",
+                "acceptedCount": 0,
+                "rejectedCount": 1,
+                "sourceFetchErrors": [str(error)],
+            }
+        if isinstance(latest, dict) and latest:
+            return latest
+    return {
+        "refreshMode": "postgres_only",
+        "refreshedAt": "",
+        "acceptedCount": 0,
+        "rejectedCount": 1,
+        "sourceFetchErrors": ["PostgreSQL content refresh state is missing"],
+    }
+
+
+def postgres_only_raiderio_payload(cache_store):
+    if cache_store and hasattr(cache_store, "get_raiderio_payload"):
+        try:
+            payload = cache_store.get_raiderio_payload()
+        except Exception as error:
+            return {"sourceStatus": "blocked", "status": "blocked", "errors": [str(error)]}
+        if isinstance(payload, dict) and payload:
+            return payload
+    return postgres_only_sync_state(cache_store, "raiderio", "PostgreSQL Raider.IO cache is missing")
+
+
+def postgres_only_talent_catalog_health_payload(websim_state, community_state):
+    websim_state = websim_state if isinstance(websim_state, dict) else {}
+    community_state = community_state if isinstance(community_state, dict) else {}
+    simc = websim_state.get("simc") if isinstance(websim_state.get("simc"), dict) else {}
+    talent_count = int(websim_state.get("talentCount") or simc.get("talents") or 0)
+    profile_count = int(simc.get("profiles") or simc.get("presets") or 0)
+    community_templates = community_state.get("templates") if isinstance(community_state.get("templates"), dict) else {}
+    errors = websim_state.get("errors") if isinstance(websim_state.get("errors"), list) else []
+    if talent_count:
+        status = "partial"
+        blockers = errors
+    else:
+        status = "blocked"
+        blockers = errors or ["PostgreSQL talent catalog has no cached talent nodes"]
+    return {
+        "status": status,
+        "checkedAt": websim_state.get("checkedAt") or websim_state.get("updatedAt") or community_state.get("checkedAt") or "",
+        "details": {
+            "catalogContract": {
+                "status": status,
+                "checkedAt": websim_state.get("checkedAt") or websim_state.get("updatedAt") or "",
+                "schemaRevision": websim_state.get("schemaRevision") or "",
+                "revision": websim_state.get("talentRevision") or "",
+                "sourceStatus": websim_state.get("dataStatus") or websim_state.get("status") or "",
+                "coverage": {
+                    "talentCount": talent_count,
+                    "profilePresetCount": profile_count,
+                    "communityTemplateCount": community_templates.get("total") or 0,
+                },
+                "topBlockers": blockers[:8],
+                "lastError": blockers[0] if blockers else "",
+                "staleAfter": websim_state.get("staleAt") or "",
+            },
+            "talentCount": talent_count,
+            "profilePresetCount": profile_count,
+            "communityTemplates": community_templates,
+        },
+        "blockers": blockers[:8],
+    }
+
+
+def postgres_only_template_bridge_health_component():
+    return data_health_component(
+        "template_simc_bridge",
+        "Template to SimC bridge",
+        "partial",
+        checked_at=utc_now(),
+        details={
+            "simcraftVersion": simc_version_status(),
+            "templateReadiness": {"ready": 0, "partial": 0, "blocked": 0, "total": 0},
+            "sampleLimit": 0,
+            "samples": [],
+            "warnings": ["PG-only health does not sample private template rows without an aggregate read model"],
+        },
+        blockers=[],
+    )
+
+
+def build_postgres_only_data_health_payload(*, include_template_evidence_audit=True):
+    content_store = content_data_store()
+    cache_store = cache_data_store()
+    latest = postgres_only_latest_refresh_state(content_store)
+    season = runtime_season_payload()
+    websim_state = postgres_only_sync_state(cache_store, "websim_sync", "PostgreSQL WebSim sync state is missing")
+    gear_state = postgres_only_sync_state(cache_store, "gearCatalog", "PostgreSQL gear catalog state is missing")
+    community = postgres_only_sync_state(cache_store, COMMUNITY_TALENT_SYNC_KEY, "PostgreSQL community talent template state is missing")
+    community_sync_run = postgres_only_sync_state(cache_store, COMMUNITY_TEMPLATE_SYNC_RUN_KEY, "PostgreSQL community template sync run is missing")
+    raiderio = postgres_only_raiderio_payload(cache_store)
+    stat_weights = postgres_only_stat_weights_sync_state(cache_store)
+    talent_catalog = postgres_only_talent_catalog_health_payload(websim_state, community)
+    gear_catalog = gear_catalog_health_payload_from_sync_state(gear_state)
+    websim_simc = websim_state.get("simc") if isinstance(websim_state.get("simc"), dict) else {}
+    community_gear = community_sync_run.get("gear") if isinstance(community_sync_run.get("gear"), dict) else {}
+    default_gear_templates = (
+        community_gear.get("defaultTemplates")
+        if isinstance(community_gear.get("defaultTemplates"), dict)
+        else {}
+    )
+    gear_templates = community_gear.get("templates") if isinstance(community_gear.get("templates"), dict) else {}
+    real_community_templates = (
+        community_gear.get("realCommunityTemplates")
+        if isinstance(community_gear.get("realCommunityTemplates"), dict)
+        else {}
+    )
+    template_evidence_audit = lightweight_template_evidence_audit_payload(
+        community_state=community,
+        community_sync_run=community_sync_run,
+    )
+    components = [
+        data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
+        news_health_component_from_latest(latest),
+        data_health_component(
+            "raiderio",
+            "Raider.IO cache",
+            raiderio.get("sourceStatus") or raiderio.get("status"),
+            checked_at=raiderio.get("checkedAt") or raiderio.get("updatedAt") or "",
+            details={
+                "region": raiderio.get("region") or "",
+                "seasonSlug": raiderio.get("seasonSlug") or "",
+                "runCount": raiderio.get("runCount") or 0,
+                "profileCount": raiderio.get("profileCount") or 0,
+                "targetItemCoverage": raiderio.get("targetItemCoverage") or {},
+                "expiresAt": raiderio.get("expiresAt") or "",
+                "staleAt": raiderio.get("staleAt") or "",
+            },
+            blockers=raiderio.get("errors") or [],
+        ),
+        data_health_component(
+            "websim_season",
+            "WebSim active season",
+            season.get("dataStatus"),
+            checked_at=season.get("verifiedAt") or "",
+            details={
+                "seasonId": season.get("seasonId") or season.get("id") or "",
+                "seasonRevision": season.get("seasonRevision") or season.get("revision") or "",
+                "locale": season.get("locale") or "",
+                "expiresAt": season.get("expiresAt") or "",
+                "sourceRefs": season.get("sourceRefs") or [],
+            },
+            blockers=season.get("errors") or [],
+        ),
+        data_health_component(
+            "websim_sync",
+            "WebSim sync state",
+            websim_state.get("dataStatus") or websim_state.get("sourceStatus") or websim_state.get("status"),
+            checked_at=websim_state.get("checkedAt") or websim_state.get("updatedAt") or "",
+            details={
+                "dataStatus": websim_state.get("dataStatus") or "",
+                "simc": websim_simc,
+                "gearCatalog": gear_state,
+                "currentSeason": websim_state.get("currentSeason") if isinstance(websim_state.get("currentSeason"), dict) else {},
+                "blizzardSkipped": websim_state.get("blizzardSkipped"),
+                "itemCount": websim_state.get("itemCount") or 0,
+                "talentCount": websim_state.get("talentCount") or websim_simc.get("talents") or 0,
+                "profileCount": websim_simc.get("profiles") or websim_simc.get("presets") or 0,
+                "gearItemCount": gear_state.get("itemCount") or 0,
+                "observedVariantCount": gear_state.get("observedVariantCount") or 0,
+            },
+            blockers=websim_state.get("errors") or [],
+        ),
+        data_health_component(
+            "gear_catalog",
+            "Authoritative gear catalog",
+            gear_catalog.get("status"),
+            checked_at=gear_catalog.get("checkedAt") or "",
+            details=gear_catalog.get("details") or {},
+            blockers=gear_catalog.get("blockers") or [],
+        ),
+        data_health_component(
+            "talent_catalog",
+            "Authoritative talent catalog",
+            talent_catalog.get("status"),
+            checked_at=talent_catalog.get("checkedAt") or "",
+            details=talent_catalog.get("details") or {},
+            blockers=talent_catalog.get("blockers") or [],
+        ),
+        postgres_only_template_bridge_health_component(),
+        data_health_component(
+            "community_templates",
+            "Community talent and gear templates",
+            community.get("sourceStatus") or community.get("status"),
+            checked_at=community.get("checkedAt") or community.get("updatedAt") or "",
+            details={
+                "templates": community.get("templates") or {},
+                "sources": community.get("sources") or {},
+                "templateRevision": community.get("templateRevision") or "",
+                "scanCoverage": community.get("scanCoverage") or {},
+                "dedupedCount": community.get("dedupedCount") or 0,
+                "hiddenDuplicateCount": community.get("hiddenDuplicateCount") or 0,
+                "wclTemplateSource": (community.get("sources") or {}).get("warcraftlogs") or {},
+                "gearTemplates": gear_templates,
+                "realCommunityGearTemplates": real_community_templates,
+                "defaultGearTemplates": default_gear_templates,
+                "templateEvidenceAudit": template_evidence_audit,
+                "lastSyncRun": community_sync_run.get("scanRunId") or default_gear_templates.get("lastSyncRun") or "",
+            },
+            blockers=[
+                error
+                for source in (community.get("sources") or {}).values()
+                for error in (source.get("errors") or [])
+            ][:8] + (community.get("errors") or [])[:8],
+        ),
+        data_health_component(
+            "stat_weights",
+            "Raider.IO + SimC stat weights",
+            stat_weights.get("sourceStatus") or stat_weights.get("status"),
+            checked_at=stat_weights.get("refreshedAt") or stat_weights.get("checkedAt") or stat_weights.get("updatedAt") or "",
+            details={
+                "acceptedCount": stat_weights.get("acceptedCount") or 0,
+                "blockedCount": stat_weights.get("blockedCount") or 0,
+                "raiderioStatus": stat_weights.get("raiderioStatus") or "",
+                "specCount": stat_weights.get("specCount") or 0,
+                "scenarioCount": stat_weights.get("scenarioCount") or 0,
+            },
+            blockers=(stat_weights.get("errors") or stat_weights.get("message", {}).get("errors") or [])[:8],
+        ),
+        warcraftlogs_api_health_component(),
+        blizzard_api_health_component(),
+    ]
+    return {
+        "schemaRevision": "data-health-v1",
+        "checkedAt": utc_now(),
+        "allowedStatuses": DATA_HEALTH_STATUSES,
+        "overallStatus": data_health_overall_status(components),
+        "components": components,
+    }
+
+
 def build_data_health_payload(*, include_template_evidence_audit=True):
+    if postgres_only_runtime_enabled():
+        return build_postgres_only_data_health_payload(
+            include_template_evidence_audit=include_template_evidence_audit
+        )
     init_db()
     cache_store = cache_data_store()
     pg_websim_state = cache_store.get_sync_state("websim_sync") if cache_store else {}
@@ -5660,6 +5981,8 @@ def load_articles():
         if articles and not any(is_valid_article(article) for article in articles):
             return []
         return articles
+    if postgres_only_runtime_enabled():
+        return []
     init_db()
     with db_connection() as conn:
         rows = conn.execute(
@@ -5784,6 +6107,8 @@ def get_article_detail(article_id):
         if not article or not is_valid_article(article):
             return None
         return article
+    if postgres_only_runtime_enabled():
+        return None
     init_db()
     with db_connection() as conn:
         row = conn.execute(
@@ -5847,7 +6172,7 @@ def filter_articles(articles, query):
 def build_article_list_payload(query):
     articles = dedupe_articles([article for article in load_articles() if is_valid_article(article)])
     filtered = filter_articles(articles, query)
-    return {
+    payload = {
         "title": article_list_title(query),
         "type": query.get("type", "metric"),
         "key": query.get("key", ""),
@@ -5855,13 +6180,17 @@ def build_article_list_payload(query):
         "count": len(filtered),
         "articles": filtered,
     }
+    if postgres_only_runtime_enabled() and not content_data_store():
+        payload["dataStatus"] = "blocked"
+        payload["errors"] = ["PostgreSQL content store is not available"]
+    return payload
 
 
 def build_home_payload():
     state = latest_refresh_state()
     articles = dedupe_articles([article for article in load_articles() if is_valid_article(article)])
     articles.sort(key=lambda item: (item.get("publishedAt", ""), item.get("importance", 0)), reverse=True)
-    return {
+    payload = {
         "navTitle": "最新资讯",
         "heroNews": articles[:3],
         "metrics": [
@@ -5874,6 +6203,11 @@ def build_home_payload():
         "lastRefreshedAt": state["lastRefreshedAt"],
         "refreshMode": state["refreshMode"],
     }
+    if state.get("dataStatus"):
+        payload["dataStatus"] = state.get("dataStatus")
+    if state.get("errors"):
+        payload["errors"] = state.get("errors")
+    return payload
 
 
 def load_js_payload(module_path, export_name, *args):
@@ -5912,8 +6246,31 @@ process.stdout.write(JSON.stringify(result))
     return json.loads(completed.stdout)
 
 
+def runtime_raiderio_payload():
+    store = cache_data_store()
+    if store and hasattr(store, "get_raiderio_payload"):
+        try:
+            payload = store.get_raiderio_payload()
+            if isinstance(payload, dict) and payload:
+                payload.setdefault("sourceStatus", payload.get("status") or "blocked")
+                return payload
+        except Exception as error:
+            return {
+                "sourceStatus": "blocked",
+                "status": "blocked",
+                "errors": [str(error)],
+            }
+    return {
+        "sourceStatus": "blocked",
+        "status": "blocked",
+        "errors": ["PostgreSQL Raider.IO cache is missing"],
+    }
+
+
 def get_builds_home_payload():
     payload = apply_runtime_season_gate(load_js_payload("server/builds/home-payload.js", "buildSpecializationHomePayload"), "builds_home")
+    if postgres_only_runtime_enabled():
+        return enrich_raiderio_builds_home_payload(payload, runtime_raiderio_payload())
     try:
         init_db()
         with db_connection() as conn:
@@ -5926,6 +6283,8 @@ def get_builds_home_payload():
 
 def get_builds_intel_payload():
     payload = apply_runtime_season_gate(load_js_payload("server/builds/home-payload.js", "buildSpecializationIntelPayload"), "builds_intel")
+    if postgres_only_runtime_enabled():
+        return enrich_raiderio_builds_intel_payload(payload, runtime_raiderio_payload())
     try:
         init_db()
         with db_connection() as conn:
@@ -5941,6 +6300,18 @@ def get_builds_detail_payload(spec_id):
     payload = apply_runtime_season_gate(payload, "builds_detail") if payload else payload
     if not payload:
         return payload
+    if postgres_only_runtime_enabled():
+        payload = enrich_raiderio_builds_detail_payload(payload, runtime_raiderio_payload())
+        store = cache_data_store()
+        if store and hasattr(store, "enrich_builds_detail_stat_weights"):
+            try:
+                payload = store.enrich_builds_detail_stat_weights(payload)
+            except Exception as error:
+                payload["statWeightError"] = str(error)
+        else:
+            payload["statWeightError"] = "PostgreSQL stat-weight detail cache is not available"
+        payload["gearMetadataError"] = "PostgreSQL detail gear enrichment is not available in PG-only runtime"
+        return payload
     try:
         init_db()
         with db_connection() as conn:
@@ -5955,6 +6326,8 @@ def get_builds_detail_payload(spec_id):
 
 def get_pve_home_payload():
     payload = apply_runtime_season_gate(load_js_payload("server/pve/home-payload.js", "buildPveHomePayload"), "pve_home")
+    if postgres_only_runtime_enabled():
+        return enrich_raiderio_pve_home_payload(payload, runtime_raiderio_payload())
     try:
         init_db()
         with db_connection() as conn:
@@ -5967,6 +6340,8 @@ def get_pve_home_payload():
 
 def get_pve_module_payload(module_key):
     payload = apply_runtime_season_gate(load_js_payload("server/pve/home-payload.js", "getPveModuleDetail", module_key), "pve_module")
+    if postgres_only_runtime_enabled():
+        return enrich_raiderio_pve_module_payload(payload, runtime_raiderio_payload())
     try:
         init_db()
         with db_connection() as conn:
@@ -5984,8 +6359,42 @@ def runtime_season_payload():
             payload = store.get_active_season_payload()
         except Exception:
             payload = {}
+        if postgres_only_runtime_enabled():
+            if isinstance(payload, dict) and payload:
+                return payload
+            return {
+                "seasonId": "",
+                "id": "",
+                "seasonLabel": "",
+                "label": "",
+                "seasonRevision": "",
+                "revision": "",
+                "locale": "",
+                "dataStatus": "blocked",
+                "verifiedAt": "",
+                "expiresAt": "",
+                "sourceRefs": [],
+                "errors": ["PostgreSQL active season cache is missing"],
+                "dungeons": [],
+            }
         if isinstance(payload, dict) and payload.get("dataStatus") == "verified":
             return payload
+    if postgres_only_runtime_enabled():
+        return {
+            "seasonId": "",
+            "id": "",
+            "seasonLabel": "",
+            "label": "",
+            "seasonRevision": "",
+            "revision": "",
+            "locale": "",
+            "dataStatus": "blocked",
+            "verifiedAt": "",
+            "expiresAt": "",
+            "sourceRefs": [],
+            "errors": ["PostgreSQL cache store is not available"],
+            "dungeons": [],
+        }
     init_db()
     with db_connection() as conn:
         return get_active_season_payload(conn)
@@ -5993,9 +6402,98 @@ def runtime_season_payload():
 
 def runtime_season_payload_with_raiderio():
     season = runtime_season_payload()
+    if postgres_only_runtime_enabled():
+        season["raiderio"] = runtime_raiderio_payload()
+        return season
     init_db()
     with db_connection() as conn:
         return enrich_game_season_payload(season, get_raiderio_payload(conn))
+
+
+def runtime_stat_weight_latest_payload():
+    if postgres_only_runtime_enabled():
+        cache_store = cache_data_store()
+        if cache_store and hasattr(cache_store, "latest_stat_weight_run_payload"):
+            try:
+                payload = cache_store.latest_stat_weight_run_payload()
+            except Exception as error:
+                payload = {"sourceStatus": "blocked", "status": "blocked", "errors": [str(error)]}
+            if isinstance(payload, dict) and payload:
+                payload.setdefault("sourceStatus", payload.get("status") or "blocked")
+                payload.setdefault("status", payload.get("sourceStatus") or "blocked")
+                payload.setdefault("errors", [])
+                return payload
+        if cache_store and hasattr(cache_store, "get_sync_state"):
+            payload = postgres_only_stat_weights_sync_state(cache_store)
+            if isinstance(payload, dict) and payload:
+                payload.setdefault("sourceStatus", payload.get("status") or "blocked")
+                payload.setdefault("status", payload.get("sourceStatus") or "blocked")
+                payload.setdefault("errors", [])
+                return payload
+        return {
+            "sourceStatus": "blocked",
+            "status": "blocked",
+            "errors": ["PostgreSQL stat weight cache is missing"],
+        }
+    init_db()
+    with db_connection() as conn:
+        return latest_stat_weight_run_payload(conn)
+
+
+def runtime_websim_bootstrap_payload():
+    if postgres_only_runtime_enabled():
+        cache_store = cache_data_store()
+        if cache_store and hasattr(cache_store, "get_websim_bootstrap"):
+            try:
+                payload = cache_store.get_websim_bootstrap()
+                if isinstance(payload, dict) and payload:
+                    return payload
+            except Exception as error:
+                return {
+                    "navTitle": "WebSim",
+                    "title": "SimC 构筑工坊",
+                    "dataStatus": "blocked",
+                    "instances": [],
+                    "syncState": {"ok": False, "errors": [str(error)]},
+                    "blockers": [str(error)],
+                }
+        return {
+            "navTitle": "WebSim",
+            "title": "SimC 构筑工坊",
+            "dataStatus": "blocked",
+            "instances": [],
+            "syncState": {"ok": False, "errors": ["PostgreSQL WebSim bootstrap cache is missing"]},
+            "blockers": ["PostgreSQL WebSim bootstrap cache is missing"],
+        }
+    init_db()
+    with db_connection() as conn:
+        return get_websim_bootstrap(conn)
+
+
+def runtime_websim_assets_payload(filters):
+    if postgres_only_runtime_enabled():
+        cache_store = cache_data_store()
+        if cache_store and hasattr(cache_store, "get_websim_assets"):
+            try:
+                payload = cache_store.get_websim_assets(filters)
+                if isinstance(payload, dict) and payload:
+                    return payload
+            except Exception as error:
+                return {
+                    "assets": [],
+                    "counts": {"byStatus": {}, "bySource": {}},
+                    "status": "blocked",
+                    "blockers": [str(error)],
+                }
+        return {
+            "assets": [],
+            "counts": {"byStatus": {}, "bySource": {}},
+            "status": "blocked",
+            "blockers": ["PostgreSQL WebSim asset registry is not available"],
+        }
+    init_db()
+    with db_connection() as conn:
+        return get_websim_assets(conn, filters)
 
 
 def runtime_websim_loot_payload(filters):
@@ -6005,8 +6503,24 @@ def runtime_websim_loot_payload(filters):
             payload = store.get_websim_loot(filters)
         except Exception:
             payload = {}
+        if postgres_only_runtime_enabled():
+            if isinstance(payload, dict) and payload:
+                return payload
+            return {
+                "schemaRevision": "websim-loot-v1",
+                "dataStatus": "blocked",
+                "items": [],
+                "blockers": ["PostgreSQL WebSim loot cache is missing"],
+            }
         if isinstance(payload, dict) and (payload.get("dataStatus") == "verified" or payload.get("items")):
             return payload
+    if postgres_only_runtime_enabled():
+        return {
+            "schemaRevision": "websim-loot-v1",
+            "dataStatus": "blocked",
+            "items": [],
+            "blockers": ["PostgreSQL cache store is not available"],
+        }
     init_db()
     with db_connection() as conn:
         return get_websim_loot(conn, filters)
@@ -6149,17 +6663,46 @@ def websim_gear_payload_for_mode(payload, mode="", slot=""):
 
 def runtime_websim_gear_payload(class_key, spec_key, compact=False):
     store = cache_data_store()
-    allow_sqlite_fallback = os.environ.get("WOW_ALLOW_SQLITE_PUBLIC_CACHE_FALLBACK") == "1"
+    allow_sqlite_fallback = (
+        os.environ.get("WOW_ALLOW_SQLITE_PUBLIC_CACHE_FALLBACK") == "1"
+        and not postgres_only_runtime_enabled()
+    )
     if store:
         try:
             payload = store.get_websim_gear(class_key, spec_key, compact=compact)
         except Exception:
             payload = {}
+        if postgres_only_runtime_enabled():
+            if isinstance(payload, dict) and payload:
+                return payload
+            return {
+                "schemaRevision": "websim-gear-v1",
+                "classKey": class_key,
+                "specKey": spec_key,
+                "dataStatus": "blocked",
+                "catalogStatus": "blocked",
+                "catalogBlockers": ["PostgreSQL WebSim gear cache is missing"],
+                "replacementCandidates": [],
+                "slots": [],
+                "communityTemplates": [],
+            }
         if isinstance(payload, dict) and payload:
             if payload.get("dataStatus") == "verified" and websim_gear_payload_has_items(payload):
                 return payload
             if not allow_sqlite_fallback:
                 return payload
+    if postgres_only_runtime_enabled():
+        return {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": class_key,
+            "specKey": spec_key,
+            "dataStatus": "blocked",
+            "catalogStatus": "blocked",
+            "catalogBlockers": ["PostgreSQL cache store is not available"],
+            "replacementCandidates": [],
+            "slots": [],
+            "communityTemplates": [],
+        }
     init_db()
     with db_connection() as conn:
         return get_websim_gear(conn, class_key, spec_key, compact=compact)
@@ -6176,12 +6719,40 @@ def runtime_websim_talents_payload(class_key, spec_key, hero_key=""):
             payload = store.get_websim_talents(class_key, spec_key, hero_key)
         except Exception:
             payload = {}
+        if postgres_only_runtime_enabled():
+            if isinstance(payload, dict) and payload:
+                return payload
+            return {
+                "schemaRevision": "websim-talents-v1",
+                "classKey": class_key,
+                "specKey": spec_key,
+                "heroKey": hero_key,
+                "dataStatus": "blocked",
+                "talentStatus": "blocked",
+                "nodes": [],
+                "presets": [],
+                "communityTemplates": [],
+                "blockers": ["PostgreSQL WebSim talent cache is missing"],
+            }
         if (
             isinstance(payload, dict)
             and payload.get("dataStatus") == "verified"
             and websim_talent_payload_has_nodes(payload)
         ):
             return payload
+    if postgres_only_runtime_enabled():
+        return {
+            "schemaRevision": "websim-talents-v1",
+            "classKey": class_key,
+            "specKey": spec_key,
+            "heroKey": hero_key,
+            "dataStatus": "blocked",
+            "talentStatus": "blocked",
+            "nodes": [],
+            "presets": [],
+            "communityTemplates": [],
+            "blockers": ["PostgreSQL cache store is not available"],
+        }
     init_db()
     with db_connection() as conn:
         return get_websim_talents(conn, class_key, spec_key, hero_key)
@@ -6194,11 +6765,118 @@ def runtime_websim_talent_import_payload(class_key, spec_key, hero_key=""):
             payload = store.get_websim_talent_import(class_key, spec_key, hero_key)
         except Exception:
             payload = {}
+        if postgres_only_runtime_enabled():
+            if isinstance(payload, dict) and payload:
+                return payload
+            return websim_talent_import_response(
+                class_key,
+                spec_key,
+                hero_key,
+                blockers=["PostgreSQL talent import cache is missing"],
+            )
         if isinstance(payload, dict) and payload:
             return payload
+    if postgres_only_runtime_enabled():
+        return websim_talent_import_response(
+            class_key,
+            spec_key,
+            hero_key,
+            blockers=["PostgreSQL cache store is not available"],
+        )
     init_db()
     with db_connection() as conn:
         return get_websim_talent_import(conn, class_key, spec_key, hero_key)
+
+
+def runtime_talent_api_store():
+    if not postgres_only_runtime_enabled():
+        return None
+    store = cache_data_store()
+    if store and hasattr(store, "get_websim_talents"):
+        return store
+    return None
+
+
+def postgres_only_talent_validation_payload(payload):
+    store = runtime_talent_api_store()
+    if store:
+        return validate_talent_api_payload(store, payload)
+    source = payload if isinstance(payload, dict) else {}
+    parsed = parse_websim_talent_export_code(source.get("code") or source.get("talents") or source.get("websimExportCode") or "")
+    request_payload = {**source, **parsed} if parsed else dict(source)
+    try:
+        encoding = encode_websim_talents(None, request_payload)
+    except Exception as error:
+        encoding = {
+            "status": "failed",
+            "source": "postgres_only",
+            "schemaRevision": "websim-talent-rules-v1",
+            "errors": [str(error)],
+            "warnings": [],
+            "lines": [],
+            "selectedCounts": {"class": 0, "spec": 0, "hero": 0},
+        }
+    blockers = ["PostgreSQL talent authority store is not available"]
+    return {
+        **encoding,
+        "classKey": request_payload.get("classKey") or "",
+        "specKey": request_payload.get("specKey") or "",
+        "heroKey": request_payload.get("heroKey") or "",
+        "talentState": {"selectedNodes": []},
+        "talentAuthority": {"runtime": {"status": "blocked"}, "blockers": blockers},
+        "talentReadiness": {"status": "blocked", "blockers": blockers},
+        "blockers": blockers,
+    }
+
+
+def runtime_validate_talent_api_payload(payload):
+    if postgres_only_runtime_enabled():
+        return postgres_only_talent_validation_payload(payload)
+    init_db()
+    with db_connection() as conn:
+        return validate_talent_api_payload(conn, payload)
+
+
+def runtime_export_talent_api_payload(payload):
+    if postgres_only_runtime_enabled():
+        store = runtime_talent_api_store()
+        if store:
+            return export_talent_api_payload(store, payload)
+        validation = postgres_only_talent_validation_payload(payload)
+        return {
+            "classKey": validation.get("classKey") or "",
+            "specKey": validation.get("specKey") or "",
+            "heroKey": validation.get("heroKey") or "",
+            "talentState": validation.get("talentState") or {"selectedNodes": []},
+            "websimExportCode": str((payload or {}).get("websimExportCode") or ""),
+            "validation": validation,
+            "talentSchemaRevision": validation.get("schemaRevision") or "websim-talent-rules-v1",
+        }
+    init_db()
+    with db_connection() as conn:
+        return export_talent_api_payload(conn, payload)
+
+
+def runtime_import_talent_api_payload(payload):
+    if postgres_only_runtime_enabled():
+        store = runtime_talent_api_store()
+        if store:
+            return import_talent_api_payload(store, payload)
+        source = payload if isinstance(payload, dict) else {}
+        raw_import_code = str(source.get("code") or source.get("talents") or source.get("websimExportCode") or "").strip()
+        validation = postgres_only_talent_validation_payload({"talents": raw_import_code} if raw_import_code else source)
+        return {
+            "classKey": source.get("classKey") or "",
+            "specKey": source.get("specKey") or "",
+            "heroKey": source.get("heroKey") or "",
+            "rawImportCode": raw_import_code,
+            "talentState": validation.get("talentState") or {"selectedNodes": []},
+            "validation": validation,
+            "talentSchemaRevision": validation.get("schemaRevision") or "websim-talent-rules-v1",
+        }
+    init_db()
+    with db_connection() as conn:
+        return import_talent_api_payload(conn, payload)
 
 
 def safe_positive_int(value):
@@ -7931,6 +8609,8 @@ def collect_admin_talent_records_from_store(store):
     tree_items = payload.get("talentTrees") if isinstance(payload, dict) else []
     records = []
     for item in template_items or []:
+        if timestamp_expired(item.get("expiresAt") or ""):
+            continue
         item_payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
         records.append(admin_gate_record(
             "talents",
@@ -8186,6 +8866,7 @@ def collect_admin_gate_records(conn, query=None):
 
 
 ADMIN_GATE_RECORD_DOMAINS = ["news", "talents", "gear", "gear_templates"]
+ADMIN_GATE_PG_RUNTIME_BLOCKER = "PostgreSQL runtime store is not available"
 
 
 def admin_gate_filter_text(value):
@@ -8481,10 +9162,15 @@ def admin_gate_records_payload(query):
     if paged_gear_payload is not None:
         return paged_gear_payload
     records = collect_admin_gate_records_from_runtime_stores(query)
+    runtime_blockers = []
     if records is None:
-        init_db()
-        with db_connection() as conn:
-            records = collect_admin_gate_records(conn, query)
+        if postgres_only_runtime_enabled():
+            records = []
+            runtime_blockers.append(ADMIN_GATE_PG_RUNTIME_BLOCKER)
+        else:
+            init_db()
+            with db_connection() as conn:
+                records = collect_admin_gate_records(conn, query)
     page_records, pagination = paginate_admin_gate_records(records, query)
     return {
         "schemaRevision": "admin-gates-records-v1",
@@ -8492,6 +9178,7 @@ def admin_gate_records_payload(query):
         "count": len(page_records),
         "totalCount": pagination["total"],
         "pagination": pagination,
+        "runtimeBlockers": runtime_blockers,
         "filters": {
             "domain": admin_query_value(query, "domain", ""),
             "status": admin_query_value(query, "status", ""),
@@ -8858,9 +9545,13 @@ def admin_gate_queue_payload(query):
     severity = admin_query_value(query, "severity", "")
     runtime_ops_store = ops_data_store()
     diagnoses_by_target = {}
+    runtime_blockers = []
     if runtime_ops_store and hasattr(runtime_ops_store, "list_admin_gate_diagnoses"):
         for row in runtime_ops_store.list_admin_gate_diagnoses():
             diagnoses_by_target.setdefault((row.get("targetDomain"), row.get("targetType"), row.get("targetId")), []).append(row)
+        diagnosis_builder = admin_gate_diagnosis_from_mapping
+    elif postgres_only_runtime_enabled():
+        runtime_blockers.append(ADMIN_GATE_PG_RUNTIME_BLOCKER)
         diagnosis_builder = admin_gate_diagnosis_from_mapping
     else:
         init_db()
@@ -8883,9 +9574,14 @@ def admin_gate_queue_payload(query):
         domain_query = {"domain": [load_domain], "limit": ["200"]} if load_domain else {"limit": ["200"]}
         records = collect_admin_gate_records_from_runtime_stores(domain_query)
         if records is None:
-            init_db()
-            with db_connection() as conn:
-                records = collect_admin_gate_records(conn, domain_query)
+            if postgres_only_runtime_enabled():
+                if ADMIN_GATE_PG_RUNTIME_BLOCKER not in runtime_blockers:
+                    runtime_blockers.append(ADMIN_GATE_PG_RUNTIME_BLOCKER)
+                records = []
+            else:
+                init_db()
+                with db_connection() as conn:
+                    records = collect_admin_gate_records(conn, domain_query)
         return records or []
 
     def queue_items_from_records(records, remaining):
@@ -8936,6 +9632,7 @@ def admin_gate_queue_payload(query):
         "schemaRevision": "admin-gates-queue-v1",
         "items": items[:limit],
         "count": len(items[:limit]),
+        "runtimeBlockers": runtime_blockers,
     }
 
 
@@ -8946,6 +9643,13 @@ def admin_gate_queue_summary_payload(records=None):
             return runtime_summary
     records = records if records is not None else collect_admin_gate_records_from_runtime_stores({"limit": ["200"]})
     if records is None:
+        if postgres_only_runtime_enabled():
+            return {
+                "count": 0,
+                "domainCounts": {},
+                "topBlockers": [],
+                "runtimeBlockers": [ADMIN_GATE_PG_RUNTIME_BLOCKER],
+            }
         init_db()
         with db_connection() as conn:
             records = collect_admin_gate_records(conn, {"limit": ["200"]})
@@ -9037,6 +9741,8 @@ def admin_gate_summary_payload():
 def admin_gate_record_detail_payload(domain, target_type, target_id):
     record = find_admin_gate_record_runtime(domain, target_type, target_id)
     if record is None:
+        if postgres_only_runtime_enabled():
+            return {}
         init_db()
         with db_connection() as conn:
             record = find_admin_gate_record(conn, domain, target_type, target_id)
@@ -10097,6 +10803,12 @@ def record_analytics_request(handler, payload):
             session_id=handler.headers.get("X-Wow-Session-Id", ""),
             platform=handler.headers.get("X-Wow-Platform", "miniprogram"),
         )
+    if postgres_only_runtime_enabled():
+        return {
+            "ok": False,
+            "status": "blocked",
+            "errors": ["PostgreSQL analytics store is not available"],
+        }
     init_db()
     with db_connection() as conn:
         return record_events(
@@ -10342,9 +11054,7 @@ class Handler(BaseHTTPRequestHandler):
             json_response(self, 200, get_builds_intel_payload())
             return
         if path == "/api/builds/stat-weights/refresh-runs/latest":
-            init_db()
-            with db_connection() as conn:
-                json_response(self, 200, latest_stat_weight_run_payload(conn))
+            json_response(self, 200, runtime_stat_weight_latest_payload())
             return
         if path == "/api/builds/detail":
             query = parse_qs(urlparse(self.path).query)
@@ -10406,9 +11116,7 @@ class Handler(BaseHTTPRequestHandler):
             json_response(self, 200, get_chickenbro_profiles(flat_query))
             return
         if path == "/api/websim/bootstrap":
-            init_db()
-            with db_connection() as conn:
-                json_response(self, 200, get_websim_bootstrap(conn))
+            json_response(self, 200, runtime_websim_bootstrap_payload())
             return
         if path == "/api/websim/assets":
             query = parse_qs(urlparse(self.path).query)
@@ -10420,9 +11128,7 @@ class Handler(BaseHTTPRequestHandler):
                 "source": query.get("source", [""])[0],
                 "limit": query.get("limit", [""])[0],
             }
-            init_db()
-            with db_connection() as conn:
-                json_response(self, 200, get_websim_assets(conn, filters))
+            json_response(self, 200, runtime_websim_assets_payload(filters))
             return
         if path == "/api/talents/tree":
             json_response(
@@ -10589,6 +11295,16 @@ class Handler(BaseHTTPRequestHandler):
             if store:
                 json_response(self, 200, store.rollup_daily_metrics(payload.get("date", "")))
                 return
+            if postgres_only_runtime_enabled():
+                json_response(
+                    self,
+                    503,
+                    {
+                        "error": "postgres_analytics_store_unavailable",
+                        "message": "PostgreSQL analytics store is not available in PG-only runtime",
+                    },
+                )
+                return
             init_db()
             with db_connection() as conn:
                 json_response(self, 200, rollup_daily_metrics(conn, payload.get("date", "")))
@@ -10682,38 +11398,41 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         if parsed.path == "/api/websim/profile":
+            if postgres_only_runtime_enabled():
+                json_response(self, 200, build_websim_profile_response(read_json_body(self), conn=None))
+                return
             init_db()
             with db_connection() as conn:
                 json_response(self, 200, build_websim_profile_response(read_json_body(self), conn=conn))
             return
         if parsed.path == "/api/websim/gear/stats":
+            if postgres_only_runtime_enabled():
+                json_response(self, 200, build_websim_gear_stats_response(read_json_body(self), conn=None))
+                return
             init_db()
             with db_connection() as conn:
                 json_response(self, 200, build_websim_gear_stats_response(read_json_body(self), conn=conn))
             return
         if parsed.path == "/api/talents/validate":
             payload = read_json_body(self)
-            init_db()
-            with db_connection() as conn:
-                json_response(self, 200, validate_talent_api_payload(conn, payload))
+            json_response(self, 200, runtime_validate_talent_api_payload(payload))
             return
         if parsed.path == "/api/talents/export":
             payload = read_json_body(self)
-            init_db()
-            with db_connection() as conn:
-                json_response(self, 200, export_talent_api_payload(conn, payload))
+            json_response(self, 200, runtime_export_talent_api_payload(payload))
             return
         if parsed.path == "/api/talents/import":
             payload = read_json_body(self)
-            init_db()
-            with db_connection() as conn:
-                json_response(self, 200, import_talent_api_payload(conn, payload))
+            json_response(self, 200, runtime_import_talent_api_payload(payload))
             return
         if parsed.path == "/api/websim/simulate":
             payload = read_json_body(self)
-            init_db()
-            with db_connection() as conn:
-                request_payload = build_websim_simulator_request(payload, guest_id=payload.get("guestId", ""), conn=conn)
+            if postgres_only_runtime_enabled():
+                request_payload = build_websim_simulator_request(payload, guest_id=payload.get("guestId", ""), conn=None)
+            else:
+                init_db()
+                with db_connection() as conn:
+                    request_payload = build_websim_simulator_request(payload, guest_id=payload.get("guestId", ""), conn=conn)
             if request_payload.get("talentEncoding", {}).get("status") == "failed":
                 json_response(self, 200, websim_encoding_blocked_response(request_payload))
                 return
@@ -10752,7 +11471,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    init_db()
+    if not sqlite_runtime_disabled():
+        init_db()
     latest_refresh_state()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"wow-backend listening on {HOST}:{PORT}")

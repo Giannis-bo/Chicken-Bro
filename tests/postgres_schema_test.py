@@ -14,6 +14,7 @@ WEBSIM_TALENT_CACHE = ROOT / "server" / "migrations" / "postgres" / "0008_websim
 RUNTIME_RECONCILE_PRIVILEGES = ROOT / "server" / "migrations" / "postgres" / "0009_runtime_reconcile_privileges.sql"
 ADMIN_GATE_DIAGNOSTICS = ROOT / "server" / "migrations" / "postgres" / "0010_admin_gate_diagnostics.sql"
 WEBSIM_GEAR_TEMPLATE_CACHE = ROOT / "server" / "migrations" / "postgres" / "0011_websim_gear_template_cache.sql"
+WEBSIM_ASSET_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0012_websim_asset_registry.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -266,3 +267,26 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("CREATE INDEX IF NOT EXISTS idx_cache_websim_community_gear_templates_lookup", normalized)
         self.assertIn("GRANT SELECT, INSERT, UPDATE, DELETE ON cache.websim_community_gear_templates TO wow_app", normalized)
         self.assertIn("0011_websim_gear_template_cache", normalized)
+
+    def test_websim_asset_registry_migration_adds_pg_read_model_table(self):
+        self.assertTrue(WEBSIM_ASSET_REGISTRY.exists(), "missing WebSim asset registry PG cache migration")
+        normalized = " ".join(WEBSIM_ASSET_REGISTRY.read_text(encoding="utf-8").split())
+        self.assertIn("CREATE TABLE IF NOT EXISTS cache.websim_asset_registry", normalized)
+        for field in (
+            "entity_type",
+            "entity_id",
+            "context_key",
+            "asset_type",
+            "icon_url",
+            "resolution_tier",
+            "source",
+            "status",
+            "semantic_tags_json",
+            "usage_json",
+            "fallback_text",
+            "payload_json",
+        ):
+            self.assertIn(field, normalized)
+        self.assertIn("CREATE INDEX IF NOT EXISTS idx_cache_websim_asset_registry_entity", normalized)
+        self.assertIn("GRANT SELECT, INSERT, UPDATE, DELETE ON cache.websim_asset_registry TO wow_app", normalized)
+        self.assertIn("0012_websim_asset_registry", normalized)

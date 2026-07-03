@@ -22,6 +22,11 @@ from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 try:
+    from .db import require_sqlite_runtime_enabled
+except ImportError:
+    from db import require_sqlite_runtime_enabled
+
+try:
     from .simc_profile_policy import (
         dk_default_runeforge_enchant_id,
         dk_ordinary_weapon_enchant_blocker,
@@ -10176,6 +10181,7 @@ def gear_catalog_refresh_reason(state):
 
 
 def sync_websim_cache(db_path, include_blizzard=True, stage_callback=None):
+    require_sqlite_runtime_enabled("websim_payload.sync_websim_cache")
     conn = sqlite3.connect(db_path, timeout=30, isolation_level=None)
     stages = []
     try:
@@ -21634,7 +21640,10 @@ def websim_parent_mode(node):
 
 
 def build_websim_authority_nodes(conn, class_key, spec_key, hero_key):
-    payload = get_websim_talents(conn, class_key, spec_key, hero_key)
+    if hasattr(conn, "get_websim_talents"):
+        payload = conn.get_websim_talents(class_key, spec_key, hero_key)
+    else:
+        payload = get_websim_talents(conn, class_key, spec_key, hero_key)
     nodes = payload.get("nodes") or []
     return payload, {str(node.get("id") or ""): node for node in nodes if node.get("id")}
 
@@ -21857,7 +21866,10 @@ def validate_talent_api_payload(conn, payload):
     spec_key = slugify(request_payload.get("specKey"), "arcane")
     hero_key = hero_tree_for(class_key, spec_key, slugify(request_payload.get("heroKey"), ""))
     request_payload.update({"classKey": class_key, "specKey": spec_key, "heroKey": hero_key})
-    talent_payload = get_websim_talents(conn, class_key, spec_key, hero_key)
+    if hasattr(conn, "get_websim_talents"):
+        talent_payload = conn.get_websim_talents(class_key, spec_key, hero_key)
+    else:
+        talent_payload = get_websim_talents(conn, class_key, spec_key, hero_key)
     encoding = encode_websim_talents(conn, request_payload)
     return {
         **encoding,
@@ -22478,7 +22490,7 @@ def build_websim_profile_response(payload, conn=None):
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
     gear_payload = websim_selected_gear_payload(source, class_key, spec_key, conn=conn)
-    talent_encoding = encode_websim_talents(conn, source) if conn is not None else blank_talent_encoding()
+    talent_encoding = encode_websim_talents(conn, source) if conn is not None else encode_websim_talents(None, source)
     response = {
         "profile": build_websim_profile(payload, conn=conn),
         "gearItems": gear_payload["items"],
@@ -22524,9 +22536,8 @@ def websim_gear_stats_blockers(readiness, talent_encoding):
         if not blockers:
             blockers.append("talent encoding failed")
     if not readiness.get("fullReady"):
+        blockers.append("selected gear is not fully SimC-ready")
         blockers.extend(readiness.get("warnings") or [])
-        if not readiness.get("warnings"):
-            blockers.append("selected gear is not fully SimC-ready")
     return [blocker for blocker in blockers if str(blocker or "").strip()]
 
 
@@ -22538,7 +22549,7 @@ def build_websim_gear_stats_response(payload, conn=None):
     request_source = {**source, "classKey": class_key, "specKey": spec_key, "level": level}
     gear_payload = websim_selected_gear_payload(request_source, class_key, spec_key, conn=conn)
     readiness = gear_payload["readiness"]
-    talent_encoding = encode_websim_talents(conn, request_source) if conn is not None else blank_talent_encoding("failed", "none")
+    talent_encoding = encode_websim_talents(conn, request_source) if conn is not None else encode_websim_talents(None, request_source)
     parsed_export = parse_websim_talent_export_code(
         request_source.get("websimExportCode") or request_source.get("talents") or request_source.get("talentImport") or ""
     )
@@ -22628,7 +22639,7 @@ def build_websim_simulator_request(payload, guest_id="", conn=None):
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
     hero_key = hero_tree_for(class_key, spec_key, slugify(source.get("heroKey"), ""))
-    talent_encoding = encode_websim_talents(conn, source) if conn is not None else blank_talent_encoding()
+    talent_encoding = encode_websim_talents(conn, source) if conn is not None else encode_websim_talents(None, source)
     talents = external_talent_import_code(source)[:400]
     scenario = selected_scenario(source.get("scenarioKey"))
     gear_payload = websim_selected_gear_payload(source, class_key, spec_key, conn=conn)

@@ -502,12 +502,15 @@ if [[ "${SKIP_BOOTSTRAP}" != "1" ]]; then
   sudo systemctl enable --now wow-simc-version-check.timer
   sudo systemctl start wow-simc-version-check.service
 fi
-sudo systemctl stop wow-websim-sync.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-websim-sync.service >/dev/null 2>&1 || true
-sudo systemctl stop wow-stat-weights-sync.service >/dev/null 2>&1 || true
+sudo systemctl enable --now wow-websim-sync.timer
 sudo systemctl reset-failed wow-stat-weights-sync.service >/dev/null 2>&1 || true
-sudo systemctl stop wow-community-template-sync.service >/dev/null 2>&1 || true
+sudo systemctl enable --now wow-stat-weights-sync.timer
 sudo systemctl reset-failed wow-community-template-sync.service >/dev/null 2>&1 || true
+sudo systemctl enable --now wow-community-template-sync.timer
+sudo systemctl reset-failed wow-gear-observed-backfill.service >/dev/null 2>&1 || true
+sudo systemctl enable --now wow-gear-observed-backfill.timer
+echo "PG-native sync timers enabled."
 sudo systemctl enable --now "${SERVICE_NAME}"
 sudo systemctl restart "${SERVICE_NAME}"
 sudo systemctl restart nginx
@@ -528,14 +531,13 @@ curl -fsS http://127.0.0.1/websim/ >/dev/null
 "${SIMC_BIN}" iterations=1 max_time=1 >/dev/null
 
 if [[ "${START_ASYNC_SYNCS}" == "1" ]]; then
-  sudo systemctl enable --now wow-websim-sync.timer
-  sudo systemctl start --no-block wow-websim-sync.service || sudo journalctl -u wow-websim-sync.service -n 80 --no-pager
-  sudo systemctl enable --now wow-stat-weights-sync.timer
-  sudo systemctl start --no-block wow-stat-weights-sync.service || sudo journalctl -u wow-stat-weights-sync.service -n 80 --no-pager
-  sudo systemctl enable --now wow-community-template-sync.timer
-  sudo systemctl start --no-block wow-community-template-sync.service || sudo journalctl -u wow-community-template-sync.service -n 80 --no-pager
+  sudo systemctl start --no-block wow-websim-sync.service
+  sudo systemctl start --no-block wow-stat-weights-sync.service
+  sudo systemctl start --no-block wow-community-template-sync.service
+  sudo systemctl start --no-block wow-gear-observed-backfill.service
+  echo "Started PG-native async sync services."
 else
-  echo "Skipping async sync starts because WOW_DEPLOY_START_ASYNC_SYNCS is not 1."
+  echo "Skipping PG-native async sync starts because WOW_DEPLOY_START_ASYNC_SYNCS is not 1."
 fi
 REMOTE
 

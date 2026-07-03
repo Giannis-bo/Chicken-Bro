@@ -5,6 +5,8 @@ import sqlite3
 from pathlib import Path
 
 try:
+    from .db import postgres_only_runtime_enabled, require_sqlite_runtime_enabled
+    from .postgres_cache_sync import sync_community_template_cache_postgres
     from .raiderio_payload import sync_raiderio_cache
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
@@ -19,6 +21,8 @@ try:
         utc_now,
     )
 except ImportError:
+    from db import postgres_only_runtime_enabled, require_sqlite_runtime_enabled
+    from postgres_cache_sync import sync_community_template_cache_postgres
     from raiderio_payload import sync_raiderio_cache
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
@@ -39,6 +43,7 @@ DB_PATH = Path(os.environ.get("WOW_NEWS_DB", BASE_DIR / "data" / "wow_news.sqlit
 
 
 def connect_db():
+    require_sqlite_runtime_enabled("community_template_sync")
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
@@ -177,6 +182,10 @@ def sync_community_template_cache(conn, mode="scheduled"):
 
 def main():
     mode = os.environ.get("WOW_COMMUNITY_TEMPLATE_SYNC_MODE", "scheduled").strip() or "scheduled"
+    if postgres_only_runtime_enabled():
+        payload = sync_community_template_cache_postgres(mode=mode)
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
     with connect_db() as conn:
         payload = sync_community_template_cache(conn, mode=mode)
         conn.commit()

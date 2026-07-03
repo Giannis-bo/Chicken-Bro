@@ -3,7 +3,7 @@
 > 适用范围：职业详情页装备模拟、WebSim gear API、装备来源与变体健康检查。12.1 大量装备更新时，按本文作为入库、审计、发布和问题上报标准。
 > 全链路手册：装备模拟从上游 API 到校验、审计、入库、全职业专精适配、前端展示、serializer、发布和回滚，按 [装备模拟全链路 Runbook](gear-simulation-full-chain-runbook.md) 执行。
 > 实施方案：周期性更新和后续工程任务按 [装备自建数据库实施方案 v2](plans/2026-06-25-gear-database-implementation-plan-v2.md) 执行。
-> 当前运行时：`WOW_DATABASE_RUNTIME=postgres_personal` 下，装备 / 天赋 / season read model 可以从 PostgreSQL cache seam 读取，SQLite 仍作为 fallback 和历史来源；治理规则适用于两种存储落点。
+> 当前运行时：`WOW_DATABASE_RUNTIME=postgres_only` 下，装备 / 天赋 / season read model 必须从 PostgreSQL cache store 读取；SQLite 只作为历史备份、迁移源或离线审计输入，不作为 fallback。
 
 ## 目标
 
@@ -61,7 +61,7 @@
 
 制造业受控输入当前有三类：
 
-- 首选 `python3 server/crafted_gear_backfill.py --from-metadata --db server/data/wow_news.sqlite3`，从既有 `websim_items.payload_json` 中带 `modified_crafting_stat` / `modifiedCraftingStat` 的 Battle.net metadata 生成 catalog item。
+- 首选 PG-native 同步/迁移链路从 `cache.websim_items.payload_json` 中带 `modified_crafting_stat` / `modifiedCraftingStat` 的 Battle.net metadata 生成 catalog item。历史命令 `WOW_SQLITE_MIGRATION_SOURCE=1 python3 server/crafted_gear_backfill.py --from-metadata --db server/data/wow_news.sqlite3` 只能用于离线迁移源或本地审计，不得作为线上 runtime job。
 - 已有 SimC profile preset 中带 `crafted_stats` 的装备行可作为 profile evidence，用于补充 `sourceRefs`、已观测 `bonus_id`、已观测装等和已观测属性搭配。
 - 极少数 metadata 无法自动识别、但已经人工确认属于本赛季制造业目录的物品，只能放入本地 curated allowlist；每条必须带 itemId、slot、证据类型和是否支持虚空晋升。当前 Midnight 普通 PVE 制造业 curated allowlist 为空；`251105 / 破法者之盾` 已确认为副本掉落，不能作为制造业补录，真实制造盾牌是 `237831 / 破法者的责难`。
 

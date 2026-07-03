@@ -60,8 +60,8 @@ WOW_LIGHTHOUSE_KEY=/path/to/private_key ./server/deploy_lighthouse.sh
 - 生产环境变量：`/etc/wow-backend.env`
 - Codex home：`/home/ubuntu/.codex`
 - Codex job 目录：`/var/lib/wow-backend/codex-jobs`
-- SQLite 数据目录：`/opt/wow-mini-program/server/data`
-- PostgreSQL：本机 `127.0.0.1:5432`，当前开发工具测试运行时为 `WOW_DATABASE_RUNTIME=postgres_personal` + `wow_test`；`wow_prod` 只在正式发布 cutover 重新审批后使用。
+- 历史 SQLite 数据目录：`/opt/wow-mini-program/server/data`，只作为迁移源、离线审计和回滚备份，不作为线上 runtime。
+- PostgreSQL：本机 `127.0.0.1:5432`，PG-only runtime 使用 `WOW_DATABASE_RUNTIME=postgres_only` 和 `/etc/wow-backend.env` 中的 `WOW_DATABASE_URL`；不得在 systemd 环境设置 `WOW_SQLITE_MIGRATION_SOURCE`。
 
 ## 常用调试命令
 
@@ -73,6 +73,7 @@ sudo systemctl status wow-backend --no-pager
 sudo journalctl -u wow-backend -n 120 --no-pager
 sudo systemctl restart wow-backend
 sudo awk -F= '/^WOW_DATABASE_RUNTIME=|^WOW_DATABASE_URL=|^WOW_CHICKENBRO_CODEX_ENABLED=/{print $1"="($1=="WOW_DATABASE_URL" ? "<redacted>" : $2)}' /etc/wow-backend.env
+sudo awk -F= '/^WOW_WARCRAFTLOGS_CLIENT_ID=|^WOW_WARCRAFTLOGS_CLIENT_SECRET=/{print $1"="($1 ~ /SECRET/ ? "<redacted>" : "<configured>")}' /etc/wow-backend.env
 ```
 
 本地验证远程 API：
@@ -86,7 +87,7 @@ python3 server/simulator_e2e_smoke.py --base-url http://124.223.51.33 --timeout 
 
 热部署优先复用远程已有依赖：
 
-账号表或 schema 变更上线前先备份 SQLite fallback；如果本次会写 PostgreSQL，也要备份当前 target：
+账号表、schema 或 PG-only cutover 变更上线前，先备份历史 SQLite 文件和当前 PostgreSQL target。SQLite 备份只用于回滚或一次性迁移，不允许恢复成 runtime fallback：
 
 ```bash
 ssh wow-lighthouse 'sudo install -d -m 700 -o ubuntu -g ubuntu /opt/wow-mini-program/backups && sudo cp /opt/wow-mini-program/server/data/wow_news.sqlite3 /opt/wow-mini-program/backups/wow_news.sqlite3.$(date -u +%Y%m%dT%H%M%SZ)'
@@ -102,7 +103,19 @@ WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
 - 热部署模式要求远端已有 Python、curl、systemd 和 `/opt/wow-simc/current/simc`。
 - 部署会重启 `wow-backend` 和 nginx，并 smoke 本机 `/health`、`/api/builds/home`、`/api/pve/home`、`/api/simulator/home`、`/api/websim/bootstrap`、`/websim/`，最后再从本机验证公网 `/health`。
 - 部署默认不会启动长耗时同步；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 才会启动 `wow-websim-sync`、`wow-stat-weights-sync` 和 `wow-community-template-sync`。
-- 线上数据写入、SQLite / PostgreSQL schema 变更、受控同步、环境变量修改或数据库 target 切换前，先说明范围并备份相关数据库。
+- 线上数据写入、SQLite 历史备份读取、PostgreSQL schema 变更、受控同步、环境变量修改或数据库 target 切换前，先说明范围并备份相关数据库。
+
+PG-only 部署后必须额外验证：
+
+```bash
+ssh wow-lighthouse 'sudo awk -F= "/^WOW_DATABASE_RUNTIME=|^WOW_DATABASE_URL=|^WOW_SQLITE_MIGRATION_SOURCE=/{print \$1\"=\"(\$1==\"WOW_DATABASE_URL\" ? \"<redacted>\" : \$2)}" /etc/wow-backend.env'
+curl -fsS http://124.223.51.33/api/data/health
+curl -fsS http://124.223.51.33/api/websim/assets
+curl -fsS 'http://124.223.51.33/api/websim/talents?class=mage&spec=frost&hero=spellslinger'
+curl -fsS 'http://124.223.51.33/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial'
+```
+
+期望 `WOW_DATABASE_RUNTIME=postgres_only`，没有线上 `WOW_SQLITE_MIGRATION_SOURCE`，日志中没有 runtime SQLite fallback。WCL v2 credentials 配好后只能证明 OAuth/GraphQL 可用；如果 `/api/data/health` 的 `community_templates` 仍因 `combatantinfo template seed/report extraction` 为 `partial`，那是抽取链路缺口，不是凭据缺失。
 
 完整部署入口：
 
