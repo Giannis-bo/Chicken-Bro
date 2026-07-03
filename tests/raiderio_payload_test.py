@@ -313,6 +313,22 @@ class RaiderIOPayloadTest(unittest.TestCase):
         template = next(item for item in payload["communityTemplates"] if item["playerId"] == "Rioone")
         self.assertEqual(template["rawImportCode"], "CAEAAAAAAAAAAAAAAAAAAAAA")
 
+    def test_community_template_skips_profile_talent_loadout_spec_mismatch(self):
+        run = raiderio_payload.simplify_run(sample_runs_payload()["rankings"][0])
+        profile = raiderio_payload.profile_summary({
+            **sample_profile_payload(),
+            "talentLoadout": {
+                "loadout_text": "CAEAAAAAAAAAAAAAAAAAAAAA",
+                "loadout_spec_id": 62,
+                "loadout": [{"traitId": 91001, "rank": 1}],
+            },
+        })
+
+        aggregates = raiderio_payload.aggregate_runs([run], {raiderio_payload.character_key(profile): profile})
+        templates = raiderio_payload.build_community_templates(aggregates, "2026-07-03T01:00:00+00:00")
+
+        self.assertFalse(any(item["playerId"] == "Rioone" for item in templates))
+
     def test_fetch_profiles_samples_each_spec_with_per_spec_cap(self):
         os.environ["WOW_RAIDERIO_PROFILE_LIMIT"] = "4"
         os.environ["WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC"] = "2"

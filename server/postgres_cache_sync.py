@@ -23,6 +23,9 @@ try:
         GEAR_OBSERVED_BACKFILL_SYNC_KEY,
         blizzard_get,
         blizzard_namespace,
+        community_talent_loadout_spec_blockers,
+        disabled_community_talent_template_source_keys,
+        include_websim_baseline_talent_sources,
         current_season_raid_pool_status,
         extract_simc_generated_data,
         extract_id_from_ref,
@@ -60,6 +63,9 @@ except ImportError:
         GEAR_OBSERVED_BACKFILL_SYNC_KEY,
         blizzard_get,
         blizzard_namespace,
+        community_talent_loadout_spec_blockers,
+        disabled_community_talent_template_source_keys,
+        include_websim_baseline_talent_sources,
         current_season_raid_pool_status,
         extract_simc_generated_data,
         extract_id_from_ref,
@@ -495,16 +501,15 @@ def sync_stat_weight_cache_postgres(raiderio_payload=None, refresh_mode="schedul
     return result
 
 
+def include_manual_fixture_sources():
+    return os.environ.get("WOW_INCLUDE_MANUAL_FIXTURES", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def load_community_talent_sources_postgres(store):
     try:
-        from .community_talent_sources import manual_fixture, warcraftlogs
+        from .community_talent_sources import warcraftlogs
     except ImportError:
-        from community_talent_sources import manual_fixture, warcraftlogs
-    try:
-        from .websim_payload import load_websim_baseline_talent_templates
-    except ImportError:
-        from websim_payload import load_websim_baseline_talent_templates
-
+        from community_talent_sources import warcraftlogs
     sources = {}
     try:
         raiderio = store.get_raiderio_payload()
@@ -517,11 +522,23 @@ def load_community_talent_sources_postgres(store):
     except Exception as error:
         sources["raiderio"] = {"status": "blocked", "sourceName": "Raider.IO", "templates": [], "errors": [str(error)]}
 
-    for source_key, source_name, loader in (
-        ("manual_fixture", "Manual Fixture", manual_fixture.load_templates),
+    loaders = [
         ("warcraftlogs", "Warcraft Logs", warcraftlogs.load_templates),
-        ("websim_baseline", "WebSim 基线模板", load_websim_baseline_talent_templates),
-    ):
+    ]
+    if include_websim_baseline_talent_sources():
+        try:
+            from .websim_payload import load_websim_baseline_talent_templates
+        except ImportError:
+            from websim_payload import load_websim_baseline_talent_templates
+        loaders.append(("websim_baseline", "WebSim 基线模板", load_websim_baseline_talent_templates))
+    if include_manual_fixture_sources():
+        try:
+            from .community_talent_sources import manual_fixture
+        except ImportError:
+            from community_talent_sources import manual_fixture
+        loaders.insert(0, ("manual_fixture", "Manual Fixture", manual_fixture.load_templates))
+
+    for source_key, source_name, loader in loaders:
         try:
             try:
                 result = loader(store)
@@ -548,20 +565,27 @@ def _community_templates_from_sources(source_results, scan_run_id):
         status = result.get("status") or "blocked"
         source_name = result.get("sourceName") or source_key
         source_errors = result.get("errors") or []
+        source_warnings = list_keyed_values(result.get("warnings") or [])
         sources[source_key] = {"status": status, "sourceName": source_name, "errors": source_errors}
+        if source_warnings:
+            sources[source_key]["warnings"] = source_warnings
         errors.extend(f"{source_key}: {error}" for error in source_errors)
         for raw_template in result.get("templates") or []:
             if not isinstance(raw_template, dict):
                 continue
-            templates.append(
-                {
-                    **raw_template,
-                    "sourceKey": source_key,
-                    "sourceName": raw_template.get("sourceName") or source_name,
-                    "sourceStatus": raw_template.get("sourceStatus") or status,
-                    "scanRunId": raw_template.get("scanRunId") or scan_run_id,
-                }
-            )
+            template = {
+                **raw_template,
+                "sourceKey": source_key,
+                "sourceName": raw_template.get("sourceName") or source_name,
+                "sourceStatus": raw_template.get("sourceStatus") or status,
+                "scanRunId": raw_template.get("scanRunId") or scan_run_id,
+            }
+            inventory_blockers = community_talent_loadout_spec_blockers(template)
+            if source_key == "raiderio" and inventory_blockers:
+                source_warnings = unique_text_list([*source_warnings, *inventory_blockers])
+                sources[source_key]["warnings"] = source_warnings
+                continue
+            templates.append(template)
     return templates, sources, errors
 
 
@@ -571,6 +595,9 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None):
     scan_run_id = f"pg-community-template-{checked_at.replace(':', '').replace('+', 'z')}"
     source_results = load_community_talent_sources_postgres(store)
     talent_templates, talent_sources, talent_errors = _community_templates_from_sources(source_results, scan_run_id)
+    disabled_talent_sources = disabled_community_talent_template_source_keys()
+    if disabled_talent_sources and hasattr(store, "expire_community_talent_template_sources"):
+        store.expire_community_talent_template_sources(disabled_talent_sources, expired_at=checked_at)
     if talent_templates:
         talent_counts = store.replace_community_talent_templates(talent_templates, scan_run_id=scan_run_id)
     else:

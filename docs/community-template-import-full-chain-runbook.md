@@ -1,18 +1,18 @@
 # 社区模板导入全链路 Runbook
 
-> 适用范围：社区天赋模板、社区装备模板、Raider.IO / WCL / manual fixtures / WebSim baseline 来源、PostgreSQL-only 入库、`communityTemplates` read model、前端导入 sheet、个人模板保存、`/api/websim/profile` 最终校验、health 和回滚。
-> 最后更新：2026-06-29。
+> 适用范围：社区天赋模板、社区装备模板、Raider.IO / WCL / manual fixtures / WebSim baseline 诊断来源、PostgreSQL-only 入库、`communityTemplates` read model、前端导入 sheet、个人模板保存、`/api/websim/profile` 最终校验、health 和回滚。
+> 最后更新：2026-07-03。
 
 本文是“导入社区天赋 / 装备推荐”的执行手册。它不重新定义天赋树规则，也不重新定义装备 catalog；这两部分分别由 [全职业天赋模拟全链路 Runbook](talent-simulation-full-chain-runbook.md) 和 [装备模拟全链路 Runbook](gear-simulation-full-chain-runbook.md) 负责。本文只管外部或派生模板如何进入推荐、展示、应用和保存链路。
 
 ## 总原则
 
-- Source honesty：Raider.IO / WCL 是真实玩家样本；manual fixture 是开发或运营种子；WebSim baseline 是后端 authority 生成的兜底模板。不得把 baseline 冒充成社区玩家样本。
+- Source honesty：Raider.IO / WCL 是真实玩家样本；manual fixture 是开发/测试种子；WebSim baseline 是后端 authority 生成的诊断模板。生产线上天赋模板库只保留真实社区高端玩家来源，不得把 baseline 冒充成社区玩家样本。
 - Backend authority：模板能否可视化、可编辑、可保存、可提交 SimC，最终都以后端 validator / serializer 为准。
 - Consumer-only frontend：前端只展示和应用后端返回的 `communityTemplates`，不跨专精补模板，不猜装备槽位，不拼 SimC profile line。
 - Per-spec cap：天赋模板展示按当前 `classKey + specKey` 收敛，每个专精最多 3 条，不能有重复公开身份。
 - Fail-closed import：无法解析成当前 WebSim 节点或 canonical gear snapshot 的模板不能标为可编辑；raw import code 只能走 SimC-only / external 路径。
-- Full-spec fallback：真实社区样本不足时，允许用 `websim_baseline` 为每个 expected spec 生成 1 条可编辑天赋兜底；该兜底必须点满三棵树并通过 `encode_websim_talents`。
+- No talent fallback inventory：真实社区样本不足时，线上天赋模板库宁可为空，也不再用 `websim_baseline` 填补当前库存。`websim_baseline` 只允许显式设置 `WOW_INCLUDE_WEBSIM_BASELINE_TALENTS=1` 后用于本地/诊断。
 - Default gear fallback：真实社区装备样本不足时，允许用 `default_template` 为每个 expected spec 生成 1 条装备兜底；它只来自 verified 当前赛季 catalog 和 verified `mplus_mixed_route` 绿字权重，不冒充真实社区样本，不宣称 BiS。
 - No implicit writes：`GET /api/websim/talents`、`GET /api/websim/gear`、`/api/data/health` 都不得触发外部同步或 DB 写入。
 - Approval gate：下载、远端刷新、生产 DB 写入、部署和外部数据落盘都需要 owner 明确批准。
@@ -24,12 +24,12 @@ flowchart TD
   A["Raider.IO runs / profiles"] --> B["profile normalization"]
   C["Warcraft Logs / future sources"] --> B
   D["manual fixtures"] --> E["explicit community sync"]
-  F["websim_talents backend authority"] --> G["WebSim baseline generator"]
+  F["websim_talents backend authority"] --> G["WebSim baseline generator (explicit diagnostic only)"]
   R["verified gear catalog + stat weights"] --> S["default gear template builder"]
 
   B --> H["talent loadout / gear snapshot extraction"]
   E --> H
-  G --> H
+  G -. "WOW_INCLUDE_WEBSIM_BASELINE_TALENTS=1 only" .-> H
   S --> K
 
   H --> I["validate visual/editable state"]
@@ -50,7 +50,7 @@ flowchart TD
 - 社区模板是推荐输入，不是规则真相。
 - 天赋可编辑模板必须有 `websimExportCode` 和 `talentState.selectedNodes`。
 - 装备可编辑模板必须能映射到 canonical slots 和结构化 `gearBySlot / enhancementBySlot`。
-- baseline 只解决“全职业专精有可编辑起点”，不代表 BiS、排行榜、玩家样本或强度结论。
+- baseline 只保留为本地/诊断能力，不代表线上库存、BiS、排行榜、玩家样本或强度结论。
 - `default_template` 只解决“装备模拟可导入起点”，不代表真实玩家样本、社区强度或毕业配装。
 
 ## 来源与可信边界
@@ -59,8 +59,8 @@ flowchart TD
 | --- | --- | --- | --- |
 | Raider.IO profile / run | 真实玩家天赋和装备样本 | class/spec/hero/scenario 可归属；structured loadout 或 gear snapshot 可解析；去重后仍有可执行字段 | 不能把 profile API 的装备属性当成生产属性来源 |
 | Warcraft Logs | 后续高质量战斗样本入口 | v2 OAuth 凭据可用、授权边界清楚、样本窗口可追踪，且 report evidence / combatantinfo 可解析成模板字段 | 缺凭据或缺抽取能力时不得伪造 WCL 模板；凭据已配置但无可解析样本时保持 `partial` |
-| Manual fixture | 小范围开发和 smoke 种子 | 显式 sync 写入；带 source/status/checkedAt；能通过后端 validator | 不能由 GET 自动 bootstrap |
-| WebSim baseline | 缺真实样本专精的可编辑兜底 | 当前 `websim_talents` 能生成三树满点状态，且 `encode_websim_talents` 返回 encoded | 不能显示为 Raider.IO/WCL；不能参与玩家强度结论 |
+| Manual fixture | 仅限本地开发 / 测试夹具 | 只有显式设置 `WOW_INCLUDE_MANUAL_FIXTURES=1` 时参与同步；带 source/status/checkedAt；能通过后端 validator | 不能进入生产默认同步、线上治理库存或小程序当前推荐列表 |
+| WebSim baseline | 显式本地/诊断模板 | 只有显式设置 `WOW_INCLUDE_WEBSIM_BASELINE_TALENTS=1` 时参与同步；当前 `websim_talents` 能生成三树满点状态，且 `encode_websim_talents` 返回 encoded | 不能进入生产默认同步、线上治理库存或小程序当前推荐列表；不能参与玩家强度结论 |
 | Default gear template | 缺真实装备模板专精的可导入兜底 | 16 个 canonical 装备槽完整、候选均为当前赛季 compatible + SimC-ready + verified variant，且 serializer 能生成 16 行 | 不能显示为 Raider.IO/WCL；不能使用 `source_reference`、partial、错季或缺绿字权重候选 |
 | SimC raw `talents=` code | SimC-only external 输入 | class/spec 已知，raw code 保留原样，profile serializer 可 fail-closed | 不能强行反解到 WebSim 可视化节点 |
 | 前端临时状态 | 交互预览 | 只作为待校验输入提交 | 不能作为可信模板或 SimC profile |
@@ -69,12 +69,15 @@ flowchart TD
 
 ### 入库
 
-`sync_community_talent_templates` 是唯一显式入库入口，当前来源：
+`sync_community_talent_templates` 是唯一显式入库入口，当前默认来源：
 
-- `manual_fixture`
 - `raiderio`
 - `warcraftlogs`
-- `websim_baseline`
+
+`manual_fixture` 已退为测试专用来源，仅在显式设置 `WOW_INCLUDE_MANUAL_FIXTURES=1` 时用于本地/测试同步，不属于生产当前模板来源。
+`websim_baseline` 已退为本地/诊断专用来源，仅在显式设置 `WOW_INCLUDE_WEBSIM_BASELINE_TALENTS=1` 时用于本地/测试同步，不属于生产当前模板来源；生产 PG 同步会把 active `websim_baseline` 行标记过期。
+
+Raider.IO 模板入库时必须在 PG writer 侧重新执行同一套 WebSim 校验，不能只信任上游 `status=verified` 或原始导入码字段。若 profile 当前 `talentLoadout.loadoutSpecId` 与 run roster 的 `classKey/specKey` 不一致，说明 Raider.IO profile-current 天赋属于角色当前另一专精，不属于本 run roster 的当前模板库存；新 Raider.IO payload 生成和 PG source 汇总都必须跳过该样本，只在 source warnings 记录诊断，不能写成 active blocked 模板。PG writer 仍保留同一 mismatch blocker 作为兜底，避免旧缓存或绕过 source 过滤的路径退化为冗长的 `unknown structured talent entry`。若 structured loadout 无法映射当前 `websim_talents` authority，或 `encode_websim_talents` 失败，必须把 `payload.blockers/errors/talentLoadoutParse/talentEncoding` 暴露给 admin gate，不能退化为“来源状态 blocked”。
 
 每条模板入库前必须经过：
 
@@ -84,13 +87,14 @@ flowchart TD
 4. signature 去重和 source refs 归并
 5. `status=verified|blocked`
 
-`websim_baseline` 额外要求：
+显式启用 `websim_baseline` 时的额外要求：
 
 - 按当前 `WOW_CLASSES` 遍历 expected specs。
 - 每个 spec 只生成默认 hero tree 的 1 条 baseline。
 - 通过后端 authority 贪心选点，active 点数达到 `class=34 / spec=34 / hero=13`。
 - hero granted root 不计入 purchased SimC line，但必须计入 active 点数。
 - 任一树无法点满或 encoding 失败时，该 spec 的 baseline 为 blocked，不进入展示。
+- 默认生产同步不得加载该来源；旧 active baseline 行必须过期，不得继续作为小程序可见模板。
 
 ### 读取
 
@@ -101,7 +105,7 @@ flowchart TD
 - 只返回 `status=verified`。
 - 先按 talent signature 去重，再按公开展示身份去重。
 - 每个 spec 最多返回 3 条。
-- Raider.IO/WCL 等真实样本按 `maxKeyLevel/sampleCount/updatedAt` 优先；baseline 因 `maxKeyLevel=0/sampleCount=0` 只做兜底。
+- Raider.IO/WCL 等真实样本按 `maxKeyLevel/sampleCount/updatedAt` 优先；生产默认不返回 baseline 兜底。
 
 公开展示身份至少包含：
 
@@ -158,7 +162,7 @@ flowchart TD
 - `defaultGear.matrix[*].firstBlockingGate` 只能指向 `statWeightGate`、`gearCandidateGate`、`enhancementGate` 或 `serializerGate`；前置未通过时，后续 gate 必须是 `not_reached`，若审计旁路观察到了候选槽位状态，只能放入 `diagnostic`。
 - `defaultGear.statWeightBlockerMatrix` 是 owner-facing 的紧凑矩阵，只能包含 spec、status、原因分类、聚合 counts 和 `nextAction`，不得输出玩家 URL、完整 profile、secret 或可直接执行的危险命令。
 - `realCommunityGear` 只统计 Raider.IO/WCL/SimC preset/observed profile 等真实装备样本；`default_template` 不得填平真实社区装备样本缺口。
-- `communityTalent` 必须分开统计真实社区天赋模板和 `websim_baseline` 兜底；`websim_baseline` 可作为可编辑兜底，但不能填平真实社区天赋样本缺口。
+- `communityTalent` 必须以真实社区天赋模板为线上库存口径；`websim_baseline` 只可作为显式本地/诊断线索，不能填平真实社区天赋样本缺口。
 - `sourceDependencies.warcraftlogs.status` 只作为独立 source dependency 展示，不复制成 40 个 spec blocker；`missing_credentials` 表示 key 未配置，`partial` 可表示 v2 OAuth 已配置但缺 report evidence / combatantinfo 抽取。
 - 审计 status 语义固定：`passed` = 实际检查并通过；`blocked` = 实际检查并确定阻断；`partial` = 有证据但不足以解锁；`not_reached` = builder 因前置 blocker 没走到该层；`diagnostic` = 审计旁路观察线索，不等于 builder 已通过。
 
@@ -204,7 +208,7 @@ flowchart TD
 `/api/data/health` 的 `community_templates.details` 至少确认：
 
 - `templates.total / verified / blocked`
-- `sources.manual_fixture / raiderio / warcraftlogs / websim_baseline`
+- `sources.raiderio / warcraftlogs`；只有显式本地/诊断启用时才允许出现 `websim_baseline`
 - `scanCoverage.totalSpecCount`
 - `scanCoverage.coveredSpecCount`
 - `scanCoverage.missingSpecs`
@@ -230,19 +234,22 @@ flowchart TD
 ```text
 /health
 /api/data/health
-/api/websim/talents?class=shaman&spec=elemental&hero=stormbringer
-/api/websim/talents?class=mage&spec=frost&hero=spellslinger
+/api/websim/talents?class=deathknight&spec=unholy&hero=rider_of_the_apocalypse
+/api/websim/talents?class=mage&spec=arcane&hero=spellslinger
+/api/websim/talents?class=mage&spec=frost&hero=frostfire
 /api/websim/gear?class=mage&spec=frost&compact=1
 ```
 
 天赋 40 专精矩阵必须检查：
 
 - `specsChecked == 40`
-- 每个 expected spec 至少 1 条 verified template
-- 每个 spec 展示数 `<= 3`
-- 没有 wrong spec
-- 没有重复公开身份
-- 每条可编辑模板的 `websimExportCode` 可被 `/api/talents/validate` 编码
+- 每个 expected spec 都返回稳定 payload，即使当前真实社区模板数为 0。
+- 每个 spec 的 `communityTemplates.length <= 3`。
+- `communityTemplates.length == 0` 是真实社区样本覆盖缺口，必须进入 health / roadmap / owner 诊断口径；不能用 `websim_baseline`、`manual_fixture` 或基础天赋目录填平。
+- 返回的模板不能跨职业、跨专精或跨英雄树。
+- 返回的模板不能有重复公开身份。
+- 每条可编辑模板的 `websimExportCode` 可被 `/api/talents/validate` 编码。
+- 生产默认 payload 和后台当前模板记录不得包含 `websim_baseline`、`manual_fixture` 或 `talent_tree` 基础目录。
 
 装备矩阵必须检查：
 
@@ -256,32 +263,37 @@ flowchart TD
 
 ```sql
 select source_key, source_status, status, count(*)
-from websim_community_talent_templates
+from cache.websim_community_talent_templates
+where expires_at is null or expires_at > now()
 group by source_key, source_status, status
 order by source_key, source_status, status;
 
 select class_key, spec_key, count(*) as verified_count
-from websim_community_talent_templates
+from cache.websim_community_talent_templates
 where status = 'verified'
+  and (expires_at is null or expires_at > now())
 group by class_key, spec_key
 order by class_key, spec_key;
 
 select class_key, spec_key, source_key, count(*) as template_count
-from websim_community_talent_templates
+from cache.websim_community_talent_templates
 where status = 'verified'
+  and (expires_at is null or expires_at > now())
 group by class_key, spec_key, source_key
 order by class_key, spec_key, source_key;
 
-select id, class_key, spec_key, hero_key, source_key, status, json_extract(payload_json, '$.baseline.complete') as baseline_complete
-from websim_community_talent_templates
+select id, class_key, spec_key, hero_key, source_key, status, payload_json #>> '{baseline,complete}' as baseline_complete
+from cache.websim_community_talent_templates
 where source_key = 'websim_baseline'
+  and (expires_at is null or expires_at > now())
 order by class_key, spec_key;
 
 select class_key, spec_key, source_key, source_name, status, ready_slot_count,
-       json_extract(payload_json, '$.scenarioKey') as scenario_key,
-       json_extract(payload_json, '$.templateEvidence.statWeightRevision') as stat_weight_revision
-from websim_community_gear_templates
+       payload_json #>> '{scenarioKey}' as scenario_key,
+       payload_json #>> '{templateEvidence,statWeightRevision}' as stat_weight_revision
+from cache.websim_community_gear_templates
 where source_key = 'default_template'
+  and (expires_at is null or expires_at > now())
 order by class_key, spec_key;
 ```
 
@@ -292,7 +304,7 @@ order by class_key, spec_key;
 3. 先确认天赋和装备 authority 当前 health。
 4. 显式运行社区模板同步：真实样本 / SimC preset 归档 -> 默认装备模板生成 -> dedupe -> health/run summary。
 5. 只读审计 source/status/count。
-6. 跑 40 专精天赋矩阵。
+6. 跑 40 专精天赋矩阵，确认真实社区模板覆盖、缺口、去重和错误专精情况；缺真实样本时记录 coverage gap，不用 baseline 兜底。
 7. 跑装备 import smoke，并确认 `defaultGearTemplates` 覆盖或 blocker。
 8. 代码热部署。
 9. 公网 `/health` 和 `/api/data/health`。
@@ -303,4 +315,4 @@ order by class_key, spec_key;
 
 - 代码回滚：回滚 `server/websim_payload.py`、前端 import sheet 相关文件和文档链接，然后热部署。
 - DB 回滚：停止服务，按写入实际落点恢复 PostgreSQL 备份，重启服务，再跑 `/health` 和 `/api/data/health`。历史 SQLite 备份只能用于重新迁移或离线比对。
-- 数据局部回滚：如只需撤销 baseline，可删除 `source_key='websim_baseline'` 的模板并重建 `community_talent_templates` sync state；执行前仍需备份。
+- 数据局部回滚：如旧同步或显式诊断误把 `websim_baseline` / `manual_fixture` 写回当前库存，可把对应 active 模板标记过期并重建 `community_talent_templates` sync state；执行前仍需备份。

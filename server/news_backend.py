@@ -8288,9 +8288,11 @@ def collect_admin_talent_records(conn):
                    sample_count, max_key_level, analysis_window, payload_json,
                    updated_at, expires_at, signature, source_refs_json, scan_run_id
             FROM websim_community_talent_templates
+            WHERE expires_at > ?
             ORDER BY updated_at DESC
             LIMIT 500
-            """
+            """,
+            (utc_now(),),
         ).fetchall()
         for row in rows:
             payload = admin_gate_json_summary(row[14], {})
@@ -8305,7 +8307,7 @@ def collect_admin_talent_records(conn):
                 source_name=row[7],
                 source_url=row[8],
                 checked_at=row[15],
-                blockers=payload.get("blockers") if isinstance(payload, dict) else [],
+                blockers=admin_gate_payload_error_texts(payload),
                 facets={
                     "classKey": row[1],
                     "specKey": row[2],
@@ -8321,31 +8323,6 @@ def collect_admin_talent_records(conn):
                 raw_summary={"name": row[5], "expiresAt": row[16]},
                 evidence={"sourceRefs": refs[:5] if isinstance(refs, list) else []},
                 talent_category=admin_gate_talent_record_category(row[1], row[2], row[3], row[6], "community_talent_template"),
-            ))
-    if sqlite_has_table(conn, "websim_talents"):
-        rows = conn.execute(
-            """
-            SELECT class_key, spec_key, COUNT(*) AS node_count, MAX(updated_at)
-            FROM websim_talents
-            GROUP BY class_key, spec_key
-            ORDER BY class_key, spec_key
-            LIMIT 500
-            """
-        ).fetchall()
-        for row in rows:
-            records.append(admin_gate_record(
-                "talents",
-                "talent_tree",
-                f"{row[0]}:{row[1]}",
-                f"{row[0]} / {row[1]} talent tree",
-                status="verified" if int(row[2] or 0) > 0 else "blocked",
-                source_status="verified" if int(row[2] or 0) > 0 else "blocked",
-                checked_at=row[3] or "",
-                blockers=[] if int(row[2] or 0) > 0 else ["talent tree has no nodes"],
-                facets={"classKey": row[0], "specKey": row[1], "nodeCount": row[2]},
-                raw_summary={"nodeCount": row[2]},
-                evidence={"catalog": "websim_talents"},
-                talent_category=admin_gate_talent_record_category(row[0], row[1], "", "", "talent_tree"),
             ))
     return records
 
@@ -8603,10 +8580,36 @@ def collect_admin_news_records_from_store(store):
     return records
 
 
+def admin_gate_payload_error_texts(payload):
+    if not isinstance(payload, dict):
+        return []
+    texts = []
+    for key in ("blockers", "errors"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            texts.extend(str(item) for item in value if str(item or "").strip())
+        elif str(value or "").strip():
+            texts.append(str(value))
+    for key in ("talentLoadoutParse", "talentEncoding"):
+        section = payload.get(key) if isinstance(payload.get(key), dict) else {}
+        value = section.get("errors")
+        if isinstance(value, list):
+            texts.extend(str(item) for item in value if str(item or "").strip())
+        elif str(value or "").strip():
+            texts.append(str(value))
+    unique = []
+    seen = set()
+    for text in texts:
+        if text in seen:
+            continue
+        seen.add(text)
+        unique.append(text)
+    return unique
+
+
 def collect_admin_talent_records_from_store(store):
     payload = store.admin_gate_talent_records()
     template_items = payload.get("communityTalentTemplates") if isinstance(payload, dict) else []
-    tree_items = payload.get("talentTrees") if isinstance(payload, dict) else []
     records = []
     for item in template_items or []:
         if timestamp_expired(item.get("expiresAt") or ""):
@@ -8622,7 +8625,7 @@ def collect_admin_talent_records_from_store(store):
             source_name=item.get("sourceName"),
             source_url=item.get("sourceUrl"),
             checked_at=item.get("updatedAt") or "",
-            blockers=item_payload.get("blockers") if isinstance(item_payload, dict) else [],
+            blockers=admin_gate_payload_error_texts(item_payload),
             facets={
                 "classKey": item.get("classKey") or "",
                 "specKey": item.get("specKey") or "",
@@ -8646,28 +8649,6 @@ def collect_admin_talent_records_from_store(store):
                 item.get("heroKey") or "",
                 item.get("sourceKey") or "",
                 "community_talent_template",
-            ),
-        ))
-    for item in tree_items or []:
-        node_count = int(item.get("nodeCount") or 0)
-        records.append(admin_gate_record(
-            "talents",
-            "talent_tree",
-            f"{item.get('classKey')}:{item.get('specKey')}",
-            f"{item.get('classKey')} / {item.get('specKey')} talent tree",
-            status="verified" if node_count > 0 else "blocked",
-            source_status="verified" if node_count > 0 else "blocked",
-            checked_at=item.get("updatedAt") or "",
-            blockers=[] if node_count > 0 else ["talent tree has no nodes"],
-            facets={"classKey": item.get("classKey") or "", "specKey": item.get("specKey") or "", "nodeCount": node_count},
-            raw_summary={"nodeCount": node_count},
-            evidence={"catalog": "websim_talents", "runtimeStore": "postgres_cache"},
-            talent_category=admin_gate_talent_record_category(
-                item.get("classKey") or "",
-                item.get("specKey") or "",
-                "",
-                "",
-                "talent_tree",
             ),
         ))
     return records
@@ -9698,7 +9679,7 @@ def admin_gate_summary_payload():
         "navigation": [
             {"key": "overview", "label": "总览"},
             {"key": "news", "label": "新闻资讯"},
-            {"key": "talents", "label": "天赋树"},
+            {"key": "talents", "label": "天赋模板"},
             {"key": "gear", "label": "装备库"},
             {"key": "gearTemplates", "label": "装备模板"},
             {"key": "queue", "label": "待诊断阻断项"},
@@ -9882,7 +9863,7 @@ def admin_gates_page():
       <section id="recordsView" class="view" data-admin-gate-view="records">
         <h2 id="recordsTitle">全量记录</h2>
         <div id="genericToolbar" class="toolbar">
-          <select id="domain"><option value="">全部模块</option><option value="news">新闻资讯</option><option value="talents">天赋树</option><option value="gear">装备库</option><option value="gear_templates">装备模板</option></select>
+          <select id="domain"><option value="">全部模块</option><option value="news">新闻资讯</option><option value="talents">天赋模板</option><option value="gear">装备库</option><option value="gear_templates">装备模板</option></select>
           <select id="status"><option value="">全部状态</option><option value="verified">verified（已验证）</option><option value="partial">partial（部分通过）</option><option value="stale">stale（已过期）</option><option value="blocked">blocked（已阻断）</option><option value="missing_credentials">missing_credentials（缺少凭据）</option><option value="pending_official_audit">pending_official_audit（待官方校验）</option><option value="source_reference">source_reference（仅作参考）</option></select>
           <select id="field"></select>
           <input id="q" placeholder="搜索当前模块展示字段">
@@ -9954,10 +9935,10 @@ def admin_gates_page():
     let adminGateRecordsPage = 1;
     let latestAdminGateNavigation = [];
     const domainByNavKey = { news:'news', talents:'talents', gear:'gear', gearTemplates:'gear_templates' };
-    const recordTitleByNavKey = { news:'新闻资讯记录', talents:'天赋树记录', gear:'装备库记录', gearTemplates:'装备模板记录' };
+    const recordTitleByNavKey = { news:'新闻资讯记录', talents:'天赋模板记录', gear:'装备库记录', gearTemplates:'装备模板记录' };
     const statusLabels = { verified:'已验证', partial:'部分通过', stale:'已过期', blocked:'已阻断', missing_credentials:'缺少凭据', pending_official_audit:'待官方校验', source_reference:'仅作参考', passed:'已通过', synced:'已同步', ready:'已就绪', complete:'已完成', published:'已发布', open:'未解决', resolved:'已解决' };
     const severityLabels = { ok:'正常', blocks_frontend_publish:'阻断前端发布', blocks_frontend_template:'阻断前端模板展示', blocks_simc_or_strong_claim:'阻断 SimC 或强结论', blocks_diagnostic_or_record:'影响诊断记录' };
-    const domainLabels = { news:'新闻资讯', talents:'天赋树', gear:'装备库', gear_templates:'装备模板' };
+    const domainLabels = { news:'新闻资讯', talents:'天赋模板', gear:'装备库', gear_templates:'装备模板' };
     const adminGateFilterFields = {
       news: [
         { value:'all', label:'全部展示字段', placeholder:'搜索标题、分类、状态、发布情况、来源、Blockers' },
@@ -9972,7 +9953,7 @@ def admin_gates_page():
         { value:'all', label:'全部展示字段', placeholder:'搜索天赋模板、职业、来源、是否被阻断、阻断原因、小程序可见' },
         { value:'talentTemplate', label:'天赋模板', placeholder:'搜索模板名、target type、target id' },
         { value:'class', label:'职业', placeholder:'搜索职业、专精或英雄天赋' },
-        { value:'source', label:'来源', placeholder:'搜索来源名称、URL、社区来源或基础目录' },
+        { value:'source', label:'来源', placeholder:'搜索来源名称、URL 或社区来源' },
         { value:'blocked', label:'是否被阻断', placeholder:'搜索已阻断、未阻断、blocked 或 verified' },
         { value:'blockReason', label:'阻断原因', placeholder:'搜索阻断原因、blocker 或未通过状态' },
         { value:'visibility', label:'小程序可见', placeholder:'搜索已可见、不可见、天赋导入列表或原因' },
@@ -10529,7 +10510,7 @@ def admin_gates_page():
     function talentCategoryCell(item) {
       const category = item.talentCategory || {};
       const label = category.classLabel || category.label || category.classKey || '未知职业';
-      const sourceLabel = category.sourceLabel || (category.sourceKind === 'community' ? '社区来源' : '基础目录');
+      const sourceLabel = category.sourceLabel || '社区来源';
       const meta = [category.specKey, category.heroKey].filter(Boolean).join(' / ');
       return `<span class="category-pill">${escapeHtml(label)}</span><br><span class="muted small">${escapeHtml(sourceLabel)}</span>${meta ? `<br><span class="muted small">${escapeHtml(meta)}</span>` : ''}`;
     }

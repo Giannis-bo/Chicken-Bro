@@ -59,6 +59,7 @@ try:
         talent_spell_display_description,
         talent_tree_sections,
         unique_text_list,
+        validate_community_talent_template,
         unique_gear_candidates,
         unique_locale_preferences,
         websim_gear_community_templates,
@@ -120,6 +121,7 @@ except ImportError:
         talent_spell_display_description,
         talent_tree_sections,
         unique_text_list,
+        validate_community_talent_template,
         unique_gear_candidates,
         unique_locale_preferences,
         websim_gear_community_templates,
@@ -887,20 +889,76 @@ class PostgresCacheStore:
     def community_gear_template_counts(self):
         return self._status_counts("cache.websim_community_gear_templates")
 
+    def community_talent_authority_index(self, class_key, spec_key):
+        class_key = slugify(class_key, "mage")
+        spec_key = slugify(spec_key, "arcane")
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, spell_id, payload_json
+                    FROM cache.websim_talents
+                    WHERE class_key = %s
+                      AND (spec_key = %s OR spec_key = 'class')
+                      AND spell_id > 0
+                    ORDER BY row_index, col_index, id
+                    LIMIT 640
+                    """,
+                    (class_key, spec_key),
+                )
+                rows = cur.fetchall()
+        by_id = {}
+        for row in rows:
+            payload = _json_value(row[2], {})
+            if not isinstance(payload, dict):
+                payload = {}
+            node = {
+                **payload,
+                "id": row[0],
+                "spellId": _int_value(row[1]),
+                "treeType": payload.get("treeType") or ("class" if ":class" in str(row[0]) else payload.get("tree")),
+            }
+            candidate_ids = {
+                _int_value(node.get("spellId")),
+                _int_value(payload.get("traitId")),
+                _int_value(payload.get("traitDefinitionId")),
+                _int_value(payload.get("nodeId")),
+                _int_value(payload.get("entryId")),
+            }
+            for rank_entry in payload.get("rankEntries") or []:
+                if not isinstance(rank_entry, dict):
+                    continue
+                for key in ("traitId", "traitDefinitionId", "entryId", "nodeId", "spellId"):
+                    candidate_ids.add(_int_value(rank_entry.get(key)))
+            for candidate_id in candidate_ids:
+                if candidate_id > 0:
+                    by_id.setdefault(candidate_id, []).append(node)
+        return by_id
+
     def replace_community_talent_templates(self, templates, scan_run_id=""):
         counts = {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
         normalized_rows = []
         for template in templates or []:
             if not isinstance(template, dict):
                 continue
-            normalized = normalize_community_talent_template(
-                {
-                    **template,
-                    "scanRunId": template.get("scanRunId") or scan_run_id,
-                },
-                template.get("sourceKey", "manual_fixture"),
-                template.get("sourceStatus", "partial"),
-            )
+            source_template = {
+                **template,
+                "scanRunId": template.get("scanRunId") or scan_run_id,
+            }
+            try:
+                normalized = validate_community_talent_template(self, source_template)
+            except Exception as error:
+                normalized = normalize_community_talent_template(
+                    source_template,
+                    template.get("sourceKey", "unknown"),
+                    template.get("sourceStatus", "partial"),
+                )
+                payload = dict(normalized.get("payload") or {})
+                blockers = unique_text_list([*(payload.get("blockers") or []), str(error)])
+                payload["blockers"] = blockers
+                payload["errors"] = blockers
+                normalized["payload"] = payload
+                normalized["status"] = "blocked"
             payload = dict(normalized.get("payload") or {})
             payload.setdefault("legacyId", normalized["id"])
             normalized["payload"] = payload
@@ -910,6 +968,17 @@ class PostgresCacheStore:
             normalized_rows.append(normalized)
         if not normalized_rows:
             return counts
+        replace_checked_at = datetime.now(timezone.utc).isoformat()
+        current_ids = [
+            self._deterministic_uuid("community-talent-template", normalized["id"])
+            for normalized in normalized_rows
+            if normalized.get("id")
+        ]
+        current_source_keys = sorted({
+            normalized.get("sourceKey")
+            for normalized in normalized_rows
+            if normalized.get("sourceKey")
+        })
         with self.connection() as conn:
             with conn.cursor() as cur:
                 for normalized in normalized_rows:
@@ -980,7 +1049,44 @@ class PostgresCacheStore:
                             normalized["scanRunId"],
                         ),
                     )
+                if current_ids and current_source_keys:
+                    cur.execute(
+                        """
+                        UPDATE cache.websim_community_talent_templates
+                        SET expires_at = %s,
+                            updated_at = %s
+                        WHERE source_key = ANY(%s::text[])
+                          AND NOT (id = ANY(%s::uuid[]))
+                          AND (expires_at IS NULL OR expires_at > %s)
+                        """,
+                        (
+                            replace_checked_at,
+                            replace_checked_at,
+                            current_source_keys,
+                            current_ids,
+                            replace_checked_at,
+                        ),
+                    )
         return counts
+
+    def expire_community_talent_template_sources(self, source_keys, expired_at=""):
+        keys = sorted({str(source_key or "").strip() for source_key in source_keys or [] if str(source_key or "").strip()})
+        if not keys:
+            return {"expired": 0}
+        checked_at = expired_at or datetime.now(timezone.utc).isoformat()
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE cache.websim_community_talent_templates
+                    SET expires_at = %s,
+                        updated_at = %s
+                    WHERE source_key = ANY(%s::text[])
+                      AND (expires_at IS NULL OR expires_at > %s)
+                    """,
+                    (checked_at, checked_at, keys, checked_at),
+                )
+                return {"expired": cur.rowcount}
 
     def replace_community_gear_templates(self, templates, scan_run_id=""):
         counts = {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
@@ -1706,6 +1812,7 @@ class PostgresCacheStore:
             WHERE class_key = %s
               AND spec_key = %s
               AND status = 'verified'
+              AND (expires_at IS NULL OR expires_at > now())
             ORDER BY max_key_level DESC, sample_count DESC, hero_key, name
             LIMIT 240
             """,
@@ -1887,6 +1994,7 @@ class PostgresCacheStore:
                       AND spec_key = %s
                       AND status = 'verified'
                       AND raw_import_code <> ''
+                      AND (expires_at IS NULL OR expires_at > now())
                     ORDER BY CASE WHEN hero_key = %s THEN 0 ELSE 1 END,
                              max_key_level DESC, sample_count DESC, hero_key, name
                     LIMIT 1

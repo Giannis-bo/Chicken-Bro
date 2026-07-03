@@ -15,6 +15,7 @@ class FakePostgresSyncStore:
         self.observed_backfills = []
         self.crafted_backfills = []
         self.gear_template_candidates = []
+        self.expired_talent_source_keys = []
 
     def replace_simc_generated_data(self, data):
         self.replaced_data = data
@@ -74,6 +75,10 @@ class FakePostgresSyncStore:
             counts["total"] += 1
             counts[bucket] += 1
         return counts
+
+    def expire_community_talent_template_sources(self, source_keys, expired_at=""):
+        self.expired_talent_source_keys.extend(source_keys or [])
+        return {"expired": len(source_keys or [])}
 
     def build_community_gear_templates(self, scan_run_id=""):
         return self.gear_template_candidates
@@ -214,6 +219,118 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(payload["talents"]["templates"]["verified"], 1)
         self.assertEqual(payload["talents"]["templates"]["blocked"], 1)
         self.assertEqual(payload["sourceStatus"], "partial")
+
+    def test_community_postgres_sync_skips_stale_raiderio_spec_mismatch_templates(self):
+        from server import postgres_cache_sync
+        from server.websim_payload import COMMUNITY_TALENT_SYNC_KEY
+
+        store = FakePostgresSyncStore()
+        source_results = {
+            "raiderio": {
+                "status": "verified",
+                "sourceName": "Raider.IO",
+                "templates": [
+                    {
+                        "id": "rio-stale-mismatch",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "heroKey": "frostfire",
+                        "scenarioKey": "mythic_plus",
+                        "rawImportCode": "CAEAAAAAAAAAAAAAAAAAAAAA",
+                        "status": "verified",
+                        "payload": {
+                            "raiderio": {
+                                "characterName": "Mageroysong",
+                                "loadoutSpecId": 62,
+                                "loadout": [{"traitId": 91001, "rank": 1}],
+                            }
+                        },
+                    },
+                    {
+                        "id": "rio-frost-ok",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "heroKey": "frostfire",
+                        "scenarioKey": "mythic_plus",
+                        "talentState": {"selectedNodes": [{"id": "node-a", "rank": 1}]},
+                        "status": "verified",
+                        "payload": {"raiderio": {"characterName": "Frostok", "loadoutSpecId": 64}},
+                    },
+                ],
+                "errors": [],
+            }
+        }
+
+        with patch.object(
+            postgres_cache_sync,
+            "load_community_talent_sources_postgres",
+            return_value=source_results,
+            create=True,
+        ):
+            payload = postgres_cache_sync.sync_community_template_cache_postgres(store=store)
+
+        self.assertEqual([template["id"] for template in store.community_talent_templates], ["rio-frost-ok"])
+        self.assertEqual(payload["talents"]["templates"]["verified"], 1)
+        self.assertEqual(payload["talents"]["templates"]["blocked"], 0)
+        saved = {key: value for key, value, _updated_at in store.saved_states}
+        self.assertIn("warnings", saved[COMMUNITY_TALENT_SYNC_KEY]["sources"]["raiderio"])
+        self.assertIn("loadout spec id 62", saved[COMMUNITY_TALENT_SYNC_KEY]["sources"]["raiderio"]["warnings"][0])
+
+    def test_community_postgres_source_loader_excludes_non_community_fixtures_by_default(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.raiderio_payload = {"sourceStatus": "verified", "communityTemplates": [], "errors": []}
+
+        with patch.dict("os.environ", {"WOW_INCLUDE_MANUAL_FIXTURES": "", "WOW_INCLUDE_WEBSIM_BASELINE_TALENTS": ""}), patch(
+            "server.community_talent_sources.manual_fixture.load_templates",
+            side_effect=AssertionError("manual fixtures should not load in default PG sync"),
+        ), patch(
+            "server.community_talent_sources.warcraftlogs.load_templates",
+            return_value={"status": "missing_credentials", "sourceName": "Warcraft Logs", "templates": [], "errors": []},
+        ), patch(
+            "server.websim_payload.load_websim_baseline_talent_templates",
+            side_effect=AssertionError("WebSim baseline should not load in default PG sync"),
+        ):
+            sources = postgres_cache_sync.load_community_talent_sources_postgres(store)
+
+        self.assertNotIn("manual_fixture", sources)
+        self.assertNotIn("websim_baseline", sources)
+        self.assertEqual(set(sources), {"raiderio", "warcraftlogs"})
+
+    def test_community_postgres_sync_expires_disabled_non_community_sources(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        source_results = {
+            "raiderio": {
+                "status": "verified",
+                "sourceName": "Raider.IO",
+                "templates": [
+                    {
+                        "id": "rio-template-a",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "heroKey": "spellslinger",
+                        "scenarioKey": "mythic_plus",
+                        "talentState": {"selectedNodes": [{"id": "node-a", "rank": 1}]},
+                        "status": "verified",
+                    }
+                ],
+                "errors": [],
+            },
+            "warcraftlogs": {"status": "missing_credentials", "sourceName": "Warcraft Logs", "templates": [], "errors": []},
+        }
+
+        with patch.dict("os.environ", {"WOW_INCLUDE_WEBSIM_BASELINE_TALENTS": ""}), patch.object(
+            postgres_cache_sync,
+            "load_community_talent_sources_postgres",
+            return_value=source_results,
+            create=True,
+        ):
+            postgres_cache_sync.sync_community_template_cache_postgres(store=store)
+
+        self.assertEqual(store.expired_talent_source_keys, ["manual_fixture", "websim_baseline"])
 
     def test_community_postgres_sync_keeps_source_errors_partial_when_rows_are_verified(self):
         from server import postgres_cache_sync

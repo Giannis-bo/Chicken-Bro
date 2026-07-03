@@ -743,6 +743,123 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_talents", sql)
         self.assertIn("FROM cache.websim_profile_presets", sql)
         self.assertIn("FROM cache.websim_community_talent_templates", sql)
+        self.assertIn("expires_at IS NULL OR expires_at > now()", sql)
+
+    def test_replace_community_talent_templates_validates_raiderio_structured_loadout(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        nodes = [
+            {
+                "id": "simc-class-91001-mage-frost",
+                "treeType": "class",
+                "traitId": 91001,
+                "spellId": 191001,
+                "maxRank": 1,
+                "grantedRank": 0,
+                "rankEntries": [{"traitId": 91001, "spellId": 191001}],
+                "row": 1,
+                "col": 1,
+            },
+            {
+                "id": "simc-spec-91002-mage-frost",
+                "treeType": "spec",
+                "traitId": 91002,
+                "spellId": 191002,
+                "maxRank": 1,
+                "grantedRank": 0,
+                "rankEntries": [{"traitId": 91002, "spellId": 191002}],
+                "row": 1,
+                "col": 2,
+            },
+            {
+                "id": "simc-hero-91003-mage-frost-frostfire",
+                "treeType": "hero",
+                "heroKey": "frostfire",
+                "traitId": 91003,
+                "spellId": 191003,
+                "maxRank": 1,
+                "grantedRank": 0,
+                "rankEntries": [{"traitId": 91003, "spellId": 191003}],
+                "row": 1,
+                "col": 3,
+            },
+        ]
+
+        class ValidatingStore(PostgresCacheStore):
+            def community_talent_authority_index(self, class_key, spec_key):
+                by_id = {}
+                for node in nodes:
+                    for value in (node["traitId"], node["spellId"]):
+                        by_id.setdefault(value, []).append(node)
+                return by_id
+
+            def get_websim_talents(self, class_key="mage", spec_key="arcane", hero_key=""):
+                return {"talentStatus": "verified", "nodes": nodes, "treeSections": []}
+
+        conn = FakeConnection()
+        store = ValidatingStore(lambda: conn)
+
+        counts = store.replace_community_talent_templates(
+            [
+                {
+                    "id": "raiderio-rioone-frost",
+                    "sourceKey": "raiderio",
+                    "sourceStatus": "synced",
+                    "sourceName": "Raider.IO",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "heroKey": "frostfire",
+                    "scenarioKey": "mythic_plus",
+                    "status": "verified",
+                    "rawImportCode": "CAEAAAAAAAAAAAAAAAAAAAAA",
+                    "playerId": "Rioone",
+                    "payload": {
+                        "raiderio": {
+                            "characterName": "Rioone",
+                            "realmSlug": "isillien",
+                            "loadoutSpecId": 64,
+                            "loadout": [
+                                {"traitId": 91001, "rank": 1},
+                                {"traitId": 91002, "rank": 1},
+                                {"traitId": 91003, "rank": 1},
+                            ],
+                        }
+                    },
+                }
+            ],
+            scan_run_id="scan-raiderio-validation",
+        )
+
+        insert_params = next(
+            params
+            for statement, params in zip(conn.cursor_instance.statements, conn.cursor_instance.params)
+            if "INSERT INTO cache.websim_community_talent_templates" in statement
+        )
+        self.assertEqual(counts["verified"], 1)
+        self.assertEqual(insert_params[19], "verified")
+        self.assertIn("talentLoadoutParse", insert_params[4])
+        self.assertIn('"status": "parsed"', insert_params[4])
+        self.assertTrue(insert_params[13].startswith("websim:mage:frost:frostfire:"))
+        self.assertIn("simc-class-91001-mage-frost", insert_params[14])
+        self.assertIn("UPDATE cache.websim_community_talent_templates", "\n".join(conn.cursor_instance.statements))
+
+    def test_expire_community_talent_template_sources_marks_active_rows_stale(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        result = store.expire_community_talent_template_sources(
+            ["websim_baseline"],
+            expired_at="2026-07-03T09:20:00+00:00",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(result["expired"], 1)
+        self.assertIn("UPDATE cache.websim_community_talent_templates", sql)
+        self.assertIn("source_key = ANY", sql)
+        self.assertEqual(conn.cursor_instance.params[-1][2], ["websim_baseline"])
+        self.assertTrue(conn.committed)
 
     def test_talent_read_model_keeps_pg_nodes_when_season_is_stale(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -1190,7 +1307,154 @@ class PostgresCacheStoreTest(unittest.TestCase):
     def test_postgres_native_sync_writers_use_cache_schema(self):
         from server.postgres_cache_store import PostgresCacheStore
 
-        conn = FakeConnection()
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-07-03T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "checkedAt": "2026-07-03T01:01:00+00:00",
+                            "simc": {"build": "12.0.7.68275", "traitEdgeSource": "simc"},
+                            "sourceStatus": "verified",
+                            "templates": {"total": 0, "verified": 0, "blocked": 0},
+                        },
+                        "2026-07-03T01:01:00+00:00",
+                    )
+                ],
+                "SELECT id, spell_id, payload_json FROM cache.websim_talents": [
+                    (
+                        "simc-class-91001-mage-frost",
+                        191001,
+                        {
+                            "treeType": "class",
+                            "traitId": 91001,
+                            "nodeId": 591001,
+                            "specId": 64,
+                            "maxRank": 1,
+                            "grantedRank": 0,
+                            "rankEntries": [{"traitId": 91001, "spellId": 191001}],
+                            "source": "simulationcraft",
+                        },
+                    ),
+                    (
+                        "simc-spec-91002-mage-frost",
+                        191002,
+                        {
+                            "treeType": "spec",
+                            "traitId": 91002,
+                            "nodeId": 591002,
+                            "specId": 64,
+                            "maxRank": 1,
+                            "grantedRank": 0,
+                            "rankEntries": [{"traitId": 91002, "spellId": 191002}],
+                            "source": "simulationcraft",
+                        },
+                    ),
+                    (
+                        "simc-hero-91003-mage-frost-frostfire",
+                        191003,
+                        {
+                            "treeType": "hero",
+                            "heroKey": "frostfire",
+                            "traitId": 91003,
+                            "nodeId": 591003,
+                            "specId": 64,
+                            "maxRank": 1,
+                            "grantedRank": 0,
+                            "rankEntries": [{"traitId": 91003, "spellId": 191003}],
+                            "source": "simulationcraft",
+                        },
+                    ),
+                ],
+                "FROM cache.websim_talents": [
+                    (
+                        "simc-class-91001-mage-frost",
+                        "mage",
+                        "frost",
+                        "class:mage",
+                        1,
+                        1,
+                        191001,
+                        "Class Talent",
+                        {
+                            "treeType": "class",
+                            "traitId": 91001,
+                            "nodeId": 591001,
+                            "specId": 64,
+                            "maxRank": 1,
+                            "grantedRank": 0,
+                            "rankEntries": [{"traitId": 91001, "spellId": 191001}],
+                            "source": "simulationcraft",
+                        },
+                        "Class talent description.",
+                        "https://render.worldofwarcraft.com/class.jpg",
+                        {"source": "simulationcraft"},
+                    ),
+                    (
+                        "simc-spec-91002-mage-frost",
+                        "mage",
+                        "frost",
+                        "spec:mage:frost",
+                        1,
+                        2,
+                        191002,
+                        "Spec Talent",
+                        {
+                            "treeType": "spec",
+                            "traitId": 91002,
+                            "nodeId": 591002,
+                            "specId": 64,
+                            "maxRank": 1,
+                            "grantedRank": 0,
+                            "rankEntries": [{"traitId": 91002, "spellId": 191002}],
+                            "source": "simulationcraft",
+                        },
+                        "Spec talent description.",
+                        "https://render.worldofwarcraft.com/spec.jpg",
+                        {"source": "simulationcraft"},
+                    ),
+                    (
+                        "simc-hero-91003-mage-frost-frostfire",
+                        "mage",
+                        "frost",
+                        "hero:frostfire",
+                        1,
+                        3,
+                        191003,
+                        "Hero Talent",
+                        {
+                            "treeType": "hero",
+                            "heroKey": "frostfire",
+                            "traitId": 91003,
+                            "nodeId": 591003,
+                            "specId": 64,
+                            "maxRank": 1,
+                            "grantedRank": 0,
+                            "rankEntries": [{"traitId": 91003, "spellId": 191003}],
+                            "source": "simulationcraft",
+                        },
+                        "Hero talent description.",
+                        "https://render.worldofwarcraft.com/hero.jpg",
+                        {"source": "simulationcraft"},
+                    ),
+                ],
+                "FROM cache.websim_profile_presets": [],
+                "FROM cache.websim_community_talent_templates": [],
+            }
+        )
         store = PostgresCacheStore(lambda: conn)
 
         store.save_raiderio_payload(
@@ -1248,7 +1512,154 @@ class PostgresCacheStoreTest(unittest.TestCase):
     def test_postgres_native_community_template_writers_use_cache_schema(self):
         from server.postgres_cache_store import PostgresCacheStore
 
-        conn = FakeConnection()
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-07-03T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "checkedAt": "2026-07-03T01:01:00+00:00",
+                            "simc": {"build": "12.0.7.68275", "traitEdgeSource": "simc"},
+                            "sourceStatus": "verified",
+                            "templates": {"total": 0, "verified": 0, "blocked": 0},
+                        },
+                        "2026-07-03T01:01:00+00:00",
+                    )
+                ],
+                "SELECT id, spell_id, payload_json FROM cache.websim_talents": [
+                    (
+                        "simc-class-91001-mage-frost",
+                        191001,
+                        {
+                            "treeType": "class",
+                            "traitId": 91001,
+                            "nodeId": 591001,
+                            "specId": 64,
+                            "maxRank": 1,
+                            "grantedRank": 0,
+                            "rankEntries": [{"traitId": 91001, "spellId": 191001}],
+                            "source": "simulationcraft",
+                        },
+                    ),
+                    (
+                        "simc-spec-91002-mage-frost",
+                        191002,
+                        {
+                            "treeType": "spec",
+                            "traitId": 91002,
+                            "nodeId": 591002,
+                            "specId": 64,
+                            "maxRank": 1,
+                            "grantedRank": 0,
+                            "rankEntries": [{"traitId": 91002, "spellId": 191002}],
+                            "source": "simulationcraft",
+                        },
+                    ),
+                    (
+                        "simc-hero-91003-mage-frost-frostfire",
+                        191003,
+                        {
+                            "treeType": "hero",
+                            "heroKey": "frostfire",
+                            "traitId": 91003,
+                            "nodeId": 591003,
+                            "specId": 64,
+                            "maxRank": 1,
+                            "grantedRank": 0,
+                            "rankEntries": [{"traitId": 91003, "spellId": 191003}],
+                            "source": "simulationcraft",
+                        },
+                    ),
+                ],
+                "FROM cache.websim_talents": [
+                    (
+                        "simc-class-91001-mage-frost",
+                        "mage",
+                        "frost",
+                        "class:mage",
+                        1,
+                        1,
+                        191001,
+                        "Class Talent",
+                        {
+                            "treeType": "class",
+                            "traitId": 91001,
+                            "nodeId": 591001,
+                            "specId": 64,
+                            "maxRank": 1,
+                            "grantedRank": 0,
+                            "rankEntries": [{"traitId": 91001, "spellId": 191001}],
+                            "source": "simulationcraft",
+                        },
+                        "Class talent description.",
+                        "https://render.worldofwarcraft.com/class.jpg",
+                        {"source": "simulationcraft"},
+                    ),
+                    (
+                        "simc-spec-91002-mage-frost",
+                        "mage",
+                        "frost",
+                        "spec:mage:frost",
+                        1,
+                        2,
+                        191002,
+                        "Spec Talent",
+                        {
+                            "treeType": "spec",
+                            "traitId": 91002,
+                            "nodeId": 591002,
+                            "specId": 64,
+                            "maxRank": 1,
+                            "grantedRank": 0,
+                            "rankEntries": [{"traitId": 91002, "spellId": 191002}],
+                            "source": "simulationcraft",
+                        },
+                        "Spec talent description.",
+                        "https://render.worldofwarcraft.com/spec.jpg",
+                        {"source": "simulationcraft"},
+                    ),
+                    (
+                        "simc-hero-91003-mage-frost-frostfire",
+                        "mage",
+                        "frost",
+                        "hero:frostfire",
+                        1,
+                        3,
+                        191003,
+                        "Hero Talent",
+                        {
+                            "treeType": "hero",
+                            "heroKey": "frostfire",
+                            "traitId": 91003,
+                            "nodeId": 591003,
+                            "specId": 64,
+                            "maxRank": 1,
+                            "grantedRank": 0,
+                            "rankEntries": [{"traitId": 91003, "spellId": 191003}],
+                            "source": "simulationcraft",
+                        },
+                        "Hero talent description.",
+                        "https://render.worldofwarcraft.com/hero.jpg",
+                        {"source": "simulationcraft"},
+                    ),
+                ],
+                "FROM cache.websim_profile_presets": [],
+                "FROM cache.websim_community_talent_templates": [],
+            }
+        )
         store = PostgresCacheStore(lambda: conn)
 
         talent_counts = store.replace_community_talent_templates(
@@ -1257,7 +1668,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     "id": "template-a",
                     "classKey": "mage",
                     "specKey": "frost",
-                    "heroKey": "spellslinger",
+                    "heroKey": "frostfire",
                     "scenarioKey": "mythic_plus",
                     "name": "Template A",
                     "flowLabel": "主流",
@@ -1266,13 +1677,24 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     "sourceUrl": "https://raider.io/template-a",
                     "rawImportCode": "CAE_FAKE",
                     "websimExportCode": "",
-                    "talentState": {"selectedNodes": [{"id": "node-a", "rank": 1}]},
                     "sampleCount": 3,
                     "maxKeyLevel": 12,
                     "analysisWindow": "test window",
                     "sourceStatus": "verified",
                     "status": "verified",
-                    "payload": {"playerId": "Mage A"},
+                    "payload": {
+                        "playerId": "Mage A",
+                        "raiderio": {
+                            "characterName": "Mage A",
+                            "realmSlug": "test-realm",
+                            "loadoutSpecId": 64,
+                            "loadout": [
+                                {"traitId": 91001, "rank": 1},
+                                {"traitId": 91002, "rank": 1},
+                                {"traitId": 91003, "rank": 1},
+                            ],
+                        },
+                    },
                     "signature": "sig-template-a",
                     "sourceRefs": [{"sourceKey": "raiderio"}],
                     "scanRunId": "scan-a",
@@ -1319,6 +1741,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(talent_counts["blocked"], 1)
         self.assertEqual(gear_counts["partial"], 1)
         self.assertIn("INSERT INTO cache.websim_community_talent_templates", sql)
+        self.assertIn("UPDATE cache.websim_community_talent_templates", sql)
         self.assertIn("ON CONFLICT (id) DO UPDATE", sql)
         self.assertIn("INSERT INTO cache.websim_community_gear_templates", sql)
         self.assertTrue(conn.committed)

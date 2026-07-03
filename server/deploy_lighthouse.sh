@@ -509,8 +509,7 @@ sudo systemctl enable --now wow-stat-weights-sync.timer
 sudo systemctl reset-failed wow-community-template-sync.service >/dev/null 2>&1 || true
 sudo systemctl enable --now wow-community-template-sync.timer
 sudo systemctl reset-failed wow-gear-observed-backfill.service >/dev/null 2>&1 || true
-sudo systemctl enable --now wow-gear-observed-backfill.timer
-echo "PG-native sync timers enabled."
+echo "PG-native sync timers enabled; observed gear backfill unit installed but not auto-enabled."
 sudo systemctl enable --now "${SERVICE_NAME}"
 sudo systemctl restart "${SERVICE_NAME}"
 sudo systemctl restart nginx
@@ -534,7 +533,6 @@ if [[ "${START_ASYNC_SYNCS}" == "1" ]]; then
   sudo systemctl start --no-block wow-websim-sync.service
   sudo systemctl start --no-block wow-stat-weights-sync.service
   sudo systemctl start --no-block wow-community-template-sync.service
-  sudo systemctl start --no-block wow-gear-observed-backfill.service
   echo "Started PG-native async sync services."
 else
   echo "Skipping PG-native async sync starts because WOW_DEPLOY_START_ASYNC_SYNCS is not 1."

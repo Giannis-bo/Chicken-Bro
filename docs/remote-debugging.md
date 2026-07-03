@@ -102,7 +102,7 @@ WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
 - 上传当前工作区到 `/opt/wow-mini-program`，不上传 `server/data`。
 - 热部署模式要求远端已有 Python、curl、systemd 和 `/opt/wow-simc/current/simc`。
 - 部署会重启 `wow-backend` 和 nginx，并 smoke 本机 `/health`、`/api/builds/home`、`/api/pve/home`、`/api/simulator/home`、`/api/websim/bootstrap`、`/websim/`，最后再从本机验证公网 `/health`。
-- 部署默认不会启动长耗时同步；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 才会启动 `wow-websim-sync`、`wow-stat-weights-sync` 和 `wow-community-template-sync`。
+- 部署默认不会启动长耗时同步；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 才会启动 `wow-websim-sync`、`wow-stat-weights-sync` 和 `wow-community-template-sync`。`wow-gear-observed-backfill` 只安装 unit，不随常规部署自动启用或启动。
 - 线上数据写入、SQLite 历史备份读取、PostgreSQL schema 变更、受控同步、环境变量修改或数据库 target 切换前，先说明范围并备份相关数据库。
 
 PG-only 部署后必须额外验证：
@@ -111,7 +111,7 @@ PG-only 部署后必须额外验证：
 ssh wow-lighthouse 'sudo awk -F= "/^WOW_DATABASE_RUNTIME=|^WOW_DATABASE_URL=|^WOW_SQLITE_MIGRATION_SOURCE=/{print \$1\"=\"(\$1==\"WOW_DATABASE_URL\" ? \"<redacted>\" : \$2)}" /etc/wow-backend.env'
 curl -fsS http://124.223.51.33/api/data/health
 curl -fsS http://124.223.51.33/api/websim/assets
-curl -fsS 'http://124.223.51.33/api/websim/talents?class=mage&spec=frost&hero=spellslinger'
+curl -fsS 'http://124.223.51.33/api/websim/talents?class=mage&spec=frost&hero=frostfire'
 curl -fsS 'http://124.223.51.33/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial'
 ```
 

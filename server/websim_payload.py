@@ -11710,20 +11710,40 @@ def get_websim_presets(conn, class_key="mage", spec_key="arcane"):
     ]
 
 
+def include_manual_fixture_sources():
+    return os.environ.get("WOW_INCLUDE_MANUAL_FIXTURES", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def include_websim_baseline_talent_sources():
+    return os.environ.get("WOW_INCLUDE_WEBSIM_BASELINE_TALENTS", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def disabled_community_talent_template_source_keys():
+    keys = []
+    if not include_manual_fixture_sources():
+        keys.append("manual_fixture")
+    if not include_websim_baseline_talent_sources():
+        keys.append("websim_baseline")
+    return keys
+
+
 def ensure_community_talent_templates(conn):
     if get_sync_state(conn, COMMUNITY_TALENT_SYNC_KEY):
         return
     try:
         sync_community_talent_templates(conn)
     except Exception as error:
+        sources = {
+            "raiderio": {"status": "missing_credentials", "sourceName": "Raider.IO", "errors": []},
+            "warcraftlogs": {"status": "missing_credentials", "sourceName": "Warcraft Logs", "errors": []},
+        }
+        if include_websim_baseline_talent_sources():
+            sources["websim_baseline"] = {"status": "blocked", "sourceName": "WebSim 基线模板", "errors": [str(error)]}
+        if include_manual_fixture_sources():
+            sources["manual_fixture"] = {"status": "blocked", "sourceName": "Manual Fixture", "errors": [str(error)]}
         set_sync_state(conn, COMMUNITY_TALENT_SYNC_KEY, {
             "sourceStatus": "blocked",
-            "sources": {
-                "manual_fixture": {"status": "blocked", "sourceName": "Manual Fixture", "errors": [str(error)]},
-                "raiderio": {"status": "missing_credentials", "sourceName": "Raider.IO", "errors": []},
-                "warcraftlogs": {"status": "missing_credentials", "sourceName": "Warcraft Logs", "errors": []},
-                "websim_baseline": {"status": "blocked", "sourceName": "WebSim 基线模板", "errors": [str(error)]},
-            },
+            "sources": sources,
             "templates": {"total": 0, "verified": 0, "blocked": 0},
             "checkedAt": utc_now(),
         })
@@ -11737,7 +11757,9 @@ def community_talent_template_stats(conn):
                raw_import_code, websim_export_code
         FROM websim_community_talent_templates
         WHERE status = 'verified'
-        """
+          AND expires_at > ?
+        """,
+        (utc_now(),),
     ).fetchall()
     signatures = set()
     covered = set()
@@ -11783,14 +11805,17 @@ def community_talent_sync_state(conn):
         state.setdefault("dedupedCount", stats["dedupedCount"])
         state.setdefault("hiddenDuplicateCount", stats["hiddenDuplicateCount"])
         return state
+    sources = {
+        "raiderio": {"status": "missing_credentials", "sourceName": "Raider.IO", "errors": []},
+        "warcraftlogs": {"status": "missing_credentials", "sourceName": "Warcraft Logs", "errors": []},
+    }
+    if include_websim_baseline_talent_sources():
+        sources["websim_baseline"] = {"status": "missing_credentials", "sourceName": "WebSim 基线模板", "errors": []}
+    if include_manual_fixture_sources():
+        sources["manual_fixture"] = {"status": "missing_credentials", "sourceName": "Manual Fixture", "errors": []}
     return {
         "sourceStatus": "missing_credentials",
-        "sources": {
-            "manual_fixture": {"status": "missing_credentials", "sourceName": "Manual Fixture", "errors": []},
-            "raiderio": {"status": "missing_credentials", "sourceName": "Raider.IO", "errors": []},
-            "warcraftlogs": {"status": "missing_credentials", "sourceName": "Warcraft Logs", "errors": []},
-            "websim_baseline": {"status": "missing_credentials", "sourceName": "WebSim 基线模板", "errors": []},
-        },
+        "sources": sources,
         "templates": {"total": 0, "verified": 0, "blocked": 0},
         "templateRevision": stats["templateRevision"],
         "scanCoverage": stats["scanCoverage"],
@@ -12405,6 +12430,8 @@ def is_hero_tree_selector_loadout_entry(entry):
 
 
 def community_talent_authority_index(conn, class_key, spec_key):
+    if hasattr(conn, "community_talent_authority_index"):
+        return conn.community_talent_authority_index(class_key, spec_key)
     rows = conn.execute(
         """
         SELECT id, spell_id, payload_json
@@ -12444,6 +12471,80 @@ def community_talent_authority_index(conn, class_key, spec_key):
             if candidate_id > 0:
                 by_id.setdefault(candidate_id, []).append(node)
     return by_id
+
+
+def community_talent_payload_error_texts(payload):
+    if not isinstance(payload, dict):
+        return []
+    texts = []
+    for key in ("blockers", "errors"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            texts.extend(str(item) for item in value if str(item or "").strip())
+        elif str(value or "").strip():
+            texts.append(str(value))
+    for key in ("talentLoadoutParse", "talentEncoding"):
+        section = payload.get(key) if isinstance(payload.get(key), dict) else {}
+        value = section.get("errors")
+        if isinstance(value, list):
+            texts.extend(str(item) for item in value if str(item or "").strip())
+        elif str(value or "").strip():
+            texts.append(str(value))
+    return unique_text_list(texts)
+
+
+def community_talent_loadout_spec_blockers(template):
+    if not isinstance(template, dict):
+        return []
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    raiderio_payload = payload.get("raiderio") if isinstance(payload.get("raiderio"), dict) else {}
+    source_key = slugify(template.get("sourceKey") or payload.get("sourceKey") or "", "")
+    if source_key and source_key != "raiderio":
+        return []
+    if source_key != "raiderio" and not raiderio_payload:
+        return []
+    candidate_sources = [raiderio_payload, payload, template]
+    loadout_spec_id = ""
+    for source in candidate_sources:
+        if not isinstance(source, dict):
+            continue
+        loadout_spec_id = source.get("loadoutSpecId") or source.get("loadout_spec_id") or ""
+        if loadout_spec_id:
+            break
+    try:
+        numeric_spec_id = int(loadout_spec_id or 0)
+    except (TypeError, ValueError):
+        numeric_spec_id = 0
+    if numeric_spec_id <= 0:
+        return []
+    actual_pair = SPEC_ID_TO_KEY.get(numeric_spec_id)
+    if not actual_pair:
+        return []
+    class_key = slugify(template.get("classKey"), "")
+    spec_key = slugify(template.get("specKey"), "")
+    if not class_key or not spec_key:
+        return []
+    expected = f"{class_key}:{spec_key}"
+    actual = f"{actual_pair[0]}:{actual_pair[1]}"
+    if actual == expected:
+        return []
+    return [
+        (
+            f"Raider.IO talent loadout spec id {loadout_spec_id} resolves to {actual}, "
+            f"but the run roster template is {expected}; skipping profile-current talent loadout for this spec."
+        )
+    ]
+
+
+def block_community_talent_template(normalized, blockers):
+    payload = dict(normalized.get("payload") or {})
+    blocker_list = unique_text_list(blockers)
+    if blocker_list:
+        payload["blockers"] = blocker_list
+        payload.setdefault("errors", blocker_list)
+    normalized["payload"] = payload
+    normalized["status"] = "blocked"
+    return refresh_community_talent_identity(normalized)
 
 
 def resolve_community_talent_structured_loadout(conn, template):
@@ -12518,7 +12619,7 @@ def resolve_community_talent_structured_loadout(conn, template):
     }
 
 
-def normalize_community_talent_template(template, source_key="manual_fixture", source_status="partial"):
+def normalize_community_talent_template(template, source_key="unknown", source_status="partial"):
     source = template if isinstance(template, dict) else {}
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
@@ -12636,7 +12737,13 @@ def encoding_has_unknown_talent_nodes(encoding):
 
 
 def validate_community_talent_template(conn, template):
-    normalized = normalize_community_talent_template(template, template.get("sourceKey", "manual_fixture"), template.get("sourceStatus", "partial"))
+    normalized = normalize_community_talent_template(template, template.get("sourceKey", "unknown"), template.get("sourceStatus", "partial"))
+    existing_blockers = unique_text_list([
+        *community_talent_loadout_spec_blockers(normalized),
+        *community_talent_payload_error_texts(normalized.get("payload")),
+    ])
+    if existing_blockers:
+        return block_community_talent_template(normalized, existing_blockers)
     if not community_talent_selected_nodes(normalized):
         parsed_loadout = resolve_community_talent_structured_loadout(conn, normalized)
         if parsed_loadout.get("selectedNodes") and parsed_loadout.get("heroKey") and not parsed_loadout.get("errors"):
@@ -12681,15 +12788,18 @@ def validate_community_talent_template(conn, template):
         normalized["status"] = "verified" if encoding.get("status") == "encoded" else "blocked"
         if encoding.get("errors"):
             normalized["payload"]["errors"] = encoding.get("errors")
+            normalized["payload"]["blockers"] = encoding.get("errors")
     elif normalized["rawImportCode"]:
         normalized["status"] = "blocked"
         normalized["payload"]["errors"] = (
             normalized["payload"].get("talentLoadoutParse", {}).get("errors")
             or ["raw talent import code could not be parsed into WebSim nodes"]
         )
+        normalized["payload"]["blockers"] = normalized["payload"]["errors"]
     else:
         normalized["status"] = "blocked"
         normalized["payload"]["errors"] = ["missing WebSim talent state or external talents import code"]
+        normalized["payload"]["blockers"] = normalized["payload"]["errors"]
     return refresh_community_talent_identity(normalized)
 
 
@@ -12697,7 +12807,7 @@ def upsert_community_talent_template(conn, template):
     ensure_websim_tables(conn)
     normalized = normalize_community_talent_template(
         template,
-        template.get("sourceKey", "manual_fixture") if isinstance(template, dict) else "manual_fixture",
+        template.get("sourceKey", "unknown") if isinstance(template, dict) else "unknown",
         template.get("sourceStatus", "partial") if isinstance(template, dict) else "partial",
     )
     conn.execute(
@@ -12779,10 +12889,11 @@ def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arca
         WHERE class_key = ?
           AND spec_key = ?
           AND status = 'verified'
+          AND expires_at > ?
         ORDER BY max_key_level DESC, sample_count DESC, hero_key, name
         LIMIT 240
         """,
-        (class_key, spec_key),
+        (class_key, spec_key, utc_now()),
     ).fetchall()
     templates = []
     for row in rows:
@@ -12889,11 +13000,12 @@ def get_websim_talent_import(conn, class_key="mage", spec_key="arcane", hero_key
           AND spec_key = ?
           AND status = 'verified'
           AND raw_import_code <> ''
+          AND expires_at > ?
         ORDER BY CASE WHEN hero_key = ? THEN 0 ELSE 1 END,
                  max_key_level DESC, sample_count DESC, hero_key, name
         LIMIT 1
         """,
-        (class_key, spec_key, hero_key),
+        (class_key, spec_key, utc_now(), hero_key),
     ).fetchone()
     template = None
     if row:
@@ -12924,19 +13036,38 @@ def get_websim_talent_import(conn, class_key="mage", spec_key="arcane", hero_key
     )
 
 
+def delete_community_talent_template_sources(conn, source_keys):
+    keys = [str(source_key or "").strip() for source_key in source_keys or [] if str(source_key or "").strip()]
+    if not keys:
+        return {"deleted": 0}
+    placeholders = ",".join("?" for _ in keys)
+    cursor = conn.execute(
+        f"DELETE FROM websim_community_talent_templates WHERE source_key IN ({placeholders})",
+        keys,
+    )
+    return {"deleted": cursor.rowcount if cursor.rowcount is not None else 0}
+
+
 def sync_community_talent_templates(conn):
     ensure_websim_tables(conn)
+    delete_community_talent_template_sources(conn, disabled_community_talent_template_source_keys())
     try:
-        from .community_talent_sources import manual_fixture, raiderio, warcraftlogs
+        from .community_talent_sources import raiderio, warcraftlogs
     except ImportError:
-        from community_talent_sources import manual_fixture, raiderio, warcraftlogs
+        from community_talent_sources import raiderio, warcraftlogs
 
     adapters = {
-        "manual_fixture": manual_fixture.load_templates,
         "raiderio": raiderio.load_templates,
         "warcraftlogs": warcraftlogs.load_templates,
-        "websim_baseline": load_websim_baseline_talent_templates,
     }
+    if include_websim_baseline_talent_sources():
+        adapters["websim_baseline"] = load_websim_baseline_talent_templates
+    if include_manual_fixture_sources():
+        try:
+            from .community_talent_sources import manual_fixture
+        except ImportError:
+            from community_talent_sources import manual_fixture
+        adapters = {"manual_fixture": manual_fixture.load_templates, **adapters}
     sources = {}
     verified = 0
     blocked = 0

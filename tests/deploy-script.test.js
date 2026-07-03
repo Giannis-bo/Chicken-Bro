@@ -52,22 +52,22 @@ test('lighthouse deploy script enables PG-native sync timers in PG-only mode', (
   for (const enableCommand of [
     'sudo systemctl enable --now wow-websim-sync.timer',
     'sudo systemctl enable --now wow-stat-weights-sync.timer',
-    'sudo systemctl enable --now wow-community-template-sync.timer',
-    'sudo systemctl enable --now wow-gear-observed-backfill.timer'
+    'sudo systemctl enable --now wow-community-template-sync.timer'
   ]) {
     const enableIndex = script.indexOf(enableCommand)
     assert.ok(enableIndex > 0 && enableIndex < smokeIndex, `${enableCommand} must run before API smoke checks`)
   }
+  assert.doesNotMatch(script, /enable --now wow-gear-observed-backfill\.timer/)
 
   for (const startCommand of [
     'sudo systemctl start --no-block wow-websim-sync.service',
     'sudo systemctl start --no-block wow-stat-weights-sync.service',
-    'sudo systemctl start --no-block wow-community-template-sync.service',
-    'sudo systemctl start --no-block wow-gear-observed-backfill.service'
+    'sudo systemctl start --no-block wow-community-template-sync.service'
   ]) {
     const startIndex = script.indexOf(startCommand)
     assert.ok(startIndex > optInIndex, `${startCommand} must stay behind async sync opt-in`)
   }
+  assert.doesNotMatch(script, /start --no-block wow-gear-observed-backfill\.service/)
 })
 
 test('community template sync has a six-hour persistent systemd timer', () => {

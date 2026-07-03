@@ -71,7 +71,7 @@
 
 天赋模拟器同样保持 consumer-only：前端可以预览 fallback 树和生成 `websim:` 可视化 export code，但不能生成 `class_talents/spec_talents/hero_talents`。当 `talentStatus=fallback`、`talentAuthority.diffStatus=blocked` 或 `talentReadiness.simcReady=false` 时，只允许预览，不允许保存为可执行模板；最终 SimC profile 仍以后端 `encode_websim_talents` 和 `profileReadiness` 为准。
 
-社区模板导入横跨天赋和装备两条模拟链路，长期执行手册见 [社区模板导入全链路 Runbook](community-template-import-full-chain-runbook.md)。真实 Raider.IO / WCL 样本、manual fixture 和 `websim_baseline` 必须分清来源；baseline 只能作为全职业专精可编辑起点兜底，不能冒充社区玩家样本或强度结论。
+社区模板导入横跨天赋和装备两条模拟链路，长期执行手册见 [社区模板导入全链路 Runbook](community-template-import-full-chain-runbook.md)。生产天赋模板库存只保留真实 Raider.IO / WCL 等社区高端玩家来源；manual fixture 和 `websim_baseline` 只允许显式本地 / 诊断启用，不能作为线上兜底、社区玩家样本或强度结论。
 
 ## 当前实现状态
 
@@ -86,7 +86,7 @@
 
 天赋链路的长期执行手册见 [全职业天赋模拟全链路 Runbook](talent-simulation-full-chain-runbook.md)。版本或赛季更新时先按该文档确认 SimC trait data、Wago trait edges、Blizzard spell/media、社区模板、health readiness、profile/simulate fail-closed 和回滚边界。
 
-社区模板导入链路的长期执行手册见 [社区模板导入全链路 Runbook](community-template-import-full-chain-runbook.md)。导入推荐刷新时先按该文档确认上游样本、baseline 兜底、per-spec cap、去重、health coverage、40 专精矩阵和回滚边界。
+社区模板导入链路的长期执行手册见 [社区模板导入全链路 Runbook](community-template-import-full-chain-runbook.md)。导入推荐刷新时先按该文档确认上游真实样本、显式诊断来源开关、per-spec cap、去重、health coverage、40 专精矩阵、缺样本 coverage gap 和回滚边界。
 
 ## API
 

@@ -150,6 +150,38 @@ def role_for_spec(spec_key):
     return "dps"
 
 
+def spec_pair_for_id(spec_id):
+    try:
+        numeric_id = int(spec_id or 0)
+    except (TypeError, ValueError):
+        numeric_id = 0
+    if numeric_id <= 0:
+        return None
+    try:
+        from .websim_payload import SPEC_ID_TO_KEY
+    except ImportError:
+        try:
+            from websim_payload import SPEC_ID_TO_KEY
+        except ImportError:
+            SPEC_ID_TO_KEY = {}
+    return SPEC_ID_TO_KEY.get(numeric_id)
+
+
+def talent_loadout_spec_blocker(class_key, spec_key, loadout):
+    loadout_spec_id = (loadout or {}).get("loadoutSpecId") or (loadout or {}).get("loadout_spec_id")
+    pair = spec_pair_for_id(loadout_spec_id)
+    if not pair:
+        return ""
+    expected = f"{normalize_class_key(class_key)}:{normalize_spec_key(spec_key)}"
+    actual = f"{pair[0]}:{pair[1]}"
+    if actual == expected:
+        return ""
+    return (
+        f"Raider.IO talent loadout spec id {loadout_spec_id} resolves to {actual}, "
+        f"but the run roster template is {expected}; skipping profile-current talent loadout for this spec."
+    )
+
+
 def raiderio_region():
     return os.environ.get("WOW_RAIDERIO_REGION", DEFAULT_REGION).strip() or DEFAULT_REGION
 
@@ -927,12 +959,15 @@ def aggregate_runs(runs, profiles):
             if profile:
                 talent = profile.get("talentLoadout") or {}
                 if talent.get("rawImportCode"):
+                    blocker = talent_loadout_spec_blocker(class_key, spec_key, talent)
+                    blockers = [blocker] if blocker else []
                     aggregate["talentLoadouts"].append({
                         **talent,
                         "characterName": profile.get("name"),
                         "realmSlug": profile.get("realmSlug"),
                         "profileUrl": profile.get("profileUrl"),
                         "maxKeyLevel": run.get("mythicLevel"),
+                        **({"status": "blocked", "blockers": blockers, "errors": blockers} if blockers else {}),
                     })
                 if profile.get("gear"):
                     observed_profile = {
@@ -991,6 +1026,19 @@ def build_community_templates(aggregates, checked_at):
             player_slug = slugify(player_id, f"player-{index + 1}")
             code_hash = hashlib.sha1(raw_code.encode("utf-8")).hexdigest()[:8]
             spec_label = aggregate.get("fullName") or f"{aggregate.get('specKey')} {aggregate.get('classKey')}"
+            blockers = [str(item) for item in (loadout.get("blockers") or loadout.get("errors") or []) if str(item or "").strip()]
+            if blockers:
+                continue
+            status = loadout.get("status") or "verified"
+            payload = {
+                "raiderio": {
+                    "characterName": loadout.get("characterName") or "",
+                    "realmSlug": loadout.get("realmSlug") or "",
+                    "profileUrl": loadout.get("profileUrl") or "",
+                    "loadoutSpecId": loadout.get("loadoutSpecId") or "",
+                    "loadout": loadout.get("loadout") or [],
+                }
+            }
             templates.append({
                 "id": f"raiderio-{aggregate.get('classKey')}-{aggregate.get('specKey')}-{player_slug}-{code_hash}",
                 "classKey": aggregate.get("classKey"),
@@ -1007,16 +1055,8 @@ def build_community_templates(aggregates, checked_at):
                 "maxKeyLevel": loadout.get("maxKeyLevel") or aggregate.get("maxKeyLevel") or 0,
                 "analysisWindow": f"{raiderio_region()} {raiderio_season_slug()} cached at {checked_at}",
                 "sourceStatus": "synced",
-                "status": "verified",
-                "payload": {
-                    "raiderio": {
-                        "characterName": loadout.get("characterName") or "",
-                        "realmSlug": loadout.get("realmSlug") or "",
-                        "profileUrl": loadout.get("profileUrl") or "",
-                        "loadoutSpecId": loadout.get("loadoutSpecId") or "",
-                        "loadout": loadout.get("loadout") or [],
-                    }
-                },
+                "status": status,
+                "payload": payload,
                 "updatedAt": checked_at,
             })
     return templates[:80]

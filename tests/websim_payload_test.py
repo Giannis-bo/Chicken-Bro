@@ -15504,6 +15504,38 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(blocked["status"], "blocked")
         self.assertIn("errors", blocked["payload"])
 
+    def test_raiderio_player_template_blocks_loadout_spec_mismatch_before_parse(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            blocked = self.websim_payload.validate_community_talent_template(conn, {
+                "id": "raiderio-mage-frost-stale-arcane-loadout",
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "sourceName": "Raider.IO",
+                "rawImportCode": "CAEAAAAAAAAAAAAAAAAAAAAA",
+                "playerId": "Mageroysong",
+                "payload": {
+                    "raiderio": {
+                        "characterName": "Mageroysong",
+                        "realmSlug": "zuldrak",
+                        "loadoutSpecId": 62,
+                        "loadout": [{"traitId": 91001, "rank": 1}],
+                    }
+                },
+            })
+        finally:
+            conn.close()
+
+        self.assertEqual(blocked["status"], "blocked")
+        self.assertIn("loadout spec id 62 resolves to mage:arcane", blocked["payload"]["blockers"][0])
+        self.assertIn("mage:frost", blocked["payload"]["blockers"][0])
+        self.assertNotIn("unknown structured talent entry", json.dumps(blocked["payload"], ensure_ascii=False))
+
     def test_raiderio_player_template_parses_nested_loadout_entries(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -15609,7 +15641,8 @@ class WebSimPayloadTest(unittest.TestCase):
         conn = sqlite3.connect(self.db_path)
         try:
             self.seed_websim_encoder_nodes(conn)
-            sync = self.websim_payload.sync_community_talent_templates(conn)
+            with patch.dict("os.environ", {"WOW_INCLUDE_MANUAL_FIXTURES": "1"}):
+                sync = self.websim_payload.sync_community_talent_templates(conn)
             payload = self.websim_payload.get_websim_talents(conn, "mage", "arcane", "spellslinger")
             other_payload = self.websim_payload.get_websim_talents(conn, "mage", "fire", "sunfury")
         finally:
@@ -15634,8 +15667,46 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(templates[0]["websimExportCode"].startswith("websim:mage:arcane:spellslinger:"))
         self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
         self.assertEqual(payload["communityTemplateSync"]["sources"]["raiderio"]["status"], "missing_credentials")
-        self.assertEqual(payload["communityTemplateSync"]["sources"]["websim_baseline"]["status"], "blocked")
+        self.assertNotIn("websim_baseline", payload["communityTemplateSync"]["sources"])
         self.assertEqual(other_payload["communityTemplates"], [])
+
+    def test_community_talent_sync_excludes_manual_fixture_by_default(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            with patch.dict("os.environ", {"WOW_INCLUDE_MANUAL_FIXTURES": "", "WOW_INCLUDE_WEBSIM_BASELINE_TALENTS": ""}), patch(
+                "server.community_talent_sources.manual_fixture.load_templates",
+                side_effect=AssertionError("manual fixtures should not load by default"),
+            ), patch(
+                "server.community_talent_sources.raiderio.load_templates",
+                return_value={"status": "missing_credentials", "sourceName": "Raider.IO", "templates": [], "errors": []},
+            ), patch(
+                "server.community_talent_sources.warcraftlogs.load_templates",
+                return_value={"status": "missing_credentials", "sourceName": "Warcraft Logs", "templates": [], "errors": []},
+            ), patch.object(
+                self.websim_payload,
+                "load_websim_baseline_talent_templates",
+                side_effect=AssertionError("WebSim baseline should not load by default"),
+            ):
+                sync = self.websim_payload.sync_community_talent_templates(conn)
+        finally:
+            conn.close()
+
+        self.assertNotIn("manual_fixture", sync["sources"])
+        self.assertNotIn("websim_baseline", sync["sources"])
+
+    def test_community_talent_template_without_source_does_not_default_to_manual_fixture(self):
+        template = self.websim_payload.normalize_community_talent_template(
+            {
+                "id": "source-missing-template",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "heroKey": "spellslinger",
+                "talentState": {"selectedNodes": []},
+            }
+        )
+
+        self.assertEqual(template["sourceKey"], "unknown")
 
     def seed_full_websim_talent_tree(self, conn, class_key, spec_key, hero_key):
         class_id = 8 if class_key == "mage" else 1
@@ -15717,7 +15788,7 @@ class WebSimPayloadTest(unittest.TestCase):
             fire_hero = self.websim_payload.hero_tree_for("mage", "fire", "")
             self.seed_full_websim_talent_tree(conn, "mage", "arcane", arcane_hero)
             self.seed_full_websim_talent_tree(conn, "mage", "fire", fire_hero)
-            with patch.object(self.websim_payload, "WOW_CLASSES", expected_classes):
+            with patch.dict("os.environ", {"WOW_INCLUDE_WEBSIM_BASELINE_TALENTS": "1"}), patch.object(self.websim_payload, "WOW_CLASSES", expected_classes):
                 sync = self.websim_payload.sync_community_talent_templates(conn)
                 arcane = self.websim_payload.get_websim_talents(conn, "mage", "arcane", arcane_hero)
                 fire = self.websim_payload.get_websim_talents(conn, "mage", "fire", fire_hero)
@@ -15737,6 +15808,7 @@ class WebSimPayloadTest(unittest.TestCase):
         try:
             self.websim_payload.ensure_websim_tables(conn)
             now = self.websim_payload.utc_now()
+            expires_at = self.websim_payload.season_expires_at()
             for template in [
                 {
                     "id": "mage-arcane-duplicate-low",
@@ -15756,7 +15828,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceStatus": "synced",
                     "status": "verified",
                     "updatedAt": now,
-                    "expiresAt": now,
+                    "expiresAt": expires_at,
                 },
                 {
                     "id": "mage-arcane-duplicate-high",
@@ -15776,7 +15848,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceStatus": "synced",
                     "status": "verified",
                     "updatedAt": now,
-                    "expiresAt": now,
+                    "expiresAt": expires_at,
                 },
                 {
                     "id": "mage-arcane-other-a",
@@ -15795,7 +15867,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceStatus": "synced",
                     "status": "verified",
                     "updatedAt": now,
-                    "expiresAt": now,
+                    "expiresAt": expires_at,
                 },
                 {
                     "id": "mage-arcane-other-b",
@@ -15814,7 +15886,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceStatus": "synced",
                     "status": "verified",
                     "updatedAt": now,
-                    "expiresAt": now,
+                    "expiresAt": expires_at,
                 },
                 {
                     "id": "mage-arcane-over-limit",
@@ -15833,7 +15905,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceStatus": "synced",
                     "status": "verified",
                     "updatedAt": now,
-                    "expiresAt": now,
+                    "expiresAt": expires_at,
                 },
                 {
                     "id": "mage-fire-template",
@@ -15852,7 +15924,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceStatus": "synced",
                     "status": "verified",
                     "updatedAt": now,
-                    "expiresAt": now,
+                    "expiresAt": expires_at,
                 },
                 {
                     "id": "warrior-template",
@@ -15871,7 +15943,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceStatus": "synced",
                     "status": "verified",
                     "updatedAt": now,
-                    "expiresAt": now,
+                    "expiresAt": expires_at,
                 },
             ]:
                 self.websim_payload.upsert_community_talent_template(conn, template)
@@ -15894,6 +15966,7 @@ class WebSimPayloadTest(unittest.TestCase):
         try:
             self.websim_payload.ensure_websim_tables(conn)
             now = self.websim_payload.utc_now()
+            expires_at = self.websim_payload.season_expires_at()
             shared_nodes = [
                 {"id": "arcane-node", "rank": 1},
                 {"id": "hero-node", "rank": 2},
@@ -15916,7 +15989,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceStatus": "synced",
                     "status": "verified",
                     "updatedAt": now,
-                    "expiresAt": now,
+                    "expiresAt": expires_at,
                 },
                 {
                     "id": "wcl-shared",
@@ -15935,7 +16008,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceStatus": "partial",
                     "status": "verified",
                     "updatedAt": now,
-                    "expiresAt": now,
+                    "expiresAt": expires_at,
                 },
                 {
                     "id": "raiderio-other",
@@ -15954,7 +16027,7 @@ class WebSimPayloadTest(unittest.TestCase):
                     "sourceStatus": "synced",
                     "status": "verified",
                     "updatedAt": now,
-                    "expiresAt": now,
+                    "expiresAt": expires_at,
                 },
             ]:
                 self.websim_payload.upsert_community_talent_template(conn, template)
@@ -16015,6 +16088,42 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "missing_credentials")
         self.assertEqual(payload["communityTemplates"], [])
 
+    def test_community_talent_template_stats_ignore_expired_verified_rows(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            for template in [
+                {
+                    "id": "active-mage-arcane",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "heroKey": "spellslinger",
+                    "sourceKey": "raiderio",
+                    "sourceName": "Raider.IO",
+                    "status": "verified",
+                    "talentState": {"selectedNodes": [{"id": "node-active", "rank": 1}]},
+                    "expiresAt": "2999-01-01T00:00:00+00:00",
+                },
+                {
+                    "id": "expired-warrior-arms",
+                    "classKey": "warrior",
+                    "specKey": "arms",
+                    "heroKey": "colossus",
+                    "sourceKey": "raiderio",
+                    "sourceName": "Raider.IO",
+                    "status": "verified",
+                    "talentState": {"selectedNodes": [{"id": "node-expired", "rank": 1}]},
+                    "expiresAt": "2000-01-01T00:00:00+00:00",
+                },
+            ]:
+                self.websim_payload.upsert_community_talent_template(conn, template)
+            stats = self.websim_payload.community_talent_template_stats(conn)
+        finally:
+            conn.close()
+
+        self.assertEqual(stats["scanCoverage"]["coveredSpecCount"], 1)
+        self.assertIn("warrior:arms", stats["scanCoverage"]["missingSpecs"])
+
     def test_websim_talents_hides_unresolved_spell_template_text(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -16060,7 +16169,8 @@ class WebSimPayloadTest(unittest.TestCase):
         conn = sqlite3.connect(self.db_path)
         try:
             self.seed_websim_current_fixture_nodes(conn)
-            sync = self.websim_payload.sync_community_talent_templates(conn)
+            with patch.dict("os.environ", {"WOW_INCLUDE_MANUAL_FIXTURES": "1"}):
+                sync = self.websim_payload.sync_community_talent_templates(conn)
             payload = self.websim_payload.get_websim_talents(conn, "mage", "arcane", "spellslinger")
         finally:
             conn.close()

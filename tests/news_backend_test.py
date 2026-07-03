@@ -8113,11 +8113,8 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(baseline_blocked["talentBlockReason"]["state"], "blocked")
         self.assertIn("sampleCount=0", baseline_blocked["talentBlockReason"]["reason"])
         self.assertEqual(baseline_blocked["talentPublication"]["reason"], baseline_blocked["talentBlockReason"]["reason"])
-        pg_tree = next(record for record in talent_payload["records"] if record["targetId"] == "mage:frost")
-        self.assertEqual(pg_tree["talentCategory"]["classKey"], "mage")
-        self.assertEqual(pg_tree["talentCategory"]["classLabel"], "法师")
-        self.assertEqual(pg_tree["talentCategory"]["sourceKind"], "catalog")
-        self.assertEqual(pg_tree["talentCategory"]["sourceLabel"], "基础目录")
+        self.assertEqual({record["targetType"] for record in talent_payload["records"]}, {"community_talent_template"})
+        self.assertFalse(any(record["targetId"] == "mage:frost" for record in talent_payload["records"]))
         self.assertTrue(any(record["targetId"] == "pg-variant-1" for record in gear_payload["records"]))
         pg_gear = next(record for record in gear_payload["records"] if record["targetId"] == "pg-variant-1")
         self.assertEqual(pg_gear["gearCategory"]["slot"], "head")
@@ -8176,20 +8173,20 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual([record["targetId"] for record in talent_template_payload["records"]], ["pg-template-1"])
         self.assertEqual(
             {record["targetId"] for record in talent_class_payload["records"]},
-            {"pg-template-1", "mage:frost"},
+            {"pg-template-1"},
         )
         self.assertEqual(talent_class_source_miss["records"], [])
         self.assertEqual([record["targetId"] for record in talent_source_payload["records"]], ["pg-template-1"])
         self.assertEqual(
             {record["targetId"] for record in talent_status_verified_payload["records"]},
-            {"pg-template-1", "mage:frost"},
+            {"pg-template-1"},
         )
         self.assertEqual([record["targetId"] for record in talent_blocked_payload["records"]], ["pg-template-blocked"])
         self.assertEqual(talent_blocked_source_miss["records"], [])
         self.assertEqual([record["targetId"] for record in talent_block_reason_payload["records"]], ["pg-template-blocked"])
         self.assertEqual(
             {record["targetId"] for record in talent_visibility_visible_payload["records"]},
-            {"pg-template-1", "mage:frost"},
+            {"pg-template-1"},
         )
         self.assertEqual([record["targetId"] for record in talent_visibility_payload["records"]], ["pg-template-blocked"])
         self.assertEqual([record["targetId"] for record in gear_category_payload["records"]], ["pg-variant-1"])
@@ -8214,8 +8211,8 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual([record["targetId"] for record in gear_template_source_default_payload["records"]], ["pg-gear-template-default"])
         self.assertEqual(talent_page_one["pagination"]["page"], 1)
         self.assertEqual(talent_page_one["pagination"]["pageSize"], 1)
-        self.assertEqual(talent_page_one["pagination"]["total"], 3)
-        self.assertEqual(talent_page_one["pagination"]["totalPages"], 3)
+        self.assertEqual(talent_page_one["pagination"]["total"], 2)
+        self.assertEqual(talent_page_one["pagination"]["totalPages"], 2)
         self.assertEqual(talent_page_one["count"], 1)
         self.assertEqual(talent_page_two["count"], 1)
         self.assertEqual(talent_page_one["records"][0]["targetId"], "pg-template-1")
@@ -8279,6 +8276,91 @@ class NewsBackendTest(unittest.TestCase):
             records = self.backend.collect_admin_talent_records_from_store(FakeCacheStore())
 
         self.assertEqual([record["targetId"] for record in records], ["fresh-template"])
+
+    def test_admin_gate_talent_records_sqlite_omit_expired_and_surface_payload_errors(self):
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            self.backend.ensure_websim_tables(conn)
+            for template_id, expires_at, status, payload in [
+                ("expired-template", "2026-06-29T00:00:00+00:00", "blocked", {"blockers": ["expired blocker"]}),
+                (
+                    "fresh-template",
+                    "2099-01-01T00:00:00+00:00",
+                    "blocked",
+                    {"talentLoadoutParse": {"errors": ["unknown structured talent entry: {'traitId': 91001}"]}},
+                ),
+            ]:
+                conn.execute(
+                    """
+                    INSERT INTO websim_community_talent_templates (
+                        id, class_key, spec_key, hero_key, scenario_key, name, flow_label,
+                        source_key, source_name, source_url, raw_import_code, websim_export_code,
+                        talent_state_json, sample_count, max_key_level, analysis_window,
+                        source_status, status, payload_json, updated_at, expires_at,
+                        signature, source_refs_json, scan_run_id
+                    ) VALUES (?, 'mage', 'frost', 'frostfire', 'mythic_plus', ?, 'Raider.IO',
+                              'raiderio', 'Raider.IO', 'https://example.com', '', '',
+                              '{"selectedNodes":[]}', 1, 24, 'fixture',
+                              'synced', ?, ?, '2026-07-03T00:00:00+00:00', ?,
+                              ?, '[]', 'scan-fixture')
+                    """,
+                    (
+                        template_id,
+                        template_id,
+                        status,
+                        json.dumps(payload, ensure_ascii=False),
+                        expires_at,
+                        f"sig-{template_id}",
+                    ),
+                )
+            conn.commit()
+            with patch.object(self.backend, "utc_now", return_value="2026-07-03T00:00:00+00:00"):
+                records = self.backend.collect_admin_talent_records(conn)
+
+        self.assertEqual([record["targetId"] for record in records], ["fresh-template"])
+        self.assertIn("unknown structured talent entry", records[0]["blockers"][0])
+
+    def test_admin_gate_talent_records_surface_payload_errors_as_blockers(self):
+        class FakeCacheStore:
+            def admin_gate_talent_records(self):
+                return {
+                    "communityTalentTemplates": [
+                        {
+                            "id": "raiderio-parse-blocked",
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "heroKey": "frostfire",
+                            "scenarioKey": "mythic_plus",
+                            "name": "Raider.IO parse blocked",
+                            "sourceKey": "raiderio",
+                            "sourceName": "Raider.IO",
+                            "sourceUrl": "https://example.com/raiderio-parse-blocked",
+                            "sourceStatus": "synced",
+                            "status": "blocked",
+                            "sampleCount": 1,
+                            "maxKeyLevel": 24,
+                            "analysisWindow": "2026-W27",
+                            "payload": {
+                                "talentLoadoutParse": {
+                                    "status": "blocked",
+                                    "errors": ["unknown structured talent entry: {'traitId': 91001}"],
+                                }
+                            },
+                            "updatedAt": "2026-07-03T01:00:00+00:00",
+                            "expiresAt": "2099-01-01T00:00:00+00:00",
+                            "signature": "sig-raiderio-parse-blocked",
+                            "sourceRefs": [{"sourceKey": "raiderio", "sourceStatus": "synced"}],
+                            "scanRunId": "scan-raiderio",
+                        }
+                    ],
+                    "talentTrees": [],
+                }
+
+        records = self.backend.collect_admin_talent_records_from_store(FakeCacheStore())
+
+        self.assertEqual(len(records), 1)
+        self.assertIn("unknown structured talent entry", records[0]["blockers"][0])
+        self.assertIn("unknown structured talent entry", records[0]["talentBlockReason"]["reason"])
+        self.assertNotIn("raiderio 来源状态", records[0]["talentBlockReason"]["reason"])
 
     def test_admin_gates_gear_records_use_paged_postgres_store_when_unfiltered(self):
         calls = []
@@ -8939,7 +9021,9 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("{ value:'blockReason', label:'阻断原因'", html)
         self.assertIn("{ value:'visibility', label:'小程序可见'", html)
         self.assertIn("社区来源", html)
-        self.assertIn("基础目录", html)
+        self.assertIn("天赋模板记录", html)
+        self.assertNotIn("天赋树记录", html)
+        self.assertNotIn("基础目录", html)
         self.assertIn("小程序可见", html)
         self.assertIn("阻断原因", html)
         self.assertIn("function talentPublicationCell", html)
