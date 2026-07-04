@@ -181,7 +181,7 @@
                 <text class="template-name">{{item.name}}</text>
                 <text class="template-source">{{item.sourceName}}</text>
               </view>
-              <text class="template-mode">{{item.canApplyVisual ? '可编辑' : '外部码'}}</text>
+              <text class="template-mode">{{item.modeLabel}}</text>
             </view>
             <view class="template-meta-row">
               <text class="template-meta" wx:if="{{item.detailLabel}}">{{item.detailLabel}}</text>
@@ -190,7 +190,7 @@
               <text class="template-meta" wx:if="{{item.updatedLabel}}">{{item.updatedLabel}}</text>
             </view>
             <view class="template-apply-row">
-              <button class="template-apply-button" data-id="{{item.id}}" bindtap="applyCommunityTemplate">{{item.actionLabel}}</button>
+              <button class="template-apply-button" disabled="{{item.applyMode !== 'visual'}}" data-id="{{item.id}}" bindtap="applyCommunityTemplate">{{item.actionLabel}}</button>
             </view>
           </view>
         </view>

@@ -22,7 +22,9 @@ try:
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
-        dedupe_community_talent_templates_for_display,
+        community_talent_source_ref,
+        community_talent_template_slot_summary,
+        community_talent_templates_for_spec_slots,
         dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
@@ -84,7 +86,9 @@ except ImportError:
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
-        dedupe_community_talent_templates_for_display,
+        community_talent_source_ref,
+        community_talent_template_slot_summary,
+        community_talent_templates_for_spec_slots,
         dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
@@ -222,6 +226,291 @@ def _template_count_bucket(status):
     if normalized in {"partial", "stale"}:
         return "partial"
     return "blocked"
+
+
+def _community_talent_slot_key(template):
+    class_key = slugify(template.get("classKey"), "")
+    spec_key = slugify(template.get("specKey"), "")
+    raw_hero_key = slugify(template.get("heroKey"), "")
+    hero_key = hero_tree_for(class_key, spec_key, raw_hero_key) if class_key and spec_key else raw_hero_key
+    if not class_key or not spec_key or not hero_key:
+        return None
+    return (class_key, spec_key, hero_key)
+
+
+def _community_talent_slot_id(slot_key):
+    if not slot_key:
+        return ""
+    return ":".join(slot_key)
+
+
+def _community_talent_selected_count(template):
+    talent_state = template.get("talentState") if isinstance(template.get("talentState"), dict) else {}
+    selected = talent_state.get("selectedNodes") if isinstance(talent_state.get("selectedNodes"), list) else []
+    return len(selected)
+
+
+def _community_talent_can_apply_visual(template):
+    return bool(str(template.get("websimExportCode") or "").startswith("websim:") and _community_talent_selected_count(template))
+
+
+COMMUNITY_TALENT_WCL_EVIDENCE_ORDER = {
+    "wcl_exact_template": 40,
+    "wcl_character_supported": 30,
+    "wcl_missing": 10,
+    "wcl_blocked": 0,
+    "wcl_conflict": 0,
+}
+
+
+def _float_value(value, default=0.0):
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return default
+
+
+def _community_talent_payload(template):
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _community_talent_wcl_evidence(template):
+    payload = _community_talent_payload(template)
+    evidence = payload.get("wclEvidence") if isinstance(payload.get("wclEvidence"), dict) else {}
+    warcraftlogs = payload.get("warcraftlogs") if isinstance(payload.get("warcraftlogs"), dict) else {}
+    tier = str(
+        evidence.get("tier")
+        or payload.get("evidenceTier")
+        or warcraftlogs.get("evidenceTier")
+        or warcraftlogs.get("tier")
+        or ""
+    ).strip()
+    if tier not in COMMUNITY_TALENT_WCL_EVIDENCE_ORDER:
+        tier = "wcl_missing"
+    status = "verified" if tier in {"wcl_exact_template", "wcl_character_supported"} else (
+        "blocked" if tier in {"wcl_blocked", "wcl_conflict"} else "missing"
+    )
+    return {
+        **evidence,
+        "tier": tier,
+        "status": evidence.get("status") or status,
+    }
+
+
+def _community_talent_evidence_tier(template):
+    return _community_talent_wcl_evidence(template)["tier"]
+
+
+def _community_talent_evidence_tier_weight(template):
+    return COMMUNITY_TALENT_WCL_EVIDENCE_ORDER.get(_community_talent_evidence_tier(template), 0)
+
+
+def _community_talent_quality_score(template):
+    payload = _community_talent_payload(template)
+    if payload.get("qualityScore") is not None:
+        return _float_value(payload.get("qualityScore"))
+    wcl_evidence = payload.get("wclEvidence") if isinstance(payload.get("wclEvidence"), dict) else {}
+    performance = wcl_evidence.get("normalizedPerformance") if isinstance(wcl_evidence.get("normalizedPerformance"), dict) else {}
+    if performance.get("score") is not None:
+        return _float_value(performance.get("score"))
+    return 0.0
+
+
+def _community_talent_evidence_reason_prefix(template):
+    tier = _community_talent_evidence_tier(template)
+    if tier == "wcl_exact_template":
+        return "WCL exact template evidence"
+    if tier == "wcl_character_supported":
+        return "WCL character-supported evidence"
+    if tier == "wcl_conflict":
+        return "WCL conflicting evidence"
+    if tier == "wcl_blocked":
+        return "WCL evidence blocked"
+    return "Raider.IO-only evidence"
+
+
+def _community_talent_rio_evidence(template):
+    payload = _community_talent_payload(template)
+    evidence = payload.get("rioEvidence") if isinstance(payload.get("rioEvidence"), dict) else {}
+    raiderio = payload.get("raiderio") if isinstance(payload.get("raiderio"), dict) else {}
+    if evidence:
+        return evidence
+    if template.get("sourceKey") != "raiderio" and not raiderio:
+        return {}
+    return {
+        "maxKeyLevel": int(template.get("maxKeyLevel") or 0),
+        "sampleCount": int(template.get("sampleCount") or 0),
+        "source": raiderio.get("source") or "template",
+        "profileUrl": raiderio.get("profileUrl") or template.get("sourceUrl") or "",
+    }
+
+
+def _community_talent_signature(template):
+    signature = str(template.get("signature") or "").strip()
+    if signature:
+        return signature
+    slot_id = _community_talent_slot_id(_community_talent_slot_key(template))
+    return f"{slot_id}:id:{template.get('id') or ''}"
+
+
+def _community_talent_candidate_weight(template, signature_support=1):
+    return (
+        1 if template.get("status") == "verified" else 0,
+        1 if _community_talent_can_apply_visual(template) else 0,
+        _community_talent_evidence_tier_weight(template),
+        _community_talent_quality_score(template),
+        int(signature_support or 0),
+        int(template.get("maxKeyLevel") or 0),
+        int(template.get("sampleCount") or 0),
+        str(template.get("updatedAt") or ""),
+        str(template.get("id") or ""),
+    )
+
+
+def _with_community_talent_promotion_payload(template, role, promotion_status, slot_key, candidate_count, signature_support, reason, winner_id=""):
+    promoted = copy.deepcopy(template)
+    payload = dict(promoted.get("payload") or {})
+    wcl_evidence = _community_talent_wcl_evidence(promoted)
+    rio_evidence = _community_talent_rio_evidence(promoted)
+    evidence_tier = wcl_evidence.get("tier") or "wcl_missing"
+    reason_prefix = _community_talent_evidence_reason_prefix(promoted)
+    promotion_reason = f"{reason_prefix}; {reason}"
+    promotion = dict(payload.get("promotion") or {})
+    promotion.update(
+        {
+            "stage": "promotion_dedupe",
+            "role": role,
+            "status": promotion_status,
+            "reason": promotion_reason,
+            "slotId": _community_talent_slot_id(slot_key),
+            "candidateCount": int(candidate_count or 0),
+            "signatureSupportCount": int(signature_support or 0),
+            "promotedTemplateId": str(winner_id or promoted.get("id") or ""),
+            "evidenceTier": evidence_tier,
+            "qualityScore": _community_talent_quality_score(promoted),
+        }
+    )
+    if rio_evidence:
+        payload["rioEvidence"] = rio_evidence
+    payload["wclEvidence"] = wcl_evidence
+    payload["evidenceTier"] = evidence_tier
+    payload["qualityScore"] = _community_talent_quality_score(promoted)
+    payload["promotionReason"] = promotion_reason
+    payload["templateInventoryRole"] = role
+    payload["promotionStatus"] = promotion_status
+    payload["promotion"] = promotion
+    promoted["payload"] = payload
+    return promoted
+
+
+def promote_community_talent_template_inventory(templates):
+    """Promote source candidates into the active one-template-per-hero inventory."""
+    candidate_rows = [copy.deepcopy(template) for template in templates or [] if isinstance(template, dict)]
+    groups = {}
+    for row in candidate_rows:
+        slot_key = _community_talent_slot_key(row)
+        if slot_key:
+            row["classKey"], row["specKey"], row["heroKey"] = slot_key
+        groups.setdefault(slot_key, []).append(row)
+
+    promoted_identities = set()
+    promoted_templates = []
+    for slot_key, rows in groups.items():
+        if slot_key is None:
+            active_pool = [row for row in rows if row.get("status") == "blocked"]
+        else:
+            verified_pool = [row for row in rows if row.get("status") == "verified"]
+            active_pool = verified_pool or [row for row in rows if row.get("status") == "blocked"]
+        if not active_pool:
+            continue
+
+        signature_support = {}
+        signature_rows = {}
+        for row in rows:
+            signature = _community_talent_signature(row)
+            if row.get("status") == "verified":
+                signature_support[signature] = signature_support.get(signature, 0) + max(1, int(row.get("dedupedCount") or 1))
+            signature_rows.setdefault(signature, []).append(row)
+
+        winner = sorted(
+            active_pool,
+            key=lambda row: _community_talent_candidate_weight(row, signature_support.get(_community_talent_signature(row), 1)),
+            reverse=True,
+        )[0]
+        winner_signature = _community_talent_signature(winner)
+        same_signature_rows = signature_rows.get(winner_signature) or [winner]
+        merged_refs = []
+        for row in same_signature_rows:
+            merged_refs.extend(row.get("sourceRefs") or [])
+        winner = copy.deepcopy(winner)
+        if winner.get("status") == "verified":
+            source_rows = [row for row in same_signature_rows if row.get("status") == "verified"] or [winner]
+            winner["sourceRefs"] = normalize_source_refs(
+                [community_talent_source_ref(row) for row in source_rows]
+            )
+        else:
+            winner["sourceRefs"] = normalize_source_refs(merged_refs or winner.get("sourceRefs") or [])
+        winner["dedupedCount"] = sum(max(1, int(row.get("dedupedCount") or 1)) for row in same_signature_rows)
+        winner_id = str(winner.get("id") or "")
+        promoted_identities.add((slot_key, winner_id))
+        promoted_templates.append(
+            _with_community_talent_promotion_payload(
+                winner,
+                "promoted",
+                "promoted",
+                slot_key,
+                len(rows),
+                signature_support.get(winner_signature, len(same_signature_rows)),
+                "best verified community candidate for class/spec/hero"
+                if winner.get("status") == "verified"
+                else "blocked diagnostic retained because no verified community candidate exists for class/spec/hero",
+                winner_id=winner_id,
+            )
+        )
+
+    candidate_templates = []
+    for row in candidate_rows:
+        slot_key = _community_talent_slot_key(row)
+        row_id = str(row.get("id") or "")
+        is_promoted = (slot_key, row_id) in promoted_identities
+        rows = groups.get(slot_key) or []
+        signature = _community_talent_signature(row)
+        support = sum(
+            max(1, int(candidate.get("dedupedCount") or 1))
+            for candidate in rows
+            if candidate.get("status") == "verified" and _community_talent_signature(candidate) == signature
+        )
+        candidate_templates.append(
+            _with_community_talent_promotion_payload(
+                row,
+                "promoted" if is_promoted else "candidate",
+                "promoted" if is_promoted else "superseded",
+                slot_key,
+                len(rows),
+                support,
+                "promoted into active community talent inventory"
+                if is_promoted
+                else "candidate archived in sync state; another candidate won promotion for this class/spec/hero",
+                winner_id=row_id if is_promoted else "",
+            )
+        )
+
+    promoted_templates.sort(
+        key=lambda row: (
+            str(row.get("classKey") or ""),
+            str(row.get("specKey") or ""),
+            str(row.get("heroKey") or ""),
+            str(row.get("sourceKey") or ""),
+            str(row.get("id") or ""),
+        )
+    )
+    return {
+        "promotedTemplates": promoted_templates,
+        "candidateTemplates": candidate_templates,
+        "candidateTotal": len(candidate_rows),
+        "archivedCandidateTotal": max(0, len(candidate_rows) - len(promoted_templates)),
+    }
 
 
 ADMIN_GATE_QUEUE_STATUSES = {
@@ -935,8 +1224,12 @@ class PostgresCacheStore:
                     by_id.setdefault(candidate_id, []).append(node)
         return by_id
 
-    def replace_community_talent_templates(self, templates, scan_run_id=""):
-        counts = {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
+    def replace_community_talent_templates(self, templates, scan_run_id="", include_details=False, target_slot_ids=None):
+        target_slot_ids = [
+            str(slot_id or "").strip()
+            for slot_id in (target_slot_ids or [])
+            if str(slot_id or "").strip()
+        ]
         normalized_rows = []
         for template in templates or []:
             if not isinstance(template, dict):
@@ -962,16 +1255,44 @@ class PostgresCacheStore:
             payload = dict(normalized.get("payload") or {})
             payload.setdefault("legacyId", normalized["id"])
             normalized["payload"] = payload
+            normalized_rows.append(normalized)
+        counts = {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
+        if not normalized_rows:
+            if include_details:
+                counts["validatedTemplates"] = []
+                counts["promotedTemplates"] = []
+                counts["candidateTemplates"] = []
+                counts["candidateTotal"] = 0
+                counts["archivedCandidateTotal"] = 0
+            return counts
+        promotion = promote_community_talent_template_inventory(normalized_rows)
+        active_rows = promotion["promotedTemplates"]
+        for normalized in active_rows:
             bucket = _template_count_bucket(normalized.get("status"))
             counts["total"] += 1
             counts[bucket] += 1
-            normalized_rows.append(normalized)
-        if not normalized_rows:
-            return counts
+        candidate_counts = {"candidateVerified": 0, "candidatePartial": 0, "candidateBlocked": 0}
+        for normalized in normalized_rows:
+            bucket = _template_count_bucket(normalized.get("status"))
+            if bucket == "verified":
+                candidate_counts["candidateVerified"] += 1
+            elif bucket == "partial":
+                candidate_counts["candidatePartial"] += 1
+            else:
+                candidate_counts["candidateBlocked"] += 1
+        counts.update(
+            {
+                "candidateTotal": promotion["candidateTotal"],
+                "archivedCandidateTotal": promotion["archivedCandidateTotal"],
+                "promotedTotal": len(active_rows),
+                "duplicateActiveExpired": 0,
+                **candidate_counts,
+            }
+        )
         replace_checked_at = datetime.now(timezone.utc).isoformat()
         current_ids = [
             self._deterministic_uuid("community-talent-template", normalized["id"])
-            for normalized in normalized_rows
+            for normalized in active_rows
             if normalized.get("id")
         ]
         current_source_keys = sorted({
@@ -981,7 +1302,7 @@ class PostgresCacheStore:
         })
         with self.connection() as conn:
             with conn.cursor() as cur:
-                for normalized in normalized_rows:
+                for normalized in active_rows:
                     cur.execute(
                         """
                         INSERT INTO cache.websim_community_talent_templates (
@@ -1049,25 +1370,186 @@ class PostgresCacheStore:
                             normalized["scanRunId"],
                         ),
                     )
-                if current_ids and current_source_keys:
-                    cur.execute(
-                        """
-                        UPDATE cache.websim_community_talent_templates
-                        SET expires_at = %s,
-                            updated_at = %s
-                        WHERE source_key = ANY(%s::text[])
-                          AND NOT (id = ANY(%s::uuid[]))
-                          AND (expires_at IS NULL OR expires_at > %s)
-                        """,
-                        (
-                            replace_checked_at,
-                            replace_checked_at,
-                            current_source_keys,
-                            current_ids,
-                            replace_checked_at,
-                        ),
+                if current_source_keys:
+                    target_filter = bool(target_slot_ids)
+                    if current_ids:
+                        if target_filter:
+                            cur.execute(
+                                """
+                                UPDATE cache.websim_community_talent_templates
+                                SET expires_at = %s,
+                                    updated_at = %s
+                                WHERE source_key = ANY(%s::text[])
+                                  AND CONCAT(class_key, ':', spec_key, ':', hero_key) = ANY(%s::text[])
+                                  AND NOT (id = ANY(%s::uuid[]))
+                                  AND (expires_at IS NULL OR expires_at > %s)
+                                """,
+                                (
+                                    replace_checked_at,
+                                    replace_checked_at,
+                                    current_source_keys,
+                                    target_slot_ids,
+                                    current_ids,
+                                    replace_checked_at,
+                                ),
+                            )
+                        else:
+                            cur.execute(
+                                """
+                                UPDATE cache.websim_community_talent_templates
+                                SET expires_at = %s,
+                                    updated_at = %s
+                                WHERE source_key = ANY(%s::text[])
+                                  AND NOT (id = ANY(%s::uuid[]))
+                                  AND (expires_at IS NULL OR expires_at > %s)
+                                """,
+                                (
+                                    replace_checked_at,
+                                    replace_checked_at,
+                                    current_source_keys,
+                                    current_ids,
+                                    replace_checked_at,
+                                ),
+                            )
+                    else:
+                        if target_filter:
+                            cur.execute(
+                                """
+                                UPDATE cache.websim_community_talent_templates
+                                SET expires_at = %s,
+                                    updated_at = %s
+                                WHERE source_key = ANY(%s::text[])
+                                  AND CONCAT(class_key, ':', spec_key, ':', hero_key) = ANY(%s::text[])
+                                  AND (expires_at IS NULL OR expires_at > %s)
+                                """,
+                                (
+                                    replace_checked_at,
+                                    replace_checked_at,
+                                    current_source_keys,
+                                    target_slot_ids,
+                                    replace_checked_at,
+                                ),
+                            )
+                        else:
+                            cur.execute(
+                                """
+                                UPDATE cache.websim_community_talent_templates
+                                SET expires_at = %s,
+                                    updated_at = %s
+                                WHERE source_key = ANY(%s::text[])
+                                  AND (expires_at IS NULL OR expires_at > %s)
+                                """,
+                                (
+                                    replace_checked_at,
+                                    replace_checked_at,
+                                    current_source_keys,
+                                    replace_checked_at,
+                                ),
+                            )
+                cur.execute(
+                    """
+                    WITH ranked AS (
+                        SELECT id,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY class_key, spec_key, hero_key
+                                   ORDER BY
+                                       CASE status
+                                           WHEN 'verified' THEN 0
+                                           WHEN 'partial' THEN 1
+                                           ELSE 2
+                                       END,
+                                       CASE COALESCE(payload_json->>'evidenceTier', '')
+                                           WHEN 'wcl_exact_template' THEN 0
+                                           WHEN 'wcl_character_supported' THEN 1
+                                           WHEN 'wcl_missing' THEN 2
+                                           WHEN 'wcl_conflict' THEN 3
+                                           WHEN 'wcl_blocked' THEN 4
+                                           ELSE 5
+                                       END,
+                                       COALESCE(max_key_level, 0) DESC,
+                                       COALESCE(sample_count, 0) DESC,
+                                       updated_at DESC,
+                                       id
+                               ) AS active_slot_rank
+                        FROM cache.websim_community_talent_templates
+                        WHERE (expires_at IS NULL OR expires_at > %s)
+                          AND COALESCE(class_key, '') <> ''
+                          AND COALESCE(spec_key, '') <> ''
+                          AND COALESCE(hero_key, '') <> ''
                     )
+                    UPDATE cache.websim_community_talent_templates AS template
+                    SET expires_at = %s,
+                        updated_at = %s
+                    FROM ranked
+                    WHERE template.id = ranked.id
+                      AND ranked.active_slot_rank > 1
+                    """,
+                    (replace_checked_at, replace_checked_at, replace_checked_at),
+                )
+                counts["duplicateActiveExpired"] = cur.rowcount
+        if target_slot_ids:
+            active_counts = self.community_talent_template_counts()
+            for key in ("total", "verified", "partial", "blocked"):
+                counts[key] = active_counts.get(key, counts.get(key, 0))
+        if include_details:
+            counts["validatedTemplates"] = promotion["candidateTemplates"]
+            counts["promotedTemplates"] = active_rows
+            counts["candidateTemplates"] = promotion["candidateTemplates"]
         return counts
+
+    def community_talent_template_coverage_rows(self):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, class_key, spec_key, hero_key, scenario_key, name,
+                           source_key, source_name, source_url, raw_import_code, websim_export_code,
+                           talent_state_json, sample_count, max_key_level, analysis_window,
+                           source_status, status, payload_json, updated_at, expires_at,
+                           signature, source_refs_json, scan_run_id
+                    FROM cache.websim_community_talent_templates
+                    WHERE status IN ('verified', 'blocked')
+                      AND (expires_at IS NULL OR expires_at > now())
+                    ORDER BY updated_at DESC, max_key_level DESC, sample_count DESC, hero_key, name
+                    LIMIT 1000
+                    """
+                )
+                rows = cur.fetchall()
+        result = []
+        for row in rows:
+            payload = _json_value(row[17], {})
+            payload = payload if isinstance(payload, dict) else {}
+            talent_state = _json_value(row[11], {"selectedNodes": []})
+            if not isinstance(talent_state, dict):
+                talent_state = {"selectedNodes": []}
+            result.append(
+                {
+                    "id": str(row[0] or ""),
+                    "classKey": row[1] or "",
+                    "specKey": row[2] or "",
+                    "heroKey": row[3] or "",
+                    "scenarioKey": row[4] or "",
+                    "name": row[5] or "",
+                    "sourceKey": row[6] or "",
+                    "sourceName": row[7] or "",
+                    "sourceUrl": row[8] or "",
+                    "rawImportCode": row[9] or "",
+                    "websimExportCode": row[10] or "",
+                    "talentState": talent_state,
+                    "sampleCount": _int_value(row[12]),
+                    "maxKeyLevel": _int_value(row[13]),
+                    "analysisWindow": row[14] or "",
+                    "sourceStatus": row[15] or "",
+                    "status": row[16] or "",
+                    "payload": payload,
+                    "updatedAt": str(row[18] or ""),
+                    "expiresAt": str(row[19] or ""),
+                    "signature": row[20] or "",
+                    "sourceRefs": normalize_source_refs(_json_value(row[21], []) or []),
+                    "scanRunId": row[22] or "",
+                }
+            )
+        return result
 
     def expire_community_talent_template_sources(self, source_keys, expired_at=""):
         keys = sorted({str(source_key or "").strip() for source_key in source_keys or [] if str(source_key or "").strip()})
@@ -1800,7 +2282,7 @@ class PostgresCacheStore:
             for row in rows
         ]
 
-    def _community_talent_templates(self, cur, class_key, spec_key):
+    def _community_talent_templates(self, cur, class_key, spec_key, hero_key=""):
         cur.execute(
             """
             SELECT id, class_key, spec_key, hero_key, scenario_key, name, flow_label,
@@ -1867,7 +2349,7 @@ class PostgresCacheStore:
                     "canUseInSimc": bool(can_apply_visual or raw_import_code),
                 }
             )
-        return dedupe_community_talent_templates_for_display(templates)
+        return community_talent_templates_for_spec_slots(class_key, spec_key, templates, hero_key)
 
     def get_websim_talents(self, class_key="mage", spec_key="arcane", hero_key=""):
         season = self.get_active_season_payload()
@@ -1901,7 +2383,7 @@ class PostgresCacheStore:
                 )
                 rows = cur.fetchall()
                 presets = self._websim_presets(cur, class_key, spec_key)
-                community_templates = self._community_talent_templates(cur, class_key, spec_key)
+                community_templates = self._community_talent_templates(cur, class_key, spec_key, hero_key)
         filtered_rows = []
         for row in rows:
             payload = _json_value(row[8], {})
@@ -1943,6 +2425,7 @@ class PostgresCacheStore:
             talent_authority,
         )
         community_state = dict(community_state) if isinstance(community_state, dict) else {}
+        community_state["activeSpecSlots"] = community_talent_template_slot_summary(community_templates)
         community_state.setdefault(
             "templates",
             {
@@ -1992,11 +2475,11 @@ class PostgresCacheStore:
                     FROM cache.websim_community_talent_templates
                     WHERE class_key = %s
                       AND spec_key = %s
+                      AND hero_key = %s
                       AND status = 'verified'
                       AND raw_import_code <> ''
                       AND (expires_at IS NULL OR expires_at > now())
-                    ORDER BY CASE WHEN hero_key = %s THEN 0 ELSE 1 END,
-                             max_key_level DESC, sample_count DESC, hero_key, name
+                    ORDER BY max_key_level DESC, sample_count DESC, name
                     LIMIT 1
                     """,
                     (class_key, spec_key, hero_key),

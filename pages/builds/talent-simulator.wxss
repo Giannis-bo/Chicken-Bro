@@ -945,6 +945,11 @@
   opacity: 0.6;
 }
 
+.community-template-card.pending {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .template-card-head {
   display: flex;
   align-items: flex-start;
@@ -987,6 +992,11 @@
 .community-template-card.external .template-mode {
   border-color: rgba(84, 192, 255, 0.34);
   color: #54c0ff;
+}
+
+.community-template-card.pending .template-mode {
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #d8d8d8;
 }
 
 .template-meta-row {

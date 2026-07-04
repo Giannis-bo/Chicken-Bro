@@ -2357,6 +2357,7 @@ def lightweight_template_evidence_audit_payload(community_state=None, community_
     default_templates = gear.get("defaultTemplates") if isinstance(gear.get("defaultTemplates"), dict) else {}
     real_gear = gear.get("realCommunityTemplates") if isinstance(gear.get("realCommunityTemplates"), dict) else {}
     scan_coverage = community_state.get("scanCoverage") if isinstance(community_state.get("scanCoverage"), dict) else {}
+    coverage_matrix = community_state.get("coverageMatrix") if isinstance(community_state.get("coverageMatrix"), dict) else {}
     templates = community_state.get("templates") if isinstance(community_state.get("templates"), dict) else {}
     real_covered_specs = real_gear.get("coveredSpecs") if isinstance(real_gear.get("coveredSpecs"), list) else []
     fallback_talent_count = int(templates.get("verified") or 0) if isinstance(templates, dict) else 0
@@ -2376,6 +2377,20 @@ def lightweight_template_evidence_audit_payload(community_state=None, community_
             "defaultGearCoveredSpecCount": int(default_templates.get("coveredSpecCount") or 0),
             "realCommunityGearCoveredSpecCount": int(real_gear.get("coveredSpecCount") or len(real_covered_specs) or 0),
             "realCommunityTalentCoveredSpecCount": int(scan_coverage.get("coveredSpecCount") or 0),
+            "realCommunityTalentCoveredHeroSlotCount": int(
+                scan_coverage.get("coveredHeroSlotCount") or coverage_matrix.get("verifiedHeroSlotCount") or 0
+            ),
+            "communityTalentTotalHeroSlotCount": int(
+                scan_coverage.get("totalHeroSlotCount") or coverage_matrix.get("totalHeroSlotCount") or 0
+            ),
+            "communityTalentPendingHeroSlotCount": int(
+                scan_coverage.get("pendingCollectionHeroSlotCount")
+                or coverage_matrix.get("pendingCollectionHeroSlotCount")
+                or 0
+            ),
+            "communityTalentBlockedHeroSlotCount": int(
+                scan_coverage.get("blockedHeroSlotCount") or coverage_matrix.get("blockedHeroSlotCount") or 0
+            ),
             "fallbackTalentCoveredSpecCount": fallback_talent_count,
             "topBlockers": (default_templates.get("topBlockers") or [])[:4],
         },
@@ -2606,6 +2621,7 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
                 "sources": community.get("sources") or {},
                 "templateRevision": community.get("templateRevision") or "",
                 "scanCoverage": community.get("scanCoverage") or {},
+                "coverageMatrix": community.get("coverageMatrix") or {},
                 "dedupedCount": community.get("dedupedCount") or 0,
                 "hiddenDuplicateCount": community.get("hiddenDuplicateCount") or 0,
                 "wclTemplateSource": (community.get("sources") or {}).get("warcraftlogs") or {},
@@ -2800,6 +2816,7 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
                     "sources": community.get("sources") or {},
                     "templateRevision": community.get("templateRevision") or "",
                     "scanCoverage": community.get("scanCoverage") or {},
+                    "coverageMatrix": community.get("coverageMatrix") or {},
                     "dedupedCount": community.get("dedupedCount") or 0,
                     "hiddenDuplicateCount": community.get("hiddenDuplicateCount") or 0,
                     "wclTemplateSource": (community.get("sources") or {}).get("warcraftlogs") or {},
@@ -7311,7 +7328,8 @@ def admin_gate_json_summary(value, fallback):
 
 def admin_gate_record(domain, target_type, target_id, title, *, status="", source_status="", source_name="", source_url="", checked_at="", blockers=None, facets=None, stages=None, raw_summary=None, evidence=None, publication=None, article_category=None, talent_category=None, talent_publication=None, talent_block_reason=None, gear_category=None, gear_visibility=None, gear_block_reason=None):
     blockers = [admin_gate_summarize_text(item, 220) for item in (blockers or []) if str(item or "").strip()]
-    effective_status = admin_gate_status(source_status, status, blockers=blockers)
+    status_inputs = (status,) if domain == "talents" and target_type == "community_talent_template" else (source_status, status)
+    effective_status = admin_gate_status(*status_inputs, blockers=blockers)
     source_status_value = normalize_data_health_status(source_status or status or effective_status)
     severity = admin_gate_severity(effective_status, domain, target_type)
     facets_value = facets if isinstance(facets, dict) else {}
@@ -8615,6 +8633,8 @@ def collect_admin_talent_records_from_store(store):
         if timestamp_expired(item.get("expiresAt") or ""):
             continue
         item_payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+        wcl_evidence = item_payload.get("wclEvidence") if isinstance(item_payload.get("wclEvidence"), dict) else {}
+        rio_evidence = item_payload.get("rioEvidence") if isinstance(item_payload.get("rioEvidence"), dict) else {}
         records.append(admin_gate_record(
             "talents",
             "community_talent_template",
@@ -8637,11 +8657,17 @@ def collect_admin_talent_records_from_store(store):
                 "analysisWindow": item.get("analysisWindow") or "",
                 "signature": item.get("signature") or "",
                 "scanRunId": item.get("scanRunId") or "",
+                "evidenceTier": item_payload.get("evidenceTier") or wcl_evidence.get("tier") or "",
+                "wclEvidenceTier": wcl_evidence.get("tier") or "",
+                "qualityScore": item_payload.get("qualityScore") or 0,
             },
             raw_summary={"name": item.get("name") or "", "expiresAt": item.get("expiresAt") or ""},
             evidence={
                 "sourceRefs": (item.get("sourceRefs") or [])[:5] if isinstance(item.get("sourceRefs"), list) else [],
                 "runtimeStore": "postgres_cache",
+                "rioEvidence": rio_evidence,
+                "wclEvidence": wcl_evidence,
+                "promotionReason": item_payload.get("promotionReason") or "",
             },
             talent_category=admin_gate_talent_record_category(
                 item.get("classKey") or "",

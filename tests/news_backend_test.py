@@ -5056,8 +5056,34 @@ class NewsBackendTest(unittest.TestCase):
                     "scanCoverage": {
                         "totalClassCount": 13,
                         "totalSpecCount": 40,
+                        "totalHeroSlotCount": 80,
                         "coveredSpecCount": 38,
+                        "coveredHeroSlotCount": 76,
+                        "pendingCollectionHeroSlotCount": 4,
                         "missingSpecs": ["rogue:subtlety", "shaman:restoration"],
+                    },
+                    "coverageMatrix": {
+                        "schemaRevision": "community-talent-coverage-matrix-v1",
+                        "totalSpecCount": 40,
+                        "totalHeroSlotCount": 80,
+                        "verifiedHeroSlotCount": 76,
+                        "pendingCollectionHeroSlotCount": 4,
+                        "blockedHeroSlotCount": 0,
+                        "rows": [
+                            {
+                                "slotId": "rogue:subtlety:deathstalker",
+                                "classKey": "rogue",
+                                "specKey": "subtlety",
+                                "heroKey": "deathstalker",
+                                "status": "pending_collection",
+                                "blockers": [
+                                    {
+                                        "stage": "source_collection",
+                                        "reason": "missing verified community talent template for rogue/subtlety/deathstalker",
+                                    }
+                                ],
+                            }
+                        ],
                     },
                     "dedupedCount": 72,
                     "hiddenDuplicateCount": 18,
@@ -5078,6 +5104,8 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(component["details"]["templateRevision"], "community-template-v1-test")
         self.assertEqual(component["details"]["scanCoverage"]["totalSpecCount"], 40)
         self.assertEqual(component["details"]["scanCoverage"]["coveredSpecCount"], 38)
+        self.assertEqual(component["details"]["coverageMatrix"]["totalHeroSlotCount"], 80)
+        self.assertEqual(component["details"]["coverageMatrix"]["rows"][0]["status"], "pending_collection")
         self.assertEqual(component["details"]["dedupedCount"], 72)
         self.assertEqual(component["details"]["hiddenDuplicateCount"], 18)
         self.assertEqual(component["details"]["wclTemplateSource"]["status"], "missing_credentials")
@@ -7802,7 +7830,13 @@ class NewsBackendTest(unittest.TestCase):
                             "sampleCount": 12,
                             "maxKeyLevel": 10,
                             "analysisWindow": "2026-W27",
-                            "payload": {},
+                            "payload": {
+                                "evidenceTier": "wcl_character_supported",
+                                "qualityScore": 74,
+                                "promotionReason": "WCL character-supported evidence; promoted into active community talent inventory",
+                                "rioEvidence": {"maxKeyLevel": 24, "sampleCount": 12},
+                                "wclEvidence": {"tier": "wcl_character_supported", "reportCount": 2},
+                            },
                             "updatedAt": "2026-06-30T00:02:00+00:00",
                             "expiresAt": "2099-01-01T00:00:00+00:00",
                             "signature": "sig-pg-template",
@@ -8089,6 +8123,27 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(pg_template["talentPublication"]["stateLabel"], "已可见")
         self.assertEqual(pg_template["talentPublication"]["surface"], "天赋导入列表")
         self.assertEqual(pg_template["talentBlockReason"]["state"], "clear")
+        self.assertEqual(pg_template["facets"]["evidenceTier"], "wcl_character_supported")
+        self.assertEqual(pg_template["facets"]["wclEvidenceTier"], "wcl_character_supported")
+        self.assertEqual(pg_template["facets"]["qualityScore"], 74)
+        self.assertIn("WCL character-supported", pg_template["evidence"]["promotionReason"])
+        self.assertEqual(pg_template["evidence"]["wclEvidence"]["reportCount"], 2)
+        wcl_verified_partial_source = self.backend.admin_gate_record(
+            "talents",
+            "community_talent_template",
+            "wcl-exact-template",
+            "WCL exact template",
+            status="verified",
+            source_status="partial",
+            source_name="Warcraft Logs",
+            blockers=[],
+            facets={"sourceKey": "warcraftlogs", "sampleCount": 1, "maxKeyLevel": 0},
+            evidence={"wclEvidence": {"tier": "wcl_exact_template"}},
+        )
+        self.assertEqual(wcl_verified_partial_source["status"], "verified")
+        self.assertEqual(wcl_verified_partial_source["sourceStatus"], "partial")
+        self.assertEqual(wcl_verified_partial_source["talentPublication"]["state"], "visible")
+        self.assertEqual(wcl_verified_partial_source["severity"], "ok")
         pg_blocked_template = next(record for record in talent_payload["records"] if record["targetId"] == "pg-template-blocked")
         self.assertEqual(pg_blocked_template["talentPublication"]["state"], "hidden")
         self.assertEqual(pg_blocked_template["talentPublication"]["stateLabel"], "不可见")

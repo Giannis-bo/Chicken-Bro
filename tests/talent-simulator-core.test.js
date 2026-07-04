@@ -508,9 +508,10 @@ test('community template helpers expose source status and spec-scoped availabili
     }
   ]
 
-  assert.deepEqual(core.templatesForClass(templates, 'mage', 'arcane').map((item) => item.id), ['arcane-high', 'arcane-other-b', 'arcane-third'])
+  assert.deepEqual(core.templatesForClass(templates, 'mage', 'arcane').map((item) => item.id), ['arcane-high', 'arcane-other-a'])
   assert.equal(core.communityTemplateApplyMode(templates[0]), 'visual')
   assert.equal(core.communityTemplateApplyMode(templates[2]), 'simc_only')
+  assert.equal(core.communityTemplateApplyMode({ status: 'pending_collection' }), 'blocked')
   assert.match(core.communityTemplateStatusText({
     sourceStatus: 'partial',
     sources: {

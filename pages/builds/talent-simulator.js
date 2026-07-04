@@ -381,6 +381,7 @@ function shortDate(value) {
 
 function decorateCommunityTemplate(template) {
   const mode = communityTemplateApplyMode(template)
+  const pendingCollection = template && (template.status === 'pending_collection' || template.sourceStatus === 'pending_collection' || template.isPendingCollection)
   const sampleCount = Number(template && template.sampleCount) || 0
   const maxKeyLevel = Number(template && template.maxKeyLevel) || 0
   const detailLabel = [
@@ -392,11 +393,12 @@ function decorateCommunityTemplate(template) {
     ...(template || {}),
     applyMode: mode,
     detailLabel,
-    sampleLabel: sampleCount > 0 ? `样本 ${sampleCount}` : '样本待补',
-    keyLabel: maxKeyLevel > 0 ? `最高 +${maxKeyLevel}` : '',
+    sampleLabel: pendingCollection ? '待采集' : (sampleCount > 0 ? `样本 ${sampleCount}` : '样本待补'),
+    keyLabel: pendingCollection ? '无社区样本' : (maxKeyLevel > 0 ? `最高 +${maxKeyLevel}` : ''),
     updatedLabel: shortDate((template && template.updatedAt) || ''),
-    actionLabel: mode === 'visual' ? '应用' : '不可编辑',
-    cardClass: ['community-template-card', mode === 'simc_only' ? 'external' : '', mode === 'blocked' ? 'blocked' : ''].filter(Boolean).join(' ')
+    actionLabel: pendingCollection ? '待采集' : (mode === 'visual' ? '应用' : '不可编辑'),
+    modeLabel: pendingCollection ? '待采集' : (mode === 'visual' ? '可编辑' : (mode === 'simc_only' ? '外部码' : '不可用')),
+    cardClass: ['community-template-card', mode === 'simc_only' ? 'external' : '', pendingCollection ? 'pending' : '', mode === 'blocked' ? 'blocked' : ''].filter(Boolean).join(' ')
   }
 }
 
@@ -454,7 +456,7 @@ function activeTemplatesForClass(templates, classKey, specKey) {
     if (key && templateClass !== key) return false
     if (spec && templateSpec !== spec) return false
     return true
-  }).slice(0, 3)
+  })
 }
 
 function communityTemplateContext(template) {

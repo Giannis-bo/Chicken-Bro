@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 import os
 import json
+import sqlite3
+import time
 
 try:
     from .db import connect_postgres, database_config_from_env
     from .postgres_cache_store import PostgresCacheStore, utc_now
+    from .raiderio_payload import sync_raiderio_cache
     from .stat_weights_payload import (
         MPLUS_SCENARIOS,
         aggregate_by_spec,
@@ -16,6 +19,7 @@ try:
     )
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
+        COMMUNITY_TALENT_PENDING_STATUS,
         COMMUNITY_TALENT_SYNC_KEY,
         DEFAULT_LOCALE,
         DEFAULT_REGION,
@@ -23,14 +27,18 @@ try:
         GEAR_OBSERVED_BACKFILL_SYNC_KEY,
         blizzard_get,
         blizzard_namespace,
+        class_label,
         community_talent_loadout_spec_blockers,
         disabled_community_talent_template_source_keys,
         include_websim_baseline_talent_sources,
         current_season_raid_pool_status,
+        expected_hero_tree_triplets,
         extract_simc_generated_data,
         extract_id_from_ref,
         fetch_blizzard_item_metadata,
         get_blizzard_access_token,
+        hero_tree_for,
+        hero_tree_label,
         icon_url_from_media,
         item_payload_is_equipment_loot,
         item_slot_from_payload,
@@ -40,11 +48,14 @@ try:
         official_current_season_raid_refs,
         resolve_current_mythic_season,
         selected_journal_instance_refs,
+        slugify,
+        spec_label,
         unique_text_list,
     )
 except ImportError:
     from db import connect_postgres, database_config_from_env
     from postgres_cache_store import PostgresCacheStore, utc_now
+    from raiderio_payload import sync_raiderio_cache
     from stat_weights_payload import (
         MPLUS_SCENARIOS,
         aggregate_by_spec,
@@ -56,6 +67,7 @@ except ImportError:
     )
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
+        COMMUNITY_TALENT_PENDING_STATUS,
         COMMUNITY_TALENT_SYNC_KEY,
         DEFAULT_LOCALE,
         DEFAULT_REGION,
@@ -63,14 +75,18 @@ except ImportError:
         GEAR_OBSERVED_BACKFILL_SYNC_KEY,
         blizzard_get,
         blizzard_namespace,
+        class_label,
         community_talent_loadout_spec_blockers,
         disabled_community_talent_template_source_keys,
         include_websim_baseline_talent_sources,
         current_season_raid_pool_status,
+        expected_hero_tree_triplets,
         extract_simc_generated_data,
         extract_id_from_ref,
         fetch_blizzard_item_metadata,
         get_blizzard_access_token,
+        hero_tree_for,
+        hero_tree_label,
         icon_url_from_media,
         item_payload_is_equipment_loot,
         item_slot_from_payload,
@@ -80,11 +96,15 @@ except ImportError:
         official_current_season_raid_refs,
         resolve_current_mythic_season,
         selected_journal_instance_refs,
+        slugify,
+        spec_label,
         unique_text_list,
     )
 
 
 CRAFTED_GEAR_BACKFILL_SYNC_KEY = "crafted_gear_backfill"
+COMMUNITY_TALENT_COVERAGE_MATRIX_REVISION = "community-talent-coverage-matrix-v1"
+COMMUNITY_TEMPLATE_STAGE_TIMING_REVISION = "community-template-stage-timings-v1"
 
 
 def cache_store_from_env():
@@ -97,6 +117,29 @@ def cache_store_from_env():
 def _emit(stage_callback, stage, status, **details):
     if stage_callback:
         stage_callback({"stage": stage, "status": status, **details})
+
+
+def _timing_stage(stage, started_at, **details):
+    event = {
+        "stage": stage,
+        "durationSeconds": round(max(0.0, time.monotonic() - started_at), 3),
+    }
+    event.update({key: value for key, value in details.items() if value is not None})
+    return event
+
+
+def _sync_timing_summary(started_at, stages, coverage_matrix=None, talent_counts=None):
+    coverage_matrix = coverage_matrix if isinstance(coverage_matrix, dict) else {}
+    talent_counts = talent_counts if isinstance(talent_counts, dict) else {}
+    return {
+        "schemaRevision": COMMUNITY_TEMPLATE_STAGE_TIMING_REVISION,
+        "totalDurationSeconds": round(max(0.0, time.monotonic() - started_at), 3),
+        "candidateCount": int(talent_counts.get("candidateTotal") or talent_counts.get("total") or 0),
+        "verifiedCount": int(coverage_matrix.get("verifiedHeroSlotCount") or talent_counts.get("verified") or 0),
+        "blockedCount": int(coverage_matrix.get("blockedHeroSlotCount") or talent_counts.get("blocked") or 0),
+        "pendingDelta": int(coverage_matrix.get("pendingCollectionHeroSlotCount") or 0),
+        "stages": list(stages or []),
+    }
 
 
 def _status_from_counts(verified=0, partial=0, blocked=0):
@@ -302,13 +345,29 @@ def fetch_websim_journal_data_postgres(region=DEFAULT_REGION, locale=DEFAULT_LOC
 def sync_raiderio_cache_postgres(force=False, stage_callback=None, store=None):
     store = store or cache_store_from_env()
     _emit(stage_callback, "raiderio", "start", force=bool(force))
-    payload = store.get_raiderio_payload()
+    try:
+        conn = sqlite3.connect(":memory:")
+        try:
+            payload = sync_raiderio_cache(conn, force=force, stage_callback=stage_callback)
+        finally:
+            conn.close()
+    except Exception as error:
+        cached = dict(store.get_raiderio_payload() or {})
+        if not cached:
+            raise
+        cached_errors = list(cached.get("errors") or [])
+        cached_errors.append(f"PostgreSQL Raider.IO refresh failed: {error}")
+        cached["errors"] = cached_errors[:12]
+        cached["sourceStatus"] = "stale"
+        cached["status"] = "stale"
+        payload = cached
     payload = dict(payload or {})
     payload["runner"] = "postgres"
     payload.setdefault("sourceStatus", payload.get("status") or "blocked")
     payload.setdefault("status", payload.get("sourceStatus") or "blocked")
     payload.setdefault("checkedAt", utc_now())
-    store.save_raiderio_payload(payload)
+    if payload.get("sourceStatus") != "stale":
+        store.save_raiderio_payload(payload)
     _emit(
         stage_callback,
         "raiderio",
@@ -505,6 +564,459 @@ def include_manual_fixture_sources():
     return os.environ.get("WOW_INCLUDE_MANUAL_FIXTURES", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _source_error_stage(error):
+    text = str(error or "").lower()
+    if any(token in text for token in ("combatantinfo", "template seed", "report extraction", "raw talent", "loadout")):
+        return "template_extraction"
+    if any(token in text for token in ("credential", "api key", "oauth", "configured")):
+        return "source_collection"
+    return "source_collection"
+
+
+def _text_list(value):
+    if isinstance(value, list):
+        return unique_text_list([str(item) for item in value if str(item or "").strip()])
+    if isinstance(value, dict):
+        values = []
+        for key in ("warnings", "errors", "blockers"):
+            items = value.get(key)
+            if isinstance(items, list):
+                values.extend(str(item) for item in items if str(item or "").strip())
+        return unique_text_list(values)
+    if str(value or "").strip():
+        return [str(value)]
+    return []
+
+
+def _template_blocker_stage(reason):
+    text = str(reason or "").lower()
+    if "loadout spec id" in text or "matched multiple hero" in text or "did not identify a hero" in text:
+        return "class_spec_hero_validation"
+    if "unknown talent node" in text or "talentencoding" in text or "encode" in text:
+        return "authority_encoding"
+    if "unknown structured talent entry" in text:
+        return "authority_validation"
+    if any(token in text for token in ("structured talent loadout", "raw talent import", "missing websim talent state", "external talents import")):
+        return "template_extraction"
+    return "authority_validation"
+
+
+def _source_gap_records(source_key, source_name, errors, status=""):
+    gaps = []
+    for error in errors or []:
+        reason = str(error or "").strip()
+        if not reason:
+            continue
+        gaps.append(
+            {
+                "sourceKey": source_key,
+                "sourceName": source_name or source_key,
+                "status": "blocked" if status == "blocked" else "partial",
+                "stage": _source_error_stage(reason),
+                "reason": reason,
+            }
+        )
+    return gaps
+
+
+def _new_source_summary(source_key, source_name, status, errors=None, warnings=None, candidate_count=0):
+    errors = _text_list(errors)
+    warnings = _text_list(warnings)
+    return {
+        "status": status or "blocked",
+        "sourceName": source_name or source_key,
+        "candidateCount": int(candidate_count or 0),
+        "verifiedCount": 0,
+        "blockedCount": 0,
+        "skippedCount": 0,
+        "warningCount": len(warnings),
+        "errorCount": len(errors),
+        "warnings": warnings,
+        "errors": errors,
+        "gaps": _source_gap_records(source_key, source_name or source_key, errors, status or "blocked"),
+        "blocked": [],
+        "skipped": [],
+        "wclEvidenceCount": 0,
+        "targetMatrix": {},
+    }
+
+
+def _template_payload(template):
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _template_wcl_evidence_tier(template):
+    payload = _template_payload(template)
+    evidence = payload.get("wclEvidence") if isinstance(payload.get("wclEvidence"), dict) else {}
+    warcraftlogs = payload.get("warcraftlogs") if isinstance(payload.get("warcraftlogs"), dict) else {}
+    tier = str(evidence.get("tier") or payload.get("evidenceTier") or warcraftlogs.get("evidenceTier") or warcraftlogs.get("tier") or "").strip()
+    return tier or "wcl_missing"
+
+
+def _template_has_wcl_backing(template):
+    return _template_wcl_evidence_tier(template) in {"wcl_exact_template", "wcl_character_supported"}
+
+
+def _template_slot_id(template):
+    class_key = slugify(template.get("classKey"), "")
+    spec_key = slugify(template.get("specKey"), "")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(template.get("heroKey"), "")) if class_key and spec_key else slugify(template.get("heroKey"), "")
+    if not class_key or not spec_key or not hero_key:
+        return ""
+    return f"{class_key}:{spec_key}:{hero_key}"
+
+
+def _template_blocker_records(template, default_reason="community talent template blocked without explicit reason"):
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    records = []
+
+    def append_reasons(stage, reasons):
+        for reason in reasons or []:
+            reason = str(reason or "").strip()
+            if not reason:
+                continue
+            records.append(
+                {
+                    "status": "blocked",
+                    "stage": stage or _template_blocker_stage(reason),
+                    "reason": reason,
+                    "sourceKey": template.get("sourceKey") or payload.get("sourceKey") or "",
+                    "sourceName": template.get("sourceName") or "",
+                    "templateId": str(template.get("id") or ""),
+                    "classKey": slugify(template.get("classKey"), ""),
+                    "specKey": slugify(template.get("specKey"), ""),
+                    "heroKey": slugify(template.get("heroKey"), ""),
+                }
+            )
+
+    for section_key, stage in (("talentLoadoutParse", ""), ("talentEncoding", "authority_encoding")):
+        section = payload.get(section_key) if isinstance(payload.get(section_key), dict) else {}
+        section_errors = section.get("errors")
+        if isinstance(section_errors, list):
+            append_reasons(stage, section_errors)
+        elif str(section_errors or "").strip():
+            append_reasons(stage, [section_errors])
+    generic = []
+    for key in ("blockers", "errors"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            generic.extend(value)
+        elif str(value or "").strip():
+            generic.append(value)
+    seen = {item["reason"] for item in records}
+    append_reasons("", [item for item in generic if str(item or "").strip() not in seen])
+    if not records:
+        append_reasons(_template_blocker_stage(default_reason), [default_reason])
+    return records
+
+
+def _pending_coverage_blocker(class_key, spec_key, hero_key):
+    return {
+        "status": COMMUNITY_TALENT_PENDING_STATUS,
+        "stage": "source_collection",
+        "reason": f"missing verified community talent template for {class_key}/{spec_key}/{hero_key}",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "heroKey": hero_key,
+    }
+
+
+def _coverage_summary_from_rows(rows):
+    reason_counts = {}
+    for row in rows:
+        if row.get("status") == "verified":
+            continue
+        for blocker in row.get("blockers") or []:
+            reason = blocker.get("reason") or ""
+            stage = blocker.get("stage") or ""
+            if not reason:
+                continue
+            key = (stage, reason)
+            reason_counts[key] = reason_counts.get(key, 0) + 1
+    return [
+        {"stage": stage, "reason": reason, "count": count}
+        for (stage, reason), count in sorted(reason_counts.items(), key=lambda item: (-item[1], item[0][0], item[0][1]))[:12]
+    ]
+
+
+def _int_value(value, default=0):
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return default
+
+
+def _slot_target_collection(row, sources):
+    spec_id = row.get("specId") or ""
+    source_attempts = {}
+    total_attempted = 0
+    for source_key, source in (sources or {}).items():
+        source = source if isinstance(source, dict) else {}
+        spec_coverage = source.get("specCoverage") if isinstance(source.get("specCoverage"), dict) else {}
+        sample_counts = spec_coverage.get("sampleCounts") if isinstance(spec_coverage.get("sampleCounts"), dict) else {}
+        attempted = _int_value(sample_counts.get(spec_id), 0)
+        region_samples = []
+        region_coverage = source.get("regionCoverage") if isinstance(source.get("regionCoverage"), dict) else {}
+        for region, region_summary in sorted(region_coverage.items()):
+            region_summary = region_summary if isinstance(region_summary, dict) else {}
+            region_spec_coverage = region_summary.get("specCoverage") if isinstance(region_summary.get("specCoverage"), dict) else {}
+            region_counts = region_spec_coverage.get("sampleCounts") if isinstance(region_spec_coverage.get("sampleCounts"), dict) else {}
+            sample_count = _int_value(region_counts.get(spec_id), 0)
+            if sample_count:
+                region_samples.append({"region": region, "sampleCount": sample_count})
+        if attempted or region_samples or source.get("regions"):
+            source_attempts[source_key] = {
+                "attemptedRunCount": attempted,
+                "regions": region_samples,
+                "runCount": _int_value(source.get("runCount"), 0),
+                "profileCount": _int_value(source.get("profileCount"), 0),
+                "runDetailCoverage": source.get("runDetailCoverage") or {},
+            }
+        total_attempted += attempted
+    return {
+        "attemptedRunCount": total_attempted,
+        "sources": source_attempts,
+    }
+
+
+def _slot_next_action(row):
+    status = row.get("status") or ""
+    collection = row.get("targetCollection") if isinstance(row.get("targetCollection"), dict) else {}
+    attempted = _int_value(collection.get("attemptedRunCount"), 0)
+    candidate_count = _int_value(row.get("candidateCount"), 0)
+    if status == "verified":
+        return "promoted active template; keep monitoring drift and duplicate signatures"
+    if status == "blocked":
+        stage = row.get("stage") or "authority_validation"
+        reason = row.get("reason") or "blocked community talent template"
+        return f"fix {stage}: {reason}"
+    if attempted <= 0:
+        return "expand Raider.IO target-matrix scan across more regions/pages, then fall back to WCL combatantinfo extraction"
+    if candidate_count <= 0:
+        return "fetch run-detail/profile talent snapshots for observed high-score runs in this spec"
+    return "increase same-slot candidate count and require authority validation before promotion"
+
+
+def _source_target_matrix_summary(source_key, rows):
+    attempted_by_spec = {}
+    verified = 0
+    pending = 0
+    blocked = 0
+    candidate_count = 0
+    attempted_pending = False
+    unattempted_pending = False
+    for row in rows or []:
+        status = row.get("status") or ""
+        if status == "verified":
+            verified += 1
+        elif status == COMMUNITY_TALENT_PENDING_STATUS:
+            pending += 1
+        elif status == "blocked":
+            blocked += 1
+        source_counts = (row.get("sources") or {}).get(source_key) or {}
+        candidate_count += _int_value(source_counts.get("candidateCount"), 0)
+        source_collection = ((row.get("targetCollection") or {}).get("sources") or {}).get(source_key) or {}
+        attempted = _int_value(source_collection.get("attemptedRunCount"), 0)
+        spec_id = row.get("specId") or row.get("slotId") or ""
+        if attempted:
+            attempted_by_spec[spec_id] = max(attempted_by_spec.get(spec_id, 0), attempted)
+        if status != "verified":
+            if attempted:
+                attempted_pending = True
+            else:
+                unattempted_pending = True
+    if attempted_pending:
+        next_action = "fetch run-detail/profile talent snapshots for observed high-score runs in attempted specs"
+    elif unattempted_pending:
+        next_action = "expand Raider.IO target-matrix scan across more regions/pages, then fall back to WCL combatantinfo extraction"
+    else:
+        next_action = "promoted active templates; keep monitoring drift and WCL evidence freshness"
+    return {
+        "totalHeroSlotCount": len(rows or []),
+        "verifiedHeroSlotCount": verified,
+        "pendingCollectionHeroSlotCount": pending,
+        "blockedHeroSlotCount": blocked,
+        "candidateCount": candidate_count,
+        "attemptedRunCount": sum(attempted_by_spec.values()),
+        "nextAction": next_action,
+    }
+
+
+def build_community_talent_coverage_matrix(templates, sources=None, scan_run_id="", checked_at=""):
+    sources = {key: dict(value) for key, value in (sources or {}).items()}
+    expected_slots = []
+    for triplet in expected_hero_tree_triplets():
+        parts = str(triplet or "").split(":")
+        if len(parts) != 3:
+            continue
+        class_key, spec_key, hero_key = parts
+        expected_slots.append((class_key, spec_key, hero_key))
+    rows_by_slot = {}
+    for class_key, spec_key, hero_key in expected_slots:
+        slot_id = f"{class_key}:{spec_key}:{hero_key}"
+        rows_by_slot[slot_id] = {
+            "slotId": slot_id,
+            "specId": f"{class_key}:{spec_key}",
+            "classKey": class_key,
+            "specKey": spec_key,
+            "heroKey": hero_key,
+            "classLabel": class_label(class_key),
+            "specLabel": spec_label(spec_key),
+            "heroLabel": hero_tree_label(hero_key),
+            "status": COMMUNITY_TALENT_PENDING_STATUS,
+            "stage": "source_collection",
+            "reason": "missing verified community sample",
+            "candidateCount": 0,
+            "verifiedCount": 0,
+            "blockedCount": 0,
+            "skippedCount": 0,
+            "sources": {},
+            "verifiedTemplateIds": [],
+            "blockedTemplateIds": [],
+            "blockers": [_pending_coverage_blocker(class_key, spec_key, hero_key)],
+            "warnings": [],
+            "skipped": [],
+        }
+    for source_key, source in sources.items():
+        for skipped in source.get("skipped") or []:
+            slot_id = _template_slot_id(skipped)
+            row = rows_by_slot.get(slot_id)
+            if not row:
+                continue
+            row["candidateCount"] += 1
+            row["skippedCount"] += 1
+            row["sources"].setdefault(source_key, {"candidateCount": 0, "verifiedCount": 0, "blockedCount": 0, "skippedCount": 0})
+            row["sources"][source_key]["candidateCount"] += 1
+            row["sources"][source_key]["skippedCount"] += 1
+            row["skipped"].append(skipped)
+            reason = skipped.get("reason") or ""
+            if reason:
+                row["warnings"] = unique_text_list([*(row.get("warnings") or []), reason])
+    for template in templates or []:
+        if not isinstance(template, dict):
+            continue
+        slot_id = _template_slot_id(template)
+        row = rows_by_slot.get(slot_id)
+        if not row:
+            continue
+        source_key = template.get("sourceKey") or "unknown"
+        source = sources.setdefault(
+            source_key,
+            _new_source_summary(source_key, template.get("sourceName") or source_key, template.get("sourceStatus") or "partial"),
+        )
+        row["candidateCount"] += 1
+        row["sources"].setdefault(source_key, {"candidateCount": 0, "verifiedCount": 0, "blockedCount": 0, "skippedCount": 0})
+        row["sources"][source_key]["candidateCount"] += 1
+        status = template.get("status") or "blocked"
+        if status == "verified":
+            source["verifiedCount"] = int(source.get("verifiedCount") or 0) + 1
+            if _template_has_wcl_backing(template):
+                source["wclEvidenceCount"] = int(source.get("wclEvidenceCount") or 0) + 1
+            row["verifiedCount"] += 1
+            row["sources"][source_key]["verifiedCount"] += 1
+            if row["status"] != "verified":
+                row["status"] = "verified"
+                row["stage"] = "promotion_dedupe"
+                row["reason"] = ""
+                row["blockers"] = []
+            row["verifiedTemplateIds"].append(str(template.get("id") or ""))
+        elif status == COMMUNITY_TALENT_PENDING_STATUS:
+            continue
+        else:
+            blockers = _template_blocker_records(template)
+            source["blockedCount"] = int(source.get("blockedCount") or 0) + 1
+            source["blocked"] = [*(source.get("blocked") or []), *blockers]
+            row["blockedCount"] += 1
+            row["sources"][source_key]["blockedCount"] += 1
+            row["blockedTemplateIds"].append(str(template.get("id") or ""))
+            if row["status"] != "verified":
+                row["status"] = "blocked"
+                row["stage"] = blockers[0].get("stage") or "authority_validation"
+                row["reason"] = blockers[0].get("reason") or ""
+                row["blockers"] = blockers
+            else:
+                row["warnings"] = unique_text_list([*(row.get("warnings") or []), *[item.get("reason") for item in blockers]])
+    rows = [rows_by_slot[f"{class_key}:{spec_key}:{hero_key}"] for class_key, spec_key, hero_key in expected_slots]
+    for row in rows:
+        row["targetCollection"] = _slot_target_collection(row, sources)
+        row["attemptedRunCount"] = row["targetCollection"]["attemptedRunCount"]
+        row["nextAction"] = _slot_next_action(row)
+    verified_slots = [row for row in rows if row.get("status") == "verified"]
+    pending_slots = [row for row in rows if row.get("status") == COMMUNITY_TALENT_PENDING_STATUS]
+    blocked_slots = [row for row in rows if row.get("status") == "blocked"]
+    spec_ids = sorted({row["specId"] for row in rows})
+    complete_specs = [
+        spec_id
+        for spec_id in spec_ids
+        if all(row.get("status") == "verified" for row in rows if row.get("specId") == spec_id)
+    ]
+    partial_specs = [
+        spec_id
+        for spec_id in spec_ids
+        if spec_id not in complete_specs and any(row.get("status") == "verified" for row in rows if row.get("specId") == spec_id)
+    ]
+    matrix_status = "verified" if len(verified_slots) == len(rows) and rows else "partial"
+    if blocked_slots and not verified_slots and not pending_slots:
+        matrix_status = "blocked"
+    for source in sources.values():
+        source["candidateCount"] = int(source.get("candidateCount") or 0)
+        source["verifiedCount"] = int(source.get("verifiedCount") or 0)
+        source["blockedCount"] = int(source.get("blockedCount") or 0)
+        source["skippedCount"] = int(source.get("skippedCount") or 0)
+        source["warnings"] = _text_list(source.get("warnings") or [])
+        source["errors"] = _text_list(source.get("errors") or [])
+        source["warningCount"] = len(source["warnings"])
+        source["errorCount"] = len(source["errors"])
+        source["gaps"] = source.get("gaps") or _source_gap_records("", source.get("sourceName") or "", source["errors"], source.get("status") or "")
+        source["wclEvidenceCount"] = int(source.get("wclEvidenceCount") or 0)
+        source["targetMatrix"] = _source_target_matrix_summary(
+            next((key for key, value in sources.items() if value is source), ""),
+            rows,
+        )
+    return {
+        "schemaRevision": COMMUNITY_TALENT_COVERAGE_MATRIX_REVISION,
+        "scanRunId": scan_run_id,
+        "checkedAt": checked_at,
+        "status": matrix_status,
+        "totalSpecCount": len(spec_ids),
+        "totalHeroSlotCount": len(rows),
+        "verifiedHeroSlotCount": len(verified_slots),
+        "pendingCollectionHeroSlotCount": len(pending_slots),
+        "blockedHeroSlotCount": len(blocked_slots),
+        "skippedCandidateCount": sum(int(row.get("skippedCount") or 0) for row in rows),
+        "completeSpecCount": len(complete_specs),
+        "partialSpecCount": len(partial_specs),
+        "pendingSpecCount": len(spec_ids) - len(complete_specs) - len(partial_specs),
+        "completeSpecs": complete_specs,
+        "partialSpecs": partial_specs,
+        "pendingHeroSlots": [row["slotId"] for row in pending_slots],
+        "blockedHeroSlots": [row["slotId"] for row in blocked_slots],
+        "topBlockers": _coverage_summary_from_rows(rows),
+        "sourceSummary": sources,
+        "rows": rows,
+    }
+
+
+def scan_coverage_from_community_talent_matrix(matrix):
+    matrix = matrix if isinstance(matrix, dict) else {}
+    rows = matrix.get("rows") if isinstance(matrix.get("rows"), list) else []
+    spec_ids = sorted({row.get("specId") for row in rows if row.get("specId")})
+    return {
+        "totalClassCount": len({row.get("classKey") for row in rows if row.get("classKey")}),
+        "totalSpecCount": int(matrix.get("totalSpecCount") or len(spec_ids)),
+        "totalHeroSlotCount": int(matrix.get("totalHeroSlotCount") or len(rows)),
+        "coveredSpecCount": int(matrix.get("completeSpecCount") or 0),
+        "partiallyCoveredSpecCount": int(matrix.get("partialSpecCount") or 0),
+        "coveredHeroSlotCount": int(matrix.get("verifiedHeroSlotCount") or 0),
+        "pendingCollectionHeroSlotCount": int(matrix.get("pendingCollectionHeroSlotCount") or 0),
+        "blockedHeroSlotCount": int(matrix.get("blockedHeroSlotCount") or 0),
+        "missingSpecs": [spec_id for spec_id in spec_ids if spec_id not in set(matrix.get("completeSpecs") or [])],
+        "missingHeroSlots": list(matrix.get("pendingHeroSlots") or []),
+        "blockedHeroSlots": list(matrix.get("blockedHeroSlots") or []),
+    }
+
+
 def load_community_talent_sources_postgres(store):
     try:
         from .community_talent_sources import warcraftlogs
@@ -518,6 +1030,13 @@ def load_community_talent_sources_postgres(store):
             "sourceName": "Raider.IO",
             "templates": (raiderio or {}).get("communityTemplates") or [],
             "errors": (raiderio or {}).get("errors") or [],
+            "regions": (raiderio or {}).get("regions") or ([((raiderio or {}).get("region") or "")] if (raiderio or {}).get("region") else []),
+            "regionCoverage": (raiderio or {}).get("regionCoverage") or {},
+            "runDetailCoverage": (raiderio or {}).get("runDetailCoverage") or {},
+            "specCoverage": (raiderio or {}).get("specCoverage") or {},
+            "targetMatrix": (raiderio or {}).get("targetMatrix") or {},
+            "runCount": (raiderio or {}).get("runCount") or 0,
+            "profileCount": (raiderio or {}).get("profileCount") or 0,
         }
     except Exception as error:
         sources["raiderio"] = {"status": "blocked", "sourceName": "Raider.IO", "templates": [], "errors": [str(error)]}
@@ -565,14 +1084,29 @@ def _community_templates_from_sources(source_results, scan_run_id):
         status = result.get("status") or "blocked"
         source_name = result.get("sourceName") or source_key
         source_errors = result.get("errors") or []
-        source_warnings = list_keyed_values(result.get("warnings") or [])
-        sources[source_key] = {"status": status, "sourceName": source_name, "errors": source_errors}
-        if source_warnings:
-            sources[source_key]["warnings"] = source_warnings
+        source_warnings = _text_list(result.get("warnings") or [])
+        raw_templates = [item for item in result.get("templates") or [] if isinstance(item, dict)]
+        sources[source_key] = _new_source_summary(
+            source_key,
+            source_name,
+            status,
+            errors=source_errors,
+            warnings=source_warnings,
+            candidate_count=len(raw_templates),
+        )
+        for meta_key in (
+            "regions",
+            "regionCoverage",
+            "runDetailCoverage",
+            "specCoverage",
+            "targetMatrix",
+            "runCount",
+            "profileCount",
+        ):
+            if meta_key in result:
+                sources[source_key][meta_key] = result.get(meta_key)
         errors.extend(f"{source_key}: {error}" for error in source_errors)
-        for raw_template in result.get("templates") or []:
-            if not isinstance(raw_template, dict):
-                continue
+        for raw_template in raw_templates:
             template = {
                 **raw_template,
                 "sourceKey": source_key,
@@ -584,26 +1118,226 @@ def _community_templates_from_sources(source_results, scan_run_id):
             if source_key == "raiderio" and inventory_blockers:
                 source_warnings = unique_text_list([*source_warnings, *inventory_blockers])
                 sources[source_key]["warnings"] = source_warnings
+                sources[source_key]["warningCount"] = len(source_warnings)
+                sources[source_key]["skippedCount"] = int(sources[source_key].get("skippedCount") or 0) + 1
+                for blocker in inventory_blockers:
+                    sources[source_key]["skipped"].append(
+                        {
+                            "status": "skipped",
+                            "stage": "class_spec_hero_validation",
+                            "reason": blocker,
+                            "sourceKey": source_key,
+                            "sourceName": source_name,
+                            "templateId": str(template.get("id") or ""),
+                            "classKey": slugify(template.get("classKey"), ""),
+                            "specKey": slugify(template.get("specKey"), ""),
+                            "heroKey": slugify(template.get("heroKey"), ""),
+                        }
+                    )
                 continue
             templates.append(template)
     return templates, sources, errors
 
 
-def sync_community_template_cache_postgres(mode="scheduled", store=None):
+def _community_template_missing_slots_mode_enabled(mode):
+    configured = os.environ.get("WOW_COMMUNITY_TEMPLATE_SYNC_TARGET_MODE", "").strip().lower()
+    requested = str(mode or "").strip().lower()
+    return configured in {"missing_slots", "missing-slots", "pending_only", "pending-only"} or requested in {
+        "missing_slots",
+        "missing-slots",
+        "pending_only",
+        "pending-only",
+    }
+
+
+def _community_talent_missing_slot_ids(rows):
+    matrix = build_community_talent_coverage_matrix(rows or {}, sources={})
+    return [
+        str(row.get("slotId") or "")
+        for row in matrix.get("rows") or []
+        if row.get("slotId") and row.get("status") != "verified"
+    ]
+
+
+def _community_talent_specs_for_slots(slot_ids):
+    specs = []
+    for slot_id in slot_ids or []:
+        parts = str(slot_id or "").split(":")
+        if len(parts) != 3:
+            continue
+        spec_id = f"{parts[0]}:{parts[1]}"
+        if spec_id not in specs:
+            specs.append(spec_id)
+    return specs
+
+
+def _community_talent_templates_for_slots(templates, target_slot_ids):
+    if target_slot_ids is None:
+        return list(templates or [])
+    allowed = {str(slot_id or "") for slot_id in target_slot_ids if str(slot_id or "").strip()}
+    if not allowed:
+        return []
+    return [template for template in templates or [] if _template_slot_id(template) in allowed]
+
+
+def _merge_community_talent_coverage_templates(existing_rows, validated_templates, target_slot_ids=None):
+    by_slot = {}
+    for template in existing_rows or []:
+        slot_id = _template_slot_id(template)
+        if slot_id:
+            by_slot[slot_id] = template
+    for template in validated_templates or []:
+        slot_id = _template_slot_id(template)
+        if slot_id:
+            by_slot[slot_id] = template
+    return list(by_slot.values())
+
+
+def _with_temporary_env(overrides, callback):
+    previous = {}
+    for key, value in (overrides or {}).items():
+        previous[key] = os.environ.get(key)
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = str(value)
+    try:
+        return callback()
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
+def _replace_community_talent_templates_with_details(store, templates, scan_run_id, target_slot_ids=None):
+    try:
+        result = store.replace_community_talent_templates(
+            templates,
+            scan_run_id=scan_run_id,
+            include_details=True,
+            target_slot_ids=target_slot_ids,
+        )
+    except TypeError:
+        try:
+            result = store.replace_community_talent_templates(
+                templates,
+                scan_run_id=scan_run_id,
+                include_details=True,
+            )
+        except TypeError:
+            result = store.replace_community_talent_templates(templates, scan_run_id=scan_run_id)
+    result = result if isinstance(result, dict) else {}
+    promoted = result.get("promotedTemplates") if isinstance(result.get("promotedTemplates"), list) else []
+    validated = promoted or (result.get("validatedTemplates") if isinstance(result.get("validatedTemplates"), list) else [])
+    counts = {
+        "total": int(result.get("total") or 0),
+        "verified": int(result.get("verified") or 0),
+        "partial": int(result.get("partial") or 0),
+        "blocked": int(result.get("blocked") or 0),
+    }
+    return counts, validated
+
+
+def _community_talent_coverage_rows(store, fallback_templates):
+    if fallback_templates:
+        return fallback_templates
+    if hasattr(store, "community_talent_template_coverage_rows"):
+        try:
+            rows = store.community_talent_template_coverage_rows()
+            if isinstance(rows, list):
+                return rows
+        except Exception:
+            return []
+    return []
+
+
+def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh_raiderio=True):
     store = store or cache_store_from_env()
     checked_at = utc_now()
+    timing_started_at = time.monotonic()
+    stage_timings = []
+
+    def record_stage(event):
+        if isinstance(event, dict):
+            stage_timings.append(dict(event))
+
     scan_run_id = f"pg-community-template-{checked_at.replace(':', '').replace('+', 'z')}"
+    missing_slots_mode = _community_template_missing_slots_mode_enabled(mode)
+    existing_talent_rows = []
+    target_slot_ids = None
+    target_spec_ids = []
+    if missing_slots_mode:
+        existing_talent_rows = _community_talent_coverage_rows(store, [])
+        target_slot_ids = _community_talent_missing_slot_ids(existing_talent_rows)
+        target_spec_ids = _community_talent_specs_for_slots(target_slot_ids)
+        if not target_slot_ids:
+            refresh_raiderio = False
+    source_started_at = time.monotonic()
+    if refresh_raiderio:
+        raiderio_env = {}
+        if missing_slots_mode:
+            raiderio_env = {
+                "WOW_RAIDERIO_RUN_PAGES": "0",
+                "WOW_RAIDERIO_SPEC_RANKING_ENABLED": "1",
+                "WOW_RAIDERIO_SPEC_RANKING_TARGET_SPECS": ",".join(target_spec_ids),
+            }
+        _with_temporary_env(
+            raiderio_env,
+            lambda: sync_raiderio_cache_postgres(force=True, store=store, stage_callback=record_stage),
+        )
     source_results = load_community_talent_sources_postgres(store)
+    stage_timings.append(
+        _timing_stage(
+            "source_collection",
+            source_started_at,
+            refreshRaiderio=bool(refresh_raiderio),
+            sourceCount=len(source_results),
+            targetMode="missing_slots" if missing_slots_mode else "all_slots",
+            targetSlotCount=len(target_slot_ids or []),
+            targetSpecCount=len(target_spec_ids or []),
+        )
+    )
+    candidate_started_at = time.monotonic()
     talent_templates, talent_sources, talent_errors = _community_templates_from_sources(source_results, scan_run_id)
+    if missing_slots_mode:
+        talent_templates = _community_talent_templates_for_slots(talent_templates, target_slot_ids)
+    stage_timings.append(
+        _timing_stage(
+            "candidate_extraction",
+            candidate_started_at,
+            candidateCount=len(talent_templates),
+            sourceCount=len(source_results),
+        )
+    )
     disabled_talent_sources = disabled_community_talent_template_source_keys()
     if disabled_talent_sources and hasattr(store, "expire_community_talent_template_sources"):
         store.expire_community_talent_template_sources(disabled_talent_sources, expired_at=checked_at)
+    validated_talent_templates = []
+    validation_started_at = time.monotonic()
     if talent_templates:
-        talent_counts = store.replace_community_talent_templates(talent_templates, scan_run_id=scan_run_id)
+        talent_counts, validated_talent_templates = _replace_community_talent_templates_with_details(
+            store,
+            talent_templates,
+            scan_run_id,
+            target_slot_ids=target_slot_ids,
+        )
     else:
         talent_counts = store.community_talent_template_counts()
+    stage_timings.append(
+        _timing_stage(
+            "validation_promotion_db_write",
+            validation_started_at,
+            candidateCount=len(talent_templates),
+            promotedCount=talent_counts.get("promotedTotal") or talent_counts.get("total") or 0,
+            verifiedCount=talent_counts.get("verified") or 0,
+            blockedCount=talent_counts.get("blocked") or 0,
+        )
+    )
     gear_errors = []
     gear_templates = []
+    gear_started_at = time.monotonic()
     if hasattr(store, "build_community_gear_templates"):
         try:
             gear_templates = store.build_community_gear_templates(scan_run_id=scan_run_id)
@@ -614,9 +1348,46 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None):
         gear_counts = store.replace_community_gear_templates(gear_templates, scan_run_id=scan_run_id)
     else:
         gear_counts = store.community_gear_template_counts()
+    stage_timings.append(
+        _timing_stage(
+            "gear_template_sync",
+            gear_started_at,
+            templateCount=gear_counts.get("total") or 0,
+            verifiedCount=gear_counts.get("verified") or 0,
+            blockedCount=gear_counts.get("blocked") or 0,
+        )
+    )
     verified = talent_counts.get("verified", 0) + gear_counts.get("verified", 0)
     partial = talent_counts.get("partial", 0) + gear_counts.get("partial", 0)
     blocked = talent_counts.get("blocked", 0) + gear_counts.get("blocked", 0)
+    coverage_started_at = time.monotonic()
+    if missing_slots_mode:
+        coverage_templates = _merge_community_talent_coverage_templates(
+            _community_talent_coverage_rows(store, []),
+            validated_talent_templates,
+            target_slot_ids=target_slot_ids,
+        )
+    else:
+        coverage_templates = _community_talent_coverage_rows(store, validated_talent_templates)
+    coverage_matrix = build_community_talent_coverage_matrix(
+        coverage_templates,
+        sources=talent_sources,
+        scan_run_id=scan_run_id,
+        checked_at=checked_at,
+    )
+    talent_sources = coverage_matrix.get("sourceSummary") if isinstance(coverage_matrix.get("sourceSummary"), dict) else talent_sources
+    scan_coverage = scan_coverage_from_community_talent_matrix(coverage_matrix)
+    coverage_status = coverage_matrix.get("status") or "partial"
+    stage_timings.append(
+        _timing_stage(
+            "coverage_report",
+            coverage_started_at,
+            totalHeroSlotCount=coverage_matrix.get("totalHeroSlotCount") or 0,
+            verifiedHeroSlotCount=coverage_matrix.get("verifiedHeroSlotCount") or 0,
+            pendingCollectionHeroSlotCount=coverage_matrix.get("pendingCollectionHeroSlotCount") or 0,
+            blockedHeroSlotCount=coverage_matrix.get("blockedHeroSlotCount") or 0,
+        )
+    )
     source_status = _status_from_counts_and_sources(
         verified,
         partial,
@@ -624,6 +1395,17 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None):
         sources=talent_sources,
         errors=[*talent_errors, *gear_errors],
     )
+    if coverage_status != "verified" and source_status == "verified":
+        source_status = "partial"
+    talent_source_status = _status_from_counts_and_sources(
+        talent_counts.get("verified", 0),
+        talent_counts.get("partial", 0),
+        talent_counts.get("blocked", 0),
+        sources=talent_sources,
+        errors=talent_errors,
+    )
+    if coverage_status != "verified" and talent_source_status == "verified":
+        talent_source_status = "partial"
     payload = {
         "scanRunId": scan_run_id,
         "runner": "postgres",
@@ -632,7 +1414,7 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None):
         "sourceStatus": source_status,
         "startedAt": checked_at,
         "finishedAt": checked_at,
-        "scanCoverage": {},
+        "scanCoverage": scan_coverage,
         "talents": {"templates": talent_counts},
         "gear": {"templates": gear_counts},
         "sourceRefs": [
@@ -640,29 +1422,46 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None):
                 "sourceKey": source_key,
                 "sourceName": source.get("sourceName") or source_key,
                 "sourceStatus": source.get("status") or "blocked",
+                "candidateCount": source.get("candidateCount") or 0,
+                "verifiedCount": source.get("verifiedCount") or 0,
+                "blockedCount": source.get("blockedCount") or 0,
+                "skippedCount": source.get("skippedCount") or 0,
             }
             for source_key, source in talent_sources.items()
         ],
         "errors": [*talent_errors, *gear_errors][:20],
     }
+    payload["stageTimings"] = _sync_timing_summary(
+        timing_started_at,
+        stage_timings,
+        coverage_matrix=coverage_matrix,
+        talent_counts=talent_counts,
+    )
     talent_state = {
         "runner": "postgres",
         "mode": mode,
         "status": payload["status"],
-        "sourceStatus": _status_from_counts_and_sources(
-            talent_counts.get("verified", 0),
-            talent_counts.get("partial", 0),
-            talent_counts.get("blocked", 0),
-            sources=talent_sources,
-            errors=talent_errors,
-        ),
+        "sourceStatus": talent_source_status,
         "templates": talent_counts,
         "scanCoverage": payload["scanCoverage"],
+        "coverageMatrix": coverage_matrix,
         "sources": talent_sources,
         "checkedAt": checked_at,
         "scanRunId": payload["scanRunId"],
         "errors": talent_errors[:20],
+        "stageTimings": payload["stageTimings"],
     }
+    sync_state_started_at = time.monotonic()
+    store.save_sync_state(COMMUNITY_TEMPLATE_SYNC_RUN_KEY, payload, checked_at)
+    store.save_sync_state(COMMUNITY_TALENT_SYNC_KEY, talent_state, checked_at)
+    stage_timings.append(_timing_stage("sync_state_write", sync_state_started_at, stateCount=2))
+    payload["stageTimings"] = _sync_timing_summary(
+        timing_started_at,
+        stage_timings,
+        coverage_matrix=coverage_matrix,
+        talent_counts=talent_counts,
+    )
+    talent_state["stageTimings"] = payload["stageTimings"]
     store.save_sync_state(COMMUNITY_TEMPLATE_SYNC_RUN_KEY, payload, checked_at)
     store.save_sync_state(COMMUNITY_TALENT_SYNC_KEY, talent_state, checked_at)
     return payload

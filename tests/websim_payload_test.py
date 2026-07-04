@@ -967,7 +967,11 @@ class WebSimPayloadTest(unittest.TestCase):
                     self.assertEqual(tree_types, {"class", "spec", "hero"})
                     self.assertEqual([section["key"] for section in payload["treeSections"]], ["class", "spec", "hero"])
                     self.assertEqual([section["reqLevel"] for section in payload["treeSections"]], [10, 11, 71])
-                    self.assertEqual([section["pointCap"] for section in payload["treeSections"]], [34, 34, 13])
+                    expected_caps = self.websim_payload.talent_tree_point_caps(klass["key"], spec["key"])
+                    self.assertEqual(
+                        [section["pointCap"] for section in payload["treeSections"]],
+                        [expected_caps["class"], expected_caps["spec"], expected_caps["hero"]],
+                    )
                     node_names = {node["name"] for node in payload["nodes"]}
                     old_english_placeholders = {
                         "Class Core",
@@ -15412,6 +15416,220 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(encoded["selectedCounts"]["hero"], 1)
         self.assertIn("hero_talents=2402:1", encoded["lines"])
 
+    def test_websim_talent_encoding_allows_child_of_granted_parent_without_explicit_root(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-granted-root-warlock-demonology-soul_harvester",
+                "hero",
+                2401,
+                1,
+                1,
+                "Granted Hero Root",
+                granted_rank=1,
+                class_key="warlock",
+                spec_key="demonology",
+                hero_key="soul_harvester",
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-child-warlock-demonology-soul_harvester",
+                "hero",
+                2402,
+                2,
+                1,
+                "Hero Child",
+                parent_ids=["simc-hero-granted-root-warlock-demonology-soul_harvester"],
+                class_key="warlock",
+                spec_key="demonology",
+                hero_key="soul_harvester",
+            )
+            conn.commit()
+
+            encoded = self.websim_payload.encode_websim_talents(
+                conn,
+                self.websim_encoder_payload({
+                    "classKey": "warlock",
+                    "specKey": "demonology",
+                    "heroKey": "soul_harvester",
+                    "talentState": {
+                        "selectedNodes": [
+                            {"id": "simc-hero-child-warlock-demonology-soul_harvester", "rank": 1},
+                        ]
+                    },
+                }),
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(encoded["status"], "encoded")
+        self.assertEqual(encoded["selectedCounts"]["hero"], 1)
+        self.assertEqual(encoded["lines"], ["hero_talents=2402:1"])
+
+    def test_warlock_demonology_diabolist_accepts_current_class_point_cap(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            selected_nodes = []
+            for index in range(35):
+                node_id = f"simc-class-warlock-demonology-cap-{index}"
+                trait_id = 41000 + index
+                self.insert_websim_talent(
+                    conn,
+                    node_id,
+                    "class",
+                    trait_id,
+                    index // 5 + 1,
+                    index % 5 + 1,
+                    f"Warlock Class {index}",
+                    class_key="warlock",
+                    spec_key="demonology",
+                    class_id=9,
+                    spec_id=266,
+                )
+                selected_nodes.append({"id": node_id, "rank": 1})
+            for index in range(34):
+                node_id = f"simc-spec-warlock-demonology-cap-{index}"
+                trait_id = 42000 + index
+                self.insert_websim_talent(
+                    conn,
+                    node_id,
+                    "spec",
+                    trait_id,
+                    index // 5 + 1,
+                    index % 5 + 1,
+                    f"Demonology Spec {index}",
+                    class_key="warlock",
+                    spec_key="demonology",
+                    class_id=9,
+                    spec_id=266,
+                )
+                selected_nodes.append({"id": node_id, "rank": 1})
+            for index in range(13):
+                node_id = f"simc-hero-warlock-demonology-diabolist-cap-{index}"
+                trait_id = 43000 + index
+                self.insert_websim_talent(
+                    conn,
+                    node_id,
+                    "hero",
+                    trait_id,
+                    index // 4 + 2,
+                    index % 4 + 1,
+                    f"Diabolist Hero {index}",
+                    class_key="warlock",
+                    spec_key="demonology",
+                    hero_key="diabolist",
+                    class_id=9,
+                    spec_id=266,
+                )
+                selected_nodes.append({"id": node_id, "rank": 1})
+            conn.commit()
+
+            encoded = self.websim_payload.encode_websim_talents(
+                conn,
+                self.websim_encoder_payload(
+                    {
+                        "classKey": "warlock",
+                        "specKey": "demonology",
+                        "heroKey": "diabolist",
+                        "talentState": {"selectedNodes": selected_nodes},
+                    }
+                ),
+            )
+        finally:
+            conn.close()
+
+        self.assertEqual(
+            [section["pointCap"] for section in self.websim_payload.talent_tree_sections("warlock", "demonology", "diabolist")],
+            [35, 34, 13],
+        )
+        self.assertEqual(encoded["status"], "encoded")
+        self.assertEqual(encoded["selectedCounts"], {"class": 35, "spec": 34, "hero": 13})
+
+    def test_warlock_affliction_and_destruction_accept_current_class_point_cap(self):
+        for spec_key, spec_id, hero_key in [
+            ("affliction", 265, "soul_harvester"),
+            ("destruction", 267, "diabolist"),
+        ]:
+            with self.subTest(spec=spec_key):
+                conn = sqlite3.connect(self.db_path)
+                try:
+                    self.websim_payload.ensure_websim_tables(conn)
+                    selected_nodes = []
+                    for index in range(35):
+                        node_id = f"simc-class-warlock-{spec_key}-cap-{index}"
+                        self.insert_websim_talent(
+                            conn,
+                            node_id,
+                            "class",
+                            51000 + index,
+                            index // 5 + 1,
+                            index % 5 + 1,
+                            f"Warlock Class {index}",
+                            class_key="warlock",
+                            spec_key=spec_key,
+                            class_id=9,
+                            spec_id=spec_id,
+                        )
+                        selected_nodes.append({"id": node_id, "rank": 1})
+                    for index in range(34):
+                        node_id = f"simc-spec-warlock-{spec_key}-cap-{index}"
+                        self.insert_websim_talent(
+                            conn,
+                            node_id,
+                            "spec",
+                            52000 + index,
+                            index // 5 + 1,
+                            index % 5 + 1,
+                            f"{spec_key.title()} Spec {index}",
+                            class_key="warlock",
+                            spec_key=spec_key,
+                            class_id=9,
+                            spec_id=spec_id,
+                        )
+                        selected_nodes.append({"id": node_id, "rank": 1})
+                    for index in range(13):
+                        node_id = f"simc-hero-warlock-{spec_key}-{hero_key}-cap-{index}"
+                        self.insert_websim_talent(
+                            conn,
+                            node_id,
+                            "hero",
+                            53000 + index,
+                            index // 4 + 2,
+                            index % 4 + 1,
+                            f"{hero_key.title()} Hero {index}",
+                            class_key="warlock",
+                            spec_key=spec_key,
+                            hero_key=hero_key,
+                            class_id=9,
+                            spec_id=spec_id,
+                        )
+                        selected_nodes.append({"id": node_id, "rank": 1})
+                    conn.commit()
+
+                    encoded = self.websim_payload.encode_websim_talents(
+                        conn,
+                        self.websim_encoder_payload(
+                            {
+                                "classKey": "warlock",
+                                "specKey": spec_key,
+                                "heroKey": hero_key,
+                                "talentState": {"selectedNodes": selected_nodes},
+                            }
+                        ),
+                    )
+                finally:
+                    conn.close()
+
+                self.assertEqual(
+                    [section["pointCap"] for section in self.websim_payload.talent_tree_sections("warlock", spec_key, hero_key)],
+                    [35, 34, 13],
+                )
+                self.assertEqual(encoded["status"], "encoded")
+                self.assertEqual(encoded["selectedCounts"], {"class": 35, "spec": 34, "hero": 13})
+
     def test_raiderio_player_template_requires_parsed_visual_loadout(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -15536,6 +15754,103 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("mage:frost", blocked["payload"]["blockers"][0])
         self.assertNotIn("unknown structured talent entry", json.dumps(blocked["payload"], ensure_ascii=False))
 
+    def test_raiderio_player_template_records_structured_loadout_parse_blocker(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.insert_websim_talent(
+                conn,
+                "simc-class-91001-mage-frost",
+                "class",
+                91001,
+                1,
+                1,
+                "Class Talent",
+                class_key="mage",
+                spec_key="frost",
+                spec_id=64,
+                spell_id=391001,
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-91003-mage-frost-frostfire",
+                "hero",
+                91003,
+                1,
+                2,
+                "Hero Talent",
+                class_key="mage",
+                spec_key="frost",
+                hero_key="frostfire",
+                spec_id=64,
+                spell_id=391003,
+            )
+            blocked = self.websim_payload.validate_community_talent_template(conn, {
+                "id": "raiderio-mage-frost-partial-structured-loadout",
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "sourceName": "Raider.IO",
+                "playerId": "Rioone",
+                "payload": {
+                    "raiderio": {
+                        "characterName": "Rioone",
+                        "realmSlug": "isillien",
+                        "loadoutSpecId": 64,
+                        "loadout": [
+                            {
+                                "node": {
+                                    "id": 81001,
+                                    "entries": [{"id": 91001, "traitDefinitionId": 191001, "spell": {"id": 391001, "name": "Class Talent"}}],
+                                },
+                                "entryIndex": 0,
+                                "rank": 1,
+                            },
+                            {
+                                "node": {
+                                    "id": 81002,
+                                    "entries": [{"id": 91002, "traitDefinitionId": 191002, "spell": {"id": 391002, "name": "Unknown Talent"}}],
+                                },
+                                "entryIndex": 0,
+                                "rank": 1,
+                            },
+                            {
+                                "node": {
+                                    "id": 81003,
+                                    "entries": [{"id": 91003, "traitDefinitionId": 191003, "spell": {"id": 391003, "name": "Hero Talent"}}],
+                                },
+                                "entryIndex": 0,
+                                "rank": 1,
+                            },
+                        ],
+                    }
+                },
+            })
+        finally:
+            conn.close()
+
+        self.assertEqual(blocked["status"], "blocked")
+        parse = blocked["payload"]["talentLoadoutParse"]
+        self.assertEqual(parse["status"], "blocked")
+        self.assertEqual(parse["source"], "structured_loadout")
+        self.assertEqual(parse["nodeCount"], 2)
+        self.assertEqual(parse["heroKey"], "frostfire")
+        self.assertIn("unknown structured talent entry", parse["errors"][0])
+        self.assertIn("nodeId=81002", parse["errors"][0])
+        self.assertIn("spellId=391002", parse["errors"][0])
+        self.assertNotIn("'node':", json.dumps(blocked["payload"], ensure_ascii=False))
+
+    def test_warcraftlogs_loadout_parse_blocker_includes_talent_id(self):
+        error = self.websim_payload.structured_loadout_entry_summary(
+            {"talentID": 117247, "points": 1}
+        )
+
+        self.assertIn("talentID=117247", error)
+        self.assertIn("rank=1", error)
+
     def test_raiderio_player_template_parses_nested_loadout_entries(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -15637,6 +15952,173 @@ class WebSimPayloadTest(unittest.TestCase):
             ["simc-class-detox-monk-mistweaver", "simc-hero-celestial-monk-mistweaver"],
         )
 
+    def test_warcraftlogs_ranking_loadout_accepts_talent_id_entries(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.insert_websim_talent(
+                conn,
+                "simc-class-80141-mage-arcane",
+                "class",
+                80141,
+                1,
+                1,
+                "Arcane Class",
+                class_key="mage",
+                spec_key="arcane",
+                spec_id=62,
+                spell_id=382440,
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-117247-mage-arcane-sunfury",
+                "hero",
+                117247,
+                1,
+                2,
+                "Sunfury Hero",
+                class_key="mage",
+                spec_key="arcane",
+                hero_key="sunfury",
+                spec_id=62,
+                spell_id=449382,
+            )
+            parsed = self.websim_payload.validate_community_talent_template(conn, {
+                "id": "warcraftlogs-arcane-sunfury",
+                "sourceKey": "warcraftlogs",
+                "sourceStatus": "partial",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "heroKey": "sunfury",
+                "scenarioKey": "mythic_plus",
+                "sourceName": "Warcraft Logs",
+                "playerId": "Runeathon",
+                "payload": {
+                    "warcraftlogs": {
+                        "reportCode": "jVgTrRX3vp6DfWZw",
+                        "fightId": 28,
+                        "loadout": [
+                            {"talentID": 80141, "points": 1},
+                            {"talentID": 123341, "points": 1},
+                            {"talentID": 117247, "points": 1},
+                        ],
+                    },
+                    "wclEvidence": {"tier": "wcl_exact_template"},
+                    "evidenceTier": "wcl_exact_template",
+                },
+            })
+        finally:
+            conn.close()
+
+        self.assertEqual(parsed["status"], "verified")
+        self.assertEqual(parsed["heroKey"], "sunfury")
+        self.assertEqual(
+            [node["id"] for node in parsed["talentState"]["selectedNodes"]],
+            ["simc-class-80141-mage-arcane", "simc-hero-117247-mage-arcane-sunfury"],
+        )
+        self.assertEqual(parsed["payload"]["talentLoadoutParse"]["skippedTalentIds"], [123341])
+
+    def test_raiderio_player_template_ignores_unknown_granted_structured_nodes(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.insert_websim_talent(
+                conn,
+                "simc-class-detox-monk-mistweaver",
+                "class",
+                124866,
+                1,
+                1,
+                "Improved Detox",
+                class_key="monk",
+                spec_key="mistweaver",
+                class_id=10,
+                spec_id=270,
+                spell_id=388874,
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-celestial-monk-mistweaver",
+                "hero",
+                124900,
+                1,
+                2,
+                "Celestial Hero",
+                class_key="monk",
+                spec_key="mistweaver",
+                hero_key="conduit_of_the_celestials",
+                class_id=10,
+                spec_id=270,
+                spell_id=443028,
+            )
+            parsed = self.websim_payload.validate_community_talent_template(conn, {
+                "id": "raiderio-monk-mistweaver-granted-node",
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "classKey": "monk",
+                "specKey": "mistweaver",
+                "heroKey": "conduit_of_the_celestials",
+                "scenarioKey": "mythic_plus",
+                "sourceName": "Raider.IO",
+                "rawImportCode": "CEQAAAAAAAAAAAAAAAAAAAAA",
+                "playerId": "Riohealer",
+                "payload": {
+                    "raiderio": {
+                        "characterName": "Riohealer",
+                        "realmSlug": "isillien",
+                        "loadout": [
+                            {
+                                "node": {
+                                    "id": 82241,
+                                    "entries": [{
+                                        "id": 103320,
+                                        "traitDefinitionId": 108325,
+                                        "spell": {"id": 2782, "name": "Remove Corruption"},
+                                    }],
+                                },
+                                "entryIndex": 0,
+                                "rank": 1,
+                                "grantedNode": True,
+                            },
+                            {
+                                "node": {
+                                    "id": 101089,
+                                    "entries": [{
+                                        "id": 124866,
+                                        "traitDefinitionId": 129704,
+                                        "spell": {"id": 388874, "name": "Improved Detox"},
+                                    }],
+                                },
+                                "entryIndex": 0,
+                                "rank": 1,
+                            },
+                            {
+                                "node": {
+                                    "id": 101400,
+                                    "entries": [{
+                                        "id": 124900,
+                                        "traitDefinitionId": 129900,
+                                        "spell": {"id": 443028, "name": "Celestial Hero"},
+                                    }],
+                                },
+                                "entryIndex": 0,
+                                "rank": 1,
+                            },
+                        ],
+                    }
+                },
+            })
+        finally:
+            conn.close()
+
+        self.assertEqual(parsed["status"], "verified")
+        self.assertEqual(parsed["heroKey"], "conduit_of_the_celestials")
+        self.assertNotIn("unknown structured talent entry", json.dumps(parsed["payload"], ensure_ascii=False))
+        self.assertEqual(
+            [node["id"] for node in parsed["talentState"]["selectedNodes"]],
+            ["simc-class-detox-monk-mistweaver", "simc-hero-celestial-monk-mistweaver"],
+        )
+
     def test_community_talent_fixture_sync_validates_and_returns_current_selection(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -15654,7 +16136,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(sync["sources"]["warcraftlogs"]["status"], "missing_credentials")
 
         templates = payload["communityTemplates"]
-        self.assertEqual(len(templates), 1)
+        self.assertEqual(len(templates), 2)
         self.assertEqual(templates[0]["name"], "高层大秘 · 主流AOE")
         self.assertEqual(templates[0]["scenarioKey"], "mythic_plus")
         self.assertEqual(templates[0]["sourceStatus"], "partial")
@@ -15665,10 +16147,13 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(templates[0]["canUseInSimc"])
         self.assertEqual(templates[0]["talentState"]["selectedNodes"][0]["id"], "simc-class-1001-mage-arcane")
         self.assertTrue(templates[0]["websimExportCode"].startswith("websim:mage:arcane:spellslinger:"))
+        self.assertEqual(templates[1]["heroKey"], "sunfury")
+        self.assertEqual(templates[1]["status"], "pending_collection")
         self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
         self.assertEqual(payload["communityTemplateSync"]["sources"]["raiderio"]["status"], "missing_credentials")
         self.assertNotIn("websim_baseline", payload["communityTemplateSync"]["sources"])
-        self.assertEqual(other_payload["communityTemplates"], [])
+        self.assertEqual(len(other_payload["communityTemplates"]), 2)
+        self.assertTrue(all(item["status"] == "pending_collection" for item in other_payload["communityTemplates"]))
 
     def test_community_talent_sync_excludes_manual_fixture_by_default(self):
         conn = sqlite3.connect(self.db_path)
@@ -15799,9 +16284,10 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(sync["scanCoverage"]["coveredSpecCount"], 2)
         self.assertEqual(sync["scanCoverage"]["missingSpecs"], [])
         self.assertTrue(any(item["sourceKey"] == "websim_baseline" for item in arcane["communityTemplates"]))
-        self.assertEqual(len(fire["communityTemplates"]), 1)
+        self.assertEqual(len(fire["communityTemplates"]), 2)
         self.assertEqual(fire["communityTemplates"][0]["sourceKey"], "websim_baseline")
         self.assertTrue(fire["communityTemplates"][0]["canApplyVisual"])
+        self.assertEqual(fire["communityTemplates"][1]["status"], "pending_collection")
 
     def test_websim_talents_returns_current_spec_community_templates_only(self):
         conn = sqlite3.connect(self.db_path)
@@ -15952,14 +16438,57 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         template_ids = [item["id"] for item in payload["communityTemplates"]]
-        self.assertEqual(template_ids, ["mage_arcane_duplicate_high", "mage_arcane_other_a", "mage_arcane_other_b"])
-        self.assertEqual(len(payload["communityTemplates"]), 3)
+        self.assertEqual(template_ids, ["mage_arcane_duplicate_high", "mage_arcane_other_a"])
+        self.assertEqual(len(payload["communityTemplates"]), 2)
+        self.assertEqual([item["heroKey"] for item in payload["communityTemplates"]], ["spellslinger", "sunfury"])
         self.assertEqual({item["specKey"] for item in payload["communityTemplates"]}, {"arcane"})
         self.assertNotIn("mage_fire_template", template_ids)
         self.assertNotIn("mage_arcane_duplicate_low", template_ids)
+        self.assertNotIn("mage_arcane_other_b", template_ids)
         self.assertNotIn("mage_arcane_over_limit", template_ids)
         self.assertEqual(payload["communityTemplates"][0]["classLabel"], self.websim_payload.CLASS_LABELS_ZH["mage"])
         self.assertEqual({item["specLabel"] for item in payload["communityTemplates"]}, {self.websim_payload.SPEC_LABELS_ZH["arcane"]})
+
+    def test_websim_talents_returns_pending_community_slot_for_missing_hero(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            now = self.websim_payload.utc_now()
+            self.websim_payload.upsert_community_talent_template(conn, {
+                "id": "mage-frost-frostfire",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "name": "Mage Frost Frostfire",
+                "flowLabel": "M+",
+                "sourceName": "Raider.IO",
+                "sourceUrl": "https://raider.io/example",
+                "talentState": {"selectedNodes": [{"id": "frost-node", "rank": 1}]},
+                "sampleCount": 6,
+                "maxKeyLevel": 23,
+                "analysisWindow": "fixture",
+                "sourceStatus": "synced",
+                "status": "verified",
+                "updatedAt": now,
+                "expiresAt": self.websim_payload.season_expires_at(),
+            })
+            payload = self.websim_payload.get_websim_talents(conn, "mage", "frost", "spellslinger")
+        finally:
+            conn.close()
+
+        self.assertEqual(len(payload["communityTemplates"]), 2)
+        pending, real = payload["communityTemplates"]
+        self.assertEqual(pending["id"], "pending_community_talent_mage_frost_spellslinger")
+        self.assertEqual(pending["heroKey"], "spellslinger")
+        self.assertEqual(pending["status"], "pending_collection")
+        self.assertEqual(pending["sourceStatus"], "pending_collection")
+        self.assertFalse(pending["canApplyVisual"])
+        self.assertFalse(pending["canUseInSimc"])
+        self.assertIn("待采集", pending["name"])
+        self.assertEqual(real["id"], "mage_frost_frostfire")
+        self.assertEqual(real["heroKey"], "frostfire")
+        self.assertEqual(real["status"], "verified")
 
     def test_websim_talents_dedupes_same_template_signature_and_merges_sources(self):
         conn = sqlite3.connect(self.db_path)
@@ -16049,7 +16578,7 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(len(payload["communityTemplates"]), 1)
+        self.assertEqual(len(payload["communityTemplates"]), 2)
         shared = payload["communityTemplates"][0]
         self.assertEqual(shared["id"], "raiderio_shared")
         self.assertTrue(shared["signature"].startswith("talent:mage:arcane:spellslinger:"))
@@ -16060,6 +16589,7 @@ class WebSimPayloadTest(unittest.TestCase):
         )
         self.assertEqual(payload["communityTemplateSync"]["dedupedCount"], 2)
         self.assertEqual(payload["communityTemplateSync"]["hiddenDuplicateCount"], 1)
+        self.assertEqual(payload["communityTemplates"][1]["status"], "pending_collection")
 
     def test_websim_talents_read_model_does_not_bootstrap_community_templates(self):
         conn = sqlite3.connect(self.db_path)
@@ -16086,7 +16616,8 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertEqual(sync_calls, [])
         self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "missing_credentials")
-        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(len(payload["communityTemplates"]), 2)
+        self.assertTrue(all(item["status"] == "pending_collection" for item in payload["communityTemplates"]))
 
     def test_community_talent_template_stats_ignore_expired_verified_rows(self):
         conn = sqlite3.connect(self.db_path)
@@ -16279,6 +16810,59 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["status"], "verified")
         self.assertNotIn("nodes", payload)
         self.assertNotIn("communityTemplates", payload)
+
+    def test_http_websim_talent_import_blocks_missing_requested_hero_template(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_active_season_payload(conn, self.websim_payload.current_season_payload())
+            now = self.websim_payload.utc_now()
+            conn.execute(
+                """
+                INSERT INTO websim_community_talent_templates (
+                    id, class_key, spec_key, hero_key, scenario_key, name, flow_label,
+                    source_key, source_name, source_url, raw_import_code, websim_export_code,
+                    talent_state_json, sample_count, max_key_level, analysis_window,
+                    source_status, status, payload_json, updated_at, expires_at,
+                    signature, source_refs_json, scan_run_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "talent-import-mage-frost-frostfire",
+                    "mage",
+                    "frost",
+                    "frostfire",
+                    "mythic_plus",
+                    "Frostfire only",
+                    "Raider.IO",
+                    "raiderio",
+                    "Raider.IO",
+                    "https://example.com/talent",
+                    "CAEAAAAAAAAAAAAAAAAAAAAA",
+                    "websim:mage:frost",
+                    json.dumps({"selectedNodes": [{"id": "simc-node", "rank": 1}]}),
+                    50,
+                    20,
+                    "fixture",
+                    "verified",
+                    "verified",
+                    json.dumps({}),
+                    now,
+                    "2099-01-01T00:00:00+00:00",
+                    "sig-talent-import-frostfire",
+                    json.dumps([{"type": "raiderio"}]),
+                    "scan-talent-import",
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        payload = self.get_backend_json("/api/websim/talents/import?class=mage&spec=frost&hero=spellslinger")
+
+        self.assertEqual(payload["heroKey"], "spellslinger")
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(payload["importCode"], "")
 
     def test_http_websim_simulate_runs_encoded_profile_through_fake_simc(self):
         payload = self.websim_encoder_payload()

@@ -418,7 +418,7 @@ function compareCommunityTemplateQuality(left, right) {
 function templatesForClass(templates, classKey, specKey, options = {}) {
   const key = String(classKey || '').trim()
   const spec = String(specKey || '').trim()
-  const limit = Number(options.limit || 3) || 3
+  const limit = Number(options.limit || 0) || 0
   const bySignature = new Map()
   ;(Array.isArray(templates) ? templates : []).forEach((template) => {
     if (!template) return
@@ -441,11 +441,22 @@ function templatesForClass(templates, classKey, specKey, options = {}) {
       byIdentity.set(identity, template)
     }
   })
-  return Array.from(byIdentity.values()).sort(compareCommunityTemplateQuality).slice(0, limit)
+  const byHero = new Map()
+  Array.from(byIdentity.values()).forEach((template) => {
+    const parsed = parseTalentExportCode(template.websimExportCode)
+    const heroKey = String(template.heroKey || (parsed && parsed.heroKey) || template.id || '').trim()
+    const previous = byHero.get(heroKey)
+    if (!previous || compareCommunityTemplateQuality(template, previous) < 0) {
+      byHero.set(heroKey, template)
+    }
+  })
+  const result = Array.from(byHero.values()).sort(compareCommunityTemplateQuality)
+  return limit > 0 ? result.slice(0, limit) : result
 }
 
 function communityTemplateApplyMode(template) {
   if (!template) return 'blocked'
+  if (template.status === 'pending_collection' || template.sourceStatus === 'pending_collection') return 'blocked'
   if (template.canApplyVisual && template.websimExportCode) return 'visual'
   if (template.rawImportCode || template.canUseInSimc) return 'simc_only'
   return 'blocked'

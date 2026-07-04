@@ -744,7 +744,8 @@ test('native talent simulator page exposes two-layer import sheet', () => {
   assert.match(wxml, /item\.sampleLabel/)
   assert.match(wxml, /item\.keyLabel/)
   assert.match(wxml, /item\.updatedLabel/)
-  assert.match(wxml, /item\.canApplyVisual/)
+  assert.match(wxml, /item\.modeLabel/)
+  assert.match(wxml, /disabled="\{\{item\.applyMode !== 'visual'\}\}"/)
   assert.doesNotMatch(wxml, /item\.analysisWindow/)
   assert.doesNotMatch(wxml, /template-note/)
   assert.match(wxml, /class="template-apply-row"/)
@@ -754,6 +755,7 @@ test('native talent simulator page exposes two-layer import sheet', () => {
   assert.match(css, /\.template-section-title/)
   assert.match(css, /\.community-template-card/)
   assert.match(css, /\.community-template-card\.external/)
+  assert.match(css, /\.community-template-card\.pending/)
   assert.doesNotMatch(css, /\.template-note/)
   assert.match(css, /\.template-apply-row\s*\{[\s\S]*display:\s*flex;[\s\S]*justify-content:\s*center;[\s\S]*\}/)
   assert.match(css, /\.template-apply-button\s*\{[\s\S]*width:\s*300rpx;[\s\S]*max-width:\s*100%;[\s\S]*margin:\s*0;[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;[\s\S]*line-height:\s*1;[\s\S]*\}/)
@@ -888,7 +890,7 @@ test('native talent simulator filters duplicate community talent trees', () => {
 
   pageConfig.renderTalentView.call(page)
 
-  assert.deepEqual(page.data.activeCommunityTemplates.map((item) => item.id), ['rio-frost-high', 'rio-frost-other'])
+  assert.deepEqual(page.data.activeCommunityTemplates.map((item) => item.id), ['rio-frost-high'])
 })
 
 test('native talent simulator applies cross-spec community templates after switching target tree', async () => {

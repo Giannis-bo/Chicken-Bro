@@ -1,4 +1,6 @@
 import unittest
+import uuid
+from unittest.mock import patch
 
 
 class FakeCursor:
@@ -701,7 +703,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 ],
                 "FROM cache.websim_community_talent_templates": [
                     (
-                        "44444444-4444-4444-8444-444444444444",
+                        uuid.UUID("44444444-4444-4444-8444-444444444444"),
                         "mage",
                         "frost",
                         "spellslinger",
@@ -842,6 +844,263 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertTrue(insert_params[13].startswith("websim:mage:frost:frostfire:"))
         self.assertIn("simc-class-91001-mage-frost", insert_params[14])
         self.assertIn("UPDATE cache.websim_community_talent_templates", "\n".join(conn.cursor_instance.statements))
+
+    def test_promote_community_talent_inventory_keeps_one_active_template_per_hero_slot(self):
+        from server import postgres_cache_store
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import normalize_community_talent_template
+
+        def template(template_id, class_key, spec_key, hero_key, signature, max_key_level, sample_count=1):
+            return {
+                "id": template_id,
+                "classKey": class_key,
+                "specKey": spec_key,
+                "heroKey": hero_key,
+                "scenarioKey": "mythic_plus",
+                "sourceKey": "raiderio",
+                "sourceName": "Raider.IO",
+                "sourceStatus": "synced",
+                "status": "verified",
+                "name": template_id,
+                "talentState": {"selectedNodes": [{"id": f"node-{template_id}", "rank": 1}]},
+                "sampleCount": sample_count,
+                "maxKeyLevel": max_key_level,
+                "signature": signature,
+                "sourceRefs": [{"sourceKey": "raiderio", "id": template_id}],
+                "updatedAt": f"2026-07-03T10:{max_key_level:02d}:00+00:00",
+            }
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+        templates = [
+            template("unholy-rider-a", "deathknight", "unholy", "rider_of_the_apocalypse", "sig-rider-a", 24),
+            template("unholy-rider-b", "deathknight", "unholy", "rider_of_the_apocalypse", "sig-rider-a", 22),
+            template("unholy-rider-c", "deathknight", "unholy", "rider_of_the_apocalypse", "sig-rider-c", 25),
+            template("unholy-rider-d", "deathknight", "unholy", "rider_of_the_apocalypse", "sig-rider-d", 21),
+            template("blood-deathbringer-a", "deathknight", "blood", "deathbringer", "sig-blood-deathbringer", 20),
+        ]
+
+        def normalize_only(_store, source):
+            return normalize_community_talent_template(source, source.get("sourceKey"), source.get("sourceStatus"))
+
+        with patch.object(postgres_cache_store, "validate_community_talent_template", side_effect=normalize_only):
+            counts = store.replace_community_talent_templates(
+                templates,
+                scan_run_id="scan-promote",
+                include_details=True,
+            )
+
+        insert_params = [
+            params
+            for statement, params in zip(conn.cursor_instance.statements, conn.cursor_instance.params)
+            if "INSERT INTO cache.websim_community_talent_templates" in statement
+        ]
+        inserted_legacy_ids = {payload["legacyId"] for payload in [postgres_cache_store._json_value(params[4], {}) for params in insert_params]}
+
+        self.assertEqual(counts["total"], 2)
+        self.assertEqual(counts["verified"], 2)
+        self.assertEqual(counts["candidateTotal"], 5)
+        self.assertEqual(len(counts["validatedTemplates"]), 5)
+        self.assertEqual(len(counts["promotedTemplates"]), 2)
+        self.assertEqual(len(insert_params), 2)
+        self.assertEqual(inserted_legacy_ids, {"unholy_rider_a", "blood_deathbringer_a"})
+        self.assertIn("UPDATE cache.websim_community_talent_templates", "\n".join(conn.cursor_instance.statements))
+        for params in insert_params:
+            payload = postgres_cache_store._json_value(params[4], {})
+            self.assertEqual(payload["templateInventoryRole"], "promoted")
+            self.assertIn("promotion", payload)
+
+    def test_replace_community_talent_templates_expires_duplicate_active_slot_rows(self):
+        from server import postgres_cache_store
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import normalize_community_talent_template
+
+        def normalize_only(_store, source):
+            return normalize_community_talent_template(source, source.get("sourceKey"), source.get("sourceStatus"))
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        with patch.object(postgres_cache_store, "validate_community_talent_template", side_effect=normalize_only):
+            counts = store.replace_community_talent_templates(
+                [
+                    {
+                        "id": "mage-frost-frostfire",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "heroKey": "frostfire",
+                        "scenarioKey": "mythic_plus",
+                        "sourceKey": "raiderio",
+                        "sourceName": "Raider.IO",
+                        "sourceStatus": "synced",
+                        "status": "verified",
+                        "talentState": {"selectedNodes": [{"id": "node-a", "rank": 1}]},
+                        "sampleCount": 2,
+                        "maxKeyLevel": 24,
+                        "signature": "sig-a",
+                        "sourceRefs": [{"sourceKey": "raiderio"}],
+                    }
+                ],
+                scan_run_id="scan-dedupe",
+                target_slot_ids=["mage:frost:frostfire"],
+            )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("ROW_NUMBER() OVER", sql)
+        self.assertIn("PARTITION BY class_key, spec_key, hero_key", sql)
+        self.assertIn("active_slot_rank > 1", sql)
+        self.assertEqual(counts["duplicateActiveExpired"], 1)
+
+    def test_promote_community_talent_inventory_can_represent_six_distinct_dk_hero_slots(self):
+        from server.postgres_cache_store import promote_community_talent_template_inventory
+
+        def row(template_id, spec_key, hero_key, max_key_level=20, signature=""):
+            return {
+                "id": template_id,
+                "classKey": "deathknight",
+                "specKey": spec_key,
+                "heroKey": hero_key,
+                "scenarioKey": "mythic_plus",
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "status": "verified",
+                "payload": {},
+                "sourceRefs": [{"sourceKey": "raiderio", "id": template_id}],
+                "signature": signature or f"sig-{template_id}",
+                "sampleCount": 1,
+                "maxKeyLevel": max_key_level,
+                "updatedAt": f"2026-07-03T10:{max_key_level:02d}:00+00:00",
+            }
+
+        promoted = promote_community_talent_template_inventory(
+            [
+                row("blood-sanlayn", "blood", "sanlayn", 19),
+                row("blood-deathbringer", "blood", "deathbringer", 20),
+                row("unholy-rider-a", "unholy", "rider_of_the_apocalypse", 24, signature="sig-rider-majority"),
+                row("unholy-rider-b", "unholy", "rider_of_the_apocalypse", 23, signature="sig-rider-majority"),
+                row("unholy-rider-c", "unholy", "rider_of_the_apocalypse", 25, signature="sig-rider-minority"),
+                row("unholy-sanlayn", "unholy", "sanlayn", 21),
+                row("frost-deathbringer", "frost", "deathbringer", 22),
+                row("frost-rider", "frost", "rider_of_the_apocalypse", 21),
+            ]
+        )
+
+        promoted_slots = {
+            f"{template['classKey']}:{template['specKey']}:{template['heroKey']}"
+            for template in promoted["promotedTemplates"]
+        }
+        promoted_ids = {template["id"] for template in promoted["promotedTemplates"]}
+
+        self.assertEqual(
+            promoted_slots,
+            {
+                "deathknight:blood:sanlayn",
+                "deathknight:blood:deathbringer",
+                "deathknight:unholy:rider_of_the_apocalypse",
+                "deathknight:unholy:sanlayn",
+                "deathknight:frost:deathbringer",
+                "deathknight:frost:rider_of_the_apocalypse",
+            },
+        )
+        self.assertEqual(len(promoted["promotedTemplates"]), 6)
+        self.assertIn("unholy-rider-a", promoted_ids)
+        self.assertNotIn("unholy-rider-c", promoted_ids)
+
+    def test_promote_community_talent_inventory_prefers_wcl_evidence_tier(self):
+        from server.postgres_cache_store import promote_community_talent_template_inventory
+
+        def row(template_id, tier, max_key_level, sample_count=1, quality_score=0):
+            payload = {
+                "rioEvidence": {
+                    "maxKeyLevel": max_key_level,
+                    "sampleCount": sample_count,
+                    "source": "run_detail",
+                },
+                "wclEvidence": {"tier": tier},
+                "evidenceTier": tier,
+                "qualityScore": quality_score,
+            }
+            return {
+                "id": template_id,
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "status": "verified",
+                "payload": payload,
+                "sourceRefs": [{"sourceKey": "raiderio", "id": template_id}],
+                "signature": f"sig-{template_id}",
+                "talentState": {"selectedNodes": [{"id": f"node-{template_id}", "rank": 1}]},
+                "sampleCount": sample_count,
+                "maxKeyLevel": max_key_level,
+                "updatedAt": f"2026-07-03T10:{max_key_level:02d}:00+00:00",
+            }
+
+        promoted = promote_community_talent_template_inventory(
+            [
+                row("rio-only-higher-key", "wcl_missing", 25, sample_count=10, quality_score=62),
+                row("wcl-supported", "wcl_character_supported", 22, sample_count=4, quality_score=74),
+                row("wcl-exact-lower-key", "wcl_exact_template", 20, sample_count=2, quality_score=81),
+            ]
+        )
+
+        winner = promoted["promotedTemplates"][0]
+        self.assertEqual(winner["id"], "wcl-exact-lower-key")
+        self.assertEqual(winner["payload"]["evidenceTier"], "wcl_exact_template")
+        self.assertEqual(winner["payload"]["wclEvidence"]["tier"], "wcl_exact_template")
+        self.assertEqual(winner["payload"]["qualityScore"], 81)
+        self.assertIn("WCL exact template", winner["payload"]["promotionReason"])
+        self.assertIn("WCL exact template", winner["payload"]["promotion"]["reason"])
+
+    def test_promoted_verified_talent_source_refs_do_not_inherit_blocked_status(self):
+        from server.postgres_cache_store import promote_community_talent_template_inventory
+
+        def row(template_id, status, max_key_level):
+            return {
+                "id": template_id,
+                "classKey": "monk",
+                "specKey": "brewmaster",
+                "heroKey": "master_of_harmony",
+                "scenarioKey": "mythic_plus",
+                "sourceKey": "raiderio",
+                "sourceName": "Raider.IO",
+                "sourceUrl": f"https://raider.io/characters/eu/ravencrest/{template_id}",
+                "sourceStatus": "synced",
+                "status": status,
+                "payload": {"evidenceTier": "wcl_missing"},
+                "sourceRefs": [
+                    {
+                        "id": f"ref-{template_id}",
+                        "sourceKey": "raiderio",
+                        "sourceName": "Raider.IO",
+                        "sourceUrl": f"https://raider.io/characters/eu/ravencrest/{template_id}",
+                        "sourceStatus": "synced",
+                        "status": "blocked",
+                    }
+                ],
+                "signature": "shared-signature",
+                "talentState": {"selectedNodes": [{"id": "node-shared", "rank": 1}]},
+                "sampleCount": 2,
+                "maxKeyLevel": max_key_level,
+                "updatedAt": f"2026-07-04T01:{max_key_level:02d}:00+00:00",
+            }
+
+        promoted = promote_community_talent_template_inventory(
+            [
+                row("monksea", "verified", 24),
+                row("blocked-same-signature", "blocked", 25),
+            ]
+        )
+
+        winner = promoted["promotedTemplates"][0]
+        self.assertEqual(winner["status"], "verified")
+        self.assertEqual(
+            {ref["status"] for ref in winner["sourceRefs"]},
+            {"verified"},
+        )
+        self.assertEqual([ref["id"] for ref in winner["sourceRefs"]], ["monksea"])
 
     def test_expire_community_talent_template_sources_marks_active_rows_stale(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -999,9 +1258,93 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertEqual(payload["importCode"], "CAEAAAAAAAAAAAAAAAAAAAAA")
+        self.assertEqual(payload["templateId"], "44444444-4444-4444-8444-444444444444")
         self.assertEqual(payload["source"], "community_template")
         self.assertEqual(payload["status"], "verified")
+        self.assertIn("AND hero_key = %s", sql)
+        self.assertIn(("mage", "frost", "spellslinger"), conn.cursor_instance.params)
         self.assertNotIn("FROM cache.websim_talents", sql)
+
+    def test_pg_websim_talents_returns_pending_community_slot_for_missing_hero(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    ({"sourceStatus": "synced", "templates": {"total": 1, "verified": 1, "blocked": 0}}, "2026-06-28T01:01:00+00:00"),
+                    ({"sourceStatus": "synced", "templates": {"total": 1, "verified": 1, "blocked": 0}}, "2026-06-28T01:01:00+00:00"),
+                ],
+                "FROM cache.websim_talents": [
+                    (
+                        "talent-a",
+                        "mage",
+                        "frost",
+                        "spec",
+                        1,
+                        2,
+                        12345,
+                        "Talent A",
+                        {"treeType": "spec", "rankEntries": [{"spellId": 12345, "points": 1}]},
+                        "Deals frost damage.",
+                        "https://render.worldofwarcraft.com/spell-a.jpg",
+                        {"source": "simulationcraft"},
+                    )
+                ],
+                "FROM cache.websim_profile_presets": [],
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "44444444-4444-4444-8444-444444444444",
+                        "mage",
+                        "frost",
+                        "frostfire",
+                        "mythic_plus",
+                        "Template Frostfire",
+                        "M+",
+                        "raiderio",
+                        "Raider.IO",
+                        "https://example.test/template",
+                        "talents=abc",
+                        "websim:mage:frost:frostfire:talent-a:1",
+                        {"selectedNodes": [{"id": "talent-a", "rank": 1}]},
+                        12,
+                        23,
+                        "weekly",
+                        "verified",
+                        "verified",
+                        {"playerId": "mage-a", "heroLabel": "霜火"},
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "sig-a",
+                        [{"type": "raiderio"}],
+                        "scan-a",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_talents("mage", "frost", "spellslinger")
+
+        self.assertEqual(len(payload["communityTemplates"]), 2)
+        self.assertEqual([item["heroKey"] for item in payload["communityTemplates"]], ["spellslinger", "frostfire"])
+        self.assertEqual(payload["communityTemplates"][0]["status"], "pending_collection")
+        self.assertEqual(payload["communityTemplates"][0]["sourceName"], "社区样本待采集")
+        self.assertEqual(payload["communityTemplates"][1]["status"], "verified")
+        self.assertEqual(payload["communityTemplateSync"]["activeSpecSlots"]["pendingCollection"], 1)
 
     def test_admin_gate_records_read_cache_runtime_tables(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -1738,7 +2081,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertEqual(talent_counts["verified"], 1)
-        self.assertEqual(talent_counts["blocked"], 1)
+        self.assertEqual(talent_counts["blocked"], 0)
+        self.assertEqual(talent_counts["candidateBlocked"], 1)
         self.assertEqual(gear_counts["partial"], 1)
         self.assertIn("INSERT INTO cache.websim_community_talent_templates", sql)
         self.assertIn("UPDATE cache.websim_community_talent_templates", sql)

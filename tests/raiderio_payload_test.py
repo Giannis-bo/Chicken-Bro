@@ -9,7 +9,7 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
-from server import raiderio_payload
+from server import raiderio_payload, websim_payload
 from server.community_talent_sources import raiderio as raiderio_templates
 
 
@@ -96,6 +96,62 @@ def sample_profile_payload(name="Rioone", class_slug="mage", spec_slug="frost", 
             },
         },
     }
+
+
+BLIZZARD_TALENT_BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+
+def write_bits(bits, value, count):
+    for index in range(count):
+        bits.append((int(value) >> index) & 1)
+
+
+def blizzard_import_code(spec_id, node_choices):
+    bits = []
+    write_bits(bits, 2, 8)
+    write_bits(bits, spec_id, 16)
+    write_bits(bits, 0, 128)
+    for selected, rank, choice_index in node_choices:
+        write_bits(bits, 1 if selected else 0, 1)
+        if not selected:
+            continue
+        write_bits(bits, 1, 1)
+        if int(rank or 1) > 1:
+            write_bits(bits, 1, 1)
+            write_bits(bits, rank, 6)
+        else:
+            write_bits(bits, 0, 1)
+        if int(choice_index or 0) > 0:
+            write_bits(bits, 1, 1)
+            write_bits(bits, choice_index, 2)
+        else:
+            write_bits(bits, 0, 1)
+    encoded = []
+    for offset in range(0, len(bits), 6):
+        value = 0
+        for bit_index, bit in enumerate(bits[offset : offset + 6]):
+            value |= bit << bit_index
+        encoded.append(BLIZZARD_TALENT_BASE64[value])
+    return "".join(encoded)
+
+
+def write_minimal_dk_trait_data(path):
+    path.write_text(
+        """
+__trait_sub_tree_data = {
+  { 31, "San'layn", 6 },
+  { 32, "Rider of the Apocalypse", 6 },
+};
+__trait_data = {
+  { 4,  6, 5001,    100, 1,  0,      0,     111,      0,      0,  1,  1,   0, "Plague Blade", {  252,    0,    0,    0 }, {    0,    0,    0,    0 },   0, 1 },
+  { 4,  6, 5002,    200, 1,  0,      0,     222,      0,      0,  2,  1,   0, "Sanguine Gift", {  252,    0,    0,    0 }, {    0,    0,    0,    0 },  31, 1 },
+  { 4,  6, 123322, 99820, 1,  0,      0,       0,      0,      0,  1,  1, 100, "0", {  252,    0,    0,    0 }, {    0,    0,    0,    0 },  32, 3 },
+  { 4,  6, 123321, 99820, 1,  0,      0,       0,      0,      0,  1,  1, 200, "0", {  252,    0,    0,    0 }, {    0,    0,    0,    0 },  31, 3 },
+};
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 class RaiderIOPayloadTest(unittest.TestCase):
@@ -268,6 +324,72 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertIn("raiderio", [item["key"] for item in spec_module["sourceChecks"]])
         self.assertTrue(spec_module["archonTierSummary"]["dps"]["tiers"])
 
+    def test_sync_raiderio_cache_scans_configured_regions_and_preserves_template_region(self):
+        os.environ["WOW_RAIDERIO_REGIONS"] = "cn,eu"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "0"
+        fetched_run_regions = []
+        fetched_profile_regions = []
+
+        def run_payload(region):
+            name = "Cnplayer" if region == "cn" else "Euplayer"
+            return {
+                "leaderboard_url": f"https://raider.io/mythic-plus-rankings/season-mn-1/all/{region}/leaderboards",
+                "rankings": [
+                    {
+                        "rank": 1,
+                        "score": 4127.57,
+                        "run": {
+                            "keystone_run_id": 1001 if region == "cn" else 2001,
+                            "dungeon": {"name": "Nexus-Point Xenas", "slug": "nexus-point-xenas"},
+                            "mythic_level": 24,
+                            "roster": [
+                                {
+                                    "character": {
+                                        "name": name,
+                                        "realm": {"name": "Isillien", "slug": "isillien"},
+                                        "class": {"name": "Mage", "slug": "mage"},
+                                        "spec": {"id": 64, "name": "Frost", "slug": "frost"},
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                ],
+            }
+
+        def fake_api_get(path, params=None, api_key=None):
+            if path == "/mythic-plus/runs":
+                fetched_run_regions.append(params["region"])
+                return run_payload(params["region"])
+            if path == "/characters/profile":
+                fetched_profile_regions.append(params["region"])
+                profile = sample_profile_payload(params["name"])
+                profile["region"] = params["region"]
+                profile["profile_url"] = f"https://raider.io/characters/{params['region']}/isillien/{params['name']}"
+                return profile
+            if path == "/mythic-plus/static-data":
+                return {"dungeons": [{"name": "Nexus-Point Xenas", "slug": "nexus-point-xenas"}]}
+            if path == "/mythic-plus/affixes":
+                self.assertEqual(params["region"], "cn")
+                return {"affix_details": [{"name": "Fortified"}]}
+            if path == "/mythic-plus/season-cutoffs":
+                self.assertEqual(params["region"], "cn")
+                return {"cutoffs": {"all": {"p999": {"allMinValue": 4127.57}}}}
+            raise AssertionError(path)
+
+        with closing(self.connection()) as conn, patch.object(raiderio_payload, "api_get", fake_api_get):
+            payload = raiderio_payload.sync_raiderio_cache(conn)
+
+        self.assertEqual(fetched_run_regions, ["cn", "eu"])
+        self.assertEqual(fetched_profile_regions, ["cn", "eu"])
+        self.assertEqual(payload["regions"], ["cn", "eu"])
+        self.assertEqual(payload["regionCoverage"]["cn"]["runCount"], 1)
+        self.assertEqual(payload["regionCoverage"]["eu"]["runCount"], 1)
+        by_player = {item["playerId"]: item for item in payload["communityTemplates"]}
+        self.assertEqual(by_player["Cnplayer"]["payload"]["raiderio"]["region"], "cn")
+        self.assertEqual(by_player["Euplayer"]["payload"]["raiderio"]["region"], "eu")
+        self.assertEqual(payload["specCoverage"]["sampleCounts"]["mage:frost"], 2)
+
     def test_get_raiderio_payload_returns_stale_cache_when_refresh_fails(self):
         stale_payload = {
             **raiderio_payload.missing_credentials_payload(),
@@ -328,6 +450,286 @@ class RaiderIOPayloadTest(unittest.TestCase):
         templates = raiderio_payload.build_community_templates(aggregates, "2026-07-03T01:00:00+00:00")
 
         self.assertFalse(any(item["playerId"] == "Rioone" for item in templates))
+
+    def test_aggregate_runs_prefers_run_detail_talent_snapshot_over_profile_current(self):
+        run = raiderio_payload.simplify_run({
+            "rank": 1,
+            "score": 4127.57,
+            "run": {
+                "keystone_run_id": 101,
+                "dungeon": {"name": "Nexus-Point Xenas", "slug": "nexus-point-xenas"},
+                "mythic_level": 24,
+                "roster": [
+                    {
+                        "character": {
+                            "name": "Rioone",
+                            "realm": {"name": "Isillien", "slug": "isillien"},
+                            "region": {"slug": "cn"},
+                            "class": {"name": "Mage", "slug": "mage"},
+                            "spec": {"id": 64, "name": "Frost", "slug": "frost"},
+                        },
+                        "loadout": "RUN_DETAIL_IMPORT_CODE",
+                    }
+                ],
+            },
+        })
+        run["roster"][0]["talentLoadout"] = {
+            "rawImportCode": "RUN_DETAIL_IMPORT_CODE",
+            "loadoutSpecId": 64,
+            "loadout": [{"traitId": 91001, "rank": 1}],
+            "source": "run_detail",
+        }
+        profile = raiderio_payload.profile_summary({
+            **sample_profile_payload(),
+            "talentLoadout": {
+                "loadout_text": "PROFILE_CURRENT_ARCANE",
+                "loadout_spec_id": 62,
+                "loadout": [{"traitId": 99999, "rank": 1}],
+            },
+        })
+
+        aggregates = raiderio_payload.aggregate_runs([run], {raiderio_payload.character_key(profile): profile})
+        templates = raiderio_payload.build_community_templates(aggregates, "2026-07-03T01:00:00+00:00")
+
+        mage_template = next(item for item in templates if item["playerId"] == "Rioone")
+        self.assertEqual(mage_template["rawImportCode"], "RUN_DETAIL_IMPORT_CODE")
+        self.assertEqual(mage_template["payload"]["raiderio"]["source"], "run_detail")
+        self.assertEqual(mage_template["payload"]["raiderio"]["loadout"][0]["traitId"], 91001)
+
+    def test_sync_raiderio_cache_uses_run_detail_talent_snapshots_for_templates(self):
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "2"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT_PER_SPEC"] = "2"
+
+        def fake_api_get(path, params=None, api_key=None):
+            if path == "/mythic-plus/runs":
+                payload = sample_runs_payload()
+                payload["rankings"][0]["run"]["keystone_run_id"] = 101
+                payload["rankings"][0]["run"]["roster"][0]["loadout"] = "RUN_DETAIL_IMPORT_CODE"
+                return payload
+            if path == "/mythic-plus/run-details":
+                self.assertEqual(params["id"], 101)
+                return {
+                    "keystone_run_id": 101,
+                    "roster": [
+                        {
+                            "character": {
+                                "name": "Rioone",
+                                "realm": {"name": "Isillien", "slug": "isillien"},
+                                "region": {"slug": "cn"},
+                                "class": {"name": "Mage", "slug": "mage"},
+                                "spec": {"id": 64, "name": "Frost", "slug": "frost"},
+                                "path": "/characters/cn/isillien/Rioone",
+                                "talentLoadout": {
+                                    "specId": 64,
+                                    "heroSubTreeId": 123,
+                                    "loadout": [{"traitId": 91001, "rank": 1}],
+                                },
+                            }
+                        }
+                    ],
+                }
+            if path == "/characters/profile":
+                return {
+                    **sample_profile_payload(params["name"]),
+                    "talentLoadout": {
+                        "loadout_text": "PROFILE_CURRENT_ARCANE",
+                        "loadout_spec_id": 62,
+                        "loadout": [{"traitId": 99999, "rank": 1}],
+                    },
+                }
+            if path == "/mythic-plus/static-data":
+                return {"dungeons": [{"name": "Nexus-Point Xenas", "slug": "nexus-point-xenas"}]}
+            if path == "/mythic-plus/affixes":
+                return {"affix_details": [{"name": "Fortified"}]}
+            if path == "/mythic-plus/season-cutoffs":
+                return {"cutoffs": {"all": {"p999": {"allMinValue": 4127.57}}}}
+            raise AssertionError(path)
+
+        with closing(self.connection()) as conn, patch.object(raiderio_payload, "api_get", fake_api_get):
+            payload = raiderio_payload.sync_raiderio_cache(conn)
+
+        mage_template = next(item for item in payload["communityTemplates"] if item["playerId"] == "Rioone")
+        self.assertEqual(mage_template["rawImportCode"], "RUN_DETAIL_IMPORT_CODE")
+        self.assertEqual(mage_template["payload"]["raiderio"]["source"], "run_detail")
+        self.assertEqual(payload["runDetailCoverage"]["requestedRunCount"], 1)
+        self.assertEqual(payload["runDetailCoverage"]["talentSnapshotCount"], 1)
+
+    def test_run_detail_snapshots_are_keyed_by_region_and_run_id(self):
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "2"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT_PER_SPEC"] = "2"
+        runs = []
+        for region, name in [("cn", "Cnplayer"), ("eu", "Euplayer")]:
+            runs.append({
+                "runId": 101,
+                "region": region,
+                "roster": [
+                    {
+                        "name": name,
+                        "realmSlug": "isillien",
+                        "region": region,
+                        "classKey": "mage",
+                        "className": "Mage",
+                        "specKey": "frost",
+                        "specName": "Frost",
+                    }
+                ],
+            })
+
+        def fake_fetch_run_detail(run, season_slug):
+            name = run["roster"][0]["name"]
+            region = run["region"]
+            return {
+                "keystone_run_id": 101,
+                "roster": [
+                    {
+                        "character": {
+                            "name": name,
+                            "realm": {"name": "Isillien", "slug": "isillien"},
+                            "region": {"slug": region},
+                            "class": {"name": "Mage", "slug": "mage"},
+                            "spec": {"id": 64, "name": "Frost", "slug": "frost"},
+                            "talentLoadout": {
+                                "specId": 64,
+                                "loadout": [{"traitId": 91001 if region == "cn" else 91002, "rank": 1}],
+                            },
+                        }
+                    }
+                ],
+            }
+
+        with patch.object(raiderio_payload, "fetch_run_detail", fake_fetch_run_detail):
+            enriched, summary = raiderio_payload.fetch_run_details_for_runs(runs, season_slug="season-mn-1")
+
+        self.assertEqual(summary["requestedRunCount"], 2)
+        self.assertEqual(summary["talentSnapshotCount"], 2)
+        self.assertEqual(enriched[0]["roster"][0]["talentLoadout"]["loadout"][0]["traitId"], 91001)
+        self.assertEqual(enriched[1]["roster"][0]["talentLoadout"]["loadout"][0]["traitId"], 91002)
+
+    def test_run_detail_candidates_skip_already_enriched_runs_for_gap_fill(self):
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "4"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT_PER_SPEC"] = "2"
+        runs = [
+            {
+                "runId": 101,
+                "region": "world",
+                "roster": [
+                    {
+                        "name": "Oldaug",
+                        "realmSlug": "isillien",
+                        "region": "world",
+                        "classKey": "evoker",
+                        "specKey": "augmentation",
+                        "talentLoadout": {
+                            "source": "run_detail",
+                            "heroSubTreeId": 36,
+                            "loadout": [{"traitId": 91001, "rank": 1}],
+                        },
+                    }
+                ],
+            },
+            {
+                "runId": 102,
+                "region": "world",
+                "roster": [
+                    {
+                        "name": "Newaug",
+                        "realmSlug": "isillien",
+                        "region": "world",
+                        "classKey": "evoker",
+                        "specKey": "augmentation",
+                    }
+                ],
+            },
+        ]
+
+        candidates = raiderio_payload.select_run_detail_candidates(runs)
+
+        self.assertEqual([run["runId"] for run in candidates], [102])
+
+    def test_run_detail_candidates_preserve_later_hero_subtree_within_spec_budget(self):
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "3"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT_PER_SPEC"] = "3"
+        runs = []
+        for index, hero_subtree_id in enumerate([36, 36, 36, 38], start=1):
+            runs.append(
+                {
+                    "runId": 200 + index,
+                    "region": "world",
+                    "roster": [
+                        {
+                            "name": f"Aug{index}",
+                            "realmSlug": "isillien",
+                            "region": "world",
+                            "classKey": "evoker",
+                            "specKey": "augmentation",
+                            "talentLoadout": {
+                                "heroSubTreeId": hero_subtree_id,
+                            },
+                        }
+                    ],
+                }
+            )
+
+        candidates = raiderio_payload.select_run_detail_candidates(runs)
+
+        self.assertEqual([run["runId"] for run in candidates], [201, 202, 204])
+
+    def test_gap_fill_run_detail_candidates_spread_across_raw_spec_ranking_runs(self):
+        runs = []
+        for index in range(1, 11):
+            runs.append(
+                {
+                    "runId": index,
+                    "region": "world",
+                    "roster": [
+                        {
+                            "name": f"Longtail{index}",
+                            "realmSlug": "isillien",
+                            "region": "world",
+                            "classKey": "hunter",
+                            "specKey": "survival",
+                        }
+                    ],
+                }
+            )
+
+        candidates = raiderio_payload.select_run_detail_candidates(
+            runs,
+            limit=3,
+            per_spec_limit=3,
+            spread_by_spec=True,
+        )
+
+        self.assertEqual([run["runId"] for run in candidates], [1, 5, 10])
+
+    def test_gap_fill_run_detail_candidates_keep_frontload_before_spread(self):
+        runs = []
+        for index in range(1, 11):
+            runs.append(
+                {
+                    "runId": index,
+                    "region": "world",
+                    "roster": [
+                        {
+                            "name": f"Longtail{index}",
+                            "realmSlug": "isillien",
+                            "region": "world",
+                            "classKey": "rogue",
+                            "specKey": "subtlety",
+                        }
+                    ],
+                }
+            )
+
+        candidates = raiderio_payload.select_run_detail_candidates(
+            runs,
+            limit=5,
+            per_spec_limit=5,
+            spread_by_spec=True,
+            frontload_per_spec=3,
+        )
+
+        self.assertEqual([run["runId"] for run in candidates], [1, 2, 3, 7, 10])
 
     def test_fetch_profiles_samples_each_spec_with_per_spec_cap(self):
         os.environ["WOW_RAIDERIO_PROFILE_LIMIT"] = "4"
@@ -671,6 +1073,619 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(fetched_names, ["Mage1", "Mage2"])
         self.assertEqual(payload["targetItemCoverage"]["matchedTargetItemIds"], ["251111"])
         self.assertEqual(payload["targetItemCoverage"]["missingTargetItemIds"], [])
+
+    def test_sync_raiderio_cache_exposes_per_spec_target_matrix(self):
+        os.environ["WOW_RAIDERIO_RUN_PAGES"] = "1"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "0"
+        os.environ["WOW_RAIDERIO_PROFILE_LIMIT"] = "2"
+        os.environ["WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC"] = "2"
+
+        def fake_api_get(path, params=None, api_key=None):
+            if path == "/mythic-plus/runs":
+                return sample_runs_payload()
+            if path == "/characters/profile":
+                return sample_profile_payload(params["name"])
+            if path == "/mythic-plus/static-data":
+                return {"dungeons": [{"name": "Nexus-Point Xenas", "slug": "nexus-point-xenas"}]}
+            if path == "/mythic-plus/affixes":
+                return {"affix_details": [{"name": "Fortified"}]}
+            if path == "/mythic-plus/season-cutoffs":
+                return {"cutoffs": {"all": {"p999": {"allMinValue": 4127.57}}}}
+            raise AssertionError(path)
+
+        with closing(self.connection()) as conn, patch.object(
+            raiderio_payload,
+            "expected_spec_pairs",
+            return_value=["mage:frost", "mage:fire"],
+        ), patch.object(raiderio_payload, "api_get", fake_api_get):
+            payload = raiderio_payload.sync_raiderio_cache(conn)
+
+        matrix = payload["targetMatrix"]
+        by_spec = {row["specId"]: row for row in matrix["rows"]}
+
+        self.assertEqual(matrix["totalSpecCount"], 2)
+        self.assertEqual(matrix["attemptedSpecCount"], 1)
+        self.assertEqual(matrix["pendingSpecCount"], 1)
+        self.assertEqual(by_spec["mage:frost"]["attemptedRunCount"], 1)
+        self.assertGreaterEqual(by_spec["mage:frost"]["profileCount"], 1)
+        self.assertGreaterEqual(by_spec["mage:frost"]["candidateCount"], 1)
+        self.assertIn("validate", by_spec["mage:frost"]["nextAction"])
+        self.assertEqual(by_spec["mage:fire"]["attemptedRunCount"], 0)
+        self.assertIn("class/spec ranking", by_spec["mage:fire"]["nextAction"])
+
+    def test_sync_raiderio_cache_fetches_enabled_spec_ranking_target_pool(self):
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_ENABLED"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_REGIONS"] = "world"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_PAGES"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_PAGE_SIZE"] = "2"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_RUNS_PER_CHARACTER"] = "1"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "0"
+        os.environ["WOW_RAIDERIO_PROFILE_LIMIT"] = "4"
+        os.environ["WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC"] = "2"
+        spec_ranking_calls = []
+        fetched_profiles = []
+
+        def ranking_character(name, target_spec_slug, run_id):
+            return {
+                "rank": 1,
+                "score": 3999.5,
+                "character": {
+                    "name": name,
+                    "realm": {"name": "Isillien", "slug": "isillien"},
+                    "region": {"slug": "cn"},
+                    "class": {"name": "Mage", "slug": "mage"},
+                    # Raider.IO spec ranking rows can expose the character's current spec,
+                    # so the collector must keep the requested class/spec as the target.
+                    "spec": {"id": 62, "name": "Arcane", "slug": "arcane"},
+                    "path": f"/characters/cn/isillien/{name}",
+                },
+                "runs": [{"keystoneRunId": run_id, "mythicLevel": 22, "score": 511.2}],
+            }
+
+        def fake_web_api_get(path, params=None):
+            self.assertEqual(path, "/mythic-plus/rankings/specs")
+            spec_ranking_calls.append((params["region"], params["class"], params["spec"], params["page"]))
+            target_spec = params["spec"]
+            return {
+                "rankings": {
+                    "rankedCharacters": [
+                        ranking_character(f"Spec{target_spec}", target_spec, 5000 + len(spec_ranking_calls))
+                    ]
+                }
+            }
+
+        def fake_api_get(path, params=None, api_key=None):
+            if path == "/mythic-plus/runs":
+                return sample_runs_payload()
+            if path == "/characters/profile":
+                fetched_profiles.append(params["name"])
+                if params["name"] == "Specfire":
+                    return sample_profile_payload("Specfire", "mage", "fire")
+                return sample_profile_payload(params["name"])
+            if path == "/mythic-plus/static-data":
+                return {"dungeons": [{"name": "Nexus-Point Xenas", "slug": "nexus-point-xenas"}]}
+            if path == "/mythic-plus/affixes":
+                return {"affix_details": [{"name": "Fortified"}]}
+            if path == "/mythic-plus/season-cutoffs":
+                return {"cutoffs": {"all": {"p999": {"allMinValue": 4127.57}}}}
+            raise AssertionError(path)
+
+        with closing(self.connection()) as conn, patch.object(
+            raiderio_payload,
+            "expected_spec_pairs",
+            return_value=["mage:frost", "mage:fire"],
+        ), patch.object(raiderio_payload, "api_get", fake_api_get), patch.object(
+            raiderio_payload,
+            "web_api_get",
+            fake_web_api_get,
+            create=True,
+        ):
+            payload = raiderio_payload.sync_raiderio_cache(conn)
+
+        self.assertEqual(
+            spec_ranking_calls,
+            [("world", "mage", "frost", 0), ("world", "mage", "fire", 0)],
+        )
+        self.assertIn("Specfire", fetched_profiles)
+        self.assertEqual(payload["specRankingCoverage"]["enabled"], True)
+        self.assertEqual(payload["specRankingCoverage"]["attemptedSpecCount"], 2)
+        by_spec = {row["specId"]: row for row in payload["targetMatrix"]["rows"]}
+        self.assertGreaterEqual(by_spec["mage:fire"]["attemptedRunCount"], 1)
+        self.assertGreaterEqual(by_spec["mage:fire"]["profileCount"], 1)
+
+    def test_sync_raiderio_cache_can_target_specs_without_global_runs(self):
+        os.environ["WOW_RAIDERIO_RUN_PAGES"] = "0"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_ENABLED"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_TARGET_SPECS"] = "mage:frost"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_REGIONS"] = "world"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_PAGES"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_PAGE_SIZE"] = "1"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "0"
+        spec_ranking_calls = []
+
+        def fake_web_api_get(path, params=None):
+            self.assertEqual(path, "/mythic-plus/rankings/specs")
+            spec_ranking_calls.append((params["class"], params["spec"], params["page"]))
+            return {"rankings": {"rankedCharacters": []}}
+
+        def fake_api_get(path, params=None, api_key=None):
+            if path == "/mythic-plus/runs":
+                raise AssertionError("targeted spec sync should skip global run pages")
+            if path == "/mythic-plus/static-data":
+                return {"dungeons": [{"name": "Nexus-Point Xenas", "slug": "nexus-point-xenas"}]}
+            if path == "/mythic-plus/affixes":
+                return {"affix_details": [{"name": "Fortified"}]}
+            if path == "/mythic-plus/season-cutoffs":
+                return {"cutoffs": {"all": {"p999": {"allMinValue": 4127.57}}}}
+            raise AssertionError(path)
+
+        with closing(self.connection()) as conn, patch.object(raiderio_payload, "api_get", fake_api_get), patch.object(
+            raiderio_payload,
+            "web_api_get",
+            fake_web_api_get,
+            create=True,
+        ):
+            payload = raiderio_payload.sync_raiderio_cache(conn)
+
+        self.assertEqual(spec_ranking_calls, [("mage", "frost", 0)])
+        self.assertEqual(payload["runCount"], 0)
+        self.assertEqual(payload["specRankingCoverage"]["attemptedSpecCount"], 1)
+
+    def test_sync_raiderio_cache_gap_fills_specs_missing_second_hero_subtree(self):
+        os.environ["WOW_RAIDERIO_RUN_PAGES"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_ENABLED"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_REGIONS"] = "world"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_PAGES"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_PAGE_SIZE"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_RUNS_PER_CHARACTER"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_GAP_FILL_ENABLED"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_GAP_FILL_PAGES"] = "1"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "10"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT_PER_SPEC"] = "10"
+        os.environ["WOW_RAIDERIO_PROFILE_LIMIT"] = "3"
+        spec_ranking_calls = []
+
+        def ranking_character(name, run_id):
+            return {
+                "rank": run_id,
+                "score": 3999.5,
+                "character": {
+                    "name": name,
+                    "realm": {"name": "Isillien", "slug": "isillien"},
+                    "region": {"slug": "cn"},
+                    "class": {"name": "Mage", "slug": "mage"},
+                    "spec": {"id": 63, "name": "Fire", "slug": "fire"},
+                    "path": f"/characters/cn/isillien/{name}",
+                },
+                "runs": [{"keystoneRunId": run_id, "mythicLevel": 22, "score": 511.2}],
+            }
+
+        def fake_web_api_get(path, params=None):
+            self.assertEqual(path, "/mythic-plus/rankings/specs")
+            spec_ranking_calls.append((params["spec"], params["page"]))
+            if params["page"] == 0:
+                return {"rankings": {"rankedCharacters": [ranking_character("FireOne", 7001)]}}
+            if params["page"] == 1:
+                return {"rankings": {"rankedCharacters": [ranking_character("FireTwo", 7101)]}}
+            return {"rankings": {"rankedCharacters": []}}
+
+        def fake_api_get(path, params=None, api_key=None):
+            if path == "/mythic-plus/runs":
+                return {"leaderboard_url": "https://raider.io/mythic-plus-rankings/season-mn-1/all/cn/leaderboards", "rankings": []}
+            if path == "/mythic-plus/run-details":
+                hero_id = 39 if params["id"] == 7001 else 40
+                name = "FireOne" if params["id"] == 7001 else "FireTwo"
+                return {
+                    "keystone_run_id": params["id"],
+                    "roster": [
+                        {
+                            "character": {
+                                "name": name,
+                                "realm": {"name": "Isillien", "slug": "isillien"},
+                                "region": {"slug": "cn"},
+                                "class": {"name": "Mage", "slug": "mage"},
+                                "spec": {"id": 63, "name": "Fire", "slug": "fire"},
+                                "talentLoadout": {
+                                    "specId": 63,
+                                    "heroSubTreeId": hero_id,
+                                    "loadout": [{"traitId": 91000 + hero_id, "rank": 1}],
+                                },
+                            }
+                        }
+                    ],
+                }
+            if path == "/characters/profile":
+                return sample_profile_payload(params["name"], "mage", "fire")
+            if path == "/mythic-plus/static-data":
+                return {"dungeons": [{"name": "Nexus-Point Xenas", "slug": "nexus-point-xenas"}]}
+            if path == "/mythic-plus/affixes":
+                return {"affix_details": [{"name": "Fortified"}]}
+            if path == "/mythic-plus/season-cutoffs":
+                return {"cutoffs": {"all": {"p999": {"allMinValue": 4127.57}}}}
+            raise AssertionError(path)
+
+        with closing(self.connection()) as conn, patch.object(
+            raiderio_payload,
+            "expected_spec_pairs",
+            return_value=["mage:fire"],
+        ), patch.object(raiderio_payload, "api_get", fake_api_get), patch.object(
+            raiderio_payload,
+            "web_api_get",
+            fake_web_api_get,
+            create=True,
+        ):
+            payload = raiderio_payload.sync_raiderio_cache(conn)
+
+        self.assertEqual(spec_ranking_calls, [("fire", 0), ("fire", 1)])
+        self.assertEqual(payload["specRankingCoverage"]["gapFill"]["attemptedSpecCount"], 1)
+        self.assertEqual(payload["specRankingCoverage"]["gapFill"]["startPage"], 1)
+        self.assertEqual(payload["runDetailCoverage"]["requestedRunCount"], 2)
+        self.assertEqual(payload["runDetailCoverage"]["gapFill"]["requestedRunCount"], 1)
+        self.assertEqual(
+            payload["specRankingCoverage"]["heroSubTreeCoverage"]["mage:fire"]["heroSubTreeIds"],
+            ["39", "40"],
+        )
+
+    def test_sync_raiderio_cache_gap_fill_extra_window_keeps_existing_window(self):
+        os.environ["WOW_RAIDERIO_RUN_PAGES"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_ENABLED"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_REGIONS"] = "world"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_PAGES"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_PAGE_SIZE"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_RUNS_PER_CHARACTER"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_GAP_FILL_ENABLED"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_GAP_FILL_PAGES"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_GAP_FILL_EXTRA_START_PAGES"] = "3"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "10"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT_PER_SPEC"] = "10"
+        os.environ["WOW_RAIDERIO_PROFILE_LIMIT"] = "3"
+        spec_ranking_calls = []
+
+        def ranking_character(name, run_id):
+            return {
+                "rank": run_id,
+                "score": 3999.5,
+                "character": {
+                    "name": name,
+                    "realm": {"name": "Isillien", "slug": "isillien"},
+                    "region": {"slug": "cn"},
+                    "class": {"name": "Mage", "slug": "mage"},
+                    "spec": {"id": 63, "name": "Fire", "slug": "fire"},
+                    "path": f"/characters/cn/isillien/{name}",
+                },
+                "runs": [{"keystoneRunId": run_id, "mythicLevel": 22, "score": 511.2}],
+            }
+
+        def fake_web_api_get(path, params=None):
+            self.assertEqual(path, "/mythic-plus/rankings/specs")
+            spec_ranking_calls.append((params["spec"], params["page"]))
+            if params["page"] == 0:
+                return {"rankings": {"rankedCharacters": [ranking_character("FireOne", 7001)]}}
+            if params["page"] == 1:
+                return {"rankings": {"rankedCharacters": [ranking_character("FireTwo", 7101)]}}
+            if params["page"] == 3:
+                return {"rankings": {"rankedCharacters": [ranking_character("FireThree", 7301)]}}
+            return {"rankings": {"rankedCharacters": []}}
+
+        def fake_api_get(path, params=None, api_key=None):
+            if path == "/mythic-plus/runs":
+                return {"leaderboard_url": "https://raider.io/mythic-plus-rankings/season-mn-1/all/cn/leaderboards", "rankings": []}
+            if path == "/mythic-plus/run-details":
+                hero_id = 40 if params["id"] == 7301 else 39
+                name = {7001: "FireOne", 7101: "FireTwo", 7301: "FireThree"}[params["id"]]
+                return {
+                    "keystone_run_id": params["id"],
+                    "roster": [
+                        {
+                            "character": {
+                                "name": name,
+                                "realm": {"name": "Isillien", "slug": "isillien"},
+                                "region": {"slug": "cn"},
+                                "class": {"name": "Mage", "slug": "mage"},
+                                "spec": {"id": 63, "name": "Fire", "slug": "fire"},
+                                "talentLoadout": {
+                                    "specId": 63,
+                                    "heroSubTreeId": hero_id,
+                                    "loadout": [{"traitId": 91000 + hero_id, "rank": 1}],
+                                },
+                            }
+                        }
+                    ],
+                }
+            if path == "/characters/profile":
+                return sample_profile_payload(params["name"], "mage", "fire")
+            if path == "/mythic-plus/static-data":
+                return {"dungeons": [{"name": "Nexus-Point Xenas", "slug": "nexus-point-xenas"}]}
+            if path == "/mythic-plus/affixes":
+                return {"affix_details": [{"name": "Fortified"}]}
+            if path == "/mythic-plus/season-cutoffs":
+                return {"cutoffs": {"all": {"p999": {"allMinValue": 4127.57}}}}
+            raise AssertionError(path)
+
+        with closing(self.connection()) as conn, patch.object(
+            raiderio_payload,
+            "expected_spec_pairs",
+            return_value=["mage:fire"],
+        ), patch.object(raiderio_payload, "api_get", fake_api_get), patch.object(
+            raiderio_payload,
+            "web_api_get",
+            fake_web_api_get,
+            create=True,
+        ):
+            payload = raiderio_payload.sync_raiderio_cache(conn)
+
+        self.assertEqual(spec_ranking_calls, [("fire", 0), ("fire", 1), ("fire", 3)])
+        self.assertEqual(payload["specRankingCoverage"]["gapFill"]["startPage"], 1)
+        self.assertEqual(payload["specRankingCoverage"]["extraGapFill"][0]["startPage"], 3)
+        self.assertEqual(payload["runDetailCoverage"]["gapFill"]["requestedRunCount"], 1)
+        self.assertEqual(payload["runDetailCoverage"]["extraGapFill"][0]["requestedRunCount"], 1)
+        self.assertEqual(
+            payload["specRankingCoverage"]["heroSubTreeCoverage"]["mage:fire"]["heroSubTreeIds"],
+            ["39", "40"],
+        )
+
+    def test_build_community_templates_keeps_structured_run_detail_without_raw_import_code(self):
+        templates = raiderio_payload.build_community_templates(
+            [
+                {
+                    "classKey": "mage",
+                    "specKey": "fire",
+                    "fullName": "Fire Mage",
+                    "sampleCount": 1,
+                    "maxKeyLevel": 22,
+                    "talentLoadouts": [
+                        {
+                            "loadoutSpecId": 63,
+                            "heroSubTreeId": 39,
+                            "loadout": [{"traitId": 91001, "rank": 1}],
+                            "source": "run_detail",
+                            "characterName": "Specfire",
+                            "realmSlug": "isillien",
+                            "region": "cn",
+                            "profileUrl": "https://raider.io/characters/cn/isillien/Specfire",
+                            "maxKeyLevel": 22,
+                        }
+                    ],
+                }
+            ],
+            "2026-07-04T00:00:00+00:00",
+        )
+
+        self.assertEqual(len(templates), 1)
+        template = templates[0]
+        self.assertEqual(template["rawImportCode"], "")
+        self.assertEqual(template["payload"]["raiderio"]["source"], "run_detail")
+        self.assertEqual(template["payload"]["raiderio"]["loadout"][0]["traitId"], 91001)
+
+    def test_spec_ranking_import_code_becomes_structured_loadout_for_hero_discovery(self):
+        trait_path = Path(self.tmp.name) / "trait_data.inc"
+        write_minimal_dk_trait_data(trait_path)
+        os.environ["WOW_SIMC_TRAIT_DATA_FILE"] = str(trait_path)
+        websim_payload._TALENT_IMPORT_DECODER_CACHE = None
+        self.addCleanup(setattr, websim_payload, "_TALENT_IMPORT_DECODER_CACHE", None)
+        sanlayn_code = blizzard_import_code(
+            252,
+            [
+                (True, 1, 0),
+                (True, 1, 0),
+                (True, 1, 1),
+            ],
+        )
+        ranked_character = {
+            "rank": 611,
+            "score": 3612.5,
+            "character": {
+                "name": "Sanrio",
+                "realm": {"name": "Isillien", "slug": "isillien"},
+                "region": {"slug": "cn"},
+                "talentLoadoutText": sanlayn_code,
+            },
+        }
+        run = raiderio_payload.simplify_spec_ranking_run(
+            ranked_character,
+            {"keystoneRunId": 4242, "zoneName": "Nexus-Point Xenas", "mythicLevel": 18},
+            "deathknight",
+            "unholy",
+            "cn",
+            "https://raider.io/mythic-plus-spec-rankings/season-mn-1/cn/death-knight/unholy",
+        )
+
+        aggregate = raiderio_payload.aggregate_runs([run], {})[0]
+        loadout = aggregate["talentLoadouts"][0]
+        templates = raiderio_payload.build_community_templates([aggregate], "2026-07-04T00:00:00+00:00")
+
+        self.assertEqual(loadout["source"], "spec_ranking_import_code")
+        self.assertEqual(loadout["loadoutSpecId"], 252)
+        self.assertEqual(loadout["heroKey"], "sanlayn")
+        self.assertEqual([entry["entryId"] for entry in loadout["loadout"]], [5001, 5002, 123321])
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0]["heroKey"], "sanlayn")
+        self.assertEqual(templates[0]["payload"]["raiderio"]["loadout"][1]["traitId"], 5002)
+        self.assertEqual(templates[0]["payload"]["raiderio"]["source"], "spec_ranking_import_code")
+
+    def test_aggregate_runs_keeps_configured_loadout_budget_for_hero_discovery(self):
+        os.environ["WOW_RAIDERIO_TALENT_LOADOUT_LIMIT_PER_SPEC"] = "7"
+        runs = []
+        for index in range(1, 8):
+            runs.append(
+                {
+                    "mythicLevel": 20 + index,
+                    "score": 4000 + index,
+                    "roster": [
+                        {
+                            "name": f"Mage{index}",
+                            "realmSlug": "isillien",
+                            "region": "cn",
+                            "classKey": "mage",
+                            "className": "Mage",
+                            "specKey": "fire",
+                            "specName": "Fire",
+                            "talentLoadout": {
+                                "rawImportCode": f"CODE-{index}",
+                                "loadoutSpecId": 63,
+                                "loadout": [{"traitId": 91000 + index, "rank": 1}],
+                                "source": "run_detail",
+                            },
+                        }
+                    ],
+                }
+            )
+
+        aggregates = raiderio_payload.aggregate_runs(runs, {})
+
+        self.assertEqual(len(aggregates[0]["talentLoadouts"]), 7)
+        self.assertEqual(aggregates[0]["talentLoadouts"][-1]["characterName"], "Mage7")
+
+    def test_aggregate_runs_keeps_later_hero_subtree_loadout_within_budget(self):
+        os.environ["WOW_RAIDERIO_TALENT_LOADOUT_LIMIT_PER_SPEC"] = "3"
+        runs = []
+        for index, hero_subtree_id in enumerate([39, 39, 39, 40], start=1):
+            runs.append(
+                {
+                    "mythicLevel": 25 - index,
+                    "score": 5000 - index,
+                    "roster": [
+                        {
+                            "name": f"Mage{index}",
+                            "realmSlug": "isillien",
+                            "region": "cn",
+                            "classKey": "mage",
+                            "className": "Mage",
+                            "specKey": "fire",
+                            "specName": "Fire",
+                            "talentLoadout": {
+                                "loadoutSpecId": 63,
+                                "heroSubTreeId": hero_subtree_id,
+                                "loadout": [{"traitId": 91000 + index, "rank": 1}],
+                                "source": "run_detail",
+                            },
+                        }
+                    ],
+                }
+            )
+
+        aggregates = raiderio_payload.aggregate_runs(runs, {})
+
+        self.assertEqual(len(aggregates[0]["talentLoadouts"]), 3)
+        self.assertEqual(
+            [loadout.get("heroSubTreeId") for loadout in aggregates[0]["talentLoadouts"]],
+            [39, 39, 40],
+        )
+
+    def test_aggregate_runs_dedupes_run_detail_by_structured_loadout_before_raw_code(self):
+        os.environ["WOW_RAIDERIO_TALENT_LOADOUT_LIMIT_PER_SPEC"] = "4"
+        runs = []
+        for index, hero_subtree_id in enumerate([36, 38], start=1):
+            runs.append(
+                {
+                    "mythicLevel": 24 - index,
+                    "score": 4300 - index,
+                    "roster": [
+                        {
+                            "name": "Iwamihina",
+                            "realmSlug": "shadowmoon",
+                            "region": "tw",
+                            "classKey": "evoker",
+                            "className": "Evoker",
+                            "specKey": "augmentation",
+                            "specName": "Augmentation",
+                            "talentLoadout": {
+                                "rawImportCode": "CEcBAAAAAAAAAAAAAAAA",
+                                "loadoutSpecId": 1473,
+                                "heroSubTreeId": hero_subtree_id,
+                                "loadout": [
+                                    {
+                                        "traitId": 117500 + hero_subtree_id,
+                                        "rank": 1,
+                                        "node": {"subTreeId": hero_subtree_id},
+                                    }
+                                ],
+                                "source": "run_detail",
+                            },
+                        }
+                    ],
+                }
+            )
+
+        aggregates = raiderio_payload.aggregate_runs(runs, {})
+
+        self.assertEqual(
+            [loadout.get("heroSubTreeId") for loadout in aggregates[0]["talentLoadouts"]],
+            [36, 38],
+        )
+
+    def test_build_community_templates_uses_structured_run_detail_for_distinct_ids(self):
+        aggregate = {
+            "classKey": "evoker",
+            "specKey": "augmentation",
+            "fullName": "Augmentation Evoker",
+            "sampleCount": 2,
+            "maxKeyLevel": 24,
+            "talentLoadouts": [
+                {
+                    "characterName": "Iwamihina",
+                    "realmSlug": "shadowmoon",
+                    "region": "tw",
+                    "profileUrl": "https://raider.io/characters/tw/shadowmoon/Iwamihina",
+                    "rawImportCode": "CEcBAAAAAAAAAAAAAAAA",
+                    "loadoutSpecId": 1473,
+                    "heroSubTreeId": 36,
+                    "source": "run_detail",
+                    "loadout": [{"traitId": 117536, "rank": 1, "node": {"subTreeId": 36}}],
+                },
+                {
+                    "characterName": "Iwamihina",
+                    "realmSlug": "shadowmoon",
+                    "region": "tw",
+                    "profileUrl": "https://raider.io/characters/tw/shadowmoon/Iwamihina",
+                    "rawImportCode": "CEcBAAAAAAAAAAAAAAAA",
+                    "loadoutSpecId": 1473,
+                    "heroSubTreeId": 38,
+                    "source": "run_detail",
+                    "loadout": [{"traitId": 117538, "rank": 1, "node": {"subTreeId": 38}}],
+                },
+            ],
+        }
+
+        templates = raiderio_payload.build_community_templates([aggregate], "2026-07-04T00:00:00Z")
+
+        self.assertEqual(len(templates), 2)
+        self.assertEqual(len({template["id"] for template in templates}), 2)
+        self.assertEqual(
+            [template["payload"]["raiderio"]["heroSubTreeId"] for template in templates],
+            [36, 38],
+        )
+
+    def test_aggregate_runs_keeps_structured_run_detail_without_raw_import_code(self):
+        runs = [
+            {
+                "mythicLevel": 22,
+                "score": 3999.5,
+                "roster": [
+                    {
+                        "name": "Specfire",
+                        "realmSlug": "isillien",
+                        "region": "cn",
+                        "classKey": "mage",
+                        "className": "Mage",
+                        "specKey": "fire",
+                        "specName": "Fire",
+                        "talentLoadout": {
+                            "loadoutSpecId": 63,
+                            "heroSubTreeId": 39,
+                            "loadout": [{"traitId": 91001, "rank": 1}],
+                            "source": "run_detail",
+                        },
+                    }
+                ],
+            }
+        ]
+
+        aggregates = raiderio_payload.aggregate_runs(runs, {})
+
+        self.assertEqual(len(aggregates[0]["talentLoadouts"]), 1)
+        self.assertEqual(aggregates[0]["talentLoadouts"][0]["source"], "run_detail")
+        self.assertEqual(aggregates[0]["talentLoadouts"][0]["loadout"][0]["traitId"], 91001)
 
     def test_sync_raiderio_cache_marks_partial_when_global_deadline_expires_before_profiles(self):
         os.environ["WOW_RAIDERIO_RUN_PAGES"] = "1"

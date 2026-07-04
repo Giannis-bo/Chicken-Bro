@@ -245,7 +245,8 @@ SIMC_TALENT_SOURCE_REFS = [
     }
 ]
 COMMUNITY_TALENT_SYNC_KEY = "community_talent_templates"
-COMMUNITY_TALENT_TEMPLATE_LIMIT_PER_SPEC = 3
+COMMUNITY_TALENT_TEMPLATE_SLOTS_PER_SPEC = 2
+COMMUNITY_TALENT_PENDING_STATUS = "pending_collection"
 COMMUNITY_TEMPLATE_SYNC_RUN_KEY = "community_template_sync_latest"
 COMMUNITY_TEMPLATE_REVISION = "community-template-v1"
 DEFAULT_GEAR_TEMPLATE_SOURCE_KEY = "default_template"
@@ -641,6 +642,12 @@ HERO_BY_SPEC = {
     ("warrior", "arms"): ["colossus", "slayer"],
     ("warrior", "fury"): ["slayer", "mountain_thane"],
     ("warrior", "protection"): ["mountain_thane", "colossus"],
+}
+DEFAULT_TALENT_TREE_POINT_CAPS = {"class": 34, "spec": 34, "hero": 13}
+TALENT_TREE_POINT_CAP_OVERRIDES = {
+    ("warlock", "affliction"): {"class": 35},
+    ("warlock", "demonology"): {"class": 35},
+    ("warlock", "destruction"): {"class": 35},
 }
 
 
@@ -6507,6 +6514,231 @@ def iter_trait_data_records(text):
         }
 
 
+TALENT_IMPORT_BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+_TALENT_IMPORT_DECODER_CACHE = None
+
+
+def _int_value(value, default=0):
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return default
+
+
+def talent_import_trait_data_paths():
+    paths = []
+    current = current_simc_trait_data_file()
+    if current:
+        paths.append(current)
+    for path in [
+        DEFAULT_SIMC_ROOT / "src" / "engine" / "dbc" / "generated" / "trait_data.inc",
+        BASE_DIR / "data" / "trait_data.inc",
+    ]:
+        if path not in paths:
+            paths.append(path)
+    return paths
+
+
+def load_talent_import_decoder_data():
+    global _TALENT_IMPORT_DECODER_CACHE
+    for path in talent_import_trait_data_paths():
+        try:
+            stat = path.stat()
+            cache_key = f"{path}:{stat.st_mtime_ns}:{stat.st_size}"
+            if (
+                isinstance(_TALENT_IMPORT_DECODER_CACHE, dict)
+                and _TALENT_IMPORT_DECODER_CACHE.get("cacheKey") == cache_key
+            ):
+                return _TALENT_IMPORT_DECODER_CACHE
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        subtrees = parse_trait_sub_tree_data(text)
+        by_class = {}
+        for record in iter_trait_data_records(text):
+            class_key = GAME_CLASS_ID_TO_KEY.get(record.get("classId"), "")
+            if not class_key:
+                continue
+            by_class.setdefault(class_key, {}).setdefault(record.get("nodeId"), []).append(record)
+        _TALENT_IMPORT_DECODER_CACHE = {
+            "cacheKey": cache_key,
+            "path": str(path),
+            "subtrees": subtrees,
+            "byClass": {
+                class_key: [(node_id, groups[node_id]) for node_id in sorted(groups)]
+                for class_key, groups in by_class.items()
+            },
+        }
+        return _TALENT_IMPORT_DECODER_CACHE
+    _TALENT_IMPORT_DECODER_CACHE = {
+        "cacheKey": "",
+        "path": "",
+        "subtrees": {},
+        "byClass": {},
+    }
+    return _TALENT_IMPORT_DECODER_CACHE
+
+
+def _talent_import_node_max_rank(entries):
+    entries = [entry for entry in entries or [] if isinstance(entry, dict)]
+    if not entries:
+        return 1
+    node_type = _int_value(entries[0].get("nodeType"))
+    if len(entries) > 1 and node_type not in {2, 3}:
+        return max(1, sum(max(1, _int_value(entry.get("rank"), 1)) for entry in entries))
+    return max(1, _int_value(entries[0].get("rank"), 1))
+
+
+def _talent_import_node_entries_payload(entries):
+    payload = []
+    for entry in entries or []:
+        item = {
+            "id": entry.get("traitId"),
+            "traitId": entry.get("traitId"),
+            "traitSubTreeId": entry.get("heroId") or 0,
+            "selectionIndex": entry.get("selectionIndex") or 0,
+        }
+        if _int_value(entry.get("spellId")) > 0:
+            item["spell"] = {"id": entry.get("spellId")}
+        payload.append(item)
+    return payload
+
+
+def _talent_import_loadout_entry(record, entries, rank, entry_index, granted=False):
+    node_entries = _talent_import_node_entries_payload(entries)
+    return {
+        "entryId": record.get("traitId"),
+        "traitId": record.get("traitId"),
+        "nodeId": record.get("nodeId"),
+        "rank": max(1, _int_value(rank, 1)),
+        "entryIndex": max(0, _int_value(entry_index, 0)),
+        **({"granted": True} if granted else {}),
+        "node": {
+            "id": record.get("nodeId"),
+            "type": record.get("nodeType"),
+            "entries": node_entries,
+        },
+    }
+
+
+def decode_external_talent_import_code(raw_code, class_key="", spec_key=""):
+    code = str(raw_code or "").strip()
+    errors = []
+    if not code:
+        return {"status": "failed", "errors": ["missing raw talent import code"], "loadout": []}
+    values = []
+    for character in code:
+        if character not in TALENT_IMPORT_BASE64:
+            return {
+                "status": "failed",
+                "errors": [f"invalid talent import character: {character!r}"],
+                "loadout": [],
+            }
+        values.append(TALENT_IMPORT_BASE64.index(character))
+    total_bits = len(values) * 6
+    head = 0
+
+    def get_bits(count):
+        nonlocal head
+        value = 0
+        for index in range(count):
+            if head >= total_bits:
+                bit_value = 0
+            else:
+                byte = values[head // 6]
+                bit = head % 6
+                bit_value = (byte >> bit) & 1
+            value |= bit_value << index
+            head += 1
+        return value
+
+    version = get_bits(8)
+    spec_id = get_bits(16)
+    if version != 2:
+        errors.append(f"unsupported talent import version: {version}")
+    decoded_pair = SPEC_ID_TO_KEY.get(spec_id)
+    decoded_class = decoded_pair[0] if decoded_pair else ""
+    decoded_spec = decoded_pair[1] if decoded_pair else ""
+    expected_class = slugify(class_key, "")
+    expected_spec = slugify(spec_key, "")
+    if expected_class and decoded_class and expected_class != decoded_class:
+        errors.append(f"talent import class mismatch: expected {expected_class}, got {decoded_class}")
+    if expected_spec and decoded_spec and expected_spec != decoded_spec:
+        errors.append(f"talent import spec mismatch: expected {expected_spec}, got {decoded_spec}")
+    data = load_talent_import_decoder_data()
+    node_groups = (data.get("byClass") or {}).get(decoded_class or expected_class, [])
+    if not node_groups:
+        errors.append("SimulationCraft trait_data.inc is unavailable for talent import decoding")
+    get_bits(128)
+    loadout = []
+    hero_keys = set()
+    selector = {}
+    subtrees = data.get("subtrees") or {}
+    for _node_id, entries in node_groups:
+        if not get_bits(1):
+            continue
+        purchased = bool(get_bits(1))
+        rank = 1 if not purchased else _talent_import_node_max_rank(entries)
+        entry_index = 0
+        if purchased:
+            if get_bits(1):
+                rank = get_bits(6)
+            if get_bits(1):
+                entry_index = get_bits(2)
+        if entry_index >= len(entries):
+            errors.append(f"choice index {entry_index} out of bounds for node {_node_id}")
+            continue
+        selected_record = entries[entry_index]
+        selected_records = [selected_record]
+        node_type = _int_value((entries[0] or {}).get("nodeType"))
+        if purchased and len(entries) > 1 and node_type not in {2, 3}:
+            remaining = max(1, _int_value(rank, 1))
+            selected_records = []
+            for tier_record in entries:
+                allocated = min(remaining, max(1, _int_value(tier_record.get("rank"), 1)))
+                selected_records.append((tier_record, allocated))
+                remaining -= allocated
+                if remaining <= 0:
+                    break
+        else:
+            selected_records = [(selected_record, rank)]
+        for record, allocated_rank in selected_records:
+            hero_id = _int_value(record.get("heroId"))
+            hero_key = (subtrees.get(hero_id) or {}).get("key", "")
+            if hero_key:
+                hero_keys.add(hero_key)
+            if _int_value(record.get("nodeType")) == 3 and hero_key:
+                selector = {
+                    "nodeId": record.get("nodeId"),
+                    "entryId": record.get("traitId"),
+                    "heroSubTreeId": hero_id,
+                    "heroKey": hero_key,
+                }
+            loadout.append(
+                _talent_import_loadout_entry(
+                    record,
+                    entries,
+                    allocated_rank,
+                    entry_index,
+                    granted=not purchased,
+                )
+            )
+    hero_key = selector.get("heroKey") or (next(iter(sorted(hero_keys))) if len(hero_keys) == 1 else "")
+    return {
+        "status": "decoded" if not errors and loadout else "failed",
+        "version": version,
+        "specId": spec_id,
+        "classKey": decoded_class,
+        "specKey": decoded_spec,
+        "heroKey": hero_key,
+        "heroSubTreeId": selector.get("heroSubTreeId") or "",
+        "selector": selector,
+        "loadout": loadout,
+        "sourcePath": data.get("path") or "",
+        "errors": errors,
+    }
+
+
 def specs_for_class(class_key):
     klass = next((item for item in WOW_CLASSES if item["key"] == class_key), None)
     return list(klass.get("specs", [])) if klass else []
@@ -11014,17 +11246,26 @@ def hero_tree_for(class_key, spec_key, hero_key=""):
     return heroes[0]
 
 
+def talent_tree_point_caps(class_key="mage", spec_key="arcane"):
+    class_key = slugify(class_key, "mage")
+    spec_key = slugify(spec_key, "arcane")
+    caps = dict(DEFAULT_TALENT_TREE_POINT_CAPS)
+    caps.update(TALENT_TREE_POINT_CAP_OVERRIDES.get((class_key, spec_key), {}))
+    return caps
+
+
 def talent_tree_sections(class_key="mage", spec_key="arcane", hero_key=""):
     klass = next((item for item in classes_payload() if item["key"] == class_key), {})
     spec = next((item for item in klass.get("specs", []) if item["key"] == spec_key), {})
     hero_key = hero_tree_for(class_key, spec_key, hero_key)
     hero_label = hero_tree_label(hero_key)
+    point_caps = talent_tree_point_caps(class_key, spec_key)
     return [
         {
             "key": "class",
             "title": klass.get("label") or class_key.title(),
             "titleEn": klass.get("labelEn") or class_key.title(),
-            "pointCap": 34,
+            "pointCap": point_caps["class"],
             "reqLevel": 10,
             "accent": CLASS_COLORS.get(class_key, "#f1b94c"),
         },
@@ -11032,7 +11273,7 @@ def talent_tree_sections(class_key="mage", spec_key="arcane", hero_key=""):
             "key": "spec",
             "title": spec.get("label") or SPEC_LABELS_ZH.get(spec_key, SPEC_LABELS.get(spec_key, spec_key.title())),
             "titleEn": spec.get("labelEn") or SPEC_LABELS.get(spec_key, spec_key.title()),
-            "pointCap": 34,
+            "pointCap": point_caps["spec"],
             "reqLevel": 11,
             "accent": CLASS_COLORS.get(class_key, "#f1b94c"),
         },
@@ -11040,7 +11281,7 @@ def talent_tree_sections(class_key="mage", spec_key="arcane", hero_key=""):
             "key": "hero",
             "title": hero_label,
             "titleEn": hero_label,
-            "pointCap": 13,
+            "pointCap": point_caps["hero"],
             "reqLevel": 71,
             "accent": "#58d3ff",
         },
@@ -11665,6 +11906,9 @@ def get_websim_talents(conn, class_key="mage", spec_key="arcane", hero_key=""):
         tree_sections,
         talent_authority,
     )
+    community_templates = get_websim_community_talent_templates(conn, class_key, spec_key, hero_key)
+    community_state = community_talent_sync_state(conn)
+    community_state = {**community_state, "activeSpecSlots": community_talent_template_slot_summary(community_templates)}
     return {
         "classKey": class_key,
         "specKey": spec_key,
@@ -11675,8 +11919,8 @@ def get_websim_talents(conn, class_key="mage", spec_key="arcane", hero_key=""):
         "blockers": talent_readiness.get("blockers") or [],
         "nodes": nodes,
         "presets": get_websim_presets(conn, class_key, spec_key),
-        "communityTemplates": get_websim_community_talent_templates(conn, class_key, spec_key, hero_key),
-        "communityTemplateSync": community_talent_sync_state(conn),
+        "communityTemplates": community_templates,
+        "communityTemplateSync": community_state,
         "treeSections": tree_sections,
         "talentStatus": talent_status,
         **season_metadata_fields(season),
@@ -12052,6 +12296,98 @@ def dedupe_community_talent_templates_for_display(templates):
     return sorted(deduped, key=community_talent_template_sort_key, reverse=True)
 
 
+def pending_community_talent_template_slot(class_key, spec_key, hero_key):
+    hero_label = hero_tree_label(hero_key)
+    class_name = class_label(class_key)
+    spec_name = spec_label(spec_key)
+    scenario_key = "mythic_plus"
+    blocker = f"missing verified community talent template for {class_key}/{spec_key}/{hero_key}"
+    return {
+        "id": f"pending_community_talent_{class_key}_{spec_key}_{hero_key}",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "heroKey": hero_key,
+        "scenarioKey": scenario_key,
+        "name": f"{class_name}-{spec_name}-{hero_label}-待采集",
+        "flowLabel": "待采集",
+        "sourceKey": COMMUNITY_TALENT_PENDING_STATUS,
+        "sourceName": "社区样本待采集",
+        "sourceUrl": "",
+        "rawImportCode": "",
+        "websimExportCode": "",
+        "talentState": {"selectedNodes": []},
+        "sampleCount": 0,
+        "maxKeyLevel": 0,
+        "analysisWindow": "",
+        "sourceStatus": COMMUNITY_TALENT_PENDING_STATUS,
+        "status": COMMUNITY_TALENT_PENDING_STATUS,
+        "payload": {
+            "coverageStatus": COMMUNITY_TALENT_PENDING_STATUS,
+            "blockers": [blocker],
+        },
+        "signature": f"pending:{class_key}:{spec_key}:{hero_key}",
+        "sourceRefs": [],
+        "scanRunId": "",
+        "playerId": "",
+        "classLabel": class_name,
+        "specLabel": spec_name,
+        "heroLabel": hero_label,
+        "scenarioTitle": scenario_title(scenario_key),
+        "updatedAt": "",
+        "expiresAt": "",
+        "canApplyVisual": False,
+        "canUseInSimc": False,
+        "coverageStatus": COMMUNITY_TALENT_PENDING_STATUS,
+        "slotStatus": COMMUNITY_TALENT_PENDING_STATUS,
+        "isPendingCollection": True,
+        "dedupedCount": 0,
+    }
+
+
+def community_talent_templates_for_spec_slots(class_key, spec_key, templates, preferred_hero_key=""):
+    class_key = slugify(class_key, "mage")
+    spec_key = slugify(spec_key, "arcane")
+    expected_heroes = hero_trees_for_spec(class_key, spec_key)[:COMMUNITY_TALENT_TEMPLATE_SLOTS_PER_SPEC]
+    preferred_hero_key = slugify(preferred_hero_key, "")
+    if preferred_hero_key in expected_heroes:
+        expected_heroes = [preferred_hero_key] + [hero for hero in expected_heroes if hero != preferred_hero_key]
+    deduped = dedupe_community_talent_templates_for_display(templates)
+    by_hero = {}
+    for template in deduped:
+        if not isinstance(template, dict):
+            continue
+        hero_key = slugify(template.get("heroKey"), "")
+        if hero_key not in expected_heroes:
+            continue
+        by_hero.setdefault(hero_key, []).append(template)
+    slots = []
+    for hero_key in expected_heroes:
+        candidates = by_hero.get(hero_key) or []
+        if candidates:
+            winner = sorted(candidates, key=community_talent_template_sort_key, reverse=True)[0]
+            winner = {**winner}
+            winner["heroKey"] = hero_key
+            winner.setdefault("heroLabel", hero_tree_label(hero_key))
+            winner["coverageStatus"] = "covered"
+            winner["slotStatus"] = winner.get("status") or "verified"
+            slots.append(winner)
+        else:
+            slots.append(pending_community_talent_template_slot(class_key, spec_key, hero_key))
+    return slots
+
+
+def community_talent_template_slot_summary(templates):
+    items = list(templates or [])
+    verified = len([item for item in items if item.get("status") == "verified"])
+    pending = len([item for item in items if item.get("status") == COMMUNITY_TALENT_PENDING_STATUS])
+    return {
+        "total": len(items),
+        "verified": verified,
+        "pendingCollection": pending,
+        "blocked": len(items) - verified - pending,
+    }
+
+
 def community_talent_default_state_from_db(conn, class_key, spec_key, hero_key):
     rows = conn.execute(
         """
@@ -12314,7 +12650,7 @@ def community_talent_structured_loadout(template):
     if isinstance(talent_loadout.get("loadout"), list):
         return talent_loadout.get("loadout")
     payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
-    for key in ("raiderio", "talentLoadout"):
+    for key in ("raiderio", "warcraftlogs", "talentLoadout"):
         source = payload.get(key) if isinstance(payload.get(key), dict) else {}
         if isinstance(source.get("loadout"), list):
             return source.get("loadout")
@@ -12348,6 +12684,8 @@ def append_loadout_node_candidate_ids(ids, node_entry):
         return
     for key in (
         "id",
+        "talentID",
+        "talent_id",
         "traitId",
         "trait_id",
         "traitDefinitionId",
@@ -12369,6 +12707,8 @@ def community_talent_loadout_candidate_ids(entry):
         return []
     ids = []
     for key in (
+        "talentID",
+        "talent_id",
         "traitId",
         "trait_id",
         "trait",
@@ -12427,6 +12767,139 @@ def is_hero_tree_selector_loadout_entry(entry):
         if positive_int(node_entry.get("traitSubTreeId")) > 0:
             return True
     return False
+
+
+def is_granted_structured_loadout_entry(entry):
+    if not isinstance(entry, dict):
+        return False
+    for key in ("grantedNode", "granted_node", "isGranted", "is_granted", "granted"):
+        value = entry.get(key)
+        if value is True:
+            return True
+        if str(value or "").strip().lower() in {"1", "true", "yes", "on"}:
+            return True
+    return False
+
+
+WCL_HERO_SELECTOR_TRAIT_ID_FALLBACKS = {
+    "deathknight:unholy:sanlayn": {123321},
+    "mage:arcane:sunfury": {123341},
+    "monk:mistweaver:master_of_harmony": {125044},
+}
+_WCL_HERO_SELECTOR_TRAIT_ID_CACHE = None
+
+
+def wcl_hero_selector_trait_data_paths():
+    configured = os.environ.get("WOW_WCL_HERO_SELECTOR_TRAIT_DATA_PATH", "").strip()
+    if configured:
+        return [Path(configured)]
+    return [
+        DEFAULT_SIMC_ROOT / "src" / "engine" / "dbc" / "generated" / "trait_data.inc",
+        BASE_DIR / "data" / "trait_data.inc",
+    ]
+
+
+def load_wcl_hero_selector_trait_ids():
+    global _WCL_HERO_SELECTOR_TRAIT_ID_CACHE
+    if _WCL_HERO_SELECTOR_TRAIT_ID_CACHE is not None:
+        return _WCL_HERO_SELECTOR_TRAIT_ID_CACHE
+    selector_ids = {key: set(values) for key, values in WCL_HERO_SELECTOR_TRAIT_ID_FALLBACKS.items()}
+    for path in wcl_hero_selector_trait_data_paths():
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        subtrees = parse_trait_sub_tree_data(text)
+        for record in iter_trait_data_records(text):
+            if record.get("treeIndex") != 4 or record.get("nodeType") != 3:
+                continue
+            if positive_int(record.get("spellId")) or str(record.get("name") or "").strip() != "0":
+                continue
+            class_key = GAME_CLASS_ID_TO_KEY.get(record.get("classId"), "")
+            hero_key = (subtrees.get(record.get("heroId")) or {}).get("key", "")
+            if not class_key or not hero_key:
+                continue
+            for spec_id in record.get("specIds") or []:
+                spec_info = SPEC_ID_TO_KEY.get(spec_id)
+                if not spec_info or spec_info[0] != class_key:
+                    continue
+                selector_ids.setdefault(f"{class_key}:{spec_info[1]}:{hero_key}", set()).add(
+                    positive_int(record.get("traitId"))
+                )
+        break
+    _WCL_HERO_SELECTOR_TRAIT_ID_CACHE = selector_ids
+    return selector_ids
+
+
+def wcl_hero_selector_trait_ids(class_key, spec_key, hero_key):
+    class_key = slugify(class_key, "")
+    spec_key = slugify(spec_key, "")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(hero_key, ""))
+    return {
+        value
+        for value in load_wcl_hero_selector_trait_ids().get(f"{class_key}:{spec_key}:{hero_key}", set())
+        if positive_int(value)
+    }
+
+
+def is_wcl_hero_selector_loadout_entry(template, entry):
+    if not isinstance(template, dict) or not isinstance(entry, dict):
+        return False
+    source_key = slugify(template.get("sourceKey"), "")
+    if source_key != "warcraftlogs":
+        return False
+    talent_id = positive_int(entry.get("talentID") or entry.get("talent_id") or entry.get("id"))
+    if not talent_id:
+        return False
+    class_key = slugify(template.get("classKey"), "")
+    spec_key = slugify(template.get("specKey"), "")
+    hero_key = hero_tree_for(class_key, spec_key, slugify(template.get("heroKey"), ""))
+    return talent_id in wcl_hero_selector_trait_ids(class_key, spec_key, hero_key)
+
+
+def skipped_structured_entry(entry, reason):
+    return {
+        "reason": reason,
+        **(
+            {"talentID": positive_int(entry.get("talentID") or entry.get("talent_id") or entry.get("id"))}
+            if isinstance(entry, dict)
+            and positive_int(entry.get("talentID") or entry.get("talent_id") or entry.get("id"))
+            else {}
+        ),
+    }
+
+
+def structured_loadout_entry_summary(entry):
+    source = entry if isinstance(entry, dict) else {}
+    node = source.get("node") if isinstance(source.get("node"), dict) else {}
+    entries = node.get("entries") if isinstance(node.get("entries"), list) else []
+    entry_index = positive_int(source.get("entryIndex") or source.get("entry_index"))
+    node_entry = entries[entry_index] if 0 <= entry_index < len(entries) else (entries[0] if entries else {})
+    spell = node_entry.get("spell") if isinstance(node_entry.get("spell"), dict) else {}
+    parts = [
+        f"talentID={positive_int(source.get('talentID') or source.get('talent_id')) or ''}",
+        f"traitId={positive_int(source.get('traitId') or source.get('trait_id')) or ''}",
+        f"entryId={positive_int(source.get('entryId') or source.get('entry_id')) or ''}",
+        f"nodeId={positive_int(source.get('nodeId') or source.get('node_id')) or ''}",
+        f"spellId={positive_int(source.get('spellId') or source.get('spell_id')) or ''}",
+        f"nodeId={positive_int(node.get('id')) or ''}",
+        f"entryId={positive_int(node_entry.get('id')) or ''}",
+        f"traitDefinitionId={positive_int(node_entry.get('traitDefinitionId')) or ''}",
+        f"spellId={positive_int(spell.get('id')) or ''}",
+    ]
+    spell_name = str(spell.get("name") or "").strip()
+    if spell_name:
+        parts.append(f"spellName={spell_name}")
+    rank = community_talent_loadout_rank(source)
+    if rank:
+        parts.append(f"rank={rank}")
+    sub_tree_id = positive_int(node.get("subTreeId"))
+    trait_sub_tree_id = positive_int(node_entry.get("traitSubTreeId"))
+    if sub_tree_id:
+        parts.append(f"subTreeId={sub_tree_id}")
+    if trait_sub_tree_id:
+        parts.append(f"traitSubTreeId={trait_sub_tree_id}")
+    return "unknown structured talent entry: " + ", ".join(part for part in parts if part and not part.endswith("="))
 
 
 def community_talent_authority_index(conn, class_key, spec_key):
@@ -12560,6 +13033,7 @@ def resolve_community_talent_structured_loadout(conn, template):
         selected_ids = set()
         hero_keys = set()
         errors = []
+        skipped = []
         for entry in entries:
             candidates = []
             candidate_node_ids = set()
@@ -12580,8 +13054,15 @@ def resolve_community_talent_structured_loadout(conn, template):
                 break
             if not chosen:
                 if is_hero_tree_selector_loadout_entry(entry):
+                    skipped.append(skipped_structured_entry(entry, "hero_tree_selector"))
                     continue
-                errors.append(f"unknown structured talent entry: {entry}")
+                if is_granted_structured_loadout_entry(entry):
+                    skipped.append(skipped_structured_entry(entry, "granted"))
+                    continue
+                if is_wcl_hero_selector_loadout_entry(template, entry):
+                    skipped.append(skipped_structured_entry(entry, "wcl_hero_selector"))
+                    continue
+                errors.append(structured_loadout_entry_summary(entry))
                 continue
             node_id = chosen.get("id")
             if not node_id or node_id in selected_ids:
@@ -12595,6 +13076,7 @@ def resolve_community_talent_structured_loadout(conn, template):
             "selected": selected,
             "heroKeys": hero_keys,
             "errors": errors,
+            "skipped": skipped,
         }
 
     matched = match_loadout(requested_hero)
@@ -12605,6 +13087,7 @@ def resolve_community_talent_structured_loadout(conn, template):
     selected = matched["selected"]
     hero_keys = matched["heroKeys"]
     errors = matched["errors"]
+    skipped = matched.get("skipped") or []
     if not selected:
         return {"selectedNodes": [], "errors": errors or ["structured talent loadout did not match WebSim nodes"]}
     if not hero_keys:
@@ -12616,6 +13099,7 @@ def resolve_community_talent_structured_loadout(conn, template):
         "selectedNodes": selected,
         "heroKey": resolved_hero,
         "errors": errors,
+        "skippedEntries": skipped,
     }
 
 
@@ -12745,8 +13229,31 @@ def validate_community_talent_template(conn, template):
     if existing_blockers:
         return block_community_talent_template(normalized, existing_blockers)
     if not community_talent_selected_nodes(normalized):
+        structured_entries = community_talent_structured_loadout(normalized)
         parsed_loadout = resolve_community_talent_structured_loadout(conn, normalized)
-        if parsed_loadout.get("selectedNodes") and parsed_loadout.get("heroKey") and not parsed_loadout.get("errors"):
+        parse_errors = unique_text_list(parsed_loadout.get("errors") or [])
+        skipped_entries = [
+            item
+            for item in (parsed_loadout.get("skippedEntries") or [])
+            if isinstance(item, dict) and item.get("reason")
+        ]
+        skipped_talent_ids = []
+        for item in skipped_entries:
+            append_positive_id(skipped_talent_ids, item.get("talentID"))
+        parse_metadata = {
+            **({"skippedEntries": skipped_entries} if skipped_entries else {}),
+            **({"skippedTalentIds": skipped_talent_ids} if skipped_talent_ids else {}),
+        }
+        if structured_entries:
+            normalized.setdefault("payload", {})["talentLoadoutParse"] = {
+                "status": "blocked" if parse_errors or not parsed_loadout.get("selectedNodes") else "parsed",
+                "source": "structured_loadout",
+                "nodeCount": len(parsed_loadout.get("selectedNodes") or []),
+                "heroKey": parsed_loadout.get("heroKey") or "",
+                **parse_metadata,
+                **({"errors": parse_errors} if parse_errors else {}),
+            }
+        if parsed_loadout.get("selectedNodes") and parsed_loadout.get("heroKey") and not parse_errors:
             normalized["heroKey"] = parsed_loadout["heroKey"]
             normalized["talentState"] = {"selectedNodes": parsed_loadout["selectedNodes"]}
             normalized["websimExportCode"] = community_talent_export_code({**normalized, "websimExportCode": ""})
@@ -12755,13 +13262,16 @@ def validate_community_talent_template(conn, template):
                 "source": "structured_loadout",
                 "nodeCount": len(parsed_loadout["selectedNodes"]),
                 "heroKey": parsed_loadout["heroKey"],
+                **parse_metadata,
             }
             refresh_community_talent_identity(normalized)
+        elif structured_entries and parse_errors:
+            return block_community_talent_template(normalized, parse_errors)
         elif normalized.get("rawImportCode"):
             normalized.setdefault("payload", {})["talentLoadoutParse"] = {
                 "status": "blocked",
                 "source": "raw_import_code",
-                "errors": parsed_loadout.get("errors") or ["raw talent import code could not be parsed into WebSim nodes"],
+                "errors": parse_errors or ["raw talent import code could not be parsed into WebSim nodes"],
             }
     if community_talent_selected_nodes(normalized):
         encoding = encode_websim_talents(conn, {
@@ -12940,8 +13450,7 @@ def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arca
             "canApplyVisual": can_apply_visual,
             "canUseInSimc": bool(can_apply_visual or raw_import_code),
         })
-    deduped = dedupe_community_talent_templates_for_display(templates)
-    return deduped[:COMMUNITY_TALENT_TEMPLATE_LIMIT_PER_SPEC]
+    return community_talent_templates_for_spec_slots(class_key, spec_key, templates, hero_key)
 
 
 def websim_talent_import_response(class_key, spec_key, hero_key="", template=None, blockers=None):
@@ -12960,7 +13469,7 @@ def websim_talent_import_response(class_key, spec_key, hero_key="", template=Non
                 "source": "community_template",
                 "sourceKey": template.get("sourceKey") or "",
                 "sourceName": template.get("sourceName") or "",
-                "templateId": template.get("id") or "",
+                "templateId": str(template.get("id") or ""),
                 "status": "verified",
                 "blockers": [],
             }
@@ -12998,14 +13507,14 @@ def get_websim_talent_import(conn, class_key="mage", spec_key="arcane", hero_key
         FROM websim_community_talent_templates
         WHERE class_key = ?
           AND spec_key = ?
+          AND hero_key = ?
           AND status = 'verified'
           AND raw_import_code <> ''
           AND expires_at > ?
-        ORDER BY CASE WHEN hero_key = ? THEN 0 ELSE 1 END,
-                 max_key_level DESC, sample_count DESC, hero_key, name
+        ORDER BY max_key_level DESC, sample_count DESC, name
         LIMIT 1
         """,
-        (class_key, spec_key, utc_now(), hero_key),
+        (class_key, spec_key, hero_key, utc_now()),
     ).fetchone()
     template = None
     if row:
@@ -21825,6 +22334,14 @@ def validate_websim_talent_selection(nodes_by_id, selected_rows, tree_sections):
     errors = []
     warnings = []
     selected_by_id = {}
+    for node_id, node in (nodes_by_id or {}).items():
+        try:
+            max_rank = max(1, int(node.get("maxRank") or node.get("rank") or 1))
+            granted_rank = max(0, min(max_rank, int(node.get("grantedRank") or 0)))
+        except (AttributeError, TypeError, ValueError):
+            granted_rank = 0
+        if granted_rank > 0:
+            selected_by_id[node_id] = max(selected_by_id.get(node_id, 0), granted_rank)
     for row in selected_rows:
         node_id = row["id"]
         if node_id not in nodes_by_id:
