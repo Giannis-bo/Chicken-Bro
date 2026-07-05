@@ -6500,6 +6500,102 @@ test('gear community template overlays template slots onto baseline only', () =>
   assert.equal(page.data.gearSlotSheet.visible, false)
 })
 
+test('gear community template import keeps matched enhancement options configurable', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const baseline = completeGearSelection(['finger1'])
+  const candidateRing = {
+    slot: 'finger1',
+    simcSlot: 'finger1',
+    itemId: '277777',
+    id: '277777',
+    displayName: 'Community Ring',
+    ilevel: 707,
+    bonus_id: '12345',
+    simcReady: true,
+    sourceType: 'observed_profile',
+    modCapabilities: { hasSocket: true, canEnchant: true, canEmbellish: true, socketCount: 1 },
+    socketOptions: [{
+      id: 'gem-community-ring',
+      displayLabel: '+32主属性',
+      displayStatus: 'verified',
+      status: 'verified',
+      simcOptions: { gem_id: '240983' },
+      payload: { qualityRank: 2 }
+    }],
+    enchantOptions: [{
+      id: 'enchant-community-ring',
+      displayLabel: '苍穹全能',
+      displayStatus: 'verified',
+      status: 'verified',
+      simcOptions: { enchant_id: '7967' },
+      payload: { qualityRank: 2 }
+    }],
+    embellishmentOptions: [{
+      id: 'embellishment-community-ring',
+      displayLabel: '奥纹内衬',
+      displayStatus: 'verified',
+      status: 'verified',
+      simcOptions: { embellishment: 'dawnthread_lining' },
+      payload: { qualityRank: 2, slotGroup: 'jewelry' }
+    }]
+  }
+  const templateRing = {
+    slot: 'finger1',
+    simcSlot: 'finger1',
+    itemId: candidateRing.itemId,
+    id: candidateRing.id,
+    displayName: candidateRing.displayName,
+    ilevel: candidateRing.ilevel,
+    bonus_id: candidateRing.bonus_id,
+    simcReady: true,
+    modCapabilities: candidateRing.modCapabilities
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearPayload: {
+        slots: [{ slot: 'finger1', simcSlot: 'finger1', label: '戒指 1' }],
+        equippedSet: baseline,
+        replacementCandidates: [{
+          slot: 'finger1',
+          simcSlot: 'finger1',
+          label: '戒指 1',
+          items: [candidateRing]
+        }],
+        slotReadiness: {},
+        readiness: {}
+      },
+      selectedGearBySlot: baseline,
+      enhancementBySlot: {},
+      activeGearCommunityTemplates: [{
+        id: 'community-ring',
+        name: 'Community Ring Template',
+        canApplyGear: true,
+        gearItems: [templateRing]
+      }],
+      gearCommunityTemplateSheet: { visible: true },
+      gearSlotSheet: { visible: true },
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+  page.gearPayloadCache = page.data.gearPayload
+
+  pageConfig.applyGearCommunityTemplate.call(page, { currentTarget: { dataset: { id: 'community-ring' } } })
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'gem').value, '0/1')
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.equipmentRows.map((row) => row.slot)), JSON.stringify(['finger1']))
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options[0].label, '+32主属性')
+  assert.equal(page.data.gearEnhancementSheet.activeEnchantRows[0].options[0].label, '苍穹全能')
+  assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options[0].label, '奥纹内衬')
+})
+
 test('gear import sheet applies a saved personal gear template with enhancements', () => {
   const baseline = completeGearSelection(['back', 'neck'])
   const savedBack = {

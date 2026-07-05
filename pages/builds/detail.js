@@ -830,7 +830,7 @@ function emptyGearAttributePanel() {
 
 function buildGearAttributePanel(gearPayload, selectedGearBySlot, selectedSpec, enhancementBySlot, gearStatSnapshot) {
   const requiredSlotsForPanel = requiredGearTemplateSlots(gearPayload || {})
-  const indexedSelection = selectedGearByCanonicalSlot(selectedGearBySlot || {})
+  const indexedSelection = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
   const selectedItems = requiredSlotsForPanel.map((slot) => indexedSelection[slot]).filter(Boolean)
   if (!selectedItems.length) return emptyGearAttributePanel()
   const specKeys = specWebsimKeys({
@@ -1962,7 +1962,7 @@ function selectedEnhancementUniqueGroups(gearPayload, indexed, enhancement, type
 }
 
 function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible, requestedActiveSlot) {
-  const indexed = selectedGearByCanonicalSlot(selectedGearBySlot || {})
+  const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
   const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
   const builtInCount = Object.keys(indexed).filter((slot) => builtInEmbellishmentValue(indexed[slot])).length
   const selectedEmbellishmentCount = Object.keys(enhancement).filter((slot) => cleanGearString(enhancement[slot].embellishment)).length
@@ -2495,6 +2495,15 @@ function enrichedGearItemFromCandidates(payload, slot, item) {
   return applySimcReadyCandidateEvidence(enriched, candidate, item)
 }
 
+function enrichedSelectedGearByCanonicalSlot(payload, selectedGearBySlot) {
+  const indexed = selectedGearByCanonicalSlot(selectedGearBySlot || {})
+  const enriched = {}
+  Object.keys(indexed).forEach((slot) => {
+    enriched[slot] = enrichedGearItemFromCandidates(payload, slot, indexed[slot])
+  })
+  return enriched
+}
+
 function equippedSetToSelection(equippedSet, payload) {
   const selection = {}
   Object.keys(equippedSet || {}).forEach((slot) => {
@@ -2507,16 +2516,17 @@ function emptyGearCommunityTemplateSheet() {
   return { visible: false }
 }
 
-function gearItemsToSelection(items) {
+function gearItemsToSelection(items, payload) {
   const selection = {}
   ;(items || []).forEach((item) => {
     const slot = item && (item.simcSlot || item.slot)
     if (!slot || !requiredGearSlots.includes(slot)) return
-    selection[slot] = {
+    const normalized = {
       ...item,
       slot: item.slot || slot,
       simcSlot: item.simcSlot || slot
     }
+    selection[slot] = enrichedGearItemFromCandidates(payload, slot, normalized)
   })
   return selection
 }
@@ -4330,7 +4340,7 @@ Page({
     }
     const gearPayload = fullGearPayloadForPage(this) || {}
     const baselineSelection = equippedSetToSelection(gearPayload.equippedSet || {}, gearPayload)
-    const templateSelection = gearItemsToSelection(template.gearItems || [])
+    const templateSelection = gearItemsToSelection(template.gearItems || [], gearPayload)
     const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, {
       ...baselineSelection,
       ...templateSelection
