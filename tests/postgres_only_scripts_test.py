@@ -101,6 +101,196 @@ class PostgresOnlyScriptGuardTest(unittest.TestCase):
         self.assertEqual(payload["runner"], "postgres")
         runner.assert_called_once_with(mode="scheduled")
 
+    def test_community_template_sync_uses_daily_incremental_runner_in_postgres_only_mode(self):
+        stdout = io.StringIO()
+
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                "WOW_DATABASE_RUNTIME": "postgres_only",
+                "WOW_COMMUNITY_TEMPLATE_SYNC_MODE": "daily_incremental",
+            },
+            clear=False,
+        ), patch.object(
+            community_template_sync.sqlite3,
+            "connect",
+            side_effect=AssertionError("sqlite3.connect must not be reached in PG-only mode"),
+        ), patch.object(
+            community_template_sync,
+            "sync_community_template_cache_postgres",
+            side_effect=AssertionError("daily_incremental must use the daily orchestrator"),
+        ), patch.object(
+            community_template_sync,
+            "sync_community_template_daily_incremental_postgres",
+            return_value={
+                "schemaRevision": "community-template-daily-incremental-v1",
+                "status": "completed",
+                "sourceStatus": "verified",
+                "runner": "postgres-daily-incremental",
+            },
+            create=True,
+        ) as runner, redirect_stdout(stdout):
+            exit_code = community_template_sync.main()
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["runner"], "postgres-daily-incremental")
+        runner.assert_called_once_with(mode="daily_incremental")
+
+    def test_daily_incremental_skips_gear_collection_when_preflight_has_no_targets(self):
+        calls = []
+        saved_states = []
+        complete_preflight = {
+            "status": "verified",
+            "targetQueue": [],
+            "communityBest": {"completeSpecCount": 40, "partialSpecCount": 0, "pendingSpecCount": 0, "blockedSpecCount": 0},
+            "baseline": {"availableSpecCount": 40, "blockedSpecCount": 0},
+            "canonicalSlotMatrix": {"totalSlotCount": 640, "readySlotCount": 640, "missingSlotCount": 0},
+            "realCommunityTemplates": {"coveredSpecCount": 40, "missingSpecCount": 0},
+        }
+
+        class FakeStore:
+            def save_sync_state(self, key, value, updated_at=""):
+                saved_states.append((key, value, updated_at))
+
+            def community_gear_template_counts(self):
+                return {"total": 77, "verified": 75, "partial": 2, "blocked": 0}
+
+        def fake_sync(**kwargs):
+            calls.append(kwargs)
+            return {
+                "scanRunId": "talent-missing-slots-run",
+                "runner": "postgres",
+                "mode": kwargs.get("mode"),
+                "status": "completed",
+                "sourceStatus": "verified",
+                "scanCoverage": {"totalHeroSlotCount": 80, "verifiedHeroSlotCount": 80},
+                "talents": {"templates": {"total": 80, "verified": 80, "blocked": 0}},
+                "stageTimings": {"stages": [{"stage": "source_collection", "targetSlotCount": 0}]},
+            }
+
+        with patch.dict(
+            os.environ,
+            {"WOW_COMMUNITY_DAILY_GEAR_SKIP_WHEN_NO_TARGETS": "1"},
+            clear=False,
+        ), patch.object(
+            community_template_sync,
+            "cache_store_from_env",
+            return_value=FakeStore(),
+            create=True,
+        ), patch.object(
+            community_template_sync,
+            "_community_gear_template_coverage_rows",
+            return_value=[],
+            create=True,
+        ), patch.object(
+            community_template_sync,
+            "build_community_gear_template_preflight",
+            return_value=complete_preflight,
+            create=True,
+        ), patch.object(
+            community_template_sync,
+            "_gear_first_sync_target_specs",
+            return_value=[],
+            create=True,
+        ), patch.object(
+            community_template_sync,
+            "sync_community_template_cache_postgres",
+            side_effect=fake_sync,
+        ):
+            payload = community_template_sync.sync_community_template_daily_incremental_postgres()
+
+        self.assertEqual([call["mode"] for call in calls], ["missing_slots"])
+        self.assertTrue(payload["gear"]["skipped"])
+        self.assertEqual(payload["gear"]["skipReason"], "no_gear_template_targets")
+        self.assertEqual(payload["changeReport"]["summary"]["unchanged"], 160)
+        self.assertIn("blocked", payload["changeReport"]["summary"])
+        self.assertEqual(saved_states[0][0], websim_payload.COMMUNITY_TEMPLATE_SYNC_RUN_KEY)
+
+    def test_daily_incremental_runs_targeted_gear_refresh_when_preflight_has_targets(self):
+        calls = []
+        target_preflight = {
+            "status": "partial",
+            "targetQueue": [
+                {
+                    "targetType": "gear_template",
+                    "templateSlot": "community_best",
+                    "specId": "mage:frost",
+                    "targetKey": "gear-template:mage:frost:community_best",
+                    "status": "partial",
+                }
+            ],
+            "communityBest": {"completeSpecCount": 39, "partialSpecCount": 1, "pendingSpecCount": 0, "blockedSpecCount": 0},
+            "baseline": {"availableSpecCount": 40, "blockedSpecCount": 0},
+            "canonicalSlotMatrix": {"totalSlotCount": 640, "readySlotCount": 638, "missingSlotCount": 2},
+            "realCommunityTemplates": {"coveredSpecCount": 39, "missingSpecCount": 1},
+        }
+
+        class FakeStore:
+            def save_sync_state(self, key, value, updated_at=""):
+                return None
+
+            def community_gear_template_counts(self):
+                return {"total": 77, "verified": 74, "partial": 3, "blocked": 0}
+
+        def fake_sync(**kwargs):
+            calls.append(kwargs)
+            if kwargs.get("mode") == "gear_template_targeted_refresh":
+                return {
+                    "scanRunId": "gear-targeted-run",
+                    "runner": "postgres",
+                    "mode": kwargs.get("mode"),
+                    "status": "completed",
+                    "sourceStatus": "partial",
+                    "gear": {
+                        "preflight": target_preflight,
+                        "observedBackfill": {"variantCount": 4, "verifiedCount": 2, "partialCount": 2},
+                    },
+                    "stageTimings": {"stages": [{"stage": "gear_observed_backfill", "variantCount": 4}]},
+                }
+            return {
+                "scanRunId": "talent-missing-slots-run",
+                "runner": "postgres",
+                "mode": kwargs.get("mode"),
+                "status": "completed",
+                "sourceStatus": "verified",
+                "talents": {"templates": {"total": 80, "verified": 80, "blocked": 0}},
+                "stageTimings": {"stages": [{"stage": "source_collection", "targetSlotCount": 0}]},
+            }
+
+        with patch.object(
+            community_template_sync,
+            "cache_store_from_env",
+            return_value=FakeStore(),
+            create=True,
+        ), patch.object(
+            community_template_sync,
+            "_community_gear_template_coverage_rows",
+            return_value=[],
+            create=True,
+        ), patch.object(
+            community_template_sync,
+            "build_community_gear_template_preflight",
+            return_value=target_preflight,
+            create=True,
+        ), patch.object(
+            community_template_sync,
+            "_gear_first_sync_target_specs",
+            return_value=["mage:frost"],
+            create=True,
+        ), patch.object(
+            community_template_sync,
+            "sync_community_template_cache_postgres",
+            side_effect=fake_sync,
+        ):
+            payload = community_template_sync.sync_community_template_daily_incremental_postgres()
+
+        self.assertEqual([call["mode"] for call in calls], ["missing_slots", "gear_template_targeted_refresh"])
+        self.assertTrue(calls[1]["refresh_raiderio"])
+        self.assertEqual(payload["gear"]["targetSpecIds"], ["mage:frost"])
+        self.assertEqual(payload["changeReport"]["summary"]["candidate_only"], 4)
+
     def test_backfill_connectors_use_postgres_in_postgres_only_mode(self):
         with patch.dict(
             os.environ,

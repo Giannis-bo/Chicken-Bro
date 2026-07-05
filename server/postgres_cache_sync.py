@@ -18,9 +18,12 @@ try:
         specialization_registry,
     )
     from .websim_payload import (
+        CANONICAL_GEAR_SLOTS,
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_PENDING_STATUS,
         COMMUNITY_TALENT_SYNC_KEY,
+        DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY,
+        DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
         DEFAULT_LOCALE,
         DEFAULT_REGION,
         GEAR_CATALOG_REVISION,
@@ -32,11 +35,13 @@ try:
         disabled_community_talent_template_source_keys,
         include_websim_baseline_talent_sources,
         current_season_raid_pool_status,
+        expected_spec_pairs,
         expected_hero_tree_triplets,
         extract_simc_generated_data,
         extract_id_from_ref,
         fetch_blizzard_item_metadata,
         get_blizzard_access_token,
+        gear_template_slot_coverage,
         hero_tree_for,
         hero_tree_label,
         icon_url_from_media,
@@ -66,9 +71,12 @@ except ImportError:
         specialization_registry,
     )
     from websim_payload import (
+        CANONICAL_GEAR_SLOTS,
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_PENDING_STATUS,
         COMMUNITY_TALENT_SYNC_KEY,
+        DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY,
+        DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
         DEFAULT_LOCALE,
         DEFAULT_REGION,
         GEAR_CATALOG_REVISION,
@@ -80,11 +88,13 @@ except ImportError:
         disabled_community_talent_template_source_keys,
         include_websim_baseline_talent_sources,
         current_season_raid_pool_status,
+        expected_spec_pairs,
         expected_hero_tree_triplets,
         extract_simc_generated_data,
         extract_id_from_ref,
         fetch_blizzard_item_metadata,
         get_blizzard_access_token,
+        gear_template_slot_coverage,
         hero_tree_for,
         hero_tree_label,
         icon_url_from_media,
@@ -104,7 +114,18 @@ except ImportError:
 
 CRAFTED_GEAR_BACKFILL_SYNC_KEY = "crafted_gear_backfill"
 COMMUNITY_TALENT_COVERAGE_MATRIX_REVISION = "community-talent-coverage-matrix-v1"
+COMMUNITY_GEAR_TEMPLATE_PREFLIGHT_REVISION = "community-gear-template-preflight-v1"
 COMMUNITY_TEMPLATE_STAGE_TIMING_REVISION = "community-template-stage-timings-v1"
+BASELINE_GEAR_TEMPLATE_SOURCE_KEYS = {DEFAULT_GEAR_TEMPLATE_SOURCE_KEY, "baseline_template", "simc_preset"}
+BAD_REAL_GEAR_TEMPLATE_SOURCE_KEYS = {
+    "",
+    DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+    "baseline_template",
+    "simc_preset",
+    "manual_fixture",
+    "fallback",
+    "source_reference",
+}
 
 
 def cache_store_from_env():
@@ -1017,6 +1038,359 @@ def scan_coverage_from_community_talent_matrix(matrix):
     }
 
 
+def _gear_spec_parts(spec_id):
+    parts = str(spec_id or "").split(":")
+    if len(parts) != 2:
+        return "", ""
+    return slugify(parts[0], ""), slugify(parts[1], "")
+
+
+def _gear_template_source_key(template):
+    return str((template or {}).get("sourceKey") or "").strip()
+
+
+def _gear_template_is_baseline(template):
+    return _gear_template_source_key(template) in BASELINE_GEAR_TEMPLATE_SOURCE_KEYS
+
+
+def _gear_template_is_real_community(template):
+    return _gear_template_source_key(template) not in BAD_REAL_GEAR_TEMPLATE_SOURCE_KEYS
+
+
+def _gear_template_slot_sets(template, class_key="", spec_key=""):
+    gear_items = [
+        item
+        for item in (template or {}).get("gearItems") or []
+        if isinstance(item, dict)
+    ]
+    if not gear_items:
+        return set(), set(), None
+    ready_by_slot, occupied_slots, _missing_slots = gear_template_slot_coverage(
+        gear_items,
+        slugify(class_key or (template or {}).get("classKey"), ""),
+        slugify(spec_key or (template or {}).get("specKey"), ""),
+    )
+    ready_slots = {
+        slot for slot in ready_by_slot
+        if slot in CANONICAL_GEAR_SLOTS
+    }
+    occupied = {
+        slot for slot in (occupied_slots or {})
+        if slot in CANONICAL_GEAR_SLOTS
+    }
+    covered = ready_slots | occupied
+    missing = [slot for slot in CANONICAL_GEAR_SLOTS if slot not in covered]
+    return ready_slots, occupied, missing
+
+
+def _gear_template_ready_slots(template, class_key="", spec_key=""):
+    ready_slots, occupied_slots, missing_slots = _gear_template_slot_sets(template, class_key, spec_key)
+    if missing_slots is not None:
+        return ready_slots | occupied_slots
+    ready = set()
+    for item in (template or {}).get("gearItems") or []:
+        if not isinstance(item, dict):
+            continue
+        slot = str(item.get("slot") or "").strip()
+        if slot in CANONICAL_GEAR_SLOTS:
+            ready.add(slot)
+    return ready
+
+
+def _gear_template_missing_slots(template, class_key="", spec_key=""):
+    _ready_slots, _occupied_slots, missing_slots = _gear_template_slot_sets(template, class_key, spec_key)
+    if missing_slots is not None:
+        return missing_slots
+    declared = (template or {}).get("missingSlots")
+    if isinstance(declared, list):
+        normalized = [str(slot) for slot in declared if str(slot or "") in CANONICAL_GEAR_SLOTS]
+        if normalized:
+            return normalized
+    ready = _gear_template_ready_slots(template, class_key, spec_key)
+    return [slot for slot in CANONICAL_GEAR_SLOTS if slot not in ready]
+
+
+def _gear_template_ready_count(template, class_key="", spec_key=""):
+    _ready_slots, _occupied_slots, missing_slots = _gear_template_slot_sets(template, class_key, spec_key)
+    if missing_slots is not None:
+        return len(CANONICAL_GEAR_SLOTS) - len(missing_slots)
+    ready_count = _int_value((template or {}).get("readySlotCount"), -1)
+    if ready_count >= 0:
+        return ready_count
+    return len(_gear_template_ready_slots(template, class_key, spec_key))
+
+
+def _gear_template_rank(template):
+    status = str((template or {}).get("status") or "").strip()
+    class_key = slugify((template or {}).get("classKey"), "")
+    spec_key = slugify((template or {}).get("specKey"), "")
+    return (
+        1 if status in {"complete", "verified"} else 0,
+        _gear_template_ready_count(template, class_key, spec_key),
+        str((template or {}).get("updatedAt") or ""),
+        str((template or {}).get("id") or ""),
+    )
+
+
+def _best_gear_template(templates):
+    candidates = [template for template in templates or [] if isinstance(template, dict)]
+    if not candidates:
+        return None
+    return sorted(candidates, key=_gear_template_rank, reverse=True)[0]
+
+
+def _gear_display_row(spec_id, class_key, spec_key, template_slot, template, status):
+    template = template if isinstance(template, dict) else {}
+    missing_slots = _gear_template_missing_slots(template, class_key, spec_key) if template else list(CANONICAL_GEAR_SLOTS)
+    ready_slots = _gear_template_ready_slots(template, class_key, spec_key)
+    ready_count = _gear_template_ready_count(template, class_key, spec_key) if template else 0
+    target_key = f"gear-template:{class_key}:{spec_key}:{template_slot}:{DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY}"
+    if template_slot == "baseline" and status == "available":
+        next_action = "keep_baseline_available"
+    elif template_slot == "baseline":
+        next_action = "build_baseline_template"
+    elif status == "complete":
+        next_action = "monitor_freshness"
+    elif status == "partial":
+        next_action = "probe_missing_variants" if ready_slots else "collect_real_community_gear_samples"
+    elif status == "blocked":
+        next_action = "review_gear_template_blocker"
+    else:
+        next_action = "collect_real_community_gear_samples"
+    return {
+        "specId": spec_id,
+        "classKey": class_key,
+        "specKey": spec_key,
+        "templateSlot": template_slot,
+        "targetKey": target_key,
+        "status": status,
+        "sourceKey": _gear_template_source_key(template),
+        "sourceName": str(template.get("sourceName") or ""),
+        "currentWinnerId": str(template.get("id") or ""),
+        "currentWinnerSignature": str(template.get("signature") or ""),
+        "readySlotCount": ready_count,
+        "totalSlotCount": len(CANONICAL_GEAR_SLOTS),
+        "missingSlots": missing_slots,
+        "pendingVariantCount": _int_value(template.get("pendingVariantCount"), 0),
+        "nextAction": next_action,
+    }
+
+
+def _gear_template_target(row, priority=50):
+    return {
+        "targetType": "gear_template",
+        "targetKey": row["targetKey"],
+        "status": row["status"],
+        "priority": priority,
+        "specId": row["specId"],
+        "templateSlot": row["templateSlot"],
+        "missingSlots": list(row.get("missingSlots") or []),
+        "pendingVariantCount": _int_value(row.get("pendingVariantCount"), 0),
+        "nextAction": row.get("nextAction") or "",
+    }
+
+
+def _gear_slot_target(spec_id, class_key, spec_key, slot, status, current_winner_id=""):
+    return {
+        "targetType": "gear_slot",
+        "targetKey": f"gear-slot:{class_key}:{spec_key}:{slot}",
+        "status": status,
+        "priority": 20 if status == "missing" else 40,
+        "specId": spec_id,
+        "slot": slot,
+        "currentWinnerId": current_winner_id,
+        "nextAction": "collect_slot_sample" if status == "missing" else "verify_slot_variant",
+    }
+
+
+def _community_gear_template_coverage_rows(store, fallback_templates):
+    if hasattr(store, "community_gear_template_coverage_rows"):
+        try:
+            rows = store.community_gear_template_coverage_rows()
+            if isinstance(rows, list):
+                return rows
+        except Exception:
+            return list(fallback_templates or [])
+    if hasattr(store, "admin_gate_gear_template_records"):
+        try:
+            payload = store.admin_gate_gear_template_records()
+            rows = payload.get("communityGearTemplates") if isinstance(payload, dict) else []
+            if isinstance(rows, list):
+                return rows
+        except Exception:
+            return list(fallback_templates or [])
+    return list(fallback_templates or [])
+
+
+def build_community_gear_template_preflight(templates, scan_run_id="", checked_at=""):
+    expected_specs = []
+    for spec_id in expected_spec_pairs():
+        class_key, spec_key = _gear_spec_parts(spec_id)
+        if class_key and spec_key:
+            expected_specs.append((spec_id, class_key, spec_key))
+    if not expected_specs:
+        for template in templates or []:
+            class_key = slugify((template or {}).get("classKey"), "")
+            spec_key = slugify((template or {}).get("specKey"), "")
+            if class_key and spec_key:
+                expected_specs.append((f"{class_key}:{spec_key}", class_key, spec_key))
+        expected_specs = sorted(set(expected_specs))
+
+    grouped = {spec_id: {"community": [], "baseline": []} for spec_id, _, _ in expected_specs}
+    for template in templates or []:
+        if not isinstance(template, dict):
+            continue
+        class_key = slugify(template.get("classKey"), "")
+        spec_key = slugify(template.get("specKey"), "")
+        spec_id = f"{class_key}:{spec_key}" if class_key and spec_key else ""
+        if spec_id not in grouped:
+            continue
+        if _gear_template_is_baseline(template):
+            grouped[spec_id]["baseline"].append(template)
+        elif _gear_template_is_real_community(template):
+            grouped[spec_id]["community"].append(template)
+
+    display_slots = []
+    slot_rows = []
+    target_queue = []
+    complete_specs = []
+    partial_specs = []
+    pending_specs = []
+    blocked_specs = []
+    baseline_available_specs = []
+    baseline_blocked_specs = []
+
+    for spec_id, class_key, spec_key in expected_specs:
+        best_community = _best_gear_template(grouped.get(spec_id, {}).get("community"))
+        if best_community:
+            raw_status = str(best_community.get("status") or "").strip()
+            missing_slots = _gear_template_missing_slots(best_community, class_key, spec_key)
+            if raw_status != "blocked" and not missing_slots:
+                community_status = "complete"
+                complete_specs.append(spec_id)
+            elif raw_status == "blocked":
+                community_status = "blocked"
+                blocked_specs.append(spec_id)
+            else:
+                community_status = "partial"
+                partial_specs.append(spec_id)
+        else:
+            community_status = COMMUNITY_TALENT_PENDING_STATUS
+            pending_specs.append(spec_id)
+        community_row = _gear_display_row(
+            spec_id,
+            class_key,
+            spec_key,
+            "community_best",
+            best_community,
+            community_status,
+        )
+        display_slots.append(community_row)
+        if community_status != "complete":
+            target_queue.append(_gear_template_target(community_row, priority=10 if community_status == "partial" else 30))
+
+        ready_slots = _gear_template_ready_slots(best_community, class_key, spec_key) if best_community else set()
+        for slot in CANONICAL_GEAR_SLOTS:
+            slot_status = "ready" if slot in ready_slots else "missing"
+            slot_row = {
+                "specId": spec_id,
+                "classKey": class_key,
+                "specKey": spec_key,
+                "slot": slot,
+                "targetKey": f"gear-slot:{class_key}:{spec_key}:{slot}",
+                "status": slot_status,
+                "templateSlot": "community_best",
+                "currentWinnerId": community_row["currentWinnerId"],
+                "nextAction": "monitor_slot_variant" if slot_status == "ready" else "collect_slot_sample",
+            }
+            slot_rows.append(slot_row)
+            if slot_status != "ready":
+                target_queue.append(_gear_slot_target(spec_id, class_key, spec_key, slot, slot_status, community_row["currentWinnerId"]))
+
+        best_baseline = _best_gear_template(grouped.get(spec_id, {}).get("baseline"))
+        baseline_status = "available" if best_baseline and _gear_template_ready_count(best_baseline, class_key, spec_key) > 0 else "blocked"
+        if baseline_status == "available":
+            baseline_available_specs.append(spec_id)
+        else:
+            baseline_blocked_specs.append(spec_id)
+        baseline_row = _gear_display_row(spec_id, class_key, spec_key, "baseline", best_baseline, baseline_status)
+        display_slots.append(baseline_row)
+        if baseline_status != "available":
+            target_queue.append(_gear_template_target(baseline_row, priority=60))
+
+    ready_slot_count = sum(1 for row in slot_rows if row.get("status") == "ready")
+    target_queue_by_key = {}
+    for target in target_queue:
+        key = target.get("targetKey")
+        if key and key not in target_queue_by_key:
+            target_queue_by_key[key] = target
+    target_queue = sorted(target_queue_by_key.values(), key=lambda row: (int(row.get("priority") or 0), row.get("targetKey") or ""))
+    matrix_status = "verified" if complete_specs and len(complete_specs) == len(expected_specs) else "partial"
+    if blocked_specs and not complete_specs and not partial_specs and not pending_specs:
+        matrix_status = "blocked"
+    incomplete_specs = [*partial_specs, *pending_specs, *blocked_specs]
+    return {
+        "schemaRevision": COMMUNITY_GEAR_TEMPLATE_PREFLIGHT_REVISION,
+        "scanRunId": scan_run_id,
+        "checkedAt": checked_at,
+        "status": matrix_status,
+        "scenarioKey": DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY,
+        "totalSpecCount": len(expected_specs),
+        "totalDisplaySlotCount": len(display_slots),
+        "communityBest": {
+            "templateSlot": "community_best",
+            "totalSpecCount": len(expected_specs),
+            "completeSpecCount": len(complete_specs),
+            "partialSpecCount": len(partial_specs),
+            "pendingSpecCount": len(pending_specs),
+            "blockedSpecCount": len(blocked_specs),
+            "completeSpecs": complete_specs,
+            "partialSpecs": partial_specs,
+            "pendingSpecs": pending_specs,
+            "blockedSpecs": blocked_specs,
+            "countingPolicy": "real community gear only; baseline/default templates do not fill this coverage",
+        },
+        "baseline": {
+            "templateSlot": "baseline",
+            "totalSpecCount": len(expected_specs),
+            "availableSpecCount": len(baseline_available_specs),
+            "blockedSpecCount": len(baseline_blocked_specs),
+            "availableSpecs": baseline_available_specs,
+            "blockedSpecs": baseline_blocked_specs,
+            "countingPolicy": "baseline is a separate display slot and is excluded from real community coverage",
+        },
+        "canonicalSlotMatrix": {
+            "totalSlotCount": len(slot_rows),
+            "readySlotCount": ready_slot_count,
+            "missingSlotCount": len(slot_rows) - ready_slot_count,
+            "rows": slot_rows,
+        },
+        "displaySlots": display_slots,
+        "targetQueue": target_queue,
+        "realCommunityTemplates": {
+            "templateRevision": COMMUNITY_GEAR_TEMPLATE_PREFLIGHT_REVISION,
+            "totalSpecCount": len(expected_specs),
+            "coveredSpecCount": len(complete_specs),
+            "missingSpecCount": len(incomplete_specs),
+            "partialSpecCount": len(partial_specs),
+            "pendingSpecCount": len(pending_specs),
+            "blockedSpecCount": len(blocked_specs),
+            "coveredSpecs": complete_specs,
+            "partialSpecs": partial_specs,
+            "missingSpecs": incomplete_specs,
+            "topBlockers": [
+                {
+                    "stage": "gear_template_preflight",
+                    "reason": "missing complete real community gear template",
+                    "count": len(incomplete_specs),
+                }
+            ] if incomplete_specs else [],
+            "lastSyncRun": scan_run_id,
+            "countingPolicy": "real samples only; baseline/default templates are excluded",
+        },
+    }
+
+
 def load_community_talent_sources_postgres(store):
     try:
         from .community_talent_sources import warcraftlogs
@@ -1150,6 +1524,117 @@ def _community_template_missing_slots_mode_enabled(mode):
     }
 
 
+def _community_gear_template_sync_mode_enabled(mode):
+    configured = os.environ.get("WOW_COMMUNITY_TEMPLATE_SYNC_GEAR_MODE", "").strip().lower()
+    requested = str(mode or "").strip().lower()
+    enabled_modes = {
+        "gear_template_first_sync",
+        "gear-template-first-sync",
+        "gear_first_sync",
+        "gear-first-sync",
+        "gear_template_targeted_refresh",
+        "gear-template-targeted-refresh",
+    }
+    return configured in enabled_modes or requested in enabled_modes
+
+
+def _int_env_value(names, default=0, minimum=0):
+    for name in names:
+        raw = os.environ.get(name)
+        if raw in (None, ""):
+            continue
+        try:
+            return max(minimum, int(str(raw).strip()))
+        except (TypeError, ValueError):
+            continue
+    return max(minimum, int(default or 0))
+
+
+def _bool_env_value(names, default=False):
+    for name in names:
+        raw = os.environ.get(name)
+        if raw in (None, ""):
+            continue
+        return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+    return bool(default)
+
+
+def _community_gear_first_sync_budget():
+    return {
+        "targetLimit": _int_env_value(
+            ["WOW_COMMUNITY_GEAR_FIRST_SYNC_TARGET_LIMIT", "WOW_GEAR_OBSERVED_BACKFILL_TARGET_LIMIT"],
+            80,
+            minimum=0,
+        ),
+        "profileLimit": _int_env_value(
+            ["WOW_COMMUNITY_GEAR_FIRST_SYNC_PROFILE_LIMIT", "WOW_GEAR_OBSERVED_BACKFILL_PROFILE_LIMIT"],
+            40,
+            minimum=0,
+        ),
+        "timeoutSeconds": _int_env_value(
+            ["WOW_COMMUNITY_GEAR_FIRST_SYNC_TIMEOUT_SECONDS", "WOW_GEAR_OBSERVED_BACKFILL_TIMEOUT_SECONDS"],
+            600,
+            minimum=1,
+        ),
+        "targetSpecLimit": _int_env_value(["WOW_COMMUNITY_GEAR_FIRST_SYNC_SPEC_LIMIT"], 8, minimum=0),
+        "enableSimcStats": _bool_env_value(
+            ["WOW_COMMUNITY_GEAR_FIRST_SYNC_SIMC_STATS", "WOW_GEAR_OBSERVED_BACKFILL_SIMC_STATS"],
+            False,
+        ),
+        "fullProfileGear": _bool_env_value(
+            ["WOW_COMMUNITY_GEAR_FIRST_SYNC_FULL_PROFILE_GEAR", "WOW_GEAR_OBSERVED_BACKFILL_FULL_PROFILE_GEAR"],
+            True,
+        ),
+        "itemProbeLimit": _int_env_value(
+            ["WOW_COMMUNITY_GEAR_FIRST_SYNC_ITEM_PROBE_LIMIT", "WOW_GEAR_OBSERVED_BACKFILL_ITEM_PROBE_LIMIT"],
+            0,
+            minimum=0,
+        ),
+    }
+
+
+def _gear_first_sync_target_specs(preflight, limit=0):
+    specs = []
+    for target in (preflight or {}).get("targetQueue") or []:
+        if target.get("targetType") != "gear_template":
+            continue
+        if target.get("templateSlot") != "community_best":
+            continue
+        spec_id = str(target.get("specId") or "").strip()
+        if spec_id and spec_id not in specs:
+            specs.append(spec_id)
+        if limit and len(specs) >= limit:
+            break
+    return specs
+
+
+def _community_gear_first_sync_raiderio_env(target_spec_ids, budget):
+    profile_limit = int((budget or {}).get("profileLimit") or 0)
+    target_spec_ids = [str(spec_id or "").strip() for spec_id in target_spec_ids or [] if str(spec_id or "").strip()]
+    per_spec_default = max(1, min(8, profile_limit // max(1, len(target_spec_ids) or 1))) if profile_limit else 1
+    return {
+        "WOW_RAIDERIO_RUN_PAGES": os.environ.get("WOW_COMMUNITY_GEAR_FIRST_SYNC_RUN_PAGES", "0"),
+        "WOW_RAIDERIO_SPEC_RANKING_ENABLED": "1",
+        "WOW_RAIDERIO_SPEC_RANKING_PAGES": os.environ.get("WOW_COMMUNITY_GEAR_FIRST_SYNC_SPEC_RANKING_PAGES", "1"),
+        "WOW_RAIDERIO_SPEC_RANKING_PAGE_SIZE": os.environ.get("WOW_COMMUNITY_GEAR_FIRST_SYNC_SPEC_RANKING_PAGE_SIZE", "50"),
+        "WOW_RAIDERIO_SPEC_RANKING_RUNS_PER_CHARACTER": "1",
+        "WOW_RAIDERIO_SPEC_RANKING_TARGET_SPECS": ",".join(target_spec_ids),
+        "WOW_RAIDERIO_PROFILE_LIMIT": str(profile_limit or 0),
+        "WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC": os.environ.get(
+            "WOW_COMMUNITY_GEAR_FIRST_SYNC_PROFILE_LIMIT_PER_SPEC",
+            str(per_spec_default),
+        ),
+        "WOW_RAIDERIO_PROFILE_WORKERS": os.environ.get("WOW_COMMUNITY_GEAR_FIRST_SYNC_PROFILE_WORKERS", "2"),
+        "WOW_RAIDERIO_RUN_DETAIL_LIMIT": "0",
+        "WOW_RAIDERIO_RUN_DETAIL_LIMIT_PER_SPEC": "0",
+        "WOW_RAIDERIO_GAP_FILL_RUN_DETAIL_LIMIT": "0",
+        "WOW_RAIDERIO_GAP_FILL_RUN_DETAIL_LIMIT_PER_SPEC": "0",
+        "WOW_RAIDERIO_GAP_FILL_RUN_DETAIL_FRONTLOAD_PER_SPEC": "0",
+        "WOW_RAIDERIO_RUN_DETAIL_WORKERS": "1",
+        "WOW_RAIDERIO_COMMUNITY_TEMPLATE_LIMIT": "0",
+    }
+
+
 def _community_talent_missing_slot_ids(rows):
     matrix = build_community_talent_coverage_matrix(rows or {}, sources={})
     return [
@@ -1264,6 +1749,19 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
             stage_timings.append(dict(event))
 
     scan_run_id = f"pg-community-template-{checked_at.replace(':', '').replace('+', 'z')}"
+    gear_template_sync_mode = _community_gear_template_sync_mode_enabled(mode)
+    gear_first_sync_budget = _community_gear_first_sync_budget() if gear_template_sync_mode else {}
+    gear_target_spec_ids = []
+    if gear_template_sync_mode:
+        gear_seed_preflight = build_community_gear_template_preflight(
+            _community_gear_template_coverage_rows(store, []),
+            scan_run_id=scan_run_id,
+            checked_at=checked_at,
+        )
+        gear_target_spec_ids = _gear_first_sync_target_specs(
+            gear_seed_preflight,
+            limit=gear_first_sync_budget.get("targetSpecLimit") or 0,
+        )
     missing_slots_mode = _community_template_missing_slots_mode_enabled(mode)
     existing_talent_rows = []
     target_slot_ids = None
@@ -1277,7 +1775,9 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
     source_started_at = time.monotonic()
     if refresh_raiderio:
         raiderio_env = {}
-        if missing_slots_mode:
+        if gear_template_sync_mode:
+            raiderio_env = _community_gear_first_sync_raiderio_env(gear_target_spec_ids, gear_first_sync_budget)
+        elif missing_slots_mode:
             raiderio_env = {
                 "WOW_RAIDERIO_RUN_PAGES": "0",
                 "WOW_RAIDERIO_SPEC_RANKING_ENABLED": "1",
@@ -1294,15 +1794,32 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
             source_started_at,
             refreshRaiderio=bool(refresh_raiderio),
             sourceCount=len(source_results),
-            targetMode="missing_slots" if missing_slots_mode else "all_slots",
+            targetMode="gear_template_first_sync" if gear_template_sync_mode else ("missing_slots" if missing_slots_mode else "all_slots"),
             targetSlotCount=len(target_slot_ids or []),
             targetSpecCount=len(target_spec_ids or []),
+            gearTargetSpecCount=len(gear_target_spec_ids or []),
         )
     )
     candidate_started_at = time.monotonic()
-    talent_templates, talent_sources, talent_errors = _community_templates_from_sources(source_results, scan_run_id)
-    if missing_slots_mode:
-        talent_templates = _community_talent_templates_for_slots(talent_templates, target_slot_ids)
+    if gear_template_sync_mode:
+        talent_templates = []
+        talent_errors = []
+        talent_sources = {
+            source_key: {
+                "status": (source or {}).get("status") or (source or {}).get("sourceStatus") or "blocked",
+                "sourceName": (source or {}).get("sourceName") or source_key,
+                "candidateCount": len((source or {}).get("templates") or []),
+                "verifiedCount": 0,
+                "blockedCount": 0,
+                "skippedCount": 0,
+                "errors": (source or {}).get("errors") or [],
+            }
+            for source_key, source in source_results.items()
+        }
+    else:
+        talent_templates, talent_sources, talent_errors = _community_templates_from_sources(source_results, scan_run_id)
+        if missing_slots_mode:
+            talent_templates = _community_talent_templates_for_slots(talent_templates, target_slot_ids)
     stage_timings.append(
         _timing_stage(
             "candidate_extraction",
@@ -1312,11 +1829,13 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
         )
     )
     disabled_talent_sources = disabled_community_talent_template_source_keys()
-    if disabled_talent_sources and hasattr(store, "expire_community_talent_template_sources"):
+    if not gear_template_sync_mode and disabled_talent_sources and hasattr(store, "expire_community_talent_template_sources"):
         store.expire_community_talent_template_sources(disabled_talent_sources, expired_at=checked_at)
     validated_talent_templates = []
     validation_started_at = time.monotonic()
-    if talent_templates:
+    if gear_template_sync_mode:
+        talent_counts = store.community_talent_template_counts()
+    elif talent_templates:
         talent_counts, validated_talent_templates = _replace_community_talent_templates_with_details(
             store,
             talent_templates,
@@ -1336,6 +1855,37 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
         )
     )
     gear_errors = []
+    gear_observed_backfill = {}
+    if gear_template_sync_mode:
+        backfill_started_at = time.monotonic()
+        gear_observed_backfill = run_gear_observed_backfill_postgres(
+            mode=mode,
+            store=store,
+            target_limit=gear_first_sync_budget.get("targetLimit"),
+            profile_limit=gear_first_sync_budget.get("profileLimit"),
+            timeout_seconds=gear_first_sync_budget.get("timeoutSeconds"),
+            enable_simc_stats=gear_first_sync_budget.get("enableSimcStats"),
+            full_profile_gear=gear_first_sync_budget.get("fullProfileGear"),
+            item_probe_limit=gear_first_sync_budget.get("itemProbeLimit"),
+        )
+        if (gear_observed_backfill.get("sourceStatus") or gear_observed_backfill.get("status")) == "blocked":
+            gear_errors.extend(gear_observed_backfill.get("errors") or [])
+        stage_timings.append(
+            _timing_stage(
+                "gear_observed_backfill",
+                backfill_started_at,
+                status=gear_observed_backfill.get("status") or "",
+                sourceStatus=gear_observed_backfill.get("sourceStatus") or "",
+                targetLimit=gear_observed_backfill.get("targetLimit"),
+                profileLimit=gear_observed_backfill.get("profileLimit"),
+                processedProfileCount=gear_observed_backfill.get("processedProfileCount"),
+                variantCount=gear_observed_backfill.get("variantCount"),
+                itemProbeLimit=gear_observed_backfill.get("itemProbeLimit"),
+                simcItemProbeCount=gear_observed_backfill.get("simcItemProbeCount"),
+                simcItemProbeResolvedCount=gear_observed_backfill.get("simcItemProbeResolvedCount"),
+                stopReason=gear_observed_backfill.get("stopReason") or "",
+            )
+        )
     gear_templates = []
     gear_started_at = time.monotonic()
     if hasattr(store, "build_community_gear_templates"):
@@ -1348,6 +1898,11 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
         gear_counts = store.replace_community_gear_templates(gear_templates, scan_run_id=scan_run_id)
     else:
         gear_counts = store.community_gear_template_counts()
+    gear_preflight = build_community_gear_template_preflight(
+        _community_gear_template_coverage_rows(store, gear_templates),
+        scan_run_id=scan_run_id,
+        checked_at=checked_at,
+    )
     stage_timings.append(
         _timing_stage(
             "gear_template_sync",
@@ -1355,13 +1910,19 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
             templateCount=gear_counts.get("total") or 0,
             verifiedCount=gear_counts.get("verified") or 0,
             blockedCount=gear_counts.get("blocked") or 0,
+            totalSpecCount=gear_preflight.get("totalSpecCount") or 0,
+            communityBestCompleteSpecCount=(gear_preflight.get("communityBest") or {}).get("completeSpecCount") or 0,
+            baselineAvailableSpecCount=(gear_preflight.get("baseline") or {}).get("availableSpecCount") or 0,
+            missingSlotCount=(gear_preflight.get("canonicalSlotMatrix") or {}).get("missingSlotCount") or 0,
         )
     )
     verified = talent_counts.get("verified", 0) + gear_counts.get("verified", 0)
     partial = talent_counts.get("partial", 0) + gear_counts.get("partial", 0)
     blocked = talent_counts.get("blocked", 0) + gear_counts.get("blocked", 0)
     coverage_started_at = time.monotonic()
-    if missing_slots_mode:
+    if gear_template_sync_mode:
+        coverage_templates = _community_talent_coverage_rows(store, [])
+    elif missing_slots_mode:
         coverage_templates = _merge_community_talent_coverage_templates(
             _community_talent_coverage_rows(store, []),
             validated_talent_templates,
@@ -1416,7 +1977,13 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
         "finishedAt": checked_at,
         "scanCoverage": scan_coverage,
         "talents": {"templates": talent_counts},
-        "gear": {"templates": gear_counts},
+        "gear": {
+            "templates": gear_counts,
+            "preflight": gear_preflight,
+            "observedBackfill": gear_observed_backfill,
+            "realCommunityTemplates": gear_preflight.get("realCommunityTemplates") or {},
+            "baselineTemplates": gear_preflight.get("baseline") or {},
+        },
         "sourceRefs": [
             {
                 "sourceKey": source_key,
@@ -1477,11 +2044,56 @@ def load_crafted_gear_seed_postgres():
     return parsed if isinstance(parsed, list) else []
 
 
-def run_gear_observed_backfill_postgres(mode="scheduled", store=None):
+def run_gear_observed_backfill_postgres(
+    mode="scheduled",
+    store=None,
+    target_limit=None,
+    profile_limit=None,
+    timeout_seconds=None,
+    enable_simc_stats=None,
+    full_profile_gear=None,
+    item_probe_limit=None,
+):
     store = store or cache_store_from_env()
     checked_at = utc_now()
+    target_limit = (
+        _int_env_value(["WOW_GEAR_OBSERVED_BACKFILL_TARGET_LIMIT"], 80, minimum=0)
+        if target_limit is None
+        else max(0, int(target_limit or 0))
+    )
+    profile_limit = (
+        _int_env_value(["WOW_GEAR_OBSERVED_BACKFILL_PROFILE_LIMIT"], 40, minimum=0)
+        if profile_limit is None
+        else max(0, int(profile_limit or 0))
+    )
+    timeout_seconds = (
+        _int_env_value(["WOW_GEAR_OBSERVED_BACKFILL_TIMEOUT_SECONDS"], 600, minimum=1)
+        if timeout_seconds is None
+        else max(1, int(timeout_seconds or 1))
+    )
+    if enable_simc_stats is None:
+        enable_simc_stats = _bool_env_value(["WOW_GEAR_OBSERVED_BACKFILL_SIMC_STATS"], False)
+    if full_profile_gear is None:
+        full_profile_gear = _bool_env_value(["WOW_GEAR_OBSERVED_BACKFILL_FULL_PROFILE_GEAR"], True)
+    item_probe_limit = (
+        _int_env_value(["WOW_GEAR_OBSERVED_BACKFILL_ITEM_PROBE_LIMIT"], 0, minimum=0)
+        if item_probe_limit is None
+        else max(0, int(item_probe_limit or 0))
+    )
     try:
-        result = store.backfill_observed_gear_from_raiderio(store.get_raiderio_payload(), mode=mode)
+        try:
+            result = store.backfill_observed_gear_from_raiderio(
+                store.get_raiderio_payload(),
+                mode=mode,
+                target_limit=target_limit,
+                profile_limit=profile_limit,
+                timeout_seconds=timeout_seconds,
+                enable_simc_stats=enable_simc_stats,
+                full_profile_gear=full_profile_gear,
+                item_probe_limit=item_probe_limit,
+            )
+        except TypeError:
+            result = store.backfill_observed_gear_from_raiderio(store.get_raiderio_payload(), mode=mode)
     except Exception as error:
         result = {
             "status": "blocked",
@@ -1492,6 +2104,12 @@ def run_gear_observed_backfill_postgres(mode="scheduled", store=None):
         "runner": "postgres",
         "mode": mode,
         "checkedAt": checked_at,
+        "targetLimit": target_limit,
+        "profileLimit": profile_limit,
+        "timeoutSeconds": timeout_seconds,
+        "enableSimcStats": bool(enable_simc_stats),
+        "fullProfileGear": bool(full_profile_gear),
+        "itemProbeLimit": item_probe_limit,
         **(result if isinstance(result, dict) else {}),
     }
     payload.setdefault("status", payload.get("sourceStatus") or "blocked")

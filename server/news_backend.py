@@ -2533,11 +2533,29 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         else {}
     )
     gear_templates = community_gear.get("templates") if isinstance(community_gear.get("templates"), dict) else {}
+    gear_template_preflight = community_gear.get("preflight") if isinstance(community_gear.get("preflight"), dict) else {}
+    baseline_gear_templates = (
+        community_gear.get("baselineTemplates")
+        if isinstance(community_gear.get("baselineTemplates"), dict)
+        else {}
+    )
     real_community_templates = (
         community_gear.get("realCommunityTemplates")
         if isinstance(community_gear.get("realCommunityTemplates"), dict)
         else {}
     )
+    live_gear_template_run_id = ""
+    if cache_store and hasattr(cache_store, "community_gear_template_live_health_summary"):
+        try:
+            live_gear_templates = cache_store.community_gear_template_live_health_summary()
+        except Exception:
+            live_gear_templates = {}
+        if isinstance(live_gear_templates, dict) and live_gear_templates:
+            gear_templates = live_gear_templates.get("templates") or gear_templates
+            gear_template_preflight = live_gear_templates.get("preflight") or gear_template_preflight
+            baseline_gear_templates = live_gear_templates.get("baselineTemplates") or baseline_gear_templates
+            real_community_templates = live_gear_templates.get("realCommunityTemplates") or real_community_templates
+            live_gear_template_run_id = live_gear_templates.get("scanRunId") or ""
     template_evidence_audit = lightweight_template_evidence_audit_payload(
         community_state=community,
         community_sync_run=community_sync_run,
@@ -2626,10 +2644,13 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
                 "hiddenDuplicateCount": community.get("hiddenDuplicateCount") or 0,
                 "wclTemplateSource": (community.get("sources") or {}).get("warcraftlogs") or {},
                 "gearTemplates": gear_templates,
+                "gearTemplatePreflight": gear_template_preflight,
                 "realCommunityGearTemplates": real_community_templates,
+                "baselineGearTemplates": baseline_gear_templates,
                 "defaultGearTemplates": default_gear_templates,
+                "changeReport": community_sync_run.get("changeReport") or {},
                 "templateEvidenceAudit": template_evidence_audit,
-                "lastSyncRun": community_sync_run.get("scanRunId") or default_gear_templates.get("lastSyncRun") or "",
+                "lastSyncRun": live_gear_template_run_id or community_sync_run.get("scanRunId") or default_gear_templates.get("lastSyncRun") or "",
             },
             blockers=[
                 error
@@ -2786,6 +2807,12 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
             else {}
         )
         gear_templates = community_gear.get("templates") if isinstance(community_gear.get("templates"), dict) else {}
+        gear_template_preflight = community_gear.get("preflight") if isinstance(community_gear.get("preflight"), dict) else {}
+        baseline_gear_templates = (
+            community_gear.get("baselineTemplates")
+            if isinstance(community_gear.get("baselineTemplates"), dict)
+            else {}
+        )
         real_community_templates = (
             community_gear.get("realCommunityTemplates")
             if isinstance(community_gear.get("realCommunityTemplates"), dict)
@@ -2821,8 +2848,11 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
                     "hiddenDuplicateCount": community.get("hiddenDuplicateCount") or 0,
                     "wclTemplateSource": (community.get("sources") or {}).get("warcraftlogs") or {},
                     "gearTemplates": gear_templates,
+                    "gearTemplatePreflight": gear_template_preflight,
                     "realCommunityGearTemplates": real_community_templates,
+                    "baselineGearTemplates": baseline_gear_templates,
                     "defaultGearTemplates": default_gear_templates,
+                    "changeReport": community_sync_run.get("changeReport") or {},
                     "templateEvidenceAudit": template_evidence_audit,
                     "lastSyncRun": community_sync_run.get("scanRunId") or default_gear_templates.get("lastSyncRun") or "",
                 },

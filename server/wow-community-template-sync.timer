@@ -1,9 +1,10 @@
 [Unit]
-Description=Run WOW community template sync every six hours
+Description=Run WOW community template daily incremental sync
 
 [Timer]
 OnBootSec=12min
-OnUnitActiveSec=6h
+OnCalendar=*-*-* 06:15:00
+RandomizedDelaySec=30min
 Persistent=true
 
 [Install]

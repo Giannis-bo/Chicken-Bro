@@ -1573,7 +1573,13 @@ def main(argv=None):
     parser.add_argument("--json", action="store_true", help="Emit compact JSON summary.")
     args = parser.parse_args(argv)
     if postgres_only_runtime_enabled() and not sqlite_migration_source_enabled():
-        summary = run_gear_observed_backfill_postgres()
+        summary = run_gear_observed_backfill_postgres(
+            target_limit=args.target_limit,
+            profile_limit=args.profile_limit,
+            timeout_seconds=args.timeout_seconds,
+            enable_simc_stats=args.simc_stats,
+            full_profile_gear=args.full_profile_gear,
+        )
     elif args.plan_only:
         summary = plan_gear_observed_backfill(
             args.db,

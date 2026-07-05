@@ -2,24 +2,33 @@
 from contextlib import contextmanager
 import copy
 import json
+import subprocess
+import tempfile
+import time
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 try:
     from .websim_payload import (
         CANONICAL_GEAR_SLOTS,
         COMMUNITY_TEMPLATE_REVISION,
         COMMUNITY_TALENT_SYNC_KEY,
+        DEFAULT_RACE_BY_CLASS,
         DEFAULT_LOCALE,
         GEAR_CATALOG_REVISION,
         GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
+        ITEM_METADATA_SOURCE,
         TALENT_SCHEMA_REVISION,
         active_catalog_sources_for_replacement,
+        apply_item_metadata,
+        blocked_baseline_gear_template,
         blocked_stat_snapshot,
         class_label,
         classes_payload,
         compact_catalog_health_summary,
+        compact_community_gear_template,
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
@@ -29,6 +38,7 @@ try:
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
         enrich_catalog_item,
+        expected_spec_pairs,
         current_season_payload,
         fallback_text_for,
         fallback_presets,
@@ -37,22 +47,41 @@ try:
         gear_candidate_for_slot,
         gear_candidate_quality_score,
         gear_candidate_slots,
+        gear_community_template_from_observed_items,
         gear_readiness,
+        gear_template_slot_coverage,
         gear_slot_payload,
         gear_slot_readiness,
         hero_tree_for,
         hero_tree_label,
+        is_baseline_gear_template,
+        is_real_community_gear_template,
+        item_level_probe_main_hand_removes_offhand,
+        item_level_probe_profile_candidates,
         localized_difficulty_label,
+        official_item_level_probe_simc_slot,
+        item_type_metadata_from_payload,
         normalize_source_refs,
         normalize_slot,
         normalize_current_season_raid_pool_payload,
         normalize_gear_item,
+        normalize_websim_gear_items,
         normalize_community_gear_template,
         normalize_community_talent_template,
+        observed_gear_simc_options,
+        observed_variant_stat_identity_key,
+        observed_variant_stat_payload_fields,
         sanitize_gear_candidate_mod_options,
         SCENARIOS,
         scenario_title,
         season_metadata_fields,
+        select_best_baseline_gear_templates,
+        select_community_best_gear_templates,
+        profile_with_simc_json_output,
+        run_websim_simcraft_process,
+        simc_json_gear_stats_by_slot,
+        simc_observed_variant_stat_payload,
+        simc_safe_item_name,
         simc_version_payload,
         slugify,
         spec_label,
@@ -64,6 +93,7 @@ try:
         validate_community_talent_template,
         unique_gear_candidates,
         unique_locale_preferences,
+        websim_simc_binary,
         websim_gear_community_templates,
         websim_gear_community_template_sync_state,
         websim_max_level,
@@ -74,16 +104,21 @@ except ImportError:
         CANONICAL_GEAR_SLOTS,
         COMMUNITY_TEMPLATE_REVISION,
         COMMUNITY_TALENT_SYNC_KEY,
+        DEFAULT_RACE_BY_CLASS,
         DEFAULT_LOCALE,
         GEAR_CATALOG_REVISION,
         GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
+        ITEM_METADATA_SOURCE,
         TALENT_SCHEMA_REVISION,
         active_catalog_sources_for_replacement,
+        apply_item_metadata,
+        blocked_baseline_gear_template,
         blocked_stat_snapshot,
         class_label,
         classes_payload,
         compact_catalog_health_summary,
+        compact_community_gear_template,
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
@@ -93,6 +128,7 @@ except ImportError:
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
         enrich_catalog_item,
+        expected_spec_pairs,
         current_season_payload,
         fallback_text_for,
         fallback_presets,
@@ -101,22 +137,41 @@ except ImportError:
         gear_candidate_for_slot,
         gear_candidate_quality_score,
         gear_candidate_slots,
+        gear_community_template_from_observed_items,
         gear_readiness,
+        gear_template_slot_coverage,
         gear_slot_payload,
         gear_slot_readiness,
         hero_tree_for,
         hero_tree_label,
+        is_baseline_gear_template,
+        is_real_community_gear_template,
+        item_level_probe_main_hand_removes_offhand,
+        item_level_probe_profile_candidates,
         localized_difficulty_label,
+        official_item_level_probe_simc_slot,
+        item_type_metadata_from_payload,
         normalize_source_refs,
         normalize_slot,
         normalize_current_season_raid_pool_payload,
         normalize_gear_item,
+        normalize_websim_gear_items,
         normalize_community_gear_template,
         normalize_community_talent_template,
+        observed_gear_simc_options,
+        observed_variant_stat_identity_key,
+        observed_variant_stat_payload_fields,
         sanitize_gear_candidate_mod_options,
         SCENARIOS,
         scenario_title,
         season_metadata_fields,
+        select_best_baseline_gear_templates,
+        select_community_best_gear_templates,
+        profile_with_simc_json_output,
+        run_websim_simcraft_process,
+        simc_json_gear_stats_by_slot,
+        simc_observed_variant_stat_payload,
+        simc_safe_item_name,
         simc_version_payload,
         slugify,
         spec_label,
@@ -128,6 +183,7 @@ except ImportError:
         validate_community_talent_template,
         unique_gear_candidates,
         unique_locale_preferences,
+        websim_simc_binary,
         websim_gear_community_templates,
         websim_gear_community_template_sync_state,
         websim_max_level,
@@ -1178,6 +1234,177 @@ class PostgresCacheStore:
     def community_gear_template_counts(self):
         return self._status_counts("cache.websim_community_gear_templates")
 
+    def community_gear_template_live_health_summary(self):
+        now = datetime.now(timezone.utc)
+        templates = [
+            template for template in (self.admin_gate_gear_template_records().get("communityGearTemplates") or [])
+            if isinstance(template, dict) and not _timestamp_expired(template.get("expiresAt"), now)
+        ]
+        expected_specs = []
+        seen_expected_specs = set()
+        for item in expected_spec_pairs():
+            class_key = ""
+            spec_key = ""
+            if isinstance(item, str):
+                parts = item.split(":", 1)
+                if len(parts) == 2:
+                    class_key, spec_key = parts
+            elif isinstance(item, (list, tuple)):
+                if len(item) >= 3 and isinstance(item[0], str) and ":" in item[0]:
+                    class_key, spec_key = item[1], item[2]
+                elif len(item) >= 2:
+                    class_key, spec_key = item[0], item[1]
+            class_key = slugify(class_key, "")
+            spec_key = slugify(spec_key, "")
+            spec_id = f"{class_key}:{spec_key}" if class_key and spec_key else ""
+            if spec_id and spec_id not in seen_expected_specs:
+                seen_expected_specs.add(spec_id)
+                expected_specs.append((spec_id, class_key, spec_key))
+        if not expected_specs:
+            seen_specs = sorted({
+                f"{template.get('classKey')}:{template.get('specKey')}"
+                for template in templates
+                if template.get("classKey") and template.get("specKey")
+            })
+            expected_specs = [
+                (spec_id, *spec_id.split(":", 1))
+                for spec_id in seen_specs
+                if ":" in spec_id
+            ]
+        grouped = {spec_id: {"community": [], "baseline": []} for spec_id, _, _ in expected_specs}
+        counts = {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
+        for template in templates:
+            if not isinstance(template, dict):
+                continue
+            counts["total"] += 1
+            counts[_template_count_bucket(template.get("status"))] += 1
+            class_key = slugify(template.get("classKey"), "")
+            spec_key = slugify(template.get("specKey"), "")
+            spec_id = f"{class_key}:{spec_key}" if class_key and spec_key else ""
+            if spec_id not in grouped:
+                continue
+            if is_baseline_gear_template(template):
+                grouped[spec_id]["baseline"].append(template)
+            elif is_real_community_gear_template(template):
+                grouped[spec_id]["community"].append(template)
+
+        complete_specs = []
+        partial_specs = []
+        pending_specs = []
+        blocked_specs = []
+        baseline_available_specs = []
+        baseline_blocked_specs = []
+        missing_slot_counts = {slot: 0 for slot in CANONICAL_GEAR_SLOTS}
+        ready_slot_count = 0
+        latest_scan_run_id = ""
+        for template in templates:
+            if template.get("scanRunId"):
+                latest_scan_run_id = template.get("scanRunId")
+                break
+
+        for spec_id, class_key, spec_key in expected_specs:
+            community_candidates = grouped.get(spec_id, {}).get("community") or []
+            best_community = (
+                select_community_best_gear_templates(community_candidates, class_key, spec_key)[0]
+                if community_candidates
+                else {}
+            )
+            if best_community:
+                missing_slots = [
+                    slot for slot in (best_community.get("missingSlots") or [])
+                    if slot in CANONICAL_GEAR_SLOTS
+                ]
+                if best_community.get("status") == "complete" and not missing_slots:
+                    complete_specs.append(spec_id)
+                elif best_community.get("status") == "blocked":
+                    blocked_specs.append(spec_id)
+                else:
+                    partial_specs.append(spec_id)
+                ready_slot_count += len(CANONICAL_GEAR_SLOTS) - len(set(missing_slots))
+                for slot in missing_slots:
+                    missing_slot_counts[slot] += 1
+            else:
+                pending_specs.append(spec_id)
+                for slot in CANONICAL_GEAR_SLOTS:
+                    missing_slot_counts[slot] += 1
+
+            baseline_candidates = grouped.get(spec_id, {}).get("baseline") or []
+            best_baseline = select_best_baseline_gear_templates(baseline_candidates)
+            if best_baseline and int((best_baseline[0] or {}).get("readySlotCount") or 0) > 0:
+                baseline_available_specs.append(spec_id)
+            else:
+                baseline_blocked_specs.append(spec_id)
+
+        incomplete_specs = [*partial_specs, *pending_specs, *blocked_specs]
+        missing_slot_total = sum(missing_slot_counts.values())
+        checked_at = utc_now()
+        preflight = {
+            "schemaRevision": "community-gear-template-preflight-v1",
+            "scanRunId": latest_scan_run_id,
+            "checkedAt": checked_at,
+            "status": "verified" if complete_specs and len(complete_specs) == len(expected_specs) else "partial",
+            "totalSpecCount": len(expected_specs),
+            "totalDisplaySlotCount": len(expected_specs) * 2,
+            "communityBest": {
+                "templateSlot": "community_best",
+                "totalSpecCount": len(expected_specs),
+                "completeSpecCount": len(complete_specs),
+                "partialSpecCount": len(partial_specs),
+                "pendingSpecCount": len(pending_specs),
+                "blockedSpecCount": len(blocked_specs),
+                "completeSpecs": complete_specs,
+                "partialSpecs": partial_specs,
+                "pendingSpecs": pending_specs,
+                "blockedSpecs": blocked_specs,
+                "countingPolicy": "real community gear only; baseline/default templates do not fill this coverage",
+            },
+            "baseline": {
+                "templateSlot": "baseline",
+                "totalSpecCount": len(expected_specs),
+                "availableSpecCount": len(baseline_available_specs),
+                "blockedSpecCount": len(baseline_blocked_specs),
+                "availableSpecs": baseline_available_specs,
+                "blockedSpecs": baseline_blocked_specs,
+                "countingPolicy": "baseline is a separate display slot and is excluded from real community coverage",
+            },
+            "canonicalSlotMatrix": {
+                "totalSlotCount": len(expected_specs) * len(CANONICAL_GEAR_SLOTS),
+                "readySlotCount": ready_slot_count,
+                "missingSlotCount": missing_slot_total,
+                "missingBySlot": {
+                    slot: count for slot, count in missing_slot_counts.items() if count
+                },
+            },
+        }
+        return {
+            "templates": counts,
+            "preflight": preflight,
+            "realCommunityTemplates": {
+                "templateRevision": preflight["schemaRevision"],
+                "totalSpecCount": len(expected_specs),
+                "coveredSpecCount": len(complete_specs),
+                "missingSpecCount": len(incomplete_specs),
+                "partialSpecCount": len(partial_specs),
+                "pendingSpecCount": len(pending_specs),
+                "blockedSpecCount": len(blocked_specs),
+                "coveredSpecs": complete_specs,
+                "partialSpecs": partial_specs,
+                "missingSpecs": incomplete_specs,
+                "topBlockers": [
+                    {
+                        "stage": "gear_template_preflight",
+                        "reason": "missing complete real community gear template",
+                        "count": len(incomplete_specs),
+                    }
+                ] if incomplete_specs else [],
+                "lastSyncRun": latest_scan_run_id,
+                "countingPolicy": "real samples only; baseline/default templates are excluded",
+            },
+            "baselineTemplates": preflight["baseline"],
+            "scanRunId": latest_scan_run_id,
+            "checkedAt": checked_at,
+        }
+
     def community_talent_authority_index(self, class_key, spec_key):
         class_key = slugify(class_key, "mage")
         spec_key = slugify(spec_key, "arcane")
@@ -1570,6 +1797,110 @@ class PostgresCacheStore:
                 )
                 return {"expired": cur.rowcount}
 
+    def _reconcile_community_gear_slot_coverage(self, cur, source_keys, scan_run_id=""):
+        if not source_keys:
+            return 0
+        cur.execute(
+            """
+            SELECT id, class_key, spec_key, source_status, status, ready_slot_count,
+                   missing_slots_json, gear_items_json, payload_json
+            FROM cache.websim_community_gear_templates
+            WHERE source_key = ANY(%s::text[])
+              AND status IN ('complete', 'partial')
+            """,
+            (list(source_keys),),
+        )
+        rows = cur.fetchall()
+        all_gear_items = []
+        for row in rows:
+            all_gear_items.extend(
+                item for item in _json_value(row[7], []) if isinstance(item, dict)
+            )
+        official_metadata_by_id = self._official_item_metadata_by_id(cur, all_gear_items)
+        reconciled = 0
+        checked_at = utc_now()
+        for row in rows:
+            (
+                existing_id,
+                class_key,
+                spec_key,
+                source_status,
+                status,
+                ready_slot_count,
+                missing_slots_json,
+                gear_items_json,
+                payload_json,
+            ) = row
+            gear_items = _json_value(gear_items_json, [])
+            if official_metadata_by_id:
+                gear_items = [
+                    apply_item_metadata(
+                        item,
+                        official_metadata_by_id.get(
+                            str((item or {}).get("itemId") or (item or {}).get("id") or "").strip()
+                        ),
+                    )
+                    if isinstance(item, dict)
+                    else item
+                    for item in gear_items
+                ]
+            ready_by_slot, occupied_slots, missing_slots = gear_template_slot_coverage(
+                gear_items,
+                class_key,
+                spec_key,
+            )
+            ready_count = len(CANONICAL_GEAR_SLOTS) - len(missing_slots)
+            next_status = "complete" if not missing_slots else "partial"
+            next_source_status = "synced" if next_status == "complete" else "partial"
+            current_missing_slots = _json_value(missing_slots_json, [])
+            if (
+                status == next_status
+                and source_status == next_source_status
+                and _int_value(ready_slot_count) == ready_count
+                and current_missing_slots == missing_slots
+            ):
+                continue
+            payload = _json_value(payload_json, {})
+            if not isinstance(payload, dict):
+                payload = {}
+            payload = {
+                **payload,
+                "readySlotCount": ready_count,
+                "missingSlots": missing_slots,
+                "occupiedSlots": occupied_slots,
+                "slotCoverageAudit": {
+                    "status": next_status,
+                    "checkedAt": checked_at,
+                    "reason": "stored_status_recomputed_from_current_slot_coverage",
+                },
+            }
+            cur.execute(
+                """
+                UPDATE cache.websim_community_gear_templates
+                SET source_status = %s,
+                    status = %s,
+                    ready_slot_count = %s,
+                    missing_slots_json = %s::jsonb,
+                    payload_json = %s::jsonb,
+                    updated_at = %s,
+                    scan_run_id = %s
+                WHERE id = %s
+                  AND status IN ('complete', 'partial')
+                """,
+                (
+                    next_source_status,
+                    next_status,
+                    ready_count,
+                    json_param(missing_slots),
+                    json_param(payload),
+                    checked_at,
+                    scan_run_id or checked_at,
+                    existing_id,
+                ),
+            )
+            reconciled += 1
+        return reconciled
+
     def replace_community_gear_templates(self, templates, scan_run_id=""):
         counts = {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
         normalized_rows = []
@@ -1588,8 +1919,53 @@ class PostgresCacheStore:
             normalized_rows.append(normalized)
         if not normalized_rows:
             return counts
+        candidate_downgrade_ids = [
+            row["id"] for row in normalized_rows if row.get("status") != "complete"
+        ]
+        source_keys = {
+            row.get("sourceKey") for row in normalized_rows if row.get("sourceKey")
+        }
         with self.connection() as conn:
             with conn.cursor() as cur:
+                invalid_existing_complete_ids = set()
+                if candidate_downgrade_ids:
+                    cur.execute(
+                        """
+                        SELECT id, class_key, spec_key, gear_items_json
+                        FROM cache.websim_community_gear_templates
+                        WHERE id = ANY(%s::text[])
+                          AND status = 'complete'
+                        """,
+                        (candidate_downgrade_ids,),
+                    )
+                    existing_complete_rows = cur.fetchall()
+                    all_existing_items = []
+                    for row in existing_complete_rows:
+                        all_existing_items.extend(
+                            item for item in _json_value(row[3], []) if isinstance(item, dict)
+                        )
+                    official_metadata_by_id = self._official_item_metadata_by_id(cur, all_existing_items)
+                    for existing_id, class_key, spec_key, gear_items_json in existing_complete_rows:
+                        gear_items = _json_value(gear_items_json, [])
+                        if official_metadata_by_id:
+                            gear_items = [
+                                apply_item_metadata(
+                                    item,
+                                    official_metadata_by_id.get(
+                                        str((item or {}).get("itemId") or (item or {}).get("id") or "").strip()
+                                    ),
+                                )
+                                if isinstance(item, dict)
+                                else item
+                                for item in gear_items
+                            ]
+                        _ready_by_slot, _occupied_slots, missing_slots = gear_template_slot_coverage(
+                            gear_items,
+                            class_key,
+                            spec_key,
+                        )
+                        if missing_slots:
+                            invalid_existing_complete_ids.add(existing_id)
                 for normalized in normalized_rows:
                     cur.execute(
                         """
@@ -1624,6 +2000,18 @@ class PostgresCacheStore:
                             updated_at = EXCLUDED.updated_at,
                             expires_at = EXCLUDED.expires_at,
                             scan_run_id = EXCLUDED.scan_run_id
+                        WHERE NOT (
+                            cache.websim_community_gear_templates.status = 'complete'
+                            AND EXCLUDED.status <> 'complete'
+                            AND NOT (
+                                cache.websim_community_gear_templates.id = ANY(%s::text[])
+                            )
+                        )
+                          AND NOT (
+                            cache.websim_community_gear_templates.status <> 'complete'
+                            AND EXCLUDED.status <> 'complete'
+                            AND cache.websim_community_gear_templates.ready_slot_count > EXCLUDED.ready_slot_count
+                        )
                         """,
                         (
                             normalized["id"],
@@ -1646,9 +2034,111 @@ class PostgresCacheStore:
                             normalized["updatedAt"],
                             normalized["expiresAt"] or None,
                             normalized["scanRunId"],
+                            list(invalid_existing_complete_ids),
                         ),
                     )
-        return counts
+                self._reconcile_community_gear_slot_coverage(
+                    cur,
+                    source_keys,
+                    scan_run_id=scan_run_id,
+                )
+        return self.community_gear_template_counts()
+
+    def _trusted_observed_variant_item(self, row):
+        (
+            variant_id,
+            item_id,
+            item_name,
+            slot,
+            item_level,
+            simc_options_json,
+            status,
+            blockers_json,
+            variant_payload_json,
+            item_payload_json,
+            updated_at,
+        ) = row
+        variant_payload = _json_value(variant_payload_json, {})
+        item_payload = _json_value(item_payload_json, {})
+        simc_options = _json_value(simc_options_json, {})
+        blockers = _json_value(blockers_json, [])
+        class_key = slugify(variant_payload.get("classKey") or item_payload.get("classKey"), "")
+        spec_key = slugify(variant_payload.get("specKey") or item_payload.get("specKey"), "")
+        stat_source = str(variant_payload.get("statSource") or "").strip().lower()
+        trusted_stats = stat_source in {"simulationcraft", "simulationcraft_json"} and bool(
+            variant_payload.get("itemStats") or variant_payload.get("stats")
+        )
+        if not class_key or not spec_key or not trusted_stats:
+            return None
+        item = {
+            **(item_payload if isinstance(item_payload, dict) else {}),
+            **(variant_payload if isinstance(variant_payload, dict) else {}),
+            **(simc_options if isinstance(simc_options, dict) else {}),
+            "id": str(item_id or ""),
+            "itemId": str(item_id or ""),
+            "name": item_name or f"item_{item_id}",
+            "displayName": item_name or str(item_id or ""),
+            "slot": normalize_slot(slot),
+            "ilevel": _int_value(item_level),
+            "itemLevel": _int_value(item_level),
+            "sourceType": "observed_profile",
+            "source": variant_payload.get("sourceLabel") or "Raider.IO observed gear",
+            "classKey": class_key,
+            "specKey": spec_key,
+            "variantKey": str(variant_payload.get("variantKey") or variant_id or ""),
+            "variantSource": "observed_profile",
+            "variantStatus": status or "",
+            "variantBlockers": blockers,
+            "updatedAt": str(updated_at or ""),
+            "observedProfileRefs": [
+                {
+                    "sourceType": "observed_profile",
+                    "sourceName": variant_payload.get("sourceLabel") or "Raider.IO observed profile",
+                    "profileUrl": variant_payload.get("profileUrl") or "",
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "updatedAt": str(updated_at or ""),
+                }
+            ],
+        }
+        return normalize_gear_item(item, class_key, spec_key, "observed_profile")
+
+    def _build_observed_community_gear_templates(self, scan_run_id=""):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT v.id, v.item_id, COALESCE(NULLIF(i.name, ''), v.item_id),
+                           v.slot, v.item_level, v.simc_options_json, v.status,
+                           v.blockers_json, v.payload_json, i.payload_json, v.updated_at
+                    FROM cache.websim_gear_variants v
+                    LEFT JOIN cache.websim_items i ON i.id = v.item_id
+                    WHERE v.source_type = 'observed_profile'
+                      AND v.status IN ('verified', 'partial')
+                    ORDER BY COALESCE(v.payload_json->>'classKey', ''),
+                             COALESCE(v.payload_json->>'specKey', ''),
+                             v.updated_at DESC,
+                             v.item_id,
+                             v.slot
+                    """
+                )
+                rows = cur.fetchall()
+        items_by_spec = {}
+        for row in rows or []:
+            item = self._trusted_observed_variant_item(row)
+            if not item:
+                continue
+            class_key = slugify(item.get("classKey"), "")
+            spec_key = slugify(item.get("specKey"), "")
+            if not class_key or not spec_key:
+                continue
+            items_by_spec.setdefault((class_key, spec_key), []).append(item)
+        templates = []
+        for (class_key, spec_key), items in items_by_spec.items():
+            template = gear_community_template_from_observed_items(items, class_key, spec_key)
+            if template:
+                templates.append({**template, "scanRunId": scan_run_id})
+        return templates
 
     def build_community_gear_templates(self, scan_run_id=""):
         with self.connection() as conn:
@@ -1684,20 +2174,294 @@ class PostgresCacheStore:
         for (class_key, spec_key), presets in presets_by_spec.items():
             for template in websim_gear_community_templates(presets, class_key, spec_key):
                 templates.append({**template, "scanRunId": scan_run_id})
+        templates.extend(self._build_observed_community_gear_templates(scan_run_id=scan_run_id))
         return dedupe_gear_community_templates(templates)
+
+    def community_gear_template_coverage_rows(self):
+        return self.admin_gate_gear_template_records().get("communityGearTemplates") or []
 
     def _backfill_simc_options(self, item, item_level):
         options = {}
         if item_level:
             options["ilevel"] = str(item_level)
+        observed_options = observed_gear_simc_options(item)
+        if isinstance(observed_options, dict):
+            options.update(observed_options)
         for key in ("bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats", "embellishment"):
             value = item.get(key) or item.get(key.replace("_", ""))
             if value not in (None, "", [], {}):
                 options[key] = str(value)
         return options
 
+    def _observed_backfill_stat_payload(self, item, profile_simc_gear):
+        trusted_payload = observed_variant_stat_payload_fields(item)
+        if trusted_payload:
+            return trusted_payload
+        return simc_observed_variant_stat_payload(item, profile_simc_gear)
+
+    def _observed_profile_simc_text(self, profile):
+        profile = profile if isinstance(profile, dict) else {}
+        class_key = slugify(profile.get("classKey") or profile.get("classSlug") or profile.get("className"), "mage")
+        spec_key = slugify(profile.get("specKey") or profile.get("specSlug") or profile.get("specName"), "")
+        character_name = str(profile.get("characterName") or profile.get("name") or "observed_profile").strip() or "observed_profile"
+        gear_items = []
+        for raw_item in profile.get("gear") or []:
+            if not isinstance(raw_item, dict):
+                continue
+            item = dict(raw_item)
+            item["sourceType"] = "manual"
+            item["ilevel"] = item.get("ilevel") or item.get("itemLevel") or item.get("item_level")
+            item.update(observed_gear_simc_options(item))
+            gear_items.append(item)
+        lines = []
+        for item in normalize_websim_gear_items(gear_items, class_key, spec_key, "manual"):
+            if not isinstance(item, dict) or not item.get("simcReady"):
+                continue
+            item_id = str(item.get("id") or item.get("itemId") or "").strip()
+            if not item_id:
+                continue
+            parts = [f"{item['slot']}=", f"id={item_id}"]
+            for key in ("ilevel", "bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats", "embellishment"):
+                if item.get(key):
+                    parts.append(f"{key}={item[key]}")
+            lines.append(",".join(parts))
+        if not lines:
+            return "", ["observed profile has no SimC-ready gear lines"]
+        if not any(line.startswith("main_hand=") for line in lines):
+            lines.insert(0, "main_hand=worn_shortsword,id=25")
+        profile_lines = [
+            f'{class_key}="{character_name}"',
+            "level=90",
+            f"race={DEFAULT_RACE_BY_CLASS.get(class_key, 'troll')}",
+            f"spec={spec_key}" if spec_key else "",
+            "iterations=1",
+            "default_actions=1",
+            *lines,
+        ]
+        return "\n".join(line for line in profile_lines if line) + "\n", []
+
+    def _run_observed_profile_simc_json(self, profile, timeout_seconds=90):
+        profile_text, errors = self._observed_profile_simc_text(profile)
+        if errors:
+            return {"ok": False, "errors": errors}
+        binary = websim_simc_binary()
+        if not binary:
+            return {"ok": False, "errors": ["simcraft binary not found"]}
+        with tempfile.TemporaryDirectory(prefix="wow-pg-observed-simc-") as tmp_dir:
+            output_path = Path(tmp_dir) / "observed-profile.json"
+            try:
+                completed = run_websim_simcraft_process(
+                    binary,
+                    profile_with_simc_json_output(profile_text, output_path),
+                    max(1, int(timeout_seconds or 90)),
+                )
+            except (OSError, subprocess.TimeoutExpired) as error:
+                return {"ok": False, "errors": [str(error)]}
+            if completed.returncode != 0:
+                detail = (completed.stderr or completed.stdout or f"simc exited {completed.returncode}").strip()
+                return {"ok": False, "errors": [detail[:1000] if detail else f"simc exited {completed.returncode}"]}
+            if not output_path.exists():
+                detail = (completed.stderr or completed.stdout or "SimulationCraft did not write JSON output").strip()
+                return {"ok": False, "errors": [detail[:1000]]}
+            try:
+                return json.loads(output_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                return {"ok": False, "errors": [f"SimulationCraft JSON parse failed: {error}"]}
+
+    def _observed_item_probe_context(self, profiles):
+        gear_items = []
+        for profile in profiles or []:
+            if not isinstance(profile, dict):
+                continue
+            for item in profile.get("gear") or []:
+                if isinstance(item, dict):
+                    gear_items.append(item)
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT class_key, spec_key, name, profile
+                    FROM cache.websim_profile_presets
+                    WHERE profile <> ''
+                    ORDER BY class_key, spec_key, id
+                    """
+                )
+                profile_rows = cur.fetchall()
+                metadata_by_id = self._official_item_metadata_by_id(cur, gear_items)
+                cur.execute(
+                    """
+                    SELECT item_id, slot, item_level, simc_options_json, payload_json
+                    FROM cache.websim_gear_variants
+                    WHERE source_type = 'observed_profile'
+                      AND status = 'verified'
+                    """
+                )
+                existing_stats = {}
+                for item_id, slot, item_level, simc_options_json, payload_json in cur.fetchall():
+                    payload = _json_value(payload_json, {})
+                    stat_payload = observed_variant_stat_payload_fields(payload)
+                    if not stat_payload:
+                        continue
+                    key = observed_variant_stat_identity_key(
+                        item_id,
+                        slot,
+                        item_level,
+                        _json_value(simc_options_json, {}),
+                    )
+                    existing_stats.setdefault(key, stat_payload)
+        return {
+            "profileRows": profile_rows,
+            "metadataById": metadata_by_id,
+            "existingStats": existing_stats,
+        }
+
+    def _observed_item_probe_simc_profiles(self, item, profile_preset_rows):
+        item = item if isinstance(item, dict) else {}
+        item_level = _int_value(item.get("itemLevel") or item.get("ilevel") or item.get("item_level"))
+        simc_slot = official_item_level_probe_simc_slot(item.get("slot"))
+        item_id = str(item.get("itemId") or item.get("item_id") or item.get("id") or "").strip()
+        if not item_id or not item_level or not simc_slot:
+            return [], "", ["observed item probe missing item id, item level, or slot"]
+        by_pair = {}
+        profile_order = []
+        for row in profile_preset_rows or []:
+            if len(row) < 4:
+                continue
+            class_key = slugify(row[0], "")
+            spec_key = slugify(row[1], "")
+            profile = str(row[3] or "")
+            if not class_key or not spec_key or not profile.strip():
+                continue
+            pair = (class_key, spec_key)
+            if pair not in by_pair:
+                by_pair[pair] = profile
+                profile_order.append(pair)
+        candidates = list(item_level_probe_profile_candidates(item))
+        source_class = slugify(item.get("classKey"), "")
+        if source_class:
+            for pair in profile_order:
+                if pair[0] == source_class and pair not in candidates:
+                    candidates.insert(0, pair)
+        for fallback in profile_order:
+            if fallback not in candidates:
+                candidates.append(fallback)
+
+        safe_name = simc_safe_item_name(item.get("name") or item.get("displayName") or f"item_{item_id}", item_id)
+        simc_options = self._backfill_simc_options(item, item_level)
+        options = [f"id={item_id}", f"ilevel={item_level}"]
+        for key in ("bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats", "embellishment"):
+            value = simc_options.get(key)
+            if value:
+                options.append(f"{key}={value}")
+        item_line = f"{simc_slot}={safe_name},{','.join(options)}"
+        remove_slots = {simc_slot}
+        if simc_slot == "main_hand" and item_level_probe_main_hand_removes_offhand(item):
+            remove_slots.add("off_hand")
+        probe_override_keys = {"iterations", "max_time", "target_error", "calculate_scale_factors", "json"}
+        profiles = []
+        for class_key, spec_key in candidates:
+            profile = by_pair.get((class_key, spec_key))
+            if not profile:
+                continue
+            lines = []
+            for line in profile.splitlines():
+                stripped = line.strip()
+                if not stripped or "=" not in stripped:
+                    lines.append(line)
+                    continue
+                head = stripped.split("=", 1)[0].strip()
+                if head in probe_override_keys or head in remove_slots:
+                    continue
+                lines.append(line)
+            lines.extend(
+                [
+                    "iterations=1",
+                    "max_time=1",
+                    "target_error=0.5",
+                    "calculate_scale_factors=0",
+                    item_line,
+                ]
+            )
+            profiles.append(("\n".join(lines).strip() + "\n", class_key, spec_key, item_line))
+        if profiles:
+            return profiles, item_line, []
+        return [], item_line, ["no compatible SimC profile preset found for observed item probe"]
+
+    def _observed_item_probe_simc_text(self, item, profile_preset_rows):
+        profiles, item_line, errors = self._observed_item_probe_simc_profiles(item, profile_preset_rows)
+        if errors:
+            return "", "", "", item_line, errors
+        profile_text, class_key, spec_key, item_line = profiles[0]
+        return profile_text, class_key, spec_key, item_line, []
+
+    def _run_observed_item_probe_simc_json(self, profile_text, timeout_seconds=90):
+        binary = websim_simc_binary()
+        if not binary:
+            return {"ok": False, "errors": ["simcraft binary not found"]}
+        with tempfile.TemporaryDirectory(prefix="wow-pg-observed-item-probe-") as tmp_dir:
+            output_path = Path(tmp_dir) / "observed-item-probe.json"
+            try:
+                completed = run_websim_simcraft_process(
+                    binary,
+                    profile_with_simc_json_output(profile_text, output_path),
+                    max(1, int(timeout_seconds or 90)),
+                )
+            except (OSError, subprocess.TimeoutExpired) as error:
+                return {"ok": False, "errors": [str(error)]}
+            if completed.returncode != 0:
+                detail = (completed.stderr or completed.stdout or f"simc exited {completed.returncode}").strip()
+                return {"ok": False, "errors": [detail[:1000] if detail else f"simc exited {completed.returncode}"]}
+            if not output_path.exists():
+                detail = (completed.stderr or completed.stdout or "SimulationCraft did not write JSON output").strip()
+                return {"ok": False, "errors": [detail[:1000]]}
+            try:
+                return json.loads(output_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                return {"ok": False, "errors": [f"SimulationCraft JSON parse failed: {error}"]}
+
+    def _observed_item_probe_stat_payload(self, item, profile_preset_rows, metadata_by_id=None, timeout_seconds=90):
+        item = dict(item) if isinstance(item, dict) else {}
+        item_id = str(item.get("itemId") or item.get("item_id") or item.get("id") or "").strip()
+        metadata = (metadata_by_id or {}).get(item_id)
+        if metadata:
+            item = apply_item_metadata(item, metadata)
+            if isinstance(metadata.get("payload"), dict):
+                item["metadataPayload"] = metadata.get("payload")
+        profile_candidates, _item_line, errors = self._observed_item_probe_simc_profiles(item, profile_preset_rows)
+        if errors:
+            return {}, errors
+        probe_errors = []
+        for profile_text, class_key, spec_key, item_line in profile_candidates:
+            simc_payload = self._run_observed_item_probe_simc_json(profile_text, timeout_seconds=timeout_seconds)
+            if isinstance(simc_payload, dict) and simc_payload.get("ok") is False:
+                probe_errors.extend(str(error) for error in simc_payload.get("errors") or [] if str(error).strip())
+                continue
+            stat_payload = simc_observed_variant_stat_payload(item, simc_json_gear_stats_by_slot(simc_payload))
+            if not stat_payload:
+                probe_errors.append(f"SimC observed item probe did not include matching target item stats for {class_key}:{spec_key}")
+                continue
+            stat_payload.update(
+                {
+                    "derivedVariantSource": "simulationcraft_observed_item_probe",
+                    "simcProfile": item_line,
+                    "probeClassKey": class_key,
+                    "probeSpecKey": spec_key,
+                    "simcCheckedAt": utc_now(),
+                }
+            )
+            return stat_payload, []
+        return {}, probe_errors[:12] or ["SimC observed item probe did not include matching target item stats"]
+
     def _write_backfill_gear_rows(self, rows):
-        counts = {"itemCount": 0, "sourceCount": 0, "variantCount": 0, "partialCount": 0, "blockedCount": 0, "errors": []}
+        counts = {
+            "itemCount": 0,
+            "sourceCount": 0,
+            "variantCount": 0,
+            "verifiedCount": 0,
+            "partialCount": 0,
+            "blockedCount": 0,
+            "errors": [],
+        }
         prepared = []
         seen_variants = set()
         for row in rows or []:
@@ -1715,15 +2479,30 @@ class PostgresCacheStore:
                 counts["errors"].append(f"skipped backfill item missing required fields: {item_id or 'unknown'}")
                 continue
             simc_options = self._backfill_simc_options(row, item_level)
-            status = "verified" if len(simc_options) > 1 else "partial"
-            if status == "partial":
-                counts["partialCount"] += 1
+            default_status = "verified" if len(simc_options) > 1 else "partial"
+            status = str(row.get("status") or default_status).strip() or default_status
+            blockers = unique_text_list(row.get("blockers") or [])
+            if source_type == "observed_profile":
+                if observed_variant_stat_payload_fields(row):
+                    status = "verified" if not blockers else "partial"
+                else:
+                    status = "partial"
+                    if len(simc_options) > 1:
+                        blockers = unique_text_list([*blockers, "missing SimulationCraft item stats"])
+                    else:
+                        blockers = unique_text_list([*blockers, "missing deterministic SimC variant preset"])
             difficulty_key = str(row.get("difficultyKey") or source_type).strip()
             variant_key = str(row.get("variantKey") or f"{difficulty_key}-{slot}-{item_level}-{json_param(simc_options)}")
             variant_identity = (item_id, variant_key)
             if variant_identity in seen_variants:
                 continue
             seen_variants.add(variant_identity)
+            if status == "verified":
+                counts["verifiedCount"] += 1
+            elif status == "blocked":
+                counts["blockedCount"] += 1
+            else:
+                counts["partialCount"] += 1
             prepared.append(
                 {
                     **row,
@@ -1735,7 +2514,8 @@ class PostgresCacheStore:
                     "sourceLabel": str(row.get("sourceLabel") or row.get("sourceName") or source_type).strip(),
                     "difficultyKey": difficulty_key,
                     "variantKey": variant_key,
-                    "status": str(row.get("status") or status).strip(),
+                    "status": status,
+                    "blockers": blockers,
                     "simcOptions": simc_options,
                 }
             )
@@ -1760,11 +2540,31 @@ class PostgresCacheStore:
                         INSERT INTO cache.websim_items (id, name, slot, item_level, payload_json, source_status, updated_at)
                         VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s)
                         ON CONFLICT (id) DO UPDATE SET
-                            name = COALESCE(NULLIF(EXCLUDED.name, ''), cache.websim_items.name),
-                            slot = COALESCE(NULLIF(EXCLUDED.slot, ''), cache.websim_items.slot),
-                            item_level = COALESCE(EXCLUDED.item_level, cache.websim_items.item_level),
-                            payload_json = EXCLUDED.payload_json,
-                            source_status = EXCLUDED.source_status,
+                            name = CASE
+                                WHEN COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                THEN cache.websim_items.name
+                                ELSE COALESCE(NULLIF(EXCLUDED.name, ''), cache.websim_items.name)
+                            END,
+                            slot = CASE
+                                WHEN COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                THEN cache.websim_items.slot
+                                ELSE COALESCE(NULLIF(EXCLUDED.slot, ''), cache.websim_items.slot)
+                            END,
+                            item_level = CASE
+                                WHEN COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                THEN cache.websim_items.item_level
+                                ELSE COALESCE(EXCLUDED.item_level, cache.websim_items.item_level)
+                            END,
+                            payload_json = CASE
+                                WHEN COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                THEN cache.websim_items.payload_json
+                                ELSE EXCLUDED.payload_json
+                            END,
+                            source_status = CASE
+                                WHEN COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                THEN cache.websim_items.source_status
+                                ELSE EXCLUDED.source_status
+                            END,
                             updated_at = EXCLUDED.updated_at
                         """,
                         (
@@ -1827,6 +2627,10 @@ class PostgresCacheStore:
                             simc_options_json = EXCLUDED.simc_options_json,
                             status = EXCLUDED.status,
                             blockers_json = EXCLUDED.blockers_json
+                        WHERE NOT (
+                            cache.websim_gear_variants.status = 'verified'
+                            AND EXCLUDED.status <> 'verified'
+                        )
                         """,
                         (
                             self._deterministic_uuid("gear-backfill-variant", f"{item_id}:{variant_key}"),
@@ -1852,33 +2656,163 @@ class PostgresCacheStore:
         counts["status"] = counts["sourceStatus"]
         return counts
 
-    def backfill_observed_gear_from_raiderio(self, raiderio_payload, mode="scheduled"):
+    def backfill_observed_gear_from_raiderio(
+        self,
+        raiderio_payload,
+        mode="scheduled",
+        target_limit=None,
+        profile_limit=None,
+        timeout_seconds=None,
+        enable_simc_stats=None,
+        full_profile_gear=None,
+        item_probe_limit=None,
+    ):
         rows = []
         profile_count = 0
-        for profile in (raiderio_payload or {}).get("profiles") or []:
+        available_profile_count = 0
+        simc_profile_count = 0
+        simc_resolved_profile_count = 0
+        simc_resolved_slot_count = 0
+        simc_item_probe_count = 0
+        simc_item_probe_resolved_count = 0
+        simc_errors = []
+        target_limit_value = None if target_limit is None else max(0, _int_value(target_limit, 0))
+        profile_limit_value = None if profile_limit is None else max(0, _int_value(profile_limit, 0))
+        timeout_seconds_value = None if timeout_seconds is None else max(0, _int_value(timeout_seconds, 0))
+        item_probe_limit_value = None if item_probe_limit is None else max(0, _int_value(item_probe_limit, 0))
+        if target_limit_value == 0:
+            stop_reason = "target_limit_reached"
+        else:
+            stop_reason = ""
+        if profile_limit_value == 0 and not stop_reason:
+            stop_reason = "profile_limit_reached"
+        deadline_at = time.monotonic() + timeout_seconds_value if timeout_seconds_value else None
+        profiles = [profile for profile in (raiderio_payload or {}).get("profiles") or [] if isinstance(profile, dict)]
+        item_probe_context = None
+        item_probe_cache = {}
+
+        def load_item_probe_context():
+            nonlocal item_probe_context
+            if item_probe_context is None:
+                item_probe_context = self._observed_item_probe_context(profiles)
+            return item_probe_context
+
+        for profile in profiles:
             if not isinstance(profile, dict):
                 continue
+            available_profile_count += 1
+            if stop_reason in {"target_limit_reached", "profile_limit_reached"}:
+                break
+            if profile_limit_value is not None and profile_count >= profile_limit_value:
+                stop_reason = "profile_limit_reached"
+                break
+            if deadline_at and time.monotonic() >= deadline_at:
+                stop_reason = "timeout_reached"
+                break
             profile_count += 1
             profile_ref = profile.get("profileUrl") or profile.get("url") or profile.get("name") or ""
+            profile_simc_gear = simc_json_gear_stats_by_slot(profile)
+            if enable_simc_stats and not profile_simc_gear:
+                simc_profile_count += 1
+                simc_payload = self._run_observed_profile_simc_json(profile, timeout_seconds=timeout_seconds_value or 90)
+                if isinstance(simc_payload, dict) and simc_payload.get("ok") is False:
+                    simc_errors.extend(str(error) for error in simc_payload.get("errors") or [] if str(error).strip())
+                else:
+                    profile_simc_gear = simc_json_gear_stats_by_slot(simc_payload)
+                    if profile_simc_gear:
+                        simc_resolved_profile_count += 1
+                        simc_resolved_slot_count += len(profile_simc_gear)
+                    else:
+                        simc_errors.append("SimulationCraft JSON did not include target item stats")
             for item in profile.get("gear") or []:
                 if not isinstance(item, dict):
                     continue
-                rows.append(
-                    {
-                        **item,
-                        "sourceType": "observed_profile",
-                        "difficultyKey": "observed_profile",
-                        "sourceKey": f"observed:{profile_ref}:{item.get('itemId') or item.get('id')}",
-                        "sourceLabel": f"Raider.IO observed profile: {profile.get('name') or 'profile'}",
-                        "profileUrl": profile.get("profileUrl") or "",
-                        "classKey": profile.get("classKey") or item.get("classKey") or "",
-                        "specKey": profile.get("specKey") or item.get("specKey") or "",
+                if target_limit_value is not None and len(rows) >= target_limit_value:
+                    stop_reason = "target_limit_reached"
+                    break
+                row_item = {
+                    key: value
+                    for key, value in item.items()
+                    if key
+                    not in {
+                        "itemStats",
+                        "stats",
+                        "statSummary",
+                        "statSource",
+                        "statSourceDetail",
+                        "statDisplayStatus",
                     }
-                )
+                }
+                row = {
+                    **row_item,
+                    "sourceType": "observed_profile",
+                    "difficultyKey": "observed_profile",
+                    "sourceKey": f"observed:{profile_ref}:{item.get('itemId') or item.get('id')}",
+                    "sourceLabel": f"Raider.IO observed profile: {profile.get('name') or 'profile'}",
+                    "profileUrl": profile.get("profileUrl") or "",
+                    "classKey": profile.get("classKey") or item.get("classKey") or "",
+                    "specKey": profile.get("specKey") or item.get("specKey") or "",
+                }
+                stat_payload = self._observed_backfill_stat_payload({**item, **row}, profile_simc_gear)
+                if enable_simc_stats and not stat_payload and item_probe_limit_value:
+                    context = load_item_probe_context()
+                    probe_item = {**item, **row}
+                    simc_options = self._backfill_simc_options(
+                        probe_item,
+                        _int_value(probe_item.get("itemLevel") or probe_item.get("ilevel") or probe_item.get("item_level")),
+                    )
+                    probe_key = observed_variant_stat_identity_key(
+                        probe_item.get("itemId") or probe_item.get("id"),
+                        probe_item.get("slot"),
+                        probe_item.get("itemLevel") or probe_item.get("ilevel") or probe_item.get("item_level"),
+                        simc_options,
+                    )
+                    cached_payload = (context.get("existingStats") or {}).get(probe_key)
+                    if cached_payload:
+                        stat_payload = cached_payload
+                    elif probe_key in item_probe_cache:
+                        stat_payload = item_probe_cache[probe_key]
+                    elif simc_item_probe_count < item_probe_limit_value:
+                        simc_item_probe_count += 1
+                        stat_payload, probe_errors = self._observed_item_probe_stat_payload(
+                            probe_item,
+                            context.get("profileRows") or [],
+                            context.get("metadataById") or {},
+                            timeout_seconds=timeout_seconds_value or 90,
+                        )
+                        item_probe_cache[probe_key] = stat_payload
+                        if stat_payload:
+                            simc_item_probe_resolved_count += 1
+                        else:
+                            simc_errors.extend(str(error) for error in (probe_errors or []) if str(error).strip())
+                if stat_payload:
+                    row.update(stat_payload)
+                    row["status"] = "verified"
+                else:
+                    row["status"] = "partial"
+                rows.append(row)
+            if stop_reason:
+                break
         result = self._write_backfill_gear_rows(rows)
         result["runner"] = "postgres"
         result["mode"] = mode
         result["observedProfileCount"] = profile_count
+        result["availableProfileCount"] = available_profile_count
+        result["processedProfileCount"] = profile_count
+        result["processedItemCount"] = len(rows)
+        result["targetLimit"] = target_limit_value
+        result["profileLimit"] = profile_limit_value
+        result["timeoutSeconds"] = timeout_seconds_value
+        result["enableSimcStats"] = bool(enable_simc_stats)
+        result["fullProfileGear"] = bool(full_profile_gear)
+        result["itemProbeLimit"] = item_probe_limit_value
+        result["simcProfileCount"] = simc_profile_count
+        result["simcResolvedProfileCount"] = simc_resolved_profile_count
+        result["simcResolvedSlotCount"] = simc_resolved_slot_count
+        result["simcItemProbeCount"] = simc_item_probe_count
+        result["simcItemProbeResolvedCount"] = simc_item_probe_resolved_count
+        result["simcErrors"] = simc_errors[:12]
+        result["stopReason"] = stop_reason or "completed_cached_payload_window"
         return result
 
     def backfill_crafted_gear_from_seed(self, items, mode="scheduled"):
@@ -2627,6 +3561,7 @@ class PostgresCacheStore:
             UNION ALL
             SELECT 'websim_community_gear_templates', COUNT(*), MAX(updated_at)::text
             FROM cache.websim_community_gear_templates
+            WHERE expires_at IS NULL OR expires_at > now()
             """
         )
         table_rows = tuple(
@@ -2634,7 +3569,7 @@ class PostgresCacheStore:
             for row in cur.fetchall()
         )
         return (
-            "pg-websim-gear-v1",
+            "pg-websim-gear-v2",
             class_key,
             spec_key,
             bool(compact),
@@ -2691,6 +3626,129 @@ class PostgresCacheStore:
                 catalog_items.append(sanitize_gear_candidate_mod_options(item))
         return catalog_items
 
+    def _official_item_metadata_by_id(self, cur, gear_items):
+        item_ids = sorted({
+            str((item or {}).get("itemId") or (item or {}).get("id") or "").strip()
+            for item in gear_items or []
+            if isinstance(item, dict) and str((item or {}).get("itemId") or (item or {}).get("id") or "").strip()
+        })
+        if not item_ids:
+            return {}
+        placeholders = ", ".join(["%s"] * len(item_ids))
+        cur.execute(
+            f"""
+            SELECT id, name, slot, item_level, payload_json, source_status
+            FROM cache.websim_items
+            WHERE id IN ({placeholders})
+            """,
+            item_ids,
+        )
+        metadata_by_id = {}
+        for row in cur.fetchall():
+            payload = _json_value(row[4], {})
+            payload = payload if isinstance(payload, dict) else {}
+            metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
+            metadata_source = str(metadata.get("source") or payload.get("metadataSource") or "").strip()
+            if metadata_source != ITEM_METADATA_SOURCE:
+                continue
+            type_metadata = item_type_metadata_from_payload(payload)
+            item_id = str(row[0] or "").strip()
+            metadata_by_id[item_id] = {
+                "itemId": item_id,
+                "displayName": payload.get("name") or row[1] or f"Item {item_id}",
+                "slot": row[2] or "",
+                "itemLevel": _int_value(row[3]),
+                "quality": payload.get("quality") or "",
+                "iconUrl": metadata.get("iconUrl") or payload.get("iconUrl") or "",
+                "payload": payload,
+                "metadataStatus": str(row[5] or metadata.get("metadataStatus") or "verified").strip() or "verified",
+                "metadataSource": ITEM_METADATA_SOURCE,
+                "metadataLocale": metadata.get("locale") or "",
+                "englishName": metadata.get("englishName") or "",
+                **type_metadata,
+            }
+        return metadata_by_id
+
+    def _hydrated_community_gear_items(self, gear_items, official_metadata_by_id):
+        hydrated = []
+        for item in _json_value(gear_items, []):
+            if not isinstance(item, dict):
+                continue
+            item_id = str(item.get("itemId") or item.get("id") or "").strip()
+            metadata = official_metadata_by_id.get(item_id) if item_id else None
+            hydrated.append(apply_item_metadata(item, metadata) if metadata else item)
+        return hydrated
+
+    def _repair_template_offhand_occupancy(self, template):
+        if not isinstance(template, dict):
+            return template
+        missing_slots = [
+            str(slot or "").strip()
+            for slot in (template.get("missingSlots") or [])
+            if str(slot or "").strip()
+        ]
+        if "off_hand" not in missing_slots:
+            return template
+        _ready_by_slot, occupied_slots, _coverage_missing = gear_template_slot_coverage(
+            template.get("gearItems") or [],
+            template.get("classKey") or "",
+            template.get("specKey") or "",
+        )
+        if "off_hand" not in occupied_slots:
+            return template
+        repaired = {**template}
+        repaired_missing = [slot for slot in missing_slots if slot != "off_hand"]
+        repaired["missingSlots"] = repaired_missing
+        repaired["readySlotCount"] = len(CANONICAL_GEAR_SLOTS) - len(set(repaired_missing))
+        existing_occupied_slots = repaired.get("occupiedSlots") if isinstance(repaired.get("occupiedSlots"), dict) else {}
+        repaired["occupiedSlots"] = {**existing_occupied_slots, "off_hand": occupied_slots["off_hand"]}
+        if repaired.get("status") == "partial" and not repaired_missing and repaired.get("gearItems"):
+            repaired["status"] = "complete"
+        if repaired.get("status") == "complete" and repaired.get("sourceStatus") == "partial":
+            repaired["sourceStatus"] = "synced"
+        return repaired
+
+    def _community_gear_template_from_row(self, row, official_metadata_by_id=None, normalize_coverage=True):
+        payload = _json_value(row[16], {})
+        payload = payload if isinstance(payload, dict) else {}
+        gear_items = self._hydrated_community_gear_items(row[11], official_metadata_by_id or {})
+        template = {
+            "id": str(row[0] or ""),
+            "classKey": row[1] or "",
+            "specKey": row[2] or "",
+            "name": row[3] or "",
+            "sourceKey": row[4] or "",
+            "sourceName": row[5] or "",
+            "sourceUrl": row[6] or "",
+            "sourceStatus": row[7] or "",
+            "status": row[8] or "",
+            "signature": row[9] or "",
+            "sourceRefs": normalize_source_refs(_json_value(row[10], [])),
+            "gearItems": gear_items,
+            "rawString": row[12] or "",
+            "readySlotCount": _int_value(row[13]),
+            "missingSlots": _json_value(row[14], []),
+            "analysisWindow": row[15] or "",
+            "payload": payload,
+            "updatedAt": str(row[17] or ""),
+            "expiresAt": str(row[18] or ""),
+            "scanRunId": row[19] or "",
+            "canApplyGear": bool(row[12] or gear_items),
+            "templateRevision": COMMUNITY_TEMPLATE_REVISION,
+        }
+        scenario_key = payload.get("scenarioKey") if isinstance(payload, dict) else ""
+        if scenario_key:
+            template["scenarioKey"] = scenario_key
+        enhancement_readiness = payload.get("enhancementReadiness") if isinstance(payload, dict) else {}
+        if isinstance(enhancement_readiness, dict) and enhancement_readiness:
+            template["enhancementReadiness"] = enhancement_readiness
+        template_evidence = payload.get("templateEvidence") if isinstance(payload, dict) else {}
+        if isinstance(template_evidence, dict) and template_evidence:
+            template["templateEvidence"] = template_evidence
+        if normalize_coverage:
+            template = self._repair_template_offhand_occupancy(template)
+        return template
+
     def _gear_community_templates(self, cur, class_key, spec_key):
         cur.execute(
             """
@@ -2700,48 +3758,22 @@ class PostgresCacheStore:
                    payload_json, updated_at, expires_at, scan_run_id
             FROM cache.websim_community_gear_templates
             WHERE class_key = %s AND spec_key = %s AND status IN ('complete', 'partial')
+              AND (expires_at IS NULL OR expires_at > now())
             ORDER BY status, ready_slot_count DESC, updated_at DESC, name
             LIMIT 80
             """,
             (class_key, spec_key),
         )
+        rows = cur.fetchall()
+        now = datetime.now(timezone.utc)
+        rows = [row for row in rows if not _timestamp_expired(row[18], now)]
+        all_gear_items = []
+        for row in rows:
+            all_gear_items.extend(item for item in _json_value(row[11], []) if isinstance(item, dict))
+        official_metadata_by_id = self._official_item_metadata_by_id(cur, all_gear_items)
         templates = []
-        for row in cur.fetchall():
-            payload = _json_value(row[16], {})
-            gear_items = _json_value(row[11], [])
-            template = {
-                "id": str(row[0] or ""),
-                "classKey": row[1] or "",
-                "specKey": row[2] or "",
-                "name": row[3] or "",
-                "sourceKey": row[4] or "",
-                "sourceName": row[5] or "",
-                "sourceUrl": row[6] or "",
-                "sourceStatus": row[7] or "",
-                "status": row[8] or "",
-                "signature": row[9] or "",
-                "sourceRefs": normalize_source_refs(_json_value(row[10], [])),
-                "gearItems": gear_items,
-                "rawString": row[12] or "",
-                "readySlotCount": _int_value(row[13]),
-                "missingSlots": _json_value(row[14], []),
-                "analysisWindow": row[15] or "",
-                "payload": payload,
-                "updatedAt": str(row[17] or ""),
-                "expiresAt": str(row[18] or ""),
-                "scanRunId": row[19] or "",
-                "canApplyGear": bool(row[12] or gear_items),
-                "templateRevision": COMMUNITY_TEMPLATE_REVISION,
-            }
-            scenario_key = payload.get("scenarioKey") if isinstance(payload, dict) else ""
-            if scenario_key:
-                template["scenarioKey"] = scenario_key
-            enhancement_readiness = payload.get("enhancementReadiness") if isinstance(payload, dict) else {}
-            if isinstance(enhancement_readiness, dict) and enhancement_readiness:
-                template["enhancementReadiness"] = enhancement_readiness
-            template_evidence = payload.get("templateEvidence") if isinstance(payload, dict) else {}
-            if isinstance(template_evidence, dict) and template_evidence:
-                template["templateEvidence"] = template_evidence
+        for row in rows:
+            template = self._community_gear_template_from_row(row, official_metadata_by_id, normalize_coverage=True)
             templates.append(template)
         return dedupe_gear_community_templates(templates)
 
@@ -2805,7 +3837,7 @@ class PostgresCacheStore:
                         item_ids,
                     )
                     item_rows = cur.fetchall()
-                community_templates = self._gear_community_templates(cur, class_key, spec_key)
+                persisted_templates = self._gear_community_templates(cur, class_key, spec_key)
         sources_by_item = self._gear_sources_by_item(source_rows)
         variants_by_item = self._gear_variants_by_item(variant_rows)
         raw_options_by_slot = {
@@ -2823,6 +3855,16 @@ class PostgresCacheStore:
             season,
         )
         catalog_items = sorted(catalog_items, key=gear_candidate_quality_score, reverse=True)
+        community_templates = select_community_best_gear_templates(
+            [template for template in persisted_templates if is_real_community_gear_template(template)],
+            class_key,
+            spec_key,
+        )
+        baseline_templates = select_best_baseline_gear_templates(
+            [template for template in persisted_templates if is_baseline_gear_template(template)]
+        )
+        if not baseline_templates:
+            baseline_templates = [blocked_baseline_gear_template(class_key, spec_key)]
         grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
         for item in catalog_items:
             for candidate_slot in gear_candidate_slots(item, item.get("classKey"), item.get("specKey")):
@@ -2854,6 +3896,16 @@ class PostgresCacheStore:
                 slot_group["embellishmentOptions"] = compact_gear_mod_options(embellishment_options) if compact else embellishment_options
             slot_groups.append(slot_group)
         output_catalog_items = compact_gear_candidates(catalog_items) if compact else catalog_items
+        output_community_templates = (
+            [compact_community_gear_template(template) for template in community_templates]
+            if compact
+            else community_templates
+        )
+        output_baseline_templates = (
+            [compact_community_gear_template(template) for template in baseline_templates]
+            if compact
+            else baseline_templates
+        )
         readiness = gear_readiness(catalog_items)
         payload = {
             "classKey": class_key,
@@ -2864,7 +3916,8 @@ class PostgresCacheStore:
             "equippedSet": {},
             "slotReadiness": gear_slot_readiness(catalog_items, class_key, spec_key),
             "baselineSet": [],
-            "communityTemplates": community_templates,
+            "communityTemplates": output_community_templates,
+            "baselineTemplates": output_baseline_templates,
             "communityTemplateSync": websim_gear_community_template_sync_state(community_templates),
             "readiness": readiness,
             "statSnapshot": blocked_stat_snapshot(
@@ -2939,18 +3992,28 @@ class PostgresCacheStore:
                 if has_gear_templates:
                     cur.execute(
                         """
-                        SELECT status, payload_json->'blockers' AS blockers, missing_slots_json
+                        SELECT id, class_key, spec_key, name, source_key, source_name,
+                               source_url, source_status, status, signature, source_refs_json,
+                               gear_items_json, raw_string, ready_slot_count, missing_slots_json,
+                               analysis_window, payload_json, updated_at, expires_at, scan_run_id
                         FROM cache.websim_community_gear_templates
                         ORDER BY updated_at DESC
                         LIMIT 500
                         """
                     )
-                    for row in cur.fetchall():
-                        blockers = _json_value(row[1], [])
-                        missing_slots = _json_value(row[2], [])
+                    template_rows = cur.fetchall()
+                    all_gear_items = []
+                    for row in template_rows:
+                        all_gear_items.extend(item for item in _json_value(row[11], []) if isinstance(item, dict))
+                    official_metadata_by_id = self._official_item_metadata_by_id(cur, all_gear_items)
+                    for row in template_rows:
+                        template = self._community_gear_template_from_row(row, official_metadata_by_id, normalize_coverage=True)
+                        payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+                        blockers = payload.get("blockers") if isinstance(payload.get("blockers"), list) else []
+                        missing_slots = template.get("missingSlots") or []
                         if missing_slots:
                             blockers = [*(blockers or []), f"missing slots: {', '.join(str(slot) for slot in missing_slots[:6])}"]
-                        rows.append(("gear_templates", row[0] or "", blockers))
+                        rows.append(("gear_templates", template.get("status") or "", blockers))
         return _admin_gate_queue_summary(rows)
 
     def admin_gate_talent_records(self):
@@ -3017,6 +4080,57 @@ class PostgresCacheStore:
             ],
         }
 
+    def _admin_gate_gear_template_display_records(self, templates):
+        display_slots = []
+        community_groups = {}
+        baseline_groups = {}
+        seen_community_slots = set()
+        seen_baseline_slots = set()
+        for template in templates or []:
+            if not isinstance(template, dict):
+                continue
+            class_key = slugify(template.get("classKey"), "")
+            spec_key = slugify(template.get("specKey"), "")
+            group_key = (class_key, spec_key)
+            if class_key and spec_key and is_baseline_gear_template(template):
+                baseline_groups.setdefault(group_key, []).append(template)
+                if group_key not in seen_baseline_slots:
+                    seen_baseline_slots.add(group_key)
+                    display_slots.append(("baseline", group_key))
+                continue
+            if class_key and spec_key and is_real_community_gear_template(template):
+                community_groups.setdefault(group_key, []).append(template)
+                if group_key not in seen_community_slots:
+                    seen_community_slots.add(group_key)
+                    display_slots.append(("community", group_key))
+                continue
+            display_slots.append(("raw", template))
+
+        selected_community = {}
+        for (class_key, spec_key), candidates in community_groups.items():
+            best = select_community_best_gear_templates(candidates, class_key, spec_key)
+            if best:
+                selected_community[(class_key, spec_key)] = best[0]
+        selected_baseline = {}
+        for group_key, candidates in baseline_groups.items():
+            best = select_best_baseline_gear_templates(candidates)
+            if best:
+                selected_baseline[group_key] = best[0]
+
+        display_records = []
+        for slot_type, value in display_slots:
+            if slot_type == "community":
+                selected = selected_community.get(value)
+                if selected:
+                    display_records.append(selected)
+            elif slot_type == "baseline":
+                selected = selected_baseline.get(value)
+                if selected:
+                    display_records.append(selected)
+            else:
+                display_records.append(value)
+        return display_records
+
     def admin_gate_gear_template_records(self):
         with self.connection() as conn:
             with conn.cursor() as cur:
@@ -3031,37 +4145,24 @@ class PostgresCacheStore:
                                gear_items_json, raw_string, ready_slot_count, missing_slots_json,
                                analysis_window, payload_json, updated_at, expires_at, scan_run_id
                         FROM cache.websim_community_gear_templates
+                        WHERE expires_at IS NULL OR expires_at > now()
                         ORDER BY updated_at DESC
                         LIMIT 500
                         """
                     )
                     template_rows = cur.fetchall()
+                    all_gear_items = []
+                    for row in template_rows:
+                        all_gear_items.extend(_json_value(row[11], []))
+                    official_metadata_by_id = self._official_item_metadata_by_id(cur, all_gear_items)
+                else:
+                    official_metadata_by_id = {}
+        templates = [
+            self._community_gear_template_from_row(row, official_metadata_by_id, normalize_coverage=True)
+            for row in template_rows
+        ]
         return {
-            "communityGearTemplates": [
-                {
-                    "id": str(row[0] or ""),
-                    "classKey": row[1] or "",
-                    "specKey": row[2] or "",
-                    "name": row[3] or "",
-                    "sourceKey": row[4] or "",
-                    "sourceName": row[5] or "",
-                    "sourceUrl": row[6] or "",
-                    "sourceStatus": row[7] or "",
-                    "status": row[8] or "",
-                    "signature": row[9] or "",
-                    "sourceRefs": _json_value(row[10], []),
-                    "gearItems": _json_value(row[11], []),
-                    "rawString": row[12] or "",
-                    "readySlotCount": _int_value(row[13]),
-                    "missingSlots": _json_value(row[14], []),
-                    "analysisWindow": row[15] or "",
-                    "payload": _json_value(row[16], {}),
-                    "updatedAt": str(row[17] or ""),
-                    "expiresAt": str(row[18] or ""),
-                    "scanRunId": row[19] or "",
-                }
-                for row in template_rows
-            ]
+            "communityGearTemplates": self._admin_gate_gear_template_display_records(templates)
         }
 
     def admin_gate_gear_variant_records(self):

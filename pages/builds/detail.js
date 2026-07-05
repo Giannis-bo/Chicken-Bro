@@ -1495,6 +1495,32 @@ function prunedGearSelectionByWeaponRule(gearPayload, selectedGearBySlot) {
   return selected
 }
 
+function offHandOccupyingMainHandItem(gearPayload, selectedGearBySlot) {
+  const rule = normalizedWeaponRule(gearPayload || {})
+  if (rule.available && rule.mode === 'dual_wield_2h') return null
+  const equippedSet = (gearPayload && gearPayload.equippedSet) || {}
+  const mainHand = (selectedGearBySlot && selectedGearBySlot.main_hand) || equippedSet.main_hand
+  const mainType = gearItemTypeContext(mainHand).weaponType
+  return twoHandWeaponTypes.has(mainType) ? mainHand : null
+}
+
+function occupiedOffHandGearItem(gearPayload, selectedGearBySlot) {
+  const mainHand = offHandOccupyingMainHandItem(gearPayload, selectedGearBySlot)
+  if (!mainHand) return null
+  return {
+    slot: 'off_hand',
+    simcSlot: 'off_hand',
+    displayName: '双手武器已占用',
+    localizedName: '双手武器已占用',
+    source: '主手双手武器',
+    sourceType: 'weapon_rule',
+    simcReady: true,
+    metadataStatus: 'verified',
+    reason: '主手双手武器占用副手槽位',
+    blockerLabel: ''
+  }
+}
+
 function embellishmentOptionAppliesToItem(option, item) {
   const group = enhancementOptionSlotGroup(option)
   if (!group) return true
@@ -2649,7 +2675,17 @@ function decorateGearCommunityTemplate(template) {
 }
 
 function gearCommunityTemplatesForPayload(payload) {
-  const templates = payload && Array.isArray(payload.communityTemplates) ? payload.communityTemplates : []
+  const communityTemplates = payload && Array.isArray(payload.communityTemplates) ? payload.communityTemplates : []
+  const baselineTemplates = payload && Array.isArray(payload.baselineTemplates) ? payload.baselineTemplates : []
+  const seenIds = new Set()
+  const templates = []
+  ;[...communityTemplates, ...baselineTemplates].forEach((template) => {
+    if (!template) return
+    const id = String(template.id || '').trim()
+    if (id && seenIds.has(id)) return
+    if (id) seenIds.add(id)
+    templates.push(template)
+  })
   return templates.map(decorateGearCommunityTemplate)
 }
 
@@ -3537,7 +3573,10 @@ function buildGearSlotRows(payload, selectedGearBySlot, enhancementBySlot) {
   const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
   return slots.map((slotMeta) => {
     const slot = slotMeta.slot || slotMeta.simcSlot || slotMeta.key
-    const item = enrichedGearItemFromCandidates(payload, slot, selection[slot] || ((payload.equippedSet || {})[slot]) || {})
+    const occupiedOffHand = slot === 'off_hand' && !selection[slot]
+      ? occupiedOffHandGearItem(payload, selection)
+      : null
+    const item = occupiedOffHand || enrichedGearItemFromCandidates(payload, slot, selection[slot] || ((payload.equippedSet || {})[slot]) || {})
     const slotState = readiness[slot] || {}
     const status = item.simcReady ? 'verified' : (slotState.status || 'blocked')
     const trust = gearTrustState(item, status, slotState.reason || (item.simcReady ? '可保存为配置' : '等待装备配置字段'))

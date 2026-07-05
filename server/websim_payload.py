@@ -13856,6 +13856,37 @@ def hydrate_gear_items_from_metadata(conn, items):
     return hydrated
 
 
+def hydrate_gear_templates_from_metadata(conn, templates):
+    if not templates:
+        return []
+    ids = []
+    for template in templates:
+        for item in (template.get("gearItems") if isinstance(template, dict) else None) or []:
+            if not isinstance(item, dict):
+                continue
+            item_id = str(item.get("itemId") or item.get("item_id") or item.get("id") or "").strip()
+            if item_id:
+                ids.append(item_id)
+    metadata_by_id = websim_item_metadata_by_ids(conn, ids)
+    hydrated_templates = []
+    for template in templates:
+        if not isinstance(template, dict):
+            hydrated_templates.append(template)
+            continue
+        hydrated = dict(template)
+        hydrated["gearItems"] = [
+            apply_item_metadata(
+                item,
+                metadata_by_id.get(str((item or {}).get("itemId") or (item or {}).get("item_id") or (item or {}).get("id") or "").strip()),
+            )
+            if isinstance(item, dict)
+            else item
+            for item in hydrated.get("gearItems") or []
+        ]
+        hydrated_templates.append(hydrated)
+    return hydrated_templates
+
+
 def build_related_item_metadata(row, metadata_by_alias):
     parts = split_item_name_parts(row.get("name") if isinstance(row, dict) else "")
     if len(parts) <= 1:
@@ -17139,6 +17170,61 @@ def gear_template_sort_key(template):
     )
 
 
+BASELINE_GEAR_TEMPLATE_SOURCE_KEYS = {DEFAULT_GEAR_TEMPLATE_SOURCE_KEY, "baseline_template", "simc_preset", "baseline_blocked"}
+
+
+def gear_template_source_key(template):
+    return str((template or {}).get("sourceKey") or "").strip().lower()
+
+
+def is_baseline_gear_template(template):
+    return gear_template_source_key(template) in BASELINE_GEAR_TEMPLATE_SOURCE_KEYS
+
+
+def is_real_community_gear_template(template):
+    if not isinstance(template, dict):
+        return False
+    if is_baseline_gear_template(template):
+        return False
+    return str(template.get("status") or "").strip() in {"complete", "partial"}
+
+
+def baseline_gear_template_sort_key(template):
+    source_key = gear_template_source_key(template)
+    return (
+        1 if source_key == DEFAULT_GEAR_TEMPLATE_SOURCE_KEY else 0,
+        1 if template.get("status") == "complete" else 0,
+        1 if template.get("sourceStatus") in {"synced", "verified"} else 0,
+        int(template.get("readySlotCount") or 0),
+        str(template.get("updatedAt") or ""),
+        str(template.get("name") or ""),
+    )
+
+
+def community_gear_template_sort_key(template):
+    return (
+        1 if template.get("status") == "complete" else 0,
+        1 if template.get("sourceStatus") in {"synced", "verified"} else 0,
+        int(template.get("readySlotCount") or 0),
+        str(template.get("updatedAt") or ""),
+        str(template.get("name") or ""),
+    )
+
+
+def select_best_baseline_gear_templates(templates):
+    candidates = [template for template in dedupe_gear_community_templates(templates) if is_baseline_gear_template(template)]
+    if not candidates:
+        return []
+    return [max(candidates, key=baseline_gear_template_sort_key)]
+
+
+def select_community_best_gear_templates(templates, class_key, spec_key):
+    candidates = [template for template in dedupe_gear_community_templates(templates) if is_real_community_gear_template(template)]
+    if candidates:
+        return [max(candidates, key=community_gear_template_sort_key)]
+    return [pending_community_gear_template(class_key, spec_key)]
+
+
 def dedupe_gear_community_templates(templates):
     prepared = []
     for template in templates or []:
@@ -18226,8 +18312,89 @@ def observed_profile_baseline_items(catalog_items, class_key, spec_key):
     return [by_slot[slot] for slot in CANONICAL_GEAR_SLOTS if slot in by_slot]
 
 
+def gear_off_hand_occupancy_from_main_hand(item, class_key="", spec_key=""):
+    if not isinstance(item, dict):
+        return {}
+    weapon_type = str(item.get("weaponType") or "").strip()
+    if weapon_type in TWO_HAND_WEAPON_TYPES:
+        return {
+            "slot": "off_hand",
+            "occupiedBy": "main_hand",
+            "reason": "two_hand_main_hand",
+        }
+    if weapon_type in RANGED_WEAPON_TYPES:
+        return {
+            "slot": "off_hand",
+            "occupiedBy": "main_hand",
+            "reason": "ranged_main_hand",
+        }
+    rule = SPEC_WEAPON_EQUIPMENT_RULES.get((class_key, spec_key)) if class_key and spec_key else {}
+    mode = str((rule or {}).get("mode") or "").strip()
+    if mode in {"two_hand", "two_hand_agi"}:
+        return {
+            "slot": "off_hand",
+            "occupiedBy": "main_hand",
+            "reason": "spec_two_hand_main_hand",
+        }
+    if mode == "ranged":
+        return {
+            "slot": "off_hand",
+            "occupiedBy": "main_hand",
+            "reason": "spec_ranged_main_hand",
+        }
+    return {}
+
+
+def gear_template_equivalent_slots(slot):
+    slot = normalize_slot(slot)
+    if slot not in EQUIVALENT_GEAR_SLOTS:
+        return [slot] if slot else []
+    return [slot, *[candidate for candidate in EQUIVALENT_GEAR_SLOTS.get(slot, []) if candidate != slot]]
+
+
+def gear_template_items_by_slot(items, class_key="", spec_key=""):
+    by_slot = {}
+    used_item_ids_by_group = {}
+    for item in normalize_gear_item_list(items or [], class_key, spec_key):
+        slot = item.get("slot") or ""
+        candidates = gear_template_equivalent_slots(slot)
+        if not candidates:
+            continue
+        group_key = tuple(sorted(EQUIVALENT_GEAR_SLOTS.get(slot, [slot])))
+        item_id = str(item.get("itemId") or item.get("id") or "").strip()
+        if item_id and item_id in used_item_ids_by_group.setdefault(group_key, set()):
+            continue
+        target_slot = next((candidate for candidate in candidates if candidate not in by_slot), "")
+        if not target_slot:
+            continue
+        assigned = {**item}
+        if target_slot != slot:
+            assigned["slot"] = target_slot
+            assigned["simcSlot"] = target_slot
+        by_slot[target_slot] = assigned
+        if item_id:
+            used_item_ids_by_group[group_key].add(item_id)
+    return by_slot
+
+
+def gear_template_slot_coverage(gear_items, class_key="", spec_key=""):
+    ready_by_slot = gear_template_items_by_slot(gear_items, class_key, spec_key)
+    occupied_slots = {}
+    if "off_hand" not in ready_by_slot:
+        off_hand_occupancy = gear_off_hand_occupancy_from_main_hand(
+            ready_by_slot.get("main_hand"),
+            class_key,
+            spec_key,
+        )
+        if off_hand_occupancy:
+            occupied_slots["off_hand"] = off_hand_occupancy
+    covered_slots = set(ready_by_slot) | set(occupied_slots)
+    missing_slots = [slot for slot in CANONICAL_GEAR_SLOTS if slot not in covered_slots]
+    return ready_by_slot, occupied_slots, missing_slots
+
+
 def gear_community_template_from_observed_items(items, class_key, spec_key):
-    ready_by_slot = gear_items_by_slot(
+    ready_by_slot, occupied_slots, missing_slots = gear_template_slot_coverage(
         [item for item in items or [] if isinstance(item, dict) and item.get("simcReady")],
         class_key,
         spec_key,
@@ -18238,10 +18405,9 @@ def gear_community_template_from_observed_items(items, class_key, spec_key):
     raw_lines = build_websim_gear_lines(gear_items)
     if not raw_lines:
         return None
-    missing_slots = [slot for slot in CANONICAL_GEAR_SLOTS if slot not in ready_by_slot]
     status = "complete" if not missing_slots else "partial"
     source_status = "synced" if status == "complete" else "partial"
-    ready_count = len(gear_items)
+    ready_count = len(CANONICAL_GEAR_SLOTS) - len(missing_slots)
     class_label = CLASS_LABELS_ZH.get(class_key, class_key)
     spec_label = SPEC_LABELS_ZH.get(spec_key, SPEC_LABELS.get(spec_key, spec_key.replace("_", " ").title()))
     template = {
@@ -18262,6 +18428,8 @@ def gear_community_template_from_observed_items(items, class_key, spec_key):
         "missingSlots": missing_slots,
         "canApplyGear": bool(gear_items),
     }
+    if occupied_slots:
+        template["occupiedSlots"] = occupied_slots
     template["signature"] = gear_template_signature(template)
     template["sourceRefs"] = normalize_source_refs([gear_template_source_ref(template)])
     template["templateRevision"] = COMMUNITY_TEMPLATE_REVISION
@@ -18305,14 +18473,90 @@ def websim_gear_community_templates(presets, class_key, spec_key):
     )
 
 
+def pending_community_gear_template(class_key, spec_key):
+    class_key = slugify(class_key, "mage")
+    spec_key = slugify(spec_key, "arcane")
+    template = {
+        "id": f"pending_community_gear_{class_key}_{spec_key}",
+        "name": f"Community gear pending collection - {class_key}:{spec_key}",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "sourceKey": "community_gear",
+        "sourceName": "Community gear pending collection",
+        "sourceUrl": "",
+        "sourceStatus": "pending_collection",
+        "status": "pending_collection",
+        "updatedAt": utc_now(),
+        "expiresAt": season_expires_at(),
+        "analysisWindow": "No complete real community gear template has been collected for this spec.",
+        "gearItems": [],
+        "rawString": "",
+        "readySlotCount": 0,
+        "missingSlots": list(CANONICAL_GEAR_SLOTS),
+        "canApplyGear": False,
+        "templateSlot": "community_best",
+        "payload": {
+            "templateSlot": "community_best",
+            "countingPolicy": "real community gear only; baseline/default templates do not fill this slot",
+        },
+    }
+    template["signature"] = gear_template_signature(template)
+    template["sourceRefs"] = normalize_source_refs([gear_template_source_ref(template)])
+    template["templateRevision"] = COMMUNITY_TEMPLATE_REVISION
+    return template
+
+
+def blocked_baseline_gear_template(class_key, spec_key, reason=""):
+    class_key = slugify(class_key, "mage")
+    spec_key = slugify(spec_key, "arcane")
+    reason = str(reason or "No baseline gear template is available for this spec.").strip()
+    next_action = "Build or import a deterministic baseline gear template for this spec."
+    template = {
+        "id": f"baseline_blocked_gear_{class_key}_{spec_key}",
+        "name": f"Baseline gear blocked - {class_key}:{spec_key}",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "sourceKey": "baseline_blocked",
+        "sourceName": "Baseline gear blocked",
+        "sourceUrl": "",
+        "sourceStatus": "blocked",
+        "status": "blocked",
+        "updatedAt": utc_now(),
+        "expiresAt": season_expires_at(),
+        "analysisWindow": reason,
+        "gearItems": [],
+        "rawString": "",
+        "readySlotCount": 0,
+        "missingSlots": list(CANONICAL_GEAR_SLOTS),
+        "blockers": [reason],
+        "nextAction": next_action,
+        "canApplyGear": False,
+        "templateSlot": "baseline",
+        "payload": {
+            "templateSlot": "baseline",
+            "baselineDisplaySlot": True,
+            "countingPolicy": "baseline display slot only; blocked placeholders do not fill real community coverage",
+            "blockers": [reason],
+            "nextAction": next_action,
+        },
+    }
+    template["signature"] = f"gear-baseline-blocked:{class_key}:{spec_key}:{stable_digest({'reason': reason, 'missingSlots': CANONICAL_GEAR_SLOTS})}"
+    template["sourceRefs"] = normalize_source_refs([gear_template_source_ref(template)])
+    template["templateRevision"] = COMMUNITY_TEMPLATE_REVISION
+    return template
+
+
 def websim_gear_community_template_sync_state(templates):
     templates = templates or []
     hidden_duplicate_count = sum(max(0, int(item.get("dedupedCount") or 1) - 1) for item in templates)
     signatures = [item.get("signature") for item in templates if item.get("signature")]
     complete_count = len([item for item in templates if item.get("status") == "complete"])
     partial_count = len([item for item in templates if item.get("status") == "partial"])
+    pending_count = len([item for item in templates if item.get("status") == "pending_collection"])
     if not templates:
         source_status = "blocked"
+    elif pending_count == len(templates):
+        source_status = "pending_collection"
     elif partial_count:
         source_status = "partial"
     else:
@@ -18340,10 +18584,10 @@ def websim_gear_community_template_sync_state(templates):
             "errors": [],
         }
     if not sources:
-        sources["simc_presets"] = {
+        sources["community_gear"] = {
             "status": source_status,
-            "sourceName": "SimC preset",
-            "errors": ["no importable SimC gear presets"],
+            "sourceName": "Community gear",
+            "errors": [] if pending_count else ["no real community gear templates"],
         }
     return {
         "sourceStatus": source_status,
@@ -18356,13 +18600,14 @@ def websim_gear_community_template_sync_state(templates):
             "rawTotal": len(templates) + hidden_duplicate_count,
             "verified": complete_count,
             "partial": partial_count,
+            "pending": pending_count,
             "blocked": 0,
         },
         "checkedAt": utc_now() if templates else "",
     }
 
 
-def normalize_community_gear_template(template, class_key="", spec_key=""):
+def normalize_community_gear_template(template, class_key="", spec_key="", preserve_id=False):
     source = template if isinstance(template, dict) else {}
     class_key = slugify(source.get("classKey") or class_key, "mage")
     spec_key = slugify(source.get("specKey") or spec_key, "arcane")
@@ -18390,16 +18635,24 @@ def normalize_community_gear_template(template, class_key="", spec_key=""):
             )
             if item
         ]
-    ready_by_slot = gear_items_by_slot(gear_items, class_key, spec_key)
+    ready_by_slot, occupied_slots, missing_slots = gear_template_slot_coverage(gear_items, class_key, spec_key)
     gear_items = [ready_by_slot[slot] for slot in CANONICAL_GEAR_SLOTS if slot in ready_by_slot]
     raw_lines = build_websim_gear_lines(gear_items)
-    missing_slots = [slot for slot in CANONICAL_GEAR_SLOTS if slot not in ready_by_slot]
+    source_id = str(source.get("id") or "").strip()
     status = str(source.get("status") or ("complete" if not missing_slots and gear_items else "partial")).strip()
     if status == "complete" and missing_slots:
         status = "partial"
+    if status == "partial" and not missing_slots and gear_items:
+        status = "complete"
     source_status = str(source.get("sourceStatus") or ("synced" if status == "complete" else "partial")).strip()
+    if status == "complete" and source_status == "partial":
+        source_status = "synced"
+    normalized_id = source_id if preserve_id and source_id else slugify(
+        source_id,
+        f"gear-{class_key}-{spec_key}-{stable_digest(raw_lines)}",
+    )
     normalized = {
-        "id": slugify(source.get("id"), f"gear-{class_key}-{spec_key}-{stable_digest(raw_lines)}"),
+        "id": normalized_id,
         "name": str(source.get("name") or "Community gear template").strip(),
         "classKey": class_key,
         "specKey": spec_key,
@@ -18413,12 +18666,15 @@ def normalize_community_gear_template(template, class_key="", spec_key=""):
         "analysisWindow": str(source.get("analysisWindow") or "").strip(),
         "gearItems": gear_items,
         "rawString": str(source.get("rawString") or "\n".join(raw_lines)).strip(),
-        "readySlotCount": len(gear_items),
+        "readySlotCount": len(CANONICAL_GEAR_SLOTS) - len(missing_slots),
         "missingSlots": missing_slots,
         "canApplyGear": bool(gear_items),
         "payload": payload,
         "scanRunId": str(source.get("scanRunId") or source.get("scan_run_id") or "").strip(),
     }
+    source_occupied_slots = source.get("occupiedSlots") if isinstance(source.get("occupiedSlots"), dict) else {}
+    if source_occupied_slots or occupied_slots:
+        normalized["occupiedSlots"] = occupied_slots or source_occupied_slots
     if scenario_key:
         normalized["scenarioKey"] = scenario_key
     if enhancement_readiness:
@@ -18586,7 +18842,11 @@ def sync_community_gear_templates(conn, scan_run_id=""):
             )
             if observed_template:
                 templates.append(observed_template)
-            real_templates = dedupe_gear_community_templates(templates)
+            real_templates = [
+                template
+                for template in dedupe_gear_community_templates(templates)
+                if is_real_community_gear_template(template)
+            ]
             if real_templates:
                 real_covered_specs.append(f"{class_key}:{spec_key}")
             else:
@@ -18672,10 +18932,16 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
         season_fields["currentSeason"] = compact_season_payload(season_fields.get("currentSeason"))
     catalog_state = gear_catalog_sync_state(conn)
     presets = get_websim_presets(conn, class_key, spec_key)
-    community_templates = dedupe_gear_community_templates([
-        *websim_gear_community_templates(presets, class_key, spec_key),
-        *get_persisted_community_gear_templates(conn, class_key, spec_key),
-    ])
+    preset_baseline_templates = websim_gear_community_templates(presets, class_key, spec_key)
+    persisted_templates = get_persisted_community_gear_templates(conn, class_key, spec_key)
+    community_template_candidates = [
+        template for template in persisted_templates if is_real_community_gear_template(template)
+    ]
+    baseline_template_candidates = [
+        template
+        for template in [*preset_baseline_templates, *persisted_templates]
+        if is_baseline_gear_template(template)
+    ]
     preset_items = []
     for preset in presets:
         preset_items.extend(preset_gear_items(preset))
@@ -18713,10 +18979,16 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
     observed_baseline_set = observed_profile_baseline_items(catalog_items, class_key, spec_key)
     if not baseline_set and observed_baseline_set:
         baseline_set = observed_baseline_set
-    if not community_templates and observed_baseline_set:
+    if observed_baseline_set:
         observed_template = gear_community_template_from_observed_items(observed_baseline_set, class_key, spec_key)
         if observed_template:
-            community_templates = dedupe_gear_community_templates([observed_template])
+            community_template_candidates.append(observed_template)
+    community_templates = select_community_best_gear_templates(community_template_candidates, class_key, spec_key)
+    baseline_templates = select_best_baseline_gear_templates(baseline_template_candidates)
+    if not baseline_templates:
+        baseline_templates = [blocked_baseline_gear_template(class_key, spec_key)]
+    community_templates = hydrate_gear_templates_from_metadata(conn, community_templates)
+    baseline_templates = hydrate_gear_templates_from_metadata(conn, baseline_templates)
     grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
     for item in [*baseline_set, *preset_items, *catalog_items, *candidate_items]:
         if isinstance(item, dict):
@@ -18802,6 +19074,11 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
         if compact
         else community_templates
     )
+    output_baseline_templates = (
+        [compact_community_gear_template(template) for template in baseline_templates]
+        if compact
+        else baseline_templates
+    )
     equipped_set = gear_items_by_slot(output_baseline_set, class_key, spec_key)
     readiness = gear_readiness(baseline_set)
     payload = {
@@ -18814,6 +19091,7 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
         "slotReadiness": gear_slot_readiness(baseline_set, class_key, spec_key),
         "baselineSet": output_baseline_set,
         "communityTemplates": output_community_templates,
+        "baselineTemplates": output_baseline_templates,
         "communityTemplateSync": websim_gear_community_template_sync_state(community_templates),
         "readiness": readiness,
         "statSnapshot": blocked_stat_snapshot(
@@ -21745,7 +22023,13 @@ def websim_simc_binary():
     configured = os.environ.get("WOW_SIMC_BIN")
     if configured:
         return configured if os.path.exists(configured) else ""
-    return shutil.which("simc") or shutil.which("simulationcraft") or ""
+    path_binary = shutil.which("simc") or shutil.which("simulationcraft")
+    if path_binary:
+        return path_binary
+    for candidate in (DEFAULT_SIMC_ROOT / "current" / "simc", DEFAULT_SIMC_ROOT / "build" / "simc"):
+        if candidate.exists():
+            return str(candidate)
+    return ""
 
 
 def websim_simc_blizzard_api_credentials():

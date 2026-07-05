@@ -3100,18 +3100,6 @@ test('gear community templates derive readable names from class spec hero and so
         slotReadiness: {},
         readiness: { fullReady: false },
         communityTemplates: [{
-          id: 'simc-preset',
-          classKey: 'mage',
-          specKey: 'frost',
-          name: 'MID1_Mage_Frost_Spellslinger',
-          sourceKey: 'simc_preset',
-          sourceName: 'SimC preset',
-          status: 'complete',
-          readySlotCount: 16,
-          missingSlots: [],
-          canApplyGear: true,
-          gearItems: Object.values(completeGearSelection())
-        }, {
           id: 'rio-observed',
           classLabel: '法师',
           specLabel: '冰霜',
@@ -3123,6 +3111,19 @@ test('gear community templates derive readable names from class spec hero and so
           missingSlots: canonicalGearSlots.slice(6),
           canApplyGear: true,
           gearItems: Object.values(completeGearSelection(canonicalGearSlots.slice(0, 6)))
+        }],
+        baselineTemplates: [{
+          id: 'simc-preset',
+          classKey: 'mage',
+          specKey: 'frost',
+          name: 'MID1_Mage_Frost_Spellslinger',
+          sourceKey: 'simc_preset',
+          sourceName: 'SimC preset',
+          status: 'complete',
+          readySlotCount: 16,
+          missingSlots: [],
+          canApplyGear: true,
+          gearItems: Object.values(completeGearSelection())
         }],
         communityTemplateSync: {
           sourceStatus: 'partial',
@@ -3153,10 +3154,11 @@ test('gear community templates derive readable names from class spec hero and so
   })
   await new Promise((resolve) => setImmediate(resolve))
 
-  assert.equal(page.data.activeGearCommunityTemplates[0].displayName, '法师-冰霜-法术投射者 · SimC 预设')
-  assert.equal(page.data.activeGearCommunityTemplates[0].displaySourceName, 'SimC 预设')
-  assert.equal(page.data.activeGearCommunityTemplates[1].displayName, '法师-冰霜 · Raider.IO 观测')
-  assert.equal(page.data.activeGearCommunityTemplates[1].displaySourceName, 'Raider.IO 观测')
+  assert.equal(page.data.activeGearCommunityTemplates.length, 2)
+  assert.equal(page.data.activeGearCommunityTemplates[0].displayName, '法师-冰霜 · Raider.IO 观测')
+  assert.equal(page.data.activeGearCommunityTemplates[0].displaySourceName, 'Raider.IO 观测')
+  assert.equal(page.data.activeGearCommunityTemplates[1].displayName, '法师-冰霜-法术投射者 · SimC 预设')
+  assert.equal(page.data.activeGearCommunityTemplates[1].displaySourceName, 'SimC 预设')
 })
 
 test('gear load preserves matched SimC-ready candidate evidence before saving templates', async () => {
@@ -6215,6 +6217,59 @@ test('gear selection prunes stale off hand when selected main hand is two-handed
   assert.equal(page.data.selectedGearBySlot.main_hand.itemId, '260107')
   assert.equal(page.data.selectedGearBySlot.off_hand, undefined)
   assert.equal(page.data.enhancementBySlot.off_hand, undefined)
+})
+
+test('gear slot rows show off hand occupied when main hand is two-handed', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const selection = completeGearSelection(canonicalGearSlots.filter((slot) => slot !== 'off_hand'))
+  selection.main_hand = {
+    ...selection.main_hand,
+    itemId: '260107',
+    id: '260107',
+    displayName: 'Brewmaster Staff',
+    weaponType: 'Staff',
+    simcReady: true
+  }
+  const page = {
+    data: {
+      selectedDetail: { className: '武僧', specName: '酒仙', details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      selectedSpec: { className: '武僧', title: '酒仙', specName: '酒仙', websimClassKey: 'monk', websimSpecKey: 'brewmaster' },
+      activeQueryKey: 'gear',
+      gearPayload: {
+        slots,
+        maxLevel: 90,
+        gearSchemaRevision: 'websim-gear-simulator-v1',
+        weaponRule: {
+          mode: 'selectable_two_hand_or_dual_wield_1h',
+          mainHandTypes: ['Staff', 'Polearm', 'One-Handed Mace'],
+          offHandTypes: ['One-Handed Mace']
+        },
+        readiness: {
+          fullReady: true,
+          missingRequiredSlots: ['off_hand'],
+          missingCoreSlots: [],
+          requiredReadyCount: 15
+        },
+        slotReadiness: {
+          off_hand: { status: 'blocked', reason: 'missing off hand item' }
+        }
+      },
+      selectedGearBySlot: selection
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+
+  const offHandRow = page.data.gearSlotRows.find((row) => row.slot === 'off_hand')
+  assert.equal(page.data.selectedGearBySlot.off_hand, undefined)
+  assert.equal(offHandRow.displayName, '双手武器已占用')
+  assert.equal(offHandRow.itemId, '')
+  assert.equal(offHandRow.status, 'verified')
+  assert.equal(offHandRow.source, '主手双手武器')
 })
 
 test('gear template save prunes stale off hand and enhancement before snapshot', async () => {

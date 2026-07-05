@@ -321,7 +321,20 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("slots", payload)
         self.assertIsInstance(payload["equippedSet"], dict)
         self.assertIn("readiness", payload)
-        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(payload["communityTemplates"][0]["status"], "pending_collection")
+        self.assertEqual(len(payload["baselineTemplates"]), 1)
+        baseline = payload["baselineTemplates"][0]
+        self.assertEqual(baseline["sourceKey"], "baseline_blocked")
+        self.assertEqual(baseline["sourceStatus"], "blocked")
+        self.assertEqual(baseline["status"], "blocked")
+        self.assertEqual(baseline["templateSlot"], "baseline")
+        self.assertFalse(baseline["canApplyGear"])
+        self.assertEqual(baseline["gearItems"], [])
+        self.assertEqual(baseline["readySlotCount"], 0)
+        self.assertEqual(len(baseline["missingSlots"]), 16)
+        self.assertEqual(baseline.get("blockers"), ["No baseline gear template is available for this spec."])
+        self.assertIn("deterministic baseline gear template", baseline.get("nextAction", ""))
+        self.assertNotIn("payload", baseline)
         self.assertTrue(trinket_groups)
         trinket_group = trinket_groups[0]
         self.assertEqual(trinket_group["items"][0]["itemId"], "item-a")
@@ -445,8 +458,225 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_gear_mod_options", sql)
         self.assertIn("FROM cache.websim_items", sql)
 
-    def test_gear_read_model_exposes_pg_community_templates_for_import(self):
+    def test_gear_read_model_splits_pg_community_and_baseline_templates(self):
         from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "status": "partial",
+                            "schemaRevision": "gear-catalog-test",
+                            "blockers": [],
+                        },
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+                "gear_payload_fingerprint": [
+                    ("websim_items", 0, ""),
+                    ("websim_gear_sources", 0, ""),
+                    ("websim_gear_variants", 0, ""),
+                    ("websim_gear_mod_options", 0, ""),
+                    ("websim_community_gear_templates", 2, "2026-06-28T01:00:00+00:00"),
+                ],
+                "FROM cache.websim_gear_sources": [],
+                "FROM cache.websim_gear_variants": [],
+                "FROM cache.websim_gear_mod_options": [],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "44444444-4444-4444-8444-444444444444",
+                        "mage",
+                        "frost",
+                        "Frost Gear Template",
+                        "simc_preset",
+                        "SimC preset",
+                        "https://example.test/gear",
+                        "synced",
+                        "complete",
+                        "sig-gear-a",
+                        [{"type": "simc"}],
+                        [{"slot": "head", "itemId": "250101", "simcReady": True}],
+                        "head=template_helm,id=250101,ilevel=289",
+                        16,
+                        [],
+                        "weekly",
+                        {"scenarioKey": "mplus_mixed_route"},
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-a",
+                    ),
+                    (
+                        "55555555-5555-4555-8555-555555555555",
+                        "mage",
+                        "frost",
+                        "Observed Frost Gear",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://example.test/gear-observed",
+                        "partial",
+                        "partial",
+                        "sig-gear-b",
+                        [{"type": "raiderio"}],
+                        [{"slot": "head", "itemId": "250101", "simcReady": True}],
+                        "head=template_helm,id=250101,ilevel=289",
+                        1,
+                        ["neck"],
+                        "observed",
+                        {},
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-b",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("mage", "frost", compact=True)
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(len(payload["communityTemplates"]), 1)
+        template = payload["communityTemplates"][0]
+        self.assertEqual(template["id"], "55555555-5555-4555-8555-555555555555")
+        self.assertEqual(template["sourceKey"], "raiderio_observed_profile")
+        self.assertEqual(template["status"], "partial")
+        self.assertTrue(template["canApplyGear"])
+        self.assertEqual(len(payload["baselineTemplates"]), 1)
+        baseline = payload["baselineTemplates"][0]
+        self.assertEqual(baseline["id"], "44444444-4444-4444-8444-444444444444")
+        self.assertEqual(baseline["sourceKey"], "simc_preset")
+        self.assertEqual(baseline["status"], "complete")
+        self.assertEqual(baseline["scenarioKey"], "mplus_mixed_route")
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["partial"], 1)
+        self.assertIn("FROM cache.websim_community_gear_templates", sql)
+
+    def test_gear_read_model_ignores_expired_community_gear_templates(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        def template_row(template_id, name, expires_at):
+            return (
+                template_id,
+                "mage",
+                "fire",
+                name,
+                "simc_preset",
+                "SimC preset",
+                "",
+                "synced",
+                "complete",
+                template_id,
+                [{"type": "simc_preset"}],
+                [{"slot": "head", "itemId": "250101", "simcReady": True}],
+                "head=template_helm,id=250101,ilevel=289",
+                16,
+                [],
+                "weekly",
+                {},
+                "2026-07-05T00:00:00+00:00",
+                expires_at,
+                "scan-fire",
+            )
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "status": "partial",
+                            "schemaRevision": "gear-catalog-test",
+                            "blockers": [],
+                        },
+                        "2026-07-05T01:01:00+00:00",
+                    )
+                ],
+                "gear_payload_fingerprint": [
+                    ("websim_items", 0, ""),
+                    ("websim_gear_sources", 0, ""),
+                    ("websim_gear_variants", 0, ""),
+                    ("websim_gear_mod_options", 0, ""),
+                    ("websim_community_gear_templates", 2, "2026-07-05T00:00:00+00:00"),
+                ],
+                "FROM cache.websim_gear_sources": [],
+                "FROM cache.websim_gear_variants": [],
+                "FROM cache.websim_gear_mod_options": [],
+                "FROM cache.websim_community_gear_templates": [
+                    template_row(
+                        "mage_fire_mid1_mage_fire_frostfire",
+                        "MID1_Mage_Fire_Frostfire",
+                        "2026-06-29T00:00:00+00:00",
+                    ),
+                    template_row(
+                        "mage_fire_mid1_mage_fire_sunfury",
+                        "MID1_Mage_Fire_Sunfury",
+                        "2099-01-01T00:00:00+00:00",
+                    ),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("mage", "fire", compact=True)
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(
+            [template["id"] for template in payload["baselineTemplates"]],
+            ["mage_fire_mid1_mage_fire_sunfury"],
+        )
+        self.assertIn("expires_at IS NULL OR expires_at > now()", sql)
+
+    def test_gear_read_model_counts_two_hand_main_hand_as_offhand_occupied(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        community_items = []
+        raw_lines = []
+        for index, slot in enumerate(
+            [
+                "head",
+                "neck",
+                "shoulder",
+                "back",
+                "chest",
+                "wrist",
+                "hands",
+                "waist",
+                "legs",
+                "feet",
+                "finger1",
+                "finger2",
+                "trinket1",
+                "trinket2",
+                "main_hand",
+            ],
+            start=1,
+        ):
+            item_id = str(270000 + index)
+            item = {
+                "slot": slot,
+                "itemId": item_id,
+                "name": f"Observed {slot}",
+                "ilevel": 704,
+                "bonus_id": "12345",
+                "simcReady": True,
+            }
+            community_items.append(item)
+            raw_lines.append(f"{slot}=observed_{slot},id={item_id},ilevel=704,bonus_id=12345")
 
         conn = FakeConnection(
             rowsets={
@@ -486,43 +716,325 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 "FROM cache.websim_gear_mod_options": [],
                 "FROM cache.websim_community_gear_templates": [
                     (
-                        "44444444-4444-4444-8444-444444444444",
-                        "mage",
-                        "frost",
-                        "Frost Gear Template",
-                        "simc_preset",
-                        "SimC preset",
-                        "https://example.test/gear",
-                        "synced",
-                        "complete",
-                        "sig-gear-a",
-                        [{"type": "simc"}],
-                        [{"slot": "head", "itemId": "250101", "simcReady": True}],
-                        "head=template_helm,id=250101,ilevel=289",
-                        16,
-                        [],
-                        "weekly",
-                        {"scenarioKey": "mplus_mixed_route"},
+                        "55555555-5555-4555-8555-555555555555",
+                        "deathknight",
+                        "blood",
+                        "Observed Blood Gear",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://example.test/gear-observed",
+                        "partial",
+                        "partial",
+                        "sig-gear-blood",
+                        [{"type": "raiderio"}],
+                        community_items,
+                        "\n".join(raw_lines),
+                        15,
+                        ["off_hand"],
+                        "observed",
+                        {},
                         "2026-06-28T01:00:00+00:00",
                         "2099-01-01T00:00:00+00:00",
-                        "scan-a",
+                        "scan-blood",
                     )
                 ],
             }
         )
         store = PostgresCacheStore(lambda: conn)
 
-        payload = store.get_websim_gear("mage", "frost", compact=True)
+        payload = store.get_websim_gear("deathknight", "blood", compact=True)
 
-        sql = "\n".join(conn.cursor_instance.statements)
-        self.assertTrue(payload["communityTemplates"])
+        self.assertEqual(len(payload["communityTemplates"]), 1)
         template = payload["communityTemplates"][0]
-        self.assertEqual(template["id"], "44444444-4444-4444-8444-444444444444")
         self.assertEqual(template["status"], "complete")
-        self.assertTrue(template["canApplyGear"])
-        self.assertEqual(template["scenarioKey"], "mplus_mixed_route")
-        self.assertEqual(payload["communityTemplateSync"]["templates"]["verified"], 1)
-        self.assertIn("FROM cache.websim_community_gear_templates", sql)
+        self.assertEqual(template["sourceStatus"], "synced")
+        self.assertEqual(template["readySlotCount"], 16)
+        self.assertEqual(template["missingSlots"], [])
+        self.assertNotIn("off_hand=", template["rawString"])
+        self.assertEqual(
+            template["occupiedSlots"]["off_hand"],
+            {
+                "slot": "off_hand",
+                "occupiedBy": "main_hand",
+                "reason": "spec_two_hand_main_hand",
+            },
+        )
+
+    def test_gear_read_model_uses_official_item_metadata_for_offhand_occupancy(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        community_items = []
+        raw_lines = []
+        for index, slot in enumerate(
+            [
+                "head",
+                "neck",
+                "shoulder",
+                "back",
+                "chest",
+                "wrist",
+                "hands",
+                "waist",
+                "legs",
+                "feet",
+                "finger1",
+                "finger2",
+                "trinket1",
+                "trinket2",
+                "main_hand",
+            ],
+            start=1,
+        ):
+            item_id = "193723" if slot == "main_hand" else str(280000 + index)
+            item = {
+                "slot": slot,
+                "itemId": item_id,
+                "name": f"Observed {slot}",
+                "ilevel": 704,
+                "bonus_id": "12345",
+                "simcReady": True,
+            }
+            community_items.append(item)
+            raw_lines.append(f"{slot}=observed_{slot},id={item_id},ilevel=704,bonus_id=12345")
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "status": "partial",
+                            "schemaRevision": "gear-catalog-test",
+                            "blockers": [],
+                        },
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+                "gear_payload_fingerprint": [
+                    ("websim_items", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_sources", 0, ""),
+                    ("websim_gear_variants", 0, ""),
+                    ("websim_gear_mod_options", 0, ""),
+                    ("websim_community_gear_templates", 1, "2026-06-28T01:00:00+00:00"),
+                ],
+                "FROM cache.websim_gear_sources": [],
+                "FROM cache.websim_gear_variants": [],
+                "FROM cache.websim_gear_mod_options": [],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "66666666-6666-4666-8666-666666666666",
+                        "druid",
+                        "restoration",
+                        "Observed Restoration Gear",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://example.test/gear-observed",
+                        "partial",
+                        "partial",
+                        "sig-gear-restoration",
+                        [{"type": "raiderio"}],
+                        community_items,
+                        "\n".join(raw_lines),
+                        15,
+                        ["off_hand"],
+                        "observed",
+                        {},
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-restoration",
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "193723",
+                        "Obsidian Goaltending Spire",
+                        "main_hand",
+                        298,
+                        {
+                            "name": "Obsidian Goaltending Spire",
+                            "inventory_type": {"type": "TWOHWEAPON", "name": "Two-Hand"},
+                            "item_class": {"id": 2, "name": "Weapon"},
+                            "item_subclass": {"id": 10, "name": "Staff"},
+                            "_metadata": {
+                                "source": "Battle.net Game Data API",
+                                "locale": "zh_CN",
+                            },
+                        },
+                        "verified",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("druid", "restoration", compact=True)
+
+        template = payload["communityTemplates"][0]
+        main_hand = next(item for item in template["gearItems"] if item["slot"] == "main_hand")
+        self.assertEqual(template["status"], "complete")
+        self.assertEqual(template["readySlotCount"], 16)
+        self.assertEqual(template["missingSlots"], [])
+        self.assertEqual(main_hand["weaponType"], "Staff")
+        self.assertNotIn("off_hand=", template["rawString"])
+        self.assertEqual(
+            template["occupiedSlots"]["off_hand"],
+            {
+                "slot": "off_hand",
+                "occupiedBy": "main_hand",
+                "reason": "two_hand_main_hand",
+            },
+        )
+
+    def test_gear_read_model_normalizes_baseline_two_hand_metadata(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        baseline_items = []
+        raw_lines = []
+        for index, slot in enumerate(
+            [
+                "head",
+                "neck",
+                "shoulder",
+                "back",
+                "chest",
+                "wrist",
+                "hands",
+                "waist",
+                "legs",
+                "feet",
+                "finger1",
+                "finger2",
+                "trinket1",
+                "trinket2",
+                "main_hand",
+            ],
+            start=1,
+        ):
+            item_id = "193723" if slot == "main_hand" else str(290000 + index)
+            baseline_items.append(
+                {
+                    "slot": slot,
+                    "itemId": item_id,
+                    "name": f"Baseline {slot}",
+                    "ilevel": 704,
+                    "simcReady": True,
+                    "sourceType": "simc_preset",
+                }
+            )
+            raw_lines.append(f"{slot}=baseline_{slot},id={item_id},ilevel=704")
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "status": "partial",
+                            "schemaRevision": "gear-catalog-test",
+                            "blockers": [],
+                        },
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+                "gear_payload_fingerprint": [
+                    ("websim_items", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_sources", 0, ""),
+                    ("websim_gear_variants", 0, ""),
+                    ("websim_gear_mod_options", 0, ""),
+                    ("websim_community_gear_templates", 1, "2026-06-28T01:00:00+00:00"),
+                ],
+                "FROM cache.websim_gear_sources": [],
+                "FROM cache.websim_gear_variants": [],
+                "FROM cache.websim_gear_mod_options": [],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "baseline-priest-shadow",
+                        "priest",
+                        "shadow",
+                        "Shadow Baseline",
+                        "simc_preset",
+                        "SimC preset",
+                        "",
+                        "partial",
+                        "partial",
+                        "sig-baseline-shadow",
+                        [{"type": "simc_preset"}],
+                        baseline_items,
+                        "\n".join(raw_lines),
+                        15,
+                        ["off_hand"],
+                        "baseline",
+                        {"templateSlot": "baseline"},
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-baseline",
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "193723",
+                        "Obsidian Goaltending Spire",
+                        "main_hand",
+                        298,
+                        {
+                            "name": "Obsidian Goaltending Spire",
+                            "inventory_type": {"type": "TWOHWEAPON", "name": "Two-Hand"},
+                            "item_class": {"id": 2, "name": "Weapon"},
+                            "item_subclass": {"id": 10, "name": "Staff"},
+                            "_metadata": {
+                                "source": "Battle.net Game Data API",
+                                "locale": "zh_CN",
+                            },
+                        },
+                        "verified",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("priest", "shadow", compact=True)
+
+        baseline = payload["baselineTemplates"][0]
+        self.assertEqual(baseline["status"], "complete")
+        self.assertEqual(baseline["sourceStatus"], "synced")
+        self.assertEqual(baseline["readySlotCount"], 16)
+        self.assertEqual(baseline["missingSlots"], [])
+        self.assertEqual(baseline["gearItems"][-1]["weaponType"], "Staff")
+        self.assertEqual(
+            baseline["occupiedSlots"]["off_hand"],
+            {
+                "slot": "off_hand",
+                "occupiedBy": "main_hand",
+                "reason": "two_hand_main_hand",
+            },
+        )
 
     def test_gear_read_model_caches_repeated_payload_when_fingerprint_unchanged(self):
         import server.postgres_cache_store as postgres_cache_store
@@ -1568,7 +2080,415 @@ class PostgresCacheStoreTest(unittest.TestCase):
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertEqual(len(templates["communityGearTemplates"]), 1)
         self.assertEqual(templates["communityGearTemplates"][0]["id"], "55555555-5555-4555-8555-555555555555")
+        self.assertIn("expires_at IS NULL OR expires_at > now()", sql)
         self.assertNotIn("FROM cache.websim_gear_variants", sql)
+
+    def test_admin_gate_gear_template_records_dedupes_baseline_display_slot_per_spec(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        def row(template_id, spec_key, name, source_key, source_name, updated_at="2026-07-05T00:00:00+00:00"):
+            return (
+                template_id,
+                "demonhunter",
+                spec_key,
+                name,
+                source_key,
+                source_name,
+                "",
+                "synced",
+                "complete",
+                template_id,
+                [{"type": source_key}],
+                [],
+                "head=item_a,id=1",
+                16,
+                [],
+                "daily",
+                {},
+                updated_at,
+                "2099-01-01T00:00:00+00:00",
+                "scan-demonhunter",
+            )
+
+        conn = FakeConnection(
+            rowsets={
+                "SELECT to_regclass": [("cache.websim_community_gear_templates",)],
+                "FROM cache.websim_community_gear_templates": [
+                    row(
+                        "observed_profile_demonhunter_havoc",
+                        "havoc",
+                        "Raider.IO observed gear - Havoc",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                    ),
+                    row(
+                        "observed_profile_demonhunter_devourer",
+                        "devourer",
+                        "Raider.IO observed gear - Devourer",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                    ),
+                    row(
+                        "observed_profile_demonhunter_vengeance",
+                        "vengeance",
+                        "Raider.IO observed gear - Vengeance",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                    ),
+                    row(
+                        "demonhunter_devourer_mid1_demon_hunter_devourer_annihilator",
+                        "devourer",
+                        "MID1_Demon_Hunter_Devourer_Annihilator",
+                        "simc_preset",
+                        "SimC preset",
+                        updated_at="2026-07-03T14:39:16+08:00",
+                    ),
+                    row(
+                        "demonhunter_devourer_mid1_demon_hunter_devourer_void_scarred",
+                        "devourer",
+                        "MID1_Demon_Hunter_Devourer_Void-Scarred",
+                        "simc_preset",
+                        "SimC preset",
+                        updated_at="2026-07-03T14:39:16+08:00",
+                    ),
+                    row(
+                        "demonhunter_havoc_mid1_demon_hunter_havoc_fel_scarred",
+                        "havoc",
+                        "MID1_Demon_Hunter_Havoc_Fel-Scarred",
+                        "simc_preset",
+                        "SimC preset",
+                    ),
+                    row(
+                        "demonhunter_vengeance_mid1_demon_hunter_vengeance_annihilator",
+                        "vengeance",
+                        "MID1_Demon_Hunter_Vengeance_Annihilator",
+                        "simc_preset",
+                        "SimC preset",
+                    ),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.admin_gate_gear_template_records()["communityGearTemplates"]
+
+        self.assertEqual(len(templates), 6)
+        devourer_baselines = [
+            template["id"]
+            for template in templates
+            if template["specKey"] == "devourer" and template["sourceKey"] == "simc_preset"
+        ]
+        self.assertEqual(
+            devourer_baselines,
+            ["demonhunter_devourer_mid1_demon_hunter_devourer_void_scarred"],
+        )
+
+    def test_admin_gate_gear_template_records_hydrate_official_item_metadata(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        official_staff_payload = {
+            "name": "Obsidian Goaltending Spire",
+            "item_class": {"id": 2, "name": "Weapon"},
+            "item_subclass": {"id": 10, "name": "Staff"},
+            "inventory_type": {"type": "TWOHWEAPON", "name": "Two-Hand"},
+            "_metadata": {
+                "source": "Battle.net Game Data API",
+                "metadataStatus": "verified",
+                "locale": "zh_CN",
+            },
+        }
+        conn = FakeConnection(
+            rowsets={
+                "SELECT to_regclass": [("cache.websim_community_gear_templates",)],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "observed_profile_monk_brewmaster",
+                        "monk",
+                        "brewmaster",
+                        "Observed Brewmaster",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "",
+                        "verified",
+                        "complete",
+                        "sig-brewmaster",
+                        [{"type": "raiderio"}],
+                        [
+                            {
+                                "slot": "main_hand",
+                                "itemId": "193723",
+                                "sourceType": "observed_profile",
+                                "simcReady": True,
+                            }
+                        ],
+                        "main_hand=item_193723,id=193723",
+                        16,
+                        [],
+                        "daily",
+                        {},
+                        "2026-07-04T23:21:11+00:00",
+                        "",
+                        "scan-brewmaster",
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "193723",
+                        "Obsidian Goaltending Spire",
+                        "main_hand",
+                        298,
+                        official_staff_payload,
+                        "verified",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.admin_gate_gear_template_records()["communityGearTemplates"]
+
+        self.assertEqual(templates[0]["gearItems"][0]["weaponType"], "Staff")
+        self.assertEqual(templates[0]["gearItems"][0]["metadataSource"], "Battle.net Game Data API")
+        self.assertEqual(templates[0]["gearItems"][0]["metadataStatus"], "verified")
+
+    def test_admin_gate_gear_template_records_hydrate_official_jewelry_metadata(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        official_ring_payload = {
+            "name": "精工辛多雷指环",
+            "item_class": {"id": 4, "name": "护甲"},
+            "item_subclass": {"id": 0, "name": "其它"},
+            "inventory_type": {"type": "FINGER", "name": "手指"},
+            "_metadata": {
+                "source": "Battle.net Game Data API",
+                "metadataStatus": "verified",
+                "locale": "zh_CN",
+                "iconUrl": "https://render.worldofwarcraft.com/us/icons/56/inv_ring_80_05.jpg",
+            },
+        }
+        conn = FakeConnection(
+            rowsets={
+                "SELECT to_regclass": [("cache.websim_community_gear_templates",)],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "observed_profile_mage_frost",
+                        "mage",
+                        "frost",
+                        "Observed Frost Mage",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "",
+                        "verified",
+                        "complete",
+                        "sig-mage-frost",
+                        [{"type": "raiderio"}],
+                        [
+                            {
+                                "slot": "finger1",
+                                "itemId": "240949",
+                                "name": "masterwork_sindorei_band",
+                                "sourceType": "observed_profile",
+                                "simcReady": True,
+                            }
+                        ],
+                        "finger1=item_240949,id=240949",
+                        16,
+                        [],
+                        "daily",
+                        {},
+                        "2026-07-05T05:00:50+08:00",
+                        "",
+                        "scan-mage-frost",
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "240949",
+                        "Masterwork Sin'dorei Band",
+                        "finger1",
+                        285,
+                        official_ring_payload,
+                        "verified",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        template = store.admin_gate_gear_template_records()["communityGearTemplates"][0]
+        item = template["gearItems"][0]
+
+        self.assertEqual(item.get("displayName"), "精工辛多雷指环")
+        self.assertEqual(item.get("localizedName"), "精工辛多雷指环")
+        self.assertEqual(item.get("iconUrl"), "https://render.worldofwarcraft.com/us/icons/56/inv_ring_80_05.jpg")
+        self.assertEqual(item.get("metadataSource"), "Battle.net Game Data API")
+        self.assertEqual(item.get("metadataStatus"), "verified")
+
+    def test_admin_gate_gear_template_records_normalizes_baseline_two_hand_metadata(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        official_staff_payload = {
+            "name": "Obsidian Goaltending Spire",
+            "item_class": {"id": 2, "name": "Weapon"},
+            "item_subclass": {"id": 10, "name": "Staff"},
+            "inventory_type": {"type": "TWOHWEAPON", "name": "Two-Hand"},
+            "_metadata": {
+                "source": "Battle.net Game Data API",
+                "metadataStatus": "verified",
+                "locale": "zh_CN",
+            },
+        }
+        baseline_items = [
+            {"slot": slot, "itemId": "193723" if slot == "main_hand" else str(300000 + index), "simcReady": True}
+            for index, slot in enumerate(
+                [
+                    "head",
+                    "neck",
+                    "shoulder",
+                    "back",
+                    "chest",
+                    "wrist",
+                    "hands",
+                    "waist",
+                    "legs",
+                    "feet",
+                    "finger1",
+                    "finger2",
+                    "trinket1",
+                    "trinket2",
+                    "main_hand",
+                ],
+                start=1,
+            )
+        ]
+        conn = FakeConnection(
+            rowsets={
+                "SELECT to_regclass": [("cache.websim_community_gear_templates",)],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "baseline-priest-shadow",
+                        "priest",
+                        "shadow",
+                        "Shadow Baseline",
+                        "simc_preset",
+                        "SimC preset",
+                        "",
+                        "partial",
+                        "partial",
+                        "sig-baseline-shadow",
+                        [{"type": "simc_preset"}],
+                        baseline_items,
+                        "main_hand=item_193723,id=193723",
+                        15,
+                        ["off_hand"],
+                        "daily",
+                        {"templateSlot": "baseline"},
+                        "2026-07-04T23:21:11+00:00",
+                        "",
+                        "scan-baseline",
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "193723",
+                        "Obsidian Goaltending Spire",
+                        "main_hand",
+                        298,
+                        official_staff_payload,
+                        "verified",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        template = store.admin_gate_gear_template_records()["communityGearTemplates"][0]
+
+        self.assertEqual(template["status"], "complete")
+        self.assertEqual(template["sourceStatus"], "synced")
+        self.assertEqual(template["readySlotCount"], 16)
+        self.assertEqual(template["missingSlots"], [])
+        self.assertEqual(template["gearItems"][-1]["weaponType"], "Staff")
+
+    def test_admin_gate_queue_summary_ignores_metadata_resolved_baseline_offhand(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        baseline_items = [
+            {"slot": slot, "itemId": "193723" if slot == "main_hand" else str(310000 + index), "simcReady": True}
+            for index, slot in enumerate(
+                [
+                    "head",
+                    "neck",
+                    "shoulder",
+                    "back",
+                    "chest",
+                    "wrist",
+                    "hands",
+                    "waist",
+                    "legs",
+                    "feet",
+                    "finger1",
+                    "finger2",
+                    "trinket1",
+                    "trinket2",
+                    "main_hand",
+                ],
+                start=1,
+            )
+        ]
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_talent_templates": [],
+                "FROM cache.websim_talents": [],
+                "FROM cache.websim_gear_variants": [],
+                "SELECT to_regclass": [("cache.websim_community_gear_templates",)],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "baseline-priest-shadow",
+                        "priest",
+                        "shadow",
+                        "Shadow Baseline",
+                        "simc_preset",
+                        "SimC preset",
+                        "",
+                        "partial",
+                        "partial",
+                        "sig-baseline-shadow",
+                        [{"type": "simc_preset"}],
+                        baseline_items,
+                        "main_hand=item_193723,id=193723",
+                        15,
+                        ["off_hand"],
+                        "daily",
+                        {"templateSlot": "baseline"},
+                        "2026-07-04T23:21:11+00:00",
+                        "",
+                        "scan-baseline",
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "193723",
+                        "Obsidian Goaltending Spire",
+                        "main_hand",
+                        298,
+                        {
+                            "name": "Obsidian Goaltending Spire",
+                            "item_class": {"id": 2, "name": "Weapon"},
+                            "item_subclass": {"id": 10, "name": "Staff"},
+                            "inventory_type": {"type": "TWOHWEAPON", "name": "Two-Hand"},
+                            "_metadata": {"source": "Battle.net Game Data API"},
+                        },
+                        "verified",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        summary = store.admin_gate_queue_summary()
+
+        self.assertEqual(summary["domainCounts"].get("gear_templates"), None)
 
     def test_stat_weight_read_model_uses_cache_schema(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -1796,6 +2716,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 ],
                 "FROM cache.websim_profile_presets": [],
                 "FROM cache.websim_community_talent_templates": [],
+                "FROM cache.websim_community_gear_templates WHERE expires_at": [("partial", 1)],
             }
         )
         store = PostgresCacheStore(lambda: conn)
@@ -2001,6 +2922,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 ],
                 "FROM cache.websim_profile_presets": [],
                 "FROM cache.websim_community_talent_templates": [],
+                "FROM cache.websim_community_gear_templates WHERE expires_at": [("partial", 1)],
             }
         )
         store = PostgresCacheStore(lambda: conn)
@@ -2090,6 +3012,317 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("INSERT INTO cache.websim_community_gear_templates", sql)
         self.assertTrue(conn.committed)
 
+    def test_replace_community_gear_templates_preserves_complete_winner_from_partial_downgrade(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates WHERE expires_at": [("complete", 1)],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        counts = store.replace_community_gear_templates(
+            [
+                {
+                    "id": "observed-profile-mage-frost",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "name": "Partial observed gear",
+                    "sourceKey": "raiderio_observed_profile",
+                    "sourceName": "Raider.IO observed gear",
+                    "sourceStatus": "partial",
+                    "status": "partial",
+                    "signature": "sig-partial",
+                    "sourceRefs": [{"sourceKey": "raiderio"}],
+                    "gearItems": [{"slot": "head", "itemId": "190001", "simcReady": True}],
+                    "rawString": "head=item,id=190001",
+                    "readySlotCount": 1,
+                    "missingSlots": ["neck"],
+                    "analysisWindow": "partial sample",
+                    "payload": {"scenarioKey": "mplus_mixed_route"},
+                    "scanRunId": "scan-partial",
+                }
+            ],
+            scan_run_id="scan-partial",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(counts["verified"], 1)
+        self.assertEqual(counts["partial"], 0)
+        self.assertIn("ON CONFLICT (id) DO UPDATE", sql)
+        self.assertIn("WHERE NOT ( cache.websim_community_gear_templates.status = 'complete'", sql)
+        self.assertIn("EXCLUDED.status <> 'complete'", sql)
+
+    def test_replace_community_gear_templates_corrects_invalid_stored_complete_winner(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "WHERE id = ANY": [
+                    (
+                        "observed-profile-mage-frost",
+                        "mage",
+                        "frost",
+                        [{"slot": "head", "itemId": "190001", "simcReady": True}],
+                    )
+                ],
+                "FROM cache.websim_community_gear_templates WHERE expires_at": [("partial", 1)],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        counts = store.replace_community_gear_templates(
+            [
+                {
+                    "id": "observed-profile-mage-frost",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "name": "Audited partial observed gear",
+                    "sourceKey": "raiderio_observed_profile",
+                    "sourceName": "Raider.IO observed gear",
+                    "sourceStatus": "partial",
+                    "status": "partial",
+                    "signature": "sig-audited-partial",
+                    "sourceRefs": [{"sourceKey": "raiderio"}],
+                    "gearItems": [{"slot": "head", "itemId": "190001", "simcReady": True}],
+                    "rawString": "head=item,id=190001",
+                    "readySlotCount": 1,
+                    "missingSlots": ["neck"],
+                    "analysisWindow": "audited partial sample",
+                    "payload": {"scenarioKey": "mplus_mixed_route"},
+                    "scanRunId": "scan-audited-partial",
+                }
+            ],
+            scan_run_id="scan-audited-partial",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(counts["partial"], 1)
+        self.assertIn("SELECT id, class_key, spec_key, gear_items_json FROM cache.websim_community_gear_templates", sql)
+        self.assertIn("cache.websim_community_gear_templates.id = ANY", sql)
+        self.assertTrue(
+            any(
+                "observed-profile-mage-frost" in value
+                for params in conn.cursor_instance.params
+                for value in params
+                if isinstance(value, list)
+            )
+        )
+
+    def test_replace_community_gear_templates_reconciles_stale_complete_without_candidate(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "WHERE source_key = ANY": [
+                    (
+                        "observed-profile-shaman-elemental",
+                        "shaman",
+                        "elemental",
+                        "synced",
+                        "complete",
+                        16,
+                        [],
+                        [{"slot": "head", "itemId": "190001", "simcReady": True}],
+                        {"readySlotCount": 16, "missingSlots": []},
+                    )
+                ],
+                "FROM cache.websim_community_gear_templates WHERE expires_at": [("partial", 1)],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        counts = store.replace_community_gear_templates(
+            [
+                {
+                    "id": "observed-profile-mage-arcane",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "name": "Complete observed gear",
+                    "sourceKey": "raiderio_observed_profile",
+                    "sourceName": "Raider.IO observed gear",
+                    "sourceStatus": "synced",
+                    "status": "complete",
+                    "signature": "sig-complete",
+                    "sourceRefs": [{"sourceKey": "raiderio"}],
+                    "gearItems": [{"slot": "head", "itemId": "190001", "simcReady": True}],
+                    "rawString": "head=item,id=190001",
+                    "readySlotCount": 16,
+                    "missingSlots": [],
+                    "analysisWindow": "complete sample",
+                    "payload": {"scenarioKey": "mplus_mixed_route"},
+                    "scanRunId": "scan-reconcile",
+                }
+            ],
+            scan_run_id="scan-reconcile",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(counts["partial"], 1)
+        self.assertIn("WHERE source_key = ANY", sql)
+        self.assertIn("UPDATE cache.websim_community_gear_templates", sql)
+        self.assertIn("observed-profile-shaman-elemental", conn.cursor_instance.params[-2])
+
+    def test_replace_community_gear_templates_promotes_stale_partial_when_current_coverage_is_complete(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        complete_gear = [
+            {"slot": slot, "itemId": f"19{index:04d}", "simcReady": True}
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)
+        ]
+        conn = FakeConnection(
+            rowsets={
+                "WHERE source_key = ANY": [
+                    (
+                        "observed-profile-druid-restoration",
+                        "druid",
+                        "restoration",
+                        "partial",
+                        "partial",
+                        15,
+                        ["off_hand"],
+                        complete_gear,
+                        {"readySlotCount": 15, "missingSlots": ["off_hand"]},
+                    )
+                ],
+                "FROM cache.websim_community_gear_templates WHERE expires_at": [("complete", 1)],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        counts = store.replace_community_gear_templates(
+            [
+                {
+                    "id": "observed-profile-mage-arcane",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "name": "Complete observed gear",
+                    "sourceKey": "raiderio_observed_profile",
+                    "sourceName": "Raider.IO observed gear",
+                    "sourceStatus": "synced",
+                    "status": "complete",
+                    "signature": "sig-complete",
+                    "sourceRefs": [{"sourceKey": "raiderio"}],
+                    "gearItems": complete_gear,
+                    "rawString": "head=item,id=190001",
+                    "readySlotCount": 16,
+                    "missingSlots": [],
+                    "analysisWindow": "complete sample",
+                    "payload": {"scenarioKey": "mplus_mixed_route"},
+                    "scanRunId": "scan-reconcile",
+                }
+            ],
+            scan_run_id="scan-reconcile",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(counts["verified"], 1)
+        self.assertIn("UPDATE cache.websim_community_gear_templates", sql)
+        self.assertIn("status IN ('complete', 'partial')", sql)
+        self.assertTrue(
+            any(
+                params[0] == "synced"
+                and params[1] == "complete"
+                and params[-1] == "observed-profile-druid-restoration"
+                for params in conn.cursor_instance.params
+                if len(params) >= 2
+            )
+        )
+
+    def test_replace_community_gear_templates_preserves_partial_with_more_ready_slots(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates WHERE expires_at": [("partial", 1)],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        counts = store.replace_community_gear_templates(
+            [
+                {
+                    "id": "observed-profile-mage-frost",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "name": "Weaker partial observed gear",
+                    "sourceKey": "raiderio_observed_profile",
+                    "sourceName": "Raider.IO observed gear",
+                    "sourceStatus": "partial",
+                    "status": "partial",
+                    "signature": "sig-weaker-partial",
+                    "sourceRefs": [{"sourceKey": "raiderio"}],
+                    "gearItems": [{"slot": "head", "itemId": "190001", "simcReady": True}],
+                    "rawString": "head=item,id=190001",
+                    "readySlotCount": 1,
+                    "missingSlots": ["neck", "shoulder"],
+                    "analysisWindow": "weaker partial sample",
+                    "payload": {"scenarioKey": "mplus_mixed_route"},
+                    "scanRunId": "scan-weaker-partial",
+                }
+            ],
+            scan_run_id="scan-weaker-partial",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(counts["partial"], 1)
+        self.assertIn("cache.websim_community_gear_templates.ready_slot_count > EXCLUDED.ready_slot_count", sql)
+
+    def test_community_gear_template_live_health_summary_reads_current_rows(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        def row(template_id, class_key, spec_key, source_key, status, ready, missing, scan_run_id, expires_at=None):
+            return (
+                template_id,
+                class_key,
+                spec_key,
+                template_id,
+                source_key,
+                source_key,
+                "",
+                "synced" if status == "complete" else "partial",
+                status,
+                template_id,
+                [],
+                [{"slot": "head", "itemId": "190001", "simcReady": True}],
+                "head=item,id=190001",
+                ready,
+                missing,
+                "test window",
+                {},
+                "2026-07-05T00:00:00+00:00",
+                expires_at,
+                scan_run_id,
+            )
+
+        conn = FakeConnection(
+            rowsets={
+                "SELECT to_regclass": [("cache.websim_community_gear_templates",)],
+                "FROM cache.websim_community_gear_templates": [
+                    row("observed-mage-fire", "mage", "fire", "raiderio_observed_profile", "complete", 16, [], "scan-live"),
+                    row("observed-monk-windwalker", "monk", "windwalker", "raiderio_observed_profile", "partial", 15, ["trinket2"], "scan-live"),
+                    row("baseline-mage-fire", "mage", "fire", "simc_preset", "complete", 16, [], "scan-live"),
+                    row("baseline-monk-windwalker", "monk", "windwalker", "simc_preset", "partial", 10, ["trinket2"], "scan-live"),
+                    row("expired-baseline-monk-windwalker", "monk", "windwalker", "simc_preset", "partial", 1, ["head"], "scan-expired", "2020-01-01T00:00:00+00:00"),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        with patch("server.postgres_cache_store.expected_spec_pairs", return_value=["mage:fire", "monk:windwalker"]):
+            summary = store.community_gear_template_live_health_summary()
+
+        self.assertEqual(summary["templates"], {"total": 4, "verified": 2, "partial": 2, "blocked": 0})
+        self.assertEqual(summary["realCommunityTemplates"]["coveredSpecCount"], 1)
+        self.assertEqual(summary["realCommunityTemplates"]["partialSpecCount"], 1)
+        self.assertEqual(summary["baselineTemplates"]["availableSpecCount"], 2)
+        self.assertEqual(summary["preflight"]["canonicalSlotMatrix"]["totalSlotCount"], 32)
+        self.assertEqual(summary["preflight"]["canonicalSlotMatrix"]["readySlotCount"], 31)
+        self.assertEqual(summary["preflight"]["canonicalSlotMatrix"]["missingSlotCount"], 1)
+        self.assertEqual(summary["preflight"]["canonicalSlotMatrix"]["missingBySlot"], {"trinket2": 1})
+
     def test_postgres_native_observed_and_crafted_backfill_writers_use_cache_schema(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -2143,6 +3376,434 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("crafted", params)
         self.assertTrue(conn.committed)
 
+    def test_observed_backfill_preserves_official_item_metadata_payload(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        store.backfill_observed_gear_from_raiderio(
+            {
+                "sourceStatus": "verified",
+                "profiles": [
+                    {
+                        "name": "Warlock A",
+                        "profileUrl": "https://raider.io/characters/us/realm/WarlockA",
+                        "classKey": "warlock",
+                        "specKey": "destruction",
+                        "gear": [
+                            {
+                                "itemId": "245770",
+                                "name": "Aln'hara Cane",
+                                "slot": "main_hand",
+                                "ilevel": 295,
+                                "bonus_id": "12214/13655",
+                            }
+                        ],
+                    }
+                ],
+            },
+            mode="test",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("INSERT INTO cache.websim_items", sql)
+        self.assertIn("cache.websim_items.payload_json #>> '{_metadata,source}'", sql)
+        self.assertIn("Battle.net Game Data API", sql)
+        self.assertIn("THEN cache.websim_items.payload_json", sql)
+        self.assertIn("ELSE EXCLUDED.payload_json", sql)
+
+    def test_postgres_observed_backfill_uses_simc_json_stats_not_raiderio_stats(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        observed = store.backfill_observed_gear_from_raiderio(
+            {
+                "sourceStatus": "verified",
+                "profiles": [
+                    {
+                        "name": "Mage A",
+                        "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "simcJson": {
+                            "sim": {
+                                "players": [
+                                    {
+                                        "gear": {
+                                            "head": {
+                                                "id": 190001,
+                                                "ilevel": 707,
+                                                "encoded_item": (
+                                                    "observed_helm,id=190001,"
+                                                    "bonus_id=1808,ilevel=707,gem_id=240906,enchant_id=8017"
+                                                ),
+                                                "intellect": 1234,
+                                                "stamina": 4567,
+                                                "haste_rating": 89,
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "gear": [
+                            {
+                                "itemId": "190001",
+                                "name": "Observed Helm",
+                                "slot": "head",
+                                "ilevel": 707,
+                                "bonuses": [1808],
+                                "gems": [240906],
+                                "enchants": [8017],
+                                "itemStats": [{"key": "intellect", "label": "Intellect", "value": 9999}],
+                            }
+                        ],
+                    }
+                ],
+            },
+            mode="test",
+        )
+
+        params = repr(conn.cursor_instance.params)
+        self.assertEqual(observed["variantCount"], 1)
+        self.assertEqual(observed["verifiedCount"], 1)
+        self.assertEqual(observed["partialCount"], 0)
+        self.assertIn("statSource", params)
+        self.assertIn("simulationcraft", params)
+        self.assertIn("1234", params)
+        self.assertNotIn("9999", params)
+
+    def test_postgres_observed_backfill_keeps_statless_rows_partial(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        observed = store.backfill_observed_gear_from_raiderio(
+            {
+                "sourceStatus": "verified",
+                "profiles": [
+                    {
+                        "name": "Mage A",
+                        "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "gear": [
+                            {
+                                "itemId": "190001",
+                                "name": "Observed Helm",
+                                "slot": "head",
+                                "ilevel": 707,
+                                "bonus_id": "1808",
+                            }
+                        ],
+                    }
+                ],
+            },
+            mode="test",
+        )
+
+        params = repr(conn.cursor_instance.params)
+        self.assertEqual(observed["variantCount"], 1)
+        self.assertEqual(observed["verifiedCount"], 0)
+        self.assertEqual(observed["partialCount"], 1)
+        self.assertIn("missing SimulationCraft item stats", params)
+
+    def test_observed_item_probe_profile_preserves_observed_variant_options(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        profile, class_key, spec_key, item_line, errors = store._observed_item_probe_simc_text(
+            {
+                "itemId": "268285",
+                "name": "Putrid Tender's Battleplate",
+                "slot": "chest",
+                "itemLevel": 298,
+                "bonuses": [6652, 13577, 13335, 13786],
+                "enchants": [7987],
+            },
+            [
+                (
+                    "paladin",
+                    "retribution",
+                    "Ret Paladin",
+                    "paladin=\"Ret Paladin\"\nspec=retribution\nlevel=90\nchest=old_chest,id=1,ilevel=1\n",
+                )
+            ],
+        )
+
+        self.assertEqual(errors, [])
+        self.assertEqual((class_key, spec_key), ("paladin", "retribution"))
+        self.assertIn("chest=putrid_tender_s_battleplate,id=268285,ilevel=298,bonus_id=6652/13577/13335/13786,enchant_id=7987", item_line)
+        self.assertIn(item_line, profile)
+        self.assertNotIn("chest=old_chest", profile)
+        self.assertIn("iterations=1", profile)
+        self.assertIn("calculate_scale_factors=0", profile)
+
+    def test_postgres_observed_backfill_falls_back_to_item_probe_when_profile_simc_is_unsupported(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "SELECT class_key, spec_key, name, profile FROM cache.websim_profile_presets": [
+                    (
+                        "paladin",
+                        "retribution",
+                        "Ret Paladin",
+                        "paladin=\"Ret Paladin\"\nspec=retribution\nlevel=90\nchest=old_chest,id=1,ilevel=1\n",
+                    )
+                ],
+                "SELECT item_id, slot, item_level, simc_options_json, payload_json": [],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+        simc_json = {
+            "sim": {
+                "players": [
+                    {
+                        "gear": {
+                            "chest": {
+                                "id": 268285,
+                                "ilevel": 298,
+                                "encoded_item": "putrid_tender_s_battleplate,id=268285,bonus_id=6652/13577,ilevel=298,enchant_id=7987",
+                                "strint": 135,
+                                "stamina": 1974,
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+
+        with patch.object(
+            PostgresCacheStore,
+            "_run_observed_profile_simc_json",
+            return_value={"ok": False, "errors": ["Holy Paladin is not currently supported"]},
+        ) as profile_runner, patch.object(
+            PostgresCacheStore,
+            "_run_observed_item_probe_simc_json",
+            return_value=simc_json,
+        ) as item_runner:
+            observed = store.backfill_observed_gear_from_raiderio(
+                {
+                    "sourceStatus": "verified",
+                    "profiles": [
+                        {
+                            "name": "Holy Paladin",
+                            "profileUrl": "https://raider.io/characters/us/area-52/Holy",
+                            "classKey": "paladin",
+                            "specKey": "holy",
+                            "gear": [
+                                {
+                                    "itemId": "268285",
+                                    "name": "Putrid Tender's Battleplate",
+                                    "slot": "chest",
+                                    "itemLevel": 298,
+                                    "bonuses": [6652, 13577],
+                                    "enchants": [7987],
+                                }
+                            ],
+                        }
+                    ],
+                },
+                mode="test",
+                enable_simc_stats=True,
+                timeout_seconds=90,
+                item_probe_limit=1,
+            )
+
+        params = repr(conn.cursor_instance.params)
+        profile_runner.assert_called_once()
+        item_runner.assert_called_once()
+        self.assertEqual(observed["verifiedCount"], 1)
+        self.assertEqual(observed["partialCount"], 0)
+        self.assertEqual(observed["simcItemProbeCount"], 1)
+        self.assertEqual(observed["simcItemProbeResolvedCount"], 1)
+        self.assertIn("simulationcraft_observed_item_probe", params)
+        self.assertIn("strint", params)
+
+    def test_observed_item_probe_tries_next_profile_after_simc_failure(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "SELECT class_key, spec_key, name, profile FROM cache.websim_profile_presets": [
+                    (
+                        "paladin",
+                        "holy",
+                        "Holy Paladin",
+                        "paladin=\"Holy Paladin\"\nspec=holy\nlevel=90\nchest=old_chest,id=1,ilevel=1\n",
+                    ),
+                    (
+                        "warrior",
+                        "arms",
+                        "Arms Warrior",
+                        "warrior=\"Arms Warrior\"\nspec=arms\nlevel=90\nchest=old_chest,id=1,ilevel=1\n",
+                    ),
+                ],
+                "SELECT item_id, slot, item_level, simc_options_json, payload_json": [],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+        simc_json = {
+            "sim": {
+                "players": [
+                    {
+                        "gear": {
+                            "chest": {
+                                "id": 268285,
+                                "ilevel": 298,
+                                "encoded_item": "putrid_tender_s_battleplate,id=268285,bonus_id=6652/13577,ilevel=298",
+                                "strint": 135,
+                                "stamina": 1974,
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+
+        with patch.object(
+            PostgresCacheStore,
+            "_run_observed_profile_simc_json",
+            return_value={"ok": False, "errors": ["Holy Paladin is not currently supported"]},
+        ), patch.object(
+            PostgresCacheStore,
+            "_run_observed_item_probe_simc_json",
+            side_effect=[
+                {"ok": False, "errors": ["Holy Paladin is not currently supported"]},
+                simc_json,
+            ],
+        ) as item_runner:
+            observed = store.backfill_observed_gear_from_raiderio(
+                {
+                    "sourceStatus": "verified",
+                    "profiles": [
+                        {
+                            "name": "Holy Paladin",
+                            "profileUrl": "https://raider.io/characters/us/area-52/Holy",
+                            "classKey": "paladin",
+                            "specKey": "holy",
+                            "gear": [
+                                {
+                                    "itemId": "268285",
+                                    "name": "Putrid Tender's Battleplate",
+                                    "slot": "chest",
+                                    "itemLevel": 298,
+                                    "armorType": "plate",
+                                    "bonuses": [6652, 13577],
+                                }
+                            ],
+                        }
+                    ],
+                },
+                mode="test",
+                enable_simc_stats=True,
+                item_probe_limit=1,
+            )
+
+        params = repr(conn.cursor_instance.params)
+        self.assertEqual(item_runner.call_count, 2)
+        self.assertEqual(observed["verifiedCount"], 1)
+        self.assertEqual(observed["simcItemProbeCount"], 1)
+        self.assertEqual(observed["simcItemProbeResolvedCount"], 1)
+        self.assertIn("probeClassKey", params)
+        self.assertIn("warrior", params)
+
+    def test_postgres_observed_backfill_preserves_verified_variant_from_partial_downgrade(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        store.backfill_observed_gear_from_raiderio(
+            {
+                "sourceStatus": "verified",
+                "profiles": [
+                    {
+                        "name": "Mage A",
+                        "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "gear": [
+                            {
+                                "itemId": "190001",
+                                "name": "Observed Helm",
+                                "slot": "head",
+                                "ilevel": 707,
+                                "bonus_id": "1808",
+                            }
+                        ],
+                    }
+                ],
+            },
+            mode="test",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("ON CONFLICT (item_id, variant_key) DO UPDATE", sql)
+        self.assertIn("WHERE NOT ( cache.websim_gear_variants.status = 'verified'", sql)
+        self.assertIn("EXCLUDED.status <> 'verified'", sql)
+
+    def test_postgres_observed_backfill_runs_simc_when_enabled(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+        simc_json = {
+            "sim": {
+                "players": [
+                    {
+                        "gear": {
+                            "head": {
+                                "id": 190001,
+                                "ilevel": 707,
+                                "encoded_item": "observed_helm,id=190001,bonus_id=1808,ilevel=707",
+                                "intellect": 1234,
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+
+        with patch.object(PostgresCacheStore, "_run_observed_profile_simc_json", return_value=simc_json, create=True) as runner:
+            observed = store.backfill_observed_gear_from_raiderio(
+                {
+                    "sourceStatus": "verified",
+                    "profiles": [
+                        {
+                            "name": "Mage A",
+                            "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "gear": [
+                                {
+                                    "itemId": "190001",
+                                    "name": "Observed Helm",
+                                    "slot": "head",
+                                    "ilevel": 707,
+                                    "bonus_id": "1808",
+                                }
+                            ],
+                        }
+                    ],
+                },
+                mode="test",
+                enable_simc_stats=True,
+                timeout_seconds=90,
+            )
+
+        runner.assert_called_once()
+        self.assertEqual(observed["verifiedCount"], 1)
+        self.assertEqual(observed["simcResolvedProfileCount"], 1)
+        self.assertEqual(observed["simcResolvedSlotCount"], 1)
+
     def test_build_community_gear_templates_uses_pg_profile_presets(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -2171,6 +3832,85 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(templates[0]["specKey"], "frost")
         self.assertEqual(templates[0]["scanRunId"], "scan-a")
         self.assertIn("FROM cache.websim_profile_presets", sql)
+
+    def test_build_community_gear_templates_uses_trusted_observed_variants(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_profile_presets": [],
+                "FROM cache.websim_gear_variants v": [
+                    (
+                        "variant-a",
+                        "190001",
+                        "Observed Helm",
+                        "head",
+                        707,
+                        {"ilevel": "707", "bonus_id": "1808"},
+                        "verified",
+                        [],
+                        {
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "statSource": "simulationcraft",
+                            "itemStats": [{"key": "intellect", "value": 1000}],
+                            "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                        },
+                        {},
+                        "2026-07-05T00:00:00+00:00",
+                    ),
+                    (
+                        "variant-untrusted",
+                        "190002",
+                        "Untrusted Should Stay Out",
+                        "neck",
+                        707,
+                        {"ilevel": "707", "bonus_id": "1808"},
+                        "verified",
+                        [],
+                        {
+                            "classKey": "mage",
+                            "specKey": "frost",
+                            "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                        },
+                        {},
+                        "2026-07-05T00:00:00+00:00",
+                    ),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_community_gear_templates(scan_run_id="scan-observed")
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(len(templates), 1)
+        template = templates[0]
+        self.assertEqual(template["sourceKey"], "raiderio_observed_profile")
+        self.assertEqual(template["classKey"], "mage")
+        self.assertEqual(template["specKey"], "frost")
+        self.assertEqual(template["readySlotCount"], 1)
+        self.assertEqual(template["status"], "partial")
+        self.assertEqual(template["scanRunId"], "scan-observed")
+        self.assertEqual([item["itemId"] for item in template["gearItems"]], ["190001"])
+        self.assertIn("FROM cache.websim_gear_variants v", sql)
+
+    def test_build_community_gear_templates_does_not_globally_truncate_observed_variants(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_profile_presets": [],
+                "FROM cache.websim_gear_variants v": [],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        store.build_community_gear_templates(scan_run_id="scan-observed")
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("FROM cache.websim_gear_variants v", sql)
+        self.assertNotIn("LIMIT 4000", sql)
 
     def test_postgres_native_simc_generated_data_writer_uses_cache_schema(self):
         from server.postgres_cache_store import PostgresCacheStore

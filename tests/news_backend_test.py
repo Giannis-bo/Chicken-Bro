@@ -5136,6 +5136,20 @@ class NewsBackendTest(unittest.TestCase):
                     "scanRunId": "community-template-health-test",
                     "sourceStatus": "partial",
                     "gear": {
+                        "preflight": {
+                            "schemaRevision": "community-gear-template-preflight-v1",
+                            "totalSpecCount": 40,
+                            "canonicalSlotMatrix": {
+                                "totalSlotCount": 640,
+                                "readySlotCount": 16,
+                                "missingSlotCount": 624,
+                            },
+                        },
+                        "baselineTemplates": {
+                            "availableSpecCount": 39,
+                            "blockedSpecCount": 1,
+                            "blockedSpecs": ["demonhunter:devourer"],
+                        },
                         "defaultTemplates": {
                             "coveredSpecCount": 39,
                             "missingSpecCount": 1,
@@ -5160,6 +5174,8 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(component["details"]["defaultGearTemplates"]["coveredSpecCount"], 39)
         self.assertEqual(component["details"]["defaultGearTemplates"]["missingSpecs"], ["demonhunter:devourer"])
         self.assertEqual(component["details"]["defaultGearTemplates"]["blockers"][0]["reason"], "missing verified stat weight cache")
+        self.assertEqual(component["details"]["gearTemplatePreflight"]["canonicalSlotMatrix"]["totalSlotCount"], 640)
+        self.assertEqual(component["details"]["baselineGearTemplates"]["availableSpecCount"], 39)
 
     def test_data_health_payload_exposes_template_evidence_audit_read_only(self):
         import server.websim_payload as websim_payload
@@ -5368,8 +5384,23 @@ class NewsBackendTest(unittest.TestCase):
                     },
                     community_sync_key: {
                         "scanRunId": "pg-only-health",
+                        "changeReport": {
+                            "schemaRevision": "community-template-daily-change-report-v1",
+                            "summary": {
+                                "unchanged": 120,
+                                "metadata_refreshed": 0,
+                                "promoted": 0,
+                                "candidate_only": 0,
+                                "needs_review": 0,
+                                "rejected_regression": 0,
+                                "blocked": 0,
+                                "stale_winner": 0,
+                            },
+                        },
                         "gear": {
-                            "templates": {"total": 0, "verified": 0, "blocked": 0},
+                            "templates": {"total": 77, "verified": 32, "partial": 45, "blocked": 0},
+                            "realCommunityTemplates": {"coveredSpecCount": 12, "missingSpecCount": 28},
+                            "baselineTemplates": {"availableSpecCount": 32, "blockedSpecCount": 8},
                             "defaultTemplates": {"blockedSpecCount": 0},
                         },
                     },
@@ -5397,6 +5428,28 @@ class NewsBackendTest(unittest.TestCase):
                     },
                 }
                 return states.get(key, {})
+
+            def community_gear_template_live_health_summary(self):
+                return {
+                    "templates": {"total": 77, "verified": 43, "partial": 34, "blocked": 0},
+                    "preflight": {
+                        "schemaRevision": "community-gear-template-preflight-v1",
+                        "canonicalSlotMatrix": {
+                            "totalSlotCount": 640,
+                            "readySlotCount": 550,
+                            "missingSlotCount": 90,
+                        },
+                    },
+                    "realCommunityTemplates": {
+                        "coveredSpecCount": 23,
+                        "missingSpecCount": 17,
+                        "partialSpecCount": 17,
+                        "pendingSpecCount": 0,
+                        "blockedSpecCount": 0,
+                    },
+                    "baselineTemplates": {"availableSpecCount": 40, "blockedSpecCount": 0},
+                    "scanRunId": "live-health-summary",
+                }
 
             def get_active_season_payload(self):
                 return {
@@ -5440,6 +5493,12 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(components["stat_weights"]["checkedAt"], "2026-07-03T00:05:00+00:00")
         self.assertEqual(components["stat_weights"]["details"]["acceptedCount"], 11)
         self.assertIn("PostgreSQL WebSim sync state is blocked", components["websim_sync"]["blockers"])
+        community_details = components["community_templates"]["details"]
+        self.assertEqual(community_details["gearTemplates"]["verified"], 43)
+        self.assertEqual(community_details["realCommunityGearTemplates"]["coveredSpecCount"], 23)
+        self.assertEqual(community_details["gearTemplatePreflight"]["canonicalSlotMatrix"]["missingSlotCount"], 90)
+        self.assertEqual(community_details["changeReport"]["summary"]["unchanged"], 120)
+        self.assertEqual(community_details["lastSyncRun"], "live-health-summary")
 
     def test_data_health_accepts_warcraftlogs_v1_api_key_without_exposing_secret(self):
         os.environ["WOW_WARCRAFTLOGS_API_KEY"] = "fake-wcl-v1-key"

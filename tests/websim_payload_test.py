@@ -3309,7 +3309,9 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         self.assertEqual(len(payload["communityTemplates"]), 1)
-        template = payload["communityTemplates"][0]
+        self.assertEqual(payload["communityTemplates"][0]["status"], "pending_collection")
+        self.assertEqual(len(payload["baselineTemplates"]), 1)
+        template = payload["baselineTemplates"][0]
         self.assertTrue(template["signature"].startswith("gear:mage:arcane:"))
         self.assertEqual(template["dedupedCount"], 2)
         self.assertEqual(len(template["sourceRefs"]), 2)
@@ -3317,8 +3319,9 @@ class WebSimPayloadTest(unittest.TestCase):
             [ref["id"] for ref in template["sourceRefs"]],
             ["preset-mage-a", "preset-mage-b"],
         )
+        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "pending_collection")
         self.assertEqual(payload["communityTemplateSync"]["dedupedCount"], 1)
-        self.assertEqual(payload["communityTemplateSync"]["hiddenDuplicateCount"], 1)
+        self.assertEqual(payload["communityTemplateSync"]["hiddenDuplicateCount"], 0)
 
     def test_websim_gear_payload_exposes_inline_simulator_contract(self):
         conn = sqlite3.connect(self.db_path)
@@ -3857,7 +3860,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(detail_item["socketOptions"][0]["id"], "gem-a")
         self.assertEqual(detail_item["variants"][0]["id"], "variant-a")
 
-    def test_websim_gear_payload_exposes_importable_community_templates(self):
+    def test_websim_gear_keeps_simc_presets_in_baseline_templates(self):
         conn = sqlite3.connect(self.db_path)
         try:
             self.websim_payload.ensure_websim_tables(conn)
@@ -3884,22 +3887,104 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertIn("communityTemplates", payload)
         self.assertIn("communityTemplateSync", payload)
-        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
+        self.assertIn("baselineTemplates", payload)
+        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "pending_collection")
         templates = payload["communityTemplates"]
         self.assertEqual(len(templates), 1)
         template = templates[0]
-        self.assertEqual(template["id"], "preset-mage-arcane")
-        self.assertEqual(template["name"], "Preset Mage")
-        self.assertEqual(template["sourceName"], "SimC preset")
-        self.assertEqual(template["sourceStatus"], "partial")
-        self.assertEqual(template["status"], "partial")
-        self.assertTrue(template["canApplyGear"])
-        self.assertEqual(template["readySlotCount"], 1)
+        self.assertEqual(template["id"], "pending_community_gear_mage_arcane")
+        self.assertEqual(template["sourceKey"], "community_gear")
+        self.assertEqual(template["sourceStatus"], "pending_collection")
+        self.assertEqual(template["status"], "pending_collection")
+        self.assertFalse(template["canApplyGear"])
+        self.assertEqual(template["readySlotCount"], 0)
         self.assertIn("neck", template["missingSlots"])
-        self.assertEqual(template["updatedAt"], "2026-06-20T00:00:00Z")
-        self.assertEqual([item["slot"] for item in template["gearItems"]], ["head"])
-        self.assertIn("head=", template["rawString"])
-        self.assertNotIn("display_only_neck", template["rawString"])
+        baseline_templates = payload["baselineTemplates"]
+        self.assertEqual(len(baseline_templates), 1)
+        baseline = baseline_templates[0]
+        self.assertEqual(baseline["id"], "preset-mage-arcane")
+        self.assertEqual(baseline["name"], "Preset Mage")
+        self.assertEqual(baseline["sourceName"], "SimC preset")
+        self.assertEqual(baseline["sourceStatus"], "partial")
+        self.assertEqual(baseline["status"], "partial")
+        self.assertTrue(baseline["canApplyGear"])
+        self.assertEqual(baseline["readySlotCount"], 1)
+        self.assertEqual(baseline["updatedAt"], "2026-06-20T00:00:00Z")
+        self.assertEqual([item["slot"] for item in baseline["gearItems"]], ["head"])
+        self.assertIn("head=", baseline["rawString"])
+        self.assertNotIn("display_only_neck", baseline["rawString"])
+
+    def test_websim_gear_template_items_include_display_metadata(self):
+        conn = sqlite3.connect(self.db_path)
+        icon_url = "https://render.worldofwarcraft.com/us/icons/56/inv_helm_cloth_raidmage_j_01.jpg"
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "250101",
+                {
+                    "name": "奥术织法兜帽",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": icon_url}]},
+                fallback_name="Preset Helm",
+                fallback_slot="head",
+            )
+            profile = "\n".join(
+                [
+                    'mage="Preset_Mage"',
+                    "spec=arcane",
+                    "head=preset_helm,id=250101,ilevel=289,bonus_id=13534",
+                ]
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('preset-mage-arcane', 'mage', 'arcane', 'Preset Mage', ?, '{}', '2026-06-20T00:00:00Z')
+                """,
+                (profile,),
+            )
+            self.websim_payload.upsert_community_gear_template(
+                conn,
+                {
+                    "id": "observed-gear-mage-arcane",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "name": "Observed Gear",
+                    "sourceKey": "raiderio_observed_profile",
+                    "sourceName": "Raider.IO observed gear",
+                    "status": "partial",
+                    "sourceStatus": "partial",
+                    "gearItems": [
+                        {
+                            "slot": "head",
+                            "simcSlot": "head",
+                            "itemId": "250101",
+                            "id": "250101",
+                            "name": "preset_helm",
+                            "sourceType": "observed_profile",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "simcReady": True,
+                        }
+                    ],
+                },
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "arcane", compact=True)
+        finally:
+            conn.close()
+
+        baseline = next(item for item in payload["baselineTemplates"] if item["id"] == "preset-mage-arcane")
+        community = next(item for item in payload["communityTemplates"] if item["id"] == "observed_gear_mage_arcane")
+        baseline_head = baseline["gearItems"][0]
+        community_head = community["gearItems"][0]
+        self.assertEqual(baseline_head["displayName"], "奥术织法兜帽")
+        self.assertEqual(baseline_head["iconUrl"], icon_url)
+        self.assertEqual(community_head["displayName"], "奥术织法兜帽")
+        self.assertEqual(community_head["iconUrl"], icon_url)
 
     def test_community_gear_sync_creates_default_template_from_verified_evidence(self):
         conn = sqlite3.connect(self.db_path)
@@ -3917,7 +4002,8 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(result["defaultTemplates"]["coveredSpecCount"], 1)
         self.assertEqual(result["defaultTemplates"]["missingSpecCount"], 0)
         self.assertEqual(result["defaultTemplates"]["blockedSpecCount"], 0)
-        template = next(item for item in payload["communityTemplates"] if item["sourceKey"] == "default_template")
+        self.assertFalse(any(item.get("sourceKey") == "default_template" for item in payload["communityTemplates"]))
+        template = next(item for item in payload["baselineTemplates"] if item["sourceKey"] == "default_template")
         self.assertEqual(template["sourceName"], "默认模板")
         self.assertEqual(template["status"], "complete")
         self.assertEqual(template["readySlotCount"], 16)
@@ -17356,6 +17442,24 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(result["statStatus"], "blocked")
         self.assertIn("simcraft binary not found", result["blockers"])
 
+    def test_websim_simc_binary_falls_back_to_default_simc_root(self):
+        import importlib
+
+        simc_root = Path(self.tmp.name) / "simc-root"
+        simc_bin = simc_root / "current" / "simc"
+        simc_bin.parent.mkdir(parents=True)
+        simc_bin.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        simc_bin.chmod(0o755)
+        os.environ["WOW_SIMC_ROOT"] = str(simc_root)
+        os.environ.pop("WOW_SIMC_BIN", None)
+        self.addCleanup(os.environ.pop, "WOW_SIMC_ROOT", None)
+
+        module = importlib.reload(self.websim_payload)
+        self.addCleanup(importlib.reload, self.websim_payload)
+
+        with patch.object(module.shutil, "which", return_value=None):
+            self.assertEqual(module.websim_simc_binary(), str(simc_bin))
+
     def test_http_websim_gear_stats_blocks_when_simc_output_cannot_be_parsed(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -18385,6 +18489,100 @@ class WebSimPayloadTest(unittest.TestCase):
         )
 
         self.assertEqual(ranked[0]["itemId"], "249373")
+
+    def test_community_gear_template_counts_two_hand_main_hand_as_offhand_occupied(self):
+        items = []
+        for index, slot in enumerate(self.websim_payload.CORE_SIMC_GEAR_SLOTS, start=1):
+            item = {
+                "slot": slot,
+                "itemId": str(270000 + index),
+                "id": str(270000 + index),
+                "name": f"Observed {slot}",
+                "ilevel": 704,
+                "bonus_id": "12345",
+                "sourceType": "observed_profile",
+                "simcReady": True,
+            }
+            if slot == "main_hand":
+                item["weaponType"] = "Two-Handed Sword"
+            items.append(item)
+
+        template = self.websim_payload.gear_community_template_from_observed_items(
+            items,
+            "deathknight",
+            "blood",
+        )
+
+        self.assertIsNotNone(template)
+        self.assertEqual(template["status"], "complete")
+        self.assertEqual(template["readySlotCount"], len(self.websim_payload.CANONICAL_GEAR_SLOTS))
+        self.assertEqual(template["missingSlots"], [])
+        self.assertEqual(len(template["gearItems"]), len(self.websim_payload.CORE_SIMC_GEAR_SLOTS))
+        self.assertNotIn("off_hand=", template["rawString"])
+        self.assertEqual(
+            template["occupiedSlots"]["off_hand"],
+            {
+                "slot": "off_hand",
+                "occupiedBy": "main_hand",
+                "reason": "two_hand_main_hand",
+            },
+        )
+
+    def test_community_gear_template_assigns_distinct_duplicate_trinkets_to_both_slots(self):
+        items = []
+        for index, slot in enumerate(self.websim_payload.CORE_SIMC_GEAR_SLOTS, start=1):
+            if slot == "trinket2":
+                continue
+            item = {
+                "slot": slot,
+                "itemId": str(280000 + index),
+                "id": str(280000 + index),
+                "name": f"Observed {slot}",
+                "ilevel": 704,
+                "bonus_id": "12345",
+                "sourceType": "observed_profile",
+                "simcReady": True,
+            }
+            items.append(item)
+        items.append(
+            {
+                "slot": "trinket1",
+                "itemId": "289999",
+                "id": "289999",
+                "name": "Observed second trinket",
+                "ilevel": 704,
+                "bonus_id": "12345",
+                "sourceType": "observed_profile",
+                "simcReady": True,
+            }
+        )
+        items.append(
+            {
+                "slot": "off_hand",
+                "itemId": "289998",
+                "id": "289998",
+                "name": "Observed off hand",
+                "ilevel": 704,
+                "bonus_id": "12345",
+                "sourceType": "observed_profile",
+                "simcReady": True,
+                "weaponType": "Held In Off-hand",
+            }
+        )
+
+        template = self.websim_payload.gear_community_template_from_observed_items(
+            items,
+            "mage",
+            "arcane",
+        )
+
+        self.assertIsNotNone(template)
+        self.assertEqual(template["status"], "complete")
+        by_slot = {item["slot"]: item for item in template["gearItems"]}
+        self.assertEqual(by_slot["trinket1"]["itemId"], "280013")
+        self.assertEqual(by_slot["trinket2"]["itemId"], "289999")
+        self.assertIn("trinket2=observed_second_trinket", template["rawString"])
+        self.assertEqual(template["missingSlots"], [])
 
     def test_websim_gear_ranks_verified_stat_source_reference_above_simc_ready_missing_stats(self):
         pending_ready = {

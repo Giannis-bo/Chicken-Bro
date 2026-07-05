@@ -444,3 +444,703 @@ order by class_key, spec_key;
 - 代码回滚：回滚 `server/websim_payload.py`、前端 import sheet 相关文件和文档链接，然后热部署。
 - DB 回滚：停止服务，按写入实际落点恢复 PostgreSQL 备份，重启服务，再跑 `/health` 和 `/api/data/health`。历史 SQLite 备份只能用于重新迁移或离线比对。
 - 数据局部回滚：如旧同步或显式诊断误把 `websim_baseline` / `manual_fixture` 写回当前库存，可把对应 active 模板标记过期并重建 `community_talent_templates` sync state；执行前仍需备份。
+## 2026-07-05 community gear preflight deploy evidence
+
+Status: Phase 1 is not accepted yet. Phase 2 daily incremental talent/gear refresh must remain gated.
+
+Local verification:
+
+- `python -m unittest tests.postgres_cache_sync_test tests.postgres_cache_store_test tests.news_backend_test tests.websim_payload_test`
+- Result: `Ran 616 tests in 241.895s - OK`.
+- `python -m compileall server/postgres_cache_sync.py server/postgres_cache_store.py server/news_backend.py server/websim_payload.py` exited 0.
+- `git diff --check` exited 0 with only CRLF replacement warnings.
+
+Deploy and backup:
+
+- Normal `server/deploy_lighthouse.sh` was not runnable from this Windows host because `bash` was not on PATH and WSL is not installed.
+- Files were deployed by narrow `scp` plus remote `install` to `/opt/wow-mini-program/server/`.
+- PostgreSQL backup before the sync evidence run: `/opt/wow-mini-program/backups/community-gear-preflight-before-20260704T163953Z/wow_test.dump`, size `9542055` bytes.
+- Backend restart after final deploy: `Sun 2026-07-05 01:10:31 CST`, `ActiveState=active`, `SubState=running`, `ExecMainStatus=0`.
+
+Live sync evidence:
+
+- Previous scheduled full sync failed before acceptance: `wow-community-template-sync.service` started `2026-07-04 23:59:01 CST`, failed `2026-07-05 00:39:24 CST`, `Result=oom-kill`, `ExecMainStatus=137`, memory peak `3.0G`, swap peak `241.4M`, CPU `3min 39.430s`.
+- Bounded preflight write was run as transient unit `wow-community-template-sync-gear-preflight-004047.service`.
+- Result: success, wall time `2.394s`, CPU `1.995s`.
+- `syncRunId`: `pg-community-template-2026-07-04T164047z0000`.
+- `source_collection`: `refreshRaiderio=false`, `targetMode=missing_slots`, `targetSlotCount=0`, `targetSpecCount=0`.
+
+Live health after final deploy:
+
+- `/health`: HTTP 200.
+- `/admin/gates`: HTTP 200 via GET.
+- `/api/data/health`: `overallStatus=partial`, `community_templates.status=partial`.
+- Talent templates: `80 total / 80 verified / 0 partial / 0 blocked`.
+- Gear display policy: `40 specs`, `80 display slots`, `community_best` and `baseline` counted separately.
+- `community_best`: `0 complete / 26 partial / 14 pending / 0 blocked`.
+- `baseline`: `32 available / 8 blocked`.
+- Canonical slot matrix: `640 total / 162 ready / 478 missing`.
+- `targetQueueCount`: `526`.
+
+Live endpoint sample after PG route fix:
+
+- `/api/websim/talents` sampled specs `mage:frost`, `deathknight:blood`, `druid:restoration`, `evoker:augmentation`: each returned 2 verified hero templates.
+- `/api/websim/gear?compact=1` sampled specs returned one `communityTemplates` slot per spec.
+- `simc_preset` now appears only in `baselineTemplates` on sampled specs, not in `communityTemplates`.
+- Sample community statuses: real observed specs returned `partial`; missing real community gear returned `pending_collection`.
+- All-spec endpoint sweep attempts were not usable as a pass gate in this turn: one sequential sweep stalled on slow gear responses; one curl-based sweep hit Windows GBK decoding errors on Chinese JSON. Health still provides the authoritative 40-spec/640-slot matrix above.
+
+Blocker and next action:
+
+- Phase 1 full community gear collection is blocked by the scheduled deep sync OOM and by incomplete real gear coverage: `0/40` complete community-best specs.
+- Next action is to split the gear first-sync into bounded target-queue batches, reduce Raider.IO/profile/run-detail budgets, and continue observed gear plus SimC/Battle.net variant evidence backfill until `community_best` reaches complete coverage or every remaining gap has a stable blocker and next action.
+- Do not start Phase 2 daily incremental refresh until Phase 1 acceptance passes.
+
+## 2026-07-05 bounded community gear first-sync evidence
+
+Status: Phase 1 remains blocked, not accepted. Phase 2 daily incremental talent/gear refresh must remain gated.
+
+Code changes in this slice:
+
+- Added `gear_template_first_sync` / `gear_template_targeted_refresh` detection to the PostgreSQL community-template sync.
+- `gear_template_first_sync` is gear-only for template writes: it keeps the existing 80 verified talent slots read-only while collecting gear evidence.
+- Added bounded Raider.IO env overrides for gear first-sync: run pages `0`, run-detail limits `0`, spec-ranking target specs from the gear preflight queue, and capped profile/backfill budgets.
+- Wired PG observed-gear backfill into the sync payload as `gear.observedBackfill` with target/profile/timeout budget and stop reason.
+- Updated `gear_observed_backfill.py` so PostgreSQL-only runtime honors `--target-limit`, `--profile-limit`, `--timeout-seconds`, `--simc-stats`, and `--full-profile-gear`.
+- Updated `build_community_gear_templates()` to assemble real community templates from trusted `observed_profile` variants only when SimulationCraft stat evidence is present; untrusted Raider.IO-only item attributes stay partial/pending and do not become complete community gear.
+
+Local verification:
+
+- `python -m unittest tests.postgres_cache_sync_test.PostgresCacheSyncTest.test_observed_backfill_postgres_calls_row_writer tests.postgres_cache_sync_test.PostgresCacheSyncTest.test_observed_backfill_postgres_forwards_budget_to_store tests.postgres_cache_sync_test.PostgresCacheSyncTest.test_gear_template_first_sync_runs_backfill_without_replacing_talent_templates tests.postgres_cache_store_test.PostgresCacheStoreTest.test_build_community_gear_templates_uses_pg_profile_presets tests.postgres_cache_store_test.PostgresCacheStoreTest.test_build_community_gear_templates_uses_trusted_observed_variants`
+- Result: `Ran 5 tests in 0.073s - OK`.
+- `python -m unittest tests.postgres_cache_sync_test tests.postgres_cache_store_test`
+- Result: `Ran 60 tests in 0.094s - OK`.
+- `python -m unittest tests.postgres_cache_sync_test tests.postgres_cache_store_test tests.news_backend_test tests.websim_payload_test`
+- Result: `Ran 619 tests in 272.082s - OK`.
+- `python -m compileall server/postgres_cache_sync.py server/postgres_cache_store.py server/gear_observed_backfill.py server/news_backend.py server/websim_payload.py` exited 0.
+- `git diff --check` exited 0 with only CRLF replacement warnings.
+
+Deploy and backup:
+
+- Files deployed by narrow `scp` plus remote `install`: `server/postgres_cache_sync.py`, `server/postgres_cache_store.py`, `server/gear_observed_backfill.py`.
+- Backend restart after deploy: `Sun 2026-07-05 01:30:01 CST`, `ActiveState=active`, `SubState=running`, `ExecMainStatus=0`.
+- Valid PostgreSQL backup before bounded first-sync runs: `/opt/wow-mini-program/backups/community-gear-first-sync-before-20260704T173051Z/wow_test.dump`, size `9560573` bytes.
+
+Live bounded sync evidence:
+
+- First transient run: `wow-community-template-sync-gear-first-0131.service`, success, runtime `1min 9.582s`, CPU `4.311s`, `ExecMainStatus=0`.
+- First run mode: `gear_template_first_sync`, `gearTargetSpecCount=8`, Raider.IO `requestCount=8`, `profileCount=64`, run-detail limits `0`.
+- First run observed backfill: `targetLimit=320`, `profileLimit=80`, `processedProfileCount=21`, `variantCount=86`, `stopReason=target_limit_reached`.
+- Broader transient run: `wow-community-template-sync-gear-first-0139.service`, success, runtime `4min 2.623s`, CPU `11.254s`, `ExecMainStatus=0`.
+- Final `syncRunId`: `pg-community-template-2026-07-04T174214z0000`.
+- Broader run mode: `gear_template_first_sync`, `gearTargetSpecCount=40`, Raider.IO `requestCount=40`, `profileCount=240`, run-detail limits `0`.
+- Broader run observed backfill: `targetLimit=2000`, `profileLimit=240`, `processedProfileCount=125`, `variantCount=360`, `stopReason=target_limit_reached`.
+
+Final live health and endpoint evidence:
+
+- `/health`: HTTP 200.
+- `/admin/gates`: HTTP 200 via GET.
+- Authenticated `/api/admin/gates/summary`: HTTP 200, `overallStatus=partial`, queue summary `1707` records with `gear_templates=55`; top blockers include `missing SimulationCraft item stats`, `missing deterministic SimC variant preset`, and `SimC JSON did not include target item stats`.
+- `/api/data/health`: `overallStatus=partial`, `community_templates.status=partial`.
+- Talent coverage: `80 hero slots / 80 verified / 0 pending_collection / 0 blocked`.
+- Gear preflight: `40 specs`, `80 display slots`, `640 canonical slot checks`.
+- Final `community_best`: `0 complete / 36 partial / 4 pending / 0 blocked`.
+- Final `baseline`: `32 available / 8 blocked`.
+- Final canonical slot matrix: `640 total / 158 ready / 482 missing`.
+- Final `targetQueueCount`: `530`.
+- Public `/api/websim/talents` all-spec sweep: `40 specs`, `80 templates`, `80 verified`, `0 pending`, `0 blocked`, no bad template counts.
+- Public `/api/websim/gear?compact=1` all-spec sweep with lower concurrency: `40 specs`, `40 community slots`, `32 baseline slots`, `0 complete / 36 partial / 4 pending / 0 blocked`, no `default_template` / `baseline_template` / `simc_preset` leakage into `communityTemplates`.
+
+Blocker and next action:
+
+- Phase 1 cannot be accepted because real community gear completion is still `0/40`.
+- The bounded path avoids the previous scheduled deep-sync OOM and makes progress from `26 partial / 14 pending` to `36 partial / 4 pending`, but complete promotion is now blocked by missing trusted SimulationCraft/Battle.net variant evidence rather than by Raider.IO profile discovery alone.
+- Next implementation work must add the PG-native SimC variant probe/cache or Battle.net-backed item-instance proof path for observed variants. Do not relax the complete gate to use Raider.IO/WCL profile API attributes as production gear attributes.
+- Keep Phase 2 daily incremental refresh gated until Phase 1 acceptance passes.
+
+## 2026-07-05 PG observed gear SimC proof and guarded target sync evidence
+
+Status: Phase 1 is improved but still not accepted. Phase 2 daily incremental talent/gear refresh remains gated.
+
+Code changes in this slice:
+
+- PG observed gear backfill now runs a minimal SimulationCraft profile when `WOW_COMMUNITY_GEAR_FIRST_SYNC_SIMC_STATS=1`, parses SimC JSON gear output, and promotes observed variants only when trusted SimC item stat evidence exists.
+- Raider.IO profile item attributes are stripped before persistence and cannot become production gear stats.
+- `websim_simc_binary()` now falls back to `WOW_SIMC_ROOT/current/simc` and `WOW_SIMC_ROOT/build/simc`, so transient sync units do not depend on PATH-only SimC discovery.
+- PG gear template upserts now preserve complete community gear winners against partial downgrades.
+- PG observed variant upserts now preserve verified variants against partial/statless downgrades.
+- PG gear template upserts now preserve stronger partial templates when a later partial candidate has fewer ready slots.
+
+Local verification:
+
+- `python -m unittest tests.websim_payload_test.WebSimPayloadTest.test_websim_simc_binary_falls_back_to_default_simc_root` failed before the SimC resolver fallback and passed after it.
+- `python -m unittest tests.postgres_cache_store_test.PostgresCacheStoreTest.test_replace_community_gear_templates_preserves_complete_winner_from_partial_downgrade tests.postgres_cache_store_test.PostgresCacheStoreTest.test_postgres_observed_backfill_preserves_verified_variant_from_partial_downgrade tests.postgres_cache_store_test.PostgresCacheStoreTest.test_replace_community_gear_templates_preserves_partial_with_more_ready_slots` passed after the downgrade guards.
+- `python -m unittest tests.postgres_cache_store_test`: `Ran 39 tests in 0.057s - OK`.
+- `python -m unittest tests.postgres_cache_sync_test`: `Ran 27 tests in 0.085s - OK`.
+- `python -m unittest tests.websim_payload_test`: `Ran 348 tests in 137.960s - OK`.
+- `python -m compileall server/postgres_cache_store.py server/websim_payload.py` exited 0.
+- `git diff --check` exited 0 with only CRLF replacement warnings.
+
+Deployment, restore, and backup evidence:
+
+- Files deployed by narrow `scp` plus remote `install`: `server/postgres_cache_store.py`, `server/websim_payload.py`.
+- Backend after final guard deploy: `ExecMainStartTimestamp=Sun 2026-07-05 02:45:37 CST`, `ActiveState=active`, `SubState=running`, `ExecMainStatus=0`.
+- Valid backups used during the guarded reruns:
+  - `/opt/wow-mini-program/backups/community-gear-first-sync-full-before-20260704T181301Z/wow_test.dump`, `9737065` bytes.
+  - `/opt/wow-mini-program/backups/community-gear-first-sync-deep-before-20260704T181859Z/wow_test.dump`, `12573679` bytes.
+  - `/opt/wow-mini-program/backups/community-gear-post-deep-before-restore-20260704T182911Z/wow_test.dump`, `14451693` bytes.
+  - `/opt/wow-mini-program/backups/community-gear-guarded-deep-before-20260704T183015Z/wow_test.dump`, `14221765` bytes.
+  - `/opt/wow-mini-program/backups/community-gear-targeted-deeper-before-20260704T183623Z/wow_test.dump`, `14449394` bytes.
+  - `/opt/wow-mini-program/backups/community-gear-post-targeted-before-restore-20260704T184550Z/wow_test.dump`, `17154950` bytes.
+- Scoped table restores were used only to undo downgrade-test sync runs before rerunning with stricter guards. Restored tables: `cache.websim_community_gear_templates`, `cache.websim_gear_variants`, `cache.websim_gear_mod_options`.
+
+Final guarded sync evidence:
+
+- Final unit: `wow-community-template-sync-gear-targeted-guarded-0246.service`.
+- Systemd result: `success`, exit `code=exited/status=0`, runtime `8min 13.520s`, CPU `3min 6.556s`, memory peak `969.9M`, swap peak `0B`.
+- Final `syncRunId`: `pg-community-template-2026-07-04T184617z0000`.
+- Mode: `gear_template_first_sync`.
+- Raider.IO spec rankings: `29` target specs, `145` requests, `7250` characters, `7225` runs, `0` errors.
+- Base profiles: `928` candidates, `928` profiles, `8` workers, `0` errors.
+- Observed backfill: `targetLimit=24000`, `profileLimit=928`, `processedProfileCount=928`, `variantCount=5092`, `verifiedCount=4144`, `partialCount=948`, `blockedCount=523`, `simcProfileCount=928`, `simcResolvedProfileCount=781`, `simcResolvedSlotCount=12014`, `stopReason=completed_cached_payload_window`.
+
+Final live health and endpoint evidence:
+
+- `/health`: HTTP 200.
+- `/api/data/health`: HTTP 200, `status=partial`.
+- `/admin/gates`: HTTP 200 workbench page.
+- Authenticated `/api/admin/gates/summary`: HTTP 200, `overallStatus=partial`, queue summary `2573` records with `gear_templates=47`; top blockers include `missing SimulationCraft item stats`, `missing deterministic SimC variant preset`, and `SimC JSON did not include target item stats`.
+- Authenticated `/api/admin/gates/records?domain=gear_templates`: HTTP 200, `20` gate records, `2 verified / 18 blocked`.
+- Authenticated `/api/admin/gates/queue?limit=80`: HTTP 200.
+- Public `/api/websim/talents` all-spec sweep: `40` specs, `80` templates, `80 verified`, no bad template counts, no non-verified apply flags.
+- Public `/api/websim/gear?compact=1` all-spec sweep: `40` specs, `12 complete / 28 partial` community gear slots, `203` missing community slots, no complete template has missing slots, and no complete community template leaks `default_template`, `baseline_template`, `simc_preset`, or `source_reference`.
+- Public baseline gear sweep: `32` specs expose a baseline template (`18 complete / 14 partial`), and `8` specs still have no baseline template: `druid:restoration`, `evoker:preservation`, `evoker:augmentation`, `monk:mistweaver`, `paladin:holy`, `priest:discipline`, `priest:holy`, `shaman:restoration`.
+
+Final coverage:
+
+- Talent coverage: `80 hero slots / 80 verified / 0 pending / 0 blocked`.
+- Gear `community_best`: `40 specs / 12 complete / 28 partial / 0 pending / 0 blocked`.
+- Gear `baseline`: `40 specs / 32 available / 8 blocked`.
+- Gear canonical slot matrix: `640 total / 437 ready / 203 missing`.
+- Complete community gear specs: `deathknight:frost`, `demonhunter:havoc`, `demonhunter:vengeance`, `demonhunter:devourer`, `druid:balance`, `evoker:devastation`, `evoker:augmentation`, `hunter:marksmanship`, `hunter:survival`, `mage:frost`, `rogue:subtlety`, `shaman:elemental`.
+
+Blocker and next action:
+
+- Phase 1 cannot be accepted because real community gear completion is still `12/40`, baseline is still `32/40`, and the 640-slot matrix still has `203` missing slots.
+- Remaining blockers are now explicit and fail-closed: missing SimulationCraft item stats, missing deterministic SimC variant presets, SimC JSON without target item stats, missing off-hand/slot samples, and unsupported healer/support SimulationCraft profile resolution.
+- Next action is to continue targeted variant proof, add Battle.net Game Data item-instance proof where SimC cannot resolve observed healer/support profiles, and build baseline templates for the 8 blocked healer/support specs.
+- Do not start Phase 2 daily incremental refresh until Phase 1 acceptance passes.
+
+## 2026-07-05 blocked baseline display-slot read-model deploy
+
+Status: Phase 1 is improved but still not accepted. Phase 2 daily incremental talent/gear refresh remains gated.
+
+Code changes in this slice:
+
+- Added a compact-safe `baseline_blocked` gear template placeholder for specs with no baseline template.
+- The placeholder is a baseline display slot only: `status=blocked`, `sourceStatus=blocked`, `canApplyGear=false`, `readySlotCount=0`, all `16` canonical slots missing, and top-level `blockers` / `nextAction` survive compact payload stripping.
+- PG and legacy WebSim gear read models both add the placeholder only after baseline selection returns no real `simc_preset` / `default_template` / `baseline_template` candidate.
+- No database rows are written by this read-model patch, and no sync/backfill service was started.
+
+Local verification:
+
+- RED: `python -m unittest tests.postgres_cache_store_test.PostgresCacheStoreTest.test_websim_gear_keeps_cached_read_model_when_pg_season_is_stale` first failed with `0 != 1` because `baselineTemplates` was empty.
+- RED: the same test then failed with `None != ['No baseline gear template is available for this spec.']` until the compact-safe blocker fields were added.
+- GREEN: the focused test passed after the read-model patch.
+- `python -m unittest tests.postgres_cache_store_test`: `Ran 39 tests in 0.055s - OK`.
+- `python -m unittest tests.postgres_cache_sync_test`: `Ran 27 tests in 0.076s - OK`.
+- `python -m unittest tests.websim_payload_test`: `Ran 348 tests in 125.181s - OK`.
+- `python -m compileall server/postgres_cache_store.py server/websim_payload.py` exited 0.
+- `git diff --check` exited 0 with only CRLF replacement warnings.
+
+Deployment evidence:
+
+- Hot deploy used the existing `server/deploy_lighthouse.sh` path with `WOW_DEPLOY_SKIP_BOOTSTRAP=1` and `WOW_DEPLOY_START_ASYNC_SYNCS=0`.
+- Deploy script smoke returned `/health` OK and reported `Deployment complete: http://124.223.51.33`.
+- Backend after deploy: `ExecMainStartTimestamp=Sun 2026-07-05 03:21:05 CST`, `ActiveState=active`, `SubState=running`, `Result=success`, `ExecMainStatus=0`, `NRestarts=0`.
+- No new PostgreSQL backup was created in this slice because the deployed patch is read-only. Latest guarded sync data backup evidence remains the 2026-07-05 backup set above, including `/opt/wow-mini-program/backups/community-gear-post-targeted-before-restore-20260704T184550Z/wow_test.dump`, `17154950` bytes.
+- Latest data sync evidence remains `syncRunId=pg-community-template-2026-07-04T184617z0000`; no new sync run was started.
+
+Live health and admin evidence:
+
+- `/health`: HTTP 200.
+- `/api/data/health`: HTTP 200, `overallStatus=partial`.
+- `/admin/gates`: HTTP 200 workbench page via GET.
+- Authenticated `/api/admin/gates/summary`: HTTP 200, `overallStatus=partial`, queue summary `2573` records with `gear_templates=47`.
+- Authenticated `/api/admin/gates/records?domain=talents`: HTTP 200, `80` records, `80 verified`.
+- Authenticated `/api/admin/gates/records?domain=gear_templates`: HTTP 200, `79` records, `32 verified / 47 blocked`, visibility `32 visible / 47 hidden`.
+- Authenticated `/api/admin/gates/queue?limit=80`: HTTP 200, `80` returned.
+- Health `gearTemplatePreflight.scanRunId=pg-community-template-2026-07-04T184617z0000`.
+- Health real community gear summary remains `40 specs / 12 covered / 28 missing+partial / 0 blocked`.
+- Health baseline source summary remains `40 specs / 32 available / 8 blocked`.
+
+Public endpoint evidence:
+
+- Public `/api/websim/talents` all-spec sweep: `40` specs, `80` templates, `80 verified`, no bad template counts, no bad non-verified apply flags.
+- Public `/api/websim/gear?compact=1&mode=initial` curl-based all-spec sweep: `40` specs, `40` community slots, `40` baseline slots, `bad=[]`.
+- Gear `community_best`: `12 complete / 28 partial / 0 pending / 0 blocked`.
+- Gear baseline display slots: `18 complete / 14 partial / 8 blocked`.
+- Gear baseline sources: `32 simc_preset / 8 baseline_blocked`.
+- Gear canonical slot matrix from public community templates: `640 total / 437 ready / 203 missing`.
+- The `8` public blocked baseline placeholders are `druid:restoration`, `evoker:augmentation`, `evoker:preservation`, `monk:mistweaver`, `paladin:holy`, `priest:discipline`, `priest:holy`, `shaman:restoration`.
+- No complete community template has missing slots, and no community template leaks `default_template`, `baseline_template`, `simc_preset`, `source_reference`, `manual_fixture`, `fallback`, `websim_baseline`, or `baseline_blocked`.
+
+Blocker and next action:
+
+- This closes the public baseline display-slot omission: every spec now has one baseline display slot in `/api/websim/gear`, either an available baseline template or a blocked placeholder.
+- Phase 1 still cannot be accepted because real community gear completion remains `12/40`, the community 640-slot matrix still has `203` missing slots, and `8` baseline source templates are still blocked behind explicit placeholder states.
+- Next action remains targeted variant proof plus Battle.net item-instance proof for specs SimC cannot resolve, and then real baseline template construction for the `8` blocked healer/support baseline specs.
+- Do not start Phase 2 daily incremental refresh until Phase 1 acceptance passes.
+
+## 2026-07-05 two-hand/ranged off-hand occupancy read-model deploy
+
+Status: Phase 1 is improved but still not accepted. Phase 2 daily incremental talent/gear refresh remains gated.
+
+Code changes in this slice:
+
+- Added read-model canonical-slot coverage for trusted main-hand templates that occupy the off-hand slot without emitting a fake `off_hand=` SimC gear line.
+- Item-level `weaponType` evidence wins when present (`two_hand_main_hand` / `ranged_main_hand`).
+- For persisted observed rows that do not carry `weaponType`, only mandatory spec equipment modes can occupy off-hand: `two_hand`, `two_hand_agi`, and `ranged`.
+- The PostgreSQL gear read path normalizes non-baseline community rows with this coverage rule while preserving persisted template IDs and leaving baseline display rows untouched.
+- No database writes, syncs, or backfills were started by this patch.
+
+Local verification:
+
+- RED/GREEN focused builder test: `tests.websim_payload_test.WebSimPayloadTest.test_community_gear_template_counts_two_hand_main_hand_as_offhand_occupied`.
+- RED/GREEN persisted-row test: `tests.postgres_cache_store_test.PostgresCacheStoreTest.test_gear_read_model_counts_two_hand_main_hand_as_offhand_occupied`.
+- Regression for mixed community/baseline rows: `tests.postgres_cache_store_test.PostgresCacheStoreTest.test_gear_read_model_splits_pg_community_and_baseline_templates`.
+- Compact payload ID regression: `tests.websim_payload_test.WebSimPayloadTest.test_websim_gear_compact_payload_prunes_raw_candidate_payloads`.
+- `python -m unittest tests.websim_payload_test`: `Ran 349 tests in 102.662s - OK`.
+- `python -m unittest tests.postgres_cache_store_test`: `Ran 40 tests in 0.059s - OK`.
+- `python -m compileall server/websim_payload.py server/postgres_cache_store.py` exited 0.
+- `git diff --check` exited 0 with only CRLF replacement warnings.
+
+Deployment evidence:
+
+- Hot deploy used the existing `server/deploy_lighthouse.sh` path with `WOW_DEPLOY_SKIP_BOOTSTRAP=1` and `WOW_DEPLOY_START_ASYNC_SYNCS=0`.
+- Deploy script smoke returned `/health` OK and reported `Deployment complete: http://124.223.51.33`.
+- Backend after deploy: `ExecMainStartTimestamp=Sun 2026-07-05 03:53:11 CST`, `ActiveState=active`, `SubState=running`, `Result=success`, `ExecMainStatus=0`, `NRestarts=0`, `CPUUsageNSec=3772607000`.
+- No new PostgreSQL backup was created in this slice because the deployed patch is read-only. Latest guarded sync data backup remains `/opt/wow-mini-program/backups/community-gear-post-targeted-before-restore-20260704T184550Z/wow_test.dump`, `17154950` bytes.
+- Latest data sync remains `syncRunId=pg-community-template-2026-07-04T184617z0000`; no new sync run was started.
+
+Live health and endpoint evidence:
+
+- `/health`: HTTP 200.
+- `/api/data/health`: HTTP 200, `overallStatus=partial`, `checkedAt=2026-07-04T19:58:30+00:00`.
+- `/admin/gates`: HTTP 200 via GET.
+- Health talent catalog: `80` community talent templates, `80 verified / 0 partial / 0 blocked`.
+- Health community template matrix remains talent-verified: `40 specs`, `80 hero slots`, `80 verified`, `0 pending_collection`, `0 blocked`.
+- Representative live sample before this deploy showed `deathknight:blood` as `partial`, `readySlotCount=15`, `missingSlots=off_hand`, and no `weaponType` on persisted `main_hand`.
+- Representative live sample after this deploy shows `deathknight:blood` as `complete`, `sourceStatus=synced`, `readySlotCount=16`, `missingSlots=[]`, `occupiedSlots.off_hand.reason=spec_two_hand_main_hand`, and `rawString` still has no `off_hand=` line.
+- Public `/api/websim/gear?compact=1&mode=initial` curl-based all-spec sweep: `40` specs checked, `bad=[]`, `errors=[]`.
+- Gear `community_best`: `16 complete / 24 partial / 0 pending / 0 blocked`.
+- Gear baseline display slots: `32 available / 8 blocked`.
+- Gear canonical slot matrix from public community templates: `640 total / 442 ready / 198 missing`.
+- Off-hand occupancy is now visible for `deathknight:blood`, `deathknight:unholy`, `druid:feral`, `druid:guardian`, and `hunter:beast_mastery`.
+
+Blocker and next action:
+
+- This closes the legitimate no-off-hand modeling gap for mandatory two-hand/ranged specs with trusted main-hand evidence.
+- Phase 1 still cannot be accepted because real community gear completion is only `16/40`, the community 640-slot matrix still has `198` missing slots, and `8` baseline source templates remain blocked.
+- Remaining public partials are now concentrated in true missing evidence: missing trinkets/rings/armor slots, hybrid/off-hand specs where off-hand cannot be inferred, and healer/support specs without enough trusted SimC/Battle.net item-instance proof.
+- Continue targeted variant proof and Battle.net item-instance proof before revisiting Phase 2.
+
+## 2026-07-05 Battle.net weapon metadata off-hand occupancy deploy
+
+Status: Phase 1 is improved but still not accepted. Phase 2 daily incremental talent/gear refresh remains gated.
+
+Code changes in this slice:
+
+- The PostgreSQL gear read model now enriches community template gear items from official `cache.websim_items` metadata before recomputing canonical slot coverage.
+- The enrichment is fail-closed: only rows whose payload has `_metadata.source = Battle.net Game Data API` can provide `weaponType` / `armorType` proof.
+- Existing source-reference observed item payloads do not count as official weapon metadata.
+- Baseline rows are still skipped by community normalization.
+
+Local verification:
+
+- RED/GREEN PG metadata regression: `tests.postgres_cache_store_test.PostgresCacheStoreTest.test_gear_read_model_uses_official_item_metadata_for_offhand_occupancy`.
+- Existing PG off-hand and baseline regressions remained green.
+- `python -m unittest tests.postgres_cache_store_test`: `Ran 41 tests in 0.071s - OK`.
+- `python -m compileall server/postgres_cache_store.py` exited 0.
+- `git diff --check` exited 0 with only CRLF replacement warnings.
+
+Deployment and backup evidence:
+
+- Hot deploy used `WOW_DEPLOY_SKIP_BOOTSTRAP=1` and `WOW_DEPLOY_START_ASYNC_SYNCS=0`; no sync/backfill service was started.
+- Backup before metadata writes: `/opt/wow-mini-program/backups/community-gear-offhand-metadata-before-20260704T201043Z/wow_test.dump`, `17063366` bytes.
+- Inserted official Battle.net item metadata for:
+  - `193723` `Obsidian Goaltending Spire`: `Staff`.
+  - `245770` `Aln'hara Cane`: `Staff`.
+  - `258218` `Skybreaker's Blade`: `One-Handed Sword`.
+- Final backend restart after clearing abandoned timeout-bound sweep requests: `ExecMainStartTimestamp=Sun 2026-07-05 04:18:17 CST`, `ActiveState=active`, `SubState=running`, `Result=success`, `ExecMainStatus=0`, `NRestarts=0`, `MemoryCurrent=502804480`.
+- Latest data sync remains `syncRunId=pg-community-template-2026-07-04T184617z0000`; metadata writes invalidated the gear payload cache through `cache.websim_items.updated_at`.
+
+Live health and endpoint evidence:
+
+- `/health`: HTTP 200.
+- `/api/data/health`: HTTP 200, `overallStatus=partial`, `checkedAt=2026-07-04T20:22:22+00:00`.
+- `/admin/gates`: HTTP 200 via GET.
+- Health talent catalog remains `80` community talent templates, `80 verified / 0 partial / 0 blocked`.
+- Targeted public gear smoke:
+  - `druid:restoration`: `complete`, `readySlotCount=16`, `missingSlots=[]`, `main_hand.weaponType=Staff`, no emitted `off_hand=`.
+  - `monk:brewmaster`: `complete`, `readySlotCount=16`, `missingSlots=[]`, `main_hand.weaponType=Staff`, no emitted `off_hand=`.
+  - `monk:windwalker`: `complete`, `readySlotCount=16`, `missingSlots=[]`, `main_hand.weaponType=Staff`, no emitted `off_hand=`.
+  - `warlock:destruction`: remains `partial`, `missingSlots=chest,off_hand`, because official `main_hand.weaponType=One-Handed Sword`.
+- Public `/api/websim/gear?compact=1&mode=initial` all-spec sweep at lower concurrency: `40` specs checked, `bad=[]`, `errors=[]`.
+- Gear `community_best`: `19 complete / 21 partial / 0 pending / 0 blocked`.
+- Gear baseline display slots: `32 available / 8 blocked`.
+- Gear canonical slot matrix from public community templates: `640 total / 445 ready / 195 missing`.
+
+Blocker and next action:
+
+- This closes three additional legitimate no-off-hand cases through official Battle.net weapon metadata.
+- Phase 1 still cannot be accepted because real community gear completion is only `19/40`, the community 640-slot matrix still has `195` missing slots, and `8` baseline source templates remain blocked.
+- Remaining partials require real missing-slot evidence: trinket/ring/armor gaps, one-hand plus off-hand cases, shield/held-offhand specs, and healer/support specs without enough trusted SimC/Battle.net item proof.
+- Continue targeted variant proof and Battle.net item-instance proof before starting Phase 2.
+
+## 2026-07-05 duplicate equivalent slots and persisted coverage reconciliation
+
+Status: Phase 1 is more honest and internally consistent, but still not accepted. Phase 2 daily incremental talent/gear refresh remains gated.
+
+Code changes in this slice:
+
+- Community gear template coverage now assigns distinct items from equivalent canonical slot groups into open slots, so two different observed `trinket1` or `finger1` rows can fill `trinket1/trinket2` or `finger1/finger2`.
+- Duplicate item IDs are still not reused to fill both slots.
+- `replace_community_gear_templates` now reconciles persisted observed-template status from each row's own stored gear items plus trusted Battle.net item metadata before returning counts.
+- The reconciliation can promote stale partial rows when current slot coverage is complete, and can demote stale complete rows when their own stored gear no longer covers all 16 canonical slots.
+- Complete rows remain protected from weaker partial candidates unless their stored row fails the current slot audit.
+- This pass did not use baseline, source_reference, simc_preset, manual_fixture, fallback, or stale rows to fill real community coverage.
+
+Local verification:
+
+- RED/GREEN duplicate trinket builder regression: `tests.websim_payload_test.WebSimPayloadTest.test_community_gear_template_assigns_distinct_duplicate_trinkets_to_both_slots`.
+- RED/GREEN persisted replacement regressions:
+  - `test_replace_community_gear_templates_corrects_invalid_stored_complete_winner`.
+  - `test_replace_community_gear_templates_reconciles_stale_complete_without_candidate`.
+  - `test_replace_community_gear_templates_promotes_stale_partial_when_current_coverage_is_complete`.
+- `python -m unittest tests.postgres_cache_store_test`: `Ran 44 tests in 0.076s - OK`.
+- Focused websim duplicate/off-hand tests: `Ran 2 tests in 0.538s - OK`.
+- `python -m compileall server/postgres_cache_store.py server/websim_payload.py` exited 0.
+
+Deployment, backup, and write evidence:
+
+- Hot deploys used `WOW_DEPLOY_SKIP_BOOTSTRAP=1` and `WOW_DEPLOY_START_ASYNC_SYNCS=0`.
+- Final backend state after the predicate-fix deploy: `ExecMainStartTimestamp=Sun 2026-07-05 04:48:57 CST`, `ActiveState=active`, `SubState=running`, `Result=success`, `ExecMainStatus=0`, `NRestarts=0`, `CPUUsageNSec=233631914000`.
+- Key backups before database writes:
+  - `/opt/wow-mini-program/backups/community-gear-duplicate-slots-before-20260704T202842Z/wow_test.dump`, `17066039` bytes.
+  - `/opt/wow-mini-program/backups/community-gear-recompute-predicate-fix-before-20260704T204908Z/wow_test.dump`, `17064705` bytes.
+- Final recompute `runId`: `pg-community-template-recompute-predicate-fix-20260704T204925Z`.
+- Final persisted observed status: `14 complete / 26 partial`.
+- Targeted write results:
+  - `hunter:beast_mastery`: promoted to `complete`, `readySlotCount=16`, distinct trinkets `249806` + `193701`.
+  - `mage:arcane`: promoted to `complete`, `readySlotCount=16`, distinct trinkets `249346` + `250144`.
+  - `mage:fire`: remains `partial`, `readySlotCount=15`, `missingSlots=trinket1`.
+  - `druid:restoration` and `monk:brewmaster`: persisted rows promoted to `complete` through official Battle.net `Staff` metadata and off-hand occupancy.
+  - Previously stale complete labels that failed current coverage were demoted to partial instead of remaining false positives.
+
+Live health, admin, and endpoint evidence:
+
+- `/health`: HTTP 200, `{"ok": true, "service": "wow-backend"}`.
+- `/api/data/health`: HTTP 200, `overallStatus=partial`, `checkedAt=2026-07-04T20:53:25+00:00`.
+- `/admin/gates`: HTTP 200 workbench page via GET.
+- Authenticated `/api/admin/gates/summary`: HTTP 200, `overallStatus=partial`, queue summary `2571` records with `gear_templates=45`.
+- Authenticated `/api/admin/gates/records?domain=talents`: HTTP 200, `80` records, `80 verified`.
+- Authenticated `/api/admin/gates/records?domain=gear_templates`: HTTP 200, `79` records, `34 verified / 45 blocked`, visibility `34 visible / 45 hidden`.
+- Gate source breakdown: `raiderio_observed_profile = 14 verified / 26 blocked`; `simc_preset = 20 verified / 19 blocked`.
+- Authenticated `/api/admin/gates/queue?limit=80`: HTTP 200, `80` returned.
+- Public `/api/websim/talents` all-spec sweep: `40` specs, `80` hero slots, `80 verified`, sources `78 Raider.IO / 2 Warcraft Logs`, no missing or unverified slots.
+- Public `/api/websim/gear?compact=1&mode=initial` all-spec sweep: `40` specs checked in `203.2s`, `errors=[]`, `40` baseline display slots, and all `40` community rows use `raiderio_observed_profile`.
+- Gear `community_best`: `14 complete / 26 partial / 0 pending / 0 public blocked`.
+- Gear baseline display slots: `40 available as display slots` through real baseline or explicit blocked placeholder; baseline source templates still require completion behind the blocked placeholders.
+- Gear canonical slot matrix from public community templates: `640 total / 419 ready / 221 missing`.
+- Missing-slot totals by canonical slot: `back=14`, `chest=11`, `feet=15`, `finger1=11`, `finger2=15`, `hands=9`, `head=12`, `legs=9`, `main_hand=17`, `neck=15`, `off_hand=18`, `shoulder=10`, `trinket1=15`, `trinket2=22`, `waist=13`, `wrist=15`.
+
+Blocker and next action:
+
+- Phase 1 still cannot be accepted because real community gear completion is `14/40`, the community 640-slot matrix still has `221` missing slots, and baseline source-template construction still has blocked specs behind explicit placeholders.
+- The drop from the earlier read-model-only `19 complete` number is intentional fail-closed cleanup: persisted/admin coverage now agrees with the current slot model instead of preserving stale complete labels.
+- The next implementation lane should target missing trinket/ring/off-hand evidence and broader healer/support profile proof, then rerun the same observed-only reconciliation.
+- Do not start Phase 2 daily incremental refresh until Phase 1 acceptance passes.
+
+## 2026-07-05 untruncated observed variants and live health overlay
+
+Status: Phase 1 improved materially, but still cannot be accepted. Phase 2 daily incremental talent/gear refresh remains gated.
+
+Code changes in this slice:
+
+- Removed the global `LIMIT 4000` from observed-variant template construction. Production has `7815` current observed variants across `41` class/spec buckets, so the old cap silently dropped older trusted rows before the builder could cover trinkets and other late rows.
+- Added a live PostgreSQL gear-template health summary so `/api/data/health` overlays the current `cache.websim_community_gear_templates` table instead of reporting stale community-template sync-state counts after guarded replacement writes.
+- The health overlay counts real observed community gear and baseline `simc_preset` rows separately; baseline/default/source-reference/manual-fixture rows still cannot complete real community coverage.
+- Fixed the live helper to accept the repository's real `expected_spec_pairs()` contract (`class:spec` strings), not only tuple-shaped test data.
+
+Local verification:
+
+- RED/GREEN observed-builder regression: `tests.postgres_cache_store_test.PostgresCacheStoreTest.test_build_community_gear_templates_does_not_globally_truncate_observed_variants`.
+- RED/GREEN health freshness regressions:
+  - `tests.postgres_cache_store_test.PostgresCacheStoreTest.test_community_gear_template_live_health_summary_reads_current_rows`.
+  - `tests.news_backend_test.NewsBackendTest.test_pg_only_data_health_uses_postgres_state_without_sqlite`.
+- `python -m unittest tests.postgres_cache_store_test`: `Ran 46 tests in 0.065s - OK`.
+- `python -m unittest tests.news_backend_test`: `Ran 212 tests in 111.101s - OK`.
+- `python -m compileall server/postgres_cache_store.py server/news_backend.py` exited 0.
+
+Deployment, backup, and write evidence:
+
+- Hot deploys used `WOW_DEPLOY_SKIP_BOOTSTRAP=1` and `WOW_DEPLOY_START_ASYNC_SYNCS=0`; no background sync was started by deploy.
+- Backup before the untruncated observed write: `/opt/wow-mini-program/backups/community-gear-untruncated-observed-before-20260704T210026Z/wow_test.dump`, `17065480` bytes.
+- Dry run `pg-community-template-untruncated-observed-dry-run-20260704T210015Z`: observed builder produced `38` rows, `18 complete / 20 partial`.
+- Write run `pg-community-template-untruncated-observed-write-20260704T210046Z`: `builtObserved=38`; guarded replacement returned `total=77 / verified=43 / partial=34 / blocked=0`; persisted observed rows reconciled to `23 complete / 17 partial`.
+- Final backend after active-row health/admin deploy: `ExecMainStartTimestamp=Sun 2026-07-05 05:35:52 CST`, `ActiveState=active`, `SubState=running`, `Result=success`, `ExecMainStatus=0`, `NRestarts=0`.
+
+Live health, admin, and source evidence:
+
+- `/health`: HTTP 200.
+- `/api/data/health`: HTTP 200, `overallStatus=partial`, `community_templates.status=partial`, `checkedAt=2026-07-04T21:36:19+00:00`.
+- Health now reports current active gear-template table state: `gearTemplates.total=77 / verified=43 / partial=34 / blocked=0`, `lastSyncRun=pg-community-template-untruncated-observed-write-20260704T210046Z`.
+- Health real community coverage now matches public/admin state: `coveredSpecCount=23`, `partialSpecCount=17`, `missingSpecCount=17`, `pendingSpecCount=0`, `blockedSpecCount=0`.
+- Health canonical slot matrix: `640 total / 550 ready / 90 missing`, with `trinket2=12`, `trinket1=8`, `off_hand=7`, `back=6`, `feet=6`, `chest=5`, `finger2=5`, `legs=5`, `main_hand=5`, `neck=5`, `waist=5`, `wrist=5`, `finger1=4`, `hands=4`, `head=4`, `shoulder=4`.
+- `/admin/gates`: HTTP 200 via GET.
+- Authenticated `/api/admin/gates/summary`: HTTP 200, `overallStatus=partial`, queue summary `2562` records with `gear_templates=36`.
+- Authenticated `/api/admin/gates/records?domain=talents&limit=200`: `80` records, `80 verified`.
+- Authenticated `/api/admin/gates/records?domain=gear_templates&limit=200`: `77` active records, `43 verified / 34 blocked`.
+- Direct DB source split: `raiderio_observed_profile = 23 complete / 17 partial`; `simc_preset = 20 complete / 17 partial`; two expired `simc_preset` partial rows are excluded from health/admin active counts.
+
+Live public endpoint evidence:
+
+- Public `/api/websim/talents` single-flight all-spec sweep from the server: `40 specs`, `80 templates`, `80 verified`, `errors=[]`, `badTemplateCounts=[]`, `badApply=[]`.
+- Public `/api/websim/gear?compact=1&mode=initial` single-flight all-spec sweep from the server: `40 specs`, `40 observed community rows`, all `raiderio_observed_profile`, `23 complete / 17 partial`, `errors=[]`, `bad=[]`.
+- The accepted gear sweep used single-flight localhost reads. A prior 4-way public sweep timed out after three specs and was discarded as invalid evidence rather than counted as a pass.
+- Targeted improvements from the untruncated builder:
+  - `mage:fire`: promoted to `complete`, `readySlotCount=16`, trinkets `250144` + `249346`.
+  - `monk:windwalker`: promoted to `complete`, `readySlotCount=16`, trinkets `193701` + `250256`.
+  - `shaman:elemental`: now only `feet` missing; trinkets are covered.
+  - `deathknight:unholy`: still partial with `trinket2` missing.
+- Remaining partial observed specs: `deathknight:frost`, `deathknight:unholy`, `demonhunter:havoc`, `demonhunter:devourer`, `evoker:preservation`, `monk:mistweaver`, `paladin:holy`, `paladin:protection`, `priest:discipline`, `priest:holy`, `rogue:assassination`, `rogue:subtlety`, `shaman:elemental`, `warlock:affliction`, `warlock:destruction`, `warrior:arms`, `warrior:fury`.
+
+Blocker and next action:
+
+- Phase 1 still cannot be accepted because real community gear completion is `23/40`; the 640-slot community matrix still has `90` missing slots.
+- Remaining gaps are now narrower and more honest: mostly trinket/ring/off-hand/armor evidence plus healer/support specs with sparse trusted observed profiles.
+- Next lane should target high-impact missing slots from the health matrix, especially `trinket2`, `trinket1`, `off_hand`, `back`, and `feet`, then rerun observed-only replacement/reconciliation.
+- Do not start Phase 2 daily incremental talent/gear refresh until Phase 1 acceptance passes.
+
+## 2026-07-05 missing-slot backfill and blocker classification
+
+Status: Phase 1 improved materially, but still cannot be accepted by the owner. Phase 2 daily incremental talent/gear refresh remains gated.
+
+Decision in this slice:
+
+- Root-cause review found no remaining builder gap for the current missing-slot set.
+- A strict item-table-stat fallback dry run produced `changeCount=0`; broader fallback would risk cross-spec, wrong-slot, or stale stat leakage, so the builder stayed fail-closed.
+- No local code patch was made in this slice after that review; the production change was a bounded live backfill/rebuild using existing deployed code and stricter evidence accounting.
+
+Backup and production run evidence:
+
+- PostgreSQL backup before the write: `/opt/wow-mini-program/backups/community-gear-missing-slot-backfill-20260704T214139Z/wow_test.dump`, `17086607` bytes.
+- Transient unit: `wow-community-gear-first-sync-20260704T214249Z.service`.
+- Result: `success`, `code=exited/status=0`, runtime `7min 41.291s`, CPU `2min 51.204s`, memory peak `1.1G`.
+- Run mode: `gear_template_first_sync`, with `WOW_COMMUNITY_GEAR_FIRST_SYNC_SIMC_STATS=1`, `WOW_COMMUNITY_GEAR_FIRST_SYNC_FULL_PROFILE_GEAR=1`, `WOW_RAIDERIO_REGIONS=cn,tw,kr,us,eu`, profile limit `900`, target limit `12000`, timeout `7200s`.
+- Final `syncRunId`: `pg-community-template-2026-07-04T214249z0000`.
+- Observed backfill checked at `2026-07-04T21:48:21+00:00`: `processedProfileCount=752`, `availableProfileCount=752`, `variantCount=3974`, `verifiedCount=3138`, `partialCount=836`, `blockedCount=412`, `simcProfileCount=752`, `simcResolvedProfileCount=628`, `simcResolvedSlotCount=9656`, `stopReason=target_limit_reached`.
+
+Live health, admin, and public endpoint evidence:
+
+- `/health`: HTTP 200.
+- `/api/data/health`: HTTP 200, `overallStatus=partial`.
+- `/admin/gates`: HTTP 200 via GET.
+- Authenticated admin JSON endpoints returned HTTP 200 for `/api/admin/gates/summary`, `/api/admin/gates/records?domain=talents`, `/api/admin/gates/records?domain=gear_templates`, and `/api/admin/gates/queue?domain=gear_templates`.
+- Talent public sweep: `40` specs, `80` templates, all `80 verified`, `bad=[]`, `badApply=[]`.
+- Gear public sweep: `40` specs, `bad=[]`, `errors=[]`; all `40` community rows are `raiderio_observed_profile`.
+- Gear `community_best`: `27 complete / 13 partial / 0 pending / 0 public blocked`.
+- Gear baseline display slots: `27 complete / 5 partial / 8 blocked`, with sources `32 simc_preset / 8 baseline_blocked`.
+- Gear community canonical slot matrix: `640 total / 577 ready / 63 missing`.
+- Missing slot totals: `trinket2=9`, `off_hand=6`, `trinket1=5`, `chest=3`, `feet=4`, `finger1=3`, `finger2=4`, `hands=4`, `head=2`, `legs=2`, `main_hand=4`, `neck=4`, `shoulder=3`, `back=3`, `waist=4`, `wrist=3`.
+
+Remaining blocker classification:
+
+- Before this backfill, observed community gear had `23 complete / 17 partial` with `90` missing slots: `75` missing trusted SimC stats, `8` equivalent-slot distinct-item gaps, `7` no observed variant rows, and `0` possible builder gaps.
+- After this backfill, observed community gear has `27 complete / 13 partial` with `63` missing slots: `54` missing trusted SimC stats, `7` equivalent-slot distinct-item gaps, `2` no observed variant rows, and `0` possible builder gaps.
+- The largest remaining trusted-stat gap is healer/support SimC resolution: `holy`/`discipline` Priest, `holy` Paladin, `mistweaver` Monk, and `preservation` Evoker still need Battle.net Game Data item-instance proof or another verified stat source before they can become complete.
+- The remaining equivalent-slot gaps need distinct trusted observed trinket/finger items, not duplicate reuse.
+- `warlock:affliction` and `warlock:destruction` still lack observed off-hand rows and cannot infer an off-hand from one-handed main-hand evidence.
+
+Blocker and next action:
+
+- Phase 1 still cannot be accepted because real community gear completion is `27/40`; the 640-slot community matrix still has `63` missing slots.
+- Next work should add or collect verified stat proof for the `54` statless observed rows, target the `7` paired-slot distinct-item gaps, and collect real off-hand evidence for the two Warlock specs.
+- Do not relax production completion by using Raider.IO/WCL profile API attributes or cross-spec item-table stats.
+- Do not start Phase 2 daily incremental talent/gear refresh until Phase 1 acceptance passes.
+
+## 2026-07-05 preflight slot-coverage parity and targeted 13-spec sync
+
+Status: Phase 1 improved again, but still cannot be accepted by the owner. Phase 2 daily incremental talent/gear refresh remains gated.
+
+Code change in this slice:
+
+- Fixed PostgreSQL community gear preflight to recompute current slot coverage from `gearItems` via the same canonical coverage helper used by the public read model.
+- Stale persisted `missingSlots` no longer keep a target open when mandatory two-hand/ranged off-hand occupancy or equivalent-slot reconciliation proves the slot is covered.
+- The sync scheduler now targets the real remaining community gear gap set. Before this patch, public health showed `27 complete / 13 partial / 63 missing`, while read-only preflight still queued `17` specs and `66` missing slots.
+- After the patch, read-only production preflight matched public state: `27 complete / 13 partial / 63 missing`.
+
+Local verification:
+
+- RED regression: `tests.postgres_cache_sync_test.PostgresCacheSyncTest.test_gear_preflight_treats_mandatory_two_hand_offhand_as_covered` failed with `completeSpecCount` still `0`.
+- GREEN focused pair: `python -m unittest tests.postgres_cache_sync_test.PostgresCacheSyncTest.test_gear_preflight_treats_mandatory_two_hand_offhand_as_covered tests.postgres_cache_sync_test.PostgresCacheSyncTest.test_community_postgres_sync_reports_gear_template_preflight_matrix` returned `Ran 2 tests in 0.050s - OK`.
+- Full sync suite: `python -m unittest tests.postgres_cache_sync_test` returned `Ran 28 tests in 0.093s - OK`.
+- `python -m compileall server/postgres_cache_sync.py` exited 0.
+
+Deployment and backup:
+
+- Deployed the narrow scheduler patch to `/opt/wow-mini-program/server/postgres_cache_sync.py`.
+- Backend after restart: `ExecMainStartTimestamp=Sun 2026-07-05 06:10:23 CST`, `ActiveState=active`, `SubState=running`, `Result=success`, `ExecMainStatus=0`, `NRestarts=0`.
+- A timer-triggered old-code sync that had started at `Sun 2026-07-05 05:59:43 CST` was stopped before the targeted run to avoid competing for the same lock and old target semantics.
+- PostgreSQL backup before the targeted write: `/opt/wow-mini-program/backups/community-gear-targeted-13spec-before-20260704T221128Z/wow_test.dump`, `17329236` bytes.
+
+Targeted production run:
+
+- Transient unit: `wow-community-gear-targeted-13spec-20260704T221203Z.service`.
+- Result: `success`, `code=exited/status=0`, runtime `7min 49.822s`, CPU `3min 7.567s`, memory peak `1.1G`, swap peak `0B`.
+- Final `syncRunId`: `pg-community-template-2026-07-04T221203z0000`.
+- Mode: `gear_template_first_sync`, with `13` target specs, `104` Raider.IO spec-ranking requests, `10400` characters, `10372` runs, and `900` processed profiles.
+- Observed backfill: `processedProfileCount=900`, `processedItemCount=14560`, `variantCount=4355`, `verifiedCount=2249`, `partialCount=2106`, `blockedCount=514`, `simcProfileCount=900`, `simcResolvedProfileCount=528`, `simcResolvedSlotCount=8243`, `stopReason=completed_cached_payload_window`.
+- Gear sync stage promoted coverage to `communityBestCompleteSpecCount=32`, `baselineAvailableSpecCount=32`, and `missingSlotCount=48`.
+
+Live health, admin, and public endpoint evidence:
+
+- `/health`: HTTP 200.
+- `/api/data/health`: HTTP 200, `overallStatus=partial`, `community_templates.status=partial`, `lastSyncRun=pg-community-template-2026-07-04T221203z0000`.
+- Health gear templates: `total=77 / verified=63 / partial=14 / blocked=0`.
+- Health real community gear: `32 complete / 8 partial / 0 pending / 0 blocked`.
+- Health canonical community matrix: `640 total / 592 ready / 48 missing`.
+- `/admin/gates`: HTTP 200 via GET.
+- Authenticated `/api/admin/gates/summary`: HTTP 200, `overallStatus=partial`.
+- Authenticated admin records: talents `80 verified`; gear templates `77 records / 63 verified / 14 blocked`; gear queue `14` items.
+- Public `/api/websim/talents` all-spec sweep: `40 specs / 80 templates / 80 verified`, `bad=[]`, `badApply=[]`, sources `raiderio=78 / warcraftlogs=2`.
+- Public `/api/websim/gear?compact=1&mode=initial` all-spec sweep: `40 specs`, `bad=[]`, `errors=[]`, all `40` community rows from `raiderio_observed_profile`.
+- Gear public `community_best`: `32 complete / 8 partial / 0 pending / 0 public blocked`.
+- Gear baseline display slots: `27 complete / 5 partial / 8 blocked`, with sources `32 simc_preset / 8 baseline_blocked`.
+- Remaining partial specs: `evoker:preservation`, `monk:brewmaster`, `monk:mistweaver`, `paladin:holy`, `priest:discipline`, `priest:holy`, `warlock:affliction`, `warlock:destruction`.
+- Missing slot totals: `off_hand=6`, `back=4`, `hands=4`, `wrist=4`, `trinket2=4`, `feet=3`, `finger1=3`, `finger2=3`, `neck=3`, `waist=3`, `chest=2`, `head=2`, `main_hand=2`, `shoulder=2`, `trinket1=2`, `legs=1`.
+
+Remaining blocker classification:
+
+- Current `48` missing community slots classify as `43` observed rows missing trusted SimC stats, `3` observed off-hand rows missing trusted SimC stats while main-hand occupancy remains unproven, `2` off-hand slots with no observed row and unproven main-hand occupancy, and `0` possible builder gaps.
+- The largest remaining concentration is healer/support stat proof: `monk:mistweaver`, `paladin:holy`, `priest:discipline`, `priest:holy`, and `evoker:preservation`.
+- `warlock:affliction` and `warlock:destruction` still need real off-hand evidence or official metadata proving a two-hand main-hand; one-handed main-hand evidence cannot occupy `off_hand`.
+
+Blocker and next action:
+
+- Phase 1 still cannot be accepted because real community gear completion is `32/40`; the 640-slot community matrix still has `48` missing slots.
+- Next work should target Battle.net Game Data item-instance proof or another verified stat source for the remaining statless observed rows, plus real/proven off-hand evidence for hybrid caster slots.
+- Do not relax production completion by using Raider.IO/WCL profile API attributes, stale persisted missing-slot data, or cross-spec item-table stats.
+- Do not start Phase 2 daily incremental talent/gear refresh until Phase 1 acceptance passes.
+
+## 2026-07-05 final community gear acceptance and daily incremental rollout
+
+Status: Phase 1 accepted. Phase 2 daily incremental community talent + gear refresh is online.
+
+Code changes in the final slice:
+
+- PostgreSQL gear-template read models now hydrate official Battle.net item metadata for template gear rows before public/admin coverage checks.
+- Baseline and community template off-hand coverage now treats a trusted two-handed/ranged main-hand item as occupying `off_hand` even when the item row itself is a baseline display item.
+- Daily community-template sync modes were added: `daily_incremental`, `daily_light`, `daily_targeted`, `weekly_deep`, and `season_reset_full`.
+- The daily runner only queues missing/stale/blocked target work. A clean steady-state run emits a change report with `unchanged / metadata_refreshed / promoted / candidate_only / needs_review / rejected_regression / blocked / stale_winner`.
+- `wow-community-template-sync.service` now runs `WOW_COMMUNITY_TEMPLATE_SYNC_MODE=daily_incremental`; `wow-community-template-sync.timer` now runs daily with randomized delay.
+- `/api/data/health` exposes the daily change report from the latest community sync state.
+
+Local verification:
+
+- RED/GREEN daily runner tests:
+  - `test_community_template_sync_uses_daily_incremental_runner_in_postgres_only_mode`
+  - `test_daily_incremental_skips_gear_collection_when_preflight_has_no_targets`
+  - `test_daily_incremental_runs_targeted_gear_refresh_when_preflight_has_targets`
+- RED/GREEN baseline metadata regressions:
+  - `test_gear_read_model_normalizes_baseline_two_hand_metadata`
+  - `test_admin_gate_gear_template_records_normalizes_baseline_two_hand_metadata`
+  - `test_admin_gate_queue_summary_ignores_metadata_resolved_baseline_offhand`
+- Broader local suite: `python -m unittest tests.postgres_only_scripts_test tests.postgres_cache_store_test tests.postgres_cache_sync_test tests.news_backend_test.NewsBackendTest.test_pg_only_data_health_uses_postgres_state_without_sqlite tests.websim_payload_test.WebSimPayloadTest.test_community_gear_template_counts_two_hand_main_hand_as_offhand_occupied` returned `Ran 96 tests in 0.584s - OK` with the existing `server.stat_weights_payload` RuntimeWarning.
+- `node --test tests/deploy-script.test.js --test-name-pattern "community template sync"` returned all 4 deploy-script tests OK.
+- `python -m compileall server/community_template_sync.py server/news_backend.py server/postgres_cache_store.py server/postgres_cache_sync.py server/websim_payload.py` exited 0.
+
+Deployment, backup, and systemd evidence:
+
+- Initial Phase 2 backup before daily-incremental deploy: `/opt/wow-mini-program/backups/community-template-daily-incremental-before-20260704T231514Z/wow_test.dump`, `15727720` bytes.
+- Final-state PostgreSQL backup after acceptance: `/opt/wow-mini-program/backups/community-template-final-accepted-20260704T235857Z/wow_test.dump`, `13043633` bytes.
+- Baseline off-hand code backup: `/opt/wow-mini-program/backups/community-template-baseline-offhand-fix-20260704T234921Z/` (`postgres_cache_store.py` `208662` bytes, `websim_payload.py` `987940` bytes).
+- Final backend smoke: `/health` HTTP 200, `/api/data/health` HTTP 200, `/admin/gates` HTTP 200.
+- Final backend service: `wow-backend.service` active/running since `Sun 2026-07-05 07:49:36 CST`.
+- Final daily incremental service run: `ExecMainStartTimestamp=Sun 2026-07-05 07:57:54 CST`, `ExecMainExitTimestamp=Sun 2026-07-05 07:58:02 CST`, wall `8s`, `Result=success`, `ExecMainStatus=0`, `CPUUsageNSec=7688656000`, `ActiveState=inactive`, `SubState=dead`.
+- Timer online: next `Mon 2026-07-06 06:44:33 CST`; previous timer fire `Sun 2026-07-05 07:15:37 CST`.
+
+Sync and health evidence:
+
+- Final accepted sync state: `lastSyncRun=pg-community-template-2026-07-04T235754z0000`.
+- Final daily change report: `scanRunId=pg-community-template-daily-incremental-2026-07-04T235754z0000`, tier `daily_targeted`, summary `unchanged=160`, `metadata_refreshed=0`, `promoted=0`, `candidate_only=0`, `needs_review=0`, `rejected_regression=0`, `blocked=0`, `stale_winner=0`.
+- Change-report items: talents `no_missing_talent_slots`; gear `no_gear_template_targets`.
+- Health real community gear: `coveredSpecCount=40`, `missingSpecCount=0`, `partialSpecCount=0`, `pendingSpecCount=0`, `blockedSpecCount=0`.
+- Health baseline display slots: `totalSpecCount=40`, `availableSpecCount=32`, `blockedSpecCount=8`.
+- Baseline blocked specs: `druid:restoration`, `evoker:preservation`, `evoker:augmentation`, `monk:mistweaver`, `paladin:holy`, `priest:discipline`, `priest:holy`, `shaman:restoration`.
+- Admin gates: gear-template queue count `0`; talents records `80 / total 80`; gear-template records `77 / total 77`.
+
+Public endpoint acceptance evidence:
+
+- Public `/api/websim/talents` all-spec sweep: `40` specs, `talent_verified_slots=80`, `talent_pending_slots=0`, `talent_blocked_slots=0`.
+- Public `/api/websim/gear?compact=1&mode=initial` all-spec sweep: `40` specs, `gear_complete=40`, `gear_pending=0`, `gear_blocked=0`, `gear_other=0`.
+- Public community gear canonical matrix: `gear_ready_slots=640`, `gear_missing_slots=0`.
+- Public baseline display slots: `baseline_available=32`, `baseline_blocked=8`, `baseline_other=0`.
+- Public sweep guardrails: `errors=[]`, `forbidden=[]`, `slow=[]`.
+- The final public sweep took `315.26s` sequentially to avoid abandoned concurrent gear requests in production.
+
+Manual official metadata refresh:
+
+- Two baseline display rows were still `partial` after code deploy because their main-hand item rows lacked official weapon metadata.
+- Refreshed only Battle.net Game Data metadata for item `249277` (`Two-Handed Mace`) and item `249286` (`Staff`), then reran public/admin verification.
+- The refresh did not complete any real community gear row by fallback; it only allowed baseline display-slot off-hand occupancy to be classified from official item metadata.
+
+Acceptance conclusion:
+
+- Phase 1 is accepted: community talents are `80/80 verified`, real community gear is `40/40 complete`, and the real community gear matrix is `640/640 ready`.
+- Baseline remains a separate display slot and is excluded from real community coverage: `32 available`, `8 blocked`.
+- No `source_reference`, `manual_fixture`, stale/expired row, default/baseline fallback, or cross-hero borrowed template entered the current real community consumer path.
+- Phase 2 is online: daily incremental sync is deployed, timer-enabled, PostgreSQL-only, and currently steady-state with no target queue.
+
+## 2026-07-05 gear-template display metadata and two-hand off-hand display patch
+
+Status: display/read-model patch deployed after Phase 1 acceptance; Phase 2 daily incremental sync remains online.
+
+Root cause:
+
+- The remaining missing names/icons in the mini-program import sheet were not missing database rows. Production `cache.websim_items` already had official Battle.net Game Data metadata for the affected neck, ring, and trinket items.
+- `PostgresCacheStore._official_item_metadata_by_id()` was too strict: it only returned official metadata when `item_type_metadata_from_payload()` produced `armorType`, `weaponType`, or `itemSetName`. Jewelry and trinkets often have official item class/subclass values such as localized `护甲 / 其它`, so they legitimately have no armor/weapon/set type metadata. The read model skipped their Chinese names and icons even though `_metadata.source` was `Battle.net Game Data API`.
+- The visible `off_hand` gap with a staff/two-hand main hand was a frontend display-state issue. Selection and saved snapshots correctly omit `off_hand` for a two-handed main hand, but the slot row previously rendered that omitted slot as `待选择装备`.
+
+Code changes:
+
+- PostgreSQL template item hydration now accepts official Battle.net item metadata for display fields even when armor/weapon/set type metadata is empty. The fail-closed source gate remains: only `Battle.net Game Data API` metadata is used.
+- Frontend gear slot rows synthesize a display-only `off_hand` row named `双手武器已占用` when the selected/equipped main hand is a trusted two-handed weapon and the weapon rule does not allow dual-wielding two-handers.
+- The synthetic off-hand row is display-only. It does not write `off_hand` into `selectedGearBySlot`, saved gear snapshots, or SimC gear lines.
+
+Local verification:
+
+- RED/GREEN backend regression: `tests.postgres_cache_store_test.PostgresCacheStoreTest.test_admin_gate_gear_template_records_hydrate_official_jewelry_metadata`.
+- RED/GREEN frontend regression: `gear slot rows show off hand occupied when main hand is two-handed`.
+- `python -m unittest tests.postgres_cache_store_test`: `Ran 57 tests in 0.088s - OK`.
+- `node --test tests/builds-page.test.js`: `101` tests passed.
+- `python -m py_compile server/postgres_cache_store.py` exited 0.
+- `node --check pages/builds/detail.js` exited 0.
+- `git diff --check -- server/postgres_cache_store.py tests/postgres_cache_store_test.py pages/builds/detail.js tests/builds-page.test.js` exited 0 with only CRLF replacement warnings.
+
+Deploy and live evidence:
+
+- Backend display-metadata patch was applied as a narrow production edit to `/opt/wow-mini-program/server/postgres_cache_store.py` to avoid deploying unrelated local work-in-progress files.
+- Backup before the narrow production edit: `/opt/wow-mini-program/backups/postgres-cache-store-jewelry-metadata-20260705T031701Z/postgres_cache_store.py`, `212473` bytes.
+- Backend restart after deploy: `ExecMainStartTimestamp=Sun 2026-07-05 11:17:01 CST`, `ActiveState=active`, `SubState=running`, `ExecMainStatus=0`.
+- `/health`: HTTP 200.
+- `/admin/gates`: HTTP 200 via GET.
+- Full template item metadata SQL check over active rows: `template_item_count=1209`, `missing_item_row_count=0`, `missing_display_name_count=0`, `missing_icon_count=0`.
+- Public `mage:frost` gear smoke for community + baseline neck/ring/trinket rows returned `10` rows with `missing=[]`; sample fixed names include `湮灭领主的项圈`, `精工辛多雷指环`, `辛多雷希望指环`, `艾林先知的凝视`, `威厄高尔的最终凝视`, `腐沼的孢子之心`, and `唤孢者的绽放指环`, all with icons.
+
+Acceptance conclusion:
+
+- The Phase 1 community gear acceptance remains valid: this patch corrected display metadata hydration and frontend occupied-slot semantics without relaxing real community gear completeness gates.
+- Jewelry/trinket official metadata is now display-ready even when it does not carry armor/weapon/set type metadata.
+- Two-hand main-hand setups continue to save and serialize without `off_hand`, while the mini-program no longer presents that legitimate omission as a missing equipment choice.

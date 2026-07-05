@@ -93,9 +93,43 @@ class FakePostgresSyncStore:
     def build_community_gear_templates(self, scan_run_id=""):
         return self.gear_template_candidates
 
-    def backfill_observed_gear_from_raiderio(self, raiderio_payload, mode="scheduled"):
-        self.observed_backfills.append((raiderio_payload, mode))
-        return {"status": "verified", "sourceStatus": "verified", "observedProfileCount": 1, "variantCount": 2, "errors": []}
+    def backfill_observed_gear_from_raiderio(
+        self,
+        raiderio_payload,
+        mode="scheduled",
+        target_limit=None,
+        profile_limit=None,
+        timeout_seconds=None,
+        enable_simc_stats=None,
+        full_profile_gear=None,
+        item_probe_limit=None,
+    ):
+        self.observed_backfills.append(
+            {
+                "payload": raiderio_payload,
+                "mode": mode,
+                "targetLimit": target_limit,
+                "profileLimit": profile_limit,
+                "timeoutSeconds": timeout_seconds,
+                "enableSimcStats": enable_simc_stats,
+                "fullProfileGear": full_profile_gear,
+                "itemProbeLimit": item_probe_limit,
+            }
+        )
+        return {
+            "status": "verified",
+            "sourceStatus": "verified",
+            "observedProfileCount": 1,
+            "processedProfileCount": 1,
+            "variantCount": 2,
+            "targetLimit": target_limit,
+            "profileLimit": profile_limit,
+            "timeoutSeconds": timeout_seconds,
+            "itemProbeLimit": item_probe_limit,
+            "simcItemProbeCount": item_probe_limit or 0,
+            "simcItemProbeResolvedCount": 1 if item_probe_limit else 0,
+            "errors": [],
+        }
 
     def backfill_crafted_gear_from_seed(self, items, mode="scheduled"):
         self.crafted_backfills.append((items, mode))
@@ -1176,6 +1210,253 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(payload["gear"]["templates"]["verified"], 1)
         self.assertEqual(payload["sourceStatus"], "partial")
 
+    def test_community_postgres_sync_reports_gear_template_preflight_matrix(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.gear_template_candidates = [
+            {
+                "id": "observed-mage-frost",
+                "classKey": "mage",
+                "specKey": "frost",
+                "sourceKey": "raiderio_observed_profile",
+                "sourceName": "Raider.IO observed gear",
+                "sourceStatus": "partial",
+                "status": "partial",
+                "signature": "sig-observed-mage-frost",
+                "gearItems": [{"slot": "head", "itemId": "190001", "ilevel": 707, "simcReady": True}],
+                "missingSlots": ["neck"],
+                "readySlotCount": 1,
+            },
+            {
+                "id": "baseline-mage-frost",
+                "classKey": "mage",
+                "specKey": "frost",
+                "sourceKey": "default_template",
+                "sourceName": "默认模板",
+                "sourceStatus": "verified",
+                "status": "complete",
+                "signature": "sig-baseline-mage-frost",
+                "gearItems": [
+                    {"slot": "head", "itemId": "190101", "ilevel": 707, "simcReady": True},
+                    {"slot": "neck", "itemId": "190102", "ilevel": 707, "simcReady": True},
+                ],
+                "missingSlots": [],
+                "readySlotCount": 2,
+            },
+        ]
+
+        with patch.object(postgres_cache_sync, "load_community_talent_sources_postgres", return_value={}), patch.object(
+            postgres_cache_sync,
+            "expected_spec_pairs",
+            return_value=["mage:frost", "deathknight:unholy"],
+            create=True,
+        ), patch.object(postgres_cache_sync, "CANONICAL_GEAR_SLOTS", ["head", "neck"], create=True):
+            payload = postgres_cache_sync.sync_community_template_cache_postgres(store=store, refresh_raiderio=False)
+
+        preflight = payload["gear"]["preflight"]
+        self.assertEqual(preflight["schemaRevision"], "community-gear-template-preflight-v1")
+        self.assertEqual(preflight["totalSpecCount"], 2)
+        self.assertEqual(preflight["totalDisplaySlotCount"], 4)
+        self.assertEqual(preflight["canonicalSlotMatrix"]["totalSlotCount"], 4)
+        self.assertEqual(preflight["canonicalSlotMatrix"]["readySlotCount"], 1)
+        self.assertEqual(preflight["canonicalSlotMatrix"]["missingSlotCount"], 3)
+        self.assertEqual(preflight["communityBest"]["partialSpecCount"], 1)
+        self.assertEqual(preflight["communityBest"]["pendingSpecCount"], 1)
+        self.assertEqual(preflight["baseline"]["availableSpecCount"], 1)
+        self.assertEqual(preflight["baseline"]["blockedSpecCount"], 1)
+        mage_best = next(
+            row
+            for row in preflight["displaySlots"]
+            if row["specId"] == "mage:frost" and row["templateSlot"] == "community_best"
+        )
+        self.assertEqual(mage_best["status"], "partial")
+        self.assertEqual(mage_best["missingSlots"], ["neck"])
+        mage_baseline = next(
+            row
+            for row in preflight["displaySlots"]
+            if row["specId"] == "mage:frost" and row["templateSlot"] == "baseline"
+        )
+        self.assertEqual(mage_baseline["status"], "available")
+        self.assertEqual(mage_baseline["sourceKey"], "default_template")
+        self.assertFalse(
+            any(row["templateSlot"] == "community_best" and row["sourceKey"] == "default_template" for row in preflight["displaySlots"])
+        )
+        target_keys = {row["targetKey"] for row in preflight["targetQueue"]}
+        self.assertIn("gear-template:deathknight:unholy:community_best:mplus_mixed_route", target_keys)
+        self.assertIn("gear-slot:mage:frost:neck", target_keys)
+        self.assertEqual(payload["gear"]["realCommunityTemplates"]["coveredSpecCount"], 0)
+        self.assertEqual(payload["gear"]["realCommunityTemplates"]["missingSpecCount"], 2)
+        self.assertEqual(payload["gear"]["realCommunityTemplates"]["missingSpecs"], ["mage:frost", "deathknight:unholy"])
+        self.assertEqual(payload["gear"]["baselineTemplates"]["availableSpecCount"], 1)
+
+    def test_gear_preflight_treats_mandatory_two_hand_offhand_as_covered(self):
+        from server import postgres_cache_sync
+
+        template = {
+            "id": "observed-dk-blood",
+            "classKey": "deathknight",
+            "specKey": "blood",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceName": "Raider.IO observed gear",
+            "sourceStatus": "partial",
+            "status": "partial",
+            "signature": "sig-observed-dk-blood",
+            "gearItems": [
+                {
+                    "slot": "main_hand",
+                    "itemId": "190001",
+                    "ilevel": 707,
+                    "bonus_id": "12345",
+                    "sourceType": "observed_profile",
+                    "statDisplayStatus": "verified_variant",
+                    "statSource": "simulationcraft",
+                    "itemStats": [{"key": "strength", "label": "Strength", "value": 111}],
+                    "simcReady": True,
+                }
+            ],
+            "missingSlots": ["off_hand"],
+            "readySlotCount": 15,
+        }
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["deathknight:blood"]), patch.object(
+            postgres_cache_sync,
+            "CANONICAL_GEAR_SLOTS",
+            ["main_hand", "off_hand"],
+            create=True,
+        ):
+            preflight = postgres_cache_sync.build_community_gear_template_preflight([template])
+
+        self.assertEqual(preflight["communityBest"]["completeSpecCount"], 1)
+        self.assertEqual(preflight["communityBest"]["partialSpecCount"], 0)
+        self.assertEqual(preflight["canonicalSlotMatrix"]["readySlotCount"], 2)
+        self.assertEqual(preflight["canonicalSlotMatrix"]["missingSlotCount"], 0)
+        community_targets = [
+            row for row in preflight["targetQueue"]
+            if row.get("templateSlot") == "community_best" or row.get("targetType") == "gear_slot"
+        ]
+        self.assertEqual(community_targets, [])
+
+    def test_gear_preflight_treats_verified_two_hand_metadata_as_offhand_occupancy(self):
+        from server import postgres_cache_sync
+
+        template = {
+            "id": "observed-monk-brewmaster",
+            "classKey": "monk",
+            "specKey": "brewmaster",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceName": "Raider.IO observed gear",
+            "sourceStatus": "partial",
+            "status": "partial",
+            "signature": "sig-observed-monk-brewmaster",
+            "gearItems": [
+                {
+                    "slot": "main_hand",
+                    "itemId": "193723",
+                    "ilevel": 707,
+                    "bonus_id": "12345",
+                    "sourceType": "observed_profile",
+                    "metadataStatus": "verified",
+                    "metadataSource": "Battle.net Game Data API",
+                    "weaponType": "Staff",
+                }
+            ],
+            "missingSlots": ["off_hand"],
+            "readySlotCount": 15,
+        }
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["monk:brewmaster"]), patch.object(
+            postgres_cache_sync,
+            "CANONICAL_GEAR_SLOTS",
+            ["main_hand", "off_hand"],
+            create=True,
+        ):
+            preflight = postgres_cache_sync.build_community_gear_template_preflight([template])
+
+        self.assertEqual(preflight["communityBest"]["completeSpecCount"], 1)
+        self.assertEqual(preflight["communityBest"]["partialSpecCount"], 0)
+        self.assertEqual(preflight["canonicalSlotMatrix"]["readySlotCount"], 2)
+        self.assertEqual(preflight["canonicalSlotMatrix"]["missingSlotCount"], 0)
+        self.assertEqual(
+            [
+                row for row in preflight["targetQueue"]
+                if row.get("templateSlot") == "community_best" or row.get("targetType") == "gear_slot"
+            ],
+            [],
+        )
+
+    def test_gear_template_first_sync_runs_backfill_without_replacing_talent_templates(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.raiderio_payload = {
+            "sourceStatus": "verified",
+            "profiles": [{"name": "Mage A", "gear": [{"itemId": "190001", "slot": "head", "ilevel": 707}]}],
+        }
+
+        with patch.object(
+            postgres_cache_sync,
+            "load_community_talent_sources_postgres",
+            return_value={
+                "raiderio": {
+                    "status": "verified",
+                    "sourceName": "Raider.IO",
+                    "templates": [{"id": "talent-candidate-that-must-not-be-written"}],
+                }
+            },
+        ), patch.object(
+            postgres_cache_sync,
+            "sync_raiderio_cache_postgres",
+            side_effect=AssertionError("gear first sync should not refresh Raider.IO when refresh_raiderio=False"),
+        ), patch.object(
+            postgres_cache_sync,
+            "expected_spec_pairs",
+            return_value=["mage:frost"],
+            create=True,
+        ), patch.object(
+            postgres_cache_sync,
+            "CANONICAL_GEAR_SLOTS",
+            ["head", "neck"],
+            create=True,
+        ), patch.dict(
+            os.environ,
+            {
+                "WOW_COMMUNITY_GEAR_FIRST_SYNC_TARGET_LIMIT": "5",
+                "WOW_COMMUNITY_GEAR_FIRST_SYNC_PROFILE_LIMIT": "2",
+                "WOW_COMMUNITY_GEAR_FIRST_SYNC_TIMEOUT_SECONDS": "30",
+                "WOW_COMMUNITY_GEAR_FIRST_SYNC_SIMC_STATS": "1",
+                "WOW_COMMUNITY_GEAR_FIRST_SYNC_FULL_PROFILE_GEAR": "0",
+                "WOW_COMMUNITY_GEAR_FIRST_SYNC_ITEM_PROBE_LIMIT": "4",
+            },
+        ):
+            payload = postgres_cache_sync.sync_community_template_cache_postgres(
+                mode="gear_template_first_sync",
+                store=store,
+                refresh_raiderio=False,
+            )
+
+        self.assertEqual(store.community_talent_templates, [])
+        self.assertIsNone(store.talent_replace_target_slot_ids)
+        self.assertEqual(len(store.observed_backfills), 1)
+        backfill_call = store.observed_backfills[0]
+        self.assertEqual(backfill_call["mode"], "gear_template_first_sync")
+        self.assertEqual(backfill_call["targetLimit"], 5)
+        self.assertEqual(backfill_call["profileLimit"], 2)
+        self.assertEqual(backfill_call["timeoutSeconds"], 30)
+        self.assertTrue(backfill_call["enableSimcStats"])
+        self.assertFalse(backfill_call["fullProfileGear"])
+        self.assertEqual(backfill_call["itemProbeLimit"], 4)
+        self.assertEqual(payload["gear"]["observedBackfill"]["targetLimit"], 5)
+        self.assertEqual(payload["gear"]["observedBackfill"]["itemProbeLimit"], 4)
+        stages = payload["stageTimings"]["stages"]
+        self.assertIn("gear_observed_backfill", {stage["stage"] for stage in stages})
+        gear_stage = next(stage for stage in stages if stage["stage"] == "gear_observed_backfill")
+        self.assertEqual(gear_stage["itemProbeLimit"], 4)
+        self.assertEqual(gear_stage["simcItemProbeCount"], 4)
+        self.assertEqual(gear_stage["simcItemProbeResolvedCount"], 1)
+        source_stage = next(stage for stage in stages if stage["stage"] == "source_collection")
+        self.assertEqual(source_stage["targetMode"], "gear_template_first_sync")
+
     def test_observed_backfill_postgres_calls_row_writer(self):
         from server import postgres_cache_sync
 
@@ -1188,11 +1469,42 @@ class PostgresCacheSyncTest(unittest.TestCase):
         payload = postgres_cache_sync.run_gear_observed_backfill_postgres(mode="scheduled", store=store)
 
         self.assertEqual(len(store.observed_backfills), 1)
-        self.assertEqual(store.observed_backfills[0][0], store.raiderio_payload)
+        self.assertEqual(store.observed_backfills[0]["payload"], store.raiderio_payload)
         self.assertEqual(payload["runner"], "postgres")
         self.assertEqual(payload["sourceStatus"], "verified")
         self.assertNotIn("not implemented", json.dumps(payload))
         self.assertEqual(store.saved_states[-1][0], postgres_cache_sync.GEAR_OBSERVED_BACKFILL_SYNC_KEY)
+
+    def test_observed_backfill_postgres_forwards_budget_to_store(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.raiderio_payload = {"sourceStatus": "verified", "profiles": []}
+
+        payload = postgres_cache_sync.run_gear_observed_backfill_postgres(
+            mode="gear_template_first_sync",
+            store=store,
+            target_limit=7,
+            profile_limit=3,
+            timeout_seconds=22,
+            enable_simc_stats=True,
+            full_profile_gear=False,
+            item_probe_limit=11,
+        )
+
+        self.assertEqual(len(store.observed_backfills), 1)
+        call = store.observed_backfills[0]
+        self.assertEqual(call["mode"], "gear_template_first_sync")
+        self.assertEqual(call["targetLimit"], 7)
+        self.assertEqual(call["profileLimit"], 3)
+        self.assertEqual(call["timeoutSeconds"], 22)
+        self.assertTrue(call["enableSimcStats"])
+        self.assertFalse(call["fullProfileGear"])
+        self.assertEqual(call["itemProbeLimit"], 11)
+        self.assertEqual(payload["targetLimit"], 7)
+        self.assertEqual(payload["profileLimit"], 3)
+        self.assertEqual(payload["timeoutSeconds"], 22)
+        self.assertEqual(payload["itemProbeLimit"], 11)
 
     def test_crafted_backfill_postgres_calls_seed_row_writer(self):
         from server import postgres_cache_sync
