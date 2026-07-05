@@ -1831,31 +1831,71 @@ function enhancementLabelLooksLikeFallback(label, type) {
   return false
 }
 
-function readableEnhancementOptionLabel(option, type) {
-  const explicitLabel = optionDisplayLabel(option || {})
+function enhancementOptionRecordVerified(option) {
+  const displayStatus = optionDisplayStatus(option || {})
+  if (displayStatus && displayStatus !== 'verified') return false
+  const status = cleanGearString(optionFirstValue(option || {}, 'status') || 'verified').toLowerCase()
+  return !status || status === 'verified'
+}
+
+function enhancementOptionHasAuthoritativeLabelField(option) {
+  const payload = optionPayload(option || {})
+  return !!cleanGearString(
+    (option && (option.label || option.displayLabel || option.display_label)) ||
+    payload.label ||
+    payload.displayLabel ||
+    payload.display_label
+  )
+}
+
+function verifiedGenericEnhancementOptionLabel(option, type) {
+  if (!enhancementOptionRecordVerified(option || {})) return ''
+  if (!enhancementOptionHasAuthoritativeLabelField(option || {})) return ''
+  const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
   if (type === 'gem') {
-    const payload = optionPayload(option)
+    const gemIds = optionGemIds(option || {})
+    return gemIds.length ? `\u5b9d\u77f3 ${gemIds.join('/')}` : ''
+  }
+  if (type === 'enchant') {
+    const enchantId = cleanGearString(simcOptions.enchant_id || optionFirstValue(option || {}, ['enchantId', 'enchant_id']))
+    return enchantId ? `\u9644\u9b54 ${enchantId}` : ''
+  }
+  if (type === 'embellishment') {
+    const embellishment = cleanGearString(simcOptions.embellishment || optionFirstValue(option || {}, ['embellishment', 'embellishmentId', 'embellishment_id']))
+    return embellishment ? embellishment.replace(/[_-]+/g, ' ') : ''
+  }
+  return ''
+}
+
+function readableEnhancementOptionLabel(option, type) {
+  const record = option || {}
+  const explicitLabel = optionDisplayLabel(record)
+  const fallbackLabel = verifiedGenericEnhancementOptionLabel(record, type)
+  if (type === 'gem') {
+    const payload = optionPayload(record)
+    const explicitGemLabel = cleanGearString(record.label || payload.label)
+    const readableExplicitLabel = explicitGemLabel && !enhancementLabelLooksLikeFallback(explicitGemLabel, type) ? explicitGemLabel : ''
     return cleanGearString(
-      option.displayLabel ||
-      option.display_label ||
+      record.displayLabel ||
+      record.display_label ||
       payload.displayLabel ||
       payload.display_label ||
-      option.statSummary ||
-      option.stat_summary ||
-      option.summary ||
-      option.valueSummary ||
+      record.statSummary ||
+      record.stat_summary ||
+      record.summary ||
+      record.valueSummary ||
       payload.statSummary ||
-      payload.summary
-    ) || optionItemStatSummary(option || {})
+      payload.summary ||
+      readableExplicitLabel
+    ) || optionItemStatSummary(record) || fallbackLabel
   }
-  if (!textContainsCjk(explicitLabel)) return ''
-  if (enhancementLabelLooksLikeFallback(explicitLabel, type)) return ''
-  const status = optionDisplayStatus(option || {})
-  const evidenceSource = optionEvidenceSource(option || {})
-  const payload = optionPayload(option)
-  const hasExplicitDisplayLabel = !!cleanGearString(option.displayLabel || option.display_label || payload.displayLabel || payload.display_label)
-  if (status && status !== 'verified') return ''
-  return status === 'verified' || evidenceSource || hasExplicitDisplayLabel ? explicitLabel : ''
+  const payload = optionPayload(record)
+  const hasExplicitDisplayLabel = !!cleanGearString(record.displayLabel || record.display_label || payload.displayLabel || payload.display_label)
+  const evidenceSource = optionEvidenceSource(record)
+  if (!enhancementOptionRecordVerified(record)) return ''
+  if (enhancementLabelLooksLikeFallback(explicitLabel, type)) return fallbackLabel
+  if (!textContainsCjk(explicitLabel) && !hasExplicitDisplayLabel && !evidenceSource) return fallbackLabel
+  return explicitLabel || fallbackLabel
 }
 
 function enhancementOptionForData(option, selected, type, disabled, slot) {

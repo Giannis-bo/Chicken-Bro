@@ -6596,6 +6596,80 @@ test('gear community template import keeps matched enhancement options configura
   assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options[0].label, '奥纹内衬')
 })
 
+test('gear enhancement sheet renders verified label-only payload options', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const selectedRing = {
+    slot: 'finger1',
+    simcSlot: 'finger1',
+    itemId: '277777',
+    id: '277777',
+    displayName: 'Verified Ring',
+    ilevel: 707,
+    bonus_id: '12345',
+    simcReady: true,
+    sourceType: 'observed_profile',
+    modCapabilities: { hasSocket: true, canEnchant: true, canEmbellish: true, socketCount: 1 }
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'hunter', websimSpecKey: 'beastmastery' },
+      gearPayload: {
+        slots: [{ slot: 'finger1', simcSlot: 'finger1', label: 'Ring 1' }],
+        equippedSet: {},
+        replacementCandidates: [{
+          slot: 'finger1',
+          simcSlot: 'finger1',
+          label: 'Ring 1',
+          items: [selectedRing],
+          socketOptions: [{
+            id: 'gem-label-only',
+            label: '+23 Primary Stat +13 Armor',
+            name: '+23 Primary Stat +13 Armor',
+            status: 'verified',
+            simcOptions: { gem_id: '240971' }
+          }],
+          enchantOptions: [{
+            id: 'enchant-label-only',
+            label: 'Observed enchant 7967',
+            name: 'Observed enchant 7967',
+            status: 'verified',
+            simcOptions: { enchant_id: '7967' }
+          }],
+          embellishmentOptions: [{
+            id: 'embellishment-label-only',
+            label: '\u5723\u4f51\u7a7f\u5c71\u7532\u62a4\u7b26',
+            name: '\u5723\u4f51\u7a7f\u5c71\u7532\u62a4\u7b26',
+            status: 'verified',
+            simcOptions: { embellishment: 'blessed_pango_charm' }
+          }]
+        }],
+        slotReadiness: {},
+        readiness: {}
+      },
+      selectedGearBySlot: { finger1: selectedRing },
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+  page.gearPayloadCache = page.data.gearPayload
+
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.gearEnhancementSheet.emptyText, '')
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, 'finger1')
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows.length, 1)
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options[0].label, '+23 Primary Stat +13 Armor')
+  assert.equal(page.data.gearEnhancementSheet.activeEnchantRows.length, 1)
+  assert.equal(page.data.gearEnhancementSheet.activeEnchantRows[0].options[0].label, '\u9644\u9b54 7967')
+  assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows.length, 1)
+  assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options[0].label, '\u5723\u4f51\u7a7f\u5c71\u7532\u62a4\u7b26')
+})
+
 test('gear import sheet applies a saved personal gear template with enhancements', () => {
   const baseline = completeGearSelection(['back', 'neck'])
   const savedBack = {
