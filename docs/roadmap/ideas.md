@@ -107,7 +107,7 @@
 | 想法 | 采纳位置 | 证据 |
 | --- | --- | --- |
 | 用 roadmap 作为长期推进控制台 | [roadmap.md](../roadmap.md) | 当前文档体系 |
-| 保留 `docs/plans/` 作为历史执行计划 | [roadmap.md](../roadmap.md) | `docs/plans/*.md` |
+| 保留并索引 `docs/plans/` 作为历史执行计划 | [roadmap.md](../roadmap.md) | [docs/README.md](../README.md), [plans/README.md](../plans/README.md), `docs/plans/*.md` |
 | 用户确认 OK 后主动纳入 roadmap 或提醒纳入 | [roadmap.md](../roadmap.md) | 当前维护规则 |
 | 小程序 UI 风格规范 | [roadmap.md](../roadmap.md) | [ui-style-guide.md](../ui-style-guide.md), `app.wxss`, `websim/app.css`, `pages/builds/detail.wxss`, `pages/simulator/simc.wxss`, `pages/pve/detail.wxss` |
 | WebSim 到 SimC 的可提交闭环 | [roadmap.md](../roadmap.md) | `server/websim_payload.py`, `tests/websim_payload_test.py`, `tests/news_backend_test.py`, [simulator-simc-end-to-end.md](../simulator-simc-end-to-end.md) |
