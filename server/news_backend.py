@@ -3095,6 +3095,11 @@ def append_unique_text(values, text):
         values.append(value)
 
 
+def append_unique_item(values, item):
+    if item and item not in values:
+        values.append(item)
+
+
 def safe_json_loads(value, fallback, label):
     if isinstance(value, (dict, list)):
         return value
@@ -5294,6 +5299,17 @@ def compact_chickenbro_runtime_profile(profile):
         if isinstance(payload.get("performanceModel"), dict)
         else []
     )
+    compact_runtime = {
+        "summary": clean_text(runtime.get("summary") or "", 600),
+        "evidenceRefs": compact_chickenbro_evidence_refs(runtime.get("evidenceRefs") or evidence_refs),
+        "allowedNumbers": compact_chickenbro_allowed_numbers(runtime.get("allowedNumbers") or allowed_numbers),
+        "limitations": compact_chickenbro_text_list(runtime.get("limitations") or payload.get("limitations") or []),
+    }
+    compact_coach_pack = {
+        "summary": clean_text(coach_pack.get("summary") or runtime.get("summary") or "", 600),
+        "priorityActions": compact_chickenbro_priority_actions(coach_pack.get("priorityActions") or []),
+        "limitations": compact_chickenbro_text_list(coach_pack.get("limitations") or []),
+    }
     return {
         "profileKey": profile["profileKey"],
         "region": profile["region"],
@@ -5306,18 +5322,222 @@ def compact_chickenbro_runtime_profile(profile):
         "specKey": profile["specKey"],
         "role": profile["role"],
         "scenarioKey": profile["scenarioKey"],
-        "summary": runtime.get("summary") or coach_pack.get("summary") or "",
-        "priorityActions": coach_pack.get("priorityActions") or [],
-        "limitations": list(runtime.get("limitations") or payload.get("limitations") or coach_pack.get("limitations") or []),
-        "evidenceRefs": [str(ref) for ref in evidence_refs if ref],
-        "allowedNumbers": allowed_numbers if isinstance(allowed_numbers, list) else [],
+        "summary": compact_runtime["summary"] or compact_coach_pack["summary"],
+        "priorityActions": compact_coach_pack["priorityActions"],
+        "limitations": compact_chickenbro_text_list(
+            runtime.get("limitations") or payload.get("limitations") or coach_pack.get("limitations") or []
+        ),
+        "evidenceRefs": compact_runtime["evidenceRefs"],
+        "allowedNumbers": compact_runtime["allowedNumbers"],
+        "runtimeProjection": compact_runtime,
+        "coachPack": compact_coach_pack,
         "sourceCoverage": payload.get("sourceCoverage") if isinstance(payload.get("sourceCoverage"), dict) else {},
         "sampleWindow": payload.get("sampleWindow") if isinstance(payload.get("sampleWindow"), dict) else {},
     }
 
 
+def compact_chickenbro_text_list(value, limit=160, max_items=12):
+    if not isinstance(value, list):
+        value = [value] if value else []
+    output = []
+    for item in value:
+        append_unique_text(output, clean_text(item, limit))
+        if len(output) >= max_items:
+            break
+    return output
+
+
+def compact_chickenbro_evidence_refs(value, max_items=24):
+    if isinstance(value, dict):
+        value = [value]
+    elif not isinstance(value, list):
+        value = [value] if value else []
+    output = []
+    for item in value:
+        ref = ""
+        if isinstance(item, dict):
+            ref = item.get("id") or item.get("ref") or item.get("key") or item.get("evidenceRef")
+        else:
+            ref = item
+        append_unique_text(output, clean_text(ref, 120))
+        if len(output) >= max_items:
+            break
+    return output
+
+
+def compact_chickenbro_allowed_numbers(value, max_items=24):
+    if isinstance(value, dict):
+        value = [value]
+    elif not isinstance(value, list):
+        value = [value] if value else []
+    output = []
+    for item in value:
+        if isinstance(item, dict):
+            number = {
+                "key": clean_text(item.get("key") or item.get("id") or item.get("label"), 120),
+                "value": clean_text(item.get("value"), 120),
+            }
+        else:
+            number = {"key": "", "value": clean_text(item, 120)}
+        if number["value"]:
+            append_unique_item(output, number)
+        if len(output) >= max_items:
+            break
+    return output
+
+
+def compact_chickenbro_priority_actions(value, max_items=6):
+    if not isinstance(value, list):
+        return []
+    output = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        action = {
+            "title": clean_text(item.get("title") or item.get("summary") or "", 220),
+            "evidenceRefs": compact_chickenbro_evidence_refs(item.get("evidenceRefs") or []),
+        }
+        if action["title"]:
+            append_unique_item(output, action)
+        if len(output) >= max_items:
+            break
+    return output
+
+
+def compact_chickenbro_saved_template_evidence(context):
+    template = context.get("savedTemplate") or context.get("template")
+    if not isinstance(template, dict):
+        return None
+    compact = {
+        "templateId": clean_text(template.get("templateId") or template.get("id"), 120),
+        "name": clean_text(template.get("name") or template.get("title"), 160),
+        "type": clean_text(template.get("type") or template.get("templateType"), 80),
+        "status": clean_text(template.get("status") or "", 80),
+    }
+    for key in (
+        "seasonRevision",
+        "gearCatalogRevision",
+        "talentCatalogRevision",
+        "simcRuntimeRevision",
+        "terminologyRevision",
+    ):
+        if template.get(key):
+            compact[key] = clean_text(template.get(key), 160)
+    return {key: value for key, value in compact.items() if value}
+
+
+def compact_chickenbro_task_evidence(source):
+    if not isinstance(source, dict):
+        return None
+    compact = {}
+    for key in (
+        "taskId",
+        "status",
+        "sourceStatus",
+        "scenarioKey",
+        "reportCode",
+        "fightId",
+        "seasonRevision",
+        "gearCatalogRevision",
+        "talentCatalogRevision",
+        "simcRuntimeRevision",
+        "terminologyRevision",
+    ):
+        if source.get(key) is not None:
+            compact[key] = clean_text(source.get(key), 180)
+    if source.get("summary"):
+        compact["summary"] = clean_text(source.get("summary"), 600)
+    evidence_refs = compact_chickenbro_evidence_refs(source.get("evidenceRefs") or [])
+    allowed_numbers = compact_chickenbro_allowed_numbers(source.get("allowedNumbers") or [])
+    if evidence_refs:
+        compact["evidenceRefs"] = evidence_refs
+    if allowed_numbers:
+        compact["allowedNumbers"] = allowed_numbers
+    return compact or None
+
+
+def compact_chickenbro_context_evidence(context):
+    context = context if isinstance(context, dict) else {}
+    saved_templates = []
+    saved_template = compact_chickenbro_saved_template_evidence(context)
+    if saved_template:
+        saved_templates.append(saved_template)
+    simc_tasks = []
+    for source in (context.get("simcTask"), context.get("simcAnalysis"), context.get("simcResult")):
+        task = compact_chickenbro_task_evidence(source)
+        if task:
+            append_unique_item(simc_tasks, task)
+    wcl_tasks = []
+    for source in (context.get("wclTask"), context.get("wclAnalysis"), context.get("wclReport")):
+        task = compact_chickenbro_task_evidence(source)
+        if task:
+            append_unique_item(wcl_tasks, task)
+
+    evidence_refs = []
+    allowed_numbers = []
+    limitations = []
+    for collection in (saved_templates, simc_tasks, wcl_tasks):
+        for item in collection:
+            for ref in item.get("evidenceRefs") or []:
+                append_unique_text(evidence_refs, ref)
+            for number in item.get("allowedNumbers") or []:
+                append_unique_item(allowed_numbers, number)
+            for limitation in item.get("limitations") or []:
+                append_unique_text(limitations, limitation)
+
+    return {
+        "savedTemplates": saved_templates,
+        "simcTasks": simc_tasks,
+        "wclTasks": wcl_tasks,
+        "evidenceRefs": evidence_refs,
+        "allowedNumbers": allowed_numbers,
+        "limitations": limitations,
+    }
+
+
+def chickenbro_evidence_packet_from_context(bounded_context):
+    context_evidence = bounded_context.get("contextEvidence") if isinstance(bounded_context.get("contextEvidence"), dict) else {}
+    profiles = [
+        profile
+        for profile in (bounded_context.get("usableProfiles") or [])[:2]
+        if isinstance(profile, dict)
+    ]
+    allowed_numbers = []
+    evidence_refs = []
+    limitations = []
+    for profile in profiles:
+        for number in profile.get("allowedNumbers") or []:
+            append_unique_item(allowed_numbers, number)
+        for ref in profile.get("evidenceRefs") or []:
+            append_unique_text(evidence_refs, ref)
+        for limitation in profile.get("limitations") or []:
+            append_unique_text(limitations, limitation)
+    for number in context_evidence.get("allowedNumbers") or []:
+        append_unique_item(allowed_numbers, number)
+    for ref in context_evidence.get("evidenceRefs") or []:
+        append_unique_text(evidence_refs, ref)
+    for limitation in (bounded_context.get("limitations") or []) + (context_evidence.get("limitations") or []):
+        append_unique_text(limitations, limitation)
+    return {
+        "schemaRevision": "chickenbro-evidence-packet-v1",
+        "answerLayer": bounded_context.get("answerLayer") or chickenbro_answer_layer_for_context(bounded_context),
+        "requestContext": bounded_context.get("requestContext") or {},
+        "profiles": profiles,
+        "contextEvidence": context_evidence,
+        "allowedNumbers": allowed_numbers,
+        "evidenceRefs": evidence_refs,
+        "limitations": limitations,
+    }
+
+
 def chickenbro_answer_layer_for_context(bounded_context):
     if bounded_context.get("usableProfiles"):
+        return "evidence"
+    context_evidence = bounded_context.get("contextEvidence") if isinstance(bounded_context.get("contextEvidence"), dict) else {}
+    if context_evidence.get("evidenceRefs") or context_evidence.get("allowedNumbers"):
+        return "evidence"
+    evidence_packet = bounded_context.get("evidencePacket") if isinstance(bounded_context.get("evidencePacket"), dict) else {}
+    if evidence_packet.get("evidenceRefs") or evidence_packet.get("allowedNumbers"):
         return "evidence"
     request_context = bounded_context.get("requestContext") if isinstance(bounded_context.get("requestContext"), dict) else {}
     if request_context.get("classKey") or request_context.get("specKey"):
@@ -5378,6 +5598,7 @@ def build_chickenbro_bounded_context(message, context, user_profile=None):
     topic = chickenbro_topic_scope(message, context)
     profiles = load_chickenbro_profiles(context)
     desired_region = normalize_chickenbro_region(context.get("region"))
+    context_evidence = compact_chickenbro_context_evidence(context)
     usable = []
     background = []
     excluded = []
@@ -5408,6 +5629,15 @@ def build_chickenbro_bounded_context(message, context, user_profile=None):
                 append_unique_text(allowed_numbers, str(number.get("value") or ""))
             else:
                 append_unique_text(allowed_numbers, str(number))
+    for ref in context_evidence.get("evidenceRefs") or []:
+        append_unique_text(allowed_refs, ref)
+    for number in context_evidence.get("allowedNumbers") or []:
+        if isinstance(number, dict):
+            append_unique_text(allowed_numbers, str(number.get("value") or ""))
+        else:
+            append_unique_text(allowed_numbers, str(number))
+    for limitation in context_evidence.get("limitations") or []:
+        append_unique_text(limitations, limitation)
 
     bounded_context = {
         "schemaRevision": "chickenbro-bounded-context-v1",
@@ -5424,6 +5654,7 @@ def build_chickenbro_bounded_context(message, context, user_profile=None):
         "usableProfiles": usable[:2],
         "backgroundProfiles": background[:3],
         "excludedProfiles": excluded[:5],
+        "contextEvidence": context_evidence,
         "allowedEvidenceRefs": allowed_refs,
         "allowedNumbers": [number for number in allowed_numbers if number],
         "limitations": limitations,
@@ -5434,7 +5665,9 @@ def build_chickenbro_bounded_context(message, context, user_profile=None):
             "noRealtimeExternalFetch": True,
         },
     }
-    return enrich_chickenbro_context_layers(bounded_context)
+    bounded_context = enrich_chickenbro_context_layers(bounded_context)
+    bounded_context["evidencePacket"] = chickenbro_evidence_packet_from_context(bounded_context)
+    return bounded_context
 
 
 def chickenbro_prompt_from_context(bounded_context):

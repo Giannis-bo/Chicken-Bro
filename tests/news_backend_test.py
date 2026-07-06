@@ -6266,6 +6266,106 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("profile.summary", payload["evidenceRefs"])
         self.assertIn("personal_simc_or_wcl", payload["missingInputs"])
 
+    def test_chickenbro_builds_trimmed_evidence_packet_from_profile_and_context(self):
+        self.seed_chickenbro_profile()
+
+        bounded_context = self.backend.build_chickenbro_bounded_context(
+            "奥法强韧大秘境帮我看下 SimC 数字。",
+            {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "scenarioKey": "mplus_fortified",
+                "savedTemplate": {
+                    "templateId": "template-1",
+                    "name": "强韧模板",
+                    "rawString": "RAW_SIMC_PROFILE_SHOULD_NOT_LEAK",
+                    "gearBySlot": {"head": {"rawItem": "RAW_ITEM_SHOULD_NOT_LEAK"}},
+                    "gearCatalogRevision": "retail-12.0-s1",
+                    "talentCatalogRevision": "retail-12.0-s1-talents",
+                },
+                "simcTask": {
+                    "taskId": "simc-task-1",
+                    "status": "completed",
+                    "summary": "SimC run completed.",
+                    "allowedNumbers": [{"key": "simc.dps", "value": "123456"}],
+                    "evidenceRefs": ["simc.dps"],
+                    "rawProfile": "RAW_PROFILE_SHOULD_NOT_LEAK",
+                    "stdout": "RAW_SIMC_STDOUT_SHOULD_NOT_LEAK",
+                },
+                "wclTask": {
+                    "reportCode": "abc123",
+                    "fightId": "7",
+                    "status": "ready",
+                    "summary": "WCL fight parsed.",
+                    "evidenceRefs": ["wcl.summary"],
+                    "rawLog": "RAW_LOG_SHOULD_NOT_LEAK",
+                    "token": "SECRET_TOKEN_SHOULD_NOT_LEAK",
+                },
+            },
+        )
+
+        packet = bounded_context["evidencePacket"]
+        packet_json = json.dumps(packet, ensure_ascii=False)
+        self.assertEqual(packet["schemaRevision"], "chickenbro-evidence-packet-v1")
+        self.assertEqual(packet["profiles"][0]["runtimeProjection"]["summary"], "奥法在强韧大秘境里优先围绕大波次规划爆发。")
+        self.assertEqual(packet["profiles"][0]["coachPack"]["priorityActions"][0]["evidenceRefs"], ["profile.summary"])
+        self.assertEqual(packet["profiles"][0]["sourceCoverage"]["raiderio"]["sampleCount"], 80)
+        self.assertEqual(packet["profiles"][0]["sampleWindow"]["region"], "cn")
+        self.assertIn({"key": "sample.count", "value": "80"}, packet["profiles"][0]["allowedNumbers"])
+        self.assertIn({"key": "simc.dps", "value": "123456"}, packet["contextEvidence"]["allowedNumbers"])
+        self.assertIn("simc.dps", bounded_context["allowedEvidenceRefs"])
+        self.assertIn("123456", bounded_context["allowedNumbers"])
+        self.assertNotIn("RAW_SIMC_PROFILE_SHOULD_NOT_LEAK", packet_json)
+        self.assertNotIn("RAW_PROFILE_SHOULD_NOT_LEAK", packet_json)
+        self.assertNotIn("RAW_SIMC_STDOUT_SHOULD_NOT_LEAK", packet_json)
+        self.assertNotIn("RAW_LOG_SHOULD_NOT_LEAK", packet_json)
+        self.assertNotIn("SECRET_TOKEN_SHOULD_NOT_LEAK", packet_json)
+
+    def test_chickenbro_context_evidence_can_authorize_numbers_without_profile(self):
+        def fake_codex_runner(prompt, **kwargs):
+            return {
+                "status": "succeeded",
+                "lastMessage": json.dumps(
+                    {
+                        "answer": "这次 SimC 结果是 123456 DPS，下一步先围绕 simc.dps 对照天赋和饰品。",
+                        "confidence": "medium",
+                        "answerLayer": "evidence",
+                        "basisLabel": "已基于你的模板或 SimC 分析",
+                        "priorityActions": [{"title": "先复核 SimC profile 的天赋和饰品。", "evidenceRefs": ["simc.dps"]}],
+                        "evidenceRefs": ["simc.dps"],
+                        "limitations": [],
+                        "missingInputs": [],
+                        "nextQuestion": "要不要补 WCL 让我对照实战？",
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+
+        result = self.backend.send_chickenbro_message(
+            {
+                "message": "冰DK这次 SimC 结果怎么样？",
+                "guestId": "context-evidence-device",
+                "context": {
+                    "classKey": "deathknight",
+                    "specKey": "frost",
+                    "scenarioKey": "mplus_fortified",
+                    "simcTask": {
+                        "taskId": "simc-task-1",
+                        "status": "completed",
+                        "allowedNumbers": [{"key": "simc.dps", "value": "123456"}],
+                        "evidenceRefs": ["simc.dps"],
+                    },
+                },
+            },
+            codex_runner=fake_codex_runner,
+        )
+
+        payload = result["assistantMessage"]["payload"]
+        self.assertEqual(payload["answerLayer"], "evidence")
+        self.assertEqual(payload["basisLabel"], "已基于你的模板或 SimC 分析")
+        self.assertIn("123456", payload["answer"])
+        self.assertIn("simc.dps", payload["evidenceRefs"])
+
     def test_chickenbro_invalid_codex_output_downgrades_to_deterministic_answer(self):
         self.seed_chickenbro_profile()
 
