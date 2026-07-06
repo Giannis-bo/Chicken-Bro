@@ -5496,6 +5496,17 @@ def load_chickenbro_profiles(context):
     phase = normalize_chickenbro_phase(context.get("productPhase") or context.get("phase"))
     scenario = normalize_chickenbro_scenario(context.get("scenarioKey") or context.get("scenario"))
     region = normalize_chickenbro_region(context.get("region"))
+    store = personal_data_store()
+    if store and hasattr(store, "load_chickenbro_spec_profiles"):
+        return store.load_chickenbro_spec_profiles(
+            phase=phase,
+            class_key=class_key,
+            spec_key=spec_key,
+            scenario=scenario,
+            region=region,
+        )
+    if postgres_only_runtime_enabled():
+        return []
     with db_connection() as conn:
         rows = conn.execute(
             """

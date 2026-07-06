@@ -6351,6 +6351,31 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("simc_or_wcl", payload["missingInputs"])
         self.assertLessEqual(payload["nextQuestion"].count("？") + payload["nextQuestion"].count("?"), 1)
 
+    def test_chickenbro_pg_only_missing_spec_profile_store_degrades_without_sqlite(self):
+        original_postgres_only = self.backend.postgres_only_runtime_enabled
+        original_personal_store = self.backend.personal_data_store
+        original_db_connection = self.backend.db_connection
+
+        def sqlite_disabled_connection():
+            raise RuntimeError("SQLite runtime is disabled; use PostgreSQL runtime stores or explicit migration tooling")
+
+        self.backend.postgres_only_runtime_enabled = lambda: True
+        self.backend.personal_data_store = lambda: None
+        self.backend.db_connection = sqlite_disabled_connection
+        try:
+            bounded_context = self.backend.build_chickenbro_bounded_context(
+                "冰法大秘境伤害低，先排查什么？",
+                {"classKey": "mage", "specKey": "frost", "scenarioKey": "mythic_plus"},
+            )
+        finally:
+            self.backend.postgres_only_runtime_enabled = original_postgres_only
+            self.backend.personal_data_store = original_personal_store
+            self.backend.db_connection = original_db_connection
+
+        self.assertEqual(bounded_context["usableProfiles"], [])
+        self.assertEqual(bounded_context["answerLayer"], "diagnostic")
+        self.assertIn("simc_or_wcl", bounded_context["missingInputs"])
+
     def test_chickenbro_published_profile_uses_evidence_layer(self):
         self.seed_chickenbro_profile()
 
