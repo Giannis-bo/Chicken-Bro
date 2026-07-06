@@ -255,6 +255,9 @@ COMMUNITY_TEMPLATE_REVISION = "community-template-v1"
 DEFAULT_GEAR_TEMPLATE_SOURCE_KEY = "default_template"
 DEFAULT_GEAR_TEMPLATE_SOURCE_NAME = "默认模板"
 DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY = "mplus_mixed_route"
+SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY = "season_recommendation"
+SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_NAME = "当前赛季大秘境 AOE 推荐模板"
+SEASON_RECOMMENDED_GEAR_SCENARIO_KEY = "mplus_aoe"
 DEFAULT_GEAR_TEMPLATE_ILEVEL_GUARDRAIL = 6
 DEFAULT_GEAR_TEMPLATE_TRINKET_WARNING = "trinket effects are not optimized"
 TEMPLATE_EVIDENCE_AUDIT_REVISION = "template-evidence-audit-v1"
@@ -17210,7 +17213,13 @@ def gear_template_sort_key(template):
     )
 
 
-BASELINE_GEAR_TEMPLATE_SOURCE_KEYS = {DEFAULT_GEAR_TEMPLATE_SOURCE_KEY, "baseline_template", "simc_preset", "baseline_blocked"}
+BASELINE_GEAR_TEMPLATE_SOURCE_KEYS = {
+    SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
+    DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+    "baseline_template",
+    "simc_preset",
+    "baseline_blocked",
+}
 
 
 def gear_template_source_key(template):
@@ -17229,10 +17238,20 @@ def is_real_community_gear_template(template):
     return str(template.get("status") or "").strip() in {"complete", "partial"}
 
 
+def baseline_gear_template_source_priority(source_key):
+    return {
+        SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY: 40,
+        DEFAULT_GEAR_TEMPLATE_SOURCE_KEY: 30,
+        "baseline_template": 20,
+        "simc_preset": 10,
+        "baseline_blocked": 0,
+    }.get(str(source_key or "").strip(), 0)
+
+
 def baseline_gear_template_sort_key(template):
     source_key = gear_template_source_key(template)
     return (
-        1 if source_key == DEFAULT_GEAR_TEMPLATE_SOURCE_KEY else 0,
+        baseline_gear_template_source_priority(source_key),
         1 if template.get("status") == "complete" else 0,
         1 if template.get("sourceStatus") in {"synced", "verified"} else 0,
         int(template.get("readySlotCount") or 0),
@@ -18537,7 +18556,7 @@ def pending_community_gear_template(class_key, spec_key):
         "templateSlot": "community_best",
         "payload": {
             "templateSlot": "community_best",
-            "countingPolicy": "real community gear only; baseline/default templates do not fill this slot",
+            "countingPolicy": "real community gear subtype under community import; baseline/default templates fill the fallback baseline subtype, not this community_best slot",
         },
     }
     template["signature"] = gear_template_signature(template)
@@ -18575,7 +18594,7 @@ def blocked_baseline_gear_template(class_key, spec_key, reason=""):
         "payload": {
             "templateSlot": "baseline",
             "baselineDisplaySlot": True,
-            "countingPolicy": "baseline display slot only; blocked placeholders do not fill real community coverage",
+            "countingPolicy": "fallback baseline subtype under community import; blocked placeholders count as community import coverage gaps",
             "blockers": [reason],
             "nextAction": next_action,
         },
@@ -18586,48 +18605,179 @@ def blocked_baseline_gear_template(class_key, spec_key, reason=""):
     return template
 
 
+COMMUNITY_GEAR_IMPORT_COUNTING_POLICY = (
+    "Community template import includes real community templates and fallback baseline templates; "
+    "each subtype must cover 40/40 specs, for 80/80 total community import display slots."
+)
+
+
+def community_gear_import_coverage_summary(
+    total_spec_count,
+    community_complete_specs=None,
+    community_partial_specs=None,
+    community_pending_specs=None,
+    community_blocked_specs=None,
+    baseline_available_specs=None,
+    baseline_blocked_specs=None,
+):
+    total_spec_count = int(total_spec_count or 0)
+    community_complete_specs = unique_text_list(community_complete_specs or [])
+    community_partial_specs = unique_text_list(community_partial_specs or [])
+    community_pending_specs = unique_text_list(community_pending_specs or [])
+    community_blocked_specs = unique_text_list(community_blocked_specs or [])
+    baseline_available_specs = unique_text_list(baseline_available_specs or [])
+    baseline_blocked_specs = unique_text_list(baseline_blocked_specs or [])
+    real_community_incomplete_specs = unique_text_list(
+        [*community_partial_specs, *community_pending_specs, *community_blocked_specs]
+    )
+    total_template_slot_count = total_spec_count * 2
+    covered_template_slot_count = len(community_complete_specs) + len(baseline_available_specs)
+    missing_template_slot_count = max(0, total_template_slot_count - covered_template_slot_count)
+    status = "partial"
+    if total_spec_count <= 0:
+        status = "blocked"
+    elif len(community_complete_specs) == total_spec_count and len(baseline_available_specs) == total_spec_count:
+        status = "verified"
+    elif (
+        covered_template_slot_count == 0
+        and len(community_blocked_specs) == total_spec_count
+        and len(baseline_blocked_specs) == total_spec_count
+    ):
+        status = "blocked"
+    return {
+        "templateSlot": "community_import",
+        "displayGroup": "community_templates",
+        "status": status,
+        "totalSpecCount": total_spec_count,
+        "totalTemplateSlotCount": total_template_slot_count,
+        "coveredTemplateSlotCount": covered_template_slot_count,
+        "missingTemplateSlotCount": missing_template_slot_count,
+        "realCommunityCompleteSpecCount": len(community_complete_specs),
+        "realCommunityIncompleteSpecCount": len(real_community_incomplete_specs),
+        "baselineAvailableSpecCount": len(baseline_available_specs),
+        "baselineBlockedSpecCount": len(baseline_blocked_specs),
+        "realCommunityCompleteSpecs": community_complete_specs,
+        "realCommunityIncompleteSpecs": real_community_incomplete_specs,
+        "baselineAvailableSpecs": baseline_available_specs,
+        "baselineBlockedSpecs": baseline_blocked_specs,
+        "subtypes": {
+            "realCommunity": {
+                "templateSlot": "community_best",
+                "requiredSpecCount": total_spec_count,
+                "coveredSpecCount": len(community_complete_specs),
+                "missingSpecCount": max(0, total_spec_count - len(community_complete_specs)),
+            },
+            "fallbackBaseline": {
+                "templateSlot": "baseline",
+                "requiredSpecCount": total_spec_count,
+                "coveredSpecCount": len(baseline_available_specs),
+                "missingSpecCount": max(0, total_spec_count - len(baseline_available_specs)),
+            },
+        },
+        "countingPolicy": COMMUNITY_GEAR_IMPORT_COUNTING_POLICY,
+    }
+
+
+def _gear_template_sync_bucket(template):
+    status = str((template or {}).get("status") or "").strip()
+    source_status = str((template or {}).get("sourceStatus") or "").strip()
+    if status == "blocked" or source_status == "blocked":
+        return "blocked"
+    if status == "pending_collection" or source_status == "pending_collection":
+        return "pending"
+    if status == "partial" or source_status == "partial":
+        return "partial"
+    if status in {"complete", "verified"} or source_status in {"synced", "verified"}:
+        return "verified"
+    return "partial"
+
+
+def _gear_template_group_sync_status(templates, verified_status="synced"):
+    buckets = [_gear_template_sync_bucket(item) for item in templates or []]
+    if not buckets:
+        return "blocked"
+    if all(bucket == "blocked" for bucket in buckets):
+        return "blocked"
+    if all(bucket == "pending" for bucket in buckets):
+        return "pending_collection"
+    if any(bucket in {"blocked", "partial", "pending"} for bucket in buckets):
+        return "partial"
+    return verified_status
+
+
 def websim_gear_community_template_sync_state(templates):
     templates = templates or []
     hidden_duplicate_count = sum(max(0, int(item.get("dedupedCount") or 1) - 1) for item in templates)
     signatures = [item.get("signature") for item in templates if item.get("signature")]
-    complete_count = len([item for item in templates if item.get("status") == "complete"])
-    partial_count = len([item for item in templates if item.get("status") == "partial"])
-    pending_count = len([item for item in templates if item.get("status") == "pending_collection"])
+    buckets = [_gear_template_sync_bucket(item) for item in templates]
+    complete_count = len([bucket for bucket in buckets if bucket == "verified"])
+    partial_count = len([bucket for bucket in buckets if bucket == "partial"])
+    pending_count = len([bucket for bucket in buckets if bucket == "pending"])
+    blocked_count = len([bucket for bucket in buckets if bucket == "blocked"])
     if not templates:
+        source_status = "blocked"
+    elif blocked_count == len(templates):
         source_status = "blocked"
     elif pending_count == len(templates):
         source_status = "pending_collection"
-    elif partial_count:
+    elif partial_count or blocked_count or pending_count:
         source_status = "partial"
     else:
         source_status = "synced"
-    simc_templates = [item for item in templates if item.get("sourceName") == "SimC preset"]
-    observed_templates = [item for item in templates if item.get("sourceName") == "Raider.IO observed gear"]
+    simc_templates = [
+        item for item in templates
+        if item.get("sourceName") == "SimC preset" or item.get("sourceKey") == "simc_preset"
+    ]
+    observed_templates = [
+        item for item in templates
+        if item.get("sourceName") == "Raider.IO observed gear" or item.get("sourceKey") == "raiderio_observed_profile"
+    ]
     default_templates = [item for item in templates if item.get("sourceKey") == DEFAULT_GEAR_TEMPLATE_SOURCE_KEY]
+    season_recommended_templates = [
+        item for item in templates
+        if item.get("sourceKey") == SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY
+    ]
+    blocked_baseline_templates = [item for item in templates if item.get("sourceKey") == "baseline_blocked"]
     sources = {}
     if simc_templates:
         sources["simc_presets"] = {
-            "status": "partial" if any(item.get("status") == "partial" for item in simc_templates) else "synced",
+            "status": _gear_template_group_sync_status(simc_templates),
             "sourceName": "SimC preset",
             "errors": [],
         }
     if observed_templates:
         sources["observed_profile"] = {
-            "status": "partial" if any(item.get("status") == "partial" for item in observed_templates) else "synced",
+            "status": _gear_template_group_sync_status(observed_templates),
             "sourceName": "Raider.IO observed gear",
             "errors": [],
         }
     if default_templates:
         sources[DEFAULT_GEAR_TEMPLATE_SOURCE_KEY] = {
-            "status": "partial" if any(item.get("status") == "partial" for item in default_templates) else "verified",
+            "status": _gear_template_group_sync_status(default_templates, verified_status="verified"),
             "sourceName": DEFAULT_GEAR_TEMPLATE_SOURCE_NAME,
             "errors": [],
+        }
+    if season_recommended_templates:
+        sources[SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY] = {
+            "status": _gear_template_group_sync_status(season_recommended_templates, verified_status="verified"),
+            "sourceName": SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_NAME,
+            "errors": [],
+        }
+    if blocked_baseline_templates:
+        sources["baseline_gear"] = {
+            "status": _gear_template_group_sync_status(blocked_baseline_templates),
+            "sourceName": "Fallback baseline gear",
+            "errors": unique_text_list([
+                reason
+                for item in blocked_baseline_templates
+                for reason in (item.get("blockers") or [])
+            ]),
         }
     if not sources:
         sources["community_gear"] = {
             "status": source_status,
             "sourceName": "Community gear",
-            "errors": [] if pending_count else ["no real community gear templates"],
+            "errors": [] if pending_count and not blocked_count else ["no complete community import gear templates"],
         }
     return {
         "sourceStatus": source_status,
@@ -18641,7 +18791,7 @@ def websim_gear_community_template_sync_state(templates):
             "verified": complete_count,
             "partial": partial_count,
             "pending": pending_count,
-            "blocked": 0,
+            "blocked": blocked_count,
         },
         "checkedAt": utc_now() if templates else "",
     }
@@ -19133,7 +19283,9 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
         "baselineSet": output_baseline_set,
         "communityTemplates": output_community_templates,
         "baselineTemplates": output_baseline_templates,
-        "communityTemplateSync": websim_gear_community_template_sync_state(community_templates),
+        "communityTemplateSync": websim_gear_community_template_sync_state(
+            [*community_templates, *baseline_templates]
+        ),
         "readiness": readiness,
         "statSnapshot": blocked_stat_snapshot(
             ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],

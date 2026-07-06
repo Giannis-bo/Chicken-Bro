@@ -5139,11 +5139,24 @@ class NewsBackendTest(unittest.TestCase):
                         "preflight": {
                             "schemaRevision": "community-gear-template-preflight-v1",
                             "totalSpecCount": 40,
+                            "communityImport": {
+                                "status": "partial",
+                                "totalTemplateSlotCount": 80,
+                                "coveredTemplateSlotCount": 79,
+                                "missingTemplateSlotCount": 1,
+                            },
                             "canonicalSlotMatrix": {
                                 "totalSlotCount": 640,
                                 "readySlotCount": 16,
                                 "missingSlotCount": 624,
                             },
+                        },
+                        "communityImportTemplates": {
+                            "status": "partial",
+                            "totalTemplateSlotCount": 80,
+                            "coveredTemplateSlotCount": 79,
+                            "missingTemplateSlotCount": 1,
+                            "baselineBlockedSpecCount": 1,
                         },
                         "baselineTemplates": {
                             "availableSpecCount": 39,
@@ -5175,6 +5188,9 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(component["details"]["defaultGearTemplates"]["missingSpecs"], ["demonhunter:devourer"])
         self.assertEqual(component["details"]["defaultGearTemplates"]["blockers"][0]["reason"], "missing verified stat weight cache")
         self.assertEqual(component["details"]["gearTemplatePreflight"]["canonicalSlotMatrix"]["totalSlotCount"], 640)
+        self.assertEqual(component["details"]["communityImportTemplates"]["totalTemplateSlotCount"], 80)
+        self.assertEqual(component["details"]["communityImportTemplates"]["coveredTemplateSlotCount"], 79)
+        self.assertEqual(component["details"]["communityImportTemplates"]["missingTemplateSlotCount"], 1)
         self.assertEqual(component["details"]["baselineGearTemplates"]["availableSpecCount"], 39)
 
     def test_data_health_payload_exposes_template_evidence_audit_read_only(self):
@@ -5400,9 +5416,15 @@ class NewsBackendTest(unittest.TestCase):
                         "gear": {
                             "templates": {"total": 77, "verified": 32, "partial": 45, "blocked": 0},
                             "realCommunityTemplates": {"coveredSpecCount": 12, "missingSpecCount": 28},
-                            "baselineTemplates": {"availableSpecCount": 32, "blockedSpecCount": 8},
-                            "defaultTemplates": {"blockedSpecCount": 0},
-                        },
+                    "baselineTemplates": {"availableSpecCount": 32, "blockedSpecCount": 8},
+                    "communityImportTemplates": {
+                        "status": "partial",
+                        "totalTemplateSlotCount": 80,
+                        "coveredTemplateSlotCount": 72,
+                        "missingTemplateSlotCount": 8,
+                    },
+                    "defaultTemplates": {"blockedSpecCount": 0},
+                },
                     },
                     "community_talent_templates": {
                         "sourceStatus": "blocked",
@@ -5448,6 +5470,22 @@ class NewsBackendTest(unittest.TestCase):
                         "blockedSpecCount": 0,
                     },
                     "baselineTemplates": {"availableSpecCount": 40, "blockedSpecCount": 0},
+                    "seasonRecommendation": {
+                        "sourceKey": "season_recommendation",
+                        "status": "verified",
+                        "totalSpecCount": 40,
+                        "completeSpecCount": 40,
+                        "verifiedSpecCount": 0,
+                        "provisionalSpecCount": 40,
+                        "blockedSpecCount": 0,
+                        "lastRunId": "season-recommended-gear-test",
+                    },
+                    "communityImportTemplates": {
+                        "status": "partial",
+                        "totalTemplateSlotCount": 80,
+                        "coveredTemplateSlotCount": 63,
+                        "missingTemplateSlotCount": 17,
+                    },
                     "scanRunId": "live-health-summary",
                 }
 
@@ -5495,7 +5533,11 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("PostgreSQL WebSim sync state is blocked", components["websim_sync"]["blockers"])
         community_details = components["community_templates"]["details"]
         self.assertEqual(community_details["gearTemplates"]["verified"], 43)
+        self.assertEqual(community_details["communityImportTemplates"]["coveredTemplateSlotCount"], 63)
+        self.assertEqual(community_details["communityImportTemplates"]["missingTemplateSlotCount"], 17)
         self.assertEqual(community_details["realCommunityGearTemplates"]["coveredSpecCount"], 23)
+        self.assertEqual(community_details["seasonRecommendation"]["completeSpecCount"], 40)
+        self.assertEqual(community_details["seasonRecommendation"]["provisionalSpecCount"], 40)
         self.assertEqual(community_details["gearTemplatePreflight"]["canonicalSlotMatrix"]["missingSlotCount"], 90)
         self.assertEqual(community_details["changeReport"]["summary"]["unchanged"], 120)
         self.assertEqual(community_details["lastSyncRun"], "live-health-summary")

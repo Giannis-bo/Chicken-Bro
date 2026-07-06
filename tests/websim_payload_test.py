@@ -427,6 +427,52 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(nodes[0]["col"], 2)
         self.assertEqual(nodes[0]["name"], "Frostbolt")
 
+    def test_season_recommendation_is_preferred_baseline_source(self):
+        templates = [
+            {
+                "id": "simc",
+                "classKey": "mage",
+                "specKey": "frost",
+                "sourceKey": "simc_preset",
+                "sourceStatus": "synced",
+                "status": "complete",
+                "readySlotCount": 16,
+                "updatedAt": "2026-07-01T00:00:00+00:00",
+                "name": "SimC preset",
+                "gearItems": [],
+            },
+            {
+                "id": "default",
+                "classKey": "mage",
+                "specKey": "frost",
+                "sourceKey": "default_template",
+                "sourceStatus": "verified",
+                "status": "complete",
+                "readySlotCount": 16,
+                "updatedAt": "2026-07-02T00:00:00+00:00",
+                "name": "默认模板",
+                "gearItems": [],
+            },
+            {
+                "id": "recommended",
+                "classKey": "mage",
+                "specKey": "frost",
+                "sourceKey": "season_recommendation",
+                "sourceStatus": "synced",
+                "status": "complete",
+                "readySlotCount": 16,
+                "updatedAt": "2026-07-03T00:00:00+00:00",
+                "name": "当前赛季大秘境 AOE 推荐模板",
+                "gearItems": [],
+            },
+        ]
+
+        self.assertFalse(self.websim_payload.is_real_community_gear_template(templates[2]))
+        baseline = self.websim_payload.select_best_baseline_gear_templates(templates)
+
+        self.assertEqual(len(baseline), 1)
+        self.assertEqual(baseline[0]["sourceKey"], "season_recommendation")
+
     def test_parse_simc_trait_data_groups_multi_rank_apex_nodes(self):
         sample = """
         // Player trait definitions, wow build 12.0.5.67823
@@ -3320,9 +3366,12 @@ class WebSimPayloadTest(unittest.TestCase):
             [ref["id"] for ref in template["sourceRefs"]],
             ["preset-mage-a", "preset-mage-b"],
         )
-        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "pending_collection")
-        self.assertEqual(payload["communityTemplateSync"]["dedupedCount"], 1)
-        self.assertEqual(payload["communityTemplateSync"]["hiddenDuplicateCount"], 0)
+        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["total"], 2)
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["pending"], 1)
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["partial"], 1)
+        self.assertEqual(payload["communityTemplateSync"]["dedupedCount"], 2)
+        self.assertEqual(payload["communityTemplateSync"]["hiddenDuplicateCount"], 1)
 
     def test_websim_gear_payload_exposes_inline_simulator_contract(self):
         conn = sqlite3.connect(self.db_path)
@@ -3889,7 +3938,10 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("communityTemplates", payload)
         self.assertIn("communityTemplateSync", payload)
         self.assertIn("baselineTemplates", payload)
-        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "pending_collection")
+        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["total"], 2)
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["pending"], 1)
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["partial"], 1)
         templates = payload["communityTemplates"]
         self.assertEqual(len(templates), 1)
         template = templates[0]

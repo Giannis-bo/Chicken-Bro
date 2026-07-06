@@ -18,12 +18,14 @@ try:
         DEFAULT_RACE_BY_CLASS,
         DEFAULT_LOCALE,
         DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+        SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
         GEAR_CATALOG_REVISION,
         GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
         ITEM_METADATA_SOURCE,
         TALENT_SCHEMA_REVISION,
         active_catalog_sources_for_replacement,
+        apply_gear_mod_option_display_fields,
         apply_item_metadata,
         blocked_baseline_gear_template,
         blocked_stat_snapshot,
@@ -37,6 +39,7 @@ try:
         community_talent_template_slot_summary,
         community_talent_templates_for_spec_slots,
         community_template_availability_expires_at,
+        community_gear_import_coverage_summary,
         dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
@@ -51,20 +54,27 @@ try:
         gear_candidate_quality_score,
         gear_candidate_slots,
         gear_community_template_from_observed_items,
+        gear_mod_option_display_fields,
+        gear_mod_option_is_supported_config_option,
+        gear_mod_option_payload_with_config_policy,
         gear_readiness,
         gear_template_slot_coverage,
         gear_slot_payload,
         gear_slot_readiness,
         hero_tree_for,
         hero_tree_label,
+        icon_url_from_media,
         is_baseline_gear_template,
         is_real_community_gear_template,
         item_level_probe_main_hand_removes_offhand,
         item_level_probe_profile_candidates,
         localized_difficulty_label,
         official_item_level_probe_simc_slot,
+        item_slot_from_payload,
         item_type_metadata_from_payload,
+        limit_replacement_candidates,
         normalize_source_refs,
+        normalize_option_value,
         normalize_slot,
         normalize_current_season_raid_pool_payload,
         normalize_gear_item,
@@ -76,6 +86,7 @@ try:
         observed_variant_stat_payload_fields,
         sanitize_gear_candidate_mod_options,
         SCENARIOS,
+        SIMC_GEAR_OPTION_KEYS,
         scenario_title,
         season_metadata_fields,
         select_best_baseline_gear_templates,
@@ -111,12 +122,14 @@ except ImportError:
         DEFAULT_RACE_BY_CLASS,
         DEFAULT_LOCALE,
         DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+        SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
         GEAR_CATALOG_REVISION,
         GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
         ITEM_METADATA_SOURCE,
         TALENT_SCHEMA_REVISION,
         active_catalog_sources_for_replacement,
+        apply_gear_mod_option_display_fields,
         apply_item_metadata,
         blocked_baseline_gear_template,
         blocked_stat_snapshot,
@@ -130,6 +143,7 @@ except ImportError:
         community_talent_template_slot_summary,
         community_talent_templates_for_spec_slots,
         community_template_availability_expires_at,
+        community_gear_import_coverage_summary,
         dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
@@ -144,20 +158,27 @@ except ImportError:
         gear_candidate_quality_score,
         gear_candidate_slots,
         gear_community_template_from_observed_items,
+        gear_mod_option_display_fields,
+        gear_mod_option_is_supported_config_option,
+        gear_mod_option_payload_with_config_policy,
         gear_readiness,
         gear_template_slot_coverage,
         gear_slot_payload,
         gear_slot_readiness,
         hero_tree_for,
         hero_tree_label,
+        icon_url_from_media,
         is_baseline_gear_template,
         is_real_community_gear_template,
         item_level_probe_main_hand_removes_offhand,
         item_level_probe_profile_candidates,
         localized_difficulty_label,
         official_item_level_probe_simc_slot,
+        item_slot_from_payload,
         item_type_metadata_from_payload,
+        limit_replacement_candidates,
         normalize_source_refs,
+        normalize_option_value,
         normalize_slot,
         normalize_current_season_raid_pool_payload,
         normalize_gear_item,
@@ -169,6 +190,7 @@ except ImportError:
         observed_variant_stat_payload_fields,
         sanitize_gear_candidate_mod_options,
         SCENARIOS,
+        SIMC_GEAR_OPTION_KEYS,
         scenario_title,
         season_metadata_fields,
         select_best_baseline_gear_templates,
@@ -197,10 +219,16 @@ except ImportError:
     )
 
 try:
+    from .season_recommended_gear import build_season_recommended_gear_template
+except ImportError:
+    from season_recommended_gear import build_season_recommended_gear_template
+
+try:
     from .stat_weights_payload import (
         MPLUS_SCENARIOS,
         merge_stat_weight_section,
         scenario_blocked_payload,
+        specialization_role,
         with_cache_freshness,
     )
 except ImportError:
@@ -208,6 +236,7 @@ except ImportError:
         MPLUS_SCENARIOS,
         merge_stat_weight_section,
         scenario_blocked_payload,
+        specialization_role,
         with_cache_freshness,
     )
 
@@ -853,11 +882,101 @@ class PostgresCacheStore:
                                 INSERT INTO cache.websim_items (id, name, slot, item_level, payload_json, source_status, updated_at)
                                 VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s)
                                 ON CONFLICT (id) DO UPDATE SET
-                                    name = EXCLUDED.name,
-                                    slot = EXCLUDED.slot,
-                                    item_level = EXCLUDED.item_level,
-                                    payload_json = EXCLUDED.payload_json,
-                                    source_status = EXCLUDED.source_status,
+                                    name = CASE
+                                        WHEN (
+                                            COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                            OR (
+                                                cache.websim_items.source_status = 'verified'
+                                                AND COALESCE(cache.websim_items.payload_json #>> '{_metadata,iconUrl}', cache.websim_items.payload_json->>'iconUrl', '') <> ''
+                                                AND (
+                                                    cache.websim_items.payload_json ? 'inventory_type'
+                                                    OR cache.websim_items.payload_json ? 'inventoryType'
+                                                    OR cache.websim_items.payload_json ? 'item_class'
+                                                    OR cache.websim_items.payload_json ? 'itemClass'
+                                                    OR cache.websim_items.payload_json ? 'item_subclass'
+                                                    OR cache.websim_items.payload_json ? 'itemSubclass'
+                                                )
+                                            )
+                                        )
+                                        THEN cache.websim_items.name
+                                        ELSE EXCLUDED.name
+                                    END,
+                                    slot = CASE
+                                        WHEN (
+                                            COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                            OR (
+                                                cache.websim_items.source_status = 'verified'
+                                                AND COALESCE(cache.websim_items.payload_json #>> '{_metadata,iconUrl}', cache.websim_items.payload_json->>'iconUrl', '') <> ''
+                                                AND (
+                                                    cache.websim_items.payload_json ? 'inventory_type'
+                                                    OR cache.websim_items.payload_json ? 'inventoryType'
+                                                    OR cache.websim_items.payload_json ? 'item_class'
+                                                    OR cache.websim_items.payload_json ? 'itemClass'
+                                                    OR cache.websim_items.payload_json ? 'item_subclass'
+                                                    OR cache.websim_items.payload_json ? 'itemSubclass'
+                                                )
+                                            )
+                                        )
+                                        THEN cache.websim_items.slot
+                                        ELSE EXCLUDED.slot
+                                    END,
+                                    item_level = CASE
+                                        WHEN (
+                                            COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                            OR (
+                                                cache.websim_items.source_status = 'verified'
+                                                AND COALESCE(cache.websim_items.payload_json #>> '{_metadata,iconUrl}', cache.websim_items.payload_json->>'iconUrl', '') <> ''
+                                                AND (
+                                                    cache.websim_items.payload_json ? 'inventory_type'
+                                                    OR cache.websim_items.payload_json ? 'inventoryType'
+                                                    OR cache.websim_items.payload_json ? 'item_class'
+                                                    OR cache.websim_items.payload_json ? 'itemClass'
+                                                    OR cache.websim_items.payload_json ? 'item_subclass'
+                                                    OR cache.websim_items.payload_json ? 'itemSubclass'
+                                                )
+                                            )
+                                        )
+                                        THEN cache.websim_items.item_level
+                                        ELSE EXCLUDED.item_level
+                                    END,
+                                    payload_json = CASE
+                                        WHEN (
+                                            COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                            OR (
+                                                cache.websim_items.source_status = 'verified'
+                                                AND COALESCE(cache.websim_items.payload_json #>> '{_metadata,iconUrl}', cache.websim_items.payload_json->>'iconUrl', '') <> ''
+                                                AND (
+                                                    cache.websim_items.payload_json ? 'inventory_type'
+                                                    OR cache.websim_items.payload_json ? 'inventoryType'
+                                                    OR cache.websim_items.payload_json ? 'item_class'
+                                                    OR cache.websim_items.payload_json ? 'itemClass'
+                                                    OR cache.websim_items.payload_json ? 'item_subclass'
+                                                    OR cache.websim_items.payload_json ? 'itemSubclass'
+                                                )
+                                            )
+                                        )
+                                        THEN cache.websim_items.payload_json
+                                        ELSE EXCLUDED.payload_json
+                                    END,
+                                    source_status = CASE
+                                        WHEN (
+                                            COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                            OR (
+                                                cache.websim_items.source_status = 'verified'
+                                                AND COALESCE(cache.websim_items.payload_json #>> '{_metadata,iconUrl}', cache.websim_items.payload_json->>'iconUrl', '') <> ''
+                                                AND (
+                                                    cache.websim_items.payload_json ? 'inventory_type'
+                                                    OR cache.websim_items.payload_json ? 'inventoryType'
+                                                    OR cache.websim_items.payload_json ? 'item_class'
+                                                    OR cache.websim_items.payload_json ? 'itemClass'
+                                                    OR cache.websim_items.payload_json ? 'item_subclass'
+                                                    OR cache.websim_items.payload_json ? 'itemSubclass'
+                                                )
+                                            )
+                                        )
+                                        THEN cache.websim_items.source_status
+                                        ELSE EXCLUDED.source_status
+                                    END,
                                     updated_at = EXCLUDED.updated_at
                                 """,
                                 (
@@ -904,6 +1023,105 @@ class PostgresCacheStore:
                             )
                             counts["loot"] += 1
         return counts
+
+    def save_websim_item_metadata(
+        self,
+        item_id,
+        item_payload,
+        media_payload=None,
+        *,
+        fallback_slot="",
+        fallback_name="",
+        english_payload=None,
+        locale=DEFAULT_LOCALE,
+        source=ITEM_METADATA_SOURCE,
+    ):
+        item_id = str(item_id or "").strip()
+        if not item_id:
+            return None
+        item_payload = item_payload if isinstance(item_payload, dict) else {}
+        media_payload = media_payload if isinstance(media_payload, dict) else {}
+        english_payload = english_payload if isinstance(english_payload, dict) else {}
+        display_name = item_payload.get("name") or fallback_name or english_payload.get("name") or f"Item {item_id}"
+        english_name = english_payload.get("name") or fallback_name or display_name
+        slot = item_slot_from_payload(item_payload) or item_slot_from_payload(english_payload) or normalize_slot(fallback_slot) or ""
+        raw_quality = item_payload.get("quality")
+        quality = raw_quality.get("name") if isinstance(raw_quality, dict) else str(raw_quality or "")
+        icon_url = icon_url_from_media(media_payload)
+        game_asset = game_asset_from_icon_url(
+            "item",
+            item_id,
+            "websim-item-metadata",
+            icon_url,
+            source=source,
+            status="verified",
+            semantic_tags=["game", "gear", "item", slot],
+            usage=["websim_gear", "builds_detail", "websim_loot"],
+            fallback_text=fallback_text_for(display_name),
+        )
+        metadata_payload = dict(item_payload)
+        metadata_payload.update(
+            {
+                "displayName": display_name,
+                "localizedName": display_name,
+                "iconUrl": icon_url,
+                "metadataSource": source,
+                "metadataStatus": "verified",
+                "metadataLocale": locale,
+            }
+        )
+        metadata_payload["_metadata"] = {
+            "source": source,
+            "itemId": item_id,
+            "locale": locale,
+            "englishName": english_name,
+            "fallbackName": fallback_name,
+            "iconUrl": icon_url,
+            "gameAsset": game_asset,
+        }
+        type_metadata = item_type_metadata_from_payload(metadata_payload)
+        item_level = _int_value(item_payload.get("level") or item_payload.get("item_level") or item_payload.get("itemLevel"))
+        now = utc_now()
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO cache.websim_items (id, name, slot, item_level, payload_json, source_status, updated_at)
+                    VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET
+                        name = EXCLUDED.name,
+                        slot = COALESCE(NULLIF(EXCLUDED.slot, ''), cache.websim_items.slot),
+                        item_level = COALESCE(EXCLUDED.item_level, cache.websim_items.item_level),
+                        payload_json = EXCLUDED.payload_json,
+                        source_status = EXCLUDED.source_status,
+                        updated_at = EXCLUDED.updated_at
+                    """,
+                    (
+                        item_id,
+                        str(display_name)[:220],
+                        slot,
+                        item_level or None,
+                        json_param(metadata_payload),
+                        "verified",
+                        now,
+                    ),
+                )
+            conn.commit()
+        return {
+            "itemId": item_id,
+            "displayName": display_name,
+            "localizedName": display_name,
+            "englishName": english_name,
+            "slot": slot,
+            "itemLevel": item_level,
+            "quality": quality,
+            "iconUrl": icon_url,
+            "gameAsset": game_asset,
+            "metadataSource": source,
+            "metadataStatus": "verified",
+            "metadataLocale": locale,
+            **type_metadata,
+        }
 
     def _deterministic_uuid(self, kind, value):
         return str(uuid.uuid5(uuid.NAMESPACE_URL, f"wow-mini-program:{kind}:{value}"))
@@ -1300,6 +1518,9 @@ class PostgresCacheStore:
         blocked_specs = []
         baseline_available_specs = []
         baseline_blocked_specs = []
+        season_recommendation_complete_specs = []
+        season_recommendation_verified_specs = []
+        season_recommendation_provisional_specs = []
         missing_slot_counts = {slot: 0 for slot in CANONICAL_GEAR_SLOTS}
         ready_slot_count = 0
         latest_scan_run_id = ""
@@ -1338,17 +1559,36 @@ class PostgresCacheStore:
             best_baseline = select_best_baseline_gear_templates(baseline_candidates)
             if best_baseline and int((best_baseline[0] or {}).get("readySlotCount") or 0) > 0:
                 baseline_available_specs.append(spec_id)
+                baseline_template = best_baseline[0]
+                if baseline_template.get("sourceKey") == SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY:
+                    season_recommendation_complete_specs.append(spec_id)
+                    payload = baseline_template.get("payload") if isinstance(baseline_template.get("payload"), dict) else {}
+                    evidence = payload.get("templateEvidence") if isinstance(payload.get("templateEvidence"), dict) else {}
+                    confidence = str(evidence.get("recommendationConfidence") or "").strip()
+                    if confidence == "verified":
+                        season_recommendation_verified_specs.append(spec_id)
+                    elif confidence == "provisional":
+                        season_recommendation_provisional_specs.append(spec_id)
             else:
                 baseline_blocked_specs.append(spec_id)
 
         incomplete_specs = [*partial_specs, *pending_specs, *blocked_specs]
         missing_slot_total = sum(missing_slot_counts.values())
         checked_at = utc_now()
+        community_import = community_gear_import_coverage_summary(
+            len(expected_specs),
+            community_complete_specs=complete_specs,
+            community_partial_specs=partial_specs,
+            community_pending_specs=pending_specs,
+            community_blocked_specs=blocked_specs,
+            baseline_available_specs=baseline_available_specs,
+            baseline_blocked_specs=baseline_blocked_specs,
+        )
         preflight = {
             "schemaRevision": "community-gear-template-preflight-v1",
             "scanRunId": latest_scan_run_id,
             "checkedAt": checked_at,
-            "status": "verified" if complete_specs and len(complete_specs) == len(expected_specs) else "partial",
+            "status": community_import.get("status") or "partial",
             "totalSpecCount": len(expected_specs),
             "totalDisplaySlotCount": len(expected_specs) * 2,
             "communityBest": {
@@ -1362,7 +1602,7 @@ class PostgresCacheStore:
                 "partialSpecs": partial_specs,
                 "pendingSpecs": pending_specs,
                 "blockedSpecs": blocked_specs,
-                "countingPolicy": "real community gear only; baseline/default templates do not fill this coverage",
+                "countingPolicy": "real community gear subtype under community import; must reach 40/40 specs",
             },
             "baseline": {
                 "templateSlot": "baseline",
@@ -1371,8 +1611,9 @@ class PostgresCacheStore:
                 "blockedSpecCount": len(baseline_blocked_specs),
                 "availableSpecs": baseline_available_specs,
                 "blockedSpecs": baseline_blocked_specs,
-                "countingPolicy": "baseline is a separate display slot and is excluded from real community coverage",
+                "countingPolicy": "fallback baseline gear subtype under community import; must reach 40/40 specs",
             },
+            "communityImport": community_import,
             "canonicalSlotMatrix": {
                 "totalSlotCount": len(expected_specs) * len(CANONICAL_GEAR_SLOTS),
                 "readySlotCount": ready_slot_count,
@@ -1382,6 +1623,15 @@ class PostgresCacheStore:
                 },
             },
         }
+        season_recommendation_blocked_specs = [
+            spec_id for spec_id, _class_key, _spec_key in expected_specs
+            if spec_id not in set(season_recommendation_complete_specs)
+        ]
+        season_recommendation_status = "partial"
+        if expected_specs and len(season_recommendation_complete_specs) == len(expected_specs):
+            season_recommendation_status = "verified"
+        elif not season_recommendation_complete_specs:
+            season_recommendation_status = "blocked"
         return {
             "templates": counts,
             "preflight": preflight,
@@ -1407,6 +1657,22 @@ class PostgresCacheStore:
                 "countingPolicy": "real samples only; baseline/default templates are excluded",
             },
             "baselineTemplates": preflight["baseline"],
+            "communityImportTemplates": preflight["communityImport"],
+            "seasonRecommendation": {
+                "sourceKey": SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
+                "sourceName": "当前赛季大秘境 AOE 推荐模板",
+                "status": season_recommendation_status,
+                "totalSpecCount": len(expected_specs),
+                "completeSpecCount": len(season_recommendation_complete_specs),
+                "verifiedSpecCount": len(season_recommendation_verified_specs),
+                "provisionalSpecCount": len(season_recommendation_provisional_specs),
+                "blockedSpecCount": len(season_recommendation_blocked_specs),
+                "completeSpecs": season_recommendation_complete_specs,
+                "verifiedSpecs": season_recommendation_verified_specs,
+                "provisionalSpecs": season_recommendation_provisional_specs,
+                "blockedSpecs": season_recommendation_blocked_specs,
+                "lastRunId": latest_scan_run_id,
+            },
             "scanRunId": latest_scan_run_id,
             "checkedAt": checked_at,
         }
@@ -2317,6 +2583,127 @@ class PostgresCacheStore:
         templates.extend(self._build_observed_community_gear_templates(scan_run_id=scan_run_id))
         return dedupe_gear_community_templates(templates)
 
+    def _season_recommended_talent_anchor(self, class_key, spec_key):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, class_key, spec_key, hero_key, source_key, source_name,
+                           source_status, status, payload_json, updated_at
+                    FROM cache.websim_community_talent_templates
+                    WHERE class_key = %s
+                      AND spec_key = %s
+                      AND status = 'verified'
+                      AND source_key NOT IN ('websim_baseline', 'manual_fixture', 'fallback')
+                      AND (expires_at IS NULL OR expires_at > now())
+                    ORDER BY CASE source_key WHEN 'raiderio' THEN 0 WHEN 'warcraftlogs' THEN 1 ELSE 2 END,
+                             sample_count DESC,
+                             max_key_level DESC,
+                             updated_at DESC
+                    LIMIT 1
+                    """,
+                    (class_key, spec_key),
+                )
+                row = cur.fetchone()
+        if not row:
+            return {
+                "status": "blocked",
+                "reason": "missing verified community talent anchor",
+                "nextAction": "refresh_community_talent_templates",
+            }
+        payload = _json_value(row[8], {})
+        payload = payload if isinstance(payload, dict) else {}
+        return {
+            "templateId": str(row[0] or ""),
+            "classKey": row[1] or class_key,
+            "specKey": row[2] or spec_key,
+            "heroKey": row[3] or "",
+            "sourceKey": row[4] or "",
+            "sourceName": row[5] or "",
+            "sourceStatus": row[6] or "",
+            "status": row[7] or "",
+            "evidenceTier": payload.get("evidenceTier") or row[7] or "",
+            "updatedAt": str(row[9] or ""),
+        }
+
+    def build_season_recommended_gear_templates(self, scan_run_id=""):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, class_key, spec_key, name, source_key, source_name, source_url,
+                           source_status, status, signature, source_refs_json, gear_items_json,
+                           raw_string, ready_slot_count, missing_slots_json, analysis_window,
+                           payload_json, updated_at, expires_at, scan_run_id
+                    FROM cache.websim_community_gear_templates
+                    WHERE status = 'complete'
+                      AND source_key NOT IN (
+                          %s, %s, 'baseline_template', 'simc_preset', 'baseline_blocked'
+                      )
+                      AND (expires_at IS NULL OR expires_at > now())
+                    ORDER BY class_key, spec_key, ready_slot_count DESC, updated_at DESC, name
+                    LIMIT 500
+                    """,
+                    (SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY, DEFAULT_GEAR_TEMPLATE_SOURCE_KEY),
+                )
+                rows = cur.fetchall()
+                all_gear_items = []
+                for row in rows or []:
+                    all_gear_items.extend(item for item in _json_value(row[11], []) if isinstance(item, dict))
+                official_metadata_by_id = self._official_item_metadata_by_id(cur, all_gear_items)
+
+        grouped = {}
+        for row in rows or []:
+            template = self._community_gear_template_from_row(row, official_metadata_by_id, normalize_coverage=True)
+            class_key = slugify(template.get("classKey"), "")
+            spec_key = slugify(template.get("specKey"), "")
+            if not class_key or not spec_key or not is_real_community_gear_template(template):
+                continue
+            if template.get("status") != "complete" or template.get("missingSlots"):
+                continue
+            grouped.setdefault((class_key, spec_key), []).append(template)
+
+        generated = []
+        checked_at = utc_now()
+        for (class_key, spec_key), candidates in sorted(grouped.items()):
+            best = select_community_best_gear_templates(candidates, class_key, spec_key)[0]
+            role = specialization_role(class_key, spec_key)
+            role_for_policy = role if role in {"tank", "healer", "support"} else ""
+            talent_anchor = self._season_recommended_talent_anchor(class_key, spec_key)
+            if talent_anchor.get("status") == "blocked":
+                continue
+            evidence = {
+                "optimizerRunId": scan_run_id or checked_at,
+                "scenarioKey": "mplus_aoe",
+                "checkedAt": checked_at,
+                "sourceKey": SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
+                "candidateCount": len(candidates),
+                "simcRunCount": 0,
+                "role": role_for_policy,
+                "specializationRole": role,
+                "talentAnchor": talent_anchor,
+                "seedTemplateId": best.get("id") or "",
+                "seedTemplateSourceKey": best.get("sourceKey") or "",
+                "seedTemplateSignature": best.get("signature") or "",
+                "sourceRefs": normalize_source_refs(best.get("sourceRefs") or []),
+                "warnings": [
+                    "first version uses verified complete community gear winner as current-season recommendation seed before SimC optimizer verification"
+                ],
+                "blockers": [],
+            }
+            try:
+                template = build_season_recommended_gear_template(
+                    class_key,
+                    spec_key,
+                    best.get("gearItems") or [],
+                    evidence=evidence,
+                )
+            except ValueError:
+                continue
+            template["scanRunId"] = scan_run_id
+            generated.append(template)
+        return dedupe_gear_community_templates(generated)
+
     def community_gear_template_coverage_rows(self):
         return self.admin_gate_gear_template_records().get("communityGearTemplates") or []
 
@@ -2681,27 +3068,97 @@ class PostgresCacheStore:
                         VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s)
                         ON CONFLICT (id) DO UPDATE SET
                             name = CASE
-                                WHEN COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                WHEN (
+                                    COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                    OR (
+                                        cache.websim_items.source_status = 'verified'
+                                        AND COALESCE(cache.websim_items.payload_json #>> '{_metadata,iconUrl}', cache.websim_items.payload_json->>'iconUrl', '') <> ''
+                                        AND (
+                                            cache.websim_items.payload_json ? 'inventory_type'
+                                            OR cache.websim_items.payload_json ? 'inventoryType'
+                                            OR cache.websim_items.payload_json ? 'item_class'
+                                            OR cache.websim_items.payload_json ? 'itemClass'
+                                            OR cache.websim_items.payload_json ? 'item_subclass'
+                                            OR cache.websim_items.payload_json ? 'itemSubclass'
+                                        )
+                                    )
+                                )
                                 THEN cache.websim_items.name
                                 ELSE COALESCE(NULLIF(EXCLUDED.name, ''), cache.websim_items.name)
                             END,
                             slot = CASE
-                                WHEN COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                WHEN (
+                                    COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                    OR (
+                                        cache.websim_items.source_status = 'verified'
+                                        AND COALESCE(cache.websim_items.payload_json #>> '{_metadata,iconUrl}', cache.websim_items.payload_json->>'iconUrl', '') <> ''
+                                        AND (
+                                            cache.websim_items.payload_json ? 'inventory_type'
+                                            OR cache.websim_items.payload_json ? 'inventoryType'
+                                            OR cache.websim_items.payload_json ? 'item_class'
+                                            OR cache.websim_items.payload_json ? 'itemClass'
+                                            OR cache.websim_items.payload_json ? 'item_subclass'
+                                            OR cache.websim_items.payload_json ? 'itemSubclass'
+                                        )
+                                    )
+                                )
                                 THEN cache.websim_items.slot
                                 ELSE COALESCE(NULLIF(EXCLUDED.slot, ''), cache.websim_items.slot)
                             END,
                             item_level = CASE
-                                WHEN COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                WHEN (
+                                    COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                    OR (
+                                        cache.websim_items.source_status = 'verified'
+                                        AND COALESCE(cache.websim_items.payload_json #>> '{_metadata,iconUrl}', cache.websim_items.payload_json->>'iconUrl', '') <> ''
+                                        AND (
+                                            cache.websim_items.payload_json ? 'inventory_type'
+                                            OR cache.websim_items.payload_json ? 'inventoryType'
+                                            OR cache.websim_items.payload_json ? 'item_class'
+                                            OR cache.websim_items.payload_json ? 'itemClass'
+                                            OR cache.websim_items.payload_json ? 'item_subclass'
+                                            OR cache.websim_items.payload_json ? 'itemSubclass'
+                                        )
+                                    )
+                                )
                                 THEN cache.websim_items.item_level
                                 ELSE COALESCE(EXCLUDED.item_level, cache.websim_items.item_level)
                             END,
                             payload_json = CASE
-                                WHEN COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                WHEN (
+                                    COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                    OR (
+                                        cache.websim_items.source_status = 'verified'
+                                        AND COALESCE(cache.websim_items.payload_json #>> '{_metadata,iconUrl}', cache.websim_items.payload_json->>'iconUrl', '') <> ''
+                                        AND (
+                                            cache.websim_items.payload_json ? 'inventory_type'
+                                            OR cache.websim_items.payload_json ? 'inventoryType'
+                                            OR cache.websim_items.payload_json ? 'item_class'
+                                            OR cache.websim_items.payload_json ? 'itemClass'
+                                            OR cache.websim_items.payload_json ? 'item_subclass'
+                                            OR cache.websim_items.payload_json ? 'itemSubclass'
+                                        )
+                                    )
+                                )
                                 THEN cache.websim_items.payload_json
                                 ELSE EXCLUDED.payload_json
                             END,
                             source_status = CASE
-                                WHEN COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                WHEN (
+                                    COALESCE(cache.websim_items.payload_json #>> '{_metadata,source}', cache.websim_items.payload_json->>'metadataSource', '') = 'Battle.net Game Data API'
+                                    OR (
+                                        cache.websim_items.source_status = 'verified'
+                                        AND COALESCE(cache.websim_items.payload_json #>> '{_metadata,iconUrl}', cache.websim_items.payload_json->>'iconUrl', '') <> ''
+                                        AND (
+                                            cache.websim_items.payload_json ? 'inventory_type'
+                                            OR cache.websim_items.payload_json ? 'inventoryType'
+                                            OR cache.websim_items.payload_json ? 'item_class'
+                                            OR cache.websim_items.payload_json ? 'itemClass'
+                                            OR cache.websim_items.payload_json ? 'item_subclass'
+                                            OR cache.websim_items.payload_json ? 'itemSubclass'
+                                        )
+                                    )
+                                )
                                 THEN cache.websim_items.source_status
                                 ELSE EXCLUDED.source_status
                             END,
@@ -3663,9 +4120,31 @@ class PostgresCacheStore:
             simc_options = _json_value(row[5], {})
             if not isinstance(simc_options, dict):
                 simc_options = {}
+            simc_options = {
+                key: normalize_option_value(value)
+                for key, value in simc_options.items()
+                if key in SIMC_GEAR_OPTION_KEYS
+            }
             payload = _json_value(row[7], {})
             payload = payload if isinstance(payload, dict) else {}
-            label = str(payload.get("displayLabel") or payload.get("displayName") or row[3] or row[2] or "").strip()
+            payload = gear_mod_option_payload_with_config_policy(
+                option_type,
+                row[3],
+                simc_options,
+                payload,
+                normalized_slots,
+            )
+            if not gear_mod_option_is_supported_config_option(option_type, simc_options, payload, row[3]):
+                continue
+            display_fields = gear_mod_option_display_fields(option_type, row[3], simc_options, payload)
+            label = str(
+                display_fields.get("displayLabel")
+                or payload.get("displayLabel")
+                or payload.get("displayName")
+                or row[3]
+                or row[2]
+                or ""
+            ).strip()
             option = {
                 "id": str(row[0]),
                 "type": option_type,
@@ -3678,6 +4157,43 @@ class PostgresCacheStore:
                 "payload": payload,
                 "updatedAt": str(row[8] or ""),
             }
+            option = apply_gear_mod_option_display_fields(option, display_fields)
+            for key in (
+                "displayName",
+                "displayLabel",
+                "displayKind",
+                "displayStatus",
+                "evidenceSource",
+                "evidenceRef",
+                "iconUrl",
+                "quality",
+                "gameAsset",
+                "metadataStatus",
+                "metadataSource",
+                "metadataLocale",
+                "itemStats",
+                "statSummary",
+                "slotGroup",
+                "slot_group",
+                "uniqueEquipped",
+                "unique_equipped",
+                "uniqueGroup",
+                "unique_group",
+                "uniqueLimit",
+                "unique_limit",
+                "uniqueScope",
+                "unique_scope",
+                "configCategory",
+                "config_category",
+                "exclusionReason",
+                "exclusion_reason",
+                "itemTypeRule",
+                "item_type_rule",
+            ):
+                if payload.get(key) not in (None, "", [], {}):
+                    if key in {"displayName", "displayLabel", "displayKind", "displayStatus", "evidenceSource", "evidenceRef"} and option.get(key) not in (None, "", [], {}):
+                        continue
+                    option[key] = payload.get(key)
             for slot in normalized_slots:
                 if slot in result:
                     result[slot].append(option)
@@ -3709,7 +4225,7 @@ class PostgresCacheStore:
             for row in cur.fetchall()
         )
         return (
-            "pg-websim-gear-v2",
+            "pg-websim-gear-v3",
             class_key,
             spec_key,
             bool(compact),
@@ -3789,20 +4305,38 @@ class PostgresCacheStore:
             payload = payload if isinstance(payload, dict) else {}
             metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
             metadata_source = str(metadata.get("source") or payload.get("metadataSource") or "").strip()
-            if metadata_source != ITEM_METADATA_SOURCE:
+            source_status = str(row[5] or metadata.get("metadataStatus") or payload.get("sourceStatus") or "").strip()
+            has_official_payload_shape = bool(
+                payload.get("inventory_type")
+                or payload.get("inventoryType")
+                or payload.get("item_class")
+                or payload.get("itemClass")
+                or payload.get("item_subclass")
+                or payload.get("itemSubclass")
+            )
+            if metadata_source != ITEM_METADATA_SOURCE and not (
+                source_status == "verified" and has_official_payload_shape
+            ):
                 continue
             type_metadata = item_type_metadata_from_payload(payload)
             item_id = str(row[0] or "").strip()
+            display_name = (
+                payload.get("displayName")
+                or payload.get("localizedName")
+                or payload.get("name")
+                or row[1]
+                or f"Item {item_id}"
+            )
             metadata_by_id[item_id] = {
                 "itemId": item_id,
-                "displayName": payload.get("name") or row[1] or f"Item {item_id}",
+                "displayName": display_name,
                 "slot": row[2] or "",
                 "itemLevel": _int_value(row[3]),
                 "quality": payload.get("quality") or "",
                 "iconUrl": metadata.get("iconUrl") or payload.get("iconUrl") or "",
                 "payload": payload,
-                "metadataStatus": str(row[5] or metadata.get("metadataStatus") or "verified").strip() or "verified",
-                "metadataSource": ITEM_METADATA_SOURCE,
+                "metadataStatus": source_status or "verified",
+                "metadataSource": metadata_source or ITEM_METADATA_SOURCE,
                 "metadataLocale": metadata.get("locale") or "",
                 "englishName": metadata.get("englishName") or "",
                 **type_metadata,
@@ -3818,6 +4352,230 @@ class PostgresCacheStore:
             metadata = official_metadata_by_id.get(item_id) if item_id else None
             hydrated.append(apply_item_metadata(item, metadata) if metadata else item)
         return hydrated
+
+    def community_gear_template_item_metadata_gaps(self, limit=200):
+        try:
+            limit = max(1, min(2000, int(limit or 200)))
+        except (TypeError, ValueError):
+            limit = 200
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, class_key, spec_key, source_key, status, gear_items_json
+                    FROM cache.websim_community_gear_templates
+                    WHERE status IN ('complete', 'partial')
+                      AND (expires_at IS NULL OR expires_at > now())
+                    ORDER BY updated_at DESC, id
+                    LIMIT %s
+                    """,
+                    (limit,),
+                )
+                rows = cur.fetchall()
+
+                refs_by_id = {}
+                for row in rows:
+                    template_ref = {
+                        "templateId": str(row[0] or ""),
+                        "classKey": str(row[1] or ""),
+                        "specKey": str(row[2] or ""),
+                        "sourceKey": str(row[3] or ""),
+                        "status": str(row[4] or ""),
+                    }
+                    for item in _json_value(row[5], []):
+                        if not isinstance(item, dict):
+                            continue
+                        item_id = str(item.get("itemId") or item.get("id") or "").strip()
+                        if not item_id:
+                            continue
+                        entry = refs_by_id.setdefault(
+                            item_id,
+                            {
+                                "itemId": item_id,
+                                "name": str(item.get("displayName") or item.get("localizedName") or item.get("name") or ""),
+                                "slot": normalize_slot(item.get("slot") or item.get("simcSlot") or ""),
+                                "templates": [],
+                            },
+                        )
+                        if not entry.get("name"):
+                            entry["name"] = str(item.get("displayName") or item.get("localizedName") or item.get("name") or "")
+                        if not entry.get("slot"):
+                            entry["slot"] = normalize_slot(item.get("slot") or item.get("simcSlot") or "")
+                        if template_ref not in entry["templates"]:
+                            entry["templates"].append(template_ref)
+
+                if not refs_by_id:
+                    return []
+                item_ids = sorted(refs_by_id)
+                placeholders = ", ".join(["%s"] * len(item_ids))
+                cur.execute(
+                    f"""
+                    SELECT id, name, slot, item_level, payload_json, source_status
+                    FROM cache.websim_items
+                    WHERE id IN ({placeholders})
+                    """,
+                    item_ids,
+                )
+                metadata_by_id = {str(row[0]): row for row in cur.fetchall()}
+
+        gaps = []
+        for item_id, ref in refs_by_id.items():
+            row = metadata_by_id.get(item_id)
+            reasons = []
+            if not row:
+                reasons.append("missing_metadata_row")
+                payload = {}
+                row_name = ""
+                row_slot = ""
+                source_status = ""
+            else:
+                payload = _json_value(row[4], {})
+                payload = payload if isinstance(payload, dict) else {}
+                row_name = str(row[1] or "")
+                row_slot = normalize_slot(row[2] or "")
+                source_status = str(row[5] or payload.get("sourceStatus") or "").strip()
+            metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
+            metadata_source = str(metadata.get("source") or payload.get("metadataSource") or "").strip()
+            has_official_payload_shape = bool(
+                payload.get("inventory_type")
+                or payload.get("inventoryType")
+                or payload.get("item_class")
+                or payload.get("itemClass")
+                or payload.get("item_subclass")
+                or payload.get("itemSubclass")
+            )
+            if metadata_source != ITEM_METADATA_SOURCE and not (
+                source_status == "verified" and has_official_payload_shape
+            ):
+                reasons.append("missing_official_payload_shape")
+            display_name = payload.get("displayName") or payload.get("localizedName") or payload.get("name") or row_name
+            icon_url = metadata.get("iconUrl") or payload.get("iconUrl") or ""
+            if not str(display_name or "").strip():
+                reasons.append("missing_display_name")
+            if not str(icon_url or "").strip():
+                reasons.append("missing_icon")
+            if reasons:
+                gaps.append(
+                    {
+                        **ref,
+                        "name": ref.get("name") or display_name or row_name or f"Item {item_id}",
+                        "slot": ref.get("slot") or row_slot,
+                        "reasons": unique_text_list(reasons),
+                        "metadataSource": metadata_source,
+                        "sourceStatus": source_status,
+                    }
+                )
+        return sorted(gaps, key=lambda item: (item.get("itemId") or "", item.get("slot") or ""))[:limit]
+
+    def websim_item_metadata_gaps(self, limit=200):
+        try:
+            limit = max(1, min(2000, int(limit or 200)))
+        except (TypeError, ValueError):
+            limit = 200
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    WITH item_usage AS (
+                        SELECT item_id, count(*)::integer AS usage_count
+                        FROM cache.websim_gear_variants
+                        WHERE item_id IS NOT NULL AND item_id <> ''
+                        GROUP BY item_id
+                        UNION ALL
+                        SELECT item_id, count(*)::integer AS usage_count
+                        FROM cache.websim_gear_sources
+                        WHERE item_id IS NOT NULL AND item_id <> ''
+                        GROUP BY item_id
+                    ),
+                    usage_totals AS (
+                        SELECT item_id, sum(usage_count)::integer AS usage_count
+                        FROM item_usage
+                        GROUP BY item_id
+                    )
+                    SELECT i.id, i.name, i.slot, i.payload_json, i.source_status, COALESCE(u.usage_count, 0)::integer
+                    FROM cache.websim_items i
+                    LEFT JOIN usage_totals u ON u.item_id = i.id
+                    WHERE COALESCE(u.usage_count, 0) > 0
+                      AND (
+                        COALESCE(
+                            i.payload_json->>'displayName',
+                            i.payload_json->>'localizedName',
+                            i.payload_json->>'name',
+                            i.name,
+                            ''
+                        ) = ''
+                        OR COALESCE(i.payload_json #>> '{_metadata,iconUrl}', i.payload_json->>'iconUrl', '') = ''
+                        OR NOT (
+                            COALESCE(i.payload_json, '{}'::jsonb) ? 'inventory_type'
+                            OR COALESCE(i.payload_json, '{}'::jsonb) ? 'inventoryType'
+                            OR COALESCE(i.payload_json, '{}'::jsonb) ? 'item_class'
+                            OR COALESCE(i.payload_json, '{}'::jsonb) ? 'itemClass'
+                            OR COALESCE(i.payload_json, '{}'::jsonb) ? 'item_subclass'
+                            OR COALESCE(i.payload_json, '{}'::jsonb) ? 'itemSubclass'
+                        )
+                      )
+                    ORDER BY
+                        (COALESCE(i.payload_json #>> '{_metadata,iconUrl}', i.payload_json->>'iconUrl', '') = '') DESC,
+                        (NOT (
+                            COALESCE(i.payload_json, '{}'::jsonb) ? 'inventory_type'
+                            OR COALESCE(i.payload_json, '{}'::jsonb) ? 'inventoryType'
+                            OR COALESCE(i.payload_json, '{}'::jsonb) ? 'item_class'
+                            OR COALESCE(i.payload_json, '{}'::jsonb) ? 'itemClass'
+                            OR COALESCE(i.payload_json, '{}'::jsonb) ? 'item_subclass'
+                            OR COALESCE(i.payload_json, '{}'::jsonb) ? 'itemSubclass'
+                        )) DESC,
+                        COALESCE(u.usage_count, 0) DESC,
+                        i.updated_at DESC,
+                        i.id
+                    LIMIT %s
+                    """,
+                    (limit,),
+                )
+                rows = cur.fetchall()
+
+        gaps = []
+        for row in rows:
+            item_id = str(row[0] or "").strip()
+            if not item_id:
+                continue
+            row_name = str(row[1] or "")
+            row_slot = normalize_slot(row[2] or "")
+            payload = _json_value(row[3], {})
+            payload = payload if isinstance(payload, dict) else {}
+            source_status = str(row[4] or payload.get("sourceStatus") or "").strip()
+            usage_count = _int_value(row[5]) or 0
+            metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
+            display_name = payload.get("displayName") or payload.get("localizedName") or payload.get("name") or row_name
+            icon_url = metadata.get("iconUrl") or payload.get("iconUrl") or ""
+            has_official_payload_shape = bool(
+                payload.get("inventory_type")
+                or payload.get("inventoryType")
+                or payload.get("item_class")
+                or payload.get("itemClass")
+                or payload.get("item_subclass")
+                or payload.get("itemSubclass")
+            )
+            reasons = []
+            if not has_official_payload_shape:
+                reasons.append("missing_official_payload_shape")
+            if not str(display_name or "").strip():
+                reasons.append("missing_display_name")
+            if not str(icon_url or "").strip():
+                reasons.append("missing_icon")
+            if not reasons:
+                continue
+            gaps.append(
+                {
+                    "itemId": item_id,
+                    "name": display_name or row_name or f"Item {item_id}",
+                    "slot": row_slot,
+                    "reasons": unique_text_list(reasons),
+                    "metadataSource": str(metadata.get("source") or payload.get("metadataSource") or "").strip(),
+                    "sourceStatus": source_status,
+                    "usageCount": usage_count,
+                }
+            )
+        return gaps[:limit]
 
     def _repair_template_offhand_occupancy(self, template):
         if not isinstance(template, dict):
@@ -4016,7 +4774,7 @@ class PostgresCacheStore:
         for slot in CANONICAL_GEAR_SLOTS:
             items = sorted(unique_gear_candidates(grouped.get(slot, [])), key=gear_candidate_quality_score, reverse=True)
             if candidate_limit:
-                items = items[:candidate_limit]
+                items = limit_replacement_candidates(items, candidate_limit)
             baseline_candidates_by_slot[slot] = items
             socket_options = raw_options_by_slot["socket"].get(slot, []) if items else []
             enchant_options = raw_options_by_slot["enchant"].get(slot, []) if items else []
@@ -4058,7 +4816,9 @@ class PostgresCacheStore:
             "baselineSet": [],
             "communityTemplates": output_community_templates,
             "baselineTemplates": output_baseline_templates,
-            "communityTemplateSync": websim_gear_community_template_sync_state(community_templates),
+            "communityTemplateSync": websim_gear_community_template_sync_state(
+                [*community_templates, *baseline_templates]
+            ),
             "readiness": readiness,
             "statSnapshot": blocked_stat_snapshot(
                 ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],

@@ -31,6 +31,7 @@ try:
         GEAR_OBSERVED_BACKFILL_SYNC_KEY,
         blizzard_get,
         blizzard_namespace,
+        community_gear_import_coverage_summary,
         class_label,
         community_talent_loadout_spec_blockers,
         disabled_community_talent_template_source_keys,
@@ -84,6 +85,7 @@ except ImportError:
         GEAR_OBSERVED_BACKFILL_SYNC_KEY,
         blizzard_get,
         blizzard_namespace,
+        community_gear_import_coverage_summary,
         class_label,
         community_talent_loadout_spec_blockers,
         disabled_community_talent_template_source_keys,
@@ -117,10 +119,13 @@ CRAFTED_GEAR_BACKFILL_SYNC_KEY = "crafted_gear_backfill"
 COMMUNITY_TALENT_COVERAGE_MATRIX_REVISION = "community-talent-coverage-matrix-v1"
 COMMUNITY_GEAR_TEMPLATE_PREFLIGHT_REVISION = "community-gear-template-preflight-v1"
 COMMUNITY_TEMPLATE_STAGE_TIMING_REVISION = "community-template-stage-timings-v1"
-BASELINE_GEAR_TEMPLATE_SOURCE_KEYS = {DEFAULT_GEAR_TEMPLATE_SOURCE_KEY, "baseline_template", "simc_preset"}
+ITEM_METADATA_REFRESH_SYNC_KEY = "item_metadata_refresh"
+SEASON_RECOMMENDED_GEAR_SYNC_KEY = "season_recommended_gear_sync"
+BASELINE_GEAR_TEMPLATE_SOURCE_KEYS = {DEFAULT_GEAR_TEMPLATE_SOURCE_KEY, "season_recommendation", "baseline_template", "simc_preset"}
 BAD_REAL_GEAR_TEMPLATE_SOURCE_KEYS = {
     "",
     DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+    "season_recommendation",
     "baseline_template",
     "simc_preset",
     "manual_fixture",
@@ -362,6 +367,169 @@ def fetch_websim_journal_data_postgres(region=DEFAULT_REGION, locale=DEFAULT_LOC
             instance["encounters"].append(encounter)
         instances.append(instance)
     return {"season": season, "instances": instances, "counts": counts}
+
+
+def _normalise_item_metadata_refs(item_refs):
+    refs_by_id = {}
+    for ref in item_refs or []:
+        if isinstance(ref, str):
+            ref = {"itemId": ref}
+        if not isinstance(ref, dict):
+            continue
+        item_id = str(ref.get("itemId") or ref.get("item_id") or ref.get("id") or "").strip()
+        if not item_id:
+            continue
+        entry = refs_by_id.setdefault(
+            item_id,
+            {
+                "itemId": item_id,
+                "name": "",
+                "slot": "",
+                "reasons": [],
+                "templates": [],
+            },
+        )
+        if not entry["name"]:
+            entry["name"] = str(ref.get("name") or ref.get("displayName") or ref.get("localizedName") or "").strip()
+        if not entry["slot"]:
+            entry["slot"] = str(ref.get("slot") or ref.get("simcSlot") or "").strip()
+        entry["reasons"] = unique_text_list([*entry.get("reasons", []), *(ref.get("reasons") or [])])
+        entry["templates"].extend(ref.get("templates") or [])
+    return list(refs_by_id.values())
+
+
+def refresh_websim_item_metadata_postgres(
+    item_refs,
+    *,
+    region=DEFAULT_REGION,
+    locale=DEFAULT_LOCALE,
+    token=None,
+    store=None,
+    stage_callback=None,
+):
+    store = store or cache_store_from_env()
+    refs = _normalise_item_metadata_refs(item_refs)
+    checked_at = utc_now()
+    payload = {
+        "runner": "postgres",
+        "region": region,
+        "locale": locale,
+        "checkedAt": checked_at,
+        "requested": len(refs),
+        "items": 0,
+        "missingIcon": 0,
+        "savedItems": [],
+        "errors": [],
+    }
+    if not refs:
+        payload["status"] = "blocked"
+        payload["sourceStatus"] = "blocked"
+        payload["errors"].append("no item metadata refs provided")
+        store.save_sync_state(ITEM_METADATA_REFRESH_SYNC_KEY, payload, checked_at)
+        return payload
+    token = token or get_blizzard_access_token(region)
+    _emit(stage_callback, "item_metadata", "start", requested=len(refs))
+    for ref in refs:
+        item_id = ref["itemId"]
+        try:
+            item_metadata = fetch_blizzard_item_metadata(
+                token,
+                item_id,
+                region,
+                locale,
+                fallback_name=ref.get("name") or "",
+                fallback_slot=ref.get("slot") or "",
+            )
+            saved = store.save_websim_item_metadata(
+                item_id,
+                item_metadata.get("payload") or {},
+                item_metadata.get("media") or {},
+                fallback_slot=item_metadata.get("fallbackSlot") or ref.get("slot") or "",
+                fallback_name=item_metadata.get("fallbackName") or ref.get("name") or "",
+                english_payload=item_metadata.get("englishPayload") or {},
+                locale=item_metadata.get("locale") or locale,
+            )
+            if not saved:
+                payload["errors"].append(f"{item_id}: metadata save returned empty result")
+                continue
+            payload["items"] += 1
+            if not saved.get("iconUrl"):
+                payload["missingIcon"] += 1
+            payload["savedItems"].append(
+                {
+                    "itemId": item_id,
+                    "displayName": saved.get("displayName") or "",
+                    "slot": saved.get("slot") or "",
+                    "iconUrl": saved.get("iconUrl") or "",
+                    "reasons": ref.get("reasons") or [],
+                }
+            )
+        except Exception as error:
+            payload["errors"].append(f"{item_id}: {error}")
+    payload["status"] = "verified" if payload["items"] == payload["requested"] and not payload["errors"] else (
+        "partial" if payload["items"] else "blocked"
+    )
+    payload["sourceStatus"] = payload["status"]
+    store.save_sync_state(ITEM_METADATA_REFRESH_SYNC_KEY, payload, checked_at)
+    _emit(
+        stage_callback,
+        "item_metadata",
+        "complete",
+        sourceStatus=payload["status"],
+        items=payload["items"],
+        errors=len(payload["errors"]),
+    )
+    return payload
+
+
+def refresh_websim_item_metadata_gaps_postgres(
+    *,
+    limit=200,
+    region=DEFAULT_REGION,
+    locale=DEFAULT_LOCALE,
+    token=None,
+    store=None,
+    stage_callback=None,
+):
+    store = store or cache_store_from_env()
+    gaps = store.community_gear_template_item_metadata_gaps(limit=limit)
+    payload = refresh_websim_item_metadata_postgres(
+        gaps,
+        region=region,
+        locale=locale,
+        token=token,
+        store=store,
+        stage_callback=stage_callback,
+    )
+    payload["gapCount"] = len(gaps)
+    payload["gaps"] = gaps[:20]
+    store.save_sync_state(ITEM_METADATA_REFRESH_SYNC_KEY, payload, payload.get("checkedAt") or utc_now())
+    return payload
+
+
+def refresh_websim_item_metadata_item_gaps_postgres(
+    *,
+    limit=200,
+    region=DEFAULT_REGION,
+    locale=DEFAULT_LOCALE,
+    token=None,
+    store=None,
+    stage_callback=None,
+):
+    store = store or cache_store_from_env()
+    gaps = store.websim_item_metadata_gaps(limit=limit)
+    payload = refresh_websim_item_metadata_postgres(
+        gaps,
+        region=region,
+        locale=locale,
+        token=token,
+        store=store,
+        stage_callback=stage_callback,
+    )
+    payload["gapCount"] = len(gaps)
+    payload["gaps"] = gaps[:20]
+    store.save_sync_state(ITEM_METADATA_REFRESH_SYNC_KEY, payload, payload.get("checkedAt") or utc_now())
+    return payload
 
 
 def sync_raiderio_cache_postgres(force=False, stage_callback=None, store=None):
@@ -1334,10 +1502,17 @@ def build_community_gear_template_preflight(templates, scan_run_id="", checked_a
         if key and key not in target_queue_by_key:
             target_queue_by_key[key] = target
     target_queue = sorted(target_queue_by_key.values(), key=lambda row: (int(row.get("priority") or 0), row.get("targetKey") or ""))
-    matrix_status = "verified" if complete_specs and len(complete_specs) == len(expected_specs) else "partial"
-    if blocked_specs and not complete_specs and not partial_specs and not pending_specs:
-        matrix_status = "blocked"
     incomplete_specs = [*partial_specs, *pending_specs, *blocked_specs]
+    community_import = community_gear_import_coverage_summary(
+        len(expected_specs),
+        community_complete_specs=complete_specs,
+        community_partial_specs=partial_specs,
+        community_pending_specs=pending_specs,
+        community_blocked_specs=blocked_specs,
+        baseline_available_specs=baseline_available_specs,
+        baseline_blocked_specs=baseline_blocked_specs,
+    )
+    matrix_status = community_import.get("status") or "partial"
     return {
         "schemaRevision": COMMUNITY_GEAR_TEMPLATE_PREFLIGHT_REVISION,
         "scanRunId": scan_run_id,
@@ -1357,7 +1532,7 @@ def build_community_gear_template_preflight(templates, scan_run_id="", checked_a
             "partialSpecs": partial_specs,
             "pendingSpecs": pending_specs,
             "blockedSpecs": blocked_specs,
-            "countingPolicy": "real community gear only; baseline/default templates do not fill this coverage",
+            "countingPolicy": "real community gear subtype under community import; must reach 40/40 specs",
         },
         "baseline": {
             "templateSlot": "baseline",
@@ -1366,8 +1541,9 @@ def build_community_gear_template_preflight(templates, scan_run_id="", checked_a
             "blockedSpecCount": len(baseline_blocked_specs),
             "availableSpecs": baseline_available_specs,
             "blockedSpecs": baseline_blocked_specs,
-            "countingPolicy": "baseline is a separate display slot and is excluded from real community coverage",
+            "countingPolicy": "fallback baseline gear subtype under community import; must reach 40/40 specs",
         },
+        "communityImport": community_import,
         "canonicalSlotMatrix": {
             "totalSlotCount": len(slot_rows),
             "readySlotCount": ready_slot_count,
@@ -2037,6 +2213,7 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
             "observedBackfill": gear_observed_backfill,
             "realCommunityTemplates": gear_preflight.get("realCommunityTemplates") or {},
             "baselineTemplates": gear_preflight.get("baseline") or {},
+            "communityImportTemplates": gear_preflight.get("communityImport") or {},
         },
         "sourceRefs": [
             {
@@ -2085,6 +2262,79 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
     talent_state["stageTimings"] = payload["stageTimings"]
     store.save_sync_state(COMMUNITY_TEMPLATE_SYNC_RUN_KEY, payload, checked_at)
     store.save_sync_state(COMMUNITY_TALENT_SYNC_KEY, talent_state, checked_at)
+    return payload
+
+
+def _season_recommended_template_confidence(template):
+    payload = (template or {}).get("payload") if isinstance((template or {}).get("payload"), dict) else {}
+    evidence = payload.get("templateEvidence") if isinstance(payload.get("templateEvidence"), dict) else {}
+    return str(evidence.get("recommendationConfidence") or "").strip()
+
+
+def sync_season_recommended_gear_postgres(mode="scheduled", store=None):
+    store = store or cache_store_from_env()
+    checked_at = utc_now()
+    scan_run_id = f"season-recommended-gear-{checked_at.replace('+00:00', 'Z').replace(':', '').replace('-', '')}"
+    errors = []
+    try:
+        templates = store.build_season_recommended_gear_templates(scan_run_id=scan_run_id)
+    except Exception as error:
+        templates = []
+        errors.append(str(error))
+    if templates:
+        counts = store.replace_community_gear_templates(templates, scan_run_id=scan_run_id)
+    else:
+        counts = {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
+
+    complete_specs = unique_text_list(
+        f"{template.get('classKey')}:{template.get('specKey')}"
+        for template in templates
+        if template.get("status") == "complete" and template.get("sourceKey") == "season_recommendation"
+    )
+    verified_specs = unique_text_list(
+        f"{template.get('classKey')}:{template.get('specKey')}"
+        for template in templates
+        if _season_recommended_template_confidence(template) == "verified"
+    )
+    provisional_specs = unique_text_list(
+        f"{template.get('classKey')}:{template.get('specKey')}"
+        for template in templates
+        if _season_recommended_template_confidence(template) == "provisional"
+    )
+    expected_specs = unique_text_list(expected_spec_pairs())
+    blocked_specs = [spec_id for spec_id in expected_specs if spec_id not in set(complete_specs)]
+    total_spec_count = len(expected_specs) or len(complete_specs)
+    status = "verified" if total_spec_count and len(complete_specs) >= total_spec_count and not errors else "partial"
+    if not complete_specs and errors:
+        status = "blocked"
+    preflight = build_community_gear_template_preflight(
+        _community_gear_template_coverage_rows(store, templates) or templates,
+        scan_run_id=scan_run_id,
+        checked_at=checked_at,
+    )
+    payload = {
+        "runner": "postgres",
+        "mode": mode,
+        "sourceKey": "season_recommendation",
+        "sourceName": "当前赛季大秘境 AOE 推荐模板",
+        "status": status,
+        "sourceStatus": "synced" if status == "verified" else status,
+        "scanRunId": scan_run_id,
+        "checkedAt": checked_at,
+        "totalSpecCount": total_spec_count,
+        "completeSpecCount": len(complete_specs),
+        "verifiedSpecCount": len(verified_specs),
+        "provisionalSpecCount": len(provisional_specs),
+        "blockedSpecCount": len(blocked_specs),
+        "completeSpecs": complete_specs,
+        "verifiedSpecs": verified_specs,
+        "provisionalSpecs": provisional_specs,
+        "blockedSpecs": blocked_specs,
+        "templates": counts,
+        "communityImportTemplates": preflight.get("communityImport") or {},
+        "errors": errors[:20],
+    }
+    store.save_sync_state(SEASON_RECOMMENDED_GEAR_SYNC_KEY, payload, checked_at)
     return payload
 
 

@@ -2539,6 +2539,18 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         if isinstance(community_gear.get("baselineTemplates"), dict)
         else {}
     )
+    season_recommendation = (
+        community_gear.get("seasonRecommendation")
+        if isinstance(community_gear.get("seasonRecommendation"), dict)
+        else {}
+    )
+    community_import_templates = (
+        community_gear.get("communityImportTemplates")
+        if isinstance(community_gear.get("communityImportTemplates"), dict)
+        else {}
+    )
+    if not community_import_templates and isinstance(gear_template_preflight.get("communityImport"), dict):
+        community_import_templates = gear_template_preflight.get("communityImport") or {}
     real_community_templates = (
         community_gear.get("realCommunityTemplates")
         if isinstance(community_gear.get("realCommunityTemplates"), dict)
@@ -2554,12 +2566,17 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
             gear_templates = live_gear_templates.get("templates") or gear_templates
             gear_template_preflight = live_gear_templates.get("preflight") or gear_template_preflight
             baseline_gear_templates = live_gear_templates.get("baselineTemplates") or baseline_gear_templates
+            season_recommendation = live_gear_templates.get("seasonRecommendation") or season_recommendation
+            community_import_templates = live_gear_templates.get("communityImportTemplates") or community_import_templates
             real_community_templates = live_gear_templates.get("realCommunityTemplates") or real_community_templates
             live_gear_template_run_id = live_gear_templates.get("scanRunId") or ""
     template_evidence_audit = lightweight_template_evidence_audit_payload(
         community_state=community,
         community_sync_run=community_sync_run,
     )
+    community_status = community.get("sourceStatus") or community.get("status")
+    if community_import_templates.get("status") and community_import_templates.get("status") != "verified":
+        community_status = "partial" if community_status in {"synced", "verified"} else (community_status or "partial")
     components = [
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
         news_health_component_from_latest(latest),
@@ -2632,7 +2649,7 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         data_health_component(
             "community_templates",
             "Community talent and gear templates",
-            community.get("sourceStatus") or community.get("status"),
+            community_status,
             checked_at=community.get("checkedAt") or community.get("updatedAt") or "",
             details={
                 "templates": community.get("templates") or {},
@@ -2645,8 +2662,10 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
                 "wclTemplateSource": (community.get("sources") or {}).get("warcraftlogs") or {},
                 "gearTemplates": gear_templates,
                 "gearTemplatePreflight": gear_template_preflight,
+                "communityImportTemplates": community_import_templates,
                 "realCommunityGearTemplates": real_community_templates,
                 "baselineGearTemplates": baseline_gear_templates,
+                "seasonRecommendation": season_recommendation,
                 "defaultGearTemplates": default_gear_templates,
                 "changeReport": community_sync_run.get("changeReport") or {},
                 "templateEvidenceAudit": template_evidence_audit,
@@ -2813,6 +2832,13 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
             if isinstance(community_gear.get("baselineTemplates"), dict)
             else {}
         )
+        community_import_templates = (
+            community_gear.get("communityImportTemplates")
+            if isinstance(community_gear.get("communityImportTemplates"), dict)
+            else {}
+        )
+        if not community_import_templates and isinstance(gear_template_preflight.get("communityImport"), dict):
+            community_import_templates = gear_template_preflight.get("communityImport") or {}
         real_community_templates = (
             community_gear.get("realCommunityTemplates")
             if isinstance(community_gear.get("realCommunityTemplates"), dict)
@@ -2830,6 +2856,8 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
                 community_sync_run=community_sync_run,
             )
         community_status = community.get("sourceStatus")
+        if community_import_templates.get("status") and community_import_templates.get("status") != "verified":
+            community_status = "partial" if community_status in {"synced", "verified"} else (community_status or "partial")
         if default_gear_templates.get("blockedSpecCount") and community_status in {"synced", "verified"}:
             community_status = "partial"
         components.append(
@@ -2849,6 +2877,7 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
                     "wclTemplateSource": (community.get("sources") or {}).get("warcraftlogs") or {},
                     "gearTemplates": gear_templates,
                     "gearTemplatePreflight": gear_template_preflight,
+                    "communityImportTemplates": community_import_templates,
                     "realCommunityGearTemplates": real_community_templates,
                     "baselineGearTemplates": baseline_gear_templates,
                     "defaultGearTemplates": default_gear_templates,

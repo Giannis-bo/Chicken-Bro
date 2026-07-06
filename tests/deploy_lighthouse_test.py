@@ -106,6 +106,20 @@ class DeployLighthouseScriptTest(unittest.TestCase):
         self.assertNotIn("start --no-block wow-gear-observed-backfill.service", script)
         self.assertNotIn("start wow-gear-observed-backfill.service", script)
 
+    def test_deploy_script_installs_season_recommended_gear_service_without_autostart(self):
+        service = Path("server/wow-season-recommended-gear-sync.service").read_text(encoding="utf-8")
+        script = Path("server/deploy_lighthouse.sh").read_text(encoding="utf-8")
+        exec_start_match = re.search(r"^ExecStart=(.+)$", service, flags=re.MULTILINE)
+
+        self.assertIsNotNone(exec_start_match)
+        exec_start = exec_start_match.group(1)
+        self.assertIn("/usr/bin/flock", exec_start)
+        self.assertIn("/run/lock/wow-mini-program-sync.lock", exec_start)
+        self.assertIn("/opt/wow-mini-program/server/season_recommended_gear_sync.py", exec_start)
+        self.assertIn('wow-season-recommended-gear-sync.service"', script)
+        self.assertNotIn("enable --now wow-season-recommended-gear-sync.service", script)
+        self.assertNotIn("start --no-block wow-season-recommended-gear-sync.service", script)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,6 +2,7 @@ import io
 import json
 import os
 import runpy
+import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import patch
@@ -9,6 +10,7 @@ from unittest.mock import patch
 from server import community_template_sync
 from server import crafted_gear_backfill
 from server import gear_observed_backfill
+from server import season_recommended_gear_sync
 from server import stat_weights_sync
 from server import websim_payload
 from server import websim_sync
@@ -77,6 +79,31 @@ class PostgresOnlyScriptGuardTest(unittest.TestCase):
         self.assertEqual(payload["statWeights"]["runner"], "postgres")
         raiderio_runner.assert_called_once()
         stat_runner.assert_called_once()
+
+    def test_season_recommended_gear_sync_uses_postgres_native_runner(self):
+        stdout = io.StringIO()
+
+        with patch.dict(
+            os.environ,
+            {"WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test", "WOW_DATABASE_RUNTIME": "postgres_only"},
+            clear=False,
+        ), patch.object(
+            season_recommended_gear_sync,
+            "sync_season_recommended_gear_postgres",
+            return_value={
+                "runner": "postgres",
+                "sourceKey": "season_recommendation",
+                "completeSpecCount": 40,
+                "status": "verified",
+            },
+        ) as runner, redirect_stdout(stdout):
+            exit_code = season_recommended_gear_sync.main()
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["runner"], "postgres")
+        self.assertEqual(payload["sourceKey"], "season_recommendation")
+        runner.assert_called_once_with(mode="scheduled")
 
     def test_community_template_sync_uses_postgres_native_runner_in_postgres_only_mode(self):
         stdout = io.StringIO()
@@ -466,6 +493,73 @@ class PostgresOnlyScriptGuardTest(unittest.TestCase):
             return_value={"status": "blocked", "runner": "postgres", "errors": ["writer pending"]},
         ) as runner, redirect_stdout(stdout):
             exit_code = crafted_gear_backfill.main(["--from-metadata"])
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["runner"], "postgres")
+        runner.assert_called_once()
+
+    def test_item_metadata_refresh_main_uses_postgres_gap_runner(self):
+        from server import item_metadata_refresh
+
+        stdout = io.StringIO()
+
+        with patch.dict(
+            os.environ,
+            {"WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test", "WOW_DATABASE_RUNTIME": "postgres_only"},
+            clear=False,
+        ), patch.object(
+            item_metadata_refresh,
+            "refresh_websim_item_metadata_gaps_postgres",
+            return_value={"runner": "postgres", "items": 1, "errors": [], "gapCount": 1},
+        ) as runner, redirect_stdout(stdout):
+            exit_code = item_metadata_refresh.main(["--from-community-template-gaps", "--limit", "3"])
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["runner"], "postgres")
+        self.assertEqual(payload["items"], 1)
+        runner.assert_called_once()
+
+    def test_item_metadata_refresh_main_uses_postgres_item_gap_runner(self):
+        from server import item_metadata_refresh
+
+        stdout = io.StringIO()
+
+        with patch.dict(
+            os.environ,
+            {"WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test", "WOW_DATABASE_RUNTIME": "postgres_only"},
+            clear=False,
+        ), patch.object(
+            item_metadata_refresh,
+            "refresh_websim_item_metadata_item_gaps_postgres",
+            return_value={"runner": "postgres", "items": 1, "errors": [], "gapCount": 1},
+        ) as runner, redirect_stdout(stdout):
+            exit_code = item_metadata_refresh.main(["--from-websim-item-gaps", "--limit", "3"])
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["runner"], "postgres")
+        self.assertEqual(payload["items"], 1)
+        runner.assert_called_once()
+
+    def test_item_metadata_refresh_main_loads_env_file_before_postgres_check(self):
+        from server import item_metadata_refresh
+
+        stdout = io.StringIO()
+
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as env_file:
+            env_file.write("WOW_DATABASE_RUNTIME=postgres_only\n")
+            env_file.write("WOW_DATABASE_URL=postgresql://wow_app@localhost/wow_test\n")
+            env_path = env_file.name
+        self.addCleanup(lambda: os.path.exists(env_path) and os.unlink(env_path))
+
+        with patch.dict(os.environ, {}, clear=True), patch.object(
+            item_metadata_refresh,
+            "refresh_websim_item_metadata_gaps_postgres",
+            return_value={"runner": "postgres", "items": 1, "errors": [], "gapCount": 1},
+        ) as runner, redirect_stdout(stdout):
+            exit_code = item_metadata_refresh.main(["--env-file", env_path, "--from-community-template-gaps"])
 
         payload = json.loads(stdout.getvalue())
         self.assertEqual(exit_code, 0)

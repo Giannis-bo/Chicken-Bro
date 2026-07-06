@@ -449,6 +449,7 @@ sudo cp "${REMOTE_DIR}/server/wow-community-template-sync.service" "/etc/systemd
 sudo cp "${REMOTE_DIR}/server/wow-community-template-sync.timer" "/etc/systemd/system/wow-community-template-sync.timer"
 sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.service" "/etc/systemd/system/wow-gear-observed-backfill.service"
 sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.timer" "/etc/systemd/system/wow-gear-observed-backfill.timer"
+sudo cp "${REMOTE_DIR}/server/wow-season-recommended-gear-sync.service" "/etc/systemd/system/wow-season-recommended-gear-sync.service"
 
 sudo tee /etc/nginx/sites-available/wow-backend >/dev/null <<'NGINX'
 server {
@@ -509,6 +510,7 @@ sudo systemctl enable --now wow-stat-weights-sync.timer
 sudo systemctl reset-failed wow-community-template-sync.service >/dev/null 2>&1 || true
 sudo systemctl enable --now wow-community-template-sync.timer
 sudo systemctl reset-failed wow-gear-observed-backfill.service >/dev/null 2>&1 || true
+sudo systemctl reset-failed wow-season-recommended-gear-sync.service >/dev/null 2>&1 || true
 echo "PG-native sync timers enabled; observed gear backfill unit installed but not auto-enabled."
 sudo systemctl enable --now "${SERVICE_NAME}"
 sudo systemctl restart "${SERVICE_NAME}"

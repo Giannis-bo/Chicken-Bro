@@ -335,6 +335,9 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(baseline.get("blockers"), ["No baseline gear template is available for this spec."])
         self.assertIn("deterministic baseline gear template", baseline.get("nextAction", ""))
         self.assertNotIn("payload", baseline)
+        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["blocked"], 1)
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["pending"], 1)
         self.assertTrue(trinket_groups)
         trinket_group = trinket_groups[0]
         self.assertEqual(trinket_group["items"][0]["itemId"], "item-a")
@@ -458,6 +461,263 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_gear_mod_options", sql)
         self.assertIn("FROM cache.websim_items", sql)
 
+    def test_gear_read_model_restores_pg_enchant_display_names_from_simc_ids(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {"status": "verified", "schemaRevision": "gear-catalog-test", "blockers": []},
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+                "gear_payload_fingerprint": [
+                    ("websim_items", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_sources", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_variants", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_mod_options", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_community_gear_templates", 0, ""),
+                ],
+                "FROM cache.websim_gear_sources": [
+                    (
+                        "source-feet",
+                        "feet-a",
+                        "raid",
+                        "raid-feet",
+                        "Sporefall",
+                        "2001",
+                        "",
+                        "mythic",
+                        "season-pg-1",
+                        {},
+                        "2026-06-28T01:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_gear_variants": [
+                    (
+                        "variant-feet",
+                        "feet-a",
+                        "feet",
+                        "feet-a-mythic",
+                        "Mythic Feet A",
+                        "raid",
+                        "mythic",
+                        289,
+                        {"ilevel": "289", "bonus_id": "12345"},
+                        "verified",
+                        [],
+                        {"sourceStatus": "verified"},
+                        "2026-06-28T01:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_gear_mod_options": [
+                    (
+                        "enchant-7935",
+                        "enchant",
+                        "enchant-7935",
+                        "7935",
+                        ["feet"],
+                        {"enchant_id": "7935"},
+                        "verified",
+                        {},
+                        "2026-06-28T01:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "feet-a",
+                        "Feet A",
+                        "feet",
+                        289,
+                        {
+                            "id": "feet-a",
+                            "name": "Feet A",
+                            "inventory_type": {"type": "FEET", "name": "脚"},
+                            "quality": "epic",
+                            "iconUrl": "https://render.worldofwarcraft.com/feet-a.jpg",
+                        },
+                        "verified",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("mage", "arcane", compact=True)
+        feet_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "feet")
+
+        self.assertEqual(feet_group["enchantOptions"][0]["label"], "阳炎丝绸魔线")
+        self.assertEqual(feet_group["enchantOptions"][0]["displayStatus"], "verified")
+
+    def test_gear_read_model_keeps_crafted_candidates_beyond_compact_limit(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        source_rows = []
+        variant_rows = []
+        item_rows = []
+        for index in range(12):
+            item_id = f"raid-wrist-{index}"
+            source_rows.append(
+                (
+                    f"source-{item_id}",
+                    item_id,
+                    "raid",
+                    f"raid-{item_id}",
+                    "Sporefall",
+                    "2001",
+                    "",
+                    "mythic",
+                    "season-pg-1",
+                    {},
+                    "2026-06-28T01:00:00+00:00",
+                )
+            )
+            item_level = 310 - index
+            variant_rows.append(
+                (
+                    f"variant-{item_id}",
+                    item_id,
+                    "wrist",
+                    f"{item_id}-mythic",
+                    f"Mythic Wrist {index}",
+                    "raid",
+                    "mythic",
+                    item_level,
+                    {"ilevel": str(item_level), "bonus_id": "12345"},
+                    "verified",
+                    [],
+                    {"sourceStatus": "verified"},
+                    "2026-06-28T01:00:00+00:00",
+                )
+            )
+            item_rows.append(
+                (
+                    item_id,
+                    f"Raid Wrist {index}",
+                    "wrist",
+                    item_level,
+                    {
+                        "id": item_id,
+                        "name": f"Raid Wrist {index}",
+                        "inventory_type": {"type": "WRIST", "name": "腕部"},
+                        "quality": "epic",
+                    },
+                    "verified",
+                )
+            )
+
+        crafted_id = "crafted-wrist"
+        source_rows.append(
+            (
+                "source-crafted-wrist",
+                crafted_id,
+                "crafted",
+                "crafted-governed-wrist",
+                "制造装备",
+                "",
+                "",
+                "crafted_myth",
+                "season-pg-1",
+                {},
+                "2026-06-28T01:00:00+00:00",
+            )
+        )
+        variant_rows.append(
+            (
+                "variant-crafted-wrist",
+                crafted_id,
+                "wrist",
+                "crafted-myth-285-haste-mastery",
+                "神话 285 · 急速 + 精通",
+                "crafted",
+                "crafted_myth",
+                285,
+                {"ilevel": "285", "crafted_stats": "40/32"},
+                "verified",
+                [],
+                {
+                    "sourceStatus": "verified",
+                    "craftedStatKey": "haste-mastery",
+                    "craftedStatLabel": "急速 + 精通",
+                    "statSummary": "智力 285；急速 + 精通",
+                },
+                "2026-06-28T01:00:00+00:00",
+            )
+        )
+        item_rows.append(
+            (
+                crafted_id,
+                "Crafted Wrist",
+                "wrist",
+                285,
+                {
+                    "id": crafted_id,
+                    "name": "制造护腕",
+                    "inventory_type": {"type": "WRIST", "name": "腕部"},
+                    "quality": "epic",
+                },
+                "verified",
+            )
+        )
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {"status": "verified", "schemaRevision": "gear-catalog-test", "blockers": []},
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+                "gear_payload_fingerprint": [
+                    ("websim_items", len(item_rows), "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_sources", len(source_rows), "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_variants", len(variant_rows), "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_mod_options", 0, ""),
+                    ("websim_community_gear_templates", 0, ""),
+                ],
+                "FROM cache.websim_gear_sources": source_rows,
+                "FROM cache.websim_gear_variants": variant_rows,
+                "FROM cache.websim_gear_mod_options": [],
+                "FROM cache.websim_items": item_rows,
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("mage", "arcane", compact=True)
+        wrist_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "wrist")
+
+        self.assertTrue(any(item.get("sourceType") == "crafted" for item in wrist_group["items"]))
+        self.assertGreaterEqual(len(wrist_group["items"]), 13)
+
     def test_gear_read_model_splits_pg_community_and_baseline_templates(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -563,6 +823,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(baseline["status"], "complete")
         self.assertEqual(baseline["scenarioKey"], "mplus_mixed_route")
         self.assertEqual(payload["communityTemplateSync"]["templates"]["partial"], 1)
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["verified"], 1)
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["total"], 2)
         self.assertIn("FROM cache.websim_community_gear_templates", sql)
 
     def test_gear_read_model_ignores_expired_community_gear_templates(self):
@@ -2368,6 +2630,76 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(item.get("metadataSource"), "Battle.net Game Data API")
         self.assertEqual(item.get("metadataStatus"), "verified")
 
+    def test_admin_gate_gear_template_records_hydrate_verified_pg_item_payload_without_metadata_marker(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        verified_pg_payload = {
+            "displayName": "虚空碎斧",
+            "localizedName": "虚空碎斧",
+            "inventory_type": {"type": "WEAPON", "name": "单手"},
+            "item_class": {"id": 2, "name": "武器"},
+            "item_subclass": {"id": 0, "name": "斧"},
+            "iconUrl": "https://render.worldofwarcraft.com/us/icons/56/inv_axe_2h_orcraid_d_01.jpg",
+            "quality": "史诗",
+        }
+        conn = FakeConnection(
+            rowsets={
+                "SELECT to_regclass": [("cache.websim_community_gear_templates",)],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "observed_profile_warrior_fury",
+                        "warrior",
+                        "fury",
+                        "Observed Fury Warrior",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "",
+                        "verified",
+                        "complete",
+                        "sig-warrior-fury",
+                        [{"type": "raiderio"}],
+                        [
+                            {
+                                "slot": "main_hand",
+                                "itemId": "250321",
+                                "name": "voidsplinter_axe",
+                                "sourceType": "observed_profile",
+                                "simcReady": True,
+                            }
+                        ],
+                        "main_hand=voidsplinter_axe,id=250321",
+                        16,
+                        [],
+                        "daily",
+                        {},
+                        "2026-07-05T05:00:50+08:00",
+                        "",
+                        "scan-warrior-fury",
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "250321",
+                        "voidsplinter_axe",
+                        "main_hand",
+                        289,
+                        verified_pg_payload,
+                        "verified",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        template = store.admin_gate_gear_template_records()["communityGearTemplates"][0]
+        item = template["gearItems"][0]
+
+        self.assertEqual(item.get("displayName"), "虚空碎斧")
+        self.assertEqual(item.get("localizedName"), "虚空碎斧")
+        self.assertEqual(item.get("iconUrl"), "https://render.worldofwarcraft.com/us/icons/56/inv_axe_2h_orcraid_d_01.jpg")
+        self.assertEqual(item.get("metadataSource"), "Battle.net Game Data API")
+        self.assertEqual(item.get("metadataStatus"), "verified")
+
     def test_admin_gate_gear_template_records_normalizes_baseline_two_hand_metadata(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -3391,6 +3723,14 @@ class PostgresCacheStoreTest(unittest.TestCase):
             summary = store.community_gear_template_live_health_summary()
 
         self.assertEqual(summary["templates"], {"total": 4, "verified": 2, "partial": 2, "blocked": 0})
+        self.assertEqual(summary["preflight"]["status"], "partial")
+        self.assertEqual(summary["communityImportTemplates"]["status"], "partial")
+        self.assertEqual(summary["communityImportTemplates"]["totalTemplateSlotCount"], 4)
+        self.assertEqual(summary["communityImportTemplates"]["coveredTemplateSlotCount"], 3)
+        self.assertEqual(summary["communityImportTemplates"]["missingTemplateSlotCount"], 1)
+        self.assertEqual(summary["communityImportTemplates"]["realCommunityCompleteSpecCount"], 1)
+        self.assertEqual(summary["communityImportTemplates"]["baselineAvailableSpecCount"], 2)
+        self.assertIn("80/80", summary["communityImportTemplates"]["countingPolicy"])
         self.assertEqual(summary["realCommunityTemplates"]["coveredSpecCount"], 1)
         self.assertEqual(summary["realCommunityTemplates"]["partialSpecCount"], 1)
         self.assertEqual(summary["baselineTemplates"]["availableSpecCount"], 2)
@@ -3486,8 +3826,136 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("INSERT INTO cache.websim_items", sql)
         self.assertIn("cache.websim_items.payload_json #>> '{_metadata,source}'", sql)
         self.assertIn("Battle.net Game Data API", sql)
+        self.assertIn("cache.websim_items.payload_json ? 'inventory_type'", sql)
+        self.assertIn("cache.websim_items.payload_json ? 'item_class'", sql)
+        self.assertIn("COALESCE(cache.websim_items.payload_json #>> '{_metadata,iconUrl}', cache.websim_items.payload_json->>'iconUrl', '') <> ''", sql)
         self.assertIn("THEN cache.websim_items.payload_json", sql)
         self.assertIn("ELSE EXCLUDED.payload_json", sql)
+
+    def test_save_websim_item_metadata_writes_official_payload_to_cache_schema(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        saved = store.save_websim_item_metadata(
+            "249919",
+            {
+                "id": 249919,
+                "name": "辛多雷希望指环",
+                "inventory_type": {"type": "FINGER", "name": "手指"},
+                "item_class": {"id": 4, "name": "护甲"},
+                "item_subclass": {"id": 0, "name": "其它"},
+                "quality": {"name": "史诗"},
+            },
+            {"assets": [{"key": "icon", "value": "https://render.worldofwarcraft.com/us/icons/56/inv_jewelry_ring_01.jpg"}]},
+            fallback_slot="finger2",
+            fallback_name="Sin'dorei Band of Hope",
+            english_payload={"name": "Sin'dorei Band of Hope"},
+            locale="zh_CN",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        params = conn.cursor_instance.params[-1]
+        payload = __import__("json").loads(params[4])
+        self.assertEqual(saved["displayName"], "辛多雷希望指环")
+        self.assertEqual(saved["iconUrl"], "https://render.worldofwarcraft.com/us/icons/56/inv_jewelry_ring_01.jpg")
+        self.assertIn("INSERT INTO cache.websim_items", sql)
+        self.assertEqual(params[0], "249919")
+        self.assertEqual(params[1], "辛多雷希望指环")
+        self.assertEqual(params[5], "verified")
+        self.assertEqual(payload["_metadata"]["source"], "Battle.net Game Data API")
+        self.assertEqual(payload["_metadata"]["locale"], "zh_CN")
+        self.assertEqual(payload["_metadata"]["englishName"], "Sin'dorei Band of Hope")
+        self.assertEqual(payload["displayName"], "辛多雷希望指环")
+        self.assertEqual(payload["localizedName"], "辛多雷希望指环")
+        self.assertEqual(payload["iconUrl"], "https://render.worldofwarcraft.com/us/icons/56/inv_jewelry_ring_01.jpg")
+        self.assertTrue(conn.committed)
+
+    def test_community_gear_template_item_metadata_gaps_finds_sparse_pg_rows(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "observed_profile_mage_frost",
+                        "mage",
+                        "frost",
+                        "raiderio_observed_profile",
+                        "complete",
+                        [
+                            {"slot": "finger2", "itemId": "249919", "name": "sindorei_band_of_hope"},
+                            {"slot": "head", "itemId": "250060", "name": "虚空粉碎者的面纱"},
+                        ],
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    ("249919", "Sin'dorei Band of Hope", "finger1", None, {}, "verified"),
+                    (
+                        "250060",
+                        "虚空粉碎者的面纱",
+                        "head",
+                        None,
+                        {
+                            "name": "虚空粉碎者的面纱",
+                            "displayName": "虚空粉碎者的面纱",
+                            "iconUrl": "https://render.worldofwarcraft.com/us/icons/56/inv_helm.jpg",
+                            "inventory_type": {"type": "HEAD"},
+                            "item_class": {"id": 4},
+                            "_metadata": {"source": "Battle.net Game Data API"},
+                        },
+                        "verified",
+                    ),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        gaps = store.community_gear_template_item_metadata_gaps(limit=20)
+
+        self.assertEqual(len(gaps), 1)
+        self.assertEqual(gaps[0]["itemId"], "249919")
+        self.assertEqual(gaps[0]["slot"], "finger2")
+        self.assertIn("missing_official_payload_shape", gaps[0]["reasons"])
+        self.assertIn("missing_icon", gaps[0]["reasons"])
+        self.assertEqual(gaps[0]["templates"][0]["templateId"], "observed_profile_mage_frost")
+
+    def test_websim_item_metadata_gaps_finds_used_sparse_item_rows(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "WITH item_usage AS": [
+                    ("263193", "Trollhunter's Bands", "wrist", {}, "verified", 11),
+                    (
+                        "250060",
+                        "虚空粉碎者的面纱",
+                        "head",
+                        {
+                            "name": "虚空粉碎者的面纱",
+                            "displayName": "虚空粉碎者的面纱",
+                            "iconUrl": "https://render.worldofwarcraft.com/us/icons/56/inv_helm.jpg",
+                            "inventory_type": {"type": "HEAD"},
+                            "item_class": {"id": 4},
+                            "_metadata": {"source": "Battle.net Game Data API"},
+                        },
+                        "verified",
+                        8,
+                    ),
+                ]
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        gaps = store.websim_item_metadata_gaps(limit=20)
+
+        self.assertEqual(len(gaps), 1)
+        self.assertEqual(gaps[0]["itemId"], "263193")
+        self.assertEqual(gaps[0]["slot"], "wrist")
+        self.assertEqual(gaps[0]["usageCount"], 11)
+        self.assertIn("missing_official_payload_shape", gaps[0]["reasons"])
+        self.assertIn("missing_icon", gaps[0]["reasons"])
 
     def test_postgres_observed_backfill_uses_simc_json_stats_not_raiderio_stats(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -3909,6 +4377,134 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(templates[0]["scanRunId"], "scan-a")
         self.assertIn("FROM cache.websim_profile_presets", sql)
 
+    def test_build_season_recommended_gear_templates_uses_complete_community_winners(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        gear_items = [
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(310000 + index),
+                "id": str(310000 + index),
+                "name": f"community_{slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+            }
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)
+        ]
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "community-mage-frost",
+                        "mage",
+                        "frost",
+                        "Raider.IO 观测装备 · 法师冰霜",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "",
+                        "synced",
+                        "complete",
+                        "community-signature",
+                        [{"sourceKey": "raiderio_observed_profile"}],
+                        gear_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in gear_items),
+                        16,
+                        [],
+                        "community winner",
+                        {"templateSlot": "community_best"},
+                        "2026-07-06T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "talent-mage-frost-frostfire",
+                        "mage",
+                        "frost",
+                        "frostfire",
+                        "raiderio",
+                        "Raider.IO",
+                        "verified",
+                        "verified",
+                        {"evidenceTier": "verified"},
+                        "2026-07-06T00:00:00+00:00",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_season_recommended_gear_templates(scan_run_id="season-rec-test")
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0]["sourceKey"], "season_recommendation")
+        self.assertEqual(templates[0]["sourceName"], "当前赛季大秘境 AOE 推荐模板")
+        self.assertEqual(templates[0]["status"], "complete")
+        self.assertEqual(templates[0]["readySlotCount"], 16)
+        self.assertEqual(templates[0]["payload"]["templateSlot"], "baseline")
+        self.assertEqual(templates[0]["payload"]["templateEvidence"]["seedTemplateId"], "community-mage-frost")
+        self.assertEqual(templates[0]["payload"]["templateEvidence"]["talentAnchor"]["heroKey"], "frostfire")
+        self.assertIn("FROM cache.websim_community_gear_templates", sql)
+
+    def test_build_season_recommended_gear_templates_blocks_without_talent_anchor(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        gear_items = [
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(320000 + index),
+                "id": str(320000 + index),
+                "name": f"community_{slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+            }
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)
+        ]
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "community-mage-frost",
+                        "mage",
+                        "frost",
+                        "Raider.IO 观测装备 · 法师冰霜",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "",
+                        "synced",
+                        "complete",
+                        "community-signature",
+                        [{"sourceKey": "raiderio_observed_profile"}],
+                        gear_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in gear_items),
+                        16,
+                        [],
+                        "community winner",
+                        {"templateSlot": "community_best"},
+                        "2026-07-06T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_talent_templates": [],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_season_recommended_gear_templates(scan_run_id="season-rec-test")
+
+        self.assertEqual(templates, [])
+
     def test_build_community_gear_templates_uses_trusted_observed_variants(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -4114,6 +4710,10 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("INSERT INTO cache.websim_encounters", sql)
         self.assertIn("INSERT INTO cache.websim_items", sql)
         self.assertIn("INSERT INTO cache.websim_loot", sql)
+        self.assertIn("cache.websim_items.payload_json #>> '{_metadata,source}'", sql)
+        self.assertIn("cache.websim_items.payload_json ? 'inventory_type'", sql)
+        self.assertIn("cache.websim_items.payload_json ? 'item_class'", sql)
+        self.assertIn("THEN cache.websim_items.payload_json", sql)
 
     def test_postgres_native_gear_catalog_writer_derives_loot_sources(self):
         from server.postgres_cache_store import PostgresCacheStore

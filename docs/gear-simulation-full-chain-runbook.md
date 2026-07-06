@@ -1,7 +1,7 @@
 # 装备模拟全链路 Runbook
 
 > 适用范围：`/api/websim/gear` 装备模拟读模型、装备自建数据库、装备强化配置、制造业装备、全职业专精装备适配、前端展示、SimC profile serializer、生产刷新和回滚。
-> 最后更新：2026-06-29。
+> 最后更新：2026-07-06。
 
 本文是下一次大版本或赛季装备更新的执行手册。目标不是记录某一次修复，而是把“从上游 API 到线上 UI 和可执行 SimC profile”的完整链路固化成可复用流程。任何新版本装备更新，都应先按本文确认数据入口、证据门禁、审计 SQL、健康指标、全职业专精适配和回滚边界，再做写库或部署。
 
@@ -12,7 +12,8 @@
 - Backend-owned contract：前端只消费 `/api/websim/gear` 的结构化 payload，不按物品名、附魔名、职业名或 ID 打补丁。
 - Serializer fail-closed：即使前端提交了 stale 或不兼容的 `gearBySlot` / `enhancementBySlot`，后端 `merge_websim_gear_enhancements` 也必须阻断，而不是生成错误 SimC gear line。
 - 全职业覆盖：装备候选、武器栏位、护甲类型、主属性、制造业属性搭配、附魔/美化选项，都必须按 40 个职业专精矩阵验证。
-- 默认模板诚实展示：`default_template / 默认模板` 只能作为社区装备样本不足时的兜底导入入口，不是 Raider.IO/WCL 玩家样本，不是 BiS，不输出强度结论。
+- 推荐模板诚实展示：`season_recommendation / 当前赛季大秘境 AOE 推荐模板` 是社区导入里的 `baseline` 子类，不是 Raider.IO/WCL 玩家样本，不是绝对 BiS；首版可 `status=complete` 但 `recommendationConfidence=provisional`，后续只有经过 SimC optimizer 或角色专属目标函数验证后才能升级为 `verified`。
+- 默认模板兼容保留：`default_template / 默认模板` 只能作为 legacy fallback/诊断来源，`season_recommendation` 可用时不得作为首选 baseline。
 - 完整状态拆分：装备模板 `status=complete` 只表示 16 个 canonical 槽位完整且 SimC serializer 可执行；宝石、附魔、美化和 `crafted_stats` readiness 必须通过独立 `enhancementReadiness` 表达。
 - 可回滚：任何生产写库前必须备份实际写入的 PostgreSQL target，并保留历史 SQLite 文件备份作为迁移/审计证据。当前 runtime 必须是 `WOW_DATABASE_RUNTIME=postgres_only`；SQLite 不能作为线上 fallback 或健康判断来源。任何代码部署前必须能区分“代码回滚”和“DB 回滚”。
 - 不下载不写入：拉取远端数据、下载外部文件、生产 SSH/DB 写入、Wago/SimC 数据刷新，都必须先取得 owner 明确批准。
@@ -90,7 +91,8 @@ flowchart TD
 | Compact payload | `compact_gear_candidate`、`compact_crafted_gear_variants`、`display_ready_gear_mod_options_by_slot` | 输出小程序显示字段，折叠制造业属性选项，过滤不可展示强化项 |
 | Serializer | `merge_websim_gear_enhancements`、`build_websim_profile_response` | 校验 saved snapshot，生成 SimC-ready profile 或 blockers |
 | Stat snapshot | `build_websim_gear_stats_response`、`backfill_simcraft_template_detail_stat_snapshot` | 用结构化 gear/talent 上下文生成 verified 角色属性快照，供 SimC 模板确认页和任务详情展示 |
-| Default templates | `sync_community_gear_templates`、`build_default_community_gear_template` | 用 verified 当前赛季候选和 verified `mplus_mixed_route` 绿字权重生成 `默认模板` 兜底，并把缺证据专精写入 sync run / health |
+| Season recommended templates | `server/season_recommended_gear_sync.py`、`sync_season_recommended_gear_postgres`、`build_season_recommended_gear_templates` | 生成 `season_recommendation` 基线模板，写入社区导入 `baseline` 子类，并在 health 暴露 `seasonRecommendation` / `communityImportTemplates` 覆盖率 |
+| Default templates | `sync_community_gear_templates`、`build_default_community_gear_template` | legacy fallback：用 verified 当前赛季候选和 verified `mplus_mixed_route` 绿字权重生成 `默认模板` 兜底，并把缺证据专精写入 sync run / health |
 | API | `server/news_backend.py` | `/api/websim/gear`、`/api/websim/profile`、`/api/data/health` |
 | Frontend | `pages/builds/detail.*` | 装备栏、候选 sheet、详情、强化配置、保存模板；只消费后端结构化字段 |
 
@@ -178,9 +180,33 @@ order by option_type, status;
 12. `sync_blizzard_gear_mod_option_metadata`：补齐宝石等 option 的 item metadata。
 13. `sync_websim_gear_catalog`：重建 catalog 健康快照。
 14. `sync_community_gear_templates`：归档真实装备样本 / SimC preset 后生成默认装备模板；缺证据时只写 blocker，不落库兜底模板。
-15. `/api/data/health`：发布前最终审计。
+15. `server/season_recommended_gear_sync.py` 或 `wow-season-recommended-gear-sync.service`：生成 `season_recommendation`，目标是 40/40 个 `baseline` 子类模板。
+16. `/api/data/health`：发布前最终审计。
 
 除非在事故修复中明确隔离范围，否则不要跳过最后的 catalog rebuild 和 health 复核。
+
+### 当前赛季推荐装备模板生成门禁
+
+`season_recommendation` 是装备导入中“社区模板”分组下的兜底基线子类，和真实社区装备 winner 分开计数：
+
+- 真实社区装备 `community_best` 必须达到 `40/40`。
+- 推荐基线 `baseline` 必须达到 `40/40`。
+- `/api/data/health` 的 `communityImportTemplates.coveredTemplateSlotCount` 必须达到 `80/80`，`missingTemplateSlotCount=0`。
+
+首版生成器只消费当前生产 PostgreSQL read model，不触发外部下载：
+
+- 输入：`cache.websim_community_gear_templates` 中当前可用、完整、非 baseline-like 的真实社区装备 winner；`cache.websim_community_talent_templates` 中 verified Raider.IO / WCL 天赋锚点；官方 metadata hydration 后的 16 槽装备 display/SimC 字段。
+- 输出：`sourceKey=season_recommendation`、`sourceName=当前赛季大秘境 AOE 推荐模板`、`templateSlot=baseline`、`scenarioKey=mplus_aoe`、`status=complete`、`readySlotCount=16`、`canApplyGear=true`。
+- 首版质量语义：`recommendationConfidence=provisional`；它是当前赛季可导入起点，不是绝对 BiS。后续只有接入 SimC optimizer / role-specific objective 并记录 candidate ledger、score、runtime revision 后，才可把具体专精升级为 `verified`。
+- 失败处理：缺真实社区 winner、缺 verified 天赋锚点、缺槽、serializer 无法生成 16 行或 metadata 不 display-ready 时，不写 complete `season_recommendation`，必须在 sync run / health blocker 中暴露 class/spec 和缺口。
+- 运行入口：部署后可手动执行 `sudo systemctl start wow-season-recommended-gear-sync.service`；该服务是 one-shot，不默认自动启动。CLI 入口为 `WOW_DATABASE_RUNTIME=postgres_only python3 server/season_recommended_gear_sync.py`。
+
+2026-07-06 首版生产验收：
+
+- `wow-season-recommended-gear-sync.service` 执行成功，`scanRunId=season-recommended-gear-20260706T100215Z`。
+- 生产 PG active row：`season_recommendation|complete|40 rows|40 specs`，`ready_slot_count=16`。
+- `/api/data/health`：`communityImportTemplates=80/80 missing=0`，`seasonRecommendation=40/40 provisional=40 blocked=0`。
+- 线上 40 专精 `/api/websim/gear?compact=1&mode=initial` 巡检：`checkedSpecs=40`、`failureCount=0`；每个专精都有真实社区模板 + `season_recommendation` 基线模板，16 槽可导入，未发现缺中文名或图标。
 
 ### 默认装备模板生成门禁
 
@@ -412,6 +438,66 @@ Unsupported / excluded：
 - `item set pieces missing gear catalog source`：item-set detail 已有，但装备 source 缺失。
 - `mod option excluded`：确认 exclusionReason 是否合理；合理则记录，不合理再修分类。
 - `weaponRuleCoverage missing`：新增/改动职业专精后必须补规则和测试。
+
+### 定向物品 metadata 缺口补齐
+
+当线上装备模板或替换候选出现物品英文 slug、无中文名、无图标，且 `cache.websim_items` 里对应 item 行缺少 `displayName/localizedName/iconUrl/inventory_type/item_class` 或 `_metadata.source=Battle.net Game Data API` 时，不要手工 UPDATE，也不要重跑整条 WebSim 大同步。使用定向刷新入口只补缺口 item。
+
+社区装备模板缺口优先用模板扫描：
+
+```bash
+cd /opt/wow-mini-program
+sudo env PGPASSFILE=/home/ubuntu/.pgpass python3 server/item_metadata_refresh.py \
+  --env-file /etc/wow-backend.env \
+  --from-community-template-gaps \
+  --limit 50 \
+  --dry-run
+
+sudo env PGPASSFILE=/home/ubuntu/.pgpass python3 server/item_metadata_refresh.py \
+  --env-file /etc/wow-backend.env \
+  --from-community-template-gaps \
+  --limit 50
+```
+
+替换候选或制造业候选里仍有缺口时，用候选物品池扫描。该入口只扫描被 `websim_gear_variants` / `websim_gear_sources` 引用且缺官方物品结构、显示名或图标的 `websim_items` 行：
+
+```bash
+sudo env PGPASSFILE=/home/ubuntu/.pgpass python3 server/item_metadata_refresh.py \
+  --env-file /etc/wow-backend.env \
+  --from-websim-item-gaps \
+  --limit 250 \
+  --dry-run
+
+sudo env PGPASSFILE=/home/ubuntu/.pgpass python3 server/item_metadata_refresh.py \
+  --env-file /etc/wow-backend.env \
+  --from-websim-item-gaps \
+  --limit 250
+```
+
+也可以只补指定 item：
+
+```bash
+sudo env PGPASSFILE=/home/ubuntu/.pgpass python3 server/item_metadata_refresh.py \
+  --env-file /etc/wow-backend.env \
+  --item-id 249919 \
+  --item-id 249343 \
+  --item-id 249346
+```
+
+执行前仍要备份实际写入的 PostgreSQL target。脚本会使用 Battle.net 凭据按 `zh_CN` 拉 `/data/wow/item/{id}` 和 `/data/wow/media/item/{id}`，写回 `cache.websim_items.payload_json`，并记录 `item_metadata_refresh` sync state。刷新后至少复核：
+
+```bash
+curl -fsS "$BASE_URL/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial"
+curl -fsS "$BASE_URL/api/websim/gear?class=mage&spec=frost&compact=1&mode=slot&slot=legs"
+curl -fsS "$BASE_URL/api/data/health"
+```
+
+验收口径：
+
+- 模板 `gearItems` 不再出现空名称或 SimC slug。
+- `iconUrl` 缺口归零；若 Battle.net 本身没有 media，需要在输出 `errors` / `missingIcon` 中保留 itemId。
+- 附魔/宝石/美化中文展示仍来自 mod option display catalog，不用该脚本补。
+- 定向 metadata 只能证明物品名称、图标、slot、类型等官方元数据，不证明某个装等/bonus/gem/enchant 变体 SimC-ready。
 
 ## 生产更新快路径
 

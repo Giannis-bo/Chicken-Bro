@@ -16,10 +16,14 @@ class FakePostgresSyncStore:
         self.observed_backfills = []
         self.crafted_backfills = []
         self.gear_template_candidates = []
+        self.season_recommended_gear_templates = []
         self.expired_talent_source_keys = []
         self.saved_raiderio_payloads = []
         self.coverage_rows = []
         self.talent_replace_target_slot_ids = None
+        self.saved_item_metadata = []
+        self.metadata_gaps = []
+        self.item_metadata_gaps = []
 
     def replace_simc_generated_data(self, data):
         self.replaced_data = data
@@ -93,6 +97,9 @@ class FakePostgresSyncStore:
     def build_community_gear_templates(self, scan_run_id=""):
         return self.gear_template_candidates
 
+    def build_season_recommended_gear_templates(self, scan_run_id=""):
+        return list(self.season_recommended_gear_templates)
+
     def backfill_observed_gear_from_raiderio(
         self,
         raiderio_payload,
@@ -153,6 +160,47 @@ class FakePostgresSyncStore:
     def save_sync_state(self, key, value, updated_at=""):
         self.saved_states.append((key, value, updated_at))
         return {"ok": True}
+
+    def save_websim_item_metadata(
+        self,
+        item_id,
+        item_payload,
+        media_payload=None,
+        *,
+        fallback_slot="",
+        fallback_name="",
+        english_payload=None,
+        locale="zh_CN",
+        source="Battle.net Game Data API",
+    ):
+        saved = {
+            "itemId": str(item_id),
+            "displayName": item_payload.get("name") or fallback_name or f"Item {item_id}",
+            "slot": fallback_slot,
+            "iconUrl": ((media_payload or {}).get("assets") or [{}])[0].get("value") or "",
+            "metadataSource": source,
+            "metadataLocale": locale,
+            "englishName": (english_payload or {}).get("name") or "",
+        }
+        self.saved_item_metadata.append(
+            {
+                "itemId": str(item_id),
+                "itemPayload": dict(item_payload or {}),
+                "mediaPayload": dict(media_payload or {}),
+                "fallbackSlot": fallback_slot,
+                "fallbackName": fallback_name,
+                "englishPayload": dict(english_payload or {}),
+                "locale": locale,
+                "source": source,
+            }
+        )
+        return saved
+
+    def community_gear_template_item_metadata_gaps(self, limit=200):
+        return list(self.metadata_gaps[:limit])
+
+    def websim_item_metadata_gaps(self, limit=200):
+        return list(self.item_metadata_gaps[:limit])
 
 
 class PostgresCacheSyncTest(unittest.TestCase):
@@ -276,6 +324,104 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(payload["blizzard"]["runner"], "postgres")
         self.assertEqual(payload["blizzard"]["loot"], 1)
         self.assertEqual(payload["gearCatalog"]["sourceCount"], 1)
+
+    def test_refresh_websim_item_metadata_postgres_fetches_and_writes_item_ids(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        refs = [{"itemId": "249919", "name": "Sin'dorei Band of Hope", "slot": "finger2"}]
+
+        def fake_fetch(token, item_id, region="us", locale="zh_CN", fallback_name="", fallback_slot=""):
+            self.assertEqual(token, "token")
+            self.assertEqual(item_id, "249919")
+            self.assertEqual(fallback_name, "Sin'dorei Band of Hope")
+            self.assertEqual(fallback_slot, "finger2")
+            return {
+                "itemId": "249919",
+                "payload": {"id": 249919, "name": "辛多雷希望指环"},
+                "media": {"assets": [{"key": "icon", "value": "https://render.worldofwarcraft.com/us/icons/56/inv_ring.jpg"}]},
+                "englishPayload": {"name": "Sin'dorei Band of Hope"},
+                "locale": "zh_CN",
+                "fallbackName": fallback_name,
+                "fallbackSlot": fallback_slot,
+            }
+
+        with patch.object(postgres_cache_sync, "fetch_blizzard_item_metadata", side_effect=fake_fetch):
+            payload = postgres_cache_sync.refresh_websim_item_metadata_postgres(refs, token="token", store=store)
+
+        self.assertEqual(payload["runner"], "postgres")
+        self.assertEqual(payload["requested"], 1)
+        self.assertEqual(payload["items"], 1)
+        self.assertEqual(payload["errors"], [])
+        self.assertEqual(store.saved_item_metadata[0]["itemId"], "249919")
+        self.assertEqual(store.saved_item_metadata[0]["fallbackSlot"], "finger2")
+        self.assertEqual(store.saved_states[-1][0], "item_metadata_refresh")
+
+    def test_refresh_websim_item_metadata_postgres_can_use_template_gap_audit(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.metadata_gaps = [
+            {
+                "itemId": "249343",
+                "name": "Gaze of the Alnseer",
+                "slot": "trinket1",
+                "reasons": ["missing_icon"],
+            }
+        ]
+
+        with patch.object(
+            postgres_cache_sync,
+            "fetch_blizzard_item_metadata",
+            return_value={
+                "itemId": "249343",
+                "payload": {"id": 249343, "name": "艾尔西尔的凝视"},
+                "media": {"assets": [{"key": "icon", "value": "https://render.worldofwarcraft.com/us/icons/56/inv_trinket.jpg"}]},
+                "englishPayload": {"name": "Gaze of the Alnseer"},
+                "locale": "zh_CN",
+                "fallbackName": "Gaze of the Alnseer",
+                "fallbackSlot": "trinket1",
+            },
+        ):
+            payload = postgres_cache_sync.refresh_websim_item_metadata_gaps_postgres(limit=10, token="token", store=store)
+
+        self.assertEqual(payload["gapCount"], 1)
+        self.assertEqual(payload["items"], 1)
+        self.assertEqual(store.saved_item_metadata[0]["itemId"], "249343")
+
+    def test_refresh_websim_item_metadata_postgres_can_use_item_gap_audit(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.item_metadata_gaps = [
+            {
+                "itemId": "263193",
+                "name": "Trollhunter's Bands",
+                "slot": "wrist",
+                "reasons": ["missing_icon", "missing_official_payload_shape"],
+                "usageCount": 11,
+            }
+        ]
+
+        with patch.object(
+            postgres_cache_sync,
+            "fetch_blizzard_item_metadata",
+            return_value={
+                "itemId": "263193",
+                "payload": {"id": 263193, "name": "巨魔猎手腕带"},
+                "media": {"assets": [{"key": "icon", "value": "https://render.worldofwarcraft.com/us/icons/56/inv_bracer.jpg"}]},
+                "englishPayload": {"name": "Trollhunter's Bands"},
+                "locale": "zh_CN",
+                "fallbackName": "Trollhunter's Bands",
+                "fallbackSlot": "wrist",
+            },
+        ):
+            payload = postgres_cache_sync.refresh_websim_item_metadata_item_gaps_postgres(limit=10, token="token", store=store)
+
+        self.assertEqual(payload["gapCount"], 1)
+        self.assertEqual(payload["items"], 1)
+        self.assertEqual(payload["gaps"][0]["usageCount"], 11)
+        self.assertEqual(store.saved_item_metadata[0]["itemId"], "263193")
 
     def test_community_postgres_sync_saves_legacy_compatible_talent_state(self):
         from server import postgres_cache_sync
@@ -1342,8 +1488,16 @@ class PostgresCacheSyncTest(unittest.TestCase):
 
         preflight = payload["gear"]["preflight"]
         self.assertEqual(preflight["schemaRevision"], "community-gear-template-preflight-v1")
+        self.assertEqual(preflight["status"], "partial")
         self.assertEqual(preflight["totalSpecCount"], 2)
         self.assertEqual(preflight["totalDisplaySlotCount"], 4)
+        self.assertEqual(preflight["communityImport"]["status"], "partial")
+        self.assertEqual(preflight["communityImport"]["totalTemplateSlotCount"], 4)
+        self.assertEqual(preflight["communityImport"]["coveredTemplateSlotCount"], 1)
+        self.assertEqual(preflight["communityImport"]["missingTemplateSlotCount"], 3)
+        self.assertEqual(preflight["communityImport"]["realCommunityCompleteSpecCount"], 0)
+        self.assertEqual(preflight["communityImport"]["baselineAvailableSpecCount"], 1)
+        self.assertIn("80/80", preflight["communityImport"]["countingPolicy"])
         self.assertEqual(preflight["canonicalSlotMatrix"]["totalSlotCount"], 4)
         self.assertEqual(preflight["canonicalSlotMatrix"]["readySlotCount"], 1)
         self.assertEqual(preflight["canonicalSlotMatrix"]["missingSlotCount"], 3)
@@ -1375,6 +1529,46 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(payload["gear"]["realCommunityTemplates"]["missingSpecCount"], 2)
         self.assertEqual(payload["gear"]["realCommunityTemplates"]["missingSpecs"], ["mage:frost", "deathknight:unholy"])
         self.assertEqual(payload["gear"]["baselineTemplates"]["availableSpecCount"], 1)
+
+    def test_season_recommended_gear_sync_writes_templates_and_state(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.season_recommended_gear_templates = [
+            {
+                "id": "season-rec-mage-frost",
+                "classKey": "mage",
+                "specKey": "frost",
+                "sourceKey": "season_recommendation",
+                "sourceName": "当前赛季大秘境 AOE 推荐模板",
+                "sourceStatus": "synced",
+                "status": "complete",
+                "readySlotCount": 16,
+                "missingSlots": [],
+                "gearItems": [],
+                "rawString": "head=test,id=1",
+                "payload": {
+                    "templateSlot": "baseline",
+                    "templateEvidence": {"recommendationConfidence": "provisional"},
+                },
+            }
+        ]
+
+        with patch.object(postgres_cache_sync, "utc_now", return_value="2026-07-06T09:44:36+00:00"):
+            result = postgres_cache_sync.sync_season_recommended_gear_postgres(
+                mode="manual",
+                store=store,
+            )
+
+        self.assertEqual(result["runner"], "postgres")
+        self.assertEqual(result["sourceKey"], "season_recommendation")
+        self.assertEqual(result["scanRunId"], "season-recommended-gear-20260706T094436Z")
+        self.assertEqual(result["completeSpecCount"], 1)
+        self.assertEqual(result["provisionalSpecCount"], 1)
+        self.assertEqual(store.community_gear_templates[0]["sourceKey"], "season_recommendation")
+        saved = {key: value for key, value, _updated_at in store.saved_states}
+        self.assertIn("season_recommended_gear_sync", saved)
+        self.assertEqual(saved["season_recommended_gear_sync"]["completeSpecCount"], 1)
 
     def test_gear_preflight_refreshes_stale_complete_community_winner_without_breaking_coverage(self):
         from server import postgres_cache_sync
