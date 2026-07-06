@@ -20,6 +20,18 @@
 
 本设计只记录总控清单和门禁，不执行代码实现、不采集数据、不写库、不切换线上 pointer。
 
+## 2026-07-06 Implementation Evidence
+
+首个实现阶段已完成只读控制面骨架，不采集 12.1 PTR 数据、不写入 S2 catalog、不切换 active pointer。
+
+- `/api/data/health` 新增 `season_cutover_readiness` component，聚合 active retail manifest、staging/PTR manifests、gear/talent/SimC/community/stat weight/Chickenbro/terminology revision bindings、正式读策略、历史资产策略和 top blockers。
+- 正式读策略固定为 `active_retail_manifest`，`allowClientSeasonOverride=false`；PTR/staging manifest 只作为 `internal_only` readiness 状态暴露。
+- SimC runtime manifest 扩展 `simcRuntimeRevision`、`sourceCommit`、`artifactHash`、`binaryPath`、`channel`、`status`，用于后续 active/staging runtime pointer 审计。
+- 12.1 Catalyst 专项字段 `redirected_base_stats` 已进入后端 SimC gear option allowlist；未知 gear option 仍不会进入 `simcOptions`。
+- 术语最小门禁先以后端 fixture 记录 `spellslinger -> 疾咒师`，并将“法术投射者”保留为历史 alias，不作为 canonical display。
+
+实现与测试证据：`server/news_backend.py`、`server/simulator_payload.py`、`server/websim_payload.py`、`tests/news_backend_test.py`。
+
 ## 核心目标
 
 12.1 cutover 的目标是保证正式小程序在任意时刻只处于两种可信状态之一：
