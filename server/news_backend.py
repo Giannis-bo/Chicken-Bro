@@ -6737,7 +6737,7 @@ def websim_gear_payload_for_mode(payload, mode="", slot=""):
     return payload
 
 
-def runtime_websim_gear_payload(class_key, spec_key, compact=False):
+def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slot=""):
     store = cache_data_store()
     allow_sqlite_fallback = (
         os.environ.get("WOW_ALLOW_SQLITE_PUBLIC_CACHE_FALLBACK") == "1"
@@ -6745,7 +6745,12 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False):
     )
     if store:
         try:
-            payload = store.get_websim_gear(class_key, spec_key, compact=compact)
+            try:
+                payload = store.get_websim_gear(class_key, spec_key, compact=compact, mode=mode, slot=slot)
+            except TypeError as exc:
+                if "unexpected keyword" not in str(exc):
+                    raise
+                payload = store.get_websim_gear(class_key, spec_key, compact=compact)
         except Exception:
             payload = {}
         if postgres_only_runtime_enabled():
@@ -11244,7 +11249,13 @@ class Handler(BaseHTTPRequestHandler):
             slot = query.get("slot", [""])[0]
 
             def build_payload():
-                payload = runtime_websim_gear_payload(class_key, spec_key, compact=compact)
+                payload = runtime_websim_gear_payload(
+                    class_key,
+                    spec_key,
+                    compact=compact,
+                    mode=mode,
+                    slot=slot,
+                )
                 return websim_gear_payload_for_mode(payload, mode=mode, slot=slot)
 
             json_response(self, 200, run_websim_gear_build(build_payload))

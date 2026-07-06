@@ -1426,6 +1426,90 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(len(mod_option_build_queries), 1)
         self.assertEqual(len(item_build_queries), 1)
 
+    def test_websim_gear_initial_mode_uses_lightweight_template_read(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        template_payload = {
+            "templateSlot": "baseline",
+            "templateEvidence": {"recommendationConfidence": "provisional"},
+        }
+        gear_items = [
+            {
+                "slot": "head",
+                "simcSlot": "head",
+                "itemId": "item-head",
+                "id": "item-head",
+                "name": "Initial Hood",
+                "iconUrl": "https://render.worldofwarcraft.com/icon.jpg",
+                "simcReady": True,
+            }
+        ]
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "status": "verified",
+                            "schemaRevision": "gear-catalog-test",
+                            "blockers": [],
+                            "checkedAt": "2026-06-28T01:01:00+00:00",
+                        },
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "season-rec-mage-frost",
+                        "mage",
+                        "frost",
+                        "当前赛季大秘境 AOE 推荐模板",
+                        "season_recommendation",
+                        "当前赛季大秘境 AOE 推荐模板",
+                        "",
+                        "synced",
+                        "complete",
+                        "sig-season-rec",
+                        [{"type": "season_recommendation"}],
+                        gear_items,
+                        "head=initial_hood,id=item-head",
+                        16,
+                        [],
+                        "current-season",
+                        template_payload,
+                        "2026-07-06T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "season-rec-run",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("mage", "frost", compact=True, mode="initial")
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(payload["gearPayloadMode"], "initial")
+        self.assertEqual(payload["baselineTemplates"][0]["sourceKey"], "season_recommendation")
+        self.assertEqual(payload["baselineTemplates"][0]["readySlotCount"], 16)
+        self.assertEqual(len(payload["replacementCandidates"]), 16)
+        self.assertNotIn("FROM cache.websim_gear_sources", sql)
+        self.assertNotIn("FROM cache.websim_gear_variants", sql)
+        self.assertNotIn("FROM cache.websim_gear_mod_options", sql)
+
     def test_talent_read_model_uses_cache_schema_rows(self):
         from server.postgres_cache_store import PostgresCacheStore
 

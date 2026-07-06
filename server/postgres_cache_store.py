@@ -4199,7 +4199,7 @@ class PostgresCacheStore:
                     result[slot].append(option)
         return result
 
-    def _gear_payload_fingerprint(self, cur, class_key, spec_key, compact, season, catalog_state):
+    def _gear_payload_fingerprint(self, cur, class_key, spec_key, compact, season, catalog_state, mode="", slot=""):
         cur.execute(
             """
             /* gear_payload_fingerprint */
@@ -4225,10 +4225,12 @@ class PostgresCacheStore:
             for row in cur.fetchall()
         )
         return (
-            "pg-websim-gear-v3",
+            "pg-websim-gear-v4",
             class_key,
             spec_key,
             bool(compact),
+            str(mode or "").strip().lower(),
+            str(slot or "").strip().lower(),
             season.get("seasonRevision") or season.get("revision") or "",
             catalog_state.get("updatedAt") or catalog_state.get("checkedAt") or "",
             catalog_state.get("status") or catalog_state.get("sourceStatus") or "",
@@ -4240,6 +4242,123 @@ class PostgresCacheStore:
             tuple(str(item) for item in (season.get("errors") or [])),
             table_rows,
         )
+
+    def _compact_initial_gear_item(self, item, compact=False):
+        items = compact_gear_candidates([item], include_mod_options=False) if compact else [dict(item)]
+        if not items:
+            return {}
+        output = dict(items[0])
+        output["detailMode"] = "summary"
+        output["slotDetailAvailable"] = True
+        return output
+
+    def _template_gear_by_slot(self, template, compact=False):
+        result = {}
+        for item in template.get("gearItems") or []:
+            if not isinstance(item, dict):
+                continue
+            slot = normalize_slot(item.get("simcSlot") or item.get("slot"))
+            if slot in CANONICAL_GEAR_SLOTS and slot not in result:
+                initial_item = self._compact_initial_gear_item(item, compact=compact)
+                if initial_item:
+                    result[slot] = initial_item
+        return result
+
+    def _websim_gear_initial_payload(
+        self,
+        class_key,
+        spec_key,
+        compact,
+        season,
+        season_fields,
+        catalog_state,
+        catalog_blockers,
+        persisted_templates,
+    ):
+        community_templates = select_community_best_gear_templates(
+            [template for template in persisted_templates if is_real_community_gear_template(template)],
+            class_key,
+            spec_key,
+        )
+        baseline_templates = select_best_baseline_gear_templates(
+            [template for template in persisted_templates if is_baseline_gear_template(template)]
+        )
+        if not baseline_templates:
+            baseline_templates = [blocked_baseline_gear_template(class_key, spec_key)]
+        baseline_template = baseline_templates[0] if baseline_templates else {}
+        baseline_items = baseline_template.get("gearItems") or []
+        equipped_set = self._template_gear_by_slot(baseline_template, compact=compact)
+        slot_groups = []
+        for slot in CANONICAL_GEAR_SLOTS:
+            item = equipped_set.get(slot)
+            slot_groups.append(
+                {
+                    "slot": slot,
+                    "simcSlot": slot,
+                    "label": GEAR_SLOT_LABELS.get(slot, slot),
+                    "items": [item] if item else [],
+                    "detailMode": "partial",
+                    "fullItemCount": 1 if item else 0,
+                }
+            )
+        output_baseline_set = compact_gear_candidates(baseline_items, include_mod_options=False) if compact else baseline_items
+        output_community_templates = (
+            [compact_community_gear_template(template) for template in community_templates]
+            if compact
+            else community_templates
+        )
+        output_baseline_templates = (
+            [compact_community_gear_template(template) for template in baseline_templates]
+            if compact
+            else baseline_templates
+        )
+        readiness = gear_readiness(baseline_items)
+        payload = {
+            "classKey": class_key,
+            "specKey": spec_key,
+            "gearPayloadMode": "initial",
+            "gearInitialCandidateLimit": 1,
+            "weaponRule": weapon_equipment_rule_payload(class_key, spec_key),
+            "slots": gear_slot_payload(),
+            "replacementCandidates": slot_groups,
+            "equippedSet": equipped_set,
+            "slotReadiness": gear_slot_readiness(baseline_items, class_key, spec_key),
+            "baselineSet": output_baseline_set,
+            "communityTemplates": output_community_templates,
+            "baselineTemplates": output_baseline_templates,
+            "communityTemplateSync": websim_gear_community_template_sync_state(
+                [*community_templates, *baseline_templates]
+            ),
+            "readiness": readiness,
+            "statSnapshot": blocked_stat_snapshot(
+                ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
+                class_key=class_key,
+                spec_key=spec_key,
+                gear_readiness_payload=readiness,
+            ),
+            "gearSchemaRevision": GEAR_SCHEMA_REVISION,
+            "gearCatalogRevision": catalog_state.get("schemaRevision") or GEAR_CATALOG_REVISION,
+            "catalogStatus": catalog_state.get("status") or "blocked",
+            "catalogHealthSummary": compact_catalog_health_summary(catalog_state),
+            "catalogCoverage": {
+                "slotCoverage": catalog_state.get("slotCoverage") or {},
+                "sourceCoverage": catalog_state.get("sourceCoverage") or {},
+                "observedVariantCount": catalog_state.get("observedVariantCount") or 0,
+                "verifiedObservedVariantCount": catalog_state.get("verifiedObservedVariantCount") or 0,
+                "verifiedVariantCount": catalog_state.get("verifiedCount") or 0,
+                "partialVariantCount": catalog_state.get("partialCount") or 0,
+                "blockedVariantCount": catalog_state.get("blockedCount") or 0,
+            },
+            "itemDatabaseRevision": catalog_state.get("itemDatabaseRevision") or "",
+            "variantRevision": catalog_state.get("variantRevision") or "",
+            "catalogCheckedAt": catalog_state.get("checkedAt") or catalog_state.get("updatedAt") or "",
+            "catalogBlockers": catalog_blockers,
+            "catalogItems": output_baseline_set[:120],
+            "maxLevel": websim_max_level(),
+            "checkedAt": utc_now(),
+            **season_fields,
+        }
+        return payload
 
     def _gear_catalog_items(self, item_rows, sources_by_item, variants_by_item, mod_options_by_slot, class_key, spec_key, season):
         catalog_items = []
@@ -4675,11 +4794,13 @@ class PostgresCacheStore:
             templates.append(template)
         return dedupe_gear_community_templates(templates)
 
-    def get_websim_gear(self, class_key="mage", spec_key="arcane", compact=False):
+    def get_websim_gear(self, class_key="mage", spec_key="arcane", compact=False, mode="", slot=""):
         season = self.get_active_season_payload()
         class_key = slugify(class_key, "mage")
         spec_key = slugify(spec_key, "arcane")
         compact = bool(compact)
+        mode = str(mode or "").strip().lower()
+        slot = normalize_slot(slot) if mode == "slot" else str(slot or "").strip().lower()
         season_fields = season_metadata_fields(season)
         catalog_state = self.get_sync_state("gearCatalog")
         season_errors = season.get("errors") if isinstance(season.get("errors"), list) else []
@@ -4687,10 +4808,33 @@ class PostgresCacheStore:
             *[str(item) for item in (catalog_state.get("blockers") or []) if str(item or "").strip()],
             *[str(item) for item in season_errors if str(item or "").strip()],
         ]
+        if mode == "initial":
+            with self.connection() as conn:
+                with conn.cursor() as cur:
+                    persisted_templates = self._gear_community_templates(cur, class_key, spec_key)
+            return self._websim_gear_initial_payload(
+                class_key,
+                spec_key,
+                compact,
+                season,
+                season_fields,
+                catalog_state,
+                catalog_blockers,
+                persisted_templates,
+            )
         cache_fingerprint = None
         with self.connection() as conn:
             with conn.cursor() as cur:
-                cache_fingerprint = self._gear_payload_fingerprint(cur, class_key, spec_key, compact, season, catalog_state)
+                cache_fingerprint = self._gear_payload_fingerprint(
+                    cur,
+                    class_key,
+                    spec_key,
+                    compact,
+                    season,
+                    catalog_state,
+                    mode=mode,
+                    slot=slot,
+                )
                 cached_payload = _pg_gear_payload_cache_get(cache_fingerprint)
                 if cached_payload is not None:
                     return cached_payload

@@ -8707,6 +8707,45 @@ class NewsBackendTest(unittest.TestCase):
 
         self.assertIs(payload, stale_payload)
 
+    def test_runtime_websim_gear_forwards_payload_mode_to_postgres_store(self):
+        captured = {}
+        initial_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "gearPayloadMode": "initial",
+            "replacementCandidates": [],
+        }
+
+        class ModeAwareGearStore:
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                captured.update(
+                    {
+                        "classKey": class_key,
+                        "specKey": spec_key,
+                        "compact": compact,
+                        "mode": mode,
+                        "slot": slot,
+                    }
+                )
+                return initial_payload
+
+        with patch.object(self.backend, "cache_data_store", return_value=ModeAwareGearStore()):
+            payload = self.backend.runtime_websim_gear_payload(
+                "mage",
+                "frost",
+                compact=True,
+                mode="initial",
+                slot="head",
+            )
+
+        self.assertIs(payload, initial_payload)
+        self.assertEqual(captured["classKey"], "mage")
+        self.assertEqual(captured["specKey"], "frost")
+        self.assertTrue(captured["compact"])
+        self.assertEqual(captured["mode"], "initial")
+        self.assertEqual(captured["slot"], "head")
+
     def test_pg_only_runtime_ignores_sqlite_public_cache_fallback_flag_for_gear(self):
         stale_payload = {
             "schemaRevision": "websim-gear-v1",
