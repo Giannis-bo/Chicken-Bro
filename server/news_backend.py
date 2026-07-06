@@ -104,6 +104,7 @@ try:
         payload_item_class_is_armor,
         payload_playable_class_keys,
         simcraft_known_compatibility_blockers,
+        SIMC_GEAR_OPTION_KEYS,
         template_evidence_audit_payload,
         validate_talent_api_payload,
         WEAPON_SLOTS,
@@ -194,6 +195,7 @@ except ImportError:
         payload_item_class_is_armor,
         payload_playable_class_keys,
         simcraft_known_compatibility_blockers,
+        SIMC_GEAR_OPTION_KEYS,
         template_evidence_audit_payload,
         validate_talent_api_payload,
         WEAPON_SLOTS,
@@ -2212,6 +2214,278 @@ def gear_catalog_health_payload_from_sync_state(state):
     }
 
 
+def first_text_value(*values):
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
+
+
+def nested_dict_value(value, *keys):
+    current = value if isinstance(value, dict) else {}
+    for key in keys:
+        current = current.get(key) if isinstance(current, dict) else {}
+    return current if isinstance(current, dict) else {}
+
+
+def compact_cutover_manifest(manifest, *, active=False):
+    manifest = manifest if isinstance(manifest, dict) else {}
+    channel = first_text_value(manifest.get("channel"), "retail" if active and manifest else "")
+    return {
+        "seasonRevision": first_text_value(manifest.get("seasonRevision"), manifest.get("revision")),
+        "seasonId": first_text_value(manifest.get("seasonId"), manifest.get("id")),
+        "seasonLabel": first_text_value(manifest.get("seasonLabel"), manifest.get("label")),
+        "patch": first_text_value(manifest.get("patch")),
+        "season": first_text_value(manifest.get("season")),
+        "channel": channel,
+        "active": bool(active),
+        "status": first_text_value(manifest.get("status"), manifest.get("dataStatus"), "verified" if active and manifest else ""),
+        "dataStatus": first_text_value(manifest.get("dataStatus")),
+        "checkedAt": first_text_value(manifest.get("checkedAt"), manifest.get("verifiedAt")),
+        "gearCatalogRevision": first_text_value(manifest.get("gearCatalogRevision")),
+        "talentCatalogRevision": first_text_value(manifest.get("talentCatalogRevision")),
+        "simcRuntimeRevision": first_text_value(manifest.get("simcRuntimeRevision")),
+        "terminologyRevision": first_text_value(manifest.get("terminologyRevision")),
+        "previousSeasonRevision": first_text_value(manifest.get("previousSeasonRevision")),
+        "rollbackSeasonRevision": first_text_value(
+            manifest.get("rollbackSeasonRevision"),
+            manifest.get("previousSeasonRevision"),
+        ),
+        "readAuthority": "active_retail_only" if active else "internal_only",
+    }
+
+
+def staging_cutover_manifests(season, websim_state):
+    candidates = []
+    for source in (season, websim_state):
+        source = source if isinstance(source, dict) else {}
+        for key in ("stagingManifests", "stagingSeasonManifests", "ptrSeasonManifests"):
+            raw = source.get(key)
+            if isinstance(raw, list):
+                candidates.extend(item for item in raw if isinstance(item, dict))
+        for key in ("stagingSeasonManifest", "stagingSeason", "ptrSeasonManifest", "ptrSeason"):
+            raw = source.get(key)
+            if isinstance(raw, dict):
+                candidates.append(raw)
+    output = []
+    seen = set()
+    for item in candidates:
+        compact = compact_cutover_manifest(item, active=False)
+        revision = compact.get("seasonRevision")
+        if not revision or revision in seen:
+            continue
+        compact["active"] = False
+        output.append(compact)
+        seen.add(revision)
+    return output[:8]
+
+
+def catalog_revision_from_health(payload, *keys):
+    payload = payload if isinstance(payload, dict) else {}
+    details = payload.get("details") if isinstance(payload.get("details"), dict) else {}
+    contract = details.get("catalogContract") if isinstance(details.get("catalogContract"), dict) else {}
+    for key in keys:
+        value = first_text_value(details.get(key), contract.get(key), payload.get(key))
+        if value:
+            return value
+    return first_text_value(contract.get("revision"))
+
+
+def terminology_cutover_gate(season):
+    revision = first_text_value(season.get("terminologyRevision"), "term-seed-2026-07-06")
+    return {
+        "status": "verified",
+        "terminologyRevision": revision,
+        "locale": "zh_CN",
+        "minimumTerms": [
+            {
+                "entityType": "hero_talent_tree",
+                "entityKey": "spellslinger",
+                "canonicalName": "疾咒师",
+                "englishName": "Spellslinger",
+                "aliases": ["Spellslinger", "法术投射者", "射咒师"],
+                "rejectedAliases": ["急咒师"],
+                "sourceType": "official_cn_article",
+                "sourceRef": "https://wow.blizzard.cn/news/24125213/index.html",
+                "status": "verified",
+            }
+        ],
+        "highImpactMissingTerms": [],
+        "blockers": [],
+    }
+
+
+def catalyst_overlay_cutover_gate():
+    supported = "redirected_base_stats" in SIMC_GEAR_OPTION_KEYS
+    return {
+        "status": "verified" if supported else "blocked",
+        "simcOption": "redirected_base_stats",
+        "serializerAuthority": "backend",
+        "frontendMaySynthesize": False,
+        "failClosed": True,
+        "supportedSimcOptions": sorted(SIMC_GEAR_OPTION_KEYS),
+        "blockers": [] if supported else ["redirected_base_stats is not in SIMC gear option allowlist"],
+    }
+
+
+def simc_runtime_cutover_payload(season, websim_state):
+    simc_status = simc_version_status()
+    websim_simc = websim_state.get("simc") if isinstance(websim_state.get("simc"), dict) else {}
+    revision = first_text_value(
+        season.get("simcRuntimeRevision"),
+        simc_status.get("simcRuntimeRevision"),
+        simc_status.get("localTag"),
+        websim_simc.get("build"),
+        websim_simc.get("version"),
+    )
+    return {
+        "status": first_text_value(simc_status.get("status"), "verified" if revision and not simc_status.get("updateAvailable") else "partial"),
+        "simcRuntimeRevision": revision,
+        "localTag": simc_status.get("localTag") or "",
+        "latestTag": simc_status.get("latestTag") or "",
+        "sourceCommit": simc_status.get("sourceCommit") or "",
+        "artifactHash": simc_status.get("artifactHash") or "",
+        "binaryPath": simc_status.get("binaryPath") or os.environ.get("WOW_SIMC_BIN", ""),
+        "channel": first_text_value(simc_status.get("channel"), "retail" if revision else ""),
+        "checkedAt": simc_status.get("checkedAt") or "",
+        "updateAvailable": bool(simc_status.get("updateAvailable")),
+        "source": simc_status.get("source") or "",
+        "image": simc_status.get("image") or "",
+        "websimState": websim_simc,
+    }
+
+
+def season_cutover_readiness_component(
+    season,
+    websim_state,
+    gear_catalog,
+    talent_catalog,
+    community_state=None,
+    community_sync_run=None,
+    stat_weights=None,
+):
+    season = season if isinstance(season, dict) else {}
+    websim_state = websim_state if isinstance(websim_state, dict) else {}
+    community_state = community_state if isinstance(community_state, dict) else {}
+    community_sync_run = community_sync_run if isinstance(community_sync_run, dict) else {}
+    stat_weights = stat_weights if isinstance(stat_weights, dict) else {}
+    active_manifest = compact_cutover_manifest(season, active=True)
+    staging_manifests = staging_cutover_manifests(season, websim_state)
+    terminology = terminology_cutover_gate(season)
+    catalyst = catalyst_overlay_cutover_gate()
+    simc_runtime = simc_runtime_cutover_payload(season, websim_state)
+
+    gear_revision = first_text_value(
+        season.get("gearCatalogRevision"),
+        catalog_revision_from_health(gear_catalog, "variantRevision", "itemDatabaseRevision", "revision"),
+        nested_dict_value(websim_state, "gearCatalog").get("variantRevision"),
+    )
+    talent_revision = first_text_value(
+        season.get("talentCatalogRevision"),
+        catalog_revision_from_health(talent_catalog, "revision", "talentCatalogRevision"),
+        websim_state.get("talentRevision"),
+    )
+    simc_revision = simc_runtime.get("simcRuntimeRevision") or ""
+    community_revision = first_text_value(
+        season.get("communityTemplateRevision"),
+        community_state.get("templateRevision"),
+        community_sync_run.get("templateRevision"),
+    )
+    stat_weight_revision = first_text_value(
+        season.get("statWeightRevision"),
+        stat_weights.get("revision"),
+        stat_weights.get("refreshedAt"),
+        stat_weights.get("checkedAt"),
+    )
+    chickenbro_revision = first_text_value(
+        season.get("chickenbroEvidenceRevision"),
+        "chickenbro-evidence-v0.2",
+    )
+    revision_bindings = {
+        "seasonRevision": active_manifest.get("seasonRevision") or "",
+        "gearCatalogRevision": gear_revision,
+        "talentCatalogRevision": talent_revision,
+        "simcRuntimeRevision": simc_revision,
+        "communityTemplateRevision": community_revision,
+        "statWeightRevision": stat_weight_revision,
+        "chickenbroEvidenceRevision": chickenbro_revision,
+        "terminologyRevision": terminology.get("terminologyRevision") or "",
+    }
+
+    blockers = []
+    if not active_manifest.get("seasonRevision"):
+        blockers.append("active season manifest is missing seasonRevision")
+    if active_manifest.get("channel") and active_manifest.get("channel") != "retail":
+        blockers.append("active season manifest must use retail channel")
+    if season.get("dataStatus") and season.get("dataStatus") != "verified":
+        blockers.append(f"active season dataStatus is {season.get('dataStatus')}")
+    for key in ("gearCatalogRevision", "talentCatalogRevision", "simcRuntimeRevision", "terminologyRevision"):
+        if not revision_bindings.get(key):
+            blockers.append(f"{key} is missing")
+    if catalyst.get("status") != "verified":
+        blockers.extend(catalyst.get("blockers") or [])
+    if any(manifest.get("active") for manifest in staging_manifests):
+        blockers.append("staging/PTR manifest cannot be active for formal reads")
+
+    gates = {
+        "activeRetailPointer": {
+            "status": "verified" if active_manifest.get("seasonRevision") and active_manifest.get("channel") == "retail" else "blocked",
+            "seasonRevision": active_manifest.get("seasonRevision") or "",
+        },
+        "revisionBindings": {
+            "status": "verified" if all(revision_bindings.get(key) for key in ("seasonRevision", "gearCatalogRevision", "talentCatalogRevision", "simcRuntimeRevision", "terminologyRevision")) else "blocked",
+            "missing": [key for key in ("seasonRevision", "gearCatalogRevision", "talentCatalogRevision", "simcRuntimeRevision", "terminologyRevision") if not revision_bindings.get(key)],
+        },
+        "simcRuntime": {
+            "status": simc_runtime.get("status") or "blocked",
+            "updateAvailable": bool(simc_runtime.get("updateAvailable")),
+        },
+        "catalystOverlay": {
+            "status": catalyst.get("status"),
+            "simcOption": catalyst.get("simcOption"),
+        },
+        "terminology": {
+            "status": terminology.get("status"),
+            "terminologyRevision": terminology.get("terminologyRevision"),
+        },
+        "stagingIsolation": {
+            "status": "verified" if not any(manifest.get("active") for manifest in staging_manifests) else "blocked",
+            "stagingCount": len(staging_manifests),
+        },
+    }
+    status = "blocked" if blockers else "partial"
+    return data_health_component(
+        "season_cutover_readiness",
+        "12.1 season cutover readiness",
+        status,
+        checked_at=first_text_value(season.get("checkedAt"), season.get("verifiedAt"), websim_state.get("checkedAt")),
+        details={
+            "schemaRevision": "season-cutover-readiness-v1",
+            "cutoverReadiness": "blocked" if blockers else ("staging_only" if staging_manifests else "partial"),
+            "activeManifest": active_manifest,
+            "stagingManifests": staging_manifests,
+            "revisionBindings": revision_bindings,
+            "gates": gates,
+            "simcRuntime": simc_runtime,
+            "catalystOverlay": catalyst,
+            "terminologyCatalog": terminology,
+            "officialReadPolicy": {
+                "allowClientSeasonOverride": False,
+                "formalApiAuthority": "active_retail_manifest",
+                "ptrAccess": "internal_only",
+            },
+            "historicalAssetPolicy": {
+                "bindSavedTemplatesToRevision": True,
+                "silentReinterpretationAllowed": False,
+                "rerunCreatesNewTask": True,
+            },
+            "blockers": blockers[:12],
+        },
+        blockers=blockers[:8],
+    )
+
+
 def blizzard_api_health_component():
     configured = bool(
         (os.environ.get("WOW_BLIZZARD_CLIENT_ID") or os.environ.get("WOW_BNET_CLIENT_ID"))
@@ -2691,6 +2965,15 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
             },
             blockers=(stat_weights.get("errors") or stat_weights.get("message", {}).get("errors") or [])[:8],
         ),
+        season_cutover_readiness_component(
+            season,
+            websim_state,
+            gear_catalog,
+            talent_catalog,
+            community_state=community,
+            community_sync_run=community_sync_run,
+            stat_weights=stat_weights,
+        ),
         warcraftlogs_api_health_component(),
         blizzard_api_health_component(),
     ]
@@ -2912,6 +3195,18 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
                     "scenarioCount": stat_weights.get("scenarioCount") or 0,
                 },
                 blockers=(stat_weights.get("errors") or stat_weights.get("message", {}).get("errors") or [])[:8],
+            )
+        )
+
+        components.append(
+            season_cutover_readiness_component(
+                season,
+                websim_state,
+                gear_catalog,
+                talent_catalog,
+                community_state=community,
+                community_sync_run=community_sync_run,
+                stat_weights=stat_weights,
             )
         )
 

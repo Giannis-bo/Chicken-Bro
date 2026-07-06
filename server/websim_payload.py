@@ -1479,11 +1479,12 @@ SIMC_GEAR_OPTION_ALIASES = [
     ("enchant_id", ["enchant_id", "enchantId", "enchant"]),
     ("crafted_stats", ["crafted_stats", "craftedStats"]),
     ("embellishment", ["embellishment", "embellishmentId", "embellishment_id"]),
+    ("redirected_base_stats", ["redirected_base_stats", "redirectedBaseStats"]),
 ]
 
 SIMC_GEAR_OPTION_KEYS = {key for key, _ in SIMC_GEAR_OPTION_ALIASES}
 GEAR_MOD_OPTION_TYPES = {"socket", "enchant", "crafted_stats", "embellishment"}
-BASE_ITEM_INSTANCE_OPTION_KEYS = ("bonus_id", "gem_id", "enchant_id", "crafted_stats")
+BASE_ITEM_INSTANCE_OPTION_KEYS = ("bonus_id", "gem_id", "enchant_id", "crafted_stats", "redirected_base_stats")
 ITEM_INSTANCE_OPTION_KEYS = (*BASE_ITEM_INSTANCE_OPTION_KEYS, "embellishment")
 GEAR_ENHANCEMENT_SIMC_KEYS = ("gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "embellishment")
 GEAR_ENHANCEMENT_SNAPSHOT_REVISION = "websim-gear-enhancement-snapshot-v1"

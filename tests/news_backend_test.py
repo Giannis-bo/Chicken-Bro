@@ -5042,6 +5042,126 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(components["gear_catalog"]["details"]["catalogContract"]["status"], components["gear_catalog"]["status"])
         self.assertEqual(components["talent_catalog"]["details"]["catalogContract"]["status"], components["talent_catalog"]["status"])
 
+    def test_data_health_payload_includes_season_cutover_readiness_control_plane(self):
+        import server.websim_payload as websim_payload
+
+        version_file = Path(self.tmp.name) / "simc-version.json"
+        version_file.write_text(
+            json.dumps(
+                {
+                    "checkedAt": "2026-07-06T08:00:00+00:00",
+                    "localTag": "simc-12.0-s1-20260706-abc123",
+                    "latestTag": "simc-12.0-s1-20260706-abc123",
+                    "simcRuntimeRevision": "simc-12.0-s1-20260706-abc123",
+                    "sourceCommit": "abc123",
+                    "channel": "retail",
+                    "status": "verified",
+                    "updateAvailable": False,
+                }
+            ),
+            encoding="utf-8",
+        )
+        os.environ["WOW_SIMC_VERSION_FILE"] = str(version_file)
+        try:
+            with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+                season = websim_payload.current_season_payload(
+                    season_id="midnight-season-1",
+                    season_label="至暗之夜 Season 1",
+                    dungeons=[{"id": "eco-dome", "dungeonId": "eco-dome", "instanceId": "eco", "name": "生态圆顶", "shortName": "生态圆顶", "timerSeconds": 1800}],
+                    verified_at="2026-07-06T08:00:00+00:00",
+                )
+                season.update(
+                    {
+                        "seasonRevision": "retail-12.0-s1-active",
+                        "revision": "retail-12.0-s1-active",
+                        "patch": "12.0",
+                        "season": "s1",
+                        "channel": "retail",
+                        "status": "active",
+                        "gearCatalogRevision": "retail-12.0-s1-gear",
+                        "talentCatalogRevision": "retail-12.0-s1-talents",
+                        "simcRuntimeRevision": "simc-12.0-s1-20260706-abc123",
+                        "terminologyRevision": "term-retail-12.0-s1",
+                        "rollbackSeasonRevision": "retail-12.0-s1-rollback",
+                    }
+                )
+                websim_payload.save_active_season_payload(conn, season)
+                websim_payload.set_sync_state(
+                    conn,
+                    "websim_sync",
+                    {
+                        "dataStatus": "verified",
+                        "checkedAt": "2026-07-06T08:00:00+00:00",
+                        "currentSeason": season,
+                        "talentRevision": "retail-12.0-s1-talents",
+                        "simc": {"build": "1205", "profiles": 40},
+                        "stagingSeasonManifest": {
+                            "seasonRevision": "ptr-12.1-s2-build-12345",
+                            "patch": "12.1",
+                            "season": "s2",
+                            "channel": "ptr",
+                            "status": "candidate",
+                            "active": False,
+                            "gearCatalogRevision": "ptr-12.1-s2-gear-build-12345",
+                            "talentCatalogRevision": "ptr-12.1-s2-talents-build-12345",
+                        },
+                    },
+                )
+                websim_payload.set_sync_state(
+                    conn,
+                    "gearCatalog",
+                    {
+                        "status": "partial",
+                        "checkedAt": "2026-07-06T08:00:00+00:00",
+                        "itemDatabaseRevision": "retail-12.0-s1-gear",
+                        "variantRevision": "retail-12.0-s1-gear",
+                        "variantCount": 1,
+                    },
+                )
+                conn.commit()
+
+            payload = self.backend.build_data_health_payload(include_template_evidence_audit=False)
+        finally:
+            os.environ.pop("WOW_SIMC_VERSION_FILE", None)
+
+        component = {item["key"]: item for item in payload["components"]}["season_cutover_readiness"]
+        details = component["details"]
+
+        self.assertEqual(details["schemaRevision"], "season-cutover-readiness-v1")
+        self.assertEqual(details["activeManifest"]["seasonRevision"], "retail-12.0-s1-active")
+        self.assertEqual(details["activeManifest"]["channel"], "retail")
+        self.assertEqual(details["activeManifest"]["readAuthority"], "active_retail_only")
+        self.assertEqual(details["activeManifest"]["rollbackSeasonRevision"], "retail-12.0-s1-rollback")
+        self.assertEqual(details["stagingManifests"][0]["seasonRevision"], "ptr-12.1-s2-build-12345")
+        self.assertEqual(details["stagingManifests"][0]["active"], False)
+        self.assertEqual(details["revisionBindings"]["gearCatalogRevision"], "retail-12.0-s1-gear")
+        self.assertEqual(details["revisionBindings"]["talentCatalogRevision"], "retail-12.0-s1-talents")
+        self.assertEqual(details["revisionBindings"]["simcRuntimeRevision"], "simc-12.0-s1-20260706-abc123")
+        self.assertEqual(details["revisionBindings"]["terminologyRevision"], "term-retail-12.0-s1")
+        self.assertEqual(details["simcRuntime"]["sourceCommit"], "abc123")
+        self.assertEqual(details["catalystOverlay"]["simcOption"], "redirected_base_stats")
+        self.assertEqual(details["catalystOverlay"]["status"], "verified")
+        self.assertEqual(details["terminologyCatalog"]["minimumTerms"][0]["canonicalName"], "疾咒师")
+        self.assertIn("法术投射者", details["terminologyCatalog"]["minimumTerms"][0]["aliases"])
+        self.assertEqual(details["officialReadPolicy"]["allowClientSeasonOverride"], False)
+
+    def test_catalyst_redirected_base_stats_is_a_controlled_simc_option(self):
+        import server.websim_payload as websim_payload
+
+        parsed = websim_payload.simc_gear_entry_identity(
+            "head",
+            {
+                "slot": "head",
+                "id": "260001",
+                "ilevel": 704,
+                "redirected_base_stats": "crit/mastery",
+                "unknown_option": "SHOULD_NOT_PASS",
+            },
+        )
+
+        self.assertEqual(parsed["simcOptions"]["redirected_base_stats"], "crit/mastery")
+        self.assertNotIn("unknown_option", parsed["simcOptions"])
+
     def test_data_health_payload_includes_community_template_scan_coverage(self):
         import server.websim_payload as websim_payload
 
