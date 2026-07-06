@@ -5316,6 +5316,63 @@ def compact_chickenbro_runtime_profile(profile):
     }
 
 
+def chickenbro_answer_layer_for_context(bounded_context):
+    if bounded_context.get("usableProfiles"):
+        return "evidence"
+    request_context = bounded_context.get("requestContext") if isinstance(bounded_context.get("requestContext"), dict) else {}
+    if request_context.get("classKey") or request_context.get("specKey"):
+        return "diagnostic"
+    return "direct_chat"
+
+
+def chickenbro_basis_label(answer_layer):
+    return {
+        "evidence": "已基于你的模板或 SimC 分析",
+        "diagnostic": "需要证据确认",
+        "direct_chat": "通用建议",
+    }.get(answer_layer, "通用建议")
+
+
+def chickenbro_missing_inputs_for_context(bounded_context, answer_layer):
+    request_context = bounded_context.get("requestContext") if isinstance(bounded_context.get("requestContext"), dict) else {}
+    missing = []
+    if not request_context.get("classKey") and not request_context.get("specKey"):
+        missing.append("class_spec")
+    elif not request_context.get("specKey"):
+        missing.append("spec")
+    if answer_layer == "direct_chat":
+        missing.append("published_profile")
+    elif answer_layer == "diagnostic":
+        missing.extend(["simc_or_wcl", "published_profile"])
+    elif answer_layer == "evidence":
+        missing.append("personal_simc_or_wcl")
+    output = []
+    for item in missing:
+        append_unique_text(output, item)
+    return output
+
+
+def chickenbro_next_question_for_context(bounded_context, answer_layer):
+    request_context = bounded_context.get("requestContext") if isinstance(bounded_context.get("requestContext"), dict) else {}
+    if answer_layer == "evidence":
+        return "要不要补你的个人 SimC 或 WCL，让我把建议收窄到你自己的角色？"
+    if answer_layer == "diagnostic":
+        return "你能补一份 SimC 报告或 WCL 链接吗？"
+    if not request_context.get("classKey") and not request_context.get("specKey"):
+        return "你现在玩的职业和专精是什么？"
+    return "你主要想优化大秘境、团本单体，还是某个具体副本场景？"
+
+
+def enrich_chickenbro_context_layers(bounded_context):
+    enriched = dict(bounded_context)
+    answer_layer = chickenbro_answer_layer_for_context(enriched)
+    enriched["answerLayer"] = answer_layer
+    enriched["basisLabel"] = chickenbro_basis_label(answer_layer)
+    enriched["missingInputs"] = chickenbro_missing_inputs_for_context(enriched, answer_layer)
+    enriched["nextQuestion"] = chickenbro_next_question_for_context(enriched, answer_layer)
+    return enriched
+
+
 def build_chickenbro_bounded_context(message, context, user_profile=None):
     context = context if isinstance(context, dict) else {}
     topic = chickenbro_topic_scope(message, context)
@@ -5352,7 +5409,7 @@ def build_chickenbro_bounded_context(message, context, user_profile=None):
             else:
                 append_unique_text(allowed_numbers, str(number))
 
-    return {
+    bounded_context = {
         "schemaRevision": "chickenbro-bounded-context-v1",
         "topic": topic,
         "message": clean_text(message, 1000),
@@ -5377,23 +5434,34 @@ def build_chickenbro_bounded_context(message, context, user_profile=None):
             "noRealtimeExternalFetch": True,
         },
     }
+    return enrich_chickenbro_context_layers(bounded_context)
 
 
 def chickenbro_prompt_from_context(bounded_context):
-    if bounded_context.get("usableProfiles"):
+    answer_layer = bounded_context.get("answerLayer") or chickenbro_answer_layer_for_context(bounded_context)
+    if answer_layer == "evidence":
         instructions = [
             "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
+            "证据档才允许输出数字、排名、强个人化结论；仍只能使用 boundedContext 中的事实、证据引用和 allowedNumbers。",
             "只能使用 boundedContext 中的事实、证据引用和 allowedNumbers。",
             "不要编造 DPS、排名、分位、日志发现或来源。",
-            "输出 JSON：answer, confidence, priorityActions, evidenceRefs, limitations。",
+            "最多追问一个关键缺口；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
+        ]
+    elif answer_layer == "diagnostic":
+        instructions = [
+            "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
+            "这是 direct Codex chat 的诊断档：用专业教练结构，在少量职业/专精/场景信息下给可执行 checklist。",
+            "不要输出数字、排名、分位、日志发现或强个人化结论；这些只能在证据档出现。",
+            "不要把通用知识包装成本地证据；没有 boundedContext 证据时 evidenceRefs 保持为空。",
+            "最多追问一个关键缺口；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
         ]
     else:
         instructions = [
             "你是炸鸡队长，只回答魔兽世界正式服和 PTR/Beta 相关问题。",
-            "这是 direct Codex chat 模式：当前没有本地 published profile，可以基于你的通用魔兽知识和用户问题先做自然对话。",
+            "这是 direct Codex chat 的直聊档：默认口吻是老玩家陪练，先接住问题，给低风险通用判断和下一步排查方向。",
             "不要把通用知识包装成本地证据；没有 boundedContext 证据时 evidenceRefs 保持为空，并在 limitations 里说明未经过本地证据验证。",
             "不要编造 DPS、排名、分位、日志发现或来源。",
-            "输出 JSON：answer, confidence, priorityActions, evidenceRefs, limitations。",
+            "最多追问一个关键缺口；输出 JSON：answer, confidence, answerLayer, basisLabel, priorityActions, evidenceRefs, limitations, missingInputs, nextQuestion。",
         ]
     return json.dumps(
         {
@@ -5452,12 +5520,27 @@ def validate_chickenbro_codex_output(payload, bounded_context):
         normalized = number.rstrip("%")
         if normalized not in allowed_numbers:
             raise ValueError("codex_output_invalid: unapproved number")
+    answer_layer = bounded_context.get("answerLayer") or chickenbro_answer_layer_for_context(bounded_context)
+    basis_label = bounded_context.get("basisLabel") or chickenbro_basis_label(answer_layer)
+    missing_inputs = (
+        payload.get("missingInputs")
+        if isinstance(payload.get("missingInputs"), list)
+        else bounded_context.get("missingInputs")
+    )
+    next_question = clean_text(
+        payload.get("nextQuestion") or bounded_context.get("nextQuestion") or "",
+        240,
+    )
     return {
         "answer": answer,
         "confidence": str(payload.get("confidence") or "medium"),
+        "answerLayer": answer_layer,
+        "basisLabel": basis_label,
         "priorityActions": payload.get("priorityActions") if isinstance(payload.get("priorityActions"), list) else [],
         "evidenceRefs": refs,
         "limitations": payload.get("limitations") if isinstance(payload.get("limitations"), list) else [],
+        "missingInputs": [str(item) for item in (missing_inputs or []) if str(item or "").strip()],
+        "nextQuestion": next_question,
     }
 
 
@@ -5468,20 +5551,50 @@ def deterministic_chickenbro_answer(bounded_context, answer_source="deterministi
             "answer": "炸鸡队长只回答魔兽世界正式服和 PTR/Beta 相关的玩法、机制、日志、构筑、装备、SimC、WCL、Raider.IO、插件和宏问题。这个问题不在范围内。",
             "answerSource": "deterministic_scope_refusal",
             "confidence": "blocked",
+            "answerLayer": "direct_chat",
+            "basisLabel": "通用建议",
             "priorityActions": [],
             "evidenceRefs": [],
+            "missingInputs": [],
+            "nextQuestion": "",
             "limitations": [topic.get("reason") or "out_of_scope"],
         }
     usable = bounded_context.get("usableProfiles") or []
     if not usable:
+        answer_layer = bounded_context.get("answerLayer") or chickenbro_answer_layer_for_context(bounded_context)
+        basis_label = bounded_context.get("basisLabel") or chickenbro_basis_label(answer_layer)
+        missing_inputs = bounded_context.get("missingInputs") or []
+        next_question = bounded_context.get("nextQuestion") or ""
+        if answer_layer == "diagnostic":
+            return {
+                "answer": "按专业教练的排查顺序，先把问题拆成三步：第一看当前场景是不是大秘境还是团本，第二检查天赋和装备是否能稳定服务这个场景，第三再用 SimC 或 WCL 确认瓶颈。现在没有本地证据，所以这些是待验证 checklist，不是强结论。",
+                "answerSource": answer_source,
+                "confidence": "low",
+                "answerLayer": answer_layer,
+                "basisLabel": basis_label,
+                "priorityActions": [
+                    {"title": "先确认当前场景和目标：大秘境群体、团本单体，或某个具体副本机制。", "evidenceRefs": []},
+                    {"title": "检查天赋、饰品和爆发技能是否围绕主要战斗窗口服务。", "evidenceRefs": []},
+                    {"title": "补一份 SimC 或 WCL 后，再判断到底是配装、循环还是战斗执行问题。", "evidenceRefs": []},
+                ],
+                "evidenceRefs": [],
+                "missingInputs": missing_inputs,
+                "nextQuestion": next_question,
+                "limitations": bounded_context.get("limitations") or ["missing_published_profile"],
+            }
         return {
-            "answer": "当前缺少已发布的专精打法画像，不能给出具体强度、排名或日志结论。可以先补充角色专精、场景、SimC 报告或 WCL 链接；后台会优先使用本地已同步证据，不在本次请求里实时抓取外部数据。",
+            "answer": "先按老玩家陪练的方式说：别一上来追求所谓最优，先把问题拆小。大秘境打得乱，通常先看三件事：是不是经常在不该交爆发的小波次交掉了技能、是不是天赋和饰品服务的场景不一致、以及是不是因为走位和断档导致实际输出窗口变短。没有你的角色证据时，我只能给通用方向，不会说你具体排名或 DPS。",
             "answerSource": answer_source,
             "confidence": "low",
+            "answerLayer": answer_layer,
+            "basisLabel": basis_label,
             "priorityActions": [
-                {"title": "先补齐角色、专精、场景和可追踪证据。", "evidenceRefs": []}
+                {"title": "先选一个最常出问题的场景，把爆发、资源和生存压力分开看。", "evidenceRefs": []},
+                {"title": "再补职业专精、主要场景和一份 SimC 或 WCL，我再帮你收窄判断。", "evidenceRefs": []},
             ],
             "evidenceRefs": [],
+            "missingInputs": missing_inputs,
+            "nextQuestion": next_question,
             "limitations": bounded_context.get("limitations") or ["missing_published_profile"],
         }
     profile = usable[0]
@@ -5497,8 +5610,12 @@ def deterministic_chickenbro_answer(bounded_context, answer_source="deterministi
         "answer": summary,
         "answerSource": answer_source,
         "confidence": "medium",
+        "answerLayer": bounded_context.get("answerLayer") or "evidence",
+        "basisLabel": bounded_context.get("basisLabel") or chickenbro_basis_label("evidence"),
         "priorityActions": actions,
         "evidenceRefs": refs,
+        "missingInputs": bounded_context.get("missingInputs") or [],
+        "nextQuestion": bounded_context.get("nextQuestion") or "",
         "limitations": list((bounded_context.get("limitations") or []) + (profile.get("limitations") or [])),
     }
 
@@ -5812,10 +5929,22 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
     schema = {
         "type": "object",
         "additionalProperties": False,
-        "required": ["answer", "confidence", "priorityActions", "evidenceRefs", "limitations"],
+        "required": [
+            "answer",
+            "confidence",
+            "answerLayer",
+            "basisLabel",
+            "priorityActions",
+            "evidenceRefs",
+            "limitations",
+            "missingInputs",
+            "nextQuestion",
+        ],
         "properties": {
             "answer": {"type": "string"},
             "confidence": {"type": "string"},
+            "answerLayer": {"type": "string", "enum": ["direct_chat", "diagnostic", "evidence"]},
+            "basisLabel": {"type": "string"},
             "priorityActions": {
                 "type": "array",
                 "items": {
@@ -5830,6 +5959,8 @@ def run_chickenbro_agent(bounded_context, codex_runner=None):
             },
             "evidenceRefs": {"type": "array", "items": {"type": "string"}},
             "limitations": {"type": "array", "items": {"type": "string"}},
+            "missingInputs": {"type": "array", "items": {"type": "string"}},
+            "nextQuestion": {"type": "string"},
         },
     }
     try:

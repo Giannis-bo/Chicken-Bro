@@ -6187,6 +6187,85 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(result["job"]["result"]["codex"]["status"], "succeeded")
         self.assertIn("通用冰DK", result["assistantMessage"]["content"])
 
+    def test_chickenbro_direct_chat_without_profile_returns_player_coach_layer(self):
+        def skip_codex(prompt, **kwargs):
+            return {"status": "skipped", "error": "disabled in test"}
+
+        result = self.backend.send_chickenbro_message(
+            {
+                "message": "大秘境打得很乱，先从哪里改？",
+                "guestId": "direct-chat-layer-device",
+            },
+            codex_runner=skip_codex,
+        )
+
+        payload = result["assistantMessage"]["payload"]
+        self.assertEqual(payload["answerLayer"], "direct_chat")
+        self.assertEqual(payload["basisLabel"], "通用建议")
+        self.assertIn("老玩家", payload["answer"])
+        self.assertIn("missing_published_profile", payload["limitations"])
+        self.assertTrue(payload["nextQuestion"])
+        self.assertLessEqual(payload["nextQuestion"].count("？") + payload["nextQuestion"].count("?"), 1)
+        self.assertIn("class_spec", payload["missingInputs"])
+        self.assertNotIn("只补齐角色、专精、场景和可追踪证据", payload["answer"])
+
+    def test_chickenbro_sparse_context_uses_diagnostic_coach_layer(self):
+        def skip_codex(prompt, **kwargs):
+            return {"status": "skipped", "error": "disabled in test"}
+
+        result = self.backend.send_chickenbro_message(
+            {
+                "message": "我是冰DK，大秘境伤害低，先排查什么？",
+                "guestId": "diagnostic-layer-device",
+                "context": {"classKey": "deathknight", "specKey": "frost", "scenarioKey": "mplus_fortified"},
+            },
+            codex_runner=skip_codex,
+        )
+
+        payload = result["assistantMessage"]["payload"]
+        self.assertEqual(payload["answerLayer"], "diagnostic")
+        self.assertEqual(payload["basisLabel"], "需要证据确认")
+        self.assertGreaterEqual(len(payload["priorityActions"]), 2)
+        self.assertTrue(all(not action["evidenceRefs"] for action in payload["priorityActions"]))
+        self.assertEqual(payload["evidenceRefs"], [])
+        self.assertIn("simc_or_wcl", payload["missingInputs"])
+        self.assertLessEqual(payload["nextQuestion"].count("？") + payload["nextQuestion"].count("?"), 1)
+
+    def test_chickenbro_published_profile_uses_evidence_layer(self):
+        self.seed_chickenbro_profile()
+
+        def fake_codex_runner(prompt, **kwargs):
+            return {
+                "status": "succeeded",
+                "lastMessage": json.dumps(
+                    {
+                        "answer": "先根据 profile.summary 安排强韧波次爆发。",
+                        "confidence": "medium",
+                        "priorityActions": [
+                            {"title": "围绕强韧小怪波次规划爆发。", "evidenceRefs": ["profile.summary"]}
+                        ],
+                        "evidenceRefs": ["profile.summary"],
+                        "limitations": [],
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+
+        result = self.backend.send_chickenbro_message(
+            {
+                "message": "奥法强韧大秘境怎么优化？",
+                "guestId": "evidence-layer-device",
+                "context": {"classKey": "mage", "specKey": "arcane", "scenarioKey": "mplus_fortified"},
+            },
+            codex_runner=fake_codex_runner,
+        )
+
+        payload = result["assistantMessage"]["payload"]
+        self.assertEqual(payload["answerLayer"], "evidence")
+        self.assertEqual(payload["basisLabel"], "已基于你的模板或 SimC 分析")
+        self.assertIn("profile.summary", payload["evidenceRefs"])
+        self.assertIn("personal_simc_or_wcl", payload["missingInputs"])
+
     def test_chickenbro_invalid_codex_output_downgrades_to_deterministic_answer(self):
         self.seed_chickenbro_profile()
 
