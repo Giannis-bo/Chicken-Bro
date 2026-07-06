@@ -8,6 +8,7 @@ import tempfile
 import threading
 import time
 import unittest
+from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -16278,6 +16279,69 @@ class WebSimPayloadTest(unittest.TestCase):
         )
 
         self.assertEqual(template["sourceKey"], "unknown")
+
+    def test_community_talent_template_defaults_to_long_availability_with_short_freshness(self):
+        checked_before = datetime.now(timezone.utc)
+
+        template = self.websim_payload.normalize_community_talent_template(
+            {
+                "id": "availability-template",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "heroKey": "spellslinger",
+                "talentState": {"selectedNodes": [{"id": "node-a", "rank": 1}]},
+                "sourceStatus": "synced",
+                "status": "verified",
+            },
+            source_key="raiderio",
+            source_status="synced",
+        )
+
+        expires_at = datetime.fromisoformat(template["expiresAt"])
+        freshness = template["payload"].get("communityTemplateFreshness") or {}
+        self.assertIsInstance(freshness.get("freshUntil"), str)
+        fresh_until = datetime.fromisoformat(freshness["freshUntil"])
+
+        self.assertGreater((expires_at - checked_before).total_seconds(), 7 * 24 * 60 * 60)
+        self.assertLess((fresh_until - checked_before).total_seconds(), 36 * 60 * 60)
+        self.assertEqual(freshness["status"], "fresh")
+        self.assertEqual(freshness["availabilityPolicy"], "keep_available_until_replaced_or_hard_invalid")
+
+    def test_community_gear_template_defaults_to_long_availability_with_short_freshness(self):
+        checked_before = datetime.now(timezone.utc)
+
+        template = self.websim_payload.normalize_community_gear_template(
+            {
+                "id": "gear-availability-template",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "sourceKey": "raiderio_observed_profile",
+                "sourceStatus": "synced",
+                "status": "partial",
+                "gearItems": [
+                    {
+                        "slot": "head",
+                        "itemId": "270001",
+                        "id": "270001",
+                        "name": "Observed Head",
+                        "ilevel": 704,
+                        "bonus_id": "12345",
+                        "sourceType": "observed_profile",
+                        "simcReady": True,
+                    }
+                ],
+            }
+        )
+
+        expires_at = datetime.fromisoformat(template["expiresAt"])
+        freshness = template["payload"].get("communityTemplateFreshness") or {}
+        self.assertIsInstance(freshness.get("freshUntil"), str)
+        fresh_until = datetime.fromisoformat(freshness["freshUntil"])
+
+        self.assertGreater((expires_at - checked_before).total_seconds(), 7 * 24 * 60 * 60)
+        self.assertLess((fresh_until - checked_before).total_seconds(), 36 * 60 * 60)
+        self.assertEqual(freshness["status"], "fresh")
+        self.assertEqual(freshness["availabilityPolicy"], "keep_available_until_replaced_or_hard_invalid")
 
     def seed_full_websim_talent_tree(self, conn, class_key, spec_key, hero_key):
         class_id = 8 if class_key == "mage" else 1

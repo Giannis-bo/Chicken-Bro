@@ -1144,3 +1144,65 @@ Acceptance conclusion:
 - The Phase 1 community gear acceptance remains valid: this patch corrected display metadata hydration and frontend occupied-slot semantics without relaxing real community gear completeness gates.
 - Jewelry/trinket official metadata is now display-ready even when it does not carry armor/weapon/set type metadata.
 - Two-hand main-hand setups continue to save and serialize without `off_hand`, while the mini-program no longer presents that legitimate omission as a missing equipment choice.
+
+## 2026-07-06 community template availability/freshness repair and Brewmaster gear completion
+
+Status: deployed and accepted. The public community talent pool is `80/80`, the real community gear pool is `40/40`, and the daily incremental refresh no longer drops old winners before replacements are available.
+
+Root cause:
+
+- The original community winner window conflated freshness with availability: a winner older than 24 hours was treated as unavailable even when no replacement winner had been collected yet.
+- The first availability repair correctly restored old verified/complete winners, but the daily targeted talent writer then expired every stale target slot for the source instead of expiring only slots where the run actually promoted a replacement winner. This reproduced the production symptom: talent active coverage fell from `80` slots back to `9`.
+- After the TTL fix was deployed, the remaining real community gear gap was isolated to `monk:brewmaster`. Its active observed template had `main_hand=obsidian_goaltending_spire,id=193723` and `missing_slots_json=["off_hand"]`; production `cache.websim_items` had no official Battle.net weapon metadata for item `193723`, so the off-hand occupancy rule could not prove that the staff occupied `off_hand`.
+
+Code changes:
+
+- `expiresAt` is now the longer availability guard for community templates; `payload.communityTemplateFreshness` separately records `checkedAt`, `freshUntil`, `status`, and the availability policy.
+- Daily incremental sync runs an availability repair step before winner refresh, so the consumer pool is restored before any target collection starts.
+- Talent `missing_slots` mode includes stale verified slots in the refresh target list without marking them missing.
+- Gear preflight includes stale complete community winners in the refresh queue while still counting them as complete coverage.
+- Targeted talent replacement now expires old active rows only for slots where the run promoted a replacement winner. Stale slots that did not get a new winner stay active.
+- PostgreSQL restore mode can restore current best verified talent winners and complete real community gear winners, mark their freshness stale, and extend availability without admitting baseline/default/source-reference/manual-fixture/fallback rows into the real community pool.
+
+Local verification:
+
+- Regression test that reproduced the daily fallback bug first failed: `test_targeted_talent_refresh_expires_only_slots_with_replacement_winners` showed `mage:frost:spellslinger` was incorrectly included in the expiration target list.
+- After the writer fix, the focused regression passed.
+- `python3 -m unittest tests.postgres_cache_sync_test tests.postgres_only_scripts_test tests.postgres_cache_store_test -v`: `103` tests OK.
+- `python3 -m unittest tests.websim_payload_test -v`: `353` tests OK.
+- `python3 -m py_compile server/websim_payload.py server/postgres_cache_sync.py server/postgres_cache_store.py server/community_template_sync.py` exited `0`.
+- `git diff --check` exited `0`.
+
+Deployment, backups, and repair evidence:
+
+- Deployment command: `WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh`.
+- Backend smoke after deploy: `/health` returned `{"ok": true, "service": "wow-backend"}`.
+- Backup before patched availability repair: `/opt/wow-mini-program/backups/community-template-availability-repair-before-patched-20260706T040140Z/wow_test.dump`, `14795487` bytes.
+- Before patched repair: `talent_active_verified=9 rows / 9 slots`, `gear_active_complete_community=69 rows / 39 specs`.
+- `restore_availability` run completed with `talentRestored=72`, `gearRestored=0`, `availabilityExpiresAt=2026-07-20T04:01:52+00:00`.
+- After patched repair: `talent_active_verified=81 rows / 80 slots`, `gear_active_complete_community=69 rows / 39 specs`.
+- Real daily incremental run after the writer fix: `wow-community-template-sync.service` ran `2026-07-06 12:02:16-12:07:21 CST`, `Result=success`, `ExecMainStatus=0`.
+- After that daily run: `talent_active_verified=80 rows / 80 slots`, `gear_active_complete_community=69 rows / 39 specs`. This confirmed stale targets no longer expired old talent winners when no replacement was promoted.
+
+Brewmaster gear completion evidence:
+
+- Backup before the Brewmaster data repair: `/opt/wow-mini-program/backups/brewmaster-community-gear-before-20260706T051458Z/wow_test.dump`, `14897957` bytes.
+- Refreshed only Battle.net Game Data metadata for item `193723` (`黑曜守门塔杖`, `TWOHWEAPON`, `法杖`), then ran the existing PostgreSQL community gear coverage reconciliation.
+- Reconciled row: `observed_profile_monk_brewmaster` changed to `complete / synced / ready_slot_count=16 / missing_slots_json=[]`, with scan run `manual-brewmaster-community-gear-metadata-20260706T051614Z`.
+- Final SQL check: real community gear active complete is `40 rows / 40 specs`; the Brewmaster baseline `simc_preset` row remains separate and partial, and does not count toward real community coverage.
+- Public Brewmaster gear endpoint: `communityTemplates[0]` is `complete`, `readySlotCount=16`, `missingSlots=[]`, `canApplyGear=true`.
+
+Final live acceptance:
+
+- `/health`: `{"ok": true, "service": "wow-backend"}`.
+- `/api/data/health` community templates: `templates={"total":80,"verified":80,"partial":0,"blocked":0}`.
+- `/api/data/health` real community gear: `coveredSpecCount=40`, `missingSpecCount=0`, `partialSpecCount=0`, `pendingSpecCount=0`, `blockedSpecCount=0`.
+- Public gear canonical matrix: `640/640 ready`, `missingSlotCount=0`.
+- No traceback, fatal error, OOM, or killed process appeared in `wow-backend.service` logs during the repair window.
+
+Acceptance conclusion:
+
+- Community talent templates are `80/80` available.
+- Real community gear templates are `40/40` complete and available.
+- Stale/fresh winner refresh is now a background quality signal, not a consumer availability cutoff.
+- Baseline/default/simc-preset rows remain excluded from real community coverage.

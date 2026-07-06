@@ -1463,6 +1463,50 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("active_slot_rank > 1", sql)
         self.assertEqual(counts["duplicateActiveExpired"], 1)
 
+    def test_targeted_talent_refresh_expires_only_slots_with_replacement_winners(self):
+        from server import postgres_cache_store
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import normalize_community_talent_template
+
+        def normalize_only(_store, source):
+            return normalize_community_talent_template(source, source.get("sourceKey"), source.get("sourceStatus"))
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        with patch.object(postgres_cache_store, "validate_community_talent_template", side_effect=normalize_only):
+            store.replace_community_talent_templates(
+                [
+                    {
+                        "id": "mage-frost-frostfire-new",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "heroKey": "frostfire",
+                        "scenarioKey": "mythic_plus",
+                        "sourceKey": "raiderio",
+                        "sourceName": "Raider.IO",
+                        "sourceStatus": "synced",
+                        "status": "verified",
+                        "talentState": {"selectedNodes": [{"id": "node-a", "rank": 1}]},
+                        "sampleCount": 2,
+                        "maxKeyLevel": 24,
+                        "signature": "sig-a",
+                        "sourceRefs": [{"sourceKey": "raiderio"}],
+                    }
+                ],
+                scan_run_id="scan-targeted-refresh",
+                target_slot_ids=["mage:frost:frostfire", "mage:frost:spellslinger"],
+            )
+
+        expire_params = next(
+            params
+            for statement, params in zip(conn.cursor_instance.statements, conn.cursor_instance.params)
+            if "CONCAT(class_key, ':', spec_key, ':', hero_key) = ANY" in statement
+            and "NOT (id = ANY" in statement
+        )
+        self.assertEqual(expire_params[3], ["mage:frost:frostfire"])
+        self.assertNotIn("mage:frost:spellslinger", expire_params[3])
+
     def test_promote_community_talent_inventory_can_represent_six_distinct_dk_hero_slots(self):
         from server.postgres_cache_store import promote_community_talent_template_inventory
 
@@ -3269,6 +3313,38 @@ class PostgresCacheStoreTest(unittest.TestCase):
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertEqual(counts["partial"], 1)
         self.assertIn("cache.websim_community_gear_templates.ready_slot_count > EXCLUDED.ready_slot_count", sql)
+
+    def test_restore_community_template_availability_keeps_repair_to_current_winners(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        result = store.restore_community_template_availability(
+            availability_expires_at="2026-07-20T00:00:00+00:00",
+            checked_at="2026-07-06T00:00:00+00:00",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(result["talentRestored"], 1)
+        self.assertEqual(result["gearRestored"], 1)
+        self.assertIn("PARTITION BY class_key, spec_key, hero_key", sql)
+        self.assertIn("PARTITION BY class_key, spec_key", sql)
+        self.assertIn("status = 'verified'", sql)
+        self.assertIn("status = 'complete'", sql)
+        self.assertIn("source_key <> ALL", sql)
+        self.assertIn("communityTemplateFreshness", sql)
+        gear_blocked_sources = conn.cursor_instance.params[1][0]
+        self.assertIn("source_reference", gear_blocked_sources)
+        self.assertIn("manual_fixture", gear_blocked_sources)
+        self.assertIn("fallback", gear_blocked_sources)
+        freshness_payloads = [
+            param
+            for params in conn.cursor_instance.params
+            for param in params
+            if isinstance(param, str) and "availability_repair_after_ttl_split" in param
+        ]
+        self.assertEqual(len(freshness_payloads), 2)
 
     def test_community_gear_template_live_health_summary_reads_current_rows(self):
         from server.postgres_cache_store import PostgresCacheStore

@@ -638,6 +638,92 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(by_slot["mage:arcane:sunfury"]["status"], "verified")
         self.assertEqual(by_slot["mage:frost:frostfire"]["status"], "verified")
 
+    def test_community_postgres_missing_slots_mode_refreshes_stale_verified_slots_without_marking_missing(self):
+        from server import postgres_cache_sync
+        from server.websim_payload import COMMUNITY_TALENT_SYNC_KEY
+
+        store = FakePostgresSyncStore()
+        store.community_gear_template_counts = lambda: {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
+        store.coverage_rows = [
+            {
+                "id": "existing-arcane-spellslinger",
+                "sourceKey": "raiderio",
+                "sourceName": "Raider.IO",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "heroKey": "spellslinger",
+                "scenarioKey": "mythic_plus",
+                "status": "verified",
+                "payload": {
+                    "communityTemplateFreshness": {
+                        "status": "fresh",
+                        "checkedAt": "2026-07-04T00:00:00+00:00",
+                        "freshUntil": "2026-07-05T00:00:00+00:00",
+                    }
+                },
+            },
+            {
+                "id": "existing-arcane-sunfury",
+                "sourceKey": "raiderio",
+                "sourceName": "Raider.IO",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "heroKey": "sunfury",
+                "scenarioKey": "mythic_plus",
+                "status": "verified",
+                "payload": {
+                    "communityTemplateFreshness": {
+                        "status": "fresh",
+                        "checkedAt": "2026-07-06T00:00:00+00:00",
+                        "freshUntil": "2999-01-01T00:00:00+00:00",
+                    }
+                },
+            },
+        ]
+        captured_env = {}
+
+        def fake_sync_raiderio_cache_postgres(**_kwargs):
+            captured_env["targetSpecs"] = os.environ.get("WOW_RAIDERIO_SPEC_RANKING_TARGET_SPECS", "")
+            return {"sourceStatus": "verified", "runCount": 1, "profileCount": 1}
+
+        with patch.object(
+            postgres_cache_sync,
+            "sync_raiderio_cache_postgres",
+            side_effect=fake_sync_raiderio_cache_postgres,
+        ), patch.object(
+            postgres_cache_sync,
+            "load_community_talent_sources_postgres",
+            return_value={
+                "raiderio": {
+                    "status": "verified",
+                    "sourceName": "Raider.IO",
+                    "templates": [
+                        {
+                            "id": "rio-arcane-spellslinger-refresh",
+                            "classKey": "mage",
+                            "specKey": "arcane",
+                            "heroKey": "spellslinger",
+                            "scenarioKey": "mythic_plus",
+                            "talentState": {"selectedNodes": [{"id": "node-refresh", "rank": 1}]},
+                            "status": "verified",
+                        }
+                    ],
+                    "errors": [],
+                }
+            },
+            create=True,
+        ):
+            postgres_cache_sync.sync_community_template_cache_postgres(store=store, mode="missing_slots")
+
+        target_specs = set(filter(None, captured_env["targetSpecs"].split(",")))
+        self.assertIn("mage:arcane", target_specs)
+        self.assertIn("mage:arcane:spellslinger", set(store.talent_replace_target_slot_ids or []))
+
+        state = {key: value for key, value, _updated_at in store.saved_states}[COMMUNITY_TALENT_SYNC_KEY]
+        by_slot = {row["slotId"]: row for row in state["coverageMatrix"]["rows"]}
+        self.assertEqual(by_slot["mage:arcane:spellslinger"]["status"], "verified")
+        self.assertEqual(by_slot["mage:arcane:sunfury"]["status"], "verified")
+
     def test_community_postgres_sync_uses_promoted_templates_for_coverage(self):
         from server import postgres_cache_sync
         from server.websim_payload import COMMUNITY_TALENT_SYNC_KEY
@@ -1289,6 +1375,57 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(payload["gear"]["realCommunityTemplates"]["missingSpecCount"], 2)
         self.assertEqual(payload["gear"]["realCommunityTemplates"]["missingSpecs"], ["mage:frost", "deathknight:unholy"])
         self.assertEqual(payload["gear"]["baselineTemplates"]["availableSpecCount"], 1)
+
+    def test_gear_preflight_refreshes_stale_complete_community_winner_without_breaking_coverage(self):
+        from server import postgres_cache_sync
+
+        template = {
+            "id": "observed-mage-frost-complete",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceName": "Raider.IO observed gear",
+            "sourceStatus": "verified",
+            "status": "complete",
+            "signature": "sig-observed-mage-frost-complete",
+            "gearItems": [
+                {"slot": "head", "itemId": "190001", "ilevel": 707, "simcReady": True},
+                {"slot": "neck", "itemId": "190002", "ilevel": 707, "simcReady": True},
+            ],
+            "payload": {
+                "communityTemplateFreshness": {
+                    "status": "fresh",
+                    "checkedAt": "2026-07-04T00:00:00+00:00",
+                    "freshUntil": "2026-07-05T00:00:00+00:00",
+                }
+            },
+        }
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "CANONICAL_GEAR_SLOTS",
+            ["head", "neck"],
+            create=True,
+        ):
+            preflight = postgres_cache_sync.build_community_gear_template_preflight([template])
+
+        self.assertEqual(preflight["communityBest"]["completeSpecCount"], 1)
+        self.assertEqual(preflight["realCommunityTemplates"]["coveredSpecCount"], 1)
+        mage_best = next(
+            row
+            for row in preflight["displaySlots"]
+            if row["specId"] == "mage:frost" and row["templateSlot"] == "community_best"
+        )
+        self.assertEqual(mage_best["status"], "complete")
+        self.assertEqual(mage_best["freshnessStatus"], "stale")
+        self.assertEqual(mage_best["nextAction"], "refresh_stale_winner")
+        stale_target = next(
+            row
+            for row in preflight["targetQueue"]
+            if row["targetKey"] == "gear-template:mage:frost:community_best:mplus_mixed_route"
+        )
+        self.assertEqual(stale_target["status"], "stale")
+        self.assertEqual(stale_target["nextAction"], "refresh_stale_winner")
 
     def test_gear_preflight_treats_mandatory_two_hand_offhand_as_covered(self):
         from server import postgres_cache_sync

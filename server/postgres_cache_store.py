@@ -12,10 +12,12 @@ from pathlib import Path
 try:
     from .websim_payload import (
         CANONICAL_GEAR_SLOTS,
+        COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
         COMMUNITY_TEMPLATE_REVISION,
         COMMUNITY_TALENT_SYNC_KEY,
         DEFAULT_RACE_BY_CLASS,
         DEFAULT_LOCALE,
+        DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
         GEAR_CATALOG_REVISION,
         GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
@@ -34,6 +36,7 @@ try:
         community_talent_source_ref,
         community_talent_template_slot_summary,
         community_talent_templates_for_spec_slots,
+        community_template_availability_expires_at,
         dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
@@ -102,10 +105,12 @@ try:
 except ImportError:
     from websim_payload import (
         CANONICAL_GEAR_SLOTS,
+        COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
         COMMUNITY_TEMPLATE_REVISION,
         COMMUNITY_TALENT_SYNC_KEY,
         DEFAULT_RACE_BY_CLASS,
         DEFAULT_LOCALE,
+        DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
         GEAR_CATALOG_REVISION,
         GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
@@ -124,6 +129,7 @@ except ImportError:
         community_talent_source_ref,
         community_talent_template_slot_summary,
         community_talent_templates_for_spec_slots,
+        community_template_availability_expires_at,
         dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
@@ -1527,6 +1533,23 @@ class PostgresCacheStore:
             for normalized in normalized_rows
             if normalized.get("sourceKey")
         })
+        target_slot_id_set = set(target_slot_ids)
+        replacement_slot_ids = set()
+        for normalized in active_rows:
+            if normalized.get("status") != "verified":
+                continue
+            slot_parts = [
+                str(normalized.get("classKey") or "").strip(),
+                str(normalized.get("specKey") or "").strip(),
+                str(normalized.get("heroKey") or "").strip(),
+            ]
+            if not all(slot_parts):
+                continue
+            slot_id = ":".join(slot_parts)
+            if target_slot_id_set and slot_id not in target_slot_id_set:
+                continue
+            replacement_slot_ids.add(slot_id)
+        replacement_slot_ids = sorted(replacement_slot_ids)
         with self.connection() as conn:
             with conn.cursor() as cur:
                 for normalized in active_rows:
@@ -1601,25 +1624,26 @@ class PostgresCacheStore:
                     target_filter = bool(target_slot_ids)
                     if current_ids:
                         if target_filter:
-                            cur.execute(
-                                """
-                                UPDATE cache.websim_community_talent_templates
-                                SET expires_at = %s,
-                                    updated_at = %s
-                                WHERE source_key = ANY(%s::text[])
-                                  AND CONCAT(class_key, ':', spec_key, ':', hero_key) = ANY(%s::text[])
-                                  AND NOT (id = ANY(%s::uuid[]))
-                                  AND (expires_at IS NULL OR expires_at > %s)
-                                """,
-                                (
-                                    replace_checked_at,
-                                    replace_checked_at,
-                                    current_source_keys,
-                                    target_slot_ids,
-                                    current_ids,
-                                    replace_checked_at,
-                                ),
-                            )
+                            if replacement_slot_ids:
+                                cur.execute(
+                                    """
+                                    UPDATE cache.websim_community_talent_templates
+                                    SET expires_at = %s,
+                                        updated_at = %s
+                                    WHERE source_key = ANY(%s::text[])
+                                      AND CONCAT(class_key, ':', spec_key, ':', hero_key) = ANY(%s::text[])
+                                      AND NOT (id = ANY(%s::uuid[]))
+                                      AND (expires_at IS NULL OR expires_at > %s)
+                                    """,
+                                    (
+                                        replace_checked_at,
+                                        replace_checked_at,
+                                        current_source_keys,
+                                        replacement_slot_ids,
+                                        current_ids,
+                                        replace_checked_at,
+                                    ),
+                                )
                         else:
                             cur.execute(
                                 """
@@ -1639,25 +1663,7 @@ class PostgresCacheStore:
                                 ),
                             )
                     else:
-                        if target_filter:
-                            cur.execute(
-                                """
-                                UPDATE cache.websim_community_talent_templates
-                                SET expires_at = %s,
-                                    updated_at = %s
-                                WHERE source_key = ANY(%s::text[])
-                                  AND CONCAT(class_key, ':', spec_key, ':', hero_key) = ANY(%s::text[])
-                                  AND (expires_at IS NULL OR expires_at > %s)
-                                """,
-                                (
-                                    replace_checked_at,
-                                    replace_checked_at,
-                                    current_source_keys,
-                                    target_slot_ids,
-                                    replace_checked_at,
-                                ),
-                            )
-                        else:
+                        if not target_filter:
                             cur.execute(
                                 """
                                 UPDATE cache.websim_community_talent_templates
@@ -1796,6 +1802,140 @@ class PostgresCacheStore:
                     (checked_at, checked_at, keys, checked_at),
                 )
                 return {"expired": cur.rowcount}
+
+    def restore_community_template_availability(self, availability_expires_at="", checked_at=""):
+        checked_at = checked_at or datetime.now(timezone.utc).isoformat()
+        availability_expires_at = availability_expires_at or community_template_availability_expires_at()
+        freshness_payload = {
+            "checkedAt": checked_at,
+            "freshUntil": checked_at,
+            "status": "stale",
+            "availabilityPolicy": COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
+            "repairReason": "availability_repair_after_ttl_split",
+        }
+        blocked_talent_sources = ["manual_fixture", "websim_baseline"]
+        blocked_gear_sources = [
+            DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+            "baseline_template",
+            "simc_preset",
+            "baseline_blocked",
+            "manual_fixture",
+            "fallback",
+            "source_reference",
+        ]
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    WITH ranked AS (
+                        SELECT id,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY class_key, spec_key, hero_key
+                                   ORDER BY
+                                       CASE COALESCE(payload_json->>'evidenceTier', '')
+                                           WHEN 'wcl_exact_template' THEN 0
+                                           WHEN 'wcl_character_supported' THEN 1
+                                           WHEN 'wcl_missing' THEN 2
+                                           WHEN 'wcl_conflict' THEN 3
+                                           WHEN 'wcl_blocked' THEN 4
+                                           ELSE 5
+                                       END,
+                                       COALESCE(max_key_level, 0) DESC,
+                                       COALESCE(sample_count, 0) DESC,
+                                       updated_at DESC,
+                                       id
+                               ) AS availability_rank
+                        FROM cache.websim_community_talent_templates
+                        WHERE status = 'verified'
+                          AND source_key <> ALL(%s::text[])
+                          AND COALESCE(class_key, '') <> ''
+                          AND COALESCE(spec_key, '') <> ''
+                          AND COALESCE(hero_key, '') <> ''
+                    )
+                    UPDATE cache.websim_community_talent_templates AS template
+                    SET expires_at = %s,
+                        updated_at = %s,
+                        payload_json = jsonb_set(
+                            COALESCE(template.payload_json, '{}'::jsonb),
+                            '{communityTemplateFreshness}',
+                            %s::jsonb,
+                            true
+                        )
+                    FROM ranked
+                    WHERE template.id = ranked.id
+                      AND ranked.availability_rank = 1
+                      AND (
+                          template.expires_at IS NULL
+                          OR template.expires_at <= %s
+                          OR NOT (COALESCE(template.payload_json, '{}'::jsonb) ? 'communityTemplateFreshness')
+                      )
+                    """,
+                    (
+                        blocked_talent_sources,
+                        availability_expires_at,
+                        checked_at,
+                        json_param(freshness_payload),
+                        checked_at,
+                    ),
+                )
+                talent_restored = cur.rowcount
+                cur.execute(
+                    """
+                    WITH ranked AS (
+                        SELECT id,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY class_key, spec_key
+                                   ORDER BY
+                                       COALESCE(ready_slot_count, 0) DESC,
+                                       CASE source_status
+                                           WHEN 'synced' THEN 0
+                                           WHEN 'verified' THEN 1
+                                           WHEN 'partial' THEN 2
+                                           ELSE 3
+                                       END,
+                                       updated_at DESC,
+                                       id
+                               ) AS availability_rank
+                        FROM cache.websim_community_gear_templates
+                        WHERE status = 'complete'
+                          AND source_key <> ALL(%s::text[])
+                          AND COALESCE(class_key, '') <> ''
+                          AND COALESCE(spec_key, '') <> ''
+                    )
+                    UPDATE cache.websim_community_gear_templates AS template
+                    SET expires_at = %s,
+                        updated_at = %s,
+                        payload_json = jsonb_set(
+                            COALESCE(template.payload_json, '{}'::jsonb),
+                            '{communityTemplateFreshness}',
+                            %s::jsonb,
+                            true
+                        )
+                    FROM ranked
+                    WHERE template.id = ranked.id
+                      AND ranked.availability_rank = 1
+                      AND (
+                          template.expires_at IS NULL
+                          OR template.expires_at <= %s
+                          OR NOT (COALESCE(template.payload_json, '{}'::jsonb) ? 'communityTemplateFreshness')
+                      )
+                    """,
+                    (
+                        blocked_gear_sources,
+                        availability_expires_at,
+                        checked_at,
+                        json_param(freshness_payload),
+                        checked_at,
+                    ),
+                )
+                gear_restored = cur.rowcount
+        return {
+            "status": "completed",
+            "checkedAt": checked_at,
+            "availabilityExpiresAt": availability_expires_at,
+            "talentRestored": max(0, int(talent_restored or 0)),
+            "gearRestored": max(0, int(gear_restored or 0)),
+        }
 
     def _reconcile_community_gear_slot_coverage(self, cur, source_keys, scan_run_id=""):
         if not source_keys:

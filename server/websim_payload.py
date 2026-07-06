@@ -80,6 +80,9 @@ BLIZZARD_ICON_HOSTS = {"render.worldofwarcraft.com"}
 GEAR_CATALOG_SHARED_CACHE_LOCK = threading.Lock()
 GEAR_CATALOG_SHARED_CACHE = {}
 SEASON_TTL_HOURS = int(os.environ.get("WOW_SEASON_TTL_HOURS", "24"))
+COMMUNITY_TEMPLATE_FRESHNESS_TTL_HOURS = int(os.environ.get("WOW_COMMUNITY_TEMPLATE_FRESHNESS_TTL_HOURS", "24"))
+COMMUNITY_TEMPLATE_AVAILABILITY_TTL_HOURS = int(os.environ.get("WOW_COMMUNITY_TEMPLATE_AVAILABILITY_TTL_HOURS", str(24 * 14)))
+COMMUNITY_TEMPLATE_AVAILABILITY_POLICY = "keep_available_until_replaced_or_hard_invalid"
 MIDNIGHT_SEASON_ONE_DUNGEONS = [
     "Magisters' Terrace",
     "Maisara Caverns",
@@ -2971,6 +2974,42 @@ def build_gear_observed_backfill_window(target_item_ids, profiles, state=None, *
 
 def season_expires_at(hours=SEASON_TTL_HOURS):
     return (datetime.now(timezone.utc) + timedelta(hours=max(1, hours))).isoformat(timespec="seconds")
+
+
+def community_template_fresh_until(hours=COMMUNITY_TEMPLATE_FRESHNESS_TTL_HOURS):
+    return season_expires_at(hours)
+
+
+def community_template_availability_expires_at(hours=COMMUNITY_TEMPLATE_AVAILABILITY_TTL_HOURS):
+    return season_expires_at(hours)
+
+
+def community_template_freshness_payload(source, now=""):
+    source = source if isinstance(source, dict) else {}
+    payload = source.get("payload") if isinstance(source.get("payload"), dict) else {}
+    existing = payload.get("communityTemplateFreshness") if isinstance(payload.get("communityTemplateFreshness"), dict) else {}
+    checked_at = str(
+        existing.get("checkedAt")
+        or source.get("checkedAt")
+        or source.get("updatedAt")
+        or now
+        or utc_now()
+    ).strip()
+    fresh_until = str(
+        existing.get("freshUntil")
+        or source.get("freshUntil")
+        or community_template_fresh_until()
+    ).strip()
+    return {
+        **existing,
+        "checkedAt": checked_at,
+        "freshUntil": fresh_until,
+        "status": str(existing.get("status") or "fresh").strip(),
+        "availabilityPolicy": str(
+            existing.get("availabilityPolicy")
+            or COMMUNITY_TEMPLATE_AVAILABILITY_POLICY
+        ).strip(),
+    }
 
 
 def season_revision_for(season_id, locale, dungeons):
@@ -13148,6 +13187,7 @@ def normalize_community_talent_template(template, source_key="unknown", source_s
         "sourceStatus": source.get("sourceStatus") or source_status,
         **{key: value for key, value in labels.items() if value},
     })
+    payload["communityTemplateFreshness"] = community_template_freshness_payload(source, now)
     normalized = {
         "id": slugify(source.get("id"), f"{source_key}-{class_key}-{spec_key}-{hero_key or 'default'}-{scenario_key}"),
         "classKey": class_key,
@@ -13174,7 +13214,7 @@ def normalize_community_talent_template(template, source_key="unknown", source_s
         "heroLabel": labels["heroLabel"],
         "scenarioTitle": labels["scenarioTitle"],
         "updatedAt": str(source.get("updatedAt") or now).strip(),
-        "expiresAt": str(source.get("expiresAt") or season_expires_at()).strip(),
+        "expiresAt": str(source.get("expiresAt") or community_template_availability_expires_at()).strip(),
     }
     normalized["signature"] = str(source.get("signature") or community_talent_signature(normalized)).strip()
     normalized["sourceRefs"] = normalize_source_refs(source.get("sourceRefs") or [community_talent_source_ref(normalized)])
@@ -18625,6 +18665,7 @@ def normalize_community_gear_template(template, class_key="", spec_key="", prese
             payload["enhancementReadiness"] = enhancement_readiness
         if template_evidence:
             payload["templateEvidence"] = template_evidence
+    payload["communityTemplateFreshness"] = community_template_freshness_payload(source)
     gear_items = normalize_websim_gear_items(source.get("gearItems") or [], class_key, spec_key)
     if not gear_items and source.get("rawString"):
         gear_items = [
@@ -18662,7 +18703,7 @@ def normalize_community_gear_template(template, class_key="", spec_key="", prese
         "sourceStatus": source_status,
         "status": status,
         "updatedAt": str(source.get("updatedAt") or utc_now()).strip(),
-        "expiresAt": str(source.get("expiresAt") or season_expires_at()).strip(),
+        "expiresAt": str(source.get("expiresAt") or community_template_availability_expires_at()).strip(),
         "analysisWindow": str(source.get("analysisWindow") or "").strip(),
         "gearItems": gear_items,
         "rawString": str(source.get("rawString") or "\n".join(raw_lines)).strip(),

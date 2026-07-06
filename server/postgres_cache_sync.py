@@ -3,6 +3,7 @@ import os
 import json
 import sqlite3
 import time
+from datetime import datetime, timezone
 
 try:
     from .db import connect_postgres, database_config_from_env
@@ -1145,10 +1146,15 @@ def _gear_display_row(spec_id, class_key, spec_key, template_slot, template, sta
     ready_slots = _gear_template_ready_slots(template, class_key, spec_key)
     ready_count = _gear_template_ready_count(template, class_key, spec_key) if template else 0
     target_key = f"gear-template:{class_key}:{spec_key}:{template_slot}:{DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY}"
+    freshness_status = "unknown"
+    if template:
+        freshness_status = "stale" if _community_template_freshness_expired(template) else "fresh"
     if template_slot == "baseline" and status == "available":
         next_action = "keep_baseline_available"
     elif template_slot == "baseline":
         next_action = "build_baseline_template"
+    elif status == "complete" and freshness_status == "stale":
+        next_action = "refresh_stale_winner"
     elif status == "complete":
         next_action = "monitor_freshness"
     elif status == "partial":
@@ -1164,6 +1170,7 @@ def _gear_display_row(spec_id, class_key, spec_key, template_slot, template, sta
         "templateSlot": template_slot,
         "targetKey": target_key,
         "status": status,
+        "freshnessStatus": freshness_status,
         "sourceKey": _gear_template_source_key(template),
         "sourceName": str(template.get("sourceName") or ""),
         "currentWinnerId": str(template.get("id") or ""),
@@ -1180,7 +1187,7 @@ def _gear_template_target(row, priority=50):
     return {
         "targetType": "gear_template",
         "targetKey": row["targetKey"],
-        "status": row["status"],
+        "status": "stale" if row.get("freshnessStatus") == "stale" and row.get("status") == "complete" else row["status"],
         "priority": priority,
         "specId": row["specId"],
         "templateSlot": row["templateSlot"],
@@ -1288,6 +1295,8 @@ def build_community_gear_template_preflight(templates, scan_run_id="", checked_a
         display_slots.append(community_row)
         if community_status != "complete":
             target_queue.append(_gear_template_target(community_row, priority=10 if community_status == "partial" else 30))
+        elif community_row.get("freshnessStatus") == "stale":
+            target_queue.append(_gear_template_target(community_row, priority=15))
 
         ready_slots = _gear_template_ready_slots(best_community, class_key, spec_key) if best_community else set()
         for slot in CANONICAL_GEAR_SLOTS:
@@ -1640,8 +1649,53 @@ def _community_talent_missing_slot_ids(rows):
     return [
         str(row.get("slotId") or "")
         for row in matrix.get("rows") or []
-        if row.get("slotId") and row.get("status") != "verified"
+        if row.get("slotId") and (
+            row.get("status") != "verified"
+            or _community_talent_slot_freshness_expired(row, rows)
+        )
     ]
+
+
+def _parse_iso_datetime(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    if raw.endswith("Z"):
+        raw = f"{raw[:-1]}+00:00"
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _community_template_freshness_expired(template, now=None):
+    template = template if isinstance(template, dict) else {}
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    freshness = payload.get("communityTemplateFreshness") if isinstance(payload.get("communityTemplateFreshness"), dict) else {}
+    if str(freshness.get("status") or "").strip() in {"stale", "refresh_failed", "needs_refresh"}:
+        return True
+    fresh_until = _parse_iso_datetime(freshness.get("freshUntil") or template.get("freshUntil"))
+    if not fresh_until:
+        return False
+    now = now or datetime.now(timezone.utc)
+    return fresh_until <= now
+
+
+def _community_talent_slot_freshness_expired(row, templates):
+    slot_id = str((row or {}).get("slotId") or "")
+    if not slot_id:
+        return False
+    for template in templates or []:
+        if not isinstance(template, dict):
+            continue
+        if _template_slot_id(template) != slot_id:
+            continue
+        if template.get("status") == "verified" and _community_template_freshness_expired(template):
+            return True
+    return False
 
 
 def _community_talent_specs_for_slots(slot_ids):

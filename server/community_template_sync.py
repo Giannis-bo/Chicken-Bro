@@ -67,6 +67,13 @@ DAILY_INCREMENTAL_MODES = {
     "season-reset-full",
 }
 DAILY_INCREMENTAL_TIERS = {"daily_light", "daily_targeted", "weekly_deep", "season_reset_full"}
+AVAILABILITY_RESTORE_MODES = {
+    "restore_availability",
+    "availability_restore",
+    "availability_repair",
+    "restore-availability",
+    "availability-repair",
+}
 CHANGE_REPORT_CATEGORIES = (
     "unchanged",
     "metadata_refreshed",
@@ -103,6 +110,10 @@ def source_status_from_parts(parts):
 
 def daily_incremental_mode_enabled(mode):
     return str(mode or "").strip().lower() in DAILY_INCREMENTAL_MODES
+
+
+def availability_restore_mode_enabled(mode):
+    return str(mode or "").strip().lower() in AVAILABILITY_RESTORE_MODES
 
 
 def _normalized_daily_tier(mode):
@@ -234,6 +245,13 @@ def _gear_skip_payload(mode, preflight, store, checked_at):
     }
 
 
+def _restore_community_template_availability_for_incremental(store, checked_at):
+    if not hasattr(store, "restore_community_template_availability"):
+        return {"status": "skipped", "skipReason": "store_missing_availability_restore"}
+    result = store.restore_community_template_availability(checked_at=checked_at)
+    return result if isinstance(result, dict) else {"status": "completed"}
+
+
 def _record_talent_changes(report, talent_payload):
     target_count = _stage_value(talent_payload, "source_collection", "targetSlotCount", 0)
     if not target_count:
@@ -359,6 +377,7 @@ def sync_community_template_daily_incremental_postgres(mode="daily_incremental")
     talent_mode = _daily_talent_mode(tier)
     gear_mode = _daily_gear_mode(tier)
     change_report = _new_change_report(scan_run_id, checked_at, tier)
+    availability_repair = _restore_community_template_availability_for_incremental(store, checked_at)
 
     talent_payload = sync_community_template_cache_postgres(mode=talent_mode, store=store, refresh_raiderio=True)
     _record_talent_changes(change_report, talent_payload)
@@ -399,6 +418,7 @@ def sync_community_template_daily_incremental_postgres(mode="daily_incremental")
         "sourceStatus": source_status,
         "startedAt": checked_at,
         "finishedAt": finished_at,
+        "availabilityRepair": availability_repair,
         "talents": {
             "mode": talent_mode,
             "scanRunId": talent_payload.get("scanRunId") or "",
@@ -421,6 +441,32 @@ def sync_community_template_daily_incremental_postgres(mode="daily_incremental")
             *list(talent_payload.get("errors") or []),
             *list(gear_payload.get("errors") or []),
         ][:20],
+    }
+    if hasattr(store, "save_sync_state"):
+        store.save_sync_state(COMMUNITY_TEMPLATE_SYNC_RUN_KEY, payload, finished_at)
+    return payload
+
+
+def restore_community_template_availability_postgres(mode="restore_availability"):
+    store = cache_store_from_env()
+    started_at = utc_now()
+    scan_run_id = f"pg-community-template-availability-repair-{started_at.replace(':', '').replace('+', 'z')}"
+    result = store.restore_community_template_availability(checked_at=started_at)
+    finished_at = utc_now()
+    payload = {
+        "schemaRevision": "community-template-availability-repair-v1",
+        "scanRunId": scan_run_id,
+        "runner": "postgres-availability-repair",
+        "mode": mode,
+        "status": result.get("status") or "completed",
+        "sourceStatus": "verified",
+        "startedAt": started_at,
+        "finishedAt": finished_at,
+        "availabilityExpiresAt": result.get("availabilityExpiresAt") or "",
+        "talentRestored": int(result.get("talentRestored") or 0),
+        "gearRestored": int(result.get("gearRestored") or 0),
+        "repair": result,
+        "errors": [],
     }
     if hasattr(store, "save_sync_state"):
         store.save_sync_state(COMMUNITY_TEMPLATE_SYNC_RUN_KEY, payload, finished_at)
@@ -546,7 +592,9 @@ def sync_community_template_cache(conn, mode="scheduled"):
 def main():
     mode = os.environ.get("WOW_COMMUNITY_TEMPLATE_SYNC_MODE", "scheduled").strip() or "scheduled"
     if postgres_only_runtime_enabled():
-        if daily_incremental_mode_enabled(mode):
+        if availability_restore_mode_enabled(mode):
+            payload = restore_community_template_availability_postgres(mode=mode)
+        elif daily_incremental_mode_enabled(mode):
             payload = sync_community_template_daily_incremental_postgres(mode=mode)
         else:
             payload = sync_community_template_cache_postgres(mode=mode)
