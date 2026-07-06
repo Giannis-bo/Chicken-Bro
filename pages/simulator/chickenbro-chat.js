@@ -90,24 +90,41 @@ function initialMessages() {
   ]
 }
 
+const ANSWER_LAYER_LABELS = {
+  direct_chat: '直聊',
+  diagnostic: '诊断',
+  evidence: '证据'
+}
+
 function emptyAssistantPayload() {
   return {
     answerSource: '',
     confidence: '',
+    answerLayer: '',
+    answerLayerLabel: '',
+    basisLabel: '',
     priorityActions: [],
     evidenceRefs: [],
-    limitations: []
+    limitations: [],
+    missingInputs: [],
+    nextQuestion: ''
   }
 }
 
 function normalizeAssistantPayload(payload) {
   const assistantPayload = (payload && payload.assistantMessage && payload.assistantMessage.payload) || {}
+  const answerLayer = assistantPayload.answerLayer || ''
   return {
     answerSource: assistantPayload.answerSource || '',
     confidence: assistantPayload.confidence || '',
+    answerLayer,
+    answerLayerLabel: ANSWER_LAYER_LABELS[answerLayer] || '',
+    basisLabel: assistantPayload.basisLabel || '',
     priorityActions: Array.isArray(assistantPayload.priorityActions) ? assistantPayload.priorityActions : [],
     evidenceRefs: Array.isArray(assistantPayload.evidenceRefs) ? assistantPayload.evidenceRefs : [],
-    limitations: Array.isArray(assistantPayload.limitations) ? assistantPayload.limitations : []
+    limitations: Array.isArray(assistantPayload.limitations) ? assistantPayload.limitations : [],
+    missingInputs: Array.isArray(assistantPayload.missingInputs) ? assistantPayload.missingInputs : [],
+    nextQuestion: assistantPayload.nextQuestion || ''
   }
 }
 

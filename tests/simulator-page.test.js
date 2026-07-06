@@ -1945,6 +1945,10 @@ test('smart analysis tab opens directly as the chickenbro chat surface', () => {
   assert.match(chickenbroWxml, /scroll-into-view="\{\{scrollAnchor\}\}"/)
   assert.match(chickenbroWxml, /topicDrawerVisible/)
   assert.doesNotMatch(chickenbroWxml, /contextDraft/)
+  assert.match(chickenbroWxml, /assistantPayload\.answerLayer/)
+  assert.match(chickenbroWxml, /assistantPayload\.basisLabel/)
+  assert.match(chickenbroWxml, /assistantPayload\.nextQuestion/)
+  assert.match(chickenbroWxml, /assistantPayload\.missingInputs && assistantPayload\.missingInputs\.length/)
   assert.match(chickenbroWxml, /assistantPayload\.priorityActions/)
   assert.match(chickenbroWxml, /assistantPayload\.evidenceRefs && assistantPayload\.evidenceRefs\.length/)
   assert.match(chickenbroWxml, /assistantPayload\.limitations && assistantPayload\.limitations\.length/)
@@ -1971,9 +1975,13 @@ test('smart analysis tab submits chickenbro chat messages without leaving the pa
               payload: {
                 answerSource: 'deterministic_fallback',
                 confidence: 'low',
+                answerLayer: 'diagnostic',
+                basisLabel: '需要证据确认',
                 priorityActions: [{ title: '补齐 SimC 或 WCL 证据。', evidenceRefs: [] }],
                 evidenceRefs: [],
-                limitations: ['missing_published_profile']
+                limitations: ['missing_published_profile'],
+                missingInputs: ['simc_or_wcl'],
+                nextQuestion: '你能补一份 SimC 报告或 WCL 链接吗？'
               }
             }
           },
@@ -2010,6 +2018,10 @@ test('smart analysis tab submits chickenbro chat messages without leaving the pa
     assert.equal(page.data.loading, false)
     assert.equal(page.data.chatMessages.some((item) => item.status === 'pending'), false)
     assert.equal(page.data.assistantPayload.answerSource, 'deterministic_fallback')
+    assert.equal(page.data.assistantPayload.answerLayer, 'diagnostic')
+    assert.equal(page.data.assistantPayload.basisLabel, '需要证据确认')
+    assert.equal(page.data.assistantPayload.nextQuestion, '你能补一份 SimC 报告或 WCL 链接吗？')
+    assert.deepEqual(page.data.assistantPayload.missingInputs, ['simc_or_wcl'])
   } finally {
     global.wx = originalWx
   }
@@ -2203,11 +2215,15 @@ test('chickenbro page submits messages through independent chat API', async () =
               payload: {
                 answerSource: 'codex',
                 confidence: 'medium',
+                answerLayer: 'evidence',
+                basisLabel: '已基于你的模板或 SimC 分析',
                 priorityActions: [
                   { title: '确认大波次爆发窗口', evidenceRefs: ['profile.summary'] }
                 ],
                 evidenceRefs: ['profile.summary'],
-                limitations: ['partial_profiles_background_only']
+                limitations: ['partial_profiles_background_only'],
+                missingInputs: ['personal_simc_or_wcl'],
+                nextQuestion: '要不要补你的个人 SimC 或 WCL？'
               }
             }
           },
@@ -2240,9 +2256,13 @@ test('chickenbro page submits messages through independent chat API', async () =
     assert.equal(page.data.session.sessionId, 'session-1')
     assert.equal(page.data.job.status, 'succeeded')
     assert.equal(page.data.chatMessages.length, 3)
+    assert.equal(page.data.assistantPayload.answerLayer, 'evidence')
+    assert.equal(page.data.assistantPayload.basisLabel, '已基于你的模板或 SimC 分析')
     assert.equal(page.data.assistantPayload.priorityActions[0].title, '确认大波次爆发窗口')
     assert.equal(page.data.assistantPayload.evidenceRefs[0], 'profile.summary')
     assert.equal(page.data.assistantPayload.limitations[0], 'partial_profiles_background_only')
+    assert.deepEqual(page.data.assistantPayload.missingInputs, ['personal_simc_or_wcl'])
+    assert.equal(page.data.assistantPayload.nextQuestion, '要不要补你的个人 SimC 或 WCL？')
   } finally {
     global.wx = originalWx
   }
@@ -2271,9 +2291,13 @@ test('chickenbro page surfaces request failures without leaving loading stuck', 
       assistantPayload: {
         answerSource: 'old',
         confidence: 'high',
+        answerLayer: 'evidence',
+        basisLabel: '旧依据',
         priorityActions: [{ title: '旧行动' }],
         evidenceRefs: ['old.ref'],
-        limitations: ['old-limit']
+        limitations: ['old-limit'],
+        missingInputs: ['old-input'],
+        nextQuestion: '旧问题？'
       }
     })
     page.submitChickenbroMessage()
@@ -2289,6 +2313,10 @@ test('chickenbro page surfaces request failures without leaving loading stuck', 
     assert.deepEqual(page.data.assistantPayload.priorityActions, [])
     assert.deepEqual(page.data.assistantPayload.evidenceRefs, [])
     assert.deepEqual(page.data.assistantPayload.limitations, [])
+    assert.deepEqual(page.data.assistantPayload.missingInputs, [])
+    assert.equal(page.data.assistantPayload.answerLayer, '')
+    assert.equal(page.data.assistantPayload.basisLabel, '')
+    assert.equal(page.data.assistantPayload.nextQuestion, '')
     assert.match(page.data.requestError, /network timeout/)
   } finally {
     global.wx = originalWx

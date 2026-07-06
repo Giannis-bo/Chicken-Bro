@@ -40,9 +40,20 @@
             <text class="answer-evidence-title">回答依据</text>
             <text class="answer-evidence-source">{{assistantPayload.answerSource}} · {{assistantPayload.confidence}}</text>
           </view>
+          <view class="answer-layer-row">
+            <text class="answer-layer-chip" wx:if="{{assistantPayload.answerLayer}}">{{assistantPayload.answerLayerLabel || assistantPayload.answerLayer}}</text>
+            <text class="answer-basis" wx:if="{{assistantPayload.basisLabel}}">{{assistantPayload.basisLabel}}</text>
+          </view>
           <view class="answer-action" wx:for="{{assistantPayload.priorityActions}}" wx:key="title">
             <text class="answer-action-title">{{item.title}}</text>
             <text class="answer-action-ref" wx:if="{{item.evidenceRefs && item.evidenceRefs.length}}">{{item.evidenceRefs}}</text>
+          </view>
+          <view class="next-question" wx:if="{{assistantPayload.nextQuestion}}">
+            <text class="next-question-label">追问</text>
+            <text class="next-question-text">{{assistantPayload.nextQuestion}}</text>
+          </view>
+          <view class="coach-chip-list" wx:if="{{assistantPayload.missingInputs && assistantPayload.missingInputs.length}}">
+            <text class="coach-chip missing-chip" wx:for="{{assistantPayload.missingInputs}}" wx:key="*this">{{item}}</text>
           </view>
           <view class="coach-chip-list" wx:if="{{assistantPayload.evidenceRefs && assistantPayload.evidenceRefs.length}}">
             <text class="coach-chip" wx:for="{{assistantPayload.evidenceRefs}}" wx:key="*this">{{item}}</text>
