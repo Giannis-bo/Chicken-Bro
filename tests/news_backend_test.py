@@ -6585,11 +6585,13 @@ class NewsBackendTest(unittest.TestCase):
         self.seed_chickenbro_profile()
         captured = {}
         previous_env = os.environ.get("WOW_CHICKENBRO_CODEX_ENABLED")
+        previous_timeout = os.environ.get("WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS")
         previous_runner = self.backend.run_codex_job
 
         def fake_run_codex_job(prompt, **kwargs):
             captured["prompt"] = prompt
             captured["schema"] = kwargs.get("schema")
+            captured["timeoutSeconds"] = kwargs.get("timeout_seconds")
             return {
                 "status": "succeeded",
                 "lastMessage": json.dumps(
@@ -6608,6 +6610,7 @@ class NewsBackendTest(unittest.TestCase):
 
         try:
             os.environ["WOW_CHICKENBRO_CODEX_ENABLED"] = "1"
+            os.environ["WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS"] = "3"
             self.backend.run_codex_job = fake_run_codex_job
             result = self.backend.send_chickenbro_message(
                 {
@@ -6622,9 +6625,14 @@ class NewsBackendTest(unittest.TestCase):
                 os.environ.pop("WOW_CHICKENBRO_CODEX_ENABLED", None)
             else:
                 os.environ["WOW_CHICKENBRO_CODEX_ENABLED"] = previous_env
+            if previous_timeout is None:
+                os.environ.pop("WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS", None)
+            else:
+                os.environ["WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS"] = previous_timeout
 
         self.assertIn("boundedContext", json.loads(captured["prompt"]))
         self.assertIs(captured["schema"]["additionalProperties"], False)
+        self.assertEqual(captured["timeoutSeconds"], 3)
         self.assertEqual(result["assistantMessage"]["payload"]["answerSource"], "codex")
         self.assertEqual(result["job"]["result"]["codex"]["status"], "succeeded")
 

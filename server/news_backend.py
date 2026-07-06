@@ -6015,7 +6015,8 @@ def chickenbro_prompt_from_context(bounded_context):
 def default_chickenbro_codex_runner(prompt, schema=None):
     if os.environ.get("WOW_CHICKENBRO_CODEX_ENABLED") != "1" or run_codex_job is None:
         return {"status": "skipped", "error": "chickenbro codex disabled"}
-    return run_codex_job(prompt, schema=schema)
+    timeout_seconds = max(1, min(60, int_env("WOW_CHICKENBRO_CODEX_TIMEOUT_SECONDS", 12)))
+    return run_codex_job(prompt, schema=schema, timeout_seconds=timeout_seconds)
 
 
 def parse_chickenbro_codex_output(codex_result):
