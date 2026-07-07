@@ -101,8 +101,8 @@ if [[ "${SKIP_BOOTSTRAP}" == "1" ]]; then
     echo "Missing existing SimulationCraft binary in hot deploy mode: ${SIMC_BIN}" >&2
     exit 1
   fi
-  sudo mkdir -p /var/lib/wow-backend "${CODEX_JOBS_DIR}" "${CODEX_HOME_DIR}"
-  sudo chown -R "$(id -un):$(id -gn)" /var/lib/wow-backend "${CODEX_HOME_DIR}"
+  sudo mkdir -p "${SIMC_ROOT}" /var/lib/wow-backend "${CODEX_JOBS_DIR}" "${CODEX_HOME_DIR}"
+  sudo chown -R "$(id -un):$(id -gn)" "${SIMC_ROOT}" /var/lib/wow-backend "${CODEX_HOME_DIR}"
 else # full remote bootstrap
 install_codex_from_github_release() {
   CODEX_HOME_DIR="${CODEX_HOME_DIR}" python3 - <<'PY'
@@ -411,8 +411,8 @@ sudo chmod 0755 /usr/local/bin/wow-simc-version-check
 sudo tee /etc/systemd/system/wow-simc-version-check.service >/dev/null <<'SIMCSERVICE'
 [Unit]
 Description=Check SimulationCraft source version
-After=network-online.target
-Wants=network-online.target
+After=network-online.target mihomo.service
+Wants=network-online.target mihomo.service
 
 [Service]
 Type=oneshot
@@ -421,6 +421,14 @@ Environment=SIMC_GITHUB_REPO=simulationcraft/simc
 Environment=SIMC_BRANCH=midnight
 Environment=SIMC_COMMIT_FILE=/opt/wow-simc/.commit
 Environment=SIMC_BIN=/opt/wow-simc/current/simc
+Environment=HTTPS_PROXY=http://127.0.0.1:7890
+Environment=HTTP_PROXY=http://127.0.0.1:7890
+Environment=ALL_PROXY=socks5h://127.0.0.1:7890
+Environment=NO_PROXY=127.0.0.1,localhost,::1,169.254.169.254
+Environment=https_proxy=http://127.0.0.1:7890
+Environment=http_proxy=http://127.0.0.1:7890
+Environment=all_proxy=socks5h://127.0.0.1:7890
+Environment=no_proxy=127.0.0.1,localhost,::1,169.254.169.254
 ExecStart=/usr/local/bin/wow-simc-version-check
 SIMCSERVICE
 
@@ -450,6 +458,11 @@ sudo cp "${REMOTE_DIR}/server/wow-community-template-sync.timer" "/etc/systemd/s
 sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.service" "/etc/systemd/system/wow-gear-observed-backfill.service"
 sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.timer" "/etc/systemd/system/wow-gear-observed-backfill.timer"
 sudo cp "${REMOTE_DIR}/server/wow-season-recommended-gear-sync.service" "/etc/systemd/system/wow-season-recommended-gear-sync.service"
+sudo cp "${REMOTE_DIR}/server/wow-season-recommended-gear-sync.timer" "/etc/systemd/system/wow-season-recommended-gear-sync.timer"
+sudo cp "${REMOTE_DIR}/server/wow-data-health-followup.service" "/etc/systemd/system/wow-data-health-followup.service"
+sudo cp "${REMOTE_DIR}/server/wow-data-health-followup.timer" "/etc/systemd/system/wow-data-health-followup.timer"
+sudo chmod 0755 "${REMOTE_DIR}/server/simc_runtime_update.sh"
+sudo cp "${REMOTE_DIR}/server/wow-simc-runtime-update.service" "/etc/systemd/system/wow-simc-runtime-update.service"
 
 sudo tee /etc/nginx/sites-available/wow-backend >/dev/null <<'NGINX'
 server {
@@ -481,6 +494,9 @@ sudo nginx -t
 if systemctl list-unit-files wow-news-backend.service >/dev/null 2>&1; then
   sudo systemctl disable --now wow-news-backend.service >/dev/null 2>&1 || true
 fi
+sudo rm -rf /etc/systemd/system/wow-news-backend.service.d
+sudo rm -f /etc/systemd/system/wow-news-backend.service
+sudo systemctl mask wow-news-backend.service >/dev/null 2>&1 || true
 
 port80_pid="$(sudo ss -H -ltnp "sport = :80" | sed -n 's/.*pid=\([0-9]\+\).*/\1/p' | head -n 1)"
 if [[ -n "${port80_pid}" ]]; then
@@ -511,7 +527,11 @@ sudo systemctl reset-failed wow-community-template-sync.service >/dev/null 2>&1 
 sudo systemctl enable --now wow-community-template-sync.timer
 sudo systemctl reset-failed wow-gear-observed-backfill.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-season-recommended-gear-sync.service >/dev/null 2>&1 || true
-echo "PG-native sync timers enabled; observed gear backfill unit installed but not auto-enabled."
+sudo systemctl enable --now wow-season-recommended-gear-sync.timer
+sudo systemctl reset-failed wow-data-health-followup.service >/dev/null 2>&1 || true
+sudo systemctl enable --now wow-data-health-followup.timer
+sudo systemctl reset-failed wow-simc-runtime-update.service >/dev/null 2>&1 || true
+echo "PG-native sync timers enabled; observed gear backfill unit installed but not auto-enabled by deploy."
 sudo systemctl enable --now "${SERVICE_NAME}"
 sudo systemctl restart "${SERVICE_NAME}"
 sudo systemctl restart nginx

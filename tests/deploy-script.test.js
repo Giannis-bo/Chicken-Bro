@@ -5,6 +5,19 @@ const { execFileSync, spawnSync } = require('node:child_process')
 
 const scriptPath = 'server/deploy_lighthouse.sh'
 
+function assertUsesMihomoProxy(service, unit) {
+  assert.match(service, /After=.*mihomo\.service/, `${unit} must wait for mihomo when fetching external evidence`)
+  assert.match(service, /Wants=.*mihomo\.service/, `${unit} must start mihomo when fetching external evidence`)
+  assert.match(service, /Environment=HTTPS_PROXY=http:\/\/127\.0\.0\.1:7890/, `${unit} must proxy HTTPS`)
+  assert.match(service, /Environment=HTTP_PROXY=http:\/\/127\.0\.0\.1:7890/, `${unit} must proxy HTTP`)
+  assert.match(service, /Environment=ALL_PROXY=socks5h:\/\/127\.0\.0\.1:7890/, `${unit} must proxy non-HTTP clients`)
+  assert.match(service, /Environment=NO_PROXY=127\.0\.0\.1,localhost/, `${unit} must keep local calls direct`)
+  assert.match(service, /Environment=https_proxy=http:\/\/127\.0\.0\.1:7890/, `${unit} must proxy lowercase HTTPS clients`)
+  assert.match(service, /Environment=http_proxy=http:\/\/127\.0\.0\.1:7890/, `${unit} must proxy lowercase HTTP clients`)
+  assert.match(service, /Environment=all_proxy=socks5h:\/\/127\.0\.0\.1:7890/, `${unit} must proxy lowercase non-HTTP clients`)
+  assert.match(service, /Environment=no_proxy=127\.0\.0\.1,localhost/, `${unit} must keep lowercase local calls direct`)
+}
+
 test('lighthouse deploy script supports a no-download hot deploy mode', () => {
   const script = fs.readFileSync(scriptPath, 'utf8')
 
@@ -23,6 +36,12 @@ test('lighthouse deploy script supports a no-download hot deploy mode', () => {
   assert.match(script, /wow-stat-weights-sync\.timer/)
   assert.match(script, /wow-community-template-sync\.service/)
   assert.match(script, /wow-community-template-sync\.timer/)
+  assert.match(script, /wow-season-recommended-gear-sync\.service/)
+  assert.match(script, /wow-season-recommended-gear-sync\.timer/)
+  assert.match(script, /wow-data-health-followup\.service/)
+  assert.match(script, /wow-data-health-followup\.timer/)
+  assert.match(script, /wow-simc-runtime-update\.service/)
+  assert.match(script, /sudo systemctl mask wow-news-backend\.service/)
 
   const skipBranch = script.indexOf('if [[ "${SKIP_BOOTSTRAP}" == "1" ]]')
   const bootstrapBranch = script.indexOf('else # full remote bootstrap')
@@ -52,7 +71,9 @@ test('lighthouse deploy script enables PG-native sync timers in PG-only mode', (
   for (const enableCommand of [
     'sudo systemctl enable --now wow-websim-sync.timer',
     'sudo systemctl enable --now wow-stat-weights-sync.timer',
-    'sudo systemctl enable --now wow-community-template-sync.timer'
+    'sudo systemctl enable --now wow-community-template-sync.timer',
+    'sudo systemctl enable --now wow-season-recommended-gear-sync.timer',
+    'sudo systemctl enable --now wow-data-health-followup.timer'
   ]) {
     const enableIndex = script.indexOf(enableCommand)
     assert.ok(enableIndex > 0 && enableIndex < smokeIndex, `${enableCommand} must run before API smoke checks`)
@@ -68,6 +89,87 @@ test('lighthouse deploy script enables PG-native sync timers in PG-only mode', (
     assert.ok(startIndex > optInIndex, `${startCommand} must stay behind async sync opt-in`)
   }
   assert.doesNotMatch(script, /start --no-block wow-gear-observed-backfill\.service/)
+})
+
+test('season recommended gear sync has a daily persistent systemd timer', () => {
+  const service = fs.readFileSync('server/wow-season-recommended-gear-sync.service', 'utf8')
+  const timer = fs.readFileSync('server/wow-season-recommended-gear-sync.timer', 'utf8')
+
+  assert.match(service, /Environment=WOW_DATABASE_RUNTIME=postgres_only/)
+  assert.match(service, /ExecStart=\/usr\/bin\/flock -w 7200 \/run\/lock\/wow-mini-program-sync\.lock \/usr\/bin\/python3 \/opt\/wow-mini-program\/server\/season_recommended_gear_sync\.py/)
+  assert.match(service, /TimeoutStartSec=45min/)
+  assert.doesNotMatch(service, /WOW_NEWS_DB/)
+  assert.match(timer, /OnBootSec=20min/)
+  assert.match(timer, /OnCalendar=\*-\*-\* 07:30:00/)
+  assert.match(timer, /RandomizedDelaySec=20min/)
+  assert.match(timer, /Persistent=true/)
+})
+
+test('data health followup triggers safe blocker continuation through existing units', () => {
+  const service = fs.readFileSync('server/wow-data-health-followup.service', 'utf8')
+  const timer = fs.readFileSync('server/wow-data-health-followup.timer', 'utf8')
+
+  assert.match(service, /ExecStart=\/usr\/bin\/python3 \/opt\/wow-mini-program\/server\/data_health_followup\.py --execute/)
+  assert.doesNotMatch(service, /SIMC_GITHUB_REPO|github\.com|curl|wget/)
+  assert.match(timer, /OnBootSec=25min/)
+  assert.match(timer, /OnUnitActiveSec=2h/)
+  assert.match(timer, /RandomizedDelaySec=10min/)
+  assert.match(timer, /Persistent=true/)
+})
+
+test('simc runtime update has a locked systemd service and reusable updater', () => {
+  assert.ok(fs.existsSync('server/wow-simc-runtime-update.service'), 'missing simc runtime update service')
+  assert.ok(fs.existsSync('server/simc_runtime_update.sh'), 'missing simc runtime update script')
+
+  const service = fs.readFileSync('server/wow-simc-runtime-update.service', 'utf8')
+  const script = fs.readFileSync('server/simc_runtime_update.sh', 'utf8')
+
+  assert.match(service, /Environment=WOW_DATABASE_RUNTIME=postgres_only/)
+  assert.match(service, /Environment=SIMC_GITHUB_REPO=simulationcraft\/simc/)
+  assert.match(service, /Environment=SIMC_BRANCH=midnight/)
+  assertUsesMihomoProxy(service, 'server/wow-simc-runtime-update.service')
+  assert.match(service, /ExecStart=\/usr\/bin\/flock -w 21600 \/run\/lock\/wow-mini-program-sync\.lock \/opt\/wow-mini-program\/server\/simc_runtime_update\.sh/)
+  assert.match(service, /TimeoutStartSec=480min/)
+  assert.doesNotMatch(service, /WOW_NEWS_DB/)
+
+  assert.match(script, /https:\/\/api\.github\.com\/repos\/\$\{repo\}\/branches\/\$\{branch\}/)
+  assert.match(script, /https:\/\/github\.com\/\$\{repo\}\/archive\/\$\{latest_simc_commit\}\.tar\.gz/)
+  assert.match(script, /cmake -S "\$\{SIMC_SRC\}" -B "\$\{SIMC_BUILD\}"/)
+  assert.match(script, /wow-simc-version-check/)
+})
+
+test('simc version check unit generated by deploy also uses mihomo proxy', () => {
+  const script = fs.readFileSync(scriptPath, 'utf8')
+  const serviceStart = script.indexOf('Description=Check SimulationCraft source version')
+  const serviceEnd = script.indexOf('SIMCSERVICE', serviceStart)
+
+  assert.ok(serviceStart > 0, 'missing generated SimC version check service')
+  assert.ok(serviceEnd > serviceStart, 'missing end of generated SimC version check service')
+  assertUsesMihomoProxy(script.slice(serviceStart, serviceEnd), 'generated wow-simc-version-check.service')
+})
+
+test('external evidence fetch units use the local mihomo proxy', () => {
+  for (const unit of [
+    'server/wow-backend.service',
+    'server/wow-websim-sync.service',
+    'server/wow-stat-weights-sync.service',
+    'server/wow-community-template-sync.service',
+    'server/wow-gear-observed-backfill.service',
+    'server/wow-simc-runtime-update.service'
+  ]) {
+    assertUsesMihomoProxy(fs.readFileSync(unit, 'utf8'), unit)
+  }
+})
+
+test('news refresh cron defaults to the unified deployment log path and long timeout', () => {
+  const script = fs.readFileSync('server/refresh_cron.sh', 'utf8')
+
+  assert.match(script, /WOW_NEWS_REFRESH_URL:-http:\/\/127\.0\.0\.1:8787\/api\/news\/refresh\?mode=scheduled&scope=queue&limit=1/)
+  assert.match(script, /WOW_NEWS_REFRESH_LOG:-\/opt\/wow-mini-program\/logs\/refresh_cron\.log/)
+  assert.match(script, /WOW_NEWS_REFRESH_TIMEOUT:-240/)
+  assert.doesNotMatch(script, /WOW_NEWS_REFRESH_URL:-http:\/\/127\.0\.0\.1\/api\/news\/refresh/)
+  assert.doesNotMatch(script, /wow-news-backend\/logs\/refresh_cron\.log/)
+  assert.doesNotMatch(script, /WOW_NEWS_REFRESH_TIMEOUT:-45/)
 })
 
 test('community template sync has a daily incremental persistent systemd timer', () => {
@@ -106,7 +208,10 @@ test('production systemd units do not configure SQLite runtime paths', () => {
     'server/wow-websim-sync.service',
     'server/wow-stat-weights-sync.service',
     'server/wow-community-template-sync.service',
-    'server/wow-gear-observed-backfill.service'
+    'server/wow-gear-observed-backfill.service',
+    'server/wow-season-recommended-gear-sync.service',
+    'server/wow-data-health-followup.service',
+    'server/wow-simc-runtime-update.service'
   ]) {
     const service = fs.readFileSync(unit, 'utf8')
     assert.match(service, /Environment=WOW_DATABASE_RUNTIME=postgres_only/, `${unit} must opt into PG-only runtime`)

@@ -1,7 +1,7 @@
 # 装备模拟全链路 Runbook
 
 > 适用范围：`/api/websim/gear` 装备模拟读模型、装备自建数据库、装备强化配置、制造业装备、全职业专精装备适配、前端展示、SimC profile serializer、生产刷新和回滚。
-> 最后更新：2026-07-06。
+> 最后更新：2026-07-07。
 
 本文是下一次大版本或赛季装备更新的执行手册。目标不是记录某一次修复，而是把“从上游 API 到线上 UI 和可执行 SimC profile”的完整链路固化成可复用流程。任何新版本装备更新，都应先按本文确认数据入口、证据门禁、审计 SQL、健康指标、全职业专精适配和回滚边界，再做写库或部署。
 
@@ -16,7 +16,7 @@
 - 默认模板兼容保留：`default_template / 默认模板` 只能作为 legacy fallback/诊断来源，`season_recommendation` 可用时不得作为首选 baseline。
 - 完整状态拆分：装备模板 `status=complete` 只表示 16 个 canonical 槽位完整且 SimC serializer 可执行；宝石、附魔、美化和 `crafted_stats` readiness 必须通过独立 `enhancementReadiness` 表达。
 - 可回滚：任何生产写库前必须备份实际写入的 PostgreSQL target，并保留历史 SQLite 文件备份作为迁移/审计证据。当前 runtime 必须是 `WOW_DATABASE_RUNTIME=postgres_only`；SQLite 不能作为线上 fallback 或健康判断来源。任何代码部署前必须能区分“代码回滚”和“DB 回滚”。
-- 不下载不写入：拉取远端数据、下载外部文件、生产 SSH/DB 写入、Wago/SimC 数据刷新，都必须先取得 owner 明确批准。
+- 下载/写入边界：拉取远端数据、下载外部文件、生产 SSH/DB 写入、Wago/SimC 数据刷新，默认都必须先取得 owner 明确批准。例外是已知云服务器上的 SimulationCraft runtime 更新：当用户明确要求处理 SimC 更新、WebSim/SimC readiness、赛季切换阻塞，或已授权 health follow-up 自动处理 SimC runtime 时，可直接下载配置好的 SimC 源包、构建、切换 `/opt/wow-simc/current` 并执行 smoke；不得扩展到本机下载、任意第三方下载、依赖安装或修改 SimC repo/branch。
 
 ## 端到端链路
 
@@ -93,6 +93,7 @@ flowchart TD
 | Stat snapshot | `build_websim_gear_stats_response`、`backfill_simcraft_template_detail_stat_snapshot` | 用结构化 gear/talent 上下文生成 verified 角色属性快照，供 SimC 模板确认页和任务详情展示 |
 | Season recommended templates | `server/season_recommended_gear_sync.py`、`sync_season_recommended_gear_postgres`、`build_season_recommended_gear_templates` | 生成 `season_recommendation` 基线模板，写入社区导入 `baseline` 子类，并在 health 暴露 `seasonRecommendation` / `communityImportTemplates` 覆盖率 |
 | Default templates | `sync_community_gear_templates`、`build_default_community_gear_template` | legacy fallback：用 verified 当前赛季候选和 verified `mplus_mixed_route` 绿字权重生成 `默认模板` 兜底，并把缺证据专精写入 sync run / health |
+| Health follow-up | `server/data_health_followup.py`、`wow-data-health-followup.timer` | 根据 `/api/data/health` 续跑可安全自动处理的阻塞；SimC runtime `updateAvailable=true` 时先触发 `wow-simc-runtime-update.service` 自动下载、构建、切换 runtime |
 | API | `server/news_backend.py` | `/api/websim/gear`、`/api/websim/profile`、`/api/data/health` |
 | Frontend | `pages/builds/detail.*` | 装备栏、候选 sheet、详情、强化配置、保存模板；只消费后端结构化字段 |
 
@@ -185,6 +186,18 @@ order by option_type, status;
 
 除非在事故修复中明确隔离范围，否则不要跳过最后的 catalog rebuild 和 health 复核。
 
+### 自动续跑边界
+
+生产部署会安装并启用 `wow-data-health-followup.timer`，默认每 2 小时调用 `/api/data/health`。它触发已经存在、可串行续跑的安全任务：
+
+- `news_refresh`：新闻有 retryable/queued 时执行 `/opt/wow-mini-program/server/refresh_cron.sh`；默认只处理 1 条 queue/retryable backlog，超过 `WOW_NEWS_RETRY_MAX_ATTEMPTS` 的翻译失败会转为 blocked/report。
+- `gear_observed_backfill`：装备库 partial/stale/blocked 时先跑 `wow-gear-observed-backfill.service`，用已有 Raider.IO/Battle.net/SimC 证据补 observed variant。
+- `websim_sync`：`websim_sync` 被 gear catalog 阻塞时异步触发 `wow-websim-sync.service`，在回填后重建 catalog。
+- `stat_weights_sync`：权重有 blocked scenarios 时异步触发 `wow-stat-weights-sync.service`。
+- `simc_runtime_update`：`template_simc_bridge` 或 `season_cutover_readiness` 报告配置好的 SimC runtime 有新 commit 时，启动 `wow-simc-runtime-update.service` 下载配置源、构建并切换 `/opt/wow-simc/current`。该 service 使用 `/run/lock/wow-mini-program-sync.lock` 串行化长任务；同一轮 follow-up 会优先跑 SimC runtime update，依赖 SimC 的 WebSim/stat/gear 重建留到下一轮 health follow-up。
+
+这些任务必须继续 fail-closed：没有 verified 证据就保留 partial/blocked 并在 health 中报告。SimC runtime 自动更新只允许使用配置好的 `SIMC_GITHUB_REPO` / `SIMC_BRANCH` 和已知云服务器路径；修改源仓库、分支、本机下载或安装依赖仍需单独批准。
+
 ### 当前赛季推荐装备模板生成门禁
 
 `season_recommendation` 是装备导入中“社区模板”分组下的兜底基线子类，和真实社区装备 winner 分开计数：
@@ -199,7 +212,7 @@ order by option_type, status;
 - 输出：`sourceKey=season_recommendation`、`sourceName=当前赛季大秘境 AOE 推荐模板`、`templateSlot=baseline`、`scenarioKey=mplus_aoe`、`status=complete`、`readySlotCount=16`、`canApplyGear=true`。
 - 首版质量语义：`recommendationConfidence=provisional`；它是当前赛季可导入起点，不是绝对 BiS。后续只有接入 SimC optimizer / role-specific objective 并记录 candidate ledger、score、runtime revision 后，才可把具体专精升级为 `verified`。
 - 失败处理：缺真实社区 winner、缺 verified 天赋锚点、缺槽、serializer 无法生成 16 行或 metadata 不 display-ready 时，不写 complete `season_recommendation`，必须在 sync run / health blocker 中暴露 class/spec 和缺口。
-- 运行入口：部署后可手动执行 `sudo systemctl start wow-season-recommended-gear-sync.service`；该服务是 one-shot，不默认自动启动。CLI 入口为 `WOW_DATABASE_RUNTIME=postgres_only python3 server/season_recommended_gear_sync.py`。
+- 运行入口：`wow-season-recommended-gear-sync.timer` 每天 07:30 左右自动触发 `wow-season-recommended-gear-sync.service`，用于在社区模板日更后刷新 `season_recommendation` 基线；需要临时补跑时可手动执行 `sudo systemctl start wow-season-recommended-gear-sync.service`。CLI 入口为 `WOW_DATABASE_RUNTIME=postgres_only python3 server/season_recommended_gear_sync.py`。
 
 2026-07-06 首版生产验收：
 
@@ -501,7 +514,7 @@ curl -fsS "$BASE_URL/api/data/health"
 
 ## 生产更新快路径
 
-下一次大版本更新按以下顺序执行。生产 SSH、远端 DB 写入、下载/刷新外部数据前先请求 owner 明确批准。
+下一次大版本更新按以下顺序执行。生产 SSH、远端 DB 写入、下载/刷新外部数据前先请求 owner 明确批准。已知云服务器上的 SimC runtime 更新按仓库 Cloud Deployment Approval 例外处理：用户明确要求处理 SimC 更新、WebSim/SimC readiness、赛季切换阻塞，或已授权 health follow-up 自动处理 SimC runtime 时可直接执行。
 
 ### A. 准备
 
@@ -509,7 +522,7 @@ curl -fsS "$BASE_URL/api/data/health"
 - 确认当前 git 状态，保留无关用户改动。
 - 确认版本范围：赛季、实例、团本、套装、制造业、强化项、职业规则。
 - 列出需要刷新或新增的上游证据源。
-- 如果需要下载或远端数据刷新，先拿批准。
+- 如果需要下载或远端数据刷新，先拿批准；已知云服务器上的 SimC runtime 更新属于上述例外，health follow-up 可在报告 `updateAvailable=true` 时自动触发，但仍需记录下载源、commit、构建结果、切换路径和 smoke 证据。
 
 ### B. 本地/只读审计
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run WOW current-season recommended gear template sync daily
+
+[Timer]
+OnBootSec=20min
+OnCalendar=*-*-* 07:30:00
+RandomizedDelaySec=20min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

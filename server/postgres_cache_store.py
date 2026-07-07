@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from contextlib import contextmanager
 import copy
+import hashlib
 import json
 import subprocess
 import tempfile
@@ -54,6 +55,7 @@ try:
         gear_candidate_quality_score,
         gear_candidate_slots,
         gear_community_template_from_observed_items,
+        gear_variant_slots_are_compatible_for_item,
         gear_mod_option_display_fields,
         gear_mod_option_is_supported_config_option,
         gear_mod_option_payload_with_config_policy,
@@ -158,6 +160,7 @@ except ImportError:
         gear_candidate_quality_score,
         gear_candidate_slots,
         gear_community_template_from_observed_items,
+        gear_variant_slots_are_compatible_for_item,
         gear_mod_option_display_fields,
         gear_mod_option_is_supported_config_option,
         gear_mod_option_payload_with_config_policy,
@@ -1126,6 +1129,186 @@ class PostgresCacheStore:
     def _deterministic_uuid(self, kind, value):
         return str(uuid.uuid5(uuid.NAMESPACE_URL, f"wow-mini-program:{kind}:{value}"))
 
+    def _promote_official_gear_variants_from_observed(self, cur, season_revision, now):
+        cur.execute(
+            """
+            SELECT v.id, v.item_id, v.slot, v.source_type, v.payload_json, wi.payload_json
+            FROM cache.websim_gear_variants v
+            LEFT JOIN cache.websim_items wi
+              ON wi.id = v.item_id
+            WHERE v.status = 'partial'
+              AND v.source_type IN ('dungeon', 'raid', 'tier_set')
+              AND v.variant_key = 'needs-variant'
+              AND COALESCE(v.payload_json->>'seasonRevision', '') = %s
+            ORDER BY v.item_id, v.slot, v.id
+            """,
+            (season_revision or "",),
+        )
+        partial_rows = cur.fetchall()
+        if not partial_rows:
+            return {"promotedVariants": 0, "removedPartialVariants": 0}
+        cur.execute(
+            """
+            SELECT id, item_id, slot, variant_key, label, item_level, simc_options_json, payload_json
+            FROM cache.websim_gear_variants
+            WHERE source_type = 'observed_profile'
+              AND status = 'verified'
+              AND item_level > 0
+            ORDER BY item_id, item_level DESC, id
+            """
+        )
+        observed_rows = cur.fetchall()
+        observed_by_item = {}
+        for row in observed_rows:
+            simc_options = _json_value(row[6], {})
+            if not isinstance(simc_options, dict) or not simc_options:
+                continue
+            observed_payload = _json_value(row[7], {})
+            if not observed_variant_stat_payload_fields(observed_payload):
+                continue
+            observed_by_item.setdefault(str(row[1]), []).append(
+                {
+                    "id": str(row[0]),
+                    "itemId": str(row[1]),
+                    "slot": normalize_slot(row[2]),
+                    "variantKey": str(row[3] or ""),
+                    "label": str(row[4] or ""),
+                    "itemLevel": _int_value(row[5]),
+                    "simcOptions": {
+                        key: normalize_option_value(value)
+                        for key, value in simc_options.items()
+                        if key in SIMC_GEAR_OPTION_KEYS and normalize_option_value(value)
+                    },
+                    "payload": observed_payload if isinstance(observed_payload, dict) else {},
+                }
+            )
+
+        promoted = 0
+        removed_partial_ids = []
+        for partial_id, item_id, raw_slot, source_type, payload_json, item_payload_json in partial_rows:
+            item_id = str(item_id or "")
+            source_type = str(source_type or "")
+            source_slot = normalize_slot(raw_slot)
+            partial_payload = _json_value(payload_json, {})
+            partial_payload = partial_payload if isinstance(partial_payload, dict) else {}
+            item_payload = _json_value(item_payload_json, {})
+            item_payload = item_payload if isinstance(item_payload, dict) else {}
+            matches = [
+                observed
+                for observed in observed_by_item.get(item_id, [])
+                if gear_variant_slots_are_compatible_for_item(item_payload, source_slot, observed.get("slot"))
+            ]
+            if not matches:
+                continue
+            promoted_for_partial = 0
+            for observed in matches:
+                simc_options = observed.get("simcOptions") or {}
+                observed_payload = observed.get("payload") if isinstance(observed.get("payload"), dict) else {}
+                observed_stat_payload = observed_variant_stat_payload_fields(observed_payload)
+                if not simc_options or not observed_stat_payload:
+                    continue
+                observed_class_keys = [
+                    str(value)
+                    for value in observed_payload.get("classKeys") or observed_payload.get("observedClassKeys") or []
+                    if str(value or "").strip()
+                ]
+                observed_spec_keys = [
+                    str(value)
+                    for value in observed_payload.get("specKeys") or observed_payload.get("observedSpecKeys") or []
+                    if str(value or "").strip()
+                ]
+                digest = hashlib.sha1(
+                    json.dumps(
+                        [str(partial_id), observed.get("id"), observed.get("itemLevel"), simc_options],
+                        sort_keys=True,
+                    ).encode("utf-8")
+                ).hexdigest()[:10]
+                prefix = "set-observed" if source_type == "tier_set" else "loot-observed"
+                variant_payload = {
+                    **partial_payload,
+                    **observed_stat_payload,
+                    "officialVariantSource": source_type,
+                    "observedVariantSource": "observed_profile",
+                    "observedVariantId": observed.get("id") or "",
+                    "observedProfileRefs": observed_payload.get("observedProfileRefs") or [],
+                }
+                if observed_class_keys:
+                    variant_payload["observedClassKeys"] = observed_class_keys
+                if observed_spec_keys:
+                    variant_payload["observedSpecKeys"] = observed_spec_keys
+                cur.execute(
+                    """
+                    INSERT INTO cache.websim_gear_variants (
+                        id, item_id, variant_key, readiness, slot, label, source_type,
+                        difficulty_key, item_level, simc_options_json, status, blockers_json,
+                        payload_json, updated_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s::jsonb, %s)
+                    ON CONFLICT (item_id, variant_key) DO UPDATE SET
+                        readiness = EXCLUDED.readiness,
+                        slot = EXCLUDED.slot,
+                        label = EXCLUDED.label,
+                        source_type = EXCLUDED.source_type,
+                        difficulty_key = EXCLUDED.difficulty_key,
+                        item_level = EXCLUDED.item_level,
+                        simc_options_json = EXCLUDED.simc_options_json,
+                        status = EXCLUDED.status,
+                        blockers_json = EXCLUDED.blockers_json,
+                        payload_json = EXCLUDED.payload_json,
+                        updated_at = EXCLUDED.updated_at
+                    """,
+                    (
+                        self._deterministic_uuid("gear-observed-variant", f"{partial_id}:{observed.get('id')}:{digest}"),
+                        item_id,
+                        f"observed-{observed.get('itemLevel') or 'unknown'}-{digest}",
+                        "verified",
+                        source_slot or observed.get("slot") or "",
+                        observed.get("label") or f"Observed {observed.get('itemLevel') or 'unknown'}",
+                        source_type,
+                        "observed_profile",
+                        observed.get("itemLevel") or 0,
+                        json_param(simc_options),
+                        "verified",
+                        json_param([]),
+                        json_param(variant_payload),
+                        now,
+                    ),
+                )
+                promoted += 1
+                promoted_for_partial += 1
+            if promoted_for_partial:
+                removed_partial_ids.append(str(partial_id))
+        if removed_partial_ids:
+            cur.execute(
+                "DELETE FROM cache.websim_gear_variants WHERE id = ANY(%s)",
+                (removed_partial_ids,),
+            )
+        return {"promotedVariants": promoted, "removedPartialVariants": len(removed_partial_ids)}
+
+    def _existing_verified_observed_variant_identities(self):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT item_id, slot, item_level, simc_options_json
+                    FROM cache.websim_gear_variants
+                    WHERE source_type = 'observed_profile'
+                      AND status = 'verified'
+                    """
+                )
+                rows = cur.fetchall()
+        identities = set()
+        for item_id, slot, item_level, simc_options_json in rows:
+            key = observed_variant_stat_identity_key(
+                item_id,
+                slot,
+                item_level,
+                _json_value(simc_options_json, {}),
+            )
+            if key:
+                identities.add(key)
+        return identities
+
     def rebuild_websim_gear_catalog_from_loot(self, season=None):
         season = season if isinstance(season, dict) else {}
         season_revision = season.get("seasonRevision") or season.get("revision") or ""
@@ -1259,24 +1442,33 @@ class PostgresCacheStore:
                     )
                     item_ids.add(item_id)
                     variant_keys.add((item_id, "needs-variant"))
+                promotion = self._promote_official_gear_variants_from_observed(cur, season_revision, now)
+                promoted_variant_count = int(promotion.get("promotedVariants") or 0)
+                removed_partial_count = int(promotion.get("removedPartialVariants") or 0)
         has_sources = source_count > 0
-        variant_count = len(variant_keys)
+        partial_count = max(0, len(variant_keys) - removed_partial_count)
+        verified_count = promoted_variant_count
+        variant_count = partial_count + verified_count
+        variant_status = "verified" if has_sources and partial_count == 0 else ("partial" if has_sources else "blocked")
         state = {
             "runner": "postgres",
-            "status": "partial" if has_sources else "blocked",
+            "status": variant_status,
             "checkedAt": now,
             "schemaRevision": GEAR_CATALOG_REVISION,
             "itemCount": len(item_ids),
             "sourceCount": source_count,
             "variantCount": variant_count,
-            "verifiedCount": 0,
-            "partialCount": variant_count,
+            "verifiedCount": verified_count,
+            "partialCount": partial_count,
             "blockedCount": 0,
             "blockers": [] if has_sources else ["PostgreSQL WebSim loot cache is empty"],
+            "observedSync": {
+                "officialVariantPromotion": promotion,
+            },
             "dataReadiness": {
-                "status": "partial" if has_sources else "blocked",
+                "status": variant_status,
                 "sourceStatus": "verified" if has_sources else "blocked",
-                "variantStatus": "partial" if has_sources else "blocked",
+                "variantStatus": variant_status,
                 "blockers": [] if has_sources else ["PostgreSQL WebSim loot cache is empty"],
             },
         }
@@ -3287,6 +3479,8 @@ class PostgresCacheStore:
         profiles = [profile for profile in (raiderio_payload or {}).get("profiles") or [] if isinstance(profile, dict)]
         item_probe_context = None
         item_probe_cache = {}
+        existing_verified_identities = self._existing_verified_observed_variant_identities()
+        skipped_existing_verified = 0
 
         def load_item_probe_context():
             nonlocal item_probe_context
@@ -3323,6 +3517,14 @@ class PostgresCacheStore:
                         simc_errors.append("SimulationCraft JSON did not include target item stats")
             for item in profile.get("gear") or []:
                 if not isinstance(item, dict):
+                    continue
+                item_id = str(item.get("itemId") or item.get("item_id") or item.get("id") or "").strip()
+                slot = normalize_slot(item.get("slot") or item.get("simcSlot") or item.get("slotKey") or item.get("equipmentSlot"))
+                item_level = _int_value(item.get("itemLevel") or item.get("ilevel") or item.get("item_level"))
+                simc_options = self._backfill_simc_options(item, item_level) if item_id and slot and item_level else {}
+                identity_key = observed_variant_stat_identity_key(item_id, slot, item_level, simc_options)
+                if identity_key in existing_verified_identities:
+                    skipped_existing_verified += 1
                     continue
                 if target_limit_value is not None and len(rows) >= target_limit_value:
                     stop_reason = "target_limit_reached"
@@ -3408,6 +3610,7 @@ class PostgresCacheStore:
         result["simcResolvedSlotCount"] = simc_resolved_slot_count
         result["simcItemProbeCount"] = simc_item_probe_count
         result["simcItemProbeResolvedCount"] = simc_item_probe_resolved_count
+        result["skippedExistingVerifiedVariants"] = skipped_existing_verified
         result["simcErrors"] = simc_errors[:12]
         result["stopReason"] = stop_reason or "completed_cached_payload_window"
         return result

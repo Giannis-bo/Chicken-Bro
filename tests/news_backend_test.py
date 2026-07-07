@@ -1101,6 +1101,131 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(latest["sourceCoverage"]["blizzard"]["discovered"], 6)
         self.assertEqual(dict(queue_statuses), {"published": 2, "queued": 4})
 
+    def test_refresh_queue_only_processes_backlog_without_seed_articles(self):
+        queued = self.official_discovered_article("official-queue-only")
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            self.backend.enqueue_discovered_articles(conn, [queued], self.backend.utc_now())
+            conn.commit()
+
+        with patch.object(self.backend, "ENABLE_COLLECTORS", False), patch.object(
+            self.backend,
+            "load_seed_articles",
+            side_effect=AssertionError("queue-only refresh must not load seed articles"),
+        ), patch.object(
+            self.backend,
+            "collect_feed_articles",
+            side_effect=AssertionError("queue-only refresh must not collect new feed articles"),
+        ), patch.object(
+            self.backend,
+            "localize_article",
+            side_effect=lambda article, require_llm=False: self.translated_official_article(article),
+        ):
+            self.backend.refresh_articles(
+                "scheduled",
+                collector_enabled=False,
+                seed_enabled=False,
+                queue_enabled=True,
+                process_limit_override=1,
+            )
+
+        latest = self.backend.latest_refresh_run_payload()
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            queue_row = conn.execute(
+                "SELECT status, last_error FROM news_discovery_queue WHERE id = ?",
+                ("official-queue-only",),
+            ).fetchone()
+
+        self.assertEqual(latest["processedCount"], 1)
+        self.assertEqual(latest["seedEnabled"], False)
+        self.assertEqual(latest["queueEnabled"], True)
+        self.assertEqual(queue_row, ("published", ""))
+
+    def test_refresh_queue_only_blocks_retryable_after_retry_limit(self):
+        queued = self.official_discovered_article("official-retry-limit")
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            self.backend.enqueue_discovered_articles(conn, [queued], self.backend.utc_now())
+            conn.execute(
+                """
+                UPDATE news_discovery_queue
+                SET status = 'retryable', attempts = 2, last_error = 'invalid_llm_translation'
+                WHERE id = ?
+                """,
+                ("official-retry-limit",),
+            )
+            conn.commit()
+
+        def invalid_translation(article, require_llm=False):
+            return dict(
+                article,
+                contentStatus="blocked",
+                blockedReason="invalid_llm_translation",
+                verificationStatus="invalid_llm_translation",
+                translationStatus="llm",
+            )
+
+        with patch.dict(os.environ, {"WOW_NEWS_RETRY_MAX_ATTEMPTS": "3"}), patch.object(
+            self.backend,
+            "load_seed_articles",
+            side_effect=AssertionError("queue-only refresh must not load seed articles"),
+        ), patch.object(self.backend, "localize_article", side_effect=invalid_translation):
+            self.backend.refresh_articles(
+                "scheduled",
+                collector_enabled=False,
+                seed_enabled=False,
+                queue_enabled=True,
+                process_limit_override=1,
+            )
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            queue_row = conn.execute(
+                "SELECT status, attempts, last_error FROM news_discovery_queue WHERE id = ?",
+                ("official-retry-limit",),
+            ).fetchone()
+
+        self.assertEqual(queue_row, ("blocked", 3, "retry_limit_exceeded:invalid_llm_translation"))
+
+    def test_refresh_queue_only_dead_letters_retryable_already_over_retry_limit_without_llm(self):
+        queued = self.official_discovered_article("official-dead-letter")
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            self.backend.enqueue_discovered_articles(conn, [queued], self.backend.utc_now())
+            conn.execute(
+                """
+                UPDATE news_discovery_queue
+                SET status = 'retryable', attempts = 3, last_error = 'invalid_llm_translation'
+                WHERE id = ?
+                """,
+                ("official-dead-letter",),
+            )
+            conn.commit()
+
+        with patch.dict(os.environ, {"WOW_NEWS_RETRY_MAX_ATTEMPTS": "3"}), patch.object(
+            self.backend,
+            "load_seed_articles",
+            side_effect=AssertionError("queue-only refresh must not load seed articles"),
+        ), patch.object(
+            self.backend,
+            "localize_article",
+            side_effect=AssertionError("retry limit exceeded rows must not call LLM again"),
+        ):
+            self.backend.refresh_articles(
+                "scheduled",
+                collector_enabled=False,
+                seed_enabled=False,
+                queue_enabled=True,
+                process_limit_override=1,
+            )
+
+        with closing(sqlite3.connect(os.environ["WOW_NEWS_DB"])) as conn:
+            queue_row = conn.execute(
+                "SELECT status, attempts, last_error FROM news_discovery_queue WHERE id = ?",
+                ("official-dead-letter",),
+            ).fetchone()
+
+        self.assertEqual(queue_row, ("blocked", 3, "retry_limit_exceeded:invalid_llm_translation"))
+
     def test_refresh_continues_after_first_llm_block_and_marks_retryable(self):
         collected = [self.official_discovered_article("official-llm-fail"), self.official_discovered_article("official-after-fail")]
         localized_ids = []
@@ -7328,6 +7453,23 @@ class NewsBackendTest(unittest.TestCase):
                     payload = json.loads(response.read().decode("utf-8"))
                 self.assertEqual(response.status, 200)
                 self.assertEqual(payload["heroNews"], [])
+
+            with patch.object(self.backend, "refresh_articles", return_value={}) as refresh, patch.object(
+                self.backend,
+                "build_home_payload",
+                return_value={"heroNews": [], "highlights": []},
+            ):
+                request = Request(f"{base_url}?mode=scheduled&scope=queue&limit=1", data=b"", method="POST")
+                with urlopen(request, timeout=5) as response:
+                    json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                refresh.assert_called_once_with(
+                    "scheduled",
+                    collector_enabled=False,
+                    seed_enabled=False,
+                    queue_enabled=True,
+                    process_limit_override=1,
+                )
         finally:
             server.shutdown()
             server.server_close()

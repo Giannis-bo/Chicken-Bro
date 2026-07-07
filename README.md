@@ -109,6 +109,7 @@ LLM 和 SimCraft 由服务器环境控制：
 - `WOW_LLM_API_URL`：OpenAI-compatible chat completions endpoint。
 - `WOW_LLM_API_KEY`：LLM API key，不提交到仓库。
 - `WOW_LLM_MODEL`：默认 `deepseek-v4-flash`。
+- `WOW_NEWS_RETRY_MAX_ATTEMPTS`：新闻 discovery queue 中 retryable 条目的最大翻译/发布重试次数，默认 `3`；超过后进入 blocked/report，避免日常 follow-up 无限重试同一条失败新闻。
 - `WOW_BLIZZARD_CLIENT_ID` / `WOW_BLIZZARD_CLIENT_SECRET`：Battle.net API client credentials，仅放服务器；缺失时 WebSim 赛季、装备和天赋数据会进入 `blocked` 状态，不展示可能过期的副本池。
 - `WOW_BLIZZARD_REGION`：默认 `us`。
 - `WOW_BLIZZARD_LOCALE`：默认 `zh_CN`；`WOW_BLIZZARD_LOCALES` 默认 `zh_CN,zh_TW,en_US`，用于官方中文优先、本地化缺失时回退。
@@ -168,13 +169,15 @@ printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
 WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
 ```
 
-部署脚本会安装并启用 PG-native sync timers：`wow-websim-sync.timer`、`wow-stat-weights-sync.timer`、`wow-community-template-sync.timer` 和 `wow-gear-observed-backfill.timer`，这些 unit 不配置 `WOW_NEWS_DB`。默认部署只重启后端并做轻量 smoke，不额外 no-block 启动一次同步服务；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 时才会在 smoke 后启动 `wow-websim-sync`、`wow-stat-weights-sync`、`wow-community-template-sync` 和 `wow-gear-observed-backfill`。如服务器或用户变化，可通过环境变量覆盖：
+部署脚本会安装并启用 PG-native 日常 timers：`wow-websim-sync.timer`、`wow-stat-weights-sync.timer`、`wow-community-template-sync.timer`、`wow-season-recommended-gear-sync.timer` 和 `wow-data-health-followup.timer`，这些 unit 不配置 `WOW_NEWS_DB`。`wow-data-health-followup.timer` 每 2 小时检查 `/api/data/health`，并续跑安全阻塞项：新闻 queue refresh、装备 observed backfill、WebSim sync、stat weights sync，以及配置好的 SimC runtime update。`wow-gear-observed-backfill.service` 会安装；部署脚本不直接启用它的 timer，通常由 health follow-up 在装备库 partial/stale/blocked 时触发。默认部署只重启后端并做轻量 smoke，不额外 no-block 启动一次同步服务；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 时才会在 smoke 后启动 `wow-websim-sync`、`wow-stat-weights-sync` 和 `wow-community-template-sync`。如服务器或用户变化，可通过环境变量覆盖：
 
 ```bash
 WOW_LIGHTHOUSE_HOST=124.223.51.33 WOW_LIGHTHOUSE_USER=ubuntu ./server/deploy_lighthouse.sh
 ```
 
 远程调试登录、常用路径和运维命令见 [docs/remote-debugging.md](docs/remote-debugging.md)。
+
+生产外网出口默认使用云服务器本机 `mihomo.service`：后端、WebSim sync、stat weights、community template sync、gear observed backfill、SimC version check 和 SimC runtime update 都在 systemd unit 中设置 `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY=127.0.0.1:7890`，覆盖 Blizzard / Battle.net、Raider.IO、Warcraft Logs、Wago、GitHub、LLM 和 Codex worker 等海外调用。只访问本机 health 的 `wow-data-health-followup.service` 和只消费 PostgreSQL read model 的 `wow-season-recommended-gear-sync.service` 不需要代理。
 
 部署后在服务器上验证 Codex：
 

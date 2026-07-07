@@ -1278,6 +1278,10 @@ def collector_process_limit():
     return max(1, min(5, int_env("WOW_NEWS_PROCESS_LIMIT", 5)))
 
 
+def news_retry_max_attempts():
+    return max(1, int_env("WOW_NEWS_RETRY_MAX_ATTEMPTS", 3))
+
+
 def parse_iso_datetime(value):
     try:
         parsed = datetime.fromisoformat((value or "").replace("Z", "+00:00"))
@@ -1376,7 +1380,7 @@ def mark_queue_article(conn, article, status, error="", processed_at=None, incre
 def load_queued_articles(conn, limit):
     rows = conn.execute(
         """
-        SELECT payload_json
+        SELECT payload_json, attempts, last_error
         FROM news_discovery_queue
         WHERE status IN ('queued', 'retryable')
         ORDER BY published_at DESC, rowid ASC
@@ -1388,8 +1392,26 @@ def load_queued_articles(conn, limit):
     for row in rows:
         article = safe_json_loads(row[0], {}, "news discovery queue payload")
         if article:
+            article["_queueAttempts"] = int(row[1] or 0)
+            article["_queueLastError"] = row[2] or ""
             articles.append(article)
     return articles
+
+
+def queue_retry_limit_error(article):
+    try:
+        attempts = int(article.get("_queueAttempts") or 0)
+    except (TypeError, ValueError):
+        attempts = 0
+    if attempts < news_retry_max_attempts():
+        return ""
+    reason = (
+        str(article.get("_queueLastError") or "").strip()
+        or str(article.get("blockedReason") or "").strip()
+        or str(article.get("verificationStatus") or "").strip()
+        or "retryable"
+    )
+    return reason if reason.startswith("retry_limit_exceeded:") else f"retry_limit_exceeded:{reason}"
 
 
 def queue_status_for_reviewed_article(article):
@@ -1397,6 +1419,12 @@ def queue_status_for_reviewed_article(article):
         return "published", ""
     reason = article.get("blockedReason") or article.get("verificationStatus") or "invalid_article"
     if article.get("sourceTier") == "official" and reason in RETRYABLE_NEWS_BLOCK_REASONS:
+        try:
+            attempts = int(article.get("_queueAttempts") or 0)
+        except (TypeError, ValueError):
+            attempts = 0
+        if attempts + 1 >= news_retry_max_attempts():
+            return "blocked", f"retry_limit_exceeded:{reason}"
         return "retryable", reason
     return "blocked", reason
 
@@ -1620,11 +1648,24 @@ def audit_existing_public_articles(conn):
     return blocked
 
 
-def refresh_articles(refresh_mode, collector_enabled=None):
+def _bounded_news_process_limit(value):
+    try:
+        return max(1, min(5, int(value)))
+    except (TypeError, ValueError):
+        return collector_process_limit()
+
+
+def refresh_articles(
+    refresh_mode,
+    collector_enabled=None,
+    seed_enabled=True,
+    queue_enabled=None,
+    process_limit_override=None,
+):
     store = content_data_store()
     if not store:
         init_db()
-    seed_articles = load_seed_articles()
+    seed_articles = load_seed_articles() if seed_enabled else []
     collected_articles = []
     discovered_articles = []
     duplicate_seed_articles = []
@@ -1632,8 +1673,9 @@ def refresh_articles(refresh_mode, collector_enabled=None):
     skipped_seed_duplicate_count = 0
     collector_errors = []
     collector_limit = collector_discovery_limit()
-    process_limit = collector_process_limit()
+    process_limit = _bounded_news_process_limit(process_limit_override) if process_limit_override is not None else collector_process_limit()
     should_collect = ENABLE_COLLECTORS if collector_enabled is None else bool(collector_enabled)
+    should_process_queue = should_collect if queue_enabled is None else bool(queue_enabled)
     if should_collect and collector_limit > 0:
         collected_articles, collector_errors = collect_feed_articles(FEED_SOURCES, max_articles_per_source=collector_limit)
         discovered_articles = list(collected_articles)
@@ -1659,21 +1701,30 @@ def refresh_articles(refresh_mode, collector_enabled=None):
             store.enqueue_discovered_articles(discovered_articles, refreshed_at)
             for article in duplicate_seed_articles:
                 store.mark_queue_article(article, "blocked", "duplicate_seed_source_translation", refreshed_at, increment_attempts=False)
-        queued_articles = store.load_queued_articles(process_limit) if should_collect else []
+        queued_articles = store.load_queued_articles(process_limit) if should_process_queue else []
     else:
         with db_connection() as conn:
             if should_collect and discovered_collected_count:
                 enqueue_discovered_articles(conn, discovered_articles, refreshed_at)
                 for article in duplicate_seed_articles:
                     mark_queue_article(conn, article, "blocked", "duplicate_seed_source_translation", refreshed_at, increment_attempts=False)
-            queued_articles = load_queued_articles(conn, process_limit) if should_collect else []
+            queued_articles = load_queued_articles(conn, process_limit) if should_process_queue else []
 
     accepted = []
     blocked = []
     processed = []
     rejected = 0
     for article in merge_articles(seed_articles, queued_articles):
-        if article.get("contentStatus") == "ready":
+        retry_limit_error = queue_retry_limit_error(article) if should_process_queue else ""
+        if retry_limit_error:
+            localized_article = dict(
+                article,
+                contentStatus="blocked",
+                blockedReason=retry_limit_error,
+                verificationStatus=retry_limit_error,
+                _queueRetryLimitPreempted=True,
+            )
+        elif article.get("contentStatus") == "ready":
             localized_article = article
         elif should_request_public_translation(article):
             source_issue = source_body_quality_issue(article)
@@ -1709,14 +1760,20 @@ def refresh_articles(refresh_mode, collector_enabled=None):
         for article in processed:
             store.persist_news_raw_article(article, refreshed_at)
             store.persist_news_evidence(article, refreshed_at)
-            if should_collect and article.get("id"):
+            if should_process_queue and article.get("id"):
                 queue_status, queue_error = queue_status_for_reviewed_article(article)
-                store.mark_queue_article(article, queue_status, queue_error, refreshed_at)
+                store.mark_queue_article(
+                    article,
+                    queue_status,
+                    queue_error,
+                    refreshed_at,
+                    increment_attempts=not article.get("_queueRetryLimitPreempted"),
+                )
         for article in accepted:
             store.save_public_article(article, refreshed_at)
-        if accepted_ids and not should_collect:
+        if accepted_ids and not should_collect and seed_enabled:
             store.delete_public_articles_not_in(accepted_ids)
-        audited_blocked = store.audit_existing_public_articles(public_body_quality_issue)
+        audited_blocked = store.audit_existing_public_articles(public_body_quality_issue) if seed_enabled else []
         if audited_blocked:
             blocked.extend(audited_blocked)
             rejected += len(audited_blocked)
@@ -1729,6 +1786,8 @@ def refresh_articles(refresh_mode, collector_enabled=None):
             {
                 "seedCount": len(seed_articles),
                 "collectorEnabled": should_collect,
+                "seedEnabled": bool(seed_enabled),
+                "queueEnabled": bool(should_process_queue),
                 "collectorLimit": collector_limit,
                 "discoveryLimit": collector_limit,
                 "processLimit": process_limit,
@@ -1759,9 +1818,16 @@ def refresh_articles(refresh_mode, collector_enabled=None):
         for article in processed:
             persist_news_raw_article(conn, article, refreshed_at)
             persist_news_evidence(conn, article, refreshed_at)
-            if should_collect and article.get("id"):
+            if should_process_queue and article.get("id"):
                 queue_status, queue_error = queue_status_for_reviewed_article(article)
-                mark_queue_article(conn, article, queue_status, queue_error, refreshed_at)
+                mark_queue_article(
+                    conn,
+                    article,
+                    queue_status,
+                    queue_error,
+                    refreshed_at,
+                    increment_attempts=not article.get("_queueRetryLimitPreempted"),
+                )
         for article in accepted:
             conn.execute(
                 """
@@ -1836,10 +1902,10 @@ def refresh_articles(refresh_mode, collector_enabled=None):
                     refreshed_at,
                 ),
             )
-        if accepted_ids and not should_collect:
+        if accepted_ids and not should_collect and seed_enabled:
             placeholders = ",".join("?" for _ in accepted_ids)
             conn.execute(f"DELETE FROM news_articles WHERE id NOT IN ({placeholders})", accepted_ids)
-        audited_blocked = audit_existing_public_articles(conn)
+        audited_blocked = audit_existing_public_articles(conn) if seed_enabled else []
         if audited_blocked:
             blocked.extend(audited_blocked)
             rejected += len(audited_blocked)
@@ -1858,6 +1924,8 @@ def refresh_articles(refresh_mode, collector_enabled=None):
                     {
                         "seedCount": len(seed_articles),
                         "collectorEnabled": should_collect,
+                        "seedEnabled": bool(seed_enabled),
+                        "queueEnabled": bool(should_process_queue),
                         "collectorLimit": collector_limit,
                         "discoveryLimit": collector_limit,
                         "processLimit": process_limit,
@@ -1959,6 +2027,8 @@ def latest_refresh_run_payload():
         "acceptedCount": row[2],
         "rejectedCount": row[3],
         "collectorEnabled": bool(message.get("collectorEnabled")),
+        "seedEnabled": bool(message.get("seedEnabled", True)),
+        "queueEnabled": bool(message.get("queueEnabled", message.get("collectorEnabled"))),
         "collectorLimit": int(message.get("collectorLimit", 0) or 0),
         "discoveryLimit": int(message.get("discoveryLimit", message.get("collectorLimit", 0)) or 0),
         "processLimit": int(message.get("processLimit", 0) or 0),
@@ -12206,8 +12276,28 @@ class Handler(BaseHTTPRequestHandler):
             if not mode:
                 json_response(self, 400, {"error": "invalid_refresh_mode", "allowedModes": sorted(PUBLIC_REFRESH_MODES)})
                 return
+            scope = (query.get("scope", ["full"])[0] or "full").strip().lower()
+            if scope not in {"full", "queue"}:
+                json_response(self, 400, {"error": "invalid_refresh_scope", "allowedScopes": ["full", "queue"]})
+                return
+            process_limit_override = None
+            if query.get("limit", [""])[0]:
+                try:
+                    process_limit_override = int(query.get("limit", [""])[0])
+                except (TypeError, ValueError):
+                    json_response(self, 400, {"error": "invalid_refresh_limit"})
+                    return
             try:
-                refresh_articles(mode)
+                if scope == "queue":
+                    refresh_articles(
+                        mode,
+                        collector_enabled=False,
+                        seed_enabled=False,
+                        queue_enabled=True,
+                        process_limit_override=process_limit_override,
+                    )
+                else:
+                    refresh_articles(mode, process_limit_override=process_limit_override)
                 json_response(self, 200, build_home_payload())
             except Exception as error:
                 json_response(self, 500, {"error": "refresh_failed", "message": str(error)})

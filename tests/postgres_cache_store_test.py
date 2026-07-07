@@ -4140,6 +4140,56 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(observed["partialCount"], 1)
         self.assertIn("missing SimulationCraft item stats", params)
 
+    def test_postgres_observed_backfill_skips_existing_verified_rows_before_target_limit(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "SELECT item_id, slot, item_level, simc_options_json FROM cache.websim_gear_variants": [
+                    ("190001", "head", 707, {"ilevel": "707", "bonus_id": "1808"}),
+                ]
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        observed = store.backfill_observed_gear_from_raiderio(
+            {
+                "sourceStatus": "verified",
+                "profiles": [
+                    {
+                        "name": "Mage A",
+                        "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "gear": [
+                            {
+                                "itemId": "190001",
+                                "name": "Existing Helm",
+                                "slot": "head",
+                                "ilevel": 707,
+                                "bonus_id": "1808",
+                            },
+                            {
+                                "itemId": "190002",
+                                "name": "New Gloves",
+                                "slot": "hands",
+                                "ilevel": 707,
+                                "bonus_id": "1809",
+                            },
+                        ],
+                    }
+                ],
+            },
+            mode="test",
+            target_limit=1,
+        )
+
+        params = repr(conn.cursor_instance.params)
+        self.assertEqual(observed["variantCount"], 1)
+        self.assertEqual(observed["skippedExistingVerifiedVariants"], 1)
+        self.assertIn("190002", params)
+        self.assertNotIn("Existing Helm", params)
+
     def test_observed_item_probe_profile_preserves_observed_variant_options(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -4847,6 +4897,82 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("INSERT INTO cache.websim_gear_variants", sql)
         self.assertIn("slot, label, source_type, difficulty_key, item_level, simc_options_json, status, blockers_json", sql)
         self.assertIn("INSERT INTO cache.websim_sync_state", sql)
+
+    def test_postgres_native_gear_catalog_promotes_official_loot_from_observed_variant(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_loot l": [
+                    (
+                        "loot-1300-9001-111",
+                        "111",
+                        "head",
+                        "Observed Hood",
+                        "1300",
+                        "Dungeon A",
+                        "Dungeon",
+                        "9001",
+                        "Boss A",
+                    )
+                ],
+                "FROM cache.websim_gear_variants v": [
+                    (
+                        "partial-111",
+                        "111",
+                        "head",
+                        "dungeon",
+                        {
+                            "sourceKey": "loot:loot-1300-9001-111",
+                            "sourceType": "dungeon",
+                            "sourceLabel": "Boss A - Dungeon A",
+                            "seasonRevision": "season-pg-rev",
+                        },
+                        {"inventory_type": {"type": "HEAD", "name": "Head"}},
+                    )
+                ],
+                "WHERE source_type = 'observed_profile'": [
+                    (
+                        "observed-111",
+                        "111",
+                        "head",
+                        "observed-707",
+                        "Observed 707",
+                        707,
+                        {"bonus_id": "12345"},
+                        {
+                            "statSource": "simulationcraft",
+                            "itemStats": [{"key": "intellect", "label": "智力", "value": 321}],
+                            "statSummary": "智力 321",
+                            "observedProfileRefs": [{"sourceName": "Raider.IO"}],
+                            "classKeys": ["mage"],
+                            "specKeys": ["frost"],
+                        },
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        state = store.rebuild_websim_gear_catalog_from_loot(
+            {"seasonRevision": "season-pg-rev", "dataStatus": "verified"}
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(state["verifiedCount"], 1)
+        self.assertEqual(state["partialCount"], 0)
+        self.assertEqual(state["variantCount"], 1)
+        self.assertEqual(state["status"], "verified")
+        self.assertTrue(any("observed_profile" in param for params in conn.cursor_instance.params for param in params if isinstance(param, str)))
+        self.assertTrue(
+            any(
+                "observedVariantSource" in param and "simulationcraft" in param
+                for params in conn.cursor_instance.params
+                for param in params
+                if isinstance(param, str)
+            )
+        )
+        self.assertIn("DELETE FROM cache.websim_gear_variants WHERE id = ANY", sql)
 
 
 if __name__ == "__main__":

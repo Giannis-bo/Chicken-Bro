@@ -1,0 +1,12 @@
+[Unit]
+Description=Continue safe WOW data health blockers
+After=network-online.target wow-backend.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/wow-mini-program
+EnvironmentFile=-/etc/wow-backend.env
+Environment=WOW_DATABASE_RUNTIME=postgres_only
+ExecStart=/usr/bin/python3 /opt/wow-mini-program/server/data_health_followup.py --execute
