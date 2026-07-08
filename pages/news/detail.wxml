@@ -1,68 +1,15 @@
-<view class="page-shell detail-shell">
-  <navigation-bar title="{{navTitle}}" back="{{true}}" homeButton="{{homeButton}}" color="#F8B700" background="#111111"></navigation-bar>
-
-  <scroll-view class="page-scroll" scroll-y type="list">
-    <view class="detail-content">
-      <view wx:if="{{loading}}" class="detail-card loading-card">
-        <text class="loading-text">加载中</text>
-      </view>
-
-      <view wx:elif="{{article}}" class="detail-card">
-        <view class="detail-meta-row">
-          <text class="detail-channel">{{article.channel}}</text>
-          <text class="detail-date">发布时间 {{article.publishedAt}}</text>
-        </view>
-        <view class="source-badge-row">
-          <view wx:for="{{article.sourceBadges}}" wx:key="*this" class="source-badge">
-            <text>{{item}}</text>
-          </view>
-        </view>
-
-        <text class="detail-title">{{article.title}}</text>
-        <text wx:if="{{article.originalTitle}}" class="detail-original-title">原题：{{article.originalTitle}}</text>
-        <text class="detail-summary">{{article.summary}}</text>
-
-        <view class="detail-chip-row">
-          <view wx:for="{{article.metaChips}}" wx:key="label" class="detail-chip">
-            <text class="detail-chip-label">{{item.label}}</text>
-            <text class="detail-chip-value">{{item.value}}</text>
-          </view>
-          <view wx:for="{{article.tagItems}}" wx:key="id" class="detail-chip tag-chip">
-            <text class="detail-chip-value">{{item.label}}</text>
-          </view>
-        </view>
-
-        <view class="body-panel">
-          <text class="section-label">中文正文</text>
-          <view class="detail-body-blocks">
-            <view wx:for="{{article.bodyBlocksZh}}" wx:key="index" class="body-block body-block-{{item.type}}">
-              <text wx:if="{{item.type == 'heading'}}" class="body-block-heading">{{item.text}}</text>
-              <view wx:elif="{{item.type == 'list'}}" class="body-block-list">
-                <view wx:for="{{item.items}}" wx:for-item="listItem" wx:key="*this" class="body-list-item">
-                  <text class="body-list-bullet">•</text>
-                  <text class="body-list-text">{{listItem}}</text>
-                </view>
-              </view>
-              <text wx:elif="{{item.type == 'quote'}}" class="body-block-quote">{{item.text}}</text>
-              <text wx:else class="body-block-paragraph">{{item.text}}</text>
-            </view>
-          </view>
-        </view>
-
-        <view class="source-footer">
-          <text class="source-desc">{{article.sourceName}} · 发布时间 {{article.publishedAt}}</text>
-          <button class="source-button" bindtap="copySourceUrl">复制来源链接</button>
-        </view>
-
-        <view wx:if="{{fromFallback && requestError}}" class="detail-warning">
-          <text>后端请求未成功，当前显示本地缓存：{{requestError}}</text>
-        </view>
-      </view>
-
-      <view wx:else class="detail-card loading-card">
-        <text class="loading-text">未找到这条资讯</text>
-        <text wx:if="{{requestError}}" class="detail-warning-text">{{requestError}}</text>
-      </view>
-    </view>
-  </scroll-view>
-</view>
+<app-shell surface="news" density="compact" tabSafe="{{false}}">
+  <page-frame density="dense" bottomInset="36rpx">
+    <navigation-bar slot="nav" title="{{navTitle}}" back="{{true}}" homeButton="{{homeButton}}" color="#F8B700" background="#060606"></navigation-bar>
+    <article-reader
+      article="{{article}}"
+      loading="{{loading}}"
+      missingId="{{missingId}}"
+      notFound="{{notFound}}"
+      fromFallback="{{fromFallback}}"
+      requestError="{{requestError}}"
+      homeButton="{{homeButton}}"
+      bindcopysource="copySourceUrl"
+    ></article-reader>
+  </page-frame>
+</app-shell>

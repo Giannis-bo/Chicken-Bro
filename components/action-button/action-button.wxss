@@ -1,0 +1,166 @@
+.wow-action-button {
+  position: relative;
+  display: inline-flex;
+  width: auto;
+  min-width: 176rpx;
+  min-height: 64rpx;
+  overflow: hidden;
+  box-sizing: border-box;
+  color: #120d05;
+  font-weight: 1000;
+  line-height: 1;
+  border-radius: 8rpx;
+  contain: layout paint style;
+}
+
+.wow-action-button.is-block {
+  display: flex;
+  width: 100%;
+}
+
+.wow-action-button__frame {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 2rpx solid rgba(255, 207, 89, 0.72);
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255, 199, 66, 0.96), rgba(163, 101, 18, 0.98)),
+    #d79b22;
+  box-shadow:
+    inset 0 2rpx 0 rgba(255, 247, 184, 0.48),
+    inset 0 -4rpx 0 rgba(82, 45, 8, 0.42),
+    0 8rpx 22rpx rgba(0, 0, 0, 0.28);
+}
+
+.wow-action-button__content {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-height: 64rpx;
+  padding: 0 22rpx;
+  gap: 10rpx;
+  box-sizing: border-box;
+}
+
+.wow-action-button__copy {
+  display: grid;
+  min-width: 0;
+  gap: 4rpx;
+  text-align: center;
+}
+
+.wow-action-button__label,
+.wow-action-button__meta {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0;
+}
+
+.wow-action-button__label {
+  font-size: 28rpx;
+  line-height: 1.1;
+}
+
+.wow-action-button__meta {
+  color: rgba(18, 13, 5, 0.72);
+  font-size: 18rpx;
+  line-height: 1.1;
+}
+
+.wow-action-button__icon,
+.wow-action-button__spinner,
+.wow-action-button__chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24rpx;
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+.wow-action-button__chevron {
+  font-size: 34rpx;
+}
+
+.wow-action-button.size-compact {
+  min-width: 132rpx;
+  min-height: 56rpx;
+}
+
+.wow-action-button.size-compact .wow-action-button__content {
+  min-height: 56rpx;
+  padding: 0 18rpx;
+}
+
+.wow-action-button.size-compact .wow-action-button__label {
+  font-size: 24rpx;
+}
+
+.wow-action-button.size-large {
+  min-height: 72rpx;
+}
+
+.wow-action-button.size-large .wow-action-button__content {
+  min-height: 72rpx;
+}
+
+.wow-action-button.tone-secondary {
+  color: #f4ead9;
+}
+
+.wow-action-button.tone-secondary .wow-action-button__frame {
+  border-color: rgba(248, 183, 0, 0.42);
+  background:
+    linear-gradient(180deg, rgba(34, 29, 18, 0.98), rgba(12, 11, 9, 0.98)),
+    #12100c;
+}
+
+.wow-action-button.tone-secondary .wow-action-button__meta {
+  color: rgba(244, 234, 217, 0.62);
+}
+
+.wow-action-button.tone-danger {
+  color: #fff3ef;
+}
+
+.wow-action-button.tone-danger .wow-action-button__frame {
+  border-color: rgba(255, 107, 100, 0.64);
+  background:
+    linear-gradient(180deg, rgba(73, 24, 21, 0.98), rgba(24, 10, 9, 0.98)),
+    #2b1110;
+}
+
+.wow-action-button.tone-danger .wow-action-button__meta {
+  color: rgba(255, 233, 229, 0.66);
+}
+
+.wow-action-button.tone-ghost {
+  color: #f8b700;
+}
+
+.wow-action-button.tone-ghost .wow-action-button__frame {
+  border-color: rgba(248, 183, 0, 0.34);
+  background: rgba(8, 8, 7, 0.62);
+  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.04);
+}
+
+.wow-action-button.tone-ghost .wow-action-button__meta {
+  color: rgba(248, 183, 0, 0.64);
+}
+
+.wow-action-button.is-disabled,
+.wow-action-button.is-loading {
+  opacity: 0.56;
+}
+
+.wow-action-button.is-disabled .wow-action-button__frame,
+.wow-action-button.is-loading .wow-action-button__frame {
+  filter: grayscale(0.35);
+}

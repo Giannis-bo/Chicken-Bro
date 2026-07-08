@@ -194,6 +194,14 @@ function setRank(nextRanks, node, rank, baseTalentRanks) {
   else delete nextRanks[node.id]
 }
 
+function setRankIfChanged(nextRanks, node, rank, baseTalentRanks) {
+  if (!node || !node.id) return false
+  const before = numberValue(nextRanks[node.id], 0)
+  setRank(nextRanks, node, rank, baseTalentRanks)
+  const after = numberValue(nextRanks[node.id], 0)
+  return before !== after
+}
+
 function pointCapFor(node, pointCaps) {
   const treeKey = treeKeyFor(node)
   const cap = numberValue((pointCaps || {})[treeKey], DEFAULT_POINT_CAPS[treeKey] || 0)
@@ -215,8 +223,7 @@ function pruneInvalidRanks(nodes, talentRanks, baseTalentRanks, preferredId) {
       const floor = grantedRankFor(node, baseTalentRanks)
       const current = rankFor(node, nextRanks, nodes, baseTalentRanks)
       if (current > floor && (!parentsSatisfied(node, nodes, nextRanks, baseTalentRanks) || !pointRequirementSatisfied(node, nodes, nextRanks, baseTalentRanks))) {
-        setRank(nextRanks, node, floor, baseTalentRanks)
-        changed = true
+        changed = setRankIfChanged(nextRanks, node, floor, baseTalentRanks) || changed
       }
     })
 
@@ -238,9 +245,8 @@ function pruneInvalidRanks(nodes, talentRanks, baseTalentRanks, preferredId) {
           ? previousId
           : (preferredId && node.id === preferredId ? previousId : node.id)
       const dropNode = nodeById(nodes, dropId)
-      setRank(nextRanks, dropNode, grantedRankFor(dropNode, baseTalentRanks), baseTalentRanks)
+      changed = setRankIfChanged(nextRanks, dropNode, grantedRankFor(dropNode, baseTalentRanks), baseTalentRanks) || changed
       selectedGroups.set(key, dropId === previousId ? node.id : previousId)
-      changed = true
     })
   }
   Object.keys(baseTalentRanks || {}).forEach((id) => {

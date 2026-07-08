@@ -24,6 +24,8 @@ Page({
     navTitle: '资讯详情',
     article: null,
     loading: true,
+    missingId: false,
+    notFound: false,
     homeButton: false,
     fromFallback: false,
     requestError: ''
@@ -51,13 +53,15 @@ Page({
 
   loadArticle(articleId) {
     if (!articleId) {
-      this.setData({ loading: false, requestError: 'missing article id' })
+      this.setData({ loading: false, missingId: true, notFound: false, requestError: 'missing article id' })
       return
     }
     requestArticleDetail(articleId)
       .then(({ article, fromFallback, error }) => {
         this.setData({
           article: this.normalizeArticle(article),
+          missingId: false,
+          notFound: !article,
           fromFallback,
           requestError: error || ''
         })
@@ -65,6 +69,8 @@ Page({
       .catch((error) => {
         this.setData({
           article: null,
+          missingId: false,
+          notFound: true,
           fromFallback: true,
           requestError: error && error.message ? error.message : 'request failed'
         })

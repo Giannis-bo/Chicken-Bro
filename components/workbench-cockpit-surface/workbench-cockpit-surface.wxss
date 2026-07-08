@@ -1,0 +1,326 @@
+.wow-workbench-surface {
+  display: grid;
+  gap: 18rpx;
+  min-width: 0;
+  color: #f4ead9;
+  box-sizing: border-box;
+  contain: layout paint style;
+}
+
+.wow-workbench-surface__hero,
+.wow-workbench-surface__verdict,
+.wow-workbench-surface__modules,
+.wow-workbench-surface__evidence {
+  display: block;
+  min-width: 0;
+}
+
+.wow-workbench-surface__identity {
+  display: grid;
+  grid-template-columns: 104rpx minmax(0, 1fr) 120rpx;
+  align-items: center;
+  gap: 18rpx;
+  min-width: 0;
+}
+
+.wow-workbench-surface__identity-copy {
+  display: grid;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.wow-workbench-surface__kicker,
+.wow-workbench-surface__title,
+.wow-workbench-surface__subtitle,
+.wow-workbench-surface__intent,
+.wow-workbench-surface__verdict-kicker,
+.wow-workbench-surface__verdict-title,
+.wow-workbench-surface__summary,
+.wow-workbench-surface__blocker-copy text,
+.wow-workbench-surface__next > text,
+.wow-workbench-surface__scenario text {
+  display: block;
+  min-width: 0;
+  letter-spacing: 0;
+}
+
+.wow-workbench-surface__kicker,
+.wow-workbench-surface__title,
+.wow-workbench-surface__subtitle,
+.wow-workbench-surface__intent {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wow-workbench-surface__kicker,
+.wow-workbench-surface__verdict-kicker,
+.wow-workbench-surface__next > text {
+  color: #f8b700;
+  font-size: 20rpx;
+  font-weight: 1000;
+  line-height: 1.12;
+}
+
+.wow-workbench-surface__title {
+  color: #fff8ea;
+  font-size: 38rpx;
+  font-weight: 1000;
+  line-height: 1.05;
+}
+
+.wow-workbench-surface__subtitle {
+  color: rgba(244, 234, 217, 0.8);
+  font-size: 24rpx;
+  font-weight: 850;
+  line-height: 1.12;
+}
+
+.wow-workbench-surface__intent {
+  color: #f8b700;
+  font-size: 22rpx;
+  font-weight: 900;
+  line-height: 1.18;
+}
+
+.wow-workbench-surface__spec-icon {
+  width: 96rpx;
+  height: 96rpx;
+}
+
+.wow-workbench-surface__state {
+  justify-self: end;
+  min-width: 96rpx;
+}
+
+.wow-workbench-surface__controls {
+  display: grid;
+  grid-template-columns: minmax(84rpx, auto) minmax(84rpx, auto) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10rpx;
+  min-width: 0;
+  margin-top: 20rpx;
+}
+
+.wow-workbench-surface__scenarios {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.wow-workbench-surface__scenario {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 58rpx;
+  padding: 0 10rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.22);
+  border-radius: 8rpx;
+  background: rgba(0, 0, 0, 0.24);
+  box-sizing: border-box;
+}
+
+.wow-workbench-surface__scenario.is-active {
+  border-color: rgba(248, 183, 0, 0.78);
+  background: rgba(248, 183, 0, 0.14);
+  box-shadow: inset 0 0 0 1rpx rgba(255, 225, 128, 0.1);
+}
+
+.wow-workbench-surface__scenario text {
+  overflow: hidden;
+  color: #f4ead9;
+  font-size: 22rpx;
+  font-weight: 950;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wow-workbench-surface__scenario.is-active text {
+  color: #f8b700;
+}
+
+.wow-workbench-surface__verdict-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 164rpx;
+  align-items: center;
+  gap: 20rpx;
+  min-width: 0;
+  min-height: 188rpx;
+}
+
+.wow-workbench-surface__verdict-copy {
+  display: grid;
+  gap: 12rpx;
+  min-width: 0;
+}
+
+.wow-workbench-surface__verdict-title {
+  color: #fff8ea;
+  font-size: 42rpx;
+  font-weight: 1000;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.state-blocked .wow-workbench-surface__verdict-title {
+  color: #ff6b64;
+}
+
+.state-ready_to_simulate .wow-workbench-surface__verdict-title,
+.state-verified .wow-workbench-surface__verdict-title {
+  color: #62e6a0;
+}
+
+.wow-workbench-surface__blocker-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10rpx;
+  min-width: 0;
+  color: rgba(244, 234, 217, 0.92);
+  font-size: 26rpx;
+  font-weight: 1000;
+  line-height: 1.18;
+}
+
+.wow-workbench-surface__blocker-line text:first-child {
+  flex: none;
+  color: rgba(244, 234, 217, 0.72);
+  font-size: 22rpx;
+}
+
+.wow-workbench-surface__blocker-line text:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wow-workbench-surface__summary {
+  color: rgba(244, 234, 217, 0.82);
+  font-size: 24rpx;
+  font-weight: 850;
+  line-height: 1.34;
+  overflow-wrap: anywhere;
+}
+
+.wow-workbench-surface__verdict-visual {
+  justify-self: center;
+  width: 144rpx;
+  height: 160rpx;
+}
+
+.wow-workbench-surface__blockers {
+  display: grid;
+  gap: 10rpx;
+  min-width: 0;
+  margin-top: 14rpx;
+}
+
+.wow-workbench-surface__blocker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(112rpx, auto);
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
+  padding: 12rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.18);
+  border-radius: 8rpx;
+  background: rgba(0, 0, 0, 0.22);
+  box-sizing: border-box;
+}
+
+.wow-workbench-surface__blocker-copy {
+  display: grid;
+  gap: 4rpx;
+  min-width: 0;
+}
+
+.wow-workbench-surface__blocker-copy text:first-child {
+  overflow: hidden;
+  color: #fff8ea;
+  font-size: 24rpx;
+  font-weight: 1000;
+  line-height: 1.14;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wow-workbench-surface__blocker-copy text:last-child {
+  color: rgba(244, 234, 217, 0.66);
+  font-size: 21rpx;
+  font-weight: 800;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+
+.wow-workbench-surface__next {
+  display: grid;
+  gap: 10rpx;
+  min-width: 0;
+  margin-top: 18rpx;
+}
+
+.wow-workbench-surface__module-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.wow-workbench-surface__module-grid module-card {
+  min-width: 0;
+}
+
+.wow-workbench-surface__evidence evidence-ledger {
+  display: block;
+  min-width: 0;
+}
+
+@media (max-width: 380px) {
+  .wow-workbench-surface {
+    gap: 14rpx;
+  }
+
+  .wow-workbench-surface__identity {
+    grid-template-columns: 86rpx minmax(0, 1fr) 96rpx;
+    gap: 12rpx;
+  }
+
+  .wow-workbench-surface__spec-icon {
+    width: 82rpx;
+    height: 82rpx;
+  }
+
+  .wow-workbench-surface__title {
+    font-size: 34rpx;
+  }
+
+  .wow-workbench-surface__controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wow-workbench-surface__scenarios {
+    grid-column: 1 / -1;
+  }
+
+  .wow-workbench-surface__verdict-grid {
+    grid-template-columns: minmax(0, 1fr) 118rpx;
+    gap: 12rpx;
+  }
+
+  .wow-workbench-surface__verdict-visual {
+    width: 112rpx;
+    height: 132rpx;
+  }
+
+  .wow-workbench-surface__verdict-title {
+    font-size: 36rpx;
+  }
+
+  .wow-workbench-surface__module-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

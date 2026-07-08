@@ -1,0 +1,20 @@
+<view class="wow-page-frame {{rootClass}} ext-class">
+  <view class="wow-page-frame__backdrop"></view>
+  <slot name="nav"></slot>
+  <scroll-view
+    wx:if="{{scroll}}"
+    class="wow-page-frame__scroll"
+    scroll-y="{{true}}"
+    enhanced="{{true}}"
+    show-scrollbar="{{false}}"
+    lower-threshold="{{lowerThreshold}}"
+    bindscrolltolower="handleScrollToLower"
+  >
+    <view class="wow-page-frame__content" style="{{contentStyle}}">
+      <slot></slot>
+    </view>
+  </scroll-view>
+  <view wx:else class="wow-page-frame__content" style="{{contentStyle}}">
+    <slot></slot>
+  </view>
+</view>

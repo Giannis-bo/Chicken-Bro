@@ -15,8 +15,13 @@ page {
   --wow-reference: #54c0ff;
   --wow-blocked: #ff6b64;
   --wow-stale: #ff8c80;
+  --wow-tabbar-height: 132rpx;
+  --wow-tabbar-bottom: 0rpx;
+  --wow-tabbar-space: calc(164rpx + env(safe-area-inset-bottom));
   height: 100vh;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
   background: #060606;
   background: var(--wow-bg);
   color: #e1e2e5;
@@ -27,15 +32,27 @@ page {
 
 view,
 text,
-scroll-view {
+scroll-view,
+image,
+button,
+picker {
   box-sizing: border-box;
 }
 
+image {
+  display: block;
+}
+
 .page-shell {
+  position: relative;
+  isolation: isolate;
   height: 100vh;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: #060606;
   background: var(--wow-bg);
 }
@@ -44,10 +61,50 @@ scroll-view {
   flex: 1;
   min-height: 0;
   height: 0;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .page-content {
-  padding: 22rpx 24rpx 56rpx;
+  width: 100%;
+  padding: 22rpx 24rpx var(--wow-tabbar-space);
+  box-sizing: border-box;
+}
+
+.pass37-page-frame {
+  --pass37-page-gutter: 24rpx;
+  --pass37-section-gap: 16rpx;
+}
+
+.pass37-page-frame__scroll {
+  width: 100%;
+  min-width: 0;
+}
+
+.pass37-page-frame__content {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.pass37-wow-panel {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.pass37-module-dock {
+  position: relative;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.pass37-module-card {
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .hero {
@@ -166,17 +223,25 @@ scroll-view {
 }
 
 .section-title {
+  min-width: 0;
+  overflow: hidden;
   color: #f1f1f1;
   font-size: 28rpx;
   font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .section-action {
   flex: none;
+  max-width: 48%;
+  overflow: hidden;
   color: #f8b700;
   color: var(--wow-gold);
   font-size: 24rpx;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quick-grid {

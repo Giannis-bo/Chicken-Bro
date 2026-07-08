@@ -502,6 +502,7 @@ function selectedSpecKey(data) {
   return cleanSummaryText(
     (data.selectedTalentTemplate && data.selectedTalentTemplate.specKey)
     || (data.selectedGearTemplate && data.selectedGearTemplate.specKey)
+    || data.selectedSpecKey
     || ''
   )
 }
@@ -902,10 +903,18 @@ function templateClassKey(template) {
   return String((template && template.classKey) || '').trim()
 }
 
-function filterTemplatesByClass(templates, classKey) {
+function templateSpecKey(template) {
+  return String((template && template.specKey) || '').trim()
+}
+
+function filterTemplatesByContext(templates, classKey, specKey = '') {
   const key = String(classKey || '').trim()
+  const wantedSpec = String(specKey || '').trim()
   if (!key) return []
-  return (templates || []).filter((template) => templateClassKey(template) === key)
+  return (templates || []).filter((template) => {
+    if (templateClassKey(template) !== key) return false
+    return wantedSpec ? templateSpecKey(template) === wantedSpec : true
+  })
 }
 
 function templateTime(template) {
@@ -944,6 +953,67 @@ function normalizeClassOptions(value) {
     : []
 }
 
+function decodeQueryText(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  try {
+    return decodeURIComponent(text)
+  } catch (error) {
+    return text
+  }
+}
+
+function specKeyFromOption(spec) {
+  return String((spec && (spec.websimSpecKey || spec.specKey || spec.specSlug)) || '').trim()
+}
+
+function classSpecLabel(classItem, spec, fallback = '') {
+  const className = cleanSummaryText((classItem && (classItem.name || classItem.className)) || (spec && spec.className))
+  const specName = cleanSummaryText((spec && (spec.specName || spec.title || spec.name)) || '')
+  if (className && specName) return `${className} · ${specName}`
+  return fallback || specName || className
+}
+
+function findSpecContext(classSource, query = {}) {
+  const classOptions = normalizeClassOptions(classSource)
+  const specId = decodeQueryText(query.spec)
+  const explicitClassKey = decodeQueryText(query.classKey)
+  const explicitSpecKey = decodeQueryText(query.specKey)
+  let fallbackLabel = specId.replace(/[-_/]+/g, ' · ')
+
+  for (const classItem of classOptions) {
+    const classKey = optionClassKey(classItem)
+    const specs = Array.isArray(classItem.specializations) ? classItem.specializations : []
+    const match = specs.find((spec) => {
+      const specKey = specKeyFromOption(spec)
+      const id = cleanSummaryText(spec && spec.id)
+      const combinedId = [spec && spec.className || classItem.name, spec && (spec.specName || spec.title || spec.name)].filter(Boolean).join('-')
+      if (explicitClassKey && explicitSpecKey) return classKey === explicitClassKey && specKey === explicitSpecKey
+      return !!specId && (id === specId || combinedId === specId)
+    })
+    if (match) {
+      return {
+        source: query.from === 'workbench' ? 'workbench' : '',
+        classKey: classKey || explicitClassKey,
+        specKey: specKeyFromOption(match) || explicitSpecKey,
+        specLabel: classSpecLabel(classItem, match, fallbackLabel),
+        scenarioKey: decodeQueryText(query.scenario)
+      }
+    }
+  }
+
+  if (explicitClassKey || explicitSpecKey || specId) {
+    return {
+      source: query.from === 'workbench' ? 'workbench' : '',
+      classKey: explicitClassKey,
+      specKey: explicitSpecKey,
+      specLabel: fallbackLabel,
+      scenarioKey: decodeQueryText(query.scenario)
+    }
+  }
+  return { source: '', classKey: '', specKey: '', specLabel: '', scenarioKey: '' }
+}
+
 function mostRecentTemplateClassKey(talentTemplates, gearTemplates) {
   const recent = normalizeTemplateList([...(talentTemplates || []), ...(gearTemplates || [])])
     .find((template) => templateClassKey(template))
@@ -980,14 +1050,17 @@ function templateIndexFor(templates, template) {
   return (templates || []).findIndex((item) => item.id === template.id)
 }
 
-function templateEmptyText(type, filteredTemplates) {
+function templateEmptyText(type, filteredTemplates, scopedToSpec) {
   if ((filteredTemplates || []).length) return ''
+  if (scopedToSpec) return type === 'talent' ? '当前专精尚未保存天赋模板' : '当前专精尚未保存装备模板'
   return type === 'talent' ? '尚未保存天赋模板' : '尚未保存装备模板'
 }
 
 function snapshotSelection(data) {
   return {
     selectedClassKey: data.selectedClassKey || '',
+    selectedSpecKey: data.selectedSpecKey || '',
+    selectedSpecLabel: data.selectedSpecLabel || '',
     selectedRaceKey: data.selectedRaceKey || '',
     selectedScenarioKey: data.selectedScenarioKey || 'single',
     selectedTalentTemplate: data.selectedTalentTemplate || null,
@@ -1000,15 +1073,23 @@ function buildTemplateListState(classSource, talentTemplates, gearTemplates, pre
   const allTalentTemplates = normalizeTemplateList(talentTemplates)
   const allGearTemplates = normalizeTemplateList(gearTemplates)
   const previousClassKey = String(previous.selectedClassKey || '').trim()
+  const previousSpecKey = String(previous.selectedSpecKey || '').trim()
   const recentClassKey = mostRecentTemplateClassKey(allTalentTemplates, allGearTemplates)
   const selectedClassKey = classIndexFor(classOptions, previousClassKey) >= 0
     ? previousClassKey
     : (classIndexFor(classOptions, recentClassKey) >= 0 ? recentClassKey : '')
+  const selectedSpecKey = selectedClassKey === previousClassKey ? previousSpecKey : ''
   const selectedClassIndex = selectedClassKey ? classIndexFor(classOptions, selectedClassKey) : 0
   const currentClass = selectedClassKey ? classOptions[selectedClassIndex] || null : null
+  const selectedSpec = selectedSpecKey && currentClass
+    ? ((currentClass.specializations || []).find((spec) => specKeyFromOption(spec) === selectedSpecKey) || null)
+    : null
+  const selectedSpecLabel = selectedSpecKey
+    ? classSpecLabel(currentClass, selectedSpec, previous.selectedSpecLabel || '')
+    : ''
   const raceState = raceStateForClass(selectedClassKey, previous.selectedRaceKey)
-  const talentList = filterTemplatesByClass(allTalentTemplates, selectedClassKey)
-  const gearList = filterTemplatesByClass(allGearTemplates, selectedClassKey)
+  const talentList = filterTemplatesByContext(allTalentTemplates, selectedClassKey, selectedSpecKey)
+  const gearList = filterTemplatesByContext(allGearTemplates, selectedClassKey, selectedSpecKey)
   const previousTalentIndex = templateIndexFor(talentList, previous.selectedTalentTemplate)
   const previousGearIndex = templateIndexFor(gearList, previous.selectedGearTemplate)
   const selectedTalentTemplateIndex = previousTalentIndex >= 0 ? previousTalentIndex : 0
@@ -1025,6 +1106,8 @@ function buildTemplateListState(classSource, talentTemplates, gearTemplates, pre
     selectedClassIndex,
     selectedClassKey,
     selectedClassName: currentClass ? currentClass.name : '',
+    selectedSpecKey,
+    selectedSpecLabel,
     ...raceState,
     talentTemplates: talentList,
     gearTemplates: gearList,
@@ -1049,8 +1132,8 @@ function buildTemplateListState(classSource, talentTemplates, gearTemplates, pre
     }),
     emptyState: {
       class: classOptions.length ? '' : '暂无可选择职业',
-      talent: templateEmptyText('talent', talentList),
-      gear: templateEmptyText('gear', gearList)
+      talent: templateEmptyText('talent', talentList, !!selectedSpecKey),
+      gear: templateEmptyText('gear', gearList, !!selectedSpecKey)
     }
   }
 }
@@ -1068,6 +1151,8 @@ Page({
     selectedClassIndex: 0,
     selectedClassKey: '',
     selectedClassName: '',
+    selectedSpecKey: '',
+    selectedSpecLabel: '',
     selectedRaceIndex: 0,
     selectedRaceKey: 'troll',
     selectedRaceName: '巨魔',
@@ -1120,6 +1205,20 @@ Page({
     this.hasShownOnce = false
     this.templateLoadRequestId = 0
     this.selectionRevision = 0
+    const entryContext = findSpecContext((fallbackPayload && fallbackPayload.classOptions) || [], options || {})
+    const scenarioKey = scenarioOptionForKey(entryContext.scenarioKey) ? entryContext.scenarioKey : this.data.selectedScenarioKey
+    if (entryContext.source === 'workbench') {
+      this.setData({
+        kicker: '当前专精承接',
+        title: `${entryContext.specLabel || '当前专精'} SimC 校验`,
+        desc: `已带入工作台上下文 · ${entryContext.specLabel || '当前专精'} · ${scenarioTitleForKey(scenarioKey)}`,
+        selectedClassKey: entryContext.classKey || this.data.selectedClassKey,
+        selectedSpecKey: entryContext.specKey || this.data.selectedSpecKey,
+        selectedSpecLabel: entryContext.specLabel || this.data.selectedSpecLabel,
+        selectedScenarioKey: scenarioKey,
+        selectedScenarioTitle: scenarioTitleForKey(scenarioKey)
+      })
+    }
     trackPageView(SIMC_PAGE_ROUTE, {
       source: options && options.from ? options.from : 'simulator'
     })

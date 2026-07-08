@@ -3616,17 +3616,25 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
 }
 
 function buildGearSlotRows(payload, selectedGearBySlot, enhancementBySlot) {
-  const slots = payload && Array.isArray(payload.slots) ? payload.slots : []
+  const slots = payload && Array.isArray(payload.slots) && payload.slots.length
+    ? payload.slots
+    : requiredGearSlots.map((slot) => ({
+      slot,
+      simcSlot: slot,
+      key: slot,
+      label: gearSlotDisplayLabels[slot] || slot
+    }))
   const readiness = (payload && payload.slotReadiness) || {}
   const groups = gearGroupsBySlot(payload)
   const selection = selectedGearBySlot || {}
   const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
+  const equippedSet = (payload && payload.equippedSet) || {}
   return slots.map((slotMeta) => {
     const slot = slotMeta.slot || slotMeta.simcSlot || slotMeta.key
     const occupiedOffHand = slot === 'off_hand' && !selection[slot]
       ? occupiedOffHandGearItem(payload, selection)
       : null
-    const item = occupiedOffHand || enrichedGearItemFromCandidates(payload, slot, selection[slot] || ((payload.equippedSet || {})[slot]) || {})
+    const item = occupiedOffHand || enrichedGearItemFromCandidates(payload, slot, selection[slot] || equippedSet[slot] || {})
     const slotState = readiness[slot] || {}
     const status = item.simcReady ? 'verified' : (slotState.status || 'blocked')
     const trust = gearTrustState(item, status, slotState.reason || (item.simcReady ? '可保存为配置' : '等待装备配置字段'))

@@ -1,0 +1,25 @@
+{
+  "status": "risk",
+  "checkedAt": "2026-07-08T02:37:51.905Z",
+  "wsEndpoint": "ws://127.0.0.1:9854",
+  "toolInfo": {
+    "version": "2.01.2510290",
+    "SDKVersion": "3.16.2"
+  },
+  "forbiddenActionsUsed": [],
+  "results": [
+    {
+      "path": "pages/builds/workbench",
+      "tier": "P0",
+      "name": "当前专精工作台",
+      "query": "spec=%E6%B3%95%E5%B8%88-%E5%86%B0%E9%9C%9C",
+      "settleMs": 4200,
+      "waitReadyMs": 7000,
+      "postReadySettleMs": 800,
+      "startedAt": "2026-07-08T02:37:35.211Z",
+      "finishedAt": "2026-07-08T02:37:51.903Z",
+      "status": "fail_or_risk",
+      "error": "capture pages/builds/workbench timed out after 10000ms"
+    }
+  ]
+}

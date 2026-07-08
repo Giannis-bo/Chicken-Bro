@@ -1,0 +1,9 @@
+{
+  "component": true,
+  "usingComponents": {
+    "wow-panel": "/components/wow-panel/wow-panel",
+    "status-visual": "/components/status-visual/status-visual",
+    "evidence-ledger": "/components/evidence-ledger/evidence-ledger",
+    "action-button": "/components/action-button/action-button"
+  }
+}

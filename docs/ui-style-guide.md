@@ -56,11 +56,21 @@
 - 按钮文案保持短动词：`保存`、`导入`、`重置`、`提交分析`、`查看详情`。长说明放在旁边的状态文案，不塞进按钮。
 - 如果按钮文案会溢出，优先改短文案或改成全宽按钮；不要让按钮撑破卡片。
 
+## 固定 Tab 与 App Shell
+
+底部固定 tab 必须使用微信原生 `app.json` `tabBar`，不要在页面里伪造固定 tab、状态栏或手机 chrome。
+
+- 每个 `tabBar.list` 项必须有 `iconPath` 和 `selectedIconPath`，图标使用本地 `assets/tabbar/` 下的运行时资源。
+- 页面内容通过 `AppShell` / `PageFrame` 预留 tab-safe bottom floor，不单独写底部安全区补丁。
+- 资讯频道这种页面内筛选 dock 可以使用 `ChannelDock`，但它不是全局底部 tab 的替代品。
+- imagegen 或目标图素材不能直接裁成底部 tab 图标；固定 tab 图标必须是明确的运行时 UI asset。
+
 ## 组件规范
 
 新增 UI 应优先复用或抽象以下组件语义：
 
-- `page-shell + page-scroll + page-content`：保持现有全高滚动结构，避免小程序滚动异常。
+- `AppShell + PageFrame`：新 UI 系统的默认页面外壳，统一背景、滚动、横向 gutter、section gap 和 tab-safe bottom floor。
+- `page-shell + page-scroll + page-content`：仅作为旧页面历史结构保留；新接入 surface 不应继续扩展这套 page-private 几何。
 - 紧凑 hero：kicker、title、desc、右侧状态或小数值，最多一个轻量渐变。
 - section：标题行 + 内容区；不要把 section 再套成多层大卡。
 - toolbar picker：左标签 + 右 picker/value，一行完成选择。

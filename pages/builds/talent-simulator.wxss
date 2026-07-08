@@ -1,15 +1,22 @@
 .talent-simulator-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   background: #050505;
   color: #f2f2f2;
 }
 
 .page-scroll {
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 .talent-page-content {
-  padding: 20rpx 22rpx 208rpx;
+  padding: 20rpx 22rpx calc(228rpx + env(safe-area-inset-bottom));
 }
 
 .talent-header,
@@ -578,7 +585,7 @@
   display: grid;
   grid-template-columns: minmax(220rpx, 1.15fr) minmax(220rpx, 1fr) 132rpx;
   gap: 12rpx;
-  padding: 12rpx 22rpx calc(14rpx + env(safe-area-inset-bottom));
+  padding: 12rpx 22rpx calc(24rpx + env(safe-area-inset-bottom));
   border-top: 1rpx solid rgba(255, 255, 255, 0.1);
   background: linear-gradient(180deg, rgba(18, 18, 18, 0.94), rgba(5, 5, 5, 0.98));
   box-shadow: 0 -14rpx 28rpx rgba(0, 0, 0, 0.34);
@@ -658,7 +665,7 @@
   right: 0;
   bottom: 0;
   z-index: 90;
-  padding: 16rpx 22rpx 36rpx;
+  padding: 16rpx 22rpx calc(44rpx + env(safe-area-inset-bottom));
   border-top: 1rpx solid rgba(255, 255, 255, 0.1);
   border-radius: 20rpx 20rpx 0 0;
   background: #121212;
@@ -671,7 +678,7 @@
 }
 
 .template-save-sheet {
-  padding: 16rpx 22rpx calc(36rpx + env(safe-area-inset-bottom));
+  padding: 16rpx 22rpx calc(44rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 

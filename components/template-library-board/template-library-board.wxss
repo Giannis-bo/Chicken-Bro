@@ -1,0 +1,299 @@
+.wow-template-library-board {
+  display: block;
+  min-width: 0;
+  color: #f4ead9;
+  box-sizing: border-box;
+  contain: layout paint style;
+}
+
+.wow-template-library-board__panel,
+.wow-template-library-board__sync {
+  display: block;
+  min-width: 0;
+}
+
+.wow-template-library-board__sync {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.wow-template-library-board__modules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.wow-template-library-board__module-card {
+  min-width: 0;
+}
+
+.wow-template-library-board__loading,
+.wow-template-library-board__groups,
+.wow-template-library-board__cards {
+  display: grid;
+  gap: 12rpx;
+  min-width: 0;
+  margin-top: 14rpx;
+}
+
+.wow-template-library-board__skeleton {
+  min-height: 126rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.16);
+  border-radius: 8rpx;
+  background:
+    linear-gradient(100deg, rgba(255, 255, 255, 0.04), rgba(248, 183, 0, 0.1), rgba(255, 255, 255, 0.04)),
+    rgba(0, 0, 0, 0.28);
+}
+
+.wow-template-library-board__empty,
+.wow-template-library-board__delete-confirm {
+  display: grid;
+  grid-template-columns: 96rpx minmax(0, 1fr);
+  align-items: center;
+  gap: 16rpx;
+  min-width: 0;
+  margin-top: 14rpx;
+  padding: 18rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.22);
+  border-radius: 8rpx;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(248, 183, 0, 0.12), transparent 34%),
+    rgba(0, 0, 0, 0.28);
+  box-sizing: border-box;
+}
+
+.wow-template-library-board__delete-confirm {
+  border-color: rgba(255, 107, 100, 0.52);
+}
+
+.wow-template-library-board__empty-copy,
+.wow-template-library-board__delete-copy {
+  display: grid;
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.wow-template-library-board__empty-copy text,
+.wow-template-library-board__delete-copy text,
+.wow-template-library-board__group-head text,
+.wow-template-library-board__module-empty text,
+.wow-template-library-board__title-line text,
+.wow-template-library-board__chips text,
+.wow-template-library-board__source-row text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  letter-spacing: 0;
+  line-height: 1.14;
+  text-overflow: ellipsis;
+}
+
+.wow-template-library-board__empty-copy text:first-child,
+.wow-template-library-board__delete-copy text:first-child {
+  color: #fff8ea;
+  font-size: 28rpx;
+  font-weight: 1000;
+}
+
+.wow-template-library-board__empty-copy text:last-child,
+.wow-template-library-board__delete-copy text:last-child {
+  color: rgba(244, 234, 217, 0.72);
+  font-size: 22rpx;
+  font-weight: 850;
+  line-height: 1.24;
+  white-space: normal;
+}
+
+.wow-template-library-board__entry-actions,
+.wow-template-library-board__delete-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.wow-template-library-board__delete-actions {
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1fr);
+}
+
+.wow-template-library-board__group {
+  min-width: 0;
+}
+
+.wow-template-library-board__group-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
+}
+
+.wow-template-library-board__group-head text:first-child {
+  color: #fff8ea;
+  font-size: 26rpx;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.wow-template-library-board__group-head text:last-child {
+  color: #f8b700;
+  font-size: 21rpx;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.wow-template-library-board__module-empty {
+  min-height: 72rpx;
+  margin-top: 10rpx;
+  padding: 14rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.14);
+  border-radius: 8rpx;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.wow-template-library-board__module-empty text {
+  color: rgba(244, 234, 217, 0.64);
+  font-size: 22rpx;
+  font-weight: 850;
+  white-space: normal;
+}
+
+.wow-template-library-board__card {
+  display: grid;
+  grid-template-columns: 76rpx minmax(0, 1fr) 108rpx;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
+  min-height: 132rpx;
+  padding: 12rpx;
+  overflow: hidden;
+  border: 1rpx solid rgba(248, 183, 0, 0.2);
+  border-radius: 8rpx;
+  background:
+    linear-gradient(145deg, rgba(248, 183, 0, 0.08), transparent 40%),
+    rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+}
+
+.wow-template-library-board__card.state-verified {
+  border-color: rgba(71, 214, 143, 0.38);
+}
+
+.wow-template-library-board__card.state-partial {
+  border-color: rgba(255, 191, 71, 0.44);
+}
+
+.wow-template-library-board__card-icon,
+.wow-template-library-board__card-copy,
+.wow-template-library-board__card-actions {
+  min-width: 0;
+}
+
+.wow-template-library-board__card-icon {
+  width: 76rpx;
+  height: 76rpx;
+}
+
+.wow-template-library-board__card-copy {
+  display: grid;
+  gap: 7rpx;
+}
+
+.wow-template-library-board__title-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.wow-template-library-board__title-line text:first-child {
+  color: #fff8ea;
+  font-size: 25rpx;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.wow-template-library-board__title-line text:last-child {
+  color: #f8b700;
+  font-size: 19rpx;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.wow-template-library-board__chips {
+  display: flex;
+  align-items: center;
+  gap: 7rpx;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.wow-template-library-board__chips text {
+  flex: none;
+  max-width: 128rpx;
+  padding: 5rpx 8rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.18);
+  border-radius: 6rpx;
+  color: rgba(244, 234, 217, 0.74);
+  font-size: 18rpx;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.wow-template-library-board__source-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.wow-template-library-board__source-row text {
+  color: rgba(244, 234, 217, 0.58);
+  font-size: 20rpx;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.wow-template-library-board__card-actions {
+  display: grid;
+  gap: 8rpx;
+}
+
+.wow-template-library-board__delete {
+  width: 100%;
+  min-height: 56rpx;
+  margin: 0;
+  padding: 0 10rpx;
+  border: 1rpx solid rgba(255, 107, 100, 0.46);
+  border-radius: 7rpx;
+  background: rgba(70, 14, 14, 0.5);
+  color: #ffaaa4;
+  font-size: 20rpx;
+  font-weight: 950;
+  line-height: 56rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.wow-template-library-board__delete::after {
+  border: 0;
+}
+
+.wow-template-library-board__footer-actions {
+  display: grid;
+  min-width: 0;
+  margin-top: 14rpx;
+}
+
+.wow-template-library-board__evidence {
+  display: block;
+  min-width: 0;
+  margin-top: 14rpx;
+}
+
+.wow-template-library-board.remote-remote_failed .wow-template-library-board__modules {
+  border-color: rgba(255, 191, 71, 0.32);
+}

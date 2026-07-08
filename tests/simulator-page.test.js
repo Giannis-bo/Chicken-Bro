@@ -163,6 +163,18 @@ const simcClassOptionsWithShaman = [
   { name: '萨满祭司', key: 'shaman', specializations: [{ title: '元素', websimClassKey: 'shaman', websimSpecKey: 'elemental' }] }
 ]
 
+const simcClassOptionsMageSpecs = [
+  {
+    name: '法师',
+    key: 'mage',
+    specializations: [
+      { id: '法师-奥术', title: '奥术', specName: '奥术', websimClassKey: 'mage', websimSpecKey: 'arcane' },
+      { id: '法师-冰霜', title: '冰霜', specName: '冰霜', websimClassKey: 'mage', websimSpecKey: 'frost' }
+    ]
+  },
+  { name: '战士', key: 'warrior', specializations: [{ id: '战士-武器', title: '武器', websimClassKey: 'warrior', websimSpecKey: 'arms' }] }
+]
+
 test('simc page exposes single aoe5 and approximate mythic plus scenarios', () => {
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
     '../pages/builds/builds-api.js': {
@@ -206,15 +218,28 @@ test('simc page keeps submission setup compact and scrollable', () => {
   const wxml = fs.readFileSync('pages/simulator/simc.wxml', 'utf8')
   const css = fs.readFileSync('pages/simulator/simc.wxss', 'utf8')
 
-  assert.match(wxml, /<scroll-view class="page-scroll simc-scroll" scroll-y type="list">/)
+  assert.match(wxml, /<scroll-view class="page-scroll simc-scroll" scroll-y>/)
+  assert.doesNotMatch(wxml, /<scroll-view class="page-scroll simc-scroll" scroll-y type="list">/)
   assert.match(wxml, /identity-selector-row/)
   assert.match(wxml, /class="template-selector compact-selector class-selector identity-selector-card"/)
   assert.match(wxml, /class="template-selector compact-selector race-selector identity-selector-card"/)
   assert.match(wxml, /class="template-selector scenario-selector"/)
   assert.match(css, /\.simc-scroll\s*\{[\s\S]*min-height:\s*0/)
-  assert.match(css, /\.simc-page\s*\{[\s\S]*padding:[^;]*calc\(150rpx \+ env\(safe-area-inset-bottom\)\)/)
+  assert.match(css, /\.simc-page\s*\{[\s\S]*padding:[^;]*calc\(168rpx \+ env\(safe-area-inset-bottom\)\)/)
   assert.match(css, /\.identity-selector-row\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/)
   assert.match(css, /\.segmented-row\s*\{[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/)
+})
+
+test('smart analysis chat panel stays above the custom tabbar without floating mid-screen', () => {
+  const appCss = fs.readFileSync('app.wxss', 'utf8')
+  const css = fs.readFileSync('pages/simulator/simulator.wxss', 'utf8')
+
+  assert.match(appCss, /--wow-tabbar-height:\s*132rpx;/)
+  assert.match(appCss, /--wow-tabbar-bottom:\s*0rpx;/)
+  assert.match(appCss, /--wow-tabbar-space:\s*calc\(164rpx \+ env\(safe-area-inset-bottom\)\);/)
+  assert.match(css, /\.chickenbro-panel\s*\{[\s\S]*margin:\s*18rpx 24rpx var\(--wow-tabbar-space\);/)
+  assert.doesNotMatch(css, /calc\(var\(--wow-tabbar-space\) \+ 16rpx\)/)
+  assert.match(css, /\.chickenbro-inputbar\s*\{[\s\S]*grid-template-columns:\s*104rpx minmax\(0, 1fr\) 92rpx;/)
 })
 
 test('simc page exposes combat preparation policy and temporary buff toggles before validation', () => {
@@ -385,7 +410,8 @@ test('simc action buttons avoid native loading overlay flicker', () => {
   const actionBarBlock = (css.match(/\.action-bar\s*\{[^}]*\}/) || [''])[0]
 
   assert.doesNotMatch(wxml, /<picker\b/)
-  assert.match(wxml, /<scroll-view class="page-scroll simc-scroll" scroll-y type="list">/)
+  assert.match(wxml, /<scroll-view class="page-scroll simc-scroll" scroll-y>/)
+  assert.doesNotMatch(wxml, /<scroll-view class="page-scroll simc-scroll" scroll-y type="list">/)
   assert.doesNotMatch(wxml, /<button\b/)
   assert.doesNotMatch(wxml, /\sloading="\{\{(?:confirming|submittingTask)\}\}"/)
   assert.doesNotMatch(wxml, /template-workspace/)
@@ -647,6 +673,117 @@ test('simc page defaults to the most recent template class and filters picker te
   assert.equal(page.data.emptyState.talent, '尚未保存天赋模板')
   assert.equal(page.data.emptyState.gear, '尚未保存装备模板')
   assert.equal(page.data.canConfirm, false)
+})
+
+test('simc page inherits workbench class spec and scenario without leaking other spec templates', async () => {
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptionsMageSpecs }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptionsMageSpecs }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStats: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [sampleGearTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      syncBuildTemplate: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+
+  page.onLoad({
+    from: 'workbench',
+    spec: encodeURIComponent('法师-冰霜'),
+    classKey: 'mage',
+    specKey: 'frost',
+    scenario: 'mythic_plus'
+  })
+  await flushPromises()
+  await flushPromises()
+
+  assert.equal(page.data.kicker, '当前专精承接')
+  assert.match(page.data.title, /法师 · 冰霜/)
+  assert.match(page.data.desc, /近似大秘境/)
+  assert.equal(page.data.selectedClassKey, 'mage')
+  assert.equal(page.data.selectedClassName, '法师')
+  assert.equal(page.data.selectedSpecKey, 'frost')
+  assert.equal(page.data.selectedScenarioKey, 'mythic_plus')
+  assert.deepEqual(page.data.talentTemplates, [])
+  assert.deepEqual(page.data.gearTemplates, [])
+  assert.equal(page.data.emptyState.talent, '当前专精尚未保存天赋模板')
+  assert.equal(page.data.emptyState.gear, '当前专精尚未保存装备模板')
+  assert.equal(page.data.canConfirm, false)
+})
+
+test('chickenbro route carries bounded workbench context and suggested prompts', async () => {
+  const { createChickenbroChatPage } = require('../pages/simulator/chickenbro-chat')
+  let capturedRequest = null
+  const pageDefinition = createChickenbroChatPage({
+    pagePath: 'pages/simulator/chickenbro',
+    source: 'simulator',
+    requestChickenbroMessage: (request) => {
+      capturedRequest = request
+      return Promise.resolve({
+        payload: {
+          session: { sessionId: 'session-1', title: '工作台解释' },
+          userMessage: { messageId: 'user-1', role: 'user', content: request.message },
+          assistantMessage: {
+            messageId: 'assistant-1',
+            role: 'assistant',
+            content: '只解释当前证据。',
+            payload: { answerSource: 'fallback', confidence: 'bounded', priorityActions: [], evidenceRefs: [], limitations: [] }
+          }
+        },
+        fromFallback: false,
+        error: ''
+      })
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+
+  page.onLoad({
+    from: 'workbench',
+    spec: encodeURIComponent('法师-冰霜'),
+    classKey: 'mage',
+    specKey: 'frost',
+    scenario: 'single'
+  })
+
+  assert.equal(page.data.contextLabel, '法师 · 冰霜 · 单体')
+  assert.equal(page.data.boundedContext.classKey, 'mage')
+  assert.equal(page.data.boundedContext.specKey, 'frost')
+  assert.equal(page.data.boundedContext.scenarioKey, 'raid_single')
+  assert.equal(page.data.suggestedPrompts.length, 3)
+  assert.match(page.data.chatMessages[0].content, /法师 · 冰霜/)
+
+  page.useSuggestedPrompt({ currentTarget: { dataset: { index: 0 } } })
+  assert.equal(page.data.chatDraft, '现在主要阻断是什么？')
+
+  await page.submitChickenbroMessage()
+  await flushPromises()
+
+  assert.equal(capturedRequest.message, '现在主要阻断是什么？')
+  assert.deepEqual(capturedRequest.context, {
+    productPhase: 'retail',
+    region: 'cn',
+    classKey: 'mage',
+    specKey: 'frost',
+    scenarioKey: 'raid_single'
+  })
+  assert.equal(Object.prototype.hasOwnProperty.call(capturedRequest, 'rawProfile'), false)
 })
 
 test('simc page loads saved talent and gear templates with empty states', async () => {
@@ -1877,32 +2014,49 @@ test('simc page stores only compact analysis state after validation', () => {
 test('smart analysis tab opens directly as the chickenbro chat surface', () => {
   const app = JSON.parse(fs.readFileSync('app.json', 'utf8'))
   const js = fs.readFileSync('pages/simulator/simulator.js', 'utf8')
+  const json = JSON.parse(fs.readFileSync('pages/simulator/simulator.json', 'utf8'))
   const wxml = fs.readFileSync('pages/simulator/simulator.wxml', 'utf8')
   const css = fs.readFileSync('pages/simulator/simulator.wxss', 'utf8')
   const api = fs.readFileSync('pages/simulator/simulator-api.js', 'utf8')
   const chickenbroJs = fs.readFileSync('pages/simulator/chickenbro.js', 'utf8')
+  const chatFactoryJs = fs.readFileSync('pages/simulator/chickenbro-chat.js', 'utf8')
+  const chickenbroJson = JSON.parse(fs.readFileSync('pages/simulator/chickenbro.json', 'utf8'))
   const chickenbroWxml = fs.readFileSync('pages/simulator/chickenbro.wxml', 'utf8')
   const chickenbroCss = fs.readFileSync('pages/simulator/chickenbro.wxss', 'utf8')
+  const chickenbroResolvedCss = `${css}\n${chickenbroCss}`
 
   assert.ok(app.pages.includes('pages/simulator/simc'))
   assert.ok(!app.pages.includes('pages/simulator/wcl'))
   assert.ok(app.pages.includes('pages/simulator/chickenbro'))
   assert.ok(app.pages.includes('pages/simulator/tasks'))
   assert.ok(app.pages.includes('pages/simulator/task-detail'))
-  assert.match(wxml, /<view class="chickenbro-chat-shell simulator-chat-shell">/)
+  assert.equal(json.usingComponents['navigation-bar'], '/components/navigation-bar/navigation-bar')
+  assert.equal(json.usingComponents['app-shell'], undefined)
+  assert.equal(json.usingComponents['chickenbro-coach-surface'], undefined)
+  assert.match(wxml, /class="chickenbro-page"/)
+  assert.match(wxml, /class="chickenbro-panel"/)
+  assert.match(wxml, /<navigation-bar[\s\S]*title="\{\{navTitle\}\}"/)
   assert.doesNotMatch(wxml, /class="metrics"/)
   assert.doesNotMatch(wxml, /metric-card/)
   assert.doesNotMatch(wxml, /analysis-modules/)
   assert.doesNotMatch(wxml, /wx:for="\{\{analysisModules\}\}"/)
   assert.match(wxml, /chatMessages/)
   assert.match(wxml, /scroll-into-view="\{\{scrollAnchor\}\}"/)
-  assert.match(wxml, /class="chat-message-row \{\{item\.role === 'user' \? 'message-row-user' : 'message-row-assistant'\}\}"/)
-  assert.match(wxml, /class="chat-input-bar"/)
+  assert.match(wxml, /class="chickenbro-inputbar"/)
   assert.match(wxml, /bindinput="updateChatDraft"/)
   assert.match(wxml, /bindtap="submitChickenbroMessage"/)
   assert.match(wxml, /bindtap="startNewTopic"/)
   assert.match(wxml, /bindtap="toggleTopicDrawer"/)
   assert.match(wxml, /topicDrawerVisible/)
+  assert.match(wxml, /\{\{title\}\}/)
+  assert.match(wxml, /\{\{item\.content\}\}/)
+  assert.match(chatFactoryJs, /title:\s*'炸鸡队长'/)
+  assert.match(chatFactoryJs, /不会编造 DPS、排名或日志结论/)
+  assert.doesNotMatch(wxml, /chat-message-row/)
+  assert.doesNotMatch(wxml, /answer-evidence/)
+  assert.doesNotMatch(wxml, /assistantPayload\.answerSource/)
+  assert.doesNotMatch(wxml, /assistantPayload\.confidence/)
+  assert.doesNotMatch(wxml, /job\.status/)
   assert.doesNotMatch(wxml, /contextDraft/)
   assert.doesNotMatch(wxml, /scroll-into-view="\{\{scrollTarget\}\}"/)
   assert.doesNotMatch(wxml, /id="task-section"/)
@@ -1918,6 +2072,7 @@ test('smart analysis tab opens directly as the chickenbro chat surface', () => {
   assert.doesNotMatch(js, /scrollTarget/)
   assert.doesNotMatch(js, /tasks:\s*\[\]/)
   assert.doesNotMatch(js, /taskId:\s*task\.taskId/)
+  assert.match(js, /tabEntry:\s*true/)
   assert.doesNotMatch(js, /wx\.navigateTo\(\{[\s\S]*\/pages\/simulator\/simc/)
   assert.doesNotMatch(js, /\/pages\/simulator\/wcl/)
   assert.doesNotMatch(js, /wx\.navigateTo\(\{[\s\S]*\/pages\/simulator\/chickenbro/)
@@ -1931,20 +2086,33 @@ test('smart analysis tab opens directly as the chickenbro chat surface', () => {
   assert.match(api, /key:\s*'chickenbro'/)
   assert.match(api, /title:\s*'炸鸡队长'/)
   assert.doesNotMatch(api, /title:\s*'任务列表'/)
-  assert.match(css, /\.simulator-chat-shell/)
-  assert.match(css, /\.chat-input-bar/)
-  assert.match(css, /\.message-row-user/)
-  assert.match(css, /\.topic-drawer/)
+  assert.match(css, /\.chickenbro-page[\s\S]*height:\s*100vh;[\s\S]*overflow:\s*hidden;/)
+  assert.match(css, /\.chickenbro-panel[\s\S]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto auto;[\s\S]*margin:\s*18rpx 24rpx var\(--wow-tabbar-space\);/)
+  assert.match(css, /\.chickenbro-scroll[\s\S]*height:\s*100%;[\s\S]*overflow:\s*hidden;/)
+  assert.match(css, /\.chickenbro-inputbar[\s\S]*grid-template-columns:\s*104rpx minmax\(0,\s*1fr\) 92rpx;/)
+  assert.doesNotMatch(css, /\.chat-input-bar[\s\S]*position:\s*fixed;/)
+  assert.doesNotMatch(css, /\.chat-input-bar/)
+  assert.doesNotMatch(css, /\.chat-status-row/)
+  assert.doesNotMatch(css, /\.message-row-user/)
+  assert.doesNotMatch(css, /\.topic-drawer/)
   assert.doesNotMatch(css, /\.analysis-modules/)
   assert.doesNotMatch(css, /\.analysis-module-card/)
   assert.doesNotMatch(css, /\.module-chickenbro/)
   assert.match(chickenbroJs, /requestChickenbroMessage/)
   assert.doesNotMatch(chickenbroJs, /requestSimulatorAnalysis/)
+  assert.equal(chickenbroJson.usingComponents['navigation-bar'], '/components/navigation-bar/navigation-bar')
+  assert.equal(chickenbroJson.usingComponents['app-shell'], undefined)
+  assert.equal(chickenbroJson.usingComponents['chickenbro-coach-surface'], undefined)
+  assert.match(chickenbroWxml, /class="chickenbro-page"/)
+  assert.match(chickenbroWxml, /class="chickenbro-panel"/)
   assert.match(chickenbroWxml, /chatMessages/)
-  assert.match(chickenbroWxml, /wx:key="messageId"/)
   assert.match(chickenbroWxml, /scroll-into-view="\{\{scrollAnchor\}\}"/)
+  assert.match(chickenbroWxml, /class="chickenbro-inputbar"/)
   assert.match(chickenbroWxml, /topicDrawerVisible/)
   assert.doesNotMatch(chickenbroWxml, /contextDraft/)
+  assert.doesNotMatch(chickenbroWxml, /assistantPayload\.answerSource/)
+  assert.doesNotMatch(chickenbroWxml, /assistantPayload\.confidence/)
+  assert.doesNotMatch(chickenbroWxml, /job\.status/)
   assert.match(chickenbroWxml, /assistantPayload\.answerLayer/)
   assert.match(chickenbroWxml, /assistantPayload\.basisLabel/)
   assert.match(chickenbroWxml, /assistantPayload\.nextQuestion/)
@@ -1952,8 +2120,12 @@ test('smart analysis tab opens directly as the chickenbro chat surface', () => {
   assert.match(chickenbroWxml, /assistantPayload\.priorityActions/)
   assert.match(chickenbroWxml, /assistantPayload\.evidenceRefs && assistantPayload\.evidenceRefs\.length/)
   assert.match(chickenbroWxml, /assistantPayload\.limitations && assistantPayload\.limitations\.length/)
-  assert.match(chickenbroWxml, /job\.status/)
-  assert.match(chickenbroCss, /\.chickenbro-chat-shell/)
+  assert.match(chickenbroCss, /@import "\.\/simulator\.wxss";/)
+  assert.match(chickenbroResolvedCss, /\.chickenbro-page[\s\S]*height:\s*100vh;/)
+  assert.match(chickenbroResolvedCss, /\.chickenbro-panel[\s\S]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto auto;/)
+  assert.match(chickenbroResolvedCss, /\.chickenbro-inputbar[\s\S]*grid-template-columns:\s*104rpx minmax\(0,\s*1fr\) 92rpx;/)
+  assert.match(chickenbroResolvedCss, /\.answer-layer-row/)
+  assert.doesNotMatch(chickenbroResolvedCss, /\.chat-input-bar[\s\S]*position:\s*fixed;/)
 })
 
 test('smart analysis tab submits chickenbro chat messages without leaving the page', async () => {
@@ -2042,7 +2214,10 @@ test('simulator task list has a dedicated page and opens task details', () => {
   assert.match(wxml, /data-task-id="\{\{item\.taskId\}\}"/)
   assert.match(wxml, /bindtap="openTaskDetail"/)
   assert.match(wxml, /任务列表/)
+  assert.match(wxml, /模拟任务台/)
+  assert.doesNotMatch(wxml, /assets\/generated/)
   assert.match(css, /\.task-list-page/)
+  assert.match(css, /\.task-command/)
   assert.match(css, /\.task-list-card/)
 })
 

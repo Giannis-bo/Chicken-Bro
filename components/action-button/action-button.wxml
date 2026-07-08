@@ -1,0 +1,17 @@
+<view
+  class="wow-action-button {{rootClass}} ext-class"
+  role="button"
+  aria-disabled="{{disabled || loading}}"
+  bindtap="handleTap"
+>
+  <view class="wow-action-button__frame"></view>
+  <view class="wow-action-button__content">
+    <text wx:if="{{loading}}" class="wow-action-button__spinner">...</text>
+    <text wx:elif="{{icon}}" class="wow-action-button__icon">{{icon}}</text>
+    <view class="wow-action-button__copy">
+      <text class="wow-action-button__label">{{label}}</text>
+      <text wx:if="{{meta}}" class="wow-action-button__meta">{{meta}}</text>
+    </view>
+    <text class="wow-action-button__chevron">›</text>
+  </view>
+</view>

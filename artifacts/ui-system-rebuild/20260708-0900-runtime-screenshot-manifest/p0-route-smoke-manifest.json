@@ -1,0 +1,191 @@
+{
+  "status": "p0_route_smoke_has_risks",
+  "startedAt": "2026-07-07T21:39:06.328Z",
+  "checkedAt": "2026-07-07T21:41:37.625Z",
+  "wsEndpoint": "ws://127.0.0.1:9854",
+  "toolInfo": {
+    "version": "2.01.2510290",
+    "SDKVersion": "3.16.2"
+  },
+  "forbiddenActionsUsed": [],
+  "captureScreenshotUsed": false,
+  "fullSerialScreenshotUsed": false,
+  "routeCount": 8,
+  "actionCount": 3,
+  "warningCount": 0,
+  "failedRouteCount": 7,
+  "riskyActionCount": 3,
+  "routeResults": [
+    {
+      "route": "pages/news/news",
+      "query": "",
+      "routeAfter": "pages/news/news",
+      "routeMatches": true,
+      "loading": false,
+      "title": "最新资讯",
+      "pagesLength": 1,
+      "waitedMs": 7,
+      "warnings": [],
+      "error": ""
+    },
+    {
+      "route": "pages/builds/builds",
+      "query": "",
+      "routeAfter": "pages/news/news",
+      "routeMatches": false,
+      "loading": false,
+      "title": "最新资讯",
+      "pagesLength": 1,
+      "waitedMs": 4334,
+      "warnings": [],
+      "error": "automator switchTab /pages/builds/builds timed out after 5200ms"
+    },
+    {
+      "route": "pages/builds/workbench",
+      "query": "",
+      "routeAfter": "pages/news/news",
+      "routeMatches": false,
+      "loading": false,
+      "title": "最新资讯",
+      "pagesLength": 1,
+      "waitedMs": 4318,
+      "warnings": [],
+      "error": "automator navigateTo /pages/builds/workbench timed out after 5200ms; automator redirectTo /pages/builds/workbench timed out after 5200ms"
+    },
+    {
+      "route": "pages/builds/talent-simulator",
+      "query": "",
+      "routeAfter": "pages/news/news",
+      "routeMatches": false,
+      "loading": false,
+      "title": "最新资讯",
+      "pagesLength": 1,
+      "waitedMs": 4308,
+      "warnings": [],
+      "error": "automator navigateTo /pages/builds/talent-simulator timed out after 5200ms; automator redirectTo /pages/builds/talent-simulator timed out after 5200ms"
+    },
+    {
+      "route": "pages/builds/detail",
+      "query": "",
+      "routeAfter": "pages/news/news",
+      "routeMatches": false,
+      "loading": false,
+      "title": "最新资讯",
+      "pagesLength": 1,
+      "waitedMs": 4304,
+      "warnings": [],
+      "error": "automator navigateTo /pages/builds/detail timed out after 5200ms; automator redirectTo /pages/builds/detail timed out after 5200ms"
+    },
+    {
+      "route": "pages/simulator/simulator",
+      "query": "",
+      "routeAfter": "pages/news/news",
+      "routeMatches": false,
+      "loading": false,
+      "title": "最新资讯",
+      "pagesLength": 1,
+      "waitedMs": 4322,
+      "warnings": [],
+      "error": "automator switchTab /pages/simulator/simulator timed out after 5200ms"
+    },
+    {
+      "route": "pages/simulator/simc",
+      "query": "",
+      "routeAfter": "pages/news/news",
+      "routeMatches": false,
+      "loading": false,
+      "title": "最新资讯",
+      "pagesLength": 1,
+      "waitedMs": 4316,
+      "warnings": [],
+      "error": "automator navigateTo /pages/simulator/simc timed out after 5200ms; automator redirectTo /pages/simulator/simc timed out after 5200ms"
+    },
+    {
+      "route": "pages/profile/profile",
+      "query": "",
+      "routeAfter": "pages/news/news",
+      "routeMatches": false,
+      "loading": false,
+      "title": "最新资讯",
+      "pagesLength": 1,
+      "waitedMs": 4315,
+      "warnings": [],
+      "error": "automator switchTab /pages/profile/profile timed out after 5200ms"
+    }
+  ],
+  "actionResults": [
+    {
+      "name": "builds.openWorkbench",
+      "start": "pages/builds/builds",
+      "method": "openWorkbench",
+      "expectedRoute": "pages/builds/workbench",
+      "status": "risk",
+      "before": {
+        "route": "pages/builds/builds",
+        "query": "",
+        "routeAfter": "pages/news/news",
+        "routeMatches": false,
+        "loading": false,
+        "title": "最新资讯",
+        "pagesLength": 1,
+        "waitedMs": 4319,
+        "warnings": [],
+        "error": "automator switchTab /pages/builds/builds timed out after 5200ms"
+      },
+      "routeAfter": "pages/news/news",
+      "routeMatches": false,
+      "error": "could not reach start route pages/builds/builds"
+    },
+    {
+      "name": "workbench.openPrimaryAction",
+      "start": "pages/builds/workbench",
+      "query": "spec=%E6%B3%95%E5%B8%88-%E5%86%B0%E9%9C%9C",
+      "method": "openPrimaryAction",
+      "expectedOneOf": [
+        "pages/simulator/simc",
+        "pages/builds/detail",
+        "pages/builds/talent-simulator",
+        "pages/simulator/chickenbro"
+      ],
+      "status": "risk",
+      "before": {
+        "route": "pages/builds/workbench",
+        "query": "spec=%E6%B3%95%E5%B8%88-%E5%86%B0%E9%9C%9C",
+        "routeAfter": "pages/news/news",
+        "routeMatches": false,
+        "loading": false,
+        "title": "最新资讯",
+        "pagesLength": 1,
+        "waitedMs": 4311,
+        "warnings": [],
+        "error": "automator navigateTo /pages/builds/workbench?spec=%E6%B3%95%E5%B8%88-%E5%86%B0%E9%9C%9C timed out after 5200ms; automator redirectTo /pages/builds/workbench?spec=%E6%B3%95%E5%B8%88-%E5%86%B0%E9%9C%9C timed out after 5200ms"
+      },
+      "routeAfter": "pages/news/news",
+      "routeMatches": false,
+      "error": "could not reach start route pages/builds/workbench"
+    },
+    {
+      "name": "detail.openSimcWithBuildContext",
+      "start": "pages/builds/detail",
+      "query": "query=gear&spec=%E6%B3%95%E5%B8%88-%E5%86%B0%E9%9C%9C",
+      "method": "openSimcWithBuildContext",
+      "expectedRoute": "pages/simulator/simc",
+      "status": "risk",
+      "before": {
+        "route": "pages/builds/detail",
+        "query": "query=gear&spec=%E6%B3%95%E5%B8%88-%E5%86%B0%E9%9C%9C",
+        "routeAfter": "pages/news/news",
+        "routeMatches": false,
+        "loading": false,
+        "title": "最新资讯",
+        "pagesLength": 1,
+        "waitedMs": 4311,
+        "warnings": [],
+        "error": "automator navigateTo /pages/builds/detail?query=gear&spec=%E6%B3%95%E5%B8%88-%E5%86%B0%E9%9C%9C timed out after 5200ms; automator redirectTo /pages/builds/detail?query=gear&spec=%E6%B3%95%E5%B8%88-%E5%86%B0%E9%9C%9C timed out after 5200ms"
+      },
+      "routeAfter": "pages/news/news",
+      "routeMatches": false,
+      "error": "could not reach start route pages/builds/detail"
+    }
+  ]
+}

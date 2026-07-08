@@ -1,31 +1,40 @@
-<view class="page-shell">
+<view class="page-shell profile-shell">
+  <view class="profile-shell-bg">
+    <view class="profile-shell-vignette"></view>
+  </view>
   <navigation-bar title="我的" back="{{false}}" color="#FFFFFF" background="#111111"></navigation-bar>
-  <scroll-view class="page-scroll" scroll-y type="list">
+  <scroll-view class="page-scroll" scroll-y>
     <view class="page-content profile-page">
-      <view class="profile-card user-card">
-        <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
-          <image wx:if="{{user.avatarUrl}}" class="avatar-image" src="{{user.avatarUrl}}" mode="aspectFill"></image>
-          <text wx:else class="avatar">W</text>
-        </button>
-        <view class="user-info">
-          <input
-            class="user-name nickname-input"
-            type="nickname"
-            value="{{nicknameDraft}}"
-            placeholder="点击填写微信昵称"
-            bindinput="onNicknameInput"
-            bindblur="saveNickname"
-            bindconfirm="onNicknameConfirm"
-            confirm-type="done"
-          />
-          <text class="user-desc">管理角色、偏好和常用数据源</text>
-        </view>
-      </view>
+      <view class="profile-cockpit">
+        <view class="profile-cockpit-shade"></view>
+        <view class="profile-cockpit-content">
+          <view class="profile-identity-row">
+            <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+              <image wx:if="{{user.avatarUrl}}" class="avatar-image" src="{{user.avatarUrl}}" mode="aspectFill"></image>
+              <text wx:else class="avatar">W</text>
+            </button>
+            <view class="user-info">
+              <text class="profile-kicker">个人控制台</text>
+              <input
+                class="user-name nickname-input"
+                type="nickname"
+                value="{{nicknameDraft}}"
+                placeholder="点击填写微信昵称"
+                bindinput="onNicknameInput"
+                bindblur="saveNickname"
+                bindconfirm="onNicknameConfirm"
+                confirm-type="done"
+              />
+              <text class="user-desc">管理模板、角色偏好和数据源</text>
+            </view>
+          </view>
 
-      <view class="metrics">
-        <view class="metric-card" wx:for="{{metrics}}" wx:key="label">
-          <text class="metric-value">{{item.value}}</text>
-          <text class="metric-label">{{item.label}}</text>
+          <view class="profile-signal-strip">
+            <view class="profile-signal" wx:for="{{profileMetrics}}" wx:key="label">
+              <text class="metric-value">{{item.value}}</text>
+              <text class="metric-label">{{item.label}}</text>
+            </view>
+          </view>
         </view>
       </view>
 

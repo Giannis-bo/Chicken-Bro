@@ -1,0 +1,45 @@
+.wow-simc-submit-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  min-width: 0;
+}
+
+.wow-simc-submit-surface__identity {
+  display: grid;
+  grid-template-columns: 96rpx minmax(0, 1fr);
+  gap: 18rpx;
+  align-items: center;
+}
+
+.wow-simc-submit-surface__copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.wow-simc-submit-surface__copy text:first-child {
+  color: #f7efe0;
+  font-size: 34rpx;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.wow-simc-submit-surface__copy text:last-child {
+  color: rgba(238, 232, 216, 0.72);
+  font-size: 24rpx;
+  line-height: 1.4;
+}
+
+.wow-simc-submit-surface__modules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+}
+
+.wow-simc-submit-surface__action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14rpx;
+}

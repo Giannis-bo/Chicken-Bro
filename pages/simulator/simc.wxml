@@ -1,6 +1,9 @@
 <view class="page-shell simc-page-shell">
+  <view class="simc-shell-bg">
+    <view class="simc-shell-vignette"></view>
+  </view>
   <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
-  <scroll-view class="page-scroll simc-scroll" scroll-y type="list">
+  <scroll-view class="page-scroll simc-scroll" scroll-y>
     <view class="simc-page">
     <view class="template-hero">
       <view>

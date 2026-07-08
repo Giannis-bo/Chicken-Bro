@@ -1,0 +1,166 @@
+<view class="wow-workbench-surface {{rootClass}} ext-class">
+  <wow-panel
+    ext-class="wow-workbench-surface__hero"
+    material-src="{{heroMaterialSrc}}"
+    material-mode="aspectFill"
+    density="dense"
+  >
+    <view class="wow-workbench-surface__identity">
+      <game-object-icon
+        ext-class="wow-workbench-surface__spec-icon"
+        icon-src="{{specIconUrl}}"
+        fallback-text="{{specMonogram}}"
+        size="large"
+        aria-label="{{selectedSpecLabel}}"
+      ></game-object-icon>
+      <view class="wow-workbench-surface__identity-copy">
+        <text class="wow-workbench-surface__kicker">当前专精</text>
+        <text class="wow-workbench-surface__title">{{selectedSpecLabel}}</text>
+        <text class="wow-workbench-surface__subtitle">{{selectedHeroLabel}} · {{selectedScenarioLabel}}</text>
+        <text class="wow-workbench-surface__intent">{{identitySignal}} · 证据更新 {{evidenceUpdatedAt}}</text>
+      </view>
+      <status-visual
+        ext-class="wow-workbench-surface__state"
+        state="{{normalizedStatus}}"
+        label="{{normalizedStateLabel}}"
+        glyph="{{normalizedStateGlyph}}"
+        size="compact"
+        shape="seal"
+        showLabel="{{true}}"
+      ></status-visual>
+    </view>
+
+    <view class="wow-workbench-surface__controls">
+      <action-button
+        label="{{classLabel}}"
+        size="compact"
+        tone="ghost"
+        bind:actiontap="handleClassTap"
+      ></action-button>
+      <action-button
+        label="{{specLabel}}"
+        size="compact"
+        tone="ghost"
+        bind:actiontap="handleSpecTap"
+      ></action-button>
+      <view class="wow-workbench-surface__scenarios">
+        <view
+          wx:for="{{scenarioOptions}}"
+          wx:key="key"
+          class="wow-workbench-surface__scenario {{scenarioIndex == index ? 'is-active' : ''}}"
+          data-index="{{index}}"
+          data-key="{{item.key}}"
+          bindtap="handleScenarioTap"
+        >
+          <text>{{item.title}}</text>
+        </view>
+      </view>
+    </view>
+  </wow-panel>
+
+  <wow-panel
+    ext-class="wow-workbench-surface__verdict"
+    variant="{{normalizedStatus == 'blocked' ? 'danger' : 'default'}}"
+    material-src="{{verdictMaterialSrc}}"
+    material-mode="aspectFill"
+    density="dense"
+  >
+    <view class="wow-workbench-surface__verdict-grid">
+      <view class="wow-workbench-surface__verdict-copy">
+        <text class="wow-workbench-surface__verdict-kicker">模拟准备结论</text>
+        <text class="wow-workbench-surface__verdict-title">{{headline}}</text>
+        <view class="wow-workbench-surface__blocker-line">
+          <text>{{primaryBlockerLabel}}</text>
+          <text>{{primaryBlockerTitle}}</text>
+        </view>
+        <text class="wow-workbench-surface__summary">{{summary}}</text>
+      </view>
+      <status-visual
+        ext-class="wow-workbench-surface__verdict-visual"
+        state="{{normalizedStatus}}"
+        label="{{normalizedStateLabel}}"
+        glyph="{{normalizedStateGlyph}}"
+        size="large"
+        shape="shield"
+        showLabel="{{false}}"
+      ></status-visual>
+    </view>
+
+    <view class="wow-workbench-surface__blockers" wx:if="{{normalizedSecondaryBlockers.length}}">
+      <view
+        wx:for="{{normalizedSecondaryBlockers}}"
+        wx:key="id"
+        class="wow-workbench-surface__blocker"
+      >
+        <view class="wow-workbench-surface__blocker-copy">
+          <text>{{item.title}}</text>
+          <text>{{item.desc}}</text>
+        </view>
+        <action-button
+          data-id="{{item.id}}"
+          data-key="{{item.actionKey}}"
+          label="{{item.actionLabel}}"
+          size="compact"
+          tone="{{item.status == 'blocked' ? 'danger' : 'secondary'}}"
+          bind:actiontap="handleBlockerAction"
+        ></action-button>
+      </view>
+    </view>
+
+    <view class="wow-workbench-surface__next">
+      <text>下一步</text>
+      <action-button
+        label="{{normalizedPrimaryAction.label}}"
+        size="large"
+        tone="{{normalizedPrimaryAction.tone}}"
+        block="{{true}}"
+        bind:actiontap="handlePrimaryAction"
+      ></action-button>
+    </view>
+  </wow-panel>
+
+  <wow-panel
+    ext-class="wow-workbench-surface__modules"
+    title="工作流状态"
+    meta="{{normalizedStateLabel}}"
+    material-src="{{moduleMaterialSrc}}"
+    material-mode="aspectFill"
+    density="dense"
+  >
+    <view class="wow-workbench-surface__module-grid">
+      <module-card
+        wx:for="{{normalizedModuleCards}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        title="{{item.title}}"
+        metric="{{item.metric}}"
+        meta="{{item.meta}}"
+        status="{{item.status}}"
+        status-label="{{item.statusLabel}}"
+        status-glyph="{{item.statusGlyph}}"
+        icon-src="{{item.iconSrc}}"
+        icon-text="{{item.iconText}}"
+        disabled="{{item.disabled}}"
+        bind:cardtap="handleModuleTap"
+      ></module-card>
+    </view>
+  </wow-panel>
+
+  <wow-panel
+    ext-class="wow-workbench-surface__evidence"
+    title="证据明细"
+    meta="{{templateSourceLabel}} 天赋 {{talentTemplateCount}} / 装备 {{gearTemplateCount}}"
+    material-src="{{evidenceMaterialSrc}}"
+    material-mode="aspectFill"
+    density="dense"
+  >
+    <evidence-ledger
+      title="证据明细"
+      summary="{{normalizedEvidenceSummary}}"
+      rows="{{normalizedEvidenceRows}}"
+      expanded="{{evidenceExpanded}}"
+      collapsed-rows="3"
+      bind:toggle="handleEvidenceToggle"
+    ></evidence-ledger>
+  </wow-panel>
+</view>

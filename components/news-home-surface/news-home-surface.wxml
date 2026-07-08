@@ -1,0 +1,88 @@
+<view class="wow-news-home-surface {{rootClass}} ext-class">
+  <material-image
+    wx:if="{{materialSrc}}"
+    class="wow-news-home-surface__material"
+    src="{{materialSrc}}"
+    tone="panel"
+    fit="cover"
+    opacity="0.22"
+    decorative="{{true}}"
+  ></material-image>
+
+  <wow-panel
+    ext-class="wow-news-home-surface__hero"
+    title="{{normalizedTitle}}"
+    meta="{{normalizedMeta}}"
+    material-src="{{heroMaterialSrc}}"
+    material-mode="aspectFill"
+    density="dense"
+  >
+    <view slot="action" class="wow-news-home-surface__state">
+      <status-visual
+        state="{{normalizedState}}"
+        label="{{normalizedStateLabel}}"
+        glyph="{{normalizedStateGlyph}}"
+        size="compact"
+        shape="seal"
+        showLabel="{{true}}"
+      ></status-visual>
+    </view>
+    <text class="wow-news-home-surface__summary">{{normalizedSummary}}</text>
+    <channel-dock
+      items="{{normalizedChannels}}"
+      deferred-visuals-ready="{{deferredVisualsReady}}"
+      bind:tabtap="handleChannelTap"
+    ></channel-dock>
+  </wow-panel>
+
+  <wow-panel
+    ext-class="wow-news-home-surface__focus"
+    title="{{focusTitle}}"
+    meta="{{focusMeta}}"
+    material-src="{{focusMaterialSrc}}"
+    material-mode="aspectFill"
+    density="dense"
+  >
+    <ranked-feed
+      items="{{normalizedFocusItems}}"
+      deferred-visuals-ready="{{deferredVisualsReady}}"
+      bind:itemtap="handleArticleTap"
+      bind:actiontap="handleFocusAction"
+    ></ranked-feed>
+  </wow-panel>
+
+  <wow-panel
+    ext-class="wow-news-home-surface__latest"
+    title="{{latestTitle}}"
+    meta="{{latestMeta}}"
+    material-src="{{latestMaterialSrc}}"
+    material-mode="aspectFill"
+    density="dense"
+  >
+    <ranked-feed
+      items="{{normalizedLatestItems}}"
+      deferred-visuals-ready="{{deferredVisualsReady}}"
+      bind:itemtap="handleArticleTap"
+      bind:actiontap="handleLatestAction"
+    ></ranked-feed>
+  </wow-panel>
+
+  <wow-panel
+    ext-class="wow-news-home-surface__evidence"
+    title="资讯证据"
+    meta="{{normalizedEvidenceSummary}}"
+    material-src="{{evidenceMaterialSrc}}"
+    material-mode="aspectFill"
+    density="dense"
+  >
+    <evidence-ledger
+      title="资讯证据"
+      summary="{{normalizedEvidenceSummary}}"
+      rows="{{normalizedEvidenceRows}}"
+      expanded="{{evidenceExpanded}}"
+      collapsed-rows="3"
+      bind:toggle="handleEvidenceToggle"
+      bind:rowtap="handleEvidenceRowTap"
+    ></evidence-ledger>
+  </wow-panel>
+</view>

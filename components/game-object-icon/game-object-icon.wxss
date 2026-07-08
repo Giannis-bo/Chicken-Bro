@@ -1,0 +1,103 @@
+.wow-game-object-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 88rpx;
+  height: 88rpx;
+  min-width: 88rpx;
+  min-height: 88rpx;
+  overflow: hidden;
+  color: #f8b700;
+  box-sizing: border-box;
+  contain: layout paint style;
+}
+
+.wow-game-object-icon__frame,
+.wow-game-object-icon__image {
+  position: absolute;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.wow-game-object-icon__frame {
+  z-index: 1;
+  opacity: 0.88;
+  pointer-events: none;
+}
+
+.wow-game-object-icon__image {
+  z-index: 2;
+  width: 68%;
+  height: 68%;
+  border-radius: 50%;
+  background: #090806;
+}
+
+.wow-game-object-icon__fallback {
+  position: relative;
+  z-index: 2;
+  display: block;
+  max-width: 58rpx;
+  overflow: hidden;
+  color: #f8b700;
+  font-size: 28rpx;
+  font-weight: 1000;
+  line-height: 1;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 0 12rpx rgba(248, 183, 0, 0.34);
+}
+
+.wow-game-object-icon__source-dot {
+  position: absolute;
+  right: 9rpx;
+  bottom: 9rpx;
+  z-index: 3;
+  width: 12rpx;
+  height: 12rpx;
+  border: 2rpx solid rgba(4, 4, 3, 0.9);
+  border-radius: 50%;
+  background: #58c98e;
+}
+
+.wow-game-object-icon.status-missing .wow-game-object-icon__source-dot,
+.wow-game-object-icon.status-source_reference .wow-game-object-icon__source-dot {
+  background: #54c0ff;
+}
+
+.wow-game-object-icon.status-blocked .wow-game-object-icon__source-dot {
+  background: #ff6b64;
+}
+
+.wow-game-object-icon-small {
+  width: 64rpx;
+  height: 64rpx;
+  min-width: 64rpx;
+  min-height: 64rpx;
+}
+
+.wow-game-object-icon-small .wow-game-object-icon__fallback {
+  max-width: 42rpx;
+  font-size: 22rpx;
+}
+
+.wow-game-object-icon-large {
+  width: 112rpx;
+  height: 112rpx;
+  min-width: 112rpx;
+  min-height: 112rpx;
+}
+
+.wow-game-object-icon-large .wow-game-object-icon__fallback {
+  max-width: 72rpx;
+  font-size: 34rpx;
+}
+
+.wow-game-object-icon-square .wow-game-object-icon__image {
+  width: 72%;
+  height: 72%;
+  border-radius: 8rpx;
+}

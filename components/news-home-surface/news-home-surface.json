@@ -1,0 +1,12 @@
+{
+  "component": true,
+  "usingComponents": {
+    "action-button": "../action-button/action-button",
+    "channel-dock": "../channel-dock/channel-dock",
+    "evidence-ledger": "../evidence-ledger/evidence-ledger",
+    "material-image": "../material-image/material-image",
+    "ranked-feed": "../ranked-feed/ranked-feed",
+    "status-visual": "../status-visual/status-visual",
+    "wow-panel": "../wow-panel/wow-panel"
+  }
+}

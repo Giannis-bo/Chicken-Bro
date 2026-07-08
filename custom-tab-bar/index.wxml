@@ -1,0 +1,23 @@
+<view class="wow-tabbar" aria-label="主菜单">
+  <view class="wow-tabbar__rail"></view>
+  <view
+    class="wow-tabbar__item {{item.itemClass}}"
+    wx:for="{{list}}"
+    wx:key="pagePath"
+    data-path="{{item.pagePath}}"
+    bindtap="switchTab"
+  >
+    <view class="wow-tabbar__icon-shell">
+      <image
+        wx:if="{{!item.iconLoadFailed}}"
+        class="wow-tabbar__icon"
+        src="{{item.currentIconPath}}"
+        mode="aspectFit"
+        data-index="{{index}}"
+        binderror="handleIconError"
+      ></image>
+      <text wx:else class="wow-tabbar__glyph">{{item.glyph}}</text>
+    </view>
+    <text class="wow-tabbar__label">{{item.text}}</text>
+  </view>
+</view>

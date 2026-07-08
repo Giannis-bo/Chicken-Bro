@@ -239,6 +239,27 @@ test('talent rank helper keeps choice groups mutually exclusive', () => {
   assert.equal(second.talentRanks['choice-b'], 1)
 })
 
+test('talent rank pruning does not spin on conflicting granted choice nodes', () => {
+  const nodes = [
+    { id: 'choice-a', name: 'Granted Choice A', tree: 'spec', treeType: 'spec', row: 1, col: 1, maxRank: 1, choiceGroup: 'choice-conflict', granted: true },
+    { id: 'choice-b', name: 'Granted Choice B', tree: 'spec', treeType: 'spec', row: 1, col: 2, maxRank: 1, choiceGroup: 'choice-conflict', granted: true },
+    { id: 'other', name: 'Other Talent', tree: 'spec', treeType: 'spec', row: 2, col: 1, maxRank: 1 }
+  ]
+  const rankState = core.initialTalentRanks(nodes)
+  const startedAt = Date.now()
+  const result = core.adjustTalentRank({
+    nodes,
+    talentRanks: rankState.talentRanks,
+    baseTalentRanks: rankState.baseTalentRanks
+  }, 'other', 1)
+
+  assert.equal(result.changed, true)
+  assert.equal(result.talentRanks.other, 1)
+  assert.equal(result.talentRanks['choice-a'], 1)
+  assert.equal(result.talentRanks['choice-b'], 1)
+  assert.ok(Date.now() - startedAt < 1000)
+})
+
 test('talent export and import roundtrip preserves selected node ranks', () => {
   const talentRanks = { granted: 1, parent: 1, 'choice-b': 1, 'hero-rank': 2 }
   const code = core.buildTalentExportCode({

@@ -1,0 +1,220 @@
+.wow-chickenbro-surface {
+  position: relative;
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 18rpx;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  color: #f4ead9;
+  background:
+    linear-gradient(180deg, rgba(14, 12, 9, 0.98), rgba(3, 3, 3, 0.98)),
+    #050504;
+  box-sizing: border-box;
+  contain: layout paint style;
+}
+
+.wow-chickenbro-surface__material {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.wow-chickenbro-surface__head,
+.wow-chickenbro-surface__suggestions,
+.wow-chickenbro-surface__chat-stage,
+.wow-chickenbro-surface__error {
+  position: relative;
+  z-index: 1;
+}
+
+.wow-chickenbro-surface__head {
+  display: grid;
+  grid-template-columns: 76rpx minmax(0, 1fr) 112rpx;
+  align-items: center;
+  gap: 16rpx;
+  min-width: 0;
+  min-height: 112rpx;
+  padding: 18rpx 22rpx 0;
+  box-sizing: border-box;
+}
+
+.wow-chickenbro-surface__headline {
+  display: grid;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.wow-chickenbro-surface__title,
+.wow-chickenbro-surface__desc,
+.wow-chickenbro-surface__drawer-title,
+.wow-chickenbro-surface__drawer-body text,
+.wow-chickenbro-surface__error-copy,
+.wow-chickenbro-surface__empty text {
+  display: block;
+  min-width: 0;
+  letter-spacing: 0;
+}
+
+.wow-chickenbro-surface__title,
+.wow-chickenbro-surface__desc,
+.wow-chickenbro-surface__drawer-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wow-chickenbro-surface__title {
+  color: #fff8ea;
+  font-size: 34rpx;
+  font-weight: 1000;
+  line-height: 1.1;
+}
+
+.wow-chickenbro-surface__desc {
+  color: rgba(244, 234, 217, 0.62);
+  font-size: 22rpx;
+  font-weight: 800;
+  line-height: 1.16;
+}
+
+.wow-chickenbro-surface__suggestions {
+  display: flex;
+  gap: 10rpx;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 0 22rpx;
+  box-sizing: border-box;
+}
+
+.wow-chickenbro-surface__suggestions action-button {
+  flex: 0 0 auto;
+}
+
+.wow-chickenbro-surface__chat-stage {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 0 22rpx 18rpx;
+  box-sizing: border-box;
+}
+
+.wow-chickenbro-surface__chat-stage chat-shell {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.wow-chickenbro-surface__empty {
+  display: grid;
+  gap: 8rpx;
+  max-width: 460rpx;
+  color: rgba(244, 234, 217, 0.62);
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 1.32;
+}
+
+.wow-chickenbro-surface__error {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
+  margin: 0 22rpx 20rpx;
+  padding: 14rpx;
+  border: 1rpx solid rgba(255, 107, 100, 0.34);
+  border-radius: 8rpx;
+  background: rgba(91, 29, 25, 0.18);
+  box-sizing: border-box;
+}
+
+.wow-chickenbro-surface__error-copy {
+  overflow: hidden;
+  color: #ffb2ad;
+  font-size: 22rpx;
+  font-weight: 900;
+  line-height: 1.28;
+  overflow-wrap: anywhere;
+}
+
+.wow-chickenbro-surface__drawer-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.wow-chickenbro-surface__drawer {
+  position: absolute;
+  left: 22rpx;
+  right: 22rpx;
+  bottom: calc(168rpx + env(safe-area-inset-bottom));
+  z-index: 21;
+  display: grid;
+  gap: 16rpx;
+  min-width: 0;
+  max-height: 42%;
+  padding: 18rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.34);
+  border-radius: 8rpx;
+  background:
+    linear-gradient(180deg, rgba(18, 16, 11, 0.98), rgba(5, 5, 4, 0.98)),
+    #090806;
+  box-shadow: 0 -18rpx 48rpx rgba(0, 0, 0, 0.52);
+  box-sizing: border-box;
+}
+
+.wow-chickenbro-surface__drawer-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14rpx;
+  min-width: 0;
+}
+
+.wow-chickenbro-surface__drawer-title {
+  color: #fff8ea;
+  font-size: 28rpx;
+  font-weight: 1000;
+  line-height: 1.12;
+}
+
+.wow-chickenbro-surface__drawer-body {
+  display: grid;
+  gap: 8rpx;
+  min-width: 0;
+  color: rgba(244, 234, 217, 0.66);
+  font-size: 22rpx;
+  font-weight: 800;
+  line-height: 1.32;
+}
+
+.state-loading .wow-chickenbro-surface__head {
+  border-top: 2rpx solid rgba(147, 185, 255, 0.46);
+}
+
+.state-blocked .wow-chickenbro-surface__head,
+.state-error .wow-chickenbro-surface__head {
+  border-top: 2rpx solid rgba(255, 107, 100, 0.5);
+}
+
+.state-partial .wow-chickenbro-surface__head {
+  border-top: 2rpx solid rgba(248, 183, 0, 0.52);
+}
+
+@media (max-width: 360px) {
+  .wow-chickenbro-surface__head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .wow-chickenbro-surface__head status-visual {
+    display: none;
+  }
+}

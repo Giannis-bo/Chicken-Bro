@@ -1,0 +1,293 @@
+{
+  "status": "runtime_recapture_blocked_package_size_fix_static_verified_no_ready_automator_endpoint",
+  "checkedAt": "2026-07-08T06:52:28Z",
+  "localCheckedAt": "2026-07-08T14:52:28+08:00",
+  "goal": "docs/plans/2026-07-08-wow-mini-program-0900-ui-delivery-goal.md",
+  "roadmapControl": "docs/roadmap.md#2026-07-08-0900-ui-delivery-rescue",
+  "scope": "all_app_json_pages",
+  "runtimeVerified": false,
+  "finalAccepted": false,
+  "rescueDeliveryReady": false,
+  "currentWorktreeProofStatus": "real_device_source_size_80051_static_fixed_estimated_package_1_32MB_runtime_recapture_still_required",
+  "currentRuntimeBlocker": {
+    "type": "wechat_devtools_no_ready_automator_endpoint",
+    "endpoint": null,
+    "endpointProbe": "automator_endpoint_probe_no_ready_endpoint; latest probe checked existing listening ports only after talent simulator layout fix",
+    "screenshotProbe": "not attempted after no ready endpoint",
+    "routeProbe": "not attempted after no ready endpoint",
+    "forbiddenActionsUsed": [],
+    "latestSafeAction": "stop DevTools automation; wait for user manual compile/restore or explicit clean shadow runtime authorization before single-page route/screenshot proof",
+    "checkedAt": "2026-07-08T06:52:28Z",
+    "summary": "Real-device source size error 80051 has a source-side package fix. Current proof is static package estimation and tests; real-device retry is still required, and automator endpoint remains unavailable for automated screenshot capture."
+  },
+  "staticEvidence": {
+    "staticRouteContract": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/static-route-contract-audit.json status=static_route_contract_passed",
+    "deliveryRescueAudit": "artifacts/ui-system-rebuild/20260708-delivery-rescue-audit/manifest.json status=delivery_rescue_ready_for_runtime_check",
+    "focusedTests": [
+      "node --test tests/news-page-style.test.js tests/navigation-bar.test.js tests/builds-page.test.js tests/simulator-page.test.js tests/ui-style-guide-implementation.test.js => 178/178 pass",
+      "node --test tests/navigation-bar.test.js => 11/11 pass",
+      "node --test tests/navigation-bar.test.js tests/news-page-style.test.js tests/builds-page.test.js tests/talent-simulator-core.test.js tests/simulator-page.test.js tests/ui-style-guide-implementation.test.js => 193/193 pass",
+      "git diff --check for current rescue-touched files => pass"
+    ],
+    "meaning": "Static evidence proves source guardrails and route contracts only. It does not prove UI correctness.",
+    "latestSourceSideFix": "Custom tabBar now has owner-level image failure fallback backed by array-index setData: icon load errors switch that item to a centered fixed-size glyph while keeping the tab label visible. Talent simulator now uses a flex full-height root and scroll flex:1/height:0 instead of placing a 100vh scroll region below the custom navigation bar. News home channel dock no longer carries pass36 generated tab icon URLs; the dock and ranked fallback now use stable text marks only, so tab switching cannot swap 综合/官方 back to offset PNG glyphs. Workbench verdict StatusVisual abandons the shield/atomic-image path and maps state to simple enum shapes. Static source guardrails passed; current real screenshot proof is still blocked by no ready automator endpoint.",
+    "packageSize": {
+      "errorBefore": "source size 4647KB exceed max limit 2MB",
+      "estimatedAfterKb": 1348.9,
+      "estimatedAfterMb": 1.32,
+      "strategy": "exclude assets/generated/** and non-client server/script files; keep runtime JS fallback modules and tabbar/user assets"
+    }
+  },
+  "devtoolsDiscipline": {
+    "prohibitedActionsUsed": [],
+    "prohibitedActions": [
+      "close_devtools",
+      "restart_devtools",
+      "clear_cache",
+      "switch_appid",
+      "switch_project",
+      "delete_user_directory",
+      "repeated_open_close_compile"
+    ],
+    "shadowDryRun": "blocked_watched_project_mutation_157_pending_changes; guards correctly refused hot sync while DevTools is running"
+  },
+  "totals": {
+    "pageCount": 14,
+    "p0Count": 8,
+    "p1Count": 5,
+    "p2Count": 1,
+    "currentRuntimeScreenshotCount": 0,
+    "currentRuntimePassCount": 0,
+    "riskCount": 14,
+    "failCount": 0
+  },
+  "pages": [
+    {
+      "path": "pages/news/news",
+      "tier": "P0",
+      "displayName": "首页资讯",
+      "status": "risk_runtime_not_verified_after_news_command_user_icon_fix",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint_after_user_icon_fix",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_news.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot exists, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted. Source-side fixes now remove pass36 generated tab icon URLs from channel dock data and ranked fallback, add custom tabBar icon-load fallback to centered glyphs while labels remain visible, and replace the 今日情报台 command emblem with the user-provided /assets/user/intel-command-icon.png fixed image slot. This still needs real screenshot proof after DevTools endpoint restore.",
+      "knownRisks": [
+        "carousel_must_remain_visible",
+        "channel_dock_text_orbs_need_runtime_recheck",
+        "tabbar_icon_and_text_visible",
+        "command_emblem_user_icon_needs_runtime_recheck"
+      ]
+    },
+    {
+      "path": "pages/news/list",
+      "tier": "P1",
+      "displayName": "资讯列表",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_list.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot may exist, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted.",
+      "knownRisks": [
+        "must_open_and_read",
+        "must_return"
+      ]
+    },
+    {
+      "path": "pages/news/detail",
+      "tier": "P1",
+      "displayName": "资讯详情",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_detail.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot may exist, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted.",
+      "knownRisks": [
+        "must_open_and_read",
+        "must_return"
+      ]
+    },
+    {
+      "path": "pages/builds/builds",
+      "tier": "P0",
+      "displayName": "职业专精",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_builds.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot may exist, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted.",
+      "knownRisks": [
+        "workbench_entry_visible",
+        "template_status_text_not_over_truncated",
+        "tabbar_icon_and_text_visible"
+      ]
+    },
+    {
+      "path": "pages/builds/workbench",
+      "tier": "P0",
+      "displayName": "当前专精工作台",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_workbench.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot exists, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted. Source-side workbench verdict no longer uses shield/atomic-image fallback; blocked/source/ready visuals are enum basic shapes through StatusVisual. This still needs real screenshot proof after DevTools endpoint restore.",
+      "knownRisks": [
+        "status_visual_atomic",
+        "workflow_cards_not_stacked_or_cropped",
+        "primary_action_visible",
+        "no_edge_pinning"
+      ]
+    },
+    {
+      "path": "pages/builds/intel",
+      "tier": "P2",
+      "displayName": "智能构筑信息",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_intel.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot may exist, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted.",
+      "knownRisks": [
+        "no_white_screen",
+        "no_devtools_freeze"
+      ]
+    },
+    {
+      "path": "pages/builds/talent-simulator",
+      "tier": "P0",
+      "displayName": "天赋模拟",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_talent-simulator.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot may exist, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted. Source-side route layout fix changed the root to flex full-height and the scroll region to flex:1/height:0, removing the prior navigation + 100vh overflow risk. This still needs real screenshot proof after DevTools endpoint restore.",
+      "knownRisks": [
+        "talent_info_readable",
+        "actions_visible",
+        "no_horizontal_overflow"
+      ]
+    },
+    {
+      "path": "pages/builds/detail",
+      "tier": "P0",
+      "displayName": "装备详情",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_detail.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot may exist, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted.",
+      "knownRisks": [
+        "gear_readiness_readable",
+        "primary_action_not_covered_by_tabbar",
+        "no_unverified_score_claims"
+      ]
+    },
+    {
+      "path": "pages/simulator/simulator",
+      "tier": "P0",
+      "displayName": "智能分析",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simulator.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot may exist, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted.",
+      "knownRisks": [
+        "not_empty_shell",
+        "input_bar_above_tabbar",
+        "wechat_capsule_does_not_cover_topic",
+        "tabbar_icon_and_text_visible"
+      ]
+    },
+    {
+      "path": "pages/simulator/simc",
+      "tier": "P0",
+      "displayName": "SimC",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simc.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot may exist, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted.",
+      "knownRisks": [
+        "submit_or_validate_entry_visible",
+        "no_unverified_score_claims",
+        "no_long_content_freeze"
+      ]
+    },
+    {
+      "path": "pages/simulator/chickenbro",
+      "tier": "P1",
+      "displayName": "炸鸡队长",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_chickenbro.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot may exist, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted.",
+      "knownRisks": [
+        "must_open_and_read",
+        "input_bar_in_reasonable_position",
+        "no_raw_answer_source_confidence_job_status"
+      ]
+    },
+    {
+      "path": "pages/simulator/tasks",
+      "tier": "P1",
+      "displayName": "任务列表",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_tasks.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot may exist, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted.",
+      "knownRisks": [
+        "must_open_and_read",
+        "not_covered_by_tabbar"
+      ]
+    },
+    {
+      "path": "pages/simulator/task-detail",
+      "tier": "P1",
+      "displayName": "任务详情",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_task-detail.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot may exist, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted.",
+      "knownRisks": [
+        "must_open_and_read",
+        "no_raw_simc_crash_log_leak"
+      ]
+    },
+    {
+      "path": "pages/profile/profile",
+      "tier": "P0",
+      "displayName": "我的",
+      "status": "risk_runtime_not_verified_after_latest_source_changes",
+      "routeSmokeStatus": "risk_no_ready_automator_endpoint",
+      "screenshotStatus": "risk_recapture_required_no_ready_endpoint",
+      "historicalScreenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/profile_profile.png",
+      "historicalScreenshotUsableForCurrentWorktree": false,
+      "currentEvidence": "Historical screenshot may exist, but no current real mini-program screenshot after latest source changes. Latest read-only automator endpoint probe found no ready endpoint; no navigation or screenshot was attempted.",
+      "knownRisks": [
+        "top_area_not_visually_split",
+        "identity_and_template_entries_readable",
+        "does_not_touch_devtools_login_state"
+      ]
+    }
+  ],
+  "nextRequiredActions": [
+    "User manually compiles/restores the current DevTools runtime, then run a single pages/news/news route probe and screenshot.",
+    "Or user explicitly authorizes switching/opening a clean shadow runtime project; then sync shadow and verify one page at a time.",
+    "After runtime is responsive, replace each page risk record with current real screenshot evidence; do not run 14-page batch first."
+  ]
+}

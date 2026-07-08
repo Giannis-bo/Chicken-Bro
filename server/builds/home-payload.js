@@ -221,6 +221,82 @@ const websimSpecKeyByName = {
   '狂怒': 'fury'
 }
 
+const wowIconBaseUrl = 'https://wow.zamimg.com/images/wow/icons/large'
+
+const classIconNameByKey = {
+  deathknight: 'classicon_deathknight',
+  demonhunter: 'classicon_demonhunter',
+  druid: 'classicon_druid',
+  evoker: 'classicon_evoker',
+  hunter: 'classicon_hunter',
+  mage: 'classicon_mage',
+  monk: 'classicon_monk',
+  paladin: 'classicon_paladin',
+  priest: 'classicon_priest',
+  rogue: 'classicon_rogue',
+  shaman: 'classicon_shaman',
+  warlock: 'classicon_warlock',
+  warrior: 'classicon_warrior'
+}
+
+const specIconNameByKey = {
+  arcane: 'spell_holy_magicalsentry',
+  fire: 'spell_fire_firebolt02',
+  frost: 'spell_frost_frostbolt02',
+  holy: 'spell_holy_holybolt',
+  protection: 'ability_warrior_defensivestance',
+  retribution: 'spell_holy_auraoflight',
+  elemental: 'spell_nature_lightning',
+  enhancement: 'spell_shaman_improvedstormstrike',
+  restoration: 'spell_nature_magicimmunity',
+  arms: 'ability_warrior_savageblow',
+  fury: 'ability_warrior_innerrage',
+  blood: 'spell_deathknight_bloodpresence',
+  unholy: 'spell_deathknight_unholypresence',
+  havoc: 'ability_demonhunter_specdps',
+  vengeance: 'ability_demonhunter_spectank',
+  devourer: 'ability_demonhunter_specdevourer',
+  balance: 'spell_nature_starfall',
+  feral: 'ability_druid_catform',
+  guardian: 'ability_racial_bearform',
+  devastation: 'classicon_evoker_devastation',
+  preservation: 'classicon_evoker_preservation',
+  augmentation: 'classicon_evoker_augmentation',
+  beast_mastery: 'ability_hunter_bestialdiscipline',
+  marksmanship: 'ability_hunter_focusedaim',
+  survival: 'ability_hunter_camouflage',
+  brewmaster: 'spell_monk_brewmaster_spec',
+  mistweaver: 'spell_monk_mistweaver_spec',
+  windwalker: 'spell_monk_windwalker_spec',
+  discipline: 'spell_holy_powerwordshield',
+  shadow: 'spell_shadow_shadowwordpain',
+  assassination: 'ability_rogue_eviscerate',
+  outlaw: 'ability_rogue_waylay',
+  subtlety: 'ability_stealth',
+  affliction: 'spell_shadow_deathcoil',
+  demonology: 'spell_shadow_metamorphosis',
+  destruction: 'spell_shadow_rainoffire'
+}
+
+function wowIconUrl(iconName) {
+  const normalized = String(iconName || 'inv_misc_questionmark').toLowerCase().replace(/[^a-z0-9_]+/g, '') || 'inv_misc_questionmark'
+  return `${wowIconBaseUrl}/${normalized}.jpg`
+}
+
+function gameAssetFromIconUrl(entityType, entityId, iconUrl, fallbackText, semanticTags) {
+  return {
+    entityType,
+    entityId,
+    iconUrl,
+    fallbackText,
+    resolutionTier: 'icon_large',
+    source: 'static_icon_name',
+    status: iconUrl ? 'fallback' : 'missing',
+    semanticTags: semanticTags || [],
+    usage: ['builds_home', 'current_spec_workbench']
+  }
+}
+
 const statPriorityByRole = {
   '坦克': [
     ['Primary', '主属性', 100],
@@ -302,6 +378,10 @@ function roleFor(className, specName) {
 
 function makeSpecialization(className, specName) {
   const role = roleFor(className, specName)
+  const classKey = websimClassKeyByName[className] || ''
+  const specKey = websimSpecKeyByName[specName] || ''
+  const classIconUrl = wowIconUrl(classIconNameByKey[classKey])
+  const specIconUrl = wowIconUrl(specIconNameByKey[specKey] || classIconNameByKey[classKey])
   return {
     id: slugFor(className, specName),
     className,
@@ -311,8 +391,25 @@ function makeSpecialization(className, specName) {
     status: role,
     classSlug: classSlugByName[className] || '',
     specSlug: specSlugByName[specName] || '',
-    websimClassKey: websimClassKeyByName[className] || '',
-    websimSpecKey: websimSpecKeyByName[specName] || '',
+    websimClassKey: classKey,
+    websimSpecKey: specKey,
+    classIconUrl,
+    specIconUrl,
+    iconUrl: specIconUrl,
+    classGameAsset: gameAssetFromIconUrl(
+      'playable_class',
+      classKey || className,
+      classIconUrl,
+      className.slice(0, 1),
+      ['game', 'class', classKey].filter(Boolean)
+    ),
+    gameAsset: gameAssetFromIconUrl(
+      'playable_spec',
+      `${classKey}:${specKey}`,
+      specIconUrl,
+      specName.slice(0, 1),
+      ['game', 'class', 'spec', classKey, specKey].filter(Boolean)
+    ),
     desc: `${role}专精，详情页首版聚焦天赋构筑和装备模拟。`,
     sourceName: 'Archon',
     sourceUrl: 'https://www.archon.gg/wow',
@@ -326,10 +423,23 @@ const specializations = classes.flatMap(([className, specs]) =>
   specs.map((specName) => makeSpecialization(className, specName))
 )
 
-const classOptions = classes.map(([className, specs]) => ({
-  name: className,
-  specializations: specs.map((specName) => makeSpecialization(className, specName))
-}))
+const classOptions = classes.map(([className, specs]) => {
+  const classKey = websimClassKeyByName[className] || ''
+  const iconUrl = wowIconUrl(classIconNameByKey[classKey])
+  return {
+    name: className,
+    websimClassKey: classKey,
+    iconUrl,
+    gameAsset: gameAssetFromIconUrl(
+      'playable_class',
+      classKey || className,
+      iconUrl,
+      className.slice(0, 1),
+      ['game', 'class', classKey].filter(Boolean)
+    ),
+    specializations: specs.map((specName) => makeSpecialization(className, specName))
+  }
+})
 
 const featuredIds = [
   '法师-冰霜',
@@ -933,7 +1043,7 @@ function buildSpecializationHomePayload() {
 
   return {
     navTitle: '职业专精',
-    kicker: '能力 02',
+    kicker: '职业控制台',
     title: '职业专精',
     desc: '追踪最高端大秘境、团本和 WCL 数据，首版先沉淀可直接参考的天赋与装备作业。',
     quickActions: firstVersionHomeActions,

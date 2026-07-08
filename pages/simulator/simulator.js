@@ -5,6 +5,8 @@ Page(createChickenbroChatPage({
   navTitle: '智能分析',
   showBack: false,
   kicker: '智能分析',
+  tabEntry: true,
+  tabIndex: 2,
   pagePath: 'pages/simulator/simulator',
   source: 'tab',
   requestChickenbroMessage

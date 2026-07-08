@@ -1,5 +1,6 @@
 const { currentProfile, saveProfileDraft } = require('../common/auth-client')
 const { trackPageLeave, trackPageView } = require('../common/analytics-client')
+const { syncTabBarSelected } = require('../common/tabbar-sync')
 const {
   buildTemplateSummary,
   deleteBuildTemplateRemote,
@@ -43,6 +44,23 @@ function decorateTemplateModules() {
   }))
 }
 
+function moduleCount(modules, type) {
+  const match = (modules || []).find((item) => item && item.type === type)
+  return Number(match && match.count) || 0
+}
+
+function profileStatusLabel(user) {
+  return user && user.openid ? '已同步' : '本地'
+}
+
+function profileMetrics(user, modules) {
+  return [
+    { value: String(moduleCount(modules, 'talent')), label: '天赋模板' },
+    { value: String(moduleCount(modules, 'gear')), label: '装备模板' },
+    { value: profileStatusLabel(user), label: '档案状态' }
+  ]
+}
+
 Page({
   data: {
     user: {
@@ -51,12 +69,8 @@ Page({
     },
     nicknameDraft: '',
     savingProfile: false,
-    metrics: [
-      { value: '4', label: '收藏职业' },
-      { value: '2', label: '关注角色' },
-      { value: '12', label: '订阅词条' }
-    ],
     templateModules: [],
+    profileMetrics: profileMetrics({}, []),
     settings: [
       { title: '角色与服务器' },
       { title: '职业偏好' },
@@ -68,6 +82,7 @@ Page({
   onLoad() {
     this.analyticsStartedAt = Date.now()
     this.analyticsVisible = true
+    syncTabBarSelected(this, 3)
     trackPageView('pages/profile/profile', { source: 'tab' })
     this.hydrateUser()
     this.hydrateTemplates()
@@ -81,6 +96,7 @@ Page({
   },
 
   onShow() {
+    syncTabBarSelected(this, 3)
     if (this.analyticsVisible === false) {
       this.analyticsStartedAt = Date.now()
       this.analyticsVisible = true
@@ -106,17 +122,22 @@ Page({
         nickname,
         avatarUrl: user.avatarUrl || ''
       },
-      nicknameDraft: nickname
+      nicknameDraft: nickname,
+      profileMetrics: profileMetrics(user, this.data.templateModules)
     })
   },
 
   hydrateTemplates() {
+    const templateModules = decorateTemplateModules()
     this.setData({
-      templateModules: decorateTemplateModules()
+      templateModules,
+      profileMetrics: profileMetrics(this.data.user, templateModules)
     })
     fetchBuildTemplates().then(() => {
+      const nextModules = decorateTemplateModules()
       this.setData({
-        templateModules: decorateTemplateModules()
+        templateModules: nextModules,
+        profileMetrics: profileMetrics(this.data.user, nextModules)
       })
     }).catch(() => {})
   },

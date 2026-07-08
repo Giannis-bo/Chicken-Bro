@@ -1,6 +1,6 @@
 <view class="page-shell pve-shell">
   <navigation-bar title="{{navTitle}}" back="{{false}}" color="#FFFFFF" background="#111111"></navigation-bar>
-  <scroll-view class="page-scroll" scroll-y type="list">
+  <scroll-view class="page-scroll" scroll-y>
     <view class="page-content">
       <view class="hero pve-hero">
         <text class="hero-kicker">{{kicker}}</text>

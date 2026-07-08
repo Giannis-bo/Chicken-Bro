@@ -1,7 +1,23 @@
 <view class="page-shell task-list-page">
+  <view class="task-shell-bg">
+    <view class="task-shell-vignette"></view>
+  </view>
   <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
-  <scroll-view class="page-scroll" scroll-y type="list">
+  <scroll-view class="page-scroll" scroll-y>
     <view class="page-content task-list-content">
+      <view class="task-command">
+        <view class="task-command-shade"></view>
+        <view class="task-command-copy">
+          <text class="task-command-kicker">模拟任务台</text>
+          <text class="task-command-title">{{tasks.length ? '查看最近 SimC 任务' : '等待第一次模拟'}}</text>
+          <text class="task-command-desc">{{tasks.length ? '排队、运行、失败和完成状态会在这里沉淀。' : '从工作台补齐输入，再提交 SimC 校验。'}}</text>
+        </view>
+        <view class="task-command-count">
+          <text class="task-command-number">{{tasks.length}}</text>
+          <text class="task-command-label">记录</text>
+        </view>
+      </view>
+
       <view class="section task-list-section">
         <view class="section-header">
           <text class="section-title">任务列表</text>
@@ -38,7 +54,37 @@
         </view>
 
         <view class="task-empty" wx:else>
-          <text>暂无任务记录</text>
+          <view class="task-empty-head">
+            <text class="task-empty-kicker">暂无任务记录</text>
+            <text class="task-empty-title">先校验组合，再提交一次模拟</text>
+          </view>
+          <view class="task-empty-steps">
+            <view class="task-empty-step">
+              <text class="task-empty-step-index">1</text>
+              <view class="task-empty-step-copy">
+                <text class="task-empty-step-title">准备模板</text>
+                <text class="task-empty-step-desc">确认天赋和装备都可用于 SimC。</text>
+              </view>
+            </view>
+            <view class="task-empty-step">
+              <text class="task-empty-step-index">2</text>
+              <view class="task-empty-step-copy">
+                <text class="task-empty-step-title">提交任务</text>
+                <text class="task-empty-step-desc">任务会显示排队、运行和完成状态。</text>
+              </view>
+            </view>
+            <view class="task-empty-step">
+              <text class="task-empty-step-index">3</text>
+              <view class="task-empty-step-copy">
+                <text class="task-empty-step-title">查看结果</text>
+                <text class="task-empty-step-desc">完成后从这里回看报告和阻断原因。</text>
+              </view>
+            </view>
+          </view>
+          <view class="task-empty-actions">
+            <view class="task-empty-primary" bindtap="goCreateTask">去 SimC</view>
+            <view class="task-empty-secondary" bindtap="goWorkbench">工作台</view>
+          </view>
           <text wx:if="{{requestError}}" class="task-error">{{requestError}}</text>
         </view>
       </view>

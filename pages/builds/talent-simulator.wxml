@@ -1,7 +1,7 @@
 <view class="talent-simulator-page">
   <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
 
-  <scroll-view class="page-scroll" scroll-y type="list">
+  <scroll-view class="page-scroll" scroll-y>
     <view class="talent-page-content">
       <view class="talent-header">
         <view class="talent-title-row">

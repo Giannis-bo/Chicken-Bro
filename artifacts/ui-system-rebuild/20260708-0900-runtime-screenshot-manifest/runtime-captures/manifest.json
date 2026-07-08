@@ -1,0 +1,236 @@
+{
+  "status": "pass",
+  "createdAt": "2026-07-07T19:30:00.708Z",
+  "repoRoot": "/Users/heyesheng/Documents/code/github/wow_mini_program",
+  "artifactDir": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/runtime-captures",
+  "automatorPort": 9854,
+  "strictGateEligible": true,
+  "reasonNotStrictGateEligible": null,
+  "safety": {
+    "devtoolsLoginPreserving": true,
+    "noCloseOrExit": true,
+    "noCacheClear": true,
+    "noLoginProbe": true,
+    "screenshotMethod": "App.captureScreenshot",
+    "osFallbackEnabled": false,
+    "osFallbackDir": null
+  },
+  "scenes": [
+    {
+      "id": "builds_top",
+      "route": "pages/builds/builds",
+      "query": "",
+      "ready": {
+        "ready": true,
+        "route": "pages/builds/builds",
+        "dataReady": true,
+        "rect": {
+          "id": "",
+          "dataset": {},
+          "left": 10,
+          "right": 380,
+          "top": 97,
+          "bottom": 235,
+          "width": 370,
+          "height": 138
+        }
+      },
+      "scrollResult": {
+        "ok": true,
+        "route": "pages/builds/builds",
+        "scrollTop": 0,
+        "deferredVisualsReady": true
+      },
+      "mutateResult": null,
+      "system": {
+        "windowWidth": 390,
+        "windowHeight": 844,
+        "pixelRatio": 3
+      },
+      "rects": {
+        ".builds-spec-console": {
+          "left": 10,
+          "top": 97,
+          "width": 370,
+          "height": 138,
+          "right": 380,
+          "bottom": 235
+        },
+        ".workbench-entry": {
+          "left": 10,
+          "top": 246,
+          "width": 370,
+          "height": 304,
+          "right": 380,
+          "bottom": 550
+        },
+        ".workbench-entry-top": {
+          "left": 26,
+          "top": 262,
+          "width": 338,
+          "height": 45,
+          "right": 364,
+          "bottom": 307
+        },
+        ".workbench-entry-facts": {
+          "left": 26,
+          "top": 314,
+          "width": 338,
+          "height": 35,
+          "right": 364,
+          "bottom": 349
+        },
+        ".workbench-status-list": {
+          "left": 26,
+          "top": 356,
+          "width": 338,
+          "height": 160,
+          "right": 364,
+          "bottom": 516
+        },
+        ".query-section": {
+          "left": 10,
+          "top": 561,
+          "width": 370,
+          "height": 259,
+          "right": 380,
+          "bottom": 820
+        }
+      },
+      "screenshot": {
+        "file": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/runtime-captures/builds_top.png",
+        "durationMs": 251,
+        "bytes": 914383,
+        "payloadType": "object",
+        "payloadLength": 1219180
+      }
+    },
+    {
+      "id": "workbench_first",
+      "route": "pages/builds/workbench",
+      "query": "spec=%E6%B3%95%E5%B8%88-%E5%86%B0%E9%9C%9C",
+      "ready": {
+        "ready": true,
+        "route": "pages/builds/workbench",
+        "dataReady": true,
+        "rect": {
+          "id": "",
+          "dataset": {},
+          "left": 12,
+          "right": 378,
+          "top": 101,
+          "bottom": 245,
+          "width": 366,
+          "height": 144
+        }
+      },
+      "scrollResult": {
+        "ok": true,
+        "route": "pages/builds/workbench",
+        "scrollTop": 0,
+        "deferredVisualsReady": true
+      },
+      "mutateResult": null,
+      "system": {
+        "windowWidth": 390,
+        "windowHeight": 844,
+        "pixelRatio": 3
+      },
+      "rects": {
+        ".workbench-cockpit": {
+          "left": 12,
+          "top": 101,
+          "width": 366,
+          "height": 144,
+          "right": 378,
+          "bottom": 245
+        },
+        ".workbench-title-row": {
+          "left": 25,
+          "top": 116,
+          "width": 340,
+          "height": 68,
+          "right": 365,
+          "bottom": 184
+        },
+        ".workbench-control-strip": {
+          "left": 25,
+          "top": 194,
+          "width": 340,
+          "height": 39,
+          "right": 365,
+          "bottom": 233
+        },
+        ".verdict-slab": {
+          "left": 12,
+          "top": 257,
+          "width": 366,
+          "height": 224,
+          "right": 378,
+          "bottom": 481
+        },
+        ".verdict-status-badge": null,
+        ".module-band": {
+          "left": 12,
+          "top": 488,
+          "width": 366,
+          "height": 183,
+          "right": 378,
+          "bottom": 671
+        },
+        ".module-card": {
+          "left": 22,
+          "top": 525,
+          "width": 170,
+          "height": 62,
+          "right": 192,
+          "bottom": 587
+        },
+        ".evidence-section": {
+          "left": 12,
+          "top": 678,
+          "width": 366,
+          "height": 332,
+          "right": 378,
+          "bottom": 1010
+        },
+        ".evidence-actions": {
+          "left": 96,
+          "top": 693,
+          "width": 269,
+          "height": 21,
+          "right": 365,
+          "bottom": 714
+        },
+        ".evidence-toggle": {
+          "left": 325,
+          "top": 693,
+          "width": 40,
+          "height": 21,
+          "right": 365,
+          "bottom": 714
+        },
+        ".evidence-row": {
+          "left": 25,
+          "top": 722,
+          "width": 340,
+          "height": 47,
+          "right": 365,
+          "bottom": 769
+        }
+      },
+      "screenshot": {
+        "file": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/runtime-captures/workbench_first.png",
+        "durationMs": 221,
+        "bytes": 699303,
+        "payloadType": "object",
+        "payloadLength": 932404
+      }
+    }
+  ],
+  "failures": [],
+  "toolInfo": {
+    "version": "2.01.2510290",
+    "SDKVersion": "3.16.2"
+  }
+}

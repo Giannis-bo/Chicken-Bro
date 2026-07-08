@@ -1,0 +1,48 @@
+{
+  "status": "static_route_contract_passed",
+  "checkedAt": "2026-07-08T06:43:29.114Z",
+  "note": "Static route contract only verifies source-level route wiring. It does not replace real mini-program screenshots or runtime route smoke.",
+  "checks": [
+    {
+      "id": "app_pages_registered",
+      "status": "pass",
+      "evidence": "app.json pages=14"
+    },
+    {
+      "id": "native_custom_tabbar_routes",
+      "status": "pass",
+      "evidence": "app.json custom tabBar contains news/builds/simulator/profile routes"
+    },
+    {
+      "id": "custom_tabbar_switches_to_dataset_path",
+      "status": "pass",
+      "evidence": "custom-tab-bar/index.js maps TAB_LIST and switches to tapped path"
+    },
+    {
+      "id": "builds_to_workbench",
+      "status": "pass",
+      "evidence": "pages/builds/builds.js openWorkbench navigates to workbench with spec"
+    },
+    {
+      "id": "builds_quick_actions",
+      "status": "pass",
+      "evidence": "pages/builds/builds.js quick actions route to talent/simc/tasks/detail"
+    },
+    {
+      "id": "workbench_primary_action_dispatch",
+      "status": "pass",
+      "evidence": "pages/builds/workbench.js primary action dispatches through openActionByKey"
+    },
+    {
+      "id": "workbench_module_routes",
+      "status": "pass",
+      "evidence": "pages/builds/workbench.js routes simc/talents/gear/chickenbro/profile"
+    },
+    {
+      "id": "gear_detail_to_simc",
+      "status": "pass",
+      "evidence": "pages/builds/detail.js stores context and navigates to SimC"
+    }
+  ],
+  "failedCount": 0
+}

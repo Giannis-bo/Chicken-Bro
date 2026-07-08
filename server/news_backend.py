@@ -6884,6 +6884,26 @@ def count_by_tag(articles, tag):
     return sum(1 for article in articles if tag in article.get("tags", []))
 
 
+def article_search_text(article):
+    tag_items = article.get("tagItems", []) if isinstance(article.get("tagItems"), list) else []
+    parts = [
+        article.get("title", ""),
+        article.get("summary", ""),
+        article.get("channel", ""),
+        article.get("category", ""),
+        article.get("sourceName", ""),
+        article.get("sourceTier", ""),
+        article.get("verificationStatus", ""),
+        *article.get("tags", []),
+        *[
+            f"{tag.get('id', '')} {tag.get('label', '')}"
+            for tag in tag_items
+            if isinstance(tag, dict)
+        ],
+    ]
+    return " ".join(str(part) for part in parts).lower()
+
+
 def channels_with_counts(articles):
     return [
         {
@@ -6902,6 +6922,16 @@ def article_list_title(query):
         return "职业变动"
     if key == "ptr":
         return "测试服重点"
+    if key == "official":
+        return "官方"
+    if key == "updates":
+        return "更新"
+    if key == "events":
+        return "活动"
+    if key == "community":
+        return "社区"
+    if key == "guides":
+        return "攻略"
     return "今日更新"
 
 
@@ -6913,6 +6943,36 @@ def filter_articles(articles, query):
         return [article for article in articles if "class-change" in article.get("tags", [])]
     if key == "ptr":
         return [article for article in articles if article.get("channel") == "测试服前瞻"]
+    if key == "official":
+        return [
+            article
+            for article in articles
+            if re.search(r"blizzard|官方|official|official_verified", article_search_text(article))
+        ]
+    if key == "updates":
+        return [
+            article
+            for article in articles
+            if re.search(r"content-update|hotfix|patch|ptr|beta|class-change|更新|热修|测试服|职业调整", article_search_text(article))
+        ]
+    if key == "events":
+        return [
+            article
+            for article in articles
+            if re.search(r"event|trading-post|weekly|rewards|活动|商栈|周报|奖励|timeways", article_search_text(article))
+        ]
+    if key == "community":
+        return [
+            article
+            for article in articles
+            if re.search(r"community|社区|wowhead|icy veins|icy-veins", article_search_text(article))
+        ]
+    if key == "guides":
+        return [
+            article
+            for article in articles
+            if re.search(r"guide|攻略|指南|how to|玩法|build|rotation|simc|wcl", article_search_text(article))
+        ]
     return articles
 
 

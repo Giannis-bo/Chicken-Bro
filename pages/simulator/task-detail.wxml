@@ -1,6 +1,6 @@
 <view class="page-shell">
   <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
-  <scroll-view class="page-scroll" scroll-y type="list">
+  <scroll-view class="page-scroll" scroll-y>
     <view class="page-content task-detail-content">
       <view wx:if="{{loading}}" class="section loading-section">
         <text class="loading-text">加载中</text>

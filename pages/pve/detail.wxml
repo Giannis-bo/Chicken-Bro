@@ -1,6 +1,6 @@
 <view class="page-shell pve-detail-shell">
   <navigation-bar title="{{activeModule.navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
-  <scroll-view class="page-scroll" scroll-y type="list">
+  <scroll-view class="page-scroll" scroll-y>
     <view class="page-content pve-detail-content">
       <view class="detail-hero">
         <text class="detail-kicker">{{activeModule.zoneTitle}}</text>

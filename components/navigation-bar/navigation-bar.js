@@ -64,15 +64,23 @@ Component({
   lifetimes: {
     attached() {
       const rect = wx.getMenuButtonBoundingClientRect()
-      const platform = (wx.getDeviceInfo() || wx.getSystemInfoSync()).platform
+      const systemInfo = wx.getSystemInfoSync()
+      const deviceInfo = wx.getDeviceInfo ? wx.getDeviceInfo() : systemInfo
+      const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : systemInfo
+      const platform = deviceInfo.platform || systemInfo.platform
       const isAndroid = platform === 'android'
-      const isDevtools = platform === 'devtools'
-      const { windowWidth, safeArea: { top = 0, bottom = 0 } = {} } = wx.getWindowInfo() || wx.getSystemInfoSync()
+      const { windowWidth } = windowInfo
+      const statusBarHeight = clampStatusBarHeight(
+        windowInfo.statusBarHeight ??
+        systemInfo.statusBarHeight ??
+        deviceInfo.statusBarHeight
+      )
+      const rightReserve = Math.max(0, windowWidth - rect.left)
       this.setData({
         ios: !isAndroid,
-        innerPaddingRight: `padding-right: ${windowWidth - rect.left}px`,
-        leftWidth: `width: ${windowWidth - rect.left}px`,
-        safeAreaTop: isDevtools || isAndroid ? `height: calc(var(--height) + ${top}px); padding-top: ${top}px` : ``
+        innerPaddingRight: `padding-right: ${rightReserve}px`,
+        leftWidth: `width: ${rightReserve}px`,
+        safeAreaTop: `--status-bar-height: ${statusBarHeight}px`
       })
     },
   },
@@ -110,3 +118,9 @@ Component({
     }
   },
 })
+
+function clampStatusBarHeight(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number < 0) return 0
+  return Math.min(number, 64)
+}

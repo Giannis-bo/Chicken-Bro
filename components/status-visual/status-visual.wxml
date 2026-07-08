@@ -1,0 +1,23 @@
+<view class="wow-status-visual {{rootClass}} ext-class" aria-label="{{label || state}}">
+  <view wx:if="{{isAtomic}}" class="wow-status-visual__base wow-status-visual__base--atomic"></view>
+  <image
+    wx:if="{{isAtomic && atomicSrc && !atomicLoadFailed}}"
+    class="wow-status-visual__atomic"
+    src="{{atomicSrc}}"
+    mode="aspectFit"
+    binderror="handleAtomicError"
+  ></image>
+  <block wx:if="{{!isAtomic || !atomicSrc || atomicLoadFailed}}">
+    <image
+      wx:if="{{baseSrc}}"
+      class="wow-status-visual__base-image"
+      src="{{baseSrc}}"
+      mode="aspectFit"
+    ></image>
+    <view wx:else class="wow-status-visual__base"></view>
+    <view class="wow-status-visual__glyph-stage">
+      <text class="wow-status-visual__glyph {{glyphClass}}">{{resolvedGlyph}}</text>
+    </view>
+  </block>
+  <text wx:if="{{showLabel}}" class="wow-status-visual__label">{{label}}</text>
+</view>

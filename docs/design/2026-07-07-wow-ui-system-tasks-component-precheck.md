@@ -1,0 +1,64 @@
+# Tasks Component Precheck
+
+Status: `surface_component_precheck`
+Created: 2026-07-07
+
+This document records the browser/component precheck for `TaskQueueBoard` and `TaskResultReport`. It uses production WXSS class names and local headless Chrome. It does not touch WeChat DevTools and does not authorize page integration.
+
+## Linked Artifacts
+
+- Runner: `artifacts/ui-system-rebuild/20260707-tasks-component-precheck/run-tasks-component-precheck.js`
+- Manifest: `artifacts/ui-system-rebuild/20260707-tasks-component-precheck/manifest.json`
+- README: `artifacts/ui-system-rebuild/20260707-tasks-component-precheck/README.md`
+- Fixture HTML: `artifacts/ui-system-rebuild/20260707-tasks-component-precheck/component-fixture.html`
+- Contact sheet: `artifacts/ui-system-rebuild/20260707-tasks-component-precheck/component-crop-contact-sheet.png`
+- Owner skeleton: [Tasks Owner Skeleton Source Precheck](2026-07-07-wow-ui-system-tasks-owner-skeleton-precheck.md)
+
+## Result
+
+- Status: `surface_component_precheck`
+- Viewports: `compact 360x780`, `standard 390x844`, `large 430x932`
+- Failures: `0`
+- Warnings: `0`
+- Crops: `10`
+- DevTools touched: `false`
+- Page integration: `false`
+- Runtime verified: `false`
+
+## Checks
+
+- `owner_source_precheck_pass`: `pass`
+- `fixture_html_written`: `pass`
+- `all_viewports_measured`: `pass`
+- `no_document_horizontal_overflow`: `pass`
+- `no_forbidden_visible_text`: `pass`
+- `owner_min_rects_pass`: `pass`
+- `standard_surface_crops_written`: `pass`
+- `devtools_not_touched`: `pass`
+- `page_integration_not_performed`: `pass`
+
+## Crops
+
+- `tasks-queue-ready-surface`
+- `tasks-queue-status-rail`
+- `tasks-queue-task-card`
+- `tasks-queue-empty-state`
+- `tasks-queue-action-rail`
+- `task-result-final-surface`
+- `task-result-metric-grid`
+- `task-result-context-section`
+- `task-result-failure-section`
+- `task-result-action-rail`
+
+## Non-Promotion
+
+This check is browser/component evidence only. It is not:
+
+- `target_locked`
+- `active_implementation_permit`
+- page integration
+- WeChat runtime verification
+- route smoke
+- final acceptance
+
+`pages/simulator/tasks.*` and `pages/simulator/task-detail.*` remain untouched by this artifact.

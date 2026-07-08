@@ -1,64 +1,101 @@
-<view class="page-shell news-shell">
+<view class="page-shell news-shell pass37-page-frame" data-pass37-surface="news_home_and_feed">
   <navigation-bar title="{{navTitle}}" back="{{false}}" color="#F8B700" background="#111111"></navigation-bar>
 
-  <scroll-view class="page-scroll" scroll-y type="list">
-    <view class="page-content news-content">
-      <swiper class="news-swiper" indicator-dots circular autoplay interval="5200" duration="420" indicator-color="rgba(247, 228, 176, 0.28)" indicator-active-color="#F0B84B">
+  <scroll-view class="page-scroll pass37-page-frame__scroll" scroll-y scroll-top="{{scrollTop}}" bindscroll="handleNewsScroll">
+    <view class="page-content news-content pass37-page-frame__content">
+      <view class="news-command news-target-stage pass37-wow-panel pass37-wow-panel--command">
+        <view class="news-command-content">
+          <view class="news-command-emblem">
+            <image class="news-command-icon-image" src="/assets/user/intel-command-icon.png" mode="aspectFill"></image>
+            <view class="news-command-orbit">
+              <view class="news-command-orbit-dot dot-a"></view>
+              <view class="news-command-orbit-dot dot-b"></view>
+              <view class="news-command-orbit-dot dot-c"></view>
+            </view>
+          </view>
+          <view class="news-command-body">
+            <view class="news-command-heading">
+              <view class="news-command-copy">
+                <text class="news-command-title">{{intelSummary.title}}</text>
+                <text class="news-command-meta">数据更新时间 {{intelSummary.lastRefreshedAt}}</text>
+              </view>
+              <view class="news-command-link">
+                <text class="news-command-status">{{intelSummary.status}}</text>
+                <text class="news-command-arrow">›</text>
+              </view>
+            </view>
+            <view class="news-command-strip">
+              <view class="news-command-chip">
+                <text class="chip-mark">任</text>
+                <text class="chip-label">重点</text>
+                <text class="chip-value">{{intelSummary.focusCount}}</text>
+              </view>
+              <view class="news-command-chip">
+                <text class="chip-mark">团</text>
+                <text class="chip-label">更新</text>
+                <text class="chip-value">{{intelSummary.updateCount}}</text>
+              </view>
+              <view class="news-command-chip">
+                <text class="chip-mark">订</text>
+                <text class="chip-label">频道</text>
+                <text class="chip-value">{{intelSummary.channelCount}}</text>
+              </view>
+              <view class="news-command-chip">
+                <text class="chip-mark">源</text>
+                <text class="chip-label">来源</text>
+                <text class="chip-value">{{intelSummary.sourceCount}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <swiper class="news-swiper" indicator-dots circular interval="5200" duration="420" indicator-color="rgba(247, 228, 176, 0.28)" indicator-active-color="#F0B84B">
         <swiper-item wx:for="{{heroNews}}" wx:key="id">
           <view class="banner-card" data-id="{{item.id}}" bindtap="openArticle">
-            <view class="banner-topline">
-              <text class="banner-channel">{{item.channel}}</text>
-              <text class="banner-date">{{item.publishedAt}}</text>
+            <view class="banner-visual-shell">
+              <image class="surface-material banner-material-image" src="{{item.bannerFallbackUrl}}" mode="aspectFill"></image>
+              <image wx:if="{{item.visualUrl && !item.visualBroken}}" class="banner-visual-image" src="{{item.visualUrl}}" mode="aspectFill" data-index="{{index}}" binderror="handleHeroImageError"></image>
             </view>
-            <text class="banner-title">{{item.title}}</text>
-            <text class="banner-summary">{{item.summary}}</text>
-            <view class="source-row">
-              <text class="source-name">{{item.sourceName}}</text>
-              <text class="source-dot">/</text>
-              <text class="source-note">{{item.sourceNote}}</text>
+            <view class="banner-channel-pill">
+              <text class="banner-channel">{{item.channel}}</text>
+            </view>
+            <view class="banner-copy-panel">
+              <view class="banner-topline">
+                <text class="banner-date">{{item.displayPublishedAt}}</text>
+              </view>
+              <text class="banner-title">{{item.title}}</text>
+              <text class="banner-summary">{{item.summary}}</text>
+              <view class="source-row">
+                <text class="source-name">{{item.sourceName}}</text>
+                <text class="source-dot">/</text>
+                <text class="source-note">{{item.sourceNote}}</text>
+              </view>
             </view>
           </view>
         </swiper-item>
       </swiper>
 
-      <view class="section news-section">
+      <view class="section news-section news-channel-section news-target-stage pass37-wow-panel pass37-wow-panel--channel">
         <view class="section-header">
-          <text class="section-title news-section-title">资讯频道</text>
+          <text class="section-title news-section-title">频道</text>
         </view>
-        <view class="channel-grid">
-          <view class="channel-item" wx:for="{{channels}}" wx:key="id" data-value="{{item.title}}" bindtap="openChannel">
-            <view class="channel-title-row">
-              <text class="channel-title">{{item.title}}</text>
-              <view class="channel-update-indicator" wx:if="{{item.updateCount}}">
-                <text class="channel-count">{{item.updateCount}}</text>
-                <text class="channel-update-dot"></text>
-              </view>
-            </view>
-            <text class="channel-desc">{{item.desc}}</text>
-          </view>
-        </view>
+        <channel-dock
+          items="{{newsTabs}}"
+          deferred-visuals-ready="{{deferredVisualsReady}}"
+          bind:tabtap="openNewsTab"
+        ></channel-dock>
       </view>
 
-      <view class="section news-section">
-        <view class="section-header">
-          <text class="section-title news-section-title">今日重点</text>
-          <text class="section-action news-section-action">{{fromFallback ? '本地缓存' : refreshMode}}</text>
-        </view>
-        <view class="highlight-list">
-          <view class="highlight-card" wx:for="{{highlights}}" wx:key="id" data-id="{{item.id}}" bindtap="openArticle">
-            <view class="highlight-head">
-              <text class="highlight-channel">{{item.channel}}</text>
-              <text class="highlight-date">{{item.publishedAt}}</text>
-            </view>
-            <text class="highlight-title">{{item.title}}</text>
-            <text class="highlight-summary">{{item.summary}}</text>
-            <view class="source-row highlight-source">
-              <text class="source-name">{{item.sourceName}}</text>
-              <text class="source-dot">/</text>
-              <text class="source-note">{{item.sourceNote}}</text>
-            </view>
-          </view>
-        </view>
+      <view class="section news-section news-feed-section news-target-stage pass37-wow-panel pass37-wow-panel--ranked-feed">
+        <ranked-feed
+          id="rankedFeed"
+          class="news-ranked-feed-component"
+          items="{{rankedHighlights}}"
+          deferred-visuals-ready="{{deferredVisualsReady}}"
+          bind:itemtap="openArticle"
+          bind:actiontap="openNewsTab"
+        ></ranked-feed>
       </view>
     </view>
   </scroll-view>

@@ -1,6 +1,6 @@
 <view class="page-shell detail-shell">
   <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
-  <scroll-view class="page-scroll" scroll-y type="list">
+  <scroll-view class="page-scroll" scroll-y>
     <view class="page-content detail-content">
       <view class="detail-hero">
         <text class="detail-kicker">职业专精查询</text>

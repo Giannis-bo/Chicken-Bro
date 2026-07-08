@@ -316,7 +316,7 @@ Page({
 
   loadTaskDetail(taskId) {
     if (!taskId) {
-      this.setData({ loading: false, requestError: 'missing task id' })
+      this.setData({ loading: false, requestError: '请从任务列表进入任务详情；当前直开路径没有携带任务 ID。' })
       return
     }
     requestSimulatorTaskDetail(taskId)

@@ -120,26 +120,70 @@ function normalizeListQuery(query) {
   }
 }
 
+function articleSearchText(article) {
+  const item = article || {}
+  const tagItems = Array.isArray(item.tagItems) ? item.tagItems : []
+  return [
+    item.title,
+    item.summary,
+    item.channel,
+    item.category,
+    item.sourceName,
+    item.sourceTier,
+    item.verificationStatus,
+    ...(item.tags || []),
+    ...tagItems.map((tag) => `${tag && tag.id || ''} ${tag && tag.label || ''}`)
+  ].join(' ').toLowerCase()
+}
+
+function filterFallbackByMetricKey(articles, key) {
+  if (key === 'class-change') {
+    return articles.filter((article) => (article.tags || []).indexOf('class-change') >= 0)
+  }
+  if (key === 'ptr') {
+    return articles.filter((article) => article.channel === '测试服前瞻')
+  }
+  if (key === 'official') {
+    return articles.filter((article) => /blizzard|官方|official|official_verified/.test(articleSearchText(article)))
+  }
+  if (key === 'updates') {
+    return articles.filter((article) => /content-update|hotfix|patch|ptr|beta|class-change|更新|热修|测试服|职业调整/.test(articleSearchText(article)))
+  }
+  if (key === 'events') {
+    return articles.filter((article) => /event|trading-post|weekly|rewards|活动|商栈|周报|奖励|timeways/.test(articleSearchText(article)))
+  }
+  if (key === 'community') {
+    return articles.filter((article) => /community|社区|wowhead|icy veins|icy-veins/.test(articleSearchText(article)))
+  }
+  if (key === 'guides') {
+    return articles.filter((article) => /guide|攻略|指南|how to|玩法|build|rotation|simc|wcl/.test(articleSearchText(article)))
+  }
+  return articles
+}
+
+function fallbackArticleListTitle(query) {
+  if (query.type === 'channel') return query.value
+  if (query.key === 'class-change') return '职业变动'
+  if (query.key === 'ptr') return '测试服重点'
+  if (query.key === 'official') return '官方'
+  if (query.key === 'updates') return '更新'
+  if (query.key === 'events') return '活动'
+  if (query.key === 'community') return '社区'
+  if (query.key === 'guides') return '攻略'
+  return '今日更新'
+}
+
 function fallbackArticleList(query) {
   query = normalizeListQuery(query)
   const payload = fallbackPayload('list-fallback')
   let articles = [...payload.highlights]
   if (query.type === 'channel') {
     articles = articles.filter((article) => article.channel === query.value)
-  } else if (query.key === 'class-change') {
-    articles = articles.filter((article) => (article.tags || []).indexOf('class-change') >= 0)
-  } else if (query.key === 'ptr') {
-    articles = articles.filter((article) => article.channel === '测试服前瞻')
+  } else {
+    articles = filterFallbackByMetricKey(articles, query.key)
   }
-  const title = query.type === 'channel'
-    ? query.value
-    : query.key === 'class-change'
-      ? '职业变动'
-      : query.key === 'ptr'
-        ? '测试服重点'
-        : '今日更新'
   return {
-    title,
+    title: fallbackArticleListTitle(query),
     type: query.type || 'metric',
     key: query.key || 'today',
     value: query.value || '',

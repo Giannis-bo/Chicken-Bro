@@ -1,0 +1,134 @@
+{
+  "status": "post_source_change_recapture_required",
+  "reviewedAt": "2026-07-08T05:16:00+08:00",
+  "finalUiSystemAccepted": false,
+  "rescueDeliveryReady": false,
+  "currentWorktreeProofStatus": "static_guardrails_pass_real_wechat_recapture_required",
+  "supersedesReadyClaimReason": "This ledger reviewed screenshots captured before the latest source/test contract changes; use as historical evidence only until recapture.",
+  "latestRecaptureAttempt": {
+    "path": "pages/builds/workbench",
+    "status": "risk_capture_timeout",
+    "error": "capture pages/builds/workbench timed out after 10000ms twice, including one retry after deferring non-essential material images",
+    "forbiddenActionsUsed": [],
+    "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/manifest.json"
+  },
+  "scope": {
+    "pageCount": 14,
+    "p0Count": 8,
+    "p1Count": 5,
+    "p2Count": 1
+  },
+  "evidence": {
+    "summary": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/single-page-screenshot-summary.json",
+    "aggregate": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/aggregate-page-visual-manifest.json",
+    "screenshotDir": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures"
+  },
+  "pages": [
+    {
+      "path": "pages/news/news",
+      "tier": "P0",
+      "screenshot": "page-captures/news_news.png",
+      "rescueStatus": "pass_for_0900_rescue",
+      "notes": "Carousel, channel dock, ranked feed, and custom tabBar are visible."
+    },
+    {
+      "path": "pages/builds/builds",
+      "tier": "P0",
+      "screenshot": "page-captures/builds_builds.png",
+      "rescueStatus": "pass_for_0900_rescue_with_recapture_risk",
+      "notes": "Workbench entry and workflow rows are readable; bottom reserve was increased after screenshot review and should be recaptured when automator is responsive."
+    },
+    {
+      "path": "pages/builds/workbench",
+      "tier": "P0",
+      "screenshot": "page-captures/builds_workbench.png",
+      "rescueStatus": "pass_for_0900_rescue_with_polish_risk",
+      "notes": "Blocked conclusion, main action, workflow cards, and evidence area are readable; shield does not overlay text."
+    },
+    {
+      "path": "pages/builds/talent-simulator",
+      "tier": "P0",
+      "screenshot": "page-captures/builds_talent-simulator.png",
+      "rescueStatus": "pass_for_0900_rescue_with_polish_risk",
+      "notes": "Talent tree, tabs, fixed bottom actions, and selected spec are visible."
+    },
+    {
+      "path": "pages/builds/detail",
+      "tier": "P0",
+      "screenshot": "page-captures/builds_detail.png",
+      "rescueStatus": "pass_for_0900_rescue",
+      "notes": "Gear slot grid is readable with no white screen or horizontal overflow visible."
+    },
+    {
+      "path": "pages/simulator/simulator",
+      "tier": "P0",
+      "screenshot": "page-captures/simulator_simulator.png",
+      "rescueStatus": "pass_for_0900_rescue_with_polish_risk",
+      "notes": "Identity, welcome message, prompts, evidence boundary, input, send action, and tabBar are visible."
+    },
+    {
+      "path": "pages/simulator/simc",
+      "tier": "P0",
+      "screenshot": "page-captures/simulator_simc.png",
+      "rescueStatus": "pass_for_0900_rescue",
+      "notes": "SimC setup and fixed actions are visible."
+    },
+    {
+      "path": "pages/profile/profile",
+      "tier": "P0",
+      "screenshot": "page-captures/profile_profile.png",
+      "rescueStatus": "pass_for_0900_rescue",
+      "notes": "Identity panel, template library, settings, and custom tabBar are readable."
+    },
+    {
+      "path": "pages/news/list",
+      "tier": "P1",
+      "screenshot": "page-captures/news_list.png",
+      "rescueStatus": "pass_readable_with_route_warning",
+      "notes": "List content is readable; route callback warning remains."
+    },
+    {
+      "path": "pages/news/detail",
+      "tier": "P1",
+      "screenshot": "page-captures/news_detail.png",
+      "rescueStatus": "pass_readable_with_route_warning",
+      "notes": "Article body and source proof are readable; route callback warning remains."
+    },
+    {
+      "path": "pages/simulator/chickenbro",
+      "tier": "P1",
+      "screenshot": "page-captures/simulator_chickenbro.png",
+      "rescueStatus": "pass_readable_with_route_warning",
+      "notes": "Dedicated Chickenbro page is readable and not an empty shell; route callback warning remains."
+    },
+    {
+      "path": "pages/simulator/tasks",
+      "tier": "P1",
+      "screenshot": "page-captures/simulator_tasks.png",
+      "rescueStatus": "pass_readable_with_route_warning",
+      "notes": "Empty task state and actions are readable; route callback warning remains."
+    },
+    {
+      "path": "pages/simulator/task-detail",
+      "tier": "P1",
+      "screenshot": "page-captures/simulator_task-detail.png",
+      "rescueStatus": "pass_readable_with_route_warning",
+      "notes": "Direct-open no-task state is readable; route callback warning remains."
+    },
+    {
+      "path": "pages/builds/intel",
+      "tier": "P2",
+      "screenshot": "page-captures/builds_intel.png",
+      "rescueStatus": "pass_no_white_screen_with_route_warning",
+      "notes": "P2 page produced a valid screenshot and is not white-screen; route callback warning remains."
+    }
+  ],
+  "remainingRisks": [
+    "Route callback warnings remain on 10 non-tab or secondary routes.",
+    "Full multi-page serial capture is unsafe and must not be used as final evidence.",
+    "Workbench density and talent simulator tree polish remain post-delivery refinement.",
+    "Builds workflow bottom reserve was increased after screenshot review and should be recaptured when automator is responsive.",
+    "No overlay/red-zone 90% target-image restoration is claimed for this rescue delivery.",
+    "Static tests may still contain stale expectations from older UI architecture."
+  ]
+}

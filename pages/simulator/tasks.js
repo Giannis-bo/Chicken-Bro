@@ -238,5 +238,15 @@ Page({
     wx.navigateTo({ url: `/pages/simulator/task-detail?id=${encodeURIComponent(taskId)}` })
   },
 
+  goCreateTask() {
+    trackEvent('task_create_from_empty', { source: 'task_list' }, { page: 'pages/simulator/tasks' })
+    wx.navigateTo({ url: '/pages/simulator/simc?from=tasks' })
+  },
+
+  goWorkbench() {
+    trackEvent('task_workbench_from_empty', { source: 'task_list' }, { page: 'pages/simulator/tasks' })
+    wx.navigateTo({ url: '/pages/builds/workbench?from=tasks' })
+  },
+
   normalizeTask
 })

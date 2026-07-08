@@ -1,0 +1,888 @@
+{
+  "createdAt": "2026-07-07T20:09:00.534Z",
+  "repoRoot": "/Users/heyesheng/Documents/code/github/wow_mini_program",
+  "devtoolsProcesses": {
+    "records": [
+      {
+        "pid": 6380,
+        "ppid": 15549,
+        "startedAt": "Wed Jul  8 03:26:24 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": "/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857",
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper (Renderer).app/Contents/MacOS/wechatwebdevtools Helper (Renderer) --type=renderer --no-sandbox --enable-experimental-web-platform-features --fi"
+      },
+      {
+        "pid": 7082,
+        "ppid": 6380,
+        "startedAt": "Wed Jul  8 03:26:25 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": null,
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper (Renderer).app/Contents/MacOS/node /Applications/wechatwebdevtools.app/Contents/Resources/package.nw/js/common/fileutils/unpack/aaplwatcherapp."
+      },
+      {
+        "pid": 7083,
+        "ppid": 6380,
+        "startedAt": "Wed Jul  8 03:26:26 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": null,
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper (Renderer).app/Contents/MacOS/node /Applications/wechatwebdevtools.app/Contents/Resources/package.nw/js/libs/vseditor/src/bootstrap-fork --type"
+      },
+      {
+        "pid": 7084,
+        "ppid": 15549,
+        "startedAt": "Wed Jul  8 03:26:26 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": "/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857",
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper (Renderer).app/Contents/MacOS/wechatwebdevtools Helper (Renderer) --type=renderer --no-sandbox --enable-experimental-web-platform-features --fi"
+      },
+      {
+        "pid": 7085,
+        "ppid": 15549,
+        "startedAt": "Wed Jul  8 03:26:26 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": "/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857",
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper (Renderer).app/Contents/MacOS/wechatwebdevtools Helper (Renderer) --type=renderer --no-sandbox --enable-experimental-web-platform-features --fi"
+      },
+      {
+        "pid": 7086,
+        "ppid": 6380,
+        "startedAt": "Wed Jul  8 03:26:26 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": null,
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper (Renderer).app/Contents/MacOS/node-18 --inspect-port=0 /Applications/wechatwebdevtools.app/Contents/Resources/package.nw/js/libs/vseditor/src/b"
+      },
+      {
+        "pid": 7087,
+        "ppid": 7086,
+        "startedAt": "Wed Jul  8 03:26:27 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": null,
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper (Renderer).app/Contents/MacOS/node-18 /Applications/wechatwebdevtools.app/Contents/Resources/package.nw/js/libs/vseditor/extensions/json-langua"
+      },
+      {
+        "pid": 7098,
+        "ppid": 6380,
+        "startedAt": "Wed Jul  8 03:26:27 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": null,
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper (Renderer).app/Contents/MacOS/node /Applications/wechatwebdevtools.app/Contents/Resources/package.nw/js/common/miniprogram-builder/modules/core"
+      },
+      {
+        "pid": 7162,
+        "ppid": 6380,
+        "startedAt": "Wed Jul  8 03:26:35 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": null,
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper (Renderer).app/Contents/MacOS/node /Applications/wechatwebdevtools.app/Contents/Resources/package.nw/js/unpack/cluster-server.js --expose-gc"
+      },
+      {
+        "pid": 15548,
+        "ppid": 1,
+        "startedAt": "Wed Jul  8 02:53:04 2026",
+        "main": false,
+        "installPath": null,
+        "userDataDir": null,
+        "commandHint": "wechatwebdevtools Daemon"
+      },
+      {
+        "pid": 15549,
+        "ppid": 15548,
+        "startedAt": "Wed Jul  8 02:53:04 2026",
+        "main": true,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": "/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857",
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/MacOS/wechatdevtools /Applications/wechatwebdevtools.app/Contents/Resources/package.nw -load-extension=/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857/WeappPlugin --custom-devtools-frontend=file://"
+      },
+      {
+        "pid": 15551,
+        "ppid": 1,
+        "startedAt": "Wed Jul  8 02:53:04 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": null,
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/chrome_crashpad_handler --monitor-self --monitor-self-annotation=ptype=crashpad-handler --database=/Users/heyesheng/Library/Application Support/微信开发者工具/Crashpad --metri"
+      },
+      {
+        "pid": 15553,
+        "ppid": 1,
+        "startedAt": "Wed Jul  8 02:53:04 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": null,
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/chrome_crashpad_handler --no-periodic-tasks --monitor-self-annotation=ptype=crashpad-handler --database=/Users/heyesheng/Library/Application Support/微信开发者工具/Crashpad --"
+      },
+      {
+        "pid": 15561,
+        "ppid": 15549,
+        "startedAt": "Wed Jul  8 02:53:04 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": "/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857",
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper (GPU).app/Contents/MacOS/wechatwebdevtools Helper (GPU) --type=gpu-process --field-trial-handle=1718379636,16109511669495268922,172824262384845"
+      },
+      {
+        "pid": 15562,
+        "ppid": 15549,
+        "startedAt": "Wed Jul  8 02:53:04 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": "/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857",
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper.app/Contents/MacOS/wechatwebdevtools Helper --type=utility --utility-sub-type=network.mojom.NetworkService --field-trial-handle=1718379636,1610"
+      },
+      {
+        "pid": 15563,
+        "ppid": 15549,
+        "startedAt": "Wed Jul  8 02:53:04 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": "/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857",
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper.app/Contents/MacOS/wechatwebdevtools Helper --type=utility --utility-sub-type=storage.mojom.StorageService --field-trial-handle=1718379636,1610"
+      },
+      {
+        "pid": 15564,
+        "ppid": 15549,
+        "startedAt": "Wed Jul  8 02:53:04 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": "/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857",
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper (Renderer).app/Contents/MacOS/wechatwebdevtools Helper (Renderer) --type=renderer --no-sandbox --enable-experimental-web-platform-features --fi"
+      },
+      {
+        "pid": 15568,
+        "ppid": 15549,
+        "startedAt": "Wed Jul  8 02:53:05 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": "/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857",
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper.app/Contents/MacOS/wechatwebdevtools Helper --type=utility --utility-sub-type=proxy_resolver.mojom.ProxyResolverFactory --field-trial-handle=17"
+      },
+      {
+        "pid": 15657,
+        "ppid": 15549,
+        "startedAt": "Wed Jul  8 04:04:48 2026",
+        "main": false,
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": "/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857",
+        "commandHint": "/Applications/wechatwebdevtools.app/Contents/Frameworks/nwjs Framework.framework/Versions/91.0.4472.114/Helpers/wechatwebdevtools Helper (Renderer).app/Contents/MacOS/wechatwebdevtools Helper (Renderer) --type=renderer --no-sandbox --enable-experimental-web-platform-features --fi"
+      }
+    ],
+    "installPaths": [
+      "/Applications/wechatwebdevtools.app"
+    ],
+    "userDataDirs": [
+      "/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857"
+    ],
+    "mainInstances": [
+      {
+        "pid": 15549,
+        "startedAt": "Wed Jul  8 02:53:04 2026",
+        "installPath": "/Applications/wechatwebdevtools.app",
+        "userDataDir": "/Users/heyesheng/Library/Application Support/微信开发者工具/50a7d9210159a32f006158795f893857"
+      }
+    ],
+    "multipleInstallPaths": false,
+    "multipleUserDataDirs": false,
+    "multipleMainInstances": false
+  },
+  "devtoolsWindows": {
+    "available": true,
+    "count": 0,
+    "raw": "0,",
+    "noVisibleWindowRisk": true,
+    "note": "wechatdevtools is running but System Events reports zero windows; runtime automation may connect to a stale or headless session."
+  },
+  "listeningTcpPorts": {
+    "records": [
+      {
+        "command": "rapportd",
+        "pid": 942,
+        "address": "*:62005",
+        "port": 62005,
+        "raw": "rapportd    942 heyesheng   14u  IPv4 0x7e5c9d30e9f96a57      0t0  TCP *:62005 (LISTEN)"
+      },
+      {
+        "command": "rapportd",
+        "pid": 942,
+        "address": "*:62005",
+        "port": 62005,
+        "raw": "rapportd    942 heyesheng   16u  IPv6 0xd27231aa821365a3      0t0  TCP *:62005 (LISTEN)"
+      },
+      {
+        "command": "ControlCe",
+        "pid": 1035,
+        "address": "*:7000",
+        "port": 7000,
+        "raw": "ControlCe  1035 heyesheng    9u  IPv4 0x90fccef39a0dc067      0t0  TCP *:7000 (LISTEN)"
+      },
+      {
+        "command": "ControlCe",
+        "pid": 1035,
+        "address": "*:7000",
+        "port": 7000,
+        "raw": "ControlCe  1035 heyesheng   10u  IPv6 0x67a86f96fb35cb79      0t0  TCP *:7000 (LISTEN)"
+      },
+      {
+        "command": "ControlCe",
+        "pid": 1035,
+        "address": "*:5000",
+        "port": 5000,
+        "raw": "ControlCe  1035 heyesheng   11u  IPv4 0xe25101ea1c2b417a      0t0  TCP *:5000 (LISTEN)"
+      },
+      {
+        "command": "ControlCe",
+        "pid": 1035,
+        "address": "*:5000",
+        "port": 5000,
+        "raw": "ControlCe  1035 heyesheng   12u  IPv6 0xbde760e78d8c4ce2      0t0  TCP *:5000 (LISTEN)"
+      },
+      {
+        "command": "postgres",
+        "pid": 2997,
+        "address": "[::1]:5432",
+        "port": 5432,
+        "raw": "postgres   2997 heyesheng    7u  IPv6 0xf044d6829c0c2f9f      0t0  TCP [::1]:5432 (LISTEN)"
+      },
+      {
+        "command": "postgres",
+        "pid": 2997,
+        "address": "127.0.0.1:5432",
+        "port": 5432,
+        "raw": "postgres   2997 heyesheng    8u  IPv4 0x50cbb573f97762cd      0t0  TCP 127.0.0.1:5432 (LISTEN)"
+      },
+      {
+        "command": "Adobe\\x20",
+        "pid": 4126,
+        "address": "127.0.0.1:15292",
+        "port": 15292,
+        "raw": "Adobe\\x20  4126 heyesheng   21u  IPv4 0xfe808110f093f6ae      0t0  TCP 127.0.0.1:15292 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 6380,
+        "address": "*:9854",
+        "port": 9854,
+        "raw": "wechatweb  6380 heyesheng   30u  IPv6 0x1eb555b93e0e0859      0t0  TCP *:9854 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 6380,
+        "address": "*:28249",
+        "port": 28249,
+        "raw": "wechatweb  6380 heyesheng   32u  IPv6 0xf57413de809b9917      0t0  TCP *:28249 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 6380,
+        "address": "127.0.0.1:54340",
+        "port": 54340,
+        "raw": "wechatweb  6380 heyesheng   33u  IPv4 0xdb2837220d456e48      0t0  TCP 127.0.0.1:54340 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 15564,
+        "address": "*:59540",
+        "port": 59540,
+        "raw": "wechatweb 15564 heyesheng   33u  IPv6 0xe38ca726d07f6cd9      0t0  TCP *:59540 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 15564,
+        "address": "127.0.0.1:25621",
+        "port": 25621,
+        "raw": "wechatweb 15564 heyesheng   34u  IPv4 0xff93895949d353d8      0t0  TCP 127.0.0.1:25621 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 15564,
+        "address": "127.0.0.1:57129",
+        "port": 57129,
+        "raw": "wechatweb 15564 heyesheng   35u  IPv4 0xaf65524341600a0b      0t0  TCP 127.0.0.1:57129 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 15564,
+        "address": "127.0.0.1:32123",
+        "port": 32123,
+        "raw": "wechatweb 15564 heyesheng   37u  IPv4 0x2837a1763d62c65a      0t0  TCP 127.0.0.1:32123 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 15564,
+        "address": "127.0.0.1:38967",
+        "port": 38967,
+        "raw": "wechatweb 15564 heyesheng   38u  IPv4 0x90cc1be071b0c8e6      0t0  TCP 127.0.0.1:38967 (LISTEN)"
+      },
+      {
+        "command": "Python",
+        "pid": 34014,
+        "address": "127.0.0.1:8765",
+        "port": 8765,
+        "raw": "Python    34014 heyesheng    3u  IPv4 0x98209060ee0d7fc9      0t0  TCP 127.0.0.1:8765 (LISTEN)"
+      },
+      {
+        "command": "node",
+        "pid": 41334,
+        "address": "*:8899",
+        "port": 8899,
+        "raw": "node      41334 heyesheng   16u  IPv6 0x7ac546f7723e5228      0t0  TCP *:8899 (LISTEN)"
+      },
+      {
+        "command": "node",
+        "pid": 41334,
+        "address": "127.0.0.1:43901",
+        "port": 43901,
+        "raw": "node      41334 heyesheng   20u  IPv4 0x759d8b6954aa9ef8      0t0  TCP 127.0.0.1:43901 (LISTEN)"
+      },
+      {
+        "command": "CMYNetwor",
+        "pid": 43518,
+        "address": "127.0.0.1:53744",
+        "port": 53744,
+        "raw": "CMYNetwor 43518 heyesheng   10u  IPv4 0x49bbdcc24be9f358      0t0  TCP 127.0.0.1:53744 (LISTEN)"
+      },
+      {
+        "command": "Code\\x20H",
+        "pid": 43912,
+        "address": "127.0.0.1:54666",
+        "port": 54666,
+        "raw": "Code\\x20H 43912 heyesheng   76u  IPv4  0x6d995f28ee9d116      0t0  TCP 127.0.0.1:54666 (LISTEN)"
+      },
+      {
+        "command": "Code\\x20H",
+        "pid": 43912,
+        "address": "*:9844",
+        "port": 9844,
+        "raw": "Code\\x20H 43912 heyesheng   78u  IPv6 0xf24a30ad66201999      0t0  TCP *:9844 (LISTEN)"
+      }
+    ],
+    "wechatRecords": [
+      {
+        "command": "wechatweb",
+        "pid": 6380,
+        "address": "*:9854",
+        "port": 9854,
+        "raw": "wechatweb  6380 heyesheng   30u  IPv6 0x1eb555b93e0e0859      0t0  TCP *:9854 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 6380,
+        "address": "*:28249",
+        "port": 28249,
+        "raw": "wechatweb  6380 heyesheng   32u  IPv6 0xf57413de809b9917      0t0  TCP *:28249 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 6380,
+        "address": "127.0.0.1:54340",
+        "port": 54340,
+        "raw": "wechatweb  6380 heyesheng   33u  IPv4 0xdb2837220d456e48      0t0  TCP 127.0.0.1:54340 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 15564,
+        "address": "*:59540",
+        "port": 59540,
+        "raw": "wechatweb 15564 heyesheng   33u  IPv6 0xe38ca726d07f6cd9      0t0  TCP *:59540 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 15564,
+        "address": "127.0.0.1:25621",
+        "port": 25621,
+        "raw": "wechatweb 15564 heyesheng   34u  IPv4 0xff93895949d353d8      0t0  TCP 127.0.0.1:25621 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 15564,
+        "address": "127.0.0.1:57129",
+        "port": 57129,
+        "raw": "wechatweb 15564 heyesheng   35u  IPv4 0xaf65524341600a0b      0t0  TCP 127.0.0.1:57129 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 15564,
+        "address": "127.0.0.1:32123",
+        "port": 32123,
+        "raw": "wechatweb 15564 heyesheng   37u  IPv4 0x2837a1763d62c65a      0t0  TCP 127.0.0.1:32123 (LISTEN)"
+      },
+      {
+        "command": "wechatweb",
+        "pid": 15564,
+        "address": "127.0.0.1:38967",
+        "port": 38967,
+        "raw": "wechatweb 15564 heyesheng   38u  IPv4 0x90cc1be071b0c8e6      0t0  TCP 127.0.0.1:38967 (LISTEN)"
+      }
+    ]
+  },
+  "cli": {
+    "port": "46952",
+    "islogin": {
+      "skipped": true,
+      "reason": "Set WOW_DEVTOOLS_HEALTH_CLI_LOGIN_PROBE=1 to inspect login state. Default health checks avoid login-affecting probes."
+    }
+  },
+  "automator": {
+    "requestedPort": 9854,
+    "defaultPort": 9854,
+    "portSource": "WECHAT_AUTOMATOR_PORT",
+    "candidates": [
+      9854
+    ],
+    "portProfiles": [
+      {
+        "port": 9854,
+        "command": "wechatweb",
+        "pid": 6380,
+        "addresses": [
+          "*:9854"
+        ],
+        "inCandidateList": true,
+        "category": "miniprogram_automator_runtime_candidate",
+        "candidateForExplicitAutomator": true,
+        "reason": "miniprogram-automator connected with SDKVersion; this is the strongest explicit WECHAT_AUTOMATOR_PORT candidate.",
+        "probes": [
+          {
+            "route": "/json/version",
+            "ok": true,
+            "statusLine": "HTTP/1.1 426 Upgrade Required",
+            "snippet": "HTTP/1.1 426 Upgrade Required\r\nContent-Length: 16\r\nContent-Type: text/plain\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\n\r\nUpgrade Required"
+          },
+          {
+            "route": "/json/list",
+            "ok": true,
+            "statusLine": "HTTP/1.1 426 Upgrade Required",
+            "snippet": "HTTP/1.1 426 Upgrade Required\r\nContent-Length: 16\r\nContent-Type: text/plain\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\n\r\nUpgrade Required"
+          },
+          {
+            "route": "/",
+            "ok": true,
+            "statusLine": "HTTP/1.1 426 Upgrade Required",
+            "snippet": "HTTP/1.1 426 Upgrade Required\r\nContent-Length: 16\r\nContent-Type: text/plain\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\n\r\nUpgrade Required"
+          }
+        ],
+        "automatorAttempt": {
+          "ok": true,
+          "error": "",
+          "hasRuntimeSdk": true,
+          "versionField": "SDKVersion",
+          "runtimeSmokeResponsive": true
+        }
+      },
+      {
+        "port": 25621,
+        "command": "wechatweb",
+        "pid": 15564,
+        "addresses": [
+          "127.0.0.1:25621"
+        ],
+        "inCandidateList": false,
+        "category": "websocket_like_endpoint",
+        "candidateForExplicitAutomator": true,
+        "reason": "The port responds like a websocket endpoint; it may be worth retrying explicitly only if the automator connection attempt also reports SDKVersion.",
+        "probes": [
+          {
+            "route": "/json/version",
+            "ok": true,
+            "statusLine": "HTTP/1.1 426 Upgrade Required",
+            "snippet": "HTTP/1.1 426 Upgrade Required\r\nContent-Length: 16\r\nContent-Type: text/plain\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\n\r\nUpgrade Required"
+          },
+          {
+            "route": "/json/list",
+            "ok": true,
+            "statusLine": "HTTP/1.1 426 Upgrade Required",
+            "snippet": "HTTP/1.1 426 Upgrade Required\r\nContent-Length: 16\r\nContent-Type: text/plain\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\n\r\nUpgrade Required"
+          },
+          {
+            "route": "/",
+            "ok": true,
+            "statusLine": "HTTP/1.1 426 Upgrade Required",
+            "snippet": "HTTP/1.1 426 Upgrade Required\r\nContent-Length: 16\r\nContent-Type: text/plain\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\n\r\nUpgrade Required"
+          }
+        ]
+      },
+      {
+        "port": 28249,
+        "command": "wechatweb",
+        "pid": 6380,
+        "addresses": [
+          "*:28249"
+        ],
+        "inCandidateList": false,
+        "category": "listening_http_unclassified",
+        "candidateForExplicitAutomator": true,
+        "reason": "The port is listening on a WeChat DevTools process but did not expose debugger JSON through low-disturbance HTTP probes.",
+        "probes": [
+          {
+            "route": "/json/version",
+            "ok": false,
+            "statusLine": "",
+            "error": "Command failed: curl -sS -m 0.45 -i http://127.0.0.1:28249/json/version\ncurl: (52) Empty reply from server\n",
+            "snippet": "curl: (52) Empty reply from server\n"
+          },
+          {
+            "route": "/json/list",
+            "ok": false,
+            "statusLine": "",
+            "error": "Command failed: curl -sS -m 0.45 -i http://127.0.0.1:28249/json/list\ncurl: (52) Empty reply from server\n",
+            "snippet": "curl: (52) Empty reply from server\n"
+          },
+          {
+            "route": "/",
+            "ok": false,
+            "statusLine": "",
+            "error": "Command failed: curl -sS -m 0.45 -i http://127.0.0.1:28249/\ncurl: (52) Empty reply from server\n",
+            "snippet": "curl: (52) Empty reply from server\n"
+          }
+        ]
+      },
+      {
+        "port": 32123,
+        "command": "wechatweb",
+        "pid": 15564,
+        "addresses": [
+          "127.0.0.1:32123"
+        ],
+        "inCandidateList": false,
+        "category": "wechat_listening_unknown",
+        "candidateForExplicitAutomator": false,
+        "reason": "The port is associated with WeChat DevTools, but low-disturbance probes did not identify its protocol.",
+        "probes": [
+          {
+            "route": "/json/version",
+            "ok": true,
+            "statusLine": "HTTP/1.1 403 Forbidden",
+            "snippet": "HTTP/1.1 403 Forbidden\r\ncontent-type: application/json;charset=utf-8\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\nContent-Length: 0\r\n\r\n"
+          },
+          {
+            "route": "/json/list",
+            "ok": true,
+            "statusLine": "HTTP/1.1 403 Forbidden",
+            "snippet": "HTTP/1.1 403 Forbidden\r\ncontent-type: application/json;charset=utf-8\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\nContent-Length: 0\r\n\r\n"
+          },
+          {
+            "route": "/",
+            "ok": true,
+            "statusLine": "HTTP/1.1 403 Forbidden",
+            "snippet": "HTTP/1.1 403 Forbidden\r\ncontent-type: application/json;charset=utf-8\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\nContent-Length: 0\r\n\r\n"
+          }
+        ]
+      },
+      {
+        "port": 38967,
+        "command": "wechatweb",
+        "pid": 15564,
+        "addresses": [
+          "127.0.0.1:38967"
+        ],
+        "inCandidateList": false,
+        "category": "wechat_listening_unknown",
+        "candidateForExplicitAutomator": false,
+        "reason": "The port is associated with WeChat DevTools, but low-disturbance probes did not identify its protocol.",
+        "probes": [
+          {
+            "route": "/json/version",
+            "ok": true,
+            "statusLine": "HTTP/1.1 404 Not Found",
+            "snippet": "HTTP/1.1 404 Not Found\r\nX-Powered-By: Express\r\nContent-Security-Policy: default-src 'none'\r\nX-Content-Type-Options: nosniff\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 151\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\n\r\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Cannot GET /json/version"
+          },
+          {
+            "route": "/json/list",
+            "ok": true,
+            "statusLine": "HTTP/1.1 404 Not Found",
+            "snippet": "HTTP/1.1 404 Not Found\r\nX-Powered-By: Express\r\nContent-Security-Policy: default-src 'none'\r\nX-Content-Type-Options: nosniff\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 148\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\n\r\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Cannot GET /json/list</p"
+          },
+          {
+            "route": "/",
+            "ok": true,
+            "statusLine": "HTTP/1.1 404 Not Found",
+            "snippet": "HTTP/1.1 404 Not Found\r\nX-Powered-By: Express\r\nContent-Security-Policy: default-src 'none'\r\nX-Content-Type-Options: nosniff\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 139\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nConnection: keep-alive\r\nKeep-Alive: timeout=5\r\n\r\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Cannot GET /</pre>\n</bod"
+          }
+        ]
+      },
+      {
+        "port": 46952,
+        "command": "",
+        "pid": null,
+        "addresses": [],
+        "inCandidateList": false,
+        "category": "devtools_cli_control_port",
+        "candidateForExplicitAutomator": false,
+        "reason": "This is the configured DevTools CLI control port, not the mini program runtime automator endpoint.",
+        "probes": [
+          {
+            "route": "/json/version",
+            "ok": false,
+            "statusLine": "",
+            "error": "Command failed: curl -sS -m 0.45 -i http://127.0.0.1:46952/json/version\ncurl: (7) Failed to connect to 127.0.0.1 port 46952 after 0 ms: Couldn't connect to server\n",
+            "snippet": "curl: (7) Failed to connect to 127.0.0.1 port 46952 after 0 ms: Couldn't connect to server\n"
+          },
+          {
+            "route": "/json/list",
+            "ok": false,
+            "statusLine": "",
+            "error": "Command failed: curl -sS -m 0.45 -i http://127.0.0.1:46952/json/list\ncurl: (7) Failed to connect to 127.0.0.1 port 46952 after 0 ms: Couldn't connect to server\n",
+            "snippet": "curl: (7) Failed to connect to 127.0.0.1 port 46952 after 0 ms: Couldn't connect to server\n"
+          },
+          {
+            "route": "/",
+            "ok": false,
+            "statusLine": "",
+            "error": "Command failed: curl -sS -m 0.45 -i http://127.0.0.1:46952/\ncurl: (7) Failed to connect to 127.0.0.1 port 46952 after 0 ms: Couldn't connect to server\n",
+            "snippet": "curl: (7) Failed to connect to 127.0.0.1 port 46952 after 0 ms: Couldn't connect to server\n"
+          }
+        ]
+      },
+      {
+        "port": 54340,
+        "command": "wechatweb",
+        "pid": 6380,
+        "addresses": [
+          "127.0.0.1:54340"
+        ],
+        "inCandidateList": false,
+        "category": "wechat_listening_unknown",
+        "candidateForExplicitAutomator": false,
+        "reason": "The port is associated with WeChat DevTools, but low-disturbance probes did not identify its protocol.",
+        "probes": [
+          {
+            "route": "/json/version",
+            "ok": true,
+            "statusLine": "HTTP/1.1 403 Forbidden",
+            "snippet": "HTTP/1.1 403 Forbidden\r\nPROXY_ERROR: invalid ua token\r\nConnection: Keep-Alive\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nTransfer-Encoding: chunked\r\n\r\n"
+          },
+          {
+            "route": "/json/list",
+            "ok": true,
+            "statusLine": "HTTP/1.1 403 Forbidden",
+            "snippet": "HTTP/1.1 403 Forbidden\r\nPROXY_ERROR: invalid ua token\r\nConnection: Keep-Alive\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nTransfer-Encoding: chunked\r\n\r\n"
+          },
+          {
+            "route": "/",
+            "ok": true,
+            "statusLine": "HTTP/1.1 403 Forbidden",
+            "snippet": "HTTP/1.1 403 Forbidden\r\nPROXY_ERROR: invalid ua token\r\nConnection: Keep-Alive\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nTransfer-Encoding: chunked\r\n\r\n"
+          }
+        ]
+      },
+      {
+        "port": 57129,
+        "command": "wechatweb",
+        "pid": 15564,
+        "addresses": [
+          "127.0.0.1:57129"
+        ],
+        "inCandidateList": false,
+        "category": "wechat_listening_unknown",
+        "candidateForExplicitAutomator": false,
+        "reason": "The port is associated with WeChat DevTools, but low-disturbance probes did not identify its protocol.",
+        "probes": [
+          {
+            "route": "/json/version",
+            "ok": true,
+            "statusLine": "HTTP/1.1 403 Forbidden",
+            "snippet": "HTTP/1.1 403 Forbidden\r\nPROXY_ERROR: invalid ua token\r\nConnection: Keep-Alive\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nTransfer-Encoding: chunked\r\n\r\n"
+          },
+          {
+            "route": "/json/list",
+            "ok": true,
+            "statusLine": "HTTP/1.1 403 Forbidden",
+            "snippet": "HTTP/1.1 403 Forbidden\r\nPROXY_ERROR: invalid ua token\r\nConnection: Keep-Alive\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nTransfer-Encoding: chunked\r\n\r\n"
+          },
+          {
+            "route": "/",
+            "ok": true,
+            "statusLine": "HTTP/1.1 403 Forbidden",
+            "snippet": "HTTP/1.1 403 Forbidden\r\nPROXY_ERROR: invalid ua token\r\nConnection: Keep-Alive\r\nDate: Tue, 07 Jul 2026 20:09:00 GMT\r\nTransfer-Encoding: chunked\r\n\r\n"
+          }
+        ]
+      },
+      {
+        "port": 59540,
+        "command": "wechatweb",
+        "pid": 15564,
+        "addresses": [
+          "*:59540"
+        ],
+        "inCandidateList": false,
+        "category": "listening_http_unclassified",
+        "candidateForExplicitAutomator": true,
+        "reason": "The port is listening on a WeChat DevTools process but did not expose debugger JSON through low-disturbance HTTP probes.",
+        "probes": [
+          {
+            "route": "/json/version",
+            "ok": false,
+            "statusLine": "",
+            "error": "Command failed: curl -sS -m 0.45 -i http://127.0.0.1:59540/json/version\ncurl: (52) Empty reply from server\n",
+            "snippet": "curl: (52) Empty reply from server\n"
+          },
+          {
+            "route": "/json/list",
+            "ok": false,
+            "statusLine": "",
+            "error": "Command failed: curl -sS -m 0.45 -i http://127.0.0.1:59540/json/list\ncurl: (52) Empty reply from server\n",
+            "snippet": "curl: (52) Empty reply from server\n"
+          },
+          {
+            "route": "/",
+            "ok": false,
+            "statusLine": "",
+            "error": "Command failed: curl -sS -m 0.45 -i http://127.0.0.1:59540/\ncurl: (52) Empty reply from server\n",
+            "snippet": "curl: (52) Empty reply from server\n"
+          }
+        ]
+      }
+    ],
+    "port": 9854,
+    "connected": true,
+    "connectionAttempts": [
+      {
+        "port": 9854,
+        "ok": true,
+        "versionField": "SDKVersion",
+        "hasRuntimeSdk": true,
+        "runtimeSmoke": {
+          "responsive": true,
+          "currentPage": {
+            "pageId": 69,
+            "path": "pages/profile/profile",
+            "query": {},
+            "route": "/pages/profile/profile",
+            "title": ""
+          },
+          "pageStack": {
+            "pageStack": [
+              {
+                "pageId": 69,
+                "path": "pages/profile/profile",
+                "query": {},
+                "route": "/pages/profile/profile",
+                "title": ""
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "toolInfo": {
+      "version": "2.01.2510290",
+      "SDKVersion": "3.16.2"
+    },
+    "toolInfoVersionField": "SDKVersion",
+    "hasRuntimeSdk": true,
+    "currentPage": {
+      "pageId": 69,
+      "path": "pages/profile/profile",
+      "query": {},
+      "route": "/pages/profile/profile",
+      "title": ""
+    },
+    "pageStack": {
+      "pageStack": [
+        {
+          "pageId": 69,
+          "path": "pages/profile/profile",
+          "query": {},
+          "route": "/pages/profile/profile",
+          "title": ""
+        }
+      ]
+    },
+    "runtimeApis": {
+      "navigateTo": "function",
+      "redirectTo": "function",
+      "switchTab": "function",
+      "reLaunch": "function",
+      "pageScrollTo": "function",
+      "request": "function",
+      "createSelectorQuery": "function"
+    },
+    "selectorProbe": {
+      "route": "pages/profile/profile",
+      "selectors": [
+        {
+          "selector": ".builds-spec-console",
+          "present": false,
+          "rect": null
+        },
+        {
+          "selector": ".builds-spec-base-material",
+          "present": false,
+          "rect": null
+        },
+        {
+          "selector": ".workbench-entry",
+          "present": false,
+          "rect": null
+        },
+        {
+          "selector": ".workbench-panel-material",
+          "present": false,
+          "rect": null
+        },
+        {
+          "selector": ".workbench-frame-material",
+          "present": false,
+          "rect": null
+        },
+        {
+          "selector": ".query-section",
+          "present": false,
+          "rect": null
+        },
+        {
+          "selector": ".workbench-entry-facts",
+          "present": false,
+          "rect": null
+        },
+        {
+          "selector": ".verdict-blocker-list",
+          "present": false,
+          "rect": null
+        },
+        {
+          "selector": ".focus-row",
+          "present": false,
+          "rect": null
+        }
+      ]
+    },
+    "captureScreenshot": {
+      "skipped": true,
+      "reason": "Set WOW_DEVTOOLS_HEALTH_SCREENSHOT_PROBE=1 to run the heavier screenshot RPC."
+    },
+    "diagnosis": {
+      "category": "no_visible_devtools_window",
+      "reason": "wechatdevtools is running but no visible window was reported by System Events.",
+      "safeNextAction": "Do not capture. Bring the existing DevTools project window to the foreground, then rerun this health check."
+    }
+  },
+  "summary": {
+    "cliLoginFalse": false,
+    "automatorConnected": true,
+    "screenshotHealthy": "not_checked",
+    "navigationHealthy": "not_checked",
+    "runtimeProbe": "checked",
+    "runtimeResponsive": true,
+    "controlPlaneSplit": false,
+    "multiInstanceRisk": false,
+    "noVisibleWindowRisk": true,
+    "captureSafe": false,
+    "healthCategory": "no_visible_devtools_window"
+  },
+  "safety": {
+    "loginAffectingProbeUsed": false,
+    "runtimeProbeUsed": true,
+    "screenshotProbeUsed": false,
+    "cliLifecycleCommandsUsed": [],
+    "note": "This health check does not call DevTools open, close, quit, login, cache reset, project switch, or cleanup commands."
+  }
+}

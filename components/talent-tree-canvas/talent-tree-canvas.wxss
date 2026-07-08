@@ -1,0 +1,327 @@
+.wow-talent-tree-canvas {
+  display: block;
+  min-width: 0;
+  color: #f4ead9;
+  box-sizing: border-box;
+  contain: layout paint style;
+}
+
+.wow-talent-tree-canvas__panel {
+  display: block;
+  min-width: 0;
+}
+
+.wow-talent-tree-canvas__head-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.wow-talent-tree-canvas__summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160rpx, auto);
+  align-items: start;
+  gap: 16rpx;
+  min-width: 0;
+}
+
+.wow-talent-tree-canvas__identity,
+.wow-talent-tree-canvas__points {
+  display: grid;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.wow-talent-tree-canvas__identity {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.wow-talent-tree-canvas__identity text,
+.wow-talent-tree-canvas__points text,
+.wow-talent-tree-canvas__tab text,
+.wow-talent-tree-canvas__node-title,
+.wow-talent-tree-canvas__rank text {
+  display: block;
+  min-width: 0;
+  letter-spacing: 0;
+}
+
+.wow-talent-tree-canvas__identity text {
+  overflow: hidden;
+  padding: 10rpx 12rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.22);
+  border-radius: 8rpx;
+  background: rgba(0, 0, 0, 0.24);
+  color: #fff8ea;
+  font-size: 22rpx;
+  font-weight: 950;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.wow-talent-tree-canvas__points {
+  justify-items: end;
+  color: rgba(244, 234, 217, 0.76);
+  font-size: 22rpx;
+  font-weight: 850;
+  line-height: 1.18;
+  text-align: right;
+}
+
+.wow-talent-tree-canvas__points text:first-child {
+  color: #f8b700;
+  font-size: 24rpx;
+  font-weight: 1000;
+}
+
+.wow-talent-tree-canvas__tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10rpx;
+  min-width: 0;
+  margin-top: 18rpx;
+}
+
+.wow-talent-tree-canvas__tab {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8rpx;
+  min-width: 0;
+  min-height: 60rpx;
+  padding: 0 12rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.22);
+  border-radius: 8rpx;
+  background: rgba(0, 0, 0, 0.24);
+  box-sizing: border-box;
+}
+
+.wow-talent-tree-canvas__tab.is-active {
+  border-color: rgba(248, 183, 0, 0.82);
+  background: rgba(248, 183, 0, 0.13);
+  box-shadow: inset 0 0 0 1rpx rgba(255, 225, 128, 0.12);
+}
+
+.wow-talent-tree-canvas__tab.state-blocked {
+  border-color: rgba(255, 107, 100, 0.55);
+}
+
+.wow-talent-tree-canvas__tab text:first-child {
+  overflow: hidden;
+  color: #fff8ea;
+  font-size: 22rpx;
+  font-weight: 950;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wow-talent-tree-canvas__tab text:last-child {
+  color: #f8b700;
+  font-size: 20rpx;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.wow-talent-tree-canvas__tree-shell {
+  position: relative;
+  min-width: 0;
+  height: 650rpx;
+  margin-top: 16rpx;
+  overflow: hidden;
+  border: 1rpx solid rgba(248, 183, 0, 0.25);
+  border-radius: 8rpx;
+  background:
+    linear-gradient(180deg, rgba(12, 8, 4, 0.88), rgba(3, 3, 2, 0.94)),
+    radial-gradient(circle at 50% 0%, rgba(248, 183, 0, 0.14), transparent 34%);
+  box-shadow:
+    inset 0 0 0 1rpx rgba(255, 225, 128, 0.06),
+    inset 0 -32rpx 80rpx rgba(0, 0, 0, 0.34);
+  box-sizing: border-box;
+}
+
+.wow-talent-tree-canvas__tree-material {
+  position: absolute;
+  inset: 0;
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.wow-talent-tree-canvas__links,
+.wow-talent-tree-canvas__nodes {
+  position: absolute;
+  inset: 28rpx 22rpx;
+  min-width: 0;
+}
+
+.wow-talent-tree-canvas__links {
+  z-index: 1;
+  pointer-events: none;
+}
+
+.wow-talent-tree-canvas__nodes {
+  z-index: 2;
+}
+
+.wow-talent-tree-canvas__link {
+  position: absolute;
+  height: 4rpx;
+  border-radius: 999rpx;
+  background: rgba(248, 183, 0, 0.36);
+  box-shadow: 0 0 12rpx rgba(248, 183, 0, 0.16);
+  transform-origin: 0 50%;
+}
+
+.wow-talent-tree-canvas__link.state-blocked {
+  background: rgba(255, 107, 100, 0.34);
+  box-shadow: none;
+}
+
+.wow-talent-tree-canvas__node {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 88rpx;
+  height: 88rpx;
+  margin: -44rpx 0 0 -44rpx;
+  box-sizing: border-box;
+  isolation: isolate;
+}
+
+.wow-talent-tree-canvas__node::before {
+  content: "";
+  position: absolute;
+  inset: 4rpx;
+  z-index: -1;
+  border: 2rpx solid rgba(248, 183, 0, 0.58);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.52);
+  box-shadow:
+    inset 0 0 0 1rpx rgba(255, 225, 128, 0.14),
+    0 0 18rpx rgba(248, 183, 0, 0.12);
+}
+
+.wow-talent-tree-canvas__node.shape-active::before,
+.wow-talent-tree-canvas__node.shape-hero::before {
+  border-radius: 12rpx;
+}
+
+.wow-talent-tree-canvas__node.shape-choice::before {
+  border-radius: 18rpx;
+  transform: rotate(45deg) scale(0.82);
+}
+
+.wow-talent-tree-canvas__node.is-selected::before,
+.wow-talent-tree-canvas__node.is-granted::before {
+  border-color: rgba(98, 230, 160, 0.88);
+  box-shadow:
+    inset 0 0 0 1rpx rgba(170, 255, 210, 0.24),
+    0 0 22rpx rgba(98, 230, 160, 0.22);
+}
+
+.wow-talent-tree-canvas__node.is-locked::before {
+  border-color: rgba(255, 107, 100, 0.5);
+  background: rgba(12, 4, 4, 0.64);
+}
+
+.wow-talent-tree-canvas__choice-affordance {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.wow-talent-tree-canvas__choice-affordance text {
+  color: #f8b700;
+  font-size: 24rpx;
+  font-weight: 1000;
+  line-height: 1;
+  text-shadow: 0 0 10rpx rgba(248, 183, 0, 0.45);
+}
+
+.wow-talent-tree-canvas__icon {
+  width: 58rpx;
+  height: 58rpx;
+}
+
+.wow-talent-tree-canvas__rank {
+  position: absolute;
+  right: -2rpx;
+  bottom: -2rpx;
+  z-index: 4;
+  min-width: 36rpx;
+  height: 26rpx;
+  padding: 0 6rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.68);
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.78);
+  box-sizing: border-box;
+}
+
+.wow-talent-tree-canvas__rank text {
+  color: #fff8ea;
+  font-size: 17rpx;
+  font-weight: 1000;
+  line-height: 24rpx;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.wow-talent-tree-canvas__node-title {
+  position: absolute;
+  top: 92rpx;
+  left: 50%;
+  max-width: 96rpx;
+  color: rgba(244, 234, 217, 0.78);
+  font-size: 18rpx;
+  font-weight: 850;
+  line-height: 1.08;
+  text-align: center;
+  transform: translateX(-50%);
+  overflow-wrap: anywhere;
+}
+
+.wow-talent-tree-canvas__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(168rpx, 1.3fr);
+  gap: 10rpx;
+  min-width: 0;
+  margin-top: 16rpx;
+}
+
+.wow-talent-tree-canvas__evidence {
+  display: block;
+  min-width: 0;
+  margin-top: 16rpx;
+}
+
+@media (max-width: 380px) {
+  .wow-talent-tree-canvas__summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wow-talent-tree-canvas__points {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .wow-talent-tree-canvas__tree-shell {
+    height: 610rpx;
+  }
+
+  .wow-talent-tree-canvas__node {
+    width: 80rpx;
+    height: 80rpx;
+    margin: -40rpx 0 0 -40rpx;
+  }
+
+  .wow-talent-tree-canvas__icon {
+    width: 52rpx;
+    height: 52rpx;
+  }
+}

@@ -1,47 +1,65 @@
-<view class="page-shell chickenbro-page-shell">
-  <navigation-bar title="{{navTitle}}" back="{{showBack}}" color="#FFFFFF" background="#111111"></navigation-bar>
+<view class="chickenbro-page">
+  <navigation-bar
+    title="{{navTitle}}"
+    back="{{showBack}}"
+    color="#F8B700"
+    background="#060606"
+  ></navigation-bar>
 
-  <view class="chickenbro-chat-shell chickenbro-route-shell">
-    <view class="chat-header">
-      <view class="chat-title-block">
-        <text class="hero-kicker">{{kicker}}</text>
-        <text class="chat-title">{{title}}</text>
-        <text class="chat-desc">{{desc}}</text>
+  <view class="chickenbro-panel">
+    <view class="chickenbro-head">
+      <view class="chickenbro-avatar"></view>
+      <view class="chickenbro-title-block">
+        <text class="chickenbro-title">{{title}}</text>
+        <text class="chickenbro-desc">{{desc}}</text>
       </view>
-      <view class="chat-header-action" bindtap="toggleTopicDrawer">
+      <view class="chickenbro-topic" bindtap="toggleTopicDrawer">
         <text>话题</text>
+        <text class="chickenbro-topic-arrow">›</text>
       </view>
     </view>
 
     <scroll-view
-      class="chat-scroll"
-      scroll-y
-      type="list"
-      enhanced="{{true}}"
+      class="chickenbro-scroll"
+      scroll-y="{{true}}"
       show-scrollbar="{{false}}"
       scroll-into-view="{{scrollAnchor}}"
     >
-      <view class="chat-message-list">
+      <view class="chickenbro-messages">
+        <view class="chickenbro-context" wx:if="{{boundedContext && boundedContext.contextLabel}}">
+          <text class="chickenbro-context-kicker">已带入工作台上下文</text>
+          <text class="chickenbro-context-title">{{boundedContext.contextLabel}}</text>
+        </view>
         <view
           id="{{item.messageId}}"
-          class="chat-message-row {{item.role === 'user' ? 'message-row-user' : 'message-row-assistant'}}"
           wx:for="{{chatMessages}}"
           wx:key="messageId"
+          class="chickenbro-message message-{{item.role}} status-{{item.status}}"
         >
-          <view class="chat-bubble {{item.role === 'user' ? 'bubble-user' : 'bubble-assistant'}} {{item.status === 'pending' ? 'bubble-pending' : ''}} {{item.status === 'failed' ? 'bubble-failed' : ''}}">
-            <text class="chat-role chat-speaker">{{item.role === 'user' ? '你' : '炸鸡队长'}}</text>
-            <text class="chat-content" user-select="{{true}}">{{item.content}}</text>
-            <text class="chat-meta" wx:if="{{item.statusText}}">{{item.statusText}}</text>
+          <view class="chickenbro-bubble">
+            <text class="chickenbro-copy" user-select="{{true}}">{{item.content}}</text>
+            <text wx:if="{{item.statusText}}" class="chickenbro-meta">{{item.statusText}}</text>
+          </view>
+        </view>
+        <view class="chickenbro-prompt-grid" wx:if="{{suggestedPrompts.length}}">
+          <view
+            class="chickenbro-prompt"
+            wx:for="{{suggestedPrompts}}"
+            wx:key="*this"
+            data-index="{{index}}"
+            bindtap="useSuggestedPrompt"
+          >
+            <text>{{item}}</text>
           </view>
         </view>
 
-        <view class="answer-evidence" wx:if="{{assistantPayload.answerSource}}">
+        <view class="answer-evidence" wx:if="{{assistantPayload.answerLayer || assistantPayload.basisLabel || assistantPayload.priorityActions.length || assistantPayload.nextQuestion || assistantPayload.missingInputs.length || assistantPayload.evidenceRefs.length || assistantPayload.limitations.length}}">
           <view class="answer-evidence-header">
             <text class="answer-evidence-title">回答依据</text>
-            <text class="answer-evidence-source">{{assistantPayload.answerSource}} · {{assistantPayload.confidence}}</text>
+            <text class="answer-evidence-source">{{assistantPayload.answerLayerLabel || '证据'}}</text>
           </view>
           <view class="answer-layer-row">
-            <text class="answer-layer-chip" wx:if="{{assistantPayload.answerLayer}}">{{assistantPayload.answerLayerLabel || assistantPayload.answerLayer}}</text>
+            <text class="answer-layer-chip" wx:if="{{assistantPayload.answerLayerLabel}}">{{assistantPayload.answerLayerLabel}}</text>
             <text class="answer-basis" wx:if="{{assistantPayload.basisLabel}}">{{assistantPayload.basisLabel}}</text>
           </view>
           <view class="answer-action" wx:for="{{assistantPayload.priorityActions}}" wx:key="title">
@@ -62,47 +80,55 @@
             <text class="coach-chip limitation-chip" wx:for="{{assistantPayload.limitations}}" wx:key="*this">{{item}}</text>
           </view>
         </view>
-
-        <view id="chat-bottom" class="chat-bottom-anchor"></view>
+        <view class="chickenbro-evidence-strip">
+          <view class="chickenbro-evidence-cell">
+            <text class="chickenbro-evidence-label">回答边界</text>
+            <text class="chickenbro-evidence-value">只解释证据</text>
+          </view>
+          <view class="chickenbro-evidence-cell">
+            <text class="chickenbro-evidence-label">缺资料时</text>
+            <text class="chickenbro-evidence-value">先给下一步</text>
+          </view>
+        </view>
+        <view id="chat-bottom-a" class="chickenbro-anchor"></view>
+        <view id="chat-bottom-b" class="chickenbro-anchor"></view>
       </view>
     </scroll-view>
 
-    <view class="chat-status-row" wx:if="{{generationStatusText || requestError}}">
-      <text class="chat-status-text">{{requestError || generationStatusText}}</text>
-      <text class="chat-status-job" wx:if="{{job && job.status}}">{{job.status}}</text>
+    <view class="chickenbro-error" wx:if="{{requestError}}">
+      <text>{{requestError}}</text>
+      <text class="chickenbro-retry" bindtap="retryChickenbroMessage">重试</text>
     </view>
 
-    <view class="chat-input-bar">
-      <view class="topic-shortcut" bindtap="startNewTopic">
-        <text>新话题</text>
-      </view>
+    <view class="chickenbro-inputbar">
+      <view class="chickenbro-new-topic" bindtap="startNewTopic">新话题</view>
       <textarea
-        class="chat-input"
+        class="chickenbro-input"
         value="{{chatDraft}}"
-        maxlength="1000"
-        auto-height="{{false}}"
-        fixed="{{true}}"
-        cursor-spacing="20"
-        adjust-position="{{false}}"
-        disabled="{{loading}}"
-        bindinput="updateChatDraft"
         placeholder="问炸鸡队长"
-      />
-      <view class="send-button {{loading ? 'send-button-loading' : ''}}" bindtap="submitChickenbroMessage">
-        <text>{{loading ? '生成中' : '发送'}}</text>
+        disabled="{{loading}}"
+        auto-height="{{false}}"
+        fixed="{{false}}"
+        cursor-spacing="20"
+        adjust-position="{{true}}"
+        maxlength="800"
+        bindinput="updateChatDraft"
+        bindfocus="handleInputFocus"
+        bindblur="handleInputBlur"
+      ></textarea>
+      <view class="chickenbro-send {{loading ? 'is-disabled' : ''}}" bindtap="submitChickenbroMessage">
+        {{loading ? '发送中' : '发送'}}
       </view>
     </view>
   </view>
 
-  <view class="topic-drawer-mask" wx:if="{{topicDrawerVisible}}" bindtap="closeTopicDrawer"></view>
-  <view class="topic-drawer" wx:if="{{topicDrawerVisible}}">
-    <view class="topic-drawer-header">
-      <text class="topic-drawer-title">话题列表</text>
-      <text class="topic-drawer-close" bindtap="closeTopicDrawer">关闭</text>
+  <view class="chickenbro-drawer-mask" wx:if="{{topicDrawerVisible}}" bindtap="closeTopicDrawer"></view>
+  <view class="chickenbro-drawer" wx:if="{{topicDrawerVisible}}">
+    <view class="chickenbro-drawer-head">
+      <text>当前话题</text>
+      <text bindtap="closeTopicDrawer">关闭</text>
     </view>
-    <view class="topic-item active-topic">
-      <text class="topic-title">{{session && session.title ? session.title : '当前话题'}}</text>
-      <text class="topic-meta">{{job && job.status ? job.status : generationStatusText}}</text>
-    </view>
+    <text class="chickenbro-drawer-copy">{{session && session.title ? session.title : '当前话题'}}</text>
+    <text class="chickenbro-drawer-copy">{{generationStatusText}}</text>
   </view>
 </view>

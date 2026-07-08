@@ -1,0 +1,26 @@
+<view
+  class="wow-module-card {{statusClass}} {{disabled ? 'is-disabled' : ''}} ext-class"
+  role="button"
+  aria-disabled="{{disabled}}"
+  bindtap="handleTap"
+>
+  <view class="wow-module-card__frame"></view>
+  <view class="wow-module-card__icon-slot">
+    <image wx:if="{{socketSrc}}" class="wow-module-card__socket" src="{{socketSrc}}" mode="aspectFit"></image>
+    <image wx:if="{{iconSrc}}" class="wow-module-card__icon" src="{{iconSrc}}" mode="aspectFit"></image>
+    <text wx:else class="wow-module-card__icon-text">{{iconText}}</text>
+  </view>
+  <view class="wow-module-card__copy">
+    <text class="wow-module-card__title">{{title}}</text>
+    <text class="wow-module-card__metric">{{metric}}</text>
+    <text wx:if="{{meta}}" class="wow-module-card__meta">{{meta}}</text>
+  </view>
+  <status-visual
+    ext-class="wow-module-card__status"
+    state="{{status}}"
+    label="{{statusLabel}}"
+    glyph="{{statusGlyph}}"
+    size="compact"
+    showLabel="{{false}}"
+  ></status-visual>
+</view>

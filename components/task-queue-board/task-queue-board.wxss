@@ -1,0 +1,308 @@
+.wow-task-queue-board {
+  display: block;
+  min-width: 0;
+  color: #f4ead9;
+  box-sizing: border-box;
+  contain: layout paint style;
+}
+
+.wow-task-queue-board__panel,
+.wow-task-queue-board__head-status {
+  display: block;
+  min-width: 0;
+}
+
+.wow-task-queue-board__head-status {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.wow-task-queue-board__status-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.wow-task-queue-board__rail-item {
+  display: grid;
+  gap: 4rpx;
+  min-width: 0;
+  min-height: 70rpx;
+  padding: 10rpx 8rpx;
+  overflow: hidden;
+  border: 1rpx solid rgba(248, 183, 0, 0.22);
+  border-radius: 8rpx;
+  background: rgba(0, 0, 0, 0.28);
+  box-sizing: border-box;
+}
+
+.wow-task-queue-board__rail-item.state-running {
+  border-color: rgba(74, 163, 255, 0.46);
+}
+
+.wow-task-queue-board__rail-item.state-completed {
+  border-color: rgba(71, 214, 143, 0.46);
+}
+
+.wow-task-queue-board__rail-item.state-failed {
+  border-color: rgba(255, 107, 100, 0.5);
+}
+
+.wow-task-queue-board__rail-item text,
+.wow-task-queue-board__guest text,
+.wow-task-queue-board__empty-copy text,
+.wow-task-queue-board__card-copy text,
+.wow-task-queue-board__tags text,
+.wow-task-queue-board__time-row text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  letter-spacing: 0;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+}
+
+.wow-task-queue-board__rail-item text:first-child {
+  color: rgba(244, 234, 217, 0.62);
+  font-size: 20rpx;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.wow-task-queue-board__rail-item text:last-child {
+  color: #fff8ea;
+  font-size: 27rpx;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.wow-task-queue-board__guest {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
+  min-height: 54rpx;
+  margin-top: 12rpx;
+  padding: 0 12rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.18);
+  border-radius: 8rpx;
+  background: rgba(0, 0, 0, 0.22);
+  box-sizing: border-box;
+}
+
+.wow-task-queue-board__guest text:first-child {
+  color: #fff8ea;
+  font-size: 22rpx;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.wow-task-queue-board__guest text:last-child {
+  color: rgba(244, 234, 217, 0.58);
+  font-size: 20rpx;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.wow-task-queue-board__loading,
+.wow-task-queue-board__list {
+  display: grid;
+  gap: 10rpx;
+  min-width: 0;
+  margin-top: 14rpx;
+}
+
+.wow-task-queue-board__skeleton {
+  min-height: 136rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.16);
+  border-radius: 8rpx;
+  background:
+    linear-gradient(100deg, rgba(255, 255, 255, 0.04), rgba(248, 183, 0, 0.1), rgba(255, 255, 255, 0.04)),
+    rgba(0, 0, 0, 0.28);
+}
+
+.wow-task-queue-board__empty,
+.wow-task-queue-board__error {
+  display: grid;
+  grid-template-columns: 96rpx minmax(0, 1fr);
+  align-items: center;
+  gap: 16rpx;
+  min-width: 0;
+  margin-top: 14rpx;
+  padding: 18rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.2);
+  border-radius: 8rpx;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(248, 183, 0, 0.12), transparent 34%),
+    rgba(0, 0, 0, 0.28);
+  box-sizing: border-box;
+}
+
+.wow-task-queue-board__error {
+  border-color: rgba(255, 107, 100, 0.46);
+}
+
+.wow-task-queue-board__empty-copy {
+  display: grid;
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.wow-task-queue-board__empty-copy text:first-child {
+  color: #fff8ea;
+  font-size: 28rpx;
+  font-weight: 1000;
+}
+
+.wow-task-queue-board__empty-copy text:last-child {
+  color: rgba(244, 234, 217, 0.72);
+  font-size: 22rpx;
+  font-weight: 850;
+  line-height: 1.24;
+  white-space: normal;
+}
+
+.wow-task-queue-board__actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.wow-task-queue-board__card {
+  display: grid;
+  grid-template-columns: 78rpx 76rpx minmax(0, 1fr) 24rpx;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+  min-height: 148rpx;
+  padding: 12rpx;
+  overflow: hidden;
+  border: 1rpx solid rgba(248, 183, 0, 0.22);
+  border-radius: 8rpx;
+  background:
+    linear-gradient(145deg, rgba(248, 183, 0, 0.08), transparent 42%),
+    rgba(0, 0, 0, 0.32);
+  box-sizing: border-box;
+}
+
+.wow-task-queue-board__card.state-running,
+.wow-task-queue-board__card.state-queued {
+  border-color: rgba(74, 163, 255, 0.42);
+}
+
+.wow-task-queue-board__card.state-completed {
+  border-color: rgba(71, 214, 143, 0.48);
+}
+
+.wow-task-queue-board__card.state-failed,
+.wow-task-queue-board__card.state-cancelled {
+  border-color: rgba(255, 107, 100, 0.54);
+}
+
+.wow-task-queue-board__card-status,
+.wow-task-queue-board__card-icon,
+.wow-task-queue-board__card-copy {
+  min-width: 0;
+}
+
+.wow-task-queue-board__card-icon {
+  width: 76rpx;
+  height: 76rpx;
+}
+
+.wow-task-queue-board__card-copy {
+  display: grid;
+  gap: 6rpx;
+}
+
+.wow-task-queue-board__card-title-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.wow-task-queue-board__card-title-line text:first-child {
+  color: #fff8ea;
+  font-size: 25rpx;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.wow-task-queue-board__card-title-line text:last-child {
+  color: #f8b700;
+  font-size: 19rpx;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.wow-task-queue-board__context,
+.wow-task-queue-board__summary {
+  color: rgba(244, 234, 217, 0.72);
+  font-size: 21rpx;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.wow-task-queue-board__summary {
+  color: rgba(244, 234, 217, 0.88);
+}
+
+.wow-task-queue-board__tags,
+.wow-task-queue-board__time-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.wow-task-queue-board__tags text {
+  max-width: 128rpx;
+  padding: 4rpx 8rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.18);
+  border-radius: 6rpx;
+  color: rgba(244, 234, 217, 0.7);
+  font-size: 18rpx;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.wow-task-queue-board__time-row {
+  justify-content: space-between;
+}
+
+.wow-task-queue-board__time-row text {
+  color: rgba(244, 234, 217, 0.52);
+  font-size: 18rpx;
+  font-weight: 780;
+  white-space: nowrap;
+}
+
+.wow-task-queue-board__arrow {
+  color: #f8b700;
+  font-size: 32rpx;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.wow-task-queue-board__evidence {
+  display: block;
+  min-width: 0;
+  margin-top: 14rpx;
+}
+
+@media (max-width: 374px) {
+  .wow-task-queue-board__card {
+    grid-template-columns: 70rpx minmax(0, 1fr) 22rpx;
+  }
+
+  .wow-task-queue-board__card-icon {
+    display: none;
+  }
+}

@@ -4,6 +4,7 @@ const { trackEvent, trackPageLeave, trackPageView } = require('../common/analyti
 Page({
   data: {
     navTitle: '资讯列表',
+    query: null,
     title: '',
     count: 0,
     articles: [],
@@ -20,6 +21,7 @@ Page({
       value: options.value ? decodeURIComponent(options.value) : ''
     }
     this.analyticsQuery = query
+    this.setData({ query })
     trackPageView('pages/news/list', query)
     trackEvent('news_list_view', query, { page: 'pages/news/list' })
     this.loadArticles(query)
@@ -44,7 +46,7 @@ Page({
   },
 
   openArticle(event) {
-    const { id } = event.currentTarget.dataset
+    const { id } = event.detail || event.currentTarget.dataset || {}
     if (!id) return
     trackEvent('news_article_open', { articleId: id, source: 'list' }, { page: 'pages/news/list' })
     wx.navigateTo({

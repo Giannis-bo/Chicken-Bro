@@ -1,6 +1,6 @@
 <view class="page-shell intel-shell">
   <navigation-bar title="{{navTitle}}" back="{{true}}" color="#FFFFFF" background="#111111"></navigation-bar>
-  <scroll-view class="page-scroll" scroll-y type="list">
+  <scroll-view class="page-scroll" scroll-y>
     <view class="page-content intel-content">
       <view class="intel-hero">
         <text class="intel-kicker">查看全部</text>

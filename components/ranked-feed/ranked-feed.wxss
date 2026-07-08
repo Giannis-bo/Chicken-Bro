@@ -1,0 +1,522 @@
+.surface-material {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+}
+
+.ranked-feed-root {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.ranked-feed-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-bottom: 13rpx;
+  padding: 0 3rpx 0 1rpx;
+}
+
+.ranked-feed-header::after {
+  content: "";
+  position: absolute;
+  left: 138rpx;
+  right: 70rpx;
+  top: 50%;
+  height: 1rpx;
+  background: linear-gradient(90deg, rgba(248, 183, 0, 0.18), rgba(248, 183, 0, 0.02));
+  pointer-events: none;
+}
+
+.ranked-feed-title {
+  color: #f6e7c1;
+  font-size: 30rpx;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.ranked-feed-action {
+  display: flex;
+  align-items: center;
+  flex: none;
+  color: #f8b700;
+  font-size: 20rpx;
+  font-weight: 900;
+}
+
+.ranked-feed-material {
+  inset: 50rpx 8rpx 8rpx;
+  width: auto;
+  height: auto;
+  opacity: 0.28;
+  filter: saturate(0.92) contrast(1.06);
+  mix-blend-mode: normal;
+}
+
+.ranked-feed-frame-material {
+  inset: 2rpx 107rpx auto 149rpx;
+  width: auto;
+  height: 18rpx;
+  opacity: 0.18;
+  filter: saturate(0.9) contrast(1.1);
+  mix-blend-mode: screen;
+}
+
+.focus-list {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7rpx;
+  padding: 2rpx 0 0;
+}
+
+.focus-list::before {
+  content: "";
+  position: absolute;
+  left: 30rpx;
+  top: 6rpx;
+  bottom: 6rpx;
+  z-index: 0;
+  width: 1rpx;
+  background: linear-gradient(180deg, rgba(248, 183, 0, 0), rgba(248, 183, 0, 0.13), rgba(248, 183, 0, 0));
+  box-shadow: 0 0 7rpx rgba(248, 183, 0, 0.07);
+  pointer-events: none;
+}
+
+.focus-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52rpx 116rpx minmax(0, 1fr) 32rpx;
+  align-items: center;
+  gap: 8rpx;
+  height: 116rpx;
+  min-height: 116rpx;
+  padding: 8rpx 9rpx 8rpx 5rpx;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1rpx solid rgba(248, 183, 0, 0.13);
+  border-radius: 6rpx;
+  background:
+    radial-gradient(circle at 112rpx 50%, rgba(248, 183, 0, 0.055), rgba(248, 183, 0, 0) 30%),
+    linear-gradient(90deg, rgba(30, 23, 14, 0.13), rgba(10, 9, 8, 0.32) 46%, rgba(5, 5, 5, 0.4)),
+    rgba(10, 8, 6, 0.66);
+  box-shadow:
+    inset 0 0 0 1rpx rgba(255, 255, 255, 0.018),
+    inset 0 -1rpx 0 rgba(248, 183, 0, 0.07),
+    inset 0 -5rpx 9rpx rgba(0, 0, 0, 0.14);
+}
+
+.focus-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1rpx;
+  height: 100%;
+  background: linear-gradient(180deg, rgba(248, 183, 0, 0.2), rgba(248, 183, 0, 0.02));
+}
+
+.focus-row::after {
+  content: "";
+  position: absolute;
+  left: 5rpx;
+  right: 5rpx;
+  top: 5rpx;
+  bottom: 5rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.012);
+  border-radius: 4rpx;
+  pointer-events: none;
+}
+
+.focus-row.is-evidence-gap {
+  border-color: rgba(84, 192, 255, 0.08);
+  background:
+    radial-gradient(circle at 112rpx 50%, rgba(84, 192, 255, 0.052), rgba(84, 192, 255, 0) 28%),
+    linear-gradient(90deg, rgba(24, 25, 26, 0.32), rgba(10, 10, 10, 0.42) 48%, rgba(5, 5, 5, 0.5)),
+    rgba(8, 8, 7, 0.72);
+}
+
+.focus-row.state-source_reference {
+  border-color: rgba(84, 192, 255, 0.1);
+}
+
+.focus-row.state-source_reference::before {
+  background: linear-gradient(180deg, rgba(84, 192, 255, 0.24), rgba(84, 192, 255, 0.025));
+}
+
+.focus-row.is-final-focus-row {
+  box-shadow:
+    inset 0 0 0 1rpx rgba(255, 255, 255, 0.014),
+    inset 0 -1rpx 0 rgba(84, 192, 255, 0.06),
+    inset 0 -4rpx 8rpx rgba(0, 0, 0, 0.1);
+}
+
+.focus-row:nth-child(1) {
+  border-color: rgba(248, 183, 0, 0.18);
+  background:
+    radial-gradient(circle at 112rpx 50%, rgba(248, 183, 0, 0.12), rgba(248, 183, 0, 0) 32%),
+    linear-gradient(90deg, rgba(43, 28, 13, 0.2), rgba(12, 10, 8, 0.36) 47%, rgba(5, 5, 5, 0.46)),
+    rgba(10, 8, 6, 0.72);
+}
+
+.focus-row:nth-child(1)::before {
+  width: 2rpx;
+  background: linear-gradient(180deg, rgba(248, 183, 0, 0.58), rgba(248, 183, 0, 0.08));
+}
+
+.focus-row.is-evidence-gap .focus-meta,
+.focus-row.is-evidence-gap .focus-channel {
+  color: rgba(139, 216, 255, 0.58);
+}
+
+.focus-rank,
+.focus-thumb,
+.focus-main,
+.focus-save {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.focus-rank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  border-right: 1rpx solid rgba(248, 183, 0, 0.07);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(248, 183, 0, 0.03), rgba(248, 183, 0, 0) 64%);
+}
+
+.focus-rank-number {
+  color: rgba(246, 231, 193, 0.82);
+  font-size: 34rpx;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.focus-row:nth-child(1) .focus-rank-number {
+  color: #f8b700;
+  text-shadow: 0 0 12rpx rgba(248, 183, 0, 0.16);
+}
+
+.focus-thumb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 116rpx;
+  height: 96rpx;
+  overflow: hidden;
+  border: 1rpx solid rgba(248, 183, 0, 0.2);
+  border-radius: 6rpx;
+  background: rgba(6, 6, 6, 0.72);
+  box-shadow:
+    inset 0 0 0 1rpx rgba(255, 255, 255, 0.014),
+    0 4rpx 9rpx rgba(0, 0, 0, 0.14);
+}
+
+.focus-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 3rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.035);
+  border-radius: 4rpx;
+  pointer-events: none;
+}
+
+.focus-thumb > image {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.focus-row:nth-child(1) .focus-thumb {
+  border-color: rgba(248, 183, 0, 0.24);
+  box-shadow:
+    inset 0 0 0 1rpx rgba(255, 255, 255, 0.02),
+    0 4rpx 10rpx rgba(0, 0, 0, 0.18),
+    0 0 16rpx rgba(248, 183, 0, 0.08);
+}
+
+.focus-row.state-source_reference .focus-thumb {
+  border-color: rgba(84, 192, 255, 0.16);
+  box-shadow:
+    inset 0 0 0 1rpx rgba(255, 255, 255, 0.016),
+    0 4rpx 9rpx rgba(0, 0, 0, 0.16),
+    0 0 13rpx rgba(84, 192, 255, 0.055);
+}
+
+.focus-thumb-fallback {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #f8b700;
+}
+
+.focus-thumb-fallback::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.24)),
+    radial-gradient(circle at 50% 0%, rgba(248, 183, 0, 0.045), rgba(248, 183, 0, 0) 62%);
+  pointer-events: none;
+}
+
+.focus-thumb-fallback-image {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.92;
+  filter: saturate(0.96) contrast(1.04);
+}
+
+.focus-thumb.thumb-state-fallback_thumb .focus-thumb-fallback-image {
+  opacity: 0.96;
+}
+
+.focus-row.state-source_reference .focus-thumb-fallback-image {
+  filter: saturate(0.88) contrast(1.08);
+}
+
+.highlight-socket-material {
+  opacity: 0.26;
+  filter: saturate(0.84) contrast(1.04);
+  mix-blend-mode: normal;
+}
+
+.visual-mark {
+  position: relative;
+  z-index: 1;
+  color: #f8b700;
+  font-size: 34rpx;
+  font-weight: 900;
+  line-height: 1.05;
+  text-shadow: 0 4rpx 14rpx rgba(0, 0, 0, 0.72);
+}
+
+.focus-thumb-fallback.visual-tone-ptr .visual-mark {
+  color: #8bd8ff;
+}
+
+.focus-thumb-fallback.visual-tone-class .visual-mark {
+  color: #f3a071;
+}
+
+.focus-thumb-fallback.visual-tone-raid .visual-mark {
+  color: #d9b4ff;
+}
+
+.focus-thumb-fallback.visual-tone-source_reference .visual-mark {
+  color: #8bd8ff;
+}
+
+.focus-main {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.focus-head {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.focus-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  max-width: 74rpx;
+  min-height: 22rpx;
+  padding: 2rpx 6rpx;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1rpx solid rgba(248, 183, 0, 0.17);
+  border-radius: 4rpx;
+  background: rgba(248, 183, 0, 0.044);
+  color: #f8b700;
+  font-size: 15rpx;
+  font-weight: 800;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-row.visual-tone-update .focus-badge,
+.focus-row.visual-tone-ptr .focus-badge,
+.focus-row.visual-tone-source_reference .focus-badge {
+  border-color: rgba(84, 192, 255, 0.28);
+  background: rgba(84, 192, 255, 0.075);
+  color: #8bd8ff;
+}
+
+.focus-row.visual-tone-event .focus-badge {
+  border-color: rgba(94, 207, 120, 0.28);
+  background: rgba(94, 207, 120, 0.075);
+  color: #9cdf8b;
+}
+
+.focus-row.visual-tone-class .focus-badge,
+.focus-row.visual-tone-raid .focus-badge {
+  border-color: rgba(217, 180, 255, 0.28);
+  background: rgba(217, 180, 255, 0.075);
+  color: #d9b4ff;
+}
+
+.focus-row.visual-tone-guide .focus-badge {
+  border-color: rgba(255, 181, 71, 0.3);
+  background: rgba(255, 181, 71, 0.078);
+  color: #ffbf64;
+}
+
+.focus-row.visual-tone-community .focus-badge {
+  border-color: rgba(112, 164, 255, 0.3);
+  background: rgba(112, 164, 255, 0.075);
+  color: #93b9ff;
+}
+
+.focus-channel {
+  display: none;
+}
+
+.focus-title {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  margin-top: 0;
+  overflow: hidden;
+  color: #f6ead6;
+  font-size: 23rpx;
+  font-weight: 900;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-row.is-disabled-row .focus-title {
+  color: rgba(246, 231, 193, 0.74);
+}
+
+.focus-row.is-evidence-gap .focus-title {
+  color: rgba(246, 231, 193, 0.72);
+}
+
+.focus-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+  margin-top: 6rpx;
+  overflow: hidden;
+}
+
+.focus-meta {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  margin-top: 0;
+  overflow: hidden;
+  color: rgba(225, 214, 190, 0.68);
+  font-size: 18rpx;
+  font-weight: 750;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  border-left: 1rpx solid rgba(248, 183, 0, 0.09);
+}
+
+.focus-save.is-disabled {
+  opacity: 0.42;
+}
+
+.focus-save.is-disabled .focus-save-mark,
+.focus-save.is-disabled .focus-save-mark::after {
+  border-color: rgba(139, 216, 255, 0.24);
+}
+
+.focus-save-mark {
+  position: relative;
+  width: 17rpx;
+  height: 27rpx;
+  border: 2rpx solid rgba(248, 183, 0, 0.38);
+  border-bottom: 0;
+  border-radius: 3rpx 3rpx 1rpx 1rpx;
+  box-sizing: border-box;
+}
+
+.focus-save-mark::after {
+  content: "";
+  position: absolute;
+  left: 4rpx;
+  right: 4rpx;
+  bottom: -7rpx;
+  height: 14rpx;
+  border-left: 2rpx solid rgba(248, 183, 0, 0.38);
+  border-bottom: 2rpx solid rgba(248, 183, 0, 0.38);
+  transform: rotate(-45deg);
+  transform-origin: center;
+  background: transparent;
+}
+
+.section-action-arrow {
+  margin-left: 4rpx;
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+@media (max-width: 380px) {
+  .focus-row {
+    grid-template-columns: 44rpx 104rpx minmax(0, 1fr) 28rpx;
+    gap: 7rpx;
+    height: 106rpx;
+    min-height: 106rpx;
+    padding-left: 4rpx;
+  }
+
+  .focus-thumb {
+    width: 108rpx;
+    height: 86rpx;
+  }
+
+  .focus-badge {
+    max-width: 66rpx;
+    font-size: 14rpx;
+  }
+
+  .focus-meta {
+    font-size: 16rpx;
+  }
+}

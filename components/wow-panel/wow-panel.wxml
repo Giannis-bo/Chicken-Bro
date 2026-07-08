@@ -1,0 +1,22 @@
+<view class="wow-panel {{rootClass}} ext-class">
+  <image
+    wx:if="{{materialSrc}}"
+    class="wow-panel__material"
+    src="{{materialSrc}}"
+    mode="{{normalizedMaterialMode}}"
+    lazy-load="{{true}}"
+  ></image>
+  <view class="wow-panel__shade"></view>
+  <view wx:if="{{kicker || title || meta || hasHeaderSlot}}" class="wow-panel__head">
+    <view class="wow-panel__title-group">
+      <text wx:if="{{kicker}}" class="wow-panel__kicker">{{kicker}}</text>
+      <text wx:if="{{title}}" class="wow-panel__title">{{title}}</text>
+      <text wx:if="{{meta}}" class="wow-panel__meta">{{meta}}</text>
+    </view>
+    <slot name="action"></slot>
+  </view>
+  <view class="wow-panel__body">
+    <slot></slot>
+  </view>
+  <slot name="footer"></slot>
+</view>

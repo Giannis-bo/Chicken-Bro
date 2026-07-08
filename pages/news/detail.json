@@ -1,5 +1,8 @@
 {
   "usingComponents": {
-    "navigation-bar": "/components/navigation-bar/navigation-bar"
+    "navigation-bar": "/components/navigation-bar/navigation-bar",
+    "app-shell": "/components/app-shell/app-shell",
+    "page-frame": "/components/page-frame/page-frame",
+    "article-reader": "/components/article-reader/article-reader"
   }
 }
