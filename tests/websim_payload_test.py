@@ -473,6 +473,60 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(len(baseline), 1)
         self.assertEqual(baseline[0]["sourceKey"], "season_recommendation")
 
+    def test_recommended_bis_baseline_keeps_legacy_fallback(self):
+        templates = [
+            {
+                "id": "default",
+                "classKey": "mage",
+                "specKey": "frost",
+                "sourceKey": "default_template",
+                "sourceStatus": "verified",
+                "status": "complete",
+                "readySlotCount": 16,
+                "updatedAt": "2026-07-02T00:00:00+00:00",
+                "name": "默认模板",
+                "gearItems": [],
+            },
+            {
+                "id": "legacy",
+                "classKey": "mage",
+                "specKey": "frost",
+                "sourceKey": "season_recommendation",
+                "sourceStatus": "synced",
+                "status": "complete",
+                "readySlotCount": 16,
+                "updatedAt": "2026-07-03T00:00:00+00:00",
+                "name": "当前赛季大秘境 AOE 推荐模板",
+                "gearItems": [],
+            },
+            {
+                "id": "projected",
+                "classKey": "mage",
+                "specKey": "frost",
+                "sourceKey": "recommended_bis",
+                "sourceStatus": "synced",
+                "status": "complete",
+                "readySlotCount": 16,
+                "updatedAt": "2026-07-04T00:00:00+00:00",
+                "name": "SimC optimizer 毕业模板",
+                "gearItems": [],
+                "payload": {
+                    "templateType": "recommended_bis",
+                    "templateEvidence": {
+                        "schemaRevision": "recommended-bis-v1",
+                        "status": "projected_bis",
+                    },
+                },
+            },
+        ]
+
+        baseline = self.websim_payload.select_best_baseline_gear_templates(templates)
+
+        self.assertEqual(
+            [template["sourceKey"] for template in baseline],
+            ["recommended_bis", "season_recommendation"],
+        )
+
     def test_parse_simc_trait_data_groups_multi_rank_apex_nodes(self):
         sample = """
         // Player trait definitions, wow build 12.0.5.67823
@@ -2429,6 +2483,158 @@ class WebSimPayloadTest(unittest.TestCase):
         head_candidates = [item for item in head_group["items"] if item["itemId"] == "250060"]
         self.assertEqual(len(head_candidates), 1)
 
+    def test_websim_gear_candidate_library_reports_legality_audit_for_excluded_items(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            profile = "\n".join(
+                [
+                    'shaman="Preset_Shaman"',
+                    "spec=elemental",
+                    "head=cloth_hood,id=271001,ilevel=289,bonus_id=6652",
+                    "neck=neutral_pendant,id=271002,ilevel=289,bonus_id=6652",
+                ]
+            )
+            conn.execute(
+                """
+                INSERT INTO websim_profile_presets
+                (id, class_key, spec_key, name, profile, payload_json, updated_at)
+                VALUES ('preset-shaman-legality', 'shaman', 'elemental', 'Preset Shaman Legality', ?, '{}', 'now')
+                """,
+                (profile,),
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "271001",
+                {
+                    "id": 271001,
+                    "name": "Cloth Hood",
+                    "inventory_type": {"type": "HEAD", "name": "Head"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 1, "name": "Cloth"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.example/item-271001.jpg"}]},
+                fallback_name="Cloth Hood",
+                english_payload={"name": "Cloth Hood", "inventory_type": {"name": "Head"}},
+                locale="en_US",
+            )
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "271002",
+                {
+                    "id": 271002,
+                    "name": "Neutral Pendant",
+                    "inventory_type": {"type": "NECK", "name": "Neck"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 0, "name": "Miscellaneous"},
+                    "quality": {"name": "Epic"},
+                },
+                {"assets": [{"value": "https://render.example/item-271002.jpg"}]},
+                fallback_name="Neutral Pendant",
+                english_payload={"name": "Neutral Pendant", "inventory_type": {"name": "Neck"}},
+                locale="en_US",
+            )
+            conn.commit()
+
+            payload = self.websim_payload.get_websim_gear(conn, "shaman", "elemental")
+        finally:
+            conn.close()
+
+        head_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "head")
+        neck_group = next(group for group in payload["replacementCandidates"] if group["slot"] == "neck")
+        self.assertFalse(any(item["itemId"] == "271001" for item in head_group["items"]))
+        neck = next(item for item in neck_group["items"] if item["itemId"] == "271002")
+        self.assertEqual(neck["legalityStatus"], "legal")
+        self.assertEqual(neck["sourceTrust"], "simc_preset")
+        audit = payload["candidateLegalityAudit"]
+        self.assertEqual(audit["excludedCandidateCount"], 1)
+        excluded = audit["excludedExamples"][0]
+        self.assertEqual(excluded["itemId"], "271001")
+        self.assertEqual(excluded["slot"], "head")
+        self.assertEqual(excluded["reason"], "armor_type_not_allowed_for_class")
+
+    def test_gear_legality_authority_health_discloses_manual_override_and_illegal_templates(self):
+        authority = self.websim_payload.gear_legality_authority_health_payload(
+            expected_spec_ids=["shaman:elemental", "mage:arcane"],
+            candidate_legality_audits=[
+                {
+                    "excludedCandidateCount": 1,
+                    "excludedExamples": [
+                        {
+                            "classKey": "shaman",
+                            "specKey": "elemental",
+                            "slot": "head",
+                            "itemId": "271001",
+                            "reason": "armor_type_not_allowed_for_class",
+                            "sourceTrust": "simc_preset",
+                        }
+                    ],
+                }
+            ],
+            templates=[
+                {
+                    "id": "illegal-shaman-template",
+                    "classKey": "shaman",
+                    "specKey": "elemental",
+                    "status": "partial",
+                    "legalitySkippedSlots": ["head"],
+                    "blockers": ["head gear incompatible with shaman/elemental armor rule: Cloth"],
+                }
+            ],
+        )
+
+        self.assertEqual(authority["status"], "blocked")
+        self.assertEqual(authority["totalSpecs"], 2)
+        self.assertEqual(authority["verifiedSpecs"], 0)
+        self.assertEqual(authority["manualOverrideSpecs"], 2)
+        self.assertEqual(authority["blockedTemplateCount"], 1)
+        self.assertEqual(authority["excludedCandidateCount"], 1)
+        self.assertEqual(authority["ruleSource"], "manual_override")
+        self.assertEqual(authority["ruleSourceMapStatus"], "partial")
+        self.assertEqual(authority["sourceMap"]["schemaRevision"], "gear-legality-source-map-v1")
+        self.assertEqual(authority["sourceMap"]["expectedSpecCount"], 2)
+        self.assertEqual(authority["sourceMap"]["verifiedSpecCount"], 0)
+        self.assertEqual(authority["sourceMap"]["manualOverrideSpecCount"], 2)
+        self.assertEqual(authority["sourceMap"]["officialVerifiedSpecCount"], 0)
+        self.assertEqual(authority["sourceMap"]["simcVerifiedSpecCount"], 0)
+        self.assertIn("manual_override", authority["blockers"][0])
+        self.assertEqual(authority["examples"][0]["reason"], "armor_type_not_allowed_for_class")
+
+    def test_gear_legality_rule_source_map_keeps_observed_evidence_partial(self):
+        source_map = self.websim_payload.gear_legality_rule_source_map(
+            expected_spec_ids=["hunter:survival", "rogue:outlaw", "mage:arcane"]
+        )
+
+        records = {record["specId"]: record for record in source_map["records"]}
+        hunter = records["hunter:survival"]
+        rogue = records["rogue:outlaw"]
+        mage = records["mage:arcane"]
+
+        self.assertEqual(source_map["schemaRevision"], "gear-legality-source-map-v1")
+        self.assertEqual(source_map["status"], "partial")
+        self.assertEqual(source_map["expectedSpecCount"], 3)
+        self.assertEqual(source_map["verifiedSpecCount"], 0)
+        self.assertEqual(source_map["manualOverrideSpecCount"], 3)
+        self.assertEqual(source_map["officialVerifiedSpecCount"], 0)
+        self.assertEqual(source_map["simcVerifiedSpecCount"], 0)
+        self.assertEqual(source_map["observedSupportedSpecCount"], 2)
+        self.assertEqual(hunter["authorityStatus"], "manual_override")
+        self.assertFalse(hunter["verified"])
+        self.assertEqual(hunter["observedEvidenceCount"], 1)
+        self.assertEqual(rogue["observedEvidenceCount"], 1)
+        self.assertEqual(mage["observedEvidenceCount"], 0)
+        self.assertIn("Crossbow", hunter["weaponRule"]["mainHandTypes"])
+        self.assertIn("Dagger", hunter["weaponRule"]["offHandTypes"])
+        self.assertIn("Dagger", rogue["weaponRule"]["offHandTypes"])
+        hunter_sources = {source["source"]: source for source in hunter["sources"]}
+        self.assertEqual(hunter_sources["official"]["status"], "missing")
+        self.assertEqual(hunter_sources["simc"]["status"], "missing")
+        self.assertEqual(hunter_sources["manual_override"]["status"], "active")
+        observed_sources = [source for source in hunter["sources"] if source["source"] == "observed"]
+        self.assertEqual(observed_sources[0]["status"], "supporting")
+        self.assertFalse(observed_sources[0]["verified"])
+
     def test_websim_gear_dedupes_preset_candidate_against_observed_catalog_variant(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -3355,23 +3561,11 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(len(payload["communityTemplates"]), 1)
-        self.assertEqual(payload["communityTemplates"][0]["status"], "pending_collection")
-        self.assertEqual(len(payload["baselineTemplates"]), 1)
-        template = payload["baselineTemplates"][0]
-        self.assertTrue(template["signature"].startswith("gear:mage:arcane:"))
-        self.assertEqual(template["dedupedCount"], 2)
-        self.assertEqual(len(template["sourceRefs"]), 2)
-        self.assertEqual(
-            [ref["id"] for ref in template["sourceRefs"]],
-            ["preset-mage-a", "preset-mage-b"],
-        )
-        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
-        self.assertEqual(payload["communityTemplateSync"]["templates"]["total"], 2)
-        self.assertEqual(payload["communityTemplateSync"]["templates"]["pending"], 1)
-        self.assertEqual(payload["communityTemplateSync"]["templates"]["partial"], 1)
-        self.assertEqual(payload["communityTemplateSync"]["dedupedCount"], 2)
-        self.assertEqual(payload["communityTemplateSync"]["hiddenDuplicateCount"], 1)
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(payload["baselineTemplates"], [])
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["total"], 0)
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["pending"], 0)
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["partial"], 0)
 
     def test_websim_gear_payload_exposes_inline_simulator_contract(self):
         conn = sqlite3.connect(self.db_path)
@@ -3726,11 +3920,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertFalse(any("payload" in variant for variant in catalog_item.get("variants", [])))
         self.assertIn("statSummary", catalog_item)
         self.assertEqual(catalog_item["variants"][0]["simcOptions"]["bonus_id"], "12345")
-        community_template = next(
-            template for template in payload["communityTemplates"] if template["id"] == "community_gear_250777"
-        )
-        self.assertNotIn("payload", community_template)
-        self.assertFalse(any("payload" in item for item in community_template.get("gearItems", [])))
+        self.assertEqual(payload["communityTemplates"], [])
         self.assertNotIn("payload", payload["currentSeason"]["dungeons"][0])
         self.assertNotIn('"payload"', json.dumps(payload, ensure_ascii=False))
 
@@ -3938,34 +4128,10 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("communityTemplates", payload)
         self.assertIn("communityTemplateSync", payload)
         self.assertIn("baselineTemplates", payload)
-        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
-        self.assertEqual(payload["communityTemplateSync"]["templates"]["total"], 2)
-        self.assertEqual(payload["communityTemplateSync"]["templates"]["pending"], 1)
-        self.assertEqual(payload["communityTemplateSync"]["templates"]["partial"], 1)
-        templates = payload["communityTemplates"]
-        self.assertEqual(len(templates), 1)
-        template = templates[0]
-        self.assertEqual(template["id"], "pending_community_gear_mage_arcane")
-        self.assertEqual(template["sourceKey"], "community_gear")
-        self.assertEqual(template["sourceStatus"], "pending_collection")
-        self.assertEqual(template["status"], "pending_collection")
-        self.assertFalse(template["canApplyGear"])
-        self.assertEqual(template["readySlotCount"], 0)
-        self.assertIn("neck", template["missingSlots"])
-        baseline_templates = payload["baselineTemplates"]
-        self.assertEqual(len(baseline_templates), 1)
-        baseline = baseline_templates[0]
-        self.assertEqual(baseline["id"], "preset-mage-arcane")
-        self.assertEqual(baseline["name"], "Preset Mage")
-        self.assertEqual(baseline["sourceName"], "SimC preset")
-        self.assertEqual(baseline["sourceStatus"], "partial")
-        self.assertEqual(baseline["status"], "partial")
-        self.assertTrue(baseline["canApplyGear"])
-        self.assertEqual(baseline["readySlotCount"], 1)
-        self.assertEqual(baseline["updatedAt"], "2026-06-20T00:00:00Z")
-        self.assertEqual([item["slot"] for item in baseline["gearItems"]], ["head"])
-        self.assertIn("head=", baseline["rawString"])
-        self.assertNotIn("display_only_neck", baseline["rawString"])
+        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "blocked")
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["total"], 0)
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(payload["baselineTemplates"], [])
 
     def test_websim_gear_template_items_include_display_metadata(self):
         conn = sqlite3.connect(self.db_path)
@@ -4030,14 +4196,1436 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        baseline = next(item for item in payload["baselineTemplates"] if item["id"] == "preset-mage-arcane")
-        community = next(item for item in payload["communityTemplates"] if item["id"] == "observed_gear_mage_arcane")
-        baseline_head = baseline["gearItems"][0]
-        community_head = community["gearItems"][0]
-        self.assertEqual(baseline_head["displayName"], "奥术织法兜帽")
-        self.assertEqual(baseline_head["iconUrl"], icon_url)
-        self.assertEqual(community_head["displayName"], "奥术织法兜帽")
-        self.assertEqual(community_head["iconUrl"], icon_url)
+        self.assertEqual(payload["baselineTemplates"], [])
+        self.assertEqual(payload["communityTemplates"], [])
+
+    def test_websim_gear_partially_gates_illegal_baseline_templates_at_read_time(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            bad_items = [
+                {
+                    "slot": "main_hand",
+                    "simcSlot": "main_hand",
+                    "itemId": "237849",
+                    "id": "237849",
+                    "name": "Magister's Valediction",
+                    "displayName": "魔导师的送别",
+                    "weaponType": "Two-Handed Mace",
+                    "simcReady": True,
+                    "bonus_id": "6652",
+                },
+                {
+                    "slot": "off_hand",
+                    "simcSlot": "off_hand",
+                    "itemId": "245769",
+                    "id": "245769",
+                    "name": "Alythess's Lantern",
+                    "displayName": "艾林哈籁灯笼",
+                    "weaponType": "Held In Off-hand",
+                    "simcReady": True,
+                    "bonus_id": "6652",
+                },
+            ]
+            for index, slot in enumerate(
+                slot for slot in self.websim_payload.CANONICAL_GEAR_SLOTS if slot not in {"main_hand", "off_hand"}
+            ):
+                bad_items.append(
+                    {
+                        "slot": slot,
+                        "simcSlot": slot,
+                        "itemId": str(270000 + index),
+                        "id": str(270000 + index),
+                        "name": f"Legal {slot}",
+                        "displayName": f"合法 {slot}",
+                        "armorType": "Cloth",
+                        "simcReady": True,
+                        "bonus_id": "6652",
+                    }
+                )
+            self.websim_payload.upsert_community_gear_template(
+                conn,
+                {
+                    "id": "season-rec-illegal-mage-frost",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "name": "season-rec-illegal-mage-frost",
+                    "sourceKey": "season_recommendation",
+                    "sourceName": "season_recommendation",
+                    "status": "complete",
+                    "sourceStatus": "synced",
+                    "gearItems": bad_items,
+                    "rawString": "\n".join(
+                        [
+                            "main_hand=magisters_valediction,id=237849,bonus_id=6652",
+                            "off_hand=alythesss_lantern,id=245769,bonus_id=6652",
+                        ]
+                    ),
+                    "readySlotCount": 16,
+                    "missingSlots": [],
+                    "canApplyGear": True,
+                    "templateSlot": "baseline",
+                },
+            )
+            conn.commit()
+
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        self.assertEqual(payload["baselineTemplates"], [])
+        self.assertEqual(payload["communityTemplates"], [])
+
+    def test_gear_template_legality_gate_blocks_wrong_armor_type(self):
+        template = {
+            "id": "observed-shaman-wrong-armor",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "canApplyGear": True,
+            "readySlotCount": 2,
+            "missingSlots": [slot for slot in self.websim_payload.CANONICAL_GEAR_SLOTS if slot not in {"head", "neck"}],
+            "gearItems": [
+                {
+                    "slot": "head",
+                    "simcSlot": "head",
+                    "itemId": "270100",
+                    "id": "270100",
+                    "name": "Wrong Hood",
+                    "armorType": "Cloth",
+                    "simcReady": True,
+                },
+                {
+                    "slot": "neck",
+                    "simcSlot": "neck",
+                    "itemId": "270101",
+                    "id": "270101",
+                    "name": "Neutral Pendant",
+                    "armorType": "Miscellaneous",
+                    "simcReady": True,
+                },
+            ],
+        }
+
+        gated = self.websim_payload.apply_gear_template_legality_gate(template, "shaman", "elemental")
+
+        self.assertEqual(gated["status"], "partial")
+        self.assertEqual(gated["sourceStatus"], "partial")
+        self.assertTrue(gated["canApplyGear"])
+        self.assertEqual(gated["readySlotCount"], 1)
+        self.assertEqual(gated["legalitySkippedSlots"], ["head"])
+        self.assertFalse(any(item.get("slot") == "head" for item in gated["gearItems"]))
+        self.assertTrue(
+            any(
+                "head gear incompatible with shaman/elemental armor rule: Cloth" in blocker
+                for blocker in gated["blockers"]
+            )
+        )
+
+    def test_observed_gear_template_keeps_profile_source_evidence_for_chain_state(self):
+        observed_items = [
+            {
+                "slot": "head",
+                "simcSlot": "head",
+                "id": "270001",
+                "itemId": "270001",
+                "name": "observed_head",
+                "displayName": "Observed Head",
+                "simcName": "observed_head",
+                "simcReady": True,
+                "bonus_id": "6652",
+                "observedProfileRefs": [
+                    {
+                        "sourceName": "Raider.IO observed profile",
+                        "profileUrl": "https://raider.io/characters/cn/realm/Mandur",
+                        "fetchedAt": "2026-07-07T08:00:00+00:00",
+                        "updatedAt": "2026-07-07T08:00:00+00:00",
+                        "rankingEvidence": {
+                            "source": "raiderio_spec_ranking",
+                            "rank": 1,
+                            "score": 4249.17,
+                        },
+                    }
+                ],
+            },
+            {
+                "slot": "neck",
+                "simcSlot": "neck",
+                "id": "270002",
+                "itemId": "270002",
+                "name": "observed_neck",
+                "displayName": "Observed Neck",
+                "simcName": "observed_neck",
+                "simcReady": True,
+                "bonus_id": "6652",
+                "observedProfileRefs": [
+                    {
+                        "sourceName": "Raider.IO observed profile",
+                        "profileUrl": "https://raider.io/characters/cn/realm/Mandur",
+                        "fetchedAt": "2026-07-07T08:00:00+00:00",
+                        "updatedAt": "2026-07-07T08:00:00+00:00",
+                        "rankingEvidence": {
+                            "source": "raiderio_spec_ranking",
+                            "rank": 1,
+                            "score": 4249.17,
+                        },
+                    }
+                ],
+            },
+        ]
+
+        template = self.websim_payload.gear_community_template_from_observed_items(
+            observed_items,
+            "shaman",
+            "elemental",
+        )
+        state = self.websim_payload.websim_gear_template_chain_state([template], [])
+        normalized = self.websim_payload.normalize_community_gear_template(template)
+        normalized_state = self.websim_payload.websim_gear_template_chain_state([normalized], [])
+
+        self.assertEqual(template["sourceUrl"], "https://raider.io/characters/cn/realm/Mandur")
+        self.assertEqual(template["sampleCount"], 1)
+        self.assertTrue(template["gearHash"])
+        self.assertEqual(template["sourceRefs"][0]["sourceUrl"], "https://raider.io/characters/cn/realm/Mandur")
+        self.assertEqual(state["communityObserved"]["coveredSpecCount"], 1)
+        self.assertEqual(state["communityObserved"]["partialSpecCount"], 1)
+        self.assertEqual(state["communityObserved"]["blockedSpecCount"], 0)
+        self.assertEqual(normalized["payload"]["sampleCount"], 1)
+        self.assertTrue(normalized["payload"]["gearHash"])
+        self.assertEqual(normalized_state["communityObserved"]["coveredSpecCount"], 1)
+        self.assertEqual(normalized_state["communityObserved"]["blockedSpecCount"], 0)
+
+    def test_template_chain_state_reports_public_readiness_after_legality_gate(self):
+        gear_items = []
+        for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1):
+            item = {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(274000 + index),
+                "id": str(274000 + index),
+                "name": f"observed_{slot}",
+                "simcReady": True,
+                "bonus_id": "6652",
+            }
+            if slot == "main_hand":
+                item["weaponType"] = "Crossbow"
+            elif slot == "off_hand":
+                item["weaponType"] = "Dagger"
+            gear_items.append(item)
+        observed = {
+            "id": "observed-hunter-survival-ranged-offhand",
+            "classKey": "hunter",
+            "specKey": "survival",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceName": "Raider.IO observed gear",
+            "sourceUrl": "https://raider.io/characters/us/area-52/Survivalok",
+            "sampleCount": 1,
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "scanRunId": "community-template-sync-20260708T000000Z",
+            "profileHash": "profile:hunter:survival:ok",
+            "gearHash": "gear:hunter:survival:ok",
+            "sourceRefs": [
+                {
+                    "sourceKey": "raiderio_observed_profile",
+                    "sourceUrl": "https://raider.io/characters/us/area-52/Survivalok",
+                    "characterName": "Survivalok",
+                    "region": "us",
+                    "realmSlug": "area-52",
+                    "fetchedAt": "2026-07-08T00:00:00+00:00",
+                    "scanRunId": "community-template-sync-20260708T000000Z",
+                }
+            ],
+            "gearItems": gear_items,
+        }
+
+        state = self.websim_payload.websim_gear_template_chain_state(
+            [observed],
+            [],
+            expected_spec_ids=["hunter:survival"],
+            checked_at="2026-07-08T00:00:00Z",
+        )
+
+        observed_state = state["communityObserved"]
+        self.assertEqual(observed_state["coveredSpecCount"], 1)
+        self.assertEqual(observed_state["partialSpecCount"], 0)
+        self.assertEqual(observed_state["publicReadySpecCount"], 1)
+        self.assertEqual(observed_state["publicBlockedSpecCount"], 0)
+        self.assertEqual(observed_state["publicBlockedSpecs"], [])
+        self.assertEqual(observed_state["publicBlockedExamples"], [])
+
+    def test_observed_gear_template_persists_ranking_and_enhancement_hash_without_simc_replay(self):
+        profile_url = "https://raider.io/characters/cn/sylvanas/听凭风引"
+        observed_items = [
+            {
+                "slot": "back",
+                "simcSlot": "back",
+                "id": "239656",
+                "itemId": "239656",
+                "name": "adherents_silken_shroud",
+                "displayName": "Adherent's Silken Shroud",
+                "simcName": "adherents_silken_shroud",
+                "ilevel": 298,
+                "bonus_id": "12214/13667/12497/12066/8960/12384/8791/13622",
+                "gem_id": "240908",
+                "enchant_id": "7403",
+                "embellishment": "arcanoweave_lining",
+                "simcReady": True,
+                "observedProfileRefs": [
+                    {
+                        "sourceName": "Raider.IO observed profile",
+                        "profileUrl": profile_url,
+                        "characterName": "听凭风引",
+                        "region": "cn",
+                        "realmSlug": "sylvanas",
+                        "updatedAt": "2026-07-08T02:38:08+00:00",
+                        "rankingEvidence": {
+                            "source": "raiderio_spec_ranking",
+                            "rank": 1,
+                            "score": 4249.17,
+                            "maxKeyLevel": 23,
+                            "runId": 9001,
+                            "sourceUrl": "https://raider.io/mythic-plus-spec-rankings/season-mn-1/world/shaman/elemental",
+                        },
+                    }
+                ],
+            }
+        ]
+
+        template = self.websim_payload.gear_community_template_from_observed_items(
+            observed_items,
+            "shaman",
+            "elemental",
+        )
+
+        payload = template["payload"]
+        self.assertEqual(template["sourceUrl"], profile_url)
+        self.assertEqual(template["sampleCount"], 1)
+        self.assertTrue(payload["profileHash"])
+        self.assertEqual(payload["gearHash"], template["gearHash"])
+        self.assertTrue(payload["enhancementHash"])
+        self.assertEqual(payload["character"]["name"], "听凭风引")
+        self.assertEqual(payload["character"]["region"], "cn")
+        self.assertEqual(payload["character"]["realmSlug"], "sylvanas")
+        self.assertEqual(payload["rankingEvidence"]["rank"], 1)
+        self.assertEqual(payload["rankingEvidence"]["score"], 4249.17)
+        self.assertEqual(template["sourceRefs"][0]["rankingEvidence"]["runId"], 9001)
+
+    def test_source_less_observed_template_is_not_active_community_best_seed(self):
+        source_less = {
+            "id": "observed-source-less",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceName": "Raider.IO observed gear",
+            "sourceUrl": "",
+            "sampleCount": 0,
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "gearItems": [
+                {
+                    "slot": slot,
+                    "simcSlot": slot,
+                    "id": str(271000 + index),
+                    "itemId": str(271000 + index),
+                    "name": f"source_less_{slot}",
+                    "simcReady": True,
+                }
+                for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1)
+            ],
+        }
+        sourced_partial = {
+            **source_less,
+            "id": "observed-sourced-partial",
+            "sourceUrl": "https://raider.io/characters/cn/realm/Mandur",
+            "sampleCount": 1,
+            "status": "partial",
+            "sourceStatus": "partial",
+            "readySlotCount": 2,
+            "missingSlots": self.websim_payload.CANONICAL_GEAR_SLOTS[2:],
+            "gearItems": source_less["gearItems"][:2],
+            "payload": {
+                "profileHash": "profile:shaman:elemental:sourced",
+                "gearHash": "gear:shaman:elemental:sourced",
+                "rankingEvidence": {
+                    "source": "raiderio_spec_ranking",
+                    "rank": 1,
+                    "score": 4249.17,
+                },
+            },
+        }
+
+        selected = self.websim_payload.select_community_best_gear_templates(
+            [source_less, sourced_partial],
+            "shaman",
+            "elemental",
+        )
+
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(selected[0]["sourceKey"], "community_gear")
+        self.assertEqual(selected[0]["status"], "pending_collection")
+        state = self.websim_payload.websim_gear_template_chain_state(
+            selected,
+            [],
+            expected_spec_ids=["shaman:elemental"],
+        )
+        self.assertEqual(state["communityObserved"]["coveredSpecCount"], 0)
+        self.assertEqual(state["communityObserved"]["missingSpecCount"], 1)
+
+    def test_observed_template_requires_fetch_or_scan_evidence_not_plain_updated_at(self):
+        observed = {
+            "id": "observed-with-updated-at-only",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceName": "Raider.IO observed gear",
+            "sourceUrl": "https://raider.io/characters/us/area-52/Magewinner",
+            "sampleCount": 1,
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "profileHash": "profile:mage:frost:magewinner",
+            "gearHash": "gear:mage:frost:magewinner",
+            "sourceRefs": [
+                {
+                    "sourceKey": "raiderio_observed_profile",
+                    "sourceUrl": "https://raider.io/characters/us/area-52/Magewinner",
+                    "characterName": "Magewinner",
+                    "region": "us",
+                    "realmSlug": "area-52",
+                    "updatedAt": "2026-07-08T00:00:00+00:00",
+                }
+            ],
+            "gearItems": [
+                {
+                    "slot": slot,
+                    "simcSlot": slot,
+                    "id": str(273000 + index),
+                    "itemId": str(273000 + index),
+                    "name": f"magewinner_{slot}",
+                    "simcReady": True,
+                }
+                for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1)
+            ],
+        }
+
+        self.assertFalse(self.websim_payload.is_active_community_observed_template(observed))
+        with_scan = {**observed, "scanRunId": "community-template-sync-20260708T000000Z"}
+        self.assertTrue(self.websim_payload.is_active_community_observed_template(with_scan))
+
+    def test_elemental_observed_seed_with_spec_ranking_evidence_beats_old_residue(self):
+        old_residue = {
+            "id": "old-observed-residue",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceName": "Raider.IO observed gear",
+            "sourceUrl": "https://raider.io/characters/us/stormrage/Kiliwynn",
+            "sampleCount": 1,
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "updatedAt": "2026-07-08T10:00:00+08:00",
+            "gearHash": "gear:shaman:elemental:old",
+            "payload": {
+                "gearHash": "gear:shaman:elemental:old",
+                "sampleCount": 1,
+            },
+            "gearItems": [
+                {
+                    "slot": slot,
+                    "simcSlot": slot,
+                    "id": str(272000 + index),
+                    "itemId": str(272000 + index),
+                    "name": f"old_{slot}",
+                    "simcReady": True,
+                }
+                for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1)
+            ],
+        }
+        elected_profile = {
+            **old_residue,
+            "id": "rank-one-observed",
+            "sourceUrl": "https://raider.io/characters/cn/sylvanas/听凭风引",
+            "updatedAt": "2026-07-07T14:38:08+00:00",
+            "scanRunId": "scan-rank-one",
+            "gearHash": "gear:shaman:elemental:rank-one",
+            "payload": {
+                "profileHash": "profile:shaman:elemental:rank-one",
+                "gearHash": "gear:shaman:elemental:rank-one",
+                "sampleCount": 1,
+                "fetchedAt": "2026-07-07T14:38:08+00:00",
+                "character": {
+                    "name": "听凭风引",
+                    "region": "cn",
+                    "realmSlug": "sylvanas",
+                },
+                "rankingEvidence": {
+                    "source": "raiderio_spec_ranking",
+                    "rank": 1,
+                    "score": 4249.17,
+                    "maxKeyLevel": 23,
+                },
+            },
+        }
+
+        selected = self.websim_payload.select_community_best_gear_templates(
+            [old_residue, elected_profile],
+            "shaman",
+            "elemental",
+        )
+
+        self.assertEqual(selected[0]["id"], "rank-one-observed")
+
+    def test_observed_gear_template_uses_single_profile_simc_replay_as_verified_evidence(self):
+        profile_url = "https://raider.io/characters/cn/realm/Mandur"
+        replay = {
+            "source": "simulationcraft",
+            "scenarioKey": "observed_profile_replay",
+            "status": "passed",
+            "dps": 237956,
+            "iterations": 1000,
+            "checkedAt": "2026-07-07T08:00:00+00:00",
+        }
+        observed_items = []
+        for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1):
+            observed_items.append(
+                {
+                    "slot": slot,
+                    "simcSlot": slot,
+                    "id": str(280000 + index),
+                    "itemId": str(280000 + index),
+                    "name": f"observed_{slot}",
+                    "displayName": f"Observed {slot}",
+                    "simcName": f"observed_{slot}",
+                    "ilevel": 704,
+                    "bonus_id": "6652",
+                    "simcReady": True,
+                    "observedProfileSimcReplay": replay,
+                    "observedProfileRefs": [
+                        {
+                            "sourceName": "Raider.IO observed profile",
+                            "profileUrl": profile_url,
+                            "fetchedAt": "2026-07-07T08:00:00+00:00",
+                            "updatedAt": "2026-07-07T08:00:00+00:00",
+                        }
+                    ],
+                }
+            )
+
+        template = self.websim_payload.gear_community_template_from_observed_items(
+            observed_items,
+            "mage",
+            "frost",
+        )
+        state = self.websim_payload.websim_gear_template_chain_state(
+            [template],
+            [],
+            expected_spec_ids=["mage:frost"],
+            checked_at="2026-07-07T12:00:00Z",
+        )
+
+        evidence = template["payload"]["templateEvidence"]
+        scenario = evidence["scenarioResults"]["observed_profile_replay"]
+        self.assertEqual(template["sourceUrl"], profile_url)
+        self.assertEqual(template["sampleCount"], 1)
+        self.assertEqual(template["status"], "complete")
+        self.assertEqual(scenario["dps"], 237956)
+        self.assertEqual(scenario["iterations"], 1000)
+        self.assertEqual(evidence["simcReplay"]["status"], "passed")
+        self.assertEqual(evidence["sourceProfileUrl"], profile_url)
+        self.assertEqual(state["communityObserved"]["verifiedSpecCount"], 1)
+        self.assertEqual(state["communityObserved"]["simcReplayRequiredSpecCount"], 0)
+
+    def test_observed_gear_template_does_not_verify_mixed_profile_replay(self):
+        replay = {
+            "source": "simulationcraft",
+            "scenarioKey": "observed_profile_replay",
+            "status": "passed",
+            "dps": 237956,
+            "iterations": 1000,
+        }
+        observed_items = []
+        for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1):
+            profile_url = (
+                "https://raider.io/characters/cn/realm/Mandur"
+                if index <= 8
+                else "https://raider.io/characters/cn/realm/Other"
+            )
+            observed_items.append(
+                {
+                    "slot": slot,
+                    "simcSlot": slot,
+                    "id": str(290000 + index),
+                    "itemId": str(290000 + index),
+                    "name": f"observed_{slot}",
+                    "displayName": f"Observed {slot}",
+                    "simcName": f"observed_{slot}",
+                    "ilevel": 704,
+                    "bonus_id": "6652",
+                    "simcReady": True,
+                    "observedProfileSimcReplay": replay,
+                    "observedProfileRefs": [
+                        {
+                            "sourceName": "Raider.IO observed profile",
+                            "profileUrl": profile_url,
+                            "fetchedAt": "2026-07-07T08:00:00+00:00",
+                            "updatedAt": "2026-07-07T08:00:00+00:00",
+                        }
+                    ],
+                }
+            )
+
+        template = self.websim_payload.gear_community_template_from_observed_items(
+            observed_items,
+            "mage",
+            "frost",
+        )
+        state = self.websim_payload.websim_gear_template_chain_state(
+            [template],
+            [],
+            expected_spec_ids=["mage:frost"],
+            checked_at="2026-07-07T12:00:00Z",
+        )
+
+        evidence = template["payload"]["templateEvidence"]
+        self.assertNotIn("scenarioResults", evidence)
+        self.assertEqual(evidence["simcReplay"]["status"], "blocked")
+        self.assertIn("single observed profile", evidence["simcReplay"]["blockers"][0])
+        self.assertEqual(state["communityObserved"]["verifiedSpecCount"], 0)
+        self.assertEqual(state["communityObserved"]["provisionalSpecCount"], 0)
+        self.assertEqual(state["communityObserved"]["blockedSpecCount"], 1)
+        self.assertEqual(state["communityObserved"]["simcReplayRequiredSpecCount"], 0)
+
+    def test_observed_gear_template_does_not_verify_inconsistent_profile_replays(self):
+        profile_url = "https://raider.io/characters/cn/realm/Mandur"
+        observed_items = []
+        for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1):
+            observed_items.append(
+                {
+                    "slot": slot,
+                    "simcSlot": slot,
+                    "id": str(295000 + index),
+                    "itemId": str(295000 + index),
+                    "name": f"observed_{slot}",
+                    "displayName": f"Observed {slot}",
+                    "simcName": f"observed_{slot}",
+                    "ilevel": 704,
+                    "bonus_id": "6652",
+                    "simcReady": True,
+                    "observedProfileSimcReplay": {
+                        "source": "simulationcraft",
+                        "scenarioKey": "observed_profile_replay",
+                        "status": "passed",
+                        "dps": 237956 if index <= 8 else 222000,
+                        "iterations": 1000,
+                    },
+                    "observedProfileRefs": [
+                        {
+                            "sourceName": "Raider.IO observed profile",
+                            "profileUrl": profile_url,
+                            "fetchedAt": "2026-07-07T08:00:00+00:00",
+                            "updatedAt": "2026-07-07T08:00:00+00:00",
+                        }
+                    ],
+                }
+            )
+
+        template = self.websim_payload.gear_community_template_from_observed_items(
+            observed_items,
+            "mage",
+            "frost",
+        )
+        state = self.websim_payload.websim_gear_template_chain_state(
+            [template],
+            [],
+            expected_spec_ids=["mage:frost"],
+        )
+
+        evidence = template["payload"]["templateEvidence"]
+        self.assertNotIn("scenarioResults", evidence)
+        self.assertEqual(evidence["simcReplay"]["status"], "blocked")
+        self.assertIn("consistent", evidence["simcReplay"]["blockers"][0])
+        self.assertEqual(state["communityObserved"]["verifiedSpecCount"], 0)
+        self.assertEqual(state["communityObserved"]["simcReplayRequiredSpecCount"], 1)
+
+    def test_template_chain_state_keeps_observed_recommended_and_legacy_separate(self):
+        source_less_observed = {
+            "id": "observed-source-less",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceName": "Raider.IO observed gear",
+            "sourceUrl": "",
+            "sampleCount": 0,
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "payload": {},
+        }
+        anchored_observed = {
+            **source_less_observed,
+            "id": "observed-anchored",
+            "sourceUrl": "https://raider.io/characters/cn/realm/Player",
+            "sampleCount": 1,
+            "scanRunId": "scan-observed-anchored",
+            "payload": {
+                "profileHash": "sha256:observed",
+                "gearHash": "sha256:observed-gear",
+                "fetchedAt": "2026-07-07T10:00:00+00:00",
+                "character": {
+                    "name": "Player",
+                    "region": "cn",
+                    "realmSlug": "realm",
+                },
+                "rankingEvidence": {
+                    "source": "raiderio_spec_ranking",
+                    "rank": 1,
+                    "score": 4249.17,
+                },
+                "templateEvidence": {
+                    "scenarioResults": {
+                        "mplus_aoe": {"dps": 237956, "iterations": 10000}
+                    }
+                },
+            },
+        }
+        malformed_observed = {
+            **anchored_observed,
+            "id": "observed-malformed-sample",
+            "sampleCount": "not-a-number",
+        }
+        provisional_observed = {
+            **source_less_observed,
+            "id": "observed-mage-frost-provisional",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceUrl": "https://raider.io/characters/cn/realm/Magefrost",
+            "sampleCount": 1,
+            "payload": {
+                "profileHash": "sha256:observed-mage-frost",
+                "gearHash": "sha256:observed-mage-frost-gear",
+                "fetchedAt": "2026-07-07T10:00:00+00:00",
+                "character": {
+                    "name": "Magefrost",
+                    "region": "cn",
+                    "realmSlug": "realm",
+                },
+            },
+        }
+        season_recommendation = {
+            "id": "season-recommendation",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "season_recommendation",
+            "sourceName": "当前赛季大秘境 AOE 推荐模板",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "payload": {
+                "templateEvidence": {
+                    "recommendationConfidence": "provisional",
+                    "simcReview": {"status": "required"},
+                }
+            },
+        }
+        recommended_bis = {
+            "id": "recommended-bis",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "recommended_bis",
+            "sourceName": "SimC optimizer 毕业模板",
+            "status": "candidate_bis",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "payload": {
+                "templateType": "recommended_bis",
+                "templateEvidence": {
+                    "schemaRevision": "recommended-bis-v1",
+                    "status": "candidate_bis",
+                    "optimizerVersion": "gear-bis-optimizer-v1",
+                    "simc": {"winnerDps": 240000},
+                    "anchorValidation": {"status": "pending"},
+                }
+            },
+        }
+
+        state = self.websim_payload.websim_gear_template_chain_state(
+            [source_less_observed, anchored_observed, malformed_observed, provisional_observed],
+            [season_recommendation, recommended_bis],
+            expected_spec_ids=["shaman:elemental", "mage:frost"],
+            checked_at="2026-07-07T12:00:00Z",
+        )
+
+        self.assertEqual(state["communityObserved"]["expectedSpecCount"], 2)
+        self.assertEqual(state["communityObserved"]["coveredSpecCount"], 2)
+        self.assertEqual(state["communityObserved"]["verifiedSpecCount"], 1)
+        self.assertEqual(state["communityObserved"]["provisionalSpecCount"], 1)
+        self.assertEqual(state["communityObserved"]["blockedSpecCount"], 2)
+        self.assertEqual(state["communityObserved"]["missingSpecCount"], 0)
+        self.assertEqual(state["communityObserved"]["simcReplayRequiredSpecCount"], 1)
+        self.assertEqual(state["communityObserved"]["simcReplayRequiredSpecs"], ["mage:frost"])
+        self.assertEqual(state["communityObserved"]["lastGuardCheckAt"], "2026-07-07T12:00:00Z")
+        self.assertEqual(state["communityObserved"]["examples"][0]["confidence"], "observed_verified")
+        source_less_blocker = next(
+            item for item in state["communityObserved"]["blockedExamples"]
+            if item["id"] == "observed-source-less"
+        )
+        self.assertIn("sourceUrl", source_less_blocker["blockers"][0])
+        malformed_blocker = next(
+            item for item in state["communityObserved"]["blockedExamples"]
+            if item["id"] == "observed-malformed-sample"
+        )
+        self.assertIn("sampleCount", malformed_blocker["blockers"][0])
+        self.assertEqual(state["recommendedBis"]["totalSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["guardMode"], "readiness_only")
+        self.assertIn("does not execute", state["recommendedBis"]["guardPolicy"])
+        self.assertEqual(state["recommendedBis"]["expectedSpecCount"], 2)
+        self.assertEqual(state["recommendedBis"]["candidateSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["verifiedSpecCount"], 0)
+        self.assertEqual(state["recommendedBis"]["blockedSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["optimizerRequiredSpecCount"], 2)
+        self.assertEqual(state["recommendedBis"]["anchorPendingSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["fullOptimizerRunRequiredSpecCount"], 2)
+        self.assertEqual(state["recommendedBis"]["lastGuardCheckAt"], "2026-07-07T12:00:00Z")
+        self.assertEqual(state["recommendedBis"]["missingSpecs"], ["mage:frost"])
+        self.assertIn("optimizer has not produced", state["recommendedBis"]["blockedExamples"][0]["blockers"][0])
+        self.assertEqual(state["legacyFallback"]["totalSpecCount"], 1)
+        self.assertEqual(state["legacyFallback"]["starterBaselineSpecCount"], 1)
+        self.assertEqual(state["legacyFallback"]["examples"][0]["templateType"], "starter_baseline")
+        self.assertNotIn("season-recommendation", [item.get("id") for item in state["recommendedBis"]["examples"]])
+
+        sync_state = self.websim_payload.websim_gear_community_template_sync_state(
+            [source_less_observed, anchored_observed, malformed_observed, provisional_observed, season_recommendation, recommended_bis]
+        )
+
+        self.assertEqual(sync_state["templateChains"]["communityObserved"]["verifiedSpecCount"], 1)
+        self.assertEqual(sync_state["templateChains"]["legacyFallback"]["starterBaselineSpecCount"], 1)
+        self.assertEqual(sync_state["templateChains"]["recommendedBis"]["totalSpecCount"], 1)
+        self.assertEqual(sync_state["templateChains"]["recommendedBis"]["verifiedSpecCount"], 0)
+
+    def test_recommended_bis_fails_closed_when_observed_anchor_outperforms_winner(self):
+        observed_anchor = {
+            "id": "observed-shaman-elemental",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceUrl": "https://raider.io/characters/eu/hyjal/Mandur",
+            "sampleCount": 1,
+            "status": "complete",
+            "readySlotCount": 16,
+            "scanRunId": "scan-shaman-elemental-mandur",
+            "payload": {
+                "profileHash": "profile:shaman:elemental:mandur",
+                "gearHash": "gear:shaman:elemental:mandur",
+                "fetchedAt": "2026-07-07T10:00:00+00:00",
+                "character": {
+                    "name": "Mandur",
+                    "region": "eu",
+                    "realmSlug": "hyjal",
+                },
+                "rankingEvidence": {
+                    "source": "raiderio_spec_ranking",
+                    "rank": 1,
+                    "score": 4249.17,
+                },
+                "templateEvidence": {
+                    "scenarioResults": {
+                        "mplus_5target_hac": {"dps": 237956, "iterations": 10000}
+                    }
+                },
+            },
+        }
+        recommended_bis = {
+            "id": "recommended-bis-shaman-elemental",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "recommended_bis",
+            "sourceName": "SimC optimizer 毕业模板",
+            "status": "complete",
+            "readySlotCount": 16,
+            "payload": {
+                "templateType": "recommended_bis",
+                "templateEvidence": {
+                    "schemaRevision": "recommended-bis-v1",
+                    "status": "verified_bis",
+                    "optimizerVersion": "gear-bis-optimizer-v1",
+                    "scenarioKey": "mplus_5target_hac",
+                    "simc": {"winnerDps": 211177, "iterations": 10000},
+                    "anchorValidation": {
+                        "status": "passed",
+                        "bestObservedCharacter": "Mandur",
+                        "bestObservedDps": 237956,
+                        "deltaPctVsBestObserved": -12.68,
+                        "blockThresholdPct": 2,
+                    },
+                }
+            },
+        }
+
+        state = self.websim_payload.websim_gear_template_chain_state(
+            [observed_anchor],
+            [recommended_bis],
+            expected_spec_ids=["shaman:elemental"],
+            checked_at="2026-07-07T13:30:00Z",
+        )
+
+        self.assertEqual(state["communityObserved"]["verifiedSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["totalSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["verifiedSpecCount"], 0)
+        self.assertEqual(state["recommendedBis"]["anchorFailedSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["blockedSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["fullOptimizerRunRequiredSpecCount"], 1)
+        failed = state["recommendedBis"]["blockedExamples"][0]
+        self.assertEqual(failed["id"], "recommended-bis-shaman-elemental")
+        self.assertEqual(failed["status"], "anchor_failed")
+        self.assertEqual(failed["confidence"], "anchor_failed")
+        self.assertEqual(failed["anchorStatus"], "anchor_failed")
+        self.assertIn("observed anchor", failed["blockers"][0])
+
+    def test_recommended_bis_verified_status_requires_passed_anchor_validation(self):
+        recommended_bis = {
+            "id": "recommended-bis-no-anchor",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "recommended_bis",
+            "status": "complete",
+            "readySlotCount": 16,
+            "payload": {
+                "templateType": "recommended_bis",
+                "templateEvidence": {
+                    "schemaRevision": "recommended-bis-v1",
+                    "status": "verified_bis",
+                    "optimizerVersion": "gear-bis-optimizer-v1",
+                    "scenarioKey": "mplus_5target_hac",
+                    "simc": {"winnerDps": 250000, "iterations": 10000},
+                }
+            },
+        }
+
+        state = self.websim_payload.websim_gear_template_chain_state(
+            [],
+            [recommended_bis],
+            expected_spec_ids=["mage:frost"],
+        )
+
+        self.assertEqual(state["recommendedBis"]["verifiedSpecCount"], 0)
+        self.assertEqual(state["recommendedBis"]["anchorFailedSpecCount"], 1)
+        failed = state["recommendedBis"]["blockedExamples"][0]
+        self.assertEqual(failed["status"], "anchor_failed")
+        self.assertIn("requires passed observed anchor validation", failed["blockers"][0])
+
+    def test_recommended_bis_projected_status_still_requires_full_optimizer_gates(self):
+        recommended_bis = {
+            "id": "recommended-bis-projected-mage-frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "recommended_bis",
+            "status": "complete",
+            "readySlotCount": 16,
+            "payload": {
+                "templateType": "recommended_bis",
+                "templateEvidence": {
+                    "schemaRevision": "recommended-bis-v1",
+                    "status": "projected_bis",
+                    "optimizerVersion": "gear-bis-optimizer-v1",
+                    "scenarioKey": "mplus_aoe",
+                    "candidatePool": {
+                        "candidateCount": 168,
+                        "keptCandidateCount": 48,
+                        "prunedCandidateCount": 120,
+                    },
+                    "statPriorPolicy": {
+                        "role": "candidate_recall_only",
+                        "finalDecision": "simc_gear_compare_required",
+                    },
+                    "simc": {
+                        "status": "required",
+                        "lowIterationRuns": 0,
+                        "highIterationRuns": 0,
+                        "pairwiseCompares": 0,
+                    },
+                    "anchorValidation": {"status": "pending"},
+                }
+            },
+        }
+
+        state = self.websim_payload.websim_gear_template_chain_state(
+            [],
+            [recommended_bis],
+            expected_spec_ids=["mage:frost"],
+        )
+
+        self.assertEqual(state["recommendedBis"]["projectedSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["blockedSpecCount"], 0)
+        self.assertEqual(state["recommendedBis"]["optimizerRequiredSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["simcReviewRequiredSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["pairwiseRequiredSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["anchorPendingSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["fullOptimizerRunRequiredSpecCount"], 1)
+        example = state["recommendedBis"]["examples"][0]
+        self.assertEqual(example["status"], "projected_bis")
+        self.assertEqual(example["candidateCount"], 168)
+        self.assertEqual(example["simcStatus"], "required")
+        self.assertEqual(example["pairwiseCompares"], 0)
+        self.assertEqual(example["anchorStatus"], "pending")
+
+    def test_elemental_real_player_policy_only_exposes_observed_template(self):
+        source_less_observed = {
+            "id": "observed-source-less",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "raiderio_observed_profile",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "sampleCount": 0,
+            "payload": {},
+        }
+        anchored_observed = {
+            "id": "observed-profile-shaman-elemental",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "raiderio_observed_profile",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "sourceUrl": "https://raider.io/characters/cn/sylvanas/%E5%90%AC%E5%87%AD%E9%A3%8E%E5%BC%95",
+            "sampleCount": 1,
+            "scanRunId": "scan-shaman-elemental",
+            "payload": {
+                "fetchedAt": "2026-07-08T02:00:00+00:00",
+                "profileHash": "profile:shaman:elemental:tingping",
+                "gearHash": "gear:shaman:elemental:tingping",
+                "character": {
+                    "name": "听凭风引",
+                    "region": "cn",
+                    "realmSlug": "sylvanas",
+                },
+                "rankingEvidence": {
+                    "source": "raiderio_spec_ranking",
+                    "rank": 1,
+                    "score": 4249.17,
+                },
+            },
+            "gearItems": [
+                {
+                    "slot": slot,
+                    "simcSlot": slot,
+                    "id": str(530000 + index),
+                    "itemId": str(530000 + index),
+                    "name": f"elemental_{slot}",
+                    "simcReady": True,
+                }
+                for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1)
+            ],
+        }
+        anchored_observed["rawString"] = "\n".join(
+            f"{item['slot']}={item['name']},id={item['id']}"
+            for item in anchored_observed["gearItems"]
+        )
+        season_recommendation = {
+            "id": "season-recommendation-shaman-elemental",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "season_recommendation",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "payload": {"templateSlot": "baseline"},
+        }
+        default_template = {
+            "id": "default-shaman-elemental",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "default_template",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+        }
+        recommended_bis = {
+            "id": "recommended-bis-shaman-elemental",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "recommended_bis",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "payload": {
+                "templateType": "recommended_bis",
+                "templateEvidence": {
+                    "schemaRevision": "recommended-bis-v1",
+                    "status": "projected_bis",
+                    "simc": {"status": "required", "highIterationRuns": 0, "pairwiseCompares": 0},
+                    "anchorValidation": {"status": "pending"},
+                },
+            },
+        }
+
+        visible = self.websim_payload.public_gear_templates_for_spec(
+            [
+                source_less_observed,
+                anchored_observed,
+                season_recommendation,
+                default_template,
+                recommended_bis,
+            ],
+            "shaman",
+            "elemental",
+        )
+
+        self.assertEqual(
+            [template["id"] for template in visible],
+            ["observed-profile-shaman-elemental"],
+        )
+        compact = self.websim_payload.compact_community_gear_template(visible[0])
+        self.assertEqual(compact["sampleCount"], 1)
+        self.assertEqual(compact["profileHash"], "profile:shaman:elemental:tingping")
+        self.assertEqual(compact["gearHash"], "gear:shaman:elemental:tingping")
+        self.assertNotIn("payload", compact)
+
+    def test_real_player_public_policy_applies_to_all_specs(self):
+        source_less_observed = {
+            "id": "observed-source-less-mage-frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "raiderio_observed_profile",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "sampleCount": 0,
+            "payload": {},
+        }
+        active_observed = {
+            "id": "observed-profile-mage-frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "raiderio_observed_profile",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "sourceUrl": "https://raider.io/characters/cn/realm/Magefrost",
+            "sampleCount": 1,
+            "scanRunId": "scan-mage-frost",
+            "payload": {
+                "fetchedAt": "2026-07-08T02:00:00+00:00",
+                "profileHash": "profile:mage:frost:active",
+                "gearHash": "gear:mage:frost:active",
+                "character": {
+                    "name": "Magefrost",
+                    "region": "cn",
+                    "realmSlug": "realm",
+                },
+            },
+            "gearItems": [
+                {
+                    "slot": slot,
+                    "simcSlot": slot,
+                    "id": str(540000 + index),
+                    "itemId": str(540000 + index),
+                    "name": f"mage_frost_{slot}",
+                    "simcReady": True,
+                }
+                for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1)
+            ],
+        }
+        active_observed["rawString"] = "\n".join(
+            f"{item['slot']}={item['name']},id={item['id']}"
+            for item in active_observed["gearItems"]
+        )
+        no_gear_hash_observed = {
+            **active_observed,
+            "id": "observed-profile-mage-frost-no-gear-hash",
+            "payload": {
+                **active_observed["payload"],
+                "gearHash": "",
+            },
+        }
+        season_recommendation = {
+            "id": "season-recommendation-mage-frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "season_recommendation",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "payload": {"templateSlot": "baseline"},
+        }
+        recommended_bis = {
+            "id": "recommended-bis-mage-frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "recommended_bis",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "payload": {
+                "templateType": "recommended_bis",
+                "templateEvidence": {
+                    "schemaRevision": "recommended-bis-v1",
+                    "status": "projected_bis",
+                    "simc": {"status": "required", "highIterationRuns": 0, "pairwiseCompares": 0},
+                    "anchorValidation": {"status": "pending"},
+                },
+            },
+        }
+        simc_preset = {
+            "id": "simc-preset-mage-frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "simc_preset",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+        }
+
+        visible = self.websim_payload.public_gear_templates_for_spec(
+            [source_less_observed, no_gear_hash_observed, active_observed, season_recommendation, recommended_bis, simc_preset],
+            "mage",
+            "frost",
+        )
+        selected = self.websim_payload.select_community_best_gear_templates(
+            [source_less_observed, no_gear_hash_observed, active_observed],
+            "mage",
+            "frost",
+        )
+
+        self.assertEqual([template["id"] for template in visible], ["observed-profile-mage-frost"])
+        self.assertEqual([template["id"] for template in selected], ["observed-profile-mage-frost"])
+        self.assertEqual(self.websim_payload.public_baseline_fallback_templates_for_spec("mage", "frost"), [])
+
+    def test_weapon_rules_allow_survival_hunter_observed_equipped_weapons(self):
+        gear_items = [
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "id": "258412" if slot == "main_hand" else "249284" if slot == "off_hand" else str(560000 + index),
+                "itemId": "258412" if slot == "main_hand" else "249284" if slot == "off_hand" else str(560000 + index),
+                "name": f"observed_{slot}",
+                "simcReady": True,
+                "weaponType": "Crossbow" if slot == "main_hand" else "Dagger" if slot == "off_hand" else "",
+            }
+            for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1)
+        ]
+        observed = {
+            "id": "observed-profile-hunter-survival",
+            "classKey": "hunter",
+            "specKey": "survival",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceUrl": "https://raider.io/characters/cn/the-great-sea/哈哈丶帅猎猎",
+            "sampleCount": 1,
+            "scanRunId": "scan-hunter-survival",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "canApplyGear": True,
+            "gearItems": gear_items,
+            "payload": {
+                "fetchedAt": "2026-07-08T10:00:00+00:00",
+                "profileHash": "profile:hunter:survival:real",
+                "gearHash": "gear:hunter:survival:real",
+                "character": {
+                    "name": "哈哈丶帅猎猎",
+                    "region": "cn",
+                    "realmSlug": "the-great-sea",
+                },
+            },
+        }
+        projected = {
+            **observed,
+            "id": "recommended-bis-hunter-survival",
+            "sourceKey": "recommended_bis",
+            "sourceUrl": "",
+            "payload": {"templateType": "recommended_bis"},
+        }
+
+        gated_observed = self.websim_payload.apply_gear_template_legality_gate(
+            observed,
+            "hunter",
+            "survival",
+        )
+        gated_projected = self.websim_payload.apply_gear_template_legality_gate(
+            projected,
+            "hunter",
+            "survival",
+        )
+
+        self.assertEqual(gated_observed["status"], "complete")
+        self.assertEqual(gated_observed["sourceStatus"], "synced")
+        self.assertEqual(gated_observed["readySlotCount"], 16)
+        self.assertEqual(gated_observed["missingSlots"], [])
+        self.assertTrue(gated_observed["canApplyGear"])
+        self.assertEqual(gated_projected["status"], "complete")
+        self.assertEqual(gated_projected["readySlotCount"], 16)
+        self.assertEqual(gated_projected["missingSlots"], [])
+
+    def test_raiderio_observed_profile_still_must_pass_weapon_legality_gate(self):
+        gear_items = [
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "id": "258412" if slot == "main_hand" else "999991" if slot == "off_hand" else str(570000 + index),
+                "itemId": "258412" if slot == "main_hand" else "999991" if slot == "off_hand" else str(570000 + index),
+                "name": f"observed_{slot}",
+                "simcReady": True,
+                "weaponType": "Crossbow" if slot == "main_hand" else "Shield" if slot == "off_hand" else "",
+            }
+            for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1)
+        ]
+        observed = {
+            "id": "observed-profile-hunter-survival-shield",
+            "classKey": "hunter",
+            "specKey": "survival",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceUrl": "https://raider.io/characters/cn/the-great-sea/Shieldbad",
+            "sampleCount": 1,
+            "scanRunId": "scan-hunter-survival",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "canApplyGear": True,
+            "gearItems": gear_items,
+            "payload": {
+                "fetchedAt": "2026-07-08T10:00:00+00:00",
+                "profileHash": "profile:hunter:survival:shield",
+                "gearHash": "gear:hunter:survival:shield",
+                "character": {
+                    "name": "Shieldbad",
+                    "region": "cn",
+                    "realmSlug": "the-great-sea",
+                },
+            },
+        }
+
+        gated = self.websim_payload.apply_gear_template_legality_gate(
+            observed,
+            "hunter",
+            "survival",
+        )
+
+        self.assertEqual(gated["status"], "partial")
+        self.assertIn("off_hand", gated["missingSlots"])
+        self.assertFalse(gated["canApplyGear"])
+        self.assertTrue(
+            any("off_hand gear incompatible with hunter/survival weapon rule: Shield" in blocker for blocker in gated["blockers"])
+        )
+
+    def test_weapon_rules_allow_outlaw_rogue_offhand_dagger(self):
+        gear_items = [
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "id": "880001" if slot == "main_hand" else "880002" if slot == "off_hand" else str(580000 + index),
+                "itemId": "880001" if slot == "main_hand" else "880002" if slot == "off_hand" else str(580000 + index),
+                "name": f"outlaw_{slot}",
+                "simcReady": True,
+                "weaponType": "One-Handed Sword" if slot == "main_hand" else "Dagger" if slot == "off_hand" else "",
+            }
+            for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1)
+        ]
+        template = {
+            "id": "recommended-bis-rogue-outlaw",
+            "classKey": "rogue",
+            "specKey": "outlaw",
+            "sourceKey": "recommended_bis",
+            "status": "complete",
+            "sourceStatus": "projected",
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "canApplyGear": True,
+            "gearItems": gear_items,
+        }
+
+        gated = self.websim_payload.apply_gear_template_legality_gate(
+            template,
+            "rogue",
+            "outlaw",
+        )
+
+        self.assertEqual(gated["status"], "complete")
+        self.assertEqual(gated["readySlotCount"], 16)
+        self.assertEqual(gated["missingSlots"], [])
+
+    def test_elemental_real_player_observed_template_uses_character_display_name(self):
+        ref = {
+            "profileUrl": "https://raider.io/characters/cn/sylvanas/听凭风引",
+            "sourceName": "Raider.IO",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "characterName": "听凭风引",
+            "region": "cn",
+            "realmSlug": "sylvanas",
+            "rankingEvidence": {
+                "source": "raiderio_spec_ranking",
+                "rank": 1,
+                "score": 4249.17,
+                "runId": 38744911,
+            },
+        }
+        items = [
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(550000 + index),
+                "id": str(550000 + index),
+                "name": f"elemental_{slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                "observedProfileRefs": [ref],
+            }
+            for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1)
+        ]
+
+        template = self.websim_payload.gear_community_template_from_observed_items(
+            items,
+            "shaman",
+            "elemental",
+        )
+
+        self.assertEqual(template["name"], "听凭风引（元素萨）· 真实高分玩家角色模板")
+        self.assertEqual(template["sourceName"], "Raider.IO 真实玩家角色装备")
+        self.assertEqual(template["sourceUrl"], "https://raider.io/characters/cn/sylvanas/听凭风引")
+        self.assertEqual(template["sampleCount"], 1)
+        self.assertEqual(template["payload"]["character"]["name"], "听凭风引")
+        self.assertEqual(template["payload"]["rankingEvidence"]["rank"], 1)
+
+    def test_recommended_bis_missing_non_dps_specs_are_role_objective_blocked(self):
+        state = self.websim_payload.websim_gear_template_chain_state(
+            [],
+            [],
+            expected_spec_ids=[
+                "mage:frost",
+                "warrior:protection",
+                "priest:holy",
+                "evoker:augmentation",
+            ],
+        )
+
+        self.assertEqual(state["recommendedBis"]["missingSpecCount"], 4)
+        self.assertEqual(state["recommendedBis"]["blockedSpecCount"], 4)
+        self.assertEqual(state["recommendedBis"]["optimizerRequiredSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["fullOptimizerRunRequiredSpecCount"], 1)
+        self.assertEqual(state["recommendedBis"]["roleObjectiveBlockedSpecCount"], 3)
+        self.assertEqual(
+            state["recommendedBis"]["roleObjectiveBlockedSpecs"],
+            ["warrior:protection", "priest:holy", "evoker:augmentation"],
+        )
+        by_spec = {item["spec"]: item for item in state["recommendedBis"]["blockedExamples"]}
+        self.assertEqual(by_spec["mage:frost"]["status"], "optimizer_blocked")
+        self.assertEqual(by_spec["warrior:protection"]["status"], "role_objective_blocked")
+        self.assertIn("tank", by_spec["warrior:protection"]["roleObjectiveStatus"])
+        self.assertIn("role-specific", by_spec["priest:holy"]["blockers"][0])
+        self.assertIn("support", by_spec["evoker:augmentation"]["roleObjectiveStatus"])
 
     def test_community_gear_sync_creates_default_template_from_verified_evidence(self):
         conn = sqlite3.connect(self.db_path)
@@ -4056,16 +5644,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(result["defaultTemplates"]["missingSpecCount"], 0)
         self.assertEqual(result["defaultTemplates"]["blockedSpecCount"], 0)
         self.assertFalse(any(item.get("sourceKey") == "default_template" for item in payload["communityTemplates"]))
-        template = next(item for item in payload["baselineTemplates"] if item["sourceKey"] == "default_template")
-        self.assertEqual(template["sourceName"], "默认模板")
-        self.assertEqual(template["status"], "complete")
-        self.assertEqual(template["readySlotCount"], 16)
-        self.assertEqual(template["missingSlots"], [])
-        self.assertEqual(template["scenarioKey"], "mplus_mixed_route")
-        self.assertEqual(template["enhancementReadiness"]["status"], "partial")
-        self.assertIn("trinket effects are not optimized", template["templateEvidence"]["warnings"])
-        self.assertEqual(template["templateEvidence"]["statWeightRevision"], "build-stat-weights-v1")
-        self.assertTrue(all(item["simcReady"] for item in template["gearItems"]))
+        self.assertFalse(any(item.get("sourceKey") == "default_template" for item in payload["baselineTemplates"]))
 
     def test_community_gear_sync_reports_missing_default_template_evidence(self):
         conn = sqlite3.connect(self.db_path)
@@ -5044,11 +6623,8 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("characterName", compact_item["observedProfileRefs"][0])
         self.assertEqual(payload["baselineSet"][0]["itemId"], "250777")
         self.assertEqual(payload["equippedSet"]["head"]["itemId"], "250777")
-        self.assertEqual(payload["communityTemplates"][0]["sourceName"], "Raider.IO observed gear")
-        self.assertEqual(payload["communityTemplates"][0]["readySlotCount"], 1)
-        self.assertEqual(payload["communityTemplates"][0]["status"], "partial")
-        self.assertTrue(payload["communityTemplates"][0]["canApplyGear"])
-        self.assertEqual(payload["communityTemplateSync"]["sources"]["observed_profile"]["status"], "partial")
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertNotIn("observed_profile", payload["communityTemplateSync"].get("sources") or {})
 
     def test_gear_catalog_sync_promotes_journal_loot_with_observed_variant(self):
         import server.raiderio_payload as raiderio_payload
@@ -9066,6 +10642,10 @@ class WebSimPayloadTest(unittest.TestCase):
             seed_weapon("260105", "Frost Runeblade", "WEAPON", 7, "One-Handed Sword", "strength")
             seed_weapon("260106", "Brewmaster Mace", "WEAPON", 4, "One-Handed Mace")
             seed_weapon("260107", "Brewmaster Staff", "2HWEAPON", 10, "Staff")
+            seed_weapon("260109", "Elemental Caster Axe", "WEAPON", 0, "One-Handed Axe", "intellect")
+            seed_weapon("260110", "Elemental Caster Fist", "WEAPON", 13, "Fist Weapon", "intellect")
+            seed_weapon("260111", "Elemental Caster Mace", "WEAPON", 4, "One-Handed Mace", "intellect")
+            seed_weapon("260112", "Elemental Warhammer", "2HWEAPON", 5, "Two-Handed Mace", "intellect")
             seed_shield("260108", "Shaman Shield")
             self.websim_payload.set_sync_state(
                 conn,
@@ -9073,6 +10653,7 @@ class WebSimPayloadTest(unittest.TestCase):
                 self.websim_payload.build_gear_catalog_sync_state(conn, {"seasonRevision": "season-mn-1"}),
             )
 
+            elemental = self.websim_payload.get_websim_gear(conn, "shaman", "elemental", compact=True)
             enhancement = self.websim_payload.get_websim_gear(conn, "shaman", "enhancement", compact=True)
             fury = self.websim_payload.get_websim_gear(conn, "warrior", "fury", compact=True)
             frost = self.websim_payload.get_websim_gear(conn, "deathknight", "frost", compact=True)
@@ -9083,6 +10664,16 @@ class WebSimPayloadTest(unittest.TestCase):
         def item_ids(payload, slot):
             group = next(group for group in payload["replacementCandidates"] if group["slot"] == slot)
             return {item["itemId"] for item in group["items"]}
+
+        self.assertEqual(elemental["weaponRule"]["mode"], "caster_shield_or_holdable")
+        self.assertIn("One-Handed Axe", elemental["weaponRule"]["mainHandTypes"])
+        self.assertIn("Fist Weapon", elemental["weaponRule"]["mainHandTypes"])
+        self.assertIn("260102", item_ids(elemental, "main_hand"))
+        self.assertIn("260109", item_ids(elemental, "main_hand"))
+        self.assertIn("260110", item_ids(elemental, "main_hand"))
+        self.assertIn("260111", item_ids(elemental, "main_hand"))
+        self.assertNotIn("260112", item_ids(elemental, "main_hand"))
+        self.assertIn("260108", item_ids(elemental, "off_hand"))
 
         self.assertIn("260101", item_ids(enhancement, "main_hand"))
         self.assertIn("260101", item_ids(enhancement, "off_hand"))

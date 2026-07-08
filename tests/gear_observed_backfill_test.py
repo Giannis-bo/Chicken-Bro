@@ -1389,6 +1389,47 @@ class GearObservedBackfillTest(unittest.TestCase):
         self.assertEqual(state["lastRunStatus"], "ok")
         self.assertEqual(state["cursor"]["targetItemCount"], 0)
 
+    def test_observed_backfill_runner_fetches_full_profiles_without_target_items(self):
+        self.seed_partial_variant("251111")
+        provider = FakeObservedProvider(
+            targets=[],
+            candidates=[{"name": "A"}],
+            profiles=[self.profile(name="A", item_id="251111", slot="head", bonuses=[12345])],
+        )
+
+        summary = gear_observed_backfill.run_gear_observed_backfill(
+            self.db_path,
+            provider=provider,
+            target_limit=1,
+            profile_limit=1,
+            sync_full_profile_gear=True,
+        )
+
+        with self.connection() as conn:
+            state = websim_payload.read_gear_observed_backfill_state(conn, target_item_ids=[])
+            observed_items = [
+                row[0]
+                for row in conn.execute(
+                    """
+                    SELECT item_id
+                    FROM websim_gear_variants
+                    WHERE source_type = 'observed_profile'
+                    ORDER BY item_id
+                    """
+                ).fetchall()
+            ]
+
+        self.assertEqual([item["name"] for item in provider.fetched_candidates], ["A"])
+        self.assertEqual(summary["status"], "ok")
+        self.assertEqual(summary["targetItemCount"], 0)
+        self.assertEqual(summary["processedTargetItemIds"], [])
+        self.assertEqual(summary["processedProfileCount"], 1)
+        self.assertEqual(summary["matchedTargetItemIds"], [])
+        self.assertEqual(observed_items, ["251111"])
+        self.assertEqual(state["lastRunStatus"], "ok")
+        self.assertEqual(state["cursor"]["profileOffset"], 0)
+        self.assertTrue(state.get("wrappedAt"))
+
     def test_observed_backfill_plan_only_reports_window_without_fetching_or_writing(self):
         provider = FakeObservedProvider(
             targets=["251111", "251222"],

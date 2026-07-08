@@ -1321,7 +1321,7 @@ def run_gear_observed_backfill(
         state = websim_payload.read_gear_observed_backfill_state(conn, target_item_ids=target_item_ids, provider=provider.name)
         original_cursor = dict(state.get("cursor") or {})
         try:
-            if not target_item_ids:
+            if not target_item_ids and not sync_full_profile_gear:
                 finished_at = utc_now_iso()
                 window = websim_payload.build_gear_observed_backfill_window(
                     target_item_ids,

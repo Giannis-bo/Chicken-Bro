@@ -459,6 +459,11 @@ sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.service" "/etc/systemd/
 sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.timer" "/etc/systemd/system/wow-gear-observed-backfill.timer"
 sudo cp "${REMOTE_DIR}/server/wow-season-recommended-gear-sync.service" "/etc/systemd/system/wow-season-recommended-gear-sync.service"
 sudo cp "${REMOTE_DIR}/server/wow-season-recommended-gear-sync.timer" "/etc/systemd/system/wow-season-recommended-gear-sync.timer"
+sudo cp "${REMOTE_DIR}/server/wow-community-best-guard-sync.service" "/etc/systemd/system/wow-community-best-guard-sync.service"
+sudo cp "${REMOTE_DIR}/server/wow-community-best-guard-sync.timer" "/etc/systemd/system/wow-community-best-guard-sync.timer"
+sudo cp "${REMOTE_DIR}/server/wow-recommended-bis-guard-sync.service" "/etc/systemd/system/wow-recommended-bis-guard-sync.service"
+sudo cp "${REMOTE_DIR}/server/wow-recommended-bis-guard-sync.timer" "/etc/systemd/system/wow-recommended-bis-guard-sync.timer"
+sudo cp "${REMOTE_DIR}/server/wow-recommended-bis-prototype-sync.service" "/etc/systemd/system/wow-recommended-bis-prototype-sync.service"
 sudo cp "${REMOTE_DIR}/server/wow-data-health-followup.service" "/etc/systemd/system/wow-data-health-followup.service"
 sudo cp "${REMOTE_DIR}/server/wow-data-health-followup.timer" "/etc/systemd/system/wow-data-health-followup.timer"
 sudo chmod 0755 "${REMOTE_DIR}/server/simc_runtime_update.sh"
@@ -528,6 +533,11 @@ sudo systemctl enable --now wow-community-template-sync.timer
 sudo systemctl reset-failed wow-gear-observed-backfill.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-season-recommended-gear-sync.service >/dev/null 2>&1 || true
 sudo systemctl enable --now wow-season-recommended-gear-sync.timer
+sudo systemctl reset-failed wow-community-best-guard-sync.service >/dev/null 2>&1 || true
+sudo systemctl enable --now wow-community-best-guard-sync.timer
+sudo systemctl reset-failed wow-recommended-bis-guard-sync.service >/dev/null 2>&1 || true
+sudo systemctl enable --now wow-recommended-bis-guard-sync.timer
+sudo systemctl reset-failed wow-recommended-bis-prototype-sync.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-data-health-followup.service >/dev/null 2>&1 || true
 sudo systemctl enable --now wow-data-health-followup.timer
 sudo systemctl reset-failed wow-simc-runtime-update.service >/dev/null 2>&1 || true

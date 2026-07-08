@@ -172,6 +172,78 @@ class RaiderIOPayloadTest(unittest.TestCase):
     def connection(self):
         return sqlite3.connect(self.db_path)
 
+    def test_extract_gear_preserves_raiderio_enhancements_and_embellishment_bonus(self):
+        profile = sample_profile_payload("听凭风引", "shaman", "elemental")
+        profile["gear"]["items"] = {
+            "back": {
+                "item_id": 239656,
+                "item_level": 298,
+                "name": "Adherent's Silken Shroud",
+                "icon": "inv_cape_01",
+                "item_quality": "Epic",
+                "bonuses": [12214, 13667, 12497, 12066, 8960, 12384, 8791, 13622],
+                "gems": [{"item_id": 240908, "name": "Masterful Emerald"}],
+                "enchants": [{"enchant": 7403, "name": "Chant of Leeching Fangs"}],
+            }
+        }
+
+        gear = raiderio_payload.extract_gear(profile)
+
+        self.assertEqual(len(gear), 1)
+        item = gear[0]
+        self.assertEqual(item["slot"], "back")
+        self.assertEqual(item["bonus_id"], "12214/13667/12497/12066/8960/12384/8791/13622")
+        self.assertEqual(item["gem_id"], "240908")
+        self.assertEqual(item["enchant_id"], "7403")
+        self.assertEqual(item["embellishment"], "arcanoweave_lining")
+        self.assertEqual(item["embellishmentLabel"], "奥纹内衬")
+        self.assertEqual(item["enhancementSource"], "raiderio_profile_gear")
+
+    def test_fetch_profiles_for_runs_attaches_spec_ranking_evidence_to_profile(self):
+        run = raiderio_payload.simplify_spec_ranking_run(
+            {
+                "rank": 1,
+                "score": 4249.17,
+                "character": {
+                    "name": "听凭风引",
+                    "realm": {"name": "Sylvanas", "slug": "sylvanas"},
+                    "region": {"slug": "cn"},
+                    "class": {"name": "Shaman", "slug": "shaman"},
+                    "spec": {"name": "Elemental", "slug": "elemental"},
+                },
+            },
+            {"keystoneRunId": 9001, "zoneName": "Ara-Kara", "mythicLevel": 23, "score": 512.4},
+            "shaman",
+            "elemental",
+            "world",
+            "https://raider.io/mythic-plus-spec-rankings/season-mn-1/world/shaman/elemental",
+        )
+
+        def fake_fetch(character, fields):
+            summary = raiderio_payload.profile_summary(sample_profile_payload(
+                character["name"],
+                "shaman",
+                "elemental",
+            ))
+            summary["region"] = character["region"]
+            summary["realmSlug"] = character["realmSlug"]
+            summary["profileUrl"] = character["profileUrl"]
+            return summary
+
+        with patch.object(raiderio_payload, "fetch_profile_for_character", fake_fetch):
+            profiles, errors = raiderio_payload.fetch_profiles_for_runs([run])
+
+        self.assertEqual(errors, [])
+        self.assertEqual(len(profiles), 1)
+        profile = next(iter(profiles.values()))
+        evidence = profile["rankingEvidence"]
+        self.assertEqual(evidence["source"], "raiderio_spec_ranking")
+        self.assertEqual(evidence["rank"], 1)
+        self.assertEqual(evidence["score"], 4249.17)
+        self.assertEqual(evidence["maxKeyLevel"], 23)
+        self.assertEqual(evidence["runId"], 9001)
+        self.assertEqual(evidence["sourceUrl"], "https://raider.io/mythic-plus-spec-rankings/season-mn-1/world/shaman/elemental")
+
     def test_api_get_injects_key_user_agent_and_redacts_errors(self):
         captured = {}
 

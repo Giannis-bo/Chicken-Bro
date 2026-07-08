@@ -38,6 +38,11 @@ test('lighthouse deploy script supports a no-download hot deploy mode', () => {
   assert.match(script, /wow-community-template-sync\.timer/)
   assert.match(script, /wow-season-recommended-gear-sync\.service/)
   assert.match(script, /wow-season-recommended-gear-sync\.timer/)
+  assert.match(script, /wow-community-best-guard-sync\.service/)
+  assert.match(script, /wow-community-best-guard-sync\.timer/)
+  assert.match(script, /wow-recommended-bis-guard-sync\.service/)
+  assert.match(script, /wow-recommended-bis-guard-sync\.timer/)
+  assert.match(script, /wow-recommended-bis-prototype-sync\.service/)
   assert.match(script, /wow-data-health-followup\.service/)
   assert.match(script, /wow-data-health-followup\.timer/)
   assert.match(script, /wow-simc-runtime-update\.service/)
@@ -73,6 +78,8 @@ test('lighthouse deploy script enables PG-native sync timers in PG-only mode', (
     'sudo systemctl enable --now wow-stat-weights-sync.timer',
     'sudo systemctl enable --now wow-community-template-sync.timer',
     'sudo systemctl enable --now wow-season-recommended-gear-sync.timer',
+    'sudo systemctl enable --now wow-community-best-guard-sync.timer',
+    'sudo systemctl enable --now wow-recommended-bis-guard-sync.timer',
     'sudo systemctl enable --now wow-data-health-followup.timer'
   ]) {
     const enableIndex = script.indexOf(enableCommand)
@@ -89,6 +96,46 @@ test('lighthouse deploy script enables PG-native sync timers in PG-only mode', (
     assert.ok(startIndex > optInIndex, `${startCommand} must stay behind async sync opt-in`)
   }
   assert.doesNotMatch(script, /start --no-block wow-gear-observed-backfill\.service/)
+})
+
+test('recommended bis guard sync has a daily readiness-only systemd timer', () => {
+  const service = fs.readFileSync('server/wow-recommended-bis-guard-sync.service', 'utf8')
+  const timer = fs.readFileSync('server/wow-recommended-bis-guard-sync.timer', 'utf8')
+
+  assert.match(service, /Environment=WOW_DATABASE_RUNTIME=postgres_only/)
+  assert.match(service, /ExecStart=\/usr\/bin\/flock -w 900 \/run\/lock\/wow-mini-program-bis-guard\.lock \/usr\/bin\/python3 \/opt\/wow-mini-program\/server\/recommended_bis_guard_sync\.py/)
+  assert.match(service, /TimeoutStartSec=5min/)
+  assert.doesNotMatch(service, /curl|wget|github\.com|SIMC_GITHUB_REPO|WOW_NEWS_DB/)
+  assert.match(timer, /OnBootSec=35min/)
+  assert.match(timer, /OnCalendar=\*-\*-\* 08:10:00/)
+  assert.match(timer, /RandomizedDelaySec=15min/)
+  assert.match(timer, /Persistent=true/)
+})
+
+test('recommended bis prototype sync is a manual PG-only projected-template service', () => {
+  const service = fs.readFileSync('server/wow-recommended-bis-prototype-sync.service', 'utf8')
+  const script = fs.readFileSync('server/recommended_bis_prototype_sync.py', 'utf8')
+
+  assert.match(service, /Environment=WOW_DATABASE_RUNTIME=postgres_only/)
+  assert.match(service, /ExecStart=\/usr\/bin\/flock -w 1800 \/run\/lock\/wow-mini-program-bis-prototype\.lock \/usr\/bin\/python3 \/opt\/wow-mini-program\/server\/recommended_bis_prototype_sync\.py/)
+  assert.match(service, /TimeoutStartSec=45min/)
+  assert.doesNotMatch(service, /curl|wget|github\.com|SIMC_GITHUB_REPO|WOW_NEWS_DB/)
+  assert.match(script, /sync_recommended_bis_prototype_postgres/)
+  assert.doesNotMatch(script, /curl|wget|urlopen|requests|SIMC_GITHUB_REPO/)
+})
+
+test('community best guard sync has a daily readiness-only systemd timer', () => {
+  const service = fs.readFileSync('server/wow-community-best-guard-sync.service', 'utf8')
+  const timer = fs.readFileSync('server/wow-community-best-guard-sync.timer', 'utf8')
+
+  assert.match(service, /Environment=WOW_DATABASE_RUNTIME=postgres_only/)
+  assert.match(service, /ExecStart=\/usr\/bin\/flock -w 900 \/run\/lock\/wow-mini-program-community-best-guard\.lock \/usr\/bin\/python3 \/opt\/wow-mini-program\/server\/community_best_guard_sync\.py/)
+  assert.match(service, /TimeoutStartSec=5min/)
+  assert.doesNotMatch(service, /curl|wget|github\.com|SIMC_GITHUB_REPO|WOW_NEWS_DB/)
+  assert.match(timer, /OnBootSec=30min/)
+  assert.match(timer, /OnCalendar=\*-\*-\* 08:00:00/)
+  assert.match(timer, /RandomizedDelaySec=15min/)
+  assert.match(timer, /Persistent=true/)
 })
 
 test('season recommended gear sync has a daily persistent systemd timer', () => {
@@ -210,6 +257,7 @@ test('production systemd units do not configure SQLite runtime paths', () => {
     'server/wow-community-template-sync.service',
     'server/wow-gear-observed-backfill.service',
     'server/wow-season-recommended-gear-sync.service',
+    'server/wow-recommended-bis-prototype-sync.service',
     'server/wow-data-health-followup.service',
     'server/wow-simc-runtime-update.service'
   ]) {

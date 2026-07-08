@@ -1,0 +1,13 @@
+[Unit]
+Description=WOW community_best_v2 observed readiness guard sync
+After=network-online.target wow-backend.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/wow-mini-program
+EnvironmentFile=-/etc/wow-backend.env
+Environment=WOW_DATABASE_RUNTIME=postgres_only
+ExecStart=/usr/bin/flock -w 900 /run/lock/wow-mini-program-community-best-guard.lock /usr/bin/python3 /opt/wow-mini-program/server/community_best_guard_sync.py
+TimeoutStartSec=5min

@@ -1270,6 +1270,26 @@ function normalizedEnhancementBySlot(enhancementBySlot) {
   return result
 }
 
+function embeddedEnhancementRecordFromGearItem(item) {
+  if (!item || typeof item !== 'object') return null
+  const next = {}
+  ;['gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'embellishment'].forEach((key) => {
+    const value = cleanGearString(item[key])
+    if (value) next[key] = value
+  })
+  return Object.keys(next).length ? next : null
+}
+
+function embeddedEnhancementBySlotFromGearSelection(selectedGearBySlot) {
+  const result = {}
+  const indexed = selectedGearByCanonicalSlot(selectedGearBySlot || {})
+  Object.keys(indexed).sort().forEach((slot) => {
+    const record = embeddedEnhancementRecordFromGearItem(indexed[slot])
+    if (record) result[slot] = record
+  })
+  return result
+}
+
 function gearTemplateSnapshot(selectedGearBySlot, enhancementBySlot, gearPayload) {
   return {
     schemaRevision: GEAR_ENHANCEMENT_SNAPSHOT_REVISION,
@@ -1477,9 +1497,27 @@ function weaponRuleAllowsItem(rule, item) {
   return allowedTypes.has(weaponType)
 }
 
+function backendGearLegalityBlocksItem(item) {
+  if (!item || typeof item !== 'object') return false
+  const compatibility = item.compatibility && typeof item.compatibility === 'object' ? item.compatibility : {}
+  return item.legalityStatus === 'blocked' || compatibility.legalityStatus === 'blocked'
+}
+
+function backendGearLegalityBlocksSlot(gearPayload, slot, item) {
+  if (!gearPayload || !slot || !item) return false
+  const backendItem = ((gearPayload.equippedSet || {})[slot]) || null
+  if (!backendGearLegalityBlocksItem(backendItem)) return false
+  const backendItemId = normalizedGearItemId(backendItem)
+  const selectedItemId = normalizedGearItemId(item)
+  return !!(backendItemId && selectedItemId && backendItemId === selectedItemId)
+}
+
 function prunedGearSelectionByWeaponRule(gearPayload, selectedGearBySlot) {
   const rule = normalizedWeaponRule(gearPayload || {})
   const selected = { ...(selectedGearBySlot || {}) }
+  Object.keys(selected).forEach((slot) => {
+    if (backendGearLegalityBlocksItem(selected[slot]) || backendGearLegalityBlocksSlot(gearPayload, slot, selected[slot])) delete selected[slot]
+  })
   if (!rule.available) return selected
   Object.keys(selected).forEach((slot) => {
     if (!weaponRuleAllowsItem(rule, selected[slot])) delete selected[slot]
@@ -1692,10 +1730,33 @@ function gearEquipmentBadgeLabels(item) {
 
 function enhancementRecordMatchesCurrentItem(gearPayload, item, enhancementRecord, optionKey, type) {
   if (!enhancementRecordHasSelectedType(enhancementRecord, type)) return false
+  if (enhancementRecordMatchesEmbeddedItem(item, enhancementRecord, type)) return true
   const options = enhancementOptionsForSlot(gearPayload, item, optionKey)
   if (!options.length) return itemSupportsConfiguredEnhancementFallback(item, type)
   if (!itemSupportsEnhancement(item, type, options)) return false
   return options.some((option) => enhancementOptionSelected(option, enhancementRecord, type))
+}
+
+function enhancementRecordMatchesEmbeddedItem(item, enhancementRecord, type) {
+  if (!item || !enhancementRecord || typeof item !== 'object' || typeof enhancementRecord !== 'object') return false
+  if (type === 'gem') {
+    return !!(
+      (cleanGearString(enhancementRecord.gem_id) && cleanGearString(enhancementRecord.gem_id) === cleanGearString(item.gem_id)) ||
+      (cleanGearString(enhancementRecord.gem_bonus_id) && cleanGearString(enhancementRecord.gem_bonus_id) === cleanGearString(item.gem_bonus_id)) ||
+      (cleanGearString(enhancementRecord.gem_ilevel) && cleanGearString(enhancementRecord.gem_ilevel) === cleanGearString(item.gem_ilevel))
+    )
+  }
+  if (type === 'enchant') {
+    return !!(
+      cleanGearString(enhancementRecord.enchant_id) &&
+      cleanGearString(enhancementRecord.enchant_id) === cleanGearString(item.enchant_id)
+    )
+  }
+  if (type === 'embellishment') {
+    const embedded = cleanGearString(item.embellishment || builtInEmbellishmentValue(item))
+    return !!(cleanGearString(enhancementRecord.embellishment) && cleanGearString(enhancementRecord.embellishment) === embedded)
+  }
+  return false
 }
 
 function gearSlotEnhancementBadgeLabels(gearPayload, item, enhancementRecord) {
@@ -2012,7 +2073,7 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
   const enchantRows = []
   const embellishmentRows = []
   const warnings = []
-  const blockers = []
+  const blockers = stringList(gearPayload && gearPayload.gearLegalityBlockers)
   if (embellishmentUsed > gearEnhancementMax) {
     blockers.push(`美化已超过上限 ${embellishmentUsed}/${gearEnhancementMax}`)
   }
@@ -2079,6 +2140,7 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
   const activeEmbellishmentRows = activeSlot ? embellishmentRows.filter((row) => row.slot === activeSlot) : []
   return {
     visible: !!visible,
+    loading: false,
     draftEnhancementBySlot: enhancement,
     equipmentRows,
     activeSlot,
@@ -2105,11 +2167,15 @@ function prunedEnhancementBySlot(gearPayload, selectedGearBySlot, enhancementByS
     enchant: new Map(sheet.enchantRows.map((row) => [row.slot, row])),
     embellishment: new Map(sheet.embellishmentRows.map((row) => [row.slot, row]))
   }
+  const normalized = normalizedEnhancementBySlot(enhancementBySlot)
+  const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
   const rowKeepsSelection = (type, slot) => {
     const row = rowsByType[type].get(slot)
-    return !!(row && Array.isArray(row.options) && row.options.some((option) => option.selected))
+    return !!(
+      (row && Array.isArray(row.options) && row.options.some((option) => option.selected)) ||
+      enhancementRecordMatchesEmbeddedItem(indexed[slot], normalized[slot], type)
+    )
   }
-  const normalized = normalizedEnhancementBySlot(enhancementBySlot)
   Object.keys(normalized).forEach((slot) => {
     if (!rowKeepsSelection('gem', slot)) {
       delete normalized[slot].socketOptionId
@@ -2643,6 +2709,32 @@ function gearCommunityTemplateCardClass(template) {
   return 'blocked'
 }
 
+function gearTemplateHasRecoverableWeaponRepair(template, missingSlots, blockers) {
+  const skippedSlots = communityTemplateSkippedWeaponSlots(template)
+  if (!skippedSlots.size) return false
+  const missing = Array.isArray(missingSlots) ? missingSlots : []
+  if (missing.some((slot) => !skippedSlots.has(slot))) return false
+  const messages = stringList(blockers)
+  if (!messages.length) return true
+  return messages.every((message) => {
+    const text = cleanGearString(message).toLowerCase()
+    return text.includes('weapon rule') ||
+      text.includes('selected two-hand main hand') ||
+      text.includes('two-hand main hand') ||
+      text.includes('main_hand gear incompatible') ||
+      text.includes('off_hand gear incompatible')
+  })
+}
+
+function gearCommunityTemplateIsObservedPartial(template, status, sourceStatus, missingSlots) {
+  const sourceKey = normalizeGearTemplateKey(template && template.sourceKey)
+  if (sourceKey !== 'raiderio_observed_profile') return false
+  if (status === 'complete' || sourceStatus === 'complete' || sourceStatus === 'synced' || sourceStatus === 'verified') {
+    return Array.isArray(missingSlots) && missingSlots.length > 0
+  }
+  return true
+}
+
 function normalizeGearTemplateKey(value) {
   return String(value || '')
     .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
@@ -2700,9 +2792,18 @@ function decorateGearCommunityTemplate(template) {
   const normalizedStatus = sourceReference ? 'source-reference' : status
   const normalizedSourceStatus = sourceReference ? 'source-reference' : sourceStatus
   const blockers = stringList((template && template.blockers) || ((template && template.payload) || {}).blockers)
-  const canApplyGear = !!(template && template.canApplyGear !== false && readySlotCount > 0 && !sourceReference && normalizedStatus !== 'blocked' && normalizedSourceStatus !== 'blocked')
+  const observedPartial = gearCommunityTemplateIsObservedPartial(template, normalizedStatus, normalizedSourceStatus, missingSlots)
+  const canApplyGear = !!(template && template.canApplyGear !== false && readySlotCount > 0 && !sourceReference && !observedPartial && normalizedStatus !== 'blocked' && normalizedSourceStatus !== 'blocked')
   const displaySourceName = gearCommunitySourceDisplayName(template)
-  const blockerLabel = gearIssueText(blockers) || (sourceReference ? '仅作为来源参考，不可直接导入' : '')
+  const recoverableWeaponRepair = canApplyGear && gearTemplateHasRecoverableWeaponRepair(template, missingSlots, blockers)
+  const blockerLabel = recoverableWeaponRepair ? '' : (gearIssueText(blockers) || (sourceReference ? '仅作为来源参考，不可直接导入' : ''))
+  const slotCoverageLabel = recoverableWeaponRepair
+    ? `已覆盖 ${readySlotCount}/${requiredGearSlots.length} 槽 · 武器自动补齐`
+    : `已覆盖 ${readySlotCount}/${requiredGearSlots.length} 槽`
+  const missingSlotLabel = recoverableWeaponRepair
+    ? '武器自动补齐'
+    : (missingSlots.length ? `缺 ${missingSlots.length} 槽` : '16 槽完整')
+  const statusLabel = recoverableWeaponRepair ? '可导入' : gearCommunityStatusLabel(normalizedStatus)
   return {
     ...(template || {}),
     status: normalizedStatus,
@@ -2713,10 +2814,10 @@ function decorateGearCommunityTemplate(template) {
     canApplyGear,
     displayName: gearCommunityTemplateDisplayName(template),
     displaySourceName,
-    statusLabel: gearCommunityStatusLabel(normalizedStatus),
+    statusLabel,
     sourceStatusLabel: gearCommunityStatusLabel(normalizedSourceStatus),
-    slotCoverageLabel: `已覆盖 ${readySlotCount}/${requiredGearSlots.length} 槽`,
-    missingSlotLabel: missingSlots.length ? `缺 ${missingSlots.length} 槽` : '16 槽完整',
+    slotCoverageLabel,
+    missingSlotLabel,
     blockerLabel,
     updatedLabel: (template && template.updatedAt) || '',
     actionLabel: canApplyGear ? '应用' : '不可导入',
@@ -2876,6 +2977,122 @@ function gearSlotCandidatesForPage(page, slot, fallback) {
   return Array.isArray(cached) ? cached : (Array.isArray(fallback) ? fallback : [])
 }
 
+function gearCandidatePoolForSlot(page, gearPayload, slot) {
+  const group = gearGroupsBySlot(gearPayload || {})[slot] || {}
+  return gearSlotCandidatesForPage(page, slot, group.items || [])
+}
+
+function firstApplicableGearCandidate(page, gearPayload, slot, selectedGearBySlot) {
+  const rule = normalizedWeaponRule(gearPayload || {})
+  const selected = selectedGearBySlot || {}
+  const mainType = gearItemTypeContext(selected.main_hand).weaponType
+  const candidates = gearCandidatePoolForSlot(page, gearPayload, slot)
+  for (const candidate of candidates) {
+    const applied = appliedGearCandidate(
+      candidate,
+      candidate && (candidate.defaultVariantKey || candidate.variantKey || ''),
+      candidate && (candidate.selectedCraftedStatKey || candidate.craftedStatOptionKey || '')
+    )
+    if (!(applied && applied.simcReady && gearTemplateLine(applied))) continue
+    if (!weaponRuleAllowsItem(rule, applied)) continue
+    if (
+      slot === 'off_hand' &&
+      twoHandWeaponTypes.has(mainType) &&
+      rule.mode !== 'dual_wield_2h'
+    ) {
+      continue
+    }
+    return applied
+  }
+  return null
+}
+
+function communityTemplateSkippedWeaponSlots(template) {
+  return new Set(
+    stringList((template && template.legalitySkippedSlots) || ((template && template.payload) || {}).legalitySkippedSlots)
+      .filter((slot) => slot === 'main_hand' || slot === 'off_hand')
+  )
+}
+
+function repairedGearSelectionForSkippedWeapons(page, gearPayload, selectedGearBySlot, template) {
+  const skippedSlots = communityTemplateSkippedWeaponSlots(template)
+  if (!skippedSlots.size) return selectedGearBySlot || {}
+  let selected = prunedGearSelectionByWeaponRule(gearPayload, selectedGearBySlot || {})
+  if (skippedSlots.has('main_hand') && !selected.main_hand) {
+    const mainHand = firstApplicableGearCandidate(page, gearPayload, 'main_hand', selected)
+    if (mainHand) {
+      selected = prunedGearSelectionByWeaponRule(gearPayload, {
+        ...selected,
+        main_hand: mainHand
+      })
+    }
+  }
+  if (skippedSlots.has('off_hand') && !selected.off_hand) {
+    const mainType = gearItemTypeContext(selected.main_hand).weaponType
+    const rule = normalizedWeaponRule(gearPayload || {})
+    if (!(twoHandWeaponTypes.has(mainType) && rule.mode !== 'dual_wield_2h')) {
+      const offHand = firstApplicableGearCandidate(page, gearPayload, 'off_hand', selected)
+      if (offHand) {
+        selected = prunedGearSelectionByWeaponRule(gearPayload, {
+          ...selected,
+          off_hand: offHand
+        })
+      }
+    }
+  }
+  return selected
+}
+
+function communityTemplateBaseGearSelection(gearPayload, template) {
+  const templateSelection = gearItemsToSelection((template && template.gearItems) || [], gearPayload)
+  return prunedGearSelectionByWeaponRule(gearPayload, templateSelection)
+}
+
+function communityTemplateEmbeddedEnhancementBySlot(template, selectedGearBySlot) {
+  const explicit = normalizedEnhancementBySlot(
+    (template && template.enhancementBySlot) ||
+    ((template && template.payload && template.payload.enhancementBySlot) || {})
+  )
+  return normalizedEnhancementBySlot({
+    ...explicit,
+    ...embeddedEnhancementBySlotFromGearSelection(selectedGearBySlot)
+  })
+}
+
+function communityTemplateNeedsWeaponSlotDetail(page, gearPayload, slot, selectedGearBySlot) {
+  if (!gearPayloadNeedsSlotDetail(page, slot)) return false
+  return !firstApplicableGearCandidate(page, gearPayload, slot, selectedGearBySlot || {})
+}
+
+function loadCommunityTemplateWeaponRepairDetails(page, template) {
+  const skippedSlots = communityTemplateSkippedWeaponSlots(template)
+  if (!skippedSlots.size) return null
+  let gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
+  let selected = communityTemplateBaseGearSelection(gearPayload, template)
+  const loadOffHandIfNeeded = () => {
+    gearPayload = fullGearPayloadForPage(page) || gearPayload
+    selected = repairedGearSelectionForSkippedWeapons(page, gearPayload, selected, template)
+    const mainType = gearItemTypeContext(selected.main_hand).weaponType
+    const rule = normalizedWeaponRule(gearPayload || {})
+    const offHandOccupied = twoHandWeaponTypes.has(mainType) && rule.mode !== 'dual_wield_2h'
+    const loadOffHand = skippedSlots.has('off_hand') &&
+      !selected.off_hand &&
+      !offHandOccupied &&
+      communityTemplateNeedsWeaponSlotDetail(page, gearPayload, 'off_hand', selected)
+    if (!loadOffHand) return null
+    return loadGearSlotDetailForPage(page, 'off_hand').catch(() => fullGearPayloadForPage(page) || gearPayload)
+  }
+  const loadMain = skippedSlots.has('main_hand') &&
+    !selected.main_hand &&
+    communityTemplateNeedsWeaponSlotDetail(page, gearPayload, 'main_hand', selected)
+  if (loadMain) {
+    return loadGearSlotDetailForPage(page, 'main_hand')
+      .catch(() => fullGearPayloadForPage(page) || gearPayload)
+      .then(() => loadOffHandIfNeeded() || (fullGearPayloadForPage(page) || gearPayload))
+  }
+  return loadOffHandIfNeeded()
+}
+
 function gearGroupsBySlot(payload) {
   const groups = {}
   const sourceGroups = (payload && (payload.replacementCandidates || payload.slotGroups)) || []
@@ -2917,6 +3134,26 @@ function mergeGearSlotDetailPayload(basePayload, detailPayload, slot) {
   if (Array.isArray(detailPayload.slotGroups)) {
     merged.slotGroups = replaceGearSlotGroup(merged.slotGroups, detailPayload.slotGroups, slot)
   }
+  if (detailPayload.equippedSet && typeof detailPayload.equippedSet === 'object') {
+    merged.equippedSet = {
+      ...((merged.equippedSet && typeof merged.equippedSet === 'object') ? merged.equippedSet : {}),
+      [slot]: detailPayload.equippedSet[slot]
+    }
+    if (!merged.equippedSet[slot]) delete merged.equippedSet[slot]
+  }
+  if (detailPayload.slotReadiness && typeof detailPayload.slotReadiness === 'object') {
+    merged.slotReadiness = {
+      ...((merged.slotReadiness && typeof merged.slotReadiness === 'object') ? merged.slotReadiness : {}),
+      [slot]: detailPayload.slotReadiness[slot]
+    }
+    if (!merged.slotReadiness[slot]) delete merged.slotReadiness[slot]
+  }
+  if (Array.isArray(detailPayload.gearLegalityBlockers)) {
+    merged.gearLegalityBlockers = Array.from(new Set([
+      ...((Array.isArray(merged.gearLegalityBlockers) ? merged.gearLegalityBlockers : [])),
+      ...detailPayload.gearLegalityBlockers
+    ].filter(Boolean)))
+  }
   return merged
 }
 
@@ -2931,17 +3168,75 @@ function gearPayloadNeedsSlotDetail(page, slot) {
   return payload.gearPayloadMode === 'initial' || group.detailMode === 'partial' || items.some((item) => item && item.detailMode === 'summary')
 }
 
+function gearEnhancementSlotNeedsDetail(gearPayload, item, selectedEnhancement) {
+  if (!item || typeof item !== 'object') return false
+  const socketOptions = enhancementOptionsForSlot(gearPayload, item, 'socketOptions')
+  const enchantOptions = enhancementOptionsForSlot(gearPayload, item, 'enchantOptions')
+  const embellishmentOptions = enhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions')
+  if (!socketOptions.length && (
+    itemSupportsConfiguredEnhancementFallback(item, 'gem') ||
+    enhancementRecordHasSelectedType(selectedEnhancement, 'gem')
+  )) {
+    return true
+  }
+  if (!enchantOptions.length && (
+    itemSupportsConfiguredEnhancementFallback(item, 'enchant') ||
+    enhancementRecordHasSelectedType(selectedEnhancement, 'enchant')
+  )) {
+    return true
+  }
+  if (!embellishmentOptions.length && !builtInEmbellishmentValue(item) && (
+    itemSupportsConfiguredEnhancementFallback(item, 'embellishment') ||
+    enhancementRecordHasSelectedType(selectedEnhancement, 'embellishment')
+  )) {
+    return true
+  }
+  return false
+}
+
+function gearEnhancementDetailSlotsForPage(page) {
+  const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
+  const selectedGearBySlot = (page && page.data && page.data.selectedGearBySlot) || {}
+  const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot)
+  const enhancement = normalizedEnhancementBySlot(
+    (page && page.data && page.data.gearEnhancementSheet && page.data.gearEnhancementSheet.draftEnhancementBySlot) ||
+    (page && page.data && page.data.enhancementBySlot) ||
+    {}
+  )
+  return requiredGearTemplateSlots(gearPayload || {}).filter((slot) => {
+    const item = indexed[slot]
+    return !!(item && gearPayloadNeedsSlotDetail(page, slot) && gearEnhancementSlotNeedsDetail(gearPayload, item, enhancement[slot]))
+  })
+}
+
 function loadGearSlotDetailForPage(page, slot) {
+  if (!page || !slot) return Promise.resolve(fullGearPayloadForPage(page))
+  if (!gearPayloadNeedsSlotDetail(page, slot)) return Promise.resolve(fullGearPayloadForPage(page))
   const selectedSpec = (page && page.data && page.data.selectedSpec) || {}
   const keys = specWebsimKeys(selectedSpec)
   const selectionKey = `${keys.classKey}:${keys.specKey}`
-  return requestWebsimGear({ ...keys, mode: 'slot', slot }).then(({ payload, error, fromFallback }) => {
+  const requestKey = `${selectionKey}:${slot}`
+  page.gearSlotDetailRequestCache = page.gearSlotDetailRequestCache || {}
+  if (page.gearSlotDetailRequestCache[requestKey]) return page.gearSlotDetailRequestCache[requestKey]
+  const requestPromise = requestWebsimGear({ ...keys, mode: 'slot', slot }).then(({ payload, error, fromFallback }) => {
     if (!page || !page.data || page.data.gearSelectionKey !== selectionKey) return fullGearPayloadForPage(page)
     if (fromFallback || error) return fullGearPayloadForPage(page)
     const merged = mergeGearSlotDetailPayload(fullGearPayloadForPage(page) || {}, payload, slot)
     page.gearPayloadCache = merged
     return merged
+  }).finally(() => {
+    if (page.gearSlotDetailRequestCache && page.gearSlotDetailRequestCache[requestKey] === requestPromise) {
+      delete page.gearSlotDetailRequestCache[requestKey]
+    }
   })
+  page.gearSlotDetailRequestCache[requestKey] = requestPromise
+  return requestPromise
+}
+
+function loadGearSlotDetailsSequentiallyForPage(page, slots) {
+  return (Array.isArray(slots) ? slots : []).reduce((chain, slot) => (
+    chain.then(() => loadGearSlotDetailForPage(page, slot).catch(() => fullGearPayloadForPage(page)))
+  ), Promise.resolve(fullGearPayloadForPage(page)))
 }
 
 function gearCandidateKey(item, slot, index) {
@@ -3929,6 +4224,7 @@ Page({
     if (this.data.gearSelectionKey !== selectionKey) {
       this.gearPayloadCache = null
       this.gearSlotCandidateCache = {}
+      this.gearSlotDetailRequestCache = {}
       this.gearStatsTalentImportKey = ''
     }
     this.setData({
@@ -3944,7 +4240,10 @@ Page({
       gearEnhancementSheet: emptyGearEnhancementSheet(),
       gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
-    requestWebsimGear({ ...keys, mode: 'initial' }).then(({ payload, error, fromFallback }) => {
+    this.gearInitialRequestCache = this.gearInitialRequestCache || {}
+    const requestKey = `${selectionKey}:initial`
+    if (this.gearInitialRequestCache[requestKey]) return this.gearInitialRequestCache[requestKey]
+    const requestPromise = requestWebsimGear({ ...keys, mode: 'initial' }).then(({ payload, error, fromFallback }) => {
       if (this.data.gearSelectionKey !== selectionKey) return
       this.gearPayloadCache = payload
       this.gearSlotCandidateCache = {}
@@ -3978,6 +4277,7 @@ Page({
       if (typeof this.loadGearStatsTalentImport === 'function') {
         this.loadGearStatsTalentImport(keys, selectionKey)
       }
+      return payload
     }).catch((error) => {
       this.gearPayloadCache = null
       this.gearSlotCandidateCache = {}
@@ -3989,7 +4289,14 @@ Page({
         gearDataWarningText: gearDataWarningText(error.message || String(error), null, true)
       })
       maybeRefreshGearStatsForPage(this)
+      return null
+    }).finally(() => {
+      if (this.gearInitialRequestCache && this.gearInitialRequestCache[requestKey] === requestPromise) {
+        delete this.gearInitialRequestCache[requestKey]
+      }
     })
+    this.gearInitialRequestCache[requestKey] = requestPromise
+    return requestPromise
   },
 
   loadGearStatsTalentImport(keys, selectionKey) {
@@ -4190,19 +4497,50 @@ Page({
   openGearEnhancementSheet() {
     if (this.data.gearDataFallback) {
       showToast(this.data.gearDataWarningText || '装备接口暂不可用，无法配置强化')
-      return
+      return Promise.resolve()
     }
-    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
-    this.setData({
-      gearEnhancementSheet: buildGearEnhancementSheet(
+    const openWithCurrentPayload = (options) => {
+      const state = options || {}
+      const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
+      const currentSelectedGearBySlot = this.data.selectedGearBySlot || {}
+      const currentEnhancementBySlot = this.data.enhancementBySlot || {}
+      const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, currentSelectedGearBySlot)
+      const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, currentEnhancementBySlot)
+      const selectionChanged = JSON.stringify(selectedGearBySlot) !== JSON.stringify(currentSelectedGearBySlot)
+      const enhancementChanged = JSON.stringify(enhancementBySlot) !== JSON.stringify(currentEnhancementBySlot)
+      const sheet = buildGearEnhancementSheet(
         gearPayload,
-        this.data.selectedGearBySlot || {},
-        this.data.enhancementBySlot || {},
+        selectedGearBySlot,
+        enhancementBySlot,
         true
-      ),
-      gearSlotSheet: emptyGearSlotSheet(),
-      gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
-    })
+      )
+      if (state.loading) {
+        sheet.loading = true
+        if (sheet.emptyText) sheet.emptyText = '正在加载可配置宝石、附魔和美化...'
+      }
+      this.setData({
+        ...(selectionChanged ? { selectedGearBySlot } : {}),
+        ...(enhancementChanged ? { enhancementBySlot } : {}),
+        ...((selectionChanged || enhancementChanged) ? {
+          gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
+          gearAttributePanel: buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot)
+        } : {}),
+        gearEnhancementSheet: sheet,
+        gearSlotSheet: emptyGearSlotSheet(),
+        gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
+      })
+    }
+    const detailSlots = gearEnhancementDetailSlotsForPage(this)
+    if (detailSlots.length) {
+      openWithCurrentPayload({ loading: true })
+      loadGearSlotDetailsSequentiallyForPage(this, detailSlots).then(() => {
+        const sheet = this.data.gearEnhancementSheet || {}
+        if (sheet.visible) openWithCurrentPayload()
+      })
+      return Promise.resolve()
+    }
+    openWithCurrentPayload()
+    return Promise.resolve()
   },
 
   closeGearEnhancementSheet() {
@@ -4376,34 +4714,44 @@ Page({
     const template = templates.find((item) => item.id === templateId)
     if (!template || !template.canApplyGear) {
       showToast('当前模板暂不可导入')
-      return
+      return Promise.resolve()
     }
-    const gearPayload = fullGearPayloadForPage(this) || {}
-    const baselineSelection = equippedSetToSelection(gearPayload.equippedSet || {}, gearPayload)
-    const templateSelection = gearItemsToSelection(template.gearItems || [], gearPayload)
-    const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, {
-      ...baselineSelection,
-      ...templateSelection
-    })
-    const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, this.data.enhancementBySlot || {})
-    const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
-      ...this.data,
-      selectedGearBySlot,
-      enhancementBySlot
-    })
-    this.setData({
-      ...derivedState,
-      enhancementBySlot,
-      gearSlotSheet: emptyGearSlotSheet(),
-      gearEnhancementSheet: emptyGearEnhancementSheet(),
-      gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
-    })
-    maybeRefreshGearStatsForPage(this)
-    trackEvent('builds_gear_community_template_apply', {
-      templateId,
-      readySlotCount: template.readySlotCount || Object.keys(templateSelection).length,
-      specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
-    }, { page: 'pages/builds/detail' })
+    const applyWithCurrentPayload = () => {
+      const gearPayload = fullGearPayloadForPage(this) || {}
+      const selectedGearBySlot = repairedGearSelectionForSkippedWeapons(
+        this,
+        gearPayload,
+        communityTemplateBaseGearSelection(gearPayload, template),
+        template
+      )
+      const enhancementBySlot = prunedEnhancementBySlot(
+        gearPayload,
+        selectedGearBySlot,
+        communityTemplateEmbeddedEnhancementBySlot(template, selectedGearBySlot)
+      )
+      const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
+        ...this.data,
+        selectedGearBySlot,
+        enhancementBySlot
+      })
+      this.setData({
+        ...derivedState,
+        enhancementBySlot,
+        gearSlotSheet: emptyGearSlotSheet(),
+        gearEnhancementSheet: emptyGearEnhancementSheet(),
+        gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
+      })
+      maybeRefreshGearStatsForPage(this)
+      trackEvent('builds_gear_community_template_apply', {
+        templateId,
+        readySlotCount: template.readySlotCount || Object.keys(selectedGearBySlot || {}).length,
+        specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
+      }, { page: 'pages/builds/detail' })
+    }
+    const detailPromise = loadCommunityTemplateWeaponRepairDetails(this, template)
+    if (detailPromise) return detailPromise.then(applyWithCurrentPayload)
+    applyWithCurrentPayload()
+    return Promise.resolve()
   },
 
   setGearCandidateFilter(event) {

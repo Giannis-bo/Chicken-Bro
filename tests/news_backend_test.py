@@ -2080,6 +2080,87 @@ class NewsBackendTest(unittest.TestCase):
         self.assertNotIn("missing gear slots: off_hand", analysis["simulation"].get("error", ""))
         self.assertEqual(len(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]), 15)
 
+    def test_simcraft_template_structured_snapshot_keeps_legal_partial_items_when_slot_is_illegal(self):
+        snapshot = self.simc_template_structured_gear_snapshot()
+        snapshot["gearBySlot"]["head"].update({
+            "name": "cloth_hood",
+            "displayName": "Cloth Hood",
+            "armorType": "Cloth",
+        })
+        payload = self.simc_template_payload(
+            talent_raw="C4DAshamanexternal",
+            gear_raw=json.dumps(snapshot, ensure_ascii=False),
+            talent_spec="elemental",
+            gear_spec="elemental",
+            race="tauren",
+        )
+        for template_type in ("talent", "gear"):
+            payload["templateContext"][template_type].update({
+                "classKey": "shaman",
+                "className": "Shaman",
+                "specKey": "elemental",
+                "specName": "Elemental",
+                "heroKey": "",
+                "heroLabel": "",
+            })
+
+        analysis = self.backend.analyze_and_store_simulator_task(payload)
+        simc_items = analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]
+
+        self.assertEqual(analysis["agent"]["status"], "template_blocked")
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
+        self.assertIn("missing gear slots: head", analysis["simulation"]["error"])
+        self.assertIn(
+            "head gear incompatible with shaman/elemental armor rule: Cloth",
+            analysis["simulation"]["error"],
+        )
+        self.assertEqual(len(simc_items), 15)
+        self.assertNotIn("head", [item.get("slot") for item in simc_items])
+        self.assertNotIn("cloth_hood", analysis["agent"].get("draftProfile", ""))
+
+    def test_simcraft_template_confirm_degrades_in_pg_only_runtime_without_sqlite(self):
+        snapshot = self.simc_template_structured_gear_snapshot()
+        snapshot["gearBySlot"]["head"].update({
+            "name": "cloth_hood",
+            "displayName": "Cloth Hood",
+            "armorType": "Cloth",
+        })
+        payload = self.simc_template_payload(
+            talent_raw="C4DAshamanexternal",
+            gear_raw=json.dumps(snapshot, ensure_ascii=False),
+            talent_spec="elemental",
+            gear_spec="elemental",
+            race="tauren",
+        )
+        for template_type in ("talent", "gear"):
+            payload["templateContext"][template_type].update({
+                "classKey": "shaman",
+                "className": "Shaman",
+                "specKey": "elemental",
+                "specName": "Elemental",
+                "heroKey": "",
+                "heroLabel": "",
+            })
+        original_postgres_only = self.backend.postgres_only_runtime_enabled
+        original_db_connection = self.backend.db_connection
+
+        def sqlite_disabled_connection():
+            raise RuntimeError("SQLite runtime is disabled; use PostgreSQL runtime stores or explicit migration tooling")
+
+        self.backend.postgres_only_runtime_enabled = lambda: True
+        self.backend.db_connection = sqlite_disabled_connection
+        try:
+            analysis = self.backend.analyze_and_store_simulator_task(payload)
+        finally:
+            self.backend.postgres_only_runtime_enabled = original_postgres_only
+            self.backend.db_connection = original_db_connection
+
+        simc_items = analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]
+        self.assertEqual(analysis["agent"]["status"], "template_blocked")
+        self.assertFalse(analysis["agent"]["canSubmitTask"])
+        self.assertEqual(len(simc_items), 15)
+        self.assertIn("head gear incompatible with shaman/elemental armor rule: Cloth", analysis["simulation"]["error"])
+
     def test_simcraft_template_confirm_accepts_official_talent_import_code(self):
         analysis = self.backend.analyze_and_store_simulator_task(
             self.simc_template_payload(talent_raw="talents=CAE_OFFICIAL_IMPORT_CODE")
@@ -4754,6 +4835,39 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(gear["simcraftReadiness"]["gear"]["rawSource"], "rawString")
         self.assertEqual(listed[0]["rawString"], gear["rawString"])
 
+    def test_user_build_template_save_readiness_blocks_illegal_structured_gear_snapshot(self):
+        login = self.backend.login_with_wechat_code(
+            "wx-code-template-illegal-gear-snapshot",
+            exchange_code=lambda code: {"openid": "openid-template-illegal-gear-snapshot"},
+        )
+        snapshot = self.simc_template_structured_gear_snapshot()
+        snapshot["gearBySlot"]["head"].update({
+            "name": "cloth_hood",
+            "displayName": "Cloth Hood",
+            "armorType": "Cloth",
+        })
+
+        gear = self.backend.save_user_build_template(
+            login["accessToken"],
+            {
+                "type": "gear",
+                "title": "Illegal Snapshot Gear",
+                "rawString": "metadata snapshot placeholder",
+                "classKey": "shaman",
+                "specKey": "elemental",
+                "status": "complete",
+                "metadata": {"gearSnapshot": snapshot},
+            },
+        )
+        listed = self.backend.list_user_build_templates(login["accessToken"])["templates"]
+
+        readiness = gear["simcraftReadiness"]
+        self.assertEqual(readiness["status"], "blocked")
+        self.assertEqual(readiness["gear"]["parsedSlotCount"], 15)
+        self.assertIn("missing gear slots: head", readiness["blockers"])
+        self.assertIn("head gear incompatible with shaman/elemental armor rule: Cloth", readiness["blockers"])
+        self.assertEqual(listed[0]["simcraftReadiness"]["status"], "blocked")
+
     def test_http_me_build_templates_requires_auth_and_supports_crud(self):
         login = self.backend.login_with_wechat_code(
             "wx-code-template-http",
@@ -5731,6 +5845,42 @@ class NewsBackendTest(unittest.TestCase):
                         "coveredTemplateSlotCount": 63,
                         "missingTemplateSlotCount": 17,
                     },
+                    "templateChains": {
+                        "schemaRevision": "gear-template-chain-state-v1",
+                        "communityObserved": {
+                            "coveredSpecCount": 23,
+                            "verifiedSpecCount": 12,
+                            "partialSpecCount": 11,
+                            "blockedSpecCount": 17,
+                        },
+                        "recommendedBis": {
+                            "totalSpecCount": 0,
+                            "verifiedSpecCount": 0,
+                            "anchorFailedSpecCount": 0,
+                        },
+                        "legacyFallback": {
+                            "totalSpecCount": 40,
+                            "starterBaselineSpecCount": 40,
+                        },
+                    },
+                    "recommendedBisGuard": {
+                        "schemaRevision": "recommended-bis-v1-guard-state-v1",
+                        "status": "blocked",
+                        "guardMode": "readiness_only",
+                        "expectedSpecCount": 40,
+                        "optimizerRequiredSpecCount": 40,
+                        "fullOptimizerRunRequiredSpecCount": 40,
+                        "lastGuardCheckAt": "2026-07-07T13:00:00+00:00",
+                    },
+                    "communityObservedGuard": {
+                        "schemaRevision": "community-best-v2-guard-state-v1",
+                        "status": "partial",
+                        "guardMode": "readiness_only",
+                        "expectedSpecCount": 40,
+                        "coveredSpecCount": 23,
+                        "simcReplayRequiredSpecCount": 11,
+                        "lastGuardCheckAt": "2026-07-07T13:05:00+00:00",
+                    },
                     "scanRunId": "live-health-summary",
                 }
 
@@ -5771,6 +5921,22 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(components["websim_sync"]["details"]["talentCount"], 5246)
         self.assertEqual(components["websim_sync"]["details"]["profileCount"], 50)
         self.assertEqual(components["gear_catalog"]["status"], "blocked")
+        authority = components["gear_legality_authority"]
+        self.assertEqual(authority["status"], "partial")
+        self.assertEqual(authority["details"]["totalSpecs"], 40)
+        self.assertEqual(authority["details"]["verifiedSpecs"], 0)
+        self.assertEqual(authority["details"]["manualOverrideSpecs"], 40)
+        self.assertEqual(authority["details"]["ruleSourceMapStatus"], "partial")
+        self.assertEqual(authority["details"]["sourceMap"]["schemaRevision"], "gear-legality-source-map-v1")
+        self.assertEqual(authority["details"]["sourceMap"]["expectedSpecCount"], 40)
+        self.assertEqual(authority["details"]["sourceMap"]["verifiedSpecCount"], 0)
+        self.assertEqual(authority["details"]["sourceMap"]["manualOverrideSpecCount"], 40)
+        self.assertEqual(authority["details"]["sourceMap"]["officialVerifiedSpecCount"], 0)
+        self.assertEqual(authority["details"]["sourceMap"]["simcVerifiedSpecCount"], 0)
+        self.assertGreaterEqual(authority["details"]["sourceMap"]["observedSupportedSpecCount"], 2)
+        self.assertEqual(authority["details"]["blockedTemplateCount"], 0)
+        self.assertEqual(authority["details"]["excludedCandidateCount"], 0)
+        self.assertIn("manual_override", authority["blockers"][0])
         self.assertEqual(components["raiderio"]["blockers"], ["PostgreSQL Raider.IO cache is empty"])
         self.assertEqual(components["stat_weights"]["status"], "partial")
         self.assertEqual(components["stat_weights"]["checkedAt"], "2026-07-03T00:05:00+00:00")
@@ -5783,6 +5949,15 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(community_details["realCommunityGearTemplates"]["coveredSpecCount"], 23)
         self.assertEqual(community_details["seasonRecommendation"]["completeSpecCount"], 40)
         self.assertEqual(community_details["seasonRecommendation"]["provisionalSpecCount"], 40)
+        self.assertEqual(community_details["templateChains"]["communityObserved"]["verifiedSpecCount"], 12)
+        self.assertEqual(community_details["templateChains"]["recommendedBis"]["totalSpecCount"], 0)
+        self.assertEqual(community_details["templateChains"]["legacyFallback"]["starterBaselineSpecCount"], 40)
+        self.assertEqual(community_details["recommendedBisGuard"]["schemaRevision"], "recommended-bis-v1-guard-state-v1")
+        self.assertEqual(community_details["recommendedBisGuard"]["guardMode"], "readiness_only")
+        self.assertEqual(community_details["recommendedBisGuard"]["optimizerRequiredSpecCount"], 40)
+        self.assertEqual(community_details["communityObservedGuard"]["schemaRevision"], "community-best-v2-guard-state-v1")
+        self.assertEqual(community_details["communityObservedGuard"]["guardMode"], "readiness_only")
+        self.assertEqual(community_details["communityObservedGuard"]["simcReplayRequiredSpecCount"], 11)
         self.assertEqual(community_details["gearTemplatePreflight"]["canonicalSlotMatrix"]["missingSlotCount"], 90)
         self.assertEqual(community_details["changeReport"]["summary"]["unchanged"], 120)
         self.assertEqual(community_details["lastSyncRun"], "live-health-summary")
@@ -9219,6 +9394,168 @@ class NewsBackendTest(unittest.TestCase):
         self.assertTrue(captured["compact"])
         self.assertEqual(captured["mode"], "initial")
         self.assertEqual(captured["slot"], "head")
+
+    def test_runtime_websim_gear_adds_template_chain_state_to_cached_postgres_payload(self):
+        observed = {
+            "id": "observed-mage-frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceUrl": "https://raider.io/characters/cn/realm/Magefrost",
+            "sampleCount": 1,
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "scanRunId": "scan-mage-frost",
+            "gearHash": "gear:mage-frost",
+            "sourceRefs": [
+                {
+                    "sourceKey": "raiderio_observed_profile",
+                    "sourceUrl": "https://raider.io/characters/cn/realm/Magefrost",
+                    "sampleCount": 1,
+                    "characterName": "Magefrost",
+                    "region": "cn",
+                    "realmSlug": "realm",
+                    "fetchedAt": "2026-07-08T08:00:00+00:00",
+                    "scanRunId": "scan-mage-frost",
+                }
+            ],
+            "payload": {
+                "profileHash": "sha256:mage-frost",
+                "gearHash": "gear:mage-frost",
+                "character": {
+                    "name": "Magefrost",
+                    "region": "cn",
+                    "realmSlug": "realm",
+                },
+                "templateEvidence": {
+                    "scenarioResults": {
+                        "mplus_aoe": {"dps": 200000, "iterations": 10000}
+                    }
+                },
+            },
+        }
+        baseline = {
+            "id": "season-recommendation-mage-frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "season_recommendation",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+            "payload": {
+                "templateEvidence": {
+                    "recommendationConfidence": "provisional",
+                    "simcReview": {"status": "required"},
+                }
+            },
+        }
+        pg_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "replacementCandidates": [],
+            "communityTemplates": [observed],
+            "baselineTemplates": [baseline],
+            "communityTemplateSync": {
+                "sourceStatus": "synced",
+                "templates": {"total": 2, "verified": 2},
+            },
+        }
+
+        class Store:
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                return pg_payload
+
+        with patch.object(self.backend, "cache_data_store", return_value=Store()):
+            payload = self.backend.runtime_websim_gear_payload("mage", "frost", compact=True, mode="initial")
+
+        self.assertEqual(payload["communityTemplateSync"]["templateChains"]["communityObserved"]["verifiedSpecCount"], 1)
+        self.assertEqual(payload["communityTemplateSync"]["templateChains"]["legacyFallback"]["starterBaselineSpecCount"], 1)
+
+    def test_runtime_websim_gear_partially_gates_illegal_postgres_templates(self):
+        legal_head = {
+            "slot": "head",
+            "simcSlot": "head",
+            "itemId": "270001",
+            "displayName": "Legal Head",
+            "armorType": "Mail",
+            "simcReady": True,
+        }
+        bad_template = {
+            "id": "season-recommendation-shaman-elemental",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "sourceKey": "season_recommendation",
+            "sourceStatus": "synced",
+            "status": "complete",
+            "canApplyGear": True,
+            "readySlotCount": 16,
+            "gearItems": [
+                {
+                    "slot": "main_hand",
+                    "simcSlot": "main_hand",
+                    "itemId": "237849",
+                    "weaponType": "Two-Handed Mace",
+                    "simcReady": True,
+                },
+                {
+                    "slot": "off_hand",
+                    "simcSlot": "off_hand",
+                    "itemId": "245769",
+                    "weaponType": "Held In Off-hand",
+                    "simcReady": True,
+                },
+                legal_head,
+            ],
+        }
+        pg_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "replacementCandidates": [],
+            "equippedSet": {
+                "main_hand": bad_template["gearItems"][0],
+                "off_hand": bad_template["gearItems"][1],
+                "head": legal_head,
+            },
+            "baselineSet": bad_template["gearItems"],
+            "communityTemplates": [],
+            "baselineTemplates": [bad_template],
+        }
+
+        class Store:
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                return pg_payload
+
+        with patch.object(self.backend, "cache_data_store", return_value=Store()):
+            payload = self.backend.runtime_websim_gear_payload("shaman", "elemental", compact=True, mode="initial")
+
+        baseline = payload["baselineTemplates"][0]
+        self.assertEqual(baseline["status"], "partial")
+        self.assertEqual(baseline["sourceStatus"], "partial")
+        self.assertTrue(baseline["canApplyGear"])
+        self.assertEqual(baseline["readySlotCount"], 1)
+        self.assertIn("main_hand", baseline["missingSlots"])
+        self.assertIn("off_hand", baseline["missingSlots"])
+        self.assertEqual([item["slot"] for item in baseline["gearItems"]], ["head"])
+        self.assertTrue(
+            any(
+                "main_hand gear incompatible with shaman/elemental weapon rule: Two-Handed Mace" in blocker
+                for blocker in baseline["blockers"]
+            )
+        )
+        self.assertNotIn("main_hand", payload["equippedSet"])
+        self.assertNotIn("off_hand", payload["equippedSet"])
+        self.assertIn("head", payload["equippedSet"])
+        self.assertFalse(
+            any(
+                item.get("slot") in {"main_hand", "off_hand"}
+                for item in payload["baselineSet"]
+            )
+        )
+        self.assertTrue(any(item.get("slot") == "head" for item in payload["baselineSet"]))
+        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
 
     def test_pg_only_runtime_ignores_sqlite_public_cache_fallback_flag_for_gear(self):
         stale_payload = {

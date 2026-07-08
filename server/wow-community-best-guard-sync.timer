@@ -1,0 +1,12 @@
+[Unit]
+Description=Run WOW community_best_v2 observed readiness guard sync daily
+
+[Timer]
+OnBootSec=30min
+OnCalendar=*-*-* 08:00:00
+RandomizedDelaySec=15min
+Persistent=true
+Unit=wow-community-best-guard-sync.service
+
+[Install]
+WantedBy=timers.target

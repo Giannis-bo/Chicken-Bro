@@ -25,7 +25,11 @@ class FakeCursor:
         self.current_rows = None
         for marker, rows in self.rowsets.items():
             if marker in normalized_sql:
-                self.current_rows = list(rows)
+                if isinstance(rows, dict):
+                    key = tuple(params or ())
+                    self.current_rows = list(rows.get(key, rows.get("*", [])))
+                else:
+                    self.current_rows = list(rows)
                 break
 
     def fetchone(self):
@@ -224,6 +228,107 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("readiness", payload)
         self.assertIn("season cache expired", payload["catalogBlockers"])
 
+    def test_gear_read_model_attaches_candidate_legality_debug_fields_to_full_payload(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {
+                            "status": "verified",
+                            "schemaRevision": "gear-catalog-test",
+                            "blockers": [],
+                        },
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+                "gear_payload_fingerprint": [
+                    ("websim_items", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_sources", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_variants", 1, "2026-06-28T01:00:00+00:00"),
+                    ("websim_gear_mod_options", 0, ""),
+                    ("websim_community_gear_templates", 0, ""),
+                ],
+                "FROM cache.websim_gear_sources": [
+                    (
+                        "source-head-a",
+                        "head-a",
+                        "raid",
+                        "raid-head-a",
+                        "The Voidspire",
+                        "2001",
+                        "",
+                        "mythic",
+                        "season-pg-1",
+                        {},
+                        "2026-06-28T01:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_gear_variants": [
+                    (
+                        "variant-head-a",
+                        "head-a",
+                        "head",
+                        "head-a-mythic",
+                        "Mythic Head A",
+                        "raid",
+                        "mythic",
+                        289,
+                        {"ilevel": "289", "bonus_id": "12345"},
+                        "verified",
+                        [],
+                        {"sourceStatus": "verified"},
+                        "2026-06-28T01:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_gear_mod_options": [],
+                "FROM cache.websim_items": [
+                    (
+                        "head-a",
+                        "Head A",
+                        "head",
+                        289,
+                        {
+                            "id": "head-a",
+                            "name": "Head A",
+                            "inventory_type": {"type": "HEAD", "name": "头部"},
+                            "item_class": {"id": 4, "name": "Armor"},
+                            "item_subclass": {"id": 1, "name": "Cloth"},
+                            "quality": "epic",
+                        },
+                        "verified",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        full_payload = store.get_websim_gear("mage", "arcane", compact=False)
+        compact_payload = store.get_websim_gear("mage", "arcane", compact=True)
+
+        full_head = next(group for group in full_payload["replacementCandidates"] if group["slot"] == "head")["items"][0]
+        compact_head = next(group for group in compact_payload["replacementCandidates"] if group["slot"] == "head")["items"][0]
+        self.assertEqual(full_head["legalityStatus"], "legal")
+        self.assertEqual(full_head["sourceTrust"], "official_current_season")
+        self.assertEqual(full_head["legalityReasons"], [])
+        self.assertNotIn("legalityReasons", compact_head)
+        self.assertNotIn("sourceTrust", compact_head)
+
     def test_websim_gear_keeps_cached_read_model_when_pg_season_is_stale(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -321,23 +426,10 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("slots", payload)
         self.assertIsInstance(payload["equippedSet"], dict)
         self.assertIn("readiness", payload)
-        self.assertEqual(payload["communityTemplates"][0]["status"], "pending_collection")
-        self.assertEqual(len(payload["baselineTemplates"]), 1)
-        baseline = payload["baselineTemplates"][0]
-        self.assertEqual(baseline["sourceKey"], "baseline_blocked")
-        self.assertEqual(baseline["sourceStatus"], "blocked")
-        self.assertEqual(baseline["status"], "blocked")
-        self.assertEqual(baseline["templateSlot"], "baseline")
-        self.assertFalse(baseline["canApplyGear"])
-        self.assertEqual(baseline["gearItems"], [])
-        self.assertEqual(baseline["readySlotCount"], 0)
-        self.assertEqual(len(baseline["missingSlots"]), 16)
-        self.assertEqual(baseline.get("blockers"), ["No baseline gear template is available for this spec."])
-        self.assertIn("deterministic baseline gear template", baseline.get("nextAction", ""))
-        self.assertNotIn("payload", baseline)
-        self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
-        self.assertEqual(payload["communityTemplateSync"]["templates"]["blocked"], 1)
-        self.assertEqual(payload["communityTemplateSync"]["templates"]["pending"], 1)
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(payload["baselineTemplates"], [])
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["blocked"], 0)
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["pending"], 0)
         self.assertTrue(trinket_groups)
         trinket_group = trinket_groups[0]
         self.assertEqual(trinket_group["items"][0]["itemId"], "item-a")
@@ -787,7 +879,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         "Observed Frost Gear",
                         "raiderio_observed_profile",
                         "Raider.IO observed gear",
-                        "https://example.test/gear-observed",
+                        "https://raider.io/characters/us/area-52/Treehealer",
                         "partial",
                         "partial",
                         "sig-gear-b",
@@ -797,7 +889,11 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         1,
                         ["neck"],
                         "observed",
-                        {},
+                        {
+                            "sampleCount": 1,
+                            "profileHash": "profile:druid:restoration:treehealer",
+                            "gearHash": "gear:druid:restoration:treehealer",
+                        },
                         "2026-06-28T01:00:00+00:00",
                         "2099-01-01T00:00:00+00:00",
                         "scan-b",
@@ -810,22 +906,329 @@ class PostgresCacheStoreTest(unittest.TestCase):
         payload = store.get_websim_gear("mage", "frost", compact=True)
 
         sql = "\n".join(conn.cursor_instance.statements)
-        self.assertEqual(len(payload["communityTemplates"]), 1)
-        template = payload["communityTemplates"][0]
-        self.assertEqual(template["id"], "55555555-5555-4555-8555-555555555555")
-        self.assertEqual(template["sourceKey"], "raiderio_observed_profile")
-        self.assertEqual(template["status"], "partial")
-        self.assertTrue(template["canApplyGear"])
-        self.assertEqual(len(payload["baselineTemplates"]), 1)
-        baseline = payload["baselineTemplates"][0]
-        self.assertEqual(baseline["id"], "44444444-4444-4444-8444-444444444444")
-        self.assertEqual(baseline["sourceKey"], "simc_preset")
-        self.assertEqual(baseline["status"], "complete")
-        self.assertEqual(baseline["scenarioKey"], "mplus_mixed_route")
-        self.assertEqual(payload["communityTemplateSync"]["templates"]["partial"], 1)
-        self.assertEqual(payload["communityTemplateSync"]["templates"]["verified"], 1)
-        self.assertEqual(payload["communityTemplateSync"]["templates"]["total"], 2)
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(payload["baselineTemplates"], [])
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["partial"], 0)
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["verified"], 0)
+        self.assertEqual(payload["communityTemplateSync"]["templates"]["total"], 0)
         self.assertIn("FROM cache.websim_community_gear_templates", sql)
+
+    def test_gear_read_model_gates_illegal_pg_baseline_templates(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        legal_head = {
+            "slot": "head",
+            "simcSlot": "head",
+            "itemId": "270001",
+            "id": "270001",
+            "name": "legal_head",
+            "displayName": "Legal Head",
+            "armorType": "Cloth",
+            "simcReady": True,
+        }
+        illegal_main_hand = {
+            "slot": "main_hand",
+            "simcSlot": "main_hand",
+            "itemId": "270002",
+            "id": "270002",
+            "name": "illegal_two_hand_mace",
+            "weaponType": "Two-Handed Mace",
+            "simcReady": True,
+        }
+        illegal_off_hand = {
+            "slot": "off_hand",
+            "simcSlot": "off_hand",
+            "itemId": "270003",
+            "id": "270003",
+            "name": "held_offhand",
+            "weaponType": "Held In Off-hand",
+            "simcReady": True,
+        }
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {"status": "partial", "schemaRevision": "gear-catalog-test", "blockers": []},
+                        "2026-06-28T01:01:00+00:00",
+                    )
+                ],
+                "gear_payload_fingerprint": [
+                    ("websim_items", 0, ""),
+                    ("websim_gear_sources", 0, ""),
+                    ("websim_gear_variants", 0, ""),
+                    ("websim_gear_mod_options", 0, ""),
+                    ("websim_community_gear_templates", 1, "2026-06-28T01:00:00+00:00"),
+                ],
+                "FROM cache.websim_gear_sources": [],
+                "FROM cache.websim_gear_variants": [],
+                "FROM cache.websim_gear_mod_options": [],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "44444444-4444-4444-8444-444444444444",
+                        "mage",
+                        "frost",
+                        "Frost Mage Season Recommendation",
+                        "season_recommendation",
+                        "season_recommendation",
+                        "https://example.test/gear",
+                        "synced",
+                        "complete",
+                        "sig-gear-illegal",
+                        [{"type": "season_recommendation"}],
+                        [illegal_main_hand, illegal_off_hand, legal_head],
+                        "main_hand=illegal_two_hand_mace,id=270002",
+                        16,
+                        [],
+                        "season recommendation",
+                        {"templateSlot": "baseline"},
+                        "2026-06-28T01:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-illegal",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("mage", "frost", compact=True)
+
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(payload["baselineTemplates"], [])
+
+    def test_elemental_initial_payload_only_exposes_observed_template(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        def item_for_slot(slot, index):
+            item = {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(280000 + index),
+                "id": str(280000 + index),
+                "name": f"elemental_{slot}",
+                "displayName": f"Elemental {slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                "itemStats": [{"key": "intellect", "value": 1000}],
+            }
+            if slot in {"head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"}:
+                item["armorType"] = "Mail"
+            if slot == "main_hand":
+                item["weaponType"] = "One-Handed Mace"
+            if slot == "off_hand":
+                item["weaponType"] = "Shield"
+            return item
+
+        gear_items = [item_for_slot(slot, index) for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)]
+
+        def row(template_id, source_key, payload):
+            return (
+                template_id,
+                "shaman",
+                "elemental",
+                template_id,
+                source_key,
+                source_key,
+                "https://raider.io/characters/cn/sylvanas/听凭风引" if source_key == "raiderio_observed_profile" else "",
+                "synced",
+                "complete",
+                template_id,
+                [{"sourceKey": source_key}],
+                gear_items,
+                "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in gear_items),
+                16,
+                [],
+                "elemental template",
+                payload,
+                "2026-07-08T10:00:00+08:00",
+                "2099-01-01T00:00:00+00:00",
+                "scan-elemental",
+            )
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-07-08T02:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {"status": "partial", "schemaRevision": "gear-catalog-test", "blockers": []},
+                        "2026-07-08T02:01:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_gear_templates": [
+                    row(
+                        "observed_profile_shaman_elemental",
+                        "raiderio_observed_profile",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "profileHash": "profile:shaman:elemental:tingping",
+                            "gearHash": "gear:shaman:elemental:tingping",
+                            "rankingEvidence": {
+                                "source": "raiderio_spec_ranking",
+                                "rank": 1,
+                                "score": 4249.17,
+                            },
+                        },
+                    ),
+                    row(
+                        "season_recommendation_shaman_elemental",
+                        "season_recommendation",
+                        {"templateSlot": "baseline", "templateEvidence": {"recommendationConfidence": "provisional"}},
+                    ),
+                    row(
+                        "recommended_bis_shaman_elemental",
+                        "recommended_bis",
+                        {
+                            "templateType": "recommended_bis",
+                            "templateEvidence": {
+                                "schemaRevision": "recommended-bis-v1",
+                                "status": "projected_bis",
+                                "simc": {"status": "required", "highIterationRuns": 0, "pairwiseCompares": 0},
+                                "anchorValidation": {"status": "pending"},
+                            },
+                        },
+                    ),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("shaman", "elemental", compact=True, mode="initial")
+
+        self.assertEqual([template["sourceKey"] for template in payload["communityTemplates"]], ["raiderio_observed_profile"])
+        self.assertEqual(payload["baselineTemplates"], [])
+        chain = payload["communityTemplateSync"]["templateChains"]
+        self.assertEqual(chain["legacyFallback"]["totalSpecCount"], 0)
+        self.assertEqual(chain["recommendedBis"]["totalSpecCount"], 0)
+
+    def test_initial_payload_hides_source_less_observed_template_blocked_by_legality_gate(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        def item_for_slot(slot, index):
+            item = {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(580000 + index),
+                "id": str(580000 + index),
+                "name": f"illegal_observed_{slot}",
+                "displayName": f"Illegal Observed {slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                "itemStats": [{"key": "intellect", "value": 1000}],
+            }
+            if slot in {"head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"}:
+                item["armorType"] = "Mail"
+            if slot == "head":
+                item["armorType"] = "Cloth"
+            if slot == "main_hand":
+                item["weaponType"] = "One-Handed Mace"
+            if slot == "off_hand":
+                item["weaponType"] = "Shield"
+            return item
+
+        gear_items = [item_for_slot(slot, index) for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)]
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-07-08T02:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {"status": "partial", "schemaRevision": "gear-catalog-test", "blockers": []},
+                        "2026-07-08T02:01:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "observed-illegal-shaman-elemental",
+                        "shaman",
+                        "elemental",
+                        "Illegal observed shaman",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "",
+                        "synced",
+                        "complete",
+                        "observed-illegal-shaman-elemental",
+                        [{"sourceKey": "raiderio_observed_profile"}],
+                        gear_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in gear_items),
+                        16,
+                        [],
+                        "illegal observed template",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 0,
+                            "fetchedAt": "2026-07-08T02:00:00+00:00",
+                            "profileHash": "",
+                            "gearHash": "",
+                            "character": {
+                                "name": "Illegalshaman",
+                                "region": "cn",
+                                "realmSlug": "sylvanas",
+                            },
+                            "rankingEvidence": {
+                                "source": "raiderio_spec_ranking",
+                                "rank": 2,
+                                "score": 4200.0,
+                            },
+                        },
+                        "2026-07-08T10:00:00+08:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-illegal-observed",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("shaman", "elemental", compact=True, mode="initial")
+
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(payload["baselineTemplates"], [])
 
     def test_gear_read_model_ignores_expired_community_gear_templates(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -897,10 +1300,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
         payload = store.get_websim_gear("mage", "fire", compact=True)
 
         sql = "\n".join(conn.cursor_instance.statements)
-        self.assertEqual(
-            [template["id"] for template in payload["baselineTemplates"]],
-            ["mage_fire_mid1_mage_fire_sunfury"],
-        )
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(payload["baselineTemplates"], [])
         self.assertIn("expires_at IS NULL OR expires_at > now()", sql)
 
     def test_gear_read_model_counts_two_hand_main_hand_as_offhand_occupied(self):
@@ -984,7 +1385,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         "Observed Blood Gear",
                         "raiderio_observed_profile",
                         "Raider.IO observed gear",
-                        "https://example.test/gear-observed",
+                        "https://raider.io/characters/us/area-52/Bloodtank",
                         "partial",
                         "partial",
                         "sig-gear-blood",
@@ -994,7 +1395,11 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         15,
                         ["off_hand"],
                         "observed",
-                        {},
+                        {
+                            "sampleCount": 1,
+                            "profileHash": "profile:deathknight:blood:bloodtank",
+                            "gearHash": "gear:deathknight:blood:bloodtank",
+                        },
                         "2026-06-28T01:00:00+00:00",
                         "2099-01-01T00:00:00+00:00",
                         "scan-blood",
@@ -1103,7 +1508,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         "Observed Restoration Gear",
                         "raiderio_observed_profile",
                         "Raider.IO observed gear",
-                        "https://example.test/gear-observed",
+                        "https://raider.io/characters/us/area-52/Treehealer",
                         "partial",
                         "partial",
                         "sig-gear-restoration",
@@ -1113,7 +1518,11 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         15,
                         ["off_hand"],
                         "observed",
-                        {},
+                        {
+                            "sampleCount": 1,
+                            "profileHash": "profile:druid:restoration:treehealer",
+                            "gearHash": "gear:druid:restoration:treehealer",
+                        },
                         "2026-06-28T01:00:00+00:00",
                         "2099-01-01T00:00:00+00:00",
                         "scan-restoration",
@@ -1283,20 +1692,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         payload = store.get_websim_gear("priest", "shadow", compact=True)
 
-        baseline = payload["baselineTemplates"][0]
-        self.assertEqual(baseline["status"], "complete")
-        self.assertEqual(baseline["sourceStatus"], "synced")
-        self.assertEqual(baseline["readySlotCount"], 16)
-        self.assertEqual(baseline["missingSlots"], [])
-        self.assertEqual(baseline["gearItems"][-1]["weaponType"], "Staff")
-        self.assertEqual(
-            baseline["occupiedSlots"]["off_hand"],
-            {
-                "slot": "off_hand",
-                "occupiedBy": "main_hand",
-                "reason": "two_hand_main_hand",
-            },
-        )
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(payload["baselineTemplates"], [])
 
     def test_gear_read_model_caches_repeated_payload_when_fingerprint_unchanged(self):
         import server.postgres_cache_store as postgres_cache_store
@@ -1503,8 +1900,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertEqual(payload["gearPayloadMode"], "initial")
-        self.assertEqual(payload["baselineTemplates"][0]["sourceKey"], "season_recommendation")
-        self.assertEqual(payload["baselineTemplates"][0]["readySlotCount"], 16)
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(payload["baselineTemplates"], [])
         self.assertEqual(len(payload["replacementCandidates"]), 16)
         self.assertNotIn("FROM cache.websim_gear_sources", sql)
         self.assertNotIn("FROM cache.websim_gear_variants", sql)
@@ -3559,11 +3956,83 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertEqual(counts["partial"], 1)
-        self.assertIn("SELECT id, class_key, spec_key, gear_items_json FROM cache.websim_community_gear_templates", sql)
+        self.assertIn("SELECT id, class_key, spec_key, source_key, source_url", sql)
         self.assertIn("cache.websim_community_gear_templates.id = ANY", sql)
         self.assertTrue(
             any(
                 "observed-profile-mage-frost" in value
+                for params in conn.cursor_instance.params
+                for value in params
+                if isinstance(value, list)
+            )
+        )
+
+    def test_replace_community_gear_templates_corrects_source_less_elemental_complete_winner(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "WHERE id = ANY": [
+                    (
+                        "observed_profile_shaman_elemental",
+                        "shaman",
+                        "elemental",
+                        "raiderio_observed_profile",
+                        "",
+                        "synced",
+                        "complete",
+                        16,
+                        [],
+                        [
+                            {"slot": "main_hand", "itemId": "237849", "weaponType": "Two-Handed Mace", "simcReady": True},
+                            {"slot": "off_hand", "itemId": "245769", "weaponType": "Held In Off-hand", "simcReady": True},
+                        ],
+                        {},
+                    )
+                ],
+                "FROM cache.websim_community_gear_templates WHERE expires_at": [("partial", 1)],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        counts = store.replace_community_gear_templates(
+            [
+                {
+                    "id": "observed_profile_shaman_elemental",
+                    "classKey": "shaman",
+                    "specKey": "elemental",
+                    "name": "Raider.IO observed gear",
+                    "sourceKey": "raiderio_observed_profile",
+                    "sourceName": "Raider.IO observed gear",
+                    "sourceUrl": "https://raider.io/characters/us/stormrage/Kiliwynn",
+                    "sourceStatus": "partial",
+                    "status": "partial",
+                    "signature": "sig-source-backed-partial",
+                    "sourceRefs": [
+                        {
+                            "sourceKey": "raiderio_observed_profile",
+                            "sourceUrl": "https://raider.io/characters/us/stormrage/Kiliwynn",
+                        }
+                    ],
+                    "gearItems": [{"slot": "head", "itemId": "190001", "simcReady": True}],
+                    "rawString": "head=item,id=190001",
+                    "readySlotCount": 1,
+                    "missingSlots": ["neck"],
+                    "analysisWindow": "source-backed partial observed",
+                    "payload": {
+                        "sampleCount": 1,
+                        "gearHash": "gear:shaman:elemental:source-backed",
+                    },
+                    "scanRunId": "scan-source-backed-partial",
+                }
+            ],
+            scan_run_id="scan-source-backed-partial",
+        )
+
+        self.assertEqual(counts["partial"], 1)
+        self.assertTrue(
+            any(
+                "observed_profile_shaman_elemental" in value
                 for params in conn.cursor_instance.params
                 for value in params
                 if isinstance(value, list)
@@ -3580,6 +4049,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         "observed-profile-shaman-elemental",
                         "shaman",
                         "elemental",
+                        "raiderio_observed_profile",
+                        "",
                         "synced",
                         "complete",
                         16,
@@ -3624,6 +4095,177 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("UPDATE cache.websim_community_gear_templates", sql)
         self.assertIn("observed-profile-shaman-elemental", conn.cursor_instance.params[-2])
 
+    def test_reconcile_community_gear_slot_coverage_applies_legality_gate(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        gear_items = [
+            {
+                "slot": slot,
+                "itemId": "900001" if slot == "main_hand" else "900002" if slot == "off_hand" else str(910000 + index),
+                "name": f"Observed {slot}",
+                "itemLevel": 707,
+                "simcReady": True,
+            }
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)
+        ]
+        conn = FakeConnection(
+            rowsets={
+                "WHERE source_key = ANY": [
+                    (
+                        "observed_profile_hunter_survival",
+                        "hunter",
+                        "survival",
+                        "raiderio_observed_profile",
+                        "",
+                        "synced",
+                        "complete",
+                        16,
+                        [],
+                        gear_items,
+                        {"sampleCount": 1},
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "900001",
+                        "Main Dagger",
+                        "main_hand",
+                        707,
+                        {
+                            "id": "900001",
+                            "name": "Main Dagger",
+                            "inventory_type": {"type": "WEAPON", "name": "One-Hand"},
+                            "item_class": {"id": 2, "name": "Weapon"},
+                            "item_subclass": {"id": 15, "name": "Dagger"},
+                        },
+                        "verified",
+                    ),
+                    (
+                        "900002",
+                        "Offhand Shield",
+                        "off_hand",
+                        707,
+                        {
+                            "id": "900002",
+                            "name": "Offhand Shield",
+                            "inventory_type": {"type": "SHIELD", "name": "Shield"},
+                            "item_class": {"id": 4, "name": "Armor"},
+                            "item_subclass": {"id": 6, "name": "Shield"},
+                        },
+                        "verified",
+                    ),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        reconciled = store._reconcile_community_gear_slot_coverage(
+            conn.cursor(),
+            {"raiderio_observed_profile"},
+            scan_run_id="scan-legality",
+        )
+
+        self.assertEqual(reconciled, 1)
+        update_params = next(
+            params
+            for statement, params in zip(conn.cursor_instance.statements, conn.cursor_instance.params)
+            if "UPDATE cache.websim_community_gear_templates" in statement
+        )
+        self.assertEqual(update_params[0], "partial")
+        self.assertEqual(update_params[1], "partial")
+        self.assertEqual(update_params[2], 15)
+        self.assertIn("off_hand", str(update_params[3]))
+        self.assertIn("off_hand gear incompatible with hunter/survival weapon rule: Shield", str(update_params[4]))
+
+    def test_reconcile_community_gear_slot_coverage_allows_raiderio_snapshot_after_weapon_rule_update(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        gear_items = [
+            {
+                "slot": slot,
+                "itemId": "258412" if slot == "main_hand" else "249284" if slot == "off_hand" else str(920000 + index),
+                "name": f"Observed {slot}",
+                "itemLevel": 707,
+                "simcReady": True,
+            }
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)
+        ]
+        authoritative_payload = {
+            "sourceUrl": "https://raider.io/characters/cn/the-great-sea/哈哈丶帅猎猎",
+            "sampleCount": 1,
+            "profileHash": "profile:hunter:survival:real",
+            "gearHash": "gear:hunter:survival:real",
+            "fetchedAt": "2026-07-08T10:00:00+00:00",
+            "character": {
+                "name": "哈哈丶帅猎猎",
+                "region": "cn",
+                "realmSlug": "the-great-sea",
+            },
+        }
+        conn = FakeConnection(
+            rowsets={
+                "WHERE source_key = ANY": [
+                    (
+                        "observed_profile_hunter_survival",
+                        "hunter",
+                        "survival",
+                        "raiderio_observed_profile",
+                        "https://raider.io/characters/cn/the-great-sea/哈哈丶帅猎猎",
+                        "synced",
+                        "complete",
+                        16,
+                        [],
+                        gear_items,
+                        authoritative_payload,
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "258412",
+                        "Observed Crossbow",
+                        "main_hand",
+                        707,
+                        {
+                            "id": "258412",
+                            "name": "Observed Crossbow",
+                            "inventory_type": {"type": "RANGED", "name": "Ranged"},
+                            "item_class": {"id": 2, "name": "Weapon"},
+                            "item_subclass": {"id": 18, "name": "Crossbow"},
+                        },
+                        "verified",
+                    ),
+                    (
+                        "249284",
+                        "Observed Dagger",
+                        "off_hand",
+                        707,
+                        {
+                            "id": "249284",
+                            "name": "Observed Dagger",
+                            "inventory_type": {"type": "WEAPON", "name": "One-Hand"},
+                            "item_class": {"id": 2, "name": "Weapon"},
+                            "item_subclass": {"id": 15, "name": "Dagger"},
+                        },
+                        "verified",
+                    ),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        reconciled = store._reconcile_community_gear_slot_coverage(
+            conn.cursor(),
+            {"raiderio_observed_profile"},
+            scan_run_id="scan-legality",
+        )
+
+        self.assertEqual(reconciled, 0)
+        self.assertFalse(
+            any("UPDATE cache.websim_community_gear_templates" in statement for statement in conn.cursor_instance.statements)
+        )
+
     def test_replace_community_gear_templates_promotes_stale_partial_when_current_coverage_is_complete(self):
         from server.postgres_cache_store import PostgresCacheStore
         from server.websim_payload import CANONICAL_GEAR_SLOTS
@@ -3639,6 +4281,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         "observed-profile-druid-restoration",
                         "druid",
                         "restoration",
+                        "raiderio_observed_profile",
+                        "",
                         "partial",
                         "partial",
                         15,
@@ -3765,7 +4409,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
     def test_community_gear_template_live_health_summary_reads_current_rows(self):
         from server.postgres_cache_store import PostgresCacheStore
 
-        def row(template_id, class_key, spec_key, source_key, status, ready, missing, scan_run_id, expires_at=None):
+        def row(template_id, class_key, spec_key, source_key, status, ready, missing, scan_run_id, expires_at=None, source_url="", payload=None):
             return (
                 template_id,
                 class_key,
@@ -3773,7 +4417,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 template_id,
                 source_key,
                 source_key,
-                "",
+                source_url,
                 "synced" if status == "complete" else "partial",
                 status,
                 template_id,
@@ -3783,7 +4427,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 ready,
                 missing,
                 "test window",
-                {},
+                payload or {},
                 "2026-07-05T00:00:00+00:00",
                 expires_at,
                 scan_run_id,
@@ -3793,12 +4437,96 @@ class PostgresCacheStoreTest(unittest.TestCase):
             rowsets={
                 "SELECT to_regclass": [("cache.websim_community_gear_templates",)],
                 "FROM cache.websim_community_gear_templates": [
-                    row("observed-mage-fire", "mage", "fire", "raiderio_observed_profile", "complete", 16, [], "scan-live"),
+                    row(
+                        "observed-mage-fire",
+                        "mage",
+                        "fire",
+                        "raiderio_observed_profile",
+                        "complete",
+                        16,
+                        [],
+                        "scan-live",
+                        source_url="https://raider.io/characters/cn/realm/Magefire",
+                        payload={
+                            "sampleCount": 1,
+                            "profileHash": "sha256:observed-mage-fire",
+                            "gearHash": "sha256:observed-mage-fire-gear",
+                            "templateEvidence": {
+                                "scenarioResults": {
+                                    "mplus_aoe": {"dps": 123456, "iterations": 10000}
+                                }
+                            },
+                        },
+                    ),
                     row("observed-monk-windwalker", "monk", "windwalker", "raiderio_observed_profile", "partial", 15, ["trinket2"], "scan-live"),
+                    row(
+                        "recommended-bis-mage-fire",
+                        "mage",
+                        "fire",
+                        "recommended_bis",
+                        "complete",
+                        16,
+                        [],
+                        "scan-live",
+                        payload={
+                            "templateType": "recommended_bis",
+                            "templateEvidence": {
+                                "schemaRevision": "recommended-bis-v1",
+                                "status": "projected_bis",
+                                "optimizerVersion": "gear-bis-optimizer-v1",
+                            },
+                        },
+                    ),
+                    row(
+                        "season-mage-fire",
+                        "mage",
+                        "fire",
+                        "season_recommendation",
+                        "complete",
+                        16,
+                        [],
+                        "scan-live",
+                        payload={
+                            "templateSlot": "baseline",
+                            "templateEvidence": {
+                                "recommendationConfidence": "provisional",
+                            },
+                        },
+                    ),
                     row("baseline-mage-fire", "mage", "fire", "simc_preset", "complete", 16, [], "scan-live"),
                     row("baseline-monk-windwalker", "monk", "windwalker", "simc_preset", "partial", 10, ["trinket2"], "scan-live"),
                     row("expired-baseline-monk-windwalker", "monk", "windwalker", "simc_preset", "partial", 1, ["head"], "scan-expired", "2020-01-01T00:00:00+00:00"),
                 ],
+                "FROM cache.websim_sync_state": {
+                    ("recommended_bis_v1_guard",): [
+                        (
+                            {
+                                "schemaRevision": "recommended-bis-v1-guard-state-v1",
+                                "status": "partial",
+                                "guardMode": "readiness_only",
+                                "expectedSpecCount": 2,
+                                "optimizerRequiredSpecCount": 2,
+                                "fullOptimizerRunRequiredSpecCount": 2,
+                                "lastGuardCheckAt": "2026-07-07T13:00:00+00:00",
+                            },
+                            "2026-07-07T13:00:00+00:00",
+                        )
+                    ],
+                    ("community_best_v2_guard",): [
+                        (
+                            {
+                                "schemaRevision": "community-best-v2-guard-state-v1",
+                                "status": "partial",
+                                "guardMode": "readiness_only",
+                                "expectedSpecCount": 2,
+                                "coveredSpecCount": 1,
+                                "simcReplayRequiredSpecCount": 1,
+                                "lastGuardCheckAt": "2026-07-07T13:05:00+00:00",
+                            },
+                            "2026-07-07T13:05:00+00:00",
+                        )
+                    ],
+                },
             }
         )
         store = PostgresCacheStore(lambda: conn)
@@ -3806,7 +4534,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
         with patch("server.postgres_cache_store.expected_spec_pairs", return_value=["mage:fire", "monk:windwalker"]):
             summary = store.community_gear_template_live_health_summary()
 
-        self.assertEqual(summary["templates"], {"total": 4, "verified": 2, "partial": 2, "blocked": 0})
+        self.assertEqual(summary["templates"], {"total": 5, "verified": 3, "partial": 2, "blocked": 0})
         self.assertEqual(summary["preflight"]["status"], "partial")
         self.assertEqual(summary["communityImportTemplates"]["status"], "partial")
         self.assertEqual(summary["communityImportTemplates"]["totalTemplateSlotCount"], 4)
@@ -3816,12 +4544,39 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(summary["communityImportTemplates"]["baselineAvailableSpecCount"], 2)
         self.assertIn("80/80", summary["communityImportTemplates"]["countingPolicy"])
         self.assertEqual(summary["realCommunityTemplates"]["coveredSpecCount"], 1)
-        self.assertEqual(summary["realCommunityTemplates"]["partialSpecCount"], 1)
+        self.assertEqual(summary["realCommunityTemplates"]["partialSpecCount"], 0)
         self.assertEqual(summary["baselineTemplates"]["availableSpecCount"], 2)
+        self.assertEqual(summary["seasonRecommendation"]["completeSpecCount"], 1)
+        self.assertEqual(summary["seasonRecommendation"]["provisionalSpecCount"], 1)
+        self.assertEqual(summary["templateChains"]["communityObserved"]["verifiedSpecCount"], 1)
+        self.assertEqual(summary["templateChains"]["communityObserved"]["blockedSpecCount"], 1)
+        self.assertEqual(summary["templateChains"]["legacyFallback"]["totalSpecCount"], 2)
+        self.assertEqual(summary["templateChains"]["legacyFallback"]["starterBaselineSpecCount"], 1)
+        self.assertEqual(summary["templateChains"]["recommendedBis"]["totalSpecCount"], 1)
+        self.assertEqual(summary["templateChains"]["recommendedBis"]["projectedSpecCount"], 1)
+        self.assertEqual(summary["templateChains"]["recommendedBis"]["expectedSpecCount"], 2)
+        self.assertEqual(summary["templateChains"]["recommendedBis"]["blockedSpecCount"], 1)
+        self.assertEqual(summary["templateChains"]["recommendedBis"]["optimizerRequiredSpecCount"], 2)
+        self.assertEqual(summary["templateChains"]["recommendedBis"]["fullOptimizerRunRequiredSpecCount"], 2)
+        self.assertEqual(
+            summary["templateChains"]["recommendedBis"]["missingSpecs"],
+            ["monk:windwalker"],
+        )
+        self.assertEqual(summary["recommendedBisGuard"]["schemaRevision"], "recommended-bis-v1-guard-state-v1")
+        self.assertEqual(summary["recommendedBisGuard"]["guardMode"], "readiness_only")
+        self.assertEqual(summary["recommendedBisGuard"]["optimizerRequiredSpecCount"], 2)
+        self.assertEqual(summary["communityObservedGuard"]["schemaRevision"], "community-best-v2-guard-state-v1")
+        self.assertEqual(summary["communityObservedGuard"]["guardMode"], "readiness_only")
+        self.assertEqual(summary["communityObservedGuard"]["simcReplayRequiredSpecCount"], 1)
         self.assertEqual(summary["preflight"]["canonicalSlotMatrix"]["totalSlotCount"], 32)
-        self.assertEqual(summary["preflight"]["canonicalSlotMatrix"]["readySlotCount"], 31)
-        self.assertEqual(summary["preflight"]["canonicalSlotMatrix"]["missingSlotCount"], 1)
-        self.assertEqual(summary["preflight"]["canonicalSlotMatrix"]["missingBySlot"], {"trinket2": 1})
+        self.assertEqual(summary["preflight"]["canonicalSlotMatrix"]["readySlotCount"], 16)
+        self.assertEqual(summary["preflight"]["canonicalSlotMatrix"]["missingSlotCount"], 16)
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        self.assertEqual(
+            summary["preflight"]["canonicalSlotMatrix"]["missingBySlot"],
+            {slot: 1 for slot in CANONICAL_GEAR_SLOTS},
+        )
 
     def test_postgres_native_observed_and_crafted_backfill_writers_use_cache_schema(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -3875,6 +4630,67 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("observed_profile", params)
         self.assertIn("crafted", params)
         self.assertTrue(conn.committed)
+
+    def test_observed_backfill_variants_are_scoped_to_profile_identity(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        observed = store.backfill_observed_gear_from_raiderio(
+            {
+                "sourceStatus": "verified",
+                "profiles": [
+                    {
+                        "name": "Mage A",
+                        "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                        "region": "cn",
+                        "realmSlug": "realm",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "gear": [
+                            {
+                                "itemId": "249343",
+                                "name": "Shared Trinket",
+                                "slot": "trinket_1",
+                                "ilevel": 707,
+                                "bonus_id": "1808",
+                            }
+                        ],
+                    },
+                    {
+                        "name": "Mage B",
+                        "profileUrl": "https://raider.io/characters/us/realm/MageB",
+                        "region": "us",
+                        "realmSlug": "realm",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "gear": [
+                            {
+                                "itemId": "249343",
+                                "name": "Shared Trinket",
+                                "slot": "trinket_1",
+                                "ilevel": 707,
+                                "bonus_id": "1808",
+                            }
+                        ],
+                    },
+                ],
+            },
+            mode="test",
+        )
+
+        variant_params = [
+            params
+            for statement, params in zip(conn.cursor_instance.statements, conn.cursor_instance.params)
+            if "INSERT INTO cache.websim_gear_variants" in statement
+        ]
+
+        self.assertEqual(observed["variantCount"], 2)
+        self.assertEqual(len(variant_params), 2)
+        self.assertNotEqual(variant_params[0][2], variant_params[1][2])
+        self.assertIn("observed-profile", variant_params[0][2])
+        self.assertIn("observed-profile", variant_params[1][2])
 
     def test_observed_backfill_preserves_official_item_metadata_payload(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -4104,6 +4920,65 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("1234", params)
         self.assertNotIn("9999", params)
 
+    def test_postgres_observed_backfill_persists_profile_simc_replay_summary(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        observed = store.backfill_observed_gear_from_raiderio(
+            {
+                "sourceStatus": "verified",
+                "profiles": [
+                    {
+                        "name": "Mage A",
+                        "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "simcJson": {
+                            "sim": {
+                                "options": {"iterations": 1000},
+                                "players": [
+                                    {
+                                        "collected_data": {
+                                            "dps": {"mean": 237956},
+                                        },
+                                        "gear": {
+                                            "head": {
+                                                "id": 190001,
+                                                "ilevel": 707,
+                                                "encoded_item": "observed_helm,id=190001,bonus_id=1808,ilevel=707",
+                                                "intellect": 1234,
+                                                "stamina": 4567,
+                                            }
+                                        },
+                                    }
+                                ],
+                            }
+                        },
+                        "gear": [
+                            {
+                                "itemId": "190001",
+                                "name": "Observed Helm",
+                                "slot": "head",
+                                "ilevel": 707,
+                                "bonuses": [1808],
+                            }
+                        ],
+                    }
+                ],
+            },
+            mode="test",
+        )
+
+        params = repr(conn.cursor_instance.params)
+        self.assertEqual(observed["variantCount"], 1)
+        self.assertEqual(observed["verifiedCount"], 1)
+        self.assertIn("observedProfileSimcReplay", params)
+        self.assertIn("observed_profile_replay", params)
+        self.assertIn("237956", params)
+        self.assertIn("iterations", params)
+
     def test_postgres_observed_backfill_keeps_statless_rows_partial(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -4189,6 +5064,124 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(observed["skippedExistingVerifiedVariants"], 1)
         self.assertIn("190002", params)
         self.assertNotIn("Existing Helm", params)
+
+    def test_postgres_observed_backfill_updates_existing_verified_rows_with_profile_replay(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "SELECT item_id, slot, item_level, simc_options_json FROM cache.websim_gear_variants": [
+                    ("190001", "head", 707, {"ilevel": "707", "bonus_id": "1808"}),
+                ]
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        observed = store.backfill_observed_gear_from_raiderio(
+            {
+                "sourceStatus": "verified",
+                "profiles": [
+                    {
+                        "name": "Mage A",
+                        "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "simcJson": {
+                            "sim": {
+                                "options": {"iterations": 1000},
+                                "players": [
+                                    {
+                                        "collected_data": {"dps": {"mean": 237956}},
+                                        "gear": {
+                                            "head": {
+                                                "id": 190001,
+                                                "ilevel": 707,
+                                                "encoded_item": "existing_helm,id=190001,bonus_id=1808,ilevel=707",
+                                                "intellect": 1234,
+                                                "stamina": 4567,
+                                            }
+                                        },
+                                    }
+                                ],
+                            }
+                        },
+                        "gear": [
+                            {
+                                "itemId": "190001",
+                                "name": "Existing Helm",
+                                "slot": "head",
+                                "ilevel": 707,
+                                "bonus_id": "1808",
+                            }
+                        ],
+                    }
+                ],
+            },
+            mode="test",
+            target_limit=1,
+        )
+
+        params = repr(conn.cursor_instance.params)
+        self.assertEqual(observed["variantCount"], 1)
+        self.assertEqual(observed["verifiedCount"], 1)
+        self.assertEqual(observed["skippedExistingVerifiedVariants"], 0)
+        self.assertIn("observedProfileSimcReplay", params)
+        self.assertIn("237956", params)
+
+    def test_postgres_observed_backfill_reuses_existing_stats_for_new_profile_identity(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        stat_payload = {
+            "statSource": "simulationcraft",
+            "itemStats": [{"key": "intellect", "value": 1234}],
+            "stats": [{"key": "intellect", "value": 1234}],
+            "statSummary": "智力 1234",
+        }
+        conn = FakeConnection(
+            rowsets={
+                "SELECT item_id, slot, item_level, simc_options_json FROM cache.websim_gear_variants": [
+                    ("190001", "head", 707, {"ilevel": "707", "bonus_id": "1808"}),
+                ],
+                "payload_json FROM cache.websim_gear_variants": [
+                    ("190001", "head", 707, {"ilevel": "707", "bonus_id": "1808"}, stat_payload),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        observed = store.backfill_observed_gear_from_raiderio(
+            {
+                "sourceStatus": "verified",
+                "profiles": [
+                    {
+                        "name": "Mage A",
+                        "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                        "region": "cn",
+                        "realmSlug": "realm",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "gear": [
+                            {
+                                "itemId": "190001",
+                                "name": "Existing Helm",
+                                "slot": "head",
+                                "ilevel": 707,
+                                "bonus_id": "1808",
+                            }
+                        ],
+                    }
+                ],
+            },
+            mode="test",
+            target_limit=1,
+        )
+
+        params = repr(conn.cursor_instance.params)
+        self.assertEqual(observed["variantCount"], 1)
+        self.assertEqual(observed["verifiedCount"], 1)
+        self.assertEqual(observed["skippedExistingVerifiedVariants"], 0)
+        self.assertIn("https://raider.io/characters/cn/realm/MageA", params)
+        self.assertIn("statSource", params)
 
     def test_observed_item_probe_profile_preserves_observed_variant_options(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -4586,6 +5579,187 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(templates[0]["payload"]["templateEvidence"]["talentAnchor"]["heroKey"], "frostfire")
         self.assertIn("FROM cache.websim_community_gear_templates", sql)
 
+    def test_build_season_recommended_gear_templates_skips_elemental_real_player_pilot(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        gear_items = [
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(510000 + index),
+                "id": str(510000 + index),
+                "name": f"elemental_{slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                "itemStats": [{"key": "intellect", "value": 1000}],
+                **({"armorType": "Mail"} if slot in {"head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"} else {}),
+                **({"weaponType": "One-Handed Mace"} if slot == "main_hand" else {}),
+                **({"weaponType": "Shield"} if slot == "off_hand" else {}),
+            }
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)
+        ]
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "observed_profile_shaman_elemental",
+                        "shaman",
+                        "elemental",
+                        "真实高分玩家角色模板 · 听凭风引（元素萨）",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://raider.io/characters/cn/sylvanas/听凭风引",
+                        "synced",
+                        "complete",
+                        "community-elemental-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/sylvanas/听凭风引",
+                            }
+                        ],
+                        gear_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in gear_items),
+                        16,
+                        [],
+                        "community winner",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "profileHash": "profile:shaman:elemental:tingping",
+                            "gearHash": "gear:shaman:elemental:tingping",
+                            "rankingEvidence": {
+                                "source": "raiderio_spec_ranking",
+                                "rank": 1,
+                                "score": 4249.17,
+                            },
+                        },
+                        "2026-07-08T10:00:00+08:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "talent-shaman-elemental-stormbringer",
+                        "shaman",
+                        "elemental",
+                        "stormbringer",
+                        "raiderio",
+                        "Raider.IO",
+                        "verified",
+                        "verified",
+                        {"evidenceTier": "verified"},
+                        "2026-07-08T10:00:00+08:00",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_season_recommended_gear_templates(scan_run_id="season-rec-test")
+
+        self.assertEqual(templates, [])
+
+    def test_cleanup_real_player_gear_template_pilot_residue_deletes_elemental_legacy_rows(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        result = store.cleanup_real_player_gear_template_pilot_residue(
+            scan_run_id="cleanup-test",
+            checked_at="2026-07-08T03:00:00+00:00",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        params = conn.cursor_instance.params
+        self.assertIn("DELETE FROM cache.websim_community_gear_templates", sql)
+        self.assertIn("DELETE FROM cache.websim_gear_variants", sql)
+        self.assertIn("UPDATE cache.websim_community_gear_templates SET name", sql)
+        self.assertIn("jsonb_set", sql)
+        self.assertTrue(any("shaman" in param_set and "elemental" in param_set for param_set in params))
+        self.assertTrue(
+            any("听凭风引（元素萨）· 真实高分玩家角色模板" in param_set for param_set in params)
+        )
+        self.assertTrue(
+            any("元素萨 · 系统评分推荐模板（待 SimC 验证）" in param_set for param_set in params)
+        )
+        self.assertIn("communityTemplateRowsDeleted", result)
+        self.assertIn("observedVariantRowsDeleted", result)
+        self.assertIn("renamedTemplateRows", result)
+        self.assertEqual(result["publicImportPolicy"], "all_specs")
+        self.assertIn("recommended_bis", result["publicHiddenSourceKeys"])
+        self.assertIn("season_recommendation", result["publicHiddenSourceKeys"])
+        self.assertEqual(result["destructiveCleanupScope"], ["shaman:elemental"])
+        self.assertGreaterEqual(result["renamedTemplateRows"], 2)
+
+    def test_cleanup_real_player_gear_template_backfills_missing_observed_variants_from_active_row(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        profile_ref = {
+            "profileUrl": "https://raider.io/characters/cn/sylvanas/听凭风引",
+            "sourceName": "Raider.IO observed profile: 听凭风引",
+            "characterName": "听凭风引",
+            "region": "cn",
+            "realmSlug": "sylvanas",
+            "rankingEvidence": {"source": "raiderio_spec_ranking", "rank": 1, "score": 4249.17},
+        }
+        gear_items = [
+            {
+                "slot": "head",
+                "simcSlot": "head",
+                "itemId": "550001",
+                "id": "550001",
+                "name": "existing_head",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                "statSource": "simulationcraft",
+                "itemStats": [{"key": "intellect", "value": 1000}],
+                "observedProfileRefs": [profile_ref],
+            },
+            {
+                "slot": "neck",
+                "simcSlot": "neck",
+                "itemId": "550002",
+                "id": "550002",
+                "name": "missing_neck",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "gem_id": "240983",
+                "simcReady": True,
+                "statSource": "simulationcraft",
+                "itemStats": [{"key": "mastery_rating", "value": 500}],
+                "observedProfileRefs": [profile_ref],
+            },
+        ]
+        conn = FakeConnection(
+            rowsets={
+                "SELECT gear_items_json FROM cache.websim_community_gear_templates": [
+                    (gear_items,),
+                ],
+                "SELECT slot FROM cache.websim_gear_variants": [
+                    ("head",),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        result = store.cleanup_real_player_gear_template_pilot_residue(
+            scan_run_id="cleanup-test",
+            checked_at="2026-07-08T03:00:00+00:00",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        params = conn.cursor_instance.params
+        self.assertIn("INSERT INTO cache.websim_gear_variants", sql)
+        self.assertEqual(result["observedVariantRowsBackfilled"], 1)
+        self.assertTrue(any("550002" in param_set and "neck" in param_set for param_set in params))
+
     def test_build_season_recommended_gear_templates_blocks_without_talent_anchor(self):
         from server.postgres_cache_store import PostgresCacheStore
         from server.websim_payload import CANONICAL_GEAR_SLOTS
@@ -4639,35 +5813,1353 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         self.assertEqual(templates, [])
 
+    def test_build_season_recommended_gear_templates_scores_candidates_instead_of_copying_seed(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        seed_items = []
+        alternative_items = []
+        for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1):
+            item_id = str(330000 + index)
+            base_item = {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": item_id,
+                "id": item_id,
+                "name": f"seed_{slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                "itemStats": [{"key": "intellect", "value": 1000}],
+            }
+            seed_items.append(base_item)
+            alternative_items.append(dict(base_item))
+        seed_items[0] = {
+            **seed_items[0],
+            "itemId": "339001",
+            "id": "339001",
+            "name": "versatility_seed_head",
+            "ilevel": "715",
+            "itemStats": [
+                {"key": "intellect", "value": 1200},
+                {"key": "versatility", "value": 600},
+            ],
+        }
+        alternative_items[0] = {
+            **alternative_items[0],
+            "itemId": "339002",
+            "id": "339002",
+            "name": "haste_mastery_head",
+            "ilevel": "730",
+            "itemStats": [
+                {"key": "intellect", "value": 2200},
+                {"key": "haste", "value": 900},
+                {"key": "mastery", "value": 900},
+            ],
+        }
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "community-mage-frost-seed",
+                        "mage",
+                        "frost",
+                        "Raider.IO 观测装备 · 法师冰霜 A",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://raider.io/characters/cn/realm/FrostSeedA",
+                        "synced",
+                        "complete",
+                        "community-seed-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/realm/FrostSeedA",
+                                "rankingEvidence": {
+                                    "source": "raiderio_spec_ranking",
+                                    "rank": 1,
+                                    "score": 4249.17,
+                                },
+                            }
+                        ],
+                        seed_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in seed_items),
+                        16,
+                        [],
+                        "community winner",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "profileHash": "profile:mage:frost:seed-a",
+                            "gearHash": "gear:mage:frost:seed-a",
+                            "rankingEvidence": {
+                                "source": "raiderio_spec_ranking",
+                                "rank": 1,
+                                "score": 4249.17,
+                            },
+                        },
+                        "2026-07-06T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    ),
+                    (
+                        "community-mage-frost-alt",
+                        "mage",
+                        "frost",
+                        "Raider.IO 观测装备 · 法师冰霜 B",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://raider.io/characters/cn/realm/FrostSeedB",
+                        "synced",
+                        "complete",
+                        "community-alt-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/realm/FrostSeedB",
+                                "rankingEvidence": {
+                                    "source": "raiderio_spec_ranking",
+                                    "rank": 2,
+                                    "score": 4200.0,
+                                },
+                            }
+                        ],
+                        alternative_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in alternative_items),
+                        16,
+                        [],
+                        "community candidate",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "profileHash": "profile:mage:frost:seed-b",
+                            "gearHash": "gear:mage:frost:seed-b",
+                            "rankingEvidence": {
+                                "source": "raiderio_spec_ranking",
+                                "rank": 2,
+                                "score": 4200.0,
+                            },
+                        },
+                        "2026-07-05T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    ),
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "talent-mage-frost-frostfire",
+                        "mage",
+                        "frost",
+                        "frostfire",
+                        "raiderio",
+                        "Raider.IO",
+                        "verified",
+                        "verified",
+                        {"evidenceTier": "verified"},
+                        "2026-07-06T00:00:00+00:00",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_season_recommended_gear_templates(scan_run_id="season-rec-test")
+
+        self.assertEqual(len(templates), 1)
+        head = next(item for item in templates[0]["gearItems"] if item["slot"] == "head")
+        self.assertEqual(head["itemId"], "339002")
+        evidence = templates[0]["payload"]["templateEvidence"]
+        self.assertEqual(evidence["scoringVersion"], "season-rec-score-v1")
+        self.assertGreater(evidence["candidateCount"], 16)
+        self.assertEqual(evidence["slotDecisions"]["head"]["selectedItemId"], "339002")
+        self.assertFalse(evidence["slotDecisions"]["head"]["lowYieldStatPenalty"]["applied"])
+        self.assertEqual(evidence["recommendationConfidence"], "provisional")
+
+    def test_build_season_recommended_gear_templates_uses_pg_stat_weight_cache(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        seed_items = []
+        alternative_items = []
+        for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1):
+            item_id = str(333000 + index)
+            base_item = {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": item_id,
+                "id": item_id,
+                "name": f"seed_{slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                "itemStats": [{"key": "intellect", "value": 1000}],
+            }
+            seed_items.append(base_item)
+            alternative_items.append(dict(base_item))
+        seed_items[0] = {
+            **seed_items[0],
+            "itemId": "333901",
+            "id": "333901",
+            "name": "default_haste_head",
+            "itemStats": [
+                {"key": "intellect", "value": 1000},
+                {"key": "haste", "value": 500},
+            ],
+        }
+        alternative_items[0] = {
+            **alternative_items[0],
+            "itemId": "333902",
+            "id": "333902",
+            "name": "cached_mastery_head",
+            "itemStats": [
+                {"key": "intellect", "value": 1000},
+                {"key": "mastery", "value": 350},
+            ],
+        }
+        stat_payload = {
+            "classKey": "mage",
+            "specKey": "frost",
+            "scenarioKey": "mplus_aoe_pack",
+            "sourceStatus": "verified",
+            "weights": [
+                {"key": "intellect", "value": 1.45},
+                {"key": "mastery", "value": 2.0},
+                {"key": "haste", "value": 0.1},
+                {"key": "crit", "value": 0.8},
+                {"key": "versatility", "value": 0.2},
+            ],
+        }
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "community-mage-frost-seed",
+                        "mage",
+                        "frost",
+                        "Raider.IO 观测装备 · 法师冰霜 A",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://raider.io/characters/cn/realm/MageSeed",
+                        "synced",
+                        "complete",
+                        "community-seed-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/realm/MageSeed",
+                            }
+                        ],
+                        seed_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in seed_items),
+                        16,
+                        [],
+                        "community winner",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "gearHash": "gear:mage:frost:seed",
+                        },
+                        "2026-07-06T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    ),
+                    (
+                        "community-mage-frost-alt",
+                        "mage",
+                        "frost",
+                        "Raider.IO 观测装备 · 法师冰霜 B",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://raider.io/characters/cn/realm/MageAlt",
+                        "synced",
+                        "complete",
+                        "community-alt-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/realm/MageAlt",
+                            }
+                        ],
+                        alternative_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in alternative_items),
+                        16,
+                        [],
+                        "community candidate",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "gearHash": "gear:mage:frost:alt",
+                        },
+                        "2026-07-05T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    ),
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "talent-mage-frost-frostfire",
+                        "mage",
+                        "frost",
+                        "frostfire",
+                        "raiderio",
+                        "Raider.IO",
+                        "verified",
+                        "verified",
+                        {"evidenceTier": "verified"},
+                        "2026-07-06T00:00:00+00:00",
+                    )
+                ],
+                "FROM cache.stat_weight_cache WHERE cache_key": [
+                    (stat_payload, "verified", "2026-07-07T00:00:00+00:00"),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_season_recommended_gear_templates(scan_run_id="season-rec-test")
+
+        self.assertEqual(len(templates), 1)
+        head = next(item for item in templates[0]["gearItems"] if item["slot"] == "head")
+        self.assertEqual(head["itemId"], "333902")
+        evidence = templates[0]["payload"]["templateEvidence"]
+        self.assertEqual(evidence["statWeights"]["sourceStatus"], "verified")
+        self.assertEqual(evidence["statWeights"]["sourceScenarioKey"], "mplus_aoe_pack")
+        self.assertIn(("mage:frost:mplus_aoe_pack",), conn.cursor_instance.params)
+
+    def test_build_season_recommended_gear_templates_scores_pg_catalog_replacements(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        seed_items = []
+        for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1):
+            item_id = str(340000 + index)
+            seed_items.append(
+                {
+                    "slot": slot,
+                    "simcSlot": slot,
+                    "itemId": item_id,
+                    "id": item_id,
+                    "name": f"seed_{slot}",
+                    "ilevel": "707",
+                    "bonus_id": "1808",
+                    "simcReady": True,
+                    "itemStats": [{"key": "intellect", "value": 1000}],
+                }
+            )
+        seed_items[0] = {
+            **seed_items[0],
+            "itemId": "349001",
+            "id": "349001",
+            "name": "community_versatility_head",
+            "ilevel": "715",
+            "itemStats": [
+                {"key": "intellect", "value": 1200},
+                {"key": "versatility", "value": 600},
+            ],
+        }
+        catalog_head_payload = {
+            "id": 349002,
+            "displayName": "Catalog Haste Mastery Head",
+            "name": "Catalog Haste Mastery Head",
+            "inventory_type": {"name": "Head"},
+            "item_class": {"id": 4, "name": "Armor"},
+            "item_subclass": {"id": 1, "name": "Cloth"},
+            "metadataSource": "Battle.net Game Data API",
+            "metadataStatus": "verified",
+            "_metadata": {"source": "Battle.net Game Data API", "englishName": "Catalog Haste Mastery Head"},
+            "itemStats": [
+                {"key": "intellect", "value": 1250},
+                {"key": "haste", "value": 360},
+                {"key": "mastery", "value": 320},
+            ],
+        }
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "community-mage-frost-seed",
+                        "mage",
+                        "frost",
+                        "Raider.IO 观测装备 · 法师冰霜",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://raider.io/characters/cn/realm/FrostSeed",
+                        "synced",
+                        "complete",
+                        "community-seed-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/realm/FrostSeed",
+                                "rankingEvidence": {
+                                    "source": "raiderio_spec_ranking",
+                                    "rank": 1,
+                                    "score": 4249.17,
+                                },
+                            }
+                        ],
+                        seed_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in seed_items),
+                        16,
+                        [],
+                        "community winner",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "profileHash": "profile:mage:frost:catalog-replacement",
+                            "gearHash": "gear:mage:frost:catalog-replacement",
+                            "rankingEvidence": {
+                                "source": "raiderio_spec_ranking",
+                                "rank": 1,
+                                "score": 4249.17,
+                            },
+                        },
+                        "2026-07-06T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    ),
+                ],
+                "SELECT id, item_id, source_type, source_key, source_label": [
+                    (
+                        "source-349002",
+                        "349002",
+                        "crafted",
+                        "crafted:cloth",
+                        "Crafted cloth",
+                        "",
+                        "",
+                        "",
+                        "season-test",
+                        {"recommendationScore": 100},
+                        "2026-07-07T00:00:00+00:00",
+                    )
+                ],
+                "SELECT id, item_id, slot, variant_key, label, source_type, difficulty_key": [
+                    (
+                        "variant-349002",
+                        "349002",
+                        "head",
+                        "crafted-715",
+                        "Crafted 715",
+                        "crafted",
+                        "crafted",
+                        715,
+                        {"ilevel": "715", "bonus_id": "1808"},
+                        "verified",
+                        [],
+                        {
+                            "status": "verified",
+                            "itemStats": catalog_head_payload["itemStats"],
+                            "statSource": "simulationcraft",
+                        },
+                        "2026-07-07T00:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "349002",
+                        "Catalog Haste Mastery Head",
+                        "head",
+                        715,
+                        catalog_head_payload,
+                        "verified",
+                    )
+                ],
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "talent-mage-frost-frostfire",
+                        "mage",
+                        "frost",
+                        "frostfire",
+                        "raiderio",
+                        "Raider.IO",
+                        "verified",
+                        "verified",
+                        {"evidenceTier": "verified"},
+                        "2026-07-06T00:00:00+00:00",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_season_recommended_gear_templates(scan_run_id="season-rec-test")
+
+        self.assertEqual(len(templates), 1)
+        head = next(item for item in templates[0]["gearItems"] if item["slot"] == "head")
+        self.assertEqual(head["itemId"], "349002")
+        self.assertTrue(head["simcReady"])
+        self.assertNotIn("verified Battle.net metadata", head.get("blockers") or [])
+        evidence = templates[0]["payload"]["templateEvidence"]
+        self.assertEqual(evidence["slotDecisions"]["head"]["selectedItemId"], "349002")
+        self.assertIn("gear_catalog_replacement_candidates", evidence["candidatePoolSources"])
+
+    def test_build_season_recommended_gear_templates_repairs_partial_seed_weapons_from_catalog(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        seed_items = []
+        for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1):
+            item_id = str(350000 + index)
+            seed_items.append(
+                {
+                    "slot": slot,
+                    "simcSlot": slot,
+                    "itemId": item_id,
+                    "id": item_id,
+                    "name": f"seed_{slot}",
+                    "ilevel": "707",
+                    "bonus_id": "1808",
+                    "simcReady": True,
+                    "itemStats": [{"key": "intellect", "value": 1000}],
+                }
+            )
+        seed_items[CANONICAL_GEAR_SLOTS.index("main_hand")] = {
+            "slot": "main_hand",
+            "simcSlot": "main_hand",
+            "itemId": "359001",
+            "id": "359001",
+            "name": "community_illegal_two_hand_mace",
+            "ilevel": "715",
+            "bonus_id": "1808",
+            "weaponType": "Two-Handed Mace",
+            "simcReady": True,
+            "itemStats": [{"key": "intellect", "value": 1400}],
+        }
+        seed_items[CANONICAL_GEAR_SLOTS.index("off_hand")] = {
+            "slot": "off_hand",
+            "simcSlot": "off_hand",
+            "itemId": "359002",
+            "id": "359002",
+            "name": "community_held_offhand",
+            "ilevel": "707",
+            "bonus_id": "1808",
+            "weaponType": "Held In Off-hand",
+            "simcReady": True,
+            "itemStats": [{"key": "intellect", "value": 800}],
+        }
+        catalog_main_payload = {
+            "id": 359101,
+            "displayName": "Catalog Legal One-Hand Mace",
+            "name": "Catalog Legal One-Hand Mace",
+            "inventory_type": {"type": "WEAPON", "name": "Main Hand"},
+            "item_class": {"id": 2, "name": "Weapon"},
+            "item_subclass": {"id": 15, "name": "Dagger"},
+            "metadataSource": "Battle.net Game Data API",
+            "metadataStatus": "verified",
+            "_metadata": {"source": "Battle.net Game Data API"},
+            "itemStats": [
+                {"key": "intellect", "value": 1500},
+                {"key": "haste", "value": 420},
+                {"key": "mastery", "value": 380},
+            ],
+        }
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "community-mage-frost-partial",
+                        "mage",
+                        "frost",
+                        "Raider.IO 观测装备 · 法师冰霜",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://raider.io/characters/cn/realm/FrostPartial",
+                        "partial",
+                        "partial",
+                        "community-partial-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/realm/FrostPartial",
+                                "rankingEvidence": {
+                                    "source": "raiderio_spec_ranking",
+                                    "rank": 1,
+                                    "score": 4249.17,
+                                },
+                            }
+                        ],
+                        seed_items,
+                        "\n".join(
+                            f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808"
+                            for item in seed_items
+                        ),
+                        14,
+                        ["main_hand", "off_hand"],
+                        "community partial legality gate",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "profileHash": "profile:mage:frost:partial-repair",
+                            "gearHash": "gear:mage:frost:partial-repair",
+                            "rankingEvidence": {
+                                "source": "raiderio_spec_ranking",
+                                "rank": 1,
+                                "score": 4249.17,
+                            },
+                            "legalityStatus": "partial",
+                            "legalitySkippedSlots": ["main_hand", "off_hand"],
+                        },
+                        "2026-07-06T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    ),
+                ],
+                "SELECT id, item_id, source_type, source_key, source_label": [
+                    (
+                        "source-359101",
+                        "359101",
+                        "dungeon",
+                        "dungeon:test",
+                        "Dungeon test",
+                        "",
+                        "",
+                        "",
+                        "season-test",
+                        {"recommendationScore": 100},
+                        "2026-07-07T00:00:00+00:00",
+                    )
+                ],
+                "SELECT id, item_id, slot, variant_key, label, source_type, difficulty_key": [
+                    (
+                        "variant-359101",
+                        "359101",
+                        "main_hand",
+                        "mplus-715",
+                        "Myth 715",
+                        "dungeon",
+                        "myth",
+                        715,
+                        {"ilevel": "715", "bonus_id": "1808"},
+                        "verified",
+                        [],
+                        {
+                            "status": "verified",
+                            "itemStats": catalog_main_payload["itemStats"],
+                            "statSource": "simulationcraft",
+                        },
+                        "2026-07-07T00:00:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_items": [
+                    (
+                        "359101",
+                        "Catalog Legal One-Hand Mace",
+                        "main_hand",
+                        715,
+                        catalog_main_payload,
+                        "verified",
+                    )
+                ],
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "talent-mage-frost-frostfire",
+                        "mage",
+                        "frost",
+                        "frostfire",
+                        "raiderio",
+                        "Raider.IO",
+                        "verified",
+                        "verified",
+                        {"evidenceTier": "verified"},
+                        "2026-07-06T00:00:00+00:00",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_season_recommended_gear_templates(scan_run_id="season-rec-test")
+
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0]["status"], "complete")
+        self.assertEqual(templates[0]["missingSlots"], [])
+        main_hand = next(item for item in templates[0]["gearItems"] if item["slot"] == "main_hand")
+        self.assertEqual(main_hand["itemId"], "359101")
+        evidence = templates[0]["payload"]["templateEvidence"]
+        self.assertEqual(evidence["seedTemplateStatus"], "partial")
+        self.assertEqual(evidence["seedTemplateMissingSlots"], ["main_hand", "off_hand"])
+        self.assertEqual(evidence["slotDecisions"]["main_hand"]["selectedItemId"], "359101")
+        self.assertIn("gear_catalog_replacement_candidates", evidence["candidatePoolSources"])
+
+    def test_build_recommended_bis_prototype_templates_writes_dps_projected_evidence(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        seed_items = []
+        alternative_items = []
+        for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1):
+            item_id = str(360000 + index)
+            base_item = {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": item_id,
+                "id": item_id,
+                "name": f"seed_{slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                "itemStats": [{"key": "intellect", "value": 1000}],
+            }
+            seed_items.append(base_item)
+            alternative_items.append(dict(base_item))
+        alternative_items[0] = {
+            **alternative_items[0],
+            "itemId": "369002",
+            "id": "369002",
+            "name": "projected_mastery_head",
+            "itemStats": [
+                {"key": "intellect", "value": 1100},
+                {"key": "mastery", "value": 500},
+            ],
+        }
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "community-mage-frost-seed",
+                        "mage",
+                        "frost",
+                        "Raider.IO 观测装备 · 法师冰霜 A",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://raider.io/characters/cn/realm/MageSeed",
+                        "synced",
+                        "complete",
+                        "community-seed-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/realm/MageSeed",
+                            }
+                        ],
+                        seed_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in seed_items),
+                        16,
+                        [],
+                        "community winner",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "gearHash": "gear:mage:frost:seed",
+                        },
+                        "2026-07-06T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    ),
+                    (
+                        "community-mage-frost-alt",
+                        "mage",
+                        "frost",
+                        "Raider.IO 观测装备 · 法师冰霜 B",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://raider.io/characters/cn/realm/MageAlt",
+                        "synced",
+                        "complete",
+                        "community-alt-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/realm/MageAlt",
+                            }
+                        ],
+                        alternative_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in alternative_items),
+                        16,
+                        [],
+                        "community candidate",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "gearHash": "gear:mage:frost:alt",
+                        },
+                        "2026-07-05T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    ),
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "talent-mage-frost-frostfire",
+                        "mage",
+                        "frost",
+                        "frostfire",
+                        "raiderio",
+                        "Raider.IO",
+                        "verified",
+                        "verified",
+                        {"evidenceTier": "verified"},
+                        "2026-07-06T00:00:00+00:00",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_recommended_bis_prototype_templates(scan_run_id="recommended-bis-test")
+
+        self.assertEqual(len(templates), 1)
+        template = templates[0]
+        self.assertEqual(template["sourceKey"], "recommended_bis")
+        self.assertEqual(template["payload"]["templateSlot"], "recommended_bis")
+        self.assertEqual(template["payload"]["templateType"], "recommended_bis")
+        self.assertEqual(template["payload"]["countingPolicy"], "recommended_bis_v1 projected DPS prototype; not legacy fallback and not verified BiS")
+        evidence = template["payload"]["templateEvidence"]
+        self.assertEqual(evidence["schemaRevision"], "recommended-bis-v1")
+        self.assertEqual(evidence["status"], "projected_bis")
+        self.assertEqual(evidence["optimizerVersion"], "gear-bis-optimizer-v1")
+        self.assertGreater(evidence["candidatePool"]["candidateCount"], 16)
+        self.assertEqual(evidence["statPriorPolicy"]["role"], "candidate_recall_only")
+        self.assertEqual(evidence["statPriorPolicy"]["finalDecision"], "simc_gear_compare_required")
+        self.assertEqual(evidence["simc"]["status"], "required")
+        self.assertEqual(evidence["simc"]["highIterationRuns"], 0)
+        self.assertEqual(evidence["simc"]["pairwiseCompares"], 0)
+        self.assertEqual(evidence["anchorValidation"]["status"], "pending")
+        self.assertIn("high-iteration SimC compare has not run", evidence["blockers"])
+        self.assertIn("observed anchor validation is pending", evidence["blockers"])
+
+    def test_build_recommended_bis_prototype_templates_names_elemental_pilot_clearly(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        gear_items = [
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(370000 + index),
+                "id": str(370000 + index),
+                "name": f"elemental_{slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                "itemStats": [{"key": "intellect", "value": 1000}],
+                **({"armorType": "Mail"} if slot in {"head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"} else {}),
+                **({"weaponType": "One-Handed Mace"} if slot == "main_hand" else {}),
+                **({"weaponType": "Shield"} if slot == "off_hand" else {}),
+            }
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)
+        ]
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "observed_profile_shaman_elemental",
+                        "shaman",
+                        "elemental",
+                        "听凭风引（元素萨）· 真实高分玩家角色模板",
+                        "raiderio_observed_profile",
+                        "Raider.IO 真实玩家角色装备",
+                        "https://raider.io/characters/cn/sylvanas/听凭风引",
+                        "synced",
+                        "complete",
+                        "community-elemental-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/sylvanas/听凭风引",
+                                "characterName": "听凭风引",
+                                "region": "cn",
+                                "realmSlug": "sylvanas",
+                                "rankingEvidence": {
+                                    "source": "raiderio_spec_ranking",
+                                    "rank": 1,
+                                    "score": 4249.17,
+                                },
+                            }
+                        ],
+                        gear_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in gear_items),
+                        16,
+                        [],
+                        "community winner",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "profileHash": "profile:shaman:elemental:tingping",
+                            "gearHash": "gear:shaman:elemental:tingping",
+                            "rankingEvidence": {
+                                "source": "raiderio_spec_ranking",
+                                "rank": 1,
+                                "score": 4249.17,
+                            },
+                        },
+                        "2026-07-08T10:00:00+08:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_talent_templates": [],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_recommended_bis_prototype_templates(scan_run_id="recommended-bis-test")
+
+        self.assertEqual(len(templates), 1)
+        template = templates[0]
+        self.assertEqual(template["name"], "元素萨 · 系统评分推荐模板（待 SimC 验证）")
+        self.assertEqual(template["sourceName"], "系统评分推荐模板（projected_bis）")
+        evidence = template["payload"]["templateEvidence"]
+        self.assertEqual(evidence["templateName"], "元素萨 · 系统评分推荐模板（待 SimC 验证）")
+        self.assertEqual(evidence["sourceName"], "系统评分推荐模板（projected_bis）")
+        self.assertEqual(evidence["status"], "projected_bis")
+        self.assertEqual(evidence["simc"]["status"], "required")
+        self.assertEqual(evidence["anchorValidation"]["status"], "pending")
+
+    def test_build_recommended_bis_prototype_templates_applies_elemental_enhancement_anchor(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        armor_slots = {"head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"}
+
+        def observed_item(slot, index):
+            item_id = str(371000 + index)
+            item = {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": item_id,
+                "id": item_id,
+                "name": f"observed_{slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                "itemStats": [{"key": "intellect", "value": 1000}],
+            }
+            if slot in armor_slots:
+                item["armorType"] = "Mail"
+            if slot == "main_hand":
+                item["weaponType"] = "One-Handed Mace"
+            if slot == "off_hand":
+                item["weaponType"] = "Shield"
+            return item
+
+        gear_items = [observed_item(slot, index) for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)]
+        by_slot = {item["slot"]: item for item in gear_items}
+        by_slot["head"].update({
+            "bonus_id": "6652/13335",
+            "gem_id": "240908",
+            "enchant_id": "8017",
+        })
+        by_slot["back"].update({
+            "itemId": "371004",
+            "id": "371004",
+            "bonus_id": "12214/13667",
+            "embellishment": "arcanoweave_lining",
+            "itemStats": [{"key": "intellect", "value": 900}],
+        })
+        by_slot["wrist"].update({
+            "gem_id": "240908",
+            "embellishment": "arcanoweave_lining",
+        })
+
+        catalog_head = {
+            **by_slot["head"],
+            "name": "catalog_same_head_without_enhancements",
+            "bonus_id": "",
+            "gem_id": "",
+            "enchant_id": "",
+            "itemStats": [{"key": "intellect", "value": 5000}],
+        }
+        catalog_back = {
+            **by_slot["back"],
+            "itemId": "379999",
+            "id": "379999",
+            "name": "catalog_high_score_plain_back",
+            "bonus_id": "1808",
+            "embellishment": "",
+            "itemStats": [{"key": "intellect", "value": 5000}],
+        }
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "observed_profile_shaman_elemental",
+                        "shaman",
+                        "elemental",
+                        "听凭风引（元素萨）· 真实高分玩家角色模板",
+                        "raiderio_observed_profile",
+                        "Raider.IO 真实玩家角色装备",
+                        "https://raider.io/characters/cn/sylvanas/听凭风引",
+                        "synced",
+                        "complete",
+                        "community-elemental-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/sylvanas/听凭风引",
+                                "characterName": "听凭风引",
+                                "region": "cn",
+                                "realmSlug": "sylvanas",
+                                "rankingEvidence": {
+                                    "source": "raiderio_spec_ranking",
+                                    "rank": 1,
+                                    "score": 4249.17,
+                                },
+                            }
+                        ],
+                        gear_items,
+                        "\n".join(
+                            f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id={item.get('bonus_id', '1808')}"
+                            for item in gear_items
+                        ),
+                        16,
+                        [],
+                        "community winner",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "profileHash": "profile:shaman:elemental:tingping",
+                            "gearHash": "gear:shaman:elemental:tingping",
+                            "rankingEvidence": {
+                                "source": "raiderio_spec_ranking",
+                                "rank": 1,
+                                "score": 4249.17,
+                            },
+                        },
+                        "2026-07-08T10:00:00+08:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "talent-shaman-elemental",
+                        "shaman",
+                        "elemental",
+                        "farseer",
+                        "raiderio",
+                        "Raider.IO",
+                        "verified",
+                        "verified",
+                        {"evidenceTier": "verified"},
+                        "2026-07-08T10:00:00+08:00",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+        store._season_recommended_catalog_candidates_by_slot = lambda class_key, spec_key: {
+            "head": [catalog_head],
+            "back": [catalog_back],
+        }
+
+        templates = store.build_recommended_bis_prototype_templates(scan_run_id="recommended-bis-test")
+
+        self.assertEqual(len(templates), 1)
+        by_output_slot = {item["slot"]: item for item in templates[0]["gearItems"]}
+        self.assertEqual(by_output_slot["head"]["itemId"], by_slot["head"]["itemId"])
+        self.assertEqual(by_output_slot["head"].get("gem_id"), "240908")
+        self.assertEqual(by_output_slot["head"].get("enchant_id"), "8017")
+        self.assertEqual(by_output_slot["back"]["itemId"], "371004")
+        self.assertEqual(by_output_slot["back"].get("embellishment"), "arcanoweave_lining")
+        self.assertEqual(by_output_slot["wrist"].get("embellishment"), "arcanoweave_lining")
+        evidence = templates[0]["payload"]["templateEvidence"]
+        self.assertEqual(evidence["status"], "projected_bis")
+        self.assertEqual(evidence["enhancementOptimization"]["status"], "pilot_applied")
+        self.assertIn("recommended_bis enhancement optimization still requires SimC validation", evidence["blockers"])
+
+    def test_build_recommended_bis_prototype_templates_applies_persisted_elemental_simc_evidence(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        gear_items = []
+        for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1):
+            item = {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(372000 + index),
+                "id": str(372000 + index),
+                "name": f"elemental_{slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                "itemStats": [{"key": "intellect", "value": 1000}],
+            }
+            if slot in {"head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"}:
+                item["armorType"] = "Mail"
+            if slot == "main_hand":
+                item["weaponType"] = "One-Handed Mace"
+            if slot == "off_hand":
+                item["weaponType"] = "Shield"
+            gear_items.append(item)
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "observed_profile_shaman_elemental",
+                        "shaman",
+                        "elemental",
+                        "听凭风引（元素萨）· 真实高分玩家角色模板",
+                        "raiderio_observed_profile",
+                        "Raider.IO 真实玩家角色装备",
+                        "https://raider.io/characters/cn/sylvanas/听凭风引",
+                        "synced",
+                        "complete",
+                        "community-elemental-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/sylvanas/听凭风引",
+                                "characterName": "听凭风引",
+                                "rankingEvidence": {"source": "raiderio_spec_ranking", "rank": 1, "score": 4249.17},
+                            }
+                        ],
+                        gear_items,
+                        "\n".join(
+                            f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808"
+                            for item in gear_items
+                        ),
+                        16,
+                        [],
+                        "community winner",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "profileHash": "profile:shaman:elemental:tingping",
+                            "gearHash": "gear:shaman:elemental:tingping",
+                            "rankingEvidence": {"source": "raiderio_spec_ranking", "rank": 1, "score": 4249.17},
+                        },
+                        "2026-07-08T10:00:00+08:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_talent_templates": [],
+                "FROM cache.websim_sync_state": {
+                    ("recommended_bis_v1_simc_evidence",): [
+                        (
+                            {
+                                "schemaRevision": "recommended-bis-v1-simc-evidence-overrides-v1",
+                                "evidenceBySpec": {
+                                    "shaman:elemental": {
+                                        "status": "passed",
+                                        "checkedAt": "2026-07-08T13:24:00+08:00",
+                                        "source": "manual_cloud_simc_compare",
+                                        "scenarioKey": "mplus_aoe",
+                                        "simcVersion": "1205-01",
+                                        "iterations": 10000,
+                                        "winnerProfile": "recommended_enhanced_projected",
+                                        "winnerDps": 188418.99492534876,
+                                        "winnerErrorPct": 0.031889607114364595,
+                                        "observedProfile": "observed_full",
+                                        "observedDps": 187783.45715070626,
+                                        "observedErrorPct": 0.036767306803863184,
+                                        "deltaDpsVsObserved": 635.5377746424929,
+                                        "deltaPctVsObserved": 0.3384418331016453,
+                                        "talentAnchorStatus": "stale",
+                                    }
+                                },
+                            },
+                            "2026-07-08T13:24:00+08:00",
+                        )
+                    ]
+                },
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_recommended_bis_prototype_templates(scan_run_id="recommended-bis-test")
+
+        self.assertEqual(len(templates), 1)
+        evidence = templates[0]["payload"]["templateEvidence"]
+        self.assertEqual(evidence["status"], "projected_bis")
+        self.assertEqual(evidence["simc"]["status"], "passed")
+        self.assertEqual(evidence["simc"]["highIterationRuns"], 1)
+        self.assertEqual(evidence["simc"]["winnerDps"], 188418.99492534876)
+        self.assertEqual(evidence["simc"]["manualCompare"]["deltaPctVsObserved"], 0.3384418331016453)
+        self.assertNotIn("high-iteration SimC compare has not run", evidence["blockers"])
+        self.assertNotIn("recommended_bis enhancement optimization still requires SimC validation", evidence["blockers"])
+        self.assertIn("missing verified community talent anchor", evidence["blockers"])
+        self.assertIn("pairwise gear compare has not run", evidence["blockers"])
+        self.assertIn("observed anchor validation is pending", evidence["blockers"])
+
+    def test_build_recommended_bis_prototype_templates_keeps_dps_with_missing_talent_anchor_blocker(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        gear_items = [
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(361000 + index),
+                "id": str(361000 + index),
+                "name": f"frost_{slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                "itemStats": [{"key": "intellect", "value": 1000}],
+            }
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)
+        ]
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "community-mage-frost",
+                        "mage",
+                        "frost",
+                        "Raider.IO 观测装备 · 法师冰霜",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "https://raider.io/characters/cn/realm/MageNoTalent",
+                        "synced",
+                        "complete",
+                        "community-frost-signature",
+                        [
+                            {
+                                "sourceKey": "raiderio_observed_profile",
+                                "sourceUrl": "https://raider.io/characters/cn/realm/MageNoTalent",
+                            }
+                        ],
+                        gear_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in gear_items),
+                        16,
+                        [],
+                        "community winner",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "gearHash": "gear:mage:frost:no-talent",
+                        },
+                        "2026-07-06T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_talent_templates": [],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_recommended_bis_prototype_templates(scan_run_id="recommended-bis-test")
+
+        self.assertEqual(len(templates), 1)
+        evidence = templates[0]["payload"]["templateEvidence"]
+        self.assertEqual(evidence["status"], "projected_bis")
+        self.assertEqual(evidence["talentAnchor"]["status"], "blocked")
+        self.assertIn("missing verified community talent anchor", evidence["blockers"])
+
+    def test_build_recommended_bis_prototype_templates_skips_non_dps_specs(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        gear_items = [
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(370000 + index),
+                "id": str(370000 + index),
+                "name": f"holy_{slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+            }
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)
+        ]
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_gear_templates": [
+                    (
+                        "community-priest-holy",
+                        "priest",
+                        "holy",
+                        "Raider.IO 观测装备 · 牧师神圣",
+                        "raiderio_observed_profile",
+                        "Raider.IO observed gear",
+                        "",
+                        "synced",
+                        "complete",
+                        "community-holy-signature",
+                        [{"sourceKey": "raiderio_observed_profile"}],
+                        gear_items,
+                        "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in gear_items),
+                        16,
+                        [],
+                        "community winner",
+                        {"templateSlot": "community_best"},
+                        "2026-07-06T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        "scan-community",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_talent_templates": [
+                    (
+                        "talent-priest-holy",
+                        "priest",
+                        "holy",
+                        "oracle",
+                        "raiderio",
+                        "Raider.IO",
+                        "verified",
+                        "verified",
+                        {"evidenceTier": "verified"},
+                        "2026-07-06T00:00:00+00:00",
+                    )
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_recommended_bis_prototype_templates(scan_run_id="recommended-bis-test")
+
+        self.assertEqual(templates, [])
+
     def test_build_community_gear_templates_uses_trusted_observed_variants(self):
         from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        trusted_rows = []
+        for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1):
+            item_id = str(190000 + index)
+            payload = {
+                "classKey": "mage",
+                "specKey": "frost",
+                "statSource": "simulationcraft",
+                "itemStats": [{"key": "intellect", "value": 1000 + index}],
+                "profileUrl": "https://raider.io/characters/cn/realm/MageA",
+                "characterName": "MageA",
+                "region": "cn",
+                "realmSlug": "realm",
+            }
+            if slot == "main_hand":
+                payload["weaponType"] = "Dagger"
+            elif slot == "off_hand":
+                payload["weaponType"] = "Held In Off-hand"
+            trusted_rows.append(
+                (
+                    f"variant-a-{slot}",
+                    item_id,
+                    f"Observed {slot}",
+                    slot,
+                    707,
+                    {"ilevel": "707", "bonus_id": "1808"},
+                    "verified",
+                    [],
+                    payload,
+                    {},
+                    "2026-07-05T00:00:00+00:00",
+                )
+            )
 
         conn = FakeConnection(
             rowsets={
                 "FROM cache.websim_profile_presets": [],
                 "FROM cache.websim_gear_variants v": [
-                    (
-                        "variant-a",
-                        "190001",
-                        "Observed Helm",
-                        "head",
-                        707,
-                        {"ilevel": "707", "bonus_id": "1808"},
-                        "verified",
-                        [],
-                        {
-                            "classKey": "mage",
-                            "specKey": "frost",
-                            "statSource": "simulationcraft",
-                            "itemStats": [{"key": "intellect", "value": 1000}],
-                            "profileUrl": "https://raider.io/characters/cn/realm/MageA",
-                        },
-                        {},
-                        "2026-07-05T00:00:00+00:00",
-                    ),
+                    *trusted_rows,
                     (
                         "variant-untrusted",
-                        "190002",
+                        "199999",
                         "Untrusted Should Stay Out",
                         "neck",
                         707,
@@ -4695,11 +7187,431 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(template["sourceKey"], "raiderio_observed_profile")
         self.assertEqual(template["classKey"], "mage")
         self.assertEqual(template["specKey"], "frost")
-        self.assertEqual(template["readySlotCount"], 1)
-        self.assertEqual(template["status"], "partial")
+        self.assertEqual(template["readySlotCount"], 16)
+        self.assertEqual(template["status"], "complete")
         self.assertEqual(template["scanRunId"], "scan-observed")
-        self.assertEqual([item["itemId"] for item in template["gearItems"]], ["190001"])
+        self.assertEqual(template["sourceUrl"], "https://raider.io/characters/cn/realm/MageA")
+        self.assertEqual(template["sampleCount"], 1)
+        self.assertTrue(template["gearHash"])
+        self.assertEqual(template["sourceRefs"][0]["sourceUrl"], "https://raider.io/characters/cn/realm/MageA")
+        self.assertNotIn("199999", [item["itemId"] for item in template["gearItems"]])
+        self.assertEqual(len(template["gearItems"]), 16)
         self.assertIn("FROM cache.websim_gear_variants v", sql)
+
+    def test_build_community_gear_templates_keeps_elemental_observed_to_single_profile(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        profile_a = "https://raider.io/characters/us/stormrage/Kiliwynn"
+        profile_b = "https://raider.io/characters/us/frostmourne/Zorthar"
+        observed_rows = []
+        for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1):
+            if slot == "off_hand":
+                continue
+            item_id = str(390000 + index)
+            payload = {
+                "classKey": "shaman",
+                "specKey": "elemental",
+                "statSource": "simulationcraft",
+                "itemStats": [{"key": "intellect", "value": 1000}],
+                "profileUrl": profile_a,
+                "sourceLabel": "Raider.IO observed profile: Kiliwynn",
+                "rankingEvidence": {
+                    "source": "raiderio_spec_ranking",
+                    "rank": 1,
+                    "score": 4249.17,
+                },
+            }
+            if slot == "main_hand":
+                payload["weaponType"] = "Two-Handed Mace"
+            observed_rows.append(
+                (
+                    f"variant-a-{slot}",
+                    item_id,
+                    f"Observed A {slot}",
+                    slot,
+                    707,
+                    {"ilevel": "707", "bonus_id": "1808"},
+                    "verified",
+                    [],
+                    payload,
+                    {},
+                    "2026-07-05T00:00:00+00:00",
+                )
+            )
+        observed_rows.append(
+            (
+                "variant-b-off-hand",
+                "399999",
+                "Observed B Off Hand",
+                "off_hand",
+                707,
+                {"ilevel": "707", "bonus_id": "1808"},
+                "verified",
+                [],
+                {
+                    "classKey": "shaman",
+                    "specKey": "elemental",
+                    "statSource": "simulationcraft",
+                    "itemStats": [{"key": "intellect", "value": 500}],
+                    "profileUrl": profile_b,
+                    "sourceLabel": "Raider.IO observed profile: Zorthar",
+                    "weaponType": "Held In Off-hand",
+                },
+                {},
+                "2026-07-05T00:00:00+00:00",
+            )
+        )
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_profile_presets": [],
+                "FROM cache.websim_gear_variants v": observed_rows,
+                "FROM cache.websim_items": [],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_community_gear_templates(scan_run_id="scan-observed")
+
+        self.assertEqual(templates, [])
+
+    def test_build_community_gear_templates_selects_single_profile_winner_for_all_specs(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        profile_a = "https://raider.io/characters/us/stormrage/Magealpha"
+        profile_b = "https://raider.io/characters/us/area-52/Magewinner"
+
+        def observed_rows(profile_url, character_name, base_item_id, rank, score, updated_at):
+            rows = []
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1):
+                item_id = str(base_item_id + index)
+                payload = {
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "statSource": "simulationcraft",
+                    "itemStats": [{"key": "intellect", "value": 1000 + index}],
+                    "profileUrl": profile_url,
+                    "characterName": character_name,
+                    "region": "us",
+                    "realmSlug": "area-52" if character_name == "Magewinner" else "stormrage",
+                    "sourceLabel": f"Raider.IO observed profile: {character_name}",
+                    "rankingEvidence": {
+                        "source": "raiderio_spec_ranking",
+                        "rank": rank,
+                        "score": score,
+                        "maxKeyLevel": 20,
+                    },
+                }
+                if slot == "main_hand":
+                    payload["weaponType"] = "Dagger"
+                elif slot == "off_hand":
+                    payload["weaponType"] = "Held In Off-hand"
+                simc_options = {"ilevel": "707", "bonus_id": "1808"}
+                if character_name == "Magewinner" and slot == "finger1":
+                    simc_options.update(
+                        {
+                            "gem_id": "240983",
+                            "enchant_id": "7340",
+                            "embellishment": "222873",
+                        }
+                    )
+                rows.append(
+                    (
+                        f"variant-{character_name}-{slot}",
+                        item_id,
+                        f"Observed {character_name} {slot}",
+                        slot,
+                        707,
+                        simc_options,
+                        "verified",
+                        [],
+                        payload,
+                        {},
+                        updated_at,
+                    )
+                )
+            return rows
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_profile_presets": [],
+                "FROM cache.websim_gear_variants v": [
+                    *observed_rows(profile_a, "Magealpha", 410000, 2, 4100.0, "2026-07-05T00:00:00+00:00"),
+                    *observed_rows(profile_b, "Magewinner", 420000, 1, 4300.0, "2026-07-05T01:00:00+00:00"),
+                ],
+                "FROM cache.websim_items": [],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_community_gear_templates(scan_run_id="scan-observed")
+
+        self.assertEqual(len(templates), 1)
+        template = templates[0]
+        self.assertEqual(template["sourceKey"], "raiderio_observed_profile")
+        self.assertEqual(template["classKey"], "mage")
+        self.assertEqual(template["specKey"], "frost")
+        self.assertEqual(template["sourceUrl"], profile_b)
+        self.assertEqual(template["sampleCount"], 1)
+        self.assertEqual(template["status"], "complete")
+        self.assertEqual(template["readySlotCount"], 16)
+        self.assertEqual(template["missingSlots"], [])
+        self.assertEqual(template["scanRunId"], "scan-observed")
+        self.assertTrue(template["profileHash"])
+        self.assertTrue(template["gearHash"])
+        self.assertTrue(all(item["itemId"].startswith("4200") for item in template["gearItems"]))
+        finger = next(item for item in template["gearItems"] if item["slot"] == "finger1")
+        self.assertEqual(finger["gem_id"], "240983")
+        self.assertEqual(finger["enchant_id"], "7340")
+        self.assertEqual(finger["embellishment"], "222873")
+
+    def test_build_community_gear_templates_materializes_complete_raiderio_profiles(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        profile_url = "https://raider.io/characters/cn/the-masters-glaive/悲嘆之息"
+
+        def profile_item(slot, index):
+            item = {
+                "slot": slot,
+                "itemId": str(430000 + index),
+                "name": f"Observed Priest {slot}",
+                "itemLevel": 707,
+                "bonuses": [{"id": 1808}],
+            }
+            if slot == "main_hand":
+                item["weaponType"] = "Dagger"
+            elif slot == "off_hand":
+                item["weaponType"] = "Held In Off-hand"
+            if slot == "finger1":
+                item["gems"] = [{"item_id": 240983}]
+                item["enchants"] = [{"enchant_id": 7340}]
+                item["embellishment"] = "222873"
+            return item
+
+        raiderio_payload = {
+            "sourceStatus": "verified",
+            "checkedAt": "2026-07-08T08:00:00+00:00",
+            "profiles": [
+                {
+                    "name": "悲嘆之息",
+                    "region": "cn",
+                    "realmSlug": "the-masters-glaive",
+                    "classKey": "priest",
+                    "specKey": "discipline",
+                    "profileUrl": profile_url,
+                    "rankingEvidence": {
+                        "source": "raiderio_spec_ranking",
+                        "rank": 3,
+                        "score": 4201.5,
+                    },
+                    "gear": [profile_item(slot, index) for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)],
+                }
+            ],
+        }
+        aggregate_variant_rows = []
+        for index, slot in enumerate(CANONICAL_GEAR_SLOTS[:8], start=1):
+            aggregate_variant_rows.append(
+                (
+                    f"aggregate-{slot}",
+                    str(440000 + index),
+                    f"Aggregate {slot}",
+                    slot,
+                    707,
+                    {"ilevel": "707", "bonus_id": "1808"},
+                    "verified",
+                    [],
+                    {
+                        "classKey": "priest",
+                        "specKey": "discipline",
+                        "statSource": "simulationcraft",
+                        "itemStats": [{"key": "intellect", "value": 1000 + index}],
+                        "profileUrl": f"https://raider.io/characters/cn/old-realm/partial-{slot}",
+                    },
+                    {},
+                    "2026-07-07T00:00:00+00:00",
+                )
+            )
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_profile_presets": [],
+                "FROM cache.websim_gear_variants v": aggregate_variant_rows,
+                "FROM cache.raiderio_cache": [
+                    (raiderio_payload, "2026-07-08T08:00:00+00:00", "2099-01-01T00:00:00+00:00")
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_community_gear_templates(scan_run_id="scan-raiderio-profile")
+
+        self.assertEqual(len(templates), 1)
+        template = templates[0]
+        self.assertEqual(template["sourceKey"], "raiderio_observed_profile")
+        self.assertEqual(template["classKey"], "priest")
+        self.assertEqual(template["specKey"], "discipline")
+        self.assertEqual(template["sourceUrl"], profile_url)
+        self.assertEqual(template["sampleCount"], 1)
+        self.assertEqual(template["status"], "complete")
+        self.assertEqual(template["readySlotCount"], 16)
+        self.assertEqual(template["missingSlots"], [])
+        self.assertEqual(template["scanRunId"], "scan-raiderio-profile")
+        self.assertEqual(template["sourceRefs"][0]["characterName"], "悲嘆之息")
+        self.assertEqual(template["sourceRefs"][0]["region"], "cn")
+        self.assertEqual(template["sourceRefs"][0]["realmSlug"], "the-masters-glaive")
+        self.assertTrue(template["profileHash"])
+        self.assertTrue(template["gearHash"])
+        self.assertTrue(all(item["itemId"].startswith("4300") for item in template["gearItems"]))
+        finger = next(item for item in template["gearItems"] if item["slot"] == "finger1")
+        self.assertEqual(finger["gem_id"], "240983")
+        self.assertEqual(finger["enchant_id"], "7340")
+        self.assertEqual(finger["embellishment"], "222873")
+
+    def test_build_community_gear_templates_selects_top_profile_after_weapon_rule_update(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        def profile_gear(start, main_hand_id, off_hand_id=None):
+            items = []
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1):
+                if slot == "off_hand" and not off_hand_id:
+                    continue
+                item_id = main_hand_id if slot == "main_hand" else off_hand_id if slot == "off_hand" else str(start + index)
+                items.append(
+                    {
+                        "slot": slot,
+                        "itemId": item_id,
+                        "name": f"Observed {slot}",
+                        "itemLevel": 707,
+                        "bonuses": [{"id": 1808}],
+                    }
+                )
+            return items
+
+        raiderio_payload = {
+            "sourceStatus": "verified",
+            "checkedAt": "2026-07-08T08:00:00+00:00",
+            "profiles": [
+                {
+                    "name": "Topdagger",
+                    "region": "us",
+                    "realmSlug": "area-52",
+                    "classKey": "hunter",
+                    "specKey": "survival",
+                    "profileUrl": "https://raider.io/characters/us/area-52/Topdagger",
+                    "rankingEvidence": {"source": "raiderio_spec_ranking", "rank": 1, "score": 4300},
+                    "gear": profile_gear(450000, "900001", "900002"),
+                },
+                {
+                    "name": "Legalnext",
+                    "region": "us",
+                    "realmSlug": "area-52",
+                    "classKey": "hunter",
+                    "specKey": "survival",
+                    "profileUrl": "https://raider.io/characters/us/area-52/Legalnext",
+                    "rankingEvidence": {"source": "raiderio_spec_ranking", "rank": 2, "score": 4290},
+                    "gear": profile_gear(460000, "900003"),
+                },
+            ],
+        }
+        item_rows = [
+            (
+                "900001",
+                "Observed Dagger",
+                "main_hand",
+                707,
+                {
+                    "id": "900001",
+                    "name": "Observed Dagger",
+                    "inventory_type": {"type": "WEAPON", "name": "One-Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"id": 15, "name": "Dagger"},
+                },
+                "verified",
+            ),
+            (
+                "900002",
+                "Observed Offhand Dagger",
+                "off_hand",
+                707,
+                {
+                    "id": "900002",
+                    "name": "Observed Offhand Dagger",
+                    "inventory_type": {"type": "WEAPON", "name": "One-Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"id": 15, "name": "Dagger"},
+                },
+                "verified",
+            ),
+            (
+                "900003",
+                "Legal Polearm",
+                "main_hand",
+                707,
+                {
+                    "id": "900003",
+                    "name": "Legal Polearm",
+                    "inventory_type": {"type": "TWOHWEAPON", "name": "Two-Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"id": 6, "name": "Polearm"},
+                },
+                "verified",
+            ),
+        ]
+        illegal_variant_rows = [
+            (
+                f"topdagger-{slot}",
+                "900001" if slot == "main_hand" else "900002" if slot == "off_hand" else str(470000 + index),
+                f"Illegal observed {slot}",
+                slot,
+                707,
+                {"ilevel": "707", "bonus_id": "1808"},
+                "verified",
+                [],
+                {
+                    "classKey": "hunter",
+                    "specKey": "survival",
+                    "statSource": "simulationcraft",
+                    "itemStats": [{"key": "agility", "value": 1000 + index}],
+                    "profileUrl": "https://raider.io/characters/us/area-52/Topdagger",
+                    "characterName": "Topdagger",
+                    "region": "us",
+                    "realmSlug": "area-52",
+                    "rankingEvidence": {"source": "raiderio_spec_ranking", "rank": 1, "score": 4300},
+                    "fetchedAt": "2026-07-08T08:00:00+00:00",
+                    "scanRunId": "scan-old-variant",
+                },
+                {},
+                "2026-07-08T07:00:00+00:00",
+            )
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)
+        ]
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_profile_presets": [],
+                "FROM cache.websim_gear_variants v": illegal_variant_rows,
+                "FROM cache.websim_gear_variants WHERE source_type": [],
+                "FROM cache.raiderio_cache": [
+                    (raiderio_payload, "2026-07-08T08:00:00+00:00", "2099-01-01T00:00:00+00:00")
+                ],
+                "FROM cache.websim_items": item_rows,
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        templates = store.build_community_gear_templates(scan_run_id="scan-raiderio-profile")
+
+        self.assertEqual(len(templates), 1)
+        template = templates[0]
+        self.assertEqual(template["sourceUrl"], "https://raider.io/characters/us/area-52/Topdagger")
+        self.assertEqual(template["sampleCount"], 1)
+        self.assertEqual(template["status"], "complete")
+        self.assertEqual(template["readySlotCount"], 16)
+        self.assertEqual(template["missingSlots"], [])
+        self.assertEqual(template["sourceRefs"][0]["characterName"], "Topdagger")
 
     def test_build_community_gear_templates_does_not_globally_truncate_observed_variants(self):
         from server.postgres_cache_store import PostgresCacheStore

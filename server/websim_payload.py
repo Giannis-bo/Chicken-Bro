@@ -18,7 +18,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlencode, urlparse
+from urllib.parse import unquote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 try:
@@ -258,6 +258,10 @@ DEFAULT_GEAR_TEMPLATE_SCENARIO_KEY = "mplus_mixed_route"
 SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY = "season_recommendation"
 SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_NAME = "当前赛季大秘境 AOE 推荐模板"
 SEASON_RECOMMENDED_GEAR_SCENARIO_KEY = "mplus_aoe"
+RECOMMENDED_BIS_GEAR_TEMPLATE_SOURCE_KEY = "recommended_bis"
+RECOMMENDED_BIS_GEAR_TEMPLATE_SOURCE_NAME = "SimC optimizer 毕业模板"
+RECOMMENDED_BIS_SCHEMA_REVISION = "recommended-bis-v1"
+RECOMMENDED_BIS_OPTIMIZER_VERSION = "gear-bis-optimizer-v1"
 DEFAULT_GEAR_TEMPLATE_ILEVEL_GUARDRAIL = 6
 DEFAULT_GEAR_TEMPLATE_TRINKET_WARNING = "trinket effects are not optimized"
 TEMPLATE_EVIDENCE_AUDIT_REVISION = "template-evidence-audit-v1"
@@ -1790,9 +1794,21 @@ SPEC_WEAPON_EQUIPMENT_RULES = {
         "offHandTypes": set(),
     },
     ("hunter", "survival"): {
-        "mode": "melee_weapon",
-        "mainHandTypes": {"Polearm", "Staff", "Two-Handed Axe", "Two-Handed Sword", "Dagger", "One-Handed Axe", "One-Handed Sword"},
-        "offHandTypes": set(),
+        "mode": "hunter_class_proficiency",
+        "mainHandTypes": {
+            "Bow",
+            "Crossbow",
+            "Dagger",
+            "Fist Weapon",
+            "Gun",
+            "One-Handed Axe",
+            "One-Handed Sword",
+            "Polearm",
+            "Staff",
+            "Two-Handed Axe",
+            "Two-Handed Sword",
+        },
+        "offHandTypes": {"Dagger", "Fist Weapon", "One-Handed Axe", "One-Handed Sword"},
     },
     ("mage", "arcane"): {
         "mode": "caster_1h_or_staff",
@@ -1861,8 +1877,8 @@ SPEC_WEAPON_EQUIPMENT_RULES = {
     },
     ("rogue", "outlaw"): {
         "mode": "dual_wield_1h",
-        "mainHandTypes": {"Fist Weapon", "One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
-        "offHandTypes": {"Fist Weapon", "One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
+        "mainHandTypes": {"Dagger", "Fist Weapon", "One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
+        "offHandTypes": {"Dagger", "Fist Weapon", "One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
     },
     ("rogue", "subtlety"): {
         "mode": "dual_wield_dagger",
@@ -1871,7 +1887,7 @@ SPEC_WEAPON_EQUIPMENT_RULES = {
     },
     ("shaman", "elemental"): {
         "mode": "caster_shield_or_holdable",
-        "mainHandTypes": {"Staff", "Dagger", "One-Handed Mace"},
+        "mainHandTypes": {"Staff", "Dagger", "Fist Weapon", "One-Handed Axe", "One-Handed Mace"},
         "offHandTypes": {"Shield", "Held In Off-hand"},
     },
     ("shaman", "enhancement"): {
@@ -1914,6 +1930,47 @@ SPEC_WEAPON_EQUIPMENT_RULES = {
         "mainHandTypes": {"One-Handed Axe", "One-Handed Mace", "One-Handed Sword"},
         "offHandTypes": {"Shield"},
     },
+}
+GEAR_LEGALITY_SOURCE_MAP_SCHEMA_REVISION = "gear-legality-source-map-v1"
+GEAR_LEGALITY_SOURCE_MAP_AUTHORITY_BLOCKER = (
+    "official Battle.net/Armory and SimC rule evidence is not connected"
+)
+OBSERVED_WEAPON_RULE_EVIDENCE = {
+    ("hunter", "survival"): [
+        {
+            "source": "observed",
+            "status": "supporting",
+            "evidenceType": "raiderio_observed_profile",
+            "characterName": "哈哈丶帅猎猎",
+            "region": "cn",
+            "realm": "the-great-sea",
+            "sourceUrl": "https://raider.io/characters/cn/the-great-sea/哈哈丶帅猎猎",
+            "sourceUrlStatus": "known",
+            "sampleCount": 1,
+            "slots": [
+                {"slot": "main_hand", "weaponType": "Crossbow", "itemId": "258412"},
+                {"slot": "off_hand", "weaponType": "Dagger", "itemId": "249284"},
+            ],
+            "ruleImpact": "survival hunter observed with Crossbow main hand and Dagger off hand",
+            "verified": False,
+        }
+    ],
+    ("rogue", "outlaw"): [
+        {
+            "source": "observed",
+            "status": "supporting",
+            "evidenceType": "raiderio_observed_profile",
+            "characterName": "Zacrebleu",
+            "sourceUrl": "",
+            "sourceUrlStatus": "pending_backfill",
+            "sampleCount": 1,
+            "slots": [
+                {"slot": "off_hand", "weaponType": "Dagger", "itemId": ""},
+            ],
+            "ruleImpact": "outlaw rogue observed with Dagger off hand",
+            "verified": False,
+        }
+    ],
 }
 PRIMARY_STAT_LABELS_ZH = {
     "strength": "力量",
@@ -12212,11 +12269,38 @@ def normalize_source_refs(refs):
             "sourceUrl": str(ref.get("sourceUrl") or "").strip(),
             "sourceStatus": str(ref.get("sourceStatus") or "").strip(),
             "status": str(ref.get("status") or "").strip(),
-            "sampleCount": int(ref.get("sampleCount") or 0),
-            "maxKeyLevel": int(ref.get("maxKeyLevel") or 0),
+            "sampleCount": int_or_zero(ref.get("sampleCount")),
+            "maxKeyLevel": int_or_zero(ref.get("maxKeyLevel")),
             "updatedAt": str(ref.get("updatedAt") or "").strip(),
             "analysisWindow": str(ref.get("analysisWindow") or "").strip(),
         }
+        if ref.get("profileHash"):
+            item["profileHash"] = str(ref.get("profileHash") or "").strip()
+        if ref.get("gearHash"):
+            item["gearHash"] = str(ref.get("gearHash") or "").strip()
+        if ref.get("characterName"):
+            item["characterName"] = str(ref.get("characterName") or "").strip()
+        if ref.get("region"):
+            item["region"] = str(ref.get("region") or "").strip()
+        if ref.get("realmSlug"):
+            item["realmSlug"] = str(ref.get("realmSlug") or "").strip()
+        if ref.get("fetchedAt"):
+            item["fetchedAt"] = str(ref.get("fetchedAt") or "").strip()
+        if ref.get("scanRunId") or ref.get("scan_run_id"):
+            item["scanRunId"] = str(ref.get("scanRunId") or ref.get("scan_run_id") or "").strip()
+        if ref.get("runId"):
+            item["runId"] = int_or_zero(ref.get("runId"))
+        if ref.get("rank"):
+            item["rank"] = int_or_zero(ref.get("rank"))
+        score = ref.get("score")
+        if score not in (None, ""):
+            try:
+                item["score"] = float(score)
+            except (TypeError, ValueError):
+                pass
+        ranking_evidence = ref.get("rankingEvidence")
+        if isinstance(ranking_evidence, dict):
+            item["rankingEvidence"] = ranking_evidence
         key = "|".join([item["id"], item["sourceKey"], item["sourceUrl"]])
         if key in seen:
             continue
@@ -12254,8 +12338,8 @@ def community_talent_source_ref(template):
         "sourceUrl": str(template.get("sourceUrl") or "").strip(),
         "sourceStatus": str(template.get("sourceStatus") or "").strip(),
         "status": str(template.get("status") or "").strip(),
-        "sampleCount": int(template.get("sampleCount") or 0),
-        "maxKeyLevel": int(template.get("maxKeyLevel") or 0),
+        "sampleCount": int_or_zero(template.get("sampleCount")),
+        "maxKeyLevel": int_or_zero(template.get("maxKeyLevel")),
         "updatedAt": str(template.get("updatedAt") or "").strip(),
         "analysisWindow": str(template.get("analysisWindow") or "").strip(),
     }
@@ -17215,6 +17299,40 @@ def gear_template_sort_key(template):
 
 
 BASELINE_GEAR_TEMPLATE_SOURCE_KEYS = {
+    "recommended_bis",
+    SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
+    DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+    "baseline_template",
+    "simc_preset",
+    "baseline_blocked",
+}
+
+
+REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY = "all_specs"
+REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_SPECS = set()
+
+STRICT_COMMUNITY_BEST_V2_ACTIVE_SEED_SPECS = {("shaman", "elemental")}
+
+REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS = {("shaman", "elemental")}
+REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_TEMPLATE_IDS = {
+    ("shaman", "elemental"): "observed_profile_shaman_elemental",
+}
+REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_PROFILE_URLS = {
+    ("shaman", "elemental"): "https://raider.io/characters/cn/sylvanas/听凭风引",
+}
+REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_DISPLAY_NAMES = {
+    ("shaman", "elemental"): "听凭风引（元素萨）· 真实高分玩家角色模板",
+}
+REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_SOURCE_NAMES = {
+    ("shaman", "elemental"): "Raider.IO 真实玩家角色装备",
+}
+REAL_PLAYER_GEAR_TEMPLATE_RECOMMENDED_DISPLAY_NAMES = {
+    ("shaman", "elemental"): "元素萨 · 系统评分推荐模板（待 SimC 验证）",
+}
+REAL_PLAYER_GEAR_TEMPLATE_RECOMMENDED_SOURCE_NAMES = {
+    ("shaman", "elemental"): "系统评分推荐模板（projected_bis）",
+}
+REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS = {
     SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
     DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
     "baseline_template",
@@ -17225,6 +17343,62 @@ BASELINE_GEAR_TEMPLATE_SOURCE_KEYS = {
 
 def gear_template_source_key(template):
     return str((template or {}).get("sourceKey") or "").strip().lower()
+
+
+def real_player_gear_template_pilot_spec(class_key, spec_key):
+    return (slugify(class_key, ""), slugify(spec_key, "")) in REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS
+
+
+def real_player_gear_template_public_import_spec(class_key, spec_key):
+    class_key = slugify(class_key, "")
+    spec_key = slugify(spec_key, "")
+    if not class_key or not spec_key:
+        return False
+    if REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY == "all_specs":
+        return True
+    return (class_key, spec_key) in REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_SPECS
+
+
+def real_player_gear_template_observed_template_id(class_key, spec_key):
+    return REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_TEMPLATE_IDS.get(
+        (slugify(class_key, ""), slugify(spec_key, "")),
+        "",
+    )
+
+
+def real_player_gear_template_observed_profile_url(class_key, spec_key):
+    return REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_PROFILE_URLS.get(
+        (slugify(class_key, ""), slugify(spec_key, "")),
+        "",
+    )
+
+
+def real_player_gear_template_observed_display_name(class_key, spec_key):
+    return REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_DISPLAY_NAMES.get(
+        (slugify(class_key, ""), slugify(spec_key, "")),
+        "",
+    )
+
+
+def real_player_gear_template_observed_source_name(class_key, spec_key):
+    return REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_SOURCE_NAMES.get(
+        (slugify(class_key, ""), slugify(spec_key, "")),
+        "",
+    )
+
+
+def real_player_gear_template_recommended_display_name(class_key, spec_key):
+    return REAL_PLAYER_GEAR_TEMPLATE_RECOMMENDED_DISPLAY_NAMES.get(
+        (slugify(class_key, ""), slugify(spec_key, "")),
+        "",
+    )
+
+
+def real_player_gear_template_recommended_source_name(class_key, spec_key):
+    return REAL_PLAYER_GEAR_TEMPLATE_RECOMMENDED_SOURCE_NAMES.get(
+        (slugify(class_key, ""), slugify(spec_key, "")),
+        "",
+    )
 
 
 def is_baseline_gear_template(template):
@@ -17239,8 +17413,39 @@ def is_real_community_gear_template(template):
     return str(template.get("status") or "").strip() in {"complete", "partial"}
 
 
+def community_gear_template_can_apply(template):
+    if not isinstance(template, dict):
+        return False
+    if template.get("canApplyGear") is False:
+        return False
+    status = str(template.get("status") or "").strip()
+    source_status = str(template.get("sourceStatus") or "").strip()
+    blocked_statuses = {"blocked", "source_reference", "source-reference", "missing_credentials"}
+    if status in blocked_statuses or source_status in blocked_statuses:
+        return False
+    if not (template.get("rawString") or template.get("gearItems")):
+        return False
+    if gear_template_source_key(template) == "raiderio_observed_profile":
+        missing_slots = [slot for slot in (template.get("missingSlots") or []) if str(slot or "").strip()]
+        if status != "complete" or missing_slots:
+            return False
+    return True
+
+
+def is_active_community_observed_template(template):
+    if not is_real_community_gear_template(template):
+        return False
+    record = community_observed_chain_record(template)
+    if record.get("confidence") not in {"observed_verified", "observed_provisional"}:
+        return False
+    if not community_gear_template_can_apply(template):
+        return False
+    return True
+
+
 def baseline_gear_template_source_priority(source_key):
     return {
+        "recommended_bis": 50,
         SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY: 40,
         DEFAULT_GEAR_TEMPLATE_SOURCE_KEY: 30,
         "baseline_template": 20,
@@ -17261,8 +17466,47 @@ def baseline_gear_template_sort_key(template):
     )
 
 
+def community_observed_ranking_evidence(template):
+    payload = gear_template_payload(template)
+    evidence = payload.get("rankingEvidence") if isinstance(payload.get("rankingEvidence"), dict) else {}
+    if evidence:
+        return evidence
+    for ref in (template or {}).get("sourceRefs") or []:
+        if not isinstance(ref, dict):
+            continue
+        evidence = ref.get("rankingEvidence") if isinstance(ref.get("rankingEvidence"), dict) else {}
+        if evidence:
+            return evidence
+        if ref.get("rank") or ref.get("score"):
+            return {
+                "source": "raiderio_spec_ranking",
+                "rank": ref.get("rank"),
+                "score": ref.get("score"),
+                "maxKeyLevel": ref.get("maxKeyLevel"),
+                "runId": ref.get("runId"),
+                "sourceUrl": ref.get("sourceUrl"),
+            }
+    return {}
+
+
+def community_observed_ranking_sort_key(template):
+    evidence = community_observed_ranking_evidence(template)
+    rank = int_or_zero(evidence.get("rank"))
+    try:
+        score = float(evidence.get("score") or 0)
+    except (TypeError, ValueError):
+        score = 0.0
+    return (
+        1 if str(evidence.get("source") or "") == "raiderio_spec_ranking" else 0,
+        -rank if rank > 0 else -999999,
+        score,
+        int_or_zero(evidence.get("maxKeyLevel")),
+    )
+
+
 def community_gear_template_sort_key(template):
     return (
+        *community_observed_ranking_sort_key(template),
         1 if template.get("status") == "complete" else 0,
         1 if template.get("sourceStatus") in {"synced", "verified"} else 0,
         int(template.get("readySlotCount") or 0),
@@ -17271,15 +17515,92 @@ def community_gear_template_sort_key(template):
     )
 
 
-def select_best_baseline_gear_templates(templates):
-    candidates = [template for template in dedupe_gear_community_templates(templates) if is_baseline_gear_template(template)]
-    if not candidates:
+def public_gear_template_visible_for_spec(template, class_key, spec_key):
+    if not isinstance(template, dict):
+        return False
+    if not real_player_gear_template_public_import_spec(class_key, spec_key):
+        return True
+    source_key = gear_template_source_key(template)
+    if source_key == RECOMMENDED_BIS_GEAR_TEMPLATE_SOURCE_KEY:
+        return False
+    if source_key in REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS:
+        return False
+    if source_key == "raiderio_observed_profile":
+        return is_active_community_observed_template(template)
+    return False
+
+
+def public_gear_templates_for_spec(templates, class_key, spec_key):
+    return [
+        template
+        for template in templates or []
+        if public_gear_template_visible_for_spec(template, class_key, spec_key)
+    ]
+
+
+def public_baseline_fallback_templates_for_spec(class_key, spec_key):
+    if real_player_gear_template_public_import_spec(class_key, spec_key):
         return []
-    return [max(candidates, key=baseline_gear_template_sort_key)]
+    return [blocked_baseline_gear_template(class_key, spec_key)]
 
 
-def select_community_best_gear_templates(templates, class_key, spec_key):
-    candidates = [template for template in dedupe_gear_community_templates(templates) if is_real_community_gear_template(template)]
+def select_best_baseline_gear_templates(templates):
+    prepared = []
+    for template in templates or []:
+        if not isinstance(template, dict) or not is_baseline_gear_template(template):
+            continue
+        template = {**template}
+        template["signature"] = template.get("signature") or gear_template_signature(template)
+        template["sourceRefs"] = normalize_source_refs(template.get("sourceRefs") or [gear_template_source_ref(template)])
+        prepared.append(template)
+    if not prepared:
+        return []
+
+    recommended = dedupe_templates_by_signature(
+        [template for template in prepared if gear_template_source_key(template) == RECOMMENDED_BIS_GEAR_TEMPLATE_SOURCE_KEY],
+        gear_template_signature,
+        gear_template_sort_key,
+    )
+    season = dedupe_templates_by_signature(
+        [template for template in prepared if gear_template_source_key(template) == SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY],
+        gear_template_signature,
+        gear_template_sort_key,
+    )
+    fallback = dedupe_templates_by_signature(
+        [
+            template for template in prepared
+            if gear_template_source_key(template) not in {
+                RECOMMENDED_BIS_GEAR_TEMPLATE_SOURCE_KEY,
+                SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
+            }
+        ],
+        gear_template_signature,
+        gear_template_sort_key,
+    )
+    selected = []
+    if recommended:
+        selected.append(max(recommended, key=baseline_gear_template_sort_key))
+    if season:
+        selected.append(max(season, key=baseline_gear_template_sort_key))
+    elif fallback:
+        selected.append(max(fallback, key=baseline_gear_template_sort_key))
+    return selected
+
+
+def select_community_best_gear_templates(templates, class_key, spec_key, strict_active=True):
+    def candidate_allowed(template):
+        if strict_active:
+            return is_active_community_observed_template(template)
+        if not is_real_community_gear_template(template):
+            return False
+        return bool(template.get("rawString") or template.get("gearItems"))
+
+    candidates = [
+        template
+        for template in templates or []
+        if candidate_allowed(template)
+    ]
+    candidates = dedupe_gear_community_templates(candidates)
     if candidates:
         return [max(candidates, key=community_gear_template_sort_key)]
     return [pending_community_gear_template(class_key, spec_key)]
@@ -17294,7 +17615,7 @@ def dedupe_gear_community_templates(templates):
         template["signature"] = template.get("signature") or gear_template_signature(template)
         template["sourceRefs"] = normalize_source_refs(template.get("sourceRefs") or [gear_template_source_ref(template)])
         prepared.append(template)
-    return dedupe_templates_by_signature(prepared, gear_template_signature, gear_template_sort_key)
+    return dedupe_templates_by_signature(prepared, gear_template_signature, community_gear_template_sort_key)
 
 
 def sqlite_table_exists(conn, table_name):
@@ -18334,8 +18655,9 @@ def gear_community_template_from_preset(preset, class_key, spec_key):
         "rawString": "\n".join(raw_lines),
         "readySlotCount": ready_count,
         "missingSlots": missing_slots,
-        "canApplyGear": bool(gear_items),
+        "canApplyGear": True,
     }
+    template["canApplyGear"] = community_gear_template_can_apply(template)
     template["signature"] = gear_template_signature(template)
     template["sourceRefs"] = normalize_source_refs([gear_template_source_ref(template)])
     template["templateRevision"] = COMMUNITY_TEMPLATE_REVISION
@@ -18351,6 +18673,175 @@ def observed_item_matches_spec(item, class_key, spec_key):
         if slugify(ref.get("classKey"), "") == class_key and slugify(ref.get("specKey"), "") == spec_key:
             return True
     return False
+
+
+def observed_profile_template_source_refs(items):
+    refs = []
+    seen_urls = set()
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        for ref in item.get("observedProfileRefs") or []:
+            if not isinstance(ref, dict):
+                continue
+            source_url = str(ref.get("profileUrl") or ref.get("sourceUrl") or ref.get("url") or "").strip()
+            if not source_url or source_url in seen_urls:
+                continue
+            seen_urls.add(source_url)
+            source_name = str(ref.get("sourceName") or ref.get("sourceLabel") or "Raider.IO observed profile").strip()
+            ranking_evidence = ref.get("rankingEvidence") if isinstance(ref.get("rankingEvidence"), dict) else {}
+            source_ref = {
+                "id": str(ref.get("id") or f"observed-profile-{stable_digest([source_url])}").strip(),
+                "sourceKey": "raiderio_observed_profile",
+                "sourceName": source_name,
+                "sourceUrl": source_url,
+                "sourceStatus": str(ref.get("sourceStatus") or "synced").strip(),
+                "status": str(ref.get("status") or "verified").strip(),
+                "sampleCount": 1,
+                "maxKeyLevel": ref.get("maxKeyLevel") or 0,
+                "updatedAt": str(ref.get("updatedAt") or "").strip(),
+                "analysisWindow": str(ref.get("analysisWindow") or "Raider.IO observed profile gear").strip(),
+            }
+            for key in ("fetchedAt", "scanRunId"):
+                if ref.get(key):
+                    source_ref[key] = str(ref.get(key) or "").strip()
+            for key in ("characterName", "region", "realmSlug"):
+                if ref.get(key):
+                    source_ref[key] = ref.get(key)
+            if ranking_evidence:
+                source_ref["rankingEvidence"] = ranking_evidence
+                for key in ("rank", "score", "runId"):
+                    if ranking_evidence.get(key):
+                        source_ref[key] = ranking_evidence.get(key)
+                if ranking_evidence.get("maxKeyLevel"):
+                    source_ref["maxKeyLevel"] = ranking_evidence.get("maxKeyLevel")
+            refs.append(source_ref)
+    return normalize_source_refs(refs)
+
+
+def observed_item_profile_urls(item):
+    urls = []
+    seen = set()
+    if not isinstance(item, dict):
+        return urls
+    for ref in item.get("observedProfileRefs") or []:
+        if not isinstance(ref, dict):
+            continue
+        source_url = str(ref.get("profileUrl") or ref.get("sourceUrl") or ref.get("url") or "").strip()
+        if source_url and source_url not in seen:
+            seen.add(source_url)
+            urls.append(source_url)
+    direct_url = str(item.get("profileUrl") or item.get("sourceUrl") or "").strip()
+    if direct_url and direct_url not in seen:
+        urls.append(direct_url)
+    return urls
+
+
+def observed_item_profile_simc_replay(item):
+    if not isinstance(item, dict):
+        return {}
+    replay = item.get("observedProfileSimcReplay")
+    if not isinstance(replay, dict):
+        replay = item.get("profileSimcReplay")
+    if not isinstance(replay, dict):
+        return {}
+    dps = simc_snapshot_number(replay.get("dps") or replay.get("meanDps") or replay.get("winnerDps"))
+    if dps is None or dps <= 0:
+        return {}
+    scenario_key = str(replay.get("scenarioKey") or "observed_profile_replay").strip() or "observed_profile_replay"
+    result = {
+        "source": str(replay.get("source") or "simulationcraft").strip() or "simulationcraft",
+        "scenarioKey": scenario_key,
+        "status": str(replay.get("status") or "passed").strip() or "passed",
+        "dps": int(dps) if float(dps).is_integer() else dps,
+    }
+    iterations = int_or_zero(replay.get("iterations"))
+    if iterations > 0:
+        result["iterations"] = iterations
+    checked_at = str(replay.get("checkedAt") or "").strip()
+    if checked_at:
+        result["checkedAt"] = checked_at
+    return result
+
+
+def observed_template_replay_evidence(gear_items, source_urls, missing_slots):
+    gear_items = [item for item in gear_items or [] if isinstance(item, dict)]
+    source_urls = unique_text_list(source_urls or [])
+    replay_items = [observed_item_profile_simc_replay(item) for item in gear_items]
+    replay_items = [item for item in replay_items if item]
+    if not replay_items:
+        return {}
+    evidence = {
+        "schemaRevision": "community-best-v2-observed-replay-v1",
+        "status": "observed_provisional",
+    }
+    if missing_slots:
+        evidence["simcReplay"] = {
+            "status": "blocked",
+            "blockers": ["observed profile replay requires all canonical gear slots"],
+        }
+        return evidence
+    if len(source_urls) != 1:
+        evidence["simcReplay"] = {
+            "status": "blocked",
+            "blockers": ["observed profile replay requires a single observed profile source"],
+            "sourceProfileUrls": source_urls,
+        }
+        return evidence
+    source_url = source_urls[0]
+    item_source_urls = [observed_item_profile_urls(item) for item in gear_items]
+    if any(source_url not in urls for urls in item_source_urls):
+        evidence["simcReplay"] = {
+            "status": "blocked",
+            "blockers": ["observed profile replay requires every selected item to come from the single observed profile"],
+            "sourceProfileUrl": source_url,
+        }
+        return evidence
+    if len(replay_items) != len(gear_items):
+        evidence["simcReplay"] = {
+            "status": "blocked",
+            "blockers": ["observed profile replay requires replay evidence on every selected item"],
+            "sourceProfileUrl": source_url,
+        }
+        return evidence
+    replay_identities = {
+        (
+            item.get("source") or "",
+            item.get("scenarioKey") or "",
+            item.get("dps"),
+            item.get("iterations") or 0,
+        )
+        for item in replay_items
+    }
+    if len(replay_identities) != 1:
+        evidence["simcReplay"] = {
+            "status": "blocked",
+            "blockers": ["observed profile replay requires consistent replay summary on every selected item"],
+            "sourceProfileUrl": source_url,
+        }
+        return evidence
+    replay = replay_items[0]
+    scenario_key = replay.get("scenarioKey") or "observed_profile_replay"
+    scenario_result = {
+        "source": replay.get("source") or "simulationcraft",
+        "dps": replay.get("dps"),
+        "status": replay.get("status") or "passed",
+    }
+    if replay.get("iterations"):
+        scenario_result["iterations"] = replay.get("iterations")
+    if replay.get("checkedAt"):
+        scenario_result["checkedAt"] = replay.get("checkedAt")
+    evidence.update(
+        {
+            "status": "observed_verified",
+            "sourceProfileUrl": source_url,
+            "simcReplay": replay,
+            "scenarioResults": {
+                scenario_key: scenario_result,
+            },
+        }
+    )
+    return evidence
 
 
 def observed_profile_baseline_items(catalog_items, class_key, spec_key):
@@ -18453,7 +18944,53 @@ def gear_template_slot_coverage(gear_items, class_key="", spec_key=""):
     return ready_by_slot, occupied_slots, missing_slots
 
 
+def observed_profile_enhancement_fingerprint(gear_items):
+    fingerprint = []
+    for item in gear_items or []:
+        if not isinstance(item, dict):
+            continue
+        slot = normalize_slot(item.get("slot") or item.get("simcSlot") or "")
+        if not slot:
+            continue
+        fingerprint.append(
+            {
+                "slot": slot,
+                "itemId": str(item.get("itemId") or item.get("id") or "").strip(),
+                "bonus_id": normalize_option_value(item.get("bonus_id") or item.get("bonusId")),
+                "gem_id": normalize_option_value(item.get("gem_id") or item.get("gemId")),
+                "enchant_id": normalize_option_value(item.get("enchant_id") or item.get("enchantId")),
+                "embellishment": normalize_option_value(item.get("embellishment") or item.get("embellishmentId")),
+            }
+        )
+    return sorted(fingerprint, key=lambda row: row.get("slot") or "")
+
+
+def observed_profile_hash(class_key, spec_key, source_urls, gear_hash, ranking_evidence):
+    return f"profile:{class_key}:{spec_key}:{stable_digest([source_urls or [], gear_hash, ranking_evidence or {}])}"
+
+
+def observed_profile_character_identity(source_refs):
+    for ref in source_refs or []:
+        if not isinstance(ref, dict):
+            continue
+        character_name = str(ref.get("characterName") or "").strip()
+        region = str(ref.get("region") or "").strip()
+        realm_slug = str(ref.get("realmSlug") or "").strip()
+        if character_name or region or realm_slug:
+            return {
+                "name": character_name,
+                "region": region,
+                "realmSlug": realm_slug,
+            }
+    return {}
+
+
 def gear_community_template_from_observed_items(items, class_key, spec_key):
+    source_refs = observed_profile_template_source_refs(items)
+    source_urls = [ref.get("sourceUrl") for ref in source_refs if ref.get("sourceUrl")]
+    ranking_evidence = {}
+    if source_refs:
+        ranking_evidence = community_observed_ranking_evidence({"sourceRefs": source_refs})
     ready_by_slot, occupied_slots, missing_slots = gear_template_slot_coverage(
         [item for item in items or [] if isinstance(item, dict) and item.get("simcReady")],
         class_key,
@@ -18470,28 +19007,68 @@ def gear_community_template_from_observed_items(items, class_key, spec_key):
     ready_count = len(CANONICAL_GEAR_SLOTS) - len(missing_slots)
     class_label = CLASS_LABELS_ZH.get(class_key, class_key)
     spec_label = SPEC_LABELS_ZH.get(spec_key, SPEC_LABELS.get(spec_key, spec_key.replace("_", " ").title()))
+    character_identity = observed_profile_character_identity(source_refs)
+    fetched_at = ""
+    for ref in source_refs:
+        if not isinstance(ref, dict):
+            continue
+        fetched_at = str(ref.get("fetchedAt") or "").strip()
+        if fetched_at:
+            break
+    template_name = (
+        real_player_gear_template_observed_display_name(class_key, spec_key)
+        or f"Raider.IO 观测装备 · {class_label}{spec_label}"
+    )
+    source_name = (
+        real_player_gear_template_observed_source_name(class_key, spec_key)
+        or "Raider.IO observed gear"
+    )
     template = {
         "id": f"observed-profile-{class_key}-{spec_key}",
-        "name": f"Raider.IO 观测装备 · {class_label}{spec_label}",
+        "name": template_name,
         "classKey": class_key,
         "specKey": spec_key,
         "sourceKey": "raiderio_observed_profile",
-        "sourceName": "Raider.IO observed gear",
-        "sourceUrl": "",
+        "sourceName": source_name,
+        "sourceUrl": source_urls[0] if source_urls else "",
+        "sampleCount": len(source_urls),
         "sourceStatus": source_status,
         "status": status,
         "updatedAt": utc_now(),
+        "fetchedAt": fetched_at,
         "analysisWindow": f"Raider.IO observed profile gear; {ready_count}/{len(CANONICAL_GEAR_SLOTS)} canonical gear slots ready.",
         "gearItems": gear_items,
         "rawString": "\n".join(raw_lines),
         "readySlotCount": ready_count,
         "missingSlots": missing_slots,
-        "canApplyGear": bool(gear_items),
+        "canApplyGear": True,
     }
+    template["canApplyGear"] = community_gear_template_can_apply(template)
     if occupied_slots:
         template["occupiedSlots"] = occupied_slots
     template["signature"] = gear_template_signature(template)
-    template["sourceRefs"] = normalize_source_refs([gear_template_source_ref(template)])
+    template["gearHash"] = template["signature"]
+    template["sourceRefs"] = source_refs or normalize_source_refs([gear_template_source_ref(template)])
+    enhancement_fingerprint = observed_profile_enhancement_fingerprint(gear_items)
+    profile_hash = observed_profile_hash(class_key, spec_key, source_urls, template["gearHash"], ranking_evidence)
+    template["profileHash"] = profile_hash
+    template["payload"] = {
+        "profileHash": profile_hash,
+        "gearHash": template["gearHash"],
+        "enhancementHash": f"enhancement:{class_key}:{spec_key}:{stable_digest(enhancement_fingerprint)}",
+        "sampleCount": template["sampleCount"],
+        "fetchedAt": fetched_at,
+        "rankingEvidence": ranking_evidence,
+    }
+    if character_identity:
+        template["payload"]["character"] = character_identity
+    replay_evidence = observed_template_replay_evidence(gear_items, source_urls, missing_slots)
+    if replay_evidence:
+        template["payload"]["templateEvidence"] = {
+            **replay_evidence,
+            "profileHash": profile_hash,
+            "gearHash": template["gearHash"],
+        }
     template["templateRevision"] = COMMUNITY_TEMPLATE_REVISION
     return template
 
@@ -18710,6 +19287,11 @@ def websim_gear_community_template_sync_state(templates):
     templates = templates or []
     hidden_duplicate_count = sum(max(0, int(item.get("dedupedCount") or 1) - 1) for item in templates)
     signatures = [item.get("signature") for item in templates if item.get("signature")]
+    checked_at = utc_now() if templates else ""
+    expected_spec_ids = sorted({
+        spec_id for spec_id in (gear_template_spec_key(item) for item in templates)
+        if spec_id
+    })
     buckets = [_gear_template_sync_bucket(item) for item in templates]
     complete_count = len([bucket for bucket in buckets if bucket == "verified"])
     partial_count = len([bucket for bucket in buckets if bucket == "partial"])
@@ -18794,7 +19376,644 @@ def websim_gear_community_template_sync_state(templates):
             "pending": pending_count,
             "blocked": blocked_count,
         },
-        "checkedAt": utc_now() if templates else "",
+        "templateChains": websim_gear_template_chain_state(
+            [item for item in templates if not is_baseline_gear_template(item)],
+            [item for item in templates if is_baseline_gear_template(item)],
+            expected_spec_ids=expected_spec_ids,
+            checked_at=checked_at,
+        ),
+        "checkedAt": checked_at,
+    }
+
+
+def gear_template_spec_key(template):
+    class_key = slugify((template or {}).get("classKey"), "")
+    spec_key = slugify((template or {}).get("specKey"), "")
+    return f"{class_key}:{spec_key}" if class_key and spec_key else ""
+
+
+def gear_template_payload(template):
+    return (template or {}).get("payload") if isinstance((template or {}).get("payload"), dict) else {}
+
+
+def gear_template_evidence_payload(template):
+    payload = gear_template_payload(template)
+    evidence = (template or {}).get("templateEvidence") if isinstance((template or {}).get("templateEvidence"), dict) else {}
+    if evidence:
+        return evidence
+    return payload.get("templateEvidence") if isinstance(payload.get("templateEvidence"), dict) else {}
+
+
+def gear_template_profile_hash(template):
+    payload = gear_template_payload(template)
+    evidence = gear_template_evidence_payload(template)
+    for source in (template, payload, evidence):
+        if not isinstance(source, dict):
+            continue
+        value = source.get("profileHash") or source.get("gearHash")
+        if value:
+            return str(value)
+    return ""
+
+
+def gear_template_observed_profile_hash(template):
+    payload = gear_template_payload(template)
+    evidence = gear_template_evidence_payload(template)
+    for source in (template, payload, evidence):
+        if not isinstance(source, dict):
+            continue
+        value = source.get("profileHash")
+        if value:
+            return str(value)
+    return ""
+
+
+def gear_template_observed_gear_hash(template):
+    payload = gear_template_payload(template)
+    evidence = gear_template_evidence_payload(template)
+    for source in (template, payload, evidence):
+        if not isinstance(source, dict):
+            continue
+        value = source.get("gearHash")
+        if value:
+            return str(value)
+    return ""
+
+
+def gear_template_source_url(template):
+    if not isinstance(template, dict):
+        return ""
+    source_url = str(template.get("sourceUrl") or "").strip()
+    if source_url:
+        return source_url
+    payload = gear_template_payload(template)
+    for key in ("sourceUrl", "profileUrl", "url"):
+        source_url = str(payload.get(key) or "").strip()
+        if source_url:
+            return source_url
+    for ref in template.get("sourceRefs") or []:
+        if not isinstance(ref, dict):
+            continue
+        source_url = str(ref.get("sourceUrl") or ref.get("profileUrl") or ref.get("url") or "").strip()
+        if source_url:
+            return source_url
+    return ""
+
+
+def community_observed_character_identity_from_url(source_url):
+    try:
+        parsed = urlparse(str(source_url or ""))
+    except Exception:
+        return {}
+    parts = [unquote(part) for part in (parsed.path or "").split("/") if part]
+    if len(parts) >= 4 and parts[0] == "characters":
+        return {
+            "region": parts[1],
+            "realmSlug": parts[2],
+            "name": parts[3],
+        }
+    return {}
+
+
+def community_observed_character_identity(template):
+    payload = gear_template_payload(template)
+    character = payload.get("character") if isinstance(payload.get("character"), dict) else {}
+    if character:
+        return {
+            "name": str(character.get("name") or character.get("characterName") or "").strip(),
+            "region": str(character.get("region") or "").strip(),
+            "realmSlug": str(character.get("realmSlug") or character.get("realm") or character.get("realmName") or "").strip(),
+        }
+    for ref in (template or {}).get("sourceRefs") or []:
+        if not isinstance(ref, dict):
+            continue
+        identity = {
+            "name": str(ref.get("characterName") or ref.get("character") or ref.get("name") or "").strip(),
+            "region": str(ref.get("region") or "").strip(),
+            "realmSlug": str(ref.get("realmSlug") or ref.get("realm") or ref.get("realmName") or "").strip(),
+        }
+        if identity["name"] or identity["region"] or identity["realmSlug"]:
+            return identity
+    return community_observed_character_identity_from_url(gear_template_source_url(template))
+
+
+def community_observed_fetched_or_scan_id(template):
+    payload = gear_template_payload(template)
+    for source in (template, payload):
+        if not isinstance(source, dict):
+            continue
+        value = source.get("fetchedAt") or source.get("scanRunId") or source.get("scan_run_id")
+        if value:
+            return str(value).strip()
+    for ref in (template or {}).get("sourceRefs") or []:
+        if not isinstance(ref, dict):
+            continue
+        value = ref.get("fetchedAt") or ref.get("scanRunId") or ref.get("scan_run_id")
+        if value:
+            return str(value).strip()
+    return ""
+
+
+def gear_template_scenario_results(template):
+    evidence = gear_template_evidence_payload(template)
+    scenario_results = evidence.get("scenarioResults")
+    return scenario_results if isinstance(scenario_results, dict) else {}
+
+
+def community_observed_evidence_blockers(template):
+    payload = gear_template_payload(template)
+    blockers = []
+    if not gear_template_source_url(template):
+        blockers.append("community_best_v2 requires sourceUrl for the observed character")
+    sample_count = int_or_zero((template or {}).get("sampleCount") or payload.get("sampleCount"))
+    if sample_count != 1:
+        blockers.append("community_best_v2 requires sampleCount=1 for a single observed character")
+    if not gear_template_observed_profile_hash(template):
+        blockers.append("community_best_v2 requires profileHash")
+    if not gear_template_observed_gear_hash(template):
+        blockers.append("community_best_v2 requires gearHash")
+    identity = community_observed_character_identity(template)
+    if not (identity.get("name") and identity.get("region") and identity.get("realmSlug")):
+        blockers.append("community_best_v2 requires region, realm, and character identity")
+    if not community_observed_fetched_or_scan_id(template):
+        blockers.append("community_best_v2 requires fetchedAt or scanRunId")
+    class_key = slugify((template or {}).get("classKey"), "")
+    raw_spec_key = slugify((template or {}).get("specKey"), "")
+    if (class_key, raw_spec_key) in STRICT_COMMUNITY_BEST_V2_ACTIVE_SEED_SPECS:
+        ranking_evidence = community_observed_ranking_evidence(template)
+        if str(ranking_evidence.get("source") or "") != "raiderio_spec_ranking":
+            blockers.append("community_best_v2 requires current Raider.IO spec ranking evidence for elemental shaman")
+        elif int_or_zero(ranking_evidence.get("rank")) <= 0 or not ranking_evidence.get("score"):
+            blockers.append("community_best_v2 requires rank and score for elemental shaman observed evidence")
+    if str((template or {}).get("status") or "") == "blocked" or str((template or {}).get("sourceStatus") or "") == "blocked":
+        blockers.append("observed template is blocked")
+    return blockers
+
+
+def community_observed_chain_record(template):
+    spec_key = gear_template_spec_key(template)
+    blockers = community_observed_evidence_blockers(template)
+    missing_slots = (template or {}).get("missingSlots") or []
+    legality_skipped_slots = (template or {}).get("legalitySkippedSlots") or []
+    scenario_results = gear_template_scenario_results(template)
+    if blockers:
+        confidence = "observed_blocked"
+    elif missing_slots:
+        confidence = "observed_partial"
+    elif scenario_results:
+        confidence = "observed_verified"
+    else:
+        confidence = "observed_provisional"
+    return {
+        "id": str((template or {}).get("id") or ""),
+        "spec": spec_key,
+        "templateType": "community_observed",
+        "confidence": confidence,
+        "status": confidence,
+        "sourceUrl": gear_template_source_url(template),
+        "profileHash": gear_template_observed_profile_hash(template),
+        "gearHash": gear_template_observed_gear_hash(template),
+        "readySlotCount": int_or_zero((template or {}).get("readySlotCount")),
+        "missingSlots": missing_slots,
+        "legalitySkippedSlots": legality_skipped_slots,
+        "blockers": blockers,
+    }
+
+
+def recommended_bis_numeric_value(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def recommended_bis_anchor_delta_pct(simc, anchor):
+    explicit_delta = recommended_bis_numeric_value(anchor.get("deltaPctVsBestObserved"))
+    if explicit_delta is not None:
+        return explicit_delta
+    winner_dps = recommended_bis_numeric_value(simc.get("winnerDps") or anchor.get("winnerDps"))
+    observed_dps = recommended_bis_numeric_value(anchor.get("bestObservedDps") or anchor.get("observedDps"))
+    if winner_dps is None or observed_dps is None or observed_dps <= 0:
+        return None
+    return ((winner_dps - observed_dps) / observed_dps) * 100
+
+
+def recommended_bis_anchor_failure_reason(simc, anchor):
+    anchor_status = str(anchor.get("status") or "").strip()
+    if anchor_status in {"failed", "anchor_failed", "blocked"}:
+        return "recommended_bis_v1 failed observed anchor validation"
+    delta_pct = recommended_bis_anchor_delta_pct(simc, anchor)
+    threshold_pct = recommended_bis_numeric_value(anchor.get("blockThresholdPct"))
+    if threshold_pct is None or threshold_pct <= 0:
+        threshold_pct = 2.0
+    if delta_pct is not None and delta_pct <= -threshold_pct:
+        observed_dps = recommended_bis_numeric_value(anchor.get("bestObservedDps") or anchor.get("observedDps"))
+        winner_dps = recommended_bis_numeric_value(simc.get("winnerDps") or anchor.get("winnerDps"))
+        if observed_dps is not None and winner_dps is not None:
+            return (
+                "recommended_bis_v1 failed observed anchor validation: "
+                f"winnerDps {round(winner_dps, 2)} is {round(abs(delta_pct), 2)}% below "
+                f"observed anchor {round(observed_dps, 2)}"
+            )
+        return (
+            "recommended_bis_v1 failed observed anchor validation: "
+            f"winner is {round(abs(delta_pct), 2)}% below observed anchor"
+        )
+    return ""
+
+
+RECOMMENDED_BIS_NON_DPS_ROLES = {
+    "deathknight:blood": "tank",
+    "demonhunter:vengeance": "tank",
+    "druid:guardian": "tank",
+    "monk:brewmaster": "tank",
+    "paladin:protection": "tank",
+    "warrior:protection": "tank",
+    "druid:restoration": "healer",
+    "evoker:preservation": "healer",
+    "monk:mistweaver": "healer",
+    "paladin:holy": "healer",
+    "priest:discipline": "healer",
+    "priest:holy": "healer",
+    "shaman:restoration": "healer",
+    "evoker:augmentation": "support",
+}
+
+
+def recommended_bis_role_for_spec_id(spec_id):
+    spec_id = str(spec_id or "").strip()
+    return RECOMMENDED_BIS_NON_DPS_ROLES.get(spec_id, "dps")
+
+
+def recommended_bis_record_gate_status(record):
+    simc_status = str(record.get("simcStatus") or "").strip()
+    anchor_status = str(record.get("anchorStatus") or "").strip()
+    pairwise_compares = int_or_zero(record.get("pairwiseCompares"))
+    return {
+        "simcRequired": record.get("status") in {"projected_bis", "candidate_bis"} and simc_status != "passed",
+        "pairwiseRequired": record.get("status") in {"projected_bis", "candidate_bis"} and pairwise_compares <= 0,
+        "anchorPending": record.get("status") in {"projected_bis", "candidate_bis"} and anchor_status != "passed",
+    }
+
+
+def recommended_bis_chain_record(template):
+    evidence = gear_template_evidence_payload(template)
+    status = str(evidence.get("status") or evidence.get("confidence") or (template or {}).get("status") or "").strip()
+    if status not in {
+        "projected_bis",
+        "candidate_bis",
+        "verified_bis",
+        "optimizer_blocked",
+        "optimizer_failed",
+        "anchor_failed",
+        "role_objective_blocked",
+    }:
+        status = "candidate_bis"
+    simc = evidence.get("simc") if isinstance(evidence.get("simc"), dict) else {}
+    anchor = evidence.get("anchorValidation") if isinstance(evidence.get("anchorValidation"), dict) else {}
+    candidate_pool = evidence.get("candidatePool") if isinstance(evidence.get("candidatePool"), dict) else {}
+    stat_prior_policy = evidence.get("statPriorPolicy") if isinstance(evidence.get("statPriorPolicy"), dict) else {}
+    blockers = unique_text_list([*(evidence.get("blockers") or []), *((template or {}).get("blockers") or [])])
+    anchor_failure = recommended_bis_anchor_failure_reason(simc, anchor)
+    if not anchor_failure and status == "verified_bis" and str(anchor.get("status") or "").strip() != "passed":
+        anchor_failure = "recommended_bis_v1 verified_bis requires passed observed anchor validation"
+    if anchor_failure:
+        status = "anchor_failed"
+        blockers = unique_text_list([anchor_failure, *blockers])
+        anchor = {**anchor, "status": "anchor_failed"}
+    return {
+        "id": str((template or {}).get("id") or ""),
+        "spec": gear_template_spec_key(template),
+        "templateType": "recommended_bis",
+        "status": status,
+        "confidence": status,
+        "optimizerVersion": str(evidence.get("optimizerVersion") or ""),
+        "scenarioKey": str(evidence.get("scenarioKey") or ""),
+        "candidateCount": int_or_zero(candidate_pool.get("candidateCount")),
+        "keptCandidateCount": int_or_zero(candidate_pool.get("keptCandidateCount")),
+        "statPriorPolicy": stat_prior_policy.get("role") or "",
+        "finalDecision": stat_prior_policy.get("finalDecision") or "",
+        "simcStatus": simc.get("status") or "",
+        "lowIterationRuns": int_or_zero(simc.get("lowIterationRuns")),
+        "highIterationRuns": int_or_zero(simc.get("highIterationRuns")),
+        "pairwiseCompares": int_or_zero(simc.get("pairwiseCompares")),
+        "winnerDps": simc.get("winnerDps"),
+        "anchorStatus": anchor.get("status") or "",
+        "roleObjectiveStatus": evidence.get("roleObjectiveStatus") or "",
+        "blockers": blockers,
+    }
+
+
+def is_recommended_bis_gear_template(template):
+    if not isinstance(template, dict):
+        return False
+    return (
+        gear_template_source_key(template) == RECOMMENDED_BIS_GEAR_TEMPLATE_SOURCE_KEY
+        or str(gear_template_payload(template).get("templateType") or "").strip() == "recommended_bis"
+        or str(gear_template_evidence_payload(template).get("schemaRevision") or "").strip() == RECOMMENDED_BIS_SCHEMA_REVISION
+    )
+
+
+def legacy_fallback_chain_record(template):
+    source_key = gear_template_source_key(template)
+    evidence = gear_template_evidence_payload(template)
+    confidence = str(evidence.get("recommendationConfidence") or evidence.get("finalConfidence") or "").strip()
+    if not confidence:
+        confidence = "provisional" if source_key == SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY else "legacy"
+    simc_review = evidence.get("simcReview") if isinstance(evidence.get("simcReview"), dict) else {}
+    return {
+        "id": str((template or {}).get("id") or ""),
+        "spec": gear_template_spec_key(template),
+        "templateType": "starter_baseline" if source_key == SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY else "legacy_fallback",
+        "status": str((template or {}).get("status") or ""),
+        "confidence": confidence,
+        "sourceKey": source_key,
+        "simcReviewStatus": simc_review.get("status") or "",
+    }
+
+
+def normalize_template_chain_expected_specs(expected_spec_ids=None):
+    specs = []
+    seen = set()
+    for value in expected_spec_ids or []:
+        class_key = ""
+        spec_key = ""
+        if isinstance(value, str):
+            parts = value.split(":", 1)
+            if len(parts) == 2:
+                class_key, spec_key = parts
+        elif isinstance(value, (list, tuple)):
+            if len(value) >= 3 and isinstance(value[0], str) and ":" in value[0]:
+                class_key, spec_key = value[1], value[2]
+            elif len(value) >= 2:
+                class_key, spec_key = value[0], value[1]
+        class_key = slugify(class_key, "")
+        spec_key = slugify(spec_key, "")
+        spec_id = f"{class_key}:{spec_key}" if class_key and spec_key else ""
+        if spec_id and spec_id not in seen:
+            seen.add(spec_id)
+            specs.append(spec_id)
+    return specs
+
+
+def recommended_bis_missing_chain_record(spec_id):
+    role = recommended_bis_role_for_spec_id(spec_id)
+    if role != "dps":
+        role_label = "support" if role == "support" else role
+        return {
+            "id": "",
+            "spec": spec_id,
+            "templateType": "recommended_bis",
+            "status": "role_objective_blocked",
+            "confidence": "role_objective_blocked",
+            "optimizerVersion": RECOMMENDED_BIS_OPTIMIZER_VERSION,
+            "scenarioKey": "",
+            "candidateCount": 0,
+            "keptCandidateCount": 0,
+            "statPriorPolicy": "",
+            "finalDecision": "",
+            "simcStatus": "",
+            "lowIterationRuns": 0,
+            "highIterationRuns": 0,
+            "pairwiseCompares": 0,
+            "winnerDps": None,
+            "anchorStatus": "",
+            "roleObjectiveStatus": f"{role_label}_objective_pending",
+            "blockers": [f"recommended_bis_v1 DPS optimizer does not cover {role_label}; role-specific objective is pending"],
+        }
+    return {
+        "id": "",
+        "spec": spec_id,
+        "templateType": "recommended_bis",
+        "status": "optimizer_blocked",
+        "confidence": "optimizer_blocked",
+        "optimizerVersion": RECOMMENDED_BIS_OPTIMIZER_VERSION,
+        "scenarioKey": "",
+        "candidateCount": 0,
+        "keptCandidateCount": 0,
+        "statPriorPolicy": "",
+        "finalDecision": "",
+        "simcStatus": "",
+        "lowIterationRuns": 0,
+        "highIterationRuns": 0,
+        "pairwiseCompares": 0,
+        "winnerDps": None,
+        "anchorStatus": "",
+        "roleObjectiveStatus": "",
+        "blockers": ["recommended_bis_v1 optimizer has not produced a candidate for this spec"],
+    }
+
+
+def websim_gear_template_chain_state(community_templates=None, baseline_templates=None, expected_spec_ids=None, checked_at=""):
+    community_templates = community_templates or []
+    baseline_templates = baseline_templates or []
+    expected_specs = normalize_template_chain_expected_specs(expected_spec_ids)
+    observed_templates = []
+    for template in community_templates:
+        if not is_real_community_gear_template(template):
+            continue
+        class_key = slugify((template or {}).get("classKey"), "")
+        spec_key = slugify((template or {}).get("specKey"), "")
+        observed_templates.append(apply_gear_template_legality_gate(template, class_key, spec_key))
+    observed_records = [
+        community_observed_chain_record(template)
+        for template in observed_templates
+    ]
+    observed_records.sort(
+        key=lambda item: (
+            {"observed_verified": 0, "observed_provisional": 1, "observed_partial": 2, "observed_blocked": 3}.get(item["confidence"], 9),
+            item.get("spec") or "",
+            item.get("id") or "",
+        )
+    )
+    recommended_records = [
+        recommended_bis_chain_record(template)
+        for template in baseline_templates
+        if is_recommended_bis_gear_template(template)
+    ]
+    legacy_records = [
+        legacy_fallback_chain_record(template)
+        for template in baseline_templates
+        if not is_recommended_bis_gear_template(template) and is_baseline_gear_template(template)
+    ]
+    observed_good_specs = {
+        item["spec"]
+        for item in observed_records
+        if item["spec"] and item["confidence"] in {"observed_verified", "observed_provisional", "observed_partial"}
+    }
+    observed_all_specs = {item["spec"] for item in observed_records if item.get("spec")}
+    observed_verified_specs = {
+        item["spec"]
+        for item in observed_records
+        if item["confidence"] == "observed_verified" and item.get("spec")
+    }
+    observed_provisional_specs = {
+        item["spec"]
+        for item in observed_records
+        if item["confidence"] == "observed_provisional" and item.get("spec")
+    }
+    observed_partial_specs = {
+        item["spec"]
+        for item in observed_records
+        if item["confidence"] == "observed_partial" and item.get("spec")
+    }
+    observed_replay_required_specs = observed_provisional_specs | observed_partial_specs
+    observed_public_ready_specs = {
+        gear_template_spec_key(template)
+        for template in observed_templates
+        if gear_template_spec_key(template) and is_active_community_observed_template(template)
+    }
+    public_blocked_spec_pool = set(expected_specs or observed_all_specs)
+    observed_public_blocked_specs = [
+        spec_id for spec_id in expected_specs
+        if spec_id in public_blocked_spec_pool and spec_id not in observed_public_ready_specs
+    ] if expected_specs else sorted(public_blocked_spec_pool - observed_public_ready_specs)
+    public_blocked_records = [
+        item
+        for item in observed_records
+        if item.get("spec") in set(observed_public_blocked_specs)
+    ]
+    missing_observed_specs = [
+        spec_id for spec_id in expected_specs
+        if spec_id not in observed_all_specs
+    ]
+    ordered_observed_replay_required_specs = [
+        spec_id for spec_id in expected_specs
+        if spec_id in observed_replay_required_specs
+    ]
+    ordered_observed_replay_required_specs.extend(
+        sorted(observed_replay_required_specs - set(ordered_observed_replay_required_specs))
+    )
+    recommended_specs = {item["spec"] for item in recommended_records if item.get("spec")}
+    missing_recommended_specs = [
+        spec_id for spec_id in expected_specs
+        if spec_id not in recommended_specs
+    ]
+    missing_recommended_records = [
+        recommended_bis_missing_chain_record(spec_id)
+        for spec_id in missing_recommended_specs
+    ]
+    recommended_blocked_records = [
+        item for item in recommended_records
+        if item["status"] in {"optimizer_blocked", "optimizer_failed", "anchor_failed", "role_objective_blocked"}
+    ]
+    recommended_anchor_failed_specs = {
+        item["spec"] for item in recommended_records
+        if item["status"] == "anchor_failed" and item.get("spec")
+    }
+    recommended_optimizer_failed_specs = {
+        item["spec"] for item in recommended_records
+        if item["status"] == "optimizer_failed" and item.get("spec")
+    }
+    recommended_gate_statuses = {
+        item.get("spec"): recommended_bis_record_gate_status(item)
+        for item in recommended_records
+        if item.get("spec")
+    }
+    recommended_simc_required_specs = {
+        spec for spec, gates in recommended_gate_statuses.items() if gates.get("simcRequired")
+    }
+    recommended_pairwise_required_specs = {
+        spec for spec, gates in recommended_gate_statuses.items() if gates.get("pairwiseRequired")
+    }
+    recommended_anchor_pending_specs = {
+        spec for spec, gates in recommended_gate_statuses.items() if gates.get("anchorPending")
+    }
+    role_objective_blocked_specs = {
+        item["spec"]
+        for item in [*recommended_records, *missing_recommended_records]
+        if item.get("status") == "role_objective_blocked" and item.get("spec")
+    }
+    missing_optimizer_specs = {
+        item["spec"]
+        for item in missing_recommended_records
+        if item.get("status") == "optimizer_blocked" and item.get("spec")
+    }
+    full_optimizer_required_specs = (
+        missing_optimizer_specs
+        | recommended_anchor_failed_specs
+        | recommended_optimizer_failed_specs
+        | recommended_simc_required_specs
+        | recommended_pairwise_required_specs
+        | recommended_anchor_pending_specs
+    )
+    ordered_full_optimizer_required_specs = [
+        spec_id for spec_id in expected_specs
+        if spec_id in full_optimizer_required_specs
+    ]
+    ordered_full_optimizer_required_specs.extend(
+        sorted(full_optimizer_required_specs - set(ordered_full_optimizer_required_specs))
+    )
+    ordered_role_objective_blocked_specs = [
+        spec_id for spec_id in expected_specs
+        if spec_id in role_objective_blocked_specs
+    ]
+    ordered_role_objective_blocked_specs.extend(
+        sorted(role_objective_blocked_specs - set(ordered_role_objective_blocked_specs))
+    )
+    guard_checked_at = str(checked_at or "").strip()
+    return {
+        "schemaRevision": "gear-template-chain-state-v1",
+        "communityObserved": {
+            "guardMode": "readiness_only" if expected_specs else "",
+            "guardPolicy": (
+                "reports missing community_best_v2 specs and observed templates requiring SimC replay; "
+                "does not fetch profiles or replace winners"
+            ) if expected_specs else "",
+            "expectedSpecCount": len(expected_specs),
+            "coveredSpecCount": len(observed_good_specs),
+            "verifiedSpecCount": len(observed_verified_specs),
+            "provisionalSpecCount": len(observed_provisional_specs),
+            "partialSpecCount": len(observed_partial_specs),
+            "blockedSpecCount": len([item for item in observed_records if item["confidence"] == "observed_blocked"]),
+            "missingSpecCount": len(missing_observed_specs),
+            "simcReplayRequiredSpecCount": len(ordered_observed_replay_required_specs),
+            "publicReadySpecCount": len(observed_public_ready_specs),
+            "publicBlockedSpecCount": len(observed_public_blocked_specs),
+            "lastGuardCheckAt": guard_checked_at,
+            "missingSpecs": missing_observed_specs,
+            "simcReplayRequiredSpecs": ordered_observed_replay_required_specs,
+            "publicBlockedSpecs": observed_public_blocked_specs,
+            "examples": [item for item in observed_records if item["confidence"] != "observed_blocked"][:5],
+            "blockedExamples": [item for item in observed_records if item["confidence"] == "observed_blocked"][:5],
+            "publicBlockedExamples": public_blocked_records[:5],
+        },
+        "recommendedBis": {
+            "guardMode": "readiness_only" if expected_specs else "",
+            "guardPolicy": (
+                "reports missing recommended_bis_v1 specs as optimizer_required; "
+                "does not execute or queue the full SimC optimizer"
+            ) if expected_specs else "",
+            "totalSpecCount": len(recommended_specs),
+            "expectedSpecCount": len(expected_specs),
+            "missingSpecCount": len(missing_recommended_specs),
+            "projectedSpecCount": len({item["spec"] for item in recommended_records if item["status"] == "projected_bis" and item["spec"]}),
+            "candidateSpecCount": len({item["spec"] for item in recommended_records if item["status"] == "candidate_bis" and item["spec"]}),
+            "verifiedSpecCount": len({item["spec"] for item in recommended_records if item["status"] == "verified_bis" and item["spec"]}),
+            "blockedSpecCount": len({item["spec"] for item in [*recommended_blocked_records, *missing_recommended_records] if item.get("spec")}),
+            "optimizerRequiredSpecCount": len(ordered_full_optimizer_required_specs),
+            "simcReviewRequiredSpecCount": len(recommended_simc_required_specs),
+            "pairwiseRequiredSpecCount": len(recommended_pairwise_required_specs),
+            "anchorPendingSpecCount": len(recommended_anchor_pending_specs),
+            "anchorFailedSpecCount": len(recommended_anchor_failed_specs),
+            "optimizerFailedSpecCount": len(recommended_optimizer_failed_specs),
+            "roleObjectiveBlockedSpecCount": len(ordered_role_objective_blocked_specs),
+            "revisionStaleSpecCount": 0,
+            "optimizerQueuedSpecCount": 0,
+            "fullOptimizerRunRequiredSpecCount": len(ordered_full_optimizer_required_specs),
+            "lastGuardCheckAt": guard_checked_at,
+            "missingSpecs": missing_recommended_specs,
+            "fullOptimizerRunRequiredSpecs": ordered_full_optimizer_required_specs,
+            "roleObjectiveBlockedSpecs": ordered_role_objective_blocked_specs,
+            "examples": recommended_records[:5],
+            "blockedExamples": [*recommended_blocked_records, *missing_recommended_records][:5],
+        },
+        "legacyFallback": {
+            "totalSpecCount": len({item["spec"] for item in legacy_records if item.get("spec")}),
+            "starterBaselineSpecCount": len({item["spec"] for item in legacy_records if item.get("templateType") == "starter_baseline" and item.get("spec")}),
+            "examples": legacy_records[:5],
+        },
     }
 
 
@@ -18803,6 +20022,10 @@ def normalize_community_gear_template(template, class_key="", spec_key="", prese
     class_key = slugify(source.get("classKey") or class_key, "mage")
     spec_key = slugify(source.get("specKey") or spec_key, "arcane")
     payload = source.get("payload") if isinstance(source.get("payload"), dict) else {}
+    payload = dict(payload)
+    sample_count = int_or_zero(source.get("sampleCount") or payload.get("sampleCount"))
+    profile_hash = str(source.get("profileHash") or payload.get("profileHash") or "").strip()
+    gear_hash = str(source.get("gearHash") or payload.get("gearHash") or "").strip()
     scenario_key = str(source.get("scenarioKey") or payload.get("scenarioKey") or "").strip()
     enhancement_readiness = source.get("enhancementReadiness") if isinstance(source.get("enhancementReadiness"), dict) else payload.get("enhancementReadiness")
     enhancement_readiness = enhancement_readiness if isinstance(enhancement_readiness, dict) else {}
@@ -18817,6 +20040,12 @@ def normalize_community_gear_template(template, class_key="", spec_key="", prese
         if template_evidence:
             payload["templateEvidence"] = template_evidence
     payload["communityTemplateFreshness"] = community_template_freshness_payload(source)
+    if sample_count:
+        payload["sampleCount"] = sample_count
+    if profile_hash:
+        payload["profileHash"] = profile_hash
+    if gear_hash:
+        payload["gearHash"] = gear_hash
     gear_items = normalize_websim_gear_items(source.get("gearItems") or [], class_key, spec_key)
     if not gear_items and source.get("rawString"):
         gear_items = [
@@ -18860,10 +20089,11 @@ def normalize_community_gear_template(template, class_key="", spec_key="", prese
         "rawString": str(source.get("rawString") or "\n".join(raw_lines)).strip(),
         "readySlotCount": len(CANONICAL_GEAR_SLOTS) - len(missing_slots),
         "missingSlots": missing_slots,
-        "canApplyGear": bool(gear_items),
+        "canApplyGear": True,
         "payload": payload,
         "scanRunId": str(source.get("scanRunId") or source.get("scan_run_id") or "").strip(),
     }
+    normalized["canApplyGear"] = community_gear_template_can_apply(normalized)
     source_occupied_slots = source.get("occupiedSlots") if isinstance(source.get("occupiedSlots"), dict) else {}
     if source_occupied_slots or occupied_slots:
         normalized["occupiedSlots"] = occupied_slots or source_occupied_slots
@@ -18874,6 +20104,12 @@ def normalize_community_gear_template(template, class_key="", spec_key="", prese
     if template_evidence:
         normalized["templateEvidence"] = template_evidence
     normalized["signature"] = str(source.get("signature") or gear_template_signature(normalized)).strip()
+    if sample_count:
+        normalized["sampleCount"] = sample_count
+    if profile_hash:
+        normalized["profileHash"] = profile_hash
+    if gear_hash:
+        normalized["gearHash"] = gear_hash
     normalized["sourceRefs"] = normalize_source_refs(source.get("sourceRefs") or [gear_template_source_ref(normalized)])
     normalized["templateRevision"] = COMMUNITY_TEMPLATE_REVISION
     return normalized
@@ -18955,7 +20191,7 @@ def get_persisted_community_gear_templates(conn, class_key, spec_key):
     templates = []
     for row in rows:
         payload = safe_json_loads(row[16], {}) or {}
-        templates.append({
+        template = {
             "id": row[0],
             "classKey": row[1],
             "specKey": row[2],
@@ -18979,9 +20215,20 @@ def get_persisted_community_gear_templates(conn, class_key, spec_key):
             "updatedAt": row[17],
             "expiresAt": row[18],
             "scanRunId": row[19],
-            "canApplyGear": bool(row[12]),
+            "canApplyGear": True,
             "templateRevision": COMMUNITY_TEMPLATE_REVISION,
-        })
+        }
+        sample_count = int_or_zero(payload.get("sampleCount")) if isinstance(payload, dict) else 0
+        if sample_count:
+            template["sampleCount"] = sample_count
+        profile_hash = str(payload.get("profileHash") or "").strip() if isinstance(payload, dict) else ""
+        if profile_hash:
+            template["profileHash"] = profile_hash
+        gear_hash = str(payload.get("gearHash") or "").strip() if isinstance(payload, dict) else ""
+        if gear_hash:
+            template["gearHash"] = gear_hash
+        template["canApplyGear"] = community_gear_template_can_apply(template)
+        templates.append(template)
     return dedupe_gear_community_templates(templates)
 
 
@@ -19176,12 +20423,30 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
         if observed_template:
             community_template_candidates.append(observed_template)
     community_templates = select_community_best_gear_templates(community_template_candidates, class_key, spec_key)
-    baseline_templates = select_best_baseline_gear_templates(baseline_template_candidates)
+    community_templates = public_gear_templates_for_spec(community_templates, class_key, spec_key)
+    if not community_templates and not real_player_gear_template_public_import_spec(class_key, spec_key):
+        community_templates = [pending_community_gear_template(class_key, spec_key)]
+    baseline_templates = public_gear_templates_for_spec(
+        select_best_baseline_gear_templates(baseline_template_candidates),
+        class_key,
+        spec_key,
+    )
     if not baseline_templates:
-        baseline_templates = [blocked_baseline_gear_template(class_key, spec_key)]
+        baseline_templates = public_baseline_fallback_templates_for_spec(class_key, spec_key)
     community_templates = hydrate_gear_templates_from_metadata(conn, community_templates)
     baseline_templates = hydrate_gear_templates_from_metadata(conn, baseline_templates)
+    community_templates = [
+        apply_gear_template_legality_gate(template, class_key, spec_key)
+        for template in community_templates
+    ]
+    baseline_templates = [
+        apply_gear_template_legality_gate(template, class_key, spec_key)
+        for template in baseline_templates
+    ]
+    community_templates = public_gear_templates_for_spec(community_templates, class_key, spec_key)
+    baseline_templates = public_gear_templates_for_spec(baseline_templates, class_key, spec_key)
     grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
+    candidate_legality_excluded = []
     for item in [*baseline_set, *preset_items, *catalog_items, *candidate_items]:
         if isinstance(item, dict):
             normalized = item
@@ -19189,10 +20454,28 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
             normalized = normalize_gear_item(item, class_key, spec_key, item.get("sourceType") if isinstance(item, dict) else "")
         if normalized and normalized.get("slot") in grouped:
             if gear_candidate_incompatible(normalized):
+                checked = apply_gear_candidate_legality(normalized, class_key, spec_key, normalized.get("slot"))
+                if checked.get("legalityStatus") == "blocked":
+                    candidate_legality_excluded.append(checked)
                 continue
-            for candidate_slot in gear_candidate_slots(normalized, normalized.get("classKey"), normalized.get("specKey")):
+            candidate_slots = gear_candidate_slots(normalized, class_key, spec_key)
+            if not candidate_slots:
+                checked = apply_gear_candidate_legality(normalized, class_key, spec_key, normalized.get("slot"))
+                if checked.get("legalityStatus") == "blocked" or gear_candidate_incompatible(checked):
+                    candidate_legality_excluded.append(checked)
+                continue
+            for candidate_slot in candidate_slots:
                 if candidate_slot in grouped:
-                    grouped[candidate_slot].append(gear_candidate_for_slot(normalized, candidate_slot))
+                    candidate = apply_gear_candidate_legality(
+                        gear_candidate_for_slot(normalized, candidate_slot),
+                        class_key,
+                        spec_key,
+                        candidate_slot,
+                    )
+                    if candidate.get("legalityStatus") == "blocked" or gear_candidate_incompatible(candidate):
+                        candidate_legality_excluded.append(candidate)
+                        continue
+                    grouped[candidate_slot].append(candidate)
     candidate_limit = 12 if compact else None
     allow_source_only_fallback = (class_key, spec_key) in SOURCE_ONLY_REPLACEMENT_FALLBACK_SPECS
     slot_groups = []
@@ -19320,6 +20603,7 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
         payload["presets"] = presets
         payload["candidateItems"] = candidate_items[:24]
         payload["catalogItems"] = catalog_items[:120]
+        payload["candidateLegalityAudit"] = candidate_legality_audit_payload(candidate_legality_excluded)
         try:
             try:
                 from .raiderio_payload import get_raiderio_payload, observed_gear_for_spec
@@ -19781,6 +21065,21 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
     if not source_type:
         source_type = "manual" if value.get("ilevel") else "candidate"
     simc_item_name = canonical_simc_item_name_from_record(value, item_id) or f"item_{item_id}"
+    payload = value.get("payload") if isinstance(value.get("payload"), dict) else {}
+    metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
+    metadata_status = str(
+        value.get("metadataStatus")
+        or payload.get("metadataStatus")
+        or metadata.get("metadataStatus")
+        or metadata.get("status")
+        or ""
+    )[:40]
+    metadata_source = str(
+        value.get("metadataSource")
+        or metadata.get("source")
+        or payload.get("metadataSource")
+        or ""
+    )[:120]
     item = {
         "slot": slot,
         "simcSlot": slot,
@@ -19798,13 +21097,12 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
         "instanceName": str(first_matching_value(value, ["instanceName", "instance_name"], ""))[:160],
         "encounterId": str(first_matching_value(value, ["encounterId", "encounter_id"], ""))[:80],
         "encounterName": str(first_matching_value(value, ["encounterName", "encounter_name"], ""))[:160],
-        "metadataStatus": str(value.get("metadataStatus") or "")[:40],
-        "metadataSource": str(value.get("metadataSource") or "")[:120],
+        "metadataStatus": metadata_status,
+        "metadataSource": metadata_source,
         "metadataLocale": str(value.get("metadataLocale") or "")[:20],
         "classKey": slugify(class_key, "") if class_key else str(value.get("classKey") or ""),
         "specKey": slugify(spec_key, "") if spec_key else str(value.get("specKey") or ""),
     }
-    payload = value.get("payload") if isinstance(value.get("payload"), dict) else {}
     type_metadata = item_type_metadata_from_payload(payload)
     for key in ("armorType", "weaponType", "itemSetName"):
         text = str(value.get(key) or type_metadata.get(key) or "").strip()
@@ -19871,6 +21169,16 @@ def normalize_gear_item(value, class_key="", spec_key="", default_source_type=""
     for key in ("socketOptions", "enchantOptions", "embellishmentOptions"):
         if isinstance(value.get(key), list):
             item[key] = [option for option in value.get(key) if isinstance(option, dict)]
+    if isinstance(value.get("observedProfileRefs"), list):
+        observed_refs = [ref for ref in value.get("observedProfileRefs") if isinstance(ref, dict)]
+        if observed_refs:
+            item["observedProfileRefs"] = observed_refs
+    if isinstance(value.get("observedProfileSimcReplay"), dict):
+        item["observedProfileSimcReplay"] = {
+            key: replay_value
+            for key, replay_value in value.get("observedProfileSimcReplay").items()
+            if replay_value not in (None, "", [], {})
+        }
     for key in (
         "socketOptionId",
         "enchantOptionId",
@@ -20224,6 +21532,460 @@ def apply_spec_primary_stat_display_to_items(items, class_key="", spec_key=""):
         apply_spec_primary_stat_display_fields(item, class_key, spec_key) if isinstance(item, dict) else item
         for item in items or []
     ]
+
+
+def gear_candidate_source_trust(item):
+    source_types = gear_candidate_source_types(item)
+    if source_types & OFFICIAL_REPLACEMENT_SOURCE_TYPES:
+        return "official_current_season"
+    if "crafted" in source_types:
+        return "crafted_current_season"
+    if "observed_profile" in source_types or gear_candidate_has_observed_profile(item):
+        return "observed_profile"
+    if source_types & {"simcpreset", "simc_preset"}:
+        return "simc_preset"
+    if source_types & {"source_reference", "source-reference"}:
+        return "source_reference"
+    return "unknown"
+
+
+def apply_gear_candidate_legality(item, class_key="", spec_key="", slot=""):
+    if not isinstance(item, dict):
+        return item
+    target_slot = normalize_slot(slot or item.get("slot") or item.get("simcSlot"))
+    candidate_class_key = slugify(class_key or item.get("classKey"), "")
+    candidate_spec_key = slugify(spec_key or item.get("specKey"), "")
+    result = gear_legality_evaluator().gear_legality_for_item(
+        candidate_class_key,
+        candidate_spec_key,
+        target_slot,
+        item,
+    )
+    cloned = dict(item)
+    cloned["legalityStatus"] = result.get("status") or "legal"
+    cloned["legalityReasons"] = result.get("reasons") or []
+    cloned["sourceTrust"] = gear_candidate_source_trust(cloned)
+    if cloned["legalityStatus"] == "blocked":
+        messages = legacy_gear_legality_blocker_messages(result, candidate_class_key, candidate_spec_key)
+        reason = messages[0] if messages else "candidate blocked by gear legality authority"
+        existing = cloned.get("compatibility")
+        compatibility = dict(existing) if isinstance(existing, dict) else {"status": existing or "unknown"}
+        compatibility.update(
+            {
+                "status": "incompatible",
+                "legalityStatus": "blocked",
+                "reason": reason,
+            }
+        )
+        cloned["compatibility"] = compatibility
+        cloned["blockers"] = unique_text_list([*(cloned.get("blockers") or []), *messages])
+    return cloned
+
+
+def candidate_legality_exclusion_example(item):
+    if not isinstance(item, dict):
+        return {}
+    reasons = item.get("legalityReasons") if isinstance(item.get("legalityReasons"), list) else []
+    first_reason = next((reason for reason in reasons if isinstance(reason, dict)), {})
+    return {
+        "itemId": str(item.get("itemId") or item.get("id") or "").strip(),
+        "name": str(item.get("displayName") or item.get("localizedName") or item.get("name") or "").strip(),
+        "slot": normalize_slot(item.get("slot") or item.get("simcSlot") or first_reason.get("slot")),
+        "legalityStatus": str(item.get("legalityStatus") or "blocked").strip() or "blocked",
+        "reason": str(first_reason.get("reason") or "").strip(),
+        "sourceTrust": str(item.get("sourceTrust") or gear_candidate_source_trust(item)).strip() or "unknown",
+        "blockers": text_list_value(item.get("blockers")),
+    }
+
+
+def candidate_legality_audit_payload(excluded_items, limit=5):
+    examples = []
+    seen = set()
+    for item in excluded_items or []:
+        example = candidate_legality_exclusion_example(item)
+        if not example.get("itemId") and not example.get("name"):
+            continue
+        key = json.dumps(example, sort_keys=True, ensure_ascii=False)
+        if key in seen:
+            continue
+        seen.add(key)
+        if not limit or len(examples) < limit:
+            examples.append(example)
+    return {
+        "schemaRevision": "gear-candidate-legality-audit-v1",
+        "excludedCandidateCount": len(seen),
+        "excludedExamples": examples,
+    }
+
+
+def _gear_legality_authority_expected_specs(expected_spec_ids=None):
+    return normalize_template_chain_expected_specs(expected_spec_ids) or expected_spec_pairs()
+
+
+def _source_map_spec_key(class_key, spec_key):
+    class_key = slugify(class_key, "")
+    spec_key = slugify(spec_key, "")
+    return f"{class_key}:{spec_key}" if class_key and spec_key else ""
+
+
+def _official_rule_source_entry(class_key, spec_key):
+    return {
+        "source": "official",
+        "status": "missing",
+        "evidenceType": "battle_net_armory_or_official_equip_data",
+        "verified": False,
+        "classKey": class_key,
+        "specKey": spec_key,
+        "blockers": ["official class/spec weapon and armor source map is not connected"],
+    }
+
+
+def _simc_rule_source_entry(class_key, spec_key):
+    return {
+        "source": "simc",
+        "status": "missing",
+        "evidenceType": "simc_profile_parser_or_class_module",
+        "verified": False,
+        "classKey": class_key,
+        "specKey": spec_key,
+        "blockers": ["SimC parser/class-module acceptance matrix is not generated"],
+    }
+
+
+def _manual_override_rule_source_entry(class_key, spec_key, rule_version, weapon_rule):
+    return {
+        "source": "manual_override",
+        "status": "active",
+        "evidenceType": "repo_weapon_and_armor_rule",
+        "verified": False,
+        "classKey": class_key,
+        "specKey": spec_key,
+        "ruleVersion": rule_version,
+        "weaponRule": weapon_rule,
+        "blockers": [GEAR_LEGALITY_SOURCE_MAP_AUTHORITY_BLOCKER],
+    }
+
+
+def _observed_template_source_map_evidence(template):
+    if not isinstance(template, dict):
+        return None
+    class_key = slugify(template.get("classKey"), "")
+    spec_key = slugify(template.get("specKey"), "")
+    if not class_key or not spec_key:
+        return None
+    if str(template.get("sourceKey") or "").strip() != "raiderio_observed_profile":
+        return None
+    if str(template.get("status") or "").strip() != "complete":
+        return None
+    if template.get("canApplyGear") is False:
+        return None
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    source_url = str(template.get("sourceUrl") or payload.get("sourceUrl") or payload.get("profileUrl") or "").strip()
+    sample_count = int_or_zero(template.get("sampleCount") or payload.get("sampleCount"))
+    profile_hash = str(template.get("profileHash") or payload.get("profileHash") or "").strip()
+    gear_hash = str(template.get("gearHash") or payload.get("gearHash") or "").strip()
+    scan_run_id = str(template.get("scanRunId") or payload.get("scanRunId") or "").strip()
+    missing_slots = [normalize_slot(slot) for slot in (template.get("missingSlots") or []) if normalize_slot(slot)]
+    ready_slot_count = int_or_zero(template.get("readySlotCount") or payload.get("readySlotCount"))
+    if not source_url or sample_count != 1 or not profile_hash or not gear_hash or not scan_run_id:
+        return None
+    if missing_slots or ready_slot_count < len(CANONICAL_GEAR_SLOTS):
+        return None
+    weapon_slots = []
+    for item in template.get("gearItems") or []:
+        if not isinstance(item, dict):
+            continue
+        slot = normalize_slot(item.get("slot") or item.get("simcSlot"))
+        if slot not in WEAPON_SLOTS:
+            continue
+        weapon_type = str(item.get("weaponType") or item_type_metadata_from_payload(item.get("payload")).get("weaponType") or "").strip()
+        if not weapon_type:
+            continue
+        weapon_slots.append(
+            {
+                "slot": slot,
+                "weaponType": weapon_type,
+                "itemId": str(item.get("itemId") or item.get("id") or "").strip(),
+            }
+        )
+    if not weapon_slots:
+        return None
+    return {
+        "source": "observed",
+        "status": "supporting",
+        "evidenceType": "raiderio_observed_profile",
+        "sourceUrl": source_url,
+        "sourceUrlStatus": "known",
+        "sampleCount": sample_count,
+        "scanRunId": scan_run_id,
+        "profileHashPresent": True,
+        "gearHashPresent": True,
+        "slots": weapon_slots,
+        "ruleImpact": "complete Raider.IO observed profile passed backend legality gate",
+        "verified": False,
+        "classKey": class_key,
+        "specKey": spec_key,
+    }
+
+
+def observed_rule_source_evidence_by_spec(templates=None):
+    evidence_by_spec = {}
+    for (class_key, spec_key), records in OBSERVED_WEAPON_RULE_EVIDENCE.items():
+        spec_id = _source_map_spec_key(class_key, spec_key)
+        if spec_id:
+            evidence_by_spec.setdefault(spec_id, []).extend(dict(record, classKey=class_key, specKey=spec_key) for record in records)
+    for template in templates or []:
+        evidence = _observed_template_source_map_evidence(template)
+        if not evidence:
+            continue
+        spec_id = _source_map_spec_key(evidence.get("classKey"), evidence.get("specKey"))
+        if not spec_id:
+            continue
+        evidence_by_spec.setdefault(spec_id, []).append(evidence)
+    deduped = {}
+    for spec_id, records in evidence_by_spec.items():
+        seen = set()
+        kept = []
+        for record in records:
+            key = json.dumps(
+                {
+                    "sourceUrl": record.get("sourceUrl") or "",
+                    "characterName": record.get("characterName") or "",
+                    "slots": record.get("slots") or [],
+                    "ruleImpact": record.get("ruleImpact") or "",
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            kept.append(record)
+        deduped[spec_id] = kept
+    return deduped
+
+
+def gear_legality_rule_source_record(class_key, spec_key, *, observed_evidence=None):
+    class_key = slugify(class_key, "")
+    spec_key = slugify(spec_key, "")
+    evaluator = gear_legality_evaluator()
+    rule_version = str(getattr(evaluator, "GEAR_LEGALITY_RULE_VERSION", "") or "").strip()
+    rule_source = str(getattr(evaluator, "RULE_SOURCE", "") or "").strip() or "missing"
+    weapon_rule = weapon_equipment_rule_payload(class_key, spec_key)
+    observed_sources = [
+        dict(record, source="observed", status=str(record.get("status") or "supporting"), verified=False)
+        for record in (observed_evidence or [])
+        if isinstance(record, dict)
+    ]
+    sources = [
+        _official_rule_source_entry(class_key, spec_key),
+        _simc_rule_source_entry(class_key, spec_key),
+        *observed_sources,
+        _manual_override_rule_source_entry(class_key, spec_key, rule_version, weapon_rule),
+    ]
+    authority_status = "manual_override" if rule_source == "manual_override" else ("missing" if rule_source == "missing" else "source_map_incomplete")
+    return {
+        "specId": _source_map_spec_key(class_key, spec_key),
+        "classKey": class_key,
+        "specKey": spec_key,
+        "authorityStatus": authority_status,
+        "status": "partial",
+        "verified": False,
+        "ruleSource": rule_source,
+        "ruleVersion": rule_version,
+        "officialStatus": "missing",
+        "simcStatus": "missing",
+        "observedEvidenceCount": len(observed_sources),
+        "weaponRule": weapon_rule,
+        "sources": sources,
+        "blockers": [GEAR_LEGALITY_SOURCE_MAP_AUTHORITY_BLOCKER],
+    }
+
+
+def gear_legality_rule_source_map(*, expected_spec_ids=None, templates=None):
+    expected_specs = _gear_legality_authority_expected_specs(expected_spec_ids)
+    observed_by_spec = observed_rule_source_evidence_by_spec(templates)
+    records = []
+    for spec_id in expected_specs:
+        class_key, spec_key = (spec_id.split(":", 1) + [""])[:2]
+        records.append(
+            gear_legality_rule_source_record(
+                class_key,
+                spec_key,
+                observed_evidence=observed_by_spec.get(spec_id) or [],
+            )
+        )
+    verified_spec_count = sum(1 for record in records if record.get("verified"))
+    manual_override_count = sum(1 for record in records if record.get("ruleSource") == "manual_override")
+    official_verified_count = sum(1 for record in records if record.get("officialStatus") == "verified")
+    simc_verified_count = sum(1 for record in records if record.get("simcStatus") == "verified")
+    observed_supported_count = sum(1 for record in records if int_or_zero(record.get("observedEvidenceCount")) > 0)
+    status = "verified" if records and verified_spec_count == len(records) else "partial"
+    authority_statuses = {str(record.get("authorityStatus") or "").strip() for record in records}
+    if status == "verified":
+        authority_status = "verified"
+    elif "source_map_incomplete" in authority_statuses:
+        authority_status = "source_map_incomplete"
+    elif "manual_override" in authority_statuses:
+        authority_status = "manual_override"
+    else:
+        authority_status = "missing"
+    return {
+        "schemaRevision": GEAR_LEGALITY_SOURCE_MAP_SCHEMA_REVISION,
+        "status": status,
+        "authorityStatus": authority_status,
+        "expectedSpecCount": len(records),
+        "verifiedSpecCount": verified_spec_count,
+        "manualOverrideSpecCount": manual_override_count,
+        "officialVerifiedSpecCount": official_verified_count,
+        "simcVerifiedSpecCount": simc_verified_count,
+        "observedSupportedSpecCount": observed_supported_count,
+        "sourceCounts": {
+            "official": official_verified_count,
+            "simc": simc_verified_count,
+            "observed": observed_supported_count,
+            "manual_override": manual_override_count,
+        },
+        "blockers": [GEAR_LEGALITY_SOURCE_MAP_AUTHORITY_BLOCKER] if status != "verified" else [],
+        "records": records,
+    }
+
+
+def _gear_legality_audit_inputs(candidate_legality_audits=None):
+    audits = candidate_legality_audits or []
+    if isinstance(audits, dict):
+        audits = [audits]
+    return [audit for audit in audits if isinstance(audit, dict)]
+
+
+def _gear_legality_template_markers(template):
+    if not isinstance(template, dict):
+        return {"blocked": False, "warning": False, "example": {}}
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    skipped_slots = [
+        normalize_slot(slot)
+        for slot in [
+            *(template.get("legalitySkippedSlots") or []),
+            *(payload.get("legalitySkippedSlots") or []),
+        ]
+        if normalize_slot(slot)
+    ]
+    blockers = unique_text_list([
+        *text_list_value(template.get("blockers")),
+        *text_list_value(payload.get("blockers")),
+    ])
+    legality_status = str(
+        template.get("legalityStatus") or payload.get("legalityStatus") or ""
+    ).strip()
+    illegal_blocker = next(
+        (
+            blocker for blocker in blockers
+            if "gear incompatible" in blocker or "legality rule" in blocker
+        ),
+        "",
+    )
+    blocked = bool(skipped_slots) or legality_status == "blocked" or bool(illegal_blocker)
+    warning = legality_status == "warning" or bool(payload.get("legalityWarnings"))
+    example = {}
+    if blocked or warning:
+        example = {
+            "id": str(template.get("id") or "").strip(),
+            "classKey": slugify(template.get("classKey") or payload.get("classKey"), ""),
+            "specKey": slugify(template.get("specKey") or payload.get("specKey"), ""),
+            "slot": skipped_slots[0] if skipped_slots else "",
+            "itemId": "",
+            "reason": illegal_blocker or ("legality_warning" if warning else "illegal_template"),
+            "sourceTrust": str(template.get("sourceKey") or payload.get("sourceKey") or "").strip(),
+        }
+    return {"blocked": blocked, "warning": warning, "example": example}
+
+
+def gear_legality_authority_health_payload(
+    *,
+    expected_spec_ids=None,
+    candidate_legality_audits=None,
+    templates=None,
+    warning_threshold=20,
+):
+    expected_specs = _gear_legality_authority_expected_specs(expected_spec_ids)
+    evaluator = gear_legality_evaluator()
+    rule_source = str(getattr(evaluator, "RULE_SOURCE", "") or "").strip() or "missing"
+    rule_version = str(getattr(evaluator, "GEAR_LEGALITY_RULE_VERSION", "") or "").strip()
+    source_map = gear_legality_rule_source_map(expected_spec_ids=expected_spec_ids, templates=templates)
+    manual_override_specs = int_or_zero(source_map.get("manualOverrideSpecCount"))
+    verified_specs = int_or_zero(source_map.get("verifiedSpecCount"))
+
+    excluded_candidate_count = 0
+    examples = []
+    seen_examples = set()
+    for audit in _gear_legality_audit_inputs(candidate_legality_audits):
+        excluded_candidate_count += int_or_zero(audit.get("excludedCandidateCount"))
+        for example in audit.get("excludedExamples") or audit.get("examples") or []:
+            if not isinstance(example, dict):
+                continue
+            normalized = {
+                "classKey": slugify(example.get("classKey"), ""),
+                "specKey": slugify(example.get("specKey"), ""),
+                "slot": normalize_slot(example.get("slot")),
+                "itemId": str(example.get("itemId") or example.get("id") or "").strip(),
+                "reason": str(example.get("reason") or "").strip(),
+                "sourceTrust": str(example.get("sourceTrust") or "").strip(),
+            }
+            key = json.dumps(normalized, sort_keys=True, ensure_ascii=False)
+            if key in seen_examples:
+                continue
+            seen_examples.add(key)
+            if len(examples) < 8:
+                examples.append(normalized)
+
+    blocked_template_count = 0
+    warning_template_count = 0
+    for template in templates or []:
+        markers = _gear_legality_template_markers(template)
+        if markers["blocked"]:
+            blocked_template_count += 1
+        if markers["warning"]:
+            warning_template_count += 1
+        example = markers.get("example") or {}
+        if example and len(examples) < 8:
+            key = json.dumps(example, sort_keys=True, ensure_ascii=False)
+            if key not in seen_examples:
+                seen_examples.add(key)
+                examples.append(example)
+
+    blockers = []
+    if rule_source == "manual_override":
+        blockers.append("gear legality authority uses manual_override rules; verified source authority is missing")
+    elif rule_source == "missing":
+        blockers.append("gear legality authority source is missing")
+    if blocked_template_count:
+        blockers.append(f"{blocked_template_count} promoted gear templates contain legality blockers")
+    if warning_template_count > warning_threshold:
+        blockers.append(f"{warning_template_count} gear templates contain legality warnings")
+
+    status = "verified"
+    if blocked_template_count:
+        status = "blocked"
+    elif blockers or verified_specs < len(expected_specs):
+        status = "partial"
+
+    return {
+        "schemaRevision": "gear-legality-authority-health-v1",
+        "status": status,
+        "ruleVersion": rule_version,
+        "ruleSource": rule_source,
+        "sourceAuthorityStatus": source_map.get("authorityStatus") or "missing",
+        "ruleSourceMapStatus": source_map.get("status") or "partial",
+        "sourceMap": source_map,
+        "totalSpecs": len(expected_specs),
+        "verifiedSpecs": verified_specs,
+        "manualOverrideSpecs": manual_override_specs,
+        "blockedTemplateCount": blocked_template_count,
+        "warningTemplateCount": warning_template_count,
+        "excludedCandidateCount": excluded_candidate_count,
+        "examples": examples,
+        "blockers": blockers,
+    }
 
 
 def gear_candidate_slots(item, class_key="", spec_key=""):
@@ -21625,9 +23387,135 @@ def compact_community_gear_template(template):
     if not isinstance(template, dict):
         return template
     compact_template = dict(template)
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    for key in ("sampleCount", "profileHash", "gearHash", "fetchedAt"):
+        if not compact_template.get(key) and payload.get(key):
+            compact_template[key] = payload.get(key)
     compact_template.pop("payload", None)
     compact_template["gearItems"] = compact_gear_candidates(template.get("gearItems") or [])
     return compact_template
+
+
+def gear_template_weapon_rule_blockers(template, class_key="", spec_key=""):
+    if not isinstance(template, dict):
+        return []
+    class_key = slugify(class_key or template.get("classKey"), "")
+    spec_key = slugify(spec_key or template.get("specKey"), "")
+    if not class_key:
+        return []
+    blockers, _ = selected_gear_weapon_rule_blockers(template.get("gearItems") or [], class_key, spec_key)
+    return unique_text_list(blockers)
+
+
+def gear_legality_evaluator():
+    try:
+        from . import gear_legality
+    except ImportError:
+        import gear_legality
+    return gear_legality
+
+
+def legacy_gear_legality_blocker_messages(legality_result, class_key="", spec_key=""):
+    if not isinstance(legality_result, dict):
+        return []
+    class_spec = f"{slugify(class_key, '')}/{slugify(spec_key, '')}".strip("/")
+    blockers = []
+    for reason in legality_result.get("reasons") or []:
+        if not isinstance(reason, dict) or reason.get("severity") != "blocker":
+            continue
+        slot = normalize_slot(reason.get("slot"))
+        reason_code = str(reason.get("reason") or "").strip()
+        if reason_code == "weapon_type_not_allowed_for_spec_slot":
+            weapon_type = str(reason.get("weaponType") or "").strip()
+            blockers.append(f"{slot} gear incompatible with {class_spec} weapon rule: {weapon_type}")
+        elif reason_code == "armor_type_not_allowed_for_class":
+            armor_type = str(reason.get("armorType") or "").strip()
+            blockers.append(f"{slot} gear incompatible with {class_spec} armor rule: {armor_type}")
+        elif reason_code == "two_hand_main_hand_occupies_offhand":
+            blockers.append("off_hand gear incompatible with selected two-hand main hand")
+        elif reason_code == "class_requirement_not_allowed":
+            blockers.append(f"{slot} gear incompatible with {class_spec} class requirement")
+        elif reason_code:
+            blockers.append(f"{slot} gear incompatible with {class_spec} legality rule: {reason_code}")
+    return unique_text_list(blockers)
+
+
+def gear_template_weapon_rule_gate_state(template, class_key="", spec_key=""):
+    if not isinstance(template, dict):
+        return [], set()
+    class_key = slugify(class_key or template.get("classKey"), "")
+    spec_key = slugify(spec_key or template.get("specKey"), "")
+    if not class_key:
+        return [], set()
+    result = gear_legality_evaluator().gear_legality_for_template(
+        class_key,
+        spec_key,
+        template.get("gearItems") or [],
+        template.get("enhancementBySlot") if isinstance(template.get("enhancementBySlot"), dict) else {},
+    )
+    blockers = legacy_gear_legality_blocker_messages(result, class_key, spec_key)
+    return unique_text_list(blockers), set(result.get("blockedSlots") or set())
+
+
+def apply_gear_template_legality_gate(template, class_key="", spec_key=""):
+    if not isinstance(template, dict):
+        return template
+    blockers, invalid_slots = gear_template_weapon_rule_gate_state(template, class_key, spec_key)
+    if not blockers:
+        return template
+    gated = dict(template)
+    gear_items = template.get("gearItems") if isinstance(template.get("gearItems"), list) else []
+    kept_items = [
+        item
+        for item in gear_items
+        if normalize_slot(item.get("slot") or item.get("simcSlot")) not in invalid_slots
+    ]
+    kept_slots = {
+        normalize_slot(item.get("slot") or item.get("simcSlot"))
+        for item in kept_items
+        if normalize_slot(item.get("slot") or item.get("simcSlot"))
+    }
+    existing_missing_slots = {
+        normalize_slot(slot)
+        for slot in (template.get("missingSlots") or [])
+        if normalize_slot(slot)
+    }
+    missing_slots = [
+        slot
+        for slot in CANONICAL_GEAR_SLOTS
+        if slot not in kept_slots or slot in existing_missing_slots or slot in invalid_slots
+    ]
+    blocker_list = unique_text_list([*(gated.get("blockers") or []), *blockers])
+    source_reference_statuses = {"source_reference", "source-reference", "missing_credentials"}
+    original_status = str(template.get("status") or "").strip()
+    original_source_status = str(template.get("sourceStatus") or "").strip()
+    originally_blocked = (
+        original_status == "blocked"
+        or original_source_status == "blocked"
+        or original_status in source_reference_statuses
+        or original_source_status in source_reference_statuses
+    )
+    partial_apply = bool(kept_items) and not originally_blocked
+    gated["gearItems"] = kept_items
+    gated["readySlotCount"] = len(kept_slots)
+    gated["missingSlots"] = missing_slots
+    gated["status"] = "partial" if partial_apply else "blocked"
+    gated["sourceStatus"] = "partial" if partial_apply else "blocked"
+    gated["canApplyGear"] = community_gear_template_can_apply({**gated, "canApplyGear": partial_apply})
+    gated["blockers"] = blocker_list
+    gated["legalitySkippedSlots"] = [
+        slot
+        for slot in CANONICAL_GEAR_SLOTS
+        if slot in invalid_slots
+    ]
+    payload = gated.get("payload") if isinstance(gated.get("payload"), dict) else {}
+    gated["payload"] = {
+        **payload,
+        "legalityStatus": "partial" if partial_apply else "blocked",
+        "legalitySkippedSlots": gated["legalitySkippedSlots"],
+        "blockers": unique_text_list([*(payload.get("blockers") or []), *blocker_list]),
+    }
+    return gated
 
 
 def build_websim_gear_lines(items):
@@ -22090,6 +23978,71 @@ def simc_json_player(payload):
         if isinstance(player, dict):
             return player
     return {}
+
+
+def simc_json_root_payload(payload):
+    if not isinstance(payload, dict):
+        return {}
+    if isinstance(payload.get("sim"), dict) or isinstance(payload.get("players"), list):
+        return payload
+    simc_json = payload.get("simcJson") if isinstance(payload.get("simcJson"), dict) else {}
+    if simc_json:
+        return simc_json
+    json_payload = payload.get("jsonPayload") if isinstance(payload.get("jsonPayload"), dict) else {}
+    return json_payload
+
+
+def simc_json_nested_number(source, paths):
+    for path in paths or []:
+        current = source
+        for key in path:
+            if not isinstance(current, dict):
+                current = None
+                break
+            current = current.get(key)
+        if isinstance(current, dict):
+            current = current.get("mean")
+        number = simc_snapshot_number(current)
+        if number is not None:
+            return number
+    return None
+
+
+def simc_json_player_result_summary(payload, scenario_key="observed_profile_replay"):
+    root = simc_json_root_payload(payload)
+    player = simc_json_player(root)
+    if not player:
+        return {}
+    dps = simc_json_nested_number(
+        player,
+        [
+            ["collected_data", "dps"],
+            ["dps"],
+            ["statistics", "dps"],
+            ["stats", "dps"],
+        ],
+    )
+    if dps is None or dps <= 0:
+        return {}
+    sim = root.get("sim") if isinstance(root.get("sim"), dict) else {}
+    iterations = (
+        int_or_zero(sim.get("iterations"))
+        or int_or_zero((sim.get("options") or {}).get("iterations") if isinstance(sim.get("options"), dict) else 0)
+        or int_or_zero(player.get("iterations"))
+    )
+    summary = {
+        "source": "simulationcraft",
+        "scenarioKey": str(scenario_key or "observed_profile_replay").strip() or "observed_profile_replay",
+        "status": "passed",
+        "dps": int(dps) if float(dps).is_integer() else dps,
+        "checkedAt": utc_now(),
+    }
+    if iterations > 0:
+        summary["iterations"] = iterations
+    version = str(root.get("version") or "").strip()
+    if version:
+        summary["simcVersion"] = version
+    return summary
 
 
 def simc_json_buffed_stats(player):
@@ -23364,43 +25317,20 @@ def selected_gear_weapon_rule_blocker(item, class_key, spec_key):
     if not isinstance(item, dict):
         return ""
     slot = normalize_slot(item.get("slot") or item.get("simcSlot"))
-    if slot not in WEAPON_SLOTS:
+    if not slot:
         return ""
-    weapon_type = selected_gear_item_weapon_type(item)
-    if not weapon_type or weapon_type_allowed_for_slot(class_key, spec_key, slot, weapon_type):
-        return ""
-    class_spec = f"{slugify(class_key, '')}/{slugify(spec_key, '')}".strip("/")
-    return f"{slot} gear incompatible with {class_spec} weapon rule: {weapon_type}"
+    result = gear_legality_evaluator().gear_legality_for_item(class_key, spec_key, slot, item)
+    blockers = legacy_gear_legality_blocker_messages(result, class_key, spec_key)
+    return blockers[0] if blockers else ""
 
 
 def selected_gear_weapon_rule_blockers(items, class_key, spec_key):
     if not class_key:
         return [], set()
     normalized_items = [item for item in items or [] if isinstance(item, dict)]
-    by_slot = {
-        normalize_slot(item.get("slot") or item.get("simcSlot")): item
-        for item in normalized_items
-        if normalize_slot(item.get("slot") or item.get("simcSlot"))
-    }
-    blockers = []
-    invalid_slots = set()
-    for item in normalized_items:
-        slot = normalize_slot(item.get("slot") or item.get("simcSlot"))
-        blocker = selected_gear_weapon_rule_blocker(item, class_key, spec_key)
-        if blocker:
-            blockers.append(blocker)
-            invalid_slots.add(slot)
-    main_hand_type = selected_gear_item_weapon_type(by_slot.get("main_hand"))
-    rule = weapon_equipment_rule_for_spec(class_key, spec_key)
-    if (
-        by_slot.get("off_hand")
-        and "off_hand" not in invalid_slots
-        and main_hand_type in TWO_HAND_WEAPON_TYPES
-        and rule.get("mode") != "dual_wield_2h"
-    ):
-        blockers.append("off_hand gear incompatible with selected two-hand main hand")
-        invalid_slots.add("off_hand")
-    return blockers, invalid_slots
+    result = gear_legality_evaluator().gear_legality_for_template(class_key, spec_key, normalized_items)
+    blockers = legacy_gear_legality_blocker_messages(result, class_key, spec_key)
+    return blockers, set(result.get("blockedSlots") or set())
 
 
 def attach_catalog_enhancement_options(conn, items):
