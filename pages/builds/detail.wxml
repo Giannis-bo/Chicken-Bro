@@ -315,7 +315,7 @@
     <view class="gear-sheet-header">
       <view>
         <text class="gear-sheet-kicker">已使用 {{gearEnhancementSheet.embellishmentUsed}} / {{gearEnhancementSheet.embellishmentMax}} 美化</text>
-        <text class="gear-sheet-title">配置宝石、附魔</text>
+        <text class="gear-sheet-title">配置宝石、附魔、美化</text>
       </view>
       <button class="gear-sheet-close" bindtap="closeGearEnhancementSheet">关闭</button>
     </view>

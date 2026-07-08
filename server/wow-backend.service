@@ -1,7 +1,7 @@
 [Unit]
 Description=WOW Mini Program Unified Backend
-After=network-online.target
-Wants=network-online.target
+After=network-online.target mihomo.service
+Wants=network-online.target mihomo.service
 
 [Service]
 Type=simple
@@ -21,6 +21,14 @@ Environment=WOW_CODEX_BIN=/usr/local/bin/codex
 Environment=WOW_CODEX_HOME=/home/ubuntu/.codex
 Environment=WOW_CODEX_JOBS_DIR=/var/lib/wow-backend/codex-jobs
 Environment=WOW_CODEX_SANDBOX=workspace-write
+Environment=HTTPS_PROXY=http://127.0.0.1:7890
+Environment=HTTP_PROXY=http://127.0.0.1:7890
+Environment=ALL_PROXY=socks5h://127.0.0.1:7890
+Environment=NO_PROXY=127.0.0.1,localhost,::1,169.254.169.254
+Environment=https_proxy=http://127.0.0.1:7890
+Environment=http_proxy=http://127.0.0.1:7890
+Environment=all_proxy=socks5h://127.0.0.1:7890
+Environment=no_proxy=127.0.0.1,localhost,::1,169.254.169.254
 Environment=PATH=/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=/usr/bin/python3 /opt/wow-mini-program/server/news_backend.py
 Restart=always

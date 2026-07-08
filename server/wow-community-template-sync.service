@@ -1,7 +1,7 @@
 [Unit]
 Description=WOW community template daily incremental sync
-After=network-online.target
-Wants=network-online.target
+After=network-online.target mihomo.service
+Wants=network-online.target mihomo.service
 
 [Service]
 Type=oneshot
@@ -45,5 +45,13 @@ Environment=WOW_COMMUNITY_GEAR_FIRST_SYNC_SPEC_RANKING_PAGES=2
 Environment=WOW_COMMUNITY_GEAR_FIRST_SYNC_SPEC_RANKING_PAGE_SIZE=50
 Environment=WOW_COMMUNITY_GEAR_FIRST_SYNC_PROFILE_LIMIT_PER_SPEC=24
 Environment=WOW_COMMUNITY_GEAR_FIRST_SYNC_PROFILE_WORKERS=4
+Environment=HTTPS_PROXY=http://127.0.0.1:7890
+Environment=HTTP_PROXY=http://127.0.0.1:7890
+Environment=ALL_PROXY=socks5h://127.0.0.1:7890
+Environment=NO_PROXY=127.0.0.1,localhost,::1,169.254.169.254
+Environment=https_proxy=http://127.0.0.1:7890
+Environment=http_proxy=http://127.0.0.1:7890
+Environment=all_proxy=socks5h://127.0.0.1:7890
+Environment=no_proxy=127.0.0.1,localhost,::1,169.254.169.254
 ExecStart=/usr/bin/flock -w 7200 /run/lock/wow-mini-program-sync.lock /usr/bin/python3 /opt/wow-mini-program/server/community_template_sync.py
 TimeoutStartSec=180min

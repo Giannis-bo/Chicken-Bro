@@ -7,9 +7,11 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import patch
 
+from server import community_best_guard_sync
 from server import community_template_sync
 from server import crafted_gear_backfill
 from server import gear_observed_backfill
+from server import recommended_bis_guard_sync
 from server import season_recommended_gear_sync
 from server import stat_weights_sync
 from server import websim_payload
@@ -103,6 +105,56 @@ class PostgresOnlyScriptGuardTest(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(payload["runner"], "postgres")
         self.assertEqual(payload["sourceKey"], "season_recommendation")
+        runner.assert_called_once_with(mode="scheduled")
+
+    def test_recommended_bis_guard_sync_uses_postgres_native_runner(self):
+        stdout = io.StringIO()
+
+        with patch.dict(
+            os.environ,
+            {"WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test", "WOW_DATABASE_RUNTIME": "postgres_only"},
+            clear=False,
+        ), patch.object(
+            recommended_bis_guard_sync,
+            "sync_recommended_bis_guard_postgres",
+            return_value={
+                "runner": "postgres",
+                "schemaRevision": "recommended-bis-v1-guard-state-v1",
+                "status": "partial",
+                "guardMode": "readiness_only",
+            },
+        ) as runner, redirect_stdout(stdout):
+            exit_code = recommended_bis_guard_sync.main()
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["runner"], "postgres")
+        self.assertEqual(payload["schemaRevision"], "recommended-bis-v1-guard-state-v1")
+        runner.assert_called_once_with(mode="scheduled")
+
+    def test_community_best_guard_sync_uses_postgres_native_runner(self):
+        stdout = io.StringIO()
+
+        with patch.dict(
+            os.environ,
+            {"WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test", "WOW_DATABASE_RUNTIME": "postgres_only"},
+            clear=False,
+        ), patch.object(
+            community_best_guard_sync,
+            "sync_community_best_guard_postgres",
+            return_value={
+                "runner": "postgres",
+                "schemaRevision": "community-best-v2-guard-state-v1",
+                "status": "partial",
+                "guardMode": "readiness_only",
+            },
+        ) as runner, redirect_stdout(stdout):
+            exit_code = community_best_guard_sync.main()
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["runner"], "postgres")
+        self.assertEqual(payload["schemaRevision"], "community-best-v2-guard-state-v1")
         runner.assert_called_once_with(mode="scheduled")
 
     def test_community_template_sync_uses_postgres_native_runner_in_postgres_only_mode(self):

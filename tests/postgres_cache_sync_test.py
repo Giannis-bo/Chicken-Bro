@@ -17,6 +17,7 @@ class FakePostgresSyncStore:
         self.crafted_backfills = []
         self.gear_template_candidates = []
         self.season_recommended_gear_templates = []
+        self.recommended_bis_prototype_templates = []
         self.expired_talent_source_keys = []
         self.saved_raiderio_payloads = []
         self.coverage_rows = []
@@ -24,6 +25,7 @@ class FakePostgresSyncStore:
         self.saved_item_metadata = []
         self.metadata_gaps = []
         self.item_metadata_gaps = []
+        self.real_player_residue_cleanups = []
 
     def replace_simc_generated_data(self, data):
         self.replaced_data = data
@@ -99,6 +101,13 @@ class FakePostgresSyncStore:
 
     def build_season_recommended_gear_templates(self, scan_run_id=""):
         return list(self.season_recommended_gear_templates)
+
+    def build_recommended_bis_prototype_templates(self, scan_run_id=""):
+        return list(self.recommended_bis_prototype_templates)
+
+    def cleanup_real_player_gear_template_pilot_residue(self, scan_run_id="", checked_at=""):
+        self.real_player_residue_cleanups.append({"scanRunId": scan_run_id, "checkedAt": checked_at})
+        return {"communityTemplateRowsDeleted": 0, "observedVariantRowsDeleted": 0}
 
     def backfill_observed_gear_from_raiderio(
         self,
@@ -1566,9 +1575,152 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(result["completeSpecCount"], 1)
         self.assertEqual(result["provisionalSpecCount"], 1)
         self.assertEqual(store.community_gear_templates[0]["sourceKey"], "season_recommendation")
+        self.assertEqual(store.real_player_residue_cleanups[0]["scanRunId"], "season-recommended-gear-20260706T094436Z")
         saved = {key: value for key, value, _updated_at in store.saved_states}
         self.assertIn("season_recommended_gear_sync", saved)
         self.assertEqual(saved["season_recommended_gear_sync"]["completeSpecCount"], 1)
+
+    def test_recommended_bis_guard_sync_persists_optimizer_readiness_state(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.community_gear_template_live_health_summary = lambda: {
+            "scanRunId": "pg-community-template-source-evidence-test",
+            "templateChains": {
+                "recommendedBis": {
+                    "guardMode": "readiness_only",
+                    "totalSpecCount": 1,
+                    "expectedSpecCount": 2,
+                    "missingSpecCount": 1,
+                    "candidateSpecCount": 1,
+                    "verifiedSpecCount": 0,
+                    "blockedSpecCount": 1,
+                    "optimizerRequiredSpecCount": 1,
+                    "fullOptimizerRunRequiredSpecCount": 1,
+                    "missingSpecs": ["shaman:elemental"],
+                    "blockedExamples": [
+                        {
+                            "spec": "shaman:elemental",
+                            "status": "optimizer_blocked",
+                            "blockers": ["recommended_bis_v1 optimizer has not produced a candidate for this spec"],
+                        }
+                    ],
+                }
+            },
+        }
+
+        with patch.object(postgres_cache_sync, "utc_now", return_value="2026-07-07T13:00:00+00:00"):
+            result = postgres_cache_sync.sync_recommended_bis_guard_postgres(mode="manual", store=store)
+
+        self.assertEqual(result["runner"], "postgres")
+        self.assertEqual(result["schemaRevision"], "recommended-bis-v1-guard-state-v1")
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["sourceStatus"], "partial")
+        self.assertEqual(result["guardMode"], "readiness_only")
+        self.assertEqual(result["expectedSpecCount"], 2)
+        self.assertEqual(result["totalSpecCount"], 1)
+        self.assertEqual(result["optimizerRequiredSpecCount"], 1)
+        self.assertEqual(result["missingSpecs"], ["shaman:elemental"])
+        saved = {key: value for key, value, _updated_at in store.saved_states}
+        self.assertIn("recommended_bis_v1_guard", saved)
+        self.assertEqual(saved["recommended_bis_v1_guard"]["fullOptimizerRunRequiredSpecCount"], 1)
+        self.assertEqual(saved["recommended_bis_v1_guard"]["lastGuardCheckAt"], "2026-07-07T13:00:00+00:00")
+
+    def test_recommended_bis_prototype_sync_writes_projected_templates_and_state(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.recommended_bis_prototype_templates = [
+            {
+                "id": "recommended-bis-mage-frost",
+                "classKey": "mage",
+                "specKey": "frost",
+                "sourceKey": "recommended_bis",
+                "sourceName": "SimC optimizer 毕业模板",
+                "sourceStatus": "synced",
+                "status": "complete",
+                "readySlotCount": 16,
+                "missingSlots": [],
+                "gearItems": [],
+                "rawString": "head=test,id=1",
+                "payload": {
+                    "templateSlot": "recommended_bis",
+                    "templateType": "recommended_bis",
+                    "templateEvidence": {
+                        "schemaRevision": "recommended-bis-v1",
+                        "status": "projected_bis",
+                        "optimizerVersion": "gear-bis-optimizer-v1",
+                    },
+                },
+            }
+        ]
+
+        with patch.object(postgres_cache_sync, "utc_now", return_value="2026-07-07T14:00:00+00:00"):
+            result = postgres_cache_sync.sync_recommended_bis_prototype_postgres(
+                mode="manual",
+                store=store,
+            )
+
+        self.assertEqual(result["runner"], "postgres")
+        self.assertEqual(result["schemaRevision"], "recommended-bis-v1-prototype-sync-state-v1")
+        self.assertEqual(result["sourceKey"], "recommended_bis")
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["projectedSpecCount"], 1)
+        self.assertEqual(result["verifiedSpecCount"], 0)
+        self.assertEqual(result["fullOptimizerRunRequiredSpecCount"], result["dpsExpectedSpecCount"])
+        self.assertIn("mage:frost", result["projectedSpecs"])
+        self.assertEqual(store.community_gear_templates[0]["sourceKey"], "recommended_bis")
+        saved = {key: value for key, value, _updated_at in store.saved_states}
+        self.assertIn("recommended_bis_v1_prototype_sync", saved)
+        self.assertEqual(saved["recommended_bis_v1_prototype_sync"]["checkedAt"], "2026-07-07T14:00:00+00:00")
+
+    def test_community_best_guard_sync_persists_observed_readiness_state(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.community_gear_template_live_health_summary = lambda: {
+            "scanRunId": "pg-community-template-source-evidence-test",
+            "templateChains": {
+                "communityObserved": {
+                    "guardMode": "readiness_only",
+                    "expectedSpecCount": 2,
+                    "coveredSpecCount": 1,
+                    "verifiedSpecCount": 1,
+                    "provisionalSpecCount": 0,
+                    "partialSpecCount": 0,
+                    "blockedSpecCount": 1,
+                    "missingSpecCount": 1,
+                    "simcReplayRequiredSpecCount": 1,
+                    "missingSpecs": ["mage:frost"],
+                    "simcReplayRequiredSpecs": ["shaman:elemental"],
+                    "blockedExamples": [
+                        {
+                            "spec": "mage:frost",
+                            "status": "observed_blocked",
+                            "blockers": ["community_best_v2 requires sourceUrl for the observed character"],
+                        }
+                    ],
+                }
+            },
+        }
+
+        with patch.object(postgres_cache_sync, "utc_now", return_value="2026-07-07T13:05:00+00:00"):
+            result = postgres_cache_sync.sync_community_best_guard_postgres(mode="manual", store=store)
+
+        self.assertEqual(result["runner"], "postgres")
+        self.assertEqual(result["schemaRevision"], "community-best-v2-guard-state-v1")
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["sourceStatus"], "partial")
+        self.assertEqual(result["guardMode"], "readiness_only")
+        self.assertEqual(result["expectedSpecCount"], 2)
+        self.assertEqual(result["coveredSpecCount"], 1)
+        self.assertEqual(result["missingSpecCount"], 1)
+        self.assertEqual(result["simcReplayRequiredSpecCount"], 1)
+        self.assertEqual(result["missingSpecs"], ["mage:frost"])
+        self.assertEqual(result["simcReplayRequiredSpecs"], ["shaman:elemental"])
+        saved = {key: value for key, value, _updated_at in store.saved_states}
+        self.assertIn("community_best_v2_guard", saved)
+        self.assertEqual(saved["community_best_v2_guard"]["lastGuardCheckAt"], "2026-07-07T13:05:00+00:00")
 
     def test_gear_preflight_refreshes_stale_complete_community_winner_without_breaking_coverage(self):
         from server import postgres_cache_sync
@@ -1579,14 +1731,23 @@ class PostgresCacheSyncTest(unittest.TestCase):
             "specKey": "frost",
             "sourceKey": "raiderio_observed_profile",
             "sourceName": "Raider.IO observed gear",
+            "sourceUrl": "https://raider.io/characters/us/area-52/Magewinner",
             "sourceStatus": "verified",
             "status": "complete",
             "signature": "sig-observed-mage-frost-complete",
+            "sampleCount": 1,
+            "profileHash": "profile:mage:frost:magewinner",
+            "gearHash": "gear:mage:frost:magewinner",
+            "scanRunId": "scan-active-observed",
             "gearItems": [
                 {"slot": "head", "itemId": "190001", "ilevel": 707, "simcReady": True},
                 {"slot": "neck", "itemId": "190002", "ilevel": 707, "simcReady": True},
             ],
             "payload": {
+                "sampleCount": 1,
+                "profileHash": "profile:mage:frost:magewinner",
+                "gearHash": "gear:mage:frost:magewinner",
+                "character": {"name": "Magewinner", "region": "us", "realmSlug": "area-52"},
                 "communityTemplateFreshness": {
                     "status": "fresh",
                     "checkedAt": "2026-07-04T00:00:00+00:00",
@@ -1621,6 +1782,48 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(stale_target["status"], "stale")
         self.assertEqual(stale_target["nextAction"], "refresh_stale_winner")
 
+    def test_gear_preflight_blocks_complete_observed_without_single_profile_evidence(self):
+        from server import postgres_cache_sync
+
+        template = {
+            "id": "observed-mage-frost-aggregate",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceName": "Raider.IO observed gear",
+            "sourceUrl": "https://raider.io/characters/us/area-52/Magewinner",
+            "sourceStatus": "verified",
+            "status": "complete",
+            "signature": "sig-observed-mage-frost-aggregate",
+            "sampleCount": 12,
+            "profileHash": "profile:mage:frost:aggregate",
+            "gearHash": "gear:mage:frost:aggregate",
+            "scanRunId": "scan-aggregate-observed",
+            "gearItems": [
+                {"slot": "head", "itemId": "190001", "ilevel": 707, "simcReady": True},
+                {"slot": "neck", "itemId": "190002", "ilevel": 707, "simcReady": True},
+            ],
+            "payload": {
+                "sampleCount": 12,
+                "profileHash": "profile:mage:frost:aggregate",
+                "gearHash": "gear:mage:frost:aggregate",
+                "character": {"name": "Magewinner", "region": "us", "realmSlug": "area-52"},
+            },
+        }
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "CANONICAL_GEAR_SLOTS",
+            ["head", "neck"],
+            create=True,
+        ):
+            preflight = postgres_cache_sync.build_community_gear_template_preflight([template])
+
+        self.assertEqual(preflight["communityBest"]["completeSpecCount"], 0)
+        self.assertEqual(preflight["communityBest"]["blockedSpecCount"], 1)
+        self.assertEqual(preflight["realCommunityTemplates"]["coveredSpecCount"], 0)
+        self.assertEqual(preflight["realCommunityTemplates"]["blockedSpecCount"], 1)
+
     def test_gear_preflight_treats_mandatory_two_hand_offhand_as_covered(self):
         from server import postgres_cache_sync
 
@@ -1630,15 +1833,21 @@ class PostgresCacheSyncTest(unittest.TestCase):
             "specKey": "blood",
             "sourceKey": "raiderio_observed_profile",
             "sourceName": "Raider.IO observed gear",
-            "sourceStatus": "partial",
-            "status": "partial",
+            "sourceUrl": "https://raider.io/characters/us/area-52/Dkwinner",
+            "sourceStatus": "verified",
+            "status": "complete",
             "signature": "sig-observed-dk-blood",
+            "sampleCount": 1,
+            "profileHash": "profile:deathknight:blood:dkwinner",
+            "gearHash": "gear:deathknight:blood:dkwinner",
+            "scanRunId": "scan-active-observed",
             "gearItems": [
                 {
                     "slot": "main_hand",
                     "itemId": "190001",
                     "ilevel": 707,
                     "bonus_id": "12345",
+                    "weaponType": "Two-Handed Axe",
                     "sourceType": "observed_profile",
                     "statDisplayStatus": "verified_variant",
                     "statSource": "simulationcraft",
@@ -1646,8 +1855,14 @@ class PostgresCacheSyncTest(unittest.TestCase):
                     "simcReady": True,
                 }
             ],
-            "missingSlots": ["off_hand"],
-            "readySlotCount": 15,
+            "missingSlots": [],
+            "readySlotCount": 2,
+            "payload": {
+                "sampleCount": 1,
+                "profileHash": "profile:deathknight:blood:dkwinner",
+                "gearHash": "gear:deathknight:blood:dkwinner",
+                "character": {"name": "Dkwinner", "region": "us", "realmSlug": "area-52"},
+            },
         }
 
         with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["deathknight:blood"]), patch.object(
@@ -1677,9 +1892,14 @@ class PostgresCacheSyncTest(unittest.TestCase):
             "specKey": "brewmaster",
             "sourceKey": "raiderio_observed_profile",
             "sourceName": "Raider.IO observed gear",
-            "sourceStatus": "partial",
-            "status": "partial",
+            "sourceUrl": "https://raider.io/characters/eu/draenor/Monkwinner",
+            "sourceStatus": "verified",
+            "status": "complete",
             "signature": "sig-observed-monk-brewmaster",
+            "sampleCount": 1,
+            "profileHash": "profile:monk:brewmaster:monkwinner",
+            "gearHash": "gear:monk:brewmaster:monkwinner",
+            "scanRunId": "scan-active-observed",
             "gearItems": [
                 {
                     "slot": "main_hand",
@@ -1692,8 +1912,14 @@ class PostgresCacheSyncTest(unittest.TestCase):
                     "weaponType": "Staff",
                 }
             ],
-            "missingSlots": ["off_hand"],
-            "readySlotCount": 15,
+            "missingSlots": [],
+            "readySlotCount": 2,
+            "payload": {
+                "sampleCount": 1,
+                "profileHash": "profile:monk:brewmaster:monkwinner",
+                "gearHash": "gear:monk:brewmaster:monkwinner",
+                "character": {"name": "Monkwinner", "region": "eu", "realmSlug": "draenor"},
+            },
         }
 
         with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["monk:brewmaster"]), patch.object(

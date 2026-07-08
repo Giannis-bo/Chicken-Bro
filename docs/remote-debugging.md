@@ -102,7 +102,9 @@ WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
 - 上传当前工作区到 `/opt/wow-mini-program`，不上传 `server/data`。
 - 热部署模式要求远端已有 Python、curl、systemd 和 `/opt/wow-simc/current/simc`。
 - 部署会重启 `wow-backend` 和 nginx，并 smoke 本机 `/health`、`/api/builds/home`、`/api/pve/home`、`/api/simulator/home`、`/api/websim/bootstrap`、`/websim/`，最后再从本机验证公网 `/health`。
-- 部署默认不会启动长耗时同步；只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 才会启动 `wow-websim-sync`、`wow-stat-weights-sync` 和 `wow-community-template-sync`。`wow-gear-observed-backfill` 只安装 unit，不随常规部署自动启用或启动。
+- 部署默认启用 PG-native 日常 timer：`wow-websim-sync.timer`、`wow-stat-weights-sync.timer`、`wow-community-template-sync.timer`、`wow-season-recommended-gear-sync.timer` 和 `wow-data-health-followup.timer`。只有显式设置 `WOW_DEPLOY_START_ASYNC_SYNCS=1` 才会在部署后立刻启动 `wow-websim-sync`、`wow-stat-weights-sync` 和 `wow-community-template-sync` 服务。`wow-gear-observed-backfill` 会安装 unit；常规部署脚本不直接启用它的 timer，但 `wow-data-health-followup` 会在 `/api/data/health` 判定装备库 partial/stale/blocked 时触发该 service。
+- `wow-data-health-followup.timer` 每 2 小时检查一次 `/api/data/health` 并续跑安全任务：新闻 refresh、装备 observed backfill、WebSim sync、stat weights sync。新闻 refresh 默认只处理 1 条 queue/retryable backlog，超过 `WOW_NEWS_RETRY_MAX_ATTEMPTS` 的 LLM 翻译失败会转为 blocked/report，避免无限重试。若 `/api/data/health` 报告配置好的 SimC runtime `updateAvailable=true`，它会先触发 `wow-simc-runtime-update.service`，由该 service 在已知云服务器上下载配置源、构建、切换 `/opt/wow-simc/current` 并刷新 version state；依赖 SimC 的 WebSim/stat/gear 重建留到下一轮 health follow-up 继续处理。
+- 历史 `wow-news-backend.service` 属于旧 `/home/ubuntu/wow-news-backend` 部署路径，当前云上已 mask 为 `/dev/null`，不得重新启用。日常新闻刷新 cron 应指向 `/opt/wow-mini-program/server/refresh_cron.sh`，由统一后端 `wow-backend.service` 处理。
 - 线上数据写入、SQLite 历史备份读取、PostgreSQL schema 变更、受控同步、环境变量修改或数据库 target 切换前，先说明范围并备份相关数据库。
 
 PG-only 部署后必须额外验证：
@@ -137,7 +139,7 @@ curl -fsS 'http://124.223.51.33/api/websim/gear?class=mage&spec=frost&compact=1&
 - 已验证 `ssh wow-lighthouse` 可以非交互登录；远端主机为 `VM-4-8-ubuntu`，`wow-backend` 为 `active`，`ubuntu` 用户具备免密 sudo。
 - 密码只用于本次引导密钥登录，不记录在仓库或本文档中。
 
-远程下载、安装、`git pull/fetch`、依赖安装、修改生产环境变量前，先确认本次操作范围。
+远程下载、安装、`git pull/fetch`、依赖安装、修改生产环境变量前，先确认本次操作范围。例外：当用户明确要求处理 SimC 更新、WebSim/SimC readiness、赛季切换阻塞，或已授权 health follow-up 自动处理 SimC runtime 时，可以直接在已知云服务器上更新配置好的 SimulationCraft runtime；不要把这个例外扩展到本机下载、任意第三方下载、依赖安装或修改 SimC repo/branch。
 
 ## 已知风险
 

@@ -29,6 +29,7 @@ try:
         DEFAULT_REGION,
         GEAR_CATALOG_REVISION,
         GEAR_OBSERVED_BACKFILL_SYNC_KEY,
+        apply_gear_template_legality_gate,
         blizzard_get,
         blizzard_namespace,
         community_gear_import_coverage_summary,
@@ -47,17 +48,20 @@ try:
         hero_tree_for,
         hero_tree_label,
         icon_url_from_media,
+        is_active_community_observed_template,
         item_payload_is_equipment_loot,
         item_slot_from_payload,
         limited_sync_items,
         list_keyed_values,
         normalize_journal_instance_ref,
         official_current_season_raid_refs,
+        recommended_bis_role_for_spec_id,
         resolve_current_mythic_season,
         selected_journal_instance_refs,
         slugify,
         spec_label,
         unique_text_list,
+        websim_gear_template_chain_state,
     )
 except ImportError:
     from db import connect_postgres, database_config_from_env
@@ -83,6 +87,7 @@ except ImportError:
         DEFAULT_REGION,
         GEAR_CATALOG_REVISION,
         GEAR_OBSERVED_BACKFILL_SYNC_KEY,
+        apply_gear_template_legality_gate,
         blizzard_get,
         blizzard_namespace,
         community_gear_import_coverage_summary,
@@ -101,17 +106,20 @@ except ImportError:
         hero_tree_for,
         hero_tree_label,
         icon_url_from_media,
+        is_active_community_observed_template,
         item_payload_is_equipment_loot,
         item_slot_from_payload,
         limited_sync_items,
         list_keyed_values,
         normalize_journal_instance_ref,
         official_current_season_raid_refs,
+        recommended_bis_role_for_spec_id,
         resolve_current_mythic_season,
         selected_journal_instance_refs,
         slugify,
         spec_label,
         unique_text_list,
+        websim_gear_template_chain_state,
     )
 
 
@@ -121,10 +129,20 @@ COMMUNITY_GEAR_TEMPLATE_PREFLIGHT_REVISION = "community-gear-template-preflight-
 COMMUNITY_TEMPLATE_STAGE_TIMING_REVISION = "community-template-stage-timings-v1"
 ITEM_METADATA_REFRESH_SYNC_KEY = "item_metadata_refresh"
 SEASON_RECOMMENDED_GEAR_SYNC_KEY = "season_recommended_gear_sync"
-BASELINE_GEAR_TEMPLATE_SOURCE_KEYS = {DEFAULT_GEAR_TEMPLATE_SOURCE_KEY, "season_recommendation", "baseline_template", "simc_preset"}
+COMMUNITY_BEST_GUARD_SYNC_KEY = "community_best_v2_guard"
+RECOMMENDED_BIS_GUARD_SYNC_KEY = "recommended_bis_v1_guard"
+RECOMMENDED_BIS_PROTOTYPE_SYNC_KEY = "recommended_bis_v1_prototype_sync"
+BASELINE_GEAR_TEMPLATE_SOURCE_KEYS = {
+    DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+    "recommended_bis",
+    "season_recommendation",
+    "baseline_template",
+    "simc_preset",
+}
 BAD_REAL_GEAR_TEMPLATE_SOURCE_KEYS = {
     "",
     DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
+    "recommended_bis",
     "season_recommendation",
     "baseline_template",
     "simc_preset",
@@ -1308,6 +1326,18 @@ def _best_gear_template(templates):
     return sorted(candidates, key=_gear_template_rank, reverse=True)[0]
 
 
+def _active_observed_gear_template(template, class_key, spec_key):
+    if not isinstance(template, dict) or not _gear_template_is_real_community(template):
+        return None
+    try:
+        gated = apply_gear_template_legality_gate(template, class_key, spec_key)
+    except Exception:
+        gated = template
+    if is_active_community_observed_template(gated):
+        return gated
+    return None
+
+
 def _gear_display_row(spec_id, class_key, spec_key, template_slot, template, status):
     template = template if isinstance(template, dict) else {}
     missing_slots = _gear_template_missing_slots(template, class_key, spec_key) if template else list(CANONICAL_GEAR_SLOTS)
@@ -1436,7 +1466,16 @@ def build_community_gear_template_preflight(templates, scan_run_id="", checked_a
     baseline_blocked_specs = []
 
     for spec_id, class_key, spec_key in expected_specs:
-        best_community = _best_gear_template(grouped.get(spec_id, {}).get("community"))
+        raw_community_templates = grouped.get(spec_id, {}).get("community") or []
+        active_community_templates = [
+            template
+            for template in (
+                _active_observed_gear_template(template, class_key, spec_key)
+                for template in raw_community_templates
+            )
+            if template
+        ]
+        best_community = _best_gear_template(active_community_templates)
         if best_community:
             raw_status = str(best_community.get("status") or "").strip()
             missing_slots = _gear_template_missing_slots(best_community, class_key, spec_key)
@@ -1450,8 +1489,23 @@ def build_community_gear_template_preflight(templates, scan_run_id="", checked_a
                 community_status = "partial"
                 partial_specs.append(spec_id)
         else:
-            community_status = COMMUNITY_TALENT_PENDING_STATUS
-            pending_specs.append(spec_id)
+            blocked_candidate = _best_gear_template(raw_community_templates)
+            if blocked_candidate:
+                best_community = blocked_candidate
+                raw_status = str(blocked_candidate.get("status") or "").strip()
+                missing_slots = _gear_template_missing_slots(blocked_candidate, class_key, spec_key)
+                if raw_status == "blocked":
+                    community_status = "blocked"
+                    blocked_specs.append(spec_id)
+                elif raw_status == "partial" or missing_slots:
+                    community_status = "partial"
+                    partial_specs.append(spec_id)
+                else:
+                    community_status = "blocked"
+                    blocked_specs.append(spec_id)
+            else:
+                community_status = COMMUNITY_TALENT_PENDING_STATUS
+                pending_specs.append(spec_id)
         community_row = _gear_display_row(
             spec_id,
             class_key,
@@ -2128,6 +2182,13 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
         gear_counts = store.replace_community_gear_templates(gear_templates, scan_run_id=scan_run_id)
     else:
         gear_counts = store.community_gear_template_counts()
+    real_player_cleanup = _cleanup_real_player_gear_template_pilot_residue(
+        store,
+        scan_run_id=scan_run_id,
+        checked_at=checked_at,
+    )
+    if real_player_cleanup.get("errors"):
+        gear_errors.extend(real_player_cleanup.get("errors") or [])
     gear_preflight = build_community_gear_template_preflight(
         _community_gear_template_coverage_rows(store, gear_templates),
         scan_run_id=scan_run_id,
@@ -2211,6 +2272,7 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
             "templates": gear_counts,
             "preflight": gear_preflight,
             "observedBackfill": gear_observed_backfill,
+            "realPlayerTemplateCleanup": real_player_cleanup,
             "realCommunityTemplates": gear_preflight.get("realCommunityTemplates") or {},
             "baselineTemplates": gear_preflight.get("baseline") or {},
             "communityImportTemplates": gear_preflight.get("communityImport") or {},
@@ -2271,6 +2333,18 @@ def _season_recommended_template_confidence(template):
     return str(evidence.get("recommendationConfidence") or "").strip()
 
 
+def _cleanup_real_player_gear_template_pilot_residue(store, scan_run_id="", checked_at=""):
+    if not hasattr(store, "cleanup_real_player_gear_template_pilot_residue"):
+        return {}
+    try:
+        return store.cleanup_real_player_gear_template_pilot_residue(
+            scan_run_id=scan_run_id,
+            checked_at=checked_at,
+        )
+    except Exception as error:
+        return {"status": "blocked", "errors": [str(error)]}
+
+
 def sync_season_recommended_gear_postgres(mode="scheduled", store=None):
     store = store or cache_store_from_env()
     checked_at = utc_now()
@@ -2285,6 +2359,13 @@ def sync_season_recommended_gear_postgres(mode="scheduled", store=None):
         counts = store.replace_community_gear_templates(templates, scan_run_id=scan_run_id)
     else:
         counts = {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
+    real_player_cleanup = _cleanup_real_player_gear_template_pilot_residue(
+        store,
+        scan_run_id=scan_run_id,
+        checked_at=checked_at,
+    )
+    if real_player_cleanup.get("errors"):
+        errors.extend(real_player_cleanup.get("errors") or [])
 
     complete_specs = unique_text_list(
         f"{template.get('classKey')}:{template.get('specKey')}"
@@ -2332,9 +2413,245 @@ def sync_season_recommended_gear_postgres(mode="scheduled", store=None):
         "blockedSpecs": blocked_specs,
         "templates": counts,
         "communityImportTemplates": preflight.get("communityImport") or {},
+        "realPlayerTemplateCleanup": real_player_cleanup,
         "errors": errors[:20],
     }
     store.save_sync_state(SEASON_RECOMMENDED_GEAR_SYNC_KEY, payload, checked_at)
+    return payload
+
+
+def _recommended_bis_template_evidence_status(template):
+    payload = (template or {}).get("payload") if isinstance((template or {}).get("payload"), dict) else {}
+    evidence = payload.get("templateEvidence") if isinstance(payload.get("templateEvidence"), dict) else {}
+    return str(evidence.get("status") or evidence.get("confidence") or "").strip()
+
+
+def sync_recommended_bis_prototype_postgres(mode="manual", store=None):
+    store = store or cache_store_from_env()
+    checked_at = utc_now()
+    scan_run_id = f"recommended-bis-prototype-{checked_at.replace('+00:00', 'Z').replace(':', '').replace('-', '')}"
+    errors = []
+    try:
+        templates = store.build_recommended_bis_prototype_templates(scan_run_id=scan_run_id)
+    except Exception as error:
+        templates = []
+        errors.append(str(error))
+    if templates:
+        counts = store.replace_community_gear_templates(templates, scan_run_id=scan_run_id)
+    else:
+        counts = {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
+    real_player_cleanup = _cleanup_real_player_gear_template_pilot_residue(
+        store,
+        scan_run_id=scan_run_id,
+        checked_at=checked_at,
+    )
+    if real_player_cleanup.get("errors"):
+        errors.extend(real_player_cleanup.get("errors") or [])
+
+    projected_specs = unique_text_list(
+        f"{template.get('classKey')}:{template.get('specKey')}"
+        for template in templates
+        if _recommended_bis_template_evidence_status(template) == "projected_bis"
+    )
+    candidate_specs = unique_text_list(
+        f"{template.get('classKey')}:{template.get('specKey')}"
+        for template in templates
+        if _recommended_bis_template_evidence_status(template) == "candidate_bis"
+    )
+    verified_specs = unique_text_list(
+        f"{template.get('classKey')}:{template.get('specKey')}"
+        for template in templates
+        if _recommended_bis_template_evidence_status(template) == "verified_bis"
+    )
+    expected_specs = unique_text_list(expected_spec_pairs())
+    dps_expected_specs = [
+        spec_id for spec_id in expected_specs
+        if recommended_bis_role_for_spec_id(spec_id) == "dps"
+    ]
+    covered_specs = set(projected_specs) | set(candidate_specs) | set(verified_specs)
+    missing_dps_specs = [spec_id for spec_id in dps_expected_specs if spec_id not in covered_specs]
+    full_optimizer_specs = unique_text_list([*projected_specs, *candidate_specs, *missing_dps_specs])
+    status = "blocked"
+    if templates and not errors:
+        status = "partial"
+    if verified_specs and len(verified_specs) >= len(dps_expected_specs) and not errors:
+        status = "verified"
+    payload = {
+        "runner": "postgres",
+        "schemaRevision": "recommended-bis-v1-prototype-sync-state-v1",
+        "mode": mode,
+        "sourceKey": "recommended_bis",
+        "sourceName": "SimC optimizer 毕业模板",
+        "status": status,
+        "sourceStatus": status,
+        "scanRunId": scan_run_id,
+        "checkedAt": checked_at,
+        "totalSpecCount": len(covered_specs),
+        "expectedSpecCount": len(expected_specs),
+        "dpsExpectedSpecCount": len(dps_expected_specs),
+        "projectedSpecCount": len(projected_specs),
+        "candidateSpecCount": len(candidate_specs),
+        "verifiedSpecCount": len(verified_specs),
+        "missingDpsSpecCount": len(missing_dps_specs),
+        "fullOptimizerRunRequiredSpecCount": len(full_optimizer_specs),
+        "projectedSpecs": projected_specs,
+        "candidateSpecs": candidate_specs,
+        "verifiedSpecs": verified_specs,
+        "missingDpsSpecs": missing_dps_specs,
+        "fullOptimizerRunRequiredSpecs": full_optimizer_specs,
+        "templates": counts,
+        "realPlayerTemplateCleanup": real_player_cleanup,
+        "errors": errors[:20],
+    }
+    store.save_sync_state(RECOMMENDED_BIS_PROTOTYPE_SYNC_KEY, payload, checked_at)
+    return payload
+
+
+def _recommended_bis_guard_status(recommended, errors=None):
+    errors = errors or []
+    if errors:
+        return "blocked"
+    expected = int(recommended.get("expectedSpecCount") or 0)
+    total = int(recommended.get("totalSpecCount") or 0)
+    verified = int(recommended.get("verifiedSpecCount") or 0)
+    missing = int(recommended.get("missingSpecCount") or 0)
+    blocked = int(recommended.get("blockedSpecCount") or 0)
+    if expected and verified >= expected:
+        return "verified"
+    if expected and not total and (missing >= expected or blocked >= expected):
+        return "blocked"
+    if expected and (missing or blocked):
+        return "partial"
+    if not expected:
+        return "blocked"
+    return "partial"
+
+
+def _community_best_guard_status(observed, errors=None):
+    errors = errors or []
+    if errors:
+        return "blocked"
+    expected = int(observed.get("expectedSpecCount") or 0)
+    covered = int(observed.get("coveredSpecCount") or 0)
+    verified = int(observed.get("verifiedSpecCount") or 0)
+    missing = int(observed.get("missingSpecCount") or 0)
+    blocked = int(observed.get("blockedSpecCount") or 0)
+    replay_required = int(observed.get("simcReplayRequiredSpecCount") or 0)
+    if expected and verified >= expected and not (missing or blocked or replay_required):
+        return "verified"
+    if expected and not covered and (missing or blocked):
+        return "blocked"
+    if not expected:
+        return "blocked"
+    return "partial"
+
+
+def sync_community_best_guard_postgres(mode="scheduled", store=None):
+    store = store or cache_store_from_env()
+    checked_at = utc_now()
+    errors = []
+    summary = {}
+    try:
+        summary = store.community_gear_template_live_health_summary()
+    except Exception as error:
+        errors.append(str(error))
+    chains = (summary or {}).get("templateChains") if isinstance(summary, dict) else {}
+    observed = chains.get("communityObserved") if isinstance(chains, dict) else {}
+    if not isinstance(observed, dict) or not observed:
+        observed = websim_gear_template_chain_state(
+            [],
+            [],
+            expected_spec_ids=expected_spec_pairs(),
+            checked_at=checked_at,
+        ).get("communityObserved") or {}
+    status = _community_best_guard_status(observed, errors=errors)
+    payload = {
+        "runner": "postgres",
+        "schemaRevision": "community-best-v2-guard-state-v1",
+        "mode": mode,
+        "status": status,
+        "sourceStatus": status,
+        "guardMode": observed.get("guardMode") or "readiness_only",
+        "guardPolicy": observed.get("guardPolicy") or (
+            "reports missing community_best_v2 observed specs, blocked observed candidates, "
+            "and observed templates requiring SimC replay; does not fetch profiles, run SimC, or replace winners"
+        ),
+        "checkedAt": checked_at,
+        "lastGuardCheckAt": checked_at,
+        "dailyCheckedAt": checked_at,
+        "sourceScanRunId": (summary or {}).get("scanRunId") if isinstance(summary, dict) else "",
+        "expectedSpecCount": int(observed.get("expectedSpecCount") or 0),
+        "coveredSpecCount": int(observed.get("coveredSpecCount") or 0),
+        "verifiedSpecCount": int(observed.get("verifiedSpecCount") or 0),
+        "provisionalSpecCount": int(observed.get("provisionalSpecCount") or 0),
+        "partialSpecCount": int(observed.get("partialSpecCount") or 0),
+        "blockedSpecCount": int(observed.get("blockedSpecCount") or 0),
+        "missingSpecCount": int(observed.get("missingSpecCount") or 0),
+        "simcReplayRequiredSpecCount": int(observed.get("simcReplayRequiredSpecCount") or 0),
+        "changedWinnerCount": int(observed.get("changedWinnerCount") or 0),
+        "simcReplayQueuedCount": int(observed.get("simcReplayQueuedCount") or 0),
+        "missingSpecs": observed.get("missingSpecs") or [],
+        "simcReplayRequiredSpecs": observed.get("simcReplayRequiredSpecs") or [],
+        "examples": observed.get("examples") or [],
+        "blockedExamples": observed.get("blockedExamples") or [],
+        "errors": errors[:20],
+    }
+    store.save_sync_state(COMMUNITY_BEST_GUARD_SYNC_KEY, payload, checked_at)
+    return payload
+
+
+def sync_recommended_bis_guard_postgres(mode="scheduled", store=None):
+    store = store or cache_store_from_env()
+    checked_at = utc_now()
+    errors = []
+    summary = {}
+    try:
+        summary = store.community_gear_template_live_health_summary()
+    except Exception as error:
+        errors.append(str(error))
+    chains = (summary or {}).get("templateChains") if isinstance(summary, dict) else {}
+    recommended = chains.get("recommendedBis") if isinstance(chains, dict) else {}
+    if not isinstance(recommended, dict) or not recommended:
+        recommended = websim_gear_template_chain_state(
+            [],
+            [],
+            expected_spec_ids=expected_spec_pairs(),
+            checked_at=checked_at,
+        ).get("recommendedBis") or {}
+    status = _recommended_bis_guard_status(recommended, errors=errors)
+    payload = {
+        "runner": "postgres",
+        "schemaRevision": "recommended-bis-v1-guard-state-v1",
+        "mode": mode,
+        "status": status,
+        "sourceStatus": status,
+        "guardMode": recommended.get("guardMode") or "readiness_only",
+        "guardPolicy": recommended.get("guardPolicy") or (
+            "reports missing recommended_bis_v1 specs as optimizer_required; "
+            "does not execute or queue the full SimC optimizer"
+        ),
+        "checkedAt": checked_at,
+        "lastGuardCheckAt": checked_at,
+        "sourceScanRunId": (summary or {}).get("scanRunId") if isinstance(summary, dict) else "",
+        "totalSpecCount": int(recommended.get("totalSpecCount") or 0),
+        "expectedSpecCount": int(recommended.get("expectedSpecCount") or 0),
+        "missingSpecCount": int(recommended.get("missingSpecCount") or 0),
+        "projectedSpecCount": int(recommended.get("projectedSpecCount") or 0),
+        "candidateSpecCount": int(recommended.get("candidateSpecCount") or 0),
+        "verifiedSpecCount": int(recommended.get("verifiedSpecCount") or 0),
+        "blockedSpecCount": int(recommended.get("blockedSpecCount") or 0),
+        "anchorFailedSpecCount": int(recommended.get("anchorFailedSpecCount") or 0),
+        "optimizerFailedSpecCount": int(recommended.get("optimizerFailedSpecCount") or 0),
+        "optimizerRequiredSpecCount": int(recommended.get("optimizerRequiredSpecCount") or 0),
+        "revisionStaleSpecCount": int(recommended.get("revisionStaleSpecCount") or 0),
+        "optimizerQueuedSpecCount": int(recommended.get("optimizerQueuedSpecCount") or 0),
+        "fullOptimizerRunRequiredSpecCount": int(recommended.get("fullOptimizerRunRequiredSpecCount") or 0),
+        "missingSpecs": recommended.get("missingSpecs") or [],
+        "examples": recommended.get("examples") or [],
+        "blockedExamples": recommended.get("blockedExamples") or [],
+        "errors": errors[:20],
+    }
+    store.save_sync_state(RECOMMENDED_BIS_GUARD_SYNC_KEY, payload, checked_at)
     return payload
 
 

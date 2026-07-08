@@ -1,0 +1,12 @@
+[Unit]
+Description=Run WOW recommended_bis_v1 readiness guard sync daily
+
+[Timer]
+OnBootSec=35min
+OnCalendar=*-*-* 08:10:00
+RandomizedDelaySec=15min
+Persistent=true
+Unit=wow-recommended-bis-guard-sync.service
+
+[Install]
+WantedBy=timers.target

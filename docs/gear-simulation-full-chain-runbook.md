@@ -1,7 +1,7 @@
 # 装备模拟全链路 Runbook
 
 > 适用范围：`/api/websim/gear` 装备模拟读模型、装备自建数据库、装备强化配置、制造业装备、全职业专精装备适配、前端展示、SimC profile serializer、生产刷新和回滚。
-> 最后更新：2026-07-06。
+> 最后更新：2026-07-08。
 
 本文是下一次大版本或赛季装备更新的执行手册。目标不是记录某一次修复，而是把“从上游 API 到线上 UI 和可执行 SimC profile”的完整链路固化成可复用流程。任何新版本装备更新，都应先按本文确认数据入口、证据门禁、审计 SQL、健康指标、全职业专精适配和回滚边界，再做写库或部署。
 
@@ -16,7 +16,7 @@
 - 默认模板兼容保留：`default_template / 默认模板` 只能作为 legacy fallback/诊断来源，`season_recommendation` 可用时不得作为首选 baseline。
 - 完整状态拆分：装备模板 `status=complete` 只表示 16 个 canonical 槽位完整且 SimC serializer 可执行；宝石、附魔、美化和 `crafted_stats` readiness 必须通过独立 `enhancementReadiness` 表达。
 - 可回滚：任何生产写库前必须备份实际写入的 PostgreSQL target，并保留历史 SQLite 文件备份作为迁移/审计证据。当前 runtime 必须是 `WOW_DATABASE_RUNTIME=postgres_only`；SQLite 不能作为线上 fallback 或健康判断来源。任何代码部署前必须能区分“代码回滚”和“DB 回滚”。
-- 不下载不写入：拉取远端数据、下载外部文件、生产 SSH/DB 写入、Wago/SimC 数据刷新，都必须先取得 owner 明确批准。
+- 下载/写入边界：拉取远端数据、下载外部文件、生产 SSH/DB 写入、Wago/SimC 数据刷新，默认都必须先取得 owner 明确批准。例外是已知云服务器上的 SimulationCraft runtime 更新：当用户明确要求处理 SimC 更新、WebSim/SimC readiness、赛季切换阻塞，或已授权 health follow-up 自动处理 SimC runtime 时，可直接下载配置好的 SimC 源包、构建、切换 `/opt/wow-simc/current` 并执行 smoke；不得扩展到本机下载、任意第三方下载、依赖安装或修改 SimC repo/branch。
 
 ## 端到端链路
 
@@ -93,6 +93,7 @@ flowchart TD
 | Stat snapshot | `build_websim_gear_stats_response`、`backfill_simcraft_template_detail_stat_snapshot` | 用结构化 gear/talent 上下文生成 verified 角色属性快照，供 SimC 模板确认页和任务详情展示 |
 | Season recommended templates | `server/season_recommended_gear_sync.py`、`sync_season_recommended_gear_postgres`、`build_season_recommended_gear_templates` | 生成 `season_recommendation` 基线模板，写入社区导入 `baseline` 子类，并在 health 暴露 `seasonRecommendation` / `communityImportTemplates` 覆盖率 |
 | Default templates | `sync_community_gear_templates`、`build_default_community_gear_template` | legacy fallback：用 verified 当前赛季候选和 verified `mplus_mixed_route` 绿字权重生成 `默认模板` 兜底，并把缺证据专精写入 sync run / health |
+| Health follow-up | `server/data_health_followup.py`、`wow-data-health-followup.timer` | 根据 `/api/data/health` 续跑可安全自动处理的阻塞；SimC runtime `updateAvailable=true` 时先触发 `wow-simc-runtime-update.service` 自动下载、构建、切换 runtime |
 | API | `server/news_backend.py` | `/api/websim/gear`、`/api/websim/profile`、`/api/data/health` |
 | Frontend | `pages/builds/detail.*` | 装备栏、候选 sheet、详情、强化配置、保存模板；只消费后端结构化字段 |
 
@@ -185,6 +186,18 @@ order by option_type, status;
 
 除非在事故修复中明确隔离范围，否则不要跳过最后的 catalog rebuild 和 health 复核。
 
+### 自动续跑边界
+
+生产部署会安装并启用 `wow-data-health-followup.timer`，默认每 2 小时调用 `/api/data/health`。它触发已经存在、可串行续跑的安全任务：
+
+- `news_refresh`：新闻有 retryable/queued 时执行 `/opt/wow-mini-program/server/refresh_cron.sh`；默认只处理 1 条 queue/retryable backlog，超过 `WOW_NEWS_RETRY_MAX_ATTEMPTS` 的翻译失败会转为 blocked/report。
+- `gear_observed_backfill`：装备库 partial/stale/blocked 时先跑 `wow-gear-observed-backfill.service`，用已有 Raider.IO/Battle.net/SimC 证据补 observed variant。
+- `websim_sync`：`websim_sync` 被 gear catalog 阻塞时异步触发 `wow-websim-sync.service`，在回填后重建 catalog。
+- `stat_weights_sync`：权重有 blocked scenarios 时异步触发 `wow-stat-weights-sync.service`。
+- `simc_runtime_update`：`template_simc_bridge` 或 `season_cutover_readiness` 报告配置好的 SimC runtime 有新 commit 时，启动 `wow-simc-runtime-update.service` 下载配置源、构建并切换 `/opt/wow-simc/current`。该 service 使用 `/run/lock/wow-mini-program-sync.lock` 串行化长任务；同一轮 follow-up 会优先跑 SimC runtime update，依赖 SimC 的 WebSim/stat/gear 重建留到下一轮 health follow-up。
+
+这些任务必须继续 fail-closed：没有 verified 证据就保留 partial/blocked 并在 health 中报告。SimC runtime 自动更新只允许使用配置好的 `SIMC_GITHUB_REPO` / `SIMC_BRANCH` 和已知云服务器路径；修改源仓库、分支、本机下载或安装依赖仍需单独批准。
+
 ### 当前赛季推荐装备模板生成门禁
 
 `season_recommendation` 是装备导入中“社区模板”分组下的兜底基线子类，和真实社区装备 winner 分开计数：
@@ -192,14 +205,17 @@ order by option_type, status;
 - 真实社区装备 `community_best` 必须达到 `40/40`。
 - 推荐基线 `baseline` 必须达到 `40/40`。
 - `/api/data/health` 的 `communityImportTemplates.coveredTemplateSlotCount` 必须达到 `80/80`，`missingTemplateSlotCount=0`。
+- `/api/data/health` 和 `/api/websim/gear` 的 `communityTemplateSync.templateChains` 必须同时区分 `communityObserved`、`recommendedBis` 与 `legacyFallback`：source-less / sampleCount=0 / 无 profileHash 的 observed 只能进入 `observed_blocked`，`season_recommendation` 只能作为 `starter_baseline` legacy fallback，不能计入 `recommendedBis` 或 `verified_bis`。当 `recommended_bis_v1` optimizer 尚未产出某 spec 的 winner 时，`recommendedBis` 必须按 expected spec 暴露 `optimizerRequiredSpecCount` / `fullOptimizerRunRequiredSpecCount` 和 `optimizer_blocked` blocker，而不是静默只报 `total=0`。
 
-首版生成器只消费当前生产 PostgreSQL read model，不触发外部下载：
+推荐基线生成器只消费当前生产 PostgreSQL read model，不触发外部下载：
 
-- 输入：`cache.websim_community_gear_templates` 中当前可用、完整、非 baseline-like 的真实社区装备 winner；`cache.websim_community_talent_templates` 中 verified Raider.IO / WCL 天赋锚点；官方 metadata hydration 后的 16 槽装备 display/SimC 字段。
+- 输入：`cache.websim_community_gear_templates` 中当前可用、完整、非 baseline-like 的真实社区装备样本；`cache.websim_community_talent_templates` 中 verified Raider.IO / WCL 天赋锚点；当前后端装备 read model 中可 display/SimC 的同槽替代候选；官方 metadata hydration 后的 16 槽装备 display/SimC 字段。
+- 评分：`scoringVersion=season-rec-score-v1`，固定首个场景为 `mplus_aoe`。评分按职业/专精处理装等、主属性、绿字权重、低收益属性强惩罚、套装 2/4 件收益、5 件套与散件替代、武器/饰品/美化/特殊效果等规则；低收益属性不是硬禁，只有总分明显更高时才保留，并必须在 evidence 中解释。
+- SimC 复核门禁：当带低收益属性的第一名与无低收益替代方案分差低于约 `2%`，或套装、饰品、武器、特殊效果等规则无法自信裁决时，`templateEvidence.simcReview.status` 必须为 `required` 或记录失败原因；只有 `simcReview.status=passed` 才允许把具体模板的 `recommendationConfidence` 从 `provisional` 升级为 `verified`。
 - 输出：`sourceKey=season_recommendation`、`sourceName=当前赛季大秘境 AOE 推荐模板`、`templateSlot=baseline`、`scenarioKey=mplus_aoe`、`status=complete`、`readySlotCount=16`、`canApplyGear=true`。
-- 首版质量语义：`recommendationConfidence=provisional`；它是当前赛季可导入起点，不是绝对 BiS。后续只有接入 SimC optimizer / role-specific objective 并记录 candidate ledger、score、runtime revision 后，才可把具体专精升级为 `verified`。
+- evidence：必须保留 `scoringVersion`、`scenarioKey`、`candidateCount`、`statWeights`、`slotDecisions`、`lowYieldStatPenalty`、`alternatives`、`tierSetDecision`、`combinationScore`、`simcReview`、`finalConfidence` 等可审计字段。`season_recommendation` 是当前赛季可导入起点，不是绝对 BiS；证据不足时只能保持 `provisional`。
 - 失败处理：缺真实社区 winner、缺 verified 天赋锚点、缺槽、serializer 无法生成 16 行或 metadata 不 display-ready 时，不写 complete `season_recommendation`，必须在 sync run / health blocker 中暴露 class/spec 和缺口。
-- 运行入口：部署后可手动执行 `sudo systemctl start wow-season-recommended-gear-sync.service`；该服务是 one-shot，不默认自动启动。CLI 入口为 `WOW_DATABASE_RUNTIME=postgres_only python3 server/season_recommended_gear_sync.py`。
+- 运行入口：`wow-season-recommended-gear-sync.timer` 每天 07:30 左右自动触发 `wow-season-recommended-gear-sync.service`，用于在社区模板日更后刷新 `season_recommendation` 基线；需要临时补跑时可手动执行 `sudo systemctl start wow-season-recommended-gear-sync.service`。CLI 入口为 `WOW_DATABASE_RUNTIME=postgres_only python3 server/season_recommended_gear_sync.py`。
 
 2026-07-06 首版生产验收：
 
@@ -207,6 +223,222 @@ order by option_type, status;
 - 生产 PG active row：`season_recommendation|complete|40 rows|40 specs`，`ready_slot_count=16`。
 - `/api/data/health`：`communityImportTemplates=80/80 missing=0`，`seasonRecommendation=40/40 provisional=40 blocked=0`。
 - 线上 40 专精 `/api/websim/gear?compact=1&mode=initial` 巡检：`checkedSpecs=40`、`failureCount=0`；每个专精都有真实社区模板 + `season_recommendation` 基线模板，16 槽可导入，未发现缺中文名或图标。
+
+2026-07-07 评分目标函数生产验收：
+
+- 部署：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功，公网 `/health=200`、`/api/data/health=200`。
+- 社区采集：手动触发 `wow-community-template-sync.service`，本轮 `scanRunId=pg-community-template-2026-07-07T082004z0000`，summary 为 `promoted=80`、`blocked=0`、`needs_review=0`、`rejected_regression=0`、`stale_winner=0`；Warcraft Logs 排名提取无目标槽属于非阻断 partial 来源状态。
+- 推荐基线生成：首次实现调用完整 `get_websim_gear(... compact=False)` 会把 `wow-season-recommended-gear-sync.service` 推到 `2.2G` RSS；已改为直接读取 PG catalog/source/variant 轻量候选池并复用 catalog compatibility helper。线上复核又修复三类退化：catalog metadata trust 字段只在 payload 内导致候选池被误滤；生成器只消费 `complete` 社区样本导致 legality gate partial 后不重建 baseline；戒指/饰品重复同 itemId、双手主手+副手组合未在评分器后处理导致模板构建失败或 API 降级。最终重跑 `scanRunId=season-recommended-gear-20260707T091748Z` 成功，`errors=[]`。
+- `/api/data/health`：`realCommunityTemplates=40/40`、`seasonRecommendation.completeSpecCount=40`、`seasonRecommendation.verifiedSpecCount=0`、`seasonRecommendation.provisionalSpecCount=40`、`communityImportTemplates.coveredTemplateSlotCount=80`、`missingTemplateSlotCount=0`。
+- 线上 40 专精 `/api/websim/gear?compact=1&mode=initial` 巡检：`checkedSpecs=40`、`failureCount=0`；每个专精都有 1 个真实社区模板和 1 个 `season_recommendation`/`baseline` 模板；baseline API 状态 `complete=40`，confidence 为 `provisional=40`，无 `verified`。baseline 与 community 没有任何完全相同专精，差异槽位最少 6、最多 14。
+- 元素萨回归：线上元素萨 community observed 保留事实样本但因 `Two-Handed Mace + Held In Off-hand` 被 legality gate 降级为 `partial`，`readySlotCount=14`；baseline 为 `season_recommendation_shaman_elemental_04419443c1c7e5c3`，`status=complete`、`readySlotCount=16`、`missingSlots=[]`、`candidateCount=143`，主手为合法 `Dagger`、副手为 `Held In Off-hand`，与 community 差异槽位为 `feet/finger1/finger2/legs/main_hand/neck/off_hand/trinket1/trinket2`。
+- 元素萨 evidence：`recommendationConfidence=provisional`、`simcReview.status=required`，触发原因包含 `low_yield_stat_gray_zone`、`main_hand_special_rule_review`、`off_hand_special_rule_review`、`trinket1_special_rule_review`、`trinket2_special_rule_review`、`tier_set_four_of_five_replacement`；套装 evidence 显示 4 件套，腿部第 5 件低收益套装候选被散件替代评估，未包装成 `verified`。
+- API 出口合法性：community observed API 状态 `complete=22 / partial=18`，这些 partial 是真实社区样本违反当前武器规则后的 fail-closed 降级；baseline 已全部由评分器修成 API `complete=40`。`communityImportTemplates=80/80` 是覆盖口径，不等于所有事实社区样本都可完整导入。
+
+2026-07-07 17:52 元素萨属性优先级纠偏：
+
+- 用户以高分元素萨样本指出旧 baseline 副属性方向仍不合理，实际优先级应按 `精通 > 暴击 > 急速 > 全能` 处理；复核确认 `server/season_recommended_gear.py` 的元素萨默认权重错误地接近急速优先，并且 PG stat weight cache 没有被 `build_season_recommended_gear_templates()` 传入评分器。
+- 修正后 `season-rec-score-v1` 对元素萨默认权重改为 `mastery=1.08 / crit=0.96 / haste=0.74 / versatility=0.18`，`mplus_aoe` 优先读取 `mplus_aoe_pack`、再回退 `mplus_mixed_route`；`blocked` stat weight payload 只写入 evidence，不参与推荐评分。
+- 低收益绿字灰区改为 fail-closed：如果含低收益属性候选只在约 `2%` 内领先无低收益替代，评分器先选择无低收益替代，并写入 `lowYieldGrayZoneFallback` 与 `simcReview.required`，避免把灰区全能装备直接放进推荐基线。
+- 已重新部署并补跑 `wow-community-template-sync.service` 与 `wow-season-recommended-gear-sync.service`，最新推荐基线为 `scanRunId=season-recommended-gear-20260707T095101Z`。线上元素萨 baseline 属性轮廓从旧的 `crit=430 / haste=1041 / mastery=758 / versatility=68` 变为 `crit=629 / haste=738 / mastery=862 / versatility=68`，戒指 2 从急速堆叠项替换为 `白金星辰指环`。
+- 当前元素萨 stat weight cache 仍为 `blocked`：`mplus_aoe_pack` 与 `mplus_mixed_route` 都没有可用 CN Raider.IO 代表样本或同时具备 talent loadout 与 SimC-ready gear 的 profile，所以本轮使用 fail-closed 专精默认权重，不伪造 SimC 权重。该 baseline 仍是 `provisional`，`simcReview.status=required`，原因包含低收益灰区、4/5 套装散件替代、武器与饰品特殊规则；未通过 SimC 复核前不能展示为 BiS 或 `verified`。
+- 线上复核：`/health=200`，`/api/data/health` 显示 `communityImportTemplates.coveredTemplateSlotCount=80`、`missingTemplateSlotCount=0`、`seasonRecommendation.completeSpecCount=40`、`verifiedSpecCount=0`、`provisionalSpecCount=40`。40 专精 initial gear 巡检结果为 `checked=40`、`failureCount=0`、`baselineComplete=40`、`community=40`、`sameSignature=0`。
+
+2026-07-07 20:15 双链路读模型门禁验收：
+
+- 部署：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功；本轮没有触发 bootstrap、下载或依赖安装。
+- 触发：完整 `wow-community-template-sync.service` 因 `wow-stat-weights-sync.service` 正在持有 `/run/lock/wow-mini-program-sync.lock` 只排队等待，已停止等待中的 community sync，未中断正在运行的 stat weights。随后用 `systemd-run --wait --pipe --collect -p EnvironmentFile=/etc/wow-backend.env -p Environment=WOW_DATABASE_RUNTIME=postgres_only` 执行 PG-only 模板重建，只消费已有 `cache.websim_gear_variants` / `cache.websim_community_gear_templates`，不抓外部数据；`scanRunId=pg-community-template-source-evidence-20260707T121521Z`。
+- 代码口径：`communityTemplateSync.templateChains` 同时出现在 `/api/data/health` 和 `/api/websim/gear`，并拆分 `communityObserved`、`recommendedBis`、`legacyFallback`。observed 模板必须保留 `sourceUrl`、`sampleCount` 和 `gearHash/profileHash`；source-less、`sampleCount=0` 或无 hash 的模板只能进入 `observed_blocked`。`season_recommendation` 只进入 `legacyFallback.starter_baseline`，不计入 `recommendedBis` 或 `verified_bis`。
+- 线上 `/api/data/health`：`communityObserved covered=26 verified=0 partial=0 blocked=14`，`recommendedBis total=0`，`legacyFallback total=40 starterBaseline=40`；`communityImportTemplates.coveredTemplateSlotCount=80`、`missingTemplateSlotCount=0`；`seasonRecommendation.completeSpecCount=40`、`verifiedSpecCount=0`、`provisionalSpecCount=40`。
+- 线上 40 专精 `/api/websim/gear?compact=1&mode=initial` 巡检：`checkedSpecs=40`、`failureCount=0`、`dataStatus.verified=40`；每个专精都有 1 个 community template 和 1 个 baseline template；`observedConfidence` 分布为 `observed_provisional=16`、`observed_partial=10`、`observed_blocked=14`，与 health 的 covered=26 / blocked=14 口径一致；`legacyStarterSpecs=40`、`recommendedBisSpecs=0`。
+- 边界：当前仓库只有 `wow-community-template-sync.service`、`wow-gear-observed-backfill.service`、`wow-season-recommended-gear-sync.service`，没有独立 full `recommended_bis_v1` optimizer/service。`recommendedBis.totalSpecCount=0` 是当前真实 winner 状态，不能在 UI、health 或文案中包装为 optimizer 已完成。
+
+2026-07-07 20:25 `recommended_bis_v1` readiness gate 验收：
+
+- 部署：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功；本轮无 bootstrap、依赖安装或外部下载。
+- 代码口径：`websim_gear_template_chain_state()` 增加 expected spec 输入；`/api/data/health` 的 40 spec 矩阵和每个 `/api/websim/gear` 单 spec payload 都会把缺失的 `recommended_bis_v1` winner 报成 `optimizer_blocked`。新增字段包括 `guardMode=readiness_only`、`guardPolicy`、`expectedSpecCount`、`missingSpecCount`、`optimizerRequiredSpecCount`、`fullOptimizerRunRequiredSpecCount`、`missingSpecs` 和 `blockedExamples`。
+- 线上 `/api/data/health`：`recommendedBis expected=40 total=0 missing=40 blocked=40 optimizerRequired=40 fullOptimizerRunRequired=40 guardMode=readiness_only`；`legacyFallback starterBaseline=40`，`communityObserved covered=26 blocked=14`，`communityImportTemplates.coveredTemplateSlotCount=80 / missingTemplateSlotCount=0`。
+- 线上 40 专精 `/api/websim/gear?compact=1&mode=initial` 巡检：`checkedSpecs=40`、`failureCount=0`、`dataStatus.verified=40`；每个单页 payload 都有 `recommendedExpected=1`、`recommendedFullOptimizerRequired=1`、`recommendedGuardMode=readiness_only`；每个专精仍有 1 个 community template 和 1 个 baseline template，`legacyStarterSpecsSum=40`。
+- 边界：`readiness_only` 只报告缺口，不执行 SimC optimizer、不入队、不生成 `projected_bis` / `candidate_bis` / `verified_bis`。完整 `community_best_v2` ledger、SimC replay、`recommended_bis_v1` optimizer、anchor validation 和 full daily guard 仍未完成。
+
+2026-07-07 20:35 `recommended_bis_v1` persisted guard control plane 验收：
+
+- 部署与定时：新增 `server/recommended_bis_guard_sync.py`、`wow-recommended-bis-guard-sync.service`、`wow-recommended-bis-guard-sync.timer`，deploy 会复制 unit 并 `enable --now wow-recommended-bis-guard-sync.timer`。service 使用 `WOW_DATABASE_RUNTIME=postgres_only`，执行 `/usr/bin/python3 /opt/wow-mini-program/server/recommended_bis_guard_sync.py`，并用独立短锁 `/run/lock/wow-mini-program-bis-guard.lock`，避免和长时间 SimC/stat weights 同一把锁互相排队。
+- 运行边界：guard 只读取 `community_gear_template_live_health_summary()`，把 `recommendedBis` readiness 写入 `cache.websim_sync_state.id=recommended_bis_v1_guard`；不下载文件、不访问外部 API、不执行 SimC、不触发 optimizer queue。
+- 线上触发：手动执行 `sudo systemctl start wow-recommended-bis-guard-sync.service`，`status=0/SUCCESS`，timer 为 `active`。远端 PG sync state 显示 `schemaRevision=recommended-bis-v1-guard-state-v1`、`status=blocked`、`guardMode=readiness_only`、`expectedSpecCount=40`、`totalSpecCount=0`、`missingSpecCount=40`、`blockedSpecCount=40`、`optimizerRequiredSpecCount=40`、`fullOptimizerRunRequiredSpecCount=40`、`errors=[]`。
+- API 验收：公网 `/api/data/health` 的 `community_templates.details.recommendedBisGuard` 已显示同一持久 guard state，`lastGuardCheckAt=2026-07-07T12:34:37+00:00`、`updatedAt=2026-07-07 20:34:37+08:00`；`templateChains.recommendedBis` 同时保留即时 readiness 口径。
+- 线上 40 专精 `/api/websim/gear?compact=1&mode=initial` 巡检：`checkedSpecs=40`、`failureCount=0`、`dataStatus.verified=40`；每个专精仍有 1 个 community template 和 1 个 baseline template，per-payload `recommendedExpected=1`、`recommendedFullOptimizerRequired=1`、`recommendedGuardMode=readiness_only`。
+- 边界：这是 full optimizer 前的持久守卫，不是 candidate ledger、SimC replay、pairwise compare、observed anchor validation 或 `verified_bis` 生产链。
+
+2026-07-07 20:50 `community_best_v2` persisted observed guard control plane 验收：
+
+- 部署与定时：新增 `server/community_best_guard_sync.py`、`wow-community-best-guard-sync.service`、`wow-community-best-guard-sync.timer`，deploy 会复制 unit 并 `enable --now wow-community-best-guard-sync.timer`。service 使用 `WOW_DATABASE_RUNTIME=postgres_only`，执行 `/usr/bin/python3 /opt/wow-mini-program/server/community_best_guard_sync.py`，并用独立短锁 `/run/lock/wow-mini-program-community-best-guard.lock`；它不与长时间 community/stat/WebSim 同步共用 `/run/lock/wow-mini-program-sync.lock`。
+- 运行边界：guard 只读取 `community_gear_template_live_health_summary()` 的 `templateChains.communityObserved`，把 observed readiness 写入 `cache.websim_sync_state.id=community_best_v2_guard`；不抓角色、不下载文件、不执行 SimC replay、不覆盖 winner。
+- 线上触发：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功，无 bootstrap/依赖安装/外部下载；随后触发 `wow-community-template-sync.service`、`wow-community-best-guard-sync.service`、`wow-recommended-bis-guard-sync.service`。community template refresh `status=0/SUCCESS`，observed guard `status=0/SUCCESS`，recommended guard `status=0/SUCCESS`，两个 guard timer 均为 `active`。
+- API 验收：公网 `/api/data/health` 的 `community_templates.details.communityObservedGuard` 显示 `schemaRevision=community-best-v2-guard-state-v1`、`status=partial`、`guardMode=readiness_only`、`expectedSpecCount=40`、`coveredSpecCount=26`、`verifiedSpecCount=0`、`provisionalSpecCount=26`、`partialSpecCount=0`、`blockedSpecCount=14`、`missingSpecCount=0`、`simcReplayRequiredSpecCount=26`、`errors=[]`、`sourceScanRunId=pg-community-template-2026-07-07T124822z0000`、`lastGuardCheckAt=2026-07-07T12:50:06+00:00`、`updatedAt=2026-07-07 20:50:06+08:00`。同页 `recommendedBisGuard` 仍为 `status=blocked expected=40 missing=40 optimizerRequired=40 fullOptimizerRunRequired=40`。
+- 线上 smoke：`/health=200`、`/api/data/health=200`；元素萨 `/api/websim/gear?class=shaman&spec=elemental&compact=1&mode=initial` 返回 `dataStatus=verified`，但 community observed 为 `observed_blocked`（缺 `sourceUrl/sampleCount/hash`），recommended_bis 为 `optimizer_blocked`，legacy fallback 为 `starter_baseline/provisional`。
+- 线上 40 专精 `/api/websim/gear?compact=1&mode=initial` 巡检：`checkedSpecs=40`、`failureCount=0`；每个 spec 都有 1 个 community template 和 1 个 baseline template；observed 状态分布 `observed_provisional=16`、`observed_partial=10`、`observed_blocked=14`；`simcReplayRequiredSpecs=26`；`recommendedStatus.optimizer_blocked=40`，`fullOptimizerRequiredSpecs=40`；`legacyFallbackSpecs=40`。
+- 角色边界：DPS 代表 `mage:frost`、`warrior:fury` 当前是 `observed_provisional + optimizer_blocked + legacyFallback`；元素萨是 `observed_blocked + optimizer_blocked + legacyFallback`，不能展示为 BiS；坦克/治疗/增辉代表 `warrior:protection`、`priest:holy`、`evoker:augmentation` 也只暴露 observed/provisional/blocked 与 optimizer_required 状态，不强行用 DPS 目标函数包装 verified。
+- 边界：这是 observed guard，不是完整 `community_best_v2` ledger、真实角色 hash diff、SimC replay、winner history、stale winner 保守保留，也不是 `recommended_bis_v1` optimizer 或 role-specific objective。下一步需要把 26 个 replay-required observed spec 接入 SimC replay 写回，把 14 个 blocked observed spec 的来源证据补齐或明确长期 blocker，再启动 DPS 优先的 recommended_bis optimizer。
+
+2026-07-07 21:18 observed profile SimC replay evidence bridge 验收：
+
+- 代码口径：`gear_observed_backfill` 会从角色 profile SimC JSON 提取 `observedProfileSimcReplay`，并写入 `cache.websim_gear_variants.payload_json`；`gear_community_template_from_observed_items()` 会把 replay 证据传播到 observed community template 的 `templateEvidence/profileHash/gearHash/sampleCount`。只有满足同一角色来源、16 槽无缺口、每个选中槽都有 replay、且所有槽 replay summary 的 `source/scenarioKey/dps/iterations` 一致时，才写入 `scenarioResults`；混合角色、缺 replay 或 replay summary 不一致时保持 `observed_provisional`，不包装为 verified。
+- 部署：两次 `WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功；第一次线上 backfill 发现旧 verified observed variants 因已有 stat payload 被跳过，修复后第二次 backfill 成功更新既有 verified rows。
+- observed backfill：`wow-gear-observed-backfill.service` 最新 run 成功，`targetLimit=80`、`profileLimit=40`、`itemCount=47`、`sourceCount=47`、`variantCount=47`、`verifiedCount=47`、`partialCount=0`、`blockedCount=3`、`observedProfileCount=6`、`processedProfileCount=6`、`processedItemCount=80`、`simcProfileCount=6`、`simcResolvedProfileCount=6`、`simcResolvedSlotCount=90`、`skippedExistingVerifiedVariants=0`、`simcErrors=[]`、`stopReason=target_limit_reached`。
+- PG-only 模板重建：完整 `wow-community-template-sync.service` 当时排在 `/run/lock/wow-mini-program-sync.lock` 后面等待，已停止等待中的 community sync，未中断正在运行的长同步；随后用 `systemd-run --wait --pipe --collect -p EnvironmentFile=/etc/wow-backend.env -p Environment=WOW_DATABASE_RUNTIME=postgres_only` 执行 `sync_community_template_cache_postgres(mode="pg_observed_replay_refresh", refresh_raiderio=False)`，只消费 PG read model，不抓外部数据。返回 `status=completed`、`scanRunId=pg-community-template-2026-07-07T131607z0000`、`gear.templates.total=210`、`gear.templates.verified=210`，health live summary 后续显示 `communityImportTemplates=80/80`、`realCommunityGearTemplates=40/40`。
+- guard 与 health：`wow-community-best-guard-sync.service` 和 `wow-recommended-bis-guard-sync.service` 均 `Result=success / ExecMainStatus=0`。`/health=200`；`/api/data/health` 仍按真实依赖显示 `overallStatus=partial`。`communityObservedGuard` 为 `expectedSpecCount=40`、`coveredSpecCount=27`、`provisionalSpecCount=27`、`blockedSpecCount=13`、`verifiedSpecCount=0`、`simcReplayRequiredSpecCount=27`；`recommendedBisGuard` 仍为 `blocked`、`missingSpecCount=40`、`optimizerRequiredSpecCount=40`、`fullOptimizerRunRequiredSpecCount=40`。
+- 持久化证据计数：`cache.websim_gear_variants` 中 `source_type=observed_profile` 总数 `10744`，其中 `47` 条已有 `observedProfileSimcReplay`。`cache.websim_community_gear_templates` 中 observed templates `40` 条、`complete_observed=40`、带 `templateEvidence=3`、带 `scenarioResults=0`；示例为 DK 三系模板，均保持 `evidence_status=observed_provisional`。`scenarioResults=0` 是预期 fail-closed 结果：当前还没有任何 observed 模板同时满足 16 槽全量 replay 和一致 replay summary。
+- 线上 40 专精 smoke：远端本机 `/api/websim/gear?compact=1&mode=initial` 巡检 `total=40`、`httpOk=40`、`failures=[]`、`dataStatus.verified=40`、`coveredBaseline=40`、`coveredObserved=27`、`communitySourceStatus.partial=18 / synced=22`、`observedStatuses.observed_provisional=16 / observed_partial=11`、`recommendedStatuses.optimizer_blocked=40`、最大单请求约 `0.464s`。
+- 边界：本轮完成 replay evidence 写入、旧 verified row 补写、模板 evidence 传播和线上 guard 可见性；尚未完成 full `community_best_v2` winner ledger、全 27 个 replay-required observed spec 的 16 槽 replay 升格、winner history diff、stale winner 保守保留，也未启动 `recommended_bis_v1` optimizer。
+
+2026-07-07 21:27 `recommended_bis_v1` observed-anchor validation gate 验收：
+
+- 代码口径：`recommended_bis` 模板进入 `communityTemplateSync.templateChains.recommendedBis` 前会读取 `templateEvidence.anchorValidation`。任何 `verified_bis` 必须有 `anchorValidation.status=passed`；如果 `winnerDps` 相对 `bestObservedDps` 的 `deltaPctVsBestObserved` 低于 `-blockThresholdPct`（默认 `2%`），即使模板自称 `verified_bis` 也会被降为 `anchor_failed`，进入 `blockedExamples` 和 `anchorFailedSpecCount`。`fullOptimizerRunRequiredSpecCount` 现在会统计缺 winner、`anchor_failed` 和 `optimizer_failed` 的去重 spec。
+- 回归样本：新增 Mandur/元素萨形态测试，`recommended_bis` 自称 `verified_bis`、`winnerDps=211177`、observed anchor `bestObservedDps=237956`、`deltaPctVsBestObserved=-12.68` 时，链路输出 `status=anchor_failed`、`verifiedSpecCount=0`、`anchorFailedSpecCount=1`、`fullOptimizerRunRequiredSpecCount=1`。另一个测试覆盖缺 passed anchor validation 的 `verified_bis`，同样 fail-closed 到 `anchor_failed`。
+- 本地验证：`python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.postgres_cache_sync_test tests.news_backend_test` 为 `701 tests OK`；`python3 -m py_compile server/websim_payload.py server/postgres_cache_store.py server/postgres_cache_sync.py server/news_backend.py server/community_best_guard_sync.py server/recommended_bis_guard_sync.py` 通过；`node --test tests/deploy-script.test.js tests/builds-page.test.js` 为 `122 pass`；`python3 -m unittest discover -s tests -p '*_test.py'` 为 `951 tests OK (skipped=1)`；`git diff --check` 通过。
+- 部署：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功，无 bootstrap/依赖安装/外部下载；部署后 `/health=200`。
+- 远端只读 synthetic smoke：在云服务器用 `systemd-run --wait --pipe --collect -p EnvironmentFile=/etc/wow-backend.env -p Environment=WOW_DATABASE_RUNTIME=postgres_only` 执行同一 Mandur/元素萨形态 `websim_gear_template_chain_state()`，返回 `anchorFailedSpecCount=1`、`verifiedSpecCount=0`、`blockedSpecCount=1`、`fullOptimizerRunRequiredSpecCount=1`，blocker 为 `winnerDps 211177.0 is 12.68% below observed anchor 237956.0`。
+- 线上 guard 与 smoke：触发 `wow-recommended-bis-guard-sync.service` 成功，`Result=success / ExecMainStatus=0`。真实线上当前仍无 recommended winner，`/api/data/health` 显示 `overallStatus=partial`、`recommendedBisGuard.status=blocked`、`expectedSpecCount=40`、`missingSpecCount=40`、`optimizerRequiredSpecCount=40`、`fullOptimizerRunRequiredSpecCount=40`、`anchorFailedSpecCount=0`。40 专精 `/api/websim/gear?compact=1&mode=initial` 巡检 `total=40`、`httpOk=40`、`failures=[]`、`dataStatus.verified=40`、`coveredBaseline=40`、`coveredObserved=27`、`observedStatuses.observed_provisional=16 / observed_partial=11`、`recommendedStatuses.optimizer_blocked=40`、最大单请求约 `0.502s`。
+- 边界：这不是 optimizer 搜索、candidate ledger、pairwise compare 或 verified BiS 产出；它只是把 design 中“推荐低于 observed anchor 不能升级为 verified_bis”的门禁固定到 API/health 读模型入口，防止后续 optimizer 输出绕过真实玩家 anchor 反证。
+
+2026-07-07 22:00 `recommended_bis_v1` projected DPS prototype sync 验收：
+
+- 代码口径：新增 `server/recommended_bis_prototype_sync.py` 和 `wow-recommended-bis-prototype-sync.service`，手动/事件触发，不启用 timer。同步入口只消费 PG read model 的真实社区装备模板与当前 gear catalog 候选池，写 `sourceKey=recommended_bis` projected 模板；不下载、不抓外部 API、不执行 SimC、不入队 full optimizer。`projected_bis` 会显式保留 `candidatePool`、`statPriorPolicy.role=candidate_recall_only`、`simc.status=required`、`highIterationRuns=0`、`pairwiseCompares=0`、`anchorValidation.status=pending` 和 blockers。
+- 修复的线上回归：首次部署后只有 5 个 DPS projected，原因是缺 `verified` talent anchor 的 DPS 被 prototype sync 直接跳过；已改为仍产出 `projected_bis`，把 `missing verified community talent anchor` 写入 evidence blocker，不能 verified。第二个回归是 `recommended_bis` baseline 优先级高于 `season_recommendation` 后挤掉 legacy fallback；已改为 baseline selector 和 admin/live health summary 保留 `recommended_bis + season_recommendation` 两条链，只有缺 season fallback 时才回落 default/simc。
+- 本地验证：新增红灯覆盖缺 talent anchor 仍产出 projected blocker、`recommended_bis` 不挤掉 legacy fallback、live health summary 保留 season fallback。最终 `python3 -m unittest discover -s tests -p '*_test.py'` 为 `958 tests OK (skipped=1)`；`node --test tests/*.test.js` 为 `293 pass`；`python3 -m py_compile server/websim_payload.py server/postgres_cache_store.py server/postgres_cache_sync.py server/season_recommended_gear.py server/news_backend.py server/recommended_bis_prototype_sync.py` 通过；`git diff --check` 通过。
+- 部署与刷新：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功；随后触发 `wow-recommended-bis-prototype-sync.service`、`wow-recommended-bis-guard-sync.service`、`wow-community-best-guard-sync.service` 均 `Result=success / ExecMainStatus=0`。最终 prototype run 为 `scanRunId=recommended-bis-prototype-20260707T135759Z`、`projectedSpecCount=26`、`missingDpsSpecCount=0`、`verifiedSpecCount=0`、`fullOptimizerRunRequiredSpecCount=26`。
+- 线上 health：`/health=200`、`/api/data/health=200`，`overallStatus=partial` 是真实 fail-closed 状态。`recommendedBisGuard` 为 `status=partial expected=40 total=26 missing=14 blocked=14 projected=26 verified=0 optimizerRequired=26 fullOptimizerRunRequired=26 anchorFailed=0`；`templateChains.recommendedBis` 为 `projectedSpecCount=26`、`simcReviewRequiredSpecCount=26`、`pairwiseRequiredSpecCount=26`、`anchorPendingSpecCount=26`、`roleObjectiveBlockedSpecCount=14`；`legacyFallback starterBaselineSpecCount=40`，`seasonRecommendation completeSpecCount=40 provisionalSpecCount=40 verifiedSpecCount=0`，`communityImportTemplates=80/80 missing=0`。
+- 线上 40 专精 smoke：公网 `/api/websim/gear?compact=1&mode=initial` 巡检 `checked=40`、`failureCount=0`、`dataStatus.verified=40`、`recommendedStatuses.projected_bis=26 / role_objective_blocked=14`、`observedStatuses.observed_provisional=16 / observed_partial=11 / observed_blocked=13`、`baselineTemplateCounts.2=26 / 1=14`。代表样本：`shaman:elemental`、`mage:frost`、`deathknight:frost` 均为 `recommendedStatus=projected_bis`、`simcStatus=required`、`anchorStatus=pending`、`fullOptimizerRequired=1` 且 `legacyFallback=1`；`warrior:protection`、`priest:holy`、`evoker:augmentation` 分别为 tank/healer/support `role_objective_blocked`，`fullOptimizerRequired=0`，`legacyFallback=1`。
+- 边界：本轮是 projected DPS prototype 和 control-plane 可见性，不是 `verified_bis`、`candidate_bis`、高迭代 SimC、pairwise compare、observed anchor pass 或 role-specific objective。26 个 DPS 仍必须跑 full optimizer/SimC/pairwise/anchor validation；坦克、治疗、增辉需要单独定义目标函数，不能借 DPS 最大化包装为 BiS。
+
+2026-07-07 22:10 装备合法性 authority evaluator 抽层验收：
+
+- 代码口径：新增 `server/gear_legality.py`，提供 `gear_legality_for_item()` 与 `gear_legality_for_template()`，输出结构化 `status`、`reasons`、`blockedSlots`、`warningSlots`、`ruleVersion=2026-07-07-live-manual-overrides`、`ruleSource=manual_override`。本阶段只把现有 manual override 的职业/专精 weapon rule、职业 armor type 和双手主手占用副手规则收敛到后端 evaluator；不引入 Battle.net/SimC 自动规则生成，不下载外部数据。
+- 接入口径：`apply_gear_template_legality_gate()` 和保存/模拟前的 selected gear blocker 改为消费 evaluator 结果，再映射回旧 blocker 文案，例如 `main_hand gear incompatible with shaman/elemental weapon rule: Two-Handed Mace`、`off_hand gear incompatible with selected two-hand main hand`。新增 armor gate 文案 `head gear incompatible with shaman/elemental armor rule: Cloth`，错误 armor 槽会像非法武器一样被跳过并降级为 partial。
+- 本地验证：TDD 红灯先覆盖缺 `server.gear_legality` 模块、错误 armor 不会被旧 gate 降级；最终 `python3 -m unittest discover -s tests -p '*_test.py'` 为 `963 tests OK (skipped=1)`，`node --test tests/*.test.js` 为 `293 pass`，`python3 -m py_compile server/gear_legality.py server/websim_payload.py` 通过，`git diff --check` 通过。
+- 部署与 guard：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功；部署后手动触发 `wow-community-best-guard-sync.service` 与 `wow-recommended-bis-guard-sync.service`，两者均 `ExecMainStatus=0/SUCCESS`，`/health=200`、`/api/data/health=200`，`community_templates.status=partial` 仍为真实 fail-closed 状态。
+- 远端 evaluator smoke：云服务器直接调用 `gear_legality_for_item("shaman", "elemental", "head", {"armorType": "Cloth"})` 返回 `status=blocked blockedSlots=["head"] reason=armor_type_not_allowed_for_class`；`Fist Weapon` 元素萨主手返回 `status=legal`；`Staff + Held In Off-hand` 模板返回 `status=blocked blockedSlots=["off_hand"] reason=two_hand_main_hand_occupies_offhand`。
+- 线上 40 专精 smoke：公网 `/api/websim/gear?compact=1&mode=initial` 巡检 `checked=40`、`failureCount=0`、`dataStatus.verified=40`、`communityTemplateCounts.1=40`、`baselineTemplateCounts.2=26 / 1=14`。代表样本保持预期：`shaman:elemental` 为 2 个 baseline、1 个 community template，`weaponRule.mainHandTypes` 含 `Dagger / Fist Weapon / One-Handed Axe / One-Handed Mace / Staff`；`shaman:enhancement` 保持双持 1H；`warrior:fury` 保持双持 2H；`priest:holy`、`evoker:augmentation` 仍无 recommended_bis baseline。
+- 边界：这是 legality authority Phase 2 的 evaluator 抽层和读时 gate 收敛，不是 Phase 1 source spike 结论、自动生成 40 专精规则、replacementCandidates 的完整 `legalityStatus/sourceTrust` 标注、template save 全字段校验，也不是 `/api/data/health` 的 `gear_legality_authority` component。后续仍需推进 source map、candidate library 应用、import/save 全门禁和 health/admin audit。
+
+2026-07-07 22:26 `replacementCandidates` candidate legality audit 验收：
+
+- 代码口径：`get_websim_gear()` 的 SQLite 路径和 PG `PostgresCacheStore.get_websim_gear()` 都在候选分组前按请求 `class/spec/slot` 调用 `apply_gear_candidate_legality()`。`blocked` 或旧 `compatibility=incompatible` 的候选不会进入 `replacementCandidates`；full payload 写 `candidateLegalityAudit`，样例按 item/slot/reason/sourceTrust 去重计数；compact payload 继续只保留展示字段，不输出 `legalityReasons` / `sourceTrust`。
+- sourceTrust 口径：当前只做 read model debug/audit 分类，官方 dungeon/raid/tier set 为 `official_current_season`，crafted 为 `crafted_current_season`，真实角色为 `observed_profile`，SimC preset 为 `simc_preset`，source reference 为 `source_reference`，其余为 `unknown`；这不是最终数据权威 source map。
+- 本地回归：新增 `test_websim_gear_candidate_library_reports_legality_audit_for_excluded_items`，覆盖元素萨 SimC preset 中布甲头被排除并进入 audit、合法项链保留 `legalityStatus=legal/sourceTrust=simc_preset`；新增 `test_gear_read_model_attaches_candidate_legality_debug_fields_to_full_payload`，覆盖 PG full payload debug 字段与 compact payload 清洁。最终 `python3 -m unittest discover -s tests -p '*_test.py'` 为 `965 tests OK (skipped=1)`，`node --test tests/*.test.js` 为 `293 pass`，`python3 -m py_compile server/gear_legality.py server/websim_payload.py server/postgres_cache_store.py` 与 `git diff --check` 均通过。
+- 部署与 guard：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 成功；手动触发 `wow-community-best-guard-sync.service` 与 `wow-recommended-bis-guard-sync.service`，两者 `status=0/SUCCESS`。
+- 线上 smoke：`/health=200`；`/api/data/health overallStatus=partial`，gear catalog `3565 verified / 294 partial`；元素萨 full `/api/websim/gear?class=shaman&spec=elemental` 返回 `candidateLegalityAudit.schemaRevision=gear-candidate-legality-audit-v1`，compact `/api/websim/gear?class=shaman&spec=elemental&compact=1&mode=initial` 返回 16 个 slot group、无 `legalityReasons/sourceTrust`。全 40 专精 compact 巡检 `checked=40 failureCount=0 catalogStatus.partial=40`，`recommendedStateCounts.projected=26 / role_objective_blocked=14`。
+- 当前覆盖：`communityImportTemplates=80/80`；`communityObservedGuard expected=40 covered=27 provisional=27 blocked=13 missing=0 simcReplayRequired=27 verified=0`；`recommendedBisGuard expected=40 projected=26 blocked=14 optimizerRequired=26 fullOptimizerRunRequired=26 verified=0`；`recommendedBisPrototype scanRunId=recommended-bis-prototype-20260707T135759Z projected=26 verified=0`。
+- 边界：本轮完成 candidate library 读模型过滤、full payload audit 与 compact 清洁，不是完整 authority source spike、自动生成职业规则、`gear_legality_authority` health component、template save 全字段校验、admin audit 页面或 full `recommended_bis_v1` optimizer。DPS 26 个仍是 `projected_bis` 并需要 full optimizer/SimC/pairwise/anchor validation；14 个坦克/治疗/增辉继续 `role_objective_blocked`，不能包装为 BiS。
+
+2026-07-07 22:45 装备模板 import/save legality gate 验收：
+
+- 代码口径：`parse_simcraft_template_gear_raw()` 的 structured/JSON `gearBySlot` 路径不再因为一个非法槽清空全部 legal items；它会保留合法 `simcItems` 并返回 legality errors。`prepare_simcraft_template_request()` 继续把 errors 放入 `templateValidation`，`analyze_simcraft_template_request()` 因 `templateValidation.errors` 返回 `template_blocked`，因此非法槽不会进入 draft SimC profile 或最终 submit。
+- 保存/list readiness：用户保存的 build template 会通过 `simcraft_template_gear_readiness()` 暴露后端门禁。元素萨 structured snapshot 中布甲头会得到 `parsedSlotCount=15`、`missing gear slots: head` 和 `head gear incompatible with shaman/elemental armor rule: Cloth`，不会被包装成 complete 可执行模板。
+- PG read model：`PostgresCacheStore.get_websim_gear()` 对 `communityTemplates` 与 `baselineTemplates` 统一调用 `apply_gear_template_legality_gate()`；PG direct read model、SQLite/runtime wrapper 与 compact/full API 使用同一 legality gate，非法 baseline/import 模板会降级为 partial 或 blocked。
+- PG-only confirm 修复：生产发现 `/api/simulator/analyze` 在 `WOW_DATABASE_RUNTIME=postgres_only` 下仍进入 SQLite `db_connection()`，导致非法模板 smoke 返回 502。已修复 `prepare_simcraft_template_request()`：PG-only 路径用 `conn=None` 做 talent/gear validation；不能在 PG-only 解析的 native/raw 输入 fail-closed 为 validation blocker，structured import/save 场景返回受控 blocked payload。
+- 本地回归：新增 structured snapshot partial-preserve、PG baseline template gate、user-saved readiness block、PG-only confirm degrade 红灯覆盖。最终 `python3 -m unittest discover -s tests -p '*_test.py'` 为 `969 tests OK (skipped=1)`；`node --test tests/*.test.js` 为 `293 pass`；`python3 -m py_compile server/news_backend.py server/postgres_cache_store.py server/websim_payload.py server/gear_legality.py` 与 `git diff --check` 均通过。
+- 部署与 guard：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功，无 bootstrap/依赖安装/外部下载；部署后 `/health=200`。手动触发 `wow-community-best-guard-sync.service` 与 `wow-recommended-bis-guard-sync.service`，两者均 `Result=success / ExecMainStatus=0`。
+- 线上 smoke：`/health=200`，`/api/data/health overallStatus=partial`。元素萨 compact `/api/websim/gear?class=shaman&spec=elemental&compact=1&mode=initial` 返回 `slotGroups=16`、`gearLegalityBlockers=[]`、无 debug candidate fields。远端非法 gear confirm POST 返回 `httpStatus=200`、`agentStatus=template_blocked`、`canSubmitTask=false`、`simcItemCount=15`、`hasHeadItem=false`，同时包含 missing head 与 armor blocker；重启后 journal 未再出现同类 traceback。
+- 线上 40 专精 smoke：compact 巡检 `expected=40`、`failureCount=0`、`catalogStatus.partial=40`；`communityObservedCounts.observed_simc_replay_required=27 / observed_blocked=13`；`recommendedBisCounts.recommended_projected=26 / recommended_role_objective_blocked=14`；`legacyFallbackCounts.legacy_starter_baseline=40`。
+- 边界：本轮收口 import/save/profile 转换入口和 PG template read model 的 legality gate，不是完整 authority source spike、`gear_legality_authority` health/admin audit、slot detail enhancement contract、full optimizer 或 verified BiS。26 个 DPS 仍为 projected，需要 full optimizer/SimC/pairwise/anchor validation；14 个非 DPS 仍等待 role-specific objective。
+
+2026-07-07 23:05 slot detail enhancement legality cleanup 验收：
+
+- 代码口径：`mode=initial` 继续是轻量首包；强化面板打开时只对已选且缺少完整 `socketOptions`、`enchantOptions`、`embellishmentOptions` 的槽位补拉 `mode=slot`。前端只消费后端 `equippedSet`、`slotReadiness`、`gearLegalityBlockers`，不自行推断武器/附魔/美化合法性。
+- stale cleanup：当 slot detail 返回当前同槽同 itemId 的已选装备为后端 `legalityStatus=blocked` 时，`openGearEnhancementSheet()` 会同步清理 `selectedGearBySlot[slot]`、`enhancementBySlot[slot]` 和 sheet draft，并把后端 blocker 显示到装备槽行与强化面板。`buildGearEnhancementSheet()` 仍是 draft 编辑边界，最终写入仍由 `confirmGearEnhancementSheet()` 完成。
+- 本地验证：新增 `gear enhancement sheet clears stale enhancement when slot detail marks selected gear illegal` 红灯覆盖；本阶段代码完成后全量验证 `python3 -m unittest discover -s tests -p '*_test.py'` 为 `969 tests OK (skipped=1)`，`node --test tests/*.test.js` 为 `294 pass`，`python3 -m py_compile server/news_backend.py server/postgres_cache_store.py server/websim_payload.py server/gear_legality.py` 与 `git diff --check` 通过。部署前复核 `node --test tests/builds-page.test.js --test-name-pattern "gear enhancement sheet clears stale enhancement"` 返回 `111 pass`，`git diff --check` 通过。
+- 部署与 guard：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功，无 bootstrap/依赖安装/外部下载。手动触发 `wow-community-best-guard-sync.service` 与 `wow-recommended-bis-guard-sync.service`，两者均 `Result=success / ExecMainStatus=0`；guard 日志继续把 source-less observed 模板 fail-closed 为 `observed_blocked`。
+- 线上 smoke：`/health=200`，`/api/data/health=200 overallStatus=partial`。元素萨 compact initial 返回 `gearPayloadMode=initial`、`replacementGroups=16`、`heavyCandidateLeakCount=0`、`gearLegalityBlockerCount=0`；`main_hand/off_hand/neck/finger1/legs` slot detail 均 `http=200`、`gearPayloadMode=slot`、`detailMode=complete`，对应 itemCount 为 `15/14/14/12/12`，slot readiness 均 `verified`。
+- 线上 40 专精 smoke：initial compact 巡检 `totalSpecs=40`、`failureCount=0`、`catalogStatus.partial=40`、`dataStatus.verified=40`、`communityTemplateStatus complete=22 / partial=18`、`baselineTemplateStatus complete=66`。代表样本 `shaman:elemental`、`mage:arcane`、`paladin:protection`、`priest:holy`、`evoker:augmentation` 均无 `gearLegalityBlockers`。
+- 边界：本轮只收口 slot detail / enhancement sheet 前端合同，不是 `gear_legality_authority` health/admin audit、authority source map、full optimizer、pairwise compare 或 verified BiS。DPS 26 个仍需要 SimC optimizer / anchor validation；坦克、治疗、增辉仍需要 role-specific objective。
+
+2026-07-07 23:12 `gear_legality_authority` health/admin audit output 验收：
+
+- 代码口径：新增 `gear_legality_authority_health_payload()` 和 `/api/data/health` 独立 component。输出包含 `schemaRevision=gear-legality-authority-health-v1`、`ruleVersion`、`ruleSource`、`sourceAuthorityStatus`、`totalSpecs`、`verifiedSpecs`、`manualOverrideSpecs`、`blockedTemplateCount`、`warningTemplateCount`、`excludedCandidateCount`、`examples` 与 blockers。后台治理总览通过 `ADMIN_GATE_MODULE_LABELS` 显示为“装备合法性权威层”。
+- 规则语义：当前 evaluator 的 `RULE_SOURCE=manual_override`，因此 component 必须是 `partial`，`verifiedSpecs=0`、`manualOverrideSpecs=40`，blocker 为 `gear legality authority uses manual_override rules; verified source authority is missing`。manual override 可以支撑用户侧 fail-closed 运行，但不能被包装成 verified source authority。若 promoted template 带 `legalitySkippedSlots` 或 legality blocker，component 变为 `blocked`；warning-only template 只有超过阈值才使 component partial。
+- 本地回归：新增 PG-only health 红灯，要求 `WOW_DATABASE_RUNTIME=postgres_only` 下不打开 SQLite 也能返回 `gear_legality_authority`；新增 helper 红灯，覆盖 manual override 披露、illegal template 计数和 candidate audit example。`python3 -m unittest tests.news_backend_test tests.websim_payload_test -q` 为 `597 tests OK`。
+- 本地最终验证：`python3 -m unittest discover -s tests -p '*_test.py'` 为 `970 tests OK (skipped=1)`；`node --test tests/*.test.js` 为 `294 pass`；`python3 -m py_compile server/news_backend.py server/postgres_cache_store.py server/websim_payload.py server/gear_legality.py` 与 `git diff --check` 通过。
+- 部署与 guard：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功，无 bootstrap/依赖安装/外部下载。手动触发 `wow-community-best-guard-sync.service` 与 `wow-recommended-bis-guard-sync.service`，两者均 `Result=success / ExecMainStatus=0`。
+- 线上 health smoke：公网 `/health=200`；`/api/data/health=200 overallStatus=partial`，`gear_legality_authority.status=partial`、`ruleSource=manual_override`、`sourceAuthorityStatus=manual_override`、`totalSpecs=40`、`verifiedSpecs=0`、`manualOverrideSpecs=40`、`blockedTemplateCount=0`、`warningTemplateCount=0`、`excludedCandidateCount=0`；`/api/data/health?audit=1=200` 且同样包含该 component。
+- 线上 admin smoke：远端通过 `systemd-run --wait --pipe --collect -p EnvironmentFile=/etc/wow-backend.env -p Environment=WOW_DATABASE_RUNTIME=postgres_only` 调用 `admin_gate_summary_payload()`，返回 `hasModule=true`、`key=gear_legality_authority`、`title=装备合法性权威层`、`status=partial`、`statusLabel=部分通过`，blocker 与 health 一致。
+- 线上 40 专精 smoke：initial compact 巡检 `totalSpecs=40`、`failureCount=0`、`catalogStatus.partial=40`、`dataStatus.verified=40`。代表样本 `shaman:elemental` 为 community partial / baseline complete；`mage:arcane`、`paladin:protection`、`priest:holy`、`evoker:augmentation` 为 community complete / baseline complete；五个代表均无 `gearLegalityBlockers`。
+- 边界：本轮完成 health/admin/audit 输出面，不是完整 Battle.net/SimC source map、自动生成 40 专精规则、专门 admin drilldown 页面、full optimizer、pairwise compare 或 verified BiS。DPS 26 个仍需要 SimC optimizer / anchor validation；坦克、治疗、增辉仍需要 role-specific objective。
+
+2026-07-08 `gear_legality_authority` source map v1 实施口径：
+
+- 代码口径：`gear_legality_authority_health_payload()` 现在内嵌 `sourceMap.schemaRevision=gear-legality-source-map-v1`，并为每个 expected spec 输出 `official`、`simc`、`observed`、`manual_override` source entries。`official` 当前代表 Battle.net / Armory / 官方可装备数据接入位，`simc` 当前代表 SimC profile parser / class module 接入位；二者状态仍为 `missing`，不会给任何 spec 计入 verified。
+- 观测证据语义：Raider.IO observed 只作为 `source=observed,status=supporting,verified=false` 的反例和回归样本。已确认的生存猎 `哈哈丶帅猎猎` 记录了 Crossbow main hand / Dagger off hand；狂徒贼 `Zacrebleu` 记录了 off-hand Dagger，但仓库当前没有该角色 sourceUrl，因此标记 `sourceUrlStatus=pending_backfill`，不伪造链接。线上 health 若传入完整 active `raiderio_observed_profile` admin records，会额外聚合 `sourceUrl/sampleCount=1/profileHash/gearHash/scanRunId/readySlotCount=16` 的动态 observed evidence。
+- authority 结论：`manual_override` 仍是当前实际 gate 规则源，所以 `gear_legality_authority.status=partial`、`verifiedSpecs=0`、`manualOverrideSpecs=40` 不变。observed evidence 不能绕过 backend legality gate，不能把 rule-scoring prototype、`recommended_bis`、`season_recommendation`、`simc_preset` 或 source-less observed 包装成 verified BiS。
+- 后续缺口：要让 `verifiedSpecs` 上升，必须补 Battle.net/Armory 或官方可装备数据的 primary source map，以及 SimC parser/class-module acceptance matrix；manual override 即使被 observed 反证修补，也只能保持 partial。
+- 2026-07-08 线上验收：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功；`wow-community-best-guard-sync.service` 与 `wow-recommended-bis-guard-sync.service` 均 `Result=success / ExecMainStatus=0`。公网 `/health=200`、`/api/data/health=200`，`gear_legality_authority.sourceMap` 为 `expectedSpecCount=40`、`verifiedSpecCount=0`、`manualOverrideSpecCount=40`、`officialVerifiedSpecCount=0`、`simcVerifiedSpecCount=0`、`observedSupportedSpecCount=40`。40 专精公开 `/api/websim/gear?compact=1&mode=initial` 巡检 `checked=40`、`failure=0`、`communityTemplates=1*40`、`baselineTemplates=0*40`、`communitySourceKeys={'raiderio_observed_profile':40}`，没有 `recommended_bis`、`season_recommendation`、`default_template`、`simc_preset` 或 `baseline_blocked` 回流。PG row 汇总显示 active `raiderio_observed_profile complete/synced=40`，均有 `sourceUrl/sampleCount=1/profileHash/gearHash` 且 `readySlotCount=16`；内部 `recommended_bis`、`season_recommendation`、`simc_preset` rows 保留为非公开证据/legacy。
+
+2026-07-08 全职业真实玩家装备模板公开入口收口：
+
+- 产品口径：公开导入入口当前只展示 `community_best_v2` 真实玩家装备模板。`recommended_bis_v1` / 系统评分推荐、`season_recommendation`、`default_template`、`simc_preset` 与 `baseline_blocked` 均不得作为公开主模板或 fallback 被自动塞回 `communityTemplates` / `baselineTemplates`。
+- 后端 read model：`REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY=all_specs` 后，`public_gear_templates_for_spec()` 只允许 active `raiderio_observed_profile`；模板必须具备 `sourceUrl`、角色身份、`sampleCount=1`、`profileHash/gearHash`、`scanRunId/fetchedAt`、16 canonical 槽或合法双手武器占位，并通过 `apply_gear_template_legality_gate()`。`public_baseline_fallback_templates_for_spec()` 对公开入口返回空列表，避免推荐/legacy 占位伪装成“可导入完整模板”。
+- PG 与 sync 防回流：PG 可以保留内部 `recommended_bis`、`season_recommendation`、`simc_preset` rows 供 optimizer、历史基线和调试审计使用，但 `PostgresCacheStore.get_websim_gear()` 的 `mode=initial` 与 full/slot read model 必须在输出前统一走公开过滤。community template sync、season recommendation sync、recommended prototype sync 和 guard sync 重跑后只能更新内部 evidence / health，不得改变公开入口的真实玩家 only 合同。
+- 前端 consumer-only：`pages/builds/detail.js` 只合并后端返回的 `communityTemplates + baselineTemplates`；`applyGearCommunityTemplate()` 继续只应用 `canApplyGear=true` 的后端合法模板，并保留模板内嵌宝石、附魔、美化。前端不重新拼接 `recommended_bis`、`season_recommendation`、本地评分模板或 baseline 占位。
+- 回归验证：本地全量 `python3 -m unittest discover -s tests -p '*_test.py'` 为 `1004 tests OK (skipped=1)`，`node --test tests/*.test.js` 为 `295 pass`，`python3 -m py_compile server/websim_payload.py server/news_backend.py server/gear_legality.py` 与 `git diff --check` 通过。线上 `/health=200`、`/api/data/health=200`；40 专精公开 API `communityTemplates=1*40`、`baselineTemplates=0*40`、`communitySourceKeys={'raiderio_observed_profile':40}`、`failure=0`。PG active observed `complete/synced=40` 且 source/hash/slot 全齐；内部 legacy/recommended rows 未删除，但公开入口不消费。
+
+2026-07-08 `shaman:elemental` 公开导入真实玩家 only 回滚：
+
+- 产品决策：线上小程序复核后，元素萨“系统评分推荐模板”暂不作为用户可导入推荐展示；导入社区入口只保留 `community_best_v2` 真实玩家角色装备，也就是 `听凭风引（元素萨）· 真实高分玩家角色模板`。
+- 角色选举口径 v0：当前元素萨试点是“已确认候选的固定锚点”，不是自动日更 election job。候选发现从 Raider.IO `shaman/elemental` 专精榜和高层 M+ 记录开始；硬门槛是角色身份明确（region/realm/character）、`sourceUrl` 可打开、当前装备快照可采集、`sampleCount=1`、写入 `profileHash/gearHash`、16 个 canonical 槽位完整或双手武器正确占用副手、宝石/附魔/美化可随装备快照保留、并通过后端 legality gate。排序口径先按 Raider.IO 当前专精分数/排名与高层记录选择代表样本；在 WCL/Archon/SimC replay 证据接入前只能说明“高分玩家样本”，不能声称“DPS 最高”。本轮绑定 `听凭风引`，原因是其作为元素萨高分榜候选满足上述硬门槛，并有可复查的 Raider.IO profile、排名/分数 evidence、完整装备与合法性校验。
+- 未来自动选举边界：后续若要每天按分数、DPS、完整度重新选举，必须新增独立 election job，把候选列表、winner reason、rejected/blocker、gearHash/profileHash diff、切换记录和 stale winner 保守保留写入 PG / sync state；不能让普通 community sync 直接静默替换 active winner。
+- 当前数据事实：active observed row 是 `cache.websim_community_gear_templates.id=observed_profile_shaman_elemental`，来源为 Raider.IO 角色 `https://raider.io/characters/cn/sylvanas/听凭风引`，`sampleCount=1`，`profileHash/gearHash` 存在，`readySlotCount=16`，`templateEvidence.status=observed_verified`。这个 row 是公开导入的唯一事实样本。
+- 数据入口与防回流：`PostgresCacheStore.cleanup_real_player_gear_template_pilot_residue()` 只对 `REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS={('shaman','elemental')}` 生效，清理元素萨 legacy baseline rows、重复 observed/recommended rows、非 `听凭风引` profile 的 observed variants，并规范化 observed 名称/sourceName。`sync_community_template_cache_postgres()`、`sync_season_recommended_gear_postgres()`、`sync_recommended_bis_prototype_postgres()` 写入后都会调用该 cleanup，并把结果写到 `realPlayerTemplateCleanup`，防止定时 sync 又把 `season_recommendation`、旧 `simc_preset` 或多条 projected 产物带回元素萨公开入口。
+- 后端公开过滤：`public_gear_templates_for_spec()` 对 `shaman:elemental` pilot 只允许 active `raiderio_observed_profile`；`recommended_bis`、`season_recommendation`、`default_template`、`simc_preset`、`baseline_blocked` 和 source-less observed 都不进入公开模板列表。`public_baseline_fallback_templates_for_spec()` 允许该 pilot 的公开 baseline 为空，避免隐藏 `recommended_bis` 后又自动补一个 blocked baseline 占位。
+- PG/runtime 读模型：`PostgresCacheStore.get_websim_gear()` 的 `mode=initial` 与 full/slot read model 使用同一公开过滤口径，再统一走 `apply_gear_template_legality_gate()`。元素萨公开 API 预期为 `communityTemplates.sourceKey == ['raiderio_observed_profile']`、`baselineTemplates == []`，公开 `communityTemplateSync.templateChains.recommendedBis.totalSpecCount == 0`、`legacyFallback.totalSpecCount == 0`。如果 active observed 缺 source、缺 hash、缺槽或被 legality gate 阻断，就只能降级/不可导入，不能用系统推荐或 legacy baseline 填补成“看起来完整”的公开推荐。
+- API 到前端合同：小程序 `pages/builds/detail.js` 的 `gearCommunityTemplatesForPayload(payload)` 只把 `payload.communityTemplates + payload.baselineTemplates` 合并、按 id 去重并装饰展示字段；前端不再额外判断“系统评分推荐是否可展示”。因此后端返回 `baselineTemplates=[]` 后，`activeGearCommunityTemplates` 天然只剩真实玩家模板。
+- 前端展示与应用：`pages/builds/detail.wxml` 的“装备模板 / 导入 / 社区推荐”区域展示 `activeGearCommunityTemplates.length` 和每张卡的 `displayName`、`displaySourceName`、`slotCoverageLabel`、`statusLabel`、`missingSlotLabel`、`actionLabel`。`applyGearCommunityTemplate()` 只允许 `template.canApplyGear=true` 的模板应用；应用时从 `communityTemplateBaseGearSelection()` 生成装备选择，读取模板内嵌宝石/附魔/美化，经 `repairedGearSelectionForSkippedWeapons()` 与 `prunedEnhancementBySlot()` 按后端 weapon rule/slot rule 清理后写入页面状态。前端只消费后端事实与门禁，不把 `recommended_bis`、`season_recommendation` 或本地评分结果重新拼成公开模板。
+- 内部证据边界：PG 中 `recommended_bis_v1` row、enhancement pilot、manual SimC evidence、pairwise/anchor blockers 可以保留给后续优化，但不得通过小程序导入入口展示，也不得包装成 `verified_bis`。后续只有在候选策略、UI 标签、pairwise compare、observed anchor validation 和用户验收通过后，才能重新开放系统评分推荐入口。
+- 回归要求：至少覆盖 helper 过滤与 PG initial payload 两层，防止定时 sync、prototype 重跑或 fallback 占位把 `recommended_bis` / legacy baseline 再带回元素萨公开导入列表。
+- 2026-07-08 线上验收：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功；`wow-community-best-guard-sync.service` 与 `wow-recommended-bis-guard-sync.service` 均 `Result=success / ExecMainStatus=0`。公网 `/health=200`、`/api/data/health overallStatus=partial`、`community_templates.status=partial`；元素萨 initial API `dataStatus=verified`、`communityTemplates=[observed_profile_shaman_elemental / raiderio_observed_profile / complete / readySlotCount=16]`、`baselineTemplates=[]`、`templateChains.recommendedBis.totalSpecCount=0`、`legacyFallback.totalSpecCount=0`。PG 仍有内部 `recommended_bis_shaman_elemental_179f9a4c75e89ebf` row，`templateStatus=projected_bis`、`simc.status=passed`、`highIterationRuns=1`、`pairwiseCompares=0`、`anchorValidation.status=pending`，但不进入公开导入列表。
+
+2026-07-08 元素萨已确认决策与全职业推广前清单：
+
+- 作用域：当前所有实现、清理、线上验收只确认 `shaman:elemental`。迁移到全职业/全专精前必须先把 pilot allowlist、数据入口、cleanup、health 和前端展示策略显式参数化，不能把元素萨临时代码路径直接复制成全职业默认行为。
+- 公开产品口径：元素萨公开导入当前只保留一条 `community_best_v2` 真实玩家装备模板；`recommended_bis_v1` / “系统评分推荐”先从小程序公开入口移除，保留为内部证据和后续研发对象。后续系统评分推荐重新上线前，需要重新做候选策略、标签表达、pairwise compare、observed anchor validation、SimC evidence 和用户验收。
+- 双链路语义：`community_best_v2` 是真实角色快照链，回答“高分真实玩家当前穿了什么”；`recommended_bis_v1` 是毕业推荐/optimizer 链，回答“系统在给定场景和证据下推荐什么”。两者不能混成同一模板，也不能用真实玩家样本冒充毕业推荐。
+- legacy 边界：`season_recommendation` 只允许作为 legacy / provisional fallback 或历史基线，不得再作为毕业推荐主语义，不得被前端或 sync 回流包装成当前推荐模板。
+- 真实玩家 winner 门禁：active observed 必须绑定明确 `region/realm/character`、`sourceUrl`、`sampleCount=1`、`profileHash/gearHash`、`fetchedAt/scanRunId`、16 个 canonical 槽或合法双手武器占位，并保留真实快照中的宝石、附魔、美化。Raider.IO 角色页面实际已装备的物品组合是修正本地 weapon/armor 规则的重要证据：如果真实快照可追溯且能稳定采集，优先补全 `SPEC_WEAPON_EQUIPMENT_RULES` / legality authority 的可装备集合，而不是给 observed 模板开绕过 gate 的特权。source-less、`sampleCount=0`、缺 `profileHash/gearHash`、缺槽、非 observed、不可追溯或补全规则后仍被 legality gate 阻断的 observed 都不能成为 active seed。
+- 角色选举 v0：当前 `听凭风引` 是已确认的固定试点锚点，依据是 Raider.IO 元素萨专精榜/高层 M+ 分数排名、装备完整度、source/hash 证据和后端合法性门禁；在 WCL/Archon/SimC replay 证据接入前，只能称“高分玩家样本”，不能称“DPS 最高”。
+- 后续 election job：全职业推广前应新增独立真实玩家选举 job，按 Raider.IO 分数/排名、DPS 证据、装备完整度、宝石/附魔/美化完整度、合法性、hash diff、stale winner 窗口和人工 override 产出候选 ledger、winner reason、rejected/blocker 和切换记录。普通 community sync 不得静默替换 winner。
+- 后端 ownership：模板合法性、source/hash 门禁、宝石/附魔/美化解析、slot/weapon rule、cleanup、防回流和 PG/API read model 都由后端负责；前端只消费 `communityTemplates + baselineTemplates` 和 `canApplyGear`，不重新拼接 `recommended_bis`、`season_recommendation`、本地评分结果或 source-less row。
+- 污染清理：定时 sync、season recommendation sync、recommended prototype sync 重跑后都必须继续防止旧 `season_recommendation`、`simc_preset`、`default_template`、`baseline_blocked`、多条 projected row、非目标真实角色 variants 或 source-less observed 回到元素萨公开导入列表。迁移全职业时需要先定义 per-spec cleanup 策略和保留/删除清单。
+- `recommended_bis` 认证门槛：`projected_bis` 可以作为内部研发状态；只有 `simc.status=passed`、高迭代结果可追溯、pairwise compare passed、observed anchor validation passed、talent anchor active/verified 且 blockers 清空后，才允许升级 `verified_bis`。规则评分 prototype、人工对比或单次 SimC 胜出都不足以单独证明 verified。
+- 非 DPS 边界：坦克、治疗、增辉不能直接套 DPS 最大化推荐口径。全职业推广时 DPS 可以先沿用 DPS optimizer/SimC 目标，非 DPS 需要独立 role objective 或明确保持 provisional / blocked。
+- 回归与发布 gate：推广前每个 spec 至少要覆盖 source-less observed 拦截、Raider.IO observed 暴露的可装备组合已补入后端 weapon/armor rule、完整 observed 仍必须通过 legality gate、非 observed 或不可追溯非法武器/护甲组合不能 complete、`projected_bis` 不可 verified、`season_recommendation` 只能 legacy fallback、公开列表只显示允许链路、宝石/附魔/美化可随真实模板导入、PG/API/frontend 三层一致。部署后必须做线上 API、PG row、health/templateChains 和小程序导入 smoke，不能为了 health 变绿降低 fail-closed 标准。
+
+2026-07-08 `shaman:elemental` 真实玩家角色模板试点收口：
+
+- 历史边界：本节记录当时“真实玩家 + 系统评分推荐”双模板试点的清理与验收；当前公开导入口径已被上一节覆盖为“只展示真实玩家装备”。本节中的 cleanup、source-less observed 拦截、真实角色 source/hash/variant 约束仍然有效。
+- 公开读模型：元素萨分析页先固定为两条模板：`community_best_v2` 真实高分玩家角色模板，以及 `recommended_bis_v1` 系统评分推荐模板。`season_recommendation`、`default_template`、`simc_preset` 和 source-less observed 不再进入元素萨公开导入列表；`recommended_bis` 在 SimC high-iteration、pairwise compare 和 observed anchor validation 通过前只能保持 `projected_bis`。
+- 代码入口：`public_gear_templates_for_spec()` 只对 `shaman:elemental` pilot 生效；PG `mode=initial` 和 full/slot read model 都使用同一公开模板过滤和 `apply_gear_template_legality_gate()`。`build_season_recommended_gear_templates()` 对元素萨直接跳过，防止 `wow-season-recommended-gear-sync.service` 再生成元素萨 legacy baseline。
+- 数据清理入口：`PostgresCacheStore.cleanup_real_player_gear_template_pilot_residue()` 删除元素萨 legacy baseline rows、重复 observed/recommended_bis rows，以及非 `听凭风引` profile 的元素萨 observed variants；同时规范化两个保留 row 的 `name/sourceName`，并从 active observed row 回填缺失 observed variants，避免后续重建因 variant 表少槽而把真实角色模板降级。`sync_community_template_cache_postgres()`、`sync_season_recommended_gear_postgres()`、`sync_recommended_bis_prototype_postgres()` 都会在写入后调用该清理入口，并把结果写入 sync payload 的 `realPlayerTemplateCleanup`。
+- 推荐状态边界：元素萨 `recommended_bis_v1` 可以显示“系统评分推荐模板”，但 evidence 中必须继续保留 `simc.status=required`、`highIterationRuns=0`、`pairwiseCompares=0`、`anchorValidation.status=pending` 和 blockers；只有 `simc passed + pairwise passed + anchorValidation passed` 后才允许升级 `verified_bis`。
+- 验证口径：元素萨线上 PG/API smoke 必须同时检查 `communityTemplates.sourceKey == ['raiderio_observed_profile']`、`baselineTemplates.sourceKey == ['recommended_bis']`、`communityTemplateSync.templateChains.legacyFallback.totalSpecCount == 0`、PG `cache.websim_community_gear_templates` 只剩 `raiderio_observed_profile/recommended_bis` 两类 source、PG observed variants 只保留 `听凭风引` profile。`/api/data/health` 仍可保持 `overallStatus=partial`，不能为了页面两条模板而隐藏 optimizer/anchor blockers。
+- 2026-07-08 线上验收：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功；`cleanup_real_player_gear_template_pilot_residue(scanRunId=manual-elemental-real-player-variant-backfill)` 返回 `observedVariantRowsBackfilled=2`，补回 `neck/trinket2` observed variants；两个 guard service 均 `Result=success / ExecMainStatus=0`。最终 smoke `/health=200`、`/api/data/health overallStatus=partial`、元素萨 initial `dataStatus=verified`；公开 API 只返回 `communityTemplates=['听凭风引（元素萨）· 真实高分玩家角色模板']` 和 `baselineTemplates=['元素萨 · 系统评分推荐模板（待 SimC 验证）']`，`legacyFallback.totalSpecCount=0`。PG 只剩两条模板：`observed_profile_shaman_elemental` 为 `sourceUrl=https://raider.io/characters/cn/sylvanas/听凭风引`、`sampleCount=1`、`profileHash/gearHash` 存在、`readySlotCount=16`；`recommended_bis_shaman_elemental_527d50619d5fb7e3` 为 `projected_bis`、`simc.status=required`、`highIterationRuns=0`、`pairwiseCompares=0`、`anchorValidation.status=pending`、`verifiedSpecCount=0`、`fullOptimizerRunRequiredSpecCount=1`。PG observed variants 为 16 槽、无缺槽，角色和 profile URL 只指向 `听凭风引`。
+- 推广边界：本节只覆盖 `shaman:elemental`。元素萨确认 OK 后，再把 policy 扩展为可配置 spec allowlist 或全 DPS 策略；不要在未验证前改全职业 `season_recommendation` 生成口径。
+
+2026-07-08 `shaman:elemental` 系统评分推荐模板增强项 pilot：
+
+- 代码口径：`build_recommended_bis_prototype_templates()` 只对 `shaman:elemental` 调用 enhancement pilot。评分候选仍来自 PG catalog 和 `season-rec-score-v1`；增强项以 active `community_best_v2` 真实角色模板为锚点，同 itemId 复制缺失 `bonus_id/gem_id/gem_bonus_id/gem_ilevel/enchant_id/crafted_stats/embellishment`，不同 item 只复制同槽 `enchant_id`。当系统评分推荐少于 observed anchor 的美化槽数时，允许用 observed 的同槽美化装备替换评分候选，但必须再过后端 legality gate。
+- Evidence：`templateEvidence.enhancementOptimization` 必须记录 `status=pilot_applied`、anchor template/sourceUrl/profileHash/gearHash、`copiedFields`、`slotReplacements`、observed/selected embellishment slots；同时追加 blocker `recommended_bis enhancement optimization still requires SimC validation`。该 blocker 不允许被 UI 或 health 隐藏。
+- 线上数据：写库前备份 `/opt/wow-mini-program/.codex-backups/20260708T052235Z-elemental-recommended-bis-enhancement-pilot-backup.json`；热部署后重跑 `wow-recommended-bis-prototype-sync.service`，当前推荐 row 为 `recommended_bis_shaman_elemental_7f3418ed18692093` / `scanRunId=recommended-bis-prototype-20260708T052240Z`，rawString 已包含头部宝石/附魔、肩/胸/腿/戒指附魔，以及披风 + 护腕两件 `arcanoweave_lining`。
+- SimC 对比：云上用 SimC `1205-01`、`HecticAddCleave` 5 目标、`10000` iterations、同一套最新可用但已过期的 Sugarsm/Farseer 天赋行对比，听凭风引真实装备 `187783.46 DPS`，增强后的系统评分推荐 `188418.99 DPS`，推荐高 `+635.54 DPS / +0.34%`。该结果只作为人工对比证据；因为天赋锚点已过期，不能写成 active verified anchor。
+- 线上 API：元素萨公开 gear API 仍只展示两条模板：`raiderio_observed_profile` 和 `recommended_bis`。`communityTemplateSync.templateChains.recommendedBis` 为 `projectedSpecCount=1`、`verifiedSpecCount=0`、`fullOptimizerRunRequiredSpecCount=1`，并保留 `high-iteration SimC compare has not run`、`pairwise gear compare has not run`、`observed anchor validation is pending`、`missing verified community talent anchor` 和 enhancement SimC blocker。
+- 推广边界：本节只覆盖 `shaman:elemental`。在 full optimizer、pairwise compare、active verified talent anchor 和 observed anchor validation 写回前，不能把它升级为 `verified_bis`，也不能迁移到全职业。
+
+2026-07-08 `shaman:elemental` 人工 SimC evidence 写回：
+
+- 代码口径：`cache.websim_sync_state.id=recommended_bis_v1_simc_evidence` 是 `recommended_bis_v1` 的持久 evidence overlay。`build_recommended_bis_prototype_templates()` 重跑时先生成 projected 模板，再按 spec/template 匹配 overlay；匹配成功时把 `manual_cloud_simc_compare` 写入 `templateEvidence.simc.manualCompare`，并把 `simc.status` 设为 `passed`、`highIterationRuns=1`。`build_recommended_bis_gear_template()` 只有在 `simc.status != passed` 时才补 `high-iteration SimC compare has not run` blocker。
+- 线上数据：写库前备份 `/opt/wow-mini-program/.codex-backups/20260708T054628Z-elemental-recommended-bis-simc-evidence-backup.json`；写入 overlay 后重跑 `wow-recommended-bis-prototype-sync.service`，当前推荐 row 为 `recommended_bis_shaman_elemental_179f9a4c75e89ebf` / `scanRunId=recommended-bis-prototype-20260708T054637Z`。
+- Evidence：PG row 当前为 `templateStatus=projected_bis`、`simc.status=passed`、`highIterationRuns=1`、`winnerDps=188418.99492534876`、`manualCompare.deltaPctVsObserved=0.3384418331016453`、`manualCompare.talentAnchorStatus=stale`、`pairwiseCompares=0`、`anchorValidation.status=pending`、`enhancementOptimization.status=pilot_applied`。
+- 线上 API：元素萨 `recommendedBis.simcReviewRequiredSpecCount=0`，但 `pairwiseRequiredSpecCount=1`、`anchorPendingSpecCount=1`、`verifiedSpecCount=0`、`fullOptimizerRunRequiredSpecCount=1`。blockers 只剩 `missing verified community talent anchor`、`pairwise gear compare has not run`、`observed anchor validation is pending`。
+- 推广边界：这一步只表示已认可的人工 10k SimC 对比进入证据链，不代表 full optimizer 完成。天赋锚点仍是 stale，pairwise 与 observed anchor validation 未完成，所以不能升 `verified_bis`，也不能迁移到全职业。
 
 ### 默认装备模板生成门禁
 
@@ -501,7 +733,7 @@ curl -fsS "$BASE_URL/api/data/health"
 
 ## 生产更新快路径
 
-下一次大版本更新按以下顺序执行。生产 SSH、远端 DB 写入、下载/刷新外部数据前先请求 owner 明确批准。
+下一次大版本更新按以下顺序执行。生产 SSH、远端 DB 写入、下载/刷新外部数据前先请求 owner 明确批准。已知云服务器上的 SimC runtime 更新按仓库 Cloud Deployment Approval 例外处理：用户明确要求处理 SimC 更新、WebSim/SimC readiness、赛季切换阻塞，或已授权 health follow-up 自动处理 SimC runtime 时可直接执行。
 
 ### A. 准备
 
@@ -509,7 +741,7 @@ curl -fsS "$BASE_URL/api/data/health"
 - 确认当前 git 状态，保留无关用户改动。
 - 确认版本范围：赛季、实例、团本、套装、制造业、强化项、职业规则。
 - 列出需要刷新或新增的上游证据源。
-- 如果需要下载或远端数据刷新，先拿批准。
+- 如果需要下载或远端数据刷新，先拿批准；已知云服务器上的 SimC runtime 更新属于上述例外，health follow-up 可在报告 `updateAvailable=true` 时自动触发，但仍需记录下载源、commit、构建结果、切换路径和 smoke 证据。
 
 ### B. 本地/只读审计
 

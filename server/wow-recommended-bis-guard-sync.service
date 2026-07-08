@@ -1,0 +1,13 @@
+[Unit]
+Description=WOW recommended_bis_v1 readiness guard sync
+After=network-online.target wow-backend.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/wow-mini-program
+EnvironmentFile=-/etc/wow-backend.env
+Environment=WOW_DATABASE_RUNTIME=postgres_only
+ExecStart=/usr/bin/flock -w 900 /run/lock/wow-mini-program-bis-guard.lock /usr/bin/python3 /opt/wow-mini-program/server/recommended_bis_guard_sync.py
+TimeoutStartSec=5min

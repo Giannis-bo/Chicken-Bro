@@ -73,6 +73,7 @@ try:
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
         ARMOR_SLOTS,
+        apply_gear_template_legality_gate,
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
@@ -82,6 +83,7 @@ try:
         enrich_build_gear_payload,
         ensure_websim_tables,
         gear_catalog_health_payload,
+        gear_legality_authority_health_payload,
         GAME_CLASS_ID_TO_KEY,
         GEAR_SLOT_LABELS,
         talent_catalog_health_payload,
@@ -97,12 +99,14 @@ try:
         get_active_season_payload,
         import_talent_api_payload,
         websim_talent_import_response,
+        websim_gear_community_template_sync_state,
         item_type_metadata_from_payload,
         normalized_armor_subclass,
         encode_websim_talents,
         parse_websim_talent_export_code,
         payload_item_class_is_armor,
         payload_playable_class_keys,
+        selected_gear_weapon_rule_blockers,
         simcraft_known_compatibility_blockers,
         SIMC_GEAR_OPTION_KEYS,
         template_evidence_audit_payload,
@@ -164,6 +168,7 @@ except ImportError:
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
         ARMOR_SLOTS,
+        apply_gear_template_legality_gate,
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
@@ -173,6 +178,7 @@ except ImportError:
         enrich_build_gear_payload,
         ensure_websim_tables,
         gear_catalog_health_payload,
+        gear_legality_authority_health_payload,
         GAME_CLASS_ID_TO_KEY,
         GEAR_SLOT_LABELS,
         talent_catalog_health_payload,
@@ -188,12 +194,14 @@ except ImportError:
         get_active_season_payload,
         import_talent_api_payload,
         websim_talent_import_response,
+        websim_gear_community_template_sync_state,
         item_type_metadata_from_payload,
         normalized_armor_subclass,
         encode_websim_talents,
         parse_websim_talent_export_code,
         payload_item_class_is_armor,
         payload_playable_class_keys,
+        selected_gear_weapon_rule_blockers,
         simcraft_known_compatibility_blockers,
         SIMC_GEAR_OPTION_KEYS,
         template_evidence_audit_payload,
@@ -1278,6 +1286,10 @@ def collector_process_limit():
     return max(1, min(5, int_env("WOW_NEWS_PROCESS_LIMIT", 5)))
 
 
+def news_retry_max_attempts():
+    return max(1, int_env("WOW_NEWS_RETRY_MAX_ATTEMPTS", 3))
+
+
 def parse_iso_datetime(value):
     try:
         parsed = datetime.fromisoformat((value or "").replace("Z", "+00:00"))
@@ -1376,7 +1388,7 @@ def mark_queue_article(conn, article, status, error="", processed_at=None, incre
 def load_queued_articles(conn, limit):
     rows = conn.execute(
         """
-        SELECT payload_json
+        SELECT payload_json, attempts, last_error
         FROM news_discovery_queue
         WHERE status IN ('queued', 'retryable')
         ORDER BY published_at DESC, rowid ASC
@@ -1388,8 +1400,26 @@ def load_queued_articles(conn, limit):
     for row in rows:
         article = safe_json_loads(row[0], {}, "news discovery queue payload")
         if article:
+            article["_queueAttempts"] = int(row[1] or 0)
+            article["_queueLastError"] = row[2] or ""
             articles.append(article)
     return articles
+
+
+def queue_retry_limit_error(article):
+    try:
+        attempts = int(article.get("_queueAttempts") or 0)
+    except (TypeError, ValueError):
+        attempts = 0
+    if attempts < news_retry_max_attempts():
+        return ""
+    reason = (
+        str(article.get("_queueLastError") or "").strip()
+        or str(article.get("blockedReason") or "").strip()
+        or str(article.get("verificationStatus") or "").strip()
+        or "retryable"
+    )
+    return reason if reason.startswith("retry_limit_exceeded:") else f"retry_limit_exceeded:{reason}"
 
 
 def queue_status_for_reviewed_article(article):
@@ -1397,6 +1427,12 @@ def queue_status_for_reviewed_article(article):
         return "published", ""
     reason = article.get("blockedReason") or article.get("verificationStatus") or "invalid_article"
     if article.get("sourceTier") == "official" and reason in RETRYABLE_NEWS_BLOCK_REASONS:
+        try:
+            attempts = int(article.get("_queueAttempts") or 0)
+        except (TypeError, ValueError):
+            attempts = 0
+        if attempts + 1 >= news_retry_max_attempts():
+            return "blocked", f"retry_limit_exceeded:{reason}"
         return "retryable", reason
     return "blocked", reason
 
@@ -1620,11 +1656,24 @@ def audit_existing_public_articles(conn):
     return blocked
 
 
-def refresh_articles(refresh_mode, collector_enabled=None):
+def _bounded_news_process_limit(value):
+    try:
+        return max(1, min(5, int(value)))
+    except (TypeError, ValueError):
+        return collector_process_limit()
+
+
+def refresh_articles(
+    refresh_mode,
+    collector_enabled=None,
+    seed_enabled=True,
+    queue_enabled=None,
+    process_limit_override=None,
+):
     store = content_data_store()
     if not store:
         init_db()
-    seed_articles = load_seed_articles()
+    seed_articles = load_seed_articles() if seed_enabled else []
     collected_articles = []
     discovered_articles = []
     duplicate_seed_articles = []
@@ -1632,8 +1681,9 @@ def refresh_articles(refresh_mode, collector_enabled=None):
     skipped_seed_duplicate_count = 0
     collector_errors = []
     collector_limit = collector_discovery_limit()
-    process_limit = collector_process_limit()
+    process_limit = _bounded_news_process_limit(process_limit_override) if process_limit_override is not None else collector_process_limit()
     should_collect = ENABLE_COLLECTORS if collector_enabled is None else bool(collector_enabled)
+    should_process_queue = should_collect if queue_enabled is None else bool(queue_enabled)
     if should_collect and collector_limit > 0:
         collected_articles, collector_errors = collect_feed_articles(FEED_SOURCES, max_articles_per_source=collector_limit)
         discovered_articles = list(collected_articles)
@@ -1659,21 +1709,30 @@ def refresh_articles(refresh_mode, collector_enabled=None):
             store.enqueue_discovered_articles(discovered_articles, refreshed_at)
             for article in duplicate_seed_articles:
                 store.mark_queue_article(article, "blocked", "duplicate_seed_source_translation", refreshed_at, increment_attempts=False)
-        queued_articles = store.load_queued_articles(process_limit) if should_collect else []
+        queued_articles = store.load_queued_articles(process_limit) if should_process_queue else []
     else:
         with db_connection() as conn:
             if should_collect and discovered_collected_count:
                 enqueue_discovered_articles(conn, discovered_articles, refreshed_at)
                 for article in duplicate_seed_articles:
                     mark_queue_article(conn, article, "blocked", "duplicate_seed_source_translation", refreshed_at, increment_attempts=False)
-            queued_articles = load_queued_articles(conn, process_limit) if should_collect else []
+            queued_articles = load_queued_articles(conn, process_limit) if should_process_queue else []
 
     accepted = []
     blocked = []
     processed = []
     rejected = 0
     for article in merge_articles(seed_articles, queued_articles):
-        if article.get("contentStatus") == "ready":
+        retry_limit_error = queue_retry_limit_error(article) if should_process_queue else ""
+        if retry_limit_error:
+            localized_article = dict(
+                article,
+                contentStatus="blocked",
+                blockedReason=retry_limit_error,
+                verificationStatus=retry_limit_error,
+                _queueRetryLimitPreempted=True,
+            )
+        elif article.get("contentStatus") == "ready":
             localized_article = article
         elif should_request_public_translation(article):
             source_issue = source_body_quality_issue(article)
@@ -1709,14 +1768,20 @@ def refresh_articles(refresh_mode, collector_enabled=None):
         for article in processed:
             store.persist_news_raw_article(article, refreshed_at)
             store.persist_news_evidence(article, refreshed_at)
-            if should_collect and article.get("id"):
+            if should_process_queue and article.get("id"):
                 queue_status, queue_error = queue_status_for_reviewed_article(article)
-                store.mark_queue_article(article, queue_status, queue_error, refreshed_at)
+                store.mark_queue_article(
+                    article,
+                    queue_status,
+                    queue_error,
+                    refreshed_at,
+                    increment_attempts=not article.get("_queueRetryLimitPreempted"),
+                )
         for article in accepted:
             store.save_public_article(article, refreshed_at)
-        if accepted_ids and not should_collect:
+        if accepted_ids and not should_collect and seed_enabled:
             store.delete_public_articles_not_in(accepted_ids)
-        audited_blocked = store.audit_existing_public_articles(public_body_quality_issue)
+        audited_blocked = store.audit_existing_public_articles(public_body_quality_issue) if seed_enabled else []
         if audited_blocked:
             blocked.extend(audited_blocked)
             rejected += len(audited_blocked)
@@ -1729,6 +1794,8 @@ def refresh_articles(refresh_mode, collector_enabled=None):
             {
                 "seedCount": len(seed_articles),
                 "collectorEnabled": should_collect,
+                "seedEnabled": bool(seed_enabled),
+                "queueEnabled": bool(should_process_queue),
                 "collectorLimit": collector_limit,
                 "discoveryLimit": collector_limit,
                 "processLimit": process_limit,
@@ -1759,9 +1826,16 @@ def refresh_articles(refresh_mode, collector_enabled=None):
         for article in processed:
             persist_news_raw_article(conn, article, refreshed_at)
             persist_news_evidence(conn, article, refreshed_at)
-            if should_collect and article.get("id"):
+            if should_process_queue and article.get("id"):
                 queue_status, queue_error = queue_status_for_reviewed_article(article)
-                mark_queue_article(conn, article, queue_status, queue_error, refreshed_at)
+                mark_queue_article(
+                    conn,
+                    article,
+                    queue_status,
+                    queue_error,
+                    refreshed_at,
+                    increment_attempts=not article.get("_queueRetryLimitPreempted"),
+                )
         for article in accepted:
             conn.execute(
                 """
@@ -1836,10 +1910,10 @@ def refresh_articles(refresh_mode, collector_enabled=None):
                     refreshed_at,
                 ),
             )
-        if accepted_ids and not should_collect:
+        if accepted_ids and not should_collect and seed_enabled:
             placeholders = ",".join("?" for _ in accepted_ids)
             conn.execute(f"DELETE FROM news_articles WHERE id NOT IN ({placeholders})", accepted_ids)
-        audited_blocked = audit_existing_public_articles(conn)
+        audited_blocked = audit_existing_public_articles(conn) if seed_enabled else []
         if audited_blocked:
             blocked.extend(audited_blocked)
             rejected += len(audited_blocked)
@@ -1858,6 +1932,8 @@ def refresh_articles(refresh_mode, collector_enabled=None):
                     {
                         "seedCount": len(seed_articles),
                         "collectorEnabled": should_collect,
+                        "seedEnabled": bool(seed_enabled),
+                        "queueEnabled": bool(should_process_queue),
                         "collectorLimit": collector_limit,
                         "discoveryLimit": collector_limit,
                         "processLimit": process_limit,
@@ -1959,6 +2035,8 @@ def latest_refresh_run_payload():
         "acceptedCount": row[2],
         "rejectedCount": row[3],
         "collectorEnabled": bool(message.get("collectorEnabled")),
+        "seedEnabled": bool(message.get("seedEnabled", True)),
+        "queueEnabled": bool(message.get("queueEnabled", message.get("collectorEnabled"))),
         "collectorLimit": int(message.get("collectorLimit", 0) or 0),
         "discoveryLimit": int(message.get("discoveryLimit", message.get("collectorLimit", 0)) or 0),
         "processLimit": int(message.get("processLimit", 0) or 0),
@@ -2024,6 +2102,7 @@ ADMIN_GATE_MODULE_LABELS = {
     "websim_season": "WebSim 当前赛季",
     "websim_sync": "WebSim 同步状态",
     "gear_catalog": "权威装备库",
+    "gear_legality_authority": "装备合法性权威层",
     "talent_catalog": "权威天赋库",
     "template_simc_bridge": "模板到 SimC 桥接",
     "community_templates": "社区天赋与装备模板",
@@ -2147,6 +2226,36 @@ def data_health_component(key, title, status, *, checked_at="", details=None, bl
         "details": sanitize_health_value(details or {}),
         "blockers": sanitized_blockers,
     }
+
+
+def gear_legality_template_records_from_cache_store(cache_store):
+    if not cache_store or not hasattr(cache_store, "admin_gate_gear_template_records"):
+        return []
+    try:
+        payload = cache_store.admin_gate_gear_template_records()
+    except Exception:
+        return []
+    if not isinstance(payload, dict):
+        return []
+    return [
+        template for template in (payload.get("communityGearTemplates") or [])
+        if isinstance(template, dict)
+    ]
+
+
+def gear_legality_authority_health_component(*, candidate_legality_audits=None, templates=None):
+    payload = gear_legality_authority_health_payload(
+        candidate_legality_audits=candidate_legality_audits or [],
+        templates=templates or [],
+    )
+    return data_health_component(
+        "gear_legality_authority",
+        "Gear legality authority",
+        payload.get("status"),
+        checked_at=utc_now(),
+        details=payload,
+        blockers=payload.get("blockers") or [],
+    )
 
 
 def data_health_overall_status(components):
@@ -2830,6 +2939,26 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         if isinstance(community_gear.get("realCommunityTemplates"), dict)
         else {}
     )
+    template_chains = (
+        community_gear.get("templateChains")
+        if isinstance(community_gear.get("templateChains"), dict)
+        else {}
+    )
+    recommended_bis_guard = (
+        community_gear.get("recommendedBisGuard")
+        if isinstance(community_gear.get("recommendedBisGuard"), dict)
+        else {}
+    )
+    recommended_bis_prototype = (
+        community_gear.get("recommendedBisPrototype")
+        if isinstance(community_gear.get("recommendedBisPrototype"), dict)
+        else {}
+    )
+    community_observed_guard = (
+        community_gear.get("communityObservedGuard")
+        if isinstance(community_gear.get("communityObservedGuard"), dict)
+        else {}
+    )
     live_gear_template_run_id = ""
     if cache_store and hasattr(cache_store, "community_gear_template_live_health_summary"):
         try:
@@ -2843,7 +2972,16 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
             season_recommendation = live_gear_templates.get("seasonRecommendation") or season_recommendation
             community_import_templates = live_gear_templates.get("communityImportTemplates") or community_import_templates
             real_community_templates = live_gear_templates.get("realCommunityTemplates") or real_community_templates
+            template_chains = live_gear_templates.get("templateChains") or template_chains
+            recommended_bis_guard = live_gear_templates.get("recommendedBisGuard") or recommended_bis_guard
+            recommended_bis_prototype = live_gear_templates.get("recommendedBisPrototype") or recommended_bis_prototype
+            community_observed_guard = live_gear_templates.get("communityObservedGuard") or community_observed_guard
             live_gear_template_run_id = live_gear_templates.get("scanRunId") or ""
+    gear_legality_templates = gear_legality_template_records_from_cache_store(cache_store)
+    gear_legality_candidate_audits = [
+        gear_state.get("candidateLegalityAudit") if isinstance(gear_state, dict) else {},
+        (gear_catalog.get("details") or {}).get("candidateLegalityAudit") if isinstance(gear_catalog.get("details"), dict) else {},
+    ]
     template_evidence_audit = lightweight_template_evidence_audit_payload(
         community_state=community,
         community_sync_run=community_sync_run,
@@ -2911,6 +3049,10 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
             details=gear_catalog.get("details") or {},
             blockers=gear_catalog.get("blockers") or [],
         ),
+        gear_legality_authority_health_component(
+            candidate_legality_audits=gear_legality_candidate_audits,
+            templates=gear_legality_templates,
+        ),
         data_health_component(
             "talent_catalog",
             "Authoritative talent catalog",
@@ -2940,6 +3082,10 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
                 "realCommunityGearTemplates": real_community_templates,
                 "baselineGearTemplates": baseline_gear_templates,
                 "seasonRecommendation": season_recommendation,
+                "templateChains": template_chains,
+                "recommendedBisGuard": recommended_bis_guard,
+                "recommendedBisPrototype": recommended_bis_prototype,
+                "communityObservedGuard": community_observed_guard,
                 "defaultGearTemplates": default_gear_templates,
                 "changeReport": community_sync_run.get("changeReport") or {},
                 "templateEvidenceAudit": template_evidence_audit,
@@ -3083,6 +3229,15 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
                 checked_at=gear_catalog.get("checkedAt") or "",
                 details=gear_catalog.get("details") or {},
                 blockers=gear_catalog.get("blockers") or [],
+            )
+        )
+        components.append(
+            gear_legality_authority_health_component(
+                candidate_legality_audits=[
+                    standalone_gear.get("candidateLegalityAudit") if isinstance(standalone_gear, dict) else {},
+                    (gear_catalog.get("details") or {}).get("candidateLegalityAudit") if isinstance(gear_catalog.get("details"), dict) else {},
+                ],
+                templates=gear_legality_template_records_from_cache_store(cache_store),
             )
         )
 
@@ -3823,7 +3978,7 @@ def parse_simcraft_template_gear_raw(raw_string, class_key="", spec_key="", conn
         if missing_slots:
             errors.append(f"missing gear slots: {', '.join(missing_slots)}")
         errors.extend([str(item) for item in (enhancement.get("blockers") or []) if str(item or "").strip()])
-        return items if not errors else [], errors
+        return items, errors
     errors = []
     items = []
     seen_slots = set()
@@ -4011,15 +4166,25 @@ def prepare_simcraft_template_request(request_payload):
     if gear_template["status"] not in SIMCRAFT_TEMPLATE_READY_GEAR_STATUSES:
         errors.append("gear template must be complete")
 
-    with db_connection() as conn:
-        talent_context, talent_errors = simcraft_template_talent_context(conn, talent_template)
+    if postgres_only_runtime_enabled():
+        talent_context, talent_errors = simcraft_template_talent_context(None, talent_template)
         gear_items, gear_errors = parse_simcraft_template_gear_raw(
             gear_template.get("rawString"),
             gear_template.get("classKey") or "",
             gear_template.get("specKey") or "",
-            conn=conn,
+            conn=None,
             metadata=gear_template.get("metadata") or {},
         )
+    else:
+        with db_connection() as conn:
+            talent_context, talent_errors = simcraft_template_talent_context(conn, talent_template)
+            gear_items, gear_errors = parse_simcraft_template_gear_raw(
+                gear_template.get("rawString"),
+                gear_template.get("classKey") or "",
+                gear_template.get("specKey") or "",
+                conn=conn,
+                metadata=gear_template.get("metadata") or {},
+            )
     errors.extend(talent_errors)
     errors.extend(gear_errors)
     compatibility_errors = simcraft_known_compatibility_blockers(
@@ -4033,7 +4198,7 @@ def prepare_simcraft_template_request(request_payload):
         errors.append(SIMCRAFT_TEMPLATE_STAT_SNAPSHOT_REQUIRED_ERROR)
 
     scenario = SIMCRAFT_TEMPLATE_SCENARIOS.get(scenario_key) or SIMCRAFT_TEMPLATE_SCENARIOS["single"]
-    simc_items = gear_items if not errors else []
+    simc_items = gear_items
     build_context = {
         "specId": f'{talent_template.get("classKey")}-{talent_template.get("specKey")}',
         "className": talent_template.get("className") or talent_template.get("classKey"),
@@ -7468,6 +7633,89 @@ def websim_gear_payload_for_mode(payload, mode="", slot=""):
     return payload
 
 
+def websim_gear_payload_with_template_legality(payload):
+    if not isinstance(payload, dict):
+        return payload
+    class_key = str(payload.get("classKey") or "").strip()
+    spec_key = str(payload.get("specKey") or "").strip()
+    if not class_key:
+        return payload
+    changed = False
+    output = payload
+    selected_blockers = []
+    equipped_set = payload.get("equippedSet")
+    if isinstance(equipped_set, dict):
+        equipped_items = [
+            item
+            for item in equipped_set.values()
+            if isinstance(item, dict)
+        ]
+        blockers, invalid_slots = selected_gear_weapon_rule_blockers(equipped_items, class_key, spec_key)
+        if invalid_slots:
+            output = dict(payload)
+            output["equippedSet"] = {
+                slot: item
+                for slot, item in equipped_set.items()
+                if slot not in invalid_slots
+            }
+            changed = True
+            selected_blockers.extend(blockers)
+    baseline_set = payload.get("baselineSet")
+    if isinstance(baseline_set, list):
+        blockers, invalid_slots = selected_gear_weapon_rule_blockers(baseline_set, class_key, spec_key)
+        if invalid_slots:
+            if output is payload:
+                output = dict(payload)
+            output["baselineSet"] = [
+                item
+                for item in baseline_set
+                if not (
+                    isinstance(item, dict)
+                    and (item.get("slot") or item.get("simcSlot")) in invalid_slots
+                )
+            ]
+            changed = True
+            selected_blockers.extend(blockers)
+    for template_key in ("communityTemplates", "baselineTemplates"):
+        templates = payload.get(template_key)
+        if not isinstance(templates, list):
+            continue
+        gated_templates = []
+        for template in templates:
+            gated = apply_gear_template_legality_gate(template, class_key, spec_key)
+            if gated is not template:
+                changed = True
+            gated_templates.append(gated)
+        if changed and output is payload:
+            output = dict(payload)
+        if output is not payload:
+            output[template_key] = gated_templates
+    if changed:
+        output["communityTemplateSync"] = websim_gear_community_template_sync_state(
+            [
+                *(output.get("communityTemplates") or []),
+                *(output.get("baselineTemplates") or []),
+            ]
+        )
+    template_sync = output.get("communityTemplateSync") if isinstance(output.get("communityTemplateSync"), dict) else {}
+    templates_for_sync = [
+        *(output.get("communityTemplates") or []),
+        *(output.get("baselineTemplates") or []),
+    ]
+    if templates_for_sync and not isinstance(template_sync.get("templateChains"), dict):
+        if output is payload:
+            output = dict(payload)
+        output["communityTemplateSync"] = websim_gear_community_template_sync_state(templates_for_sync)
+    if selected_blockers:
+        output["gearLegalityBlockers"] = list(dict.fromkeys(
+            [
+                *(output.get("gearLegalityBlockers") or []),
+                *selected_blockers,
+            ]
+        ))
+    return output
+
+
 def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slot=""):
     store = cache_data_store()
     allow_sqlite_fallback = (
@@ -7486,7 +7734,7 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
             payload = {}
         if postgres_only_runtime_enabled():
             if isinstance(payload, dict) and payload:
-                return payload
+                return websim_gear_payload_with_template_legality(payload)
             return {
                 "schemaRevision": "websim-gear-v1",
                 "classKey": class_key,
@@ -7500,9 +7748,9 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
             }
         if isinstance(payload, dict) and payload:
             if payload.get("dataStatus") == "verified" and websim_gear_payload_has_items(payload):
-                return payload
+                return websim_gear_payload_with_template_legality(payload)
             if not allow_sqlite_fallback:
-                return payload
+                return websim_gear_payload_with_template_legality(payload)
     if postgres_only_runtime_enabled():
         return {
             "schemaRevision": "websim-gear-v1",
@@ -7517,7 +7765,9 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
         }
     init_db()
     with db_connection() as conn:
-        return get_websim_gear(conn, class_key, spec_key, compact=compact)
+        return websim_gear_payload_with_template_legality(
+            get_websim_gear(conn, class_key, spec_key, compact=compact)
+        )
 
 
 def websim_talent_payload_has_nodes(payload):
@@ -12266,8 +12516,28 @@ class Handler(BaseHTTPRequestHandler):
             if not mode:
                 json_response(self, 400, {"error": "invalid_refresh_mode", "allowedModes": sorted(PUBLIC_REFRESH_MODES)})
                 return
+            scope = (query.get("scope", ["full"])[0] or "full").strip().lower()
+            if scope not in {"full", "queue"}:
+                json_response(self, 400, {"error": "invalid_refresh_scope", "allowedScopes": ["full", "queue"]})
+                return
+            process_limit_override = None
+            if query.get("limit", [""])[0]:
+                try:
+                    process_limit_override = int(query.get("limit", [""])[0])
+                except (TypeError, ValueError):
+                    json_response(self, 400, {"error": "invalid_refresh_limit"})
+                    return
             try:
-                refresh_articles(mode)
+                if scope == "queue":
+                    refresh_articles(
+                        mode,
+                        collector_enabled=False,
+                        seed_enabled=False,
+                        queue_enabled=True,
+                        process_limit_override=process_limit_override,
+                    )
+                else:
+                    refresh_articles(mode, process_limit_override=process_limit_override)
                 json_response(self, 200, build_home_payload())
             except Exception as error:
                 json_response(self, 500, {"error": "refresh_failed", "message": str(error)})

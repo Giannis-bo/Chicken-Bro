@@ -19,6 +19,12 @@ DEFAULT_REGION = "cn"
 DEFAULT_LOCALE = "cn"
 DEFAULT_SEASON_SLUG = "season-mn-1"
 DEFAULT_EXPANSION_ID = "11"
+RAIDERIO_BONUS_EMBELLISHMENTS = {
+    "12384": {
+        "key": "arcanoweave_lining",
+        "label": "奥纹内衬",
+    },
+}
 SPEC_LADDER_REFERENCE_STATUS = "source_reference"
 SPEC_LADDER_REFERENCE_LABEL = "Reference only"
 SPEC_LADDER_REFERENCE_BLOCKERS = [
@@ -1164,6 +1170,55 @@ def merge_runs_by_region_id(runs):
     return merged
 
 
+def run_ranking_evidence(run, character=None):
+    run = run if isinstance(run, dict) else {}
+    character = character if isinstance(character, dict) else {}
+    spec_ranking = run.get("specRanking") if isinstance(run.get("specRanking"), dict) else {}
+    evidence = {
+        "source": "raiderio_spec_ranking" if run.get("source") == "spec_ranking" or spec_ranking else "raiderio_run_ranking",
+        "rank": safe_int(run.get("rank") or spec_ranking.get("rank")),
+        "score": safe_float(run.get("score") or spec_ranking.get("score")),
+        "maxKeyLevel": safe_int(run.get("mythicLevel")),
+        "runId": safe_int(run.get("runId")),
+        "sourceUrl": run.get("sourceUrl") or "",
+        "region": run.get("region") or character.get("region") or "",
+    }
+    if spec_ranking:
+        evidence["specRanking"] = dict(spec_ranking)
+    return {key: value for key, value in evidence.items() if value not in (None, "", 0, {}, [])}
+
+
+def ranking_evidence_sort_key(evidence):
+    evidence = evidence if isinstance(evidence, dict) else {}
+    rank = safe_int(evidence.get("rank"))
+    return (
+        1 if evidence.get("source") == "raiderio_spec_ranking" else 0,
+        -rank if rank > 0 else -999999,
+        safe_float(evidence.get("score")),
+        safe_int(evidence.get("maxKeyLevel")),
+    )
+
+
+def ranking_evidence_by_character_from_runs(runs):
+    evidence_by_character = {}
+    for run in runs or []:
+        if not isinstance(run, dict):
+            continue
+        for character in run.get("roster") or []:
+            if not isinstance(character, dict):
+                continue
+            key = character_key(character)
+            if not key:
+                continue
+            evidence = run_ranking_evidence(run, character)
+            if not evidence:
+                continue
+            existing = evidence_by_character.get(key)
+            if not existing or ranking_evidence_sort_key(evidence) > ranking_evidence_sort_key(existing):
+                evidence_by_character[key] = evidence
+    return evidence_by_character
+
+
 def empty_spec_ranking_summary(
     enabled=None,
     errors=None,
@@ -1414,6 +1469,64 @@ def normalize_gear_slot(slot):
     return aliases.get(text, text)
 
 
+def raiderio_option_id(value, keys=None):
+    keys = keys or ("id", "item_id", "itemId", "enchant", "enchant_id", "enchantId", "bonus_id", "bonusId")
+    if isinstance(value, dict):
+        for key in keys:
+            raw = value.get(key)
+            if raw not in (None, "", [], {}):
+                return str(raw).strip()
+        return ""
+    if value in (None, "", [], {}):
+        return ""
+    return str(value).strip()
+
+
+def raiderio_option_ids(value, keys=None):
+    if isinstance(value, list):
+        ids = [raiderio_option_id(item, keys) for item in value]
+    else:
+        ids = [raiderio_option_id(value, keys)]
+    return [item for item in dict.fromkeys(ids) if item and item != "0"]
+
+
+def extract_raiderio_item_enhancements(item):
+    item = item if isinstance(item, dict) else {}
+    bonus_ids = raiderio_option_ids(item.get("bonuses") or item.get("bonusIds"), ("id", "bonus_id", "bonusId"))
+    gem_payload = item.get("gems") or item.get("gem") or []
+    gem_ids = raiderio_option_ids(gem_payload, ("item_id", "itemId", "id", "gem_id", "gemId"))
+    enchant_payload = item.get("enchants") or item.get("enchant") or []
+    enchant_ids = raiderio_option_ids(enchant_payload, ("enchant", "enchant_id", "enchantId", "id"))
+    enhancements = {
+        "bonus_id": "/".join(bonus_ids) if bonus_ids else "",
+        "gem_id": "/".join(gem_ids) if gem_ids else "",
+        "enchant_id": "/".join(enchant_ids) if enchant_ids else "",
+        "gemsDetail": item.get("gems_detail") or item.get("gemsDetail") or (gem_payload if isinstance(gem_payload, list) else []),
+        "enchantsDetail": item.get("enchants_detail") or item.get("enchantsDetail") or (
+            enchant_payload if isinstance(enchant_payload, list) else []
+        ),
+    }
+    embellishment = next(
+        (
+            RAIDERIO_BONUS_EMBELLISHMENTS[bonus_id]
+            for bonus_id in bonus_ids
+            if bonus_id in RAIDERIO_BONUS_EMBELLISHMENTS
+        ),
+        None,
+    )
+    if embellishment:
+        enhancements.update(
+            {
+                "embellishment": embellishment["key"],
+                "embellishmentLabel": embellishment["label"],
+                "embellishmentSource": "raiderio_bonus_id",
+            }
+        )
+    if any(enhancements.get(key) for key in ("bonus_id", "gem_id", "enchant_id", "embellishment")):
+        enhancements["enhancementSource"] = "raiderio_profile_gear"
+    return {key: value for key, value in enhancements.items() if value not in (None, "", [], {})}
+
+
 def extract_gear(profile):
     gear = profile.get("gear") or {}
     items = gear.get("items") if isinstance(gear, dict) else {}
@@ -1433,6 +1546,7 @@ def extract_gear(profile):
             "bonuses": item.get("bonuses") or [],
             "gems": item.get("gems") or [],
             "enchants": item.get("enchants") or item.get("enchant") or [],
+            **extract_raiderio_item_enhancements(item),
             "sourceName": RAIDERIO_SOURCE_NAME,
             "sourceStatus": "source_reference",
             "simcReady": False,
@@ -1842,6 +1956,7 @@ def fetch_run_details_for_runs(
 
 def fetch_profiles_for_runs(runs, target_item_ids=None, deadline_at=0, stage_callback=None):
     unique = select_profile_candidates_for_runs(runs)
+    ranking_evidence_by_character = ranking_evidence_by_character_from_runs(runs)
 
     profiles = {}
     errors = []
@@ -1858,6 +1973,9 @@ def fetch_profiles_for_runs(runs, target_item_ids=None, deadline_at=0, stage_cal
         summaries, batch_errors = fetch_profile_batch(unique, fields)
         errors.extend(batch_errors)
         for summary in summaries:
+            ranking_evidence = ranking_evidence_by_character.get(character_key(summary))
+            if ranking_evidence:
+                summary["rankingEvidence"] = ranking_evidence
             profiles[character_key(summary)] = summary
         emit_sync_stage(
             stage_callback,
@@ -1913,6 +2031,9 @@ def fetch_profiles_for_runs(runs, target_item_ids=None, deadline_at=0, stage_cal
             summaries, batch_errors = fetch_profile_batch(batch, fields)
             errors.extend(batch_errors)
             for summary in summaries:
+                ranking_evidence = ranking_evidence_by_character.get(character_key(summary))
+                if ranking_evidence:
+                    summary["rankingEvidence"] = ranking_evidence
                 profiles[character_key(summary)] = summary
                 matched.update(item_id for item_id in profile_gear_item_ids(summary) if item_id in targets)
             emit_sync_stage(
@@ -2021,6 +2142,7 @@ def aggregate_runs(runs, profiles):
                         "region": profile.get("region") or character.get("region") or run.get("region") or "",
                         "profileUrl": profile.get("profileUrl"),
                         "maxKeyLevel": run.get("mythicLevel"),
+                        "rankingEvidence": profile.get("rankingEvidence") or run_ranking_evidence(run, character),
                         "gear": profile.get("gear"),
                     }
                     aggregate["observedGearProfiles"].append(observed_profile)

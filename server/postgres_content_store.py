@@ -144,6 +144,8 @@ def _refresh_payload_from_row(row):
         "acceptedCount": int(row[2] or 0),
         "rejectedCount": int(row[3] or 0),
         "collectorEnabled": bool(message.get("collectorEnabled")),
+        "seedEnabled": bool(message.get("seedEnabled", True)),
+        "queueEnabled": bool(message.get("queueEnabled", message.get("collectorEnabled"))),
         "collectorLimit": int(message.get("collectorLimit", 0) or 0),
         "discoveryLimit": int(message.get("discoveryLimit", message.get("collectorLimit", 0)) or 0),
         "processLimit": int(message.get("processLimit", 0) or 0),
@@ -659,7 +661,7 @@ class PostgresContentStore:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT payload_json
+                    SELECT payload_json, attempts, last_error
                     FROM content.discovery_queue
                     WHERE status IN ('queued', 'retryable')
                     ORDER BY published_at DESC NULLS LAST, discovered_at ASC
@@ -672,6 +674,8 @@ class PostgresContentStore:
         for row in rows:
             article = _json_value(row[0], {})
             if isinstance(article, dict) and article:
+                article["_queueAttempts"] = int(row[1] or 0)
+                article["_queueLastError"] = _text(row[2])
                 articles.append(article)
         return articles
 

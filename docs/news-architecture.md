@@ -151,6 +151,7 @@ WOW_NEWS_ENABLE_COLLECTORS=0  # 默认，仅读取已核验种子
 WOW_NEWS_ENABLE_COLLECTORS=1  # 启用 RSS / Atom 采集并写入当前 runtime store
 WOW_NEWS_DISCOVERY_LIMIT=10  # 每个来源每轮至少发现的条数；旧 WOW_NEWS_MAX_COLLECTED_ARTICLES 会被视为下限输入
 WOW_NEWS_PROCESS_LIMIT=5  # 每轮从 discovery queue 处理的条数，建议 3-5
+WOW_NEWS_RETRY_MAX_ATTEMPTS=3  # retryable 条目的最大重试次数，超过后进入 blocked/report
 WOW_LLM_TIMEOUT_SECONDS=45  # 单次 LLM 翻译请求超时
 ```
 
@@ -166,13 +167,13 @@ V1 只会跳过已经具备 `translationFidelity=source_translation` 的官方 s
 脚本支持环境变量覆盖：
 
 ```text
-WOW_NEWS_REFRESH_URL=http://127.0.0.1/api/news/refresh?mode=scheduled
+WOW_NEWS_REFRESH_URL=http://127.0.0.1:8787/api/news/refresh?mode=scheduled&scope=queue&limit=1
 WOW_NEWS_REFRESH_LOG=/opt/wow-mini-program/logs/refresh_cron.log
 WOW_NEWS_REFRESH_TIMEOUT=240
 ```
 
 每次执行会记录开始/结束时间、HTTP 状态和错误退出码，便于排查定时刷新失败。
-`WOW_NEWS_DISCOVERY_LIMIT` 控制每源发现规模，后端会保证至少 10 条，避免 12.1 PTR 这类爆发更新被旧的 `WOW_NEWS_MAX_COLLECTED_ARTICLES=1` 截断。`WOW_NEWS_PROCESS_LIMIT` 控制每轮 LLM / 正文处理吞吐，未处理和 retryable 条目会留在 `news_discovery_queue` 供下轮继续。
+`WOW_NEWS_DISCOVERY_LIMIT` 控制每源发现规模，后端会保证至少 10 条，避免 12.1 PTR 这类爆发更新被旧的 `WOW_NEWS_MAX_COLLECTED_ARTICLES=1` 截断。`WOW_NEWS_PROCESS_LIMIT` 控制完整刷新每轮 LLM / 正文处理吞吐，未处理和 retryable 条目会留在 `news_discovery_queue` 供下轮继续。日常 cron 和 `wow-data-health-followup` 默认使用 `scope=queue&limit=1`，只处理 backlog 中 1 条 `queued/retryable`，不加载 seed、不重新发现来源；连续失败达到 `WOW_NEWS_RETRY_MAX_ATTEMPTS` 后会把该条标为 `blocked`，避免同一篇文章无限消耗 LLM。
 
 注意：`server/refresh_cron.sh` 仍支持通过环境变量覆盖 URL、日志路径和超时；如果线上 cron 继承了历史独立新闻后端路径，先调整环境变量或 crontab，不要在规范文档里继续沿用旧路径。
 
