@@ -283,20 +283,6 @@ function wowIconUrl(iconName) {
   return `${wowIconBaseUrl}/${normalized}.jpg`
 }
 
-function gameAssetFromIconUrl(entityType, entityId, iconUrl, fallbackText, semanticTags) {
-  return {
-    entityType,
-    entityId,
-    iconUrl,
-    fallbackText,
-    resolutionTier: 'icon_large',
-    source: 'static_icon_name',
-    status: iconUrl ? 'fallback' : 'missing',
-    semanticTags: semanticTags || [],
-    usage: ['builds_home', 'current_spec_workbench']
-  }
-}
-
 const statPriorityByRole = {
   '坦克': [
     ['Primary', '主属性', 100],
@@ -396,20 +382,6 @@ function makeSpecialization(className, specName) {
     classIconUrl,
     specIconUrl,
     iconUrl: specIconUrl,
-    classGameAsset: gameAssetFromIconUrl(
-      'playable_class',
-      classKey || className,
-      classIconUrl,
-      className.slice(0, 1),
-      ['game', 'class', classKey].filter(Boolean)
-    ),
-    gameAsset: gameAssetFromIconUrl(
-      'playable_spec',
-      `${classKey}:${specKey}`,
-      specIconUrl,
-      specName.slice(0, 1),
-      ['game', 'class', 'spec', classKey, specKey].filter(Boolean)
-    ),
     desc: `${role}专精，详情页首版聚焦天赋构筑和装备模拟。`,
     sourceName: 'Archon',
     sourceUrl: 'https://www.archon.gg/wow',
@@ -430,13 +402,6 @@ const classOptions = classes.map(([className, specs]) => {
     name: className,
     websimClassKey: classKey,
     iconUrl,
-    gameAsset: gameAssetFromIconUrl(
-      'playable_class',
-      classKey || className,
-      iconUrl,
-      className.slice(0, 1),
-      ['game', 'class', classKey].filter(Boolean)
-    ),
     specializations: specs.map((specName) => makeSpecialization(className, specName))
   }
 })

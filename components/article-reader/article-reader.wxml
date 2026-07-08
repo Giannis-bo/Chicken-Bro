@@ -79,7 +79,7 @@
           <text wx:if="{{sourceUrlText}}" class="wow-article-reader__source-url">{{sourceUrlText}}</text>
         </view>
         <action-button
-          label="复制来源"
+          label="复制来源链接"
           tone="secondary"
           size="compact"
           disabled="{{!sourceUrlText}}"

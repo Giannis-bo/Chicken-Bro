@@ -7,6 +7,11 @@ function text(value, fallback = '') {
   return normalized || fallback
 }
 
+function labeledText(label, value) {
+  const normalized = text(value)
+  return normalized ? `${label}${normalized}` : ''
+}
+
 function normalizeBlock(block, index) {
   const type = text(block.type, 'paragraph')
   return {
@@ -72,10 +77,10 @@ function buildViewModel(data) {
     statusLabel: state === 'loading' ? '读取中' : state === 'blocked' ? '阻断' : state === 'source_reference' ? '来源参考' : '可阅读',
     panelVariant: state === 'blocked' ? 'danger' : state === 'source_reference' ? 'source' : 'flat',
     titleText: text(article.title, data.missingId ? '缺少文章 ID' : data.notFound ? '未找到文章' : '资讯详情'),
-    originalTitleText: text(article.originalTitle),
+    originalTitleText: labeledText('原题：', article.originalTitle),
     summaryText: text(article.summary),
     channelText: text(article.channel || article.category, '资讯'),
-    publishedAtText: text(article.publishedAt, '时间待确认'),
+    publishedAtText: labeledText('发布时间 ', article.publishedAt) || '时间待确认',
     sourceNameText: text(article.sourceName, '来源待确认'),
     sourceUrlText: text(article.sourceUrl),
     bodyBlocks,

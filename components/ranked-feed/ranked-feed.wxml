@@ -1,4 +1,4 @@
-<view class="ranked-feed-root pass37-module-dock pass37-module-dock--ranked-feed">
+<view class="ranked-feed-root news-module-dock news-module-dock--ranked-feed">
   <view class="section-header ranked-feed-header">
     <text class="section-title news-section-title ranked-feed-title">今日重点</text>
     <view class="section-action news-section-action ranked-feed-action" bindtap="handleActionTap">
@@ -8,7 +8,7 @@
   </view>
   <view class="focus-list">
     <view
-      class="focus-row pass37-module-card visual-tone-{{item.visualTone}} state-{{item.rowState}} thumb-{{item.thumbState}} {{item.isEvidenceGap ? 'is-evidence-gap' : ''}} {{item.isSourceReference ? 'is-source-reference' : ''}} {{item.isOpenable ? '' : 'is-disabled-row'}} {{index == 4 ? 'is-final-focus-row' : ''}}"
+      class="focus-row news-module-card visual-tone-{{item.visualTone}} state-{{item.rowState}} thumb-{{item.thumbState}} {{item.isEvidenceGap ? 'is-evidence-gap' : ''}} {{item.isSourceReference ? 'is-source-reference' : ''}} {{item.isOpenable ? '' : 'is-disabled-row'}} {{index == 4 ? 'is-final-focus-row' : ''}}"
       wx:for="{{items}}"
       wx:key="id"
       data-id="{{item.isOpenable ? item.id : ''}}"

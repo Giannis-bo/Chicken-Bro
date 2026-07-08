@@ -1,9 +1,9 @@
-<view class="page-shell news-shell pass37-page-frame" data-pass37-surface="news_home_and_feed">
+<view class="page-shell news-shell news-page-frame" data-surface="news_home_and_feed">
   <navigation-bar title="{{navTitle}}" back="{{false}}" color="#F8B700" background="#111111"></navigation-bar>
 
-  <scroll-view class="page-scroll pass37-page-frame__scroll" scroll-y scroll-top="{{scrollTop}}" bindscroll="handleNewsScroll">
-    <view class="page-content news-content pass37-page-frame__content">
-      <view class="news-command news-target-stage pass37-wow-panel pass37-wow-panel--command">
+  <scroll-view class="page-scroll news-page-frame__scroll" scroll-y scroll-top="{{scrollTop}}" bindscroll="handleNewsScroll">
+    <view class="page-content news-content news-page-frame__content">
+      <view class="news-command news-target-stage news-panel news-panel--command">
         <view class="news-command-content">
           <view class="news-command-emblem">
             <image class="news-command-icon-image" src="/assets/user/intel-command-icon.png" mode="aspectFill"></image>
@@ -76,7 +76,7 @@
         </swiper-item>
       </swiper>
 
-      <view class="section news-section news-channel-section news-target-stage pass37-wow-panel pass37-wow-panel--channel">
+      <view class="section news-section news-channel-section news-target-stage news-panel news-panel--channel">
         <view class="section-header">
           <text class="section-title news-section-title">频道</text>
         </view>
@@ -87,7 +87,7 @@
         ></channel-dock>
       </view>
 
-      <view class="section news-section news-feed-section news-target-stage pass37-wow-panel pass37-wow-panel--ranked-feed">
+      <view class="section news-section news-feed-section news-target-stage news-panel news-panel--ranked-feed">
         <ranked-feed
           id="rankedFeed"
           class="news-ranked-feed-component"

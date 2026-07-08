@@ -119,32 +119,20 @@ test('UI v2.1 shell keeps runtime chrome and imagegen material layers separated'
   assert.doesNotMatch(readRaw('pages/builds/builds.wxml'), /builds-hero-module-material|workbench-module-row-material|query-row-material/)
   assert.doesNotMatch(readRaw('pages/builds/workbench.wxml'), /module-card-material|evidence-row-material|workbench-identity-side-material|verdict-slab-stage-material|verdict-slab-smoke-material/)
 
-  const productionAssetManifest = JSON.parse(
-    fs.readFileSync('assets/generated/ui-v2-1-slices/20260703/strict-production-manifest.json', 'utf8')
-  )
-  const productionManifestText = JSON.stringify(productionAssetManifest)
-  assert.doesNotMatch(
-    productionManifestText,
-    /workbench_identity_panel_material|workbench_verdict_stage_material|workbench_verdict_slab_material|workbench_evidence_frame_material|builds_workflow_row_material/,
-    'production manifest should not bless factual or obsolete per-row material stacking'
-  )
-  assert.match(
-    productionManifestText,
-    /panel_module_card_blue_v2\.png/,
-    'module card frame assets are allowed as low-semantic component material only'
-  )
-  const referenceAssets = productionAssetManifest.referenceOnlyAssets || []
-  assert.ok(referenceAssets.length > 0, 'reference-only imagegen assets should be declared')
-  for (const asset of referenceAssets) {
-    const basename = asset.split('/').pop()
-    assert.ok(basename, `reference asset ${asset} should have a basename`)
-    for (const file of sourceFiles) {
-      assert.doesNotMatch(
-        readRaw(file),
-        new RegExp(basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-        `${file} must not render reference-only imagegen asset ${basename}`
-      )
-    }
+  const projectConfig = JSON.parse(fs.readFileSync('project.config.json', 'utf8'))
+  const ignored = new Set((projectConfig.packOptions?.ignore || []).map((entry) => `${entry.type}:${entry.value}`))
+  assert.ok(ignored.has('glob:assets/generated/**'), 'generated imagegen assets should stay out of runtime packages')
+
+  const appConfig = JSON.parse(fs.readFileSync('app.json', 'utf8'))
+  for (const item of appConfig.tabBar.list) {
+    assert.ok(fs.existsSync(item.iconPath), `${item.iconPath} should be a committed runtime asset`)
+    assert.ok(fs.existsSync(item.selectedIconPath), `${item.selectedIconPath} should be a committed runtime asset`)
+    assert.doesNotMatch(item.iconPath, /^assets\/generated\//)
+    assert.doesNotMatch(item.selectedIconPath, /^assets\/generated\//)
+  }
+  assert.ok(fs.existsSync('assets/user/intel-command-icon.png'))
+  for (const file of sourceFiles) {
+    assert.doesNotMatch(readRaw(file), /assets\/generated\//, `${file} must not render generated imagegen assets`)
   }
 
   assert.doesNotMatch(readRaw('pages/news/news.wxml'), /scroll-y\s+type="list"/)

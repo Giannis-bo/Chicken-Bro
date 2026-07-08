@@ -39,12 +39,12 @@ test('news page keeps the dark WoW app shell and low-semantic material layers', 
 
   assert.match(css, /\.news-shell[\s\S]*background:\s*#060606;/)
   assert.match(css, /\.news-shell[\s\S]*isolation:\s*isolate;/)
-  assert.match(wxml, /class="page-shell news-shell pass37-page-frame"/)
-  assert.match(wxml, /class="page-content news-content pass37-page-frame__content"/)
-  assert.match(wxml, /pass37-wow-panel--channel/)
-  assert.match(wxml, /pass37-wow-panel--ranked-feed/)
-  assert.match(block(css, '.pass37-wow-panel'), /overflow:\s*hidden;/)
-  assert.match(block(css, '.pass37-module-card'), /box-sizing:\s*border-box;/)
+  assert.match(wxml, /class="page-shell news-shell news-page-frame"/)
+  assert.match(wxml, /class="page-content news-content news-page-frame__content"/)
+  assert.match(wxml, /news-panel--channel/)
+  assert.match(wxml, /news-panel--ranked-feed/)
+  assert.match(block(css, '.news-panel'), /overflow:\s*hidden;/)
+  assert.match(block(css, '.news-module-card'), /box-sizing:\s*border-box;/)
   assert.match(css, /\.news-shell::after[\s\S]*border-left:\s*1rpx solid rgba\(248,\s*183,\s*0,\s*0\.16\);/)
   assert.match(css, /--wow-tabbar-space:\s*calc\(164rpx \+ env\(safe-area-inset-bottom\)\);/)
   assert.match(css, /\.news-shell \.news-content[\s\S]*padding:\s*14rpx\s+20rpx\s+var\(--wow-tabbar-space\);[\s\S]*overflow:\s*hidden;/)
@@ -63,9 +63,9 @@ test('news page keeps the dark WoW app shell and low-semantic material layers', 
   assert.match(js, /handleHeroImageError\(event\)/)
   assert.doesNotMatch(wxml, /banner-atmosphere-material/)
   assert.doesNotMatch(block(css, '.banner-visual-shell'), /news_hero_atmosphere_material\.png/)
-  assert.match(wxml, /class="news-tab-dock pass37-module-dock pass37-module-dock--channel"/)
+  assert.match(wxml, /class="news-tab-dock news-module-dock news-module-dock--channel"/)
   assert.match(wxml, /class="news-tab-rail"/)
-  assert.match(wxml, /class="ranked-feed-root pass37-module-dock pass37-module-dock--ranked-feed"/)
+  assert.match(wxml, /class="ranked-feed-root news-module-dock news-module-dock--ranked-feed"/)
   assert.doesNotMatch(wxml, /class="surface-material ranked-feed-material"/)
   assert.doesNotMatch(wxml, /news-command-trim|channel-dock-trim|ranked-feed-trim|highlight-row-material/)
   assert.ok((wxml.match(/surface-material/g) || []).length <= 11, 'news page should not rebuild material layers per row')
@@ -108,7 +108,7 @@ test('news intelligence summary stays data-derived without manual refresh contro
   assert.doesNotMatch(api, /mode=manual/)
 })
 
-test('news pass36 channel dock is six real tabs, not metric badges', () => {
+test('news channel dock is six real tabs, not metric badges', () => {
   const { js, json, pageWxml, channelWxml, wxml, css } = readNewsFiles()
   const dockBlock = block(css, '.news-tab-dock')
   const tabBlock = block(css, '.news-tab-item')
@@ -129,8 +129,8 @@ test('news pass36 channel dock is six real tabs, not metric badges', () => {
   assert.match(channelWxml, /wx:for="\{\{items\}\}"/)
   assert.match(channelWxml, /bindtap="handleTabTap"/)
   assert.match(wxml, /class="news-tab-cell-surface"/)
-  assert.match(wxml, /pass37-module-dock--channel/)
-  assert.match(wxml, /news-tab-item pass37-module-card/)
+  assert.match(wxml, /news-module-dock--channel/)
+  assert.match(wxml, /news-tab-item news-module-card/)
   assert.match(wxml, /class="news-tab-rail"/)
   assert.match(wxml, /class="news-tab-icon-slot"/)
   assert.match(wxml, /class="news-tab-label-slot"/)
@@ -180,7 +180,7 @@ test('news pass36 channel dock is six real tabs, not metric badges', () => {
   assert.doesNotMatch(wxml, /今日重点<\/text>[\s\S]*更新总量<\/text>[\s\S]*来源覆盖<\/text>/)
 })
 
-test('news pass36 tab navigation has compatible real filters', () => {
+test('news tab navigation has compatible real filters', () => {
   const { js, api, backend } = readNewsFiles()
 
   ;['official', 'updates', 'events', 'community', 'guides'].forEach((key) => {
@@ -192,7 +192,7 @@ test('news pass36 tab navigation has compatible real filters', () => {
   assert.match(backend, /def article_search_text/)
 })
 
-test('news pass36 focus list is a five-row compact feed', () => {
+test('news focus list is a five-row compact feed', () => {
   const { js, json, pageWxml, rankedWxml, wxml, css } = readNewsFiles()
   const feedBlock = block(css, '.news-feed-section')
   const rowBlock = block(css, '.focus-row')
@@ -231,8 +231,8 @@ test('news pass36 focus list is a five-row compact feed', () => {
   assert.match(wxml, /thumb-\{\{item\.thumbState\}\}/)
   assert.match(wxml, /isOpenable \? '' : 'is-disabled-row'/)
   assert.match(wxml, /index == 4 \? 'is-final-focus-row' : ''/)
-  assert.match(wxml, /class="focus-row pass37-module-card visual-tone-\{\{item\.visualTone\}\}/)
-  assert.match(wxml, /ranked-feed-root pass37-module-dock pass37-module-dock--ranked-feed/)
+  assert.match(wxml, /class="focus-row news-module-card visual-tone-\{\{item\.visualTone\}\}/)
+  assert.match(wxml, /ranked-feed-root news-module-dock news-module-dock--ranked-feed/)
   assert.match(wxml, /class="focus-rank-number"/)
   assert.match(wxml, /class="focus-thumb thumb-state-\{\{item\.thumbState\}\}"/)
   assert.match(wxml, /class="focus-badge"/)

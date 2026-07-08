@@ -23,6 +23,8 @@ test('builds the specialization tab payload without legacy BD metrics', () => {
   assert.equal(payload.featuredSpecializations.length, 0)
   assert.equal(payload.classOptions.length, 13)
   assert.equal(payload.classOptions.flatMap((item) => item.specializations).length, 40)
+  assert.ok(payload.classOptions.every((item) => !item.gameAsset))
+  assert.ok(payload.classOptions.flatMap((item) => item.specializations).every((item) => !item.gameAsset && !item.classGameAsset))
   assert.equal(payload.specializations, undefined)
   assert.ok(
     Buffer.byteLength(JSON.stringify(payload), 'utf8') < 45000,

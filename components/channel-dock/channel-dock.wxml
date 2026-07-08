@@ -1,7 +1,7 @@
-<view class="news-tab-dock pass37-module-dock pass37-module-dock--channel" aria-label="资讯频道">
+<view class="news-tab-dock news-module-dock news-module-dock--channel" aria-label="资讯频道">
   <view class="news-tab-rail"></view>
   <view
-    class="news-tab-item pass37-module-card {{item.isActive ? 'is-active' : ''}} visual-tone-{{item.visualTone}} visual-key-{{item.dockKey}}"
+    class="news-tab-item news-module-card {{item.isActive ? 'is-active' : ''}} visual-tone-{{item.visualTone}} visual-key-{{item.dockKey}}"
     wx:for="{{items}}"
     wx:key="dockKey"
     data-type="{{item.queryType}}"

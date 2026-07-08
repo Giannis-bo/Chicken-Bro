@@ -72,36 +72,36 @@ image {
   box-sizing: border-box;
 }
 
-.pass37-page-frame {
-  --pass37-page-gutter: 24rpx;
-  --pass37-section-gap: 16rpx;
+.news-page-frame {
+  --news-page-gutter: 24rpx;
+  --news-section-gap: 16rpx;
 }
 
-.pass37-page-frame__scroll {
+.news-page-frame__scroll {
   width: 100%;
   min-width: 0;
 }
 
-.pass37-page-frame__content {
+.news-page-frame__content {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
 }
 
-.pass37-wow-panel {
+.news-panel {
   position: relative;
   min-width: 0;
   overflow: hidden;
   box-sizing: border-box;
 }
 
-.pass37-module-dock {
+.news-module-dock {
   position: relative;
   min-width: 0;
   box-sizing: border-box;
 }
 
-.pass37-module-card {
+.news-module-card {
   min-width: 0;
   overflow: hidden;
   box-sizing: border-box;
