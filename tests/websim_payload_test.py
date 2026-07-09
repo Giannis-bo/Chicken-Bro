@@ -5534,6 +5534,94 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertEqual(actual, expected)
 
+    def test_gear_serializer_matches_compact_golden_payload(self):
+        fixture_path = Path(__file__).parent / "fixtures" / "gear-serializer-compact-payload.json"
+        expected = json.loads(fixture_path.read_text(encoding="utf-8"))
+        observed_template = {
+            "id": "observed-profile-mage-arcane",
+            "name": "Arcaneproof · observed profile",
+            "classKey": "mage",
+            "specKey": "arcane",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceName": "Raider.IO observed profile",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "sourceUrl": "https://raider.io/characters/cn/realm/Arcaneproof",
+            "sampleCount": 1,
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "canApplyGear": True,
+            "payload": {
+                "profileHash": "profile:mage:arcane:observed",
+                "gearHash": "gear:mage:arcane:observed",
+                "fetchedAt": "2026-07-09T00:00:00+00:00",
+            },
+            "gearItems": [
+                {
+                    "slot": "head",
+                    "simcSlot": "head",
+                    "itemId": "270101",
+                    "id": "270101",
+                    "displayName": "Observed Hood",
+                    "name": "observed_hood",
+                    "sourceType": "observed_profile",
+                    "sourceKey": "raiderio_observed_profile",
+                    "ilevel": 684,
+                    "bonus_id": "123",
+                    "gem_id": "213743",
+                    "enchant_id": "7608",
+                    "simcReady": True,
+                    "socketOptions": [{"id": "gem-a", "name": "Gem A"}],
+                    "enchantOptions": [{"id": "enchant-a", "name": "Enchant A"}],
+                    "variants": [
+                        {
+                            "id": "variant-head-684",
+                            "itemLevel": 684,
+                            "status": "verified",
+                            "simcOptions": {"bonus_id": "123"},
+                        }
+                    ],
+                    "observedProfileRefs": [
+                        {
+                            "profileId": "arcaneproof",
+                            "characterName": "Arcaneproof",
+                            "sourceUrl": "https://raider.io/characters/cn/realm/Arcaneproof",
+                        }
+                    ],
+                },
+                {
+                    "slot": "neck",
+                    "simcSlot": "neck",
+                    "itemId": "270102",
+                    "displayName": "Pending Pendant",
+                    "name": "pending_pendant",
+                    "sourceType": "dungeon",
+                    "source": "Dungeon A",
+                    "simcReady": False,
+                    "missingFields": ["ilevel", "bonus_id"],
+                },
+            ],
+        }
+        candidate_items = observed_template["gearItems"]
+        readiness = self.websim_payload.gear_readiness(candidate_items)
+
+        with patch.object(self.websim_payload, "utc_now", return_value="2026-07-09T00:00:00+00:00"):
+            actual = {
+                "communityTemplate": self.websim_payload.compact_community_gear_template(observed_template),
+                "candidateItems": self.websim_payload.compact_gear_candidates(candidate_items),
+                "readiness": readiness,
+                "blockedStatSnapshot": self.websim_payload.blocked_stat_snapshot(
+                    ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
+                    class_key="mage",
+                    spec_key="arcane",
+                    level=80,
+                    gear_readiness_payload=readiness,
+                    talent_encoding={"status": "blocked", "format": "websim", "code": ""},
+                ),
+            }
+
+        self.assertEqual(actual, expected)
+
     def test_weapon_rules_allow_survival_hunter_observed_equipped_weapons(self):
         gear_items = [
             {

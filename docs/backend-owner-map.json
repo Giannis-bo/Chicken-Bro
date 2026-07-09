@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-09-phase3-v1",
-  "status": "phase3_owner_map_ready",
+  "version": "2026-07-09-phase4-v1",
+  "status": "phase4_gear_public_contract_adapter_ready",
   "harnessVersion": "v0.4",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -18,7 +18,8 @@
       "owners": [
         {
           "id": "gear_public_contract",
-          "status": "characterized",
+          "status": "extracted_adapter",
+          "extractedModule": "server/gear_public_contract.py",
           "owns": [
             "public_gear_templates_for_spec",
             "public_baseline_fallback_templates_for_spec",
@@ -48,10 +49,11 @@
             "tests/websim_payload_test.py::WebSimPayloadTest.test_gear_public_contract_matches_observed_only_golden_payload",
             "tests/fixtures/gear-public-contract-observed-only.json",
             "tests/websim_payload_test.py::WebSimPayloadTest.test_real_player_public_policy_applies_to_all_specs",
+            "tests/gear_public_contract_test.py::GearPublicContractTest.test_public_contract_module_matches_websim_payload_observed_only_policy",
             "tests/news_backend_test.py::NewsBackendTest.test_runtime_websim_gear_adds_template_chain_state_to_cached_postgres_payload",
             "tests/postgres_cache_store_test.py observed-only public gear API tests"
           ],
-          "futureExtractionDirection": "Extract a backend gear public contract selector after characterization stays green."
+          "futureExtractionDirection": "Continue moving direct callers to server/gear_public_contract.py only after PG selector and runtime API snapshots stay green."
         },
         {
           "id": "gear_legality_source_map",
@@ -78,7 +80,7 @@
         },
         {
           "id": "gear_serializer_golden_payload",
-          "status": "partial_golden_payload",
+          "status": "golden_payload_characterized",
           "owns": [
             "compact_community_gear_template",
             "compact_gear_candidates",
@@ -92,6 +94,8 @@
             "Keep payload mode initial/slot detail semantics stable."
           ],
           "characterization": [
+            "tests/websim_payload_test.py::WebSimPayloadTest.test_gear_serializer_matches_compact_golden_payload",
+            "tests/fixtures/gear-serializer-compact-payload.json",
             "tests/fixtures/gear-public-contract-observed-only.json",
             "tests/websim_payload_test.py gear detail and stat snapshot tests",
             "tests/builds-page.test.js gear detail frontend contract tests"
@@ -216,7 +220,7 @@
       "owners": [
         {
           "id": "gear_template_selectors",
-          "status": "characterized",
+          "status": "golden_payload_characterized",
           "owns": [
             "get_websim_gear",
             "public gear template selector calls",
@@ -229,6 +233,8 @@
             "Compact and full payload modes must keep source keys and blockers consistent."
           ],
           "characterization": [
+            "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_pg_gear_template_selectors_match_observed_only_golden_payload",
+            "tests/fixtures/pg-gear-template-selectors-observed-only.json",
             "tests/postgres_cache_store_test.py public observed-only gear payload tests",
             "tests/news_backend_test.py runtime PG gear tests"
           ],
