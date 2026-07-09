@@ -1,0 +1,52 @@
+{
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "scope": [
+    "gear public contract golden payload characterization",
+    "tests/fixtures/gear-public-contract-observed-only.json",
+    "tests/websim_payload_test.py golden payload test",
+    "docs/backend-owner-map.json characterization anchor update",
+    "roadmap and Phase 3 plan updates"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.websim_payload_test.WebSimPayloadTest.test_gear_public_contract_matches_observed_only_golden_payload -v",
+      "status": "red_then_green",
+      "summary": "Failed first because tests/fixtures/gear-public-contract-observed-only.json was missing, then passed after adding the golden payload."
+    },
+    {
+      "command": "python3 -m unittest tests.websim_payload_test.WebSimPayloadTest.test_gear_public_contract_matches_observed_only_golden_payload tests.websim_payload_test.WebSimPayloadTest.test_real_player_public_policy_applies_to_all_specs -v",
+      "status": "pass",
+      "summary": "2 pass, 0 fail"
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js tests/project-harness.test.js",
+      "status": "pass",
+      "summary": "6 pass, 0 fail"
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 pass, 0 fail"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "exit 0"
+    }
+  ],
+  "risks": [
+    {
+      "status": "watch",
+      "summary": "This locks the selector/compact output as a local golden fixture; it does not prove live API or WeChat runtime behavior."
+    },
+    {
+      "status": "watch",
+      "summary": "No production data, backend module extraction, deploy, or live smoke is included in this slice."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "summary": "The gear public contract now has a golden payload proving mixed template inputs publish only the active Raider.IO observed profile while public baseline templates stay empty."
+}

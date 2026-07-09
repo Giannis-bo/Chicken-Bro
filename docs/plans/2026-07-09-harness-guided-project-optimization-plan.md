@@ -240,6 +240,7 @@
 - `server/websim_payload.py` 已明确 `gear_public_contract`、`gear_legality_source_map`、`gear_serializer_golden_payload`、`talent_public_contract` owner；其中公开装备入口继续以 active `raiderio_observed_profile` 为唯一公开 community source，`recommended_bis`、`season_recommendation`、`default_template`、`simc_preset`、`baseline_blocked` 仍为 public blocked source。
 - `server/news_backend.py` 已明确 `runtime_api_wiring`、`health_admin_summary`、`news_content_api`、`chickenbro_session_api` owner。
 - `server/postgres_cache_store.py` 已明确 `gear_template_selectors`、`sync_state_repository`、`recommended_bis_evidence`、`cleanup_residue_control` owner。
+- `gear_public_contract` 已新增 golden payload characterization：`tests/fixtures/gear-public-contract-observed-only.json` 与 `test_gear_public_contract_matches_observed_only_golden_payload` 固定当前 observed-only 输出，不允许 `recommended_bis`、`season_recommendation`、`simc_preset` 回流公开输出。
 - 本轮只建立 owner map 与 characterization anchors，不抽模块、不移动业务函数、不改变公开 payload。
 
 ### Phase 4：小步结构拆分
