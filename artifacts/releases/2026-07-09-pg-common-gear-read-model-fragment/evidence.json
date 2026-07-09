@@ -1,0 +1,96 @@
+{
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "scope": [
+    "server/pg_gear_read_model_selectors.py",
+    "server/postgres_cache_store.py",
+    "tests/pg_gear_read_model_selectors_test.py",
+    "tests/backend-owner-map.test.js",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+    "artifacts/releases/2026-07-09-pg-common-gear-read-model-fragment/evidence.json",
+    "artifacts/releases/2026-07-09-pg-common-gear-read-model-fragment/manifest.json"
+  ],
+  "summary": "Phase 4 continues the read-only PostgreSQL gear read-model split. server/pg_gear_read_model_selectors.py now owns the common gear payload fragment shared by initial and full/slot gear payloads: weaponRule, slots, readiness, blocked statSnapshot, maxLevel, and top-level checkedAt. server/postgres_cache_store.py keeps PG SQL reads, payload cache fingerprinting, template/catalog read-model delegation, final response assembly, and cache writes. Sync, write, and backfill paths are unchanged.",
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_gear_read_model_selectors_test.PgGearReadModelSelectorsTest.test_build_common_gear_read_model_fragment_blocks_stat_snapshot",
+      "status": "red_then_pass",
+      "summary": "First run failed with ImportError because build_common_gear_read_model_fragment was missing; after adding the helper the targeted characterization passed."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_gear_read_model_selectors_test tests.postgres_cache_store_test",
+      "status": "pass",
+      "summary": "104 targeted selector and PG cache store tests passed locally."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "red_then_pass",
+      "summary": "Owner-map test was updated first and failed while docs/backend-owner-map.json still reported phase4_pg_initial_gear_read_model_fragment_extracted; after updating the owner map it passed."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "Full Python unittest discovery passed locally: 1017 tests OK, skipped=1. Existing ResourceWarning/RuntimeWarning output was observed without failures."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "Full Node test suite passed locally: 344 pass, 0 fail."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_gear_read_model_selectors.py server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Touched Python modules compiled successfully."
+    },
+    {
+      "command": "node --check tests/backend-owner-map.test.js && node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Touched Node test and harness script syntax checks passed."
+    },
+    {
+      "command": "python3 -m json.tool docs/backend-owner-map.json >/dev/null && python3 -m json.tool artifacts/releases/2026-07-09-pg-common-gear-read-model-fragment/evidence.json >/dev/null && python3 -m json.tool artifacts/releases/2026-07-09-pg-common-gear-read-model-fragment/manifest.json >/dev/null",
+      "status": "pass",
+      "summary": "Updated owner map, evidence packet, and harness manifest are valid JSON."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "Whitespace validation passed."
+    },
+    {
+      "command": "local CR",
+      "status": "pass",
+      "summary": "Reviewed the diff against the Phase 4 boundary. The change only moves common gear payload read-model assembly into a read-only helper; PG SQL reads, cache fingerprint/cache put, sync, write, and backfill paths remain unchanged."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true,
+    "branch": "codex/phase4-pg-gear-common-read-model-fragment",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "asyncSyncStarted": false
+  },
+  "risks": [
+    {
+      "id": "full_verification_pending",
+      "status": "resolved",
+      "detail": "Full Python/Node suites, syntax checks, JSON validation, git diff check, and local CR passed locally before PR."
+    },
+    {
+      "id": "candidate_deployment_pending",
+      "status": "open",
+      "detail": "This change touches PG read-model/runtime payload assembly and must pass Candidate Deployment Gate before merge."
+    },
+    {
+      "id": "write_paths_out_of_scope",
+      "status": "intentional",
+      "detail": "Sync, write, backfill, PG SQL write paths, and payload cache writes are intentionally unchanged in this read-only selector split."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "resync_repair"
+  ]
+}
