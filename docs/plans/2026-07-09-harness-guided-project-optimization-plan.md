@@ -233,6 +233,15 @@
 - 公开 observed-only 合同、PG-only runtime guardrail、health partial/blocker 语义不变。
 - 没有性能、payload、PG query 或 timer runtime 的明显退化；无法证明时保持 `health_watch`。
 
+当前进展：
+
+- 已新增 `docs/backend-owner-map.json`，作为三大热点文件拆分前的机器可读 owner map。
+- `docs/README.md` 已把 backend owner map 纳入当前文档入口，`scripts/project-harness.js` 已把它加入 current truth sources。
+- `server/websim_payload.py` 已明确 `gear_public_contract`、`gear_legality_source_map`、`gear_serializer_golden_payload`、`talent_public_contract` owner；其中公开装备入口继续以 active `raiderio_observed_profile` 为唯一公开 community source，`recommended_bis`、`season_recommendation`、`default_template`、`simc_preset`、`baseline_blocked` 仍为 public blocked source。
+- `server/news_backend.py` 已明确 `runtime_api_wiring`、`health_admin_summary`、`news_content_api`、`chickenbro_session_api` owner。
+- `server/postgres_cache_store.py` 已明确 `gear_template_selectors`、`sync_state_repository`、`recommended_bis_evidence`、`cleanup_residue_control` owner。
+- 本轮只建立 owner map 与 characterization anchors，不抽模块、不移动业务函数、不改变公开 payload。
+
 ### Phase 4：小步结构拆分
 
 目标：按 owner 抽小模块，不做大规模搬家。

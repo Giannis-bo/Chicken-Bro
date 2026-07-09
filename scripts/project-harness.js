@@ -13,7 +13,8 @@ const DEFAULT_HOTSPOT_FILES = [
 const CURRENT_TRUTH_SOURCES = [
   'docs/roadmap.md',
   'docs/README.md',
-  'docs/harness.md'
+  'docs/harness.md',
+  'docs/backend-owner-map.json'
 ]
 
 const ROLLBACK_STRATEGIES = [
