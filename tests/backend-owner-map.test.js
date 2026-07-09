@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_official_item_metadata_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_community_gear_item_hydration_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -72,8 +72,16 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
     'gear template selectors should own official item metadata row filtering after this Phase 4 split'
   )
   assert.ok(
+    gearTemplateSelectors.owns.includes('community gear item metadata hydration'),
+    'gear template selectors should own community gear item metadata hydration after this Phase 4 split'
+  )
+  assert.ok(
     gearTemplateSelectors.characterization.some((entry) => entry.includes('test_build_official_item_metadata_by_id_read_model_filters_unofficial_rows')),
     'gear template selectors should point at the official item metadata row characterization test'
+  )
+  assert.ok(
+    gearTemplateSelectors.characterization.some((entry) => entry.includes('test_build_hydrated_community_gear_items_read_model_applies_official_metadata')),
+    'gear template selectors should point at the hydrated community gear item characterization test'
   )
   const gearCatalogReadModelSelectors = pgOwners.get('gear_catalog_read_model_selectors')
   assert.ok(gearCatalogReadModelSelectors)

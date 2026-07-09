@@ -52,6 +52,53 @@ class PgGearTemplateSelectorsTest(unittest.TestCase):
         self.assertEqual(metadata_by_id["190001"]["armorType"], "Cloth")
         self.assertEqual(metadata_by_id["190002"]["metadataSource"], "Battle.net Game Data API")
 
+    def test_build_hydrated_community_gear_items_read_model_applies_official_metadata(self):
+        from server.pg_gear_template_selectors import build_hydrated_community_gear_items_read_model
+
+        gear_items_json = json.dumps([
+            {"itemId": "190001", "slot": "head", "displayName": "Sparse Crown"},
+            {"itemId": "190099", "slot": "neck", "displayName": "Unmatched Pendant"},
+            "bad-item",
+            {"id": "190002", "slot": "hands", "displayName": "Sparse Gloves"},
+        ])
+        official_metadata_by_id = {
+            "190001": {
+                "itemId": "190001",
+                "displayName": "Crown of the Violet Tower",
+                "slot": "head",
+                "itemLevel": 639,
+                "quality": "Epic",
+                "iconUrl": "https://render.worldofwarcraft.com/item/crown.jpg",
+                "metadataStatus": "verified",
+                "metadataSource": "Battle.net Game Data API",
+                "metadataLocale": "zh_CN",
+            },
+            "190002": {
+                "itemId": "190002",
+                "displayName": "Gloves of the Violet Tower",
+                "slot": "hands",
+                "itemLevel": 636,
+                "quality": "Epic",
+                "metadataStatus": "verified",
+                "metadataSource": "Battle.net Game Data API",
+            },
+        }
+
+        hydrated = build_hydrated_community_gear_items_read_model(gear_items_json, official_metadata_by_id)
+
+        self.assertEqual(len(hydrated), 3)
+        self.assertEqual(hydrated[0]["itemId"], "190001")
+        self.assertEqual(hydrated[0]["displayName"], "Crown of the Violet Tower")
+        self.assertEqual(hydrated[0]["localizedName"], "Crown of the Violet Tower")
+        self.assertEqual(hydrated[0]["iconUrl"], "https://render.worldofwarcraft.com/item/crown.jpg")
+        self.assertEqual(hydrated[0]["quality"], "Epic")
+        self.assertEqual(hydrated[0]["metadataSource"], "Battle.net Game Data API")
+        self.assertEqual(hydrated[0]["gameAsset"]["status"], "verified")
+        self.assertEqual(hydrated[1]["displayName"], "Unmatched Pendant")
+        self.assertNotIn("metadataSource", hydrated[1])
+        self.assertEqual(hydrated[2]["itemId"], "190002")
+        self.assertEqual(hydrated[2]["displayName"], "Gloves of the Violet Tower")
+
     def test_build_public_gear_template_read_model_compacts_payload_without_public_baseline(self):
         from server.pg_gear_template_selectors import build_public_gear_template_read_model
 
