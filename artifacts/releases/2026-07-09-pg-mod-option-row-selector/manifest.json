@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-09T11:27:10.141Z",
+  "generatedAt": "2026-07-09T11:29:08.180Z",
   "release": {
     "date": "2026-07-09",
     "slug": "pg-mod-option-row-selector"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 341669
+          "sizeBytes": 341729
         },
         {
           "path": "docs/README.md",
@@ -217,7 +217,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-09-pg-mod-option-row-selector/evidence.json",
-    "sizeBytes": 7897,
+    "sizeBytes": 8113,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,7 +235,7 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "candidate_deployment_verified",
+    "declaredStatus": "live_verified",
     "highestEvidenceLevel": "live_verified",
     "summary": "Phase 4 continues the read-only PostgreSQL gear row/read-model split. server/pg_gear_read_model_selectors.py now owns build_gear_mod_options_by_slot_read_model(), which maps cache.websim_gear_mod_options rows into slot-grouped socket/enchant/embellishment option read-model fragments. server/postgres_cache_store.py keeps PG SQL reads, mod option row filtering, catalog item assembly, payload cache fingerprinting, cache writes, and sync/write/backfill paths."
   },
