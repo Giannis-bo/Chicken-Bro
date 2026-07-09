@@ -3913,7 +3913,7 @@ class PostgresCacheStore:
         raw_rows = self._season_recommended_catalog_raw_rows()
         catalog_items = self._gear_catalog_items(
             raw_rows.get("itemRows") or [],
-            self._gear_sources_by_item(raw_rows.get("sourceRows") or []),
+            pg_gear_read_model_selectors.build_gear_sources_by_item_read_model(raw_rows.get("sourceRows") or []),
             self._gear_variants_by_item(raw_rows.get("variantRows") or []),
             raw_rows.get("rawOptionsBySlot") or {},
             class_key,
@@ -5693,32 +5693,6 @@ class PostgresCacheStore:
             },
         )
 
-    def _gear_sources_by_item(self, rows):
-        result = {}
-        for row in rows:
-            payload = _json_value(row[9], {})
-            payload = payload if isinstance(payload, dict) else {}
-            label = str(row[4] or row[3] or row[2] or "").strip()
-            source = {
-                "id": str(row[0]),
-                "itemId": str(row[1]),
-                "sourceType": row[2],
-                "sourceKey": row[3],
-                "label": label,
-                "sourceLabel": label,
-                "instanceId": row[5],
-                "encounterId": row[6],
-                "difficultyKey": row[7],
-                "difficultyLabel": localized_difficulty_label(row[7], label, row[2]),
-                "seasonRevision": row[8],
-                "payload": payload,
-                "updatedAt": str(row[10] or ""),
-            }
-            if payload.get("recommendationScore") is not None:
-                source["recommendationScore"] = payload.get("recommendationScore")
-            result.setdefault(str(row[1]), []).append(source)
-        return result
-
     def _gear_variants_by_item(self, rows):
         result = {}
         for row in rows:
@@ -6478,7 +6452,7 @@ class PostgresCacheStore:
                     )
                     item_rows = cur.fetchall()
                 persisted_templates = self._gear_community_templates(cur, class_key, spec_key)
-        sources_by_item = self._gear_sources_by_item(source_rows)
+        sources_by_item = pg_gear_read_model_selectors.build_gear_sources_by_item_read_model(source_rows)
         variants_by_item = self._gear_variants_by_item(variant_rows)
         raw_options_by_slot = {
             "socket": self._gear_mod_options_by_slot([row for row in mod_option_rows if str(row[1] or "").lower() == "socket"]),

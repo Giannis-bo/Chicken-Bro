@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 
 try:
     from .websim_payload import (
@@ -20,6 +21,7 @@ try:
         gear_readiness,
         gear_slot_readiness,
         limit_replacement_candidates,
+        localized_difficulty_label,
         normalize_slot,
         unique_gear_candidates,
         utc_now,
@@ -46,12 +48,50 @@ except ImportError:
         gear_readiness,
         gear_slot_readiness,
         limit_replacement_candidates,
+        localized_difficulty_label,
         normalize_slot,
         unique_gear_candidates,
         utc_now,
         websim_max_level,
         weapon_equipment_rule_payload,
     )
+
+
+def _json_value(value, fallback):
+    if isinstance(value, (dict, list)):
+        return value
+    try:
+        parsed = json.loads(value or "")
+    except (TypeError, ValueError):
+        return fallback
+    return parsed if parsed is not None else fallback
+
+
+def build_gear_sources_by_item_read_model(rows):
+    result = {}
+    for row in rows or []:
+        payload = _json_value(row[9], {})
+        payload = payload if isinstance(payload, dict) else {}
+        label = str(row[4] or row[3] or row[2] or "").strip()
+        source = {
+            "id": str(row[0]),
+            "itemId": str(row[1]),
+            "sourceType": row[2],
+            "sourceKey": row[3],
+            "label": label,
+            "sourceLabel": label,
+            "instanceId": row[5],
+            "encounterId": row[6],
+            "difficultyKey": row[7],
+            "difficultyLabel": localized_difficulty_label(row[7], label, row[2]),
+            "seasonRevision": row[8],
+            "payload": payload,
+            "updatedAt": str(row[10] or ""),
+        }
+        if payload.get("recommendationScore") is not None:
+            source["recommendationScore"] = payload.get("recommendationScore")
+        result.setdefault(str(row[1]), []).append(source)
+    return result
 
 
 def build_common_gear_read_model_fragment(class_key, spec_key, readiness, *, checked_at=None):
