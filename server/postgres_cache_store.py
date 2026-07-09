@@ -5286,21 +5286,18 @@ class PostgresCacheStore:
     def get_websim_bootstrap(self):
         season = self.get_active_season_payload()
         season_fields = season_metadata_fields(season)
-        return {
-            "navTitle": "WebSim",
-            "title": "SimC 构筑工坊",
-            "region": "us",
-            "locale": season_fields["locale"],
-            "localeFallbacks": unique_locale_preferences(season_fields["locale"]),
-            "classes": classes_payload(),
-            "gearSlots": gear_slot_payload(),
-            "scenarios": SCENARIOS,
-            "instances": self.get_websim_instances(),
-            "syncState": self.get_sync_state("websim_sync") or {"ok": False, "errors": ["PostgreSQL websim cache has not been synced"]},
-            "defaultSelection": self.get_websim_default_selection(),
-            "simcraftVersion": simc_version_payload(),
-            **season_fields,
-        }
+        sync_state = self.get_sync_state("websim_sync") or {"ok": False, "errors": ["PostgreSQL websim cache has not been synced"]}
+        return pg_gear_read_model_selectors.build_websim_bootstrap_read_model(
+            season_fields,
+            locale_fallbacks=unique_locale_preferences(season_fields["locale"]),
+            classes=classes_payload(),
+            gear_slots=gear_slot_payload(),
+            scenarios=SCENARIOS,
+            instances=self.get_websim_instances(),
+            sync_state=sync_state,
+            default_selection=self.get_websim_default_selection(),
+            simcraft_version=simc_version_payload(),
+        )
 
     def get_websim_assets(self, filters=None):
         filters = filters or {}

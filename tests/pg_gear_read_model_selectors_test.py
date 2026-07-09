@@ -4,6 +4,42 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_websim_bootstrap_read_model_assembles_backend_owned_payload(self):
+        from server.pg_gear_read_model_selectors import build_websim_bootstrap_read_model
+
+        season_fields = {
+            "locale": "zh_CN",
+            "dataStatus": "verified",
+            "seasonId": "midnight-1",
+        }
+
+        payload = build_websim_bootstrap_read_model(
+            season_fields,
+            locale_fallbacks=["zh_CN", "en_US"],
+            classes=[{"key": "mage"}],
+            gear_slots=[{"key": "head"}],
+            scenarios=[{"key": "single"}],
+            instances=[{"id": "dungeon-a"}],
+            sync_state={"ok": True},
+            default_selection={"classKey": "mage", "specKey": "arcane"},
+            simcraft_version={"version": "simc-dev"},
+        )
+
+        self.assertEqual(payload["navTitle"], "WebSim")
+        self.assertEqual(payload["title"], "SimC 构筑工坊")
+        self.assertEqual(payload["region"], "us")
+        self.assertEqual(payload["locale"], "zh_CN")
+        self.assertEqual(payload["localeFallbacks"], ["zh_CN", "en_US"])
+        self.assertEqual(payload["classes"], [{"key": "mage"}])
+        self.assertEqual(payload["gearSlots"], [{"key": "head"}])
+        self.assertEqual(payload["scenarios"], [{"key": "single"}])
+        self.assertEqual(payload["instances"], [{"id": "dungeon-a"}])
+        self.assertEqual(payload["syncState"], {"ok": True})
+        self.assertEqual(payload["defaultSelection"], {"classKey": "mage", "specKey": "arcane"})
+        self.assertEqual(payload["simcraftVersion"], {"version": "simc-dev"})
+        self.assertEqual(payload["dataStatus"], "verified")
+        self.assertEqual(payload["seasonId"], "midnight-1")
+
     def test_build_websim_default_selection_read_model_maps_row_and_fallback(self):
         from server.pg_gear_read_model_selectors import build_websim_default_selection_read_model
 

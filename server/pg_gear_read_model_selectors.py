@@ -100,6 +100,35 @@ def _int_value(value, fallback=0):
         return fallback
 
 
+def build_websim_bootstrap_read_model(
+    season_fields,
+    *,
+    locale_fallbacks,
+    classes,
+    gear_slots,
+    scenarios,
+    instances,
+    sync_state,
+    default_selection,
+    simcraft_version,
+):
+    return {
+        "navTitle": "WebSim",
+        "title": "SimC 构筑工坊",
+        "region": "us",
+        "locale": season_fields["locale"],
+        "localeFallbacks": locale_fallbacks,
+        "classes": classes,
+        "gearSlots": gear_slots,
+        "scenarios": scenarios,
+        "instances": instances,
+        "syncState": sync_state,
+        "defaultSelection": default_selection,
+        "simcraftVersion": simcraft_version,
+        **season_fields,
+    }
+
+
 def build_websim_default_selection_read_model(row):
     return {
         "classKey": row[0] if row else "mage",
