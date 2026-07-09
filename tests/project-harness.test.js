@@ -28,11 +28,12 @@ test('project harness emits the current repo-native harness manifest as read-onl
   const manifest = JSON.parse(result.stdout)
   assert.equal(manifest.status, 'project_harness_manifest_ready')
   assert.equal(manifest.schemaVersion, 1)
-  assert.equal(manifest.harness.version, 'v0.3')
+  assert.equal(manifest.harness.version, 'v0.4')
   assert.equal(manifest.harness.source, 'docs/harness.md')
   assert.equal(manifest.safety.noNetwork, true)
   assert.equal(manifest.safety.repositoryRemoteSyncPreapproved, true)
   assert.equal(manifest.safety.repositoryRemoteSyncScope, 'configured_project_remote_only')
+  assert.equal(manifest.safety.autonomousProgressionEnabled, true)
   assert.equal(manifest.safety.noDeploy, true)
   assert.equal(manifest.safety.noSsh, true)
   assert.equal(manifest.safety.productionWrites, false)
@@ -43,6 +44,7 @@ test('project harness emits the current repo-native harness manifest as read-onl
   assert.equal(manifest.evidence.localTests.status, 'not_run')
   assert.ok(Array.isArray(manifest.riskMatrix))
   assert.deepEqual(Object.keys(manifest.gates).sort(), [
+    'autonomousProgression',
     'currentTruth',
     'engineeringHealth',
     'evidencePromotion',
@@ -56,6 +58,8 @@ test('project harness emits the current repo-native harness manifest as read-onl
   assert.ok(manifest.gates.currentTruth.sources.some((source) => source.path === 'docs/roadmap.md' && source.exists))
   assert.ok(manifest.gates.engineeringHealth.hotspotFiles.some((file) => file.path === 'server/websim_payload.py' && file.exists))
   assert.equal(manifest.gates.repositoryRemoteSync.preapprovedForConfiguredProjectRemote, true)
+  assert.equal(manifest.gates.autonomousProgression.continueWithoutStepByStepApproval, true)
+  assert.ok(manifest.gates.autonomousProgression.stopForConfirmationWhen.includes('clear_blocker'))
   assert.ok(manifest.gates.releaseRollback.rollbackStrategies.includes('resync_repair'))
 })
 
