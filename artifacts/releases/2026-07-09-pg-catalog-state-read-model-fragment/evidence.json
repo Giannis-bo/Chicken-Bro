@@ -1,6 +1,6 @@
 {
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "candidate_deployment_verified",
+  "highestEvidenceLevel": "live_verified",
   "scope": [
     "server/pg_gear_read_model_selectors.py",
     "server/postgres_cache_store.py",
@@ -61,14 +61,96 @@
       "command": "local CR over git diff -U0 plus write-path keyword scan",
       "status": "pass",
       "summary": "Diff only moves read-only catalog state health and coverage envelope assembly into pg_gear_read_model_selectors.py; no new SQL write, sync, backfill, cache put, or deploy path was added."
+    },
+    {
+      "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+      "status": "pass",
+      "summary": "PR branch candidate deploy to ubuntu@124.223.51.33:/opt/wow-mini-program completed; bootstrap was skipped and PG-native async sync starts were skipped."
+    },
+    {
+      "command": "HTTP smoke against http://124.223.51.33",
+      "status": "pass",
+      "summary": "/health, /api/data/health, /api/websim/bootstrap, /api/websim/assets, /api/websim/talents, /api/websim/gear initial, and /api/websim/gear slot returned HTTP 200. /api/data/health remained overallStatus=partial."
+    },
+    {
+      "command": "40-spec live /api/websim/gear?compact=1&mode=initial sweep",
+      "status": "pass",
+      "summary": "checkedSpecs=40, failures=0, dataStatus={verified:40}, communityTemplates={1:40}, baselineTemplates={0:40}, sourceKeys={raiderio_observed_profile:40}, canApplyGear={True:40}."
+    },
+    {
+      "command": "systemd service and timer smoke on ubuntu@124.223.51.33",
+      "status": "pass",
+      "summary": "wow-backend and nginx were active/running; checked sync/backfill services were inactive/dead with Result=success; wow timers were listed and active/waiting."
+    },
+    {
+      "command": "runtime env and backend log smoke on ubuntu@124.223.51.33",
+      "status": "pass",
+      "summary": "WOW_DATABASE_RUNTIME=postgres_only. Recent wow-backend logs had no Traceback, ERROR, CRITICAL, SQLite fallback, WOW_SQLITE, or Exception matches after smoke."
+    },
+    {
+      "command": "local and remote sha256 comparison for server/pg_gear_read_model_selectors.py and server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Runtime server file hashes matched between local branch and /opt/wow-mini-program."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
+    "status": "passed",
     "requiredBeforeMerge": true,
     "branch": "codex/phase4-pg-catalog-state-fragment",
+    "commit": "eeeca12a3b9d7a0d3279e3ed2927d76640d03fbb",
+    "pullRequest": 15,
     "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
-    "asyncSyncStarted": false
+    "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "asyncSyncStarted": false,
+    "smoke": {
+      "healthHttpStatus": 200,
+      "dataHealthOverallStatus": "partial",
+      "bootstrapSpecCount": 40,
+      "gearInitial": {
+        "httpStatus": 200,
+        "dataStatus": "verified",
+        "communityTemplates": 1,
+        "baselineTemplates": 0,
+        "replacementCandidates": 16
+      },
+      "gearSlot": {
+        "httpStatus": 200,
+        "dataStatus": "verified",
+        "communityTemplates": 1,
+        "baselineTemplates": 0,
+        "replacementCandidates": 1
+      },
+      "gearInitialSweep": {
+        "checkedSpecs": 40,
+        "failures": 0,
+        "communityTemplateCounts": {
+          "1": 40
+        },
+        "baselineTemplateCounts": {
+          "0": 40
+        },
+        "sourceKeys": {
+          "raiderio_observed_profile": 40
+        },
+        "canApplyGear": {
+          "True": 40
+        }
+      },
+      "services": {
+        "wow-backend.service": "active/running",
+        "nginx.service": "active/running",
+        "syncBackfillServices": "inactive/dead with Result=success",
+        "syncBackfillTimers": "active/waiting"
+      },
+      "runtime": {
+        "WOW_DATABASE_RUNTIME": "postgres_only"
+      },
+      "logs": "No Traceback, ERROR, CRITICAL, SQLite fallback, WOW_SQLITE, or Exception matches found in recent wow-backend logs after smoke.",
+      "hashParity": {
+        "server/pg_gear_read_model_selectors.py": "84032c0b57d2bf99e777f5664707f0c3bb0d288bfd18e329e3b507a47e08379c",
+        "server/postgres_cache_store.py": "5952f5c749d5968f45e5d6809064f407173f8a62e89f10a9cd3ae43907ccbb80"
+      }
+    }
   },
   "risks": [
     {
@@ -78,8 +160,8 @@
     },
     {
       "id": "candidate_deployment_pending",
-      "status": "open",
-      "detail": "This change touches PG read-model/runtime payload assembly and must pass Candidate Deployment Gate before merge."
+      "status": "resolved",
+      "detail": "PR branch candidate deployment and smoke passed before merge."
     },
     {
       "id": "write_paths_out_of_scope",
