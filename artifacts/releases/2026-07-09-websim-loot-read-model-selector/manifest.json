@@ -38,11 +38,11 @@
       "hotspotFile": "server/postgres_cache_store.py",
       "changeType": "read_only_websim_selector_extraction"
     },
-    "candidateDeployment": {
-      "status": "pending",
-      "requiredBeforeMergeForRuntimeChanges": true,
-      "runtimeChangeSurfaces": [
-        "backend_api",
+        "candidateDeployment": {
+            "status": "passed",
+            "requiredBeforeMergeForRuntimeChanges": true,
+            "runtimeChangeSurfaces": [
+                "backend_api",
         "pg_read_model",
         "websim_runtime"
       ]
