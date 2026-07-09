@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-09T12:20:48Z",
+  "generatedAt": "2026-07-09T12:23:28Z",
   "release": {
     "date": "2026-07-09",
     "slug": "community-gear-item-hydration-selector"
@@ -39,7 +39,7 @@
       "changeType": "read_only_selector_extraction"
     },
     "candidateDeployment": {
-      "status": "required_for_runtime_changes",
+      "status": "passed",
       "requiredBeforeMergeForRuntimeChanges": true,
       "runtimeChangeSurfaces": [
         "backend_api",
