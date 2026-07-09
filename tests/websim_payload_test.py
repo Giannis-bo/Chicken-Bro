@@ -2635,6 +2635,40 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(observed_sources[0]["status"], "supporting")
         self.assertFalse(observed_sources[0]["verified"])
 
+    def test_gear_legality_source_map_matches_partial_authority_golden_payload(self):
+        fixture_path = Path(__file__).parent / "fixtures" / "gear-legality-source-map-partial-authority.json"
+        expected = json.loads(fixture_path.read_text(encoding="utf-8"))
+        observed_template = {
+            "id": "observed-profile-mage-arcane",
+            "classKey": "mage",
+            "specKey": "arcane",
+            "sourceKey": "raiderio_observed_profile",
+            "status": "complete",
+            "sourceUrl": "https://raider.io/characters/cn/realm/Arcaneproof",
+            "sampleCount": 1,
+            "profileHash": "profile:mage:arcane:observed",
+            "gearHash": "gear:mage:arcane:observed",
+            "scanRunId": "scan-mage-arcane-observed",
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "canApplyGear": True,
+            "gearItems": [
+                {
+                    "slot": "main_hand",
+                    "simcSlot": "main_hand",
+                    "itemId": "270901",
+                    "weaponType": "Wand",
+                }
+            ],
+        }
+
+        actual = self.websim_payload.gear_legality_authority_health_payload(
+            expected_spec_ids=["hunter:survival", "rogue:outlaw", "mage:arcane"],
+            templates=[observed_template],
+        )
+
+        self.assertEqual(actual, expected)
+
     def test_websim_gear_dedupes_preset_candidate_against_observed_catalog_variant(self):
         conn = sqlite3.connect(self.db_path)
         try:

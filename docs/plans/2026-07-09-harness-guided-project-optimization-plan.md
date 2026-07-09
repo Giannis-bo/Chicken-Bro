@@ -241,6 +241,7 @@
 - `server/news_backend.py` 已明确 `runtime_api_wiring`、`health_admin_summary`、`news_content_api`、`chickenbro_session_api` owner。
 - `server/postgres_cache_store.py` 已明确 `gear_template_selectors`、`sync_state_repository`、`recommended_bis_evidence`、`cleanup_residue_control` owner。
 - `gear_public_contract` 已新增 golden payload characterization：`tests/fixtures/gear-public-contract-observed-only.json` 与 `test_gear_public_contract_matches_observed_only_golden_payload` 固定当前 observed-only 输出，不允许 `recommended_bis`、`season_recommendation`、`simc_preset` 回流公开输出。
+- `gear_legality_source_map` 已新增 golden payload characterization：`tests/fixtures/gear-legality-source-map-partial-authority.json` 与 `test_gear_legality_source_map_matches_partial_authority_golden_payload` 固定当前 authority health/source-map 输出，确保 official / SimC 仍为 missing、observed 只作为 supporting evidence、manual override 仍为 partial 且不升级 verified。
 - 本轮只建立 owner map 与 characterization anchors，不抽模块、不移动业务函数、不改变公开 payload。
 
 ### Phase 4：小步结构拆分

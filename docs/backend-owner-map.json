@@ -68,6 +68,8 @@
             "Illegal weapons or armor must fail closed before public import/save/profile serialization."
           ],
           "characterization": [
+            "tests/websim_payload_test.py::WebSimPayloadTest.test_gear_legality_source_map_matches_partial_authority_golden_payload",
+            "tests/fixtures/gear-legality-source-map-partial-authority.json",
             "tests/websim_payload_test.py::WebSimPayloadTest.test_raiderio_observed_profile_still_must_pass_weapon_legality_gate",
             "tests/news_backend_test.py::NewsBackendTest.test_runtime_websim_gear_partially_gates_illegal_postgres_templates",
             "tests/gear_legality_test.py"
