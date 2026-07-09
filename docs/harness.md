@@ -1,6 +1,6 @@
 # Repo-native Harness
 
-> Harness version：v0.2。
+> Harness version：v0.3。
 > 最后更新：2026-07-09。
 > 适用范围：本仓库所有需求讨论、方案设计、实现、验证、部署和交付声明。
 
@@ -19,6 +19,7 @@
 - 需求不能按单点实现。Standard 以上需求必须先评估它属于哪条业务链路，以及会传播到哪些后端、前端、数据、定时任务和运维面。
 - 工程健康也是交付边界。触达热点文件、核心 API、PG read model、定时任务、health/admin 或部署脚本时，必须说明结构、性能和可用性影响。
 - Harness 必须由真实问题迭代。返工、事故、证据误判、联动漏评和旧文档误导应先记录 finding，再按规则升级为 Harness 改动。
+- 本仓库与已配置项目远端之间的常规同步是协作基础设施，不再作为下载/网络授权阻塞项；但它不能扩展为依赖安装、第三方下载、任意 clone、改 remote 或破坏性历史改写。
 - 不确定时按更高风险处理。Agent 如果无法判断需求大小，默认进入大需求流程。
 
 ## 需求分级
@@ -252,6 +253,30 @@ Standard 以上需求如果触达部署、生产数据、PG read model、cache�
 
 只有部署动作完成不能声明 `live_verified`。`live_verified` 必须有当前线上证据，并说明 smoke 覆盖了哪些入口、哪些仍是 risk。
 
+## Repository Remote Sync Gate
+
+本仓库与已配置项目远端之间的常规同步不需要额外授权。该规则只用于保持本地 checkout、项目分支和 GitHub PR 状态一致，不改变生产、依赖或第三方数据边界。
+
+默认允许：
+
+- `git fetch`、`git pull --ff-only`、`git push`。
+- 发布本项目分支。
+- 创建、更新、读取和合入本项目 PR。
+- 读取本项目 PR、commit、status/check 信息。
+
+执行要求：
+
+- 本地同步前先看 `git status --short --branch`。
+- `main` 默认使用 fast-forward-only 更新。
+- 遇到本地未提交改动、非 fast-forward、冲突或远端状态不一致时，先保护当前工作树并说明情况。
+
+仍需明确用户确认：
+
+- force push、rebase 公开分支或其他历史改写。
+- 新增或修改 remote。
+- `git clone` 其他仓库、submodule update、依赖安装、第三方下载或写入网络获取内容。
+- 任何会部署、触发生产任务、下载外部数据或改变生产配置的操作，除非当前请求已明确授权。
+
 ## Evidence Promotion Gate
 
 所有交付声明必须经过证据晋级门禁。证据只能声明它实际证明的状态，不能因为“看起来差不多”跨级。
@@ -333,6 +358,7 @@ Harness 复盘节奏：
 
 | Version | Date | Change |
 | --- | --- | --- |
+| v0.3 | 2026-07-09 | 增加 Repository Remote Sync Gate：本仓库与已配置项目远端之间的常规 fetch / pull --ff-only / push / PR 状态读取、更新和合入不再需要额外授权，同时保留 force push、改 remote、clone、submodule、依赖安装、第三方下载和生产操作的确认边界。 |
 | v0.2 | 2026-07-09 | 增加 Ownership / Contract Gate 与 Release / Rollback Gate，明确事实判断归属、发布前后 smoke、回滚策略和定时任务防回流。 |
 | v0.1 | 2026-07-09 | 初始 Repo-native Harness：需求分级、Requirement Challenge、Current Truth、Impact Map、Engineering Health、Evidence Promotion、状态机和 Feedback Loop。 |
 
@@ -414,9 +440,19 @@ idea
 ```bash
 node scripts/project-harness.js --json --slug <slug>
 node scripts/project-harness.js --json --write --date YYYY-MM-DD --slug <slug>
+node scripts/project-harness.js --json --slug <slug> --evidence-file artifacts/releases/<release>/evidence.json
 ```
 
 带 `--write` 时会写入本地 `artifacts/releases/<date>-<slug>/manifest.json`。不带 `--write` 时只输出 JSON 到 stdout。
+
+带 `--evidence-file` 时只读取仓库内本地 JSON evidence packet，不执行其中的命令。Evidence packet 至少应包含：
+
+- `status`
+- `highestEvidenceLevel`
+- `scope`
+- `verification`
+- `risks`
+- `rollback`
 
 第一版聚合：
 
@@ -429,6 +465,7 @@ node scripts/project-harness.js --json --write --date YYYY-MM-DD --slug <slug>
 - evidence promotion gate。
 - release / rollback gate。
 - feedback findings。
+- repository remote sync boundary。
 - roadmap / active contract 入口。
 - diff scope。
 - 本地测试。

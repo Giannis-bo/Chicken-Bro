@@ -41,6 +41,13 @@ This repository maintains a project roadmap as shared context for all agents and
 - Server-side SimulationCraft runtime updates on the known cloud server are also covered once the user asks for SimC update, SimC sync, WebSim/SimC readiness repair, deployment, cutover-readiness work, or authorizes the health follow-up automation for SimC. Covered SimC operations include downloading the configured SimulationCraft source archive from the configured repo/branch, building it under `/opt/wow-simc`, atomically switching `/opt/wow-simc/current`, updating `/opt/wow-simc/.commit` and version state, restarting or triggering existing project services, and running SimC/API smoke checks. `wow-data-health-followup.timer` may automatically trigger the configured `wow-simc-runtime-update.service` when `/api/data/health` reports the configured SimC runtime has `updateAvailable=true`.
 - This does not turn local downloads, arbitrary third-party downloads, dependency installation, repository cloning/pulling, remote git push/pull, or changing `SIMC_GITHUB_REPO` / `SIMC_BRANCH` into implicit actions; those still follow the Network / Download Approval rule unless the user explicitly includes them in the current request.
 
+## Repository Remote Sync Approval
+
+- For this repository, routine synchronization between this working copy and the configured project remote does not require an extra approval prompt.
+- Covered operations include `git fetch`, `git pull --ff-only`, `git push`, publishing project branches, creating or updating pull requests, reading PR or commit status, and merging approved project pull requests.
+- Before local sync, inspect `git status --short --branch`. Preserve unrelated local changes and prefer fast-forward-only updates for `main`.
+- If sync is non-fast-forward, conflicts with local work, needs a force push, rewrites history, changes remotes, clones another repository, updates submodules, installs dependencies, or downloads third-party assets/data, stop and get explicit user confirmation unless the current user request already includes that operation.
+
 ## Scope Boundaries
 
 - The roadmap is the long-lived product and engineering control plane. It does not replace detailed task plans.

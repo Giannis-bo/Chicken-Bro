@@ -4,9 +4,11 @@
 
 `Phase 0 + Phase 1 已完成 / 当前 UI 基线已验收`
 
-本文件承接 `docs/harness.md` v0.2、`docs/plans/2026-07-09-docs-implementation-current-truth-review.md` 和当前用户确认的 A 路线：先收口 Harness 与证据系统，再做结构拆分。
+本文件承接 `docs/harness.md` v0.3、`docs/plans/2026-07-09-docs-implementation-current-truth-review.md` 和当前用户确认的 A 路线：先收口 Harness 与证据系统，再做结构拆分。
 
 2026-07-09 14:29 CST 更新：Phase 0 工作树主题收口与 Phase 1 UI proof matrix 已完成。当前 UI rescue 基线为 `runtime_recapture_complete_auto_14_screenshots_14_pass_final_accepted`，14/14 当前自动截图证据已归档，`runtimeVerified=true`、`finalAccepted=true`、`riskCount=0`。后续 UI 设计调整不纳入本轮 rescue，按新需求重新走 Harness。
+
+2026-07-09 后续更新：用户确认本项目与已配置远端仓库之间的常规同步不再需要额外授权。Phase 2 开始把 `scripts/project-harness.js` 从只读风险表推进为 evidence packet 起点：脚本仍不执行测试、不部署、不联网、不下载，但可读取仓库内本地 `--evidence-file` JSON，并在 manifest 中标出证据包完整性与 repository remote sync 边界。
 
 本计划只定义整体优化顺序和验收门禁，不授权直接修改业务实现、不替代 roadmap、runbook 或当前 UI source-of-truth。
 
@@ -33,7 +35,7 @@
 关键假设：
 
 - `docs/roadmap.md` 顶部、`docs/README.md`、`docs/harness.md`、相关 runbook 和 current source-of-truth 继续作为当前事实入口。
-- 当前 Harness v0.2 是规则基线，但 `scripts/project-harness.js` 仍只是只读聚合器，不能替代人工需求合同、测试输出或运行时证据。
+- 当前 Harness v0.3 是规则基线，但 `scripts/project-harness.js` 仍只是只读聚合器，不能替代人工需求合同、测试输出或运行时证据。
 - 当前工作树已经存在多项未提交文档、证据和测试改动；交付前必须继续按主题解释并保持可审阅 diff。
 
 验收证据：
@@ -205,6 +207,12 @@
 
 - 每个 artifact 显示 harness version、current truth sources、impact map placeholder、owner principles、engineering health、release/rollback、evidence status、dirty diff 和 hotspot files。
 - 后续需求文档引用该 artifact，并补齐人工验证命令输出。
+
+当前进展：
+
+- `AGENTS.md` 与 `docs/harness.md` 已新增 repository remote sync 例外：常规 `fetch / pull --ff-only / push / PR` 同步不再二次授权，但 force push、改 remote、clone、submodule、依赖安装、第三方下载和生产操作仍需明确确认。
+- `scripts/project-harness.js` 已新增 `--evidence-file`，只读取仓库内本地 JSON evidence packet，不执行其中命令。
+- Manifest 现在输出 `repositoryRemoteSync` gate、`safety.repositoryRemoteSyncPreapproved` 和 `evidencePacket` 完整性检查。
 
 ### Phase 3：后端 owner map 与 characterization
 

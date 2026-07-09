@@ -28,12 +28,15 @@ test('project harness emits the current repo-native harness manifest as read-onl
   const manifest = JSON.parse(result.stdout)
   assert.equal(manifest.status, 'project_harness_manifest_ready')
   assert.equal(manifest.schemaVersion, 1)
-  assert.equal(manifest.harness.version, 'v0.2')
+  assert.equal(manifest.harness.version, 'v0.3')
   assert.equal(manifest.harness.source, 'docs/harness.md')
   assert.equal(manifest.safety.noNetwork, true)
+  assert.equal(manifest.safety.repositoryRemoteSyncPreapproved, true)
+  assert.equal(manifest.safety.repositoryRemoteSyncScope, 'configured_project_remote_only')
   assert.equal(manifest.safety.noDeploy, true)
   assert.equal(manifest.safety.noSsh, true)
   assert.equal(manifest.safety.productionWrites, false)
+  assert.equal(manifest.evidencePacket.status, 'not_attached')
   assert.equal(manifest.write.enabled, false)
   assert.equal(manifest.evidence.dataHealth.status, 'not_collected')
   assert.equal(manifest.evidence.deploySmoke.status, 'not_run')
@@ -46,11 +49,13 @@ test('project harness emits the current repo-native harness manifest as read-onl
     'feedbackLoop',
     'impactMap',
     'ownershipContract',
+    'repositoryRemoteSync',
     'releaseRollback',
     'requirementChallenge'
   ].sort())
   assert.ok(manifest.gates.currentTruth.sources.some((source) => source.path === 'docs/roadmap.md' && source.exists))
   assert.ok(manifest.gates.engineeringHealth.hotspotFiles.some((file) => file.path === 'server/websim_payload.py' && file.exists))
+  assert.equal(manifest.gates.repositoryRemoteSync.preapprovedForConfiguredProjectRemote, true)
   assert.ok(manifest.gates.releaseRollback.rollbackStrategies.includes('resync_repair'))
 })
 
@@ -142,4 +147,63 @@ test('project harness sanitizes release path segments before writing artifacts',
     'write path should remain under artifacts/releases'
   )
   assert.ok(fs.existsSync(path.join(root, manifest.write.path)))
+})
+
+test('project harness loads a local evidence packet without executing it', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-evidence-'))
+  writeFile(path.join(root, 'docs/harness.md'), [
+    '# Repo-native Harness',
+    '',
+    '> Harness version：v9.9。',
+    '> 最后更新：2099-01-02。',
+    ''
+  ].join('\n'))
+  writeFile(path.join(root, 'docs/roadmap.md'), '# Roadmap\n')
+  writeFile(path.join(root, 'docs/README.md'), '# Docs\n')
+  writeFile(path.join(root, 'artifacts/releases/sample/evidence.json'), JSON.stringify({
+    status: 'local_verified',
+    highestEvidenceLevel: 'local_verified',
+    scope: ['harness'],
+    verification: [
+      {
+        command: 'node --test tests/project-harness.test.js',
+        status: 'pass'
+      }
+    ],
+    risks: [],
+    rollback: ['code_rollback'],
+    summary: 'Harness evidence packet fixture.'
+  }, null, 2))
+
+  const result = runHarness([
+    '--root',
+    root,
+    '--json',
+    '--evidence-file',
+    'artifacts/releases/sample/evidence.json'
+  ])
+
+  assert.equal(result.status, 0)
+  assert.equal(result.stderr, '')
+
+  const manifest = JSON.parse(result.stdout)
+  assert.equal(manifest.evidencePacket.status, 'ready')
+  assert.equal(manifest.evidencePacket.path, 'artifacts/releases/sample/evidence.json')
+  assert.equal(manifest.evidencePacket.declaredStatus, 'local_verified')
+  assert.equal(manifest.evidencePacket.highestEvidenceLevel, 'local_verified')
+  assert.deepEqual(manifest.evidencePacket.missingFields, [])
+})
+
+test('project harness refuses evidence packets outside the repository root', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-evidence-boundary-'))
+  const result = runHarness([
+    '--root',
+    root,
+    '--json',
+    '--evidence-file',
+    '../outside.json'
+  ])
+
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /Refusing evidence file outside repository root/)
 })

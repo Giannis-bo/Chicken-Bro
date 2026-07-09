@@ -24,13 +24,23 @@ const ROLLBACK_STRATEGIES = [
   'resync_repair'
 ]
 
+const EVIDENCE_PACKET_REQUIRED_FIELDS = [
+  'status',
+  'highestEvidenceLevel',
+  'scope',
+  'verification',
+  'risks',
+  'rollback'
+]
+
 function parseArgs(argv) {
   const options = {
     root: process.cwd(),
     json: false,
     write: false,
     date: new Date().toISOString().slice(0, 10),
-    slug: 'harness'
+    slug: 'harness',
+    evidenceFile: null
   }
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -48,12 +58,18 @@ function parseArgs(argv) {
     } else if (arg === '--slug' && argv[index + 1]) {
       options.slug = argv[index + 1]
       index += 1
+    } else if (arg === '--evidence-file' && argv[index + 1]) {
+      options.evidenceFile = argv[index + 1]
+      index += 1
     }
   }
 
   options.root = path.resolve(options.root)
   options.date = sanitizePathSegment(options.date, new Date().toISOString().slice(0, 10))
   options.slug = sanitizeSlug(options.slug)
+  if (options.evidenceFile) {
+    options.evidenceFile = relativePathInsideRoot(options.root, options.evidenceFile, 'evidence file')
+  }
   return options
 }
 
@@ -70,11 +86,25 @@ function sanitizePathSegment(value, fallback) {
 }
 
 function readText(root, relativePath) {
-  const fullPath = path.join(root, relativePath)
+  const fullPath = pathInsideRoot(root, relativePath, 'read path')
   if (!fs.existsSync(fullPath)) {
     return null
   }
   return fs.readFileSync(fullPath, 'utf8')
+}
+
+function pathInsideRoot(root, relativePath, label) {
+  const rootPath = path.resolve(root)
+  const fullPath = path.resolve(rootPath, relativePath)
+  if (fullPath !== rootPath && !fullPath.startsWith(`${rootPath}${path.sep}`)) {
+    throw new Error(`Refusing ${label} outside repository root: ${relativePath}`)
+  }
+  return fullPath
+}
+
+function relativePathInsideRoot(root, relativePath, label) {
+  const fullPath = pathInsideRoot(root, relativePath, label)
+  return path.relative(path.resolve(root), fullPath).split(path.sep).join('/')
 }
 
 function extractHarnessMetadata(source) {
@@ -101,12 +131,67 @@ function extractHarnessMetadata(source) {
 }
 
 function sourceStatus(root, relativePath) {
-  const fullPath = path.join(root, relativePath)
+  const fullPath = pathInsideRoot(root, relativePath, 'source path')
   const exists = fs.existsSync(fullPath)
   return {
     path: relativePath,
     exists,
     sizeBytes: exists ? fs.statSync(fullPath).size : 0
+  }
+}
+
+function loadEvidencePacket(root, relativePath) {
+  if (!relativePath) {
+    return {
+      status: 'not_attached',
+      requiredFields: EVIDENCE_PACKET_REQUIRED_FIELDS,
+      note: 'Attach a local evidence packet with --evidence-file when promoting a Standard or Strict requirement.'
+    }
+  }
+
+  const fullPath = pathInsideRoot(root, relativePath, 'evidence file')
+  if (!fs.existsSync(fullPath)) {
+    return {
+      status: 'missing',
+      path: relativePath,
+      requiredFields: EVIDENCE_PACKET_REQUIRED_FIELDS
+    }
+  }
+
+  let packet
+  try {
+    packet = JSON.parse(fs.readFileSync(fullPath, 'utf8'))
+  } catch (error) {
+    return {
+      status: 'invalid_json',
+      path: relativePath,
+      error: error && error.message ? error.message : String(error),
+      requiredFields: EVIDENCE_PACKET_REQUIRED_FIELDS
+    }
+  }
+
+  if (!packet || typeof packet !== 'object' || Array.isArray(packet)) {
+    return {
+      status: 'invalid_packet',
+      path: relativePath,
+      error: 'Evidence packet must be a JSON object.',
+      requiredFields: EVIDENCE_PACKET_REQUIRED_FIELDS
+    }
+  }
+
+  const fieldsPresent = EVIDENCE_PACKET_REQUIRED_FIELDS.filter((field) => Object.prototype.hasOwnProperty.call(packet, field))
+  const missingFields = EVIDENCE_PACKET_REQUIRED_FIELDS.filter((field) => !fieldsPresent.includes(field))
+
+  return {
+    status: missingFields.length ? 'incomplete' : 'ready',
+    path: relativePath,
+    sizeBytes: fs.statSync(fullPath).size,
+    requiredFields: EVIDENCE_PACKET_REQUIRED_FIELDS,
+    fieldsPresent,
+    missingFields,
+    declaredStatus: typeof packet.status === 'string' ? packet.status : 'unknown',
+    highestEvidenceLevel: typeof packet.highestEvidenceLevel === 'string' ? packet.highestEvidenceLevel : 'unknown',
+    summary: typeof packet.summary === 'string' ? packet.summary : ''
   }
 }
 
@@ -217,6 +302,29 @@ function buildManifest(options) {
       liveVerifiedRequiresCurrentOnlineEvidence: true,
       timerBackflowCheckRequired: true
     },
+    repositoryRemoteSync: {
+      status: 'ready',
+      preapprovedForConfiguredProjectRemote: true,
+      allowedOperations: [
+        'git_fetch',
+        'git_pull_ff_only',
+        'git_push',
+        'publish_project_branch',
+        'create_update_read_merge_project_pr',
+        'read_project_commit_status'
+      ],
+      stillRequiresConfirmation: [
+        'force_push',
+        'public_history_rewrite',
+        'remote_change',
+        'git_clone_other_repo',
+        'submodule_update',
+        'dependency_install',
+        'third_party_download',
+        'production_operation_without_current_scope'
+      ],
+      preSyncCheck: 'git status --short --branch'
+    },
     evidencePromotion: {
       status: 'template_required',
       levels: [
@@ -238,6 +346,7 @@ function buildManifest(options) {
     }
   }
   const repoGit = gitStatus(options.root)
+  const evidencePacket = loadEvidencePacket(options.root, options.evidenceFile)
   const evidence = {
     localTests: {
       status: 'not_run',
@@ -273,13 +382,16 @@ function buildManifest(options) {
     },
     safety: {
       noNetwork: true,
+      repositoryRemoteSyncPreapproved: true,
+      repositoryRemoteSyncScope: 'configured_project_remote_only',
       noDeploy: true,
       noSsh: true,
       productionWrites: false
     },
     gates,
+    evidencePacket,
     evidence,
-    riskMatrix: buildRiskMatrix(gates, repoGit, evidence),
+    riskMatrix: buildRiskMatrix(gates, repoGit, evidence, evidencePacket),
     repo: {
       git: repoGit
     },
@@ -290,7 +402,7 @@ function buildManifest(options) {
   }
 }
 
-function buildRiskMatrix(gates, repoGit, evidence) {
+function buildRiskMatrix(gates, repoGit, evidence, evidencePacket) {
   const risks = []
   const missingCurrentTruth = gates.currentTruth.sources
     .filter((source) => !source.exists)
@@ -329,6 +441,21 @@ function buildRiskMatrix(gates, repoGit, evidence) {
         detail: item.note
       })
     }
+  }
+  if (evidencePacket.status === 'missing' || evidencePacket.status === 'invalid_json' || evidencePacket.status === 'invalid_packet') {
+    risks.push({
+      id: 'evidence_packet_unusable',
+      severity: 'medium',
+      status: 'blocked',
+      detail: `Evidence packet is ${evidencePacket.status}.`
+    })
+  } else if (evidencePacket.status === 'incomplete') {
+    risks.push({
+      id: 'evidence_packet_incomplete',
+      severity: 'low',
+      status: 'info',
+      detail: `Missing evidence packet fields: ${evidencePacket.missingFields.join(', ')}`
+    })
   }
   return risks
 }
