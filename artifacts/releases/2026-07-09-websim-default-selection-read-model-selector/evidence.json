@@ -1,6 +1,6 @@
 {
-  "status": "candidate_deployment_verified",
-  "highestEvidenceLevel": "candidate_deployment_verified",
+  "status": "merged_to_main",
+  "highestEvidenceLevel": "main_synced_after_candidate_verified",
   "scope": [
     "server/pg_gear_read_model_selectors.py",
     "server/postgres_cache_store.py",
@@ -174,6 +174,14 @@
         }
       }
     }
+  },
+  "merge": {
+    "status": "merged_to_main",
+    "pr": 37,
+    "method": "rebase",
+    "mainHeadAfterPrMerge": "48ab4ecda52ace7beabd28021d6c89cf5fbcf332",
+    "originMainHeadAfterPrMerge": "48ab4ecda52ace7beabd28021d6c89cf5fbcf332",
+    "syncedAt": "2026-07-09T14:24:46Z"
   },
   "risks": [
     {
