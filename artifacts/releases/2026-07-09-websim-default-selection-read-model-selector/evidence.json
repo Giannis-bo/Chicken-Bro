@@ -1,6 +1,6 @@
 {
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "candidate_deployment_verified",
+  "highestEvidenceLevel": "candidate_deployment_verified",
   "scope": [
     "server/pg_gear_read_model_selectors.py",
     "server/postgres_cache_store.py",
@@ -66,26 +66,114 @@
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
+    "status": "passed",
     "requiredBeforeMerge": true,
     "branch": "codex/phase4-websim-default-selection-read-model-selector",
     "baseCommit": "d2bc597e8f76b59901c24301c021eb4c66b33c7b",
+    "deployedCommit": "f032cc721759c1090375488b9a1b68b5f1222f6d",
+    "completedAt": "2026-07-09T14:23:14Z",
     "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "target": "ubuntu@124.223.51.33:/opt/wow-mini-program",
     "asyncSyncStarted": false,
-    "requiredSmoke": [
-      "/health",
-      "/api/data/health",
-      "/api/websim/bootstrap",
-      "/api/websim/assets",
-      "/api/websim/talents",
-      "/api/websim/loot",
-      "/api/websim/gear initial",
-      "/api/websim/gear slot",
-      "40-spec observed-only gear sweep",
-      "systemd backend/nginx/sync-backfill service/timer status",
-      "recent logs without Traceback/ERROR/SQLite fallback",
-      "runtime file hash parity"
-    ]
+    "smoke": {
+      "required": [
+        "/health",
+        "/api/data/health",
+        "/api/websim/bootstrap",
+        "/api/websim/assets",
+        "/api/websim/talents",
+        "/api/websim/loot",
+        "/api/websim/gear initial",
+        "/api/websim/gear slot",
+        "40-spec observed-only gear sweep",
+        "systemd backend/nginx/sync-backfill service/timer status",
+        "recent logs without Traceback/ERROR/SQLite fallback",
+        "runtime file hash parity"
+      ],
+      "result": {
+        "httpEndpoints": {
+          "/health": 200,
+          "/api/data/health": 200,
+          "/api/websim/bootstrap": 200,
+          "/api/websim/assets": 200,
+          "/api/websim/assets?entityType=item&limit=5": 200,
+          "/api/websim/talents?class=mage&spec=arcane&hero=spellslinger": 200,
+          "/api/websim/loot": 200,
+          "/api/websim/gear?class=mage&spec=arcane&compact=1&mode=initial": 200,
+          "/api/websim/gear?class=mage&spec=arcane&compact=1&mode=slot&slot=head": 200
+        },
+        "bootstrap": {
+          "dataStatus": "verified",
+          "classes": 13,
+          "instances": 12,
+          "defaultSelection": {
+            "classKey": "deathknight",
+            "specKey": "blood"
+          }
+        },
+        "talentsReadModel": {
+          "dataStatus": "verified",
+          "talentStatus": "verified",
+          "nodes": 107,
+          "presets": 2,
+          "communityTemplates": 2
+        },
+        "assetsReadModel": {
+          "status": "verified",
+          "assets": 200,
+          "filteredAssets": 5,
+          "counts": {
+            "byStatus": {
+              "verified": 200
+            },
+            "bySource": {
+              "blizzard": 200
+            }
+          }
+        },
+        "lootReadModel": {
+          "items": 120,
+          "instances": 12,
+          "firstItemHasGameAsset": true
+        },
+        "observedOnlyGearSweep": {
+          "checkedSpecs": 40,
+          "failures": 0,
+          "dataStatus": {
+            "verified": 40
+          },
+          "communityTemplates": {
+            "1": 40
+          },
+          "baselineTemplates": {
+            "0": 40
+          },
+          "sourceKeys": {
+            "raiderio_observed_profile": 40
+          },
+          "canApplyGear": {
+            "True": 40
+          }
+        },
+        "systemd": {
+          "databaseRuntime": "postgres_only",
+          "backend": "active",
+          "nginx": "active",
+          "syncBackfillExecStatus": "Result=success ExecMainStatus=0 for checked sync/backfill services",
+          "statWeightsSync": "activating/start",
+          "timersListed": 9
+        },
+        "logs": {
+          "backend": "clean",
+          "syncBackfill": "clean",
+          "grep": "Traceback|ERROR|SQLite fallback"
+        },
+        "runtimeHashParity": {
+          "server/pg_gear_read_model_selectors.py": "ad4ed834e629ca8d3f333c88823feec00a43dead8ffebbb7d631c5eff2094cc6",
+          "server/postgres_cache_store.py": "9dfcf75d9e93ba8a65af4bf42cae6049f50cebb7a8c86d94baf2745d2ebf35d4"
+        }
+      }
+    }
   },
   "risks": [
     {
@@ -95,8 +183,8 @@
     },
     {
       "id": "candidate_deployment_pending",
-      "status": "open",
-      "detail": "Harness v0.5 Candidate Deployment Gate must pass on the PR branch before merge."
+      "status": "closed",
+      "detail": "Harness v0.5 Candidate Deployment Gate passed before merge."
     },
     {
       "id": "write_paths_out_of_scope",
