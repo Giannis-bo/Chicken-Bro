@@ -1,0 +1,88 @@
+{
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "scope": [
+    "server/pg_gear_read_model_selectors.py",
+    "server/postgres_cache_store.py",
+    "tests/pg_gear_read_model_selectors_test.py",
+    "tests/backend-owner-map.test.js",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md"
+  ],
+  "summary": "Phase 4 continues the read-only PostgreSQL gear read-model split. server/pg_gear_read_model_selectors.py now owns catalog candidate legality filtering, replacementCandidates slot grouping, compact/full candidate fragments, catalogItems compaction, readiness / slotReadiness, and candidateLegalityAudit assembly for full/slot PG gear payloads. server/postgres_cache_store.py keeps PG SQL reads, payload cache fingerprinting, public template read model delegation, catalog health envelope fields, and response assembly. Sync, write, and backfill paths are unchanged.",
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_gear_read_model_selectors_test",
+      "status": "red_then_pass",
+      "summary": "First run failed with ModuleNotFoundError for server.pg_gear_read_model_selectors; after adding the helper and adjusting the characterization to the existing slotReadiness behavior, the test passed."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_gear_template_selectors_test tests.postgres_cache_store_test.PostgresCacheStoreTest.test_gear_read_model_attaches_candidate_legality_debug_fields_to_full_payload tests.postgres_cache_store_test.PostgresCacheStoreTest.test_websim_gear_keeps_cached_read_model_when_pg_season_is_stale tests.postgres_cache_store_test.PostgresCacheStoreTest.test_gear_read_model_uses_cache_schema_catalog_rows tests.postgres_cache_store_test.PostgresCacheStoreTest.test_pg_gear_template_selectors_match_observed_only_golden_payload",
+      "status": "pass",
+      "summary": "6 targeted tests passed, covering the existing PG template selector helper, full payload legality audit, stale-season catalog read model, cache schema catalog rows, and observed-only golden payload."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "1014 Python tests ran OK with skipped=1. Existing test-suite warnings included simulator task decode warnings and ResourceWarning output."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 JavaScript tests passed with 0 failures."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_gear_read_model_selectors.py server/pg_gear_template_selectors.py server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Changed Python modules compile."
+    },
+    {
+      "command": "node --check tests/backend-owner-map.test.js && node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Changed owner-map test and project harness script parse."
+    },
+    {
+      "command": "python3 -m json.tool docs/backend-owner-map.json; python3 -m json.tool artifacts/releases/2026-07-09-pg-catalog-read-model-selector/evidence.json; python3 -m json.tool artifacts/releases/2026-07-09-pg-catalog-read-model-selector/manifest.json",
+      "status": "pass",
+      "summary": "Owner map, evidence packet, and manifest are valid JSON."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors."
+    },
+    {
+      "command": "local CR over git diff plus write-path keyword scan",
+      "status": "pass",
+      "summary": "Diff only moves read-only PG catalog candidate grouping/readiness/audit assembly into pg_gear_read_model_selectors.py; no SQL write, sync, or backfill path was added."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true,
+    "branch": "codex/phase4-pg-readiness-selector",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh"
+  },
+  "risks": [
+    {
+      "id": "full_verification_pending",
+      "status": "resolved",
+      "detail": "Full Python/Node test suites, syntax checks, JSON validation, git diff check, and local CR passed locally."
+    },
+    {
+      "id": "candidate_deployment_pending",
+      "status": "pending",
+      "detail": "This touches backend PG read model/runtime, so PR branch candidate deploy smoke is required before merge."
+    },
+    {
+      "id": "write_paths_out_of_scope",
+      "status": "intentional",
+      "detail": "Sync, write, and backfill paths are intentionally unchanged in this read-only selector split."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "resync_repair"
+  ]
+}
