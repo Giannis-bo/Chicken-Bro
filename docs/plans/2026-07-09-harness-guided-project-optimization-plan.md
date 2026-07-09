@@ -20,6 +20,8 @@
 
 2026-07-09 Phase 4 第三刀候选推进：Harness 升级到 v0.5，并将 backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本和用户可见 runtime 的候选部署 / 预览 smoke 前置为正式 gate。本刀继续拆 PG gear selector 只读面，新增 `server/pg_gear_template_selectors.py` 集中 `communityTemplates` / `baselineTemplates` public selection，`server/postgres_cache_store.py` initial 与 full/slot 分支改为委托 helper；sync 写入路径、SQL row 读取和公开 observed-only 语义不变。PR #12 branch 已按 Candidate Deployment Gate 完成候选热部署和线上 smoke，并已 rebase merge 到 `main@704714f`。
 
+2026-07-09 Phase 4 第四刀候选推进：继续沿 PG selector helper 做只读 read-model adapter 拆分，新增 `build_public_gear_template_read_model()`，把 selected public templates 的 payload compact 输出与 `communityTemplateSync` 组装从 `server/postgres_cache_store.py` 收敛到 `server/pg_gear_template_selectors.py`。本刀不移动 PG SQL 读取、不碰 sync/write/backfill，不改变 observed-only 公开入口；当前分支已完成红测、目标测试和完整本地验证，Candidate Deployment Gate 仍按后续步骤执行。
+
 本计划只定义整体优化顺序和验收门禁，不授权直接修改业务实现、不替代 roadmap、runbook 或当前 UI source-of-truth。
 
 ## Requirement Contract
@@ -279,6 +281,7 @@
 - `tests/gear_public_contract_test.py` 先因缺少新模块失败，再在抽取后通过；随后新增 `templateEvidence` hash 来源 parity 测试并 red/green 关闭，证明新模块与旧导出 observed-only 行为及证据读取路径一致。
 - `server/postgres_cache_store.py` 的 PG gear selector 调用面已改为模块限定调用 `gear_public_contract`，并通过 `test_pg_initial_gear_selector_calls_gear_public_contract_module` red/green 锁定；`test_pg_gear_template_selectors_match_observed_only_golden_payload` 继续固定 PG read model 输出不变。
 - `server/pg_gear_template_selectors.py` 已作为 PG selector 只读 helper 抽出，initial 与 full/slot 两个 `get_websim_gear` 读模型分支统一委托 `select_public_gear_templates_for_spec()`；新增 `tests/pg_gear_template_selectors_test.py` red/green 固定 active observed-only、source-less observed blocked、`recommended_bis` / `season_recommendation` 不进入 public baseline 的选择合同。
+- `server/pg_gear_template_selectors.py` 进一步承接 PG public template read-model adapter，`build_public_gear_template_read_model()` 负责 raw selected templates、payload-ready compact templates 和 `communityTemplateSync` 组装；`server/postgres_cache_store.py` 保留 SQL 读取、catalog candidate grouping、readiness 和 catalog health 组装，不再直接 compact/sync public template payload。
 - 本阶段不重新开放 `recommended_bis`、`season_recommendation`、`default_template`、`simc_preset` 或 `baseline_blocked`；上一刀合入后已补做 `WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0` 热部署和线上 smoke，本刀按 Candidate Deployment Gate 在合入前执行候选部署 / 预览 smoke。
 
 ### Phase 5：发布、线上 smoke 与归档

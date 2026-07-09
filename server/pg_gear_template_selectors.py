@@ -32,6 +32,23 @@ def _websim_payload_helpers():
     }
 
 
+def _websim_payload_read_model_helpers():
+    try:
+        from .websim_payload import (
+            compact_community_gear_template,
+            websim_gear_community_template_sync_state,
+        )
+    except ImportError:
+        from websim_payload import (
+            compact_community_gear_template,
+            websim_gear_community_template_sync_state,
+        )
+    return {
+        "compact_template": compact_community_gear_template,
+        "sync_state_builder": websim_gear_community_template_sync_state,
+    }
+
+
 def select_public_gear_templates_for_spec(
     persisted_templates,
     class_key,
@@ -93,4 +110,49 @@ def select_public_gear_templates_for_spec(
     return {
         "communityTemplates": gear_public_contract.public_gear_templates_for_spec(community_templates, class_key, spec_key),
         "baselineTemplates": gear_public_contract.public_gear_templates_for_spec(baseline_templates, class_key, spec_key),
+    }
+
+
+def build_public_gear_template_read_model(
+    persisted_templates,
+    class_key,
+    spec_key,
+    *,
+    compact=False,
+    compact_template=None,
+    sync_state_builder=None,
+    **selector_kwargs,
+):
+    selected = select_public_gear_templates_for_spec(
+        persisted_templates,
+        class_key,
+        spec_key,
+        **selector_kwargs,
+    )
+    community_templates = selected["communityTemplates"]
+    baseline_templates = selected["baselineTemplates"]
+    helpers = None
+
+    def helper(name):
+        nonlocal helpers
+        if helpers is None:
+            helpers = _websim_payload_read_model_helpers()
+        return helpers[name]
+
+    sync_state_builder = sync_state_builder or helper("sync_state_builder")
+    if compact:
+        compact_template = compact_template or helper("compact_template")
+        payload_community_templates = [compact_template(template) for template in community_templates]
+        payload_baseline_templates = [compact_template(template) for template in baseline_templates]
+    else:
+        payload_community_templates = community_templates
+        payload_baseline_templates = baseline_templates
+    selected_templates = [*community_templates, *baseline_templates]
+
+    return {
+        "selectedCommunityTemplates": community_templates,
+        "selectedBaselineTemplates": baseline_templates,
+        "payloadCommunityTemplates": payload_community_templates,
+        "payloadBaselineTemplates": payload_baseline_templates,
+        "communityTemplateSync": sync_state_builder(selected_templates),
     }
