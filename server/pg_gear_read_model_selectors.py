@@ -17,6 +17,8 @@ try:
         compact_gear_candidates,
         compact_gear_mod_options,
         enrich_catalog_item,
+        fallback_text_for,
+        game_asset_from_icon_url,
         gear_mod_option_display_fields,
         gear_mod_option_is_supported_config_option,
         gear_mod_option_payload_with_config_policy,
@@ -54,6 +56,8 @@ except ImportError:
         compact_gear_candidates,
         compact_gear_mod_options,
         enrich_catalog_item,
+        fallback_text_for,
+        game_asset_from_icon_url,
         gear_mod_option_display_fields,
         gear_mod_option_is_supported_config_option,
         gear_mod_option_payload_with_config_policy,
@@ -179,6 +183,85 @@ def build_admin_gear_variant_records_read_model(rows):
         }
         for row in rows or []
     ]
+
+
+def build_websim_loot_items_read_model(
+    rows,
+    filters=None,
+    *,
+    limit=120,
+    normalize_item=None,
+    game_asset_factory=None,
+    fallback_text=None,
+):
+    filters = filters or {}
+    normalize_item = normalize_item or normalize_gear_item
+    game_asset_factory = game_asset_factory or game_asset_from_icon_url
+    fallback_text = fallback_text or fallback_text_for
+    items = []
+    for row in rows or []:
+        item_payload = _json_value(row[10], {})
+        item = normalize_item(
+            {
+                "id": row[5],
+                "itemId": row[5],
+                "name": row[6],
+                "displayName": row[6],
+                "slot": row[7],
+                "quality": row[8],
+                "iconUrl": row[9],
+                "sourceType": "verifiedLoot",
+                "source": f"{row[4] or 'Unknown Encounter'} - {row[2] or 'Unknown Instance'}",
+                "payload": item_payload,
+            },
+            default_source_type="verifiedLoot",
+        )
+        if not item:
+            continue
+        loot_asset = game_asset_factory(
+            "item",
+            row[5],
+            "websim-loot",
+            row[9],
+            source="blizzard",
+            status="verified",
+            semantic_tags=["game", "gear", "item", "loot", row[7]],
+            usage=["websim_loot", "builds_detail"],
+            fallback_text=fallback_text(row[6]),
+        )
+        item.update(
+            {
+                "id": row[0],
+                "instanceId": row[1],
+                "instanceName": row[2] or "Unknown Instance",
+                "encounterId": row[3],
+                "encounterName": row[4] or "Unknown Encounter",
+                "itemId": row[5],
+                "quality": row[8],
+                "iconUrl": row[9],
+                "gameAsset": loot_asset,
+                "sourceType": "verifiedLoot",
+            }
+        )
+        items.append(item)
+    instance_id = str(filters.get("instanceId") or "")
+    encounter_id = str(filters.get("encounterId") or "")
+    slot = str(filters.get("slot") or "")
+    query = str(filters.get("q") or "").strip().lower()
+    if instance_id:
+        items = [item for item in items if str(item.get("instanceId")) == instance_id]
+    if encounter_id:
+        items = [item for item in items if str(item.get("encounterId")) == encounter_id]
+    if slot:
+        items = [item for item in items if item.get("slot") == slot]
+    if query:
+        items = [
+            item for item in items
+            if query in str(item.get("name", "")).lower()
+            or query in str(item.get("encounterName", "")).lower()
+            or query in str(item.get("instanceName", "")).lower()
+        ]
+    return items[:limit]
 
 
 def build_gear_mod_options_by_slot_read_model(rows):

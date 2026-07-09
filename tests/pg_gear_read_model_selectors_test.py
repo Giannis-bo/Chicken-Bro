@@ -4,6 +4,100 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_websim_loot_items_read_model_maps_filters_and_limits_rows(self):
+        from server.pg_gear_read_model_selectors import build_websim_loot_items_read_model
+
+        normalizer_calls = []
+        asset_calls = []
+
+        def normalize_item(payload, default_source_type=""):
+            normalizer_calls.append((payload, default_source_type))
+            if payload.get("itemId") == "bad-item":
+                return None
+            return {
+                "name": payload["name"],
+                "displayName": payload["displayName"],
+                "slot": payload["slot"],
+                "source": payload["source"],
+                "payload": payload["payload"],
+                "simcReady": False,
+            }
+
+        def game_asset_factory(entity_type, entity_id, context_key, icon_url, **kwargs):
+            asset_calls.append((entity_type, entity_id, context_key, icon_url, kwargs))
+            return {
+                "entityType": entity_type,
+                "entityId": entity_id,
+                "contextKey": context_key,
+                "iconUrl": icon_url,
+                "fallbackText": kwargs.get("fallback_text"),
+                "semanticTags": kwargs.get("semantic_tags"),
+            }
+
+        rows = [
+            (
+                "loot-a",
+                "1300",
+                "Dungeon A",
+                "9001",
+                "Boss A",
+                "item-a",
+                "Flame Hood",
+                "head",
+                "Epic",
+                "https://example.test/a.png",
+                '{"source": "battle_net"}',
+            ),
+            (
+                "loot-b",
+                "1301",
+                "Dungeon B",
+                "9002",
+                "Boss B",
+                "item-b",
+                "Frost Ring",
+                "finger1",
+                "Rare",
+                "https://example.test/b.png",
+                '{"source": "battle_net"}',
+            ),
+            (
+                "loot-bad",
+                "1301",
+                "Dungeon B",
+                "9003",
+                "Boss C",
+                "bad-item",
+                "Skipped Trinket",
+                "trinket1",
+                "Rare",
+                "https://example.test/c.png",
+                "{}",
+            ),
+        ]
+
+        items = build_websim_loot_items_read_model(
+            rows,
+            {"instanceId": "1301", "slot": "finger1", "q": "boss b"},
+            limit=1,
+            normalize_item=normalize_item,
+            game_asset_factory=game_asset_factory,
+            fallback_text=lambda value: f"fallback:{value}",
+        )
+
+        self.assertEqual([item["id"] for item in items], ["loot-b"])
+        self.assertEqual(items[0]["itemId"], "item-b")
+        self.assertEqual(items[0]["instanceName"], "Dungeon B")
+        self.assertEqual(items[0]["encounterName"], "Boss B")
+        self.assertEqual(items[0]["quality"], "Rare")
+        self.assertEqual(items[0]["sourceType"], "verifiedLoot")
+        self.assertEqual(items[0]["gameAsset"]["fallbackText"], "fallback:Frost Ring")
+        self.assertIn("finger1", items[0]["gameAsset"]["semanticTags"])
+        self.assertEqual(len(normalizer_calls), 3)
+        self.assertEqual(normalizer_calls[0][0]["source"], "Boss A - Dungeon A")
+        self.assertEqual(normalizer_calls[0][1], "verifiedLoot")
+        self.assertEqual([call[1] for call in asset_calls], ["item-a", "item-b"])
+
     def test_build_admin_gear_variant_records_read_model_maps_variant_rows(self):
         from server.pg_gear_read_model_selectors import build_admin_gear_variant_records_read_model
 
