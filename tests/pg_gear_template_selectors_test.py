@@ -1,8 +1,57 @@
 #!/usr/bin/env python3
+import json
 import unittest
 
 
 class PgGearTemplateSelectorsTest(unittest.TestCase):
+    def test_build_official_item_metadata_by_id_read_model_filters_unofficial_rows(self):
+        from server.pg_gear_template_selectors import build_official_item_metadata_by_id_read_model
+
+        official_payload = {
+            "displayName": "Crown of the Violet Tower",
+            "quality": "Epic",
+            "inventory_type": {"type": "INVTYPE_HEAD", "name": "Head"},
+            "item_class": {"name": "Armor"},
+            "item_subclass": {"name": "Cloth"},
+            "_metadata": {
+                "source": "Battle.net Game Data API",
+                "metadataStatus": "verified",
+                "iconUrl": "https://render.worldofwarcraft.com/item/crown.jpg",
+                "locale": "zh_CN",
+                "englishName": "Crown of the Violet Tower",
+            },
+        }
+        verified_official_shape_payload = {
+            "localizedName": "Verified Shape Helm",
+            "inventoryType": {"type": "INVTYPE_HEAD"},
+            "itemClass": {"name": "Armor"},
+        }
+        unofficial_payload = {
+            "displayName": "Community Guess Helm",
+            "_metadata": {"source": "community_guess", "metadataStatus": "partial"},
+        }
+        rows = [
+            ("190001", "Fallback Crown", "head", 639, json.dumps(official_payload), "verified"),
+            ("190002", "Verified Shape Helm", "head", "626", json.dumps(verified_official_shape_payload), "verified"),
+            ("190003", "Community Guess Helm", "head", 610, json.dumps(unofficial_payload), "partial"),
+            ("190004", "Malformed", "head", 610, "{not-json", "verified"),
+        ]
+
+        metadata_by_id = build_official_item_metadata_by_id_read_model(rows)
+
+        self.assertEqual(set(metadata_by_id), {"190001", "190002"})
+        self.assertEqual(metadata_by_id["190001"]["itemId"], "190001")
+        self.assertEqual(metadata_by_id["190001"]["displayName"], "Crown of the Violet Tower")
+        self.assertEqual(metadata_by_id["190001"]["itemLevel"], 639)
+        self.assertEqual(metadata_by_id["190001"]["quality"], "Epic")
+        self.assertEqual(metadata_by_id["190001"]["iconUrl"], "https://render.worldofwarcraft.com/item/crown.jpg")
+        self.assertEqual(metadata_by_id["190001"]["metadataSource"], "Battle.net Game Data API")
+        self.assertEqual(metadata_by_id["190001"]["metadataStatus"], "verified")
+        self.assertEqual(metadata_by_id["190001"]["metadataLocale"], "zh_CN")
+        self.assertEqual(metadata_by_id["190001"]["englishName"], "Crown of the Violet Tower")
+        self.assertEqual(metadata_by_id["190001"]["armorType"], "Cloth")
+        self.assertEqual(metadata_by_id["190002"]["metadataSource"], "Battle.net Game Data API")
+
     def test_build_public_gear_template_read_model_compacts_payload_without_public_baseline(self):
         from server.pg_gear_template_selectors import build_public_gear_template_read_model
 

@@ -5760,49 +5760,7 @@ class PostgresCacheStore:
             """,
             item_ids,
         )
-        metadata_by_id = {}
-        for row in cur.fetchall():
-            payload = _json_value(row[4], {})
-            payload = payload if isinstance(payload, dict) else {}
-            metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
-            metadata_source = str(metadata.get("source") or payload.get("metadataSource") or "").strip()
-            source_status = str(row[5] or metadata.get("metadataStatus") or payload.get("sourceStatus") or "").strip()
-            has_official_payload_shape = bool(
-                payload.get("inventory_type")
-                or payload.get("inventoryType")
-                or payload.get("item_class")
-                or payload.get("itemClass")
-                or payload.get("item_subclass")
-                or payload.get("itemSubclass")
-            )
-            if metadata_source != ITEM_METADATA_SOURCE and not (
-                source_status == "verified" and has_official_payload_shape
-            ):
-                continue
-            type_metadata = item_type_metadata_from_payload(payload)
-            item_id = str(row[0] or "").strip()
-            display_name = (
-                payload.get("displayName")
-                or payload.get("localizedName")
-                or payload.get("name")
-                or row[1]
-                or f"Item {item_id}"
-            )
-            metadata_by_id[item_id] = {
-                "itemId": item_id,
-                "displayName": display_name,
-                "slot": row[2] or "",
-                "itemLevel": _int_value(row[3]),
-                "quality": payload.get("quality") or "",
-                "iconUrl": metadata.get("iconUrl") or payload.get("iconUrl") or "",
-                "payload": payload,
-                "metadataStatus": source_status or "verified",
-                "metadataSource": metadata_source or ITEM_METADATA_SOURCE,
-                "metadataLocale": metadata.get("locale") or "",
-                "englishName": metadata.get("englishName") or "",
-                **type_metadata,
-            }
-        return metadata_by_id
+        return pg_gear_template_selectors.build_official_item_metadata_by_id_read_model(cur.fetchall())
 
     def _hydrated_community_gear_items(self, gear_items, official_metadata_by_id):
         hydrated = []
