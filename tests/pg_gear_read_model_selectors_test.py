@@ -1,8 +1,95 @@
 #!/usr/bin/env python3
+import json
 import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_gear_catalog_items_read_model_enriches_item_rows(self):
+        from server.pg_gear_read_model_selectors import build_gear_catalog_items_read_model
+
+        item_payload = {
+            "displayName": "Observed Hood",
+            "quality": "epic",
+            "iconUrl": "https://example.test/hood.png",
+            "item_class": {"id": 4, "name": "Armor"},
+            "item_subclass": {"id": 1, "name": "Cloth"},
+            "inventory_type": {"type": "head", "name": "Head"},
+            "_metadata": {"source": "battle_net_item_metadata", "metadataStatus": "verified"},
+        }
+        item_rows = [
+            (
+                "700001",
+                "Prototype Hood",
+                "head",
+                678,
+                json.dumps(item_payload),
+                "verified",
+            ),
+            ("700002", "No Source Hood", "head", 650, "{}", "verified"),
+        ]
+        sources_by_item = {
+            "700001": [
+                {
+                    "id": "source-1",
+                    "itemId": "700001",
+                    "sourceType": "observed_profile",
+                    "sourceKey": "raiderio_observed_profile",
+                    "label": "Observed profile",
+                    "sourceLabel": "Observed profile",
+                    "payload": {"observedProfileRefs": [{"characterName": "Tester"}]},
+                    "recommendationScore": 99,
+                }
+            ]
+        }
+        variants_by_item = {
+            "700001": [
+                {
+                    "id": "variant-1",
+                    "itemId": "700001",
+                    "slot": "head",
+                    "variantKey": "observed",
+                    "key": "observed",
+                    "label": "Observed 684",
+                    "sourceType": "observed_profile",
+                    "difficultyKey": "",
+                    "itemLevel": 684,
+                    "ilevel": 684,
+                    "simcOptions": {"bonus_id": "123"},
+                    "status": "verified",
+                    "payload": {"observedProfileRefs": [{"characterName": "Tester"}]},
+                }
+            ]
+        }
+        mod_options_by_slot = {
+            "socket": {"head": []},
+            "enchant": {"head": []},
+            "embellishment": {"head": []},
+        }
+
+        catalog_items = build_gear_catalog_items_read_model(
+            item_rows,
+            sources_by_item,
+            variants_by_item,
+            mod_options_by_slot,
+            "mage",
+            "frost",
+            {"seasonRevision": "s1"},
+        )
+
+        self.assertEqual([item["itemId"] for item in catalog_items], ["700001"])
+        item = catalog_items[0]
+        self.assertEqual(item["displayName"], "Observed Hood")
+        self.assertEqual(item["slot"], "head")
+        self.assertEqual(item["ilevel"], 684)
+        self.assertEqual(item["armorType"], "Cloth")
+        self.assertEqual(item["source"], "Observed profile")
+        self.assertEqual(item["sourceRefs"][0]["sourceKey"], "raiderio_observed_profile")
+        self.assertEqual(item["variants"][0]["id"], "variant-1")
+        self.assertEqual(item["defaultVariantKey"], "observed")
+        self.assertEqual(item["variantStatus"], "verified")
+        self.assertEqual(item["recommendationScore"], 99)
+        self.assertEqual(item["observedProfileRefs"], [{"characterName": "Tester"}])
+
     def test_build_gear_mod_options_by_slot_read_model_groups_option_rows(self):
         from server.pg_gear_read_model_selectors import build_gear_mod_options_by_slot_read_model
         from server.websim_payload import CANONICAL_GEAR_SLOTS

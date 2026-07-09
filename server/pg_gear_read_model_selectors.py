@@ -8,6 +8,7 @@ try:
         GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
         SIMC_GEAR_OPTION_KEYS,
+        active_catalog_sources_for_replacement,
         apply_gear_candidate_legality,
         apply_gear_mod_option_display_fields,
         blocked_stat_snapshot,
@@ -15,6 +16,7 @@ try:
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
+        enrich_catalog_item,
         gear_mod_option_display_fields,
         gear_mod_option_is_supported_config_option,
         gear_mod_option_payload_with_config_policy,
@@ -27,8 +29,10 @@ try:
         gear_slot_readiness,
         limit_replacement_candidates,
         localized_difficulty_label,
+        normalize_gear_item,
         normalize_option_value,
         normalize_slot,
+        sanitize_gear_candidate_mod_options,
         unique_gear_candidates,
         utc_now,
         websim_max_level,
@@ -41,6 +45,7 @@ except ImportError:
         GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
         SIMC_GEAR_OPTION_KEYS,
+        active_catalog_sources_for_replacement,
         apply_gear_candidate_legality,
         apply_gear_mod_option_display_fields,
         blocked_stat_snapshot,
@@ -48,6 +53,7 @@ except ImportError:
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
+        enrich_catalog_item,
         gear_mod_option_display_fields,
         gear_mod_option_is_supported_config_option,
         gear_mod_option_payload_with_config_policy,
@@ -60,8 +66,10 @@ except ImportError:
         gear_slot_readiness,
         limit_replacement_candidates,
         localized_difficulty_label,
+        normalize_gear_item,
         normalize_option_value,
         normalize_slot,
+        sanitize_gear_candidate_mod_options,
         unique_gear_candidates,
         utc_now,
         websim_max_level,
@@ -243,6 +251,60 @@ def build_gear_mod_options_by_slot_read_model(rows):
             if slot in result:
                 result[slot].append(option)
     return result
+
+
+def build_gear_catalog_items_read_model(
+    item_rows,
+    sources_by_item,
+    variants_by_item,
+    mod_options_by_slot,
+    class_key,
+    spec_key,
+    season,
+):
+    catalog_items = []
+    sources_by_item = sources_by_item if isinstance(sources_by_item, dict) else {}
+    variants_by_item = variants_by_item if isinstance(variants_by_item, dict) else {}
+    mod_options_by_slot = mod_options_by_slot if isinstance(mod_options_by_slot, dict) else {}
+    season = season if isinstance(season, dict) else {}
+    for row in item_rows or []:
+        payload = _json_value(row[4], {})
+        payload = payload if isinstance(payload, dict) else {}
+        item_id = str(row[0])
+        item_sources = active_catalog_sources_for_replacement(sources_by_item.get(item_id, []), season)
+        item_variants = variants_by_item.get(item_id, [])
+        if not item_sources:
+            continue
+        raw_item = {
+            "id": item_id,
+            "itemId": item_id,
+            "name": row[1],
+            "displayName": payload.get("displayName") or payload.get("name") or row[1],
+            "slot": row[2],
+            "itemLevel": row[3],
+            "ilevel": row[3],
+            "quality": payload.get("quality") or "",
+            "iconUrl": payload.get("iconUrl") or "",
+            "source": (sources_by_item.get(item_id) or [{}])[0].get("label") or "gear catalog",
+            "sourceType": "catalog",
+            "payload": payload,
+        }
+        item = normalize_gear_item(raw_item, class_key, spec_key, "catalog")
+        if not item:
+            continue
+        item = enrich_catalog_item(
+            item,
+            item_sources,
+            item_variants,
+            mod_options_by_slot.get("socket", {}).get(item["slot"], []),
+            mod_options_by_slot.get("enchant", {}).get(item["slot"], []),
+            mod_options_by_slot.get("embellishment", {}).get(item["slot"], []),
+            class_key,
+            spec_key,
+        )
+        if item:
+            catalog_items.append(sanitize_gear_candidate_mod_options(item))
+    return catalog_items
 
 
 def build_common_gear_read_model_fragment(class_key, spec_key, readiness, *, checked_at=None):
