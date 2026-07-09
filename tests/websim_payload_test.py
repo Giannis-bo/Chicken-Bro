@@ -5401,6 +5401,105 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual([template["id"] for template in selected], ["observed-profile-mage-frost"])
         self.assertEqual(self.websim_payload.public_baseline_fallback_templates_for_spec("mage", "frost"), [])
 
+    def test_gear_public_contract_matches_observed_only_golden_payload(self):
+        fixture_path = Path(__file__).parent / "fixtures" / "gear-public-contract-observed-only.json"
+        expected = json.loads(fixture_path.read_text(encoding="utf-8"))
+        active_observed = {
+            "id": "observed-profile-mage-frost",
+            "name": "Magefrost · observed profile",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceName": "Raider.IO observed profile",
+            "sourceUrl": "https://raider.io/characters/cn/realm/Magefrost",
+            "sourceStatus": "synced",
+            "status": "complete",
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "canApplyGear": True,
+            "sampleCount": 1,
+            "scanRunId": "scan-mage-frost",
+            "updatedAt": "2026-07-09T00:00:00+00:00",
+            "payload": {
+                "fetchedAt": "2026-07-09T00:00:00+00:00",
+                "profileHash": "profile:mage:frost:active",
+                "gearHash": "gear:mage:frost:active",
+                "character": {
+                    "name": "Magefrost",
+                    "region": "cn",
+                    "realmSlug": "realm",
+                },
+            },
+            "gearItems": [
+                {
+                    "slot": "head",
+                    "simcSlot": "head",
+                    "itemId": "540001",
+                    "displayName": "Observed Hood",
+                    "sourceKey": "raiderio_observed_profile",
+                    "simcReady": True,
+                },
+                {
+                    "slot": "main_hand",
+                    "simcSlot": "main_hand",
+                    "itemId": "540002",
+                    "displayName": "Observed Wand",
+                    "sourceKey": "raiderio_observed_profile",
+                    "weaponType": "Wand",
+                    "simcReady": True,
+                },
+            ],
+        }
+        source_less_observed = {
+            **active_observed,
+            "id": "observed-profile-mage-frost-source-less",
+            "sourceUrl": "",
+            "sampleCount": 0,
+            "payload": {},
+        }
+        recommended_bis = {
+            "id": "recommended-bis-mage-frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "recommended_bis",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+        }
+        season_recommendation = {
+            "id": "season-recommendation-mage-frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "season_recommendation",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+        }
+        simc_preset = {
+            "id": "simc-preset-mage-frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "simc_preset",
+            "status": "complete",
+            "sourceStatus": "synced",
+            "readySlotCount": 16,
+        }
+
+        public_templates = self.websim_payload.public_gear_templates_for_spec(
+            [source_less_observed, active_observed, recommended_bis, season_recommendation, simc_preset],
+            "mage",
+            "frost",
+        )
+        actual = {
+            "communityTemplates": [
+                self.websim_payload.compact_community_gear_template(template)
+                for template in public_templates
+            ],
+            "baselineTemplates": self.websim_payload.public_baseline_fallback_templates_for_spec("mage", "frost"),
+        }
+
+        self.assertEqual(actual, expected)
+
     def test_weapon_rules_allow_survival_hunter_observed_equipped_weapons(self):
         gear_items = [
             {

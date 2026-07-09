@@ -45,6 +45,8 @@
             "Do not move public source-quality decisions to frontend code."
           ],
           "characterization": [
+            "tests/websim_payload_test.py::WebSimPayloadTest.test_gear_public_contract_matches_observed_only_golden_payload",
+            "tests/fixtures/gear-public-contract-observed-only.json",
             "tests/websim_payload_test.py::WebSimPayloadTest.test_real_player_public_policy_applies_to_all_specs",
             "tests/news_backend_test.py::NewsBackendTest.test_runtime_websim_gear_adds_template_chain_state_to_cached_postgres_payload",
             "tests/postgres_cache_store_test.py observed-only public gear API tests"
@@ -74,7 +76,7 @@
         },
         {
           "id": "gear_serializer_golden_payload",
-          "status": "needs_golden_payload",
+          "status": "partial_golden_payload",
           "owns": [
             "compact_community_gear_template",
             "compact_gear_candidates",
@@ -88,6 +90,7 @@
             "Keep payload mode initial/slot detail semantics stable."
           ],
           "characterization": [
+            "tests/fixtures/gear-public-contract-observed-only.json",
             "tests/websim_payload_test.py gear detail and stat snapshot tests",
             "tests/builds-page.test.js gear detail frontend contract tests"
           ],
