@@ -99,6 +99,31 @@ class PgGearTemplateSelectorsTest(unittest.TestCase):
         self.assertEqual(hydrated[2]["itemId"], "190002")
         self.assertEqual(hydrated[2]["displayName"], "Gloves of the Violet Tower")
 
+    def test_collect_community_template_item_refs_read_model_flattens_gear_item_rows(self):
+        from server.pg_gear_template_selectors import collect_community_template_item_refs_read_model
+
+        rows = [
+            ("template-a", json.dumps([
+                {"itemId": "190001", "slot": "head"},
+                "not-an-item",
+                {"itemId": "190002", "slot": "hands"},
+            ])),
+            ("template-b", "{not-json"),
+            ("template-c", json.dumps({"not": "a-list"})),
+            ("template-d", json.dumps([{"itemId": "190003", "slot": "neck"}])),
+        ]
+
+        item_refs = collect_community_template_item_refs_read_model(rows, gear_items_index=1)
+
+        self.assertEqual(
+            item_refs,
+            [
+                {"itemId": "190001", "slot": "head"},
+                {"itemId": "190002", "slot": "hands"},
+                {"itemId": "190003", "slot": "neck"},
+            ],
+        )
+
     def test_build_public_gear_template_read_model_compacts_payload_without_public_baseline(self):
         from server.pg_gear_template_selectors import build_public_gear_template_read_model
 
