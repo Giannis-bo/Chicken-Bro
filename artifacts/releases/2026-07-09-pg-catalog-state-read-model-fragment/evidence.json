@@ -1,0 +1,94 @@
+{
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "scope": [
+    "server/pg_gear_read_model_selectors.py",
+    "server/postgres_cache_store.py",
+    "tests/pg_gear_read_model_selectors_test.py",
+    "tests/backend-owner-map.test.js",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md"
+  ],
+  "summary": "Phase 4 continues the read-only PostgreSQL gear read-model split. server/pg_gear_read_model_selectors.py now owns the catalog state health and coverage envelope fragment shared by initial and full/slot PG gear payloads. server/postgres_cache_store.py keeps PG SQL reads, payload cache fingerprinting, template/candidate read-model delegation, final response assembly, and cache writes. Sync, write, and backfill paths are unchanged.",
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_gear_read_model_selectors_test.PgGearReadModelSelectorsTest.test_build_catalog_state_read_model_fragment_exposes_health_and_coverage_envelope",
+      "status": "red_then_pass",
+      "summary": "First run failed with ImportError because build_catalog_state_read_model_fragment was missing; after adding the helper the targeted characterization passed."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_gear_read_model_selectors_test tests.postgres_cache_store_test",
+      "status": "pass",
+      "summary": "102 targeted selector and PG cache store tests passed locally."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "red_then_pass",
+      "summary": "Owner-map test was updated first and failed while docs/backend-owner-map.json still reported phase4_pg_catalog_read_model_selector_extracted; after updating the owner map it passed."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "1015 Python tests ran OK with skipped=1. Existing suite warnings included simulator task decode warnings and ResourceWarning output."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 JavaScript tests passed with 0 failures."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_gear_read_model_selectors.py server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Changed Python modules compile."
+    },
+    {
+      "command": "node --check tests/backend-owner-map.test.js && node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Changed Node test and project harness script parse."
+    },
+    {
+      "command": "python3 -m json.tool docs/backend-owner-map.json; python3 -m json.tool artifacts/releases/2026-07-09-pg-catalog-state-read-model-fragment/evidence.json; python3 -m json.tool artifacts/releases/2026-07-09-pg-catalog-state-read-model-fragment/manifest.json",
+      "status": "pass",
+      "summary": "Owner map, evidence packet, and manifest are valid JSON."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors."
+    },
+    {
+      "command": "local CR over git diff -U0 plus write-path keyword scan",
+      "status": "pass",
+      "summary": "Diff only moves read-only catalog state health and coverage envelope assembly into pg_gear_read_model_selectors.py; no new SQL write, sync, backfill, cache put, or deploy path was added."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true,
+    "branch": "codex/phase4-pg-catalog-state-fragment",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "asyncSyncStarted": false
+  },
+  "risks": [
+    {
+      "id": "full_verification_pending",
+      "status": "resolved",
+      "detail": "Full Python/Node suites, syntax checks, JSON validation, git diff check, and local CR passed locally."
+    },
+    {
+      "id": "candidate_deployment_pending",
+      "status": "open",
+      "detail": "This change touches PG read-model/runtime payload assembly and must pass Candidate Deployment Gate before merge."
+    },
+    {
+      "id": "write_paths_out_of_scope",
+      "status": "intentional",
+      "detail": "Sync, write, backfill, and PG SQL write paths are intentionally unchanged in this read-only selector split."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "resync_repair"
+  ]
+}
