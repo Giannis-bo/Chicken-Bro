@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-09-phase4-v6",
-  "status": "phase4_official_item_metadata_selector_extracted",
+  "version": "2026-07-09-phase4-v7",
+  "status": "phase4_community_gear_item_hydration_selector_extracted",
   "harnessVersion": "v0.5",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -232,6 +232,7 @@
             "get_websim_gear",
             "public gear template selector calls",
             "official item metadata row read-model filtering",
+            "community gear item metadata hydration",
             "payload-ready public gear template read-model fragments",
             "communityTemplates and baselineTemplates PG read model",
             "compact and full payload selector branches"
@@ -245,13 +246,14 @@
             "tests/pg_gear_template_selectors_test.py::PgGearTemplateSelectorsTest.test_build_public_gear_template_read_model_compacts_payload_without_public_baseline",
             "tests/pg_gear_template_selectors_test.py::PgGearTemplateSelectorsTest.test_select_public_gear_templates_keeps_observed_only_and_empty_public_baseline",
             "tests/pg_gear_template_selectors_test.py::PgGearTemplateSelectorsTest.test_build_official_item_metadata_by_id_read_model_filters_unofficial_rows",
+            "tests/pg_gear_template_selectors_test.py::PgGearTemplateSelectorsTest.test_build_hydrated_community_gear_items_read_model_applies_official_metadata",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_pg_gear_template_selectors_match_observed_only_golden_payload",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_pg_initial_gear_selector_calls_gear_public_contract_module",
             "tests/fixtures/pg-gear-template-selectors-observed-only.json",
             "tests/postgres_cache_store_test.py public observed-only gear payload tests",
             "tests/news_backend_test.py runtime PG gear tests"
           ],
-          "futureExtractionDirection": "Continue extracting repository-level selectors after official metadata row filtering, compact/full candidate grouping, and write-intent boundaries are characterized separately."
+          "futureExtractionDirection": "Continue extracting repository-level selectors after official metadata row filtering, community item hydration, compact/full candidate grouping, and write-intent boundaries are characterized separately."
         },
         {
           "id": "gear_catalog_read_model_selectors",

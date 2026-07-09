@@ -5763,14 +5763,10 @@ class PostgresCacheStore:
         return pg_gear_template_selectors.build_official_item_metadata_by_id_read_model(cur.fetchall())
 
     def _hydrated_community_gear_items(self, gear_items, official_metadata_by_id):
-        hydrated = []
-        for item in _json_value(gear_items, []):
-            if not isinstance(item, dict):
-                continue
-            item_id = str(item.get("itemId") or item.get("id") or "").strip()
-            metadata = official_metadata_by_id.get(item_id) if item_id else None
-            hydrated.append(apply_item_metadata(item, metadata) if metadata else item)
-        return hydrated
+        return pg_gear_template_selectors.build_hydrated_community_gear_items_read_model(
+            gear_items,
+            official_metadata_by_id,
+        )
 
     def community_gear_template_item_metadata_gaps(self, limit=200):
         try:

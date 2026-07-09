@@ -71,14 +71,17 @@ def _websim_payload_item_metadata_helpers():
     try:
         from .websim_payload import (
             ITEM_METADATA_SOURCE,
+            apply_item_metadata,
             item_type_metadata_from_payload,
         )
     except ImportError:
         from websim_payload import (
             ITEM_METADATA_SOURCE,
+            apply_item_metadata,
             item_type_metadata_from_payload,
         )
     return {
+        "apply_item_metadata": apply_item_metadata,
         "metadata_source": ITEM_METADATA_SOURCE,
         "type_metadata_from_payload": item_type_metadata_from_payload,
     }
@@ -131,6 +134,19 @@ def build_official_item_metadata_by_id_read_model(rows):
             **type_metadata,
         }
     return metadata_by_id
+
+
+def build_hydrated_community_gear_items_read_model(gear_items, official_metadata_by_id):
+    apply_item_metadata = _websim_payload_item_metadata_helpers()["apply_item_metadata"]
+    official_metadata_by_id = official_metadata_by_id or {}
+    hydrated = []
+    for item in _json_value(gear_items, []):
+        if not isinstance(item, dict):
+            continue
+        item_id = str(item.get("itemId") or item.get("id") or "").strip()
+        metadata = official_metadata_by_id.get(item_id) if item_id else None
+        hydrated.append(apply_item_metadata(item, metadata) if metadata else item)
+    return hydrated
 
 
 def select_public_gear_templates_for_spec(
