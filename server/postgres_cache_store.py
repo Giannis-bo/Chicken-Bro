@@ -6052,11 +6052,12 @@ class PostgresCacheStore:
             gear_items_index=11,
         )
         official_metadata_by_id = self._official_item_metadata_by_id(cur, all_gear_items)
-        templates = []
-        for row in rows:
-            template = self._community_gear_template_from_row(row, official_metadata_by_id, normalize_coverage=True)
-            templates.append(template)
-        return dedupe_gear_community_templates(templates)
+        return pg_gear_template_selectors.build_community_gear_templates_read_model(
+            rows,
+            official_metadata_by_id,
+            normalize_coverage=True,
+            coverage_repair=self._repair_template_offhand_occupancy,
+        )
 
     def get_websim_gear(self, class_key="mage", spec_key="arcane", compact=False, mode="", slot=""):
         season = self.get_active_season_payload()
