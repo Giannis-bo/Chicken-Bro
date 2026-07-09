@@ -1,6 +1,6 @@
 {
   "version": "2026-07-09-phase4-v5",
-  "status": "phase4_pg_catalog_item_row_selector_extracted",
+  "status": "phase4_pg_mod_option_type_selector_extracted",
   "harnessVersion": "v0.5",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -269,7 +269,8 @@
             "gear source row read-model grouping",
             "gear variant row read-model grouping",
             "gear mod option row read-model grouping",
-            "gear catalog item row read-model assembly"
+            "gear catalog item row read-model assembly",
+            "gear mod option type read-model grouping"
           ],
           "mustNotChange": [
             "PG SQL reads remain in server/postgres_cache_store.py.",
@@ -285,13 +286,14 @@
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_gear_variants_by_item_read_model_groups_variant_rows",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_gear_mod_options_by_slot_read_model_groups_option_rows",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_gear_catalog_items_read_model_enriches_item_rows",
+            "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_gear_mod_options_by_type_read_model_groups_option_types",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_catalog_state_read_model_fragment_exposes_health_and_coverage_envelope",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_catalog_gear_read_model_fragment_groups_candidates_and_audits_blocked_items",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_gear_read_model_attaches_candidate_legality_debug_fields_to_full_payload",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_websim_gear_keeps_cached_read_model_when_pg_season_is_stale",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_gear_read_model_uses_cache_schema_catalog_rows"
           ],
-          "futureExtractionDirection": "Continue splitting read-only PG gear row and payload fragments after gear catalog item row selector extraction, before touching sync-state repositories or cleanup write intents."
+          "futureExtractionDirection": "Continue splitting read-only PG gear row and payload fragments after gear mod option type selector extraction, before touching sync-state repositories or cleanup write intents."
         },
         {
           "id": "sync_state_repository",

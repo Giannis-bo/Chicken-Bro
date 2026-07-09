@@ -253,6 +253,22 @@ def build_gear_mod_options_by_slot_read_model(rows):
     return result
 
 
+def build_gear_mod_options_by_type_read_model(rows):
+    rows_by_type = {
+        "socket": [],
+        "enchant": [],
+        "embellishment": [],
+    }
+    for row in rows or []:
+        option_type = str(row[1] or "").strip().lower()
+        if option_type in rows_by_type:
+            rows_by_type[option_type].append(row)
+    return {
+        option_type: build_gear_mod_options_by_slot_read_model(option_rows)
+        for option_type, option_rows in rows_by_type.items()
+    }
+
+
 def build_gear_catalog_items_read_model(
     item_rows,
     sources_by_item,

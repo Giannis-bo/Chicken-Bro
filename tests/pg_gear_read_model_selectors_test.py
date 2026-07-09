@@ -4,6 +4,54 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_gear_mod_options_by_type_read_model_groups_option_types(self):
+        from server.pg_gear_read_model_selectors import build_gear_mod_options_by_type_read_model
+
+        rows = [
+            (
+                401,
+                "socket",
+                "quick-ruby",
+                "Quick Ruby",
+                '["head"]',
+                '{"gem_id": 213743}',
+                "verified",
+                '{"displayLabel": "Quick Ruby"}',
+                "2026-07-09T12:00:00Z",
+            ),
+            (
+                402,
+                "enchant",
+                "any-slot-enchant",
+                "Any Slot Enchant",
+                '"*"',
+                '{"enchant_id": "7418"}',
+                "partial",
+                '{"displayLabel": "Any Slot Enchant"}',
+                None,
+            ),
+            (
+                403,
+                "unsupported",
+                "ignored",
+                "Ignored",
+                '["head"]',
+                "{}",
+                "verified",
+                "{}",
+                None,
+            ),
+        ]
+
+        read_model = build_gear_mod_options_by_type_read_model(rows)
+
+        self.assertEqual(sorted(read_model.keys()), ["embellishment", "enchant", "socket"])
+        self.assertEqual(read_model["socket"]["head"][0]["id"], "401")
+        self.assertEqual(read_model["socket"]["head"][0]["simcOptions"], {"gem_id": "213743"})
+        self.assertEqual(read_model["enchant"]["head"][0]["id"], "402")
+        self.assertEqual(read_model["enchant"]["neck"][0]["id"], "402")
+        self.assertTrue(all(not options for options in read_model["embellishment"].values()))
+
     def test_build_gear_catalog_items_read_model_enriches_item_rows(self):
         from server.pg_gear_read_model_selectors import build_gear_catalog_items_read_model
 

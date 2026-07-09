@@ -6269,17 +6269,7 @@ class PostgresCacheStore:
                 persisted_templates = self._gear_community_templates(cur, class_key, spec_key)
         sources_by_item = pg_gear_read_model_selectors.build_gear_sources_by_item_read_model(source_rows)
         variants_by_item = pg_gear_read_model_selectors.build_gear_variants_by_item_read_model(variant_rows)
-        raw_options_by_slot = {
-            "socket": pg_gear_read_model_selectors.build_gear_mod_options_by_slot_read_model(
-                [row for row in mod_option_rows if str(row[1] or "").lower() == "socket"]
-            ),
-            "enchant": pg_gear_read_model_selectors.build_gear_mod_options_by_slot_read_model(
-                [row for row in mod_option_rows if str(row[1] or "").lower() == "enchant"]
-            ),
-            "embellishment": pg_gear_read_model_selectors.build_gear_mod_options_by_slot_read_model(
-                [row for row in mod_option_rows if str(row[1] or "").lower() == "embellishment"]
-            ),
-        }
+        raw_options_by_slot = pg_gear_read_model_selectors.build_gear_mod_options_by_type_read_model(mod_option_rows)
         catalog_items = pg_gear_read_model_selectors.build_gear_catalog_items_read_model(
             item_rows,
             sources_by_item,
