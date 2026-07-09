@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-09T10:50:13.564Z",
+  "generatedAt": "2026-07-09T10:51:44.508Z",
   "release": {
     "date": "2026-07-09",
     "slug": "pg-catalog-output-read-model-fragment"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 333608
+          "sizeBytes": 333672
         },
         {
           "path": "docs/README.md",
@@ -217,7 +217,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-09-pg-catalog-output-read-model-fragment/evidence.json",
-    "sizeBytes": 7484,
+    "sizeBytes": 7658,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,7 +235,7 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "candidate_deployment_verified",
+    "declaredStatus": "live_verified",
     "highestEvidenceLevel": "live_verified",
     "summary": "Phase 4 continues the read-only PostgreSQL gear read-model split. server/pg_gear_read_model_selectors.py now owns the catalog output mode fragment derived from catalog_read_model for catalogItems slicing and full payload debug fields. server/postgres_cache_store.py keeps PG SQL reads, payload cache fingerprinting, template/catalog/common read-model delegation, final response assembly, and cache writes. Sync, write, and backfill paths are unchanged."
   },
