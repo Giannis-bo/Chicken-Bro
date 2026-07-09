@@ -12,6 +12,8 @@
 
 2026-07-09 继续更新：用户确认没有明确阻塞或待决策点时，agent 应自动向下一步推进，不再每个步骤单独请求同意。Harness v0.4 增加 Autonomous Progression Gate：已批准计划或授权继续后，默认执行范围内后续实现、验证、同步、PR、合入和归档；只有 clear blocker、验证失败需权衡、产品/技术待决策、范围变化、工作树/远端冲突或越界高风险操作才停下来确认。
 
+2026-07-09 Phase 3/4 继续更新：第一条后端热点拆分纵切已按 Harness 规则推进。Phase 3 补齐 `gear_serializer_golden_payload` 与 `gear_template_selectors` golden characterization；Phase 4 新增 `server/gear_public_contract.py` 作为公开装备模板合同的 adapter/selector 模块，`server/websim_payload.py` 保留旧导出并委托新模块，PG store 现有导入面不变。
+
 本计划只定义整体优化顺序和验收门禁，不授权直接修改业务实现、不替代 roadmap、runbook 或当前 UI source-of-truth。
 
 ## Requirement Contract
@@ -242,7 +244,9 @@
 - `server/postgres_cache_store.py` 已明确 `gear_template_selectors`、`sync_state_repository`、`recommended_bis_evidence`、`cleanup_residue_control` owner。
 - `gear_public_contract` 已新增 golden payload characterization：`tests/fixtures/gear-public-contract-observed-only.json` 与 `test_gear_public_contract_matches_observed_only_golden_payload` 固定当前 observed-only 输出，不允许 `recommended_bis`、`season_recommendation`、`simc_preset` 回流公开输出。
 - `gear_legality_source_map` 已新增 golden payload characterization：`tests/fixtures/gear-legality-source-map-partial-authority.json` 与 `test_gear_legality_source_map_matches_partial_authority_golden_payload` 固定当前 authority health/source-map 输出，确保 official / SimC 仍为 missing、observed 只作为 supporting evidence、manual override 仍为 partial 且不升级 verified。
-- 本轮只建立 owner map 与 characterization anchors，不抽模块、不移动业务函数、不改变公开 payload。
+- `gear_serializer_golden_payload` 已新增 compact serializer golden：`tests/fixtures/gear-serializer-compact-payload.json` 与 `test_gear_serializer_matches_compact_golden_payload` 固定 `compact_community_gear_template`、`compact_gear_candidates`、`gear_readiness`、`blocked_stat_snapshot` 的结构化输出。
+- `gear_template_selectors` 已新增 PG selector golden：`tests/fixtures/pg-gear-template-selectors-observed-only.json` 与 `test_pg_gear_template_selectors_match_observed_only_golden_payload` 固定 `get_websim_gear(... compact=True, mode="initial")` 的 public observed-only selector 输出、baseline 空输出与 template chain 状态。
+- Phase 3 当前已覆盖 owner map 与 characterization anchors；公开 payload 语义不变。
 
 ### Phase 4：小步结构拆分
 
@@ -260,6 +264,13 @@
 - 目标 tests 先失败再通过，或者至少有 characterization 防回归。
 - `python3 -m unittest discover -s tests -p '*_test.py'` 和 `node --test tests/*.test.js` 在相关阶段通过。
 - 若触达线上链路，必须进入 Phase 5。
+
+当前进展：
+
+- `server/gear_public_contract.py` 已作为第一条小步抽取落地，集中公开装备模板 source policy、observed-only visibility、baseline fallback gating 与 real-player public import 配置。
+- `server/websim_payload.py` 保持原函数名和导出面，旧调用方继续使用 `public_gear_templates_for_spec`、`public_baseline_fallback_templates_for_spec`、`community_gear_template_can_apply` 等兼容包装；PG store 暂不改导入路径。
+- `tests/gear_public_contract_test.py` 先因缺少新模块失败，再在抽取后通过；随后新增 `templateEvidence` hash 来源 parity 测试并 red/green 关闭，证明新模块与旧导出 observed-only 行为及证据读取路径一致。
+- 本次抽取不重新开放 `recommended_bis`、`season_recommendation`、`default_template`、`simc_preset` 或 `baseline_blocked`，也不部署、不触发 PG/sync/线上任务。
 
 ### Phase 5：发布、线上 smoke 与归档
 

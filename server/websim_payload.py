@@ -42,6 +42,11 @@ try:
 except ImportError:
     from simc_preparation import apply_simc_preparation_lines, simc_preparation_payload, simc_preparation_report
 
+try:
+    from . import gear_public_contract
+except ImportError:
+    import gear_public_contract
+
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
@@ -17298,149 +17303,73 @@ def gear_template_sort_key(template):
     )
 
 
-BASELINE_GEAR_TEMPLATE_SOURCE_KEYS = {
-    "recommended_bis",
-    SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
-    DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
-    "baseline_template",
-    "simc_preset",
-    "baseline_blocked",
-}
-
-
-REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY = "all_specs"
-REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_SPECS = set()
-
-STRICT_COMMUNITY_BEST_V2_ACTIVE_SEED_SPECS = {("shaman", "elemental")}
-
-REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS = {("shaman", "elemental")}
-REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_TEMPLATE_IDS = {
-    ("shaman", "elemental"): "observed_profile_shaman_elemental",
-}
-REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_PROFILE_URLS = {
-    ("shaman", "elemental"): "https://raider.io/characters/cn/sylvanas/听凭风引",
-}
-REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_DISPLAY_NAMES = {
-    ("shaman", "elemental"): "听凭风引（元素萨）· 真实高分玩家角色模板",
-}
-REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_SOURCE_NAMES = {
-    ("shaman", "elemental"): "Raider.IO 真实玩家角色装备",
-}
-REAL_PLAYER_GEAR_TEMPLATE_RECOMMENDED_DISPLAY_NAMES = {
-    ("shaman", "elemental"): "元素萨 · 系统评分推荐模板（待 SimC 验证）",
-}
-REAL_PLAYER_GEAR_TEMPLATE_RECOMMENDED_SOURCE_NAMES = {
-    ("shaman", "elemental"): "系统评分推荐模板（projected_bis）",
-}
-REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS = {
-    SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
-    DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
-    "baseline_template",
-    "simc_preset",
-    "baseline_blocked",
-}
+BASELINE_GEAR_TEMPLATE_SOURCE_KEYS = gear_public_contract.BASELINE_GEAR_TEMPLATE_SOURCE_KEYS
+REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY = gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY
+REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_SPECS = gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_SPECS
+STRICT_COMMUNITY_BEST_V2_ACTIVE_SEED_SPECS = gear_public_contract.STRICT_COMMUNITY_BEST_V2_ACTIVE_SEED_SPECS
+REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS = gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS
+REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_TEMPLATE_IDS = gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_TEMPLATE_IDS
+REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_PROFILE_URLS = gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_PROFILE_URLS
+REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_DISPLAY_NAMES = gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_DISPLAY_NAMES
+REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_SOURCE_NAMES = gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_SOURCE_NAMES
+REAL_PLAYER_GEAR_TEMPLATE_RECOMMENDED_DISPLAY_NAMES = gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_RECOMMENDED_DISPLAY_NAMES
+REAL_PLAYER_GEAR_TEMPLATE_RECOMMENDED_SOURCE_NAMES = gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_RECOMMENDED_SOURCE_NAMES
+REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS = gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS
 
 
 def gear_template_source_key(template):
-    return str((template or {}).get("sourceKey") or "").strip().lower()
+    return gear_public_contract.gear_template_source_key(template)
 
 
 def real_player_gear_template_pilot_spec(class_key, spec_key):
-    return (slugify(class_key, ""), slugify(spec_key, "")) in REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS
+    return gear_public_contract.real_player_gear_template_pilot_spec(class_key, spec_key)
 
 
 def real_player_gear_template_public_import_spec(class_key, spec_key):
-    class_key = slugify(class_key, "")
-    spec_key = slugify(spec_key, "")
-    if not class_key or not spec_key:
-        return False
-    if REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY == "all_specs":
-        return True
-    return (class_key, spec_key) in REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_SPECS
+    return gear_public_contract.real_player_gear_template_public_import_spec(class_key, spec_key)
 
 
 def real_player_gear_template_observed_template_id(class_key, spec_key):
-    return REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_TEMPLATE_IDS.get(
-        (slugify(class_key, ""), slugify(spec_key, "")),
-        "",
-    )
+    return gear_public_contract.real_player_gear_template_observed_template_id(class_key, spec_key)
 
 
 def real_player_gear_template_observed_profile_url(class_key, spec_key):
-    return REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_PROFILE_URLS.get(
-        (slugify(class_key, ""), slugify(spec_key, "")),
-        "",
-    )
+    return gear_public_contract.real_player_gear_template_observed_profile_url(class_key, spec_key)
 
 
 def real_player_gear_template_observed_display_name(class_key, spec_key):
-    return REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_DISPLAY_NAMES.get(
-        (slugify(class_key, ""), slugify(spec_key, "")),
-        "",
-    )
+    return gear_public_contract.real_player_gear_template_observed_display_name(class_key, spec_key)
 
 
 def real_player_gear_template_observed_source_name(class_key, spec_key):
-    return REAL_PLAYER_GEAR_TEMPLATE_OBSERVED_SOURCE_NAMES.get(
-        (slugify(class_key, ""), slugify(spec_key, "")),
-        "",
-    )
+    return gear_public_contract.real_player_gear_template_observed_source_name(class_key, spec_key)
 
 
 def real_player_gear_template_recommended_display_name(class_key, spec_key):
-    return REAL_PLAYER_GEAR_TEMPLATE_RECOMMENDED_DISPLAY_NAMES.get(
-        (slugify(class_key, ""), slugify(spec_key, "")),
-        "",
-    )
+    return gear_public_contract.real_player_gear_template_recommended_display_name(class_key, spec_key)
 
 
 def real_player_gear_template_recommended_source_name(class_key, spec_key):
-    return REAL_PLAYER_GEAR_TEMPLATE_RECOMMENDED_SOURCE_NAMES.get(
-        (slugify(class_key, ""), slugify(spec_key, "")),
-        "",
-    )
+    return gear_public_contract.real_player_gear_template_recommended_source_name(class_key, spec_key)
 
 
 def is_baseline_gear_template(template):
-    return gear_template_source_key(template) in BASELINE_GEAR_TEMPLATE_SOURCE_KEYS
+    return gear_public_contract.is_baseline_gear_template(template)
 
 
 def is_real_community_gear_template(template):
-    if not isinstance(template, dict):
-        return False
-    if is_baseline_gear_template(template):
-        return False
-    return str(template.get("status") or "").strip() in {"complete", "partial"}
+    return gear_public_contract.is_real_community_gear_template(template)
 
 
 def community_gear_template_can_apply(template):
-    if not isinstance(template, dict):
-        return False
-    if template.get("canApplyGear") is False:
-        return False
-    status = str(template.get("status") or "").strip()
-    source_status = str(template.get("sourceStatus") or "").strip()
-    blocked_statuses = {"blocked", "source_reference", "source-reference", "missing_credentials"}
-    if status in blocked_statuses or source_status in blocked_statuses:
-        return False
-    if not (template.get("rawString") or template.get("gearItems")):
-        return False
-    if gear_template_source_key(template) == "raiderio_observed_profile":
-        missing_slots = [slot for slot in (template.get("missingSlots") or []) if str(slot or "").strip()]
-        if status != "complete" or missing_slots:
-            return False
-    return True
+    return gear_public_contract.community_gear_template_can_apply(template)
 
 
 def is_active_community_observed_template(template):
-    if not is_real_community_gear_template(template):
-        return False
-    record = community_observed_chain_record(template)
-    if record.get("confidence") not in {"observed_verified", "observed_provisional"}:
-        return False
-    if not community_gear_template_can_apply(template):
-        return False
-    return True
+    return gear_public_contract.is_active_community_observed_template(
+        template,
+        chain_record_factory=community_observed_chain_record,
+    )
 
 
 def baseline_gear_template_source_priority(source_key):
@@ -17516,32 +17445,29 @@ def community_gear_template_sort_key(template):
 
 
 def public_gear_template_visible_for_spec(template, class_key, spec_key):
-    if not isinstance(template, dict):
-        return False
-    if not real_player_gear_template_public_import_spec(class_key, spec_key):
-        return True
-    source_key = gear_template_source_key(template)
-    if source_key == RECOMMENDED_BIS_GEAR_TEMPLATE_SOURCE_KEY:
-        return False
-    if source_key in REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS:
-        return False
-    if source_key == "raiderio_observed_profile":
-        return is_active_community_observed_template(template)
-    return False
+    return gear_public_contract.public_gear_template_visible_for_spec(
+        template,
+        class_key,
+        spec_key,
+        active_observed_predicate=is_active_community_observed_template,
+    )
 
 
 def public_gear_templates_for_spec(templates, class_key, spec_key):
-    return [
-        template
-        for template in templates or []
-        if public_gear_template_visible_for_spec(template, class_key, spec_key)
-    ]
+    return gear_public_contract.public_gear_templates_for_spec(
+        templates,
+        class_key,
+        spec_key,
+        active_observed_predicate=is_active_community_observed_template,
+    )
 
 
 def public_baseline_fallback_templates_for_spec(class_key, spec_key):
-    if real_player_gear_template_public_import_spec(class_key, spec_key):
-        return []
-    return [blocked_baseline_gear_template(class_key, spec_key)]
+    return gear_public_contract.public_baseline_fallback_templates_for_spec(
+        class_key,
+        spec_key,
+        blocked_baseline_factory=blocked_baseline_gear_template,
+    )
 
 
 def select_best_baseline_gear_templates(templates):

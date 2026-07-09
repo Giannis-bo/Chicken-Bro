@@ -8,11 +8,11 @@ function readOwnerMap() {
   return JSON.parse(fs.readFileSync(ownerMapPath, 'utf8'))
 }
 
-test('backend owner map defines the Phase 3 hotspot ownership contract', () => {
+test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase3_owner_map_ready')
+  assert.equal(ownerMap.status, 'phase4_gear_public_contract_adapter_ready')
   assert.equal(ownerMap.harnessVersion, 'v0.4')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -30,6 +30,8 @@ test('backend owner map defines the Phase 3 hotspot ownership contract', () => {
   const websimOwners = new Map(files.get('server/websim_payload.py').owners.map((owner) => [owner.id, owner]))
   const gearPublicContract = websimOwners.get('gear_public_contract')
   assert.ok(gearPublicContract, 'websim_payload should name gear_public_contract as an owner')
+  assert.equal(gearPublicContract.status, 'extracted_adapter')
+  assert.equal(gearPublicContract.extractedModule, 'server/gear_public_contract.py')
   assert.deepEqual(gearPublicContract.publicEntryPolicy.allowedCommunitySourceKeys, ['raiderio_observed_profile'])
   assert.deepEqual(gearPublicContract.publicEntryPolicy.blockedPublicSourceKeys, [
     'recommended_bis',
@@ -41,6 +43,10 @@ test('backend owner map defines the Phase 3 hotspot ownership contract', () => {
   assert.ok(
     gearPublicContract.characterization.some((entry) => entry.includes('test_real_player_public_policy_applies_to_all_specs')),
     'gear public contract should point at the observed-only characterization test'
+  )
+  assert.ok(
+    gearPublicContract.characterization.some((entry) => entry.includes('tests/gear_public_contract_test.py')),
+    'gear public contract should point at the adapter module boundary test'
   )
 
   const newsOwners = new Map(files.get('server/news_backend.py').owners.map((owner) => [owner.id, owner]))

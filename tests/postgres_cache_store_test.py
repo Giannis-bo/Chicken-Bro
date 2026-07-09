@@ -1,5 +1,7 @@
+import json
 import unittest
 import uuid
+from pathlib import Path
 from unittest.mock import patch
 
 
@@ -1129,6 +1131,135 @@ class PostgresCacheStoreTest(unittest.TestCase):
         chain = payload["communityTemplateSync"]["templateChains"]
         self.assertEqual(chain["legacyFallback"]["totalSpecCount"], 0)
         self.assertEqual(chain["recommendedBis"]["totalSpecCount"], 0)
+
+    def test_pg_gear_template_selectors_match_observed_only_golden_payload(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        fixture_path = Path(__file__).parent / "fixtures" / "pg-gear-template-selectors-observed-only.json"
+        expected = json.loads(fixture_path.read_text(encoding="utf-8"))
+        weapon_types = {
+            "main_hand": "Wand",
+            "off_hand": "Held In Off-hand",
+        }
+        gear_items = [
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(610000 + index),
+                "id": str(610000 + index),
+                "name": f"observed_{slot}",
+                "displayName": f"Observed {slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                **({"armorType": "Cloth"} if slot in {"head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"} else {}),
+                **({"weaponType": weapon_types[slot]} if slot in weapon_types else {}),
+            }
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)
+        ]
+
+        def row(template_id, source_key, payload):
+            return (
+                template_id,
+                "mage",
+                "arcane",
+                template_id,
+                source_key,
+                source_key,
+                "https://raider.io/characters/cn/realm/Arcaneproof" if source_key == "raiderio_observed_profile" else "",
+                "synced",
+                "complete",
+                template_id,
+                [{"sourceKey": source_key}],
+                gear_items,
+                "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in gear_items),
+                16,
+                [],
+                "pg selector golden",
+                payload,
+                "2026-07-09T00:00:00+00:00",
+                "2099-01-01T00:00:00+00:00",
+                "scan-pg-selector-golden",
+            )
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-07-09T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {"status": "partial", "schemaRevision": "gear-catalog-test", "blockers": []},
+                        "2026-07-09T00:01:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_gear_templates": [
+                    row(
+                        "observed-profile-mage-arcane",
+                        "raiderio_observed_profile",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "profileHash": "profile:mage:arcane:observed",
+                            "gearHash": "gear:mage:arcane:observed",
+                            "fetchedAt": "2026-07-09T00:00:00+00:00",
+                        },
+                    ),
+                    row(
+                        "recommended-bis-mage-arcane",
+                        "recommended_bis",
+                        {
+                            "templateType": "recommended_bis",
+                            "templateEvidence": {
+                                "schemaRevision": "recommended-bis-v1",
+                                "status": "projected_bis",
+                                "simc": {"status": "required", "highIterationRuns": 0, "pairwiseCompares": 0},
+                                "anchorValidation": {"status": "pending"},
+                            },
+                        },
+                    ),
+                    row(
+                        "season-recommendation-mage-arcane",
+                        "season_recommendation",
+                        {"templateSlot": "baseline", "templateEvidence": {"recommendationConfidence": "provisional"}},
+                    ),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("mage", "arcane", compact=True, mode="initial")
+        chain = payload["communityTemplateSync"]["templateChains"]
+        stable_chain = {
+            key: {
+                nested_key: nested_value
+                for nested_key, nested_value in (chain.get(key) or {}).items()
+                if nested_key != "lastGuardCheckAt"
+            }
+            for key in ("communityObserved", "recommendedBis", "legacyFallback")
+        }
+        actual = {
+            "communityTemplates": payload["communityTemplates"],
+            "baselineTemplates": payload["baselineTemplates"],
+            "baselineSet": payload["baselineSet"],
+            "equippedSet": payload["equippedSet"],
+            "templateChains": stable_chain,
+        }
+
+        self.assertEqual(actual, expected)
 
     def test_initial_payload_hides_source_less_observed_template_blocked_by_legality_gate(self):
         from server.postgres_cache_store import PostgresCacheStore
