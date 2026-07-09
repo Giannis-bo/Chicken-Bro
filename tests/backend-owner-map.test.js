@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_gear_public_contract_adapter_ready')
+  assert.equal(ownerMap.status, 'phase4_pg_selector_callers_routed')
   assert.equal(ownerMap.harnessVersion, 'v0.4')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -32,6 +32,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(gearPublicContract, 'websim_payload should name gear_public_contract as an owner')
   assert.equal(gearPublicContract.status, 'extracted_adapter')
   assert.equal(gearPublicContract.extractedModule, 'server/gear_public_contract.py')
+  assert.ok(
+    gearPublicContract.directCallers.includes('server/postgres_cache_store.py PG gear selectors'),
+    'gear public contract should record PG selector direct callers'
+  )
   assert.deepEqual(gearPublicContract.publicEntryPolicy.allowedCommunitySourceKeys, ['raiderio_observed_profile'])
   assert.deepEqual(gearPublicContract.publicEntryPolicy.blockedPublicSourceKeys, [
     'recommended_bis',
@@ -54,6 +58,9 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(newsOwners.has('health_admin_summary'))
 
   const pgOwners = new Map(files.get('server/postgres_cache_store.py').owners.map((owner) => [owner.id, owner]))
-  assert.ok(pgOwners.has('gear_template_selectors'))
+  const gearTemplateSelectors = pgOwners.get('gear_template_selectors')
+  assert.ok(gearTemplateSelectors)
+  assert.equal(gearTemplateSelectors.status, 'contract_module_callers_routed')
+  assert.equal(gearTemplateSelectors.usesModule, 'server/gear_public_contract.py')
   assert.ok(pgOwners.has('sync_state_repository'))
 })

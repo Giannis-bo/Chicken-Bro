@@ -12,6 +12,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 try:
+    from . import gear_public_contract
+except ImportError:
+    import gear_public_contract
+
+try:
     from .websim_payload import (
         CANONICAL_GEAR_SLOTS,
         COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
@@ -45,7 +50,6 @@ try:
         community_talent_templates_for_spec_slots,
         community_template_availability_expires_at,
         community_gear_import_coverage_summary,
-        community_gear_template_can_apply,
         dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
@@ -72,9 +76,7 @@ try:
         hero_tree_for,
         hero_tree_label,
         icon_url_from_media,
-        is_baseline_gear_template,
         is_active_community_observed_template,
-        is_real_community_gear_template,
         item_level_probe_main_hand_removes_offhand,
         item_level_probe_profile_candidates,
         localized_difficulty_label,
@@ -94,19 +96,6 @@ try:
         observed_variant_stat_identity_key,
         observed_variant_stat_payload_fields,
         pending_community_gear_template,
-        public_baseline_fallback_templates_for_spec,
-        public_gear_templates_for_spec,
-        real_player_gear_template_observed_display_name,
-        real_player_gear_template_observed_profile_url,
-        real_player_gear_template_observed_source_name,
-        real_player_gear_template_observed_template_id,
-        real_player_gear_template_pilot_spec,
-        real_player_gear_template_public_import_spec,
-        real_player_gear_template_recommended_display_name,
-        real_player_gear_template_recommended_source_name,
-        REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS,
-        REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS,
-        REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY,
         sanitize_gear_candidate_mod_options,
         SCENARIOS,
         SIMC_GEAR_OPTION_KEYS,
@@ -173,7 +162,6 @@ except ImportError:
         community_talent_templates_for_spec_slots,
         community_template_availability_expires_at,
         community_gear_import_coverage_summary,
-        community_gear_template_can_apply,
         dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
@@ -200,9 +188,7 @@ except ImportError:
         hero_tree_for,
         hero_tree_label,
         icon_url_from_media,
-        is_baseline_gear_template,
         is_active_community_observed_template,
-        is_real_community_gear_template,
         item_level_probe_main_hand_removes_offhand,
         item_level_probe_profile_candidates,
         localized_difficulty_label,
@@ -222,19 +208,6 @@ except ImportError:
         observed_variant_stat_identity_key,
         observed_variant_stat_payload_fields,
         pending_community_gear_template,
-        public_baseline_fallback_templates_for_spec,
-        public_gear_templates_for_spec,
-        real_player_gear_template_observed_display_name,
-        real_player_gear_template_observed_profile_url,
-        real_player_gear_template_observed_source_name,
-        real_player_gear_template_observed_template_id,
-        real_player_gear_template_pilot_spec,
-        real_player_gear_template_public_import_spec,
-        real_player_gear_template_recommended_display_name,
-        real_player_gear_template_recommended_source_name,
-        REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS,
-        REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS,
-        REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY,
         sanitize_gear_candidate_mod_options,
         SCENARIOS,
         SIMC_GEAR_OPTION_KEYS,
@@ -2139,12 +2112,12 @@ class PostgresCacheStore:
         counts = {
             "scanRunId": scan_run_id or "",
             "checkedAt": checked_at,
-            "publicImportPolicy": REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY,
-            "publicImportScope": "all_specs" if REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY == "all_specs" else "configured_specs",
-            "publicHiddenSourceKeys": sorted([*REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS, "recommended_bis"]),
+            "publicImportPolicy": gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY,
+            "publicImportScope": "all_specs" if gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY == "all_specs" else "configured_specs",
+            "publicHiddenSourceKeys": sorted([*gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS, "recommended_bis"]),
             "destructiveCleanupScope": [
                 f"{class_key}:{spec_key}"
-                for class_key, spec_key in sorted(REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS)
+                for class_key, spec_key in sorted(gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS)
             ],
             "communityTemplateRowsDeleted": 0,
             "legacyTemplateRowsDeleted": 0,
@@ -2154,18 +2127,18 @@ class PostgresCacheStore:
             "renamedTemplateRows": 0,
             "observedVariantRowsBackfilled": 0,
         }
-        if not REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS:
+        if not gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS:
             return counts
-        legacy_source_keys = sorted(REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS)
+        legacy_source_keys = sorted(gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS)
         with self.connection() as conn:
             with conn.cursor() as cur:
-                for class_key, spec_key in sorted(REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS):
-                    observed_template_id = real_player_gear_template_observed_template_id(class_key, spec_key)
-                    observed_profile_url = real_player_gear_template_observed_profile_url(class_key, spec_key)
-                    observed_display_name = real_player_gear_template_observed_display_name(class_key, spec_key)
-                    observed_source_name = real_player_gear_template_observed_source_name(class_key, spec_key)
-                    recommended_display_name = real_player_gear_template_recommended_display_name(class_key, spec_key)
-                    recommended_source_name = real_player_gear_template_recommended_source_name(class_key, spec_key)
+                for class_key, spec_key in sorted(gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS):
+                    observed_template_id = gear_public_contract.real_player_gear_template_observed_template_id(class_key, spec_key)
+                    observed_profile_url = gear_public_contract.real_player_gear_template_observed_profile_url(class_key, spec_key)
+                    observed_display_name = gear_public_contract.real_player_gear_template_observed_display_name(class_key, spec_key)
+                    observed_source_name = gear_public_contract.real_player_gear_template_observed_source_name(class_key, spec_key)
+                    recommended_display_name = gear_public_contract.real_player_gear_template_recommended_display_name(class_key, spec_key)
+                    recommended_source_name = gear_public_contract.real_player_gear_template_recommended_source_name(class_key, spec_key)
                     cur.execute(
                         """
                         DELETE FROM cache.websim_community_gear_templates
@@ -2368,9 +2341,9 @@ class PostgresCacheStore:
             spec_id = f"{class_key}:{spec_key}" if class_key and spec_key else ""
             if spec_id not in grouped:
                 continue
-            if is_baseline_gear_template(template):
+            if gear_public_contract.is_baseline_gear_template(template):
                 grouped[spec_id]["baseline"].append(template)
-            elif is_real_community_gear_template(template):
+            elif gear_public_contract.is_real_community_gear_template(template):
                 grouped[spec_id]["community"].append(template)
 
         complete_specs = []
@@ -2531,8 +2504,8 @@ class PostgresCacheStore:
             "baselineTemplates": preflight["baseline"],
             "communityImportTemplates": preflight["communityImport"],
             "templateChains": websim_gear_template_chain_state(
-                [template for template in templates if not is_baseline_gear_template(template)],
-                [template for template in templates if is_baseline_gear_template(template)],
+                [template for template in templates if not gear_public_contract.is_baseline_gear_template(template)],
+                [template for template in templates if gear_public_contract.is_baseline_gear_template(template)],
                 expected_spec_ids=[spec_id for spec_id, _class_key, _spec_key in expected_specs],
                 checked_at=checked_at,
             ),
@@ -4037,7 +4010,7 @@ class PostgresCacheStore:
             template = self._community_gear_template_from_row(row, official_metadata_by_id, normalize_coverage=True)
             class_key = slugify(template.get("classKey"), "")
             spec_key = slugify(template.get("specKey"), "")
-            if not class_key or not spec_key or not is_real_community_gear_template(template):
+            if not class_key or not spec_key or not gear_public_contract.is_real_community_gear_template(template):
                 continue
             gated_template = apply_gear_template_legality_gate(template, class_key, spec_key)
             if gated_template.get("status") not in {"complete", "partial"} or not template.get("gearItems"):
@@ -4056,7 +4029,7 @@ class PostgresCacheStore:
         generated = []
         checked_at = utc_now()
         for (class_key, spec_key), candidates in sorted(grouped.items()):
-            if real_player_gear_template_pilot_spec(class_key, spec_key):
+            if gear_public_contract.real_player_gear_template_pilot_spec(class_key, spec_key):
                 continue
             best = select_community_best_gear_templates(
                 candidates,
@@ -4173,7 +4146,7 @@ class PostgresCacheStore:
             template = self._community_gear_template_from_row(row, official_metadata_by_id, normalize_coverage=True)
             class_key = slugify(template.get("classKey"), "")
             spec_key = slugify(template.get("specKey"), "")
-            if not class_key or not spec_key or not is_real_community_gear_template(template):
+            if not class_key or not spec_key or not gear_public_contract.is_real_community_gear_template(template):
                 continue
             gated_template = apply_gear_template_legality_gate(template, class_key, spec_key)
             if gated_template.get("status") not in {"complete", "partial"} or not template.get("gearItems"):
@@ -5951,22 +5924,26 @@ class PostgresCacheStore:
         persisted_templates,
     ):
         community_templates = select_community_best_gear_templates(
-            [template for template in persisted_templates if is_real_community_gear_template(template)],
+            [template for template in persisted_templates if gear_public_contract.is_real_community_gear_template(template)],
             class_key,
             spec_key,
         )
-        community_templates = public_gear_templates_for_spec(community_templates, class_key, spec_key)
-        if not community_templates and not real_player_gear_template_public_import_spec(class_key, spec_key):
+        community_templates = gear_public_contract.public_gear_templates_for_spec(community_templates, class_key, spec_key)
+        if not community_templates and not gear_public_contract.real_player_gear_template_public_import_spec(class_key, spec_key):
             community_templates = [pending_community_gear_template(class_key, spec_key)]
-        baseline_templates = public_gear_templates_for_spec(
+        baseline_templates = gear_public_contract.public_gear_templates_for_spec(
             select_best_baseline_gear_templates(
-                [template for template in persisted_templates if is_baseline_gear_template(template)]
+                [template for template in persisted_templates if gear_public_contract.is_baseline_gear_template(template)]
             ),
             class_key,
             spec_key,
         )
         if not baseline_templates:
-            baseline_templates = public_baseline_fallback_templates_for_spec(class_key, spec_key)
+            baseline_templates = gear_public_contract.public_baseline_fallback_templates_for_spec(
+                class_key,
+                spec_key,
+                blocked_baseline_factory=blocked_baseline_gear_template,
+            )
         community_templates = [
             apply_gear_template_legality_gate(template, class_key, spec_key)
             for template in community_templates
@@ -5975,8 +5952,8 @@ class PostgresCacheStore:
             apply_gear_template_legality_gate(template, class_key, spec_key)
             for template in baseline_templates
         ]
-        community_templates = public_gear_templates_for_spec(community_templates, class_key, spec_key)
-        baseline_templates = public_gear_templates_for_spec(baseline_templates, class_key, spec_key)
+        community_templates = gear_public_contract.public_gear_templates_for_spec(community_templates, class_key, spec_key)
+        baseline_templates = gear_public_contract.public_gear_templates_for_spec(baseline_templates, class_key, spec_key)
         baseline_template = baseline_templates[0] if baseline_templates else {}
         baseline_items = baseline_template.get("gearItems") or []
         equipped_set = self._template_gear_by_slot(baseline_template, compact=compact)
@@ -6465,7 +6442,7 @@ class PostgresCacheStore:
             template["gearHash"] = gear_hash
         if normalize_coverage:
             template = self._repair_template_offhand_occupancy(template)
-        template["canApplyGear"] = community_gear_template_can_apply(template)
+        template["canApplyGear"] = gear_public_contract.community_gear_template_can_apply(template)
         return template
 
     def _gear_community_templates(self, cur, class_key, spec_key):
@@ -6600,22 +6577,26 @@ class PostgresCacheStore:
         )
         catalog_items = sorted(catalog_items, key=gear_candidate_quality_score, reverse=True)
         community_templates = select_community_best_gear_templates(
-            [template for template in persisted_templates if is_real_community_gear_template(template)],
+            [template for template in persisted_templates if gear_public_contract.is_real_community_gear_template(template)],
             class_key,
             spec_key,
         )
-        community_templates = public_gear_templates_for_spec(community_templates, class_key, spec_key)
-        if not community_templates and not real_player_gear_template_public_import_spec(class_key, spec_key):
+        community_templates = gear_public_contract.public_gear_templates_for_spec(community_templates, class_key, spec_key)
+        if not community_templates and not gear_public_contract.real_player_gear_template_public_import_spec(class_key, spec_key):
             community_templates = [pending_community_gear_template(class_key, spec_key)]
-        baseline_templates = public_gear_templates_for_spec(
+        baseline_templates = gear_public_contract.public_gear_templates_for_spec(
             select_best_baseline_gear_templates(
-                [template for template in persisted_templates if is_baseline_gear_template(template)]
+                [template for template in persisted_templates if gear_public_contract.is_baseline_gear_template(template)]
             ),
             class_key,
             spec_key,
         )
         if not baseline_templates:
-            baseline_templates = public_baseline_fallback_templates_for_spec(class_key, spec_key)
+            baseline_templates = gear_public_contract.public_baseline_fallback_templates_for_spec(
+                class_key,
+                spec_key,
+                blocked_baseline_factory=blocked_baseline_gear_template,
+            )
         community_templates = [
             apply_gear_template_legality_gate(template, class_key, spec_key)
             for template in community_templates
@@ -6624,8 +6605,8 @@ class PostgresCacheStore:
             apply_gear_template_legality_gate(template, class_key, spec_key)
             for template in baseline_templates
         ]
-        community_templates = public_gear_templates_for_spec(community_templates, class_key, spec_key)
-        baseline_templates = public_gear_templates_for_spec(baseline_templates, class_key, spec_key)
+        community_templates = gear_public_contract.public_gear_templates_for_spec(community_templates, class_key, spec_key)
+        baseline_templates = gear_public_contract.public_gear_templates_for_spec(baseline_templates, class_key, spec_key)
         grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
         candidate_legality_excluded = []
         for item in catalog_items:
@@ -6877,13 +6858,13 @@ class PostgresCacheStore:
             class_key = slugify(template.get("classKey"), "")
             spec_key = slugify(template.get("specKey"), "")
             group_key = (class_key, spec_key)
-            if class_key and spec_key and is_baseline_gear_template(template):
+            if class_key and spec_key and gear_public_contract.is_baseline_gear_template(template):
                 baseline_groups.setdefault(group_key, []).append(template)
                 if group_key not in seen_baseline_slots:
                     seen_baseline_slots.add(group_key)
                     display_slots.append(("baseline", group_key))
                 continue
-            if class_key and spec_key and is_real_community_gear_template(template):
+            if class_key and spec_key and gear_public_contract.is_real_community_gear_template(template):
                 community_groups.setdefault(group_key, []).append(template)
                 if group_key not in seen_community_slots:
                     seen_community_slots.add(group_key)

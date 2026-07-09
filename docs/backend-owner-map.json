@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-09-phase4-v1",
-  "status": "phase4_gear_public_contract_adapter_ready",
+  "version": "2026-07-09-phase4-v2",
+  "status": "phase4_pg_selector_callers_routed",
   "harnessVersion": "v0.4",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -20,6 +20,10 @@
           "id": "gear_public_contract",
           "status": "extracted_adapter",
           "extractedModule": "server/gear_public_contract.py",
+          "directCallers": [
+            "server/websim_payload.py compatibility exports",
+            "server/postgres_cache_store.py PG gear selectors"
+          ],
           "owns": [
             "public_gear_templates_for_spec",
             "public_baseline_fallback_templates_for_spec",
@@ -50,6 +54,7 @@
             "tests/fixtures/gear-public-contract-observed-only.json",
             "tests/websim_payload_test.py::WebSimPayloadTest.test_real_player_public_policy_applies_to_all_specs",
             "tests/gear_public_contract_test.py::GearPublicContractTest.test_public_contract_module_matches_websim_payload_observed_only_policy",
+            "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_pg_initial_gear_selector_calls_gear_public_contract_module",
             "tests/news_backend_test.py::NewsBackendTest.test_runtime_websim_gear_adds_template_chain_state_to_cached_postgres_payload",
             "tests/postgres_cache_store_test.py observed-only public gear API tests"
           ],
@@ -220,7 +225,8 @@
       "owners": [
         {
           "id": "gear_template_selectors",
-          "status": "golden_payload_characterized",
+          "status": "contract_module_callers_routed",
+          "usesModule": "server/gear_public_contract.py",
           "owns": [
             "get_websim_gear",
             "public gear template selector calls",
@@ -234,6 +240,7 @@
           ],
           "characterization": [
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_pg_gear_template_selectors_match_observed_only_golden_payload",
+            "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_pg_initial_gear_selector_calls_gear_public_contract_module",
             "tests/fixtures/pg-gear-template-selectors-observed-only.json",
             "tests/postgres_cache_store_test.py public observed-only gear payload tests",
             "tests/news_backend_test.py runtime PG gear tests"

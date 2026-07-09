@@ -1,0 +1,69 @@
+{
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "scope": [
+    "server/postgres_cache_store.py",
+    "server/gear_public_contract.py",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+    "tests/backend-owner-map.test.js",
+    "tests/postgres_cache_store_test.py"
+  ],
+  "summary": "Phase 4 second cut routes PostgreSQL gear selector public-contract calls through server/gear_public_contract.py while preserving the existing websim_payload.py compatibility exports.",
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.postgres_cache_store_test.PostgresCacheStoreTest.test_pg_initial_gear_selector_calls_gear_public_contract_module",
+      "status": "red_then_pass",
+      "evidence": "First run failed because server.postgres_cache_store had no gear_public_contract module dependency; after routing PG selector calls through the module it passed with Ran 1 test OK."
+    },
+    {
+      "command": "python3 -m unittest tests.postgres_cache_store_test.PostgresCacheStoreTest.test_pg_gear_template_selectors_match_observed_only_golden_payload",
+      "status": "pass",
+      "evidence": "PG selector golden payload stayed unchanged after module caller routing."
+    },
+    {
+      "command": "python3 -m unittest tests.postgres_cache_store_test.PostgresCacheStoreTest.test_build_season_recommended_gear_templates_blocks_without_talent_anchor tests.postgres_cache_store_test.PostgresCacheStoreTest.test_build_season_recommended_gear_templates_allows_partial_community_anchor tests.postgres_cache_store_test.PostgresCacheStoreTest.test_build_season_recommended_gear_templates_preserves_offhand_for_one_hand_weapon tests.postgres_cache_store_test.PostgresCacheStoreTest.test_build_season_recommended_gear_templates_skips_offhand_for_two_hand_weapon tests.postgres_cache_store_test.PostgresCacheStoreTest.test_build_season_recommended_gear_templates_uses_mplus_aoe_pack_weights tests.postgres_cache_store_test.PostgresCacheStoreTest.test_build_season_recommended_gear_templates_falls_back_low_yield_gray_zone tests.postgres_cache_store_test.PostgresCacheStoreTest.test_build_season_recommended_gear_templates_uses_pg_stat_weight_cache",
+      "status": "pass",
+      "evidence": "Season recommendation PG selector coverage passed after the missed pilot-spec caller was qualified through gear_public_contract."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "evidence": "Ran 1011 tests in 40.720s, OK (skipped=1)."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "evidence": "344 JavaScript tests passed with 0 failures."
+    },
+    {
+      "command": "python3 -m py_compile server/postgres_cache_store.py server/gear_public_contract.py server/websim_payload.py",
+      "status": "pass",
+      "evidence": "Compilation completed with exit code 0 after caller routing."
+    },
+    {
+      "command": "node scripts/project-harness.js --json --write --date 2026-07-09 --slug gear-public-contract-pg-selector-callers --evidence-file artifacts/releases/2026-07-09-gear-public-contract-pg-selector-callers/evidence.json",
+      "status": "pass",
+      "evidence": "Harness manifest regenerated from the local evidence packet."
+    },
+    {
+      "command": "for f in docs/backend-owner-map.json artifacts/releases/2026-07-09-gear-public-contract-pg-selector-callers/evidence.json artifacts/releases/2026-07-09-gear-public-contract-pg-selector-callers/manifest.json; do python3 -m json.tool \"$f\" >/dev/null || exit 1; done",
+      "status": "pass",
+      "evidence": "JSON syntax validation completed for owner map, evidence packet, and generated manifest."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "evidence": "Whitespace check completed with exit code 0."
+    }
+  ],
+  "risks": [
+    "This release is local_verified only; no deploy, PG sync, timer trigger, or live smoke is included in this scope.",
+    "Sync write paths still use existing websim_payload imports and will need a separate characterization step before moving."
+  ],
+  "rollback": [
+    "code_rollback",
+    "restore server/postgres_cache_store.py public contract calls to websim_payload compatibility exports if PG selector behavior regresses"
+  ]
+}

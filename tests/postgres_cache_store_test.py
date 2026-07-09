@@ -1261,6 +1261,72 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         self.assertEqual(actual, expected)
 
+    def test_pg_initial_gear_selector_calls_gear_public_contract_module(self):
+        import server.gear_public_contract as gear_public_contract
+        import server.postgres_cache_store as postgres_cache_store
+
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-07-09T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {"status": "partial", "schemaRevision": "gear-catalog-test", "blockers": []},
+                        "2026-07-09T00:01:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_gear_templates": [],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+        original_public_selector = gear_public_contract.public_gear_templates_for_spec
+        original_baseline_fallback = gear_public_contract.public_baseline_fallback_templates_for_spec
+        public_selector_calls = []
+        baseline_fallback_calls = []
+
+        def track_public_selector(templates, class_key, spec_key, **kwargs):
+            public_selector_calls.append((list(templates or []), class_key, spec_key, kwargs))
+            return original_public_selector(templates, class_key, spec_key, **kwargs)
+
+        def track_baseline_fallback(class_key, spec_key, **kwargs):
+            baseline_fallback_calls.append((class_key, spec_key, kwargs))
+            return original_baseline_fallback(class_key, spec_key, **kwargs)
+
+        with patch.object(
+            postgres_cache_store.gear_public_contract,
+            "public_gear_templates_for_spec",
+            side_effect=track_public_selector,
+        ), patch.object(
+            postgres_cache_store.gear_public_contract,
+            "public_baseline_fallback_templates_for_spec",
+            side_effect=track_baseline_fallback,
+        ):
+            payload = store.get_websim_gear("mage", "arcane", compact=True, mode="initial")
+
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(payload["baselineTemplates"], [])
+        self.assertGreaterEqual(len(public_selector_calls), 2)
+        self.assertEqual(len(baseline_fallback_calls), 1)
+        self.assertTrue(
+            all(call[2] == "arcane" for call in public_selector_calls),
+            "PG gear selector should route public filtering through gear_public_contract",
+        )
+
     def test_initial_payload_hides_source_less_observed_template_blocked_by_legality_gate(self):
         from server.postgres_cache_store import PostgresCacheStore
         from server.websim_payload import CANONICAL_GEAR_SLOTS
