@@ -1,6 +1,6 @@
 {
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "scope": [
     "server/pg_gear_template_selectors.py",
     "server/postgres_cache_store.py",
@@ -10,7 +10,7 @@
     "tests/pg_gear_template_selectors_test.py",
     "tests/backend-owner-map.test.js"
   ],
-  "summary": "Phase 4 continues the read-only PostgreSQL gear selector split. server/pg_gear_template_selectors.py now owns the payload-ready public template read-model fragment for communityTemplates, baselineTemplates, and communityTemplateSync, while server/postgres_cache_store.py keeps SQL reads, catalog candidate grouping, readiness, and catalog health assembly.",
+  "summary": "Phase 4 continues the read-only PostgreSQL gear selector split. server/pg_gear_template_selectors.py now owns the payload-ready public template read-model fragment for communityTemplates, baselineTemplates, and communityTemplateSync, while server/postgres_cache_store.py keeps SQL reads, catalog candidate grouping, readiness, and catalog health assembly. PR branch candidate deployment and public read-model smoke passed before merge.",
   "verification": [
     {
       "command": "python3 -m unittest tests.pg_gear_template_selectors_test.PgGearTemplateSelectorsTest.test_build_public_gear_template_read_model_compacts_payload_without_public_baseline",
@@ -56,12 +56,78 @@
       "command": "local CR over git diff and write-path keyword scan",
       "status": "pass",
       "summary": "Diff only moves public template payload/sync-state read-model assembly into pg_gear_template_selectors.py; no new SQL write, sync, or backfill path was added."
+    },
+    {
+      "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+      "status": "pass",
+      "summary": "PR branch candidate deploy to ubuntu@124.223.51.33:/opt/wow-mini-program completed; bootstrap was skipped and PG-native async sync starts were skipped."
+    },
+    {
+      "command": "HTTP smoke against http://124.223.51.33",
+      "status": "pass",
+      "summary": "/health, /api/data/health, /api/websim/bootstrap, /api/websim/assets, /api/websim/talents, /api/websim/gear initial, /api/websim/gear slot, and /websim/ returned HTTP 200. /api/data/health remained overallStatus=partial."
+    },
+    {
+      "command": "40-spec live /api/websim/gear?compact=1&mode=initial sweep",
+      "status": "pass",
+      "summary": "checkedSpecs=40, failures=0, dataStatus={verified:40}, communityTemplates={1:40}, baselineTemplates={0:40}, sourceKeys={raiderio_observed_profile:40}, canApplyGear={True:40}."
+    },
+    {
+      "command": "systemd service and timer smoke on ubuntu@124.223.51.33",
+      "status": "pass",
+      "summary": "wow-backend and nginx were active/running; checked sync/backfill services were inactive/dead with Result=success; wow timers were listed and active/waiting."
+    },
+    {
+      "command": "runtime env and backend log smoke on ubuntu@124.223.51.33",
+      "status": "pass",
+      "summary": "WOW_DATABASE_RUNTIME=postgres_only. Recent wow-backend logs had no Traceback, ERROR, CRITICAL, SQLite fallback, WOW_SQLITE, or Exception matches after smoke."
+    },
+    {
+      "command": "local and remote sha256 comparison for server/pg_gear_template_selectors.py and server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Runtime server file hashes matched between local branch and /opt/wow-mini-program."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
+    "status": "passed",
     "requiredBeforeMerge": true,
-    "reason": "This change touches the PG read model and public gear payload assembly."
+    "branch": "codex/phase4-pg-read-model-selectors",
+    "commit": "ce81df45b9a30fce53a98b2289e2fe9802d79ff2",
+    "pullRequest": 13,
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "asyncSyncStarted": false,
+    "smoke": {
+      "healthHttpStatus": 200,
+      "dataHealthOverallStatus": "partial",
+      "bootstrapSpecCount": 40,
+      "gearInitialSweep": {
+        "checkedSpecs": 40,
+        "failures": 0,
+        "communityTemplateCounts": {
+          "1": 40
+        },
+        "baselineTemplateCounts": {
+          "0": 40
+        },
+        "sourceKeys": {
+          "raiderio_observed_profile": 40
+        },
+        "canApplyGear": {
+          "True": 40
+        }
+      },
+      "services": {
+        "wow-backend.service": "active/running",
+        "nginx.service": "active/running",
+        "syncBackfillServices": "inactive/dead with Result=success",
+        "syncBackfillTimers": "active/waiting"
+      },
+      "runtime": {
+        "WOW_DATABASE_RUNTIME": "postgres_only"
+      },
+      "logs": "No Traceback, ERROR, CRITICAL, SQLite fallback, WOW_SQLITE, or Exception matches found in recent wow-backend logs after smoke."
+    }
   },
   "risks": [
     {
@@ -71,13 +137,18 @@
     },
     {
       "id": "candidate_deployment_pending",
-      "status": "open",
-      "detail": "Harness v0.5 requires PR branch candidate deployment or equivalent preview smoke before merge."
+      "status": "resolved",
+      "detail": "PR branch candidate deployment and smoke passed before merge."
     },
     {
       "id": "write_paths_out_of_scope",
       "status": "intentional",
       "detail": "Sync, write, and backfill paths are intentionally unchanged in this read-only selector split."
+    },
+    {
+      "id": "existing_partial_health",
+      "status": "known_existing",
+      "detail": "/api/data/health remained overallStatus=partial; 40-spec public gear read-model smoke passed and no forbidden public source keys appeared."
     }
   ],
   "rollback": [

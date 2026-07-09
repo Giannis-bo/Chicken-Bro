@@ -20,7 +20,7 @@
 
 2026-07-09 Phase 4 第三刀候选推进：Harness 升级到 v0.5，并将 backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本和用户可见 runtime 的候选部署 / 预览 smoke 前置为正式 gate。本刀继续拆 PG gear selector 只读面，新增 `server/pg_gear_template_selectors.py` 集中 `communityTemplates` / `baselineTemplates` public selection，`server/postgres_cache_store.py` initial 与 full/slot 分支改为委托 helper；sync 写入路径、SQL row 读取和公开 observed-only 语义不变。PR #12 branch 已按 Candidate Deployment Gate 完成候选热部署和线上 smoke，并已 rebase merge 到 `main@704714f`。
 
-2026-07-09 Phase 4 第四刀候选推进：继续沿 PG selector helper 做只读 read-model adapter 拆分，新增 `build_public_gear_template_read_model()`，把 selected public templates 的 payload compact 输出与 `communityTemplateSync` 组装从 `server/postgres_cache_store.py` 收敛到 `server/pg_gear_template_selectors.py`。本刀不移动 PG SQL 读取、不碰 sync/write/backfill，不改变 observed-only 公开入口；当前分支已完成红测、目标测试和完整本地验证，Candidate Deployment Gate 仍按后续步骤执行。
+2026-07-09 Phase 4 第四刀候选推进：继续沿 PG selector helper 做只读 read-model adapter 拆分，新增 `build_public_gear_template_read_model()`，把 selected public templates 的 payload compact 输出与 `communityTemplateSync` 组装从 `server/postgres_cache_store.py` 收敛到 `server/pg_gear_template_selectors.py`。本刀不移动 PG SQL 读取、不碰 sync/write/backfill，不改变 observed-only 公开入口；当前分支已完成红测、目标测试、完整本地验证和 Candidate Deployment Gate。PR #13 branch 已候选热部署，公网 API、40-spec observed-only sweep、systemd/log/hash parity smoke 通过，合入后仍需同步 main 并确认 HEAD parity。
 
 本计划只定义整体优化顺序和验收门禁，不授权直接修改业务实现、不替代 roadmap、runbook 或当前 UI source-of-truth。
 
