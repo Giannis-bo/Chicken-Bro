@@ -34,6 +34,14 @@ This repository maintains a project roadmap as shared context for all agents and
 - When reviewing uncommitted work, use `codex review --uncommitted` only. When reviewing committed branch changes against a base branch, use `codex review --base <base>` only. Do not combine `--uncommitted` with `--base`.
 - Do not block commit, deploy, or handoff solely because `codex review` failed or did not return. Blocking decisions should come from local CR findings, failing tests, unsafe diff state, or unresolved user/product requirements.
 
+## Candidate Deployment Before Merge
+
+- For backend/API, PG read model, public payload, health/admin, scheduled jobs, deploy scripts, or user-visible runtime changes, use the PR branch or equivalent candidate build for deployment/preview smoke before merging when feasible.
+- Candidate smoke must record the branch or commit identity, runtime file parity or build identity, the relevant health/API/read-model/UI smoke results, timer/sync/backflow state, and rollback path.
+- For the known cloud deployment path, routine SSH inspection, hot deploy, service restart, logs, and HTTP/API smoke remain covered once the user asks for deployment, sync, smoke, or remote verification work. Keep async sync/backfill off by default with `WOW_DEPLOY_START_ASYNC_SYNCS=0` unless the task explicitly requires triggering it.
+- If pre-merge candidate deployment is impossible, mark it as an exception/correction, merge only with a clear reason, then immediately run post-merge live smoke and record evidence. Do not treat post-merge-only validation as the normal path for runtime changes.
+- This rule does not authorize dependency installs, third-party downloads, remote changes, force pushes, arbitrary production operations, or destructive history rewrites.
+
 ## Cloud Deployment Approval
 
 - For this repository, routine operations on the known cloud server do not require an extra approval prompt once the user asks for deployment, sync, smoke, or remote verification work.

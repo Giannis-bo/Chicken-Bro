@@ -4,7 +4,7 @@
 
 `Phase 0 + Phase 1 已完成 / 当前 UI 基线已验收`
 
-本文件承接 `docs/harness.md` v0.4、`docs/plans/2026-07-09-docs-implementation-current-truth-review.md` 和当前用户确认的 A 路线：先收口 Harness 与证据系统，再做结构拆分。
+本文件承接 `docs/harness.md` v0.5、`docs/plans/2026-07-09-docs-implementation-current-truth-review.md` 和当前用户确认的 A 路线：先收口 Harness 与证据系统，再做结构拆分。
 
 2026-07-09 14:29 CST 更新：Phase 0 工作树主题收口与 Phase 1 UI proof matrix 已完成。当前 UI rescue 基线为 `runtime_recapture_complete_auto_14_screenshots_14_pass_final_accepted`，14/14 当前自动截图证据已归档，`runtimeVerified=true`、`finalAccepted=true`、`riskCount=0`。后续 UI 设计调整不纳入本轮 rescue，按新需求重新走 Harness。
 
@@ -17,6 +17,8 @@
 2026-07-09 Phase 4 第二刀更新：PG gear selector 调用面已开始从 `websim_payload.py` 兼容导出收敛到 `server/gear_public_contract.py`。`server/postgres_cache_store.py` 现在通过模块限定调用公开 source policy、observed-only visibility、baseline fallback gating 和 real-player public import 配置；`websim_payload.py` 兼容导出继续保留，sync 写入路径暂不移动。
 
 2026-07-09 Phase 4 第二刀部署补录：用户指出 backend/API/read model 变更应先部署验证再合入；由于本刀已经合入，已补做 post-merge 热部署与线上 smoke，并将 release evidence 晋级到 `live_verified`。后续同类 backend/API/PG read model 变更默认在 PR 候选阶段先部署或预览验证，通过后再合入。
+
+2026-07-09 Phase 4 第三刀候选推进：Harness 升级到 v0.5，并将 backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本和用户可见 runtime 的候选部署 / 预览 smoke 前置为正式 gate。本刀继续拆 PG gear selector 只读面，新增 `server/pg_gear_template_selectors.py` 集中 `communityTemplates` / `baselineTemplates` public selection，`server/postgres_cache_store.py` initial 与 full/slot 分支改为委托 helper；sync 写入路径、SQL row 读取和公开 observed-only 语义不变。合入前必须按 Candidate Deployment Gate 对 PR branch 完成候选部署或等价预览 smoke。
 
 本计划只定义整体优化顺序和验收门禁，不授权直接修改业务实现、不替代 roadmap、runbook 或当前 UI source-of-truth。
 
@@ -43,7 +45,7 @@
 关键假设：
 
 - `docs/roadmap.md` 顶部、`docs/README.md`、`docs/harness.md`、相关 runbook 和 current source-of-truth 继续作为当前事实入口。
-- 当前 Harness v0.4 是规则基线，但 `scripts/project-harness.js` 仍只是只读聚合器，不能替代人工需求合同、测试输出或运行时证据。
+- 当前 Harness v0.5 是规则基线，但 `scripts/project-harness.js` 仍只是只读聚合器，不能替代人工需求合同、测试输出、候选部署 smoke 或运行时证据。
 - 当前工作树已经存在多项未提交文档、证据和测试改动；交付前必须继续按主题解释并保持可审阅 diff。
 
 验收证据：
@@ -220,8 +222,9 @@
 
 - `AGENTS.md` 与 `docs/harness.md` 已新增 repository remote sync 例外：常规 `fetch / pull --ff-only / push / PR` 同步不再二次授权，但 force push、改 remote、clone、submodule、依赖安装、第三方下载和生产操作仍需明确确认。
 - `AGENTS.md` 与 `docs/harness.md` 已新增 autonomous progression 规则：用户确认计划、授权继续或直接推进后，agent 默认继续执行范围内下一步，只在 blocker、验证失败需权衡、待决策、范围变化、冲突或越界操作时停下来确认。
+- `AGENTS.md` 与 `docs/harness.md` 已新增 candidate deployment 规则：backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本和用户可见 runtime 变更默认在 PR 候选阶段先部署或预览 smoke，通过后再合入。
 - `scripts/project-harness.js` 已新增 `--evidence-file`，只读取仓库内本地 JSON evidence packet，不执行其中命令。
-- Manifest 现在输出 `repositoryRemoteSync` gate、`autonomousProgression` gate、`safety.repositoryRemoteSyncPreapproved`、`safety.autonomousProgressionEnabled` 和 `evidencePacket` 完整性检查。
+- Manifest 现在输出 `repositoryRemoteSync` gate、`autonomousProgression` gate、`candidateDeployment` gate、`safety.repositoryRemoteSyncPreapproved`、`safety.autonomousProgressionEnabled` 和 `evidencePacket` 完整性检查。
 
 ### Phase 3：后端 owner map 与 characterization
 
@@ -275,7 +278,8 @@
 - `server/websim_payload.py` 保持原函数名和导出面，旧调用方继续使用 `public_gear_templates_for_spec`、`public_baseline_fallback_templates_for_spec`、`community_gear_template_can_apply` 等兼容包装；PG store 暂不改导入路径。
 - `tests/gear_public_contract_test.py` 先因缺少新模块失败，再在抽取后通过；随后新增 `templateEvidence` hash 来源 parity 测试并 red/green 关闭，证明新模块与旧导出 observed-only 行为及证据读取路径一致。
 - `server/postgres_cache_store.py` 的 PG gear selector 调用面已改为模块限定调用 `gear_public_contract`，并通过 `test_pg_initial_gear_selector_calls_gear_public_contract_module` red/green 锁定；`test_pg_gear_template_selectors_match_observed_only_golden_payload` 继续固定 PG read model 输出不变。
-- 本次抽取不重新开放 `recommended_bis`、`season_recommendation`、`default_template`、`simc_preset` 或 `baseline_blocked`；合入后已补做 `WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0` 热部署和线上 smoke，没有手动启动 PG-native async sync。
+- `server/pg_gear_template_selectors.py` 已作为 PG selector 只读 helper 抽出，initial 与 full/slot 两个 `get_websim_gear` 读模型分支统一委托 `select_public_gear_templates_for_spec()`；新增 `tests/pg_gear_template_selectors_test.py` red/green 固定 active observed-only、source-less observed blocked、`recommended_bis` / `season_recommendation` 不进入 public baseline 的选择合同。
+- 本阶段不重新开放 `recommended_bis`、`season_recommendation`、`default_template`、`simc_preset` 或 `baseline_blocked`；上一刀合入后已补做 `WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0` 热部署和线上 smoke，本刀按 Candidate Deployment Gate 在合入前执行候选部署 / 预览 smoke。
 
 ### Phase 5：发布、线上 smoke 与归档
 

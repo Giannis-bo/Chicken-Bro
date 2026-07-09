@@ -1,6 +1,6 @@
 # Repo-native Harness
 
-> Harness version：v0.4。
+> Harness version：v0.5。
 > 最后更新：2026-07-09。
 > 适用范围：本仓库所有需求讨论、方案设计、实现、验证、部署和交付声明。
 
@@ -18,6 +18,7 @@
 - 事实判断必须有 owner。前端、health/admin、定时任务和脚本不能各自创造事实结论。
 - 需求不能按单点实现。Standard 以上需求必须先评估它属于哪条业务链路，以及会传播到哪些后端、前端、数据、定时任务和运维面。
 - 工程健康也是交付边界。触达热点文件、核心 API、PG read model、定时任务、health/admin 或部署脚本时，必须说明结构、性能和可用性影响。
+- 运行时改动先候选验证再合入。触达 backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本或用户可见运行链路时，默认在 PR 候选阶段完成部署或预览 smoke，通过后再合入。
 - Harness 必须由真实问题迭代。返工、事故、证据误判、联动漏评和旧文档误导应先记录 finding，再按规则升级为 Harness 改动。
 - 本仓库与已配置项目远端之间的常规同步是协作基础设施，不再作为下载/网络授权阻塞项；但它不能扩展为依赖安装、第三方下载、任意 clone、改 remote 或破坏性历史改写。
 - 用户批准计划、授权继续或要求直接推进后，agent 默认自动推进后续范围内步骤；只有明确阻塞、验证失败需权衡、范围变化、待决策点或越界高风险操作才回到用户确认。
@@ -254,6 +255,36 @@ Standard 以上需求如果触达部署、生产数据、PG read model、cache�
 
 只有部署动作完成不能声明 `live_verified`。`live_verified` 必须有当前线上证据，并说明 smoke 覆盖了哪些入口、哪些仍是 risk。
 
+## Candidate Deployment Gate
+
+Standard 以上需求如果触达 backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本或用户可见运行链路，默认必须在合入前完成 PR 候选部署或等价预览 smoke。目标是避免“合入后才发现部署/runtime 问题”的发布顺序。
+
+适用面：
+
+- backend route、API contract、serializer、public payload。
+- PG read model、cache selector、repository selector、cache rebuild 入口。
+- health/admin 汇总、门禁状态、后台诊断面。
+- systemd timer、sync/backfill/cleanup/follow-up job。
+- deploy script、runtime env、服务重启或 smoke 清单。
+- 小程序或 WebSim 真实运行入口。
+
+合入前最低证据：
+
+| 证据 | 要求 |
+| --- | --- |
+| 候选身份 | 明确部署的是 PR branch、preview build 或等价候选版本；记录 commit/hash、文件 parity 或 build identity。 |
+| smoke 范围 | 覆盖被改动 runtime surface 的 health、关键 endpoint、read model 或 UI 入口。 |
+| 防回流 | 检查 timer/sync/backfill/cleanup 是否会把旧状态写回来；必要时保持 async sync 关闭。 |
+| 回滚 | 明确 `code_rollback`、`config_disable`、`feature_hide`、`data_restore` 或 `resync_repair` 至少一种。 |
+| 证据归档 | evidence packet、roadmap、runbook 或 PR comment 记录命令、时间和结果摘要。 |
+
+执行规则：
+
+- 候选 smoke 通过后再合入 PR。
+- 如果平台没有 preview，允许把 PR branch 热部署到既有目标环境，但必须记录 branch/commit 与 runtime 文件 parity。
+- 如果因平台限制只能合入后验证，必须把它标为例外或纠偏，不能当作常规发布路径；合入后立即执行 live smoke 并记录风险。
+- 本 gate 不替代用户对产品方案的确认，也不扩大依赖安装、第三方下载、改 remote、force push 或破坏性操作权限。
+
 ## Repository Remote Sync Gate
 
 本仓库与已配置项目远端之间的常规同步不需要额外授权。该规则只用于保持本地 checkout、项目分支和 GitHub PR 状态一致，不改变生产、依赖或第三方数据边界。
@@ -384,6 +415,7 @@ Harness 复盘节奏：
 
 | Version | Date | Change |
 | --- | --- | --- |
+| v0.5 | 2026-07-09 | 增加 Candidate Deployment Gate：backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本和用户可见运行链路默认在 PR 候选阶段先部署或预览 smoke，通过后再合入；无法预合入验证时必须记录例外并补 post-merge live smoke。 |
 | v0.4 | 2026-07-09 | 增加 Autonomous Progression Gate：用户确认方案、授权继续或直接推进后，agent 默认自动执行范围内后续步骤；只有明确 blocker、验证失败需权衡、范围变化、待决策点、工作树/远端冲突或越界高风险操作才回到用户确认。 |
 | v0.3 | 2026-07-09 | 增加 Repository Remote Sync Gate：本仓库与已配置项目远端之间的常规 fetch / pull --ff-only / push / PR 状态读取、更新和合入不再需要额外授权，同时保留 force push、改 remote、clone、submodule、依赖安装、第三方下载和生产操作的确认边界。 |
 | v0.2 | 2026-07-09 | 增加 Ownership / Contract Gate 与 Release / Rollback Gate，明确事实判断归属、发布前后 smoke、回滚策略和定时任务防回流。 |

@@ -1,7 +1,7 @@
 {
-  "version": "2026-07-09-phase4-v2",
-  "status": "phase4_pg_selector_callers_routed",
-  "harnessVersion": "v0.4",
+  "version": "2026-07-09-phase4-v3",
+  "status": "phase4_pg_selector_helper_extracted",
+  "harnessVersion": "v0.5",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
     "mustHaveCharacterizationBeforeExtraction": true,
@@ -22,7 +22,7 @@
           "extractedModule": "server/gear_public_contract.py",
           "directCallers": [
             "server/websim_payload.py compatibility exports",
-            "server/postgres_cache_store.py PG gear selectors"
+            "server/pg_gear_template_selectors.py PG selector helper"
           ],
           "owns": [
             "public_gear_templates_for_spec",
@@ -225,7 +225,8 @@
       "owners": [
         {
           "id": "gear_template_selectors",
-          "status": "contract_module_callers_routed",
+          "status": "selector_helper_extracted",
+          "extractedModule": "server/pg_gear_template_selectors.py",
           "usesModule": "server/gear_public_contract.py",
           "owns": [
             "get_websim_gear",
@@ -239,13 +240,14 @@
             "Compact and full payload modes must keep source keys and blockers consistent."
           ],
           "characterization": [
+            "tests/pg_gear_template_selectors_test.py::PgGearTemplateSelectorsTest.test_select_public_gear_templates_keeps_observed_only_and_empty_public_baseline",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_pg_gear_template_selectors_match_observed_only_golden_payload",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_pg_initial_gear_selector_calls_gear_public_contract_module",
             "tests/fixtures/pg-gear-template-selectors-observed-only.json",
             "tests/postgres_cache_store_test.py public observed-only gear payload tests",
             "tests/news_backend_test.py runtime PG gear tests"
           ],
-          "futureExtractionDirection": "Extract repository-level selectors after public gear selector snapshots are added."
+          "futureExtractionDirection": "Continue extracting repository-level selectors after compact/full PG read-model branches and write-intent boundaries are characterized separately."
         },
         {
           "id": "sync_state_repository",

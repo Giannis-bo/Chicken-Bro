@@ -17,6 +17,11 @@ except ImportError:
     import gear_public_contract
 
 try:
+    from . import pg_gear_template_selectors
+except ImportError:
+    import pg_gear_template_selectors
+
+try:
     from .websim_payload import (
         CANONICAL_GEAR_SLOTS,
         COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
@@ -5923,37 +5928,13 @@ class PostgresCacheStore:
         catalog_blockers,
         persisted_templates,
     ):
-        community_templates = select_community_best_gear_templates(
-            [template for template in persisted_templates if gear_public_contract.is_real_community_gear_template(template)],
+        selected_templates = pg_gear_template_selectors.select_public_gear_templates_for_spec(
+            persisted_templates,
             class_key,
             spec_key,
         )
-        community_templates = gear_public_contract.public_gear_templates_for_spec(community_templates, class_key, spec_key)
-        if not community_templates and not gear_public_contract.real_player_gear_template_public_import_spec(class_key, spec_key):
-            community_templates = [pending_community_gear_template(class_key, spec_key)]
-        baseline_templates = gear_public_contract.public_gear_templates_for_spec(
-            select_best_baseline_gear_templates(
-                [template for template in persisted_templates if gear_public_contract.is_baseline_gear_template(template)]
-            ),
-            class_key,
-            spec_key,
-        )
-        if not baseline_templates:
-            baseline_templates = gear_public_contract.public_baseline_fallback_templates_for_spec(
-                class_key,
-                spec_key,
-                blocked_baseline_factory=blocked_baseline_gear_template,
-            )
-        community_templates = [
-            apply_gear_template_legality_gate(template, class_key, spec_key)
-            for template in community_templates
-        ]
-        baseline_templates = [
-            apply_gear_template_legality_gate(template, class_key, spec_key)
-            for template in baseline_templates
-        ]
-        community_templates = gear_public_contract.public_gear_templates_for_spec(community_templates, class_key, spec_key)
-        baseline_templates = gear_public_contract.public_gear_templates_for_spec(baseline_templates, class_key, spec_key)
+        community_templates = selected_templates["communityTemplates"]
+        baseline_templates = selected_templates["baselineTemplates"]
         baseline_template = baseline_templates[0] if baseline_templates else {}
         baseline_items = baseline_template.get("gearItems") or []
         equipped_set = self._template_gear_by_slot(baseline_template, compact=compact)
@@ -6576,37 +6557,13 @@ class PostgresCacheStore:
             season,
         )
         catalog_items = sorted(catalog_items, key=gear_candidate_quality_score, reverse=True)
-        community_templates = select_community_best_gear_templates(
-            [template for template in persisted_templates if gear_public_contract.is_real_community_gear_template(template)],
+        selected_templates = pg_gear_template_selectors.select_public_gear_templates_for_spec(
+            persisted_templates,
             class_key,
             spec_key,
         )
-        community_templates = gear_public_contract.public_gear_templates_for_spec(community_templates, class_key, spec_key)
-        if not community_templates and not gear_public_contract.real_player_gear_template_public_import_spec(class_key, spec_key):
-            community_templates = [pending_community_gear_template(class_key, spec_key)]
-        baseline_templates = gear_public_contract.public_gear_templates_for_spec(
-            select_best_baseline_gear_templates(
-                [template for template in persisted_templates if gear_public_contract.is_baseline_gear_template(template)]
-            ),
-            class_key,
-            spec_key,
-        )
-        if not baseline_templates:
-            baseline_templates = gear_public_contract.public_baseline_fallback_templates_for_spec(
-                class_key,
-                spec_key,
-                blocked_baseline_factory=blocked_baseline_gear_template,
-            )
-        community_templates = [
-            apply_gear_template_legality_gate(template, class_key, spec_key)
-            for template in community_templates
-        ]
-        baseline_templates = [
-            apply_gear_template_legality_gate(template, class_key, spec_key)
-            for template in baseline_templates
-        ]
-        community_templates = gear_public_contract.public_gear_templates_for_spec(community_templates, class_key, spec_key)
-        baseline_templates = gear_public_contract.public_gear_templates_for_spec(baseline_templates, class_key, spec_key)
+        community_templates = selected_templates["communityTemplates"]
+        baseline_templates = selected_templates["baselineTemplates"]
         grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
         candidate_legality_excluded = []
         for item in catalog_items:

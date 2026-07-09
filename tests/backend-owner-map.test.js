@@ -12,8 +12,8 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_pg_selector_callers_routed')
-  assert.equal(ownerMap.harnessVersion, 'v0.4')
+  assert.equal(ownerMap.status, 'phase4_pg_selector_helper_extracted')
+  assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
 
@@ -33,7 +33,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.equal(gearPublicContract.status, 'extracted_adapter')
   assert.equal(gearPublicContract.extractedModule, 'server/gear_public_contract.py')
   assert.ok(
-    gearPublicContract.directCallers.includes('server/postgres_cache_store.py PG gear selectors'),
+    gearPublicContract.directCallers.includes('server/pg_gear_template_selectors.py PG selector helper'),
     'gear public contract should record PG selector direct callers'
   )
   assert.deepEqual(gearPublicContract.publicEntryPolicy.allowedCommunitySourceKeys, ['raiderio_observed_profile'])
@@ -60,7 +60,12 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   const pgOwners = new Map(files.get('server/postgres_cache_store.py').owners.map((owner) => [owner.id, owner]))
   const gearTemplateSelectors = pgOwners.get('gear_template_selectors')
   assert.ok(gearTemplateSelectors)
-  assert.equal(gearTemplateSelectors.status, 'contract_module_callers_routed')
+  assert.equal(gearTemplateSelectors.status, 'selector_helper_extracted')
+  assert.equal(gearTemplateSelectors.extractedModule, 'server/pg_gear_template_selectors.py')
   assert.equal(gearTemplateSelectors.usesModule, 'server/gear_public_contract.py')
+  assert.ok(
+    gearTemplateSelectors.characterization.some((entry) => entry.includes('tests/pg_gear_template_selectors_test.py')),
+    'gear template selectors should point at the helper module characterization test'
+  )
   assert.ok(pgOwners.has('sync_state_repository'))
 })

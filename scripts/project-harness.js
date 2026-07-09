@@ -303,6 +303,28 @@ function buildManifest(options) {
       liveVerifiedRequiresCurrentOnlineEvidence: true,
       timerBackflowCheckRequired: true
     },
+    candidateDeployment: {
+      status: 'required_for_runtime_changes',
+      requiredBeforeMergeForRuntimeChanges: true,
+      runtimeChangeSurfaces: [
+        'backend_api',
+        'pg_read_model',
+        'public_payload',
+        'health_admin',
+        'scheduled_jobs',
+        'deploy_scripts',
+        'user_visible_runtime'
+      ],
+      requiredEvidence: [
+        'candidate_deploy_or_preview_smoke',
+        'runtime_file_parity_or_build_identity',
+        'post_deploy_health_or_endpoint_smoke',
+        'timer_backflow_check',
+        'rollback_plan'
+      ],
+      fallbackWhenPreMergeCandidateIsImpossible: 'record_exception_and_post_merge_live_smoke',
+      mergeRule: 'merge_after_candidate_smoke_for_runtime_changes'
+    },
     repositoryRemoteSync: {
       status: 'ready',
       preapprovedForConfiguredProjectRemote: true,
