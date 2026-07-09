@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-09T10:00:35.177Z",
+  "generatedAt": "2026-07-09T10:02:28.051Z",
   "release": {
     "date": "2026-07-09",
     "slug": "pg-catalog-read-model-selector"
@@ -217,7 +217,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-09-pg-catalog-read-model-selector/evidence.json",
-    "sizeBytes": 8361,
+    "sizeBytes": 8429,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",

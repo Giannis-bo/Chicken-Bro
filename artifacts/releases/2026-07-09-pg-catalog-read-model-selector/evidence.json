@@ -93,6 +93,7 @@
     "requiredBeforeMerge": true,
     "branch": "codex/phase4-pg-readiness-selector",
     "commit": "8a7880ded63ee5619b8ef7477b21e1a22b94f2e8",
+    "mergedMainCommit": "6c7bf7190538f55bbb68d82ff60c6e69910e0cfd",
     "pullRequest": 14,
     "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
     "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program",
