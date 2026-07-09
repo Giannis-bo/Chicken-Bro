@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_admin_gear_variant_record_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_websim_loot_read_model_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -172,6 +172,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
     'gear catalog read-model selectors should own admin gear variant record assembly after this Phase 4 split'
   )
   assert.ok(
+    gearCatalogReadModelSelectors.owns.includes('websim loot item read-model assembly'),
+    'gear catalog read-model selectors should own websim loot item assembly after this Phase 4 split'
+  )
+  assert.ok(
     gearCatalogReadModelSelectors.owns.includes('season recommended catalog candidate slot grouping'),
     'gear catalog read-model selectors should own season recommended catalog candidate grouping after this Phase 4 split'
   )
@@ -214,6 +218,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_admin_gear_variant_records_read_model_maps_variant_rows')),
     'gear catalog read-model selectors should point at the admin gear variant record read-model characterization test'
+  )
+  assert.ok(
+    gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_websim_loot_items_read_model_maps_filters_and_limits_rows')),
+    'gear catalog read-model selectors should point at the websim loot item read-model characterization test'
   )
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_season_recommended_catalog_candidates_by_slot_read_model_filters_and_limits_candidates')),
