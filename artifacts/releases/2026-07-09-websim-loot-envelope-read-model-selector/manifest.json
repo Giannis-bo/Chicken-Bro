@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "local_verified",
+  "status": "candidate_verified",
   "generatedAt": "2026-07-09T15:04:08Z",
   "release": {
     "date": "2026-07-09",
@@ -48,12 +48,26 @@
       ]
     },
     "candidateDeployment": {
-      "status": "pending",
+      "status": "passed",
       "requiredBeforeMergeForRuntimeChanges": true,
       "runtimeChangeSurfaces": [
         "backend_api",
         "pg_read_model",
         "websim_runtime"
+      ],
+      "branch": "codex/phase4-websim-loot-envelope-read-model-selector",
+      "commit": "284004923283851e7c626f37bd51e88680336e3a",
+      "smoke": [
+        "/health",
+        "/api/data/health",
+        "/api/websim/bootstrap",
+        "/api/websim/assets",
+        "/api/websim/talents",
+        "/api/websim/loot",
+        "/api/websim/gear initial",
+        "/api/websim/gear slot",
+        "40-spec observed-only gear sweep",
+        "systemd/log/hash parity"
       ]
     }
   },
