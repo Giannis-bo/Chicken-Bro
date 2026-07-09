@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_admin_talent_records_read_model_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_websim_talent_import_read_model_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -200,6 +200,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
     'gear catalog read-model selectors should own websim bootstrap assembly after this Phase 4 split'
   )
   assert.ok(
+    gearCatalogReadModelSelectors.owns.includes('websim talent import template read-model assembly'),
+    'gear catalog read-model selectors should own websim talent import template assembly after this Phase 4 split'
+  )
+  assert.ok(
     gearCatalogReadModelSelectors.owns.includes('season recommended catalog candidate slot grouping'),
     'gear catalog read-model selectors should own season recommended catalog candidate grouping after this Phase 4 split'
   )
@@ -270,6 +274,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_websim_bootstrap_read_model_assembles_backend_owned_payload')),
     'gear catalog read-model selectors should point at the websim bootstrap read-model characterization test'
+  )
+  assert.ok(
+    gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_websim_talent_import_template_read_model_maps_row')),
+    'gear catalog read-model selectors should point at the websim talent import template read-model characterization test'
   )
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_season_recommended_catalog_candidates_by_slot_read_model_filters_and_limits_candidates')),

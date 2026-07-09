@@ -4,6 +4,52 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_websim_talent_import_template_read_model_maps_row(self):
+        from server.pg_gear_read_model_selectors import build_websim_talent_import_template_read_model
+
+        row = (
+            "template-1",
+            "mage",
+            "frost",
+            "frostfire",
+            "mythic_plus",
+            "Raider.IO Frostfire",
+            "raiderio",
+            "Raider.IO",
+            "https://example.test/template",
+            "CsbBAAAAAAAAAAAAAA",
+            "synced",
+            "verified",
+            "12",
+            "24",
+            None,
+            "2026-07-09T12:00:00+00:00",
+        )
+
+        self.assertEqual(
+            build_websim_talent_import_template_read_model(row),
+            {
+                "id": "template-1",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "name": "Raider.IO Frostfire",
+                "sourceKey": "raiderio",
+                "sourceName": "Raider.IO",
+                "sourceUrl": "https://example.test/template",
+                "rawImportCode": "CsbBAAAAAAAAAAAAAA",
+                "sourceStatus": "synced",
+                "status": "verified",
+                "sampleCount": 12,
+                "maxKeyLevel": 24,
+                "analysisWindow": "",
+                "updatedAt": "2026-07-09T12:00:00+00:00",
+                "canUseInSimc": True,
+            },
+        )
+        self.assertIsNone(build_websim_talent_import_template_read_model(None))
+
     def test_build_admin_talent_records_read_model_filters_expired_templates(self):
         from server.pg_gear_read_model_selectors import build_admin_talent_records_read_model
 

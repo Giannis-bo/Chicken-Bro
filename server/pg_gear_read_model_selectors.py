@@ -163,6 +163,30 @@ def build_admin_talent_records_read_model(template_rows, tree_rows, now=None):
     }
 
 
+def build_websim_talent_import_template_read_model(row):
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "classKey": row[1],
+        "specKey": row[2],
+        "heroKey": row[3],
+        "scenarioKey": row[4],
+        "name": row[5],
+        "sourceKey": row[6],
+        "sourceName": row[7],
+        "sourceUrl": row[8],
+        "rawImportCode": row[9],
+        "sourceStatus": row[10],
+        "status": row[11],
+        "sampleCount": _int_value(row[12]),
+        "maxKeyLevel": _int_value(row[13]),
+        "analysisWindow": row[14] or "",
+        "updatedAt": str(row[15] or ""),
+        "canUseInSimc": True,
+    }
+
+
 def build_websim_bootstrap_read_model(
     season_fields,
     *,
