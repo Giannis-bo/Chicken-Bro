@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "local_verified",
+  "status": "candidate_deployment_verified",
   "generatedAt": "2026-07-09T14:39:55Z",
   "release": {
     "date": "2026-07-09",
@@ -39,13 +39,16 @@
       "changeType": "read_only_admin_selector_extraction"
     },
     "candidateDeployment": {
-      "status": "pending",
+      "status": "passed",
       "requiredBeforeMergeForRuntimeChanges": true,
       "runtimeChangeSurfaces": [
         "backend_api",
         "admin_read_model",
         "pg_read_model"
-      ]
+      ],
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/39",
+      "branch": "codex/phase4-admin-talent-records-read-model-selector",
+      "commit": "a57c0c4fe4f34c14bc6a26491c0a5a6c655c8a95"
     }
   },
   "evidenceFile": "artifacts/releases/2026-07-09-admin-talent-records-read-model-selector/evidence.json"
