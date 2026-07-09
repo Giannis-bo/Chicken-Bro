@@ -40,7 +40,6 @@ try:
         GEAR_SLOT_LABELS,
         ITEM_METADATA_SOURCE,
         TALENT_SCHEMA_REVISION,
-        active_catalog_sources_for_replacement,
         apply_gear_candidate_legality,
         apply_gear_template_legality_gate,
         apply_item_metadata,
@@ -59,7 +58,6 @@ try:
         dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
-        enrich_catalog_item,
         expected_spec_pairs,
         current_season_payload,
         fallback_text_for,
@@ -99,7 +97,6 @@ try:
         observed_variant_stat_identity_key,
         observed_variant_stat_payload_fields,
         pending_community_gear_template,
-        sanitize_gear_candidate_mod_options,
         SCENARIOS,
         SIMC_GEAR_OPTION_KEYS,
         scenario_title,
@@ -144,7 +141,6 @@ except ImportError:
         GEAR_SLOT_LABELS,
         ITEM_METADATA_SOURCE,
         TALENT_SCHEMA_REVISION,
-        active_catalog_sources_for_replacement,
         apply_gear_candidate_legality,
         apply_gear_template_legality_gate,
         apply_item_metadata,
@@ -163,7 +159,6 @@ except ImportError:
         dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
-        enrich_catalog_item,
         expected_spec_pairs,
         current_season_payload,
         fallback_text_for,
@@ -203,7 +198,6 @@ except ImportError:
         observed_variant_stat_identity_key,
         observed_variant_stat_payload_fields,
         pending_community_gear_template,
-        sanitize_gear_candidate_mod_options,
         SCENARIOS,
         SIMC_GEAR_OPTION_KEYS,
         scenario_title,
@@ -3903,7 +3897,7 @@ class PostgresCacheStore:
     def _season_recommended_catalog_candidates_by_slot(self, class_key, spec_key):
         season = self.get_active_season_payload()
         raw_rows = self._season_recommended_catalog_raw_rows()
-        catalog_items = self._gear_catalog_items(
+        catalog_items = pg_gear_read_model_selectors.build_gear_catalog_items_read_model(
             raw_rows.get("itemRows") or [],
             pg_gear_read_model_selectors.build_gear_sources_by_item_read_model(raw_rows.get("sourceRows") or []),
             pg_gear_read_model_selectors.build_gear_variants_by_item_read_model(raw_rows.get("variantRows") or []),
@@ -5784,47 +5778,6 @@ class PostgresCacheStore:
         }
         return payload
 
-    def _gear_catalog_items(self, item_rows, sources_by_item, variants_by_item, mod_options_by_slot, class_key, spec_key, season):
-        catalog_items = []
-        for row in item_rows:
-            payload = _json_value(row[4], {})
-            payload = payload if isinstance(payload, dict) else {}
-            item_id = str(row[0])
-            item_sources = active_catalog_sources_for_replacement(sources_by_item.get(item_id, []), season)
-            item_variants = variants_by_item.get(item_id, [])
-            if not item_sources:
-                continue
-            raw_item = {
-                "id": item_id,
-                "itemId": item_id,
-                "name": row[1],
-                "displayName": payload.get("displayName") or payload.get("name") or row[1],
-                "slot": row[2],
-                "itemLevel": row[3],
-                "ilevel": row[3],
-                "quality": payload.get("quality") or "",
-                "iconUrl": payload.get("iconUrl") or "",
-                "source": (sources_by_item.get(item_id) or [{}])[0].get("label") or "gear catalog",
-                "sourceType": "catalog",
-                "payload": payload,
-            }
-            item = normalize_gear_item(raw_item, class_key, spec_key, "catalog")
-            if not item:
-                continue
-            item = enrich_catalog_item(
-                item,
-                item_sources,
-                item_variants,
-                mod_options_by_slot.get("socket", {}).get(item["slot"], []),
-                mod_options_by_slot.get("enchant", {}).get(item["slot"], []),
-                mod_options_by_slot.get("embellishment", {}).get(item["slot"], []),
-                class_key,
-                spec_key,
-            )
-            if item:
-                catalog_items.append(sanitize_gear_candidate_mod_options(item))
-        return catalog_items
-
     def _official_item_metadata_by_id(self, cur, gear_items):
         item_ids = sorted({
             str((item or {}).get("itemId") or (item or {}).get("id") or "").strip()
@@ -6327,7 +6280,7 @@ class PostgresCacheStore:
                 [row for row in mod_option_rows if str(row[1] or "").lower() == "embellishment"]
             ),
         }
-        catalog_items = self._gear_catalog_items(
+        catalog_items = pg_gear_read_model_selectors.build_gear_catalog_items_read_model(
             item_rows,
             sources_by_item,
             variants_by_item,
