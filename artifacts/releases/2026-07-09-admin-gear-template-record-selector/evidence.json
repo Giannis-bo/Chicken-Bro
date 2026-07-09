@@ -1,6 +1,6 @@
 {
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "candidate_deployment_passed",
+  "highestEvidenceLevel": "live_verified",
   "scope": [
     "server/pg_gear_template_selectors.py",
     "server/postgres_cache_store.py",
@@ -66,28 +66,111 @@
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
+    "status": "passed",
     "requiredBeforeMerge": true,
+    "pullRequest": 31,
     "branch": "codex/phase4-admin-gear-template-record-selector",
     "baseCommit": "2aae0f8000d7f60bfe7c263d27c44d2c750b88aa",
+    "commit": "c95e7db4b6ee325d2b6aef81f54ad69d86b20ac3",
     "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
     "target": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "deployedAt": "2026-07-09T13:22:35Z",
     "asyncSyncStarted": false,
     "smoke": {
-      "required": [
-        "/health",
-        "/api/data/health",
-        "/api/websim/bootstrap",
-        "/api/websim/assets",
-        "/api/websim/talents",
-        "/api/websim/gear initial",
-        "/api/websim/gear slot",
-        "/api/admin/gates/summary",
-        "40-spec observed-only gear sweep",
-        "systemd backend/nginx/sync-backfill service/timer status",
-        "recent logs without Traceback/ERROR/SQLite fallback",
-        "runtime file hash parity"
-      ]
+      "http": {
+        "baseUrl": "http://124.223.51.33",
+        "endpoints": [
+          {
+            "path": "/health",
+            "httpStatus": 200,
+            "ok": true
+          },
+          {
+            "path": "/api/data/health",
+            "httpStatus": 200
+          },
+          {
+            "path": "/api/websim/bootstrap",
+            "httpStatus": 200,
+            "dataStatus": "verified"
+          },
+          {
+            "path": "/api/websim/assets",
+            "httpStatus": 200,
+            "status": "verified"
+          },
+          {
+            "path": "/api/websim/talents?class=mage&spec=frost",
+            "httpStatus": 200,
+            "dataStatus": "verified"
+          },
+          {
+            "path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial",
+            "httpStatus": 200,
+            "dataStatus": "verified",
+            "communityTemplates": 1,
+            "baselineTemplates": 0,
+            "sourceKeys": [
+              "raiderio_observed_profile"
+            ]
+          },
+          {
+            "path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=slot&slot=head",
+            "httpStatus": 200,
+            "dataStatus": "verified",
+            "communityTemplates": 1,
+            "baselineTemplates": 0,
+            "sourceKeys": [
+              "raiderio_observed_profile"
+            ]
+          },
+          {
+            "path": "/api/admin/gates/summary",
+            "httpStatus": 200,
+            "queueCount": 2905,
+            "domainCounts": {
+              "news": 7,
+              "talents": 18,
+              "gear": 2836,
+              "gear_templates": 44
+            }
+          }
+        ]
+      },
+      "observedOnlyGearSweep": {
+        "checkedSpecs": 40,
+        "failures": 0,
+        "dataStatus": {
+          "verified": 40
+        },
+        "communityTemplates": {
+          "1": 40
+        },
+        "baselineTemplates": {
+          "0": 40
+        },
+        "sourceKeys": {
+          "raiderio_observed_profile": 40
+        },
+        "canApplyGear": {
+          "True": 40
+        },
+        "specSource": "server.websim_payload.classes_payload"
+      },
+      "systemd": {
+        "backend": "active",
+        "nginx": "active",
+        "syncBackfillServices": "wow-websim-sync and wow-stat-weights-sync were timer-triggered and still activating/start with Result=success and ExecMainStatus=0 during smoke; wow-gear-observed-backfill, wow-community-template-sync, wow-community-best-guard-sync, wow-recommended-bis-guard-sync, and wow-season-recommended-gear-sync were inactive/dead with Result=success and ExecMainStatus=0.",
+        "timers": "9 wow-* timers listed, including sync/backfill and data health followup timers"
+      },
+      "runtime": {
+        "WOW_DATABASE_RUNTIME": "postgres_only",
+        "recentLogs": "no Traceback/ERROR/SQLite fallback in wow-backend or sync/backfill logs over the 10 minutes after candidate deployment",
+        "hashParity": {
+          "server/pg_gear_template_selectors.py": "6bc8c4d314c8754eb9289514ac2810bec9a5876c391227d49ea94111dc2b525a",
+          "server/postgres_cache_store.py": "53138980815daf1c9d3b58c37839af4d6a6e6b3739e98ccda9ae924d0ce0c983"
+        }
+      }
     }
   },
   "risks": [
@@ -98,8 +181,8 @@
     },
     {
       "id": "candidate_deployment_pending",
-      "status": "open",
-      "detail": "This backend/admin PG read-model change requires Harness v0.5 Candidate Deployment Gate before merge."
+      "status": "resolved",
+      "detail": "PR #31 branch passed Candidate Deployment Gate before merge: deploy succeeded, admin/API smoke and 40-spec observed-only sweep passed, systemd/log/runtime hash parity checks passed."
     },
     {
       "id": "write_paths_out_of_scope",
