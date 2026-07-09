@@ -1,5 +1,5 @@
 {
-  "status": "candidate_deployment_verified",
+  "status": "live_verified",
   "highestEvidenceLevel": "live_verified",
   "scope": [
     "server/pg_gear_read_model_selectors.py",
@@ -98,6 +98,7 @@
     "requiredBeforeMerge": true,
     "branch": "codex/phase4-pg-catalog-state-fragment",
     "commit": "eeeca12a3b9d7a0d3279e3ed2927d76640d03fbb",
+    "mergedMainCommit": "608b77f40ff5b9b8eeeaf0b3c4726c9a0186f0e7",
     "pullRequest": 15,
     "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
     "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program",
