@@ -279,6 +279,64 @@ class PgGearTemplateSelectorsTest(unittest.TestCase):
         self.assertEqual(templates[0]["gearItems"][0]["displayName"], "Hood of the Violet Tower")
         self.assertTrue(templates[0]["repairMarker"])
 
+    def test_build_admin_gear_template_queue_rows_read_model_preserves_blockers_after_repair(self):
+        from server.pg_gear_template_selectors import build_admin_gear_template_queue_rows_read_model
+
+        def make_row(template_id, source_key, status, missing_slots, payload):
+            return (
+                template_id,
+                "mage",
+                "frost",
+                f"Template {template_id}",
+                source_key,
+                "Template Source",
+                "",
+                "partial" if status == "partial" else "synced",
+                status,
+                f"sig:{template_id}",
+                json.dumps([]),
+                json.dumps([{"itemId": "190001", "slot": "main_hand", "displayName": "Sparse Staff"}]),
+                "main_hand=sparse_staff,id=190001",
+                16 - len(missing_slots),
+                json.dumps(missing_slots),
+                "daily",
+                json.dumps(payload),
+                "2026-07-09T12:00:00+00:00",
+                "",
+                "scan-run-1",
+            )
+
+        repair_inputs = []
+
+        def coverage_repair(template):
+            repair_inputs.append(template["id"])
+            if template["id"] != "baseline-repaired":
+                return template
+            repaired = {**template}
+            repaired["missingSlots"] = []
+            repaired["readySlotCount"] = 16
+            repaired["status"] = "complete"
+            repaired["sourceStatus"] = "synced"
+            return repaired
+
+        queue_rows = build_admin_gear_template_queue_rows_read_model(
+            [
+                make_row("observed-partial", "raiderio_observed_profile", "partial", ["neck", "trinket1"], {"blockers": ["parser blocked"]}),
+                make_row("baseline-repaired", "simc_preset", "partial", ["off_hand"], {"blockers": []}),
+            ],
+            {},
+            coverage_repair=coverage_repair,
+        )
+
+        self.assertEqual(repair_inputs, ["observed-partial", "baseline-repaired"])
+        self.assertEqual(
+            queue_rows,
+            [
+                ("gear_templates", "partial", ["parser blocked", "missing slots: neck, trinket1"]),
+                ("gear_templates", "complete", []),
+            ],
+        )
+
     def test_build_public_gear_template_read_model_compacts_payload_without_public_baseline(self):
         from server.pg_gear_template_selectors import build_public_gear_template_read_model
 
