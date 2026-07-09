@@ -6405,8 +6405,9 @@ class PostgresCacheStore:
     def get_websim_loot(self, filters=None, limit=120):
         filters = filters or {}
         season = self.get_active_season_payload()
+        season_fields = season_metadata_fields(season)
         if season.get("dataStatus") != "verified":
-            return {"items": [], "instances": [], **season_metadata_fields(season)}
+            return pg_gear_read_model_selectors.build_websim_loot_read_model([], [], season_fields, limit=limit)
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -6423,4 +6424,9 @@ class PostgresCacheStore:
                 )
                 rows = cur.fetchall()
         items = pg_gear_read_model_selectors.build_websim_loot_items_read_model(rows, filters, limit=limit)
-        return {"items": items[:limit], "instances": self.get_websim_instances(), **season_metadata_fields(season)}
+        return pg_gear_read_model_selectors.build_websim_loot_read_model(
+            items,
+            self.get_websim_instances(),
+            season_fields,
+            limit=limit,
+        )

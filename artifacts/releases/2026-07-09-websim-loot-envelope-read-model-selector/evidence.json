@@ -1,0 +1,127 @@
+{
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "scope": [
+    "server/pg_gear_read_model_selectors.py",
+    "server/postgres_cache_store.py",
+    "tests/pg_gear_read_model_selectors_test.py",
+    "tests/backend-owner-map.test.js",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+    "artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/evidence.json",
+    "artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/manifest.json"
+  ],
+  "summary": "Phase 4 continues the read-only PostgreSQL WebSim read-model selector split. server/pg_gear_read_model_selectors.py now owns build_websim_loot_read_model(), which assembles the WebSim loot response envelope from already-built loot items, instances, and season metadata while preserving the legacy Python slice limit semantics. server/postgres_cache_store.py keeps active season gating, loot SQL, item filtering/normalization, instance reads, cache writes, sync, and backfill paths.",
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_gear_read_model_selectors_test.PgGearReadModelSelectorsTest.test_build_websim_loot_read_model_wraps_items_instances_and_season",
+      "status": "red_then_pass",
+      "summary": "First run failed with ImportError because build_websim_loot_read_model was missing; after adding the helper the characterization passed."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_gear_read_model_selectors_test tests.postgres_cache_store_test",
+      "status": "pass",
+      "summary": "121 targeted PG read-model selector and PG cache store tests passed locally."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "red_then_pass",
+      "summary": "Owner-map test was updated first and failed while docs/backend-owner-map.json still reported phase4_websim_talent_import_read_model_selector_extracted; after updating the owner map it passed."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_gear_read_model_selectors_test.PgGearReadModelSelectorsTest.test_build_websim_loot_read_model_wraps_items_instances_and_season",
+      "status": "red_then_pass",
+      "summary": "Local CR added a legacy negative-limit slice assertion; it failed while the helper clamped limit to zero, then passed after the helper was reduced to pure items[:limit] envelope assembly."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "1041 Python unittest tests passed locally with skipped=1; existing ResourceWarning/runtime warning output remains present."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 Node tests passed locally with 0 failures."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_gear_read_model_selectors.py server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Touched Python runtime files compiled successfully."
+    },
+    {
+      "command": "node --check tests/backend-owner-map.test.js",
+      "status": "pass",
+      "summary": "Updated owner-map contract test passed JavaScript syntax check."
+    },
+    {
+      "command": "node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Project harness script passed JavaScript syntax check."
+    },
+    {
+      "command": "python3 -m json.tool docs/backend-owner-map.json; python3 -m json.tool artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/evidence.json; python3 -m json.tool artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/manifest.json",
+      "status": "pass",
+      "summary": "Owner map, release evidence, and release manifest JSON validated successfully."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "Whitespace and patch-format checks passed."
+    }
+  ],
+  "localReview": {
+    "status": "pass",
+    "findings": [
+      {
+        "id": "legacy_limit_slice_semantics",
+        "status": "fixed",
+        "detail": "Initial helper version clamped negative limit to zero, which was broader than a pure read-model envelope move. Added characterization and changed helper to preserve legacy items[:limit] semantics."
+      }
+    ],
+    "summary": "Diff remains scoped to WebSim loot response envelope assembly. No SQL writes, sync/backfill paths, public gear template policy, or frontend contracts were changed."
+  },
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true,
+    "branch": "codex/phase4-websim-loot-envelope-read-model-selector",
+    "baseCommit": "5bfd1aabf7bb1107477d7296594df5d65a3878c5",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "asyncSyncStarted": false,
+    "requiredSmoke": [
+      "/health",
+      "/api/data/health",
+      "/api/websim/bootstrap",
+      "/api/websim/assets",
+      "/api/websim/talents",
+      "/api/websim/loot",
+      "/api/websim/gear initial",
+      "/api/websim/gear slot",
+      "40-spec observed-only gear sweep",
+      "systemd backend/nginx/sync-backfill service/timer status",
+      "recent logs without Traceback/ERROR/SQLite fallback",
+      "runtime file hash parity"
+    ]
+  },
+  "risks": [
+    {
+      "id": "full_local_verification_pending",
+      "status": "closed",
+      "detail": "Full Python/Node suites, compile checks, JSON validation, git diff check, and local CR passed before PR."
+    },
+    {
+      "id": "candidate_deployment_pending",
+      "status": "open",
+      "detail": "Harness v0.5 Candidate Deployment Gate must pass on the PR branch before merge."
+    },
+    {
+      "id": "write_paths_out_of_scope",
+      "status": "intentional",
+      "detail": "Sync, write, backfill, cleanup, PG SQL write paths, payload cache writes, public gear selector policy, and recommended/season prototype paths are intentionally unchanged in this read-only selector split."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "resync_repair"
+  ]
+}

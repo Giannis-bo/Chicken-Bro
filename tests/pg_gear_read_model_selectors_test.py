@@ -4,6 +4,38 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_websim_loot_read_model_wraps_items_instances_and_season(self):
+        from server.pg_gear_read_model_selectors import build_websim_loot_read_model
+
+        payload = build_websim_loot_read_model(
+            [{"id": "loot-a"}, {"id": "loot-b"}],
+            [{"id": "instance-a"}],
+            {"seasonId": "midnight-1", "dataStatus": "verified"},
+            limit=1,
+        )
+
+        self.assertEqual(payload["items"], [{"id": "loot-a"}])
+        self.assertEqual(payload["instances"], [{"id": "instance-a"}])
+        self.assertEqual(payload["seasonId"], "midnight-1")
+        self.assertEqual(payload["dataStatus"], "verified")
+
+        legacy_slice_payload = build_websim_loot_read_model(
+            [{"id": "loot-a"}, {"id": "loot-b"}],
+            [],
+            {"dataStatus": "verified"},
+            limit=-1,
+        )
+        self.assertEqual(legacy_slice_payload["items"], [{"id": "loot-a"}])
+
+        blocked_payload = build_websim_loot_read_model(
+            None,
+            None,
+            {"dataStatus": "blocked", "errors": ["active season is not verified"]},
+        )
+        self.assertEqual(blocked_payload["items"], [])
+        self.assertEqual(blocked_payload["instances"], [])
+        self.assertEqual(blocked_payload["dataStatus"], "blocked")
+
     def test_build_websim_talent_import_template_read_model_maps_row(self):
         from server.pg_gear_read_model_selectors import build_websim_talent_import_template_read_model
 
