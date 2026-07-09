@@ -573,6 +573,71 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
         self.assertEqual(read_model["candidateLegalityAudit"]["excludedCandidateCount"], 1)
         self.assertEqual(read_model["candidateLegalityAudit"]["excludedExamples"][0]["itemId"], "mail-head")
 
+    def test_build_season_recommended_catalog_candidates_by_slot_read_model_filters_and_limits_candidates(self):
+        from server.pg_gear_read_model_selectors import build_season_recommended_catalog_candidates_by_slot_read_model
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        low_head = {
+            "id": "cloth-head-low",
+            "itemId": "cloth-head-low",
+            "slot": "head",
+            "simcSlot": "head",
+            "name": "Low Cloth Head",
+            "displayName": "Low Cloth Head",
+            "sourceType": "raid",
+            "variantStatus": "verified",
+            "metadataStatus": "verified",
+            "itemLevel": 700,
+            "ilevel": 700,
+            "armorType": "Cloth",
+            "bonus_id": "1808",
+            "simcReady": True,
+            "itemStats": [{"key": "intellect", "value": 1000}],
+        }
+        high_head = {
+            **low_head,
+            "id": "cloth-head-high",
+            "itemId": "cloth-head-high",
+            "name": "High Cloth Head",
+            "displayName": "High Cloth Head",
+            "itemLevel": 710,
+            "ilevel": 710,
+        }
+        blocked_mail_head = {
+            **low_head,
+            "id": "mail-head",
+            "itemId": "mail-head",
+            "name": "Mail Head",
+            "displayName": "Mail Head",
+            "itemLevel": 720,
+            "ilevel": 720,
+            "armorType": "Mail",
+        }
+        blocked_weapon = {
+            **low_head,
+            "id": "illegal-weapon",
+            "itemId": "illegal-weapon",
+            "slot": "main_hand",
+            "simcSlot": "main_hand",
+            "name": "Illegal Mace",
+            "displayName": "Illegal Mace",
+            "armorType": "",
+            "weaponType": "Two-Handed Mace",
+        }
+
+        read_model = build_season_recommended_catalog_candidates_by_slot_read_model(
+            [low_head, blocked_mail_head, high_head, dict(high_head), blocked_weapon],
+            "mage",
+            "arcane",
+            candidate_limit=1,
+        )
+
+        self.assertEqual(sorted(read_model.keys()), sorted(CANONICAL_GEAR_SLOTS))
+        self.assertEqual([item["itemId"] for item in read_model["head"]], ["cloth-head-high"])
+        self.assertEqual(read_model["head"][0]["legalityStatus"], "legal")
+        self.assertTrue(all(item["itemId"] != "mail-head" for items in read_model.values() for item in items))
+        self.assertTrue(all(item["itemId"] != "illegal-weapon" for items in read_model.values() for item in items))
+
 
 if __name__ == "__main__":
     unittest.main()

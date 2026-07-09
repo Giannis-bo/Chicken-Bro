@@ -323,6 +323,42 @@ def build_gear_catalog_items_read_model(
     return catalog_items
 
 
+def build_season_recommended_catalog_candidates_by_slot_read_model(
+    catalog_items,
+    class_key,
+    spec_key,
+    *,
+    candidate_limit=24,
+):
+    catalog_items = sorted(catalog_items or [], key=gear_candidate_quality_score, reverse=True)
+    grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
+    for item in catalog_items:
+        candidate_slots = gear_candidate_slots(item, class_key, spec_key)
+        if not candidate_slots:
+            checked = apply_gear_candidate_legality(item, class_key, spec_key, item.get("slot"))
+            if gear_candidate_incompatible(checked):
+                continue
+        for candidate_slot in candidate_slots:
+            if candidate_slot not in grouped:
+                continue
+            candidate = apply_gear_candidate_legality(
+                gear_candidate_for_slot(item, candidate_slot),
+                class_key,
+                spec_key,
+                candidate_slot,
+            )
+            if gear_candidate_incompatible(candidate):
+                continue
+            grouped[candidate_slot].append(candidate)
+    return {
+        slot: limit_replacement_candidates(
+            sorted(unique_gear_candidates(items), key=gear_candidate_quality_score, reverse=True),
+            candidate_limit,
+        )
+        for slot, items in grouped.items()
+    }
+
+
 def build_common_gear_read_model_fragment(class_key, spec_key, readiness, *, checked_at=None):
     return {
         "weaponRule": weapon_equipment_rule_payload(class_key, spec_key),
