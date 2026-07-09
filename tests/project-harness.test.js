@@ -28,7 +28,7 @@ test('project harness emits the current repo-native harness manifest as read-onl
   const manifest = JSON.parse(result.stdout)
   assert.equal(manifest.status, 'project_harness_manifest_ready')
   assert.equal(manifest.schemaVersion, 1)
-  assert.equal(manifest.harness.version, 'v0.4')
+  assert.equal(manifest.harness.version, 'v0.5')
   assert.equal(manifest.harness.source, 'docs/harness.md')
   assert.equal(manifest.safety.noNetwork, true)
   assert.equal(manifest.safety.repositoryRemoteSyncPreapproved, true)
@@ -45,6 +45,7 @@ test('project harness emits the current repo-native harness manifest as read-onl
   assert.ok(Array.isArray(manifest.riskMatrix))
   assert.deepEqual(Object.keys(manifest.gates).sort(), [
     'autonomousProgression',
+    'candidateDeployment',
     'currentTruth',
     'engineeringHealth',
     'evidencePromotion',
@@ -61,6 +62,9 @@ test('project harness emits the current repo-native harness manifest as read-onl
   assert.equal(manifest.gates.repositoryRemoteSync.preapprovedForConfiguredProjectRemote, true)
   assert.equal(manifest.gates.autonomousProgression.continueWithoutStepByStepApproval, true)
   assert.ok(manifest.gates.autonomousProgression.stopForConfirmationWhen.includes('clear_blocker'))
+  assert.equal(manifest.gates.candidateDeployment.requiredBeforeMergeForRuntimeChanges, true)
+  assert.ok(manifest.gates.candidateDeployment.runtimeChangeSurfaces.includes('pg_read_model'))
+  assert.ok(manifest.gates.candidateDeployment.requiredEvidence.includes('candidate_deploy_or_preview_smoke'))
   assert.ok(manifest.gates.releaseRollback.rollbackStrategies.includes('resync_repair'))
 })
 
