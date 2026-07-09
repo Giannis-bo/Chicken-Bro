@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-09-phase4-v3",
-  "status": "phase4_pg_selector_helper_extracted",
+  "version": "2026-07-09-phase4-v4",
+  "status": "phase4_pg_template_read_model_adapter_extracted",
   "harnessVersion": "v0.5",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -225,12 +225,13 @@
       "owners": [
         {
           "id": "gear_template_selectors",
-          "status": "selector_helper_extracted",
+          "status": "read_model_adapter_extracted",
           "extractedModule": "server/pg_gear_template_selectors.py",
           "usesModule": "server/gear_public_contract.py",
           "owns": [
             "get_websim_gear",
             "public gear template selector calls",
+            "payload-ready public gear template read-model fragments",
             "communityTemplates and baselineTemplates PG read model",
             "compact and full payload selector branches"
           ],
@@ -240,6 +241,7 @@
             "Compact and full payload modes must keep source keys and blockers consistent."
           ],
           "characterization": [
+            "tests/pg_gear_template_selectors_test.py::PgGearTemplateSelectorsTest.test_build_public_gear_template_read_model_compacts_payload_without_public_baseline",
             "tests/pg_gear_template_selectors_test.py::PgGearTemplateSelectorsTest.test_select_public_gear_templates_keeps_observed_only_and_empty_public_baseline",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_pg_gear_template_selectors_match_observed_only_golden_payload",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_pg_initial_gear_selector_calls_gear_public_contract_module",
@@ -247,7 +249,7 @@
             "tests/postgres_cache_store_test.py public observed-only gear payload tests",
             "tests/news_backend_test.py runtime PG gear tests"
           ],
-          "futureExtractionDirection": "Continue extracting repository-level selectors after compact/full PG read-model branches and write-intent boundaries are characterized separately."
+          "futureExtractionDirection": "Continue extracting repository-level selectors after compact/full candidate grouping and write-intent boundaries are characterized separately."
         },
         {
           "id": "sync_state_repository",

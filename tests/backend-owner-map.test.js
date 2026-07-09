@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_pg_selector_helper_extracted')
+  assert.equal(ownerMap.status, 'phase4_pg_template_read_model_adapter_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -60,7 +60,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   const pgOwners = new Map(files.get('server/postgres_cache_store.py').owners.map((owner) => [owner.id, owner]))
   const gearTemplateSelectors = pgOwners.get('gear_template_selectors')
   assert.ok(gearTemplateSelectors)
-  assert.equal(gearTemplateSelectors.status, 'selector_helper_extracted')
+  assert.equal(gearTemplateSelectors.status, 'read_model_adapter_extracted')
   assert.equal(gearTemplateSelectors.extractedModule, 'server/pg_gear_template_selectors.py')
   assert.equal(gearTemplateSelectors.usesModule, 'server/gear_public_contract.py')
   assert.ok(

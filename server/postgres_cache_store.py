@@ -47,7 +47,6 @@ try:
         class_label,
         classes_payload,
         compact_catalog_health_summary,
-        compact_community_gear_template,
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
@@ -127,7 +126,6 @@ try:
         unique_locale_preferences,
         websim_simc_binary,
         websim_gear_community_templates,
-        websim_gear_community_template_sync_state,
         websim_gear_template_chain_state,
         websim_max_level,
         selected_gear_weapon_rule_blocker,
@@ -159,7 +157,6 @@ except ImportError:
         class_label,
         classes_payload,
         compact_catalog_health_summary,
-        compact_community_gear_template,
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
@@ -239,7 +236,6 @@ except ImportError:
         unique_locale_preferences,
         websim_simc_binary,
         websim_gear_community_templates,
-        websim_gear_community_template_sync_state,
         websim_gear_template_chain_state,
         websim_max_level,
         selected_gear_weapon_rule_blocker,
@@ -5928,13 +5924,14 @@ class PostgresCacheStore:
         catalog_blockers,
         persisted_templates,
     ):
-        selected_templates = pg_gear_template_selectors.select_public_gear_templates_for_spec(
+        template_read_model = pg_gear_template_selectors.build_public_gear_template_read_model(
             persisted_templates,
             class_key,
             spec_key,
+            compact=compact,
         )
-        community_templates = selected_templates["communityTemplates"]
-        baseline_templates = selected_templates["baselineTemplates"]
+        community_templates = template_read_model["selectedCommunityTemplates"]
+        baseline_templates = template_read_model["selectedBaselineTemplates"]
         baseline_template = baseline_templates[0] if baseline_templates else {}
         baseline_items = baseline_template.get("gearItems") or []
         equipped_set = self._template_gear_by_slot(baseline_template, compact=compact)
@@ -5952,16 +5949,6 @@ class PostgresCacheStore:
                 }
             )
         output_baseline_set = compact_gear_candidates(baseline_items, include_mod_options=False) if compact else baseline_items
-        output_community_templates = (
-            [compact_community_gear_template(template) for template in community_templates]
-            if compact
-            else community_templates
-        )
-        output_baseline_templates = (
-            [compact_community_gear_template(template) for template in baseline_templates]
-            if compact
-            else baseline_templates
-        )
         readiness = gear_readiness(baseline_items)
         payload = {
             "classKey": class_key,
@@ -5974,11 +5961,9 @@ class PostgresCacheStore:
             "equippedSet": equipped_set,
             "slotReadiness": gear_slot_readiness(baseline_items, class_key, spec_key),
             "baselineSet": output_baseline_set,
-            "communityTemplates": output_community_templates,
-            "baselineTemplates": output_baseline_templates,
-            "communityTemplateSync": websim_gear_community_template_sync_state(
-                [*community_templates, *baseline_templates]
-            ),
+            "communityTemplates": template_read_model["payloadCommunityTemplates"],
+            "baselineTemplates": template_read_model["payloadBaselineTemplates"],
+            "communityTemplateSync": template_read_model["communityTemplateSync"],
             "readiness": readiness,
             "statSnapshot": blocked_stat_snapshot(
                 ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
@@ -6557,13 +6542,12 @@ class PostgresCacheStore:
             season,
         )
         catalog_items = sorted(catalog_items, key=gear_candidate_quality_score, reverse=True)
-        selected_templates = pg_gear_template_selectors.select_public_gear_templates_for_spec(
+        template_read_model = pg_gear_template_selectors.build_public_gear_template_read_model(
             persisted_templates,
             class_key,
             spec_key,
+            compact=compact,
         )
-        community_templates = selected_templates["communityTemplates"]
-        baseline_templates = selected_templates["baselineTemplates"]
         grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
         candidate_legality_excluded = []
         for item in catalog_items:
@@ -6616,16 +6600,6 @@ class PostgresCacheStore:
                 slot_group["embellishmentOptions"] = compact_gear_mod_options(embellishment_options) if compact else embellishment_options
             slot_groups.append(slot_group)
         output_catalog_items = compact_gear_candidates(catalog_items) if compact else catalog_items
-        output_community_templates = (
-            [compact_community_gear_template(template) for template in community_templates]
-            if compact
-            else community_templates
-        )
-        output_baseline_templates = (
-            [compact_community_gear_template(template) for template in baseline_templates]
-            if compact
-            else baseline_templates
-        )
         readiness = gear_readiness(catalog_items)
         payload = {
             "classKey": class_key,
@@ -6636,11 +6610,9 @@ class PostgresCacheStore:
             "equippedSet": {},
             "slotReadiness": gear_slot_readiness(catalog_items, class_key, spec_key),
             "baselineSet": [],
-            "communityTemplates": output_community_templates,
-            "baselineTemplates": output_baseline_templates,
-            "communityTemplateSync": websim_gear_community_template_sync_state(
-                [*community_templates, *baseline_templates]
-            ),
+            "communityTemplates": template_read_model["payloadCommunityTemplates"],
+            "baselineTemplates": template_read_model["payloadBaselineTemplates"],
+            "communityTemplateSync": template_read_model["communityTemplateSync"],
             "readiness": readiness,
             "statSnapshot": blocked_stat_snapshot(
                 ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
