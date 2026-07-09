@@ -3,6 +3,65 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_initial_gear_read_model_fragment_compacts_baseline_template(self):
+        from server.pg_gear_read_model_selectors import build_initial_gear_read_model_fragment
+
+        baseline_template = {
+            "gearItems": [
+                {
+                    "id": "cloth-head",
+                    "itemId": "cloth-head",
+                    "slot": "head",
+                    "simcSlot": "head",
+                    "name": "Cloth Head",
+                    "displayName": "Cloth Head",
+                    "itemLevel": 707,
+                    "ilevel": 707,
+                    "bonusIds": [123],
+                    "simcReady": True,
+                    "socketOptions": [{"id": "socket-hidden"}],
+                },
+                {
+                    "id": "duplicate-head",
+                    "itemId": "duplicate-head",
+                    "slot": "head",
+                    "simcSlot": "head",
+                    "name": "Duplicate Head",
+                    "itemLevel": 700,
+                    "simcReady": True,
+                },
+                {
+                    "id": "bad-slot",
+                    "itemId": "bad-slot",
+                    "slot": "invalid",
+                    "name": "Bad Slot",
+                    "simcReady": True,
+                },
+            ]
+        }
+
+        read_model = build_initial_gear_read_model_fragment(
+            baseline_template,
+            "mage",
+            "arcane",
+            compact=True,
+        )
+
+        head_group = next(group for group in read_model["replacementCandidates"] if group["slot"] == "head")
+        self.assertEqual(len(read_model["replacementCandidates"]), 16)
+        self.assertEqual(head_group["label"], "头部")
+        self.assertEqual(head_group["detailMode"], "partial")
+        self.assertEqual(head_group["fullItemCount"], 1)
+        self.assertEqual([item["itemId"] for item in head_group["items"]], ["cloth-head"])
+        self.assertNotIn("socketOptions", head_group["items"][0])
+        self.assertTrue(read_model["equippedSet"]["head"]["slotDetailAvailable"])
+        self.assertEqual(read_model["equippedSet"]["head"]["detailMode"], "summary")
+        self.assertEqual([item["itemId"] for item in read_model["baselineSet"]], ["cloth-head", "duplicate-head", "bad-slot"])
+        self.assertEqual(read_model["catalogItems"], read_model["baselineSet"][:120])
+        self.assertEqual(read_model["readiness"]["selectedCount"], 3)
+        self.assertEqual(read_model["slotReadiness"]["head"]["status"], "verified")
+        self.assertEqual(read_model["slotReadiness"]["neck"]["status"], "blocked")
+
     def test_build_catalog_state_read_model_fragment_exposes_health_and_coverage_envelope(self):
         from server.pg_gear_read_model_selectors import build_catalog_state_read_model_fragment
 
