@@ -3,6 +3,69 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_gear_sources_by_item_read_model_groups_source_rows(self):
+        from server.pg_gear_read_model_selectors import build_gear_sources_by_item_read_model
+        from server.websim_payload import localized_difficulty_label
+
+        rows = [
+            (
+                101,
+                19019,
+                "dungeon",
+                "the-stonevault",
+                "The Stonevault",
+                1278,
+                2824,
+                "mythic_plus",
+                "season-1",
+                '{"recommendationScore": 98, "observedProfiles": 40}',
+                "2026-07-09T11:00:00Z",
+            ),
+            (
+                102,
+                19019,
+                "raid",
+                "liberation-of-undermine",
+                "",
+                None,
+                None,
+                "mythic",
+                "season-1",
+                "{bad json",
+                None,
+            ),
+        ]
+
+        read_model = build_gear_sources_by_item_read_model(rows)
+
+        self.assertEqual(list(read_model.keys()), ["19019"])
+        self.assertEqual(len(read_model["19019"]), 2)
+        first_source = read_model["19019"][0]
+        self.assertEqual(first_source["id"], "101")
+        self.assertEqual(first_source["itemId"], "19019")
+        self.assertEqual(first_source["sourceType"], "dungeon")
+        self.assertEqual(first_source["sourceKey"], "the-stonevault")
+        self.assertEqual(first_source["label"], "The Stonevault")
+        self.assertEqual(first_source["sourceLabel"], "The Stonevault")
+        self.assertEqual(first_source["instanceId"], 1278)
+        self.assertEqual(first_source["encounterId"], 2824)
+        self.assertEqual(first_source["difficultyKey"], "mythic_plus")
+        self.assertEqual(
+            first_source["difficultyLabel"],
+            localized_difficulty_label("mythic_plus", "The Stonevault", "dungeon"),
+        )
+        self.assertEqual(first_source["seasonRevision"], "season-1")
+        self.assertEqual(first_source["payload"], {"recommendationScore": 98, "observedProfiles": 40})
+        self.assertEqual(first_source["recommendationScore"], 98)
+        self.assertEqual(first_source["updatedAt"], "2026-07-09T11:00:00Z")
+
+        fallback_source = read_model["19019"][1]
+        self.assertEqual(fallback_source["label"], "liberation-of-undermine")
+        self.assertEqual(fallback_source["sourceLabel"], "liberation-of-undermine")
+        self.assertEqual(fallback_source["payload"], {})
+        self.assertNotIn("recommendationScore", fallback_source)
+        self.assertEqual(fallback_source["updatedAt"], "")
+
     def test_build_catalog_output_read_model_fragment_keeps_full_debug_fields_out_of_compact_payload(self):
         from server.pg_gear_read_model_selectors import build_catalog_output_read_model_fragment
 
