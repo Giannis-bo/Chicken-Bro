@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_websim_instances_read_model_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_websim_assets_read_model_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -180,6 +180,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
     'gear catalog read-model selectors should own websim instances assembly after this Phase 4 split'
   )
   assert.ok(
+    gearCatalogReadModelSelectors.owns.includes('websim assets read-model assembly'),
+    'gear catalog read-model selectors should own websim assets assembly after this Phase 4 split'
+  )
+  assert.ok(
     gearCatalogReadModelSelectors.owns.includes('season recommended catalog candidate slot grouping'),
     'gear catalog read-model selectors should own season recommended catalog candidate grouping after this Phase 4 split'
   )
@@ -230,6 +234,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_websim_instances_read_model_groups_encounters_by_instance')),
     'gear catalog read-model selectors should point at the websim instances read-model characterization test'
+  )
+  assert.ok(
+    gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_websim_assets_read_model_counts_status_and_source')),
+    'gear catalog read-model selectors should point at the websim assets read-model characterization test'
   )
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_season_recommended_catalog_candidates_by_slot_read_model_filters_and_limits_candidates')),

@@ -4,6 +4,33 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_websim_assets_read_model_counts_status_and_source(self):
+        from server.pg_gear_read_model_selectors import build_websim_assets_read_model
+
+        rows = [
+            ("asset-a", "item", "item-a", "gear", "icon", "a.png", "icon_56", "blizzard", "verified"),
+            ("asset-b", "spell", "spell-b", "talent", "icon", "b.png", "icon_56", "static_icon_name", "fallback"),
+        ]
+        asset_calls = []
+
+        def asset_factory(row):
+            asset_calls.append(row)
+            return {"id": row[0], "source": row[7], "status": row[8]}
+
+        payload = build_websim_assets_read_model(rows, asset_factory=asset_factory)
+
+        self.assertEqual([asset["id"] for asset in payload["assets"]], ["asset-a", "asset-b"])
+        self.assertEqual(payload["counts"]["byStatus"], {"verified": 1, "fallback": 1})
+        self.assertEqual(payload["counts"]["bySource"], {"blizzard": 1, "static_icon_name": 1})
+        self.assertEqual(payload["status"], "verified")
+        self.assertEqual(payload["blockers"], [])
+        self.assertEqual(asset_calls, rows)
+
+        empty_payload = build_websim_assets_read_model([], asset_factory=asset_factory)
+        self.assertEqual(empty_payload["assets"], [])
+        self.assertEqual(empty_payload["counts"], {"byStatus": {}, "bySource": {}})
+        self.assertEqual(empty_payload["status"], "empty")
+
     def test_build_websim_instances_read_model_groups_encounters_by_instance(self):
         from server.pg_gear_read_model_selectors import build_websim_instances_read_model
 

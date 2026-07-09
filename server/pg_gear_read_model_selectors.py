@@ -19,6 +19,7 @@ try:
         enrich_catalog_item,
         fallback_text_for,
         game_asset_from_icon_url,
+        game_asset_from_registry_row,
         gear_mod_option_display_fields,
         gear_mod_option_is_supported_config_option,
         gear_mod_option_payload_with_config_policy,
@@ -58,6 +59,7 @@ except ImportError:
         enrich_catalog_item,
         fallback_text_for,
         game_asset_from_icon_url,
+        game_asset_from_registry_row,
         gear_mod_option_display_fields,
         gear_mod_option_is_supported_config_option,
         gear_mod_option_payload_with_config_policy,
@@ -183,6 +185,21 @@ def build_admin_gear_variant_records_read_model(rows):
         }
         for row in rows or []
     ]
+
+
+def build_websim_assets_read_model(rows, *, asset_factory=None):
+    asset_factory = asset_factory or game_asset_from_registry_row
+    assets = [asset_factory(row) for row in rows or []]
+    counts = {"byStatus": {}, "bySource": {}}
+    for asset in assets:
+        counts["byStatus"][asset["status"]] = counts["byStatus"].get(asset["status"], 0) + 1
+        counts["bySource"][asset["source"]] = counts["bySource"].get(asset["source"], 0) + 1
+    return {
+        "assets": assets,
+        "counts": counts,
+        "status": "verified" if assets else "empty",
+        "blockers": [],
+    }
 
 
 def build_websim_instances_read_model(instance_rows, encounter_rows):
