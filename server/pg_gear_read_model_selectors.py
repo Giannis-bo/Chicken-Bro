@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+from datetime import datetime, timezone
 
 try:
     from .websim_payload import (
@@ -98,6 +99,68 @@ def _int_value(value, fallback=0):
         return int(value)
     except (TypeError, ValueError):
         return fallback
+
+
+def _datetime_value(value):
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _timestamp_expired(value, now=None):
+    parsed = _datetime_value(value)
+    now_value = _datetime_value(now) or datetime.now(timezone.utc)
+    return bool(parsed and parsed <= now_value)
+
+
+def build_admin_talent_records_read_model(template_rows, tree_rows, now=None):
+    now_value = _datetime_value(now) or datetime.now(timezone.utc)
+    template_rows = [row for row in template_rows or [] if not _timestamp_expired(row[16], now_value)]
+    return {
+        "communityTalentTemplates": [
+            {
+                "id": str(row[0] or ""),
+                "classKey": row[1] or "",
+                "specKey": row[2] or "",
+                "heroKey": row[3] or "",
+                "scenarioKey": row[4] or "",
+                "name": row[5] or "",
+                "sourceKey": row[6] or "",
+                "sourceName": row[7] or "",
+                "sourceUrl": row[8] or "",
+                "sourceStatus": row[9] or "",
+                "status": row[10] or "",
+                "sampleCount": _int_value(row[11]),
+                "maxKeyLevel": _int_value(row[12]),
+                "analysisWindow": row[13] or "",
+                "payload": _json_value(row[14], {}),
+                "updatedAt": str(row[15] or ""),
+                "expiresAt": str(row[16] or ""),
+                "signature": row[17] or "",
+                "sourceRefs": _json_value(row[18], []),
+                "scanRunId": row[19] or "",
+            }
+            for row in template_rows
+        ],
+        "talentTrees": [
+            {
+                "classKey": row[0] or "",
+                "specKey": row[1] or "",
+                "nodeCount": _int_value(row[2]),
+                "updatedAt": str(row[3] or ""),
+            }
+            for row in tree_rows or []
+        ],
+    }
 
 
 def build_websim_bootstrap_read_model(

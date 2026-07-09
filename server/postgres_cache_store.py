@@ -6257,44 +6257,7 @@ class PostgresCacheStore:
                     """
                 )
                 tree_rows = cur.fetchall()
-        now = datetime.now(timezone.utc)
-        template_rows = [row for row in template_rows if not _timestamp_expired(row[16], now)]
-        return {
-            "communityTalentTemplates": [
-                {
-                    "id": str(row[0] or ""),
-                    "classKey": row[1] or "",
-                    "specKey": row[2] or "",
-                    "heroKey": row[3] or "",
-                    "scenarioKey": row[4] or "",
-                    "name": row[5] or "",
-                    "sourceKey": row[6] or "",
-                    "sourceName": row[7] or "",
-                    "sourceUrl": row[8] or "",
-                    "sourceStatus": row[9] or "",
-                    "status": row[10] or "",
-                    "sampleCount": _int_value(row[11]),
-                    "maxKeyLevel": _int_value(row[12]),
-                    "analysisWindow": row[13] or "",
-                    "payload": _json_value(row[14], {}),
-                    "updatedAt": str(row[15] or ""),
-                    "expiresAt": str(row[16] or ""),
-                    "signature": row[17] or "",
-                    "sourceRefs": _json_value(row[18], []),
-                    "scanRunId": row[19] or "",
-                }
-                for row in template_rows
-            ],
-            "talentTrees": [
-                {
-                    "classKey": row[0] or "",
-                    "specKey": row[1] or "",
-                    "nodeCount": _int_value(row[2]),
-                    "updatedAt": str(row[3] or ""),
-                }
-                for row in tree_rows
-            ],
-        }
+        return pg_gear_read_model_selectors.build_admin_talent_records_read_model(template_rows, tree_rows)
 
     def _admin_gate_gear_template_display_records(self, templates):
         return pg_gear_template_selectors.build_admin_gear_template_display_records_read_model(templates)

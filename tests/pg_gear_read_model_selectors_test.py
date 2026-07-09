@@ -4,6 +4,73 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_admin_talent_records_read_model_filters_expired_templates(self):
+        from server.pg_gear_read_model_selectors import build_admin_talent_records_read_model
+
+        template_rows = [
+            (
+                "expired-template",
+                "mage",
+                "frost",
+                "frostfire",
+                "mythic_plus",
+                "Expired template",
+                "raiderio",
+                "Raider.IO",
+                "https://example.test/expired",
+                "synced",
+                "blocked",
+                1,
+                20,
+                "old window",
+                '{"errors":["expired"]}',
+                "2026-07-01T00:00:00+00:00",
+                "2026-07-02T00:00:00+00:00",
+                "sig-expired",
+                '[{"type":"raiderio"}]',
+                "scan-expired",
+            ),
+            (
+                "fresh-template",
+                "mage",
+                "frost",
+                "frostfire",
+                "mythic_plus",
+                "Fresh template",
+                "raiderio",
+                "Raider.IO",
+                "https://example.test/fresh",
+                "synced",
+                "verified",
+                2,
+                24,
+                "fresh window",
+                {"talentLoadout": "ok"},
+                "2026-07-03T00:00:00+00:00",
+                "2099-01-01T00:00:00+00:00",
+                "sig-fresh",
+                [{"type": "raiderio"}],
+                "scan-fresh",
+            ),
+        ]
+        tree_rows = [("mage", "frost", "110", "2026-07-03T01:00:00+00:00")]
+
+        payload = build_admin_talent_records_read_model(
+            template_rows,
+            tree_rows,
+            now="2026-07-03T00:00:00+00:00",
+        )
+
+        self.assertEqual([item["id"] for item in payload["communityTalentTemplates"]], ["fresh-template"])
+        self.assertEqual(payload["communityTalentTemplates"][0]["payload"], {"talentLoadout": "ok"})
+        self.assertEqual(payload["communityTalentTemplates"][0]["sourceRefs"], [{"type": "raiderio"}])
+        self.assertEqual(payload["communityTalentTemplates"][0]["sampleCount"], 2)
+        self.assertEqual(payload["communityTalentTemplates"][0]["maxKeyLevel"], 24)
+        self.assertEqual(
+            payload["talentTrees"],
+            [{"classKey": "mage", "specKey": "frost", "nodeCount": 110, "updatedAt": "2026-07-03T01:00:00+00:00"}],
+        )
+
     def test_build_websim_bootstrap_read_model_assembles_backend_owned_payload(self):
         from server.pg_gear_read_model_selectors import build_websim_bootstrap_read_model
 
