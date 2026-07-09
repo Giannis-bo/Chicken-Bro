@@ -70,6 +70,23 @@ def build_common_gear_read_model_fragment(class_key, spec_key, readiness, *, che
     }
 
 
+def build_catalog_output_read_model_fragment(catalog_read_model, *, compact=False):
+    catalog_read_model = catalog_read_model if isinstance(catalog_read_model, dict) else {}
+    output = {
+        "catalogItems": (catalog_read_model.get("catalogItems") or [])[:120],
+    }
+    if not compact:
+        output.update(
+            {
+                "slotGroups": catalog_read_model.get("replacementCandidates") or [],
+                "presets": [],
+                "candidateItems": [],
+                "candidateLegalityAudit": catalog_read_model.get("candidateLegalityAudit") or {},
+            }
+        )
+    return output
+
+
 def _compact_initial_gear_item(item, compact=False):
     items = compact_gear_candidates([item], include_mod_options=False) if compact else [dict(item)]
     if not items:

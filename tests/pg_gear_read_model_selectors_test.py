@@ -3,6 +3,38 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_catalog_output_read_model_fragment_keeps_full_debug_fields_out_of_compact_payload(self):
+        from server.pg_gear_read_model_selectors import build_catalog_output_read_model_fragment
+
+        catalog_read_model = {
+            "replacementCandidates": [{"slot": "head", "items": [{"itemId": "head-1"}]}],
+            "catalogItems": [{"itemId": f"item-{idx}"} for idx in range(130)],
+            "candidateLegalityAudit": {
+                "excludedCandidateCount": 1,
+                "excludedExamples": [{"itemId": "blocked-mail-head"}],
+            },
+        }
+
+        compact_fragment = build_catalog_output_read_model_fragment(
+            catalog_read_model,
+            compact=True,
+        )
+        full_fragment = build_catalog_output_read_model_fragment(
+            catalog_read_model,
+            compact=False,
+        )
+
+        self.assertEqual(len(compact_fragment["catalogItems"]), 120)
+        self.assertEqual(compact_fragment["catalogItems"][0]["itemId"], "item-0")
+        self.assertEqual(compact_fragment["catalogItems"][-1]["itemId"], "item-119")
+        self.assertNotIn("slotGroups", compact_fragment)
+        self.assertNotIn("candidateLegalityAudit", compact_fragment)
+        self.assertEqual(full_fragment["slotGroups"], catalog_read_model["replacementCandidates"])
+        self.assertEqual(full_fragment["presets"], [])
+        self.assertEqual(full_fragment["candidateItems"], [])
+        self.assertEqual(full_fragment["candidateLegalityAudit"], catalog_read_model["candidateLegalityAudit"])
+        self.assertEqual(len(full_fragment["catalogItems"]), 120)
+
     def test_build_common_gear_read_model_fragment_blocks_stat_snapshot(self):
         from server.pg_gear_read_model_selectors import build_common_gear_read_model_fragment
 
