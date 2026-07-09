@@ -3,6 +3,62 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_gear_mod_options_by_slot_read_model_groups_option_rows(self):
+        from server.pg_gear_read_model_selectors import build_gear_mod_options_by_slot_read_model
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        rows = [
+            (
+                301,
+                "socket",
+                "quick-ruby",
+                "Quick Ruby",
+                '["head", "neck"]',
+                '{"gem_id": 213743, "ignored": "drop"}',
+                "verified",
+                '{"displayLabel": "Quick Ruby", "displayKind": "gem", "evidenceSource": "test", "iconUrl": "https://example.test/gem.png", "uniqueLimit": 1}',
+                "2026-07-09T11:20:00Z",
+            ),
+            (
+                302,
+                "enchant",
+                "any-slot-enchant",
+                "Any Slot Enchant",
+                '"*"',
+                '{"enchant_id": "7418"}',
+                "partial",
+                '{"displayLabel": "Any Slot Enchant", "metadataStatus": "verified"}',
+                None,
+            ),
+        ]
+
+        read_model = build_gear_mod_options_by_slot_read_model(rows)
+
+        self.assertEqual(sorted(read_model.keys()), sorted(CANONICAL_GEAR_SLOTS))
+        socket_option = read_model["head"][0]
+        self.assertEqual(socket_option["id"], "301")
+        self.assertEqual(socket_option["type"], "socket")
+        self.assertEqual(socket_option["optionType"], "socket")
+        self.assertEqual(socket_option["rawName"], "Quick Ruby")
+        self.assertEqual(socket_option["status"], "verified")
+        self.assertEqual(socket_option["simcOptions"], {"gem_id": "213743"})
+        self.assertEqual(socket_option["payload"]["displayLabel"], "Quick Ruby")
+        self.assertEqual(socket_option["displayLabel"], "Quick Ruby")
+        self.assertEqual(socket_option["displayKind"], "gem")
+        self.assertEqual(socket_option["evidenceSource"], "test")
+        self.assertEqual(socket_option["iconUrl"], "https://example.test/gem.png")
+        self.assertEqual(socket_option["uniqueLimit"], 1)
+        self.assertEqual(socket_option["updatedAt"], "2026-07-09T11:20:00Z")
+        self.assertEqual(read_model["neck"][0]["id"], "301")
+
+        enchant_option = next(option for option in read_model["head"] if option["id"] == "302")
+        self.assertEqual(enchant_option["type"], "enchant")
+        self.assertEqual(enchant_option["status"], "partial")
+        self.assertEqual(enchant_option["simcOptions"], {"enchant_id": "7418"})
+        self.assertEqual(enchant_option["metadataStatus"], "verified")
+        self.assertEqual(enchant_option["updatedAt"], "")
+        self.assertTrue(all(any(option["id"] == "302" for option in read_model[slot]) for slot in CANONICAL_GEAR_SLOTS))
+
     def test_build_gear_variants_by_item_read_model_groups_variant_rows(self):
         from server.pg_gear_read_model_selectors import build_gear_variants_by_item_read_model
         from server.websim_payload import localized_difficulty_label
