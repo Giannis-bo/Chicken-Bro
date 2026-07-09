@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "candidate_deployment_verified",
+  "status": "merged_to_main",
   "generatedAt": "2026-07-09T14:51:35Z",
   "release": {
     "date": "2026-07-09",
@@ -49,6 +49,12 @@
       "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/40",
       "branch": "codex/phase4-websim-talent-import-read-model-selector",
       "commit": "5da85010e82318d0cc5ad19edf4daa73ec549ee0"
+    },
+    "merge": {
+      "status": "merged_to_main",
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/40",
+      "mergeCommit": "fd201e611caf7d8e8bec6bdc6fe4011f3160da12",
+      "headEqualsOriginMain": true
     }
   },
   "evidenceFile": "artifacts/releases/2026-07-09-websim-talent-import-read-model-selector/evidence.json"
