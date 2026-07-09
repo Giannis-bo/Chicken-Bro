@@ -534,12 +534,15 @@
 }
 
 .gear-template-actions {
+  position: relative;
+  z-index: 1;
   display: grid;
-  grid-template-columns: 1.2fr 1fr 0.82fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
-  gap: 10rpx;
-  margin-top: 20rpx;
-  margin-bottom: 34rpx;
+  gap: 12rpx;
+  margin-top: 22rpx;
+  margin-bottom: 48rpx;
+  padding-bottom: calc(10rpx + env(safe-area-inset-bottom));
 }
 
 .gear-template-action-button {
@@ -576,6 +579,7 @@
 }
 
 .gear-template-action-button.muted {
+  grid-column: 1 / -1;
   background: rgba(255, 255, 255, 0.05);
   color: #d3d3d3;
 }

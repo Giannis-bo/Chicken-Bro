@@ -31,6 +31,8 @@
 
 | 计划 | 状态 | 当前入口 |
 | --- | --- | --- |
+| [2026-07-09-harness-guided-project-optimization-plan.md](2026-07-09-harness-guided-project-optimization-plan.md) | Phase 0 + Phase 1 已完成 / 当前 UI 基线已验收 | [../harness.md](../harness.md), [../roadmap.md](../roadmap.md) |
+| [2026-07-09-docs-implementation-current-truth-review.md](2026-07-09-docs-implementation-current-truth-review.md) | 当前对账索引 / 已同步 accepted baseline | [../roadmap.md](../roadmap.md), [../harness.md](../harness.md) |
 | [2026-06-09-specializations-tab.md](2026-06-09-specializations-tab.md) | 已落地 | [../builds-architecture.md](../builds-architecture.md), [../roadmap.md](../roadmap.md) |
 | [2026-06-09-unified-backend-cloud-deploy.md](2026-06-09-unified-backend-cloud-deploy.md) | 已落地 | [../remote-debugging.md](../remote-debugging.md), [../../README.md](../../README.md#轻量云部署) |
 | [2026-06-11-simc-flow-risk-avoidance.md](2026-06-11-simc-flow-risk-avoidance.md) | 已落地为契约基线 | [../simulator-simc-end-to-end.md](../simulator-simc-end-to-end.md), [../roadmap.md](../roadmap.md) |

@@ -1,6 +1,6 @@
 # 09:00 Runtime Screenshot Manifest
 
-Status: `runtime_recapture_blocked_after_source_changes`
+Status: `runtime_recapture_complete_auto_14_screenshots_14_pass_final_accepted`
 
 This manifest is the 09:00 delivery evidence control point. It intentionally does not promote browser demos, static tests, old pass scorecards, or component prechecks to UI correctness.
 
@@ -13,11 +13,26 @@ This manifest is the 09:00 delivery evidence control point. It intentionally doe
 
 ## Current State
 
-- Runtime verified: `false` for the current worktree.
-- Final accepted: `false`.
-- DevTools touched by the latest probe: existing listening ports only; no navigation, screenshot, close, restart, cache clear, appid switch, project switch, or user-directory deletion.
+- Runtime verified: `true` for the current worktree.
+- Final accepted: `true` by user confirmation on 2026-07-09.
+- DevTools touched by the latest proof: current-project `cli auto --auto-port 9854`, `pages/news/news`, `pages/builds/builds`, `pages/simulator/simulator`, and `pages/profile/profile` `switchTab`, `pages/builds/workbench`, `pages/builds/talent-simulator`, `pages/builds/detail`, `pages/simulator/simc`, `pages/news/list`, `pages/news/detail`, `pages/builds/intel`, `pages/simulator/chickenbro`, `pages/simulator/tasks`, and `pages/simulator/task-detail` `navigateTo`, current-page probes, and 14 successful current `App.captureScreenshot` calls; no close, restart, cache clear, appid switch, project switch, user-directory deletion, or 14-page batch.
 - `page-captures/` contains historical real WeChat screenshots for all 14 pages, but they are not current proof after later source changes.
-- Latest read-only automator endpoint probe returned `automator_endpoint_probe_no_ready_endpoint`; do not run batch route smoke or screenshots until DevTools exposes a ready automator endpoint again.
+- Latest read-only automator endpoint probe returned `automator_endpoint_probe_found_ready_endpoint` with `recommendedAutomatorPort=9854`.
+- Current automated proof exists for `pages/news/news`: `page-captures/news_news_auto_20260709T031806Z.png` plus `page-captures/news_news_auto_latest.json`.
+- Current automated proof exists for `pages/news/list`: `page-captures/news_list_auto_20260709T053302Z.png` plus `page-captures/news_list_auto_latest.json`.
+- Current automated proof exists for `pages/news/detail`: `page-captures/news_detail_auto_20260709T053334Z.png` plus `page-captures/news_detail_auto_latest.json`.
+- Current automated proof exists for `pages/builds/builds`: `page-captures/builds_builds_auto_20260709T051856Z.png` plus `page-captures/builds_builds_auto_latest.json`.
+- Current automated proof exists for `pages/builds/workbench`: `page-captures/builds_workbench_auto_20260709T051629Z.png` plus `page-captures/builds_workbench_auto_latest.json`.
+- Current automated proof exists for `pages/builds/intel`: `page-captures/builds_intel_auto_20260709T053348Z.png` plus `page-captures/builds_intel_auto_latest.json`.
+- Current automated proof exists for `pages/builds/talent-simulator`: `page-captures/builds_talent-simulator_auto_20260709T052151Z.png` plus `page-captures/builds_talent-simulator_auto_latest.json`.
+- Current automated proof exists for `pages/builds/detail`: `page-captures/builds_detail_auto_20260709T060642Z.png` plus `page-captures/builds_detail_auto_latest.json`.
+- Current automated proof exists for `pages/simulator/simulator`: `page-captures/simulator_simulator_auto_20260709T052530Z.png` plus `page-captures/simulator_simulator_auto_latest.json`.
+- Current automated proof exists for `pages/simulator/simc`: `page-captures/simulator_simc_auto_20260709T052916Z.png` plus `page-captures/simulator_simc_auto_latest.json`.
+- Current automated proof exists for `pages/simulator/chickenbro`: `page-captures/simulator_chickenbro_auto_20260709T053404Z.png` plus `page-captures/simulator_chickenbro_auto_latest.json`.
+- Current automated proof exists for `pages/simulator/tasks`: `page-captures/simulator_tasks_auto_20260709T053422Z.png` plus `page-captures/simulator_tasks_auto_latest.json`.
+- Current automated proof exists for `pages/simulator/task-detail`: `page-captures/simulator_task-detail_auto_20260709T060703Z.png` plus `page-captures/simulator_task-detail_auto_latest.json`.
+- Current automated proof exists for `pages/profile/profile`: `page-captures/profile_profile_auto_20260709T053114Z.png` plus `page-captures/profile_profile_auto_latest.json`.
+- All 14 `app.json` routes have current route evidence. All 14 pages have current screenshots and all 14 visually pass. Runtime proof is complete and accepted as the current baseline; future UI adjustments are separate requests.
 - The current source-side fix after those historical screenshots removes the workbench verdict shield/atomic-image path. `StatusVisual` now uses state-enumerated basic shapes, so `builds_workbench.png` is useful as visual reference only, not as proof of the latest component state.
 
 ## Static Rescue Precheck
@@ -33,10 +48,9 @@ This manifest is the 09:00 delivery evidence control point. It intentionally doe
 
 - Latest endpoint probe: `artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/automator-endpoint-probe.json`.
 - Action ledger: `artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/devtools-action-ledger.json`.
-- Current usable endpoint: none detected by the latest read-only probe.
-- Previous endpoint `ws://127.0.0.1:9854` is not currently accepting automator connections.
-- Result: current screenshot recapture is blocked. The next validation step is a single-page endpoint/route probe after the user manually recompiles or restores DevTools.
-- No login/open/close/cache/project-switch action was used in the latest rescue probe.
+- Current usable endpoint: `ws://127.0.0.1:9854`, restored by hidden DevTools CLI option `--auto-port 9854`.
+- Result: all 14 registered pages have current route evidence and current screenshots. All 14 screenshots visually pass. `pages/builds/detail` was recaptured after replacing the sticky action-bar with non-overlapping document-flow controls, and `pages/simulator/task-detail` was recaptured as the expected direct-open empty state.
+- No close/cache/project-switch/appid-switch action was used in the latest proof.
 
 ## Historical Screenshot Coverage
 
@@ -79,19 +93,19 @@ node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/summa
 
 This script only reads `app.json` and existing files under `page-captures/`. It does not connect to WeChat DevTools, does not navigate, and does not affect login state.
 
-Safe single-page capture command:
+Current safe single-page route + screenshot command:
 
 ```sh
-NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost WECHAT_AUTOMATOR_PORT=9854 WOW_0900_CAPTURE_PAGES=pages/news/news node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/capture-0900-pages.js
+WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/simulator/task-detail node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js
 ```
 
-Low-disruption P0 route smoke command:
+If the endpoint disappears after DevTools restarts, restore it first:
 
 ```sh
-NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost WECHAT_AUTOMATOR_PORT=9854 WOW_0900_RUN_P0_ROUTE_SMOKE=1 node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/p0-route-smoke.js
+/Applications/wechatwebdevtools.app/Contents/MacOS/cli auto --project /Users/boyuan/Documents/wow_mini_program --port 30412 --auto-port 9854 --trust-project --lang zh
 ```
 
-The route smoke does not capture screenshots and does not run unless `WOW_0900_RUN_P0_ROUTE_SMOKE=1` is set.
+The older `capture-0900-pages.js` and `p0-route-smoke.js` still reference the missing historical `ui-v2-1-strict-restoration/connect-miniprogram-automator` helper. Prefer `auto-route-screenshot.js` for the current low-disruption proof path.
 
 Read-only automator endpoint probe:
 

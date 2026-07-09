@@ -12,11 +12,21 @@
 - Backend-owned contract：前端只消费 `/api/websim/gear` 的结构化 payload，不按物品名、附魔名、职业名或 ID 打补丁。
 - Serializer fail-closed：即使前端提交了 stale 或不兼容的 `gearBySlot` / `enhancementBySlot`，后端 `merge_websim_gear_enhancements` 也必须阻断，而不是生成错误 SimC gear line。
 - 全职业覆盖：装备候选、武器栏位、护甲类型、主属性、制造业属性搭配、附魔/美化选项，都必须按 40 个职业专精矩阵验证。
-- 推荐模板诚实展示：`season_recommendation / 当前赛季大秘境 AOE 推荐模板` 是社区导入里的 `baseline` 子类，不是 Raider.IO/WCL 玩家样本，不是绝对 BiS；首版可 `status=complete` 但 `recommendationConfidence=provisional`，后续只有经过 SimC optimizer 或角色专属目标函数验证后才能升级为 `verified`。
-- 默认模板兼容保留：`default_template / 默认模板` 只能作为 legacy fallback/诊断来源，`season_recommendation` 可用时不得作为首选 baseline。
+- 当前公开模板合同：截至 2026-07-08，公开导入入口只展示 active `raiderio_observed_profile` / `community_best_v2` 真实玩家装备模板；`recommended_bis`、`season_recommendation`、`default_template`、`simc_preset` 和 `baseline_blocked` 可以作为内部 evidence、optimizer 输入、legacy health 或历史审计数据保留，但不得自动回流到小程序公开 `communityTemplates` / `baselineTemplates`。
+- 历史 baseline 口径：2026-07-06/07 的 `season_recommendation / 当前赛季大秘境 AOE 推荐模板` 40/40 baseline 公共入口方案已被 2026-07-08 `public observed-only` 合同 superseded；后续若要重新开放系统评分推荐或 legacy baseline，必须经过新的用户确认、SimC/pairwise/anchor 门禁和小程序 runtime 验收。
 - 完整状态拆分：装备模板 `status=complete` 只表示 16 个 canonical 槽位完整且 SimC serializer 可执行；宝石、附魔、美化和 `crafted_stats` readiness 必须通过独立 `enhancementReadiness` 表达。
 - 可回滚：任何生产写库前必须备份实际写入的 PostgreSQL target，并保留历史 SQLite 文件备份作为迁移/审计证据。当前 runtime 必须是 `WOW_DATABASE_RUNTIME=postgres_only`；SQLite 不能作为线上 fallback 或健康判断来源。任何代码部署前必须能区分“代码回滚”和“DB 回滚”。
 - 下载/写入边界：拉取远端数据、下载外部文件、生产 SSH/DB 写入、Wago/SimC 数据刷新，默认都必须先取得 owner 明确批准。例外是已知云服务器上的 SimulationCraft runtime 更新：当用户明确要求处理 SimC 更新、WebSim/SimC readiness、赛季切换阻塞，或已授权 health follow-up 自动处理 SimC runtime 时，可直接下载配置好的 SimC 源包、构建、切换 `/opt/wow-simc/current` 并执行 smoke；不得扩展到本机下载、任意第三方下载、依赖安装或修改 SimC repo/branch。
+
+## 当前公开装备模板事实快照
+
+| 链路 | 当前用户侧状态 | 内部/研发状态 | 不能误读成 |
+| --- | --- | --- | --- |
+| `community_best_v2` / `raiderio_observed_profile` | 全职业公开导入唯一允许来源；每个 spec 只展示满足 source/hash/slot/legality gate 的 active 真实玩家模板 | 仍需后续 election job、winner ledger、stale winner 和切换记录提升长期治理 | 不能因为是 observed 就绕过后端 weapon/slot legality gate |
+| `recommended_bis_v1` / `recommended_bis` | 当前不进入公开导入入口 | 可保留 `projected_bis`、SimC evidence、pairwise/anchor blockers 和 optimizer 研发状态 | 不能包装成已验证 BiS，不能自动塞回 `baselineTemplates` |
+| `season_recommendation` | 当前不进入公开导入入口 | 只作为 legacy / provisional fallback、历史基线和 health 审计证据 | 不能继续按 40/40 public baseline 目标驱动小程序验收 |
+| `default_template` / `simc_preset` / `baseline_blocked` | 当前不进入公开导入入口 | 只可作为诊断、迁移或历史兼容输入 | 不能用来填补公开入口，制造“看起来完整”的模板 |
+| destructive cleanup | 仍按 pilot-safe 策略处理，当前代码的破坏性清理范围只覆盖 `shaman:elemental` | 全职业 public observed-only 主要由 read model 过滤实现；内部 rows 可先保留 | 不能把展示层全职业隐藏理解成可以批量删除全库 legacy/recommended rows |
 
 ## 端到端链路
 
@@ -91,7 +101,7 @@ flowchart TD
 | Compact payload | `compact_gear_candidate`、`compact_crafted_gear_variants`、`display_ready_gear_mod_options_by_slot` | 输出小程序显示字段，折叠制造业属性选项，过滤不可展示强化项 |
 | Serializer | `merge_websim_gear_enhancements`、`build_websim_profile_response` | 校验 saved snapshot，生成 SimC-ready profile 或 blockers |
 | Stat snapshot | `build_websim_gear_stats_response`、`backfill_simcraft_template_detail_stat_snapshot` | 用结构化 gear/talent 上下文生成 verified 角色属性快照，供 SimC 模板确认页和任务详情展示 |
-| Season recommended templates | `server/season_recommended_gear_sync.py`、`sync_season_recommended_gear_postgres`、`build_season_recommended_gear_templates` | 生成 `season_recommendation` 基线模板，写入社区导入 `baseline` 子类，并在 health 暴露 `seasonRecommendation` / `communityImportTemplates` 覆盖率 |
+| Season recommended templates | `server/season_recommended_gear_sync.py`、`sync_season_recommended_gear_postgres`、`build_season_recommended_gear_templates` | 生成内部 `season_recommendation` legacy / provisional baseline 证据，并在 health 暴露 `seasonRecommendation` / `communityImportTemplates` 历史覆盖率；当前公开入口不得消费它 |
 | Default templates | `sync_community_gear_templates`、`build_default_community_gear_template` | legacy fallback：用 verified 当前赛季候选和 verified `mplus_mixed_route` 绿字权重生成 `默认模板` 兜底，并把缺证据专精写入 sync run / health |
 | Health follow-up | `server/data_health_followup.py`、`wow-data-health-followup.timer` | 根据 `/api/data/health` 续跑可安全自动处理的阻塞；SimC runtime `updateAvailable=true` 时先触发 `wow-simc-runtime-update.service` 自动下载、构建、切换 runtime |
 | API | `server/news_backend.py` | `/api/websim/gear`、`/api/websim/profile`、`/api/data/health` |
@@ -181,7 +191,7 @@ order by option_type, status;
 12. `sync_blizzard_gear_mod_option_metadata`：补齐宝石等 option 的 item metadata。
 13. `sync_websim_gear_catalog`：重建 catalog 健康快照。
 14. `sync_community_gear_templates`：归档真实装备样本 / SimC preset 后生成默认装备模板；缺证据时只写 blocker，不落库兜底模板。
-15. `server/season_recommended_gear_sync.py` 或 `wow-season-recommended-gear-sync.service`：生成 `season_recommendation`，目标是 40/40 个 `baseline` 子类模板。
+15. `server/season_recommended_gear_sync.py` 或 `wow-season-recommended-gear-sync.service`：刷新内部 `season_recommendation` legacy / provisional baseline 证据；历史目标曾是 40/40 个公开 `baseline` 子类模板，但当前公开入口已被 `public observed-only` 合同取代。
 16. `/api/data/health`：发布前最终审计。
 
 除非在事故修复中明确隔离范围，否则不要跳过最后的 catalog rebuild 和 health 复核。
@@ -198,33 +208,35 @@ order by option_type, status;
 
 这些任务必须继续 fail-closed：没有 verified 证据就保留 partial/blocked 并在 health 中报告。SimC runtime 自动更新只允许使用配置好的 `SIMC_GITHUB_REPO` / `SIMC_BRANCH` 和已知云服务器路径；修改源仓库、分支、本机下载或安装依赖仍需单独批准。
 
-### 当前赛季推荐装备模板生成门禁
+### 历史/内部：当前赛季推荐装备模板生成门禁
 
-`season_recommendation` 是装备导入中“社区模板”分组下的兜底基线子类，和真实社区装备 winner 分开计数：
+> Superseded public-entry note（2026-07-09）：本节记录 2026-07-06/07 `season_recommendation` 作为公开 baseline 子类时的生成门禁和生产验收。当前公开导入合同已经在 2026-07-08 切换为全职业 `public observed-only`：用户侧只展示 active `raiderio_observed_profile` 真实玩家模板，公开 `baselineTemplates` 为空。以下覆盖率和历史 smoke 只能用于内部 legacy fallback、health 审计和 optimizer 研发背景，不能再作为小程序公开入口验收标准。
+
+`season_recommendation` 曾是装备导入中“社区模板”分组下的兜底基线子类，和真实社区装备 winner 分开计数；在当前实现中，它只允许作为内部 legacy / provisional baseline 证据保留：
 
 - 真实社区装备 `community_best` 必须达到 `40/40`。
-- 推荐基线 `baseline` 必须达到 `40/40`。
-- `/api/data/health` 的 `communityImportTemplates.coveredTemplateSlotCount` 必须达到 `80/80`，`missingTemplateSlotCount=0`。
-- `/api/data/health` 和 `/api/websim/gear` 的 `communityTemplateSync.templateChains` 必须同时区分 `communityObserved`、`recommendedBis` 与 `legacyFallback`：source-less / sampleCount=0 / 无 profileHash 的 observed 只能进入 `observed_blocked`，`season_recommendation` 只能作为 `starter_baseline` legacy fallback，不能计入 `recommendedBis` 或 `verified_bis`。当 `recommended_bis_v1` optimizer 尚未产出某 spec 的 winner 时，`recommendedBis` 必须按 expected spec 暴露 `optimizerRequiredSpecCount` / `fullOptimizerRunRequiredSpecCount` 和 `optimizer_blocked` blocker，而不是静默只报 `total=0`。
+- 历史推荐基线 `baseline` 曾要求达到 `40/40`；当前这不再是公开入口要求。
+- 历史 `/api/data/health` 的 `communityImportTemplates.coveredTemplateSlotCount=80/80` 只能解释旧 public baseline 时代，不代表当前用户侧应看到 80 个公开模板槽。
+- `/api/data/health` 和 `/api/websim/gear` 的 `communityTemplateSync.templateChains` 必须同时区分 `communityObserved`、`recommendedBis` 与 `legacyFallback`：source-less / sampleCount=0 / 无 profileHash 的 observed 只能进入 `observed_blocked`，`season_recommendation` 只能作为 `starter_baseline` legacy fallback，不能计入 `recommendedBis`、`verified_bis` 或当前公开 `baselineTemplates`。当 `recommended_bis_v1` optimizer 尚未产出某 spec 的 winner 时，`recommendedBis` 必须按 expected spec 暴露 `optimizerRequiredSpecCount` / `fullOptimizerRunRequiredSpecCount` 和 `optimizer_blocked` blocker，而不是静默只报 `total=0`。
 
 推荐基线生成器只消费当前生产 PostgreSQL read model，不触发外部下载：
 
 - 输入：`cache.websim_community_gear_templates` 中当前可用、完整、非 baseline-like 的真实社区装备样本；`cache.websim_community_talent_templates` 中 verified Raider.IO / WCL 天赋锚点；当前后端装备 read model 中可 display/SimC 的同槽替代候选；官方 metadata hydration 后的 16 槽装备 display/SimC 字段。
 - 评分：`scoringVersion=season-rec-score-v1`，固定首个场景为 `mplus_aoe`。评分按职业/专精处理装等、主属性、绿字权重、低收益属性强惩罚、套装 2/4 件收益、5 件套与散件替代、武器/饰品/美化/特殊效果等规则；低收益属性不是硬禁，只有总分明显更高时才保留，并必须在 evidence 中解释。
 - SimC 复核门禁：当带低收益属性的第一名与无低收益替代方案分差低于约 `2%`，或套装、饰品、武器、特殊效果等规则无法自信裁决时，`templateEvidence.simcReview.status` 必须为 `required` 或记录失败原因；只有 `simcReview.status=passed` 才允许把具体模板的 `recommendationConfidence` 从 `provisional` 升级为 `verified`。
-- 输出：`sourceKey=season_recommendation`、`sourceName=当前赛季大秘境 AOE 推荐模板`、`templateSlot=baseline`、`scenarioKey=mplus_aoe`、`status=complete`、`readySlotCount=16`、`canApplyGear=true`。
+- 内部输出：`sourceKey=season_recommendation`、`sourceName=当前赛季大秘境 AOE 推荐模板`、`templateSlot=baseline`、`scenarioKey=mplus_aoe`、`status=complete`、`readySlotCount=16`、`canApplyGear=true`。在当前 `public observed-only` 合同下，这些 rows 不得自动进入公开 `baselineTemplates`。
 - evidence：必须保留 `scoringVersion`、`scenarioKey`、`candidateCount`、`statWeights`、`slotDecisions`、`lowYieldStatPenalty`、`alternatives`、`tierSetDecision`、`combinationScore`、`simcReview`、`finalConfidence` 等可审计字段。`season_recommendation` 是当前赛季可导入起点，不是绝对 BiS；证据不足时只能保持 `provisional`。
 - 失败处理：缺真实社区 winner、缺 verified 天赋锚点、缺槽、serializer 无法生成 16 行或 metadata 不 display-ready 时，不写 complete `season_recommendation`，必须在 sync run / health blocker 中暴露 class/spec 和缺口。
-- 运行入口：`wow-season-recommended-gear-sync.timer` 每天 07:30 左右自动触发 `wow-season-recommended-gear-sync.service`，用于在社区模板日更后刷新 `season_recommendation` 基线；需要临时补跑时可手动执行 `sudo systemctl start wow-season-recommended-gear-sync.service`。CLI 入口为 `WOW_DATABASE_RUNTIME=postgres_only python3 server/season_recommended_gear_sync.py`。
+- 运行入口：`wow-season-recommended-gear-sync.timer` 每天 07:30 左右自动触发 `wow-season-recommended-gear-sync.service`，用于刷新内部 `season_recommendation` 基线证据；需要临时补跑时可手动执行 `sudo systemctl start wow-season-recommended-gear-sync.service`。CLI 入口为 `WOW_DATABASE_RUNTIME=postgres_only python3 server/season_recommended_gear_sync.py`。重跑不得改变当前公开 observed-only 合同。
 
-2026-07-06 首版生产验收：
+2026-07-06 首版生产验收（历史 public baseline 口径）：
 
 - `wow-season-recommended-gear-sync.service` 执行成功，`scanRunId=season-recommended-gear-20260706T100215Z`。
 - 生产 PG active row：`season_recommendation|complete|40 rows|40 specs`，`ready_slot_count=16`。
 - `/api/data/health`：`communityImportTemplates=80/80 missing=0`，`seasonRecommendation=40/40 provisional=40 blocked=0`。
 - 线上 40 专精 `/api/websim/gear?compact=1&mode=initial` 巡检：`checkedSpecs=40`、`failureCount=0`；每个专精都有真实社区模板 + `season_recommendation` 基线模板，16 槽可导入，未发现缺中文名或图标。
 
-2026-07-07 评分目标函数生产验收：
+2026-07-07 评分目标函数生产验收（历史 public baseline 口径）：
 
 - 部署：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功，公网 `/health=200`、`/api/data/health=200`。
 - 社区采集：手动触发 `wow-community-template-sync.service`，本轮 `scanRunId=pg-community-template-2026-07-07T082004z0000`，summary 为 `promoted=80`、`blocked=0`、`needs_review=0`、`rejected_regression=0`、`stale_winner=0`；Warcraft Logs 排名提取无目标槽属于非阻断 partial 来源状态。
@@ -397,9 +409,9 @@ order by option_type, status;
 - 回归要求：至少覆盖 helper 过滤与 PG initial payload 两层，防止定时 sync、prototype 重跑或 fallback 占位把 `recommended_bis` / legacy baseline 再带回元素萨公开导入列表。
 - 2026-07-08 线上验收：`WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh` 热部署成功；`wow-community-best-guard-sync.service` 与 `wow-recommended-bis-guard-sync.service` 均 `Result=success / ExecMainStatus=0`。公网 `/health=200`、`/api/data/health overallStatus=partial`、`community_templates.status=partial`；元素萨 initial API `dataStatus=verified`、`communityTemplates=[observed_profile_shaman_elemental / raiderio_observed_profile / complete / readySlotCount=16]`、`baselineTemplates=[]`、`templateChains.recommendedBis.totalSpecCount=0`、`legacyFallback.totalSpecCount=0`。PG 仍有内部 `recommended_bis_shaman_elemental_179f9a4c75e89ebf` row，`templateStatus=projected_bis`、`simc.status=passed`、`highIterationRuns=1`、`pairwiseCompares=0`、`anchorValidation.status=pending`，但不进入公开导入列表。
 
-2026-07-08 元素萨已确认决策与全职业推广前清单：
+2026-07-08 元素萨已确认决策与全职业推广前清单（历史 pilot 语境）：
 
-- 作用域：当前所有实现、清理、线上验收只确认 `shaman:elemental`。迁移到全职业/全专精前必须先把 pilot allowlist、数据入口、cleanup、health 和前端展示策略显式参数化，不能把元素萨临时代码路径直接复制成全职业默认行为。
+- 作用域：本节记录元素萨 pilot 时代的已确认决策和“推广前”检查清单；全职业/全专精公开入口已在上一节收口为 `public observed-only`。本节中关于真实玩家 winner、legacy 边界、后端 ownership、推荐认证门槛和非 DPS 边界的原则仍有效；关于“尚未迁移全职业”的措辞只能作为历史背景。
 - 公开产品口径：元素萨公开导入当前只保留一条 `community_best_v2` 真实玩家装备模板；`recommended_bis_v1` / “系统评分推荐”先从小程序公开入口移除，保留为内部证据和后续研发对象。后续系统评分推荐重新上线前，需要重新做候选策略、标签表达、pairwise compare、observed anchor validation、SimC evidence 和用户验收。
 - 双链路语义：`community_best_v2` 是真实角色快照链，回答“高分真实玩家当前穿了什么”；`recommended_bis_v1` 是毕业推荐/optimizer 链，回答“系统在给定场景和证据下推荐什么”。两者不能混成同一模板，也不能用真实玩家样本冒充毕业推荐。
 - legacy 边界：`season_recommendation` 只允许作为 legacy / provisional fallback 或历史基线，不得再作为毕业推荐主语义，不得被前端或 sync 回流包装成当前推荐模板。

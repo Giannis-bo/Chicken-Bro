@@ -1,0 +1,33 @@
+{
+  "status": "auto_route_and_screenshot_passed",
+  "startedAt": "2026-07-09T05:29:11.081Z",
+  "finishedAt": "2026-07-09T05:29:16.881Z",
+  "wsEndpoint": "ws://127.0.0.1:9854",
+  "automatorPort": 9854,
+  "toolInfo": {
+    "version": "2.01.2510290",
+    "SDKVersion": "3.14.2"
+  },
+  "path": "pages/simulator/simc",
+  "targetUrl": "/pages/simulator/simc",
+  "navigation": {
+    "result": {
+      "errMsg": "navigateTo:ok",
+      "eventChannel": {
+        "listener": {}
+      }
+    }
+  },
+  "currentPage": {
+    "pageId": 8,
+    "path": "pages/simulator/simc",
+    "query": {}
+  },
+  "routeMatches": true,
+  "screenshot": "/Users/boyuan/Documents/wow_mini_program/artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simc_auto_20260709T052916Z.png",
+  "screenshotInfo": {
+    "bytes": 383773,
+    "dataLength": 511700
+  },
+  "forbiddenActionsUsed": []
+}

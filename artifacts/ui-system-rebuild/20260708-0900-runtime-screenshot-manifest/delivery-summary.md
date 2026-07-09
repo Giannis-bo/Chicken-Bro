@@ -1,15 +1,27 @@
 # 09:00 UI Rescue Runtime Status
 
-Status: `runtime_recapture_blocked_no_ready_automator_endpoint_after_talent_layout_fix`
+Status: `runtime_recapture_complete_auto_14_screenshots_14_pass_final_accepted`
 
 Current truth:
 
-- Latest read-only endpoint probe after the talent simulator layout fix still returned `automator_endpoint_probe_no_ready_endpoint`; current real screenshot recapture remains blocked before navigation/screenshot.
-- Latest read-only endpoint probe after the workbench status enum fix still returned `automator_endpoint_probe_no_ready_endpoint`; no navigation or screenshot was attempted.
+- Latest read-only endpoint probe after explicit hidden `--auto-port 9854` returned `automator_endpoint_probe_found_ready_endpoint`; current usable endpoint is `ws://127.0.0.1:9854`.
+- `pages/news/news` automated proof passed: `switchTab:ok`, `App.getCurrentPage.path=pages/news/news`, and `App.captureScreenshot` wrote `page-captures/news_news_auto_20260709T031806Z.png` (`860x1864`).
+- `pages/news/list` automated proof passed: `navigateTo:ok`, `App.getCurrentPage.path=pages/news/list`, and `App.captureScreenshot` wrote `page-captures/news_list_auto_20260709T053302Z.png` (`860x1864`).
+- `pages/news/detail` automated proof passed: `navigateTo:ok`, `App.getCurrentPage.path=pages/news/detail`, and `App.captureScreenshot` wrote `page-captures/news_detail_auto_20260709T053334Z.png` (`860x1864`).
+- `pages/builds/builds` automated proof passed: `switchTab:ok`, `App.getCurrentPage.path=pages/builds/builds`, and `App.captureScreenshot` wrote `page-captures/builds_builds_auto_20260709T051856Z.png` (`860x1864`).
+- `pages/builds/intel` automated proof passed: `navigateTo:ok`, `App.getCurrentPage.path=pages/builds/intel`, and `App.captureScreenshot` wrote `page-captures/builds_intel_auto_20260709T053348Z.png` (`860x1864`).
+- `pages/builds/workbench` automated proof passed: `navigateTo:ok`, `App.getCurrentPage.path=pages/builds/workbench`, and `App.captureScreenshot` wrote `page-captures/builds_workbench_auto_20260709T051629Z.png` (`860x1864`).
+- `pages/builds/talent-simulator` automated proof passed: `navigateTo:ok`, `App.getCurrentPage.path=pages/builds/talent-simulator`, and `App.captureScreenshot` wrote `page-captures/builds_talent-simulator_auto_20260709T052151Z.png` (`860x1864`).
+- `pages/builds/detail` automated proof passed after replacing the sticky action bar with non-overlapping document-flow controls: `navigateTo:ok`, `App.getCurrentPage.path=pages/builds/detail`, and `App.captureScreenshot` wrote `page-captures/builds_detail_auto_20260709T060642Z.png` (`860x1864`).
+- `pages/simulator/simulator` automated proof passed: `switchTab:ok`, `App.getCurrentPage.path=pages/simulator/simulator`, and `App.captureScreenshot` wrote `page-captures/simulator_simulator_auto_20260709T052530Z.png` (`860x1864`).
+- `pages/simulator/simc` automated proof passed: `navigateTo:ok`, `App.getCurrentPage.path=pages/simulator/simc`, and `App.captureScreenshot` wrote `page-captures/simulator_simc_auto_20260709T052916Z.png` (`860x1864`).
+- `pages/simulator/chickenbro` automated proof passed: `navigateTo:ok`, `App.getCurrentPage.path=pages/simulator/chickenbro`, and `App.captureScreenshot` wrote `page-captures/simulator_chickenbro_auto_20260709T053404Z.png` (`860x1864`).
+- `pages/simulator/tasks` automated proof passed: `navigateTo:ok`, `App.getCurrentPage.path=pages/simulator/tasks`, and `App.captureScreenshot` wrote `page-captures/simulator_tasks_auto_20260709T053422Z.png` (`860x1864`).
+- `pages/simulator/task-detail` automated proof passed: `navigateTo:ok`, `App.getCurrentPage.path=pages/simulator/task-detail`, and `App.captureScreenshot` wrote `page-captures/simulator_task-detail_auto_20260709T060703Z.png` (`860x1864`), showing the expected direct-open empty state.
+- `pages/profile/profile` automated proof passed: `switchTab:ok`, `App.getCurrentPage.path=pages/profile/profile`, and `App.captureScreenshot` wrote `page-captures/profile_profile_auto_20260709T053114Z.png` (`860x1864`).
 - Static route/design guardrails pass.
 - Historical real WeChat screenshots exist for all 14 pages, but they are not current proof after later source changes.
-- Latest read-only endpoint probe found no ready automator endpoint; previous `9854` is currently unavailable.
-- Current mini-program recapture is blocked before route/screenshot validation can begin.
+- All 14 registered routes have current route evidence. All 14 pages have current screenshots and all 14 visually pass. Runtime proof is complete and accepted as the current baseline; future UI adjustments are separate requests.
 - No forbidden DevTools lifecycle actions were used.
 - Existing screenshot files are historical only after source changes.
 
@@ -36,24 +48,23 @@ Latest static verification:
 
 | Tier | Page | Current Status | Required Next Evidence |
 | --- | --- | --- | --- |
-| P0 | `pages/news/news` | risk: current recapture blocked, historical screenshot exists | single-page route probe + real screenshot after endpoint restore |
-| P1 | `pages/news/list` | risk: current recapture blocked, historical screenshot exists | real screenshot or route/open risk record after endpoint restore |
-| P1 | `pages/news/detail` | risk: current recapture blocked, historical screenshot exists | real screenshot or route/open risk record after endpoint restore |
-| P0 | `pages/builds/builds` | risk: current recapture blocked, historical screenshot exists | single-page route probe + real screenshot after endpoint restore |
-| P0 | `pages/builds/workbench` | risk: current recapture blocked, historical screenshot exists; status shield/atomic path removed after screenshot | single-page route probe + real screenshot after endpoint restore |
-| P2 | `pages/builds/intel` | risk: current recapture blocked, historical screenshot exists | open/no-white-screen evidence after endpoint restore |
-| P0 | `pages/builds/talent-simulator` | risk: current recapture blocked after root layout source fix, historical screenshot exists | single-page route probe + real screenshot after endpoint restore |
-| P0 | `pages/builds/detail` | risk: current recapture blocked, historical screenshot exists | single-page route probe + real screenshot after endpoint restore |
-| P0 | `pages/simulator/simulator` | risk: current recapture blocked, historical screenshot exists | single-page route probe + real screenshot after endpoint restore |
-| P0 | `pages/simulator/simc` | risk: current recapture blocked, historical screenshot exists | single-page route probe + real screenshot after endpoint restore |
-| P1 | `pages/simulator/chickenbro` | risk: current recapture blocked, historical screenshot exists | real screenshot or route/open risk record after endpoint restore |
-| P1 | `pages/simulator/tasks` | risk: current recapture blocked, historical screenshot exists | real screenshot or route/open risk record after endpoint restore |
-| P1 | `pages/simulator/task-detail` | risk: current recapture blocked, historical screenshot exists | real screenshot or route/open risk record after endpoint restore |
-| P0 | `pages/profile/profile` | risk: current recapture blocked, historical screenshot exists | single-page route probe + real screenshot after endpoint restore |
+| P0 | `pages/news/news` | pass: automated route+screenshot proof exists | optional repeat on another device size |
+| P1 | `pages/news/list` | pass: automated route+screenshot proof exists; visual first viewport passes | optional repeat on another device size |
+| P1 | `pages/news/detail` | pass: automated route+screenshot proof exists; visual first viewport passes | optional repeat on another device size |
+| P0 | `pages/builds/builds` | pass: automated route+screenshot proof exists; visual first viewport passes | optional repeat on another device size |
+| P0 | `pages/builds/workbench` | pass: automated route+screenshot proof exists; visual first viewport passes | optional repeat on another device size |
+| P2 | `pages/builds/intel` | pass: automated route+screenshot proof exists; visual first viewport passes | optional repeat on another device size |
+| P0 | `pages/builds/talent-simulator` | pass: automated route+screenshot proof exists; visual first viewport passes | optional repeat on another device size |
+| P0 | `pages/builds/detail` | pass: automated route+screenshot proof exists; visual first viewport passes after non-overlapping action layout fix | optional repeat on another device size |
+| P0 | `pages/simulator/simulator` | pass: automated route+screenshot proof exists; visual first viewport passes | optional repeat on another device size |
+| P0 | `pages/simulator/simc` | pass: automated route+screenshot proof exists; visual first viewport passes | optional repeat on another device size |
+| P1 | `pages/simulator/chickenbro` | pass: automated route+screenshot proof exists; visual first viewport passes | optional repeat on another device size |
+| P1 | `pages/simulator/tasks` | pass: automated route+screenshot proof exists; visual first viewport passes | optional repeat on another device size |
+| P1 | `pages/simulator/task-detail` | pass: automated route+screenshot proof exists; direct-open empty state is readable | optional valid task-id detail proof |
+| P0 | `pages/profile/profile` | pass: automated route+screenshot proof exists; visual first viewport passes | optional repeat on another device size |
 
 ## Safe Next Step
 
-1. User manually compiles/restores the existing DevTools runtime, then run the read-only endpoint probe.
-2. If a ready endpoint appears, run only one P0 route probe + screenshot first, preferably `pages/builds/workbench` to verify the enum status icon or `pages/news/news` to verify the homepage/tabBar.
-3. Or user explicitly authorizes switching/opening a clean shadow runtime project. Shadow dry-run previously reported many pending changes and correctly blocked hot sync while DevTools was running.
-4. Do not run 14-page batch first. Replace risk records one page at a time with current screenshot evidence.
+1. Keep this accepted 14-page runtime evidence as the baseline for future UI requests.
+2. Treat future UI changes as separate requirements with their own plan, screenshot matrix, and verification gate.
+3. Prepare commit or handoff package for the current accepted baseline if requested.

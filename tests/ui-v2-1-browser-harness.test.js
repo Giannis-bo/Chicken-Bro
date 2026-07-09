@@ -51,16 +51,19 @@ test('P0 route smoke requires explicit opt-in and stays route-only', () => {
   assert.doesNotMatch(source, /\.screenshot\(/)
 })
 
-test('current runtime manifest tracks all app routes without claiming final acceptance', () => {
+test('current runtime manifest tracks all app routes with accepted final baseline', () => {
   const appConfig = readJson('app.json')
   const manifest = readJson(`${artifactRoot}/manifest.json`)
   const finalAudit = readJson(`${artifactRoot}/final-delivery-audit.json`)
   const manifestPaths = finalAudit.pages.map((page) => page.path)
 
-  assert.equal(manifest.runtimeVerified, false)
-  assert.equal(manifest.finalAccepted, false)
-  assert.equal(finalAudit.runtimeVerified, false)
-  assert.equal(finalAudit.finalAccepted, false)
+  assert.equal(manifest.runtimeVerified, true)
+  assert.equal(manifest.finalAccepted, true)
+  assert.equal(finalAudit.runtimeVerified, true)
+  assert.equal(finalAudit.finalAccepted, true)
+  assert.match(finalAudit.finalAcceptanceSource, /future_ui_adjustments_as_separate_requests/)
+  assert.equal(finalAudit.totals.currentRuntimeScreenshotCount, appConfig.pages.length)
+  assert.equal(finalAudit.totals.riskCount, 0)
   assert.equal(finalAudit.totals.pageCount, appConfig.pages.length)
   assert.deepEqual(manifestPaths, appConfig.pages)
 })

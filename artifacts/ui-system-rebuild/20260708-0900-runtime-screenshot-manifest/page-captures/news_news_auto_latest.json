@@ -1,0 +1,30 @@
+{
+  "status": "auto_route_and_screenshot_passed",
+  "startedAt": "2026-07-09T06:02:29.223Z",
+  "finishedAt": "2026-07-09T06:02:30.948Z",
+  "wsEndpoint": "ws://127.0.0.1:9854",
+  "automatorPort": 9854,
+  "toolInfo": {
+    "version": "2.01.2510290",
+    "SDKVersion": "3.14.2"
+  },
+  "path": "pages/news/news",
+  "targetUrl": "/pages/news/news",
+  "navigation": {
+    "result": {
+      "errMsg": "switchTab:ok"
+    }
+  },
+  "currentPage": {
+    "pageId": 1,
+    "path": "pages/news/news",
+    "query": {}
+  },
+  "routeMatches": true,
+  "screenshot": "/Users/boyuan/Documents/wow_mini_program/artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_news_auto_20260709T060230Z.png",
+  "screenshotInfo": {
+    "bytes": 857200,
+    "dataLength": 1142936
+  },
+  "forbiddenActionsUsed": []
+}
