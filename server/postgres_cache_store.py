@@ -5281,10 +5281,7 @@ class PostgresCacheStore:
                         """
                     )
                     row = cur.fetchone()
-        return {
-            "classKey": row[0] if row else "mage",
-            "specKey": row[1] if row else "arcane",
-        }
+        return pg_gear_read_model_selectors.build_websim_default_selection_read_model(row)
 
     def get_websim_bootstrap(self):
         season = self.get_active_season_payload()
