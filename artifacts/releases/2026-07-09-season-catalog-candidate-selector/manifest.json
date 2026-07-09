@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-09T12:01:23.954Z",
+  "generatedAt": "2026-07-09T12:03:46.939Z",
   "release": {
     "date": "2026-07-09",
     "slug": "season-catalog-candidate-selector"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 350124
+          "sizeBytes": 350194
         },
         {
           "path": "docs/README.md",
@@ -217,7 +217,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-09-season-catalog-candidate-selector/evidence.json",
-    "sizeBytes": 7741,
+    "sizeBytes": 7973,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",

@@ -113,6 +113,14 @@
       }
     }
   },
+  "merge": {
+    "status": "merged",
+    "pullRequest": 24,
+    "mergedAt": "2026-07-09T12:01:56Z",
+    "method": "rebase",
+    "mainCommit": "796c147875482908b471b1799367c0865a007205",
+    "mainTreeMatchesCandidateTree": true
+  },
   "risks": [
     {
       "id": "local_verification_complete",
