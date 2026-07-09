@@ -4,6 +4,81 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_admin_gear_variant_records_read_model_maps_variant_rows(self):
+        from server.pg_gear_read_model_selectors import build_admin_gear_variant_records_read_model
+
+        rows = [
+            (
+                501,
+                "item-501",
+                "Observed Blade",
+                "main_hand",
+                "Mythic 710",
+                "raid",
+                "mythic",
+                "710",
+                '{"bonus_id": "123", "gem_id": 213743}',
+                "verified",
+                '["missing_stats", ""]',
+                '{"variantEvidence": {"source": "admin"}}',
+                '{"displayName": "Observed Blade", "inventory_type": {"type": "weapon"}}',
+                "Liberation of Undermine",
+                "instance-11",
+                "2026-07-09T12:34:56Z",
+            ),
+            (
+                None,
+                None,
+                None,
+                "",
+                "",
+                "",
+                "",
+                "not-a-number",
+                "{bad json",
+                "",
+                "{bad json",
+                "{bad json",
+                "{bad json",
+                None,
+                None,
+                None,
+            ),
+        ]
+
+        records = build_admin_gear_variant_records_read_model(rows)
+
+        self.assertEqual(
+            records[0],
+            {
+                "id": "501",
+                "itemId": "item-501",
+                "itemName": "Observed Blade",
+                "slot": "main_hand",
+                "label": "Mythic 710",
+                "sourceType": "raid",
+                "difficultyKey": "mythic",
+                "itemLevel": 710,
+                "simcOptions": {"bonus_id": "123", "gem_id": 213743},
+                "status": "verified",
+                "blockers": ["missing_stats", ""],
+                "payload": {"variantEvidence": {"source": "admin"}},
+                "itemPayload": {"displayName": "Observed Blade", "inventory_type": {"type": "weapon"}},
+                "sourceLabel": "Liberation of Undermine",
+                "sourceInstanceId": "instance-11",
+                "updatedAt": "2026-07-09T12:34:56Z",
+            },
+        )
+        self.assertEqual(records[1]["id"], "")
+        self.assertEqual(records[1]["itemId"], "")
+        self.assertEqual(records[1]["itemLevel"], 0)
+        self.assertEqual(records[1]["simcOptions"], {})
+        self.assertEqual(records[1]["blockers"], [])
+        self.assertEqual(records[1]["payload"], {})
+        self.assertEqual(records[1]["itemPayload"], {})
+        self.assertEqual(records[1]["sourceLabel"], "")
+        self.assertEqual(records[1]["updatedAt"], "")
+
     def test_build_gear_mod_options_by_type_read_model_groups_option_types(self):
         from server.pg_gear_read_model_selectors import build_gear_mod_options_by_type_read_model
 
