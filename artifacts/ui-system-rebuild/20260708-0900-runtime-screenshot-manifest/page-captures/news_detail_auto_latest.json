@@ -1,0 +1,35 @@
+{
+  "status": "auto_route_and_screenshot_passed",
+  "startedAt": "2026-07-09T05:33:31.012Z",
+  "finishedAt": "2026-07-09T05:33:34.284Z",
+  "wsEndpoint": "ws://127.0.0.1:9854",
+  "automatorPort": 9854,
+  "toolInfo": {
+    "version": "2.01.2510290",
+    "SDKVersion": "3.14.2"
+  },
+  "path": "pages/news/detail",
+  "targetUrl": "/pages/news/detail?id=blizzard-midnight-revelations-2026-06-03",
+  "navigation": {
+    "result": {
+      "errMsg": "navigateTo:ok",
+      "eventChannel": {
+        "listener": {}
+      }
+    }
+  },
+  "currentPage": {
+    "pageId": 11,
+    "path": "pages/news/detail",
+    "query": {
+      "id": "blizzard-midnight-revelations-2026-06-03"
+    }
+  },
+  "routeMatches": true,
+  "screenshot": "/Users/boyuan/Documents/wow_mini_program/artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_detail_auto_20260709T053334Z.png",
+  "screenshotInfo": {
+    "bytes": 802629,
+    "dataLength": 1070172
+  },
+  "forbiddenActionsUsed": []
+}

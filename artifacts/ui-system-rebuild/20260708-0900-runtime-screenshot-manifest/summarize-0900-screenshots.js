@@ -8,6 +8,26 @@ const repoRoot = path.resolve(artifactDir, '../../..')
 const screenshotDir = path.join(artifactDir, 'page-captures')
 const appJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'app.json'), 'utf8'))
 const minValidScreenshotBytes = 30000
+let currentManifestCache
+
+function currentDeliveryManifest() {
+  if (currentManifestCache !== undefined) return currentManifestCache
+  const manifestPath = path.join(artifactDir, 'manifest.json')
+  if (!fs.existsSync(manifestPath)) {
+    currentManifestCache = null
+    return currentManifestCache
+  }
+  currentManifestCache = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  return currentManifestCache
+}
+
+function currentManifestAcceptance() {
+  const manifest = currentDeliveryManifest()
+  return {
+    finalAccepted: Boolean(manifest && manifest.finalAccepted),
+    runtimeVerified: Boolean(manifest && manifest.runtimeVerified)
+  }
+}
 
 const pageMeta = new Map([
   ['pages/news/news', { tier: 'P0', displayName: '首页资讯' }],
@@ -66,7 +86,14 @@ function localIso(date) {
 
 function pageSummary(pagePath) {
   const meta = pageMeta.get(pagePath) || { tier: 'P2', displayName: pagePath }
-  const screenshotPath = path.join(screenshotDir, screenshotFileName(pagePath))
+  const manifest = currentDeliveryManifest()
+  const currentEvidence = manifest && manifest.automatedRuntimeEvidence && Array.isArray(manifest.automatedRuntimeEvidence.items)
+    ? manifest.automatedRuntimeEvidence.items.find((item) => item.path === pagePath)
+    : null
+  const evidenceScreenshot = currentEvidence && currentEvidence.screenshot
+  const screenshotPath = evidenceScreenshot
+    ? (path.isAbsolute(evidenceScreenshot) ? evidenceScreenshot : path.join(repoRoot, evidenceScreenshot))
+    : path.join(screenshotDir, screenshotFileName(pagePath))
   const screenshotExists = fs.existsSync(screenshotPath)
   const screenshotBytes = screenshotExists ? fs.statSync(screenshotPath).size : 0
   const screenshotValid = screenshotExists && screenshotBytes >= minValidScreenshotBytes
@@ -82,7 +109,7 @@ function pageSummary(pagePath) {
     routeEvidence: hasRouteWarning
       ? 'single_page_capture_route_matched_with_callback_warning'
       : 'single_page_capture_route_matched',
-    visualStatus: screenshotValid ? 'needs_human_visual_review_not_white_screen' : 'risk_missing_runtime_screenshot',
+    visualStatus: screenshotValid ? (currentEvidence && currentEvidence.visualStatus) || 'needs_human_visual_review_not_white_screen' : 'risk_missing_runtime_screenshot',
     notes: hasRouteWarning
       ? 'Single-page capture reached the intended route and produced a valid screenshot, but navigation callback warning remains.'
       : 'Single-page capture reached the intended route and produced a valid screenshot.'
@@ -91,6 +118,7 @@ function pageSummary(pagePath) {
 
 function buildSummary() {
   const checkedAt = new Date()
+  const acceptance = currentManifestAcceptance()
   const pages = appJson.pages.map(pageSummary)
   const missingKnownMeta = appJson.pages.filter((pagePath) => !pageMeta.has(pagePath))
   const validScreenshotCount = pages.filter((item) => item.screenshotEvidence === 'valid_file_sanity_pass').length
@@ -111,8 +139,8 @@ function buildSummary() {
     localCheckedAt: localIso(checkedAt),
     sourceOfTruth: 'docs/plans/2026-07-08-wow-mini-program-0900-ui-delivery-goal.md',
     captureRule: 'Use single-page capture as evidence. Multi-page serial capture is unreliable and can overwrite screenshots with white frames.',
-    finalAccepted: false,
-    runtimeVerified: 'partial_screenshot_evidence_only',
+    finalAccepted: acceptance.finalAccepted,
+    runtimeVerified: acceptance.runtimeVerified,
     devtools: {
       automatorPort: 9854,
       forbiddenActionsUsed: [],

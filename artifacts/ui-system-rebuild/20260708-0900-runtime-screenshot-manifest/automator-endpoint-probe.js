@@ -3,7 +3,6 @@
 const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
-const { connectMiniProgram } = require('../../ui-v2-1-strict-restoration/connect-miniprogram-automator')
 
 const artifactDir = __dirname
 const preferredPorts = [
@@ -42,15 +41,73 @@ function listeningWechatPorts() {
   return { ports: withUnique(ports), records }
 }
 
+function withTimeout(promise, ms, label) {
+  let timer
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+}
+
+function safeClose(socket) {
+  try {
+    socket.close()
+  } catch (error) {
+    // Ignore close failures in a read-only probe.
+  }
+}
+
+async function readToolInfo(wsEndpoint, timeoutMs) {
+  return withTimeout(new Promise((resolve, reject) => {
+    const socket = new WebSocket(wsEndpoint)
+    const requestId = 1
+    let settled = false
+    const finish = (fn, value) => {
+      if (settled) return
+      settled = true
+      safeClose(socket)
+      fn(value)
+    }
+    socket.addEventListener('open', () => {
+      socket.send(JSON.stringify({
+        id: requestId,
+        method: 'Tool.getInfo',
+        params: {}
+      }))
+    })
+    socket.addEventListener('message', (event) => {
+      let message
+      try {
+        const raw = typeof event.data === 'string'
+          ? event.data
+          : Buffer.from(event.data).toString('utf8')
+        message = JSON.parse(raw)
+      } catch (error) {
+        finish(reject, new Error(`invalid Tool.getInfo response: ${error.message}`))
+        return
+      }
+      if (message.id !== requestId) return
+      if (message.error) {
+        finish(reject, new Error(message.error.message || JSON.stringify(message.error)))
+        return
+      }
+      finish(resolve, message.result || message)
+    })
+    socket.addEventListener('error', (event) => {
+      finish(reject, new Error(event && event.message ? event.message : 'websocket error'))
+    })
+    socket.addEventListener('close', () => {
+      if (!settled) finish(reject, new Error('websocket closed before Tool.getInfo response'))
+    })
+  }), timeoutMs, `Tool.getInfo ${wsEndpoint}`)
+}
+
 async function probePort(port) {
   const wsEndpoint = `ws://127.0.0.1:${port}`
   const startedAt = new Date().toISOString()
   try {
-    const { mini, toolInfo, hasRuntimeSdk } = await connectMiniProgram(wsEndpoint, {
-      timeoutMs: 900,
-      toolInfoTimeoutMs: 1200
-    })
-    mini.disconnect()
+    const toolInfo = await readToolInfo(wsEndpoint, 1200)
+    const hasRuntimeSdk = !!(toolInfo && (toolInfo.SDKVersion || toolInfo.sdkVersion || toolInfo.version))
     return {
       port,
       wsEndpoint,

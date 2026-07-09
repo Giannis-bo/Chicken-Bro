@@ -12,6 +12,7 @@
 | 产品方向、里程碑和状态 | [roadmap.md](roadmap.md) | 长期控制台；功能落地后在这里更新状态和证据。 |
 | 还没进入正式里程碑的想法 | [roadmap/ideas.md](roadmap/ideas.md) | 想法池和已采纳索引。 |
 | 文档结构、历史计划落点 | [plans/README.md](plans/README.md) | 记录 `docs/plans/` 每份历史计划现在对应的真实入口。 |
+| 需求挑战、方案门禁和交付 Harness | [harness.md](harness.md) | 所有需求进入实现前的分级、质疑、用户确认和证据晋级规则。 |
 | 职业专精、天赋、装备、SimC 入口 | [builds-architecture.md](builds-architecture.md) | 职业专精 tab 的产品和前后端架构。 |
 | PostgreSQL-only 运行时、schema 域、数据归属 | [database-architecture.md](database-architecture.md) | 当前数据库契约。 |
 | 装备库治理 | [gear-database-governance.md](gear-database-governance.md) | 物品、变体、宝石、附魔、美化和 health 的可信规则。 |

@@ -1,0 +1,33 @@
+{
+  "status": "auto_route_and_screenshot_passed",
+  "startedAt": "2026-07-09T05:33:44.829Z",
+  "finishedAt": "2026-07-09T05:33:48.221Z",
+  "wsEndpoint": "ws://127.0.0.1:9854",
+  "automatorPort": 9854,
+  "toolInfo": {
+    "version": "2.01.2510290",
+    "SDKVersion": "3.14.2"
+  },
+  "path": "pages/builds/intel",
+  "targetUrl": "/pages/builds/intel",
+  "navigation": {
+    "result": {
+      "errMsg": "navigateTo:ok",
+      "eventChannel": {
+        "listener": {}
+      }
+    }
+  },
+  "currentPage": {
+    "pageId": 12,
+    "path": "pages/builds/intel",
+    "query": {}
+  },
+  "routeMatches": true,
+  "screenshot": "/Users/boyuan/Documents/wow_mini_program/artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_intel_auto_20260709T053348Z.png",
+  "screenshotInfo": {
+    "bytes": 508615,
+    "dataLength": 678156
+  },
+  "forbiddenActionsUsed": []
+}

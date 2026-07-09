@@ -1,19 +1,19 @@
 {
-  "status": "devtools_action_ledger_real_device_source_size_fix_static_verified",
-  "captureSafe": false,
-  "checkedAt": "2026-07-08T06:52:28Z",
+  "status": "devtools_action_ledger_20260709_explicit_auto_port_14_page_auto_proof_0_screenshot_timeouts",
+  "captureSafe": true,
+  "checkedAt": "2026-07-09T06:07:03Z",
   "captureRunner": "artifacts/ui-v2-1-strict-restoration/devtools-health-check.js",
   "healthCheckPath": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/devtools-health/devtools-health-1783452442127.json",
   "devtools": {
     "appPath": "/Applications/wechatwebdevtools.app",
-    "port": "38967",
+    "port": "30412",
     "appidState": "not_probed_to_avoid_login_side_effects",
     "mainInstanceCount": 1,
     "visibleWindowCount": 0,
-    "automatorConnected": false,
-    "automatorPort": null,
+    "automatorConnected": true,
+    "automatorPort": 9854,
     "screenshotRpcHealthy": true,
-    "healthCategory": "no_ready_automator_endpoint_latest_probe_after_channel_icon_source_fix"
+    "healthCategory": "current_project_hidden_auto_port_9854_ready_12_auto_route_screenshot_proofs_12_visual_pass_2_screenshot_timeouts"
   },
   "forbiddenActionCheck": {
     "status": "pass",
@@ -21,7 +21,162 @@
   },
   "sceneList": [],
   "failedScenes": [],
-  "screenshotPathList": [],
+  "screenshotPathList": [
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_news_auto_20260709T031806Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_list_auto_20260709T053302Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_detail_auto_20260709T053334Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_workbench_auto_20260709T051629Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_builds_auto_20260709T051856Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_intel_auto_20260709T053348Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_talent-simulator_auto_20260709T052151Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simulator_auto_20260709T052530Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simc_auto_20260709T052916Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_chickenbro_auto_20260709T053404Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_tasks_auto_20260709T053422Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/profile_profile_auto_20260709T053114Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_detail_auto_20260709T060642Z.png",
+    "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_task-detail_auto_20260709T060703Z.png"
+  ],
+  "automatedRuntimeEvidence": [
+    {
+      "path": "pages/news/news",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_news_auto_20260709T031806Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_news_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_news_home"
+    },
+    {
+      "path": "pages/news/list",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_list_auto_20260709T053302Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_list_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_news_list_first_viewport"
+    },
+    {
+      "path": "pages/news/detail",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_detail_auto_20260709T053334Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_detail_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_news_detail_first_viewport"
+    },
+    {
+      "path": "pages/builds/builds",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_builds_auto_20260709T051856Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_builds_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_builds_home_first_viewport"
+    },
+    {
+      "path": "pages/builds/workbench",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_workbench_auto_20260709T051629Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_workbench_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_workbench_first_viewport"
+    },
+    {
+      "path": "pages/builds/intel",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_intel_auto_20260709T053348Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_intel_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_builds_intel_first_viewport"
+    },
+    {
+      "path": "pages/builds/talent-simulator",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_talent-simulator_auto_20260709T052151Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_talent-simulator_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_talent_simulator_first_viewport"
+    },
+    {
+      "path": "pages/builds/detail",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_detail_auto_20260709T060642Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_detail_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_gear_detail_first_viewport_no_sticky_overlap"
+    },
+    {
+      "path": "pages/simulator/simulator",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simulator_auto_20260709T052530Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simulator_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_smart_analysis_chat_first_viewport"
+    },
+    {
+      "path": "pages/simulator/simc",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simc_auto_20260709T052916Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simc_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_simc_submission_first_viewport"
+    },
+    {
+      "path": "pages/simulator/chickenbro",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_chickenbro_auto_20260709T053404Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_chickenbro_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_chickenbro_first_viewport"
+    },
+    {
+      "path": "pages/simulator/tasks",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_tasks_auto_20260709T053422Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_tasks_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_tasks_empty_state_first_viewport"
+    },
+    {
+      "path": "pages/simulator/task-detail",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_task-detail_auto_20260709T060703Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_task-detail_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_task_detail_direct_open_empty_state"
+    },
+    {
+      "path": "pages/profile/profile",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/profile_profile_auto_20260709T053114Z.png",
+      "proofManifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/profile_profile_auto_latest.json",
+      "routeMatches": true,
+      "pixelWidth": 860,
+      "pixelHeight": 1864,
+      "visualStatus": "pass_for_visible_profile_first_viewport"
+    }
+  ],
+  "manualUserScreenshotEvidence": [
+    {
+      "path": "pages/news/news",
+      "source": "user_provided_after_manual_compile",
+      "receivedAt": "2026-07-09T03:00:56.327Z",
+      "deviceClockVisible": "10:59",
+      "screenshot": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_news_manual_20260709_after_compile.png",
+      "pixelWidth": 682,
+      "pixelHeight": 1458,
+      "boundary": "manual visual evidence only; not an automated screenshotPathList capture"
+    }
+  ],
   "routeActionList": [
     {
       "action": "health_probe_only_no_login_no_open_no_close_no_cache_no_project_switch",
@@ -270,9 +425,186 @@
       "command": "project.config.json packOptions ignore assets/generated/**, scripts/**, server/*.py, server/**/*.sql, server/**/*.json; compress assets/user/intel-command-icon.png to 128px; estimate source package by applying packOptions.ignore",
       "guard": "source_and_pack_config_only_no_devtools_navigation_no_screenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch",
       "result": "estimated_included_total_1348_9KB_1_32MB_below_2MB_limit_runtime_js_fallback_server_modules_retained"
+    },
+    {
+      "action": "readonly_cli_islogin_after_user_requested_evidence_loop",
+      "command": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli islogin",
+      "guard": "readonly_cli_status_no_navigation_no_screenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch",
+      "result": "success_ide_server_30412_login_true"
+    },
+    {
+      "action": "single_cli_auto_attempt_without_project_after_user_requested_evidence_loop",
+      "command": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli auto --port 30412",
+      "guard": "one_attempt_only_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_navigation_no_screenshot",
+      "result": "failed_project_path_or_appid_required_no_lifecycle_change"
+    },
+    {
+      "action": "single_cli_auto_current_project_after_user_requested_evidence_loop",
+      "command": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli auto --project /Users/boyuan/Documents/wow_mini_program --port 30412",
+      "guard": "current_project_only_one_attempt_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_loop_no_navigation_no_screenshot",
+      "result": "success_auto_enabled_real_appid_wx17543b6fc4305479"
+    },
+    {
+      "action": "readonly_endpoint_probe_after_current_project_cli_auto",
+      "command": "node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/automator-endpoint-probe.js",
+      "guard": "endpoint_probe_only_no_navigation_no_screenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch",
+      "result": "risk_automator_endpoint_probe_no_ready_endpoint_probed_8_ports_recommendedAutomatorPort_null",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/automator-endpoint-probe.json"
+    },
+    {
+      "action": "user_manual_compile_and_news_screenshot_supplied",
+      "command": "user clicked Compile in the already-open WeChat DevTools project and supplied a PNG screenshot",
+      "guard": "manual_user_action; agent used no navigation, no automated screenshot, no close, no restart, no cache clear, no appid switch, no project switch loop",
+      "result": "manual_visual_evidence_pages_news_news_682x1458_saved_to_page_captures_news_news_manual_20260709_after_compile_png",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/manifest.json"
+    },
+    {
+      "action": "readonly_endpoint_probe_after_user_manual_compile",
+      "command": "node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/automator-endpoint-probe.js",
+      "guard": "endpoint_probe_only_no_navigation_no_screenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch",
+      "result": "risk_automator_endpoint_probe_no_ready_endpoint_attempted_8_endpoints_9854_plus_7_listening_ports_recommendedAutomatorPort_null",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/automator-endpoint-probe.json"
+    },
+    {
+      "action": "current_project_cli_auto_explicit_hidden_auto_port_9854",
+      "command": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli auto --project /Users/boyuan/Documents/wow_mini_program --port 30412 --auto-port 9854 --trust-project --lang zh",
+      "guard": "current_project_only_one_attempt_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_loop_no_navigation_no_screenshot",
+      "result": "success_auto_enabled_real_appid_wx17543b6fc4305479_and_9854_listening"
+    },
+    {
+      "action": "readonly_endpoint_probe_after_explicit_auto_port_9854",
+      "command": "node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/automator-endpoint-probe.js",
+      "guard": "endpoint_probe_only_no_navigation_no_screenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch",
+      "result": "automator_endpoint_probe_found_ready_endpoint_probed_10_ports_recommendedAutomatorPort_9854",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/automator-endpoint-probe.json"
+    },
+    {
+      "action": "single_page_news_auto_route_screenshot_after_endpoint_restore",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/news/news node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_switchTab_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_switchTab_ok_currentPage_pages_news_news_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_news_auto_latest.json"
+    },
+    {
+      "action": "readonly_endpoint_probe_before_workbench_auto_proof",
+      "command": "node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/automator-endpoint-probe.js",
+      "guard": "endpoint_probe_only_no_navigation_no_screenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch",
+      "result": "automator_endpoint_probe_found_ready_endpoint_recommendedAutomatorPort_9854"
+    },
+    {
+      "action": "single_page_workbench_auto_route_screenshot_after_phase0_scope",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/builds/workbench node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_navigateTo_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_builds_workbench_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_workbench_auto_latest.json"
+    },
+    {
+      "action": "single_page_builds_home_auto_route_screenshot_after_workbench_proof",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/builds/builds node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_switchTab_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_builds_builds_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_builds_auto_latest.json"
+    },
+    {
+      "action": "single_page_talent_simulator_auto_route_screenshot_after_builds_home_proof",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/builds/talent-simulator node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_navigateTo_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_builds_talent_simulator_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_talent-simulator_auto_latest.json"
+    },
+    {
+      "action": "single_page_gear_detail_auto_route_screenshot_after_talent_proof",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/builds/detail node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_navigateTo_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_builds_detail_screenshot_860x1864_visual_risk_fixed_bottom_action_clipped",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_detail_auto_latest.json"
+    },
+    {
+      "action": "single_page_smart_analysis_auto_route_screenshot_after_gear_detail_risk",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/simulator/simulator node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_switchTab_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_simulator_simulator_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simulator_auto_latest.json"
+    },
+    {
+      "action": "single_page_simc_auto_route_screenshot_after_smart_analysis_proof",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/simulator/simc node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_navigateTo_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_simulator_simc_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simc_auto_latest.json"
+    },
+    {
+      "action": "single_page_profile_auto_route_screenshot_after_simc_proof",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/profile/profile node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_switchTab_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_profile_profile_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/profile_profile_auto_latest.json"
+    },
+    {
+      "action": "single_page_news_list_auto_route_screenshot_after_p0_proof",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/news/list node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_navigateTo_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_news_list_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_list_auto_latest.json"
+    },
+    {
+      "action": "single_page_news_detail_auto_route_screenshot_after_news_list_proof",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/news/detail node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_navigateTo_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_news_detail_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_detail_auto_latest.json"
+    },
+    {
+      "action": "single_page_builds_intel_auto_route_screenshot_after_news_detail_proof",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/builds/intel node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_navigateTo_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_builds_intel_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_intel_auto_latest.json"
+    },
+    {
+      "action": "single_page_chickenbro_auto_route_screenshot_after_builds_intel_proof",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/simulator/chickenbro node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_navigateTo_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_simulator_chickenbro_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_chickenbro_auto_latest.json"
+    },
+    {
+      "action": "single_page_tasks_auto_route_screenshot_after_chickenbro_proof",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/simulator/tasks node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_navigateTo_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_simulator_tasks_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_tasks_auto_latest.json"
+    },
+    {
+      "action": "single_page_task_detail_route_matched_but_screenshot_timeout",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/simulator/task-detail node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js; readonly App.getCurrentPage; current-page App.captureScreenshot",
+      "guard": "single_page_only_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch_stop_after_screenshot_timeout",
+      "result": "risk_currentPage_pages_simulator_task_detail_matched_but_App_captureScreenshot_timed_out_after_12000ms",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_task-detail_auto_latest.json"
+    },
+    {
+      "action": "single_page_builds_detail_after_action_bar_fix_route_matched_but_screenshot_timeout",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/builds/detail node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js; readonly App.getCurrentPage; current-page App.captureScreenshot",
+      "guard": "single_page_only_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch_stop_after_screenshot_timeout",
+      "result": "risk_currentPage_pages_builds_detail_matched_after_action_bar_fix_but_App_captureScreenshot_timed_out_after_12000ms",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_detail_auto_latest.json"
+    },
+    {
+      "action": "single_page_builds_detail_after_non_overlapping_action_layout_recapture",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/builds/detail WOW_0900_ROUTE_SETTLE_MS=2500 WOW_0900_CAPTURE_TIMEOUT_MS=30000 node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_navigateTo_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_builds_detail_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_detail_auto_latest.json"
+    },
+    {
+      "action": "single_page_task_detail_recapture_with_extended_screenshot_timeout",
+      "command": "WECHAT_AUTOMATOR_PORT=9854 WOW_0900_PROOF_PAGE=pages/simulator/task-detail WOW_0900_ROUTE_SETTLE_MS=2500 WOW_0900_CAPTURE_TIMEOUT_MS=30000 node artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+      "guard": "single_page_only_navigateTo_getCurrentPage_captureScreenshot_no_close_no_restart_no_cache_no_appid_switch_no_project_switch_no_14_page_batch",
+      "result": "auto_route_and_screenshot_passed_currentPage_pages_simulator_task_detail_screenshot_860x1864",
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_task-detail_auto_latest.json"
     }
   ],
-  "loginStateIncidentNote": "No login-affecting probe was run in the latest rescue attempts. The current blocker is DevTools/runtime verification instability: App.captureScreenshot timed out for workbench, OS window capture returned blank pixels, and a single internal wx.navigateTo probe timed out. No close/restart/cache/appid/project-switch action was used.",
+  "loginStateIncidentNote": "2026-07-09 follow-up: cli islogin reported login=true and IDE server 30412. Plain current-project cli auto succeeded but did not expose a ready endpoint. One current-project cli auto --auto-port 9854 succeeded with real appid wx17543b6fc4305479; the subsequent endpoint probe found recommendedAutomatorPort=9854. Twelve current one-page route+screenshot proofs have now been collected and visually pass. pages/builds/detail and pages/simulator/task-detail route matched, but App.captureScreenshot timed out, so both remain current visual-proof risks. No close, restart, cache, appid switch, project switch loop, or 14-page batch was used.",
   "latestSourceSideFix": {
     "checkedAt": "2026-07-08T06:52:28Z",
     "files": [
@@ -286,5 +618,6 @@
     "summary": "Real-device debug failed with WeChat error 80051 because source size was 4647KB above the 2MB limit. Rescue package config now excludes generated design/runtime material assets from source packages, excludes scripts and non-client server Python/SQL/JSON, while retaining server JS fallback modules required by news/builds APIs. User-provided intel command icon is compressed to 128px / 31KB. Estimated package size after packOptions ignore is 1348.9KB / 1.32MB.",
     "verification": "node --test tests/project-config.test.js => 31/31 pass; combined guardrails including project-config => 227/227 pass; node --check focused fallback modules => pass; git diff --check focused package files => pass; no DevTools lifecycle action used"
   },
-  "localCheckedAt": "2026-07-08T14:52:28+08:00"
+  "localCheckedAt": "2026-07-09T13:46:41+08:00",
+  "runtimeRiskEvidence": []
 }

@@ -1,0 +1,44 @@
+{
+  "status": "auto_route_and_screenshot_passed",
+  "startedAt": "2026-07-09T06:06:38.458Z",
+  "finishedAt": "2026-07-09T06:06:42.848Z",
+  "wsEndpoint": "ws://127.0.0.1:9854",
+  "automatorPort": 9854,
+  "toolInfo": {
+    "version": "2.01.2510290",
+    "SDKVersion": "3.14.2"
+  },
+  "path": "pages/builds/detail",
+  "targetUrl": "/pages/builds/detail?query=gear&spec=%E6%B3%95%E5%B8%88-%E5%86%B0%E9%9C%9C",
+  "navigation": {
+    "result": {
+      "result": {
+        "errMsg": "navigateTo:ok",
+        "eventChannel": {
+          "listener": {}
+        }
+      }
+    },
+    "warnings": []
+  },
+  "currentPage": {
+    "pageId": 18,
+    "path": "pages/builds/detail",
+    "query": {
+      "query": "gear",
+      "spec": "%E6%B3%95%E5%B8%88-%E5%86%B0%E9%9C%9C"
+    }
+  },
+  "routeMatches": true,
+  "screenshot": "/Users/boyuan/Documents/wow_mini_program/artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_detail_auto_20260709T060642Z.png",
+  "screenshotInfo": {
+    "bytes": 447034,
+    "dataLength": 596048
+  },
+  "timeouts": {
+    "routeSettleMs": 2500,
+    "wxCallTimeoutMs": 6000,
+    "captureTimeoutMs": 30000
+  },
+  "forbiddenActionsUsed": []
+}
