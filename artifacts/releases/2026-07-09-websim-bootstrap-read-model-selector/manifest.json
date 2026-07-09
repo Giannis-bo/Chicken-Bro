@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "project_harness_manifest_ready",
+  "status": "candidate_deployment_verified",
   "generatedAt": "2026-07-09T14:27:36Z",
   "release": {
     "date": "2026-07-09",
@@ -39,13 +39,16 @@
       "changeType": "read_only_websim_selector_extraction"
     },
     "candidateDeployment": {
-      "status": "pending",
+      "status": "passed",
       "requiredBeforeMergeForRuntimeChanges": true,
       "runtimeChangeSurfaces": [
         "backend_api",
         "pg_read_model",
         "websim_runtime"
-      ]
+      ],
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/38",
+      "branch": "codex/phase4-websim-bootstrap-read-model-selector",
+      "commit": "bca97d5a2574a067b2d8bfa474fef40ff6f4e13f"
     }
   },
   "evidenceFile": "artifacts/releases/2026-07-09-websim-bootstrap-read-model-selector/evidence.json"
