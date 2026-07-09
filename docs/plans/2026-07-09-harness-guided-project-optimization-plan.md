@@ -30,6 +30,8 @@
 
 2026-07-09 Phase 4 第八刀候选推进：继续拆 PG common gear read model 的只读公共 fragment，新增 `build_common_gear_read_model_fragment()`，把 initial 与 full/slot gear payload 共同使用的 `weaponRule`、`slots`、`readiness`、blocked `statSnapshot`、`maxLevel` 和顶层 `checkedAt` 组装从 `server/postgres_cache_store.py` 收敛到 `server/pg_gear_read_model_selectors.py`。本刀只移动只读 payload fragment 组装，不移动 PG SQL 读取、cache fingerprint、cache put、sync/write/backfill、template public selector、catalog state、initial baseline/equipped 或 full/slot candidate grouping 逻辑；公开 observed-only 入口不变。红测已证明缺 helper，最小实现后目标 tests 通过，完整本地验证、本地 CR 已通过。PR #17 branch 已按 Candidate Deployment Gate 完成候选热部署，公网 API、40-spec observed-only sweep、systemd/log/hash parity smoke 通过，已 rebase merge 到 `main@b0af412` 并同步到本地。
 
+2026-07-09 Phase 4 第九刀进行中：继续拆 PG full/slot gear read model 的只读 catalog output fragment，新增 `build_catalog_output_read_model_fragment()`，把从 `catalog_read_model` 派生的 `catalogItems` 120 条切片、非 compact `slotGroups`、`presets`、`candidateItems` 与 `candidateLegalityAudit` 输出从 `server/postgres_cache_store.py` 收敛到 `server/pg_gear_read_model_selectors.py`。本刀只移动只读 payload fragment 组装，不移动 PG SQL 读取、cache fingerprint、cache put、sync/write/backfill、template public selector、catalog candidate grouping、catalog state、common payload 或 initial baseline/equipped 逻辑；公开 observed-only 入口不变。红测已证明缺 helper，最小实现后目标 tests 通过，完整本地验证、本地 CR 已通过；PR、Candidate Deployment Gate 和合入仍待完成。
+
 本计划只定义整体优化顺序和验收门禁，不授权直接修改业务实现、不替代 roadmap、runbook 或当前 UI source-of-truth。
 
 ## Requirement Contract

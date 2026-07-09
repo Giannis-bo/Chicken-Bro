@@ -6508,7 +6508,6 @@ class PostgresCacheStore:
             compact=compact,
         )
         slot_groups = catalog_read_model["replacementCandidates"]
-        output_catalog_items = catalog_read_model["catalogItems"]
         readiness = catalog_read_model["readiness"]
         catalog_state_read_model = pg_gear_read_model_selectors.build_catalog_state_read_model_fragment(
             catalog_state,
@@ -6518,6 +6517,10 @@ class PostgresCacheStore:
             class_key,
             spec_key,
             readiness,
+        )
+        catalog_output_read_model = pg_gear_read_model_selectors.build_catalog_output_read_model_fragment(
+            catalog_read_model,
+            compact=compact,
         )
         payload = {
             "classKey": class_key,
@@ -6533,12 +6536,7 @@ class PostgresCacheStore:
             **catalog_state_read_model,
             **season_fields,
         }
-        if not compact:
-            payload["slotGroups"] = slot_groups
-            payload["presets"] = []
-            payload["candidateItems"] = []
-            payload["candidateLegalityAudit"] = catalog_read_model["candidateLegalityAudit"]
-        payload["catalogItems"] = output_catalog_items[:120]
+        payload.update(catalog_output_read_model)
         if payload.get("replacementCandidates") or payload.get("dataStatus") in {"stale", "blocked"}:
             _pg_gear_payload_cache_put(cache_fingerprint, payload)
         return payload
