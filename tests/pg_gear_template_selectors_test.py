@@ -204,6 +204,81 @@ class PgGearTemplateSelectorsTest(unittest.TestCase):
         self.assertEqual(template["readySlotCount"], 16)
         self.assertTrue(template["canApplyGear"])
 
+    def test_build_community_gear_templates_read_model_delegates_rows_to_dedupe(self):
+        from server.pg_gear_template_selectors import build_community_gear_templates_read_model
+
+        def make_row(template_id, item_id, updated_at):
+            payload = {
+                "sampleCount": 1,
+                "profileHash": f"profile:{template_id}",
+                "gearHash": f"gear:{template_id}",
+            }
+            return (
+                template_id,
+                "mage",
+                "frost",
+                f"Observed {template_id}",
+                "raiderio_observed_profile",
+                "Raider.IO observed profile",
+                f"https://raider.io/characters/cn/realm/{template_id}",
+                "synced",
+                "complete",
+                f"sig:{template_id}",
+                json.dumps([{"sourceKey": "raiderio", "sourceUrl": f"https://raider.io/characters/cn/realm/{template_id}"}]),
+                json.dumps([{"itemId": item_id, "slot": "head", "displayName": f"Sparse {template_id}"}]),
+                f"head=item_{item_id},id={item_id}",
+                16,
+                json.dumps([]),
+                "mplus",
+                json.dumps(payload),
+                updated_at,
+                "",
+                "scan-run-1",
+            )
+
+        official_metadata_by_id = {
+            "190001": {
+                "itemId": "190001",
+                "displayName": "Crown of the Violet Tower",
+                "slot": "head",
+                "metadataStatus": "verified",
+                "metadataSource": "Battle.net Game Data API",
+            },
+            "190002": {
+                "itemId": "190002",
+                "displayName": "Hood of the Violet Tower",
+                "slot": "head",
+                "metadataStatus": "verified",
+                "metadataSource": "Battle.net Game Data API",
+            },
+        }
+        repair_inputs = []
+        dedupe_inputs = []
+
+        def coverage_repair(template):
+            repair_inputs.append(template["id"])
+            return {**template, "repairMarker": True}
+
+        def dedupe_templates(templates):
+            dedupe_inputs.append([template["id"] for template in templates])
+            return [templates[-1]]
+
+        templates = build_community_gear_templates_read_model(
+            [
+                make_row("template-a", "190001", "2026-07-09T12:00:00+00:00"),
+                make_row("template-b", "190002", "2026-07-09T12:01:00+00:00"),
+            ],
+            official_metadata_by_id,
+            coverage_repair=coverage_repair,
+            dedupe_templates=dedupe_templates,
+        )
+
+        self.assertEqual(repair_inputs, ["template-a", "template-b"])
+        self.assertEqual(dedupe_inputs, [["template-a", "template-b"]])
+        self.assertEqual([template["id"] for template in templates], ["template-b"])
+        self.assertEqual(templates[0]["gearItems"][0]["displayName"], "Hood of the Violet Tower")
+        self.assertTrue(templates[0]["repairMarker"])
+
     def test_build_public_gear_template_read_model_compacts_payload_without_public_baseline(self):
         from server.pg_gear_template_selectors import build_public_gear_template_read_model
 

@@ -91,15 +91,18 @@ def _websim_payload_template_helpers():
     try:
         from .websim_payload import (
             COMMUNITY_TEMPLATE_REVISION,
+            dedupe_gear_community_templates,
             normalize_source_refs,
         )
     except ImportError:
         from websim_payload import (
             COMMUNITY_TEMPLATE_REVISION,
+            dedupe_gear_community_templates,
             normalize_source_refs,
         )
     return {
         "community_template_revision": COMMUNITY_TEMPLATE_REVISION,
+        "dedupe_templates": dedupe_gear_community_templates,
         "normalize_source_refs": normalize_source_refs,
     }
 
@@ -238,6 +241,37 @@ def build_community_gear_template_read_model(
         template = coverage_repair(template)
     template["canApplyGear"] = gear_public_contract.community_gear_template_can_apply(template)
     return template
+
+
+def build_community_gear_templates_read_model(
+    rows,
+    official_metadata_by_id=None,
+    *,
+    normalize_coverage=True,
+    coverage_repair=None,
+    template_builder=None,
+    dedupe_templates=None,
+):
+    helpers = None
+
+    def helper(name):
+        nonlocal helpers
+        if helpers is None:
+            helpers = _websim_payload_template_helpers()
+        return helpers[name]
+
+    template_builder = template_builder or build_community_gear_template_read_model
+    dedupe_templates = dedupe_templates or helper("dedupe_templates")
+    templates = [
+        template_builder(
+            row,
+            official_metadata_by_id or {},
+            normalize_coverage=normalize_coverage,
+            coverage_repair=coverage_repair,
+        )
+        for row in rows or []
+    ]
+    return dedupe_templates(templates)
 
 
 def select_public_gear_templates_for_spec(
