@@ -1,5 +1,5 @@
 {
-  "status": "candidate_deployment_passed",
+  "status": "merged",
   "highestEvidenceLevel": "live_verified",
   "scope": [
     "server/pg_gear_read_model_selectors.py",
@@ -190,6 +190,14 @@
       "detail": "Sync, write, backfill, cleanup, PG SQL write paths, payload cache writes, public selector policy, and recommended/season prototype paths are intentionally unchanged in this read-only selector split."
     }
   ],
+  "merge": {
+    "status": "merged",
+    "pullRequest": 32,
+    "mergedAt": "2026-07-09T13:35:08Z",
+    "method": "rebase",
+    "mainCommit": "cb228f607b5d4a7c3104eb471e8cd3d617095383",
+    "headEqualsOriginMainAfterSync": true
+  },
   "rollback": [
     "code_rollback",
     "resync_repair"
