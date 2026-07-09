@@ -1,6 +1,6 @@
 {
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "candidate_deployment_verified",
+  "highestEvidenceLevel": "live_verified",
   "scope": [
     "server/pg_gear_read_model_selectors.py",
     "server/postgres_cache_store.py",
@@ -66,11 +66,96 @@
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
+    "status": "passed",
     "requiredBeforeMerge": true,
+    "pullRequest": 17,
     "branch": "codex/phase4-pg-gear-common-read-model-fragment",
     "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
-    "asyncSyncStarted": false
+    "target": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "deployedAt": "2026-07-09T10:39:13Z",
+    "asyncSyncStarted": false,
+    "smoke": {
+      "http": {
+        "baseUrl": "http://124.223.51.33",
+        "endpoints": [
+          {
+            "path": "/health",
+            "status": 200,
+            "ok": true
+          },
+          {
+            "path": "/api/data/health",
+            "status": 200,
+            "overallStatus": "partial"
+          },
+          {
+            "path": "/api/websim/bootstrap",
+            "status": 200
+          },
+          {
+            "path": "/api/websim/assets",
+            "status": 200
+          },
+          {
+            "path": "/api/websim/talents?class=mage&spec=arcane",
+            "status": 200
+          },
+          {
+            "path": "/api/websim/gear?class=mage&spec=arcane&compact=1&mode=initial",
+            "status": 200,
+            "dataStatus": "verified",
+            "communityTemplates": 1,
+            "baselineTemplates": 0,
+            "canApplyGear": [
+              true
+            ]
+          },
+          {
+            "path": "/api/websim/gear?class=mage&spec=arcane&compact=1&mode=slot&slot=head",
+            "status": 200,
+            "dataStatus": "verified",
+            "communityTemplates": 1,
+            "baselineTemplates": 0,
+            "canApplyGear": [
+              true
+            ]
+          }
+        ]
+      },
+      "observedOnlyGearSweep": {
+        "checkedSpecs": 40,
+        "failures": 0,
+        "dataStatus": {
+          "verified": 40
+        },
+        "communityTemplates": {
+          "1": 40
+        },
+        "baselineTemplates": {
+          "0": 40
+        },
+        "sourceKeys": {
+          "raiderio_observed_profile": 40
+        },
+        "canApplyGear": {
+          "True": 40
+        }
+      },
+      "systemd": {
+        "backend": "active",
+        "nginx": "active",
+        "syncBackfillServices": "inactive/dead with Result=success and ExecMainStatus=0",
+        "timers": "loaded timers active/waiting; wow-recommended-bis-prototype-sync.timer is not installed because the prototype sync is manual"
+      },
+      "runtime": {
+        "WOW_DATABASE_RUNTIME": "postgres_only",
+        "recentLogs": "no Traceback/ERROR/SQLite fallback in wow-backend logs since 20 minutes ago",
+        "hashParity": {
+          "server/pg_gear_read_model_selectors.py": "acdedce4e32c8273ce238022601dcc0e3fb477426d40fed26dea482cbdffb21d",
+          "server/postgres_cache_store.py": "26f1842b38605d79d719a988fe11993333d1f46d8832dfea37ffbbc45f73d743"
+        }
+      }
+    }
   },
   "risks": [
     {
@@ -80,8 +165,8 @@
     },
     {
       "id": "candidate_deployment_pending",
-      "status": "open",
-      "detail": "This change touches PG read-model/runtime payload assembly and must pass Candidate Deployment Gate before merge."
+      "status": "resolved",
+      "detail": "PR #17 branch passed Candidate Deployment Gate before merge: deploy succeeded, API smoke and 40-spec observed-only sweep passed, systemd/log/runtime hash parity checks passed."
     },
     {
       "id": "write_paths_out_of_scope",
