@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "candidate_deployment_verified",
+  "status": "merged_to_main",
   "generatedAt": "2026-07-09T14:27:36Z",
   "release": {
     "date": "2026-07-09",
@@ -49,6 +49,12 @@
       "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/38",
       "branch": "codex/phase4-websim-bootstrap-read-model-selector",
       "commit": "bca97d5a2574a067b2d8bfa474fef40ff6f4e13f"
+    },
+    "merge": {
+      "status": "merged_to_main",
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/38",
+      "mergeCommit": "d70158bb0248c7603efced3e806d2603a94478fc",
+      "headEqualsOriginMain": true
     }
   },
   "evidenceFile": "artifacts/releases/2026-07-09-websim-bootstrap-read-model-selector/evidence.json"
