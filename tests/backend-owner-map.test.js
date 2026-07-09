@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_pg_catalog_read_model_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_pg_catalog_state_fragment_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -74,6 +74,14 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('tests/pg_gear_read_model_selectors_test.py')),
     'gear catalog read-model selectors should point at the helper module characterization test'
+  )
+  assert.ok(
+    gearCatalogReadModelSelectors.owns.includes('catalog state health and coverage envelope fragments'),
+    'gear catalog read-model selectors should own the catalog state envelope after the Phase 4 split'
+  )
+  assert.ok(
+    gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_catalog_state_read_model_fragment_exposes_health_and_coverage_envelope')),
+    'gear catalog read-model selectors should point at the catalog state envelope characterization test'
   )
   assert.ok(pgOwners.has('sync_state_repository'))
 })

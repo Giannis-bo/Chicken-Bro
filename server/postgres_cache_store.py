@@ -37,7 +37,6 @@ try:
         DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
         SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
         GEAR_CATALOG_REVISION,
-        GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
         ITEM_METADATA_SOURCE,
         TALENT_SCHEMA_REVISION,
@@ -51,7 +50,6 @@ try:
         candidate_legality_audit_payload,
         class_label,
         classes_payload,
-        compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
@@ -147,7 +145,6 @@ except ImportError:
         DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
         SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
         GEAR_CATALOG_REVISION,
-        GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
         ITEM_METADATA_SOURCE,
         TALENT_SCHEMA_REVISION,
@@ -161,7 +158,6 @@ except ImportError:
         candidate_legality_audit_payload,
         class_label,
         classes_payload,
-        compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
@@ -5955,6 +5951,10 @@ class PostgresCacheStore:
             )
         output_baseline_set = compact_gear_candidates(baseline_items, include_mod_options=False) if compact else baseline_items
         readiness = gear_readiness(baseline_items)
+        catalog_state_read_model = pg_gear_read_model_selectors.build_catalog_state_read_model_fragment(
+            catalog_state,
+            catalog_blockers,
+        )
         payload = {
             "classKey": class_key,
             "specKey": spec_key,
@@ -5976,23 +5976,7 @@ class PostgresCacheStore:
                 spec_key=spec_key,
                 gear_readiness_payload=readiness,
             ),
-            "gearSchemaRevision": GEAR_SCHEMA_REVISION,
-            "gearCatalogRevision": catalog_state.get("schemaRevision") or GEAR_CATALOG_REVISION,
-            "catalogStatus": catalog_state.get("status") or "blocked",
-            "catalogHealthSummary": compact_catalog_health_summary(catalog_state),
-            "catalogCoverage": {
-                "slotCoverage": catalog_state.get("slotCoverage") or {},
-                "sourceCoverage": catalog_state.get("sourceCoverage") or {},
-                "observedVariantCount": catalog_state.get("observedVariantCount") or 0,
-                "verifiedObservedVariantCount": catalog_state.get("verifiedObservedVariantCount") or 0,
-                "verifiedVariantCount": catalog_state.get("verifiedCount") or 0,
-                "partialVariantCount": catalog_state.get("partialCount") or 0,
-                "blockedVariantCount": catalog_state.get("blockedCount") or 0,
-            },
-            "itemDatabaseRevision": catalog_state.get("itemDatabaseRevision") or "",
-            "variantRevision": catalog_state.get("variantRevision") or "",
-            "catalogCheckedAt": catalog_state.get("checkedAt") or catalog_state.get("updatedAt") or "",
-            "catalogBlockers": catalog_blockers,
+            **catalog_state_read_model,
             "catalogItems": output_baseline_set[:120],
             "maxLevel": websim_max_level(),
             "checkedAt": utc_now(),
@@ -6562,6 +6546,10 @@ class PostgresCacheStore:
         slot_groups = catalog_read_model["replacementCandidates"]
         output_catalog_items = catalog_read_model["catalogItems"]
         readiness = catalog_read_model["readiness"]
+        catalog_state_read_model = pg_gear_read_model_selectors.build_catalog_state_read_model_fragment(
+            catalog_state,
+            catalog_blockers,
+        )
         payload = {
             "classKey": class_key,
             "specKey": spec_key,
@@ -6581,23 +6569,7 @@ class PostgresCacheStore:
                 spec_key=spec_key,
                 gear_readiness_payload=readiness,
             ),
-            "gearSchemaRevision": GEAR_SCHEMA_REVISION,
-            "gearCatalogRevision": catalog_state.get("schemaRevision") or GEAR_CATALOG_REVISION,
-            "catalogStatus": catalog_state.get("status") or "blocked",
-            "catalogHealthSummary": compact_catalog_health_summary(catalog_state),
-            "catalogCoverage": {
-                "slotCoverage": catalog_state.get("slotCoverage") or {},
-                "sourceCoverage": catalog_state.get("sourceCoverage") or {},
-                "observedVariantCount": catalog_state.get("observedVariantCount") or 0,
-                "verifiedObservedVariantCount": catalog_state.get("verifiedObservedVariantCount") or 0,
-                "verifiedVariantCount": catalog_state.get("verifiedCount") or 0,
-                "partialVariantCount": catalog_state.get("partialCount") or 0,
-                "blockedVariantCount": catalog_state.get("blockedCount") or 0,
-            },
-            "itemDatabaseRevision": catalog_state.get("itemDatabaseRevision") or "",
-            "variantRevision": catalog_state.get("variantRevision") or "",
-            "catalogCheckedAt": catalog_state.get("checkedAt") or catalog_state.get("updatedAt") or "",
-            "catalogBlockers": catalog_blockers,
+            **catalog_state_read_model,
             "maxLevel": websim_max_level(),
             "checkedAt": utc_now(),
             **season_fields,

@@ -3,9 +3,12 @@
 try:
     from .websim_payload import (
         CANONICAL_GEAR_SLOTS,
+        GEAR_CATALOG_REVISION,
+        GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
         apply_gear_candidate_legality,
         candidate_legality_audit_payload,
+        compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
         gear_candidate_for_slot,
@@ -20,9 +23,12 @@ try:
 except ImportError:
     from websim_payload import (
         CANONICAL_GEAR_SLOTS,
+        GEAR_CATALOG_REVISION,
+        GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
         apply_gear_candidate_legality,
         candidate_legality_audit_payload,
+        compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
         gear_candidate_for_slot,
@@ -34,6 +40,29 @@ except ImportError:
         limit_replacement_candidates,
         unique_gear_candidates,
     )
+
+
+def build_catalog_state_read_model_fragment(catalog_state, catalog_blockers):
+    catalog_state = catalog_state if isinstance(catalog_state, dict) else {}
+    return {
+        "gearSchemaRevision": GEAR_SCHEMA_REVISION,
+        "gearCatalogRevision": catalog_state.get("schemaRevision") or GEAR_CATALOG_REVISION,
+        "catalogStatus": catalog_state.get("status") or "blocked",
+        "catalogHealthSummary": compact_catalog_health_summary(catalog_state),
+        "catalogCoverage": {
+            "slotCoverage": catalog_state.get("slotCoverage") or {},
+            "sourceCoverage": catalog_state.get("sourceCoverage") or {},
+            "observedVariantCount": catalog_state.get("observedVariantCount") or 0,
+            "verifiedObservedVariantCount": catalog_state.get("verifiedObservedVariantCount") or 0,
+            "verifiedVariantCount": catalog_state.get("verifiedCount") or 0,
+            "partialVariantCount": catalog_state.get("partialCount") or 0,
+            "blockedVariantCount": catalog_state.get("blockedCount") or 0,
+        },
+        "itemDatabaseRevision": catalog_state.get("itemDatabaseRevision") or "",
+        "variantRevision": catalog_state.get("variantRevision") or "",
+        "catalogCheckedAt": catalog_state.get("checkedAt") or catalog_state.get("updatedAt") or "",
+        "catalogBlockers": catalog_blockers,
+    }
 
 
 def build_catalog_gear_read_model_fragment(
