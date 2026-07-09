@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-09T09:01:17.872Z",
+  "generatedAt": "2026-07-09T09:05:58.585Z",
   "release": {
     "date": "2026-07-09",
     "slug": "pg-selector-read-model-gate"
@@ -217,7 +217,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-09-pg-selector-read-model-gate/evidence.json",
-    "sizeBytes": 3556,
+    "sizeBytes": 5829,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,9 +235,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "deployable",
-    "highestEvidenceLevel": "deployable",
-    "summary": "Harness v0.5 adds Candidate Deployment Gate, and PG gear template public selection now delegates to server/pg_gear_template_selectors.py without changing observed-only public entry semantics or sync write paths. Candidate deployment smoke is required before merge."
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "Harness v0.5 adds Candidate Deployment Gate, and PG gear template public selection now delegates to server/pg_gear_template_selectors.py without changing observed-only public entry semantics or sync write paths. PR branch candidate deployment passed before merge."
   },
   "evidence": {
     "localTests": {
@@ -262,7 +262,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "12 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -298,20 +298,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 12,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M AGENTS.md",
-        " M docs/backend-owner-map.json",
-        " M docs/harness.md",
-        " M docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
-        " M docs/roadmap.md",
-        " M scripts/project-harness.js",
-        " M server/postgres_cache_store.py",
-        " M tests/backend-owner-map.test.js",
-        " M tests/project-harness.test.js",
-        "?? artifacts/releases/2026-07-09-pg-selector-read-model-gate/",
-        "?? server/pg_gear_template_selectors.py",
-        "?? tests/pg_gear_template_selectors_test.py"
+        " M artifacts/releases/2026-07-09-pg-selector-read-model-gate/evidence.json"
       ]
     }
   },
