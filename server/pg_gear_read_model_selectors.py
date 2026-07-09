@@ -100,6 +100,13 @@ def _int_value(value, fallback=0):
         return fallback
 
 
+def build_websim_default_selection_read_model(row):
+    return {
+        "classKey": row[0] if row else "mage",
+        "specKey": row[1] if row else "arcane",
+    }
+
+
 def build_websim_profile_presets_read_model(rows):
     return [
         {

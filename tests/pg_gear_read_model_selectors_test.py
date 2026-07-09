@@ -4,6 +4,18 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_websim_default_selection_read_model_maps_row_and_fallback(self):
+        from server.pg_gear_read_model_selectors import build_websim_default_selection_read_model
+
+        self.assertEqual(
+            build_websim_default_selection_read_model(("deathknight", "blood")),
+            {"classKey": "deathknight", "specKey": "blood"},
+        )
+        self.assertEqual(
+            build_websim_default_selection_read_model(None),
+            {"classKey": "mage", "specKey": "arcane"},
+        )
+
     def test_build_websim_profile_presets_read_model_maps_rows(self):
         from server.pg_gear_read_model_selectors import build_websim_profile_presets_read_model
 

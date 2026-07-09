@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_websim_profile_presets_read_model_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_websim_default_selection_read_model_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -188,6 +188,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
     'gear catalog read-model selectors should own websim profile preset assembly after this Phase 4 split'
   )
   assert.ok(
+    gearCatalogReadModelSelectors.owns.includes('websim default selection read-model assembly'),
+    'gear catalog read-model selectors should own websim default selection assembly after this Phase 4 split'
+  )
+  assert.ok(
     gearCatalogReadModelSelectors.owns.includes('season recommended catalog candidate slot grouping'),
     'gear catalog read-model selectors should own season recommended catalog candidate grouping after this Phase 4 split'
   )
@@ -246,6 +250,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_websim_profile_presets_read_model_maps_rows')),
     'gear catalog read-model selectors should point at the websim profile preset read-model characterization test'
+  )
+  assert.ok(
+    gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_websim_default_selection_read_model_maps_row_and_fallback')),
+    'gear catalog read-model selectors should point at the websim default selection read-model characterization test'
   )
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_season_recommended_catalog_candidates_by_slot_read_model_filters_and_limits_candidates')),
