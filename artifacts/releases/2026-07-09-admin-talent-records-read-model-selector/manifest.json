@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "candidate_deployment_verified",
+  "status": "merged_to_main",
   "generatedAt": "2026-07-09T14:39:55Z",
   "release": {
     "date": "2026-07-09",
@@ -49,6 +49,12 @@
       "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/39",
       "branch": "codex/phase4-admin-talent-records-read-model-selector",
       "commit": "a57c0c4fe4f34c14bc6a26491c0a5a6c655c8a95"
+    },
+    "merge": {
+      "status": "merged_to_main",
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/39",
+      "mergeCommit": "41c1442482267f172925f8ca6d2aa0967c97736b",
+      "headEqualsOriginMain": true
     }
   },
   "evidenceFile": "artifacts/releases/2026-07-09-admin-talent-records-read-model-selector/evidence.json"
