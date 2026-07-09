@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "status": "local_verified",
+  "generatedAt": "2026-07-09T15:04:08Z",
+  "release": {
+    "date": "2026-07-09",
+    "slug": "websim-loot-envelope-read-model-selector"
+  },
+  "harness": {
+    "version": "v0.5",
+    "lastUpdated": "2026-07-09",
+    "source": "docs/harness.md"
+  },
+  "safety": {
+    "repositoryRemoteSyncPreapproved": true,
+    "repositoryRemoteSyncScope": "configured_project_remote_only",
+    "autonomousProgressionEnabled": true,
+    "productionWrites": false
+  },
+  "gates": {
+    "currentTruth": {
+      "status": "ready",
+      "sources": [
+        "docs/roadmap.md",
+        "docs/harness.md",
+        "docs/backend-owner-map.json",
+        "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md"
+      ]
+    },
+    "ownershipContract": {
+      "status": "ready",
+      "owner": "server/pg_gear_read_model_selectors.py",
+      "backendReadModelOwned": true,
+      "frontendConsumesStructuredResults": true
+    },
+    "engineeringHealth": {
+      "status": "local_verified_health_watch",
+      "hotspotFile": "server/postgres_cache_store.py",
+      "changeType": "read_only_websim_selector_extraction",
+      "localVerification": [
+        "python3 -m unittest discover -s tests -p '*_test.py'",
+        "node --test tests/*.test.js",
+        "python3 -m py_compile",
+        "node --check",
+        "JSON validation",
+        "git diff --check",
+        "local CR"
+      ]
+    },
+    "candidateDeployment": {
+      "status": "pending",
+      "requiredBeforeMergeForRuntimeChanges": true,
+      "runtimeChangeSurfaces": [
+        "backend_api",
+        "pg_read_model",
+        "websim_runtime"
+      ]
+    }
+  },
+  "evidenceFile": "artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/evidence.json"
+}

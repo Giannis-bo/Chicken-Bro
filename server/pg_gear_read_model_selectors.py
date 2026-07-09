@@ -187,6 +187,14 @@ def build_websim_talent_import_template_read_model(row):
     }
 
 
+def build_websim_loot_read_model(items, instances, season_fields, limit=120):
+    return {
+        "items": list(items or [])[:limit],
+        "instances": list(instances or []),
+        **season_fields,
+    }
+
+
 def build_websim_bootstrap_read_model(
     season_fields,
     *,
