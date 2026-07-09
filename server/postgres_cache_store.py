@@ -5249,13 +5249,7 @@ class PostgresCacheStore:
                     """
                 )
                 encounter_rows = cur.fetchall()
-        encounters = {}
-        for row in encounter_rows:
-            encounters.setdefault(row[1], []).append({"id": row[0], "instanceId": row[1], "name": row[2]})
-        return [
-            {"id": row[0], "name": row[1], "category": row[2], "encounters": encounters.get(row[0], [])}
-            for row in rows
-        ]
+        return pg_gear_read_model_selectors.build_websim_instances_read_model(rows, encounter_rows)
 
     def get_websim_default_selection(self):
         with self.connection() as conn:

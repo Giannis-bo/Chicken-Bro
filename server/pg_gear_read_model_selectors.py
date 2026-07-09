@@ -185,6 +185,16 @@ def build_admin_gear_variant_records_read_model(rows):
     ]
 
 
+def build_websim_instances_read_model(instance_rows, encounter_rows):
+    encounters = {}
+    for row in encounter_rows or []:
+        encounters.setdefault(row[1], []).append({"id": row[0], "instanceId": row[1], "name": row[2]})
+    return [
+        {"id": row[0], "name": row[1], "category": row[2], "encounters": encounters.get(row[0], [])}
+        for row in instance_rows or []
+    ]
+
+
 def build_websim_loot_items_read_model(
     rows,
     filters=None,

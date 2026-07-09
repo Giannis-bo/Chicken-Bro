@@ -4,6 +4,33 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_websim_instances_read_model_groups_encounters_by_instance(self):
+        from server.pg_gear_read_model_selectors import build_websim_instances_read_model
+
+        instance_rows = [
+            ("instance-b", "Dungeon B", "dungeon"),
+            ("instance-a", "Raid A", "raid"),
+        ]
+        encounter_rows = [
+            ("encounter-b1", "instance-b", "Boss B1"),
+            ("encounter-b2", "instance-b", "Boss B2"),
+            ("encounter-orphan", "missing-instance", "Ghost Boss"),
+        ]
+
+        instances = build_websim_instances_read_model(instance_rows, encounter_rows)
+
+        self.assertEqual([instance["id"] for instance in instances], ["instance-b", "instance-a"])
+        self.assertEqual(instances[0]["name"], "Dungeon B")
+        self.assertEqual(instances[0]["category"], "dungeon")
+        self.assertEqual(
+            instances[0]["encounters"],
+            [
+                {"id": "encounter-b1", "instanceId": "instance-b", "name": "Boss B1"},
+                {"id": "encounter-b2", "instanceId": "instance-b", "name": "Boss B2"},
+            ],
+        )
+        self.assertEqual(instances[1]["encounters"], [])
+
     def test_build_websim_loot_items_read_model_maps_filters_and_limits_rows(self):
         from server.pg_gear_read_model_selectors import build_websim_loot_items_read_model
 
