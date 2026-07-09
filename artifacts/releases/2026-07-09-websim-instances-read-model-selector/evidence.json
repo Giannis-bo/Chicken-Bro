@@ -1,6 +1,6 @@
 {
-  "status": "local_full_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "candidate_deployment_passed",
+  "highestEvidenceLevel": "candidate_deployed_verified",
   "scope": [
     "server/pg_gear_read_model_selectors.py",
     "server/postgres_cache_store.py",
@@ -66,10 +66,12 @@
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
+    "status": "passed",
     "requiredBeforeMerge": true,
     "branch": "codex/phase4-websim-instances-read-model-selector",
     "baseCommit": "546234541443ae6389599a2fa96b6d4583447829",
+    "deployedCommit": "f70a0a8193a775e54e7cf13f3bf0a70af5bde2fd",
+    "completedAt": "2026-07-09T13:53:29Z",
     "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
     "target": "ubuntu@124.223.51.33:/opt/wow-mini-program",
     "asyncSyncStarted": false,
@@ -87,7 +89,65 @@
         "systemd backend/nginx/sync-backfill service/timer status",
         "recent logs without Traceback/ERROR/SQLite fallback",
         "runtime file hash parity"
-      ]
+      ],
+      "result": {
+        "httpEndpoints": {
+          "/health": 200,
+          "/api/data/health": 200,
+          "/api/websim/bootstrap": 200,
+          "/api/websim/assets": 200,
+          "/api/websim/talents?class=mage&spec=arcane&hero=spellslinger": 200,
+          "/api/websim/loot": 200,
+          "/api/websim/gear?class=mage&spec=arcane&compact=1&mode=initial": 200,
+          "/api/websim/gear?class=mage&spec=arcane&compact=1&mode=slot&slot=head": 200
+        },
+        "instancesReadModel": {
+          "instances": 12,
+          "firstInstanceId": "1305",
+          "firstInstanceName": "孢陨幽境",
+          "firstInstanceCategory": "Raid",
+          "firstInstanceEncounters": 1
+        },
+        "lootReadModel": {
+          "items": 120,
+          "firstItemHasGameAsset": true
+        },
+        "observedOnlyGearSweep": {
+          "checkedSpecs": 40,
+          "failures": 0,
+          "dataStatus": {
+            "verified": 40
+          },
+          "communityTemplates": {
+            "1": 40
+          },
+          "baselineTemplates": {
+            "0": 40
+          },
+          "sourceKeys": {
+            "raiderio_observed_profile": 40
+          },
+          "canApplyGear": {
+            "True": 40
+          }
+        },
+        "systemd": {
+          "databaseRuntime": "postgres_only",
+          "backend": "active",
+          "nginx": "active",
+          "syncBackfillExecStatus": "Result=success ExecMainStatus=0 for checked sync/backfill services",
+          "timersListed": 9
+        },
+        "logs": {
+          "backend": "clean",
+          "syncBackfill": "clean",
+          "grep": "Traceback|ERROR|SQLite fallback"
+        },
+        "runtimeHashParity": {
+          "server/pg_gear_read_model_selectors.py": "19cb59ffb67400d10d498aab538e40160afd0f8dc103d964d2d6cbc57118838f",
+          "server/postgres_cache_store.py": "58765eb18917639450f8104809f9cfcc5bad3801a1d2ade67cf8533b2a3ea4e0"
+        }
+      }
     }
   },
   "risks": [
@@ -98,8 +158,8 @@
     },
     {
       "id": "candidate_deployment_pending",
-      "status": "open",
-      "detail": "This backend/WebSim PG read-model change requires Harness v0.5 Candidate Deployment Gate before merge."
+      "status": "closed",
+      "detail": "Harness v0.5 Candidate Deployment Gate passed before merge."
     },
     {
       "id": "write_paths_out_of_scope",
