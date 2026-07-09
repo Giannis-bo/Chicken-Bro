@@ -3,6 +3,44 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_common_gear_read_model_fragment_blocks_stat_snapshot(self):
+        from server.pg_gear_read_model_selectors import build_common_gear_read_model_fragment
+
+        readiness = {
+            "status": "blocked",
+            "selectedCount": 0,
+            "itemLevel": {
+                "key": "itemLevel",
+                "label": "装备等级",
+                "value": "0",
+                "rawValue": 0,
+                "selectedCount": 0,
+                "source": "selected_gear",
+            },
+        }
+
+        fragment = build_common_gear_read_model_fragment(
+            "mage",
+            "arcane",
+            readiness,
+            checked_at="2026-07-09T10:35:00Z",
+        )
+
+        self.assertEqual(fragment["weaponRule"]["mode"], "caster_1h_or_staff")
+        self.assertEqual(len(fragment["slots"]), 16)
+        self.assertEqual(fragment["slots"][0]["slot"], "head")
+        self.assertIs(fragment["readiness"], readiness)
+        self.assertEqual(fragment["maxLevel"], 90)
+        self.assertEqual(fragment["checkedAt"], "2026-07-09T10:35:00Z")
+        self.assertEqual(fragment["statSnapshot"]["statStatus"], "blocked")
+        self.assertEqual(fragment["statSnapshot"]["classKey"], "mage")
+        self.assertEqual(fragment["statSnapshot"]["specKey"], "arcane")
+        self.assertEqual(
+            fragment["statSnapshot"]["blockers"],
+            ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
+        )
+        self.assertEqual(fragment["statSnapshot"]["gearReadiness"], readiness)
+
     def test_build_initial_gear_read_model_fragment_compacts_baseline_template(self):
         from server.pg_gear_read_model_selectors import build_initial_gear_read_model_fragment
 

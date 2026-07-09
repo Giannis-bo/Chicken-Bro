@@ -7,10 +7,12 @@ try:
         GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
         apply_gear_candidate_legality,
+        blocked_stat_snapshot,
         candidate_legality_audit_payload,
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
+        gear_slot_payload,
         gear_candidate_for_slot,
         gear_candidate_incompatible,
         gear_candidate_quality_score,
@@ -20,6 +22,9 @@ try:
         limit_replacement_candidates,
         normalize_slot,
         unique_gear_candidates,
+        utc_now,
+        websim_max_level,
+        weapon_equipment_rule_payload,
     )
 except ImportError:
     from websim_payload import (
@@ -28,10 +33,12 @@ except ImportError:
         GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
         apply_gear_candidate_legality,
+        blocked_stat_snapshot,
         candidate_legality_audit_payload,
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
+        gear_slot_payload,
         gear_candidate_for_slot,
         gear_candidate_incompatible,
         gear_candidate_quality_score,
@@ -41,7 +48,26 @@ except ImportError:
         limit_replacement_candidates,
         normalize_slot,
         unique_gear_candidates,
+        utc_now,
+        websim_max_level,
+        weapon_equipment_rule_payload,
     )
+
+
+def build_common_gear_read_model_fragment(class_key, spec_key, readiness, *, checked_at=None):
+    return {
+        "weaponRule": weapon_equipment_rule_payload(class_key, spec_key),
+        "slots": gear_slot_payload(),
+        "readiness": readiness,
+        "statSnapshot": blocked_stat_snapshot(
+            ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
+            class_key=class_key,
+            spec_key=spec_key,
+            gear_readiness_payload=readiness,
+        ),
+        "maxLevel": websim_max_level(),
+        "checkedAt": checked_at or utc_now(),
+    }
 
 
 def _compact_initial_gear_item(item, compact=False):

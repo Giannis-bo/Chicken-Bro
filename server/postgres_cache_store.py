@@ -5924,13 +5924,17 @@ class PostgresCacheStore:
             catalog_state,
             catalog_blockers,
         )
+        common_read_model = pg_gear_read_model_selectors.build_common_gear_read_model_fragment(
+            class_key,
+            spec_key,
+            readiness,
+        )
         payload = {
             "classKey": class_key,
             "specKey": spec_key,
             "gearPayloadMode": "initial",
             "gearInitialCandidateLimit": 1,
-            "weaponRule": weapon_equipment_rule_payload(class_key, spec_key),
-            "slots": gear_slot_payload(),
+            **common_read_model,
             "replacementCandidates": initial_read_model["replacementCandidates"],
             "equippedSet": initial_read_model["equippedSet"],
             "slotReadiness": initial_read_model["slotReadiness"],
@@ -5938,17 +5942,8 @@ class PostgresCacheStore:
             "communityTemplates": template_read_model["payloadCommunityTemplates"],
             "baselineTemplates": template_read_model["payloadBaselineTemplates"],
             "communityTemplateSync": template_read_model["communityTemplateSync"],
-            "readiness": readiness,
-            "statSnapshot": blocked_stat_snapshot(
-                ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
-                class_key=class_key,
-                spec_key=spec_key,
-                gear_readiness_payload=readiness,
-            ),
             **catalog_state_read_model,
             "catalogItems": initial_read_model["catalogItems"],
-            "maxLevel": websim_max_level(),
-            "checkedAt": utc_now(),
             **season_fields,
         }
         return payload
@@ -6519,11 +6514,15 @@ class PostgresCacheStore:
             catalog_state,
             catalog_blockers,
         )
+        common_read_model = pg_gear_read_model_selectors.build_common_gear_read_model_fragment(
+            class_key,
+            spec_key,
+            readiness,
+        )
         payload = {
             "classKey": class_key,
             "specKey": spec_key,
-            "weaponRule": weapon_equipment_rule_payload(class_key, spec_key),
-            "slots": gear_slot_payload(),
+            **common_read_model,
             "replacementCandidates": slot_groups,
             "equippedSet": {},
             "slotReadiness": catalog_read_model["slotReadiness"],
@@ -6531,16 +6530,7 @@ class PostgresCacheStore:
             "communityTemplates": template_read_model["payloadCommunityTemplates"],
             "baselineTemplates": template_read_model["payloadBaselineTemplates"],
             "communityTemplateSync": template_read_model["communityTemplateSync"],
-            "readiness": readiness,
-            "statSnapshot": blocked_stat_snapshot(
-                ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
-                class_key=class_key,
-                spec_key=spec_key,
-                gear_readiness_payload=readiness,
-            ),
             **catalog_state_read_model,
-            "maxLevel": websim_max_level(),
-            "checkedAt": utc_now(),
             **season_fields,
         }
         if not compact:
