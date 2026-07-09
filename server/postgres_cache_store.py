@@ -3914,7 +3914,7 @@ class PostgresCacheStore:
         catalog_items = self._gear_catalog_items(
             raw_rows.get("itemRows") or [],
             pg_gear_read_model_selectors.build_gear_sources_by_item_read_model(raw_rows.get("sourceRows") or []),
-            self._gear_variants_by_item(raw_rows.get("variantRows") or []),
+            pg_gear_read_model_selectors.build_gear_variants_by_item_read_model(raw_rows.get("variantRows") or []),
             raw_rows.get("rawOptionsBySlot") or {},
             class_key,
             spec_key,
@@ -5693,41 +5693,6 @@ class PostgresCacheStore:
             },
         )
 
-    def _gear_variants_by_item(self, rows):
-        result = {}
-        for row in rows:
-            simc_options = _json_value(row[8], {})
-            if not isinstance(simc_options, dict):
-                simc_options = {}
-            blockers = _json_value(row[10], [])
-            if not isinstance(blockers, list):
-                blockers = [str(blockers)]
-            payload = _json_value(row[11], {})
-            payload = payload if isinstance(payload, dict) else {}
-            item_level = _int_value(row[7])
-            variant = {
-                "id": str(row[0]),
-                "itemId": str(row[1]),
-                "slot": normalize_slot(row[2]),
-                "key": row[3],
-                "variantKey": row[3],
-                "label": row[4],
-                "difficultyLabel": localized_difficulty_label(row[6], row[4], row[5]),
-                "sourceType": row[5],
-                "difficultyKey": row[6],
-                "itemLevel": item_level,
-                "ilevel": item_level,
-                "simcOptions": simc_options,
-                "status": row[9] or "blocked",
-                "blockers": [str(item) for item in blockers if str(item or "").strip()],
-                "payload": payload,
-                "updatedAt": str(row[12] or ""),
-            }
-            if payload.get("simcIlevelOnly"):
-                variant["simcIlevelOnly"] = True
-            result.setdefault(str(row[1]), []).append(variant)
-        return result
-
     def _gear_mod_options_by_slot(self, rows):
         result = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
         for row in rows:
@@ -6453,7 +6418,7 @@ class PostgresCacheStore:
                     item_rows = cur.fetchall()
                 persisted_templates = self._gear_community_templates(cur, class_key, spec_key)
         sources_by_item = pg_gear_read_model_selectors.build_gear_sources_by_item_read_model(source_rows)
-        variants_by_item = self._gear_variants_by_item(variant_rows)
+        variants_by_item = pg_gear_read_model_selectors.build_gear_variants_by_item_read_model(variant_rows)
         raw_options_by_slot = {
             "socket": self._gear_mod_options_by_slot([row for row in mod_option_rows if str(row[1] or "").lower() == "socket"]),
             "enchant": self._gear_mod_options_by_slot([row for row in mod_option_rows if str(row[1] or "").lower() == "enchant"]),
