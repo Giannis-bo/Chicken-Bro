@@ -18,7 +18,7 @@
 
 2026-07-09 Phase 4 第二刀部署补录：用户指出 backend/API/read model 变更应先部署验证再合入；由于本刀已经合入，已补做 post-merge 热部署与线上 smoke，并将 release evidence 晋级到 `live_verified`。后续同类 backend/API/PG read model 变更默认在 PR 候选阶段先部署或预览验证，通过后再合入。
 
-2026-07-09 Phase 4 第三刀候选推进：Harness 升级到 v0.5，并将 backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本和用户可见 runtime 的候选部署 / 预览 smoke 前置为正式 gate。本刀继续拆 PG gear selector 只读面，新增 `server/pg_gear_template_selectors.py` 集中 `communityTemplates` / `baselineTemplates` public selection，`server/postgres_cache_store.py` initial 与 full/slot 分支改为委托 helper；sync 写入路径、SQL row 读取和公开 observed-only 语义不变。合入前必须按 Candidate Deployment Gate 对 PR branch 完成候选部署或等价预览 smoke。
+2026-07-09 Phase 4 第三刀候选推进：Harness 升级到 v0.5，并将 backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本和用户可见 runtime 的候选部署 / 预览 smoke 前置为正式 gate。本刀继续拆 PG gear selector 只读面，新增 `server/pg_gear_template_selectors.py` 集中 `communityTemplates` / `baselineTemplates` public selection，`server/postgres_cache_store.py` initial 与 full/slot 分支改为委托 helper；sync 写入路径、SQL row 读取和公开 observed-only 语义不变。PR #12 branch 已按 Candidate Deployment Gate 完成候选热部署和线上 smoke，通过后再进入合入。
 
 本计划只定义整体优化顺序和验收门禁，不授权直接修改业务实现、不替代 roadmap、runbook 或当前 UI source-of-truth。
 

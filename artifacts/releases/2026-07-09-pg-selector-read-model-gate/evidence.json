@@ -1,11 +1,11 @@
 {
-  "status": "deployable",
-  "highestEvidenceLevel": "deployable",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "scope": [
     "harness_candidate_deployment_gate",
     "pg_gear_template_selector_read_model_helper"
   ],
-  "summary": "Harness v0.5 adds Candidate Deployment Gate, and PG gear template public selection now delegates to server/pg_gear_template_selectors.py without changing observed-only public entry semantics or sync write paths. Candidate deployment smoke is required before merge.",
+  "summary": "Harness v0.5 adds Candidate Deployment Gate, and PG gear template public selection now delegates to server/pg_gear_template_selectors.py without changing observed-only public entry semantics or sync write paths. PR branch candidate deployment passed before merge.",
   "verification": [
     {
       "command": "node --test tests/project-harness.test.js",
@@ -46,30 +46,85 @@
       "command": "git diff --check",
       "status": "pass",
       "summary": "No whitespace errors."
+    },
+    {
+      "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+      "status": "pass",
+      "summary": "Candidate PR branch hot-deployed to ubuntu@124.223.51.33:/opt/wow-mini-program; wow-backend reported ok and async sync starts were skipped."
+    },
+    {
+      "command": "HTTP smoke against http://124.223.51.33",
+      "status": "pass",
+      "summary": "/health, /api/data/health, /api/websim/bootstrap, /api/websim/assets, /api/websim/talents, /api/websim/gear initial, /api/websim/gear slot, and /websim/ returned 200."
+    },
+    {
+      "command": "40-spec live /api/websim/gear?compact=1&mode=initial sweep",
+      "status": "pass",
+      "summary": "checkedSpecs=40, failures=0, dataStatus={verified:40}, communityTemplates={1:40}, baselineTemplates={0:40}, sourceKeys={raiderio_observed_profile:40}, canApplyGear={True:40}."
+    },
+    {
+      "command": "systemd, runtime hash parity, and log smoke on ubuntu@124.223.51.33",
+      "status": "pass",
+      "summary": "wow-backend and nginx active; sync/backfill services inactive with Result=success; timers active/waiting; WOW_DATABASE_RUNTIME=postgres_only; key runtime file hashes match local branch; recent backend logs show no Traceback, ERROR, or SQLite fallback."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
+    "status": "passed",
     "requiredBeforeMerge": true,
-    "plannedCommand": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
-    "plannedSmoke": [
-      "/health",
-      "/api/data/health",
-      "/api/websim/bootstrap",
-      "/api/websim/assets",
-      "/api/websim/talents",
-      "/api/websim/gear?compact=1&mode=initial",
-      "/api/websim/gear?compact=1&mode=slot",
-      "40-spec observed-only gear sweep",
-      "systemd backend/nginx/timer/backflow checks",
-      "recent logs for Traceback/ERROR/SQLite fallback"
-    ]
+    "branch": "codex/pg-selector-read-model-gate",
+    "commit": "2b8b6f063cdd458b1f7ebc577a67230007edab5b",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "asyncSyncStarted": false,
+    "smoke": {
+      "healthHttpStatus": 200,
+      "dataHealthOverallStatus": "partial",
+      "dataHealthExistingPartialOrBlockedComponents": [
+        "community_templates",
+        "websim_sync",
+        "template_simc_bridge",
+        "season_cutover_readiness",
+        "gear_catalog",
+        "gear_legality_authority",
+        "stat_weights",
+        "talent_catalog",
+        "news",
+        "wcl_credentials",
+        "blizzard_api"
+      ],
+      "gearInitialSweep": {
+        "checkedSpecs": 40,
+        "failures": 0,
+        "communityTemplateCounts": {
+          "1": 40
+        },
+        "baselineTemplateCounts": {
+          "0": 40
+        },
+        "sourceKeys": {
+          "raiderio_observed_profile": 40
+        },
+        "canApplyGear": {
+          "True": 40
+        }
+      },
+      "services": {
+        "wow-backend.service": "active/running",
+        "nginx.service": "active/running",
+        "syncBackfillServices": "inactive/dead with Result=success",
+        "syncBackfillTimers": "active/waiting"
+      },
+      "runtime": {
+        "WOW_DATABASE_RUNTIME": "postgres_only"
+      },
+      "logs": "No Traceback, ERROR, or SQLite fallback found in recent wow-backend logs."
+    }
   },
   "risks": [
     {
-      "id": "runtime_deploy_pending",
-      "status": "watch",
-      "detail": "Runtime code touches PG read-model selection, so Candidate Deployment Gate must pass before merge."
+      "id": "candidate_deploy_gate",
+      "status": "resolved",
+      "detail": "PR branch candidate deployment and smoke passed before merge."
     },
     {
       "id": "existing_partial_health_components",
