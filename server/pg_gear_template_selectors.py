@@ -1,9 +1,27 @@
 #!/usr/bin/env python3
+import json
 
 try:
     from . import gear_public_contract
 except ImportError:
     import gear_public_contract
+
+
+def _json_value(value, fallback):
+    if isinstance(value, (dict, list)):
+        return value
+    try:
+        parsed = json.loads(value or "")
+    except (TypeError, ValueError):
+        return fallback
+    return parsed if parsed is not None else fallback
+
+
+def _int_value(value, fallback=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
 
 
 def _websim_payload_helpers():
@@ -47,6 +65,72 @@ def _websim_payload_read_model_helpers():
         "compact_template": compact_community_gear_template,
         "sync_state_builder": websim_gear_community_template_sync_state,
     }
+
+
+def _websim_payload_item_metadata_helpers():
+    try:
+        from .websim_payload import (
+            ITEM_METADATA_SOURCE,
+            item_type_metadata_from_payload,
+        )
+    except ImportError:
+        from websim_payload import (
+            ITEM_METADATA_SOURCE,
+            item_type_metadata_from_payload,
+        )
+    return {
+        "metadata_source": ITEM_METADATA_SOURCE,
+        "type_metadata_from_payload": item_type_metadata_from_payload,
+    }
+
+
+def build_official_item_metadata_by_id_read_model(rows):
+    helpers = _websim_payload_item_metadata_helpers()
+    item_metadata_source = helpers["metadata_source"]
+    type_metadata_from_payload = helpers["type_metadata_from_payload"]
+    metadata_by_id = {}
+    for row in rows or []:
+        payload = _json_value(row[4], {})
+        payload = payload if isinstance(payload, dict) else {}
+        metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
+        metadata_source = str(metadata.get("source") or payload.get("metadataSource") or "").strip()
+        source_status = str(row[5] or metadata.get("metadataStatus") or payload.get("sourceStatus") or "").strip()
+        has_official_payload_shape = bool(
+            payload.get("inventory_type")
+            or payload.get("inventoryType")
+            or payload.get("item_class")
+            or payload.get("itemClass")
+            or payload.get("item_subclass")
+            or payload.get("itemSubclass")
+        )
+        if metadata_source != item_metadata_source and not (
+            source_status == "verified" and has_official_payload_shape
+        ):
+            continue
+        type_metadata = type_metadata_from_payload(payload)
+        item_id = str(row[0] or "").strip()
+        display_name = (
+            payload.get("displayName")
+            or payload.get("localizedName")
+            or payload.get("name")
+            or row[1]
+            or f"Item {item_id}"
+        )
+        metadata_by_id[item_id] = {
+            "itemId": item_id,
+            "displayName": display_name,
+            "slot": row[2] or "",
+            "itemLevel": _int_value(row[3]),
+            "quality": payload.get("quality") or "",
+            "iconUrl": metadata.get("iconUrl") or payload.get("iconUrl") or "",
+            "payload": payload,
+            "metadataStatus": source_status or "verified",
+            "metadataSource": metadata_source or item_metadata_source,
+            "metadataLocale": metadata.get("locale") or "",
+            "englishName": metadata.get("englishName") or "",
+            **type_metadata,
+        }
+    return metadata_by_id
 
 
 def select_public_gear_templates_for_spec(
