@@ -5347,17 +5347,7 @@ class PostgresCacheStore:
                 "status": "blocked",
                 "blockers": [f"PostgreSQL WebSim asset registry is not available: {error}"],
             }
-        assets = [game_asset_from_registry_row(row) for row in rows]
-        counts = {"byStatus": {}, "bySource": {}}
-        for asset in assets:
-            counts["byStatus"][asset["status"]] = counts["byStatus"].get(asset["status"], 0) + 1
-            counts["bySource"][asset["source"]] = counts["bySource"].get(asset["source"], 0) + 1
-        return {
-            "assets": assets,
-            "counts": counts,
-            "status": "verified" if assets else "empty",
-            "blockers": [],
-        }
+        return pg_gear_read_model_selectors.build_websim_assets_read_model(rows)
 
     def _talent_authority_payload(self, talent_status, season, nodes, sync_state):
         simc_state = sync_state.get("simc") if isinstance(sync_state.get("simc"), dict) else {}
