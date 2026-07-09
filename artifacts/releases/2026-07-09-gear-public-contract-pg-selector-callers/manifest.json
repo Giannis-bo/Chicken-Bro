@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-09T08:38:01.259Z",
+  "generatedAt": "2026-07-09T08:47:43.534Z",
   "release": {
     "date": "2026-07-09",
     "slug": "gear-public-contract-pg-selector-callers"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 313778
+          "sizeBytes": 315202
         },
         {
           "path": "docs/README.md",
@@ -195,7 +195,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-09-gear-public-contract-pg-selector-callers/evidence.json",
-    "sizeBytes": 4388,
+    "sizeBytes": 7356,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -213,8 +213,8 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
     "summary": "Phase 4 second cut routes PostgreSQL gear selector public-contract calls through server/gear_public_contract.py while preserving the existing websim_payload.py compatibility exports."
   },
   "evidence": {
@@ -240,7 +240,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "7 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -276,15 +276,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 7,
+      "changedFileCount": 3,
       "changedFiles": [
-        " M docs/backend-owner-map.json",
+        " M artifacts/releases/2026-07-09-gear-public-contract-pg-selector-callers/evidence.json",
         " M docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
-        " M docs/roadmap.md",
-        " M server/postgres_cache_store.py",
-        " M tests/backend-owner-map.test.js",
-        " M tests/postgres_cache_store_test.py",
-        "?? artifacts/releases/2026-07-09-gear-public-contract-pg-selector-callers/"
+        " M docs/roadmap.md"
       ]
     }
   },
