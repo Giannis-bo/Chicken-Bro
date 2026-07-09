@@ -149,6 +149,18 @@ def build_hydrated_community_gear_items_read_model(gear_items, official_metadata
     return hydrated
 
 
+def collect_community_template_item_refs_read_model(rows, *, gear_items_index=11):
+    item_refs = []
+    for row in rows or []:
+        if not isinstance(row, (list, tuple)) or len(row) <= gear_items_index:
+            continue
+        gear_items = _json_value(row[gear_items_index], [])
+        if not isinstance(gear_items, list):
+            continue
+        item_refs.extend(item for item in gear_items if isinstance(item, dict))
+    return item_refs
+
+
 def select_public_gear_templates_for_spec(
     persisted_templates,
     class_key,

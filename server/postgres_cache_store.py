@@ -6090,9 +6090,10 @@ class PostgresCacheStore:
         rows = cur.fetchall()
         now = datetime.now(timezone.utc)
         rows = [row for row in rows if not _timestamp_expired(row[18], now)]
-        all_gear_items = []
-        for row in rows:
-            all_gear_items.extend(item for item in _json_value(row[11], []) if isinstance(item, dict))
+        all_gear_items = pg_gear_template_selectors.collect_community_template_item_refs_read_model(
+            rows,
+            gear_items_index=11,
+        )
         official_metadata_by_id = self._official_item_metadata_by_id(cur, all_gear_items)
         templates = []
         for row in rows:
