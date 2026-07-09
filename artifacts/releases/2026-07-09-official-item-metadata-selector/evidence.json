@@ -1,6 +1,6 @@
 {
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "candidate_deployment_passed",
+  "highestEvidenceLevel": "live_verified",
   "scope": [
     "server/pg_gear_template_selectors.py",
     "server/postgres_cache_store.py",
@@ -66,9 +66,56 @@
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
+    "status": "passed",
     "requiredBeforeMerge": true,
-    "reason": "This change touches the PG read model/runtime backend selector path."
+    "pullRequest": 25,
+    "branch": "codex/phase4-official-item-metadata-selector",
+    "commit": "46d5d9670c291672019b537f8e45523977095a8b",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "target": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "deployedAt": "2026-07-09T12:14:38Z",
+    "asyncSyncStarted": false,
+    "smoke": {
+      "http": {
+        "baseUrl": "http://124.223.51.33",
+        "endpoints": [
+          {"path": "/health", "httpStatus": 200, "ok": true},
+          {"path": "/api/data/health", "httpStatus": 200, "overallStatus": "partial"},
+          {"path": "/api/websim/bootstrap", "httpStatus": 200, "dataStatus": "verified"},
+          {"path": "/api/websim/assets", "httpStatus": 200, "status": "verified"},
+          {"path": "/api/websim/talents?class=mage&spec=frost&hero=spellslinger", "httpStatus": 200, "dataStatus": "verified"},
+          {"path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial", "httpStatus": 200, "dataStatus": "verified", "communityTemplates": 1, "baselineTemplates": 0, "sourceKeys": ["raiderio_observed_profile"], "canApplyGear": [true]},
+          {"path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=slot&slot=head", "httpStatus": 200, "dataStatus": "verified", "communityTemplates": 1, "baselineTemplates": 0, "sourceKeys": ["raiderio_observed_profile"], "canApplyGear": [true]}
+        ]
+      },
+      "observedOnlyGearSweep": {
+        "checkedSpecs": 40,
+        "failures": 0,
+        "dataStatus": {"verified": 40},
+        "communityTemplates": {"1": 40},
+        "baselineTemplates": {"0": 40},
+        "sourceKeys": {"raiderio_observed_profile": 40},
+        "canApplyGear": {"True": 40}
+      },
+      "systemd": {
+        "backend": "active/running since 2026-07-09 20:13:10 CST",
+        "nginx": "active/running since 2026-07-09 20:13:10 CST",
+        "syncBackfillServices": "wow-stat-weights-sync.service is timer-triggered and currently activating/start; wow-websim-sync, wow-gear-observed-backfill, wow-community-template-sync, wow-community-best-guard-sync, wow-recommended-bis-guard-sync, and wow-season-recommended-gear-sync are inactive/dead after their latest runs",
+        "timers": "7 loaded sync/backfill timers listed: wow-websim-sync, wow-gear-observed-backfill, wow-stat-weights-sync, wow-community-template-sync, wow-community-best-guard-sync, wow-recommended-bis-guard-sync, wow-season-recommended-gear-sync"
+      },
+      "runtime": {
+        "WOW_DATABASE_RUNTIME": "postgres_only",
+        "recentLogs": "no Traceback/ERROR/SQLite fallback in wow-backend or sync/backfill logs since 20 minutes ago",
+        "hashParity": {
+          "server/pg_gear_template_selectors.py": "716fa9f4eb20533c0646901eeb3582b2caad3f8e77996f3ece42a4f8c131cd62",
+          "server/postgres_cache_store.py": "a842de39c6b92a13abdd57cfdfe731407743308a9bd17151ac93975b2618cb4e"
+        }
+      }
+    }
+  },
+  "merge": {
+    "status": "pending",
+    "pullRequest": 25
   },
   "risks": [
     {
@@ -78,8 +125,8 @@
     },
     {
       "id": "candidate_deployment_pending",
-      "status": "open",
-      "detail": "Candidate deployment and smoke must pass before merge because this touches PG read model code."
+      "status": "resolved",
+      "detail": "PR #25 branch passed Candidate Deployment Gate before merge: deploy succeeded, API smoke and 40-spec observed-only sweep passed, systemd/log/runtime hash parity checks passed."
     },
     {
       "id": "write_paths_out_of_scope",
