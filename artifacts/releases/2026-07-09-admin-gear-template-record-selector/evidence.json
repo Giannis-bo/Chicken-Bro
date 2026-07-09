@@ -1,0 +1,114 @@
+{
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "scope": [
+    "server/pg_gear_template_selectors.py",
+    "server/postgres_cache_store.py",
+    "tests/pg_gear_template_selectors_test.py",
+    "tests/backend-owner-map.test.js",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+    "artifacts/releases/2026-07-09-admin-gear-template-record-selector/evidence.json",
+    "artifacts/releases/2026-07-09-admin-gear-template-record-selector/manifest.json"
+  ],
+  "summary": "Phase 4 continues the read-only PostgreSQL gear template selector split. server/pg_gear_template_selectors.py now owns build_admin_gear_template_display_records_read_model(), which turns hydrated admin gate gear templates into backend-owned display records by preserving raw display slots, grouping community/baseline templates by class/spec, selecting admin community display rows with strict_active=false, and selecting baseline display rows. server/postgres_cache_store.py keeps admin gate SQL reads, table existence checks, official metadata SQL queries, offhand coverage repair as an adapter callback, cache writes, and sync/write/backfill paths.",
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_gear_template_selectors_test.PgGearTemplateSelectorsTest.test_build_admin_gear_template_display_records_read_model_groups_display_slots",
+      "status": "red_then_pass",
+      "summary": "First run failed with ImportError because build_admin_gear_template_display_records_read_model was missing; after adding the helper the targeted characterization passed."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_gear_template_selectors_test tests.postgres_cache_store_test",
+      "status": "pass",
+      "summary": "109 targeted PG template selector and PG cache store tests passed locally."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "red_then_pass",
+      "summary": "Owner-map test was updated first and failed while docs/backend-owner-map.json still reported phase4_admin_gear_template_queue_selector_extracted; after updating the owner map it passed."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "1031 Python unittest specs passed locally with 1 skipped."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 Node tests passed locally."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_gear_template_selectors.py server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Touched Python modules compiled successfully."
+    },
+    {
+      "command": "node --check tests/backend-owner-map.test.js && node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Touched Node test/harness scripts passed syntax checks."
+    },
+    {
+      "command": "for f in docs/backend-owner-map.json artifacts/releases/2026-07-09-admin-gear-template-record-selector/evidence.json artifacts/releases/2026-07-09-admin-gear-template-record-selector/manifest.json; do python3 -m json.tool \"$f\" >/dev/null || exit 1; done",
+      "status": "pass",
+      "summary": "Owner map and release evidence artifacts are valid JSON."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors detected."
+    },
+    {
+      "command": "local CR",
+      "status": "pass",
+      "summary": "Reviewed focused diffs and confirmed only admin gear template display record selection moved; admin SQL, table checks, sync/write/backfill, recommended/season internal paths, and public observed-only policy remain unchanged."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true,
+    "branch": "codex/phase4-admin-gear-template-record-selector",
+    "baseCommit": "2aae0f8000d7f60bfe7c263d27c44d2c750b88aa",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "target": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "asyncSyncStarted": false,
+    "smoke": {
+      "required": [
+        "/health",
+        "/api/data/health",
+        "/api/websim/bootstrap",
+        "/api/websim/assets",
+        "/api/websim/talents",
+        "/api/websim/gear initial",
+        "/api/websim/gear slot",
+        "/api/admin/gates/summary",
+        "40-spec observed-only gear sweep",
+        "systemd backend/nginx/sync-backfill service/timer status",
+        "recent logs without Traceback/ERROR/SQLite fallback",
+        "runtime file hash parity"
+      ]
+    }
+  },
+  "risks": [
+    {
+      "id": "full_local_verification_pending",
+      "status": "closed",
+      "detail": "Full Python/Node suites, compile checks, JSON validation, git diff check, and local CR passed locally before PR."
+    },
+    {
+      "id": "candidate_deployment_pending",
+      "status": "open",
+      "detail": "This backend/admin PG read-model change requires Harness v0.5 Candidate Deployment Gate before merge."
+    },
+    {
+      "id": "write_paths_out_of_scope",
+      "status": "intentional",
+      "detail": "Sync, write, backfill, cleanup, PG SQL write paths, payload cache writes, public selector policy, and recommended/season prototype paths are intentionally unchanged in this read-only selector split."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "resync_repair"
+  ]
+}
