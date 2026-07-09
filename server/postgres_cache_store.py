@@ -5893,27 +5893,6 @@ class PostgresCacheStore:
             table_rows,
         )
 
-    def _compact_initial_gear_item(self, item, compact=False):
-        items = compact_gear_candidates([item], include_mod_options=False) if compact else [dict(item)]
-        if not items:
-            return {}
-        output = dict(items[0])
-        output["detailMode"] = "summary"
-        output["slotDetailAvailable"] = True
-        return output
-
-    def _template_gear_by_slot(self, template, compact=False):
-        result = {}
-        for item in template.get("gearItems") or []:
-            if not isinstance(item, dict):
-                continue
-            slot = normalize_slot(item.get("simcSlot") or item.get("slot"))
-            if slot in CANONICAL_GEAR_SLOTS and slot not in result:
-                initial_item = self._compact_initial_gear_item(item, compact=compact)
-                if initial_item:
-                    result[slot] = initial_item
-        return result
-
     def _websim_gear_initial_payload(
         self,
         class_key,
@@ -5934,23 +5913,13 @@ class PostgresCacheStore:
         community_templates = template_read_model["selectedCommunityTemplates"]
         baseline_templates = template_read_model["selectedBaselineTemplates"]
         baseline_template = baseline_templates[0] if baseline_templates else {}
-        baseline_items = baseline_template.get("gearItems") or []
-        equipped_set = self._template_gear_by_slot(baseline_template, compact=compact)
-        slot_groups = []
-        for slot in CANONICAL_GEAR_SLOTS:
-            item = equipped_set.get(slot)
-            slot_groups.append(
-                {
-                    "slot": slot,
-                    "simcSlot": slot,
-                    "label": GEAR_SLOT_LABELS.get(slot, slot),
-                    "items": [item] if item else [],
-                    "detailMode": "partial",
-                    "fullItemCount": 1 if item else 0,
-                }
-            )
-        output_baseline_set = compact_gear_candidates(baseline_items, include_mod_options=False) if compact else baseline_items
-        readiness = gear_readiness(baseline_items)
+        initial_read_model = pg_gear_read_model_selectors.build_initial_gear_read_model_fragment(
+            baseline_template,
+            class_key,
+            spec_key,
+            compact=compact,
+        )
+        readiness = initial_read_model["readiness"]
         catalog_state_read_model = pg_gear_read_model_selectors.build_catalog_state_read_model_fragment(
             catalog_state,
             catalog_blockers,
@@ -5962,10 +5931,10 @@ class PostgresCacheStore:
             "gearInitialCandidateLimit": 1,
             "weaponRule": weapon_equipment_rule_payload(class_key, spec_key),
             "slots": gear_slot_payload(),
-            "replacementCandidates": slot_groups,
-            "equippedSet": equipped_set,
-            "slotReadiness": gear_slot_readiness(baseline_items, class_key, spec_key),
-            "baselineSet": output_baseline_set,
+            "replacementCandidates": initial_read_model["replacementCandidates"],
+            "equippedSet": initial_read_model["equippedSet"],
+            "slotReadiness": initial_read_model["slotReadiness"],
+            "baselineSet": initial_read_model["baselineSet"],
             "communityTemplates": template_read_model["payloadCommunityTemplates"],
             "baselineTemplates": template_read_model["payloadBaselineTemplates"],
             "communityTemplateSync": template_read_model["communityTemplateSync"],
@@ -5977,7 +5946,7 @@ class PostgresCacheStore:
                 gear_readiness_payload=readiness,
             ),
             **catalog_state_read_model,
-            "catalogItems": output_baseline_set[:120],
+            "catalogItems": initial_read_model["catalogItems"],
             "maxLevel": websim_max_level(),
             "checkedAt": utc_now(),
             **season_fields,

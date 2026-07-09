@@ -26,6 +26,8 @@
 
 2026-07-09 Phase 4 第六刀进行中：继续拆 PG gear read model 的只读 catalog state envelope，新增 `build_catalog_state_read_model_fragment()`，把 initial 与 full/slot payload 共同使用的 catalog revision/status/health/coverage/blocker 字段从 `server/postgres_cache_store.py` 收敛到 `server/pg_gear_read_model_selectors.py`。本刀只移动只读 payload fragment 组装，不移动 PG SQL 读取、cache fingerprint、cache put、sync/write/backfill、template public selector 或 candidate grouping 逻辑；公开 observed-only 入口不变。红测已证明缺 helper，最小实现后目标 tests、完整 Python/Node/compile/check/JSON/diff 验证和本地 CR 已通过。PR #15 branch 已按 Candidate Deployment Gate 完成候选热部署，公网 API、40-spec observed-only sweep、systemd/log/hash parity smoke 通过，已 rebase merge 到 `main@608b77f` 并同步到本地。
 
+2026-07-09 Phase 4 第七刀进行中：继续拆 PG initial gear read model 的只读 baseline/equipped fragment，新增 `build_initial_gear_read_model_fragment()`，把 baseline template 到 `equippedSet`、initial 16 槽 `replacementCandidates` summary、`slotReadiness`、`baselineSet`、`readiness` 和初始 `catalogItems` 的组装从 `server/postgres_cache_store.py` 收敛到 `server/pg_gear_read_model_selectors.py`。本刀只移动只读 payload fragment 组装，不移动 PG SQL 读取、cache fingerprint、cache put、sync/write/backfill、template public selector、catalog state 或 full/slot candidate grouping 逻辑；公开 observed-only 入口不变。红测已证明缺 helper，最小实现后目标 tests 通过，完整本地验证、本地 CR 已通过；PR、Candidate Deployment Gate 和合入仍待完成。
+
 本计划只定义整体优化顺序和验收门禁，不授权直接修改业务实现、不替代 roadmap、runbook 或当前 UI source-of-truth。
 
 ## Requirement Contract
