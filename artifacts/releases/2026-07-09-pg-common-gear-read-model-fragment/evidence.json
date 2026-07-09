@@ -1,5 +1,5 @@
 {
-  "status": "candidate_deployment_verified",
+  "status": "live_verified",
   "highestEvidenceLevel": "live_verified",
   "scope": [
     "server/pg_gear_read_model_selectors.py",
@@ -156,6 +156,13 @@
         }
       }
     }
+  },
+  "merge": {
+    "status": "merged",
+    "pullRequest": 17,
+    "mergedAt": "2026-07-09T10:40:37Z",
+    "method": "rebase",
+    "mainCommit": "b0af412ec6526b7af701508c39c20a9479840ff3"
   },
   "risks": [
     {

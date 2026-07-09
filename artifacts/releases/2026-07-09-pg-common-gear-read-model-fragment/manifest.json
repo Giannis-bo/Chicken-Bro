@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-09T10:40:00.414Z",
+  "generatedAt": "2026-07-09T10:41:42.650Z",
   "release": {
     "date": "2026-07-09",
     "slug": "pg-common-gear-read-model-fragment"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 331066
+          "sizeBytes": 331130
         },
         {
           "path": "docs/README.md",
@@ -217,7 +217,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-09-pg-common-gear-read-model-fragment/evidence.json",
-    "sizeBytes": 7488,
+    "sizeBytes": 7662,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,7 +235,7 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "candidate_deployment_verified",
+    "declaredStatus": "live_verified",
     "highestEvidenceLevel": "live_verified",
     "summary": "Phase 4 continues the read-only PostgreSQL gear read-model split. server/pg_gear_read_model_selectors.py now owns the common gear payload fragment shared by initial and full/slot gear payloads: weaponRule, slots, readiness, blocked statSnapshot, maxLevel, and top-level checkedAt. server/postgres_cache_store.py keeps PG SQL reads, payload cache fingerprinting, template/catalog read-model delegation, final response assembly, and cache writes. Sync, write, and backfill paths are unchanged."
   },
