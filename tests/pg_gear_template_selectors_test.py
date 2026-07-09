@@ -337,6 +337,62 @@ class PgGearTemplateSelectorsTest(unittest.TestCase):
             ],
         )
 
+    def test_build_admin_gear_template_display_records_read_model_groups_display_slots(self):
+        from server.pg_gear_template_selectors import build_admin_gear_template_display_records_read_model
+
+        raw_blocked = {
+            "id": "raw-blocked-template",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "unknown_source",
+            "status": "blocked",
+        }
+        community_old = {
+            "id": "observed-old",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "raiderio_observed_profile",
+            "status": "partial",
+            "rawString": "head=old,id=1",
+        }
+        community_new = {
+            **community_old,
+            "id": "observed-new",
+            "status": "complete",
+            "rawString": "head=new,id=2",
+        }
+        baseline_old = {
+            "id": "baseline-old",
+            "classKey": "mage",
+            "specKey": "frost",
+            "sourceKey": "simc_preset",
+            "status": "complete",
+        }
+        baseline_new = {
+            **baseline_old,
+            "id": "baseline-new",
+        }
+        community_calls = []
+        baseline_calls = []
+
+        def community_selector(candidates, class_key, spec_key, strict_active=True):
+            community_calls.append(([template["id"] for template in candidates], class_key, spec_key, strict_active))
+            return [candidates[-1]]
+
+        def baseline_selector(candidates):
+            baseline_calls.append([template["id"] for template in candidates])
+            return [candidates[-1]]
+
+        display_records = build_admin_gear_template_display_records_read_model(
+            [raw_blocked, community_old, community_new, baseline_old, baseline_new],
+            community_selector=community_selector,
+            baseline_selector=baseline_selector,
+        )
+
+        self.assertEqual([template["id"] for template in display_records], ["raw-blocked-template", "observed-new", "baseline-new"])
+        self.assertEqual(community_calls, [(["observed-old", "observed-new"], "mage", "frost", False)])
+        self.assertEqual(baseline_calls, [["baseline-old", "baseline-new"]])
+
     def test_build_public_gear_template_read_model_compacts_payload_without_public_baseline(self):
         from server.pg_gear_template_selectors import build_public_gear_template_read_model
 

@@ -300,6 +300,72 @@ def build_admin_gear_template_queue_rows_read_model(
     return queue_rows
 
 
+def build_admin_gear_template_display_records_read_model(
+    templates,
+    *,
+    community_selector=None,
+    baseline_selector=None,
+):
+    helpers = None
+
+    def helper(name):
+        nonlocal helpers
+        if helpers is None:
+            helpers = _websim_payload_helpers()
+        return helpers[name]
+
+    community_selector = community_selector or helper("community_selector")
+    baseline_selector = baseline_selector or helper("baseline_selector")
+    display_slots = []
+    community_groups = {}
+    baseline_groups = {}
+    seen_community_slots = set()
+    seen_baseline_slots = set()
+    for template in templates or []:
+        if not isinstance(template, dict):
+            continue
+        class_key = gear_public_contract.slugify(template.get("classKey"), "")
+        spec_key = gear_public_contract.slugify(template.get("specKey"), "")
+        group_key = (class_key, spec_key)
+        if class_key and spec_key and gear_public_contract.is_baseline_gear_template(template):
+            baseline_groups.setdefault(group_key, []).append(template)
+            if group_key not in seen_baseline_slots:
+                seen_baseline_slots.add(group_key)
+                display_slots.append(("baseline", group_key))
+            continue
+        if class_key and spec_key and gear_public_contract.is_real_community_gear_template(template):
+            community_groups.setdefault(group_key, []).append(template)
+            if group_key not in seen_community_slots:
+                seen_community_slots.add(group_key)
+                display_slots.append(("community", group_key))
+            continue
+        display_slots.append(("raw", template))
+
+    selected_community = {}
+    for (class_key, spec_key), candidates in community_groups.items():
+        best = community_selector(candidates, class_key, spec_key, strict_active=False)
+        if best:
+            selected_community[(class_key, spec_key)] = best[0]
+    selected_baseline = {}
+    for group_key, candidates in baseline_groups.items():
+        best = baseline_selector(candidates)
+        if best:
+            selected_baseline[group_key] = best
+
+    display_records = []
+    for slot_type, value in display_slots:
+        if slot_type == "community":
+            selected = selected_community.get(value)
+            if selected:
+                display_records.append(selected)
+        elif slot_type == "baseline":
+            for selected in selected_baseline.get(value) or []:
+                display_records.append(selected)
+        else:
+            display_records.append(value)
+    return display_records
+
+
 def select_public_gear_templates_for_spec(
     persisted_templates,
     class_key,

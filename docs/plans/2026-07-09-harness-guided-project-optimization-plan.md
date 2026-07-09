@@ -348,3 +348,5 @@
 - 推荐、装备、SimC、PG、health/admin、定时任务和部署 smoke 不再被单点改动误伤。
 - 热点文件后续新增职责被 Harness 拦住，拆分有测试和 owner 支撑。
 - 每次交付声明都能说清证据等级和不能证明什么。
+
+2026-07-09 Phase 4 第二十二刀进行中：继续拆 `server/postgres_cache_store.py` 的只读 PG/admin template read-model selector 边界，新增 `server/pg_gear_template_selectors.py::build_admin_gear_template_display_records_read_model()`，仅移动 `_admin_gate_gear_template_display_records()` 中 admin display slot grouping、community best 选择（`strict_active=False`）与 baseline display selection 的只读组装逻辑。store 保留 admin gate SQL/table check/metadata 查询/offhand coverage repair adapter/cache write/sync/write/backfill；公开 observed-only 入口、baseline 默认空、recommended/season/internal prototype 语义不变。当前红测、目标验证和完整本地验证已完成，Harness v0.5 candidate deployment gate 待执行。

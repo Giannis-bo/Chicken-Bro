@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-09-phase4-v11",
-  "status": "phase4_admin_gear_template_queue_selector_extracted",
+  "version": "2026-07-09-phase4-v12",
+  "status": "phase4_admin_gear_template_record_selector_extracted",
   "harnessVersion": "v0.5",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -237,6 +237,7 @@
             "community template row read-model assembly",
             "community template list read-model assembly",
             "admin gear template queue read-model assembly",
+            "admin gear template display read-model assembly",
             "payload-ready public gear template read-model fragments",
             "communityTemplates and baselineTemplates PG read model",
             "compact and full payload selector branches"
@@ -255,13 +256,14 @@
             "tests/pg_gear_template_selectors_test.py::PgGearTemplateSelectorsTest.test_build_community_gear_template_read_model_preserves_payload_evidence",
             "tests/pg_gear_template_selectors_test.py::PgGearTemplateSelectorsTest.test_build_community_gear_templates_read_model_delegates_rows_to_dedupe",
             "tests/pg_gear_template_selectors_test.py::PgGearTemplateSelectorsTest.test_build_admin_gear_template_queue_rows_read_model_preserves_blockers_after_repair",
+            "tests/pg_gear_template_selectors_test.py::PgGearTemplateSelectorsTest.test_build_admin_gear_template_display_records_read_model_groups_display_slots",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_pg_gear_template_selectors_match_observed_only_golden_payload",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_pg_initial_gear_selector_calls_gear_public_contract_module",
             "tests/fixtures/pg-gear-template-selectors-observed-only.json",
             "tests/postgres_cache_store_test.py public observed-only gear payload tests",
             "tests/news_backend_test.py runtime PG gear tests"
           ],
-          "futureExtractionDirection": "Continue extracting repository-level selectors after official metadata row filtering, community item ref collection, row/list/admin queue assembly and hydration, compact/full candidate grouping, and write-intent boundaries are characterized separately."
+          "futureExtractionDirection": "Continue extracting repository-level selectors after official metadata row filtering, community item ref collection, row/list/admin queue/display assembly and hydration, compact/full candidate grouping, and write-intent boundaries are characterized separately."
         },
         {
           "id": "gear_catalog_read_model_selectors",
