@@ -1,5 +1,5 @@
 {
-  "status": "candidate_deployment_passed",
+  "status": "merged",
   "highestEvidenceLevel": "live_verified",
   "scope": [
     "server/pg_gear_template_selectors.py",
@@ -114,8 +114,12 @@
     }
   },
   "merge": {
-    "status": "pending",
-    "pullRequest": 25
+    "status": "merged",
+    "pullRequest": 25,
+    "mergedAt": "2026-07-09T12:15:57Z",
+    "method": "rebase",
+    "mainCommit": "2e8943e5c951a48b454f84dcd9c3cdd81c84a572",
+    "mainTreeMatchesCandidateTree": true
   },
   "risks": [
     {
