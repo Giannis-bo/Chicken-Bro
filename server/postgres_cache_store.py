@@ -40,7 +40,6 @@ try:
         GEAR_SLOT_LABELS,
         ITEM_METADATA_SOURCE,
         TALENT_SCHEMA_REVISION,
-        apply_gear_candidate_legality,
         apply_gear_template_legality_gate,
         apply_item_metadata,
         blocked_baseline_gear_template,
@@ -64,10 +63,6 @@ try:
         fallback_presets,
         game_asset_from_icon_url,
         game_asset_from_registry_row,
-        gear_candidate_for_slot,
-        gear_candidate_incompatible,
-        gear_candidate_quality_score,
-        gear_candidate_slots,
         gear_community_template_from_observed_items,
         gear_variant_slots_are_compatible_for_item,
         gear_readiness,
@@ -84,7 +79,6 @@ try:
         official_item_level_probe_simc_slot,
         item_slot_from_payload,
         item_type_metadata_from_payload,
-        limit_replacement_candidates,
         normalize_source_refs,
         normalize_option_value,
         normalize_slot,
@@ -118,7 +112,6 @@ try:
         talent_tree_sections,
         unique_text_list,
         validate_community_talent_template,
-        unique_gear_candidates,
         unique_locale_preferences,
         websim_simc_binary,
         websim_gear_community_templates,
@@ -141,7 +134,6 @@ except ImportError:
         GEAR_SLOT_LABELS,
         ITEM_METADATA_SOURCE,
         TALENT_SCHEMA_REVISION,
-        apply_gear_candidate_legality,
         apply_gear_template_legality_gate,
         apply_item_metadata,
         blocked_baseline_gear_template,
@@ -165,10 +157,6 @@ except ImportError:
         fallback_presets,
         game_asset_from_icon_url,
         game_asset_from_registry_row,
-        gear_candidate_for_slot,
-        gear_candidate_incompatible,
-        gear_candidate_quality_score,
-        gear_candidate_slots,
         gear_community_template_from_observed_items,
         gear_variant_slots_are_compatible_for_item,
         gear_readiness,
@@ -185,7 +173,6 @@ except ImportError:
         official_item_level_probe_simc_slot,
         item_slot_from_payload,
         item_type_metadata_from_payload,
-        limit_replacement_candidates,
         normalize_source_refs,
         normalize_option_value,
         normalize_slot,
@@ -219,7 +206,6 @@ except ImportError:
         talent_tree_sections,
         unique_text_list,
         validate_community_talent_template,
-        unique_gear_candidates,
         unique_locale_preferences,
         websim_simc_binary,
         websim_gear_community_templates,
@@ -3906,32 +3892,11 @@ class PostgresCacheStore:
             spec_key,
             season,
         )
-        catalog_items = sorted(catalog_items, key=gear_candidate_quality_score, reverse=True)
-        grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
-        for item in catalog_items:
-            candidate_slots = gear_candidate_slots(item, class_key, spec_key)
-            if not candidate_slots:
-                checked = apply_gear_candidate_legality(item, class_key, spec_key, item.get("slot"))
-                if gear_candidate_incompatible(checked):
-                    continue
-            for candidate_slot in candidate_slots:
-                if candidate_slot in grouped:
-                    candidate = apply_gear_candidate_legality(
-                        gear_candidate_for_slot(item, candidate_slot),
-                        class_key,
-                        spec_key,
-                        candidate_slot,
-                    )
-                    if gear_candidate_incompatible(candidate):
-                        continue
-                    grouped[candidate_slot].append(candidate)
-        return {
-            slot: limit_replacement_candidates(
-                sorted(unique_gear_candidates(items), key=gear_candidate_quality_score, reverse=True),
-                24,
-            )
-            for slot, items in grouped.items()
-        }
+        return pg_gear_read_model_selectors.build_season_recommended_catalog_candidates_by_slot_read_model(
+            catalog_items,
+            class_key,
+            spec_key,
+        )
 
     def _season_recommended_candidate_pools(self, class_key, spec_key, community_candidates):
         pools = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
