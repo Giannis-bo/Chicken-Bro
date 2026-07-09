@@ -5590,25 +5590,7 @@ class PostgresCacheStore:
             class_key,
             spec_key,
             hero_key,
-            template={
-                "id": row[0],
-                "classKey": row[1],
-                "specKey": row[2],
-                "heroKey": row[3],
-                "scenarioKey": row[4],
-                "name": row[5],
-                "sourceKey": row[6],
-                "sourceName": row[7],
-                "sourceUrl": row[8],
-                "rawImportCode": row[9],
-                "sourceStatus": row[10],
-                "status": row[11],
-                "sampleCount": _int_value(row[12]),
-                "maxKeyLevel": _int_value(row[13]),
-                "analysisWindow": row[14] or "",
-                "updatedAt": str(row[15] or ""),
-                "canUseInSimc": True,
-            },
+            template=pg_gear_read_model_selectors.build_websim_talent_import_template_read_model(row),
         )
 
     def _gear_payload_fingerprint(self, cur, class_key, spec_key, compact, season, catalog_state, mode="", slot=""):

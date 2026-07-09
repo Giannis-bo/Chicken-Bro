@@ -1,0 +1,112 @@
+{
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "scope": [
+    "server/pg_gear_read_model_selectors.py",
+    "server/postgres_cache_store.py",
+    "tests/pg_gear_read_model_selectors_test.py",
+    "tests/backend-owner-map.test.js",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+    "artifacts/releases/2026-07-09-websim-talent-import-read-model-selector/evidence.json",
+    "artifacts/releases/2026-07-09-websim-talent-import-read-model-selector/manifest.json"
+  ],
+  "summary": "Phase 4 continues the read-only PostgreSQL WebSim read-model selector split. server/pg_gear_read_model_selectors.py now owns build_websim_talent_import_template_read_model(), which maps an already-selected verified community talent template row into the structured WebSim talent import template payload. server/postgres_cache_store.py keeps active season gating, class/spec/hero normalization, PostgreSQL SQL selection, fallback no-template response, cache writes, sync, and backfill paths.",
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_gear_read_model_selectors_test.PgGearReadModelSelectorsTest.test_build_websim_talent_import_template_read_model_maps_row",
+      "status": "red_then_pass",
+      "summary": "First run failed with ImportError because build_websim_talent_import_template_read_model was missing; after adding the helper the characterization passed."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_gear_read_model_selectors_test tests.postgres_cache_store_test",
+      "status": "pass",
+      "summary": "120 targeted PG read-model selector and PG cache store tests passed locally."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "red_then_pass",
+      "summary": "Owner-map test was updated first and failed while docs/backend-owner-map.json still reported phase4_admin_talent_records_read_model_selector_extracted; after updating the owner map it passed."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "Full Python unittest discovery passed locally: 1040 tests OK (skipped=1)."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "Full Node test suite passed locally: 344 tests passed."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_gear_read_model_selectors.py server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Touched Python runtime modules compiled successfully."
+    },
+    {
+      "command": "node --check tests/backend-owner-map.test.js && node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Touched Node test and harness script syntax checks passed."
+    },
+    {
+      "command": "python3 -m json.tool docs/backend-owner-map.json && python3 -m json.tool artifacts/releases/2026-07-09-websim-talent-import-read-model-selector/evidence.json && python3 -m json.tool artifacts/releases/2026-07-09-websim-talent-import-read-model-selector/manifest.json",
+      "status": "pass",
+      "summary": "Owner map, evidence packet, and release manifest parse as valid JSON."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "Whitespace diff check passed."
+    },
+    {
+      "command": "local CR",
+      "status": "pass",
+      "summary": "Diff review found the slice limited to read-only WebSim talent import template row-to-payload assembly; active season gate, class/spec/hero normalization, SQL selection, no-row fallback, write paths, sync/backfill, and public observed-only gear policy remain unchanged."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true,
+    "branch": "codex/phase4-websim-talent-import-read-model-selector",
+    "baseCommit": "a1a9dfd0cdb835b6f2b7370ae0a9126ccaa08203",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "asyncSyncStarted": false,
+    "requiredSmoke": [
+      "/health",
+      "/api/data/health",
+      "/api/websim/bootstrap",
+      "/api/websim/assets",
+      "/api/websim/talents",
+      "/api/websim/talents/import",
+      "/api/websim/loot",
+      "/api/websim/gear initial",
+      "/api/websim/gear slot",
+      "40-spec observed-only gear sweep",
+      "systemd backend/nginx/sync-backfill service/timer status",
+      "recent logs without Traceback/ERROR/SQLite fallback",
+      "runtime file hash parity"
+    ]
+  },
+  "risks": [
+    {
+      "id": "full_local_verification_pending",
+      "status": "closed",
+      "detail": "Full Python/Node suites, compile checks, JSON validation, git diff check, and local CR passed locally before PR."
+    },
+    {
+      "id": "candidate_deployment_pending",
+      "status": "open",
+      "detail": "Harness v0.5 Candidate Deployment Gate must pass on the PR branch before merge."
+    },
+    {
+      "id": "write_paths_out_of_scope",
+      "status": "intentional",
+      "detail": "Sync, write, backfill, cleanup, PG SQL write paths, payload cache writes, public gear selector policy, and recommended/season prototype paths are intentionally unchanged in this read-only selector split."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "resync_repair"
+  ]
+}
