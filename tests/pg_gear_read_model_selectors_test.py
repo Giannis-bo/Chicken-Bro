@@ -4,6 +4,57 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_websim_profile_presets_read_model_maps_rows(self):
+        from server.pg_gear_read_model_selectors import build_websim_profile_presets_read_model
+
+        rows = [
+            (
+                "preset-arcane",
+                "mage",
+                "arcane",
+                "Arcane Default",
+                "mage=Arcane_Default",
+                '{"source": "simc"}',
+                "2026-07-09T12:00:00Z",
+            ),
+            (
+                "preset-bad-payload",
+                "mage",
+                "fire",
+                "Fire Default",
+                "mage=Fire_Default",
+                "{bad json",
+                None,
+            ),
+        ]
+
+        presets = build_websim_profile_presets_read_model(rows)
+
+        self.assertEqual(
+            presets,
+            [
+                {
+                    "id": "preset-arcane",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "name": "Arcane Default",
+                    "profile": "mage=Arcane_Default",
+                    "payload": {"source": "simc"},
+                    "updatedAt": "2026-07-09T12:00:00Z",
+                },
+                {
+                    "id": "preset-bad-payload",
+                    "classKey": "mage",
+                    "specKey": "fire",
+                    "name": "Fire Default",
+                    "profile": "mage=Fire_Default",
+                    "payload": {},
+                    "updatedAt": "",
+                },
+            ],
+        )
+        self.assertEqual(build_websim_profile_presets_read_model([]), [])
+
     def test_build_websim_assets_read_model_counts_status_and_source(self):
         from server.pg_gear_read_model_selectors import build_websim_assets_read_model
 

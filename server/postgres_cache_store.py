@@ -5385,18 +5385,7 @@ class PostgresCacheStore:
         rows = cur.fetchall()
         if not rows:
             return fallback_presets(class_key, spec_key)
-        return [
-            {
-                "id": row[0],
-                "classKey": row[1],
-                "specKey": row[2],
-                "name": row[3],
-                "profile": row[4],
-                "payload": _json_value(row[5], {}),
-                "updatedAt": str(row[6] or ""),
-            }
-            for row in rows
-        ]
+        return pg_gear_read_model_selectors.build_websim_profile_presets_read_model(rows)
 
     def _community_talent_templates(self, cur, class_key, spec_key, hero_key=""):
         cur.execute(

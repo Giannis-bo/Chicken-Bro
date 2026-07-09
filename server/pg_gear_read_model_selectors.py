@@ -100,6 +100,21 @@ def _int_value(value, fallback=0):
         return fallback
 
 
+def build_websim_profile_presets_read_model(rows):
+    return [
+        {
+            "id": row[0],
+            "classKey": row[1],
+            "specKey": row[2],
+            "name": row[3],
+            "profile": row[4],
+            "payload": _json_value(row[5], {}),
+            "updatedAt": str(row[6] or ""),
+        }
+        for row in rows or []
+    ]
+
+
 def build_gear_sources_by_item_read_model(rows):
     result = {}
     for row in rows or []:
