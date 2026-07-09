@@ -5,7 +5,7 @@
     "harness_candidate_deployment_gate",
     "pg_gear_template_selector_read_model_helper"
   ],
-  "summary": "Harness v0.5 adds Candidate Deployment Gate, and PG gear template public selection now delegates to server/pg_gear_template_selectors.py without changing observed-only public entry semantics or sync write paths. PR branch candidate deployment passed before merge.",
+  "summary": "Harness v0.5 adds Candidate Deployment Gate, and PG gear template public selection now delegates to server/pg_gear_template_selectors.py without changing observed-only public entry semantics or sync write paths. PR branch candidate deployment passed before merge, and PR #12 was merged to main.",
   "verification": [
     {
       "command": "node --test tests/project-harness.test.js",
@@ -73,6 +73,8 @@
     "requiredBeforeMerge": true,
     "branch": "codex/pg-selector-read-model-gate",
     "commit": "2b8b6f063cdd458b1f7ebc577a67230007edab5b",
+    "mergedPr": 12,
+    "mergedCommit": "704714f48dd99d1b62166bb2f4059cab602e4d96",
     "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
     "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program",
     "asyncSyncStarted": false,
