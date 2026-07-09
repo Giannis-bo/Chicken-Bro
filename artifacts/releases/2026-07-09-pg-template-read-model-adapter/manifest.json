@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-09T09:19:11.470Z",
+  "generatedAt": "2026-07-09T09:23:46.005Z",
   "release": {
     "date": "2026-07-09",
     "slug": "pg-template-read-model-adapter"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 319962
+          "sizeBytes": 320742
         },
         {
           "path": "docs/README.md",
@@ -217,7 +217,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-09-pg-template-read-model-adapter/evidence.json",
-    "sizeBytes": 4313,
+    "sizeBytes": 7609,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,9 +235,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Phase 4 continues the read-only PostgreSQL gear selector split. server/pg_gear_template_selectors.py now owns the payload-ready public template read-model fragment for communityTemplates, baselineTemplates, and communityTemplateSync, while server/postgres_cache_store.py keeps SQL reads, catalog candidate grouping, readiness, and catalog health assembly."
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "Phase 4 continues the read-only PostgreSQL gear selector split. server/pg_gear_template_selectors.py now owns the payload-ready public template read-model fragment for communityTemplates, baselineTemplates, and communityTemplateSync, while server/postgres_cache_store.py keeps SQL reads, catalog candidate grouping, readiness, and catalog health assembly. PR branch candidate deployment and public read-model smoke passed before merge."
   },
   "evidence": {
     "localTests": {
@@ -262,7 +262,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "8 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -298,16 +298,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 8,
+      "changedFileCount": 3,
       "changedFiles": [
-        " M docs/backend-owner-map.json",
+        " M artifacts/releases/2026-07-09-pg-template-read-model-adapter/evidence.json",
         " M docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
-        " M docs/roadmap.md",
-        " M server/pg_gear_template_selectors.py",
-        " M server/postgres_cache_store.py",
-        " M tests/backend-owner-map.test.js",
-        " M tests/pg_gear_template_selectors_test.py",
-        "?? artifacts/releases/2026-07-09-pg-template-read-model-adapter/"
+        " M docs/roadmap.md"
       ]
     }
   },
