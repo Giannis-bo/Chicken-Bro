@@ -1,6 +1,6 @@
 # Repo-native Harness
 
-> Harness version：v0.3。
+> Harness version：v0.4。
 > 最后更新：2026-07-09。
 > 适用范围：本仓库所有需求讨论、方案设计、实现、验证、部署和交付声明。
 
@@ -20,6 +20,7 @@
 - 工程健康也是交付边界。触达热点文件、核心 API、PG read model、定时任务、health/admin 或部署脚本时，必须说明结构、性能和可用性影响。
 - Harness 必须由真实问题迭代。返工、事故、证据误判、联动漏评和旧文档误导应先记录 finding，再按规则升级为 Harness 改动。
 - 本仓库与已配置项目远端之间的常规同步是协作基础设施，不再作为下载/网络授权阻塞项；但它不能扩展为依赖安装、第三方下载、任意 clone、改 remote 或破坏性历史改写。
+- 用户批准计划、授权继续或要求直接推进后，agent 默认自动推进后续范围内步骤；只有明确阻塞、验证失败需权衡、范围变化、待决策点或越界高风险操作才回到用户确认。
 - 不确定时按更高风险处理。Agent 如果无法判断需求大小，默认进入大需求流程。
 
 ## 需求分级
@@ -277,6 +278,31 @@ Standard 以上需求如果触达部署、生产数据、PG read model、cache�
 - `git clone` 其他仓库、submodule update、依赖安装、第三方下载或写入网络获取内容。
 - 任何会部署、触发生产任务、下载外部数据或改变生产配置的操作，除非当前请求已明确授权。
 
+## Autonomous Progression Gate
+
+一旦用户确认方案、说“继续”或授权直接推进，agent 不再为每个常规步骤单独请求同意。该规则用于减少流程摩擦，不取消 Strict 需求开始前的方案确认，也不扩大生产、依赖、下载或破坏性操作边界。
+
+默认继续推进：
+
+- 已确认范围内的本地实现、文档更新、测试、静态检查和 artifact 生成。
+- 已授权计划中的 branch、commit、push、PR 创建/更新、PR 状态读取和合入。
+- 验证通过后的下一步收口，例如 roadmap/runbook/evidence 回写或进入下一阶段准备。
+- 无新增产品判断、无破坏性操作、无本地/远端冲突的常规同步和整理。
+
+必须停止并向用户确认：
+
+- 出现测试、smoke、lint、构建、runtime、部署或数据验证失败，且存在多个修复/降级/回滚选择。
+- 发现需求需要改变产品承诺、公开入口、数据可信边界、部署方式、成本模型或用户可见主流程。
+- 当前事实和旧文档冲突，且无法从 roadmap、runbook、代码或 live evidence 判定应以哪一个为准。
+- 需要 force push、公开历史改写、改 remote、clone 其他仓库、submodule、依赖安装、第三方下载、破坏性命令或未授权生产操作。
+- 工作树或远端状态存在冲突，继续执行可能覆盖用户改动或扩大 diff 范围。
+
+执行要求：
+
+- 中间更新应只报告关键状态、风险或验证结论，不为明显下一步制造审批点。
+- 如果没有 blocker 或 decision point，继续执行到当前阶段自然收口。
+- 收口时说明已经执行的同步、验证、PR/合入、未做的 live/deploy smoke，以及下一阶段最高证据等级。
+
 ## Evidence Promotion Gate
 
 所有交付声明必须经过证据晋级门禁。证据只能声明它实际证明的状态，不能因为“看起来差不多”跨级。
@@ -358,6 +384,7 @@ Harness 复盘节奏：
 
 | Version | Date | Change |
 | --- | --- | --- |
+| v0.4 | 2026-07-09 | 增加 Autonomous Progression Gate：用户确认方案、授权继续或直接推进后，agent 默认自动执行范围内后续步骤；只有明确 blocker、验证失败需权衡、范围变化、待决策点、工作树/远端冲突或越界高风险操作才回到用户确认。 |
 | v0.3 | 2026-07-09 | 增加 Repository Remote Sync Gate：本仓库与已配置项目远端之间的常规 fetch / pull --ff-only / push / PR 状态读取、更新和合入不再需要额外授权，同时保留 force push、改 remote、clone、submodule、依赖安装、第三方下载和生产操作的确认边界。 |
 | v0.2 | 2026-07-09 | 增加 Ownership / Contract Gate 与 Release / Rollback Gate，明确事实判断归属、发布前后 smoke、回滚策略和定时任务防回流。 |
 | v0.1 | 2026-07-09 | 初始 Repo-native Harness：需求分级、Requirement Challenge、Current Truth、Impact Map、Engineering Health、Evidence Promotion、状态机和 Feedback Loop。 |

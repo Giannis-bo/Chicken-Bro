@@ -1,0 +1,38 @@
+{
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "scope": [
+    "AGENTS.md autonomous progression rule",
+    "docs/harness.md v0.4 Autonomous Progression Gate",
+    "scripts/project-harness.js autonomousProgression manifest gate",
+    "tests/project-harness.test.js v0.4 expectations",
+    "roadmap and plan current-truth updates"
+  ],
+  "verification": [
+    {
+      "command": "node --test tests/project-harness.test.js",
+      "status": "pass",
+      "summary": "5 pass, 0 fail"
+    },
+    {
+      "command": "node scripts/project-harness.js --json --slug autonomous-progression-v0-4",
+      "status": "pass",
+      "summary": "Manifest reports harness version v0.4 and autonomousProgression gate."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "343 pass, 0 fail"
+    }
+  ],
+  "risks": [
+    {
+      "status": "watch",
+      "summary": "This is a process and harness tooling change only; no live mini-program runtime, production deploy, or cloud smoke was run."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "summary": "Harness v0.4 records the user's autonomous progression rule and keeps confirmation boundaries for blockers, failed verification tradeoffs, scope changes, conflicts, destructive operations, and out-of-scope high-risk work."
+}

@@ -48,6 +48,13 @@ This repository maintains a project roadmap as shared context for all agents and
 - Before local sync, inspect `git status --short --branch`. Preserve unrelated local changes and prefer fast-forward-only updates for `main`.
 - If sync is non-fast-forward, conflicts with local work, needs a force push, rewrites history, changes remotes, clones another repository, updates submodules, installs dependencies, or downloads third-party assets/data, stop and get explicit user confirmation unless the current user request already includes that operation.
 
+## Autonomous Progression
+
+- Once the user approves a plan, says to continue, or authorizes direct execution, continue through the next in-scope implementation, verification, sync, PR, and handoff steps without asking for approval at every routine step.
+- Keep interim updates concise and focused on meaningful state changes, verification results, or newly discovered risk. Do not interrupt just to ask whether to run the next obvious command.
+- Stop and ask only when there is a clear blocker, failed verification that needs a tradeoff, unresolved product or technical decision, scope expansion, destructive or irreversible operation, local/remote conflict, or an action outside the repository's existing approval boundaries.
+- If no blocker or decision point exists, move to the next planned step and record the resulting evidence in the current roadmap, runbook, plan, PR, or artifact as appropriate.
+
 ## Scope Boundaries
 
 - The roadmap is the long-lived product and engineering control plane. It does not replace detailed task plans.

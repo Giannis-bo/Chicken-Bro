@@ -325,6 +325,27 @@ function buildManifest(options) {
       ],
       preSyncCheck: 'git status --short --branch'
     },
+    autonomousProgression: {
+      status: 'ready',
+      continueWithoutStepByStepApproval: true,
+      defaultContinueWhen: [
+        'plan_or_scope_approved',
+        'user_says_continue',
+        'direct_execution_authorized',
+        'next_step_is_in_scope',
+        'verification_passes'
+      ],
+      stopForConfirmationWhen: [
+        'clear_blocker',
+        'failed_verification_with_tradeoff',
+        'product_or_technical_decision_required',
+        'scope_expansion',
+        'destructive_or_irreversible_operation',
+        'local_or_remote_conflict',
+        'outside_existing_approval_boundary'
+      ],
+      interimUpdatePolicy: 'key_state_changes_risks_and_verification_only'
+    },
     evidencePromotion: {
       status: 'template_required',
       levels: [
@@ -384,6 +405,7 @@ function buildManifest(options) {
       noNetwork: true,
       repositoryRemoteSyncPreapproved: true,
       repositoryRemoteSyncScope: 'configured_project_remote_only',
+      autonomousProgressionEnabled: true,
       noDeploy: true,
       noSsh: true,
       productionWrites: false
