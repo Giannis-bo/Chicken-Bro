@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-09-phase4-v19",
-  "status": "phase4_websim_bootstrap_read_model_selector_extracted",
+  "version": "2026-07-09-phase4-v20",
+  "status": "phase4_admin_talent_records_read_model_selector_extracted",
   "harnessVersion": "v0.5",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -285,6 +285,7 @@
             "gear mod option row read-model grouping",
             "gear catalog item row read-model assembly",
             "gear mod option type read-model grouping",
+            "admin talent record read-model assembly",
             "admin gear variant record read-model assembly",
             "websim loot item read-model assembly",
             "websim instances read-model assembly",
@@ -309,6 +310,7 @@
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_gear_mod_options_by_slot_read_model_groups_option_rows",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_gear_catalog_items_read_model_enriches_item_rows",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_gear_mod_options_by_type_read_model_groups_option_types",
+            "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_admin_talent_records_read_model_filters_expired_templates",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_admin_gear_variant_records_read_model_maps_variant_rows",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_websim_loot_items_read_model_maps_filters_and_limits_rows",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_websim_instances_read_model_groups_encounters_by_instance",
@@ -323,7 +325,7 @@
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_websim_gear_keeps_cached_read_model_when_pg_season_is_stale",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_gear_read_model_uses_cache_schema_catalog_rows"
           ],
-          "futureExtractionDirection": "Continue splitting read-only PG gear row, admin record, loot item, instances, asset registry, profile preset, default selection, bootstrap, and payload fragments after WebSim bootstrap read-model extraction, before touching sync-state repositories or cleanup write intents."
+          "futureExtractionDirection": "Continue splitting read-only PG gear row, admin talent record, admin gear record, loot item, instances, asset registry, profile preset, default selection, bootstrap, and payload fragments after admin talent record read-model extraction, before touching sync-state repositories or cleanup write intents."
         },
         {
           "id": "sync_state_repository",
