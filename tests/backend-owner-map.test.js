@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_community_template_item_ref_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_community_template_row_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -80,6 +80,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
     'gear template selectors should own community template item ref collection after this Phase 4 split'
   )
   assert.ok(
+    gearTemplateSelectors.owns.includes('community template row read-model assembly'),
+    'gear template selectors should own community template row assembly after this Phase 4 split'
+  )
+  assert.ok(
     gearTemplateSelectors.characterization.some((entry) => entry.includes('test_build_official_item_metadata_by_id_read_model_filters_unofficial_rows')),
     'gear template selectors should point at the official item metadata row characterization test'
   )
@@ -90,6 +94,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(
     gearTemplateSelectors.characterization.some((entry) => entry.includes('test_collect_community_template_item_refs_read_model_flattens_gear_item_rows')),
     'gear template selectors should point at the community template item ref characterization test'
+  )
+  assert.ok(
+    gearTemplateSelectors.characterization.some((entry) => entry.includes('test_build_community_gear_template_read_model_preserves_payload_evidence')),
+    'gear template selectors should point at the community template row read-model characterization test'
   )
   const gearCatalogReadModelSelectors = pgOwners.get('gear_catalog_read_model_selectors')
   assert.ok(gearCatalogReadModelSelectors)

@@ -87,6 +87,23 @@ def _websim_payload_item_metadata_helpers():
     }
 
 
+def _websim_payload_template_helpers():
+    try:
+        from .websim_payload import (
+            COMMUNITY_TEMPLATE_REVISION,
+            normalize_source_refs,
+        )
+    except ImportError:
+        from websim_payload import (
+            COMMUNITY_TEMPLATE_REVISION,
+            normalize_source_refs,
+        )
+    return {
+        "community_template_revision": COMMUNITY_TEMPLATE_REVISION,
+        "normalize_source_refs": normalize_source_refs,
+    }
+
+
 def build_official_item_metadata_by_id_read_model(rows):
     helpers = _websim_payload_item_metadata_helpers()
     item_metadata_source = helpers["metadata_source"]
@@ -159,6 +176,68 @@ def collect_community_template_item_refs_read_model(rows, *, gear_items_index=11
             continue
         item_refs.extend(item for item in gear_items if isinstance(item, dict))
     return item_refs
+
+
+def build_community_gear_template_read_model(
+    row,
+    official_metadata_by_id=None,
+    *,
+    normalize_coverage=True,
+    coverage_repair=None,
+):
+    helpers = _websim_payload_template_helpers()
+    payload = _json_value(row[16], {})
+    payload = payload if isinstance(payload, dict) else {}
+    gear_items = build_hydrated_community_gear_items_read_model(
+        row[11],
+        official_metadata_by_id or {},
+    )
+    template = {
+        "id": str(row[0] or ""),
+        "classKey": row[1] or "",
+        "specKey": row[2] or "",
+        "name": row[3] or "",
+        "sourceKey": row[4] or "",
+        "sourceName": row[5] or "",
+        "sourceUrl": row[6] or "",
+        "sourceStatus": row[7] or "",
+        "status": row[8] or "",
+        "signature": row[9] or "",
+        "sourceRefs": helpers["normalize_source_refs"](_json_value(row[10], [])),
+        "gearItems": gear_items,
+        "rawString": row[12] or "",
+        "readySlotCount": _int_value(row[13]),
+        "missingSlots": _json_value(row[14], []),
+        "analysisWindow": row[15] or "",
+        "payload": payload,
+        "updatedAt": str(row[17] or ""),
+        "expiresAt": str(row[18] or ""),
+        "scanRunId": row[19] or "",
+        "canApplyGear": True,
+        "templateRevision": helpers["community_template_revision"],
+    }
+    scenario_key = payload.get("scenarioKey") if isinstance(payload, dict) else ""
+    if scenario_key:
+        template["scenarioKey"] = scenario_key
+    enhancement_readiness = payload.get("enhancementReadiness") if isinstance(payload, dict) else {}
+    if isinstance(enhancement_readiness, dict) and enhancement_readiness:
+        template["enhancementReadiness"] = enhancement_readiness
+    template_evidence = payload.get("templateEvidence") if isinstance(payload, dict) else {}
+    if isinstance(template_evidence, dict) and template_evidence:
+        template["templateEvidence"] = template_evidence
+    sample_count = _int_value(payload.get("sampleCount")) if isinstance(payload, dict) else 0
+    if sample_count:
+        template["sampleCount"] = sample_count
+    profile_hash = str(payload.get("profileHash") or "").strip() if isinstance(payload, dict) else ""
+    if profile_hash:
+        template["profileHash"] = profile_hash
+    gear_hash = str(payload.get("gearHash") or "").strip() if isinstance(payload, dict) else ""
+    if gear_hash:
+        template["gearHash"] = gear_hash
+    if normalize_coverage and callable(coverage_repair):
+        template = coverage_repair(template)
+    template["canApplyGear"] = gear_public_contract.community_gear_template_can_apply(template)
+    return template
 
 
 def select_public_gear_templates_for_spec(

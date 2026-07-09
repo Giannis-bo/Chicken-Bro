@@ -124,6 +124,86 @@ class PgGearTemplateSelectorsTest(unittest.TestCase):
             ],
         )
 
+    def test_build_community_gear_template_read_model_preserves_payload_evidence(self):
+        from server.pg_gear_template_selectors import build_community_gear_template_read_model
+
+        payload = {
+            "scenarioKey": "mythic_plus",
+            "enhancementReadiness": {"status": "verified", "socket": {"ready": True}},
+            "templateEvidence": {"source": "raiderio", "profileHash": "profile:mage:frost:observed"},
+            "sampleCount": "3",
+            "profileHash": "profile:mage:frost:observed",
+            "gearHash": "gear:mage:frost:observed",
+        }
+        gear_items = [
+            {"itemId": "190001", "slot": "head", "displayName": "Sparse Crown"},
+        ]
+        official_metadata_by_id = {
+            "190001": {
+                "itemId": "190001",
+                "displayName": "Crown of the Violet Tower",
+                "slot": "head",
+                "quality": "Epic",
+                "iconUrl": "https://render.worldofwarcraft.com/item/crown.jpg",
+                "metadataStatus": "verified",
+                "metadataSource": "Battle.net Game Data API",
+            },
+        }
+        row = (
+            "template-mage-frost-observed",
+            "mage",
+            "frost",
+            "Observed Frost Mage",
+            "raiderio_observed_profile",
+            "Raider.IO observed profile",
+            "https://raider.io/characters/cn/realm/Frostproof",
+            "synced",
+            "complete",
+            "sig:mage:frost",
+            json.dumps([{"sourceKey": "raiderio", "sourceUrl": "https://raider.io/characters/cn/realm/Frostproof"}]),
+            json.dumps(gear_items),
+            "head=crown_of_the_violet_tower,id=190001",
+            "16",
+            json.dumps(["off_hand"]),
+            "mplus",
+            json.dumps(payload),
+            "2026-07-09T12:00:00+00:00",
+            "",
+            "scan-run-1",
+        )
+        repair_inputs = []
+
+        def coverage_repair(template):
+            repair_inputs.append(template["id"])
+            repaired = {**template}
+            repaired["missingSlots"] = []
+            repaired["readySlotCount"] = 16
+            repaired["occupiedSlots"] = {"off_hand": {"slot": "main_hand", "itemId": "190001"}}
+            return repaired
+
+        template = build_community_gear_template_read_model(
+            row,
+            official_metadata_by_id,
+            coverage_repair=coverage_repair,
+        )
+
+        self.assertEqual(repair_inputs, ["template-mage-frost-observed"])
+        self.assertEqual(template["id"], "template-mage-frost-observed")
+        self.assertEqual(template["sourceKey"], "raiderio_observed_profile")
+        self.assertEqual(template["gearItems"][0]["displayName"], "Crown of the Violet Tower")
+        self.assertEqual(template["gearItems"][0]["iconUrl"], "https://render.worldofwarcraft.com/item/crown.jpg")
+        self.assertEqual(template["sourceRefs"][0]["sourceKey"], "raiderio")
+        self.assertEqual(template["scenarioKey"], "mythic_plus")
+        self.assertEqual(template["enhancementReadiness"], payload["enhancementReadiness"])
+        self.assertEqual(template["templateEvidence"], payload["templateEvidence"])
+        self.assertEqual(template["sampleCount"], 3)
+        self.assertEqual(template["profileHash"], "profile:mage:frost:observed")
+        self.assertEqual(template["gearHash"], "gear:mage:frost:observed")
+        self.assertEqual(template["templateRevision"], "community-template-v1")
+        self.assertEqual(template["missingSlots"], [])
+        self.assertEqual(template["readySlotCount"], 16)
+        self.assertTrue(template["canApplyGear"])
+
     def test_build_public_gear_template_read_model_compacts_payload_without_public_baseline(self):
         from server.pg_gear_template_selectors import build_public_gear_template_read_model
 
