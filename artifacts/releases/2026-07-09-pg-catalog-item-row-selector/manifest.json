@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-09T11:39:31.328Z",
+  "generatedAt": "2026-07-09T11:41:11.900Z",
   "release": {
     "date": "2026-07-09",
     "slug": "pg-catalog-item-row-selector"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 344510
+          "sizeBytes": 344570
         },
         {
           "path": "docs/README.md",
@@ -217,7 +217,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-09-pg-catalog-item-row-selector/evidence.json",
-    "sizeBytes": 7879,
+    "sizeBytes": 8095,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,7 +235,7 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "candidate_deployment_verified",
+    "declaredStatus": "live_verified",
     "highestEvidenceLevel": "live_verified",
     "summary": "Phase 4 continues the read-only PostgreSQL gear row/read-model split. server/pg_gear_read_model_selectors.py now owns build_gear_catalog_items_read_model(), which maps cache.websim_items rows plus source, variant, and mod-option read models into enriched catalog candidate items. server/postgres_cache_store.py keeps PG SQL reads, payload cache fingerprinting, cache writes, and sync/write/backfill paths."
   },
