@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-09T11:48:24.965Z",
+  "generatedAt": "2026-07-09T11:49:57.444Z",
   "release": {
     "date": "2026-07-09",
     "slug": "pg-mod-option-type-selector"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 347273
+          "sizeBytes": 347333
         },
         {
           "path": "docs/README.md",
@@ -217,7 +217,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-09-pg-mod-option-type-selector/evidence.json",
-    "sizeBytes": 7378,
+    "sizeBytes": 7594,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,7 +235,7 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "candidate_deployment_verified",
+    "declaredStatus": "live_verified",
     "highestEvidenceLevel": "live_verified",
     "summary": "Phase 4 continues the read-only PostgreSQL gear row/read-model split. server/pg_gear_read_model_selectors.py now owns build_gear_mod_options_by_type_read_model(), which groups cache.websim_gear_mod_options rows by socket/enchant/embellishment before delegating slot-level option read-model assembly. server/postgres_cache_store.py keeps PG SQL reads, payload cache fingerprinting, cache writes, and sync/write/backfill paths."
   },
