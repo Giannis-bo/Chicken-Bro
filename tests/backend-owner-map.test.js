@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_pg_template_read_model_adapter_extracted')
+  assert.equal(ownerMap.status, 'phase4_pg_catalog_read_model_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -66,6 +66,14 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(
     gearTemplateSelectors.characterization.some((entry) => entry.includes('tests/pg_gear_template_selectors_test.py')),
     'gear template selectors should point at the helper module characterization test'
+  )
+  const gearCatalogReadModelSelectors = pgOwners.get('gear_catalog_read_model_selectors')
+  assert.ok(gearCatalogReadModelSelectors)
+  assert.equal(gearCatalogReadModelSelectors.status, 'extracted_selector')
+  assert.equal(gearCatalogReadModelSelectors.extractedModule, 'server/pg_gear_read_model_selectors.py')
+  assert.ok(
+    gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('tests/pg_gear_read_model_selectors_test.py')),
+    'gear catalog read-model selectors should point at the helper module characterization test'
   )
   assert.ok(pgOwners.has('sync_state_repository'))
 })

@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-09-phase4-v4",
-  "status": "phase4_pg_template_read_model_adapter_extracted",
+  "version": "2026-07-09-phase4-v5",
+  "status": "phase4_pg_catalog_read_model_selector_extracted",
   "harnessVersion": "v0.5",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -250,6 +250,32 @@
             "tests/news_backend_test.py runtime PG gear tests"
           ],
           "futureExtractionDirection": "Continue extracting repository-level selectors after compact/full candidate grouping and write-intent boundaries are characterized separately."
+        },
+        {
+          "id": "gear_catalog_read_model_selectors",
+          "status": "extracted_selector",
+          "extractedModule": "server/pg_gear_read_model_selectors.py",
+          "owns": [
+            "catalog item legality filtering for PG gear read models",
+            "replacementCandidates slot grouping",
+            "compact/full candidate payload fragments",
+            "catalogItems output compaction",
+            "gear readiness and slotReadiness fragments",
+            "candidateLegalityAudit for full payloads"
+          ],
+          "mustNotChange": [
+            "PG SQL reads remain in server/postgres_cache_store.py.",
+            "Catalog selector helpers must not write sync state, template rows, or cache rows.",
+            "Blocked or incompatible candidates must not appear in replacementCandidates.",
+            "Public communityTemplates and baselineTemplates remain owned by gear_template_selectors."
+          ],
+          "characterization": [
+            "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_catalog_gear_read_model_fragment_groups_candidates_and_audits_blocked_items",
+            "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_gear_read_model_attaches_candidate_legality_debug_fields_to_full_payload",
+            "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_websim_gear_keeps_cached_read_model_when_pg_season_is_stale",
+            "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_gear_read_model_uses_cache_schema_catalog_rows"
+          ],
+          "futureExtractionDirection": "Continue splitting read-only PG gear payload fragments before touching sync-state repositories or cleanup write intents."
         },
         {
           "id": "sync_state_repository",
