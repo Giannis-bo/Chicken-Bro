@@ -1,0 +1,57 @@
+{
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "scope": [
+    "Phase 3 backend owner map v1",
+    "docs/backend-owner-map.json",
+    "docs/README.md current documentation entry",
+    "project harness current truth source list",
+    "owner map and existing backend characterization anchors"
+  ],
+  "verification": [
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "red_then_green",
+      "summary": "Failed first because docs/backend-owner-map.json was missing, then passed after adding the owner map."
+    },
+    {
+      "command": "node --test tests/project-harness.test.js",
+      "status": "red_then_green",
+      "summary": "Failed first because Harness current truth did not include docs/backend-owner-map.json, then passed after adding it to scripts/project-harness.js."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js tests/project-harness.test.js",
+      "status": "pass",
+      "summary": "6 pass, 0 fail"
+    },
+    {
+      "command": "python3 -m unittest tests.websim_payload_test.WebSimPayloadTest.test_real_player_public_policy_applies_to_all_specs tests.news_backend_test.NewsBackendTest.test_runtime_websim_gear_returns_stale_postgres_payload_without_sqlite_fallback tests.news_backend_test.NewsBackendTest.test_runtime_websim_gear_forwards_payload_mode_to_postgres_store tests.news_backend_test.NewsBackendTest.test_runtime_websim_gear_adds_template_chain_state_to_cached_postgres_payload tests.news_backend_test.NewsBackendTest.test_runtime_websim_gear_partially_gates_illegal_postgres_templates -v",
+      "status": "pass",
+      "summary": "5 pass, 0 fail"
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 pass, 0 fail"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "exit 0"
+    }
+  ],
+  "risks": [
+    {
+      "status": "watch",
+      "summary": "Owner map v1 records ownership and characterization anchors only; it does not extract modules or prove runtime/live behavior."
+    },
+    {
+      "status": "watch",
+      "summary": "Python verification was targeted to the Phase 3 anchors, not the full Python unittest suite."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "summary": "Phase 3 now has a machine-readable owner map for the three backend hotspot files, Harness treats that map as current truth, and targeted characterization anchors plus the full Node test suite pass locally."
+}

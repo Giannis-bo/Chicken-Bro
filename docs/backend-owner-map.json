@@ -1,0 +1,297 @@
+{
+  "version": "2026-07-09-phase3-v1",
+  "status": "phase3_owner_map_ready",
+  "harnessVersion": "v0.4",
+  "defaultEvidenceLevel": "local_verified",
+  "rules": {
+    "mustHaveCharacterizationBeforeExtraction": true,
+    "doNotExtractWithoutOwnerEntry": true,
+    "publicEntryContractsMustStayBackendOwned": true,
+    "frontendAndHealthMustConsumeAuthorityState": true,
+    "scheduledJobsWriteOwnedStateOnly": true
+  },
+  "hotspotFiles": [
+    {
+      "path": "server/websim_payload.py",
+      "healthStatus": "health_watch",
+      "summary": "Owns WebSim read-model construction, gear/talent legality, public template filtering, serializers, catalog health payloads, and SimC/profile readiness helpers.",
+      "owners": [
+        {
+          "id": "gear_public_contract",
+          "status": "characterized",
+          "owns": [
+            "public_gear_templates_for_spec",
+            "public_baseline_fallback_templates_for_spec",
+            "communityTemplates public visibility",
+            "baselineTemplates public visibility",
+            "communityTemplateSync template chain semantics"
+          ],
+          "publicEntryPolicy": {
+            "allowedCommunitySourceKeys": [
+              "raiderio_observed_profile"
+            ],
+            "blockedPublicSourceKeys": [
+              "recommended_bis",
+              "season_recommendation",
+              "default_template",
+              "simc_preset",
+              "baseline_blocked"
+            ],
+            "baselineTemplatesPublicDefault": []
+          },
+          "mustNotChange": [
+            "Do not reintroduce recommended_bis, season_recommendation, default_template, simc_preset, or baseline_blocked into public communityTemplates or baselineTemplates.",
+            "Do not let source-less or incomplete raiderio_observed_profile templates become public active templates.",
+            "Do not move public source-quality decisions to frontend code."
+          ],
+          "characterization": [
+            "tests/websim_payload_test.py::WebSimPayloadTest.test_real_player_public_policy_applies_to_all_specs",
+            "tests/news_backend_test.py::NewsBackendTest.test_runtime_websim_gear_adds_template_chain_state_to_cached_postgres_payload",
+            "tests/postgres_cache_store_test.py observed-only public gear API tests"
+          ],
+          "futureExtractionDirection": "Extract a backend gear public contract selector after characterization stays green."
+        },
+        {
+          "id": "gear_legality_source_map",
+          "status": "characterized",
+          "owns": [
+            "apply_gear_template_legality_gate",
+            "apply_gear_candidate_legality",
+            "gear_legality_authority_health_payload",
+            "observed_rule_source_evidence_by_spec"
+          ],
+          "mustNotChange": [
+            "Observed evidence is supporting evidence and never upgrades authority to verified.",
+            "Manual override authority remains partial until official or SimC source evidence is generated.",
+            "Illegal weapons or armor must fail closed before public import/save/profile serialization."
+          ],
+          "characterization": [
+            "tests/websim_payload_test.py::WebSimPayloadTest.test_raiderio_observed_profile_still_must_pass_weapon_legality_gate",
+            "tests/news_backend_test.py::NewsBackendTest.test_runtime_websim_gear_partially_gates_illegal_postgres_templates",
+            "tests/gear_legality_test.py"
+          ],
+          "futureExtractionDirection": "Extract legality source-map helpers only after authority health and public gear API tests remain unchanged."
+        },
+        {
+          "id": "gear_serializer_golden_payload",
+          "status": "needs_golden_payload",
+          "owns": [
+            "compact_community_gear_template",
+            "compact_gear_candidates",
+            "gear_readiness",
+            "blocked_stat_snapshot",
+            "build_websim_gear_payload"
+          ],
+          "mustNotChange": [
+            "Keep frontend on structured snapshot data instead of raw profile-string assembly.",
+            "Do not leak raw SimC diagnostics into user-facing blocked notes.",
+            "Keep payload mode initial/slot detail semantics stable."
+          ],
+          "characterization": [
+            "tests/websim_payload_test.py gear detail and stat snapshot tests",
+            "tests/builds-page.test.js gear detail frontend contract tests"
+          ],
+          "futureExtractionDirection": "Create golden payload snapshots before moving serializer helpers out of websim_payload.py."
+        },
+        {
+          "id": "talent_public_contract",
+          "status": "characterized",
+          "owns": [
+            "talent readiness",
+            "community talent template visibility",
+            "talent encode/profile readiness",
+            "talent spell description fail-closed state"
+          ],
+          "mustNotChange": [
+            "Executable talent readiness cannot be inferred from display-only spell text.",
+            "Community talent templates must stay spec-scoped.",
+            "Fallback or blocked talent payloads must not become saveable executable templates."
+          ],
+          "characterization": [
+            "tests/websim_payload_test.py talent readiness and community template tests",
+            "tests/talent-simulator-core.test.js"
+          ],
+          "futureExtractionDirection": "Separate talent read-model helpers after gear public contract work is complete."
+        }
+      ]
+    },
+    {
+      "path": "server/news_backend.py",
+      "healthStatus": "health_watch",
+      "summary": "Owns HTTP route wiring, runtime cache-store selection, health/admin composition, news content APIs, and Chickenbro/session endpoint wiring.",
+      "owners": [
+        {
+          "id": "runtime_api_wiring",
+          "status": "characterized",
+          "owns": [
+            "runtime_websim_gear_payload",
+            "runtime_websim_talents_payload",
+            "runtime PG-only fallback boundaries",
+            "payload mode and slot forwarding"
+          ],
+          "mustNotChange": [
+            "Stale PG payloads must not silently fall back to SQLite public cache.",
+            "Runtime endpoints must preserve compact/mode/slot parameters.",
+            "Route wiring must not create product judgment that belongs to read models."
+          ],
+          "characterization": [
+            "tests/news_backend_test.py::NewsBackendTest.test_runtime_websim_gear_returns_stale_postgres_payload_without_sqlite_fallback",
+            "tests/news_backend_test.py::NewsBackendTest.test_runtime_websim_gear_forwards_payload_mode_to_postgres_store"
+          ],
+          "futureExtractionDirection": "Extract narrow route adapters after endpoint behavior is covered by route-level characterization."
+        },
+        {
+          "id": "health_admin_summary",
+          "status": "characterized",
+          "owns": [
+            "data health component aggregation",
+            "gear legality authority health component",
+            "admin gate summaries",
+            "partial/blocked status display"
+          ],
+          "mustNotChange": [
+            "Health/admin must display authoritative state without upgrading partial/internal evidence.",
+            "API 200 or task success cannot become verified product quality.",
+            "Admin drilldown should not bypass backend legality or public visibility gates."
+          ],
+          "characterization": [
+            "tests/news_backend_test.py data health and admin gate tests",
+            "tests/postgres_cache_store_test.py live health summary tests"
+          ],
+          "futureExtractionDirection": "Move health/admin composition behind response helpers after current health payload snapshots exist."
+        },
+        {
+          "id": "news_content_api",
+          "status": "characterized",
+          "owns": [
+            "article list payload",
+            "article detail payload",
+            "source trust filtering",
+            "summary-only rejection"
+          ],
+          "mustNotChange": [
+            "Summary-only article payloads must not become detail bodies.",
+            "Trusted publication gates must remain backend-owned.",
+            "Frontend should not repair untrusted or incomplete news payloads."
+          ],
+          "characterization": [
+            "tests/news_backend_test.py news article payload tests",
+            "tests/news-api-client.test.js",
+            "tests/news-detail-view.test.js"
+          ],
+          "futureExtractionDirection": "Keep news content helpers separate from WebSim route adapters."
+        },
+        {
+          "id": "chickenbro_session_api",
+          "status": "characterized",
+          "owns": [
+            "chickenbro message endpoint",
+            "guest session job APIs",
+            "bounded workbench context",
+            "task/session persistence boundary"
+          ],
+          "mustNotChange": [
+            "Guest chat must not require WeChat login preflight.",
+            "Raw SimC, logs, tokens, and internal blockers must stay out of user-facing chat payloads.",
+            "Chickenbro direct chat does not create verified evidence without read-model support."
+          ],
+          "characterization": [
+            "tests/news_backend_test.py Chickenbro API tests",
+            "tests/simulator-page.test.js",
+            "tests/profile-auth.test.js"
+          ],
+          "futureExtractionDirection": "Extract chat/session adapters only after evidence packet and permission boundaries are snapshotted."
+        }
+      ]
+    },
+    {
+      "path": "server/postgres_cache_store.py",
+      "healthStatus": "health_watch",
+      "summary": "Owns PostgreSQL cache selectors, write intents, gear/community template rows, recommended evidence overlays, sync-state storage, and cleanup residue rules.",
+      "owners": [
+        {
+          "id": "gear_template_selectors",
+          "status": "characterized",
+          "owns": [
+            "get_websim_gear",
+            "public gear template selector calls",
+            "communityTemplates and baselineTemplates PG read model",
+            "compact and full payload selector branches"
+          ],
+          "mustNotChange": [
+            "PG read model must apply the same observed-only public contract as websim_payload.py.",
+            "PG direct reads must not reintroduce legacy baseline rows into public payloads.",
+            "Compact and full payload modes must keep source keys and blockers consistent."
+          ],
+          "characterization": [
+            "tests/postgres_cache_store_test.py public observed-only gear payload tests",
+            "tests/news_backend_test.py runtime PG gear tests"
+          ],
+          "futureExtractionDirection": "Extract repository-level selectors after public gear selector snapshots are added."
+        },
+        {
+          "id": "sync_state_repository",
+          "status": "characterized",
+          "owns": [
+            "websim_sync_state reads and writes",
+            "communityTemplateSync state",
+            "recommended_bis guard/prototype sync state",
+            "season recommendation sync state"
+          ],
+          "mustNotChange": [
+            "Readiness-only guards must not execute SimC or optimizer work.",
+            "Sync state can report blockers but cannot silently promote public entry status.",
+            "Timers and manual syncs must keep their owned state boundaries."
+          ],
+          "characterization": [
+            "tests/postgres_cache_sync_test.py",
+            "tests/data_health_followup_test.py",
+            "tests/postgres_only_scripts_test.py"
+          ],
+          "futureExtractionDirection": "Move sync-state storage behind a repository helper once timer and health tests cover the behavior."
+        },
+        {
+          "id": "recommended_bis_evidence",
+          "status": "characterized",
+          "owns": [
+            "recommended_bis prototype template build",
+            "SimC evidence overlay",
+            "observed anchor validation evidence",
+            "projected/candidate/verified status blockers"
+          ],
+          "mustNotChange": [
+            "projected_bis and candidate_bis must not become public verified BiS.",
+            "Anchor validation and pairwise/SimC blockers must remain visible.",
+            "Non-DPS specs remain role_objective_blocked until a role objective is designed."
+          ],
+          "characterization": [
+            "tests/postgres_cache_store_test.py recommended_bis tests",
+            "tests/season_recommended_gear_test.py",
+            "tests/postgres_cache_sync_test.py recommended_bis guard/prototype tests"
+          ],
+          "futureExtractionDirection": "Extract recommended-bis evidence builders after the public selector boundary is stable."
+        },
+        {
+          "id": "cleanup_residue_control",
+          "status": "characterized",
+          "owns": [
+            "legacy row cleanup",
+            "pilot-safe destructive cleanup scope",
+            "duplicate observed/recommended row handling",
+            "anti-backflow residue normalization"
+          ],
+          "mustNotChange": [
+            "Do not expand destructive cleanup beyond documented pilot-safe scope without explicit approval.",
+            "Cleanup cannot broaden product semantics or public visibility.",
+            "Internal evidence rows may remain if public selectors keep them hidden."
+          ],
+          "characterization": [
+            "tests/postgres_cache_store_test.py cleanup and residue tests",
+            "docs/gear-simulation-full-chain-runbook.md cleanup boundary notes"
+          ],
+          "futureExtractionDirection": "Extract cleanup write intents after selector-only extraction is complete."
+        }
+      ]
+    }
+  ]
+}
