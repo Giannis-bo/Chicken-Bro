@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-09T10:30:00.597Z",
+  "generatedAt": "2026-07-09T10:31:43.936Z",
   "release": {
     "date": "2026-07-09",
     "slug": "pg-initial-gear-read-model-fragment"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 328583
+          "sizeBytes": 328647
         },
         {
           "path": "docs/README.md",
@@ -217,7 +217,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-09-pg-initial-gear-read-model-fragment/evidence.json",
-    "sizeBytes": 7516,
+    "sizeBytes": 7690,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,7 +235,7 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "candidate_deployment_verified",
+    "declaredStatus": "live_verified",
     "highestEvidenceLevel": "live_verified",
     "summary": "Phase 4 continues the read-only PostgreSQL gear read-model split. server/pg_gear_read_model_selectors.py now owns the initial gear baseline/equipped read-model fragment for equippedSet, initial replacementCandidates, slotReadiness, baselineSet, readiness, and initial catalogItems. server/postgres_cache_store.py keeps PG SQL reads, payload cache fingerprinting, template read-model delegation, catalog state fragment, statSnapshot, final response assembly, and cache writes. Sync, write, and backfill paths are unchanged."
   },
