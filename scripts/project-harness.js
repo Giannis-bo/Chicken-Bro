@@ -52,16 +52,21 @@ function parseArgs(argv) {
   }
 
   options.root = path.resolve(options.root)
+  options.date = sanitizePathSegment(options.date, new Date().toISOString().slice(0, 10))
   options.slug = sanitizeSlug(options.slug)
   return options
 }
 
 function sanitizeSlug(value) {
+  return sanitizePathSegment(value, 'harness')
+}
+
+function sanitizePathSegment(value, fallback) {
   const slug = String(value || '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-  return slug || 'harness'
+  return slug || fallback
 }
 
 function readText(root, relativePath) {
@@ -329,9 +334,18 @@ function buildRiskMatrix(gates, repoGit, evidence) {
 }
 
 function writeManifest(root, manifest) {
-  const outputPath = path.join(root, manifest.write.path)
+  const outputPath = releaseArtifactPath(root, manifest.write.path)
   fs.mkdirSync(path.dirname(outputPath), { recursive: true })
   fs.writeFileSync(outputPath, `${JSON.stringify(manifest, null, 2)}\n`)
+}
+
+function releaseArtifactPath(root, relativePath) {
+  const releasesRoot = path.resolve(root, 'artifacts/releases')
+  const outputPath = path.resolve(root, relativePath)
+  if (!outputPath.startsWith(`${releasesRoot}${path.sep}`)) {
+    throw new Error(`Refusing to write outside artifacts/releases: ${relativePath}`)
+  }
+  return outputPath
 }
 
 function printHuman(manifest) {

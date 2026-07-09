@@ -103,3 +103,43 @@ test('project harness writes a local release manifest only when --write is reque
   assert.equal(writtenManifest.safety.productionWrites, false)
   assert.equal(writtenManifest.repo.git.status, 'not_git_repository')
 })
+
+test('project harness sanitizes release path segments before writing artifacts', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-path-'))
+  writeFile(path.join(root, 'docs/harness.md'), [
+    '# Repo-native Harness',
+    '',
+    '> Harness version：v9.9。',
+    '> 最后更新：2099-01-02。',
+    ''
+  ].join('\n'))
+  writeFile(path.join(root, 'docs/roadmap.md'), '# Roadmap\n')
+  writeFile(path.join(root, 'docs/README.md'), '# Docs\n')
+
+  const result = runHarness([
+    '--root',
+    root,
+    '--json',
+    '--write',
+    '--date',
+    '../../../outside',
+    '--slug',
+    '../Harness Smoke!!'
+  ])
+
+  assert.equal(result.status, 0)
+  assert.equal(result.stderr, '')
+
+  const manifest = JSON.parse(result.stdout)
+  assert.equal(manifest.release.date, 'outside')
+  assert.equal(manifest.release.slug, 'harness-smoke')
+  assert.equal(
+    manifest.write.path,
+    'artifacts/releases/outside-harness-smoke/manifest.json'
+  )
+  assert.ok(
+    path.resolve(root, manifest.write.path).startsWith(path.resolve(root, 'artifacts/releases') + path.sep),
+    'write path should remain under artifacts/releases'
+  )
+  assert.ok(fs.existsSync(path.join(root, manifest.write.path)))
+})
