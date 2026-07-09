@@ -1,6 +1,6 @@
 {
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "candidate_deployment_verified",
+  "highestEvidenceLevel": "live_verified",
   "scope": [
     "server/pg_gear_read_model_selectors.py",
     "server/postgres_cache_store.py",
@@ -66,10 +66,98 @@
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
+    "status": "passed",
     "requiredBeforeMerge": true,
+    "pullRequest": 22,
     "branch": "codex/phase4-pg-catalog-item-row-selector",
-    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh"
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "target": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "deployedAt": "2026-07-09T11:38:34Z",
+    "asyncSyncStarted": false,
+    "smoke": {
+      "http": {
+        "baseUrl": "http://124.223.51.33",
+        "endpoints": [
+          {
+            "path": "/health",
+            "status": 200
+          },
+          {
+            "path": "/api/data/health",
+            "status": 200,
+            "overallStatus": "partial"
+          },
+          {
+            "path": "/api/websim/bootstrap",
+            "status": 200,
+            "dataStatus": "verified"
+          },
+          {
+            "path": "/api/websim/assets",
+            "status": 200,
+            "dataStatus": "verified"
+          },
+          {
+            "path": "/api/websim/talents?class=mage&spec=frost&hero=spellslinger",
+            "status": 200,
+            "dataStatus": "verified"
+          },
+          {
+            "path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial",
+            "status": 200,
+            "dataStatus": "verified",
+            "communityTemplates": 1,
+            "baselineTemplates": 0,
+            "canApplyGear": [
+              true
+            ]
+          },
+          {
+            "path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=slot&slot=head",
+            "status": 200,
+            "dataStatus": "verified",
+            "communityTemplates": 1,
+            "baselineTemplates": 0,
+            "canApplyGear": [
+              true
+            ]
+          }
+        ]
+      },
+      "observedOnlyGearSweep": {
+        "checkedSpecs": 40,
+        "failures": 0,
+        "dataStatus": {
+          "verified": 40
+        },
+        "communityTemplates": {
+          "1": 40
+        },
+        "baselineTemplates": {
+          "0": 40
+        },
+        "sourceKeys": {
+          "raiderio_observed_profile": 40
+        },
+        "canApplyGear": {
+          "True": 40
+        }
+      },
+      "systemd": {
+        "backend": "active/running with Result=success and ExecMainStatus=0",
+        "nginx": "active/running with Result=success and ExecMainStatus=0",
+        "syncBackfillServices": "wow-websim-sync.service and wow-stat-weights-sync.service were timer-triggered and currently activating/start with Result=success and ExecMainStatus=0; wow-gear-observed-backfill, wow-community-template-sync, wow-community-best-guard-sync, wow-recommended-bis-guard-sync, and wow-season-recommended-gear-sync are inactive/dead with Result=success and ExecMainStatus=0",
+        "timers": "7 loaded sync/backfill timers active/waiting: wow-websim-sync, wow-gear-observed-backfill, wow-stat-weights-sync, wow-community-template-sync, wow-community-best-guard-sync, wow-recommended-bis-guard-sync, wow-season-recommended-gear-sync"
+      },
+      "runtime": {
+        "WOW_DATABASE_RUNTIME": "postgres_only",
+        "recentLogs": "no Traceback/ERROR/SQLite fallback in wow-backend or sync/backfill logs since 20 minutes ago",
+        "hashParity": {
+          "server/pg_gear_read_model_selectors.py": "40df5d751e3abb66e93891cd838415acaaccf01e34f2ac050450d1b63a426482",
+          "server/postgres_cache_store.py": "757b421a77bbb53e73a05bba7293dffde29d1d8f62283a15e6124d6df0d593ff"
+        }
+      }
+    }
   },
   "risks": [
     {
@@ -79,8 +167,8 @@
     },
     {
       "id": "candidate_deployment_pending",
-      "status": "open",
-      "detail": "This touches PG read-model runtime code, so PR branch candidate deployment and smoke must pass before merge."
+      "status": "resolved",
+      "detail": "PR #22 branch passed Candidate Deployment Gate before merge: deploy succeeded, API smoke and 40-spec observed-only sweep passed, systemd/log/runtime hash parity checks passed."
     },
     {
       "id": "write_paths_out_of_scope",
