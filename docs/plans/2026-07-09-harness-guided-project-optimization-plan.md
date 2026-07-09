@@ -16,6 +16,8 @@
 
 2026-07-09 Phase 4 第二刀更新：PG gear selector 调用面已开始从 `websim_payload.py` 兼容导出收敛到 `server/gear_public_contract.py`。`server/postgres_cache_store.py` 现在通过模块限定调用公开 source policy、observed-only visibility、baseline fallback gating 和 real-player public import 配置；`websim_payload.py` 兼容导出继续保留，sync 写入路径暂不移动。
 
+2026-07-09 Phase 4 第二刀部署补录：用户指出 backend/API/read model 变更应先部署验证再合入；由于本刀已经合入，已补做 post-merge 热部署与线上 smoke，并将 release evidence 晋级到 `live_verified`。后续同类 backend/API/PG read model 变更默认在 PR 候选阶段先部署或预览验证，通过后再合入。
+
 本计划只定义整体优化顺序和验收门禁，不授权直接修改业务实现、不替代 roadmap、runbook 或当前 UI source-of-truth。
 
 ## Requirement Contract
@@ -273,7 +275,7 @@
 - `server/websim_payload.py` 保持原函数名和导出面，旧调用方继续使用 `public_gear_templates_for_spec`、`public_baseline_fallback_templates_for_spec`、`community_gear_template_can_apply` 等兼容包装；PG store 暂不改导入路径。
 - `tests/gear_public_contract_test.py` 先因缺少新模块失败，再在抽取后通过；随后新增 `templateEvidence` hash 来源 parity 测试并 red/green 关闭，证明新模块与旧导出 observed-only 行为及证据读取路径一致。
 - `server/postgres_cache_store.py` 的 PG gear selector 调用面已改为模块限定调用 `gear_public_contract`，并通过 `test_pg_initial_gear_selector_calls_gear_public_contract_module` red/green 锁定；`test_pg_gear_template_selectors_match_observed_only_golden_payload` 继续固定 PG read model 输出不变。
-- 本次抽取不重新开放 `recommended_bis`、`season_recommendation`、`default_template`、`simc_preset` 或 `baseline_blocked`，也不部署、不触发 PG/sync/线上任务。
+- 本次抽取不重新开放 `recommended_bis`、`season_recommendation`、`default_template`、`simc_preset` 或 `baseline_blocked`；合入后已补做 `WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0` 热部署和线上 smoke，没有手动启动 PG-native async sync。
 
 ### Phase 5：发布、线上 smoke 与归档
 

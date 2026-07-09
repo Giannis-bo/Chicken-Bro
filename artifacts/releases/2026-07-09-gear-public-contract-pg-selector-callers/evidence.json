@@ -1,6 +1,6 @@
 {
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "scope": [
     "server/postgres_cache_store.py",
     "server/gear_public_contract.py",
@@ -56,11 +56,47 @@
       "command": "git diff --check",
       "status": "pass",
       "evidence": "Whitespace check completed with exit code 0."
+    },
+    {
+      "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+      "status": "pass",
+      "evidence": "Hot deploy to ubuntu@124.223.51.33:/opt/wow-mini-program completed, skipped bootstrap, did not manually start PG-native async syncs, restarted wow-backend and nginx, and returned public /health OK."
+    },
+    {
+      "command": "ssh wow-lighthouse 'sudo awk -F= ... /etc/wow-backend.env && sudo systemctl is-active wow-backend nginx'",
+      "status": "pass",
+      "evidence": "Production runtime remained WOW_DATABASE_RUNTIME=postgres_only, WOW_DATABASE_URL was redacted, and both wow-backend and nginx were active after deploy."
+    },
+    {
+      "command": "public API smoke: /health, /api/data/health, /api/websim/bootstrap, /api/websim/assets, /api/websim/talents, /api/websim/gear initial+slot, /websim/",
+      "status": "pass",
+      "evidence": "/health returned ok; representative WebSim endpoints returned HTTP 200; /api/data/health returned overallStatus=partial with community_templates partial from pre-existing health blockers."
+    },
+    {
+      "command": "40-spec public gear read-model smoke from live /api/websim/bootstrap enumeration",
+      "status": "pass",
+      "evidence": "checkedSpecs=40, failures=0, dataStatus={'verified': 40}, communityTemplates={1: 40}, baselineTemplates={0: 40}, sourceKeys={'raiderio_observed_profile': 40}, canApplyGear={'True': 40}."
+    },
+    {
+      "command": "ssh wow-lighthouse 'sudo journalctl -u wow-backend --since \"10 minutes ago\" --no-pager | grep -Ei \"Traceback|ERROR|CRITICAL|sqlite fallback|WOW_SQLITE|Exception\" || true'",
+      "status": "pass",
+      "evidence": "No matching backend Traceback/ERROR/CRITICAL/SQLite fallback log lines were found after deploy."
+    },
+    {
+      "command": "local and remote sha256 comparison for server/postgres_cache_store.py, server/gear_public_contract.py, and this release manifest",
+      "status": "pass",
+      "evidence": "Remote deployed files under /opt/wow-mini-program matched local main hashes for the changed PG selector module, gear public contract module, and release manifest."
+    },
+    {
+      "command": "ssh wow-lighthouse 'systemctl is-active ... sync/backfill services && systemctl list-timers \"wow-*.timer\" --all'",
+      "status": "pass_with_note",
+      "evidence": "All checked sync/backfill services were inactive after deploy. Existing wow-gear-observed-backfill.timer was already enabled and triggered at 2026-07-09 16:43:54 CST, finishing successfully with ExecMainStatus=0 and status=partial; this was not started by WOW_DEPLOY_START_ASYNC_SYNCS."
     }
   ],
   "risks": [
-    "This release is local_verified only; no deploy, PG sync, timer trigger, or live smoke is included in this scope.",
-    "Sync write paths still use existing websim_payload imports and will need a separate characterization step before moving."
+    "Live verification is complete for the public read model, but /api/data/health remains overallStatus=partial because of pre-existing non-blocking health components outside this selector-routing change.",
+    "Sync write paths still use existing websim_payload imports and will need a separate characterization step before moving.",
+    "The existing production wow-gear-observed-backfill.timer is enabled and can trigger independently of deploy; current deploy used WOW_DEPLOY_START_ASYNC_SYNCS=0 and left sync/backfill services inactive after smoke."
   ],
   "rollback": [
     "code_rollback",
