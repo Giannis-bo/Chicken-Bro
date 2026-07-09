@@ -6250,18 +6250,19 @@ class PostgresCacheStore:
                         """
                     )
                     template_rows = cur.fetchall()
-                    all_gear_items = []
-                    for row in template_rows:
-                        all_gear_items.extend(item for item in _json_value(row[11], []) if isinstance(item, dict))
+                    all_gear_items = pg_gear_template_selectors.collect_community_template_item_refs_read_model(
+                        template_rows,
+                        gear_items_index=11,
+                    )
                     official_metadata_by_id = self._official_item_metadata_by_id(cur, all_gear_items)
-                    for row in template_rows:
-                        template = self._community_gear_template_from_row(row, official_metadata_by_id, normalize_coverage=True)
-                        payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
-                        blockers = payload.get("blockers") if isinstance(payload.get("blockers"), list) else []
-                        missing_slots = template.get("missingSlots") or []
-                        if missing_slots:
-                            blockers = [*(blockers or []), f"missing slots: {', '.join(str(slot) for slot in missing_slots[:6])}"]
-                        rows.append(("gear_templates", template.get("status") or "", blockers))
+                    rows.extend(
+                        pg_gear_template_selectors.build_admin_gear_template_queue_rows_read_model(
+                            template_rows,
+                            official_metadata_by_id,
+                            normalize_coverage=True,
+                            coverage_repair=self._repair_template_offhand_occupancy,
+                        )
+                    )
         return _admin_gate_queue_summary(rows)
 
     def admin_gate_talent_records(self):

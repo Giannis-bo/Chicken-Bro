@@ -274,6 +274,32 @@ def build_community_gear_templates_read_model(
     return dedupe_templates(templates)
 
 
+def build_admin_gear_template_queue_rows_read_model(
+    rows,
+    official_metadata_by_id=None,
+    *,
+    normalize_coverage=True,
+    coverage_repair=None,
+    template_builder=None,
+):
+    template_builder = template_builder or build_community_gear_template_read_model
+    queue_rows = []
+    for row in rows or []:
+        template = template_builder(
+            row,
+            official_metadata_by_id or {},
+            normalize_coverage=normalize_coverage,
+            coverage_repair=coverage_repair,
+        )
+        payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+        blockers = payload.get("blockers") if isinstance(payload.get("blockers"), list) else []
+        missing_slots = template.get("missingSlots") or []
+        if missing_slots:
+            blockers = [*(blockers or []), f"missing slots: {', '.join(str(slot) for slot in missing_slots[:6])}"]
+        queue_rows.append(("gear_templates", template.get("status") or "", blockers))
+    return queue_rows
+
+
 def select_public_gear_templates_for_spec(
     persisted_templates,
     class_key,
