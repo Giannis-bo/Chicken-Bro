@@ -6022,55 +6022,12 @@ class PostgresCacheStore:
         return repaired
 
     def _community_gear_template_from_row(self, row, official_metadata_by_id=None, normalize_coverage=True):
-        payload = _json_value(row[16], {})
-        payload = payload if isinstance(payload, dict) else {}
-        gear_items = self._hydrated_community_gear_items(row[11], official_metadata_by_id or {})
-        template = {
-            "id": str(row[0] or ""),
-            "classKey": row[1] or "",
-            "specKey": row[2] or "",
-            "name": row[3] or "",
-            "sourceKey": row[4] or "",
-            "sourceName": row[5] or "",
-            "sourceUrl": row[6] or "",
-            "sourceStatus": row[7] or "",
-            "status": row[8] or "",
-            "signature": row[9] or "",
-            "sourceRefs": normalize_source_refs(_json_value(row[10], [])),
-            "gearItems": gear_items,
-            "rawString": row[12] or "",
-            "readySlotCount": _int_value(row[13]),
-            "missingSlots": _json_value(row[14], []),
-            "analysisWindow": row[15] or "",
-            "payload": payload,
-            "updatedAt": str(row[17] or ""),
-            "expiresAt": str(row[18] or ""),
-            "scanRunId": row[19] or "",
-            "canApplyGear": True,
-            "templateRevision": COMMUNITY_TEMPLATE_REVISION,
-        }
-        scenario_key = payload.get("scenarioKey") if isinstance(payload, dict) else ""
-        if scenario_key:
-            template["scenarioKey"] = scenario_key
-        enhancement_readiness = payload.get("enhancementReadiness") if isinstance(payload, dict) else {}
-        if isinstance(enhancement_readiness, dict) and enhancement_readiness:
-            template["enhancementReadiness"] = enhancement_readiness
-        template_evidence = payload.get("templateEvidence") if isinstance(payload, dict) else {}
-        if isinstance(template_evidence, dict) and template_evidence:
-            template["templateEvidence"] = template_evidence
-        sample_count = _int_value(payload.get("sampleCount")) if isinstance(payload, dict) else 0
-        if sample_count:
-            template["sampleCount"] = sample_count
-        profile_hash = str(payload.get("profileHash") or "").strip() if isinstance(payload, dict) else ""
-        if profile_hash:
-            template["profileHash"] = profile_hash
-        gear_hash = str(payload.get("gearHash") or "").strip() if isinstance(payload, dict) else ""
-        if gear_hash:
-            template["gearHash"] = gear_hash
-        if normalize_coverage:
-            template = self._repair_template_offhand_occupancy(template)
-        template["canApplyGear"] = gear_public_contract.community_gear_template_can_apply(template)
-        return template
+        return pg_gear_template_selectors.build_community_gear_template_read_model(
+            row,
+            official_metadata_by_id or {},
+            normalize_coverage=normalize_coverage,
+            coverage_repair=self._repair_template_offhand_occupancy,
+        )
 
     def _gear_community_templates(self, cur, class_key, spec_key):
         cur.execute(
