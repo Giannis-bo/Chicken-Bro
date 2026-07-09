@@ -7,12 +7,17 @@ try:
         GEAR_CATALOG_REVISION,
         GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
+        SIMC_GEAR_OPTION_KEYS,
         apply_gear_candidate_legality,
+        apply_gear_mod_option_display_fields,
         blocked_stat_snapshot,
         candidate_legality_audit_payload,
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
+        gear_mod_option_display_fields,
+        gear_mod_option_is_supported_config_option,
+        gear_mod_option_payload_with_config_policy,
         gear_slot_payload,
         gear_candidate_for_slot,
         gear_candidate_incompatible,
@@ -22,6 +27,7 @@ try:
         gear_slot_readiness,
         limit_replacement_candidates,
         localized_difficulty_label,
+        normalize_option_value,
         normalize_slot,
         unique_gear_candidates,
         utc_now,
@@ -34,12 +40,17 @@ except ImportError:
         GEAR_CATALOG_REVISION,
         GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
+        SIMC_GEAR_OPTION_KEYS,
         apply_gear_candidate_legality,
+        apply_gear_mod_option_display_fields,
         blocked_stat_snapshot,
         candidate_legality_audit_payload,
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
+        gear_mod_option_display_fields,
+        gear_mod_option_is_supported_config_option,
+        gear_mod_option_payload_with_config_policy,
         gear_slot_payload,
         gear_candidate_for_slot,
         gear_candidate_incompatible,
@@ -49,6 +60,7 @@ except ImportError:
         gear_slot_readiness,
         limit_replacement_candidates,
         localized_difficulty_label,
+        normalize_option_value,
         normalize_slot,
         unique_gear_candidates,
         utc_now,
@@ -134,6 +146,102 @@ def build_gear_variants_by_item_read_model(rows):
         if payload.get("simcIlevelOnly"):
             variant["simcIlevelOnly"] = True
         result.setdefault(str(row[1]), []).append(variant)
+    return result
+
+
+def build_gear_mod_options_by_slot_read_model(rows):
+    result = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
+    for row in rows or []:
+        option_type = str(row[1] or "").strip().lower()
+        slots = _json_value(row[4], [])
+        if isinstance(slots, str):
+            slots = [slots]
+        if not isinstance(slots, list):
+            slots = []
+        normalized_slots = [normalize_slot(slot) for slot in slots]
+        normalized_slots = [slot for slot in normalized_slots if slot]
+        if not normalized_slots or "*" in slots:
+            normalized_slots = list(CANONICAL_GEAR_SLOTS)
+        simc_options = _json_value(row[5], {})
+        if not isinstance(simc_options, dict):
+            simc_options = {}
+        simc_options = {
+            key: normalize_option_value(value)
+            for key, value in simc_options.items()
+            if key in SIMC_GEAR_OPTION_KEYS
+        }
+        payload = _json_value(row[7], {})
+        payload = payload if isinstance(payload, dict) else {}
+        payload = gear_mod_option_payload_with_config_policy(
+            option_type,
+            row[3],
+            simc_options,
+            payload,
+            normalized_slots,
+        )
+        if not gear_mod_option_is_supported_config_option(option_type, simc_options, payload, row[3]):
+            continue
+        display_fields = gear_mod_option_display_fields(option_type, row[3], simc_options, payload)
+        label = str(
+            display_fields.get("displayLabel")
+            or payload.get("displayLabel")
+            or payload.get("displayName")
+            or row[3]
+            or row[2]
+            or ""
+        ).strip()
+        option = {
+            "id": str(row[0]),
+            "type": option_type,
+            "optionType": option_type,
+            "name": label,
+            "label": label,
+            "rawName": row[3],
+            "simcOptions": simc_options,
+            "status": row[6] or "blocked",
+            "payload": payload,
+            "updatedAt": str(row[8] or ""),
+        }
+        option = apply_gear_mod_option_display_fields(option, display_fields)
+        for key in (
+            "displayName",
+            "displayLabel",
+            "displayKind",
+            "displayStatus",
+            "evidenceSource",
+            "evidenceRef",
+            "iconUrl",
+            "quality",
+            "gameAsset",
+            "metadataStatus",
+            "metadataSource",
+            "metadataLocale",
+            "itemStats",
+            "statSummary",
+            "slotGroup",
+            "slot_group",
+            "uniqueEquipped",
+            "unique_equipped",
+            "uniqueGroup",
+            "unique_group",
+            "uniqueLimit",
+            "unique_limit",
+            "uniqueScope",
+            "unique_scope",
+            "configCategory",
+            "config_category",
+            "exclusionReason",
+            "exclusion_reason",
+            "itemTypeRule",
+            "item_type_rule",
+        ):
+            if payload.get(key) not in (None, "", [], {}):
+                if key in {"displayName", "displayLabel", "displayKind", "displayStatus", "evidenceSource", "evidenceRef"} and option.get(key) not in (None, "", [], {}):
+                    continue
+                option[key] = payload.get(key)
+        for slot in normalized_slots:
+            if slot in result:
+                result[slot].append(option)
     return result
 
 

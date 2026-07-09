@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_pg_gear_variant_row_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_pg_mod_option_row_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -100,6 +100,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
     'gear catalog read-model selectors should own gear variant row grouping after this Phase 4 split'
   )
   assert.ok(
+    gearCatalogReadModelSelectors.owns.includes('gear mod option row read-model grouping'),
+    'gear catalog read-model selectors should own gear mod option row grouping after this Phase 4 split'
+  )
+  assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_catalog_state_read_model_fragment_exposes_health_and_coverage_envelope')),
     'gear catalog read-model selectors should point at the catalog state envelope characterization test'
   )
@@ -122,6 +126,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_gear_variants_by_item_read_model_groups_variant_rows')),
     'gear catalog read-model selectors should point at the gear variant row grouping characterization test'
+  )
+  assert.ok(
+    gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_gear_mod_options_by_slot_read_model_groups_option_rows')),
+    'gear catalog read-model selectors should point at the gear mod option row grouping characterization test'
   )
   assert.ok(pgOwners.has('sync_state_repository'))
 })

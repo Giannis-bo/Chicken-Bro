@@ -42,7 +42,6 @@ try:
         TALENT_SCHEMA_REVISION,
         active_catalog_sources_for_replacement,
         apply_gear_candidate_legality,
-        apply_gear_mod_option_display_fields,
         apply_gear_template_legality_gate,
         apply_item_metadata,
         blocked_baseline_gear_template,
@@ -73,9 +72,6 @@ try:
         gear_candidate_slots,
         gear_community_template_from_observed_items,
         gear_variant_slots_are_compatible_for_item,
-        gear_mod_option_display_fields,
-        gear_mod_option_is_supported_config_option,
-        gear_mod_option_payload_with_config_policy,
         gear_readiness,
         gear_template_slot_coverage,
         gear_slot_payload,
@@ -150,7 +146,6 @@ except ImportError:
         TALENT_SCHEMA_REVISION,
         active_catalog_sources_for_replacement,
         apply_gear_candidate_legality,
-        apply_gear_mod_option_display_fields,
         apply_gear_template_legality_gate,
         apply_item_metadata,
         blocked_baseline_gear_template,
@@ -181,9 +176,6 @@ except ImportError:
         gear_candidate_slots,
         gear_community_template_from_observed_items,
         gear_variant_slots_are_compatible_for_item,
-        gear_mod_option_display_fields,
-        gear_mod_option_is_supported_config_option,
-        gear_mod_option_payload_with_config_policy,
         gear_readiness,
         gear_template_slot_coverage,
         gear_slot_payload,
@@ -5693,101 +5685,6 @@ class PostgresCacheStore:
             },
         )
 
-    def _gear_mod_options_by_slot(self, rows):
-        result = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
-        for row in rows:
-            option_type = str(row[1] or "").strip().lower()
-            slots = _json_value(row[4], [])
-            if isinstance(slots, str):
-                slots = [slots]
-            if not isinstance(slots, list):
-                slots = []
-            normalized_slots = [normalize_slot(slot) for slot in slots]
-            normalized_slots = [slot for slot in normalized_slots if slot]
-            if not normalized_slots or "*" in slots:
-                normalized_slots = list(CANONICAL_GEAR_SLOTS)
-            simc_options = _json_value(row[5], {})
-            if not isinstance(simc_options, dict):
-                simc_options = {}
-            simc_options = {
-                key: normalize_option_value(value)
-                for key, value in simc_options.items()
-                if key in SIMC_GEAR_OPTION_KEYS
-            }
-            payload = _json_value(row[7], {})
-            payload = payload if isinstance(payload, dict) else {}
-            payload = gear_mod_option_payload_with_config_policy(
-                option_type,
-                row[3],
-                simc_options,
-                payload,
-                normalized_slots,
-            )
-            if not gear_mod_option_is_supported_config_option(option_type, simc_options, payload, row[3]):
-                continue
-            display_fields = gear_mod_option_display_fields(option_type, row[3], simc_options, payload)
-            label = str(
-                display_fields.get("displayLabel")
-                or payload.get("displayLabel")
-                or payload.get("displayName")
-                or row[3]
-                or row[2]
-                or ""
-            ).strip()
-            option = {
-                "id": str(row[0]),
-                "type": option_type,
-                "optionType": option_type,
-                "name": label,
-                "label": label,
-                "rawName": row[3],
-                "simcOptions": simc_options,
-                "status": row[6] or "blocked",
-                "payload": payload,
-                "updatedAt": str(row[8] or ""),
-            }
-            option = apply_gear_mod_option_display_fields(option, display_fields)
-            for key in (
-                "displayName",
-                "displayLabel",
-                "displayKind",
-                "displayStatus",
-                "evidenceSource",
-                "evidenceRef",
-                "iconUrl",
-                "quality",
-                "gameAsset",
-                "metadataStatus",
-                "metadataSource",
-                "metadataLocale",
-                "itemStats",
-                "statSummary",
-                "slotGroup",
-                "slot_group",
-                "uniqueEquipped",
-                "unique_equipped",
-                "uniqueGroup",
-                "unique_group",
-                "uniqueLimit",
-                "unique_limit",
-                "uniqueScope",
-                "unique_scope",
-                "configCategory",
-                "config_category",
-                "exclusionReason",
-                "exclusion_reason",
-                "itemTypeRule",
-                "item_type_rule",
-            ):
-                if payload.get(key) not in (None, "", [], {}):
-                    if key in {"displayName", "displayLabel", "displayKind", "displayStatus", "evidenceSource", "evidenceRef"} and option.get(key) not in (None, "", [], {}):
-                        continue
-                    option[key] = payload.get(key)
-            for slot in normalized_slots:
-                if slot in result:
-                    result[slot].append(option)
-        return result
-
     def _gear_payload_fingerprint(self, cur, class_key, spec_key, compact, season, catalog_state, mode="", slot=""):
         cur.execute(
             """
@@ -6420,9 +6317,15 @@ class PostgresCacheStore:
         sources_by_item = pg_gear_read_model_selectors.build_gear_sources_by_item_read_model(source_rows)
         variants_by_item = pg_gear_read_model_selectors.build_gear_variants_by_item_read_model(variant_rows)
         raw_options_by_slot = {
-            "socket": self._gear_mod_options_by_slot([row for row in mod_option_rows if str(row[1] or "").lower() == "socket"]),
-            "enchant": self._gear_mod_options_by_slot([row for row in mod_option_rows if str(row[1] or "").lower() == "enchant"]),
-            "embellishment": self._gear_mod_options_by_slot([row for row in mod_option_rows if str(row[1] or "").lower() == "embellishment"]),
+            "socket": pg_gear_read_model_selectors.build_gear_mod_options_by_slot_read_model(
+                [row for row in mod_option_rows if str(row[1] or "").lower() == "socket"]
+            ),
+            "enchant": pg_gear_read_model_selectors.build_gear_mod_options_by_slot_read_model(
+                [row for row in mod_option_rows if str(row[1] or "").lower() == "enchant"]
+            ),
+            "embellishment": pg_gear_read_model_selectors.build_gear_mod_options_by_slot_read_model(
+                [row for row in mod_option_rows if str(row[1] or "").lower() == "embellishment"]
+            ),
         }
         catalog_items = self._gear_catalog_items(
             item_rows,
