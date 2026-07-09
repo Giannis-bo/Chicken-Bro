@@ -157,6 +157,30 @@ def build_gear_variants_by_item_read_model(rows):
     return result
 
 
+def build_admin_gear_variant_records_read_model(rows):
+    return [
+        {
+            "id": str(row[0] or ""),
+            "itemId": str(row[1] or ""),
+            "itemName": str(row[2] or ""),
+            "slot": row[3] or "",
+            "label": row[4] or "",
+            "sourceType": row[5] or "",
+            "difficultyKey": row[6] or "",
+            "itemLevel": _int_value(row[7]),
+            "simcOptions": _json_value(row[8], {}),
+            "status": row[9] or "",
+            "blockers": _json_value(row[10], []),
+            "payload": _json_value(row[11], {}),
+            "itemPayload": _json_value(row[12], {}),
+            "sourceLabel": str(row[13] or ""),
+            "sourceInstanceId": str(row[14] or ""),
+            "updatedAt": str(row[15] or ""),
+        }
+        for row in rows or []
+    ]
+
+
 def build_gear_mod_options_by_slot_read_model(rows):
     result = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
     for row in rows or []:
