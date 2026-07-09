@@ -3,6 +3,77 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_gear_variants_by_item_read_model_groups_variant_rows(self):
+        from server.pg_gear_read_model_selectors import build_gear_variants_by_item_read_model
+        from server.websim_payload import localized_difficulty_label
+
+        rows = [
+            (
+                201,
+                19019,
+                "head",
+                "mythic-710",
+                "Mythic 710",
+                "raid",
+                "mythic",
+                "710",
+                '{"bonus_id": "123", "gem_id": 213743}',
+                "verified",
+                '["missing_stats", ""]',
+                '{"simcIlevelOnly": true, "statSummary": "kept"}',
+                "2026-07-09T11:10:00Z",
+            ),
+            (
+                202,
+                19019,
+                "finger1",
+                "heroic-bad-ilvl",
+                "Heroic Bad",
+                "dungeon",
+                "heroic",
+                "not-a-number",
+                "{bad json",
+                "",
+                '"blocked_by_source"',
+                '["not", "a", "dict"]',
+                None,
+            ),
+        ]
+
+        read_model = build_gear_variants_by_item_read_model(rows)
+
+        self.assertEqual(list(read_model.keys()), ["19019"])
+        self.assertEqual(len(read_model["19019"]), 2)
+        first_variant = read_model["19019"][0]
+        self.assertEqual(first_variant["id"], "201")
+        self.assertEqual(first_variant["itemId"], "19019")
+        self.assertEqual(first_variant["slot"], "head")
+        self.assertEqual(first_variant["key"], "mythic-710")
+        self.assertEqual(first_variant["variantKey"], "mythic-710")
+        self.assertEqual(first_variant["label"], "Mythic 710")
+        self.assertEqual(first_variant["difficultyLabel"], localized_difficulty_label("mythic", "Mythic 710", "raid"))
+        self.assertEqual(first_variant["sourceType"], "raid")
+        self.assertEqual(first_variant["difficultyKey"], "mythic")
+        self.assertEqual(first_variant["itemLevel"], 710)
+        self.assertEqual(first_variant["ilevel"], 710)
+        self.assertEqual(first_variant["simcOptions"], {"bonus_id": "123", "gem_id": 213743})
+        self.assertEqual(first_variant["status"], "verified")
+        self.assertEqual(first_variant["blockers"], ["missing_stats"])
+        self.assertEqual(first_variant["payload"], {"simcIlevelOnly": True, "statSummary": "kept"})
+        self.assertTrue(first_variant["simcIlevelOnly"])
+        self.assertEqual(first_variant["updatedAt"], "2026-07-09T11:10:00Z")
+
+        fallback_variant = read_model["19019"][1]
+        self.assertEqual(fallback_variant["slot"], "finger1")
+        self.assertEqual(fallback_variant["itemLevel"], 0)
+        self.assertEqual(fallback_variant["ilevel"], 0)
+        self.assertEqual(fallback_variant["simcOptions"], {})
+        self.assertEqual(fallback_variant["status"], "blocked")
+        self.assertEqual(fallback_variant["blockers"], ["blocked_by_source"])
+        self.assertEqual(fallback_variant["payload"], {})
+        self.assertNotIn("simcIlevelOnly", fallback_variant)
+        self.assertEqual(fallback_variant["updatedAt"], "")
+
     def test_build_gear_sources_by_item_read_model_groups_source_rows(self):
         from server.pg_gear_read_model_selectors import build_gear_sources_by_item_read_model
         from server.websim_payload import localized_difficulty_label

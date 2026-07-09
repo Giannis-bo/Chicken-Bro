@@ -34,6 +34,8 @@
 
 2026-07-09 Phase 4 第十刀候选推进：继续拆 PG gear row/read-model 的只读 source grouping fragment，新增 `build_gear_sources_by_item_read_model()`，把 `cache.websim_gear_sources` row 到按 `itemId` 分组的 source read model 组装从 `server/postgres_cache_store.py` 收敛到 `server/pg_gear_read_model_selectors.py`。本刀只移动只读 row-to-read-model 组装，不移动 PG SQL 读取、season recommended catalog raw rows、catalog item enrichment、cache fingerprint、cache put、sync/write/backfill、template public selector 或公开 observed-only 入口。红测已证明缺 helper，最小实现后新 helper 单测和目标 selector/store tests 通过；owner-map 合同测试已按第十刀先红后绿；完整本地验证、本地 CR 已通过。PR #19 branch 已按 Candidate Deployment Gate 完成候选热部署，公网 API、40-spec observed-only sweep、systemd/log/hash parity smoke 通过，已 rebase merge 到 `main@e199007` 并同步到本地。
 
+2026-07-09 Phase 4 第十一刀进行中：继续拆 PG gear row/read-model 的只读 variant grouping fragment，新增 `build_gear_variants_by_item_read_model()`，把 `cache.websim_gear_variants` row 到按 `itemId` 分组的 variant read model 组装从 `server/postgres_cache_store.py` 收敛到 `server/pg_gear_read_model_selectors.py`。本刀只移动只读 row-to-read-model 组装，不移动 PG SQL 读取、season recommended catalog raw rows、catalog item enrichment、mod option 组装、cache fingerprint、cache put、sync/write/backfill、template public selector 或公开 observed-only 入口。红测已证明缺 helper，最小实现后新 helper 单测和目标 selector/store tests 通过；owner-map 合同测试已按第十一刀先红后绿；完整本地验证、本地 CR 已通过。PR branch Candidate Deployment Gate、合入与 post-merge evidence 待执行。
+
 本计划只定义整体优化顺序和验收门禁，不授权直接修改业务实现、不替代 roadmap、runbook 或当前 UI source-of-truth。
 
 ## Requirement Contract

@@ -67,6 +67,13 @@ def _json_value(value, fallback):
     return parsed if parsed is not None else fallback
 
 
+def _int_value(value, fallback=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
 def build_gear_sources_by_item_read_model(rows):
     result = {}
     for row in rows or []:
@@ -91,6 +98,42 @@ def build_gear_sources_by_item_read_model(rows):
         if payload.get("recommendationScore") is not None:
             source["recommendationScore"] = payload.get("recommendationScore")
         result.setdefault(str(row[1]), []).append(source)
+    return result
+
+
+def build_gear_variants_by_item_read_model(rows):
+    result = {}
+    for row in rows or []:
+        simc_options = _json_value(row[8], {})
+        if not isinstance(simc_options, dict):
+            simc_options = {}
+        blockers = _json_value(row[10], [])
+        if not isinstance(blockers, list):
+            blockers = [str(blockers)]
+        payload = _json_value(row[11], {})
+        payload = payload if isinstance(payload, dict) else {}
+        item_level = _int_value(row[7])
+        variant = {
+            "id": str(row[0]),
+            "itemId": str(row[1]),
+            "slot": normalize_slot(row[2]),
+            "key": row[3],
+            "variantKey": row[3],
+            "label": row[4],
+            "difficultyLabel": localized_difficulty_label(row[6], row[4], row[5]),
+            "sourceType": row[5],
+            "difficultyKey": row[6],
+            "itemLevel": item_level,
+            "ilevel": item_level,
+            "simcOptions": simc_options,
+            "status": row[9] or "blocked",
+            "blockers": [str(item) for item in blockers if str(item or "").strip()],
+            "payload": payload,
+            "updatedAt": str(row[12] or ""),
+        }
+        if payload.get("simcIlevelOnly"):
+            variant["simcIlevelOnly"] = True
+        result.setdefault(str(row[1]), []).append(variant)
     return result
 
 
