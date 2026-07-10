@@ -62,6 +62,61 @@ class PgCacheReadModelSelectorsTest(unittest.TestCase):
             )
         )
 
+    def test_build_stat_weight_cache_read_model_preserves_all_existing_payload_fields(self):
+        from server.pg_cache_read_model_selectors import build_stat_weight_cache_read_model
+
+        existing_fields = {
+            "classKey": "payload-class",
+            "specKey": "payload-spec",
+            "scenarioKey": "payload-scenario",
+            "sourceStatus": "payload-source-status",
+            "status": "payload-status",
+            "checkedAt": "payload-checked-at",
+            "updatedAt": "payload-updated-at",
+        }
+
+        payload = build_stat_weight_cache_read_model(
+            (dict(existing_fields), "row-source-status", "row-computed-at"),
+            class_key="supplied-class",
+            spec_key="supplied-spec",
+            scenario_key="supplied-scenario",
+        )
+
+        self.assertEqual(
+            {field: payload[field] for field in existing_fields},
+            existing_fields,
+        )
+
+    def test_build_stat_weight_cache_read_model_defaults_invalid_json_payloads(self):
+        from server.pg_cache_read_model_selectors import build_stat_weight_cache_read_model
+
+        cases = {
+            "malformed JSON": "{not-json",
+            "valid non-dict JSON": '["not", "a", "dict"]',
+        }
+
+        for label, raw_payload in cases.items():
+            with self.subTest(label=label):
+                payload = build_stat_weight_cache_read_model(
+                    (raw_payload, None, "row-computed-at"),
+                    class_key="mage",
+                    spec_key="frost",
+                    scenario_key="mplus_mixed_route",
+                )
+
+                self.assertEqual(
+                    payload,
+                    {
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "scenarioKey": "mplus_mixed_route",
+                        "sourceStatus": "blocked",
+                        "status": "blocked",
+                        "checkedAt": "row-computed-at",
+                        "updatedAt": "row-computed-at",
+                    },
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
