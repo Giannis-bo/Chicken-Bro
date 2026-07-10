@@ -87,3 +87,40 @@ git diff --check
 ```
 
 Candidate verification must additionally prove final PR-head/runtime hash parity, `WOW_DATABASE_RUNTIME=postgres_only`, live `/api/data/health` Catalyst `status=blocked` with `capabilityEnabled=false`, `optionParseSupported=true` and the proof-matrix blocker, unchanged public observed-only initial/slot payloads, current timer/backflow state, recent logs, and `code_rollback` to the previous main commit.
+
+## Equipment Simulator Phase 0C Profile
+
+The Strict Slice 0C packet at `artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment` contains the synchronous legacy stat endpoint until the Phase 5 Worker cutover. Run the complete Phase 0 verification before candidate deployment:
+
+```bash
+python3 -m unittest \
+  tests.websim_payload_test.WebSimPayloadTest.test_http_websim_gear_stats_runs_fake_simc_for_verified_snapshot \
+  tests.websim_payload_test.WebSimPayloadTest.test_http_websim_simulate_runs_encoded_profile_through_fake_simc \
+  tests.websim_payload_test.WebSimPayloadTest.test_legacy_gear_stats_simc_execution_has_global_concurrency_one \
+  tests.websim_payload_test.WebSimPayloadTest.test_http_websim_gear_stats_prefers_simc_json_character_snapshot \
+  tests.websim_payload_test.WebSimPayloadTest.test_http_websim_gear_stats_blocks_when_simc_is_unavailable \
+  tests.websim_payload_test.WebSimPayloadTest.test_http_websim_gear_stats_sanitizes_simc_crashes
+python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test
+node --test tests/builds-page.test.js tests/frontend-api-client.test.js
+node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment \
+  --base origin/main
+node scripts/verify-project.js --profile frontend \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment \
+  --base origin/main
+node scripts/project-harness.js --check \
+  --requirement-file artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/requirement.json \
+  --evidence-file artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/evidence.json \
+  --base origin/main
+python3 -m py_compile server/websim_payload.py server/news_backend.py tests/websim_payload_test.py tests/news_backend_test.py
+python3 -m json.tool docs/backend-owner-map.json >/dev/null
+python3 -m json.tool docs/project-owner-map.json >/dev/null
+python3 -m json.tool docs/project-state.json >/dev/null
+git diff --check
+```
+
+Candidate verification must additionally prove final PR-head/runtime hash parity, `WOW_DATABASE_RUNTIME=postgres_only`, legacy HTTP response fields, live-module `stat_snapshot_v1` `iterations=1`, two-thread `maxActive=1`, unchanged standard profile behavior, Phase 0A forged-enhancement and Phase 0B Catalyst guards, unchanged public observed-only initial/slot payloads, current timer/backflow state, recent logs, and `code_rollback` to the previous main commit.

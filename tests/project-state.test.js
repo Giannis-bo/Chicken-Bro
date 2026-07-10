@@ -8,7 +8,7 @@ const phase4HistoryPath = 'docs/roadmap/history/2026-07-phase4-pg-read-model.md'
 const controlPlaneRelease = 'artifacts/releases/2026-07-10-harness-control-plane'
 const executableHarnessRelease = 'artifacts/releases/2026-07-10-executable-project-harness'
 const characterizationRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
-const activeRelease = 'artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed'
+const activeRelease = 'artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment'
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'))

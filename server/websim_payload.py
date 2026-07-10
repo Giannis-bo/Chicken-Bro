@@ -84,6 +84,7 @@ GAME_ASSET_RESOLUTION_TIER = "icon_56"
 BLIZZARD_ICON_HOSTS = {"render.worldofwarcraft.com"}
 GEAR_CATALOG_SHARED_CACHE_LOCK = threading.Lock()
 GEAR_CATALOG_SHARED_CACHE = {}
+WEBSIM_GEAR_STATS_SIMC_LIMITER = threading.BoundedSemaphore(1)
 SEASON_TTL_HOURS = int(os.environ.get("WOW_SEASON_TTL_HOURS", "24"))
 COMMUNITY_TEMPLATE_FRESHNESS_TTL_HOURS = int(os.environ.get("WOW_COMMUNITY_TEMPLATE_FRESHNESS_TTL_HOURS", "24"))
 COMMUNITY_TEMPLATE_AVAILABILITY_TTL_HOURS = int(os.environ.get("WOW_COMMUNITY_TEMPLATE_AVAILABILITY_TTL_HOURS", str(24 * 14)))
@@ -1498,6 +1499,12 @@ ITEM_INSTANCE_OPTION_KEYS = (*BASE_ITEM_INSTANCE_OPTION_KEYS, "embellishment")
 GEAR_ENHANCEMENT_SIMC_KEYS = ("gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "embellishment")
 GEAR_ENHANCEMENT_SNAPSHOT_REVISION = "websim-gear-enhancement-snapshot-v1"
 GEAR_ENHANCEMENT_AUTHORITY_MARKER = "_serverCatalogEnhancementAuthority"
+WEBSIM_EXECUTION_FLAVOR_STANDARD_PROFILE = "standard_profile"
+WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1 = "stat_snapshot_v1"
+WEBSIM_EXECUTION_FLAVORS = {
+    WEBSIM_EXECUTION_FLAVOR_STANDARD_PROFILE,
+    WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1,
+}
 SIMC_READY_SOURCE_TYPES = {"simcPreset"}
 OFFICIAL_ITEM_LEVEL_TRACKS = [
     {"difficultyKey": "champion", "label": "勇士 263", "itemLevel": 263},
@@ -24296,7 +24303,7 @@ def run_windows_fake_simc_script(binary, profile):
     return subprocess.CompletedProcess([binary, "-"], returncode, "".join(stdout), "".join(stderr))
 
 
-def run_websim_stat_simcraft(profile):
+def _run_websim_stat_simcraft_unlocked(profile):
     binary = websim_simc_binary()
     if not binary:
         return {"ran": False, "available": False, "summary": "", "error": "simcraft binary not found"}
@@ -24341,6 +24348,11 @@ def run_websim_stat_simcraft(profile):
                 or (stderr or stdout or f"simc exited {result.returncode}")[:1000]
             ),
         }
+
+
+def run_websim_stat_simcraft(profile):
+    with WEBSIM_GEAR_STATS_SIMC_LIMITER:
+        return _run_websim_stat_simcraft_unlocked(profile)
 
 
 def profile_with_simc_json_output(profile, output_path):
@@ -25436,8 +25448,20 @@ def merge_websim_gear_enhancements(items, raw_enhancements, conn=None, class_key
     return enhanced, readiness
 
 
-def build_websim_profile(payload, conn=None):
+def build_websim_profile(
+    payload,
+    conn=None,
+    execution_flavor=WEBSIM_EXECUTION_FLAVOR_STANDARD_PROFILE,
+):
     source = payload if isinstance(payload, dict) else {}
+    execution_flavor = str(execution_flavor or "").strip()
+    if execution_flavor not in WEBSIM_EXECUTION_FLAVORS:
+        execution_flavor = WEBSIM_EXECUTION_FLAVOR_STANDARD_PROFILE
+    iterations = (
+        1
+        if execution_flavor == WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1
+        else int_env("WOW_WEBSIM_SIMC_ITERATIONS", 1000)
+    )
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
     race = normalize_option_value(source.get("race") or DEFAULT_RACE_BY_CLASS.get(class_key, "troll"))
@@ -25465,7 +25489,7 @@ def build_websim_profile(payload, conn=None):
     scenario = selected_scenario(source.get("scenarioKey"))
     lines.extend(
         [
-            f"iterations={int_env('WOW_WEBSIM_SIMC_ITERATIONS', 1000)}",
+            f"iterations={iterations}",
             f"fight_style={scenario['fightStyle']}",
             f"desired_targets={scenario['targets']}",
             f"max_time={scenario['durationSeconds']}",
@@ -25587,7 +25611,11 @@ def build_websim_gear_stats_response(payload, conn=None):
             talent_encoding=talent_encoding,
         )
 
-    profile = build_websim_profile(request_source, conn=conn)
+    profile = build_websim_profile(
+        request_source,
+        conn=conn,
+        execution_flavor=WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1,
+    )
     simc_result = run_websim_stat_simcraft(profile)
     item_name_diagnostics = simc_result.get("itemNameDiagnostics") or []
     can_use_json_after_trivial_exit = (

@@ -19079,6 +19079,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("class_talents=1001:1", executed_profile)
         self.assertIn("spec_talents=2001:1", executed_profile)
         self.assertIn("hero_talents=3001:1", executed_profile)
+        self.assertIn("iterations=1000", executed_profile)
         self.assertNotIn("talents=websim:", executed_profile)
         self.assertTrue(result.get("taskId"))
 
@@ -19168,7 +19169,22 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(result["itemLevel"]["value"], "289")
         self.assertEqual(result["gearReadiness"]["itemLevel"]["rawValue"], 289)
         self.assertIn("class_talents=1001:1", executed_profile)
+        self.assertIn("iterations=1", executed_profile)
+        self.assertNotIn("iterations=1000", executed_profile)
         self.assertIn("calculate_scale_factors=0", executed_profile)
+        for key in (
+            "statStatus",
+            "blockers",
+            "primary",
+            "stamina",
+            "secondary",
+            "itemLevel",
+            "gearReadiness",
+            "talentEncoding",
+            "gearItems",
+            "simcItems",
+        ):
+            self.assertIn(key, result)
 
     def test_http_websim_gear_stats_accepts_websim_export_code_without_selected_nodes(self):
         conn = sqlite3.connect(self.db_path)
@@ -19206,6 +19222,41 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("class_talents=1001:1", executed_profile)
         self.assertIn("spec_talents=2001:1", executed_profile)
         self.assertIn("hero_talents=3001:1", executed_profile)
+
+    def test_legacy_gear_stats_simc_execution_has_global_concurrency_one(self):
+        state_lock = threading.Lock()
+        active = 0
+        max_active = 0
+
+        def fake_unlocked(profile):
+            nonlocal active, max_active
+            with state_lock:
+                active += 1
+                max_active = max(max_active, active)
+            time.sleep(0.05)
+            with state_lock:
+                active -= 1
+            return {"ran": True, "profile": profile}
+
+        with patch.object(
+            self.websim_payload,
+            "_run_websim_stat_simcraft_unlocked",
+            side_effect=fake_unlocked,
+        ):
+            threads = [
+                threading.Thread(
+                    target=self.websim_payload.run_websim_stat_simcraft,
+                    args=(f"profile-{index}",),
+                )
+                for index in range(2)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=2)
+
+        self.assertTrue(all(not thread.is_alive() for thread in threads))
+        self.assertEqual(max_active, 1)
 
     def test_http_websim_gear_stats_prefers_simc_json_character_snapshot(self):
         conn = sqlite3.connect(self.db_path)
