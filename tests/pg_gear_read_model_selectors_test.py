@@ -4,6 +4,62 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_websim_talents_read_model_assembles_sync_blockers_and_season(self):
+        from server.pg_gear_read_model_selectors import build_websim_talents_read_model
+
+        nodes = [{"id": "node-a"}]
+        presets = [{"id": "preset-a"}]
+        community_templates = [
+            {"id": "template-a", "status": "verified"},
+            {"id": "template-b", "status": "pending_collection"},
+        ]
+        season = {
+            "seasonId": "midnight-1",
+            "seasonLabel": "Midnight Season 1",
+            "seasonRevision": "midnight-1-r1",
+            "locale": "zh_CN",
+            "dataStatus": "stale",
+            "errors": ["season stale"],
+        }
+
+        payload = build_websim_talents_read_model(
+            "mage",
+            "frost",
+            "spellslinger",
+            schema_revision="talent-schema-v1",
+            talent_authority={"runtimeSource": "simc"},
+            talent_readiness={"status": "blocked", "blockers": ["missing source", "season stale"]},
+            nodes=nodes,
+            presets=presets,
+            community_templates=community_templates,
+            community_state={"sourceStatus": "verified"},
+            tree_sections=[{"key": "class"}],
+            talent_status="simc",
+            season=season,
+        )
+
+        self.assertEqual(payload["classKey"], "mage")
+        self.assertEqual(payload["specKey"], "frost")
+        self.assertEqual(payload["heroKey"], "spellslinger")
+        self.assertEqual(payload["talentSchemaRevision"], "talent-schema-v1")
+        self.assertEqual(payload["blockers"], ["missing source", "season stale"])
+        self.assertEqual(payload["nodes"], nodes)
+        self.assertEqual(payload["presets"], presets)
+        self.assertEqual(payload["communityTemplates"], community_templates)
+        self.assertEqual(
+            payload["communityTemplateSync"]["activeSpecSlots"],
+            {"total": 2, "verified": 1, "pendingCollection": 1, "blocked": 0},
+        )
+        self.assertEqual(
+            payload["communityTemplateSync"]["templates"],
+            {"total": 2, "verified": 1, "blocked": 0},
+        )
+        self.assertEqual(payload["treeSections"], [{"key": "class"}])
+        self.assertEqual(payload["talentStatus"], "simc")
+        self.assertIs(payload["currentSeason"], season)
+        self.assertEqual(payload["seasonId"], "midnight-1")
+        self.assertEqual(payload["dataStatus"], "stale")
+
     def test_build_websim_community_talent_templates_read_model_maps_rows_and_slots(self):
         from server.pg_gear_read_model_selectors import build_websim_community_talent_templates_read_model
 

@@ -18,6 +18,7 @@ try:
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
+        community_talent_template_slot_summary,
         community_talent_templates_for_spec_slots,
         enrich_catalog_item,
         fallback_text_for,
@@ -42,8 +43,10 @@ try:
         normalize_slot,
         sanitize_gear_candidate_mod_options,
         scenario_title,
+        season_metadata_fields,
         spec_label,
         unique_gear_candidates,
+        unique_text_list,
         utc_now,
         websim_max_level,
         weapon_equipment_rule_payload,
@@ -64,6 +67,7 @@ except ImportError:
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
+        community_talent_template_slot_summary,
         community_talent_templates_for_spec_slots,
         enrich_catalog_item,
         fallback_text_for,
@@ -88,8 +92,10 @@ except ImportError:
         normalize_slot,
         sanitize_gear_candidate_mod_options,
         scenario_title,
+        season_metadata_fields,
         spec_label,
         unique_gear_candidates,
+        unique_text_list,
         utc_now,
         websim_max_level,
         weapon_equipment_rule_payload,
@@ -225,6 +231,51 @@ def build_websim_community_talent_templates_read_model(rows, class_key, spec_key
             }
         )
     return community_talent_templates_for_spec_slots(class_key, spec_key, templates, hero_key)
+
+
+def build_websim_talents_read_model(
+    class_key,
+    spec_key,
+    hero_key,
+    *,
+    schema_revision,
+    talent_authority,
+    talent_readiness,
+    nodes,
+    presets,
+    community_templates,
+    community_state,
+    tree_sections,
+    talent_status,
+    season,
+):
+    community_state = dict(community_state) if isinstance(community_state, dict) else {}
+    community_state["activeSpecSlots"] = community_talent_template_slot_summary(community_templates)
+    community_state.setdefault(
+        "templates",
+        {
+            "total": len(community_templates),
+            "verified": len([item for item in community_templates if item.get("status") == "verified"]),
+            "blocked": 0,
+        },
+    )
+    season_blockers = season.get("errors") if isinstance(season.get("errors"), list) else []
+    return {
+        "classKey": class_key,
+        "specKey": spec_key,
+        "heroKey": hero_key,
+        "talentSchemaRevision": schema_revision,
+        "talentAuthority": talent_authority,
+        "talentReadiness": talent_readiness,
+        "blockers": unique_text_list([*(talent_readiness.get("blockers") or []), *season_blockers]),
+        "nodes": nodes,
+        "presets": presets,
+        "communityTemplates": community_templates,
+        "communityTemplateSync": community_state,
+        "treeSections": tree_sections,
+        "talentStatus": talent_status,
+        **season_metadata_fields(season),
+    }
 
 
 def build_websim_talent_authority_read_model(
