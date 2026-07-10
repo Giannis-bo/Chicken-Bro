@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-phase2b-pg-loader-facade-parity",
-  "commit": "pending_candidate_commit",
+  "commit": "50a094f77a562b774c46cae1617972359f4d63c7",
   "scope": [
     "bounded PostgreSQL-only Authority Context loader",
     "one dormant PostgresCacheStore read-only method",

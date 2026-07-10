@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T15:40:53.824Z",
+  "generatedAt": "2026-07-10T15:41:41.497Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase2b-pg-loader-facade-parity"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
-    "sizeBytes": 6221,
+    "sizeBytes": 6237,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "12 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,20 +313,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 12,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
-        " M docs/backend-owner-map.json",
-        " M docs/gear-simulation-full-chain-runbook.md",
-        " M docs/project-owner-map.json",
-        " M docs/verification-matrix.md",
-        " M server/postgres_cache_store.py",
-        " M server/websim_payload.py",
-        " M tests/postgres_cache_store_test.py",
-        " M tests/websim_payload_test.py",
-        "?? server/pg_gear_authority_loader.py",
-        "?? tests/fixtures/gear-resolver-facade-parity-v1.json",
-        "?? tests/pg_gear_authority_loader_test.py"
+        " M artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json"
       ]
     }
   },
