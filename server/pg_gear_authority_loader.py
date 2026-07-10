@@ -8,7 +8,10 @@ import hashlib
 import json
 from typing import Any, Iterable
 
-from server.gear_contracts import parse_selection_intent, selection_signature
+try:
+    from .gear_contracts import parse_selection_intent, selection_signature
+except ImportError:
+    from gear_contracts import parse_selection_intent, selection_signature
 
 
 COMPATIBILITY_MANIFEST_REVISION = "compatibility-pg-live-v1"

@@ -1,5 +1,8 @@
 import copy
 import json
+from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 from server import pg_gear_authority_loader
@@ -37,6 +40,24 @@ class FakeCursor:
 
 
 class PgGearAuthorityLoaderTest(unittest.TestCase):
+    def test_loader_imports_in_direct_server_runtime_mode(self):
+        server_dir = Path(__file__).resolve().parents[1] / "server"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import postgres_cache_store; print(postgres_cache_store.AuthorityContextCache.__name__)",
+            ],
+            cwd=server_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "AuthorityContextCache")
+
     def intent(self, slots=None):
         slots = slots or {
             "head": {
