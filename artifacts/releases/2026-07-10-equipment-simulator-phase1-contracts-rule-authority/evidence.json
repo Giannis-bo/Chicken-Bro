@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase1-contracts-rule-authority",
   "requirementSlug": "equipment-simulator-phase1-contracts-rule-authority",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase1-contracts-rule-authority",
   "commit": "4f21d54b383666362d45e03c4c689539734c1b08",
   "scope": [
@@ -58,19 +58,77 @@
       "command": "local CR of origin/main...working tree",
       "status": "pass",
       "summary": "No unresolved findings. Review tightened missing manifest facts to AUTHORITY_UNAVAILABLE and rejected unknown nested Intent fields, then re-ran focused checks. It confirmed exact signature subsets, fixed explicit rule order, no DSL, no active runtime import, and no route, frontend, store, migration, job, Worker, sync/write/backfill/cleanup or Phase 6 activation."
+    },
+    {
+      "command": "GitHub Project Harness verify for PR #60",
+      "status": "pass",
+      "summary": "GitHub Actions verify completed successfully for the ready Phase 1 PR head."
     }
   ],
   "candidateDeployment": {
-    "status": "not_run",
+    "status": "candidate_verified",
     "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase1-contracts-rule-authority",
+    "commit": "4271d2c0c7f3ef9b3417ed0f98e71b8450470392",
+    "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/60",
+    "buildIdentity": "gear_contracts.py sha256:e3bf36a100844a4ece27d9ed0042aeccc7d65bb6384a2b64ce76ce54d2c507a2; gear_result_envelope.py sha256:f612e7d056e2db6d4cf8cd34429b993ddeb2f79a6da60bc8e1b49062a28c64c1; gear_rule_matrix.py sha256:8373b83e7e41e3a84c5febc0ad7f24b6b969ba05610218971e595afc94f5bac9",
+    "databaseRuntime": "postgres_only",
     "smoke": {
-      "status": "not_run"
+      "status": "pass",
+      "summary": "Remote imports and pure probes passed with stable selection/resolved/profile signatures, 10 ordered rules, wrong-slot and Catalyst codes, and 200/409/503 envelope mappings. /resolve remained 404; health, data health, Phase 0 guards, legacy stats/flavor/concurrency and public observed-only surfaces remained correct."
     },
     "timerBackflow": {
-      "status": "not_run"
+      "status": "pass",
+      "summary": "WOW_DEPLOY_START_ASYNC_SYNCS=0 skipped deploy-triggered async work. All relevant services were inactive with Result=success/ExecMainStatus=0. The observed-backfill timer ran naturally at 22:04:39-22:04:45 before candidate wow-backend activated at 22:05:07; post-deploy 40-spec and current-surface checks remained green."
     }
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "type": "deployment_identity",
+      "status": "pass",
+      "summary": "Exact ready PR head 4271d2c was hot-deployed with bootstrap skipped and async sync disabled. Local and remote hashes match for all three modules; wow-backend is active/running with Result=success, ExecMainStatus=0 and WOW_DATABASE_RUNTIME=postgres_only."
+    },
+    {
+      "type": "pure_contract_probe",
+      "status": "pass",
+      "summary": "Remote runtime-tree import returned selection-intent-v1, gear-result-envelope-v1 and gear-rule-matrix-v1. Stable signature values were produced; Result Envelope mapped domain blocked=200, revision conflict=409 and authority unavailable=503; wrong slot returned GEAR_SLOT_NOT_ALLOWED and disabled Catalyst returned GEAR_CATALYST_CAPABILITY_BLOCKED across all 10 results."
+    },
+    {
+      "type": "dormant_surface",
+      "status": "pass",
+      "summary": "POST /api/websim/gear/resolve remained HTTP 404 while /health and /api/data/health returned HTTP 200, proving Phase 1 did not activate the future route."
+    },
+    {
+      "type": "phase0_guard_smoke",
+      "status": "pass",
+      "summary": "Phase 0A forged enhancement returned HTTP 200 compatibility with profileReadiness.simcReady=false, one server-authority blocker, no forged SimC line and no private marker leak. Phase 0B Catalyst remained blocked, failClosed=true, capabilityEnabled=false and optionParseSupported=true with the proof-matrix blocker."
+    },
+    {
+      "type": "legacy_stat_smoke",
+      "status": "pass",
+      "summary": "A complete live observed mage/arcane selection plus verified talent import returned legacy gear stats HTTP 200, statStatus=verified, empty blockers, gearReady=true and all ten response fields. Remote module probes returned stat_snapshot_v1 iterations=1 and calculate_scale_factors=0, standard_profile iterations=1000, and two-thread maxActive=1."
+    },
+    {
+      "type": "public_contract",
+      "status": "pass",
+      "summary": "Mage/arcane compact initial and wrist-slot payloads remained dataStatus=verified with one raiderio_observed_profile winner, zero baselines and one wrist replacement candidate. The repository-native public-contract sweep checked all 40 specs: HTTP 40/40, failureCount=0, raiderio_observed_profile=40 and baselineTemplateCount=0."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "No async work was started by deploy. Relevant services were inactive and successful. The only recent observed-backfill timer execution finished before candidate service activation and did not degrade the subsequent public 40-spec contract."
+    },
+    {
+      "type": "logs",
+      "status": "pass",
+      "summary": "Recent wow-backend journal scan found zero Traceback, ERROR, Exception or SQLite fallback matches."
+    },
+    {
+      "type": "rollback",
+      "status": "pass",
+      "summary": "Rollback anchor is origin/main b9f4da8ada807857cfee262b189bbd57a0d546a6; redeploying that checkout removes the three dormant modules without database restore because Phase 1 has no migration, store or write-path change."
+    }
+  ],
   "risks": [
     {
       "id": "premature_cutover",
@@ -104,5 +162,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Phase 1 contract implementation is locally verified: 24 focused tests, 718 current-backend regressions, 365 frontend tests, 1084 full backend tests and all Harness/profile gates pass; the pure modules remain dormant and current runtime behavior is unchanged. Candidate deployment, PR CI, merge and live archive are still pending."
+  "summary": "Phase 1 candidate is live-verified before merge: PR #60 CI, all local profiles, exact remote module hashes, pure contract probes, dormant-route proof, Phase 0 guards, legacy stats/flavor/concurrency, timer/log checks and the 40-spec observed-only sweep all pass. Merge, post-merge smoke and archive remain pending."
 }
