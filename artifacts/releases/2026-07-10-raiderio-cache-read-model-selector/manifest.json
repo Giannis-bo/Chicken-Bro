@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T02:49:22.881Z",
+  "generatedAt": "2026-07-10T02:54:05.876Z",
   "release": {
     "date": "2026-07-10",
     "slug": "raiderio-cache-read-model-selector"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 414326
+          "sizeBytes": 414786
         },
         {
           "path": "docs/README.md",
@@ -217,7 +217,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-raiderio-cache-read-model-selector/evidence.json",
-    "sizeBytes": 5129,
+    "sizeBytes": 10533,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,8 +235,8 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
+    "declaredStatus": "candidate_deployment_verified",
+    "highestEvidenceLevel": "candidate_deployment_verified",
     "summary": "Phase 4 extracts PostgreSQL Raider.IO cache row-to-payload assembly into server/pg_cache_read_model_selectors.py. server/postgres_cache_store.py keeps cache SQL/key selection, save INSERT/ON CONFLICT, sync, and observed gear backfill paths."
   },
   "evidence": {
@@ -262,7 +262,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "8 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -298,16 +298,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 8,
+      "changedFileCount": 3,
       "changedFiles": [
-        " M docs/backend-owner-map.json",
+        " M artifacts/releases/2026-07-10-raiderio-cache-read-model-selector/evidence.json",
         " M docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
-        " M docs/roadmap.md",
-        " M server/postgres_cache_store.py",
-        " M tests/backend-owner-map.test.js",
-        "?? artifacts/releases/2026-07-10-raiderio-cache-read-model-selector/",
-        "?? server/pg_cache_read_model_selectors.py",
-        "?? tests/pg_cache_read_model_selectors_test.py"
+        " M docs/roadmap.md"
       ]
     }
   },
