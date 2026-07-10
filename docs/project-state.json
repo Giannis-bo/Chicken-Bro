@@ -1,23 +1,23 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-10",
-  "activeMilestone": "equipment_simulator_phase2",
+  "updatedAt": "2026-07-11",
+  "activeMilestone": "equipment_simulator_phase3",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api",
   "activeContracts": [
     {
       "id": "equipment_simulator_capability_architecture",
       "path": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
       "status": "approved_active",
       "lifecycle": "active",
-      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-2A are complete, Phase 2B PR #63 has passed the corrected candidate hard gate and is awaiting final evidence-head CI, merge and post-merge archive, and Phase 6 remains deferred."
+      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-2 are complete and live-verified, Phase 3 detailed planning and Slice 3A implementation are active, and Phase 6 remains deferred."
     },
     {
-      "id": "equipment_simulator_phase2_canonical_resolver_plan",
-      "path": "docs/plans/2026-07-10-equipment-simulator-phase2-canonical-resolver-plan.md",
-      "status": "phase2b_candidate_verified_pending_merge",
+      "id": "equipment_simulator_phase3_resolve_profile_workbench_plan",
+      "path": "docs/plans/2026-07-11-equipment-simulator-phase3-resolve-profile-workbench-plan.md",
+      "status": "phase3a_implementation_allowed",
       "lifecycle": "active",
-      "notes": "Slice 2A pure Resolver/Ledger is archived; Slice 2B PR #63 correction passed the complete candidate query/performance/Resolver/facade/public/timer gate and remains active only until exact evidence-head CI, merge, post-merge parity and archive, with no Phase 3 route or runtime cutover."
+      "notes": "Phase 3 is split into backend Resolve/Profile API, dormant structured transport and pure state, then active gear-page cutover. Slice 3A may start under its Strict packet; every runtime Slice still requires TDD, local CR, exact-head CI, candidate deployment and post-merge smoke."
     },
     {
       "id": "repo_native_harness_v0_5",
@@ -90,9 +90,30 @@
       "status": "completed",
       "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/evidence.json",
       "notes": "PR #61 established the pure canonical Resolver and five-group Evidence Ledger with bounded claims, deterministic static facts, local/full verification, candidate deployment, GitHub CI and post-merge live parity."
+    },
+    {
+      "id": "equipment_simulator_phase2_20260711",
+      "domain": "equipment_simulator_phase2",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
+      "notes": "PRs #61-#63 established and corrected the pure Resolver, five-group Evidence Ledger, bounded PostgreSQL Authority Context loader and dormant serializer facade. Final candidate and post-merge proof covered fixed one/16-slot queries, latency/cache budgets, fail-closed behavior, 92 remote contract tests, 40-spec public parity, timer/log state and exact merge/runtime tree parity."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "equipment_simulator_phase2b_pg_loader_facade_parity",
+      "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase2_canonical_resolver_plan",
+      "path": "docs/plans/2026-07-10-equipment-simulator-phase2-canonical-resolver-plan.md",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json"
+    },
     {
       "id": "equipment_simulator_phase2a_pure_resolver",
       "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/requirement.json",
@@ -204,6 +225,11 @@
       "id": "health_watch_domains",
       "status": "accepted_with_explicit_triggers",
       "trigger": "cache_sync_state_repository and scheduled_sync_backfill_cleanup remain health_watch; future sync/write/backfill/cleanup structure work must open a new Harness contract."
+    },
+    {
+      "id": "simc_updater_github_transport",
+      "status": "external_dependency_watch",
+      "trigger": "Phase 2 closure observed GitHub proxy TLS EOF and direct archive timeout in the existing SimC updater. The active binary remained usable at commit 1e357922; future runtime work must report updater state truthfully and must not weaken Resolver or Catalyst gates."
     }
   ]
 }

@@ -40,6 +40,17 @@
 - 2026-07-11 PR #63 候选硬门禁：cold 1/16 槽都执行 `SET TRANSACTION READ ONLY + revision/items/options`，warm 16 槽只执行 `SET TRANSACTION READ ONLY + revision`；真实 Mage/Arcane 15 槽与 DK/Frost 16 槽 authority 都是 `missingFields=[]`。Mage Resolver/五组 Ledger/Facade 全绿，cold 30 次 `p95=201.275ms`、warm 100 次 `p95=105.726ms` 且 cache hit `100/100`，低于 `500ms/200ms` 阈值；四类 fail-closed、`/profile=200`、`/resolve=404`、40/40 observed-only/baseline=0、slot payload、单线程 backend 和零 backend error 都通过。
 - 候选 timer/backflow 证据必须区分代码部署与自然外部任务：本次 `WOW_DEPLOY_START_ASYNC_SYNCS=0` 没有启动任何装备 sync/write/backflow；自然 `data-health-followup` 在候选 backend 激活前 1 秒完成，随后独立 SimC updater 因既有 GitHub proxy TLS EOF 失败。恢复探针未切换 binary，`/opt/wow-simc/.commit` 仍为可用的 `1e357922af363f3d87cc0758863c2bb6d7701b72`；该外部下载链路异常要单独记录，不能删掉失败事实，也不能把它解释成 Phase 2B Resolver/loader 回归或借机开启 Catalyst。
 
+## Phase 3 Resolve/Profile 与前端工作台切换边界
+
+- Phase 3 按 3A backend API、3B structured transport + pure state、3C active page cutover 三个 Strict Slice 推进，不允许把 route、transport 和 UI 一次性混成不可回滚大改。
+- 3A 在 gear browse payload 增加 backend-owned `resolverContext`，其 `authoredAgainst` 与 Dependency Revisions 必须来自 Phase 2 loader 的同一 revision authority；它仍是 `formalActiveManifest=false` 的过渡身份，不替代 Phase 4 Manifest。
+- `POST /api/websim/gear/resolve` 只接受 Selection Intent，返回 `gear-result-envelope-v1`：合法或业务阻断为 200，结构错误 400，revision 冲突 409，authority 不可用 503。它不运行 SimC、不返回 DPS、不推荐装备。
+- `/api/websim/profile` 仅在 body 带 `selectionIntent` 时进入 canonical mode，服务端重新加载 Authority、重新 Resolve，再把 server snapshot 交给 serializer facade；旧 body 保留原 200 shape。客户端提交的 snapshot、serializer input、合法性、属性、套装或 Evidence 一律不能复用。
+- 3B 的 `requestJson(..., {responseMode: 'structured-problem'})` 只作为 opt-in；有效 409/503/202 envelope 不进入 generic fallback，网络/超时/非法 body 才标 offline。`gear-workbench-state.js` 必须无 `wx`、storage、network、clock 依赖，并按 serial + intentVersion 丢弃旧响应。
+- 3C 页面对 confirmed Intent 与 draft 分层；409 只更新 revisions 并最多自动重试一次，503 与 offline 分开显示。last verified snapshot 可只读展示，但 dirty/stale/blocked/read-only 状态不得保存为 verified、生成 profile 或进入 SimC。
+- 前端可保留 candidate/source/variant 的浏览与格式化，但最终合法性、Tier identity、set count、确定性总属性、constraints 与 profile readiness 只能来自匹配当前 Intent 的 Resolved Snapshot。legacy stat snapshot 在 Phase 5 前保持独立，不能覆盖 Resolver readiness。
+- Phase 3 不新增 migration/write/sync/backfill/cleanup/job/Worker，不改变 public observed-only/baseline-empty，不创建正式 release registry，不开放 Catalyst。
+
 ## 当前公开装备模板事实快照
 
 | 链路 | 当前用户侧状态 | 内部/研发状态 | 不能误读成 |

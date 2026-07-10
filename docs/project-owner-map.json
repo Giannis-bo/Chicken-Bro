@@ -337,7 +337,7 @@
       "publicContracts": [
         "communityTemplates public entry allows active raiderio_observed_profile only.",
         "baselineTemplates public default remains empty.",
-        "Phase 2B bounded Authority Context loader and dormant adapters do not replace or activate the current public read model."
+        "Phase 2 bounded Authority Context loader and dormant adapters do not replace the current public read model; Phase 3A may add backend resolverContext and Resolve/Profile routes while public observed-only selection remains unchanged."
       ],
       "mustNotChange": [
         "Do not reintroduce recommended_bis, season_recommendation, default_template, simc_preset or baseline_blocked into public gear entry.",
@@ -621,7 +621,7 @@
         "Legacy gear stats preserve their response shape while stat_snapshot_v1 uses one iteration and process-global concurrency one.",
         "Task list/detail evidence does not expose raw internal diagnostics as user-facing truth.",
         "Phase 2A emits deterministic structured serializer input and five evidence groups, but no current serializer, route, task or Worker imports the Resolver or Ledger.",
-        "Phase 2B adds a PostgreSQL-only Authority Context loader and resolved-snapshot serializer parity facade, but both adapters remain dormant and compatibility-pg-live-v1 is not the formal Phase 4 Active Season Manifest."
+        "Phase 2 adds a PostgreSQL-only Authority Context loader and resolved-snapshot serializer parity facade. Phase 3 activates them only through separately gated backend/API and frontend Slices; compatibility-pg-live-v1 remains transitional and is not the formal Phase 4 Active Season Manifest."
       ],
       "mustNotChange": [
         "Do not assemble authoritative SimC profile strings client-side.",

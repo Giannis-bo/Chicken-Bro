@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase3a-resolve-profile-api",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Activate the canonical PostgreSQL gear Resolver behind a structured resolve endpoint, publish backend-owned Intent authoring revisions, and add a canonical profile mode that re-resolves Intent while preserving the legacy profile contract.",
+  "userValue": "The equipment workbench can ask the server for current legality, deterministic attributes, set state, evidence and profile readiness instead of trusting client-computed final facts, while old clients continue to work.",
+  "nonGoals": [
+    "No frontend page cutover in Slice 3A",
+    "No change to the legacy profile response for bodies without selectionIntent",
+    "No change to the legacy gear stats response or execution flavor",
+    "No database migration, write, sync, backfill, cleanup, job, Worker, service or timer",
+    "No formal Phase 4 Active Season Manifest or release registry",
+    "No public baseline, recommendation, DPS comparison or BiS behavior",
+    "No Catalyst retained-secondary-stat capability activation",
+    "No dependency installation or unapproved local download"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+      "docs/plans/2026-07-10-equipment-simulator-capability-delivery-plan.md",
+      "docs/plans/2026-07-11-equipment-simulator-phase3-resolve-profile-workbench-plan.md",
+      "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
+      "docs/backend-owner-map.json",
+      "docs/project-owner-map.json"
+    ],
+    "activeMilestone": "equipment_simulator_phase3",
+    "featureIteration": "allowed_under_harness"
+  },
+  "impactMap": {
+    "mustChange": [
+      "one shared backend resolver authoring context derived from the Phase 2 revision row",
+      "one runtime orchestration module over the existing store, Resolver, Result Envelope and profile facade",
+      "POST /api/websim/gear/resolve with exact 200/400/409/503 semantics",
+      "canonical selectionIntent mode on POST /api/websim/profile",
+      "focused store, orchestration, route, compatibility and live-query tests",
+      "Strict evidence, owner map, verification matrix, runbook and roadmap state"
+    ],
+    "mustNotChange": [
+      "pure Resolver and Evidence Ledger ownership",
+      "legacy profile response for old request bodies",
+      "legacy gear stats behavior",
+      "public observed-only and baseline-empty template semantics",
+      "PostgreSQL-only runtime and fail-closed authority",
+      "frontend page behavior before Slice 3C",
+      "Phase 6 Catalyst fail-closed state"
+    ],
+    "evidenceRequired": [
+      "TDD proof for resolver context, orchestration and route HTTP mapping",
+      "one read-only revision query for public authoring context and unchanged selected-context query budget",
+      "client final-fact rejection and canonical profile re-resolve proof",
+      "legacy profile and gear stats compatibility characterization",
+      "backend and full verification profiles plus local CR",
+      "candidate exact identity, 40-spec live resolve, profile, SLO, negative HTTP, public, timer, log and rollback evidence"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/gear_runtime.py over server/gear_resolver.py and PostgresCacheStore.get_gear_authority_context",
+    "consumers": [
+      "POST /api/websim/gear/resolve",
+      "canonical POST /api/websim/profile",
+      "future Slice 3B structured mini-program client"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "bounded_runtime_orchestrator",
+    "reason": "Slice 3A adds one injectable orchestration boundary and one additive resolver context; it reuses all Phase 2 pure/domain/store owners and does not add another database or rule source."
+  },
+  "acceptanceEvidence": [
+    "python3 -m unittest tests.gear_runtime_test tests.pg_gear_authority_loader_test",
+    "python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test",
+    "node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+    "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api --base origin/main",
+    "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api --base origin/main",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/requirement.json --evidence-file artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json --base origin/main",
+    "Python compile, static query-boundary inspection and git diff --check",
+    "candidate live 40-spec resolve/profile, negative HTTP, SLO/cache, legacy/public/timer/log and rollback proof"
+  ],
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-11",
+      "decision": "Use three Phase 3 strangler Slices: backend API, dormant frontend transport/state, then active page cutover."
+    },
+    {
+      "date": "2026-07-11",
+      "decision": "Publish additive resolverContext from the same transitional revision authority as the loader; formalActiveManifest remains false until Phase 4."
+    },
+    {
+      "date": "2026-07-11",
+      "decision": "Canonical profile requests contain selectionIntent and are re-resolved; legacy bodies retain their current response shape."
+    },
+    {
+      "date": "2026-07-11",
+      "decision": "409 preserves choices and may rebase revisions once; 503 never becomes generic frontend fallback or stale SimC execution."
+    }
+  ]
+}
