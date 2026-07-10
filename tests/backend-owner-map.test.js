@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_websim_loot_envelope_read_model_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_websim_talent_authority_read_model_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -184,6 +184,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
     'gear catalog read-model selectors should own websim loot response envelope assembly after this Phase 4 split'
   )
   assert.ok(
+    gearCatalogReadModelSelectors.owns.includes('websim talent authority read-model assembly'),
+    'gear catalog read-model selectors should own websim talent authority assembly after this Phase 4 split'
+  )
+  assert.ok(
     gearCatalogReadModelSelectors.owns.includes('websim instances read-model assembly'),
     'gear catalog read-model selectors should own websim instances assembly after this Phase 4 split'
   )
@@ -262,6 +266,10 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_websim_loot_read_model_wraps_items_instances_and_season')),
     'gear catalog read-model selectors should point at the websim loot envelope read-model characterization test'
+  )
+  assert.ok(
+    gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_websim_talent_authority_read_model_preserves_runtime_and_official_state')),
+    'gear catalog read-model selectors should point at the websim talent authority read-model characterization test'
   )
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_websim_instances_read_model_groups_encounters_by_instance')),
