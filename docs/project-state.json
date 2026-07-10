@@ -32,6 +32,13 @@
       "status": "active_primary_map",
       "lifecycle": "active",
       "notes": "First-level owner and contract map for the 16 frozen Project Harness critical domains."
+    },
+    {
+      "id": "verification_profiles",
+      "path": "docs/verification-matrix.md",
+      "status": "active",
+      "lifecycle": "active",
+      "notes": "Harness/backend/frontend/full verification profile contract and CI entrypoint."
     }
   ],
   "completedBaselines": [
