@@ -3,21 +3,21 @@
   "updatedAt": "2026-07-10",
   "activeMilestone": "equipment_simulator_phase2",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity",
   "activeContracts": [
     {
       "id": "equipment_simulator_capability_architecture",
       "path": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
       "status": "approved_active",
       "lifecycle": "active",
-      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-1 are complete, Phase 2 Canonical Resolver planning is active, and Phase 6 remains deferred."
+      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-2A are complete, Phase 2B bounded PG loader/facade parity is active, and Phase 6 remains deferred."
     },
     {
       "id": "equipment_simulator_phase2_canonical_resolver_plan",
       "path": "docs/plans/2026-07-10-equipment-simulator-phase2-canonical-resolver-plan.md",
-      "status": "phase2a_pure_resolver_in_progress",
+      "status": "phase2b_pg_loader_facade_parity_in_progress",
       "lifecycle": "active",
-      "notes": "Slice 2A pure Resolver/Ledger implementation is active; PG loader/facade remain Slice 2B and no Phase 3 route or runtime cutover is active."
+      "notes": "Slice 2A pure Resolver/Ledger is archived; Slice 2B bounded PostgreSQL loader and dormant facade parity is active, with no Phase 3 route or runtime cutover."
     },
     {
       "id": "repo_native_harness_v0_5",
@@ -83,9 +83,23 @@
       "status": "completed",
       "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/evidence.json",
       "notes": "PR #60 established dormant pure contracts and ten ordered legality rules with local/full verification, candidate deployment, GitHub CI, post-merge live probes, runtime parity and unchanged Phase 0/public behavior."
+    },
+    {
+      "id": "equipment_simulator_phase2a_20260710",
+      "domain": "equipment_simulator_phase2a",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/evidence.json",
+      "notes": "PR #61 established the pure canonical Resolver and five-group Evidence Ledger with bounded claims, deterministic static facts, local/full verification, candidate deployment, GitHub CI and post-merge live parity."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "equipment_simulator_phase2a_pure_resolver",
+      "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/evidence.json"
+    },
     {
       "id": "equipment_simulator_phase1_contracts_plan",
       "path": "docs/plans/2026-07-10-equipment-simulator-phase1-contracts-rule-authority-plan.md",
