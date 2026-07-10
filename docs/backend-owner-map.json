@@ -74,7 +74,7 @@
               "server/pg_gear_authority_loader.py"
             ],
             "runtimeConsumers": [],
-            "activationBoundary": "Phase 2B adds a bounded loader, one dormant PostgresCacheStore method and test-only websim facade helpers. No current public payload, route, profile call site, frontend or Worker consumes them before Phase 3.",
+            "activationBoundary": "Phase 2 is archived with a bounded loader and dormant adapters. The approved Phase 3 plan activates them only through Slice 3A backend orchestration, then merges dormant Slice 3B transport/state before the Slice 3C page cutover; no current consumer exists before those Slice gates pass.",
             "phase2bDormantAdapters": {
               "status": "contract_only_unconsumed",
               "modules": [
@@ -128,7 +128,7 @@
               "gear_resolver_runtime_authority"
             ],
             "runtimeConsumers": [],
-            "activationBoundary": "Tests prove legacy profile-line parity and current route non-consumption; Phase 2B does not change build_websim_profile_response callers."
+            "activationBoundary": "Tests prove legacy profile-line parity and current route non-consumption. Phase 3A may add a canonical profile caller only for bodies containing selectionIntent; legacy bodies remain on the existing path, and frontend activation waits for Slice 3C."
           },
           "owns": [
             "compact_community_gear_template",

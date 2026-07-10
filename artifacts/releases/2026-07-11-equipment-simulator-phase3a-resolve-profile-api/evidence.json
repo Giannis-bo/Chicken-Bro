@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase3a-resolve-profile-api",
+  "requirementSlug": "equipment-simulator-phase3a-resolve-profile-api",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase2-closure-phase3-plan",
+  "commit": "13cc179d37e6350d1b9cdf6c372f435498d4c2e3",
+  "scope": [
+    "backend resolver authoring context",
+    "canonical gear runtime orchestration",
+    "structured resolve endpoint",
+    "canonical profile mode with legacy compatibility"
+  ],
+  "verification": [
+    {
+      "command": "approved architecture and Phase 3 planning-contract review",
+      "status": "pass",
+      "summary": "The approved architecture and delivery plan require Resolve/Profile reuse, structured 409/503 semantics, pure workbench state, stale-response rejection and removal of frontend final-fact inference. The detailed plan splits those requirements into three bounded runtime Slices."
+    },
+    {
+      "command": "Phase 3 detailed plan self-review",
+      "status": "pass",
+      "summary": "No placeholders, conflicting request shapes or silent compatibility breaks remain. Slice 3A has exact files, red tests, orchestration signatures, HTTP mapping, local profiles, candidate SLO/40-spec proof, rollback and non-goals."
+    },
+    {
+      "command": "Slice 3A implementation and local verification",
+      "status": "not_run",
+      "summary": "Pending TDD implementation on the dedicated Slice 3A branch."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "required_pending",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase3a-resolve-profile-api",
+    "commit": "",
+    "buildIdentity": "pending exact PR head and runtime hashes",
+    "databaseRuntime": "postgres_only",
+    "smoke": {
+      "status": "blocked",
+      "summary": "Implementation, exact-head CI and candidate deploy have not started."
+    },
+    "timerBackflow": {
+      "status": "blocked",
+      "summary": "Candidate timer and backflow inspection is required after implementation."
+    }
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "http_status_flattening",
+      "status": "blocked_by_contract",
+      "detail": "The route must use Result Envelope HTTP mapping and retain 400/409/503 instead of returning every domain result as 200."
+    },
+    {
+      "id": "profile_legacy_break",
+      "status": "blocked_by_strangler",
+      "detail": "Only bodies containing selectionIntent enter canonical mode; old bodies keep current behavior and shape."
+    },
+    {
+      "id": "second_rule_or_database_owner",
+      "status": "blocked_by_architecture",
+      "detail": "The orchestrator reuses runtime authority, store loader, pure Resolver and facade and may not duplicate their facts or SQL."
+    },
+    {
+      "id": "formal_manifest_overclaim",
+      "status": "fail_closed",
+      "detail": "resolverContext is transitional and formalActiveManifest remains false until Phase 4."
+    },
+    {
+      "id": "external_simc_updater_network",
+      "status": "watch",
+      "detail": "Phase 2 closure recorded an existing GitHub proxy/download failure. Slice 3A binds the working local SimC revision and must report updater state truthfully without making the external path part of Resolver success."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-delivery-plan.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase3-resolve-profile-workbench-plan.md",
+    "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 3A is implementation-allowed under the approved Phase 3 design and detailed plan. No code, route or frontend behavior has changed yet; TDD, local profiles, CR, exact-head CI, candidate deployment and post-merge smoke remain required."
+}

@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase2b-pg-loader-facade-parity",
   "requirementSlug": "equipment-simulator-phase2b-pg-loader-facade-parity",
-  "status": "deployable",
-  "highestEvidenceLevel": "deployable",
+  "status": "archived",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase2b-live-intent-parity",
-  "commit": "15053ab5667ce82abcdb9984e4a6e62fabe9049a",
+  "commit": "13cc179d37e6350d1b9cdf6c372f435498d4c2e3",
   "scope": [
     "bounded PostgreSQL-only Authority Context loader",
     "one dormant PostgresCacheStore read-only method",
@@ -72,6 +72,11 @@
       "command": "PR #63 first candidate Resolver hard-gate diagnosis and structured item authority correction",
       "status": "pass",
       "summary": "Exact first-candidate hashes and built-in runtime smoke passed. The live current Mage/Arcane Authority Context reached 15/15 items and variants with missingFields=[], proving alias/source parity, then the pure Resolver correctly blocked because loader projection omitted existing Battle.net item type facts: finger2/trinket2 inherited finger1/trinket1 only, the two-hand staff lacked handedness, and tier membership setId existed only on the Battle.net tier_set source. Red-to-green correction tests now reuse the existing item type, handedness and equivalent-slot helpers, add generic one-hand weapon hand authority, accept only structured Battle.net tier membership or explicit verified set evidence, and block conflicting set IDs. 35 loader/store tests, six focused facade/runtime-authority tests, 92 Phase 1-2B contract tests, 726 facade/store/backend regressions, 23 Harness/owner/current-state tests, backend 1160 Python tests and full 365 Node plus 1160 Python tests passed; candidate must be redeployed from the updated PR head before evidence promotion."
+    },
+    {
+      "command": "GitHub Project Harness verify for PR #63 final evidence head",
+      "status": "pass",
+      "summary": "GitHub Actions Project Harness passed in 1m19s for final PR head 2abdf29cc4d8e0565836b57f1132a3eaf0eae97f; the PR was mergeable and CLEAN before squash merge."
     }
   ],
   "candidateDeployment": {
@@ -79,6 +84,7 @@
     "requiredBeforeMerge": true,
     "branch": "codex/equipment-simulator-phase2b-live-intent-parity",
     "commit": "366ae4b660d790144ed8ac6f732f279d773c2af0",
+    "mergeCommit": "13cc179d37e6350d1b9cdf6c372f435498d4c2e3",
     "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/63",
     "buildIdentity": "pg_gear_authority_loader.py sha256:b688e13232643907de5b660fa5490cfab9f971c8501d20c617ad1075a536adcc; postgres_cache_store.py sha256:04b0a8ea8606a0b5c2835603b71ca841d1d29d33d86e0d842fbe8ccce985def9; websim_payload.py sha256:e7535e708edbc6de10e8cb1a215719c8bdc2db7291c97f20f30d91e65e71760d; facade fixture sha256:33f70e38e0ed16211fd3381834918bf432db82fc59282183805d7be0907fd61d",
     "databaseRuntime": "postgres_only",
@@ -169,6 +175,11 @@
       "type": "rollback",
       "status": "pass",
       "summary": "Rollback anchor is merged Phase 2B base f00572a964621ae9577ebb1a21006d9e8510330b. Redeploying that tree removes only the dormant live-parity correction; no database restore, sync repair, migration rollback or public payload repair is required."
+    },
+    {
+      "type": "post_merge_smoke",
+      "status": "pass",
+      "summary": "PR #63 squash-merged as 13cc179d37e6350d1b9cdf6c372f435498d4c2e3. Final PR head and merge have identical tree 6cc48bef7d6fface6b3168d7992a14e7301f0d96; the clean equivalent tree was deployed at 01:02:51 CST with bootstrap and async sync disabled. Remote Phase 1-2B tests passed 92/92. Exact runtime hashes matched, the real Mage/Arcane context again returned 15 items, 15 variants, 45 evidence records and missingFields=[], Resolver returned verified with itemSetCounts 1983=4 and all five claim groups, facade returned resolved 15/15, /health and /profile stayed 200, /resolve stayed 404, Catalyst stayed blocked, and the 40-spec observed-only/baseline-empty sweep passed with zero failures. Backend remained active/successful with one thread; all equipment sync services stayed inactive/successful, no async journal activity occurred after activation, and backend error/suspect scans were empty."
     }
   ],
   "risks": [
@@ -216,5 +227,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 2B PR #63 is deployable after exact candidate hard-gate verification: live one/16-slot PostgreSQL query budgets, current 15-slot Resolver/five-group Ledger/facade parity, sequential cold/warm latency, bounded cache, fail-closed cases, dormant routes, 40-spec observed-only public contract, backend process/log state and rollback all passed. A natural pre-activation health follow-up exposed a separate GitHub proxy failure in the existing SimC updater; the working SimC binary, candidate service and data surfaces remained intact. Final exact evidence-head CI, merge, post-merge parity and archive are still required."
+  "summary": "Slice 2B and Phase 2 are complete, live-verified and archived after PR #63 merged as 13cc179. Candidate and post-merge proof cover exact tree/runtime parity, fixed one/16-slot PostgreSQL query budgets, current 15-slot Resolver/five-group Ledger/facade parity, bounded cache and latency, fail-closed cases, dormant routes, 92 remote contract tests, 40-spec observed-only public behavior, service/timer/log state and code-only rollback. The separately recorded GitHub proxy failure remains an external SimC updater observation; it did not switch the working binary, trigger equipment data work or weaken Catalyst. Phase 3 may begin under its own Strict plan and release packet."
 }

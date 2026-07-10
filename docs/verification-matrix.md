@@ -214,3 +214,33 @@ python3 -m py_compile \
 Cold reads execute exactly three static domain queries for one or sixteen slots; a warm hit executes only the revision query. The item/variant query must accept both an exact PG variant key and the existing `normalize_option_value` public alias, bind aliases to the requested item, block collisions, deduplicate reused pairs, project Battle.net structured armor/weapon/handedness and equivalent-slot facts through existing helpers, aggregate canonical trusted tier set IDs with conflict blocking, and cap source evidence at one latest row per type/eight rows per item. The cache is bounded by both entry count and canonical serialized bytes, keys bind the complete dependency vector and selection signature, and incomplete/transient authority is never cached. Loader output identifies `compatibility-pg-live-v1` as a compatibility view with `formalActiveManifest=false`; Phase 4 remains the formal Active Season Manifest owner.
 
 Candidate verification must execute the loader against the live PostgreSQL schema inside one read-only transaction, prove the cold/warm query budget, import the dormant facade, and reproduce the checked-in parity fixture. It must also prove no current route, serializer call site, Worker, frontend, sync job or public payload consumes either adapter: `/resolve` remains 404, the current `/profile` behavior stays unchanged, Catalyst remains fail-closed, and Phase 0–2A/public/timer/log guards remain green.
+
+## Equipment Simulator Phase 3A Resolve/Profile API Profile
+
+The Strict Slice 3A packet at `artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api` activates the Phase 2 boundary through a backend runtime orchestrator. Before candidate deployment run:
+
+```bash
+python3 -m unittest \
+  tests.gear_contracts_test \
+  tests.gear_result_envelope_test \
+  tests.gear_rule_matrix_test \
+  tests.gear_evidence_ledger_test \
+  tests.gear_resolver_test \
+  tests.pg_gear_authority_loader_test \
+  tests.gear_runtime_test
+python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test
+node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api \
+  --base origin/main
+python3 -m py_compile \
+  server/gear_runtime.py \
+  server/pg_gear_authority_loader.py \
+  server/postgres_cache_store.py \
+  server/news_backend.py
+```
+
+Slice 3A must add `resolverContext` from the same live revision authority as the loader, keep `formalActiveManifest=false`, map `/gear/resolve` through exact 200/400/409/503 Result Envelope semantics, and make only profile bodies containing `selectionIntent` enter canonical re-resolve mode. Legacy profile bodies and `/gear/stats` remain compatible. Candidate evidence requires 40/40 public observed Intent resolution, representative canonical profile output, malformed/stale/illegal/missing-authority probes, fixed query and latency budgets, public observed-only/baseline-empty parity, PostgreSQL-only runtime, no deploy-driven async work, truthful SimC updater state, logs and code-only rollback.

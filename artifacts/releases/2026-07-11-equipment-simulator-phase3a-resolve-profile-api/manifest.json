@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T17:16:59.634Z",
+  "generatedAt": "2026-07-10T17:17:30.496Z",
   "release": {
-    "date": "2026-07-10",
-    "slug": "equipment-simulator-phase2b-pg-loader-facade-parity"
+    "date": "2026-07-11",
+    "slug": "equipment-simulator-phase3a-resolve-profile-api"
   },
   "harness": {
     "version": "v0.5",
@@ -231,8 +231,8 @@
   },
   "evidencePacket": {
     "status": "ready",
-    "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
-    "sizeBytes": 20518,
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
+    "sizeBytes": 4256,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "archived",
-    "highestEvidenceLevel": "live_verified",
-    "summary": "Slice 2B and Phase 2 are complete, live-verified and archived after PR #63 merged as 13cc179. Candidate and post-merge proof cover exact tree/runtime parity, fixed one/16-slot PostgreSQL query budgets, current 15-slot Resolver/five-group Ledger/facade parity, bounded cache and latency, fail-closed cases, dormant routes, 92 remote contract tests, 40-spec observed-only public behavior, service/timer/log state and code-only rollback. The separately recorded GitHub proxy failure remains an external SimC updater observation; it did not switch the working binary, trigger equipment data work or weaken Catalyst. Phase 3 may begin under its own Strict plan and release packet."
+    "declaredStatus": "implementation_allowed",
+    "highestEvidenceLevel": "implementation_allowed",
+    "summary": "Slice 3A is implementation-allowed under the approved Phase 3 design and detailed plan. No code, route or frontend behavior has changed yet; TDD, local profiles, CR, exact-head CI, candidate deployment and post-merge smoke remain required."
   },
   "evidence": {
     "localTests": {
@@ -332,6 +332,6 @@
   },
   "write": {
     "enabled": true,
-    "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/manifest.json"
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/manifest.json"
   }
 }
