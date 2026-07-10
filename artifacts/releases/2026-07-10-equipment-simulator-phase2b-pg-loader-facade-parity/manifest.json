@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T15:59:27.804Z",
+  "generatedAt": "2026-07-10T16:22:13.273Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase2b-pg-loader-facade-parity"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 9128
+          "sizeBytes": 9221
         },
         {
           "path": "docs/project-owner-map.json",
@@ -48,12 +48,12 @@
         {
           "path": "docs/verification-matrix.md",
           "exists": true,
-          "sizeBytes": 14888
+          "sizeBytes": 15154
         },
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 258410
+          "sizeBytes": 258937
         },
         {
           "path": "docs/README.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 33662
+          "sizeBytes": 33831
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
-    "sizeBytes": 9346,
+    "sizeBytes": 11104,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "deployable",
-    "highestEvidenceLevel": "deployable",
-    "summary": "Slice 2B is deployable after local and live candidate verification: the bounded PostgreSQL Authority Context loader, read-only store method, server-owned runtime authority and resolved-snapshot parity facade are complete and dormant; PR #62 may merge after the evidence-only head passes GitHub Harness."
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "Slice 2B remains active after PR #62: the dormant runtime is healthy, but the complete planned hard gate exposed public variant alias and source-evidence parity gaps. The correction is locally verified and has passed a real PostgreSQL read-only SQL preflight; a new exact-head correction PR, candidate performance/Resolver/facade smoke, merge, post-merge parity and archive are still required."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "6 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,9 +313,14 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 6,
       "changedFiles": [
-        " M artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json"
+        " M artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
+        " M docs/backend-owner-map.json",
+        " M docs/gear-simulation-full-chain-runbook.md",
+        " M docs/project-state.json",
+        " M docs/roadmap.md",
+        " M docs/verification-matrix.md"
       ]
     }
   },

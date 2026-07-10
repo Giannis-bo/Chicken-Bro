@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase2b-pg-loader-facade-parity",
   "requirementSlug": "equipment-simulator-phase2b-pg-loader-facade-parity",
-  "status": "deployable",
-  "highestEvidenceLevel": "deployable",
-  "branch": "codex/equipment-simulator-phase2b-pg-loader-facade-parity",
-  "commit": "833301cbef4611b4454ceb1ddef2962386daab3f",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/equipment-simulator-phase2b-live-intent-parity",
+  "commit": "1ae9be72bf2b9def7c81194c4055be92499b3cb1",
   "scope": [
     "bounded PostgreSQL-only Authority Context loader",
     "one dormant PostgresCacheStore read-only method",
@@ -62,15 +62,20 @@
       "command": "GitHub Project Harness verify for PR #62",
       "status": "pass",
       "summary": "GitHub Actions Project Harness verify passed for candidate PR head 0eb57e4edd4f8d664ee62650fe208467d3b3aa91; PR #62 was ready, mergeable and CLEAN before evidence promotion."
+    },
+    {
+      "command": "post-merge Phase 2B hard-gate audit and live Intent parity correction",
+      "status": "pass",
+      "summary": "The full planned hard gate exposed two dormant adapter gaps after PR #62 merged: public observed-template variant keys are the existing normalize_option_value aliases of raw PG JSON keys, and payload status=verified was masked by sourceStatus=source_reference. Red-to-green correction tests now cover exact and public keys, alias collision and wrong-item blocking, reused pair deduplication, missing source status fail-closed, both explicit verified status fields, and an eight-source projection bound. 28 loader tests, 87 Phase 1-2B contract tests, 726 current facade/store/backend regressions and 23 Harness/owner/current-state tests passed. A production PG read-only preflight executed the corrected static SQL without deployment and proved Mage/Arcane 15/15 item and variant rows, 15 distinct raw-to-public aliases, no collisions, 1-8 explicit verified sources per item, and no writes. Candidate performance, Resolver/facade and unchanged-runtime gates remain pending."
     }
   ],
   "candidateDeployment": {
-    "status": "candidate_verified",
+    "status": "correction_pending",
     "requiredBeforeMerge": true,
-    "branch": "codex/equipment-simulator-phase2b-pg-loader-facade-parity",
-    "commit": "833301cbef4611b4454ceb1ddef2962386daab3f",
-    "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/62",
-    "buildIdentity": "pg_gear_authority_loader.py sha256:92538818a6dbbf76a7f9d29eecd09eb87b25c8d99a3d7566ec959af90f94bf5a; postgres_cache_store.py sha256:04b0a8ea8606a0b5c2835603b71ca841d1d29d33d86e0d842fbe8ccce985def9; websim_payload.py sha256:83ee4aa2ba6a806850a07b7a0bcf72ab8525e65842654ddecfa58269d38e3cf9; gear-resolver-facade-parity-v1.json sha256:33f70e38e0ed16211fd3381834918bf432db82fc59282183805d7be0907fd61d",
+    "branch": "codex/equipment-simulator-phase2b-live-intent-parity",
+    "commit": "1ae9be72bf2b9def7c81194c4055be92499b3cb1",
+    "pr": "pending correction PR",
+    "buildIdentity": "pending exact correction PR head and runtime hashes",
     "databaseRuntime": "postgres_only",
     "attempts": [
       {
@@ -78,11 +83,21 @@
         "status": "failed_then_rolled_back",
         "failure": "Direct backend runtime imported postgres_cache_store from the server directory, but pg_gear_authority_loader imported server.gear_contracts as a package and raised ModuleNotFoundError; PG-backed endpoints returned 502 while health remained 200.",
         "rollback": "Redeployed previously live-verified Phase 2A head 2a1ddd9f1b5beeccbe1d6aad5f8a1e249d8c6ba1 with async syncs disabled; deploy health and route smoke passed."
+      },
+      {
+        "head": "0eb57e4edd4f8d664ee62650fe208467d3b3aa91",
+        "status": "runtime_safe_but_hard_gate_incomplete",
+        "detail": "The second PR #62 candidate and post-merge runtime smoke were healthy and the adapters remained dormant, but the live probe used one exact PG key instead of the plan-required current complete observed Intent and did not collect the full latency matrix."
+      },
+      {
+        "head": "f00572a964621ae9577ebb1a21006d9e8510330b",
+        "status": "postmerge_hard_gate_failed_correction_required",
+        "detail": "The current complete Mage/Arcane public Intent produced missing item and variant authority because public normalized variant aliases did not equal raw PG JSON keys and sourceStatus=source_reference masked payload status=verified. The active runtime was not user-impacting because the loader and facade are dormant; Phase 2B remains in progress."
       }
     ],
     "smoke": {
-      "status": "pass",
-      "summary": "Second candidate deploy from PR head 0eb57e4 completed all built-in health/builds/PvE/simulator/WebSim/SimC smoke with async syncs disabled. Remote hashes matched. Seven remote direct-import/facade/runtime-authority tests passed. A live verified item/variant (151311, finger2) proved one read-only store transaction with cold trace SET READ ONLY plus exactly three static domain queries and a second read-only warm trace with one revision query; cache values matched, missingFields was empty and compatibility-pg-live-v1 kept formalActiveManifest=false. Current profile returned 200 with four fixture items, resolve remained 404, 40/40 initial public payloads were raiderio_observed_profile-only with zero baselines, Catalyst stayed blocked with optionParseSupported=true and failClosed=true, and the final service was active/success/0 with zero post-restart backend errors."
+      "status": "blocked",
+      "summary": "The previous PR #62 candidate and post-merge runtime smoke remain valid evidence that the dormant code did not change current user surfaces. The correction itself is not candidate-verified yet; it must prove the current complete 15-slot Mage/Arcane Intent, a true 16-slot Intent, three-cold/one-warm query traces, Resolver/five claim groups/facade parity, latency and cache budgets, wrong-slot/missing/revision/Catalyst fail-closed cases, unchanged /profile and /resolve=404, 40-spec observed-only public payloads, timers, logs and rollback."
     },
     "timerBackflow": {
       "status": "pass",
@@ -110,6 +125,11 @@
       "id": "compatibility_manifest_overclaim",
       "status": "fail_closed",
       "detail": "compatibility-pg-live-v1 cannot be described or consumed as the formal Phase 4 Active Season Manifest."
+    },
+    {
+      "id": "public_variant_alias_parity",
+      "status": "local_verified_candidate_pending",
+      "detail": "Public observed-template variant aliases must resolve through the existing normalize_option_value contract, remain bound to itemId, block collisions and cap explicit verified source evidence before Phase 2B may archive."
     }
   ],
   "rollback": [
@@ -130,5 +150,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 2B is deployable after local and live candidate verification: the bounded PostgreSQL Authority Context loader, read-only store method, server-owned runtime authority and resolved-snapshot parity facade are complete and dormant; PR #62 may merge after the evidence-only head passes GitHub Harness."
+  "summary": "Slice 2B remains active after PR #62: the dormant runtime is healthy, but the complete planned hard gate exposed public variant alias and source-evidence parity gaps. The correction is locally verified and has passed a real PostgreSQL read-only SQL preflight; a new exact-head correction PR, candidate performance/Resolver/facade smoke, merge, post-merge parity and archive are still required."
 }

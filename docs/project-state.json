@@ -10,14 +10,14 @@
       "path": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
       "status": "approved_active",
       "lifecycle": "active",
-      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-2A are complete, Phase 2B bounded PG loader/facade parity is active, and Phase 6 remains deferred."
+      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-2A are complete, Phase 2B live Intent parity correction and hard-gate closure are active, and Phase 6 remains deferred."
     },
     {
       "id": "equipment_simulator_phase2_canonical_resolver_plan",
       "path": "docs/plans/2026-07-10-equipment-simulator-phase2-canonical-resolver-plan.md",
       "status": "phase2b_pg_loader_facade_parity_in_progress",
       "lifecycle": "active",
-      "notes": "Slice 2A pure Resolver/Ledger is archived; Slice 2B bounded PostgreSQL loader and dormant facade parity is active, with no Phase 3 route or runtime cutover."
+      "notes": "Slice 2A pure Resolver/Ledger is archived; Slice 2B PR #62 is merged but remains active until the public variant alias/source-evidence correction passes the complete candidate hard gate, with no Phase 3 route or runtime cutover."
     },
     {
       "id": "repo_native_harness_v0_5",
