@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-10-phase4-v25",
-  "status": "phase4_websim_talents_envelope_read_model_selector_extracted",
+  "version": "2026-07-10-phase4-v26",
+  "status": "phase4_active_season_read_model_selector_extracted",
   "harnessVersion": "v0.5",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -336,6 +336,30 @@
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_gear_read_model_uses_cache_schema_catalog_rows"
           ],
           "futureExtractionDirection": "Treat the current WebSim talent read-model vertical as characterized and extracted; continue only with separate read-only PG domains such as active-season/cache/admin response fragments before touching sync-state repositories or cleanup write intents."
+        },
+        {
+          "id": "active_season_read_model_selector",
+          "status": "extracted_selector",
+          "extractedModule": "server/pg_season_read_model_selectors.py",
+          "owns": [
+            "active season row and dungeon read-model assembly",
+            "active season cached payload fallback assembly",
+            "active season expiry stale semantics",
+            "active season sourceRefs and dungeon payload normalization",
+            "active season raid-pool read-model normalization"
+          ],
+          "mustNotChange": [
+            "Active-season and dungeon SQL reads remain in server/postgres_cache_store.py.",
+            "The active = TRUE and data_status = verified SQL gate remains repository-owned.",
+            "The selector must not write cache rows, sync state, or trigger backfill.",
+            "Expired active-season payloads remain visible as stale rather than missing."
+          ],
+          "characterization": [
+            "tests/pg_season_read_model_selectors_test.py::PgSeasonReadModelSelectorsTest.test_build_active_season_read_model_maps_rows_and_marks_expired_payload_stale",
+            "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_season_instances_and_loot_read_models_use_cache_schema",
+            "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_expired_active_season_is_returned_as_stale_not_missing"
+          ],
+          "futureExtractionDirection": "Continue only with a separate read-only PG cache/admin domain after its own characterization; do not fold sync-state repositories or season write paths into this selector."
         },
         {
           "id": "sync_state_repository",

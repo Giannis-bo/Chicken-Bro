@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_websim_talents_envelope_read_model_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_active_season_read_model_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -314,6 +314,22 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(
     gearCatalogReadModelSelectors.characterization.some((entry) => entry.includes('test_build_season_recommended_catalog_candidates_by_slot_read_model_filters_and_limits_candidates')),
     'gear catalog read-model selectors should point at the season recommended catalog candidate grouping characterization test'
+  )
+  const activeSeasonReadModelSelector = pgOwners.get('active_season_read_model_selector')
+  assert.ok(activeSeasonReadModelSelector)
+  assert.equal(activeSeasonReadModelSelector.status, 'extracted_selector')
+  assert.equal(activeSeasonReadModelSelector.extractedModule, 'server/pg_season_read_model_selectors.py')
+  assert.ok(
+    activeSeasonReadModelSelector.owns.includes('active season row and dungeon read-model assembly'),
+    'active season read-model selector should own row and dungeon assembly after this Phase 4 split'
+  )
+  assert.ok(
+    activeSeasonReadModelSelector.owns.includes('active season expiry stale semantics'),
+    'active season read-model selector should own expiry stale semantics after this Phase 4 split'
+  )
+  assert.ok(
+    activeSeasonReadModelSelector.characterization.some((entry) => entry.includes('tests/pg_season_read_model_selectors_test.py')),
+    'active season read-model selector should point at the helper module characterization test'
   )
   assert.ok(pgOwners.has('sync_state_repository'))
 })
