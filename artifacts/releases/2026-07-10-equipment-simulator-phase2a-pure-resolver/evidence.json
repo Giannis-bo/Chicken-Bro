@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase2a-pure-resolver",
   "requirementSlug": "equipment-simulator-phase2a-pure-resolver",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "deployable",
+  "highestEvidenceLevel": "deployable",
   "branch": "codex/equipment-simulator-phase2a-pure-resolver",
-  "commit": "uncommitted",
+  "commit": "c3e4558ce06969c6a3649bcaf391c2f937af2372",
   "scope": [
     "pure canonical slot and whole-character Resolver",
     "typed five-group Evidence Ledger v1",
@@ -57,19 +57,72 @@
       "command": "local CR of origin/main...working tree",
       "status": "pass",
       "summary": "No unresolved findings. Review added fail-closed coverage for illegal enhancement stat pollution, missing variant stats, negative deltas, missing overlay evidence and canonical set conflicts; confirmed deterministic non-mutating pure inputs, explicit five-stage order, bounded claim dependencies, no runtime import and no loader, facade, route, frontend, DB, Worker, sync, write or Catalyst activation."
+    },
+    {
+      "command": "GitHub Project Harness verify for PR #61",
+      "status": "pass",
+      "summary": "GitHub Actions verify completed successfully for candidate commit c3e4558ce06969c6a3649bcaf391c2f937af2372; PR #61 is ready, mergeable and CLEAN."
     }
   ],
   "candidateDeployment": {
-    "status": "not_run",
+    "status": "candidate_verified",
     "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase2a-pure-resolver",
+    "commit": "c3e4558ce06969c6a3649bcaf391c2f937af2372",
+    "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/61",
+    "buildIdentity": "gear_rule_matrix.py sha256:da6a795a765af08cd348964c292e658356642e129261e5db9dd8c5a09b173721; gear_evidence_ledger.py sha256:ba8bfadbd6d68ed8ae1fd3173753ed7eb9db366236defc6d20e7a1f530d9cc4a; gear_resolver.py sha256:99f2d6bca64dc7b4eec77d76321440ca33e2d4c0c1e48f275667807f5dd32302",
+    "databaseRuntime": "postgres_only",
     "smoke": {
-      "status": "not_run"
+      "status": "pass",
+      "summary": "Exact candidate hashes/imports and pure fixture probes passed: legal snapshot verified with stable signatures, 10 rules, 26 claims and five groups; wrong slot blocked, missing authority unavailable and Catalyst blocked without redirected stat injection. /resolve stayed 404; live health, remote Phase 0/current-facade guards and public 40-spec observed-only contract stayed green."
     },
     "timerBackflow": {
-      "status": "not_run"
+      "status": "pass",
+      "summary": "WOW_DEPLOY_START_ASYNC_SYNCS=0 started no deploy-driven async work. A naturally scheduled observed-backfill run began at 22:52:03, one second before candidate backend activation, and finished successfully at 22:52:09 with its existing partial source truth; all other relevant services were inactive/successful and the later 40-spec smoke had zero failures."
     }
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "type": "deployment_identity",
+      "status": "pass",
+      "summary": "Ready PR #61 candidate c3e4558 was hot-deployed with bootstrap skipped and async sync disabled. Local and remote hashes match for Rule Matrix, Ledger and Resolver; wow-backend is active/running with Result=success, ExecMainStatus=0 and WOW_DATABASE_RUNTIME=postgres_only."
+    },
+    {
+      "type": "pure_resolver_probe",
+      "status": "pass",
+      "summary": "Remote legal fixture returned selection signature sha256:1ae38f817a925c48ebb24d13cc7ba8d2e1432315455085401c736048d3a43f6a and resolved signature sha256:1f60c67c316d051466dbb441b6dbafd5da20f4665a99a472275cdcf1e52b78aa, exact static totals, set:resolver=2, 10 ordered rules, 26 claims and all five claim groups; repeat resolution was identical. Wrong-slot, missing-authority and Catalyst fail-closed assertions passed."
+    },
+    {
+      "type": "dormant_surface",
+      "status": "pass",
+      "summary": "GET /api/websim/gear/resolve remained HTTP 404 while /health and /api/data/health remained HTTP 200, proving Slice 2A did not activate its future route or replace the current facade."
+    },
+    {
+      "type": "phase0_current_facade_guards",
+      "status": "pass",
+      "summary": "Five tests on the deployed candidate tree passed: compact serializer golden payload, PG-only forged enhancement rejection, legacy stat process-global concurrency one, standard simulate execution and Catalyst false-green rejection. Live health kept Catalyst blocked with optionParseSupported=true, capabilityEnabled=false and failClosed=true."
+    },
+    {
+      "type": "public_contract",
+      "status": "pass",
+      "summary": "The live compact initial sweep checked all 40 specs with failureCount=0: HTTP/contract 40/40, dataStatus verified 40/40, communityTemplateCount=40 from raiderio_observed_profile only, and baselineTemplateCount=0."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "Deploy started no async sync. The natural observed-backfill timer overlapped candidate activation from 22:52:03 to 22:52:09 and exited Result=success/ExecMainStatus=0 while preserving partial/blocked source details; subsequent public contract checks passed. Other relevant sync services remained inactive with successful last results."
+    },
+    {
+      "type": "logs",
+      "status": "pass",
+      "summary": "The recent wow-backend journal scan found zero Traceback, ERROR, Exception, SQLite fallback or database-locked matches."
+    },
+    {
+      "type": "rollback",
+      "status": "pass",
+      "summary": "Rollback anchor is origin/main 8b33ec741bdc106b45b74088d1aa887c720847ab; redeploying that checkout removes the dormant Resolver/Ledger and restores the prior Rule Matrix without database restore because Slice 2A has no migration, store, write, sync or cleanup change."
+    }
+  ],
   "risks": [
     {
       "id": "premature_runtime_consumption",
@@ -105,5 +158,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 2A pure Resolver and Evidence Ledger are local_verified with focused, current-facade, backend and full profiles green; current runtime surfaces remain unconsumed and candidate deployment is pending."
+  "summary": "Slice 2A pure Resolver and Evidence Ledger are deployable: focused, current-facade, backend, full, GitHub and exact-candidate gates are green; current runtime surfaces remain unconsumed and merge/post-merge archive are pending."
 }

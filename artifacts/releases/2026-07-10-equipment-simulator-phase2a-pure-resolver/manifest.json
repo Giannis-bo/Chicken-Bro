@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T14:50:57.023Z",
+  "generatedAt": "2026-07-10T14:56:15.113Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase2a-pure-resolver"
@@ -264,7 +264,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "17 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -300,25 +300,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 17,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M docs/backend-owner-map.json",
-        " M docs/gear-simulation-full-chain-runbook.md",
-        " M docs/plans/2026-07-10-equipment-simulator-phase2-canonical-resolver-plan.md",
-        " M docs/plans/README.md",
-        " M docs/project-owner-map.json",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M docs/verification-matrix.md",
-        " M server/gear_rule_matrix.py",
-        " M tests/gear_rule_matrix_test.py",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/",
-        "?? server/gear_evidence_ledger.py",
-        "?? server/gear_resolver.py",
-        "?? tests/fixtures/gear-resolver-complete-authority-v1.json",
-        "?? tests/gear_evidence_ledger_test.py",
-        "?? tests/gear_resolver_test.py"
+        " M artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/evidence.json"
       ]
     }
   },
