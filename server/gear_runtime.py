@@ -201,6 +201,42 @@ def _profile_context(raw_request: Any) -> dict[str, Any]:
     }
 
 
+def _canonical_profile_ready(profile: Any, problems: list[dict[str, Any]]) -> bool:
+    if not isinstance(profile, dict) or profile.get("status") != "resolved" or problems:
+        return False
+    talent_encoding = profile.get("talentEncoding")
+    readiness = profile.get("profileReadiness")
+    return (
+        bool(str(profile.get("profile") or "").strip())
+        and isinstance(talent_encoding, dict)
+        and talent_encoding.get("status") in {"encoded", "external"}
+        and isinstance(readiness, dict)
+        and readiness.get("simcReady") is True
+    )
+
+
+def _blocked_profile_data(profile: Any, problems: list[dict[str, Any]]) -> dict[str, Any]:
+    data = dict(profile) if isinstance(profile, dict) else {}
+    readiness = data.get("profileReadiness")
+    readiness = dict(readiness) if isinstance(readiness, dict) else {}
+    readiness.update(
+        {
+            "status": "blocked",
+            "simcReady": False,
+            "problems": problems,
+        }
+    )
+    data.update(
+        {
+            "status": "blocked",
+            "profile": "",
+            "profileReadiness": readiness,
+            "problems": problems,
+        }
+    )
+    return data
+
+
 def build_profile_from_selection_intent(
     raw_request: Any,
     *,
@@ -234,7 +270,7 @@ def build_profile_from_selection_intent(
         )
     profile_problems = profile.get("problems") if isinstance(profile, dict) else None
     profile_problems = profile_problems if isinstance(profile_problems, list) else []
-    if not isinstance(profile, dict) or profile.get("status") != "resolved" or profile_problems:
+    if not _canonical_profile_ready(profile, profile_problems):
         if not profile_problems:
             profile_problems = [
                 gear_problem(
@@ -247,7 +283,7 @@ def build_profile_from_selection_intent(
             "blocked",
             request_id,
             resolved_envelope.get("releaseContext") or {},
-            data=profile if isinstance(profile, dict) else {},
+            data=_blocked_profile_data(profile, profile_problems),
             problems=profile_problems,
         )
         return http_status_for_envelope(envelope), envelope

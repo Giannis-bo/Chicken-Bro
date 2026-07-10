@@ -9654,6 +9654,41 @@ class NewsBackendTest(unittest.TestCase):
             simc_runtime_revision="simc-v1",
         )
 
+    def test_runtime_websim_gear_keeps_payload_when_resolver_context_read_fails(self):
+        initial_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "gearPayloadMode": "initial",
+            "replacementCandidates": [],
+        }
+
+        class ResolverContextFailureStore:
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                return initial_payload
+
+            def get_gear_resolver_context(self, authority):
+                raise OSError("independent revision query failed")
+
+        with patch.object(
+            self.backend,
+            "cache_data_store",
+            return_value=ResolverContextFailureStore(),
+        ), patch.object(
+            self.backend,
+            "simc_version_status",
+            return_value={"localTag": "simc-v1"},
+        ):
+            payload = self.backend.runtime_websim_gear_payload(
+                "mage",
+                "frost",
+                compact=True,
+                mode="initial",
+            )
+
+        self.assertIs(payload, initial_payload)
+        self.assertNotIn("resolverContext", payload)
+
     def test_runtime_websim_gear_adds_template_chain_state_to_cached_postgres_payload(self):
         observed = {
             "id": "observed-mage-frost",

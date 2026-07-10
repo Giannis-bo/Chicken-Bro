@@ -201,6 +201,7 @@ class GearRuntimeTest(unittest.TestCase):
                 "profile": 'warrior="Canonical"',
                 "gearItems": snapshot["serializerInput"]["gearItems"],
                 "simcItems": snapshot["serializerInput"]["gearItems"],
+                "talentEncoding": {"status": "external", "errors": []},
                 "profileReadiness": snapshot["profileReadiness"],
                 "resolvedGearSignature": snapshot["resolvedGearSignature"],
                 "evidenceLedger": snapshot["evidenceLedger"],
@@ -259,6 +260,28 @@ class GearRuntimeTest(unittest.TestCase):
         serialized_context = json.dumps(builder_calls[0]["sourceContext"])
         self.assertNotIn("forged", serialized_context)
         self.assertNotIn("classKey", builder_calls[0]["sourceContext"])
+
+    def test_profile_mode_blocks_facade_result_without_executable_talents(self):
+        fixture = self.fixture()
+        store = FakeStore(fixture["authorityContext"])
+
+        status, envelope = gear_runtime.build_profile_from_selection_intent(
+            {
+                "selectionIntent": fixture["intent"],
+                "profileContext": {},
+            },
+            store=store,
+            simc_runtime_revision="simc-v1",
+            request_id="request-profile-no-talents",
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(envelope["status"], "blocked")
+        self.assertEqual(envelope["data"]["status"], "blocked")
+        self.assertEqual(envelope["data"]["profile"], "")
+        self.assertFalse(envelope["data"]["profileReadiness"]["simcReady"])
+        self.assertEqual(envelope["data"]["profileReadiness"]["status"], "blocked")
+        self.assertEqual(envelope["problems"][0]["code"], "GEAR_PROFILE_NOT_READY")
 
     def test_legacy_profile_request_is_not_claimed_by_canonical_mode(self):
         self.assertFalse(gear_runtime.is_canonical_profile_request({"classKey": "mage"}))

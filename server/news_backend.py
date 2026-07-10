@@ -7761,7 +7761,7 @@ def websim_gear_payload_with_resolver_context(payload, store, class_key, spec_ke
             simc_runtime_revision=simc_revision,
         )
         resolver_context = store.get_gear_resolver_context(runtime_authority)
-    except (RuntimeError, TypeError, ValueError):
+    except Exception:
         return payload
     if not isinstance(resolver_context, dict) or not resolver_context:
         return payload
