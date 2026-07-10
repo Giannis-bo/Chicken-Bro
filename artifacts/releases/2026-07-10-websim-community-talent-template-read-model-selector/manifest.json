@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T02:17:29.984Z",
+  "status": "merged_to_main",
+  "generatedAt": "2026-07-10T02:18:54.997Z",
   "release": {
     "date": "2026-07-10",
     "slug": "websim-community-talent-template-read-model-selector"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 406698
+          "sizeBytes": 406724
         },
         {
           "path": "docs/README.md",
@@ -212,12 +212,18 @@
         "rule_promoted",
         "script_candidate"
       ]
+    },
+    "merge": {
+      "status": "merged_to_main",
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/43",
+      "mergeCommit": "493804e6ec5538ca07d30a0d8b43afc3130824fc",
+      "headEqualsOriginMain": true
     }
   },
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-websim-community-talent-template-read-model-selector/evidence.json",
-    "sizeBytes": 10955,
+    "sizeBytes": 11261,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,8 +241,8 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "candidate_verified",
-    "highestEvidenceLevel": "candidate_verified",
+    "declaredStatus": "merged_to_main",
+    "highestEvidenceLevel": "candidate_deployment_verified",
     "summary": "Phase 4 continues the read-only PostgreSQL WebSim read-model selector split. server/pg_gear_read_model_selectors.py now owns build_websim_community_talent_templates_read_model(), which maps already-filtered PostgreSQL community talent template rows into structured templates and delegates the unchanged spec/hero slot selection policy. server/postgres_cache_store.py keeps PostgreSQL SQL, verified and expiry filtering, ordering and limit, cache writes, sync, and backfill paths."
   },
   "evidence": {
