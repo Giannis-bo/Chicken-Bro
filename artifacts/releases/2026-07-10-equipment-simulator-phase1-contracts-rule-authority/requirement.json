@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase1-contracts-rule-authority",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Establish pure Selection Intent, Dependency Vector and signature, Authority Context, Result Envelope and ordered Rule Matrix contracts without activating a Resolver route or cutting current runtime consumers over.",
+  "userValue": "Future gear resolution has explicit trust, revision, problem and rule boundaries before any frontend or API begins depending on it.",
+  "nonGoals": [
+    "No /api/websim/gear/resolve route",
+    "No canonical Resolver or Evidence Ledger",
+    "No PostgreSQL Authority Context loader or connection argument",
+    "No migration, table, job, Worker, systemd unit or cache state",
+    "No existing facade or frontend cutover",
+    "No public gear template policy change",
+    "No sync, write, backfill or cleanup change",
+    "No Catalyst retained-secondary-stat activation",
+    "No dependency installation or third-party download"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+      "docs/plans/2026-07-10-equipment-simulator-capability-delivery-plan.md",
+      "docs/plans/2026-07-10-equipment-simulator-phase1-contracts-rule-authority-plan.md",
+      "docs/backend-owner-map.json",
+      "docs/project-owner-map.json"
+    ],
+    "activeMilestone": "equipment_simulator_phase1",
+    "featureIteration": "allowed_under_harness"
+  },
+  "impactMap": {
+    "mustChange": [
+      "server/gear_contracts.py pure Intent, revision and signature contracts",
+      "server/gear_result_envelope.py structured problems and future HTTP semantics",
+      "server/gear_rule_matrix.py ten explicit ordered pure evaluators",
+      "focused unit tests for all new branches and errors",
+      "owner, verification, runbook and Strict release evidence"
+    ],
+    "mustNotChange": [
+      "server/news_backend.py route wiring",
+      "server/websim_payload.py current serializer and stat behavior",
+      "server/gear_legality.py active legality behavior",
+      "PostgreSQL stores, selectors and runtime boundary",
+      "frontend routes, transport and state",
+      "public observed-only community entry and baseline-empty default",
+      "Phase 0 guards",
+      "sync, write, backfill and cleanup paths"
+    ],
+    "evidenceRequired": [
+      "red and green tests for malformed Intent, dependency signatures and Authority Context",
+      "red and green tests for structured envelope semantics",
+      "red and green tests for ordered Rule Matrix and illegal selections",
+      "zero database or connection coupling proof",
+      "current facade and Phase 0 characterization",
+      "backend and full verification profiles",
+      "local CR and git diff check",
+      "candidate remote import and pure contract probes",
+      "unchanged live current runtime, public payload, timer and hash evidence"
+    ]
+  },
+  "ownership": {
+    "factOwner": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+    "consumers": [
+      "future server/gear_resolver.py",
+      "future PostgreSQL Authority Context loader",
+      "future /api/websim/gear/resolve route",
+      "future structured-problem frontend transport"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "healthy_extraction",
+    "reason": "Three focused pure modules establish future ownership outside existing hotspots without importing them into runtime consumers; complete branch tests and candidate import probes protect the dormant boundary."
+  },
+  "acceptanceEvidence": [
+    "python3 -m unittest tests.gear_contracts_test tests.gear_result_envelope_test tests.gear_rule_matrix_test",
+    "python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test",
+    "node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+    "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority --base origin/main",
+    "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority --base origin/main",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/requirement.json --evidence-file artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/evidence.json --base origin/main",
+    "zero database-coupling search and Python compile",
+    "git diff --check",
+    "candidate remote contract import, signature, envelope and Rule Matrix probes plus unchanged runtime smokes"
+  ],
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-10",
+      "decision": "Phase 1 ships dormant pure contracts and evaluators in one PR; no existing runtime module imports them."
+    },
+    {
+      "date": "2026-07-10",
+      "decision": "The fixed ten-rule registry is explicit Python, not a dynamic rule DSL, and it does not build Resolved Snapshots."
+    },
+    {
+      "date": "2026-07-10",
+      "decision": "Candidate deployment remains required to prove runtime-tree import compatibility and no current surface change."
+    }
+  ]
+}

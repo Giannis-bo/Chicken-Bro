@@ -124,3 +124,30 @@ git diff --check
 ```
 
 Candidate verification must additionally prove final PR-head/runtime hash parity, `WOW_DATABASE_RUNTIME=postgres_only`, legacy HTTP response fields, live-module `stat_snapshot_v1` `iterations=1`, two-thread `maxActive=1`, unchanged standard profile behavior, Phase 0A forged-enhancement and Phase 0B Catalyst guards, unchanged public observed-only initial/slot payloads, current timer/backflow state, recent logs, and `code_rollback` to the previous main commit.
+
+## Equipment Simulator Phase 1 Contract Profile
+
+The Strict Phase 1 packet at `artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority` defines a dormant resolver boundary. Run it before candidate deployment:
+
+```bash
+python3 -m unittest \
+  tests.gear_contracts_test \
+  tests.gear_result_envelope_test \
+  tests.gear_rule_matrix_test
+python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test
+node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority \
+  --base origin/main
+python3 -m py_compile \
+  server/gear_contracts.py \
+  server/gear_result_envelope.py \
+  server/gear_rule_matrix.py
+```
+
+Phase 1 is contract-only and has no active runtime consumer. Selection Intent rejects client-authored final facts; selection, resolved-gear and profile signatures each declare a different dependency subset; the Result Envelope HTTP mapping stays dormant until Phase 3; and the ordered pure Rule Matrix reports legality without producing a Resolved Snapshot. The current facade, frontend, PostgreSQL selectors and observed-only public read model remain active.
+
+Candidate verification must prove the new modules import on the deployed runtime tree while the current gear/profile/health surfaces and the Phase 0A–0C guards remain unchanged. Deployment does not activate a route, selector, Worker, sync job, database write, or Catalyst capability.

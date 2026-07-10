@@ -304,9 +304,24 @@
         "pages/builds/websim-api.js",
         "pages/builds/detail.js"
       ],
+      "contractFoundations": {
+        "status": "contract_only_unconsumed",
+        "modules": [
+          "server/gear_contracts.py",
+          "server/gear_result_envelope.py",
+          "server/gear_rule_matrix.py"
+        ],
+        "tests": [
+          "tests/gear_contracts_test.py",
+          "tests/gear_result_envelope_test.py",
+          "tests/gear_rule_matrix_test.py"
+        ],
+        "runtimeConsumers": []
+      },
       "publicContracts": [
         "communityTemplates public entry allows active raiderio_observed_profile only.",
-        "baselineTemplates public default remains empty."
+        "baselineTemplates public default remains empty.",
+        "Phase 1 Selection Intent, Result Envelope and ordered Rule Matrix are dormant contract foundations; they do not replace the current public read model."
       ],
       "mustNotChange": [
         "Do not reintroduce recommended_bis, season_recommendation, default_template, simc_preset or baseline_blocked into public gear entry.",
@@ -317,7 +332,10 @@
         "tests/websim_payload_test.py",
         "tests/news_backend_test.py",
         "tests/pg_gear_template_selectors_test.py",
-        "tests/builds-page.test.js"
+        "tests/builds-page.test.js",
+        "tests/gear_contracts_test.py",
+        "tests/gear_result_envelope_test.py",
+        "tests/gear_rule_matrix_test.py"
       ],
       "runtimeSurfaces": [
         "server/gear_public_contract.py",
@@ -343,8 +361,14 @@
         "server/gear_public_contract.py",
         "server/websim_payload.py",
         "server/pg_gear_template_selectors.py",
+        "server/gear_contracts.py",
+        "server/gear_result_envelope.py",
+        "server/gear_rule_matrix.py",
         "pages/builds/websim-api.js",
-        "pages/builds/detail.*"
+        "pages/builds/detail.*",
+        "tests/gear_contracts_test.py",
+        "tests/gear_result_envelope_test.py",
+        "tests/gear_rule_matrix_test.py"
       ],
       "backendOwnerMapRef": {
         "hotspotFile": "server/websim_payload.py",
@@ -359,7 +383,10 @@
           "tests/websim_payload_test.py",
           "tests/news_backend_test.py",
           "tests/pg_gear_template_selectors_test.py",
-          "tests/builds-page.test.js"
+          "tests/builds-page.test.js",
+          "tests/gear_contracts_test.py",
+          "tests/gear_result_envelope_test.py",
+          "tests/gear_rule_matrix_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {
@@ -528,11 +555,26 @@
         "pages/simulator/simc.js",
         "pages/simulator/simulator-api.js"
       ],
+      "contractFoundations": {
+        "status": "contract_only_unconsumed",
+        "modules": [
+          "server/gear_contracts.py",
+          "server/gear_result_envelope.py",
+          "server/gear_rule_matrix.py"
+        ],
+        "tests": [
+          "tests/gear_contracts_test.py",
+          "tests/gear_result_envelope_test.py",
+          "tests/gear_rule_matrix_test.py"
+        ],
+        "runtimeConsumers": []
+      },
       "publicContracts": [
         "SimC profile generation stays backend-owned.",
         "Submitted gear enhancements require backend-attached catalog authority before serialization.",
         "Legacy gear stats preserve their response shape while stat_snapshot_v1 uses one iteration and process-global concurrency one.",
-        "Task list/detail evidence does not expose raw internal diagnostics as user-facing truth."
+        "Task list/detail evidence does not expose raw internal diagnostics as user-facing truth.",
+        "Phase 1 signatures declare selection, resolution and profile dependency subsets, but no current serializer or route imports the new modules."
       ],
       "mustNotChange": [
         "Do not assemble authoritative SimC profile strings client-side.",
@@ -548,7 +590,10 @@
         "tests/simulator-page.test.js",
         "tests/news_backend_test.py",
         "tests/codex_worker_test.py",
-        "tests/simulator_smoke_test.py"
+        "tests/simulator_smoke_test.py",
+        "tests/gear_contracts_test.py",
+        "tests/gear_result_envelope_test.py",
+        "tests/gear_rule_matrix_test.py"
       ],
       "runtimeSurfaces": [
         "server/websim_payload.py",
@@ -575,10 +620,16 @@
         "server/websim_payload.py",
         "server/simc_profile_policy.py",
         "server/simc_preparation.py",
+        "server/gear_contracts.py",
+        "server/gear_result_envelope.py",
+        "server/gear_rule_matrix.py",
         "server/codex_worker.py",
         "server/news_backend.py",
         "pages/simulator/simc.*",
-        "pages/simulator/simulator-api.js"
+        "pages/simulator/simulator-api.js",
+        "tests/gear_contracts_test.py",
+        "tests/gear_result_envelope_test.py",
+        "tests/gear_rule_matrix_test.py"
       ],
       "criticalContract": {
         "status": "characterized",
@@ -591,7 +642,10 @@
           "tests/simulator-page.test.js",
           "tests/news_backend_test.py",
           "tests/codex_worker_test.py",
-          "tests/simulator_smoke_test.py"
+          "tests/simulator_smoke_test.py",
+          "tests/gear_contracts_test.py",
+          "tests/gear_result_envelope_test.py",
+          "tests/gear_rule_matrix_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": null
