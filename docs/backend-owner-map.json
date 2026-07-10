@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-10-phase4-v24",
-  "status": "phase4_websim_community_talent_template_read_model_selector_extracted",
+  "version": "2026-07-10-phase4-v25",
+  "status": "phase4_websim_talents_envelope_read_model_selector_extracted",
   "harnessVersion": "v0.5",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -291,6 +291,7 @@
             "websim loot response envelope read-model assembly",
             "websim talent authority read-model assembly",
             "websim community talent template row/list read-model assembly",
+            "websim talents response envelope and community sync read-model assembly",
             "websim instances read-model assembly",
             "websim assets read-model assembly",
             "websim profile preset read-model assembly",
@@ -320,6 +321,7 @@
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_websim_loot_read_model_wraps_items_instances_and_season",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_websim_talent_authority_read_model_preserves_runtime_and_official_state",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_websim_community_talent_templates_read_model_maps_rows_and_slots",
+            "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_websim_talents_read_model_assembles_sync_blockers_and_season",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_websim_instances_read_model_groups_encounters_by_instance",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_websim_assets_read_model_counts_status_and_source",
             "tests/pg_gear_read_model_selectors_test.py::PgGearReadModelSelectorsTest.test_build_websim_profile_presets_read_model_maps_rows",
@@ -333,7 +335,7 @@
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_websim_gear_keeps_cached_read_model_when_pg_season_is_stale",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_gear_read_model_uses_cache_schema_catalog_rows"
           ],
-          "futureExtractionDirection": "Continue splitting read-only PG gear row, admin talent record, admin gear record, talent payload/envelope, loot item/envelope, instances, asset registry, profile preset, default selection, bootstrap, and response fragments after WebSim community talent template read-model extraction, before touching sync-state repositories or cleanup write intents."
+          "futureExtractionDirection": "Treat the current WebSim talent read-model vertical as characterized and extracted; continue only with separate read-only PG domains such as active-season/cache/admin response fragments before touching sync-state repositories or cleanup write intents."
         },
         {
           "id": "sync_state_repository",

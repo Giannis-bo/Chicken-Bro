@@ -49,7 +49,6 @@ try:
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
-        community_talent_template_slot_summary,
         community_template_availability_expires_at,
         community_gear_import_coverage_summary,
         dedupe_gear_community_templates,
@@ -138,7 +137,6 @@ except ImportError:
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
-        community_talent_template_slot_summary,
         community_template_availability_expires_at,
         community_gear_import_coverage_summary,
         dedupe_gear_community_templates,
@@ -5457,33 +5455,21 @@ class PostgresCacheStore:
             tree_sections,
             talent_authority,
         )
-        community_state = dict(community_state) if isinstance(community_state, dict) else {}
-        community_state["activeSpecSlots"] = community_talent_template_slot_summary(community_templates)
-        community_state.setdefault(
-            "templates",
-            {
-                "total": len(community_templates),
-                "verified": len([item for item in community_templates if item.get("status") == "verified"]),
-                "blocked": 0,
-            },
+        return pg_gear_read_model_selectors.build_websim_talents_read_model(
+            class_key,
+            spec_key,
+            hero_key,
+            schema_revision=TALENT_SCHEMA_REVISION,
+            talent_authority=talent_authority,
+            talent_readiness=talent_readiness,
+            nodes=nodes,
+            presets=presets,
+            community_templates=community_templates,
+            community_state=community_state,
+            tree_sections=tree_sections,
+            talent_status=talent_status,
+            season=season,
         )
-        season_blockers = season.get("errors") if isinstance(season.get("errors"), list) else []
-        return {
-            "classKey": class_key,
-            "specKey": spec_key,
-            "heroKey": hero_key,
-            "talentSchemaRevision": TALENT_SCHEMA_REVISION,
-            "talentAuthority": talent_authority,
-            "talentReadiness": talent_readiness,
-            "blockers": unique_text_list([*(talent_readiness.get("blockers") or []), *season_blockers]),
-            "nodes": nodes,
-            "presets": presets,
-            "communityTemplates": community_templates,
-            "communityTemplateSync": community_state,
-            "treeSections": tree_sections,
-            "talentStatus": talent_status,
-            **season_metadata_fields(season),
-        }
 
     def get_websim_talent_import(self, class_key="mage", spec_key="arcane", hero_key=""):
         season = self.get_active_season_payload()
