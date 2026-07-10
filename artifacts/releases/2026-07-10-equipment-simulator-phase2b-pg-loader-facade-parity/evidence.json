@@ -36,12 +36,12 @@
     {
       "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
       "status": "pass",
-      "summary": "1155 Python tests passed with 1 skipped; compileall and Strict Harness passed on correction head 4bbbc70."
+      "summary": "1160 Python tests passed with 1 skipped; compileall and Strict Harness passed after the structured item authority correction."
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
       "status": "pass",
-      "summary": "365 Node tests and 1155 Python tests passed with 1 skipped; all 127 syntax, JSON, Harness and diff commands passed on correction head 4bbbc70."
+      "summary": "365 Node tests and 1160 Python tests passed with 1 skipped; all 127 syntax, JSON, Harness and diff commands passed after the structured item authority correction."
     },
     {
       "command": "static SQL/query-budget and dormant-consumer inspection plus Python compile",
@@ -71,7 +71,7 @@
     {
       "command": "PR #63 first candidate Resolver hard-gate diagnosis and structured item authority correction",
       "status": "pass",
-      "summary": "Exact first-candidate hashes and built-in runtime smoke passed. The live current Mage/Arcane Authority Context reached 15/15 items and variants with missingFields=[], proving alias/source parity, then the pure Resolver correctly blocked because loader projection omitted existing Battle.net item type facts: finger2/trinket2 inherited finger1/trinket1 only, the two-hand staff lacked handedness, and tier membership setId existed only on the Battle.net tier_set source. Red-to-green correction tests now reuse the existing item type, handedness and equivalent-slot helpers, add generic one-hand weapon hand authority, accept only structured Battle.net tier membership or explicit verified set evidence, and block conflicting set IDs. 35 loader/store tests and six focused facade/runtime-authority tests passed; candidate must be redeployed from the updated PR head before evidence promotion."
+      "summary": "Exact first-candidate hashes and built-in runtime smoke passed. The live current Mage/Arcane Authority Context reached 15/15 items and variants with missingFields=[], proving alias/source parity, then the pure Resolver correctly blocked because loader projection omitted existing Battle.net item type facts: finger2/trinket2 inherited finger1/trinket1 only, the two-hand staff lacked handedness, and tier membership setId existed only on the Battle.net tier_set source. Red-to-green correction tests now reuse the existing item type, handedness and equivalent-slot helpers, add generic one-hand weapon hand authority, accept only structured Battle.net tier membership or explicit verified set evidence, and block conflicting set IDs. 35 loader/store tests, six focused facade/runtime-authority tests, 92 Phase 1-2B contract tests, 726 facade/store/backend regressions, 23 Harness/owner/current-state tests, backend 1160 Python tests and full 365 Node plus 1160 Python tests passed; candidate must be redeployed from the updated PR head before evidence promotion."
     }
   ],
   "candidateDeployment": {
