@@ -45,13 +45,11 @@ try:
         blocked_baseline_gear_template,
         blocked_stat_snapshot,
         candidate_legality_audit_payload,
-        class_label,
         classes_payload,
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
         community_talent_template_slot_summary,
-        community_talent_templates_for_spec_slots,
         community_template_availability_expires_at,
         community_gear_import_coverage_summary,
         dedupe_gear_community_templates,
@@ -70,7 +68,6 @@ try:
         gear_slot_payload,
         gear_slot_readiness,
         hero_tree_for,
-        hero_tree_label,
         icon_url_from_media,
         is_active_community_observed_template,
         item_level_probe_main_hand_removes_offhand,
@@ -93,7 +90,6 @@ try:
         pending_community_gear_template,
         SCENARIOS,
         SIMC_GEAR_OPTION_KEYS,
-        scenario_title,
         season_metadata_fields,
         select_best_baseline_gear_templates,
         select_community_best_gear_templates,
@@ -105,7 +101,6 @@ try:
         simc_safe_item_name,
         simc_version_payload,
         slugify,
-        spec_label,
         talent_readiness_payload,
         websim_talent_import_response,
         talent_spell_display_description,
@@ -139,13 +134,11 @@ except ImportError:
         blocked_baseline_gear_template,
         blocked_stat_snapshot,
         candidate_legality_audit_payload,
-        class_label,
         classes_payload,
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
         community_talent_template_slot_summary,
-        community_talent_templates_for_spec_slots,
         community_template_availability_expires_at,
         community_gear_import_coverage_summary,
         dedupe_gear_community_templates,
@@ -164,7 +157,6 @@ except ImportError:
         gear_slot_payload,
         gear_slot_readiness,
         hero_tree_for,
-        hero_tree_label,
         icon_url_from_media,
         is_active_community_observed_template,
         item_level_probe_main_hand_removes_offhand,
@@ -187,7 +179,6 @@ except ImportError:
         pending_community_gear_template,
         SCENARIOS,
         SIMC_GEAR_OPTION_KEYS,
-        scenario_title,
         season_metadata_fields,
         select_best_baseline_gear_templates,
         select_community_best_gear_templates,
@@ -199,7 +190,6 @@ except ImportError:
         simc_safe_item_name,
         simc_version_payload,
         slugify,
-        spec_label,
         talent_readiness_payload,
         websim_talent_import_response,
         talent_spell_display_description,
@@ -5387,55 +5377,12 @@ class PostgresCacheStore:
             (class_key, spec_key),
         )
         rows = cur.fetchall()
-        templates = []
-        for row in rows:
-            talent_state = _json_value(row[12], {"selectedNodes": []})
-            if not isinstance(talent_state, dict):
-                talent_state = {"selectedNodes": []}
-            payload = _json_value(row[18], {})
-            payload = payload if isinstance(payload, dict) else {}
-            websim_export_code = row[11] or ""
-            raw_import_code = row[10] or ""
-            selected_nodes = talent_state.get("selectedNodes") if isinstance(talent_state.get("selectedNodes"), list) else []
-            can_apply_visual = bool(str(websim_export_code).startswith("websim:") and selected_nodes)
-            raiderio_payload = payload.get("raiderio") if isinstance(payload.get("raiderio"), dict) else {}
-            player_id = str(payload.get("playerId") or raiderio_payload.get("characterName") or "").strip()
-            templates.append(
-                {
-                    "id": str(row[0]),
-                    "classKey": row[1],
-                    "specKey": row[2],
-                    "heroKey": row[3],
-                    "scenarioKey": row[4],
-                    "name": row[5],
-                    "flowLabel": row[6],
-                    "sourceKey": row[7],
-                    "sourceName": row[8],
-                    "sourceUrl": row[9],
-                    "rawImportCode": raw_import_code,
-                    "websimExportCode": websim_export_code,
-                    "talentState": talent_state,
-                    "sampleCount": _int_value(row[13]),
-                    "maxKeyLevel": _int_value(row[14]),
-                    "analysisWindow": row[15],
-                    "sourceStatus": row[16],
-                    "status": row[17],
-                    "payload": payload,
-                    "signature": row[21] or "",
-                    "sourceRefs": normalize_source_refs(_json_value(row[22], []) or []),
-                    "scanRunId": row[23] or "",
-                    "playerId": player_id,
-                    "classLabel": payload.get("classLabel") or class_label(row[1]),
-                    "specLabel": payload.get("specLabel") or spec_label(row[2]),
-                    "heroLabel": payload.get("heroLabel") or hero_tree_label(row[3]),
-                    "scenarioTitle": payload.get("scenarioTitle") or scenario_title(row[4]),
-                    "updatedAt": str(row[19] or ""),
-                    "expiresAt": str(row[20] or ""),
-                    "canApplyVisual": can_apply_visual,
-                    "canUseInSimc": bool(can_apply_visual or raw_import_code),
-                }
-            )
-        return community_talent_templates_for_spec_slots(class_key, spec_key, templates, hero_key)
+        return pg_gear_read_model_selectors.build_websim_community_talent_templates_read_model(
+            rows,
+            class_key,
+            spec_key,
+            hero_key,
+        )
 
     def get_websim_talents(self, class_key="mage", spec_key="arcane", hero_key=""):
         season = self.get_active_season_payload()

@@ -14,9 +14,11 @@ try:
         apply_gear_mod_option_display_fields,
         blocked_stat_snapshot,
         candidate_legality_audit_payload,
+        class_label,
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
+        community_talent_templates_for_spec_slots,
         enrich_catalog_item,
         fallback_text_for,
         game_asset_from_icon_url,
@@ -31,12 +33,16 @@ try:
         gear_candidate_slots,
         gear_readiness,
         gear_slot_readiness,
+        hero_tree_label,
         limit_replacement_candidates,
         localized_difficulty_label,
         normalize_gear_item,
         normalize_option_value,
+        normalize_source_refs,
         normalize_slot,
         sanitize_gear_candidate_mod_options,
+        scenario_title,
+        spec_label,
         unique_gear_candidates,
         utc_now,
         websim_max_level,
@@ -54,9 +60,11 @@ except ImportError:
         apply_gear_mod_option_display_fields,
         blocked_stat_snapshot,
         candidate_legality_audit_payload,
+        class_label,
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
+        community_talent_templates_for_spec_slots,
         enrich_catalog_item,
         fallback_text_for,
         game_asset_from_icon_url,
@@ -71,12 +79,16 @@ except ImportError:
         gear_candidate_slots,
         gear_readiness,
         gear_slot_readiness,
+        hero_tree_label,
         limit_replacement_candidates,
         localized_difficulty_label,
         normalize_gear_item,
         normalize_option_value,
+        normalize_source_refs,
         normalize_slot,
         sanitize_gear_candidate_mod_options,
+        scenario_title,
+        spec_label,
         unique_gear_candidates,
         utc_now,
         websim_max_level,
@@ -161,6 +173,58 @@ def build_admin_talent_records_read_model(template_rows, tree_rows, now=None):
             for row in tree_rows or []
         ],
     }
+
+
+def build_websim_community_talent_templates_read_model(rows, class_key, spec_key, hero_key=""):
+    templates = []
+    for row in rows or []:
+        talent_state = _json_value(row[12], {"selectedNodes": []})
+        if not isinstance(talent_state, dict):
+            talent_state = {"selectedNodes": []}
+        payload = _json_value(row[18], {})
+        payload = payload if isinstance(payload, dict) else {}
+        websim_export_code = row[11] or ""
+        raw_import_code = row[10] or ""
+        selected_nodes = talent_state.get("selectedNodes") if isinstance(talent_state.get("selectedNodes"), list) else []
+        can_apply_visual = bool(str(websim_export_code).startswith("websim:") and selected_nodes)
+        raiderio_payload = payload.get("raiderio") if isinstance(payload.get("raiderio"), dict) else {}
+        player_id = str(payload.get("playerId") or raiderio_payload.get("characterName") or "").strip()
+        templates.append(
+            {
+                "id": str(row[0]),
+                "classKey": row[1],
+                "specKey": row[2],
+                "heroKey": row[3],
+                "scenarioKey": row[4],
+                "name": row[5],
+                "flowLabel": row[6],
+                "sourceKey": row[7],
+                "sourceName": row[8],
+                "sourceUrl": row[9],
+                "rawImportCode": raw_import_code,
+                "websimExportCode": websim_export_code,
+                "talentState": talent_state,
+                "sampleCount": _int_value(row[13]),
+                "maxKeyLevel": _int_value(row[14]),
+                "analysisWindow": row[15],
+                "sourceStatus": row[16],
+                "status": row[17],
+                "payload": payload,
+                "signature": row[21] or "",
+                "sourceRefs": normalize_source_refs(_json_value(row[22], []) or []),
+                "scanRunId": row[23] or "",
+                "playerId": player_id,
+                "classLabel": payload.get("classLabel") or class_label(row[1]),
+                "specLabel": payload.get("specLabel") or spec_label(row[2]),
+                "heroLabel": payload.get("heroLabel") or hero_tree_label(row[3]),
+                "scenarioTitle": payload.get("scenarioTitle") or scenario_title(row[4]),
+                "updatedAt": str(row[19] or ""),
+                "expiresAt": str(row[20] or ""),
+                "canApplyVisual": can_apply_visual,
+                "canUseInSimc": bool(can_apply_visual or raw_import_code),
+            }
+        )
+    return community_talent_templates_for_spec_slots(class_key, spec_key, templates, hero_key)
 
 
 def build_websim_talent_authority_read_model(
