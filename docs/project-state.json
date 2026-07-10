@@ -25,6 +25,13 @@
       "status": "active_detail_map",
       "lifecycle": "active",
       "notes": "Second-level owner map for backend hotspot read-model characterization."
+    },
+    {
+      "id": "project_owner_map",
+      "path": "docs/project-owner-map.json",
+      "status": "active_primary_map",
+      "lifecycle": "active",
+      "notes": "First-level owner and contract map for the 16 frozen Project Harness critical domains."
     }
   ],
   "completedBaselines": [
