@@ -63,6 +63,16 @@
         {
           "id": "gear_legality_source_map",
           "status": "characterized",
+          "phase1ContractFoundations": {
+            "status": "contract_only_unconsumed",
+            "modules": [
+              "server/gear_contracts.py",
+              "server/gear_result_envelope.py",
+              "server/gear_rule_matrix.py"
+            ],
+            "runtimeConsumers": [],
+            "activationBoundary": "Phase 2 may consume the contracts in a new resolver; Phase 1 does not change websim_payload.py, PostgreSQL selectors, public payloads, routes, or frontend consumers."
+          },
           "owns": [
             "apply_gear_template_legality_gate",
             "apply_gear_candidate_legality",
@@ -79,7 +89,10 @@
             "tests/fixtures/gear-legality-source-map-partial-authority.json",
             "tests/websim_payload_test.py::WebSimPayloadTest.test_raiderio_observed_profile_still_must_pass_weapon_legality_gate",
             "tests/news_backend_test.py::NewsBackendTest.test_runtime_websim_gear_partially_gates_illegal_postgres_templates",
-            "tests/gear_legality_test.py"
+            "tests/gear_legality_test.py",
+            "tests/gear_contracts_test.py",
+            "tests/gear_result_envelope_test.py",
+            "tests/gear_rule_matrix_test.py"
           ],
           "futureExtractionDirection": "Extract legality source-map helpers only after authority health and public gear API tests remain unchanged."
         },

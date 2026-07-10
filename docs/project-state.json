@@ -3,7 +3,7 @@
   "updatedAt": "2026-07-10",
   "activeMilestone": "equipment_simulator_phase1",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority",
   "activeContracts": [
     {
       "id": "equipment_simulator_capability_architecture",
@@ -15,9 +15,9 @@
     {
       "id": "equipment_simulator_phase1_contracts_plan",
       "path": "docs/plans/2026-07-10-equipment-simulator-phase1-contracts-rule-authority-plan.md",
-      "status": "implementation_plan_ready",
+      "status": "phase1_contracts_in_progress",
       "lifecycle": "active",
-      "notes": "Executable contract-only Phase 1 plan; no Resolver route, frontend cutover or database loader is active."
+      "notes": "Contract-only Phase 1 implementation is active; no Resolver route, frontend cutover or database loader is active."
     },
     {
       "id": "repo_native_harness_v0_5",
