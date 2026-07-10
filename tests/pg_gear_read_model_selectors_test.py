@@ -4,6 +4,69 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_websim_community_talent_templates_read_model_maps_rows_and_slots(self):
+        from server.pg_gear_read_model_selectors import build_websim_community_talent_templates_read_model
+
+        rows = [
+            (
+                "template-a",
+                "mage",
+                "frost",
+                "spellslinger",
+                "mythic_plus",
+                "Raider.IO Spellslinger",
+                "M+",
+                "raiderio",
+                "Raider.IO",
+                "https://example.test/template-a",
+                "CsbBAAAAAAAAAAAAAA",
+                "websim:mage:frost:spellslinger",
+                '{"selectedNodes":[{"id":"node-a","rank":1}]}',
+                "12",
+                "24",
+                "2026-07-01/2026-07-07",
+                "synced",
+                "verified",
+                {
+                    "playerId": "player-a",
+                    "classLabel": "Mage Label",
+                    "specLabel": "Frost Label",
+                    "heroLabel": "Spellslinger Label",
+                    "scenarioTitle": "Route Label",
+                },
+                "2026-07-10T01:00:00+00:00",
+                "2099-01-01T00:00:00+00:00",
+                "signature-a",
+                '[{"sourceKey":"raiderio","sourceUrl":"https://example.test/source-a"}]',
+                "scan-a",
+            )
+        ]
+
+        templates = build_websim_community_talent_templates_read_model(
+            rows,
+            "mage",
+            "frost",
+            "spellslinger",
+        )
+
+        self.assertEqual(len(templates), 2)
+        template = templates[0]
+        self.assertEqual(template["id"], "template-a")
+        self.assertEqual(template["heroKey"], "spellslinger")
+        self.assertEqual(template["talentState"], {"selectedNodes": [{"id": "node-a", "rank": 1}]})
+        self.assertEqual(template["sampleCount"], 12)
+        self.assertEqual(template["maxKeyLevel"], 24)
+        self.assertEqual(template["playerId"], "player-a")
+        self.assertEqual(template["classLabel"], "Mage Label")
+        self.assertEqual(template["specLabel"], "Frost Label")
+        self.assertEqual(template["heroLabel"], "Spellslinger Label")
+        self.assertEqual(template["scenarioTitle"], "Route Label")
+        self.assertEqual(template["sourceRefs"][0]["sourceKey"], "raiderio")
+        self.assertTrue(template["canApplyVisual"])
+        self.assertTrue(template["canUseInSimc"])
+        self.assertEqual(template["coverageStatus"], "covered")
+        self.assertEqual(templates[1]["status"], "pending_collection")
+
     def test_build_websim_talent_authority_read_model_preserves_runtime_and_official_state(self):
         from server.pg_gear_read_model_selectors import build_websim_talent_authority_read_model
 
