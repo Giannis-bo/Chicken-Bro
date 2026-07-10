@@ -23215,6 +23215,14 @@ class WebSimPayloadTest(unittest.TestCase):
         )
         self.assertFalse(authority["capabilities"]["catalyst"]["enabled"])
         self.assertTrue(authority["capabilities"]["catalyst"]["optionParseSupported"])
+        self.assertEqual(
+            authority["ruleParameters"]["inventoryTypesBySlot"]["finger2"],
+            ["finger1", "finger2"],
+        )
+        self.assertEqual(
+            authority["ruleParameters"]["inventoryTypesBySlot"]["trinket2"],
+            ["trinket1", "trinket2"],
+        )
 
         for spec_id in self.websim_payload.expected_spec_pairs():
             class_key, spec_key = spec_id.split(":", 1)

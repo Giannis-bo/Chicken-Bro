@@ -373,6 +373,102 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertEqual(context["optionsById"]["gem-haste"]["optionType"], "gem")
         self.assertEqual(context["missingFields"], [])
 
+    def test_loader_projects_existing_structured_item_metadata_and_equivalent_slots(self):
+        ring = self.item_row(
+            item={
+                "slot": "finger1",
+                "payload": {
+                    "inventory_type": {"type": "FINGER", "name": "Finger"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 0, "name": "Miscellaneous"},
+                },
+            }
+        )
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[ring]))
+
+        item = context["itemsById"]["item-head"]
+        self.assertEqual(item["inventoryType"], "finger1")
+        self.assertEqual(item["allowedSlots"], ["finger1", "finger2"])
+
+    def test_loader_projects_two_hand_weapon_type_and_handedness_from_item_payload(self):
+        staff = self.item_row(
+            item={
+                "slot": "main_hand",
+                "payload": {
+                    "inventory_type": {"type": "TWOHWEAPON", "name": "Two-Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"id": 10, "name": "Staff"},
+                },
+            }
+        )
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[staff]))
+
+        item = context["itemsById"]["item-head"]
+        self.assertEqual(item["inventoryType"], "weapon")
+        self.assertEqual(item["weaponType"], "Staff")
+        self.assertEqual(item["handedness"], "two_hand")
+
+    def test_loader_allows_one_hand_weapon_authority_in_either_hand(self):
+        sword = self.item_row(
+            item={
+                "slot": "main_hand",
+                "payload": {
+                    "inventory_type": {"type": "WEAPON", "name": "One-Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"id": 7, "name": "One-Handed Sword"},
+                },
+            }
+        )
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[sword]))
+
+        item = context["itemsById"]["item-head"]
+        self.assertEqual(item["inventoryType"], "weapon")
+        self.assertEqual(item["allowedSlots"], ["main_hand", "off_hand"])
+        self.assertEqual(item["handedness"], "one_hand")
+
+    def test_loader_projects_canonical_battle_net_tier_set_membership(self):
+        tier = list(self.item_row(
+            sources=[
+                {
+                    "id": "tier-source-head",
+                    "sourceType": "tier_set",
+                    "sourceKey": "set-1983-item-head",
+                    "seasonRevision": "season-17-active",
+                    "status": "unknown",
+                    "sourceStatus": "unknown",
+                    "payload": {
+                        "authority": "Battle.net Game Data API",
+                        "setId": "1983",
+                        "setName": "Authority Regalia",
+                    },
+                    "updatedAt": "2026-07-10T10:03:00+00:00",
+                }
+            ],
+        ))
+        tier[2]["itemSetIds"] = ["1983"]
+        tier[2]["payload"].pop("itemSetId", None)
+        tier[3]["payload"].pop("itemSetId", None)
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[tuple(tier)]))
+
+        self.assertEqual(context["itemsById"]["item-head"]["itemSetId"], "1983")
+        self.assertEqual(context["variantsByKey"]["variant-head"]["itemSetId"], "")
+        self.assertIn("DISTINCT ON (candidate.source_type)", pg_gear_authority_loader.SELECTED_ITEM_VARIANT_SQL)
+        self.assertIn("Battle.net Game Data API", pg_gear_authority_loader.SELECTED_ITEM_VARIANT_SQL)
+
+    def test_loader_blocks_conflicting_canonical_item_set_memberships(self):
+        conflicting = list(self.item_row())
+        conflicting[2]["itemSetIds"] = ["1983", "1984"]
+        conflicting[2]["payload"].pop("itemSetId", None)
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[tuple(conflicting)]))
+
+        self.assertNotIn("item-head", context["itemsById"])
+        self.assertIn("itemsById.item-head", context["missingFields"])
+
     def test_loaded_context_resolves_without_facade_or_client_authority(self):
         from server import gear_resolver
 
