@@ -27,6 +27,11 @@ except ImportError:
     import pg_gear_read_model_selectors
 
 try:
+    from . import pg_season_read_model_selectors
+except ImportError:
+    import pg_season_read_model_selectors
+
+try:
     from .websim_payload import (
         CANONICAL_GEAR_SLOTS,
         COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
@@ -55,7 +60,6 @@ try:
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
         expected_spec_pairs,
-        current_season_payload,
         fallback_text_for,
         fallback_presets,
         game_asset_from_icon_url,
@@ -78,7 +82,6 @@ try:
         normalize_source_refs,
         normalize_option_value,
         normalize_slot,
-        normalize_current_season_raid_pool_payload,
         normalize_gear_item,
         normalize_websim_gear_items,
         normalize_community_gear_template,
@@ -143,7 +146,6 @@ except ImportError:
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
         expected_spec_pairs,
-        current_season_payload,
         fallback_text_for,
         fallback_presets,
         game_asset_from_icon_url,
@@ -166,7 +168,6 @@ except ImportError:
         normalize_source_refs,
         normalize_option_value,
         normalize_slot,
-        normalize_current_season_raid_pool_payload,
         normalize_gear_item,
         normalize_websim_gear_items,
         normalize_community_gear_template,
@@ -5160,33 +5161,6 @@ class PostgresCacheStore:
                 row = cur.fetchone()
                 if not row:
                     return {}
-                payload = _json_value(row[8], {})
-                if not isinstance(payload, dict) or not payload.get("seasonRevision"):
-                    payload = current_season_payload(
-                        season_id=row[0],
-                        season_label=row[1],
-                        locale=row[3] or DEFAULT_LOCALE,
-                        dungeons=[],
-                        data_status=row[4],
-                        verified_at=str(row[5] or ""),
-                        expires_at=str(row[6] or ""),
-                        source_refs=_json_value(row[7], []),
-                    )
-                payload["seasonId"] = row[0]
-                payload["id"] = row[0]
-                payload["seasonLabel"] = row[1]
-                payload["label"] = row[1]
-                payload["seasonRevision"] = row[2]
-                payload["revision"] = row[2]
-                payload["locale"] = row[3] or DEFAULT_LOCALE
-                expired = bool(_datetime_value(row[6]) and _datetime_value(row[6]) <= datetime.now(timezone.utc))
-                payload["dataStatus"] = "stale" if expired else row[4]
-                payload["verifiedAt"] = str(row[5] or "")
-                payload["expiresAt"] = str(row[6] or "")
-                payload["sourceRefs"] = _json_value(row[7], [])
-                if expired:
-                    errors = payload.get("errors") if isinstance(payload.get("errors"), list) else []
-                    payload["errors"] = [*errors, "season cache expired"]
                 cur.execute(
                     """
                     SELECT dungeon_id, instance_id, name, short_name, timer_seconds, payload_json
@@ -5197,21 +5171,7 @@ class PostgresCacheStore:
                     (row[2],),
                 )
                 dungeons = cur.fetchall()
-        payload["dungeons"] = [
-            {
-                "id": dungeon_row[0],
-                "dungeonId": dungeon_row[0],
-                "instanceId": dungeon_row[1],
-                "name": dungeon_row[2],
-                "shortName": dungeon_row[3],
-                "timerSeconds": dungeon_row[4],
-                "sourceRefs": payload["sourceRefs"],
-                "payload": _json_value(dungeon_row[5], {}),
-            }
-            for dungeon_row in dungeons
-        ]
-        normalize_current_season_raid_pool_payload(payload)
-        return payload
+        return pg_season_read_model_selectors.build_active_season_read_model(row, dungeons)
 
     def get_websim_instances(self):
         season = self.get_active_season_payload()
