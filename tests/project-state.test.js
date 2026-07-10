@@ -29,7 +29,7 @@ test('project-state is the single machine-readable current truth entry', () => {
 
   assert.equal(state.schemaVersion, 1)
   assert.equal(state.updatedAt, '2026-07-10')
-  assert.equal(state.activeMilestone, 'equipment_simulator_phase0')
+  assert.equal(state.activeMilestone, 'equipment_simulator_phase1')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, activeRelease)
 

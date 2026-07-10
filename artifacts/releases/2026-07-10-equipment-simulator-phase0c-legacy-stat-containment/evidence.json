@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase0c-legacy-stat-containment",
   "requirementSlug": "equipment-simulator-phase0c-legacy-stat-containment",
-  "status": "live_verified",
+  "status": "archived",
   "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase0c-legacy-stat-containment",
-  "commit": "pending_pr_head",
+  "commit": "92c53ab0170ec64613a67b29d90e2bf8ebd14d49",
   "scope": [
     "legacy stat_snapshot_v1 execution flavor",
     "process-global gear-stat SimC concurrency one",
@@ -73,7 +73,8 @@
     "status": "candidate_verified",
     "requiredBeforeMerge": true,
     "branch": "codex/equipment-simulator-phase0c-legacy-stat-containment",
-    "commit": "pending_pr_head",
+    "commit": "1da88c36b00864d944b7b01b5476147967b8f5bc",
+    "mergeCommit": "92c53ab0170ec64613a67b29d90e2bf8ebd14d49",
     "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/59",
     "buildIdentity": "server/websim_payload.py sha256:607ab0ff737f39458063e95266185f36a7b39d01369c3b5dd61a588cf0eb3dd6",
     "databaseRuntime": "postgres_only",
@@ -126,6 +127,16 @@
       "type": "rollback",
       "status": "pass",
       "summary": "Rollback anchor is origin/main 60d7bb80ce170b4f8d0ea203f824cdfb59fa3fc9; redeploying that checkout restores previous runtime server/websim_payload.py hash b651d65adb5466361dafd851b2f1bb0f086a14c3f3cc5f0dff0e2a9dcb996746 without database restore."
+    },
+    {
+      "type": "post_merge_smoke",
+      "status": "pass",
+      "summary": "PR #59 merged as 92c53ab0170ec64613a67b29d90e2bf8ebd14d49. The final PR head and squash merge have identical Git trees; main and origin/main are 0/0, main and runtime serializer SHA-256 match, postgres_only service is active, legacy stats, stat_snapshot_v1, standard profile, maxActive=1, Phase 0A forged enhancement and Phase 0B Catalyst smokes passed again, related services remained inactive/successful, and the recent error/SQLite-fallback scan remained zero."
+    },
+    {
+      "type": "public_40_spec_sweep",
+      "status": "pass",
+      "summary": "Post-merge live compact initial traversal checked all 40 specs with HTTP 200 and zero contract failures. Public output contained 40 raiderio_observed_profile winners, zero baseline templates and no other source keys; every present winner passed the repository public apply contract plus sampleCount=1, character identity, source URL, profile/gear hashes, fetched/scan identity, readySlotCount=16 and no missing slots."
     }
   ],
   "risks": [
@@ -157,5 +168,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 0C candidate is live-verified before merge: legacy gear stats keep their response contract while stat_snapshot_v1 uses iterations=1 and one process-global SimC permit; standard execution, Phase 0A/0B guards, public observed-only payloads, postgres_only runtime, hashes, timers and logs remain correct. Merge and post-merge Phase 0 closure remain."
+  "summary": "Slice 0C and Phase 0 are archived after PR #59 merge and post-merge live verification: legacy gear stats preserve compatibility with stat_snapshot_v1 iterations=1 and global concurrency one, standard execution and Phase 0A/0B guards remain correct, main/origin/runtime parity is proven, and the 40-spec public observed-only contract sweep has zero failures. Phase 1 planning is next."
 }
