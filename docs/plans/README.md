@@ -31,6 +31,7 @@
 
 | 计划 | 状态 | 当前入口 |
 | --- | --- | --- |
+| [2026-07-10-project-harness-normalization-goal-plan.md](2026-07-10-project-harness-normalization-goal-plan.md) | 方案已批准 / 等待新 Goal Session 实施 | [../harness.md](../harness.md), [../roadmap.md](../roadmap.md), [../backend-owner-map.json](../backend-owner-map.json) |
 | [2026-07-09-harness-guided-project-optimization-plan.md](2026-07-09-harness-guided-project-optimization-plan.md) | Phase 0 + Phase 1 已完成 / 当前 UI 基线已验收 | [../harness.md](../harness.md), [../roadmap.md](../roadmap.md) |
 | [2026-07-09-docs-implementation-current-truth-review.md](2026-07-09-docs-implementation-current-truth-review.md) | 当前对账索引 / 已同步 accepted baseline | [../roadmap.md](../roadmap.md), [../harness.md](../harness.md) |
 | [2026-06-09-specializations-tab.md](2026-06-09-specializations-tab.md) | 已落地 | [../builds-architecture.md](../builds-architecture.md), [../roadmap.md](../roadmap.md) |
