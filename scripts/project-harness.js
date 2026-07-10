@@ -35,6 +35,56 @@ const EVIDENCE_PACKET_REQUIRED_FIELDS = [
   'rollback'
 ]
 
+const REQUIREMENT_CLASSIFICATIONS = ['Light', 'Standard', 'Strict']
+const REQUIREMENT_STATUSES = [
+  'idea',
+  'requirement_challenged',
+  'requirement_contract_approved',
+  'implementation_allowed',
+  'local_verified',
+  'runtime_verified',
+  'deployable',
+  'live_verified',
+  'archived'
+]
+const EVIDENCE_LEVELS = [
+  'requirement_challenged',
+  'requirement_contract_approved',
+  'implementation_allowed',
+  'local_verified',
+  'runtime_verified',
+  'deployable',
+  'live_verified',
+  'archived'
+]
+const RELEASE_TRIGGERS = [
+  'docs_tooling_only',
+  'frontend_user_visible',
+  'backend_api',
+  'pg_read_model',
+  'public_payload',
+  'health_admin',
+  'scheduled_jobs',
+  'deploy_scripts',
+  'user_visible_runtime'
+]
+const RUNTIME_RELEASE_TRIGGERS = new Set([
+  'backend_api',
+  'pg_read_model',
+  'public_payload',
+  'health_admin',
+  'scheduled_jobs',
+  'deploy_scripts',
+  'user_visible_runtime'
+])
+const VERIFICATION_STATUSES = ['pass', 'fail', 'blocked', 'not_run']
+const CANDIDATE_DEPLOYMENT_PASS_STATUSES = new Set([
+  'candidate_verified',
+  'preview_verified',
+  'live_verified',
+  'verified'
+])
+
 function parseArgs(argv) {
   const options = {
     root: process.cwd(),
@@ -42,7 +92,10 @@ function parseArgs(argv) {
     write: false,
     date: new Date().toISOString().slice(0, 10),
     slug: 'harness',
-    evidenceFile: null
+    evidenceFile: null,
+    requirementFile: null,
+    check: false,
+    base: null
   }
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -51,6 +104,8 @@ function parseArgs(argv) {
       options.json = true
     } else if (arg === '--write') {
       options.write = true
+    } else if (arg === '--check') {
+      options.check = true
     } else if (arg === '--root' && argv[index + 1]) {
       options.root = argv[index + 1]
       index += 1
@@ -60,8 +115,14 @@ function parseArgs(argv) {
     } else if (arg === '--slug' && argv[index + 1]) {
       options.slug = argv[index + 1]
       index += 1
+    } else if (arg === '--requirement-file' && argv[index + 1]) {
+      options.requirementFile = argv[index + 1]
+      index += 1
     } else if (arg === '--evidence-file' && argv[index + 1]) {
       options.evidenceFile = argv[index + 1]
+      index += 1
+    } else if (arg === '--base' && argv[index + 1]) {
+      options.base = argv[index + 1]
       index += 1
     }
   }
@@ -69,6 +130,9 @@ function parseArgs(argv) {
   options.root = path.resolve(options.root)
   options.date = sanitizePathSegment(options.date, new Date().toISOString().slice(0, 10))
   options.slug = sanitizeSlug(options.slug)
+  if (options.requirementFile) {
+    options.requirementFile = relativePathInsideRoot(options.root, options.requirementFile, 'requirement file')
+  }
   if (options.evidenceFile) {
     options.evidenceFile = relativePathInsideRoot(options.root, options.evidenceFile, 'evidence file')
   }
@@ -194,6 +258,281 @@ function loadEvidencePacket(root, relativePath) {
     declaredStatus: typeof packet.status === 'string' ? packet.status : 'unknown',
     highestEvidenceLevel: typeof packet.highestEvidenceLevel === 'string' ? packet.highestEvidenceLevel : 'unknown',
     summary: typeof packet.summary === 'string' ? packet.summary : ''
+  }
+}
+
+function loadJsonPacket(root, relativePath, packetType) {
+  if (!relativePath) {
+    return {
+      status: 'missing',
+      path: null,
+      reasonCode: `${packetType}_missing_file`
+    }
+  }
+
+  const fullPath = pathInsideRoot(root, relativePath, `${packetType} file`)
+  if (!fs.existsSync(fullPath)) {
+    return {
+      status: 'missing',
+      path: relativePath,
+      reasonCode: `${packetType}_missing_file`
+    }
+  }
+
+  try {
+    const packet = JSON.parse(fs.readFileSync(fullPath, 'utf8'))
+    if (!packet || typeof packet !== 'object' || Array.isArray(packet)) {
+      return {
+        status: 'invalid_packet',
+        path: relativePath,
+        reasonCode: `${packetType}_invalid_json`,
+        error: `${packetType} packet must be a JSON object.`
+      }
+    }
+    return {
+      status: 'ready',
+      path: relativePath,
+      packet
+    }
+  } catch (error) {
+    return {
+      status: 'invalid_json',
+      path: relativePath,
+      reasonCode: `${packetType}_invalid_json`,
+      error: error && error.message ? error.message : String(error)
+    }
+  }
+}
+
+function addCheckFailure(failures, reasonCode, detail) {
+  failures.push({ reasonCode, detail })
+}
+
+function nonEmptyArray(value) {
+  return Array.isArray(value) && value.length > 0
+}
+
+function hasString(value) {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function requirementNeedsStrictFields(requirement) {
+  return requirement.classification === 'Standard' || requirement.classification === 'Strict'
+}
+
+function validateRequirementPacket(requirement, failures) {
+  if (!Number.isInteger(requirement.schemaVersion)) {
+    addCheckFailure(failures, 'requirement_invalid_json', 'Requirement schemaVersion must be an integer.')
+  }
+  if (!hasString(requirement.slug)) {
+    addCheckFailure(failures, 'requirement_invalid_json', 'Requirement slug is required.')
+  }
+  if (!REQUIREMENT_CLASSIFICATIONS.includes(requirement.classification)) {
+    addCheckFailure(failures, 'requirement_invalid_enum', 'Requirement classification is not allowed.')
+  }
+  if (!REQUIREMENT_STATUSES.includes(requirement.status)) {
+    addCheckFailure(failures, 'requirement_invalid_enum', 'Requirement status is not allowed.')
+  }
+  if (!RELEASE_TRIGGERS.includes(requirement.releaseTrigger)) {
+    addCheckFailure(failures, 'requirement_invalid_enum', 'Requirement releaseTrigger is not allowed.')
+  }
+  if (!hasString(requirement.goal) || !hasString(requirement.userValue)) {
+    addCheckFailure(failures, 'requirement_invalid_json', 'Requirement goal and userValue are required.')
+  }
+  if (!nonEmptyArray(requirement.nonGoals) || !nonEmptyArray(requirement.decisionLog)) {
+    addCheckFailure(failures, 'requirement_invalid_json', 'Requirement nonGoals and decisionLog must be non-empty arrays.')
+  }
+  if (!requirement.engineeringHealth || typeof requirement.engineeringHealth !== 'object' || !hasString(requirement.engineeringHealth.status)) {
+    addCheckFailure(failures, 'requirement_invalid_json', 'Requirement engineeringHealth.status is required.')
+  }
+
+  if (requirementNeedsStrictFields(requirement)) {
+    if (!requirement.currentTruth || typeof requirement.currentTruth !== 'object' || !nonEmptyArray(requirement.currentTruth.sources)) {
+      addCheckFailure(failures, 'requirement_missing_current_truth', 'Standard and Strict requirements need currentTruth.sources.')
+    }
+    if (!requirement.impactMap || typeof requirement.impactMap !== 'object' || !nonEmptyArray(requirement.impactMap.mustChange) || !nonEmptyArray(requirement.impactMap.evidenceRequired)) {
+      addCheckFailure(failures, 'requirement_missing_impact_map', 'Standard and Strict requirements need impactMap.mustChange and impactMap.evidenceRequired.')
+    }
+    if (!requirement.ownership || typeof requirement.ownership !== 'object' || !hasString(requirement.ownership.factOwner)) {
+      addCheckFailure(failures, 'requirement_missing_ownership', 'Standard and Strict requirements need ownership.factOwner.')
+    }
+    if (!nonEmptyArray(requirement.acceptanceEvidence)) {
+      addCheckFailure(failures, 'requirement_missing_acceptance_evidence', 'Standard and Strict requirements need acceptanceEvidence.')
+    }
+    if (!nonEmptyArray(requirement.rollback)) {
+      addCheckFailure(failures, 'requirement_missing_rollback', 'Standard and Strict requirements need rollback.')
+    }
+  }
+}
+
+function validateEvidencePacket(requirement, evidence, root, failures) {
+  if (!Number.isInteger(evidence.schemaVersion)) {
+    addCheckFailure(failures, 'evidence_invalid_json', 'Evidence schemaVersion must be an integer.')
+  }
+  if (!hasString(evidence.slug) || !hasString(evidence.requirementSlug)) {
+    addCheckFailure(failures, 'evidence_invalid_json', 'Evidence slug and requirementSlug are required.')
+  }
+  if (evidence.slug !== requirement.slug || evidence.requirementSlug !== requirement.slug) {
+    addCheckFailure(failures, 'packet_slug_mismatch', 'Requirement and evidence slugs must match.')
+  }
+  if (!EVIDENCE_LEVELS.includes(evidence.status) || !EVIDENCE_LEVELS.includes(evidence.highestEvidenceLevel)) {
+    addCheckFailure(failures, 'evidence_invalid_enum', 'Evidence status or highestEvidenceLevel is not allowed.')
+  }
+  if (requirement.status !== 'implementation_allowed') {
+    addCheckFailure(failures, 'requirement_not_implementation_allowed', 'Evidence cannot promote work before requirement status is implementation_allowed.')
+  }
+  if (!hasString(evidence.branch) || !hasString(evidence.commit)) {
+    addCheckFailure(failures, 'evidence_invalid_json', 'Evidence branch and commit are required.')
+  }
+  if (!nonEmptyArray(evidence.scope) || !nonEmptyArray(evidence.verification) || !nonEmptyArray(evidence.rollback)) {
+    addCheckFailure(failures, 'evidence_invalid_json', 'Evidence scope, verification and rollback must be non-empty arrays.')
+  }
+  if (!Array.isArray(evidence.risks) || !Array.isArray(evidence.runtimeEvidence) || !Array.isArray(evidence.archivedReferences)) {
+    addCheckFailure(failures, 'evidence_invalid_json', 'Evidence risks, runtimeEvidence and archivedReferences must be arrays.')
+  }
+  if (!evidence.cleanup || typeof evidence.cleanup !== 'object' || typeof evidence.cleanup.required !== 'boolean') {
+    addCheckFailure(failures, 'evidence_invalid_json', 'Evidence cleanup.required is required.')
+  }
+  for (const item of Array.isArray(evidence.verification) ? evidence.verification : []) {
+    if (!item || typeof item !== 'object' || !hasString(item.command) || !VERIFICATION_STATUSES.includes(item.status)) {
+      addCheckFailure(failures, 'evidence_invalid_json', 'Every verification item needs command and allowed status.')
+      break
+    }
+  }
+
+  validateEvidenceLevel(requirement, evidence, failures)
+  validateArtifactReferences(root, evidence.archivedReferences, failures)
+}
+
+function validateEvidenceLevel(requirement, evidence, failures) {
+  if (evidence.highestEvidenceLevel !== 'live_verified') {
+    return
+  }
+
+  const candidateDeployment = evidence.candidateDeployment || {}
+  const candidatePassed = CANDIDATE_DEPLOYMENT_PASS_STATUSES.has(candidateDeployment.status)
+  const runtimeEvidence = Array.isArray(evidence.runtimeEvidence) ? evidence.runtimeEvidence : []
+  const hasRuntimeProof = runtimeEvidence.some((item) => item && typeof item === 'object' && item.status === 'pass')
+
+  if (!candidatePassed || !hasRuntimeProof) {
+    addCheckFailure(failures, 'evidence_level_exceeds_proof', 'live_verified requires current runtime or live proof.')
+  }
+
+  if (RUNTIME_RELEASE_TRIGGERS.has(requirement.releaseTrigger)) {
+    const hasCandidateIdentity = hasString(candidateDeployment.branch) || hasString(candidateDeployment.commit) || hasString(candidateDeployment.buildIdentity)
+    const hasSmoke = hasNestedPass(candidateDeployment, 'smoke') || runtimeEvidence.some((item) => item && item.type === 'smoke' && item.status === 'pass')
+    const hasTimerBackflow = hasNestedPass(candidateDeployment, 'timerBackflow') || runtimeEvidence.some((item) => item && item.type === 'timer_backflow' && (item.status === 'pass' || item.status === 'not_applicable'))
+    const hasRollback = nonEmptyArray(evidence.rollback)
+    if (!candidatePassed || !hasCandidateIdentity || !hasSmoke || !hasTimerBackflow || !hasRollback) {
+      addCheckFailure(failures, 'runtime_candidate_deployment_missing', 'Runtime live evidence requires candidate identity, smoke, timer backflow and rollback proof.')
+    }
+  }
+}
+
+function hasNestedPass(parent, key) {
+  const value = parent && parent[key]
+  return value && typeof value === 'object' && (value.status === 'pass' || value.status === 'not_applicable')
+}
+
+function validateArtifactReferences(root, references, failures) {
+  if (!Array.isArray(references)) {
+    return
+  }
+  for (const reference of references) {
+    if (!hasString(reference)) {
+      addCheckFailure(failures, 'artifact_reference_missing', 'Artifact references must be local repository paths.')
+      continue
+    }
+    try {
+      const fullPath = pathInsideRoot(root, reference, 'artifact reference')
+      if (!fs.existsSync(fullPath)) {
+        addCheckFailure(failures, 'artifact_reference_missing', `Missing artifact reference: ${reference}`)
+      }
+    } catch (error) {
+      addCheckFailure(failures, 'artifact_reference_missing', `Invalid artifact reference: ${reference}`)
+    }
+  }
+}
+
+function changedFilesSinceBase(root, base) {
+  if (!base) {
+    return []
+  }
+  const result = spawnSync('git', ['diff', '--name-only', base, '--'], {
+    cwd: root,
+    encoding: 'utf8'
+  })
+  if (result.status !== 0) {
+    return []
+  }
+  return result.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
+function validateCriticalChangedFiles(root, base, failures) {
+  const changedFiles = changedFilesSinceBase(root, base)
+  if (!changedFiles.length) {
+    return
+  }
+  const criticalFiles = changedFiles.filter((filePath) => DEFAULT_HOTSPOT_FILES.includes(filePath))
+  for (const criticalFile of criticalFiles) {
+    if (!ownerMapHasFile(root, criticalFile)) {
+      addCheckFailure(failures, 'critical_changed_file_unowned', `Critical changed file has no owner map hit: ${criticalFile}`)
+    }
+  }
+}
+
+function ownerMapHasFile(root, filePath) {
+  const ownerMapPath = pathInsideRoot(root, 'docs/backend-owner-map.json', 'owner map')
+  if (!fs.existsSync(ownerMapPath)) {
+    return false
+  }
+  try {
+    const ownerMap = JSON.parse(fs.readFileSync(ownerMapPath, 'utf8'))
+    return Array.isArray(ownerMap.hotspotFiles) && ownerMap.hotspotFiles.some((entry) => {
+      return entry && entry.path === filePath && Array.isArray(entry.owners) && entry.owners.length > 0
+    })
+  } catch (error) {
+    return false
+  }
+}
+
+function buildCheck(options) {
+  const failures = []
+  const requirementResult = loadJsonPacket(options.root, options.requirementFile, 'requirement')
+  const evidenceResult = loadJsonPacket(options.root, options.evidenceFile, 'evidence')
+
+  if (requirementResult.status !== 'ready') {
+    addCheckFailure(failures, requirementResult.reasonCode, requirementResult.error || `Requirement packet is ${requirementResult.status}.`)
+  }
+  if (evidenceResult.status !== 'ready') {
+    addCheckFailure(failures, evidenceResult.reasonCode, evidenceResult.error || `Evidence packet is ${evidenceResult.status}.`)
+  }
+
+  if (requirementResult.status === 'ready' && evidenceResult.status === 'ready') {
+    validateRequirementPacket(requirementResult.packet, failures)
+    validateEvidencePacket(requirementResult.packet, evidenceResult.packet, options.root, failures)
+    validateCriticalChangedFiles(options.root, options.base, failures)
+  }
+
+  const reasonCodes = [...new Set(failures.map((failure) => failure.reasonCode))]
+  return {
+    schemaVersion: 1,
+    status: failures.length ? 'project_harness_check_failed' : 'project_harness_check_passed',
+    reasonCodes,
+    failures,
+    requirement: {
+      path: options.requirementFile,
+      slug: requirementResult.packet && requirementResult.packet.slug ? requirementResult.packet.slug : null
+    },
+    evidence: {
+      path: options.evidenceFile,
+      slug: evidenceResult.packet && evidenceResult.packet.slug ? evidenceResult.packet.slug : null,
+      highestEvidenceLevel: evidenceResult.packet && evidenceResult.packet.highestEvidenceLevel ? evidenceResult.packet.highestEvidenceLevel : null
+    },
+    base: options.base
   }
 }
 
@@ -531,18 +870,40 @@ function printHuman(manifest) {
   }
 }
 
+function printCheckHuman(check) {
+  process.stdout.write(`status=${check.status}\n`)
+  process.stdout.write(`reasonCodes=${check.reasonCodes.join(',')}\n`)
+}
+
 function main() {
-  const options = parseArgs(process.argv.slice(2))
-  const manifest = buildManifest(options)
+  try {
+    const options = parseArgs(process.argv.slice(2))
 
-  if (options.write) {
-    writeManifest(options.root, manifest)
-  }
+    if (options.check) {
+      const check = buildCheck(options)
+      if (options.json) {
+        process.stdout.write(`${JSON.stringify(check, null, 2)}\n`)
+      } else {
+        printCheckHuman(check)
+      }
+      process.exitCode = check.status === 'project_harness_check_passed' ? 0 : 1
+      return
+    }
 
-  if (options.json) {
-    process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`)
-  } else {
-    printHuman(manifest)
+    const manifest = buildManifest(options)
+
+    if (options.write) {
+      writeManifest(options.root, manifest)
+    }
+
+    if (options.json) {
+      process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`)
+    } else {
+      printHuman(manifest)
+    }
+  } catch (error) {
+    process.stderr.write(`${error && error.message ? error.message : String(error)}\n`)
+    process.exitCode = 1
   }
 }
 

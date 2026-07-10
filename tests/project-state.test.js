@@ -6,6 +6,7 @@ const path = require('node:path')
 const projectStatePath = 'docs/project-state.json'
 const phase4HistoryPath = 'docs/roadmap/history/2026-07-phase4-pg-read-model.md'
 const controlPlaneRelease = 'artifacts/releases/2026-07-10-harness-control-plane'
+const activeRelease = 'artifacts/releases/2026-07-10-executable-project-harness'
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'))
@@ -28,7 +29,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.updatedAt, '2026-07-10')
   assert.equal(state.activeMilestone, 'project_harness_normalization')
   assert.equal(state.featureIteration, 'frozen_until_milestone_exit')
-  assert.equal(state.activeReleaseArtifact, controlPlaneRelease)
+  assert.equal(state.activeReleaseArtifact, activeRelease)
 
   assert.ok(Array.isArray(state.activeContracts), 'activeContracts should be an array')
   assert.ok(Array.isArray(state.completedBaselines), 'completedBaselines should be an array')
@@ -53,9 +54,11 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  assertPathExists(path.join(controlPlaneRelease, 'requirement.json'))
-  assertPathExists(path.join(controlPlaneRelease, 'evidence.json'))
-  assertPathExists(path.join(controlPlaneRelease, 'manifest.json'))
+  for (const releasePath of [activeRelease, controlPlaneRelease]) {
+    assertPathExists(path.join(releasePath, 'requirement.json'))
+    assertPathExists(path.join(releasePath, 'evidence.json'))
+    assertPathExists(path.join(releasePath, 'manifest.json'))
+  }
 })
 
 test('current truth has one conclusion for UI, PG read-model and Harness normalization', () => {

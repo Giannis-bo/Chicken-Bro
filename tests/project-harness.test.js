@@ -19,6 +19,118 @@ function writeFile(filePath, source) {
   fs.writeFileSync(filePath, source)
 }
 
+function writeJson(filePath, value) {
+  writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`)
+}
+
+function baseRequirement(overrides = {}) {
+  return {
+    schemaVersion: 1,
+    slug: 'validator-fixture',
+    classification: 'Strict',
+    status: 'implementation_allowed',
+    goal: 'Validate the executable Harness contract.',
+    userValue: 'Reject invalid packets before implementation proceeds.',
+    nonGoals: ['No runtime work'],
+    currentTruth: {
+      sources: ['docs/project-state.json', 'docs/roadmap.md'],
+      activeMilestone: 'project_harness_normalization'
+    },
+    impactMap: {
+      mustChange: ['scripts/project-harness.js'],
+      mustNotChange: ['server runtime'],
+      evidenceRequired: ['local tests']
+    },
+    ownership: {
+      factOwner: 'docs/project-state.json',
+      consumers: ['scripts/project-harness.js']
+    },
+    engineeringHealth: {
+      status: 'health_safe',
+      reason: 'Tooling-only fixture.'
+    },
+    acceptanceEvidence: ['node --test tests/project-harness.test.js'],
+    releaseTrigger: 'docs_tooling_only',
+    rollback: ['code_rollback'],
+    decisionLog: [
+      {
+        date: '2026-07-10',
+        decision: 'Fixture decision.'
+      }
+    ],
+    ...overrides
+  }
+}
+
+function baseEvidence(overrides = {}) {
+  return {
+    schemaVersion: 1,
+    slug: 'validator-fixture',
+    requirementSlug: 'validator-fixture',
+    status: 'local_verified',
+    highestEvidenceLevel: 'local_verified',
+    branch: 'codex/validator-fixture',
+    commit: 'pending_pr_head',
+    scope: ['harness'],
+    verification: [
+      {
+        command: 'node --test tests/project-harness.test.js',
+        status: 'pass'
+      }
+    ],
+    candidateDeployment: {
+      status: 'not_applicable',
+      reason: 'Docs/tooling-only fixture.'
+    },
+    runtimeEvidence: [],
+    risks: [],
+    rollback: ['code_rollback'],
+    cleanup: {
+      required: false
+    },
+    archivedReferences: ['docs/project-state.json'],
+    summary: 'Valid fixture.',
+    ...overrides
+  }
+}
+
+function writeHarnessFixture(root, requirement = baseRequirement(), evidence = baseEvidence()) {
+  writeFile(path.join(root, 'docs/harness.md'), [
+    '# Repo-native Harness',
+    '',
+    '> Harness version：v9.9。',
+    '> 最后更新：2099-01-02。',
+    ''
+  ].join('\n'))
+  writeFile(path.join(root, 'docs/roadmap.md'), '# Roadmap\n')
+  writeFile(path.join(root, 'docs/README.md'), '# Docs\n')
+  writeJson(path.join(root, 'docs/project-state.json'), {
+    schemaVersion: 1,
+    activeReleaseArtifact: 'artifacts/releases/fixture'
+  })
+  writeJson(path.join(root, 'artifacts/releases/fixture/requirement.json'), requirement)
+  writeJson(path.join(root, 'artifacts/releases/fixture/evidence.json'), evidence)
+}
+
+function runHarnessCheck(root, extraArgs = []) {
+  return runHarness([
+    '--root',
+    root,
+    '--json',
+    '--check',
+    '--requirement-file',
+    'artifacts/releases/fixture/requirement.json',
+    '--evidence-file',
+    'artifacts/releases/fixture/evidence.json',
+    ...extraArgs
+  ])
+}
+
+function parseJsonOutput(result) {
+  assert.equal(result.stderr, '')
+  return JSON.parse(result.stdout)
+}
+
 test('project harness emits the current repo-native harness manifest as read-only JSON', () => {
   const result = runHarness(['--json', '--slug', 'harness-smoke', '--date', '2026-07-09'])
 
@@ -216,4 +328,183 @@ test('project harness refuses evidence packets outside the repository root', () 
 
   assert.notEqual(result.status, 0)
   assert.match(result.stderr, /Refusing evidence file outside repository root/)
+})
+
+test('project harness check accepts a valid requirement and evidence packet', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-check-valid-'))
+  writeHarnessFixture(root)
+
+  const result = runHarnessCheck(root)
+
+  assert.equal(result.status, 0)
+  const check = parseJsonOutput(result)
+  assert.equal(check.status, 'project_harness_check_passed')
+  assert.deepEqual(check.reasonCodes, [])
+})
+
+test('project harness check returns stable reason codes for invalid packets', () => {
+  const cases = [
+    {
+      name: 'invalid requirement enum',
+      mutateRequirement: (requirement) => {
+        requirement.classification = 'Major'
+      },
+      reasonCode: 'requirement_invalid_enum'
+    },
+    {
+      name: 'missing strict current truth',
+      mutateRequirement: (requirement) => {
+        delete requirement.currentTruth
+      },
+      reasonCode: 'requirement_missing_current_truth'
+    },
+    {
+      name: 'missing strict impact map',
+      mutateRequirement: (requirement) => {
+        delete requirement.impactMap
+      },
+      reasonCode: 'requirement_missing_impact_map'
+    },
+    {
+      name: 'missing strict ownership',
+      mutateRequirement: (requirement) => {
+        delete requirement.ownership
+      },
+      reasonCode: 'requirement_missing_ownership'
+    },
+    {
+      name: 'missing strict acceptance evidence',
+      mutateRequirement: (requirement) => {
+        requirement.acceptanceEvidence = []
+      },
+      reasonCode: 'requirement_missing_acceptance_evidence'
+    },
+    {
+      name: 'missing strict rollback',
+      mutateRequirement: (requirement) => {
+        requirement.rollback = []
+      },
+      reasonCode: 'requirement_missing_rollback'
+    },
+    {
+      name: 'slug mismatch',
+      mutateEvidence: (evidence) => {
+        evidence.requirementSlug = 'other-fixture'
+      },
+      reasonCode: 'packet_slug_mismatch'
+    },
+    {
+      name: 'implementation evidence before implementation allowed',
+      mutateRequirement: (requirement) => {
+        requirement.status = 'requirement_challenged'
+      },
+      reasonCode: 'requirement_not_implementation_allowed'
+    },
+    {
+      name: 'evidence level exceeds local proof',
+      mutateEvidence: (evidence) => {
+        evidence.highestEvidenceLevel = 'live_verified'
+      },
+      reasonCode: 'evidence_level_exceeds_proof'
+    },
+    {
+      name: 'runtime live evidence lacks candidate deployment proof',
+      mutateRequirement: (requirement) => {
+        requirement.releaseTrigger = 'backend_api'
+      },
+      mutateEvidence: (evidence) => {
+        evidence.highestEvidenceLevel = 'live_verified'
+        evidence.candidateDeployment = { status: 'missing' }
+      },
+      reasonCode: 'runtime_candidate_deployment_missing'
+    },
+    {
+      name: 'missing archived reference',
+      mutateEvidence: (evidence) => {
+        evidence.archivedReferences = ['docs/missing-artifact.json']
+      },
+      reasonCode: 'artifact_reference_missing'
+    }
+  ]
+
+  for (const testCase of cases) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), `wow-project-harness-${testCase.name.replace(/[^a-z0-9]+/gi, '-')}-`))
+    const requirement = baseRequirement()
+    const evidence = baseEvidence()
+    if (testCase.mutateRequirement) testCase.mutateRequirement(requirement)
+    if (testCase.mutateEvidence) testCase.mutateEvidence(evidence)
+    writeHarnessFixture(root, requirement, evidence)
+
+    const result = runHarnessCheck(root)
+
+    assert.notEqual(result.status, 0, testCase.name)
+    const check = parseJsonOutput(result)
+    assert.ok(check.reasonCodes.includes(testCase.reasonCode), `${testCase.name} should include ${testCase.reasonCode}`)
+  }
+})
+
+test('project harness check reports invalid JSON with a stable reason code', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-invalid-json-'))
+  writeHarnessFixture(root)
+  writeFile(path.join(root, 'artifacts/releases/fixture/requirement.json'), '{ invalid json')
+
+  const result = runHarnessCheck(root)
+
+  assert.notEqual(result.status, 0)
+  const check = parseJsonOutput(result)
+  assert.ok(check.reasonCodes.includes('requirement_invalid_json'))
+})
+
+test('project harness check refuses requirement packets outside the repository root', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-requirement-boundary-'))
+
+  const result = runHarness([
+    '--root',
+    root,
+    '--json',
+    '--check',
+    '--requirement-file',
+    '../outside.json',
+    '--evidence-file',
+    'artifacts/releases/fixture/evidence.json'
+  ])
+
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /Refusing requirement file outside repository root/)
+})
+
+test('project harness check never executes commands listed in packets', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-command-boundary-'))
+  const markerPath = path.join(root, 'command-was-executed')
+  writeHarnessFixture(root, baseRequirement(), baseEvidence({
+    verification: [
+      {
+        command: `${process.execPath} -e "require('fs').writeFileSync('${markerPath}', 'bad')"`,
+        status: 'pass'
+      }
+    ]
+  }))
+
+  const result = runHarnessCheck(root)
+
+  assert.equal(result.status, 0)
+  assert.ok(!fs.existsSync(markerPath), 'validator must not execute verification commands from packets')
+})
+
+test('project harness check fails when a critical changed file has no owner map hit', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-owner-gap-'))
+  writeHarnessFixture(root)
+  writeFile(path.join(root, 'server/websim_payload.py'), 'before = True\n')
+  spawnSync('git', ['init'], { cwd: root, encoding: 'utf8' })
+  spawnSync('git', ['config', 'user.email', 'codex@example.com'], { cwd: root, encoding: 'utf8' })
+  spawnSync('git', ['config', 'user.name', 'Codex'], { cwd: root, encoding: 'utf8' })
+  spawnSync('git', ['add', '.'], { cwd: root, encoding: 'utf8' })
+  spawnSync('git', ['commit', '-m', 'base'], { cwd: root, encoding: 'utf8' })
+  writeFile(path.join(root, 'server/websim_payload.py'), 'after = True\n')
+
+  const result = runHarnessCheck(root, ['--base', 'HEAD'])
+
+  assert.notEqual(result.status, 0)
+  const check = parseJsonOutput(result)
+  assert.ok(check.reasonCodes.includes('critical_changed_file_unowned'))
 })

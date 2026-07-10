@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "slug": "replace-with-release-slug",
+  "requirementSlug": "replace-with-release-slug",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/replace-with-branch",
+  "commit": "pending_pr_head",
+  "scope": [
+    "docs_tooling_only"
+  ],
+  "verification": [
+    {
+      "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/<release>/requirement.json --evidence-file artifacts/releases/<release>/evidence.json --base origin/main",
+      "status": "pass",
+      "summary": "Attach actual result."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "reason": "Docs/tooling-only changes do not touch runtime surfaces."
+  },
+  "runtimeEvidence": [],
+  "risks": [],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json"
+  ],
+  "summary": "State the evidence summary."
+}
