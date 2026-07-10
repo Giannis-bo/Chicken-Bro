@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-phase2b-pg-loader-facade-parity",
-  "commit": "50a094f77a562b774c46cae1617972359f4d63c7",
+  "commit": "833301cbef4611b4454ceb1ddef2962386daab3f",
   "scope": [
     "bounded PostgreSQL-only Authority Context loader",
     "one dormant PostgresCacheStore read-only method",
@@ -16,7 +16,7 @@
     {
       "command": "focused loader query-budget, transformation and cache tests",
       "status": "pass",
-      "summary": "20 loader tests passed. Cold 1-slot and 16-slot reads use exactly three static domain queries, warm reads use one revision query, cache limits and dependency invalidation hold, explicit source evidence is required, structured stats are not parsed from display text or double-applied, and invalid facts remain fail-closed. The complete Phase 1-2B contract suite passed 79 tests."
+      "summary": "21 loader tests passed. Cold 1-slot and 16-slot reads use exactly three static domain queries, warm reads use one revision query, cache limits and dependency invalidation hold, explicit source evidence is required, structured stats are not parsed from display text or double-applied, invalid facts remain fail-closed, and both package and direct server runtime imports succeed. The complete Phase 1-2B contract suite passed 80 tests."
     },
     {
       "command": "focused store read-only transaction test",
@@ -36,12 +36,12 @@
     {
       "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
       "status": "pass",
-      "summary": "1147 Python tests passed with 1 skipped; compileall and Strict Harness passed."
+      "summary": "1148 Python tests passed with 1 skipped; compileall and Strict Harness passed."
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
       "status": "pass",
-      "summary": "365 Node tests and 1147 Python tests passed with 1 skipped; all 127 syntax, JSON, Harness and diff commands passed."
+      "summary": "365 Node tests and 1148 Python tests passed with 1 skipped; all 127 syntax, JSON, Harness and diff commands passed."
     },
     {
       "command": "static SQL/query-budget and dormant-consumer inspection plus Python compile",
@@ -56,14 +56,22 @@
     {
       "command": "local CR of origin/main...working tree",
       "status": "pass",
-      "summary": "No unresolved findings. Review caught and fixed three fail-closed defects with red-to-green tests: structured variant stats were double-applied, absent source status defaulted to verified instead of unknown, and missing or invalid structured stat facts were sanitized into an allowed empty map. Review also confirmed bounded cache/query behavior, compatibility manifest wording, one PG boundary and no route, frontend, Worker, write, migration, sync, cleanup or Catalyst activation."
+      "summary": "No unresolved findings. Review caught and fixed three fail-closed defects with red-to-green tests: structured variant stats were double-applied, absent source status defaulted to verified instead of unknown, and missing or invalid structured stat facts were sanitized into an allowed empty map. The first candidate attempt then exposed a direct-script import mismatch; production was immediately rolled back to the verified Phase 2A runtime, a reproducing test was added, and the loader now supports package and server-directory imports. Review also confirmed bounded cache/query behavior, compatibility manifest wording, one PG boundary and no route, frontend, Worker, write, migration, sync, cleanup or Catalyst activation."
     }
   ],
   "candidateDeployment": {
-    "status": "not_run",
+    "status": "retry_required_after_rollback",
     "requiredBeforeMerge": true,
+    "attempts": [
+      {
+        "head": "6fe8bbaa646daeeaef9e3214ab18a15171cebb97",
+        "status": "failed_then_rolled_back",
+        "failure": "Direct backend runtime imported postgres_cache_store from the server directory, but pg_gear_authority_loader imported server.gear_contracts as a package and raised ModuleNotFoundError; PG-backed endpoints returned 502 while health remained 200.",
+        "rollback": "Redeployed previously live-verified Phase 2A head 2a1ddd9f1b5beeccbe1d6aad5f8a1e249d8c6ba1 with async syncs disabled; deploy health and route smoke passed."
+      }
+    ],
     "smoke": {
-      "status": "not_run"
+      "status": "retry_required"
     },
     "timerBackflow": {
       "status": "not_run"

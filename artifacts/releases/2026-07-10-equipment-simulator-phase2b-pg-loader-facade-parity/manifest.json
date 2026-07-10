@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T15:41:41.497Z",
+  "generatedAt": "2026-07-10T15:47:11.390Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase2b-pg-loader-facade-parity"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
-    "sizeBytes": 6237,
+    "sizeBytes": 7156,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
