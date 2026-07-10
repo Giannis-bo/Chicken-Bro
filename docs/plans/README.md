@@ -32,6 +32,7 @@
 
 | 计划 | 状态 | 当前入口 |
 | --- | --- | --- |
+| [2026-07-10-equipment-simulator-phase1-contracts-rule-authority-plan.md](2026-07-10-equipment-simulator-phase1-contracts-rule-authority-plan.md) | 下一步 / Phase 1 contract-only implementation | [2026-07-10-equipment-simulator-capability-delivery-plan.md](2026-07-10-equipment-simulator-capability-delivery-plan.md), [2026-07-10-equipment-simulator-capability-architecture-design.md](2026-07-10-equipment-simulator-capability-architecture-design.md) |
 | [2026-07-10-equipment-simulator-capability-delivery-plan.md](2026-07-10-equipment-simulator-capability-delivery-plan.md) | 正在推进 / Phase 0 已完成，Phase 1 planning | [../project-state.json](../project-state.json), [../roadmap.md](../roadmap.md), [../harness.md](../harness.md) |
 | [2026-07-10-equipment-simulator-phase0-safety-plan.md](2026-07-10-equipment-simulator-phase0-safety-plan.md) | 已完成 / PR #57-#59 live-verified archived | [2026-07-10-equipment-simulator-capability-delivery-plan.md](2026-07-10-equipment-simulator-capability-delivery-plan.md), [2026-07-10-equipment-simulator-capability-architecture-design.md](2026-07-10-equipment-simulator-capability-architecture-design.md) |
 | [2026-07-10-equipment-simulator-capability-architecture-design.md](2026-07-10-equipment-simulator-capability-architecture-design.md) | 书面规格已批准 / Phase 0 已完成 / Phase 1 下一步 | [../roadmap.md](../roadmap.md), [../harness.md](../harness.md), [../../TODOS.md](../../TODOS.md) |

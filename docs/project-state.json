@@ -13,11 +13,11 @@
       "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phase 6 remains deferred."
     },
     {
-      "id": "equipment_simulator_phase0_safety",
-      "path": "docs/plans/2026-07-10-equipment-simulator-phase0-safety-plan.md",
-      "status": "phase0_completed_phase1_planning",
+      "id": "equipment_simulator_phase1_contracts_plan",
+      "path": "docs/plans/2026-07-10-equipment-simulator-phase1-contracts-rule-authority-plan.md",
+      "status": "implementation_plan_ready",
       "lifecycle": "active",
-      "notes": "Phase 0 slices 0A, 0B and 0C merged and live-verified in PRs #57, #58 and #59; Phase 1 contract planning is next."
+      "notes": "Executable contract-only Phase 1 plan; no Resolver route, frontend cutover or database loader is active."
     },
     {
       "id": "repo_native_harness_v0_5",
@@ -69,9 +69,23 @@
       "status": "completed",
       "evidence": "artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json",
       "notes": "Current truth, executable requirement/evidence contracts, 16-domain owner map, verification profiles, real CI, critical characterization and closure evidence completed; runtimeSliceCount=0."
+    },
+    {
+      "id": "equipment_simulator_phase0_20260710",
+      "domain": "equipment_simulator_phase0",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/evidence.json",
+      "notes": "Slices 0A, 0B and 0C merged through PRs #57-#59 with candidate deployment, post-merge live smoke, 40-spec public observed-only contract proof and runtime parity."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "equipment_simulator_phase0_safety",
+      "path": "docs/plans/2026-07-10-equipment-simulator-phase0-safety-plan.md",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/evidence.json"
+    },
     {
       "id": "project_harness_normalization_goal",
       "path": "docs/plans/2026-07-10-project-harness-normalization-goal-plan.md",
