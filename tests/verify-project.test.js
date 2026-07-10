@@ -50,12 +50,13 @@ function parseJson(result) {
 
 test('verify-project dry-run resolves the active release and selects harness commands', () => {
   const result = runVerify(['--json', '--dry-run', '--profile', 'harness'])
+  const projectState = JSON.parse(fs.readFileSync('docs/project-state.json', 'utf8'))
 
   assert.equal(result.status, 0)
   const summary = parseJson(result)
   assert.equal(summary.status, 'project_verification_plan_ready')
   assert.equal(summary.profile, 'harness')
-  assert.equal(summary.release, 'artifacts/releases/2026-07-10-executable-project-harness')
+  assert.equal(summary.release, projectState.activeReleaseArtifact)
   assert.ok(summary.commands.some((command) => command.command.includes('tests/project-owner-map.test.js')))
   assert.ok(summary.commands.some((command) => command.command.includes('docs/project-owner-map.json')))
   assert.ok(summary.commands.some((command) => command.command.includes('scripts/project-harness.js --check')))

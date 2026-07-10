@@ -67,7 +67,18 @@
         "project.config.json",
         "pages/**/*.json",
         "pages/common/tabbar-sync.js"
-      ]
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing app config, navigation and scroll-layout tests characterize route shell, tab bar and page chrome contracts.",
+        "coverage": [
+          "tests/project-config.test.js",
+          "tests/navigation-bar.test.js",
+          "tests/page-scroll-layout.test.js"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
     },
     {
       "id": "frontend_api_auth_transport",
@@ -123,7 +134,18 @@
         "pages/news/news-api.js",
         "pages/builds/websim-api.js",
         "pages/simulator/simulator-api.js"
-      ]
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing frontend API, profile auth and analytics tests characterize base URL, bearer safety and empty/error transport behavior.",
+        "coverage": [
+          "tests/frontend-api-client.test.js",
+          "tests/profile-auth.test.js",
+          "tests/analytics-instrumentation.test.js"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
     },
     {
       "id": "personal_build_template_assets",
@@ -177,7 +199,19 @@
         "pages/profile/**",
         "pages/builds/detail.*",
         "pages/builds/talent-simulator.*"
-      ]
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing template storage, profile auth, builds page and backend tests characterize CRUD, owner isolation and local/account asset boundaries.",
+        "coverage": [
+          "tests/build-template-storage.test.js",
+          "tests/profile-auth.test.js",
+          "tests/builds-page.test.js",
+          "tests/news_backend_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
     },
     {
       "id": "news_content_public_api",
@@ -238,6 +272,23 @@
         "hotspotFile": "server/news_backend.py",
         "ownerId": "news_content_api",
         "factOwner": "server/news_backend.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing backend and frontend news tests characterize source fidelity, translation status and content API envelopes.",
+        "coverage": [
+          "tests/news_backend_test.py",
+          "tests/news-api-client.test.js",
+          "tests/news-detail-view.test.js",
+          "tests/news-home-payload.test.js",
+          "tests/news-page-style.test.js"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/news_backend.py",
+          "ownerId": "news_content_api",
+          "factOwner": "server/news_backend.py"
+        }
       }
     },
     {
@@ -299,6 +350,23 @@
         "hotspotFile": "server/websim_payload.py",
         "ownerId": "gear_public_contract",
         "factOwner": "server/gear_public_contract.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing gear public contract, WebSim payload, PG selector and frontend gear tests characterize observed-only, baseline-empty, legality and structured payload behavior.",
+        "coverage": [
+          "tests/gear_public_contract_test.py",
+          "tests/websim_payload_test.py",
+          "tests/news_backend_test.py",
+          "tests/pg_gear_template_selectors_test.py",
+          "tests/builds-page.test.js"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/websim_payload.py",
+          "ownerId": "gear_public_contract",
+          "factOwner": "server/gear_public_contract.py"
+        }
       }
     },
     {
@@ -356,6 +424,21 @@
         "hotspotFile": "server/websim_payload.py",
         "ownerId": "talent_public_contract",
         "factOwner": "server/websim_payload.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing WebSim payload, backend route and talent simulator tests characterize talent readiness, authority and community template applicability.",
+        "coverage": [
+          "tests/websim_payload_test.py",
+          "tests/news_backend_test.py",
+          "tests/talent-simulator-core.test.js"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/websim_payload.py",
+          "ownerId": "talent_public_contract",
+          "factOwner": "server/websim_payload.py"
+        }
       }
     },
     {
@@ -413,6 +496,22 @@
         "hotspotFile": "server/postgres_cache_store.py",
         "ownerId": "gear_catalog_read_model_selectors",
         "factOwner": "server/pg_gear_read_model_selectors.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing PG read-model selector, cache-store, PVE and WebSim payload tests characterize loot/assets/bootstrap envelopes, season gates and blocker propagation.",
+        "coverage": [
+          "tests/pg_gear_read_model_selectors_test.py",
+          "tests/postgres_cache_store_test.py",
+          "tests/pve-page.test.js",
+          "tests/websim_payload_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/postgres_cache_store.py",
+          "ownerId": "gear_catalog_read_model_selectors",
+          "factOwner": "server/pg_gear_read_model_selectors.py"
+        }
       }
     },
     {
@@ -469,7 +568,19 @@
         "server/news_backend.py",
         "pages/simulator/simc.*",
         "pages/simulator/simulator-api.js"
-      ]
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing simulator frontend, backend route, codex worker and smoke tests characterize serializer, task snapshot, owner isolation and deterministic fallback boundaries.",
+        "coverage": [
+          "tests/simulator-page.test.js",
+          "tests/news_backend_test.py",
+          "tests/codex_worker_test.py",
+          "tests/simulator_smoke_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
     },
     {
       "id": "chickenbro_session_evidence_pipeline",
@@ -528,6 +639,22 @@
         "hotspotFile": "server/news_backend.py",
         "ownerId": "chickenbro_session_api",
         "factOwner": "server/news_backend.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing backend, simulator page, profile auth and codex worker tests characterize session/job ownership, evidence boundaries and fallback behavior.",
+        "coverage": [
+          "tests/news_backend_test.py",
+          "tests/simulator-page.test.js",
+          "tests/profile-auth.test.js",
+          "tests/codex_worker_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/news_backend.py",
+          "ownerId": "chickenbro_session_api",
+          "factOwner": "server/news_backend.py"
+        }
       }
     },
     {
@@ -582,7 +709,19 @@
         "server/stat_weights_payload.py",
         "server/websim_payload.py",
         "pages/pve/detail.*"
-      ]
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing Raider.IO, news collector, stat weights and WebSim payload tests characterize source keys, freshness and fail-closed provenance.",
+        "coverage": [
+          "tests/raiderio_payload_test.py",
+          "tests/news_collector_test.py",
+          "tests/stat_weights_payload_test.py",
+          "tests/websim_payload_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
     },
     {
       "id": "postgres_runtime_schema_boundary",
@@ -638,6 +777,22 @@
         "hotspotFile": "server/postgres_cache_store.py",
         "ownerId": "cache_payload_read_model_selectors",
         "factOwner": "server/postgres_cache_store.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing PostgreSQL schema, PG-only scripts, cache-store and database adapter tests characterize PG-only runtime, schema ownership and no silent SQLite fallback.",
+        "coverage": [
+          "tests/postgres_schema_test.py",
+          "tests/postgres_only_scripts_test.py",
+          "tests/postgres_cache_store_test.py",
+          "tests/database_adapter_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/postgres_cache_store.py",
+          "ownerId": "cache_payload_read_model_selectors",
+          "factOwner": "server/postgres_cache_store.py"
+        }
       }
     },
     {
@@ -699,6 +854,22 @@
         "hotspotFile": "server/postgres_cache_store.py",
         "ownerId": "sync_state_repository",
         "factOwner": "server/postgres_cache_store.py"
+      },
+      "criticalContract": {
+        "status": "health_watch",
+        "summary": "Existing cache sync, WebSim sync, cache-store and data-health tests characterize current sync-state read/write owner and partial health semantics; remains health_watch for future structure work.",
+        "coverage": [
+          "tests/postgres_cache_sync_test.py",
+          "tests/websim_sync_test.py",
+          "tests/postgres_cache_store_test.py",
+          "tests/data_health_followup_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/postgres_cache_store.py",
+          "ownerId": "sync_state_repository",
+          "factOwner": "server/postgres_cache_store.py"
+        }
       }
     },
     {
@@ -762,6 +933,22 @@
         "hotspotFile": "server/postgres_cache_store.py",
         "ownerId": "cleanup_residue_control",
         "factOwner": "docs/backend-owner-map.json"
+      },
+      "criticalContract": {
+        "status": "health_watch",
+        "summary": "Existing cache sync, WebSim sync, observed backfill and season recommendation tests characterize timers/backfill/backflow boundaries; remains health_watch because write/sync/cleanup refactor is frozen.",
+        "coverage": [
+          "tests/postgres_cache_sync_test.py",
+          "tests/websim_sync_test.py",
+          "tests/gear_observed_backfill_test.py",
+          "tests/season_recommended_gear_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/postgres_cache_store.py",
+          "ownerId": "cleanup_residue_control",
+          "factOwner": "docs/backend-owner-map.json"
+        }
       }
     },
     {
@@ -821,6 +1008,22 @@
         "hotspotFile": "server/news_backend.py",
         "ownerId": "health_admin_summary",
         "factOwner": "docs/backend-owner-map.json"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing backend, ops store, data-health and frontend admin/intel tests characterize consumer-only observability and partial/blocked display boundaries.",
+        "coverage": [
+          "tests/news_backend_test.py",
+          "tests/postgres_ops_store_test.py",
+          "tests/data_health_followup_test.py",
+          "tests/builds-page.test.js"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/news_backend.py",
+          "ownerId": "health_admin_summary",
+          "factOwner": "docs/backend-owner-map.json"
+        }
       }
     },
     {
@@ -874,7 +1077,18 @@
         "server/*.service",
         "server/*.timer",
         ".github/workflows/**"
-      ]
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing deploy script, Lighthouse deploy and data-health follow-up tests characterize deploy/systemd/rollback mechanics without making deploy a product fact owner.",
+        "coverage": [
+          "tests/deploy-script.test.js",
+          "tests/deploy_lighthouse_test.py",
+          "tests/data_health_followup_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
     },
     {
       "id": "ui_runtime_evidence",
@@ -956,7 +1170,27 @@
         "pages/simulator/tasks",
         "pages/simulator/task-detail",
         "pages/profile/profile"
-      ]
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing UI goal, browser harness, page and runtime manifest tests characterize the accepted 14-route proof matrix and DevTools evidence rule.",
+        "coverage": [
+          "tests/ui-system-rebuild-goal.test.js",
+          "tests/ui-v2-1-browser-harness.test.js",
+          "tests/websim-page.test.js",
+          "tests/builds-page.test.js",
+          "tests/simulator-page.test.js"
+        ],
+        "runtimeEvidence": [
+          "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json"
+        ],
+        "ownerMapRef": null
+      }
     }
-  ]
+  ],
+  "criticalContractUnknown": 0,
+  "criticalContractBlocked": 0,
+  "criticalContractCharacterized": 14,
+  "criticalContractHealthWatch": 2,
+  "criticalContractGapClosed": 0
 }
