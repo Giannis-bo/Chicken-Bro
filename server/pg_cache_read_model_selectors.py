@@ -2,6 +2,16 @@
 import json
 
 
+ADMIN_GATE_QUEUE_STATUSES = {
+    "partial",
+    "stale",
+    "blocked",
+    "missing_credentials",
+    "pending_official_audit",
+    "source_reference",
+}
+
+
 def _json_value(value, fallback):
     if isinstance(value, (dict, list)):
         return value
@@ -71,4 +81,27 @@ def build_stat_weight_latest_run_read_model(rows):
         "specCount": 0,
         "scenarioCount": len(rows),
         "errors": [],
+    }
+
+
+def build_admin_gate_queue_summary_read_model(rows):
+    total = 0
+    domain_counts = {}
+    blocker_counts = {}
+    for domain, status, row_blockers in rows:
+        blockers = [str(item or "").strip() for item in (row_blockers or []) if str(item or "").strip()]
+        if status not in ADMIN_GATE_QUEUE_STATUSES and not blockers:
+            continue
+        domain_key = str(domain or "unknown")
+        total += 1
+        domain_counts[domain_key] = domain_counts.get(domain_key, 0) + 1
+        for blocker in blockers:
+            blocker_counts[blocker] = blocker_counts.get(blocker, 0) + 1
+    return {
+        "count": total,
+        "domainCounts": domain_counts,
+        "topBlockers": [
+            {"reason": reason, "count": count}
+            for reason, count in sorted(blocker_counts.items(), key=lambda item: (-item[1], item[0]))[:8]
+        ],
     }
