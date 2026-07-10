@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase2a-pure-resolver",
   "requirementSlug": "equipment-simulator-phase2a-pure-resolver",
-  "status": "deployable",
-  "highestEvidenceLevel": "deployable",
+  "status": "archived",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase2a-pure-resolver",
   "commit": "c3e4558ce06969c6a3649bcaf391c2f937af2372",
   "scope": [
@@ -61,7 +61,7 @@
     {
       "command": "GitHub Project Harness verify for PR #61",
       "status": "pass",
-      "summary": "GitHub Actions verify completed successfully for candidate commit c3e4558ce06969c6a3649bcaf391c2f937af2372; PR #61 is ready, mergeable and CLEAN."
+      "summary": "GitHub Actions verify completed successfully for final PR head 2a1ddd9f1b5beeccbe1d6aad5f8a1e249d8c6ba1; PR #61 was ready, mergeable and CLEAN before merge."
     }
   ],
   "candidateDeployment": {
@@ -69,6 +69,7 @@
     "requiredBeforeMerge": true,
     "branch": "codex/equipment-simulator-phase2a-pure-resolver",
     "commit": "c3e4558ce06969c6a3649bcaf391c2f937af2372",
+    "mergeCommit": "9f79ea22369aacbd205a9efca285471458582f5d",
     "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/61",
     "buildIdentity": "gear_rule_matrix.py sha256:da6a795a765af08cd348964c292e658356642e129261e5db9dd8c5a09b173721; gear_evidence_ledger.py sha256:ba8bfadbd6d68ed8ae1fd3173753ed7eb9db366236defc6d20e7a1f530d9cc4a; gear_resolver.py sha256:99f2d6bca64dc7b4eec77d76321440ca33e2d4c0c1e48f275667807f5dd32302",
     "databaseRuntime": "postgres_only",
@@ -121,6 +122,11 @@
       "type": "rollback",
       "status": "pass",
       "summary": "Rollback anchor is origin/main 8b33ec741bdc106b45b74088d1aa887c720847ab; redeploying that checkout removes the dormant Resolver/Ledger and restores the prior Rule Matrix without database restore because Slice 2A has no migration, store, write, sync or cleanup change."
+    },
+    {
+      "type": "post_merge_smoke",
+      "status": "pass",
+      "summary": "PR #61 squash-merged as 9f79ea22369aacbd205a9efca285471458582f5d. Final PR head and merge have identical tree 306cdde23f1fb35199c5a3f6270367c96ca673a8; the residue-free equivalent tree was deployed with bootstrap and async sync disabled. Runtime hashes/imports, 59 Phase 1-2A tests, fixed signatures, /health=200, /resolve=404, Catalyst fail-closed state, five Phase 0/current-facade guards, 40-spec observed-only sweep, service/timer state and zero-match recent error scan all passed."
     }
   ],
   "risks": [
@@ -158,5 +164,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 2A pure Resolver and Evidence Ledger are deployable: focused, current-facade, backend, full, GitHub and exact-candidate gates are green; current runtime surfaces remain unconsumed and merge/post-merge archive are pending."
+  "summary": "Slice 2A pure Resolver and Evidence Ledger are complete, live-verified and archived after PR #61; current runtime routes/facades remain unconsumed, and Phase 2B may open under its own Strict packet."
 }

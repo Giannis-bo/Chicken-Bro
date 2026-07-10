@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T14:56:15.113Z",
+  "generatedAt": "2026-07-10T15:00:42.307Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase2a-pure-resolver"
@@ -264,7 +264,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "2 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -300,9 +300,10 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 2,
       "changedFiles": [
-        " M artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/evidence.json"
+        " M artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/evidence.json",
+        "?? .superpowers/"
       ]
     }
   },
