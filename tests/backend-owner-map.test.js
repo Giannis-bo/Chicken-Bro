@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_stat_weight_cache_read_model_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_stat_weight_latest_run_read_model_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -344,12 +344,32 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
     'cache payload read-model selectors should own stat-weight row assembly after this Phase 4 split'
   )
   assert.ok(
+    cachePayloadReadModelSelectors.owns.includes('stat-weight latest-run summary envelope assembly'),
+    'cache payload read-model selectors should own stat-weight latest-run summary assembly after this Phase 4 split'
+  )
+  assert.ok(
+    cachePayloadReadModelSelectors.mustNotChange.some((entry) => entry.includes('Latest stat-weight run SQL, PostgreSQL connection handling')),
+    'latest-run SQL and connection handling should remain store-owned'
+  )
+  assert.ok(
+    cachePayloadReadModelSelectors.mustNotChange.some((entry) => entry.includes('cache writes, syncs, timers, backfills, cleanup')),
+    'stat-weight writes, syncs, timers, backfills, and cleanup should remain out of scope'
+  )
+  assert.ok(
     cachePayloadReadModelSelectors.characterization.some((entry) => entry.includes('tests/pg_cache_read_model_selectors_test.py')),
     'cache payload read-model selectors should point at the helper module characterization test'
   )
   assert.ok(
     cachePayloadReadModelSelectors.characterization.some((entry) => entry.includes('test_build_stat_weight_cache_read_model_maps_row_and_preserves_payload_timestamp')),
     'cache payload read-model selectors should point at the stat-weight row characterization test'
+  )
+  assert.ok(
+    cachePayloadReadModelSelectors.characterization.some((entry) => entry.includes('test_build_stat_weight_latest_run_read_model_returns_exact_empty_blocked_envelope')),
+    'cache payload read-model selectors should point at the empty latest-run characterization test'
+  )
+  assert.ok(
+    cachePayloadReadModelSelectors.characterization.some((entry) => entry.includes('test_build_stat_weight_latest_run_read_model_summarizes_statuses_and_timestamps')),
+    'cache payload read-model selectors should point at the latest-run summary characterization test'
   )
   assert.ok(pgOwners.has('sync_state_repository'))
 })
