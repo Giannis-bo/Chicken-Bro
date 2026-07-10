@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-10-phase4-v26",
-  "status": "phase4_active_season_read_model_selector_extracted",
+  "version": "2026-07-10-phase4-v27",
+  "status": "phase4_raiderio_cache_read_model_selector_extracted",
   "harnessVersion": "v0.5",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -360,6 +360,27 @@
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_expired_active_season_is_returned_as_stale_not_missing"
           ],
           "futureExtractionDirection": "Continue only with a separate read-only PG cache/admin domain after its own characterization; do not fold sync-state repositories or season write paths into this selector."
+        },
+        {
+          "id": "cache_payload_read_model_selectors",
+          "status": "extracted_selector",
+          "extractedModule": "server/pg_cache_read_model_selectors.py",
+          "owns": [
+            "Raider.IO cache row read-model assembly",
+            "Raider.IO missing-cache blocked envelope",
+            "Raider.IO cache timestamp and sourceStatus defaults"
+          ],
+          "mustNotChange": [
+            "Raider.IO cache SQL and cache-key selection remain in server/postgres_cache_store.py.",
+            "save_raiderio_payload and its INSERT/ON CONFLICT path remain repository-owned.",
+            "The selector must not write cache rows, sync state, or trigger observed gear backfill.",
+            "Existing payload timestamps and status fields remain authoritative over row defaults."
+          ],
+          "characterization": [
+            "tests/pg_cache_read_model_selectors_test.py::PgCacheReadModelSelectorsTest.test_build_raiderio_cache_read_model_maps_row_and_preserves_payload_timestamps",
+            "tests/postgres_cache_store_test.py Raider.IO cache schema and observed-profile consumer tests"
+          ],
+          "futureExtractionDirection": "Characterize stat-weight row and run-summary payloads separately before adding them; do not move cache SQL, writes, sync, or backfill into this selector."
         },
         {
           "id": "sync_state_repository",

@@ -1,0 +1,113 @@
+{
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "scope": [
+    "server/pg_cache_read_model_selectors.py",
+    "server/postgres_cache_store.py",
+    "tests/pg_cache_read_model_selectors_test.py",
+    "tests/postgres_cache_store_test.py",
+    "tests/backend-owner-map.test.js",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+    "artifacts/releases/2026-07-10-raiderio-cache-read-model-selector/evidence.json",
+    "artifacts/releases/2026-07-10-raiderio-cache-read-model-selector/manifest.json"
+  ],
+  "summary": "Phase 4 extracts PostgreSQL Raider.IO cache row-to-payload assembly into server/pg_cache_read_model_selectors.py. server/postgres_cache_store.py keeps cache SQL/key selection, save INSERT/ON CONFLICT, sync, and observed gear backfill paths.",
+  "impactMap": {
+    "mustChange": [
+      "Raider.IO cache row payload assembly delegates to server/pg_cache_read_model_selectors.py",
+      "Owner map records the separate cache payload read-model boundary"
+    ],
+    "mustNotChange": [
+      "PostgreSQL Raider.IO cache SQL and cache-key filtering",
+      "Existing payload timestamps and status remain authoritative over row defaults",
+      "save_raiderio_payload, sync, observed gear backfill, cleanup, and other write paths",
+      "Public observed-only gear template policy and empty public baseline policy"
+    ],
+    "evidenceRequired": [
+      "Characterization red then green",
+      "Targeted and full local test suites",
+      "Candidate deployment data-health/API, 40-spec gear policy, systemd/log, and runtime hash parity smoke"
+    ]
+  },
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_cache_read_model_selectors_test",
+      "status": "red_then_pass",
+      "summary": "First run failed with ModuleNotFoundError because server.pg_cache_read_model_selectors was missing; after adding the helper the characterization passed."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_cache_read_model_selectors_test tests.pg_season_read_model_selectors_test tests.postgres_cache_store_test",
+      "status": "pass",
+      "summary": "102 targeted cache/season selector and PostgreSQL cache store tests passed locally."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "red_then_pass",
+      "summary": "Owner-map contract first failed on the prior Phase 4 status, then passed after adding the cache payload selector owner and characterization entry."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "1046 Python unittest tests passed locally with skipped=1; existing warning output remains present."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 Node tests passed locally with 0 failures."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_cache_read_model_selectors.py server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Touched Python runtime modules compiled successfully."
+    },
+    {
+      "command": "node --check tests/backend-owner-map.test.js && node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Updated owner-map contract test and project harness passed JavaScript syntax checks."
+    },
+    {
+      "command": "python3 -m json.tool docs/backend-owner-map.json && python3 -m json.tool release evidence/manifest JSON",
+      "status": "pass",
+      "summary": "Owner map and release evidence JSON parsed successfully; manifest validation runs after generation."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "Whitespace and patch-format checks passed."
+    }
+  ],
+  "localReview": {
+    "status": "pass",
+    "findings": [],
+    "summary": "The production diff replaces only Raider.IO cache row-to-payload assembly with a pure selector delegation. SQL, cache-key filtering, save INSERT/ON CONFLICT, sync/backfill, public gear policy, and frontend contracts remain unchanged."
+  },
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true,
+    "branch": "codex/phase4-raiderio-cache-read-model-selector",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "asyncSyncStarted": false
+  },
+  "risks": [
+    {
+      "id": "full_local_verification_pending",
+      "status": "closed",
+      "detail": "Full Python/Node suites, compile checks, JSON validation, final diff checks, and local CR passed."
+    },
+    {
+      "id": "candidate_deployment_pending",
+      "status": "open",
+      "detail": "Harness v0.5 Candidate Deployment Gate must pass on the PR branch before merge."
+    },
+    {
+      "id": "write_paths_out_of_scope",
+      "status": "intentional",
+      "detail": "Raider.IO cache writes, sync, observed gear backfill, cleanup, other PG writes, and public gear selector policy are intentionally unchanged."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ]
+}
