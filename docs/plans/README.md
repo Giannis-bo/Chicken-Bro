@@ -32,7 +32,7 @@
 
 | 计划 | 状态 | 当前入口 |
 | --- | --- | --- |
-| [2026-07-10-project-harness-normalization-goal-plan.md](2026-07-10-project-harness-normalization-goal-plan.md) | 正在实施 / Control plane PR | [../project-state.json](../project-state.json), [../harness.md](../harness.md), [../roadmap.md](../roadmap.md), [../backend-owner-map.json](../backend-owner-map.json) |
+| [2026-07-10-project-harness-normalization-goal-plan.md](2026-07-10-project-harness-normalization-goal-plan.md) | 已完成 / closure audit archived | [../project-state.json](../project-state.json), [../harness.md](../harness.md), [../roadmap.md](../roadmap.md), [../project-owner-map.json](../project-owner-map.json), [../../artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json](../../artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json) |
 | [2026-07-09-harness-guided-project-optimization-plan.md](2026-07-09-harness-guided-project-optimization-plan.md) | Phase 0 + Phase 1 已完成 / 当前 UI 基线已验收 | [../harness.md](../harness.md), [../roadmap.md](../roadmap.md) |
 | [2026-07-09-docs-implementation-current-truth-review.md](2026-07-09-docs-implementation-current-truth-review.md) | 当前对账索引 / 已同步 accepted baseline | [../roadmap.md](../roadmap.md), [../harness.md](../harness.md) |
 | [2026-06-09-specializations-tab.md](2026-06-09-specializations-tab.md) | 已落地 | [../builds-architecture.md](../builds-architecture.md), [../roadmap.md](../roadmap.md) |

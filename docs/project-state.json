@@ -2,16 +2,9 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-10",
   "activeMilestone": "project_harness_normalization",
-  "featureIteration": "frozen_until_milestone_exit",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-10-critical-contract-characterization",
+  "featureIteration": "allowed_under_harness",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-10-project-harness-normalization",
   "activeContracts": [
-    {
-      "id": "project_harness_normalization_goal",
-      "path": "docs/plans/2026-07-10-project-harness-normalization-goal-plan.md",
-      "status": "implementation_allowed",
-      "lifecycle": "active",
-      "notes": "Approved B route. Feature iteration remains frozen until all milestone exit conditions pass."
-    },
     {
       "id": "repo_native_harness_v0_5",
       "path": "docs/harness.md",
@@ -55,9 +48,23 @@
       "status": "completed",
       "evidence": "docs/roadmap/history/2026-07-phase4-pg-read-model.md",
       "notes": "PG/cache/admin read-only selector vertical closed after the fortieth slice; sync_state_repository remains out of scope."
+    },
+    {
+      "id": "project_harness_normalization_20260710",
+      "domain": "project_harness_normalization",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json",
+      "notes": "Current truth, executable requirement/evidence contracts, 16-domain owner map, verification profiles, real CI, critical characterization and closure evidence completed; runtimeSliceCount=0."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "project_harness_normalization_goal",
+      "path": "docs/plans/2026-07-10-project-harness-normalization-goal-plan.md",
+      "status": "completed",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json"
+    },
     {
       "id": "harness_guided_project_optimization_plan",
       "path": "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
@@ -98,9 +105,9 @@
     },
     {
       "domain": "project_harness_normalization",
-      "status": "active",
-      "activeContract": "docs/plans/2026-07-10-project-harness-normalization-goal-plan.md",
-      "evidence": "artifacts/releases/2026-07-10-harness-control-plane"
+      "status": "completed",
+      "activeContract": null,
+      "evidence": "artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json"
     }
   ],
   "runtimeBaseline": {
@@ -129,13 +136,18 @@
   "knownRisks": [
     {
       "id": "feature_iteration_frozen",
-      "status": "intentional",
-      "trigger": "Only clear when the Project Harness Normalization milestone closure packet and CI evidence pass."
+      "status": "closed",
+      "trigger": "Project Harness Normalization closure packet and PR CI evidence passed; feature iteration may resume under Harness."
     },
     {
       "id": "runtime_slice_limit",
-      "status": "guardrail",
-      "trigger": "Return to user if more than three runtime slices are required or a write/sync/backfill/cleanup boundary is needed."
+      "status": "satisfied_zero_slices",
+      "trigger": "Task 5 characterization found no entry-rule finding; runtimeSliceCount=0."
+    },
+    {
+      "id": "health_watch_domains",
+      "status": "accepted_with_explicit_triggers",
+      "trigger": "cache_sync_state_repository and scheduled_sync_backfill_cleanup remain health_watch; future sync/write/backfill/cleanup structure work must open a new Harness contract."
     }
   ]
 }
