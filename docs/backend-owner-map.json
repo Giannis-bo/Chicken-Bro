@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-10-phase4-v29",
-  "status": "phase4_stat_weight_latest_run_read_model_selector_extracted",
+  "version": "2026-07-10-phase4-v30",
+  "status": "phase4_admin_gate_queue_summary_read_model_selector_extracted",
   "harnessVersion": "v0.5",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -372,13 +372,17 @@
             "stat-weight cache row read-model assembly",
             "stat-weight cache missing-row None semantics",
             "stat-weight cache identity, status, and timestamp defaults",
-            "stat-weight latest-run summary envelope assembly"
+            "stat-weight latest-run summary envelope assembly",
+            "admin gate queue summary read-model assembly",
+            "admin gate queue domain counts and top-blocker ranking"
           ],
           "mustNotChange": [
             "Raider.IO cache SQL and cache-key selection remain in server/postgres_cache_store.py.",
             "save_raiderio_payload and its INSERT/ON CONFLICT path remain repository-owned.",
             "Stat-weight cache-key validation and SQL remain in server/postgres_cache_store.py.",
             "Latest stat-weight run SQL, PostgreSQL connection handling, ORDER BY/LIMIT, and fetchall remain in server/postgres_cache_store.py.",
+            "Admin gate SQL, table checks, official metadata reads, and offhand coverage repair remain in server/postgres_cache_store.py.",
+            "Admin endpoint authorization and cross-store queue summary merging remain in server/news_backend.py.",
             "save_stat_weight_payload, cache writes, syncs, timers, backfills, cleanup, and latest-run repository handling remain repository-owned.",
             "The selector must not write cache rows, sync state, or trigger observed gear backfill/stat-weight sync.",
             "Existing payload timestamps and status fields remain authoritative over row defaults."
@@ -388,10 +392,14 @@
             "tests/pg_cache_read_model_selectors_test.py::PgCacheReadModelSelectorsTest.test_build_stat_weight_cache_read_model_maps_row_and_preserves_payload_timestamp",
             "tests/pg_cache_read_model_selectors_test.py::PgCacheReadModelSelectorsTest.test_build_stat_weight_latest_run_read_model_returns_exact_empty_blocked_envelope",
             "tests/pg_cache_read_model_selectors_test.py::PgCacheReadModelSelectorsTest.test_build_stat_weight_latest_run_read_model_summarizes_statuses_and_timestamps",
+            "tests/pg_cache_read_model_selectors_test.py::PgCacheReadModelSelectorsTest.test_build_admin_gate_queue_summary_read_model_preserves_queue_semantics",
+            "tests/pg_cache_read_model_selectors_test.py::PgCacheReadModelSelectorsTest.test_build_admin_gate_queue_summary_read_model_caps_tied_blockers_at_eight",
+            "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_admin_gate_queue_summary_delegates_rows_to_cache_read_model_selector",
+            "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_admin_gate_queue_summary_ignores_metadata_resolved_baseline_offhand",
             "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_stat_weight_read_model_uses_cache_schema",
             "tests/postgres_cache_store_test.py Raider.IO cache schema and observed-profile consumer tests"
           ],
-          "futureExtractionDirection": "Keep latest-run SQL/connection handling and all cache writes, syncs, timers, backfills, and cleanup in the store; only extract separately characterized read-model calculations."
+          "futureExtractionDirection": "Keep admin gate SQL/metadata/repair, latest-run SQL/connection handling, and all cache writes, syncs, timers, backfills, and cleanup in the store; only extract separately characterized read-model calculations."
         },
         {
           "id": "sync_state_repository",

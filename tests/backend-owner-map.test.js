@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_stat_weight_latest_run_read_model_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_admin_gate_queue_summary_read_model_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -348,12 +348,20 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
     'cache payload read-model selectors should own stat-weight latest-run summary assembly after this Phase 4 split'
   )
   assert.ok(
+    cachePayloadReadModelSelectors.owns.includes('admin gate queue summary read-model assembly'),
+    'cache payload read-model selectors should own admin gate queue summary assembly after this Phase 4 split'
+  )
+  assert.ok(
     cachePayloadReadModelSelectors.mustNotChange.some((entry) => entry.includes('Latest stat-weight run SQL, PostgreSQL connection handling')),
     'latest-run SQL and connection handling should remain store-owned'
   )
   assert.ok(
     cachePayloadReadModelSelectors.mustNotChange.some((entry) => entry.includes('cache writes, syncs, timers, backfills, cleanup')),
     'stat-weight writes, syncs, timers, backfills, and cleanup should remain out of scope'
+  )
+  assert.ok(
+    cachePayloadReadModelSelectors.mustNotChange.some((entry) => entry.includes('Admin gate SQL, table checks, official metadata reads, and offhand coverage repair')),
+    'admin gate SQL, metadata reads, and coverage repair should remain store-owned'
   )
   assert.ok(
     cachePayloadReadModelSelectors.characterization.some((entry) => entry.includes('tests/pg_cache_read_model_selectors_test.py')),
@@ -370,6 +378,14 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(
     cachePayloadReadModelSelectors.characterization.some((entry) => entry.includes('test_build_stat_weight_latest_run_read_model_summarizes_statuses_and_timestamps')),
     'cache payload read-model selectors should point at the latest-run summary characterization test'
+  )
+  assert.ok(
+    cachePayloadReadModelSelectors.characterization.some((entry) => entry.includes('test_build_admin_gate_queue_summary_read_model_preserves_queue_semantics')),
+    'cache payload read-model selectors should point at the admin queue summary characterization test'
+  )
+  assert.ok(
+    cachePayloadReadModelSelectors.characterization.some((entry) => entry.includes('test_admin_gate_queue_summary_delegates_rows_to_cache_read_model_selector')),
+    'cache payload read-model selectors should point at the store delegation characterization test'
   )
   assert.ok(pgOwners.has('sync_state_repository'))
 })

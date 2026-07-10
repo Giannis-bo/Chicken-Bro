@@ -164,6 +164,48 @@ class PgCacheReadModelSelectorsTest(unittest.TestCase):
 
         self.assertEqual(payload["refreshedAt"], "9")
 
+    def test_build_admin_gate_queue_summary_read_model_preserves_queue_semantics(self):
+        from server.pg_cache_read_model_selectors import build_admin_gate_queue_summary_read_model
+
+        payload = build_admin_gate_queue_summary_read_model(
+            [
+                ("gear", "partial", []),
+                ("talents", "verified", [" tree missing ", "", None]),
+                ("gear", "verified", []),
+                (None, "blocked", ["zeta", "alpha", "zeta"]),
+                ("talents", "source_reference", ["alpha"]),
+                ("gear", "VERIFIED", ["beta"]),
+            ]
+        )
+
+        self.assertEqual(
+            payload,
+            {
+                "count": 5,
+                "domainCounts": {"gear": 2, "talents": 2, "unknown": 1},
+                "topBlockers": [
+                    {"reason": "alpha", "count": 2},
+                    {"reason": "zeta", "count": 2},
+                    {"reason": "beta", "count": 1},
+                    {"reason": "tree missing", "count": 1},
+                ],
+            },
+        )
+
+    def test_build_admin_gate_queue_summary_read_model_caps_tied_blockers_at_eight(self):
+        from server.pg_cache_read_model_selectors import build_admin_gate_queue_summary_read_model
+
+        payload = build_admin_gate_queue_summary_read_model(
+            [("gear", "verified", [f"reason-{index:02d}"]) for index in range(10)]
+        )
+
+        self.assertEqual(payload["count"], 10)
+        self.assertEqual(payload["domainCounts"], {"gear": 10})
+        self.assertEqual(
+            payload["topBlockers"],
+            [{"reason": f"reason-{index:02d}", "count": 1} for index in range(8)],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

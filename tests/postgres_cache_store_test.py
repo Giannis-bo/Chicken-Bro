@@ -3544,6 +3544,37 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         self.assertEqual(summary["domainCounts"].get("gear_templates"), None)
 
+    def test_admin_gate_queue_summary_delegates_rows_to_cache_read_model_selector(self):
+        from server import pg_cache_read_model_selectors
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_talent_templates": [("talents", "verified", [])],
+                "FROM cache.websim_talents": [("mage", "frost", 0)],
+                "FROM cache.websim_gear_variants": [("gear", "partial", '["missing gear"]')],
+                "SELECT to_regclass": [(None,)],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+        expected = {"sentinel": "admin queue summary"}
+
+        with patch.object(
+            pg_cache_read_model_selectors,
+            "build_admin_gate_queue_summary_read_model",
+            return_value=expected,
+        ) as selector:
+            payload = store.admin_gate_queue_summary()
+
+        self.assertIs(payload, expected)
+        selector.assert_called_once_with(
+            [
+                ("talents", "verified", []),
+                ("talents", "blocked", ["talent tree has no nodes"]),
+                ("gear", "partial", ["missing gear"]),
+            ]
+        )
+
     def test_stat_weight_read_model_uses_cache_schema(self):
         from server.postgres_cache_store import PostgresCacheStore
 

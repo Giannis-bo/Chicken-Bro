@@ -888,39 +888,6 @@ def promote_community_talent_template_inventory(templates):
     }
 
 
-ADMIN_GATE_QUEUE_STATUSES = {
-    "partial",
-    "stale",
-    "blocked",
-    "missing_credentials",
-    "pending_official_audit",
-    "source_reference",
-}
-
-
-def _admin_gate_queue_summary(rows):
-    total = 0
-    domain_counts = {}
-    blocker_counts = {}
-    for domain, status, row_blockers in rows:
-        blockers = [str(item or "").strip() for item in (row_blockers or []) if str(item or "").strip()]
-        if status not in ADMIN_GATE_QUEUE_STATUSES and not blockers:
-            continue
-        domain_key = str(domain or "unknown")
-        total += 1
-        domain_counts[domain_key] = domain_counts.get(domain_key, 0) + 1
-        for blocker in blockers:
-            blocker_counts[blocker] = blocker_counts.get(blocker, 0) + 1
-    return {
-        "count": total,
-        "domainCounts": domain_counts,
-        "topBlockers": [
-            {"reason": reason, "count": count}
-            for reason, count in sorted(blocker_counts.items(), key=lambda item: (-item[1], item[0]))[:8]
-        ],
-    }
-
-
 class PostgresCacheStore:
     def __init__(self, connection_factory):
         self.connection_factory = connection_factory
@@ -6052,7 +6019,7 @@ class PostgresCacheStore:
                             coverage_repair=self._repair_template_offhand_occupancy,
                         )
                     )
-        return _admin_gate_queue_summary(rows)
+        return pg_cache_read_model_selectors.build_admin_gate_queue_summary_read_model(rows)
 
     def admin_gate_talent_records(self):
         with self.connection() as conn:
