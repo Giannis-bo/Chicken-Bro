@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/schemas/harness-requirement.schema.json",
+  "title": "Harness Requirement Packet",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "slug",
+    "classification",
+    "status",
+    "goal",
+    "userValue",
+    "nonGoals",
+    "engineeringHealth",
+    "releaseTrigger",
+    "decisionLog"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "classification": {
+            "enum": [
+              "Standard",
+              "Strict"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "currentTruth",
+          "impactMap",
+          "ownership",
+          "acceptanceEvidence",
+          "rollback"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "slug": {
+      "type": "string",
+      "minLength": 1
+    },
+    "classification": {
+      "type": "string",
+      "enum": [
+        "Light",
+        "Standard",
+        "Strict"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "idea",
+        "requirement_challenged",
+        "requirement_contract_approved",
+        "implementation_allowed",
+        "local_verified",
+        "runtime_verified",
+        "deployable",
+        "live_verified",
+        "archived"
+      ]
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "userValue": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nonGoals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "currentTruth": {
+      "type": "object",
+      "required": [
+        "sources"
+      ],
+      "properties": {
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "activeMilestone": {
+          "type": "string"
+        },
+        "featureIteration": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "impactMap": {
+      "type": "object",
+      "required": [
+        "mustChange",
+        "evidenceRequired"
+      ],
+      "properties": {
+        "mustChange": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "mustNotChange": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidenceRequired": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "ownership": {
+      "type": "object",
+      "required": [
+        "factOwner"
+      ],
+      "properties": {
+        "factOwner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "consumers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "engineeringHealth": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "acceptanceEvidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "releaseTrigger": {
+      "type": "string",
+      "enum": [
+        "docs_tooling_only",
+        "frontend_user_visible",
+        "backend_api",
+        "pg_read_model",
+        "public_payload",
+        "health_admin",
+        "scheduled_jobs",
+        "deploy_scripts",
+        "user_visible_runtime"
+      ]
+    },
+    "rollback": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "decisionLog": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object"
+      }
+    }
+  }
+}

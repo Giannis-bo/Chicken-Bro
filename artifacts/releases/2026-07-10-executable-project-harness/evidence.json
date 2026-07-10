@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "slug": "executable-project-harness",
+  "requirementSlug": "executable-project-harness",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/project-harness-executable-validator",
+  "commit": "pending_pr_head",
+  "scope": [
+    "harness_validator",
+    "requirement_schema",
+    "evidence_schema",
+    "release_packet_contract",
+    "docs_tooling_only"
+  ],
+  "verification": [
+    {
+      "command": "node --test tests/project-harness.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "Target tests pass after validator implementation."
+    },
+    {
+      "command": "node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Syntax check passes."
+    },
+    {
+      "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-10-executable-project-harness/requirement.json --evidence-file artifacts/releases/2026-07-10-executable-project-harness/evidence.json --base origin/main",
+      "status": "pass",
+      "summary": "Current executable Harness release packet validates."
+    },
+    {
+      "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-10-harness-control-plane/requirement.json --evidence-file artifacts/releases/2026-07-10-harness-control-plane/evidence.json --base origin/main",
+      "status": "pass",
+      "summary": "Control plane bootstrap packet retroactively validates with the executable validator."
+    },
+    {
+      "command": "node -e \"const fs=require('fs'); for (const f of process.argv.slice(1)) JSON.parse(fs.readFileSync(f, 'utf8'))\" docs/schemas/harness-requirement.schema.json docs/schemas/harness-evidence.schema.json docs/templates/harness-requirement.json docs/templates/harness-evidence.json artifacts/releases/2026-07-10-executable-project-harness/requirement.json artifacts/releases/2026-07-10-executable-project-harness/evidence.json",
+      "status": "pass",
+      "summary": "All new schema, template and packet JSON files parse."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "Whitespace check passes."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "reason": "Task 2 changes docs, local validator tooling, tests and release artifacts only; no backend/API/PG read-model/runtime surface is changed."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "ci_workflow_not_created_until_task4",
+      "status": "accepted_within_task_scope",
+      "detail": "This PR creates executable local packet validation. Real PR CI is delivered by Task 4 under the same Goal Plan."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/schemas/harness-requirement.schema.json",
+    "docs/schemas/harness-evidence.schema.json",
+    "docs/templates/harness-requirement.json",
+    "docs/templates/harness-evidence.json",
+    "artifacts/releases/2026-07-10-harness-control-plane/requirement.json",
+    "artifacts/releases/2026-07-10-harness-control-plane/evidence.json",
+    "artifacts/releases/2026-07-10-harness-control-plane/manifest.json"
+  ],
+  "summary": "Executable Requirement and Evidence validator with stable failure reason codes for Task 2 of the Project Harness Engineering Normalization milestone."
+}
