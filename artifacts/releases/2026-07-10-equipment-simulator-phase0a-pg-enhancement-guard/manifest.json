@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T13:00:39.545Z",
+  "generatedAt": "2026-07-10T13:04:52.021Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase0a-pg-enhancement-guard"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 6451
+          "sizeBytes": 6473
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 255230
+          "sizeBytes": 255388
         },
         {
           "path": "docs/README.md",
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard/evidence.json",
-    "sizeBytes": 8394,
+    "sizeBytes": 9000,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "live_verified",
+    "declaredStatus": "archived",
     "highestEvidenceLevel": "live_verified",
-    "summary": "Slice 0A candidate is live-verified before merge: submitted structured enhancements require server catalog authority, the forged PG-only smoke fails closed, runtime hash parity and postgres_only mode are proven, public observed-only payloads are unchanged, and timer/log checks show no backflow. Merge and post-merge archive remain."
+    "summary": "Slice 0A is archived after PR #57 merge and post-merge live verification: submitted structured enhancements require server catalog authority, forged PG-only input fails closed, main/origin/runtime serializer parity is proven, public observed-only payloads are unchanged, and timer/log checks show no backflow. Phase 0B is next."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "4 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,9 +313,12 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 4,
       "changedFiles": [
-        " M artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard/evidence.json"
+        " M artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard/evidence.json",
+        " M docs/project-state.json",
+        " M docs/roadmap.md",
+        "?? .superpowers/"
       ]
     }
   },

@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase0a-pg-enhancement-guard",
   "requirementSlug": "equipment-simulator-phase0a-pg-enhancement-guard",
-  "status": "live_verified",
+  "status": "archived",
   "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase0a-pg-enhancement-guard",
-  "commit": "pending_pr_head",
+  "commit": "ab5d46655f496a832ff810fd5f6718ec2a635dab",
   "scope": [
     "PostgreSQL-only enhancement authority fail-closed behavior",
     "server/websim_payload.py compatibility facade",
@@ -58,7 +58,8 @@
     "status": "candidate_verified",
     "requiredBeforeMerge": true,
     "branch": "codex/equipment-simulator-phase0a-pg-enhancement-guard",
-    "commit": "pending_pr_head",
+    "commit": "ef8e2885196d485ee34969f297429a5e7e3f4813",
+    "mergeCommit": "ab5d46655f496a832ff810fd5f6718ec2a635dab",
     "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/57",
     "buildIdentity": "server/websim_payload.py sha256:b651d65adb5466361dafd851b2f1bb0f086a14c3f3cc5f0dff0e2a9dcb996746",
     "databaseRuntime": "postgres_only",
@@ -106,6 +107,11 @@
       "type": "rollback",
       "status": "pass",
       "summary": "Rollback anchor is origin/main 8df8f36c70b21768b878c2147f6c13407d5a17fa; redeploying that checkout restores previous runtime server/websim_payload.py hash a2d85e61d935ce6e5e65186c0b3833b492cd72e4d0b85d7ed098107a17d45f7a without data rollback."
+    },
+    {
+      "type": "post_merge_smoke",
+      "status": "pass",
+      "summary": "PR #57 merged as ab5d46655f496a832ff810fd5f6718ec2a635dab. The final PR head and squash merge have identical Git trees; main and origin/main are 0/0, main and runtime serializer SHA-256 match, postgres_only service is active, forged enhancement rejection and public observed-only payload smokes passed again, related services remained inactive/successful, and the recent error/SQLite-fallback scan remained zero."
     }
   ],
   "risks": [
@@ -136,5 +142,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 0A candidate is live-verified before merge: submitted structured enhancements require server catalog authority, the forged PG-only smoke fails closed, runtime hash parity and postgres_only mode are proven, public observed-only payloads are unchanged, and timer/log checks show no backflow. Merge and post-merge archive remain."
+  "summary": "Slice 0A is archived after PR #57 merge and post-merge live verification: submitted structured enhancements require server catalog authority, forged PG-only input fails closed, main/origin/runtime serializer parity is proven, public observed-only payloads are unchanged, and timer/log checks show no backflow. Phase 0B is next."
 }
