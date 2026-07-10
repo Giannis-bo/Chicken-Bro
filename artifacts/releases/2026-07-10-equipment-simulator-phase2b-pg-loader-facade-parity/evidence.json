@@ -4,8 +4,8 @@
   "requirementSlug": "equipment-simulator-phase2b-pg-loader-facade-parity",
   "status": "deployable",
   "highestEvidenceLevel": "deployable",
-  "branch": "codex/equipment-simulator-phase2b-pg-loader-facade-parity",
-  "commit": "833301cbef4611b4454ceb1ddef2962386daab3f",
+  "branch": "codex/equipment-simulator-phase2b-live-intent-parity",
+  "commit": "15053ab5667ce82abcdb9984e4a6e62fabe9049a",
   "scope": [
     "bounded PostgreSQL-only Authority Context loader",
     "one dormant PostgresCacheStore read-only method",
@@ -36,12 +36,12 @@
     {
       "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
       "status": "pass",
-      "summary": "1148 Python tests passed with 1 skipped; compileall and Strict Harness passed."
+      "summary": "1160 Python tests passed with 1 skipped; compileall and Strict Harness passed after the structured item authority correction."
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
       "status": "pass",
-      "summary": "365 Node tests and 1148 Python tests passed with 1 skipped; all 127 syntax, JSON, Harness and diff commands passed."
+      "summary": "365 Node tests and 1160 Python tests passed with 1 skipped; all 127 syntax, JSON, Harness and diff commands passed after the structured item authority correction."
     },
     {
       "command": "static SQL/query-budget and dormant-consumer inspection plus Python compile",
@@ -62,15 +62,25 @@
       "command": "GitHub Project Harness verify for PR #62",
       "status": "pass",
       "summary": "GitHub Actions Project Harness verify passed for candidate PR head 0eb57e4edd4f8d664ee62650fe208467d3b3aa91; PR #62 was ready, mergeable and CLEAN before evidence promotion."
+    },
+    {
+      "command": "post-merge Phase 2B hard-gate audit and live Intent parity correction",
+      "status": "pass",
+      "summary": "The full planned hard gate exposed two dormant adapter gaps after PR #62 merged: public observed-template variant keys are the existing normalize_option_value aliases of raw PG JSON keys, and payload status=verified was masked by sourceStatus=source_reference. Red-to-green correction tests now cover exact and public keys, alias collision and wrong-item blocking, reused pair deduplication, missing source status fail-closed, both explicit verified status fields, and an eight-source projection bound. 28 loader tests, 87 Phase 1-2B contract tests, 726 current facade/store/backend regressions and 23 Harness/owner/current-state tests passed. A production PG read-only preflight executed the corrected static SQL without deployment and proved Mage/Arcane 15/15 item and variant rows, 15 distinct raw-to-public aliases, no collisions, 1-8 explicit verified sources per item, and no writes. Candidate performance, Resolver/facade and unchanged-runtime gates remain pending."
+    },
+    {
+      "command": "PR #63 first candidate Resolver hard-gate diagnosis and structured item authority correction",
+      "status": "pass",
+      "summary": "Exact first-candidate hashes and built-in runtime smoke passed. The live current Mage/Arcane Authority Context reached 15/15 items and variants with missingFields=[], proving alias/source parity, then the pure Resolver correctly blocked because loader projection omitted existing Battle.net item type facts: finger2/trinket2 inherited finger1/trinket1 only, the two-hand staff lacked handedness, and tier membership setId existed only on the Battle.net tier_set source. Red-to-green correction tests now reuse the existing item type, handedness and equivalent-slot helpers, add generic one-hand weapon hand authority, accept only structured Battle.net tier membership or explicit verified set evidence, and block conflicting set IDs. 35 loader/store tests, six focused facade/runtime-authority tests, 92 Phase 1-2B contract tests, 726 facade/store/backend regressions, 23 Harness/owner/current-state tests, backend 1160 Python tests and full 365 Node plus 1160 Python tests passed; candidate must be redeployed from the updated PR head before evidence promotion."
     }
   ],
   "candidateDeployment": {
     "status": "candidate_verified",
     "requiredBeforeMerge": true,
-    "branch": "codex/equipment-simulator-phase2b-pg-loader-facade-parity",
-    "commit": "833301cbef4611b4454ceb1ddef2962386daab3f",
-    "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/62",
-    "buildIdentity": "pg_gear_authority_loader.py sha256:92538818a6dbbf76a7f9d29eecd09eb87b25c8d99a3d7566ec959af90f94bf5a; postgres_cache_store.py sha256:04b0a8ea8606a0b5c2835603b71ca841d1d29d33d86e0d842fbe8ccce985def9; websim_payload.py sha256:83ee4aa2ba6a806850a07b7a0bcf72ab8525e65842654ddecfa58269d38e3cf9; gear-resolver-facade-parity-v1.json sha256:33f70e38e0ed16211fd3381834918bf432db82fc59282183805d7be0907fd61d",
+    "branch": "codex/equipment-simulator-phase2b-live-intent-parity",
+    "commit": "366ae4b660d790144ed8ac6f732f279d773c2af0",
+    "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/63",
+    "buildIdentity": "pg_gear_authority_loader.py sha256:b688e13232643907de5b660fa5490cfab9f971c8501d20c617ad1075a536adcc; postgres_cache_store.py sha256:04b0a8ea8606a0b5c2835603b71ca841d1d29d33d86e0d842fbe8ccce985def9; websim_payload.py sha256:e7535e708edbc6de10e8cb1a215719c8bdc2db7291c97f20f30d91e65e71760d; facade fixture sha256:33f70e38e0ed16211fd3381834918bf432db82fc59282183805d7be0907fd61d",
     "databaseRuntime": "postgres_only",
     "attempts": [
       {
@@ -78,18 +88,89 @@
         "status": "failed_then_rolled_back",
         "failure": "Direct backend runtime imported postgres_cache_store from the server directory, but pg_gear_authority_loader imported server.gear_contracts as a package and raised ModuleNotFoundError; PG-backed endpoints returned 502 while health remained 200.",
         "rollback": "Redeployed previously live-verified Phase 2A head 2a1ddd9f1b5beeccbe1d6aad5f8a1e249d8c6ba1 with async syncs disabled; deploy health and route smoke passed."
+      },
+      {
+        "head": "0eb57e4edd4f8d664ee62650fe208467d3b3aa91",
+        "status": "runtime_safe_but_hard_gate_incomplete",
+        "detail": "The second PR #62 candidate and post-merge runtime smoke were healthy and the adapters remained dormant, but the live probe used one exact PG key instead of the plan-required current complete observed Intent and did not collect the full latency matrix."
+      },
+      {
+        "head": "f00572a964621ae9577ebb1a21006d9e8510330b",
+        "status": "postmerge_hard_gate_failed_correction_required",
+        "detail": "The current complete Mage/Arcane public Intent produced missing item and variant authority because public normalized variant aliases did not equal raw PG JSON keys and sourceStatus=source_reference masked payload status=verified. The active runtime was not user-impacting because the loader and facade are dormant; Phase 2B remains in progress."
+      },
+      {
+        "head": "46f59b8eb7b1fa3bbe3936104f7f032a75790b3f",
+        "status": "candidate_runtime_safe_resolver_hard_gate_failed",
+        "detail": "Exact hashes, service health and Authority Context 15/15 parity passed, but Resolver blocked the real Mage/Arcane Intent because the loader had not projected equivalent ring/trinket slots, structured weapon handedness or canonical Battle.net tier set membership. Current routes remained healthy because the adapters are dormant; the correction stayed on PR #63."
+      },
+      {
+        "head": "366ae4b660d790144ed8ac6f732f279d773c2af0",
+        "status": "candidate_verified",
+        "detail": "The updated PR #63 candidate was active at 2026-07-11 00:44:40 CST with exact code and fixture hashes. Real PostgreSQL query-budget, Mage/Arcane 15-slot Resolver/facade, Death Knight/Frost 16-slot authority, sequential latency, fail-closed, unchanged-route, 40-spec public, process and rollback gates all passed."
       }
     ],
     "smoke": {
       "status": "pass",
-      "summary": "Second candidate deploy from PR head 0eb57e4 completed all built-in health/builds/PvE/simulator/WebSim/SimC smoke with async syncs disabled. Remote hashes matched. Seven remote direct-import/facade/runtime-authority tests passed. A live verified item/variant (151311, finger2) proved one read-only store transaction with cold trace SET READ ONLY plus exactly three static domain queries and a second read-only warm trace with one revision query; cache values matched, missingFields was empty and compatibility-pg-live-v1 kept formalActiveManifest=false. Current profile returned 200 with four fixture items, resolve remained 404, 40/40 initial public payloads were raiderio_observed_profile-only with zero baselines, Catalyst stayed blocked with optionParseSupported=true and failClosed=true, and the final service was active/success/0 with zero post-restart backend errors."
+      "summary": "Updated PR #63 candidate hashes matched. One-slot and true 16-slot cold reads each executed SET READ ONLY plus exactly revision/items/options, the warm 16-slot read executed only SET READ ONLY plus revision, and all contexts had missingFields=[]. Mage/Arcane resolved 15/15 with no problems, canonical itemSetCounts 1983=4, all five claim groups, verified profile readiness and resolved facade parity. Thirty sequential cold resolves measured p50=164.084ms/p95=201.275ms/p99=205.003ms; 100 sequential warm resolves measured p50=90.591ms/p95=105.726ms/p99=112.078ms with 100/100 cache hits and 71851 bytes, below the 500ms/200ms budgets. Wrong-slot, missing-authority, stale-revision and Catalyst probes blocked with stable codes; /profile stayed 200, /resolve stayed 404, health kept Catalyst blocked, initial 40/40 stayed observed-only with baseline=0, and the slot payload stayed unchanged."
     },
     "timerBackflow": {
       "status": "pass",
-      "summary": "WOW_DEPLOY_START_ASYNC_SYNCS=0 started no async work. All relevant services remained inactive with Result=success and ExecMainStatus=0; journal activity since the successful candidate was zero. The last natural observed-backfill trigger was 23:38:30 and finished 23:38:35, before the successful candidate activation at 23:47:36."
+      "summary": "WOW_DEPLOY_START_ASYNC_SYNCS=0 started no deploy-driven sync or backflow. The natural data-health follow-up completed at 00:44:39, one second before candidate activation, and then attempted the separately configured SimC runtime update at 00:44:44; that external download failed on the existing GitHub proxy TLS path and a controlled retry failed identically. A direct-path recovery probe reached api.github.com but the github.com archive download timed out and was stopped without switching /opt/wow-simc/current; commit 1e357922 remained active and usable. All equipment sync services stayed inactive/successful, no process remained, no database restore is needed, and candidate backend/public/Resolver smokes remained green."
     }
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "type": "deployment_identity",
+      "status": "pass",
+      "summary": "PR #63 head 366ae4b was hot-deployed with bootstrap skipped and async sync disabled. Remote hashes match the PR code tree for loader, store, facade and golden fixture; wow-backend remained active/running with Result=success, ExecMainStatus=0, one thread and WOW_DATABASE_RUNTIME=postgres_only."
+    },
+    {
+      "type": "query_budget",
+      "status": "pass",
+      "summary": "A current real one-slot Intent and a true 16-slot Death Knight/Frost Intent each used one read-only transaction and exactly three static domain queries after SET READ ONLY. Repeating the 16-slot Intent on the bounded cache used only the revision query. All three contexts returned missingFields=[]; no query count grew with slot count and no write SQL ran."
+    },
+    {
+      "type": "live_resolver_facade_performance",
+      "status": "pass",
+      "summary": "The current Mage/Arcane observed Intent loaded 15 items, 15 variants and 45 evidence records, resolved all 15 two-hand slots with no problems, aggregated deterministic stats and itemSetCounts 1983=4, emitted nonempty identity_options, legality, static_attributes, provenance and profile_executability claim groups, and produced a resolved 15-item facade profile. Cold 30-run p95 was 201.275ms and warm 100-run p95 was 105.726ms with 100% warm hits; thresholds were 500ms and 200ms."
+    },
+    {
+      "type": "fail_closed",
+      "status": "pass",
+      "summary": "Wrong-slot selection blocked with GEAR_SLOT_INVENTORY_TYPE_MISMATCH and GEAR_SLOT_NOT_ALLOWED; removed item authority blocked with GEAR_RELEASE_ITEM_UNKNOWN and incomplete-required-slots; stale authored catalog revision blocked with GEAR_CATALOG_REVISION_CONFLICT; a syntactically present Catalyst option blocked with GEAR_CATALYST_CAPABILITY_BLOCKED and simcReady=false."
+    },
+    {
+      "type": "dormant_surface",
+      "status": "pass",
+      "summary": "Current POST /api/websim/profile remained HTTP 200 on the legacy path, POST /api/websim/gear/resolve remained HTTP 404, and /api/data/health remained HTTP 200 with Catalyst status=blocked, capabilityEnabled=false, optionParseSupported=true and failClosed=true."
+    },
+    {
+      "type": "public_contract",
+      "status": "pass",
+      "summary": "The live compact initial sweep passed all 40 class/spec pairs: HTTP 40/40, exactly one complete raiderio_observed_profile template per spec, observed-only 40/40 and baselineTemplates/baselineSet empty 40/40. Mage/Arcane slot mode also remained HTTP 200, observed-only and baseline-empty."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "No deployment-triggered async work, gear sync, write or backflow occurred. The observed-backfill run finished at 00:26:29, and the naturally scheduled data-health follow-up finished at 00:44:39 before candidate activation. Its later external SimC update attempt failed on network transport only; the current binary and all candidate/public checks remained usable."
+    },
+    {
+      "type": "external_simc_update_observation",
+      "status": "blocked",
+      "summary": "The existing wow-simc-runtime-update service failed at 00:44:44 and again at 00:54:59 because the configured 127.0.0.1:7890 proxy returned GitHub TLS EOF. A no-proxy recovery reached api.github.com but github.com archive transfer timed out; the attempt was stopped, no update process remained, and /opt/wow-simc/.commit stayed 1e357922af363f3d87cc0758863c2bb6d7701b72. This external update-path issue did not originate from Phase 2B and does not activate or weaken Catalyst."
+    },
+    {
+      "type": "logs",
+      "status": "pass",
+      "summary": "The candidate wow-backend journal since activation contained zero error-priority entries and zero Traceback, exception, error or failed matches. The only system-level failure was the separately recorded external SimC download service; backend health remained 200 and one-thread process state was stable."
+    },
+    {
+      "type": "rollback",
+      "status": "pass",
+      "summary": "Rollback anchor is merged Phase 2B base f00572a964621ae9577ebb1a21006d9e8510330b. Redeploying that tree removes only the dormant live-parity correction; no database restore, sync repair, migration rollback or public payload repair is required."
+    }
+  ],
   "risks": [
     {
       "id": "query_amplification",
@@ -110,6 +191,11 @@
       "id": "compatibility_manifest_overclaim",
       "status": "fail_closed",
       "detail": "compatibility-pg-live-v1 cannot be described or consumed as the formal Phase 4 Active Season Manifest."
+    },
+    {
+      "id": "public_variant_alias_parity",
+      "status": "candidate_verified",
+      "detail": "Public observed-template variant aliases resolve through the existing normalize_option_value contract, remain bound to itemId, block collisions and cap explicit verified source evidence; the real 15-slot and 16-slot candidate probes returned complete authority."
     }
   ],
   "rollback": [
@@ -130,5 +216,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 2B is deployable after local and live candidate verification: the bounded PostgreSQL Authority Context loader, read-only store method, server-owned runtime authority and resolved-snapshot parity facade are complete and dormant; PR #62 may merge after the evidence-only head passes GitHub Harness."
+  "summary": "Slice 2B PR #63 is deployable after exact candidate hard-gate verification: live one/16-slot PostgreSQL query budgets, current 15-slot Resolver/five-group Ledger/facade parity, sequential cold/warm latency, bounded cache, fail-closed cases, dormant routes, 40-spec observed-only public contract, backend process/log state and rollback all passed. A natural pre-activation health follow-up exposed a separate GitHub proxy failure in the existing SimC updater; the working SimC binary, candidate service and data surfaces remained intact. Final exact evidence-head CI, merge, post-merge parity and archive are still required."
 }

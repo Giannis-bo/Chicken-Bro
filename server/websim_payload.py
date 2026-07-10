@@ -25694,7 +25694,10 @@ def gear_resolver_runtime_authority(class_key, spec_key, *, simc_runtime_revisio
         allowed_weapons[expected_spec] = sorted(main_types | off_types)
         dual_wield[expected_spec] = bool(off_types & DUAL_WIELDABLE_WEAPON_TYPES)
 
-    inventory_types = {slot: [slot] for slot in CANONICAL_GEAR_SLOTS}
+    inventory_types = {
+        slot: sorted(set(EQUIVALENT_GEAR_SLOTS.get(slot, [slot])))
+        for slot in CANONICAL_GEAR_SLOTS
+    }
     inventory_types["main_hand"] = ["main_hand", "weapon"]
     inventory_types["off_hand"] = ["off_hand", "offhand", "weapon"]
     catalyst_revision = "catalyst-retained-secondary-proof-v1"

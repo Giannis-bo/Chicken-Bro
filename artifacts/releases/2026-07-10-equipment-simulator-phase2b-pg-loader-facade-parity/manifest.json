@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T15:59:27.804Z",
+  "generatedAt": "2026-07-10T17:00:09.900Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase2b-pg-loader-facade-parity"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 9128
+          "sizeBytes": 9333
         },
         {
           "path": "docs/project-owner-map.json",
@@ -48,12 +48,12 @@
         {
           "path": "docs/verification-matrix.md",
           "exists": true,
-          "sizeBytes": 14888
+          "sizeBytes": 15331
         },
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 258410
+          "sizeBytes": 259312
         },
         {
           "path": "docs/README.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 33662
+          "sizeBytes": 34004
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -99,7 +99,7 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 25972,
+          "lineCount": 25975,
           "hotspot": true
         },
         {
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
-    "sizeBytes": 9346,
+    "sizeBytes": 19118,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -252,7 +252,7 @@
     "missingFields": [],
     "declaredStatus": "deployable",
     "highestEvidenceLevel": "deployable",
-    "summary": "Slice 2B is deployable after local and live candidate verification: the bounded PostgreSQL Authority Context loader, read-only store method, server-owned runtime authority and resolved-snapshot parity facade are complete and dormant; PR #62 may merge after the evidence-only head passes GitHub Harness."
+    "summary": "Slice 2B PR #63 is deployable after exact candidate hard-gate verification: live one/16-slot PostgreSQL query budgets, current 15-slot Resolver/five-group Ledger/facade parity, sequential cold/warm latency, bounded cache, fail-closed cases, dormant routes, 40-spec observed-only public contract, backend process/log state and rollback all passed. A natural pre-activation health follow-up exposed a separate GitHub proxy failure in the existing SimC updater; the working SimC binary, candidate service and data surfaces remained intact. Final exact evidence-head CI, merge, post-merge parity and archive are still required."
   },
   "evidence": {
     "localTests": {
@@ -277,13 +277,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "4 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:25972, server/news_backend.py:12569, server/postgres_cache_store.py:6262"
+      "detail": "server/websim_payload.py:25975, server/news_backend.py:12569, server/postgres_cache_store.py:6262"
     },
     {
       "id": "localTests_missing",
@@ -313,9 +313,12 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 4,
       "changedFiles": [
-        " M artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json"
+        " M artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
+        " M docs/gear-simulation-full-chain-runbook.md",
+        " M docs/project-state.json",
+        " M docs/roadmap.md"
       ]
     }
   },

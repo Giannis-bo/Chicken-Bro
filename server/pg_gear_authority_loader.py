@@ -6,12 +6,30 @@ from __future__ import annotations
 from collections import OrderedDict
 import hashlib
 import json
+import re
 from typing import Any, Iterable
 
 try:
     from .gear_contracts import parse_selection_intent, selection_signature
 except ImportError:
     from gear_contracts import parse_selection_intent, selection_signature
+
+try:
+    from .websim_payload import (
+        EQUIVALENT_GEAR_SLOTS,
+        ITEM_METADATA_SOURCE,
+        gear_item_handedness_fields,
+        item_slot_from_payload,
+        item_type_metadata_from_payload,
+    )
+except ImportError:
+    from websim_payload import (
+        EQUIVALENT_GEAR_SLOTS,
+        ITEM_METADATA_SOURCE,
+        gear_item_handedness_fields,
+        item_slot_from_payload,
+        item_type_metadata_from_payload,
+    )
 
 
 COMPATIBILITY_MANIFEST_REVISION = "compatibility-pg-live-v1"
@@ -56,6 +74,29 @@ SELECT
         'slot', item.slot,
         'itemLevel', item.item_level,
         'sourceStatus', item.source_status,
+        'itemSetIds', COALESCE((
+            SELECT jsonb_agg(DISTINCT COALESCE(
+                NULLIF(set_source.payload_json->>'setId', ''),
+                NULLIF(set_source.payload_json->>'set_id', ''),
+                NULLIF(set_source.payload_json->>'itemSetId', ''),
+                NULLIF(set_source.payload_json->>'item_set_id', '')
+            ))
+            FROM cache.websim_gear_sources set_source
+            WHERE set_source.item_id = requested.item_id
+              AND set_source.source_type = 'tier_set'
+              AND COALESCE(
+                  NULLIF(set_source.payload_json->>'setId', ''),
+                  NULLIF(set_source.payload_json->>'set_id', ''),
+                  NULLIF(set_source.payload_json->>'itemSetId', ''),
+                  NULLIF(set_source.payload_json->>'item_set_id', ''),
+                  ''
+              ) <> ''
+              AND (
+                  LOWER(COALESCE(set_source.payload_json->>'status', '')) = 'verified'
+                  OR LOWER(COALESCE(set_source.payload_json->>'sourceStatus', '')) = 'verified'
+                  OR set_source.payload_json->>'authority' = 'Battle.net Game Data API'
+              )
+        ), '[]'::jsonb),
         'payload', item.payload_json,
         'updatedAt', item.updated_at::text
     ) END AS item_record,
@@ -84,22 +125,82 @@ SELECT
             'encounterId', source.encounter_id,
             'difficultyKey', source.difficulty_key,
             'seasonRevision', source.season_revision,
-            'status', COALESCE(
-                NULLIF(source.payload_json->>'sourceStatus', ''),
+            'status', CASE
+                WHEN LOWER(COALESCE(source.payload_json->>'status', '')) = 'verified'
+                  OR LOWER(COALESCE(source.payload_json->>'sourceStatus', '')) = 'verified'
+                  OR (
+                      source.source_type = 'tier_set'
+                      AND source.payload_json->>'authority' = 'Battle.net Game Data API'
+                      AND COALESCE(
+                          NULLIF(source.payload_json->>'setId', ''),
+                          NULLIF(source.payload_json->>'set_id', ''),
+                          NULLIF(source.payload_json->>'itemSetId', ''),
+                          NULLIF(source.payload_json->>'item_set_id', ''),
+                          ''
+                      ) <> ''
+                  )
+                THEN 'verified'
+                ELSE COALESCE(
                 NULLIF(source.payload_json->>'status', ''),
+                NULLIF(source.payload_json->>'sourceStatus', ''),
+                'unknown'
+                )
+            END,
+            'sourceStatus', COALESCE(
+                NULLIF(source.payload_json->>'sourceStatus', ''),
                 'unknown'
             ),
             'payload', source.payload_json,
             'updatedAt', source.updated_at::text
-        ) ORDER BY source.id::text)
-        FROM cache.websim_gear_sources source
-        WHERE source.item_id = requested.item_id
+        ) ORDER BY
+            CASE WHEN source.source_type = variant.source_type THEN 0 ELSE 1 END,
+            source.updated_at DESC,
+            source.id::text)
+        FROM (
+            SELECT chosen.*
+            FROM (
+                SELECT DISTINCT ON (candidate.source_type) candidate.*
+                FROM cache.websim_gear_sources candidate
+                WHERE candidate.item_id = requested.item_id
+                  AND (
+                      LOWER(COALESCE(candidate.payload_json->>'status', '')) = 'verified'
+                      OR LOWER(COALESCE(candidate.payload_json->>'sourceStatus', '')) = 'verified'
+                      OR (
+                          candidate.source_type = 'tier_set'
+                          AND candidate.payload_json->>'authority' = 'Battle.net Game Data API'
+                          AND COALESCE(
+                              NULLIF(candidate.payload_json->>'setId', ''),
+                              NULLIF(candidate.payload_json->>'set_id', ''),
+                              NULLIF(candidate.payload_json->>'itemSetId', ''),
+                              NULLIF(candidate.payload_json->>'item_set_id', ''),
+                              ''
+                          ) <> ''
+                      )
+                  )
+                ORDER BY
+                    candidate.source_type,
+                    candidate.updated_at DESC,
+                    candidate.id::text
+            ) chosen
+            ORDER BY
+                CASE WHEN chosen.source_type = variant.source_type THEN 0 ELSE 1 END,
+                chosen.updated_at DESC,
+                chosen.id::text
+            LIMIT 8
+        ) source
     ), '[]'::jsonb) AS source_records
 FROM requested
 LEFT JOIN cache.websim_items item ON item.id = requested.item_id
 LEFT JOIN cache.websim_gear_variants variant
-  ON variant.item_id = requested.item_id
- AND variant.variant_key = requested.variant_key
+ ON variant.item_id = requested.item_id
+ AND requested.variant_key <> ''
+ AND (
+      variant.variant_key = requested.variant_key
+      OR LEFT(
+          REGEXP_REPLACE(BTRIM(variant.variant_key), '[^A-Za-z0-9_:/.-]+', '', 'g'),
+          240
+      ) = requested.variant_key
+ )
 ORDER BY requested.item_id, requested.variant_key
 """
 
@@ -166,6 +267,25 @@ def _json_value(value: Any, fallback: Any) -> Any:
 
 def _text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _public_variant_alias(value: Any) -> str:
+    """Mirror websim_payload.normalize_option_value for public variant keys."""
+
+    return re.sub(r"[^A-Za-z0-9_:/.-]+", "", _text(value))[:240]
+
+
+def _variant_key_matches(requested: Any, authority: Any) -> bool:
+    requested_key = _text(requested)
+    authority_key = _text(authority)
+    return bool(
+        requested_key
+        and authority_key
+        and (
+            authority_key == requested_key
+            or _public_variant_alias(authority_key) == requested_key
+        )
+    )
 
 
 def _int(value: Any) -> int:
@@ -358,6 +478,31 @@ def _evidence_id(kind: str, identity: Any) -> str:
     return f"evidence:pg:{kind}:{_text(identity)}"
 
 
+def _tier_set_id_from_source(source: Any) -> str:
+    if not isinstance(source, dict) or _text(source.get("sourceType")) != "tier_set":
+        return ""
+    payload = _json_value(source.get("payload"), {})
+    payload = payload if isinstance(payload, dict) else {}
+    if _text(payload.get("authority")) != ITEM_METADATA_SOURCE:
+        return ""
+    return _text(
+        payload.get("setId")
+        or payload.get("set_id")
+        or payload.get("itemSetId")
+        or payload.get("item_set_id")
+    )
+
+
+def _source_is_verified(source: Any) -> bool:
+    if not isinstance(source, dict):
+        return False
+    statuses = {
+        _text(source.get("status")).lower(),
+        _text(source.get("sourceStatus")).lower(),
+    }
+    return "verified" in statuses or bool(_tier_set_id_from_source(source))
+
+
 def _project_item(
     requested_item_id: str,
     record: Any,
@@ -374,9 +519,18 @@ def _project_item(
         source for source in sources
         if isinstance(source, dict)
         and _text(source.get("id"))
-        and _text(source.get("status") or "unknown") == "verified"
+        and _source_is_verified(source)
     ]
     if not verified_sources:
+        return None
+    item_set_ids = _texts(
+        [
+            *(record.get("itemSetIds") or []),
+            payload.get("itemSetId"),
+            *(_tier_set_id_from_source(source) for source in verified_sources),
+        ]
+    )
+    if len(item_set_ids) > 1:
         return None
     source_ref_ids = []
     for source in verified_sources:
@@ -387,10 +541,29 @@ def _project_item(
             "sourceType": _text(source.get("sourceType")) or "postgres_gear_source",
             "sourceRevision": _text(source.get("seasonRevision")),
             "sourceKey": _text(source.get("sourceKey")),
+            "verificationStatus": "verified",
+            "sourceStatus": _text(source.get("sourceStatus")) or "unknown",
             "updatedAt": _text(source.get("updatedAt")),
         }
     playable_classes, playable_specs = _playable_scope(runtime_authority)
-    allowed_slots = _texts(payload.get("allowedSlots") or [record.get("slot")])
+    canonical_slot = _text(item_slot_from_payload(payload) or record.get("slot"))
+    type_metadata = item_type_metadata_from_payload(payload)
+    type_metadata = type_metadata if isinstance(type_metadata, dict) else {}
+    weapon_type = _text(payload.get("weaponType") or type_metadata.get("weaponType"))
+    handedness = _text(payload.get("handedness"))
+    if not handedness and weapon_type:
+        handedness = _text(
+            gear_item_handedness_fields({"weaponType": weapon_type}).get("handedness")
+        )
+    if payload.get("allowedSlots"):
+        allowed_slots = _texts(payload.get("allowedSlots"))
+    elif handedness == "one_hand":
+        allowed_slots = ["main_hand", "off_hand"]
+    else:
+        allowed_slots = _texts(EQUIVALENT_GEAR_SLOTS.get(canonical_slot, [canonical_slot]))
+    inventory_type = _text(payload.get("inventoryType"))
+    if not inventory_type:
+        inventory_type = "weapon" if handedness in {"one_hand", "two_hand", "ranged"} else canonical_slot
     base_capabilities = _json_value(payload.get("baseCapabilities"), {})
     base_capabilities = base_capabilities if isinstance(base_capabilities, dict) else {}
     socket_count = payload.get("socketCount", base_capabilities.get("socketCount", 0))
@@ -408,15 +581,15 @@ def _project_item(
         "itemId": item_id,
         "displayName": _text(payload.get("displayName") or payload.get("name") or record.get("name")),
         "allowedSlots": allowed_slots,
-        "inventoryType": _text(payload.get("inventoryType") or record.get("slot")),
+        "inventoryType": inventory_type,
         "allowedClassKeys": _texts(payload.get("allowedClassKeys") or playable_classes),
         "allowedSpecKeys": _texts(payload.get("allowedSpecKeys") or playable_specs),
-        "armorType": _text(payload.get("armorType")),
-        "weaponType": _text(payload.get("weaponType")),
-        "handedness": _text(payload.get("handedness")),
+        "armorType": _text(payload.get("armorType") or type_metadata.get("armorType")),
+        "weaponType": weapon_type,
+        "handedness": handedness,
         "uniqueGroupId": _text(payload.get("uniqueGroupId")),
         "uniqueLimit": _int(payload.get("uniqueLimit")),
-        "itemSetId": _text(payload.get("itemSetId")),
+        "itemSetId": item_set_ids[0] if item_set_ids else "",
         "baseStats": _static_stats(payload.get("baseStats"), payload.get("itemStats")),
         "baseCapabilities": base_capabilities,
         "socketCount": socket_count,
@@ -442,7 +615,7 @@ def _project_variant(
         or not isinstance(record, dict)
         or _text(record.get("status")) != "verified"
         or _text(record.get("itemId")) != requested_item_id
-        or _text(record.get("variantKey")) != requested_variant_key
+        or not _variant_key_matches(requested_variant_key, record.get("variantKey"))
     ):
         return None
     variant_id = _text(record.get("id"))
@@ -614,8 +787,14 @@ def load_gear_authority_context(
             return cached
 
     selections = list(intent["slots"].values())
-    item_ids = [selection["itemId"] for selection in selections]
-    variant_keys = [selection["variantKey"] for selection in selections]
+    requested_pairs = list(
+        dict.fromkeys(
+            (selection["itemId"], selection["variantKey"])
+            for selection in selections
+        )
+    )
+    item_ids = [item_id for item_id, _variant_key in requested_pairs]
+    variant_keys = [variant_key for _item_id, variant_key in requested_pairs]
     cursor.execute(SELECTED_ITEM_VARIANT_SQL, (item_ids, variant_keys))
     item_rows = cursor.fetchall()
     option_ids = _selected_option_ids(intent)
@@ -628,6 +807,7 @@ def load_gear_authority_context(
     evidence = _runtime_source_records(runtime)
     items_by_id: dict[str, dict[str, Any]] = {}
     variants_by_key: dict[str, dict[str, Any]] = {}
+    variant_candidates_by_key: dict[str, list[dict[str, Any]]] = {}
     for row in item_rows:
         requested_item_id = _text(row[0] if len(row) > 0 else "")
         requested_variant_key = _text(row[1] if len(row) > 1 else "")
@@ -648,7 +828,11 @@ def load_gear_authority_context(
             evidence,
         )
         if variant is not None:
-            variants_by_key[requested_variant_key] = variant
+            variant_candidates_by_key.setdefault(requested_variant_key, []).append(variant)
+
+    for requested_variant_key, candidates in variant_candidates_by_key.items():
+        if len(candidates) == 1:
+            variants_by_key[requested_variant_key] = candidates[0]
 
     options_by_id: dict[str, dict[str, Any]] = {}
     for row in option_rows:

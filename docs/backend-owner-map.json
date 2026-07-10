@@ -87,7 +87,7 @@
                 "warmDomainQueries": 1,
                 "slotCountGrowthAllowed": false
               },
-              "cacheBoundary": "bounded max_entries plus serialized max_bytes; incomplete transient authority is not cached",
+              "cacheBoundary": "bounded max_entries plus serialized max_bytes; incomplete transient authority is not cached; public variant aliases use the existing normalize_option_value contract with collision fail-closed; structured item type, equivalent slot and handedness facts reuse the existing websim owner helpers; canonical Battle.net tier set IDs block on conflict; each selected item projects one latest evidence row per source type and at most 8 total",
               "runtimeConsumers": []
             }
           },
