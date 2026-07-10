@@ -2,7 +2,7 @@
 
 > 日期：2026-07-10
 >
-> 状态：已确认设计 / 待书面复核 / 未实施
+> 状态：书面规格已批准 / 待实施计划 / 未实施
 >
 > Harness：Strict
 >
@@ -960,4 +960,4 @@ New Resolver/Release/State modules target 100% behavioral branch coverage。大�
 
 ## 28. Final Design Status
 
-所有关键产品和工程决策均已确认。当前没有未决实现语义；只有外部依赖型 deferred work。下一步是用户复核本书面规格，然后生成分阶段 implementation plan。未完成书面复核前，不启动运行时代码改动。
+所有关键产品和工程决策均已确认，书面规格已由用户批准。当前没有未决实现语义；只有外部依赖型 deferred work。下一步是在新 Session 中创建持续 Goal，按 phase 分别使用 `superpowers:writing-plans` 生成可执行计划，并以 `superpowers:executing-plans` 在没有真实阻塞或待决策项时持续推进。Phase 6 的 12.1 Catalyst 外部依赖不属于当前 Goal 的完成条件。
