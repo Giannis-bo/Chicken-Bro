@@ -640,6 +640,7 @@ Unsupported / excluded：
 装备模拟链路会被 SimC 模板页和任务详情复用来展示“这次模拟对应的角色属性”。这不是列表 UI 字段，而是一条独立的 compact snapshot 合同：
 
 - `pages/simulator/simc.js` 在模板确认页请求 `/api/websim/gear/stats`，成功后只把 verified `statSnapshot` 写回装备模板 metadata。请求签名变化时，例如换种族、场景、天赋或装备，旧快照必须失效。
+- 旧 `/api/websim/gear/stats` 在 Phase 5 Worker 切换前继续同步返回原有字段，但只通过后端 `stat_snapshot_v1` flavor 运行 `iterations=1`、`calculate_scale_factors=0`，并由进程级单 permit 串行执行；普通 `/profile` 与 `/simulate` 仍使用默认 `standard_profile`，不得被降为一轮。
 - 最终提交 `mode=simcraft_template` 时，前端只携带结构化 `gearSnapshot` 和当前仍匹配的 compact `statSnapshot`。大体积 profile/rawString 不应靠前端 setData 长期保存。
 - 后端 `simcraft_template_report_stat_snapshot_from_request` 只接受 `statStatus=verified` 的快照，并裁剪为主属性 + 暴击/急速/精通/全能四项副属性。
 - 历史任务详情如果缺少 `simcReport.build.statSnapshot`，但 `request_json.templateContext.gear.metadata.gearSnapshot` 和天赋 rawString 仍完整，`backfill_simcraft_template_detail_stat_snapshot` 会用 `build_websim_gear_stats_response` 回放一次，并把 compact snapshot 写回 `analysis_json`。

@@ -531,14 +531,19 @@
       "publicContracts": [
         "SimC profile generation stays backend-owned.",
         "Submitted gear enhancements require backend-attached catalog authority before serialization.",
+        "Legacy gear stats preserve their response shape while stat_snapshot_v1 uses one iteration and process-global concurrency one.",
         "Task list/detail evidence does not expose raw internal diagnostics as user-facing truth."
       ],
       "mustNotChange": [
         "Do not assemble authoritative SimC profile strings client-side.",
         "Do not accept client-supplied gem, enchant or embellishment options as server authority.",
+        "Do not apply the stat_snapshot_v1 limiter or one-iteration flavor to normal profile or simulator execution.",
         "Do not promote queued task success to DPS correctness."
       ],
       "characterization": [
+        "tests/websim_payload_test.py::WebSimPayloadTest.test_http_websim_gear_stats_runs_fake_simc_for_verified_snapshot",
+        "tests/websim_payload_test.py::WebSimPayloadTest.test_legacy_gear_stats_simc_execution_has_global_concurrency_one",
+        "tests/websim_payload_test.py::WebSimPayloadTest.test_http_websim_simulate_runs_encoded_profile_through_fake_simc",
         "tests/websim_payload_test.py",
         "tests/simulator-page.test.js",
         "tests/news_backend_test.py",
@@ -579,6 +584,9 @@
         "status": "characterized",
         "summary": "Existing simulator frontend, backend route, codex worker and smoke tests characterize serializer, task snapshot, owner isolation and deterministic fallback boundaries.",
         "coverage": [
+          "tests/websim_payload_test.py::WebSimPayloadTest.test_http_websim_gear_stats_runs_fake_simc_for_verified_snapshot",
+          "tests/websim_payload_test.py::WebSimPayloadTest.test_legacy_gear_stats_simc_execution_has_global_concurrency_one",
+          "tests/websim_payload_test.py::WebSimPayloadTest.test_http_websim_simulate_runs_encoded_profile_through_fake_simc",
           "tests/websim_payload_test.py",
           "tests/simulator-page.test.js",
           "tests/news_backend_test.py",
