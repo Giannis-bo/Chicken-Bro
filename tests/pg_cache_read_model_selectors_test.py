@@ -117,6 +117,44 @@ class PgCacheReadModelSelectorsTest(unittest.TestCase):
                     },
                 )
 
+    def test_build_stat_weight_latest_run_read_model_returns_exact_empty_blocked_envelope(self):
+        from server.pg_cache_read_model_selectors import build_stat_weight_latest_run_read_model
+
+        self.assertEqual(
+            build_stat_weight_latest_run_read_model([]),
+            {
+                "refreshMode": "",
+                "refreshedAt": "",
+                "status": "blocked",
+                "sourceStatus": "blocked",
+                "acceptedCount": 0,
+                "blockedCount": 0,
+                "errors": ["PostgreSQL stat weight cache is empty"],
+            },
+        )
+
+    def test_build_stat_weight_latest_run_read_model_summarizes_statuses_and_timestamps(self):
+        from server.pg_cache_read_model_selectors import build_stat_weight_latest_run_read_model
+
+        cases = (
+            ("all accepted", [(" verified ", "2026-07-10T01:00:00+00:00"), ("partial", "2026-07-10T02:00:00+00:00"), ("stale", "2026-07-10T03:00:00+00:00")], "verified"),
+            ("mixed", [("verified", "2026-07-10T01:00:00+00:00"), ("blocked", "2026-07-10T04:00:00+00:00")], "partial"),
+            ("all blocked", [(" VERIFIED", "2026-07-10T01:00:00+00:00"), ("blocked", "2026-07-10T02:00:00+00:00")], "blocked"),
+        )
+
+        for label, rows, expected_status in cases:
+            with self.subTest(label=label):
+                payload = build_stat_weight_latest_run_read_model(rows)
+                self.assertEqual(payload["status"], expected_status)
+                self.assertEqual(payload["sourceStatus"], expected_status)
+                self.assertEqual(payload["acceptedCount"], 3 if label == "all accepted" else 1 if label == "mixed" else 0)
+                self.assertEqual(payload["blockedCount"], 0 if label == "all accepted" else 1 if label == "mixed" else 2)
+                self.assertEqual(payload["refreshedAt"], "2026-07-10T04:00:00+00:00" if label == "mixed" else "2026-07-10T03:00:00+00:00" if label == "all accepted" else "2026-07-10T02:00:00+00:00")
+                self.assertEqual(payload["refreshMode"], "postgres_cache")
+                self.assertEqual(payload["specCount"], 0)
+                self.assertEqual(payload["scenarioCount"], len(rows))
+                self.assertEqual(payload["errors"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

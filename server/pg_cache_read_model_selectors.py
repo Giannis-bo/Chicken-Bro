@@ -43,3 +43,32 @@ def build_stat_weight_cache_read_model(row, *, class_key, spec_key, scenario_key
     payload.setdefault("checkedAt", str(row[2] or ""))
     payload.setdefault("updatedAt", str(row[2] or ""))
     return payload
+
+
+def build_stat_weight_latest_run_read_model(rows):
+    if not rows:
+        return {
+            "refreshMode": "",
+            "refreshedAt": "",
+            "status": "blocked",
+            "sourceStatus": "blocked",
+            "acceptedCount": 0,
+            "blockedCount": 0,
+            "errors": ["PostgreSQL stat weight cache is empty"],
+        }
+    accepted_statuses = {"verified", "partial", "stale"}
+    accepted = sum(1 for row in rows if str(row[0] or "").strip() in accepted_statuses)
+    blocked = len(rows) - accepted
+    status = "verified" if accepted and not blocked else ("partial" if accepted else "blocked")
+    latest = max((str(row[1] or "") for row in rows), default="")
+    return {
+        "refreshMode": "postgres_cache",
+        "refreshedAt": latest,
+        "status": status,
+        "sourceStatus": status,
+        "acceptedCount": accepted,
+        "blockedCount": blocked,
+        "specCount": 0,
+        "scenarioCount": len(rows),
+        "errors": [],
+    }
