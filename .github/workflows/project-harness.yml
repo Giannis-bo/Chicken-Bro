@@ -1,0 +1,38 @@
+name: Project Harness
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Resolve active release
+        id: release
+        run: |
+          ACTIVE_RELEASE="$(node -e "console.log(require('./docs/project-state.json').activeReleaseArtifact)")"
+          echo "active_release=${ACTIVE_RELEASE}" >> "$GITHUB_OUTPUT"
+          echo "Active release: ${ACTIVE_RELEASE}"
+
+      - name: Harness profile
+        run: node scripts/verify-project.js --profile harness --release "${{ steps.release.outputs.active_release }}" --base origin/main
+
+      - name: Full profile
+        run: node scripts/verify-project.js --profile full --release "${{ steps.release.outputs.active_release }}" --base origin/main

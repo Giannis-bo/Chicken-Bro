@@ -13,6 +13,7 @@ const DEFAULT_HOTSPOT_FILES = [
 const CURRENT_TRUTH_SOURCES = [
   'docs/project-state.json',
   'docs/project-owner-map.json',
+  'docs/verification-matrix.md',
   'docs/roadmap.md',
   'docs/README.md',
   'docs/harness.md',

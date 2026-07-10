@@ -4,7 +4,7 @@
   "requirementSlug": "executable-project-harness",
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
-  "branch": "codex/project-harness-owner-map",
+  "branch": "codex/project-harness-verification-ci",
   "commit": "pending_pr_head",
   "scope": [
     "harness_validator",
@@ -12,19 +12,31 @@
     "evidence_schema",
     "project_owner_map",
     "changed_path_owner_lookup",
+    "verification_profiles",
+    "project_harness_ci",
     "release_packet_contract",
     "docs_tooling_only"
   ],
   "verification": [
     {
-      "command": "node --test tests/project-harness.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+      "command": "node --test tests/project-harness.test.js tests/project-owner-map.test.js tests/project-state.test.js tests/verify-project.test.js",
       "status": "pass",
-      "summary": "Target tests pass after validator and owner-map implementation."
+      "summary": "Target tests pass after validator, owner-map and verification profile implementation."
     },
     {
-      "command": "node --check scripts/project-harness.js",
+      "command": "node --check scripts/project-harness.js && node --check scripts/verify-project.js",
       "status": "pass",
-      "summary": "Syntax check passes."
+      "summary": "Harness and verification runner syntax checks pass."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-10-executable-project-harness --base origin/main",
+      "status": "pass",
+      "summary": "Harness profile passes locally."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-executable-project-harness --base origin/main",
+      "status": "pass",
+      "summary": "Full profile passes locally: Node full tests, Python unittest discover, compileall, JSON, JS syntax, Harness check and diff check."
     },
     {
       "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-10-executable-project-harness/requirement.json --evidence-file artifacts/releases/2026-07-10-executable-project-harness/evidence.json --base origin/main",
@@ -54,9 +66,9 @@
   "runtimeEvidence": [],
   "risks": [
     {
-      "id": "ci_workflow_not_created_until_task4",
-      "status": "accepted_within_task_scope",
-      "detail": "This PR creates executable local packet validation. Real PR CI is delivered by Task 4 under the same Goal Plan."
+      "id": "ci_result_external_to_packet",
+      "status": "record_on_pr_checks",
+      "detail": "The committed packet records local profile verification. Real PR CI result is inspected on the GitHub PR after this commit is pushed."
     }
   ],
   "rollback": [
@@ -68,7 +80,11 @@
   "archivedReferences": [
     "docs/project-state.json",
     "docs/project-owner-map.json",
+    "docs/verification-matrix.md",
     "docs/README.md",
+    "scripts/verify-project.js",
+    "tests/verify-project.test.js",
+    ".github/workflows/project-harness.yml",
     "docs/schemas/harness-requirement.schema.json",
     "docs/schemas/harness-evidence.schema.json",
     "docs/templates/harness-requirement.json",
@@ -77,5 +93,5 @@
     "artifacts/releases/2026-07-10-harness-control-plane/evidence.json",
     "artifacts/releases/2026-07-10-harness-control-plane/manifest.json"
   ],
-  "summary": "Executable Requirement/Evidence validator and project-level owner map for the Project Harness Engineering Normalization milestone."
+  "summary": "Executable Requirement/Evidence validator, project-level owner map, unified verification profiles and PR CI workflow for the Project Harness Engineering Normalization milestone."
 }
