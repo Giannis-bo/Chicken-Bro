@@ -1,5 +1,5 @@
 {
-  "status": "candidate_deployment_verified",
+  "status": "merged_to_main",
   "highestEvidenceLevel": "candidate_deployment_verified",
   "scope": [
     "server/pg_cache_read_model_selectors.py",
@@ -175,10 +175,12 @@
     }
   },
   "merge": {
-    "status": "pending",
+    "status": "merged_to_main",
     "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/48",
-    "localMainSynced": false,
-    "headEqualsOriginMain": false
+    "mergedAt": "2026-07-10T03:53:13Z",
+    "mergeCommit": "5be9d8111516426eae9b45593722e6f99548f2e0",
+    "localMainSynced": true,
+    "headEqualsOriginMain": true
   },
   "risks": [
     {
@@ -188,8 +190,8 @@
     },
     {
       "id": "merge_pending",
-      "status": "open_expected",
-      "detail": "PR #48 remains draft until candidate evidence and manifest are committed and pushed."
+      "status": "closed",
+      "detail": "PR #48 was rebase merged at 2026-07-10T03:53:13Z and local main synchronized to the merge result."
     },
     {
       "id": "preexisting_stat_weight_partial",
