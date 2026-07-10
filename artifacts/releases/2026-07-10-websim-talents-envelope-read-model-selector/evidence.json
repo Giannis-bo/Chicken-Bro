@@ -1,6 +1,6 @@
 {
-  "status": "candidate_verified",
-  "highestEvidenceLevel": "candidate_verified",
+  "status": "merged_to_main",
+  "highestEvidenceLevel": "candidate_deployment_verified",
   "scope": [
     "server/pg_gear_read_model_selectors.py",
     "server/postgres_cache_store.py",
@@ -175,6 +175,14 @@
         "server/deploy_lighthouse.sh": "519d82e5ec62cb97fd3a1c9a92f9c5f98461cc56e748014a88323eed66a9594d"
       }
     }
+  },
+  "merge": {
+    "status": "merged_to_main",
+    "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/44",
+    "mergedAt": "2026-07-10T02:29:13Z",
+    "mergeCommit": "e8f7b27e8e993b6247bb02a14792ac36561a6118",
+    "localMainSynced": true,
+    "headEqualsOriginMain": true
   },
   "risks": [
     {

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T02:28:36.214Z",
+  "status": "merged_to_main",
+  "generatedAt": "2026-07-10T02:29:56.301Z",
   "release": {
     "date": "2026-07-10",
     "slug": "websim-talents-envelope-read-model-selector"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 410152
+          "sizeBytes": 410178
         },
         {
           "path": "docs/README.md",
@@ -212,12 +212,18 @@
         "rule_promoted",
         "script_candidate"
       ]
+    },
+    "merge": {
+      "status": "merged_to_main",
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/44",
+      "mergeCommit": "e8f7b27e8e993b6247bb02a14792ac36561a6118",
+      "headEqualsOriginMain": true
     }
   },
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-websim-talents-envelope-read-model-selector/evidence.json",
-    "sizeBytes": 11198,
+    "sizeBytes": 11504,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,8 +241,8 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "candidate_verified",
-    "highestEvidenceLevel": "candidate_verified",
+    "declaredStatus": "merged_to_main",
+    "highestEvidenceLevel": "candidate_deployment_verified",
     "summary": "Phase 4 completes the current PostgreSQL WebSim talent read-model vertical. server/pg_gear_read_model_selectors.py now owns build_websim_talents_read_model(), which assembles the final talents response envelope, blocker list, communityTemplateSync summary, and season metadata from already-computed authority/readiness/nodes/templates state. server/postgres_cache_store.py keeps PostgreSQL SQL, row filtering, talent status/authority/readiness decisions, cache writes, sync, and backfill paths."
   },
   "evidence": {
