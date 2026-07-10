@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase2b-pg-loader-facade-parity",
+  "requirementSlug": "equipment-simulator-phase2b-pg-loader-facade-parity",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase2b-pg-loader-facade-parity",
+  "commit": "uncommitted",
+  "scope": [
+    "bounded PostgreSQL-only Authority Context loader",
+    "one dormant PostgresCacheStore read-only method",
+    "dormant websim runtime-authority and resolved-snapshot parity facade",
+    "compatibility manifest and bounded cache without runtime cutover"
+  ],
+  "verification": [
+    {
+      "command": "focused loader query-budget, transformation and cache tests",
+      "status": "not_run",
+      "summary": "Loader TDD has not run yet."
+    },
+    {
+      "command": "focused store read-only transaction test",
+      "status": "not_run",
+      "summary": "Dormant store method has not been implemented."
+    },
+    {
+      "command": "six resolved-snapshot facade and runtime-authority parity tests",
+      "status": "not_run",
+      "summary": "Dormant facade parity has not been implemented."
+    },
+    {
+      "command": "python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test",
+      "status": "not_run",
+      "summary": "Current facade and backend regressions have not run yet."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
+      "status": "not_run",
+      "summary": "Backend profile has not run yet."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
+      "status": "not_run",
+      "summary": "Full profile has not run yet."
+    },
+    {
+      "command": "static SQL/query-budget and dormant-consumer inspection plus Python compile",
+      "status": "not_run",
+      "summary": "Static boundary checks have not run yet."
+    },
+    {
+      "command": "git diff --check",
+      "status": "not_run",
+      "summary": "Whitespace verification has not run yet."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "requiredBeforeMerge": true,
+    "smoke": {
+      "status": "not_run"
+    },
+    "timerBackflow": {
+      "status": "not_run"
+    }
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "query_amplification",
+      "status": "blocked_by_budget",
+      "detail": "Cold reads must execute exactly three static domain queries for one or sixteen slots; warm hits may execute only the revision query."
+    },
+    {
+      "id": "stale_or_unbounded_cache",
+      "status": "fail_closed",
+      "detail": "Cache keys bind the full dependency and selection identities, enforce entry and serialized-byte limits, and never retain incomplete transient authority."
+    },
+    {
+      "id": "premature_runtime_cutover",
+      "status": "blocked_by_scope",
+      "detail": "The store method and facade helpers remain dormant; no current route, profile call site, frontend or Worker may consume them in Slice 2B."
+    },
+    {
+      "id": "compatibility_manifest_overclaim",
+      "status": "fail_closed",
+      "detail": "compatibility-pg-live-v1 cannot be described or consumed as the formal Phase 4 Active Season Manifest."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-delivery-plan.md",
+    "docs/plans/2026-07-10-equipment-simulator-phase2-canonical-resolver-plan.md",
+    "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/evidence.json",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 2B Strict contract is approved for bounded PostgreSQL loader and dormant facade parity implementation; no loader, store or facade file has changed yet."
+}
