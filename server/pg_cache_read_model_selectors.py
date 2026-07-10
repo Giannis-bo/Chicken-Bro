@@ -27,3 +27,19 @@ def build_raiderio_cache_read_model(row):
     payload.setdefault("expiresAt", str(row[2] or ""))
     payload.setdefault("sourceStatus", payload.get("status") or "blocked")
     return payload
+
+
+def build_stat_weight_cache_read_model(row, *, class_key, spec_key, scenario_key):
+    if not row:
+        return None
+    payload = _json_value(row[0], {})
+    if not isinstance(payload, dict):
+        payload = {}
+    payload.setdefault("classKey", class_key)
+    payload.setdefault("specKey", spec_key)
+    payload.setdefault("scenarioKey", scenario_key)
+    payload.setdefault("sourceStatus", row[1] or payload.get("status") or "blocked")
+    payload.setdefault("status", payload.get("sourceStatus") or "blocked")
+    payload.setdefault("checkedAt", str(row[2] or ""))
+    payload.setdefault("updatedAt", str(row[2] or ""))
+    return payload

@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-10-phase4-v27",
-  "status": "phase4_raiderio_cache_read_model_selector_extracted",
+  "version": "2026-07-10-phase4-v28",
+  "status": "phase4_stat_weight_cache_read_model_selector_extracted",
   "harnessVersion": "v0.5",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -368,19 +368,26 @@
           "owns": [
             "Raider.IO cache row read-model assembly",
             "Raider.IO missing-cache blocked envelope",
-            "Raider.IO cache timestamp and sourceStatus defaults"
+            "Raider.IO cache timestamp and sourceStatus defaults",
+            "stat-weight cache row read-model assembly",
+            "stat-weight cache missing-row None semantics",
+            "stat-weight cache identity, status, and timestamp defaults"
           ],
           "mustNotChange": [
             "Raider.IO cache SQL and cache-key selection remain in server/postgres_cache_store.py.",
             "save_raiderio_payload and its INSERT/ON CONFLICT path remain repository-owned.",
-            "The selector must not write cache rows, sync state, or trigger observed gear backfill.",
+            "Stat-weight cache-key validation and SQL remain in server/postgres_cache_store.py.",
+            "save_stat_weight_payload and latest_stat_weight_run_payload remain repository-owned.",
+            "The selector must not write cache rows, sync state, or trigger observed gear backfill/stat-weight sync.",
             "Existing payload timestamps and status fields remain authoritative over row defaults."
           ],
           "characterization": [
             "tests/pg_cache_read_model_selectors_test.py::PgCacheReadModelSelectorsTest.test_build_raiderio_cache_read_model_maps_row_and_preserves_payload_timestamps",
+            "tests/pg_cache_read_model_selectors_test.py::PgCacheReadModelSelectorsTest.test_build_stat_weight_cache_read_model_maps_row_and_preserves_payload_timestamp",
+            "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_stat_weight_read_model_uses_cache_schema",
             "tests/postgres_cache_store_test.py Raider.IO cache schema and observed-profile consumer tests"
           ],
-          "futureExtractionDirection": "Characterize stat-weight row and run-summary payloads separately before adding them; do not move cache SQL, writes, sync, or backfill into this selector."
+          "futureExtractionDirection": "Characterize the stat-weight latest-run summary separately before adding it; do not move cache-key validation, SQL, writes, sync, or backfill into this selector."
         },
         {
           "id": "sync_state_repository",

@@ -5062,19 +5062,12 @@ class PostgresCacheStore:
                     (cache_key,),
                 )
                 row = cur.fetchone()
-        if not row:
-            return None
-        payload = _json_value(row[0], {})
-        if not isinstance(payload, dict):
-            payload = {}
-        payload.setdefault("classKey", slugify(class_key, ""))
-        payload.setdefault("specKey", slugify(spec_key, ""))
-        payload.setdefault("scenarioKey", scenario_key)
-        payload.setdefault("sourceStatus", row[1] or payload.get("status") or "blocked")
-        payload.setdefault("status", payload.get("sourceStatus") or "blocked")
-        payload.setdefault("checkedAt", str(row[2] or ""))
-        payload.setdefault("updatedAt", str(row[2] or ""))
-        return payload
+        return pg_cache_read_model_selectors.build_stat_weight_cache_read_model(
+            row,
+            class_key=slugify(class_key, ""),
+            spec_key=slugify(spec_key, ""),
+            scenario_key=scenario_key,
+        )
 
     def latest_stat_weight_run_payload(self):
         with self.connection() as conn:

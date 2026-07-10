@@ -29,6 +29,39 @@ class PgCacheReadModelSelectorsTest(unittest.TestCase):
             },
         )
 
+    def test_build_stat_weight_cache_read_model_maps_row_and_preserves_payload_timestamp(self):
+        from server.pg_cache_read_model_selectors import build_stat_weight_cache_read_model
+
+        row = (
+            '{"status":"verified","checkedAt":"payload-checked","weights":[{"key":"haste","value":1.2}]}',
+            "verified",
+            "2026-07-10T01:30:00+00:00",
+        )
+
+        payload = build_stat_weight_cache_read_model(
+            row,
+            class_key="mage",
+            spec_key="frost",
+            scenario_key="mplus_mixed_route",
+        )
+
+        self.assertEqual(payload["classKey"], "mage")
+        self.assertEqual(payload["specKey"], "frost")
+        self.assertEqual(payload["scenarioKey"], "mplus_mixed_route")
+        self.assertEqual(payload["sourceStatus"], "verified")
+        self.assertEqual(payload["status"], "verified")
+        self.assertEqual(payload["checkedAt"], "payload-checked")
+        self.assertEqual(payload["updatedAt"], "2026-07-10T01:30:00+00:00")
+        self.assertEqual(payload["weights"], [{"key": "haste", "value": 1.2}])
+        self.assertIsNone(
+            build_stat_weight_cache_read_model(
+                None,
+                class_key="mage",
+                spec_key="frost",
+                scenario_key="mplus_mixed_route",
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
