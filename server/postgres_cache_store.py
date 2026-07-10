@@ -32,6 +32,11 @@ except ImportError:
     import pg_season_read_model_selectors
 
 try:
+    from . import pg_cache_read_model_selectors
+except ImportError:
+    import pg_cache_read_model_selectors
+
+try:
     from .websim_payload import (
         CANONICAL_GEAR_SLOTS,
         COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
@@ -5039,20 +5044,7 @@ class PostgresCacheStore:
                     """
                 )
                 row = cur.fetchone()
-        if not row:
-            return {
-                "sourceStatus": "blocked",
-                "status": "blocked",
-                "errors": ["PostgreSQL Raider.IO cache is missing"],
-            }
-        payload = _json_value(row[0], {})
-        if not isinstance(payload, dict):
-            payload = {}
-        payload.setdefault("checkedAt", str(row[1] or ""))
-        payload.setdefault("updatedAt", str(row[1] or ""))
-        payload.setdefault("expiresAt", str(row[2] or ""))
-        payload.setdefault("sourceStatus", payload.get("status") or "blocked")
-        return payload
+        return pg_cache_read_model_selectors.build_raiderio_cache_read_model(row)
 
     def get_stat_weight_payload(self, class_key, spec_key, scenario_key):
         cache_key = f"{slugify(class_key, '')}:{slugify(spec_key, '')}:{str(scenario_key or '').strip()}"

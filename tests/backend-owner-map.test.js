@@ -12,7 +12,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(fs.existsSync(ownerMapPath), 'docs/backend-owner-map.json should exist before backend hotspot splitting')
   const ownerMap = readOwnerMap()
 
-  assert.equal(ownerMap.status, 'phase4_active_season_read_model_selector_extracted')
+  assert.equal(ownerMap.status, 'phase4_raiderio_cache_read_model_selector_extracted')
   assert.equal(ownerMap.harnessVersion, 'v0.5')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
@@ -330,6 +330,18 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   assert.ok(
     activeSeasonReadModelSelector.characterization.some((entry) => entry.includes('tests/pg_season_read_model_selectors_test.py')),
     'active season read-model selector should point at the helper module characterization test'
+  )
+  const cachePayloadReadModelSelectors = pgOwners.get('cache_payload_read_model_selectors')
+  assert.ok(cachePayloadReadModelSelectors)
+  assert.equal(cachePayloadReadModelSelectors.status, 'extracted_selector')
+  assert.equal(cachePayloadReadModelSelectors.extractedModule, 'server/pg_cache_read_model_selectors.py')
+  assert.ok(
+    cachePayloadReadModelSelectors.owns.includes('Raider.IO cache row read-model assembly'),
+    'cache payload read-model selectors should own Raider.IO row assembly after this Phase 4 split'
+  )
+  assert.ok(
+    cachePayloadReadModelSelectors.characterization.some((entry) => entry.includes('tests/pg_cache_read_model_selectors_test.py')),
+    'cache payload read-model selectors should point at the helper module characterization test'
   )
   assert.ok(pgOwners.has('sync_state_repository'))
 })
