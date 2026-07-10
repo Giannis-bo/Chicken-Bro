@@ -3,7 +3,7 @@
   "updatedAt": "2026-07-10",
   "activeMilestone": "project_harness_normalization",
   "featureIteration": "frozen_until_milestone_exit",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-10-executable-project-harness",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-10-critical-contract-characterization",
   "activeContracts": [
     {
       "id": "project_harness_normalization_goal",

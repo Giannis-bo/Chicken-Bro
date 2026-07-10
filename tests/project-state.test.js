@@ -6,7 +6,8 @@ const path = require('node:path')
 const projectStatePath = 'docs/project-state.json'
 const phase4HistoryPath = 'docs/roadmap/history/2026-07-phase4-pg-read-model.md'
 const controlPlaneRelease = 'artifacts/releases/2026-07-10-harness-control-plane'
-const activeRelease = 'artifacts/releases/2026-07-10-executable-project-harness'
+const executableHarnessRelease = 'artifacts/releases/2026-07-10-executable-project-harness'
+const activeRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'))
@@ -54,7 +55,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [activeRelease, controlPlaneRelease]) {
+  for (const releasePath of [activeRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))

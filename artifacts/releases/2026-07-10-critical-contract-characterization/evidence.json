@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "slug": "critical-contract-characterization",
+  "requirementSlug": "critical-contract-characterization",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/project-harness-characterization",
+  "commit": "pending_pr_head",
+  "scope": [
+    "critical_contract_characterization",
+    "project_owner_map",
+    "docs_tooling_only"
+  ],
+  "verification": [
+    {
+      "command": "node --test tests/project-owner-map.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "Owner-map and project-state characterization contract tests pass."
+    },
+    {
+      "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-10-critical-contract-characterization/requirement.json --evidence-file artifacts/releases/2026-07-10-critical-contract-characterization/evidence.json --base origin/main",
+      "status": "pass",
+      "summary": "Critical contract characterization release packet validates."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-10-critical-contract-characterization --base origin/main",
+      "status": "pass",
+      "summary": "Harness profile passes locally."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-critical-contract-characterization --base origin/main",
+      "status": "pass",
+      "summary": "Full profile passes locally."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "Whitespace check passes."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "reason": "Task 5 changes docs, tests and local release artifacts only; no backend/API/PG read-model/runtime surface is changed."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "health_watch_domains",
+      "status": "accepted_with_explicit_triggers",
+      "detail": "cache_sync_state_repository and scheduled_sync_backfill_cleanup remain health_watch; both have current characterization coverage and trigger text in docs/project-owner-map.json."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-owner-map.json",
+    "docs/project-state.json",
+    "docs/backend-owner-map.json",
+    "docs/verification-matrix.md",
+    "artifacts/releases/2026-07-10-executable-project-harness/requirement.json",
+    "artifacts/releases/2026-07-10-executable-project-harness/evidence.json",
+    "artifacts/releases/2026-07-10-executable-project-harness/manifest.json"
+  ],
+  "summary": "Critical contract characterization baseline: 16/16 domains have current conclusions, criticalContractUnknown=0, criticalContractBlocked=0."
+}

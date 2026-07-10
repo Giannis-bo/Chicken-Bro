@@ -39,6 +39,13 @@ const BACKEND_FACT_DOMAINS = new Set([
   'health_admin_observability'
 ])
 
+const CHARACTERIZATION_STATUSES = new Set([
+  'characterized',
+  'gap_closed',
+  'health_watch',
+  'blocked'
+])
+
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'))
 }
@@ -184,5 +191,28 @@ test('project owner map and backend owner map do not conflict on backend hotspot
       domain.factOwner === domain.backendOwnerMapRef.factOwner || domain.factOwner === hotspot.path,
       `${domain.id} project factOwner should not conflict with backend owner map`
     )
+  }
+})
+
+test('critical contract characterization has no unknown or blocked domains', () => {
+  const ownerMap = readOwnerMap()
+  assert.equal(ownerMap.criticalContractUnknown, 0)
+  assert.equal(ownerMap.criticalContractBlocked, 0)
+
+  for (const domain of ownerMap.criticalDomains) {
+    assert.ok(domain.criticalContract, `${domain.id} should record a critical contract conclusion`)
+    assert.ok(
+      CHARACTERIZATION_STATUSES.has(domain.criticalContract.status),
+      `${domain.id} has invalid critical contract status ${domain.criticalContract.status}`
+    )
+    assert.notEqual(domain.criticalContract.status, 'blocked', `${domain.id} must not block milestone closure`)
+    assert.notEqual(domain.criticalContract.status, 'unknown', `${domain.id} must not stay unknown`)
+    assert.ok(domain.criticalContract.summary, `${domain.id} should summarize the characterization conclusion`)
+    assert.ok(Array.isArray(domain.criticalContract.coverage), `${domain.id}.criticalContract.coverage should be an array`)
+    assert.ok(domain.criticalContract.coverage.length > 0, `${domain.id} should list characterization coverage`)
+    assertPathListExists(domain.criticalContract.coverage, `${domain.id}.criticalContract.coverage`)
+    if (domain.criticalContract.status === 'health_watch') {
+      assert.ok(domain.healthWatchTrigger, `${domain.id} health_watch should record its trigger`)
+    }
   }
 })
