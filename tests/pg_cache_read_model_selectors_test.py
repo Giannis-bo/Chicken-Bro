@@ -155,6 +155,15 @@ class PgCacheReadModelSelectorsTest(unittest.TestCase):
                 self.assertEqual(payload["scenarioCount"], len(rows))
                 self.assertEqual(payload["errors"], [])
 
+    def test_build_stat_weight_latest_run_read_model_uses_lexicographic_timestamp_max(self):
+        from server.pg_cache_read_model_selectors import build_stat_weight_latest_run_read_model
+
+        payload = build_stat_weight_latest_run_read_model(
+            [("verified", "9"), ("verified", "10")]
+        )
+
+        self.assertEqual(payload["refreshedAt"], "9")
+
 
 if __name__ == "__main__":
     unittest.main()
