@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase1-contracts-rule-authority",
   "requirementSlug": "equipment-simulator-phase1-contracts-rule-authority",
-  "status": "live_verified",
+  "status": "archived",
   "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase1-contracts-rule-authority",
-  "commit": "4f21d54b383666362d45e03c4c689539734c1b08",
+  "commit": "7bf5886814c8f01113bbab954161081a6cb13296",
   "scope": [
     "pure Selection Intent, Dependency Vector and signatures",
     "pure Authority Context validation",
@@ -70,6 +70,7 @@
     "requiredBeforeMerge": true,
     "branch": "codex/equipment-simulator-phase1-contracts-rule-authority",
     "commit": "4271d2c0c7f3ef9b3417ed0f98e71b8450470392",
+    "mergeCommit": "7bf5886814c8f01113bbab954161081a6cb13296",
     "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/60",
     "buildIdentity": "gear_contracts.py sha256:e3bf36a100844a4ece27d9ed0042aeccc7d65bb6384a2b64ce76ce54d2c507a2; gear_result_envelope.py sha256:f612e7d056e2db6d4cf8cd34429b993ddeb2f79a6da60bc8e1b49062a28c64c1; gear_rule_matrix.py sha256:8373b83e7e41e3a84c5febc0ad7f24b6b969ba05610218971e595afc94f5bac9",
     "databaseRuntime": "postgres_only",
@@ -127,6 +128,11 @@
       "type": "rollback",
       "status": "pass",
       "summary": "Rollback anchor is origin/main b9f4da8ada807857cfee262b189bbd57a0d546a6; redeploying that checkout removes the three dormant modules without database restore because Phase 1 has no migration, store or write-path change."
+    },
+    {
+      "type": "post_merge_smoke",
+      "status": "pass",
+      "summary": "PR #60 squash-merged as 7bf5886814c8f01113bbab954161081a6cb13296. The final PR head and merge have identical Git trees; main and origin/main are 0/0, main and runtime hashes match for all three modules, postgres_only is active, pure signature/envelope/rule probes pass, /resolve remains 404, Phase 0 guards and legacy stats/flavor/concurrency pass, the 40-spec observed-only sweep has zero failures, relevant services remain inactive/successful, and the recent error/SQLite-fallback scan remains zero."
     }
   ],
   "risks": [
@@ -162,5 +168,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Phase 1 candidate is live-verified before merge: PR #60 CI, all local profiles, exact remote module hashes, pure contract probes, dormant-route proof, Phase 0 guards, legacy stats/flavor/concurrency, timer/log checks and the 40-spec observed-only sweep all pass. Merge, post-merge smoke and archive remain pending."
+  "summary": "Phase 1 is archived after PR #60 merge and post-merge live verification: Selection Intent, Dependency Vector and signatures, Authority Context, Result Envelope and the fixed ten-rule matrix are pure dormant contracts; main/origin/runtime parity, Phase 0 guards, legacy stats, 40-spec observed-only output, timers and logs remain correct. Phase 2 Canonical Resolver planning is next."
 }

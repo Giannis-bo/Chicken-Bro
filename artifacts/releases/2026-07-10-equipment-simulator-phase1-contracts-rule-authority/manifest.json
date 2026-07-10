@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T14:12:30.654Z",
+  "generatedAt": "2026-07-10T14:17:39.666Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase1-contracts-rule-authority"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 7284
+          "sizeBytes": 7840
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 258313
+          "sizeBytes": 258349
         },
         {
           "path": "docs/README.md",
@@ -264,7 +264,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "5 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -300,9 +300,13 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 5,
       "changedFiles": [
-        " M artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/evidence.json"
+        " M artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/evidence.json",
+        " M docs/plans/README.md",
+        " M docs/project-state.json",
+        " M docs/roadmap.md",
+        "?? .superpowers/"
       ]
     }
   },

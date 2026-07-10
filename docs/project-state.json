@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-07-10",
-  "activeMilestone": "equipment_simulator_phase1",
+  "activeMilestone": "equipment_simulator_phase2",
   "featureIteration": "allowed_under_harness",
   "activeReleaseArtifact": "artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority",
   "activeContracts": [
@@ -10,14 +10,7 @@
       "path": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
       "status": "approved_active",
       "lifecycle": "active",
-      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phase 6 remains deferred."
-    },
-    {
-      "id": "equipment_simulator_phase1_contracts_plan",
-      "path": "docs/plans/2026-07-10-equipment-simulator-phase1-contracts-rule-authority-plan.md",
-      "status": "phase1_contracts_in_progress",
-      "lifecycle": "active",
-      "notes": "Contract-only Phase 1 implementation is active; no Resolver route, frontend cutover or database loader is active."
+      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-1 are complete, Phase 2 Canonical Resolver planning is active, and Phase 6 remains deferred."
     },
     {
       "id": "repo_native_harness_v0_5",
@@ -76,9 +69,23 @@
       "status": "completed",
       "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/evidence.json",
       "notes": "Slices 0A, 0B and 0C merged through PRs #57-#59 with candidate deployment, post-merge live smoke, 40-spec public observed-only contract proof and runtime parity."
+    },
+    {
+      "id": "equipment_simulator_phase1_20260710",
+      "domain": "equipment_simulator_phase1",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/evidence.json",
+      "notes": "PR #60 established dormant pure contracts and ten ordered legality rules with local/full verification, candidate deployment, GitHub CI, post-merge live probes, runtime parity and unchanged Phase 0/public behavior."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "equipment_simulator_phase1_contracts_plan",
+      "path": "docs/plans/2026-07-10-equipment-simulator-phase1-contracts-rule-authority-plan.md",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/evidence.json"
+    },
     {
       "id": "equipment_simulator_phase0_safety",
       "path": "docs/plans/2026-07-10-equipment-simulator-phase0-safety-plan.md",

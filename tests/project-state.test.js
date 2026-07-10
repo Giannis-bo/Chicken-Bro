@@ -29,7 +29,7 @@ test('project-state is the single machine-readable current truth entry', () => {
 
   assert.equal(state.schemaVersion, 1)
   assert.equal(state.updatedAt, '2026-07-10')
-  assert.equal(state.activeMilestone, 'equipment_simulator_phase1')
+  assert.equal(state.activeMilestone, 'equipment_simulator_phase2')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, activeRelease)
 
@@ -44,10 +44,11 @@ test('project-state is the single machine-readable current truth entry', () => {
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
   assert.ok(activeContractIds.has('equipment_simulator_capability_architecture'))
-  assert.ok(activeContractIds.has('equipment_simulator_phase1_contracts_plan'))
+  assert.ok(!activeContractIds.has('equipment_simulator_phase1_contracts_plan'))
 
   const historicalContractIds = new Set(state.historicalContracts.map((entry) => entry.id))
   assert.ok(historicalContractIds.has('equipment_simulator_phase0_safety'))
+  assert.ok(historicalContractIds.has('equipment_simulator_phase1_contracts_plan'))
 
   for (const entry of state.activeContracts) {
     assert.notEqual(entry.lifecycle, 'historical', `${entry.id} should not be historical and active`)
@@ -72,6 +73,10 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(
     state.completedBaselines.some((entry) => entry.id === 'project_harness_normalization_20260710'),
     'Project Harness normalization should be recorded as a completed baseline'
+  )
+  assert.ok(
+    state.completedBaselines.some((entry) => entry.id === 'equipment_simulator_phase1_20260710'),
+    'Equipment simulator Phase 1 should be recorded as a completed baseline'
   )
 })
 
