@@ -37,6 +37,11 @@ except ImportError:
     import pg_cache_read_model_selectors
 
 try:
+    from .pg_gear_authority_loader import AuthorityContextCache, load_gear_authority_context
+except ImportError:
+    from pg_gear_authority_loader import AuthorityContextCache, load_gear_authority_context
+
+try:
     from .websim_payload import (
         CANONICAL_GEAR_SLOTS,
         COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
@@ -944,6 +949,23 @@ class PostgresCacheStore:
             state = {}
         state["updatedAt"] = str(row[1] or "")
         return state
+
+    def get_gear_authority_context(self, selection_intent, runtime_authority):
+        """Load a dormant canonical gear authority context in one read-only transaction."""
+
+        cache = getattr(self, "_gear_authority_context_cache", None)
+        if cache is None:
+            cache = AuthorityContextCache(max_entries=32, max_bytes=4 * 1024 * 1024)
+            self._gear_authority_context_cache = cache
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION READ ONLY")
+                return load_gear_authority_context(
+                    cur,
+                    selection_intent,
+                    runtime_authority,
+                    cache=cache,
+                )
 
     def save_raiderio_payload(self, payload):
         payload = payload if isinstance(payload, dict) else {}

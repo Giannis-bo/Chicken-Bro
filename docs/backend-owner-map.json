@@ -70,10 +70,26 @@
               "server/gear_result_envelope.py",
               "server/gear_rule_matrix.py",
               "server/gear_evidence_ledger.py",
-              "server/gear_resolver.py"
+              "server/gear_resolver.py",
+              "server/pg_gear_authority_loader.py"
             ],
             "runtimeConsumers": [],
-            "activationBoundary": "Phase 2A consumes the Phase 1 contracts only inside the pure Resolver. No current websim_payload.py facade, PostgreSQL selector, public payload, route, serializer, store or frontend imports the Resolver or Ledger."
+            "activationBoundary": "Phase 2B adds a bounded loader, one dormant PostgresCacheStore method and test-only websim facade helpers. No current public payload, route, profile call site, frontend or Worker consumes them before Phase 3.",
+            "phase2bDormantAdapters": {
+              "status": "contract_only_unconsumed",
+              "modules": [
+                "server/pg_gear_authority_loader.py",
+                "server/postgres_cache_store.py::get_gear_authority_context",
+                "server/websim_payload.py::gear_resolver_runtime_authority"
+              ],
+              "queryBudget": {
+                "coldDomainQueries": 3,
+                "warmDomainQueries": 1,
+                "slotCountGrowthAllowed": false
+              },
+              "cacheBoundary": "bounded max_entries plus serialized max_bytes; incomplete transient authority is not cached",
+              "runtimeConsumers": []
+            }
           },
           "owns": [
             "apply_gear_template_legality_gate",
@@ -96,13 +112,24 @@
             "tests/gear_result_envelope_test.py",
             "tests/gear_rule_matrix_test.py",
             "tests/gear_evidence_ledger_test.py",
-            "tests/gear_resolver_test.py"
+            "tests/gear_resolver_test.py",
+            "tests/pg_gear_authority_loader_test.py",
+            "tests/postgres_cache_store_test.py::PostgresCacheStoreTest.test_gear_authority_context_loader_is_read_only_and_bounded"
           ],
           "futureExtractionDirection": "Extract legality source-map helpers only after authority health and public gear API tests remain unchanged."
         },
         {
           "id": "gear_serializer_golden_payload",
           "status": "golden_payload_characterized",
+          "phase2bDormantFacade": {
+            "status": "contract_only_unconsumed",
+            "helpers": [
+              "build_websim_profile_response_from_resolved_snapshot",
+              "gear_resolver_runtime_authority"
+            ],
+            "runtimeConsumers": [],
+            "activationBoundary": "Tests prove legacy profile-line parity and current route non-consumption; Phase 2B does not change build_websim_profile_response callers."
+          },
           "owns": [
             "compact_community_gear_template",
             "compact_gear_candidates",
@@ -123,6 +150,8 @@
             "tests/websim_payload_test.py::WebSimPayloadTest.test_http_websim_gear_stats_runs_fake_simc_for_verified_snapshot",
             "tests/websim_payload_test.py::WebSimPayloadTest.test_legacy_gear_stats_simc_execution_has_global_concurrency_one",
             "tests/websim_payload_test.py::WebSimPayloadTest.test_http_websim_simulate_runs_encoded_profile_through_fake_simc",
+            "tests/websim_payload_test.py resolved snapshot facade and runtime authority parity tests",
+            "tests/fixtures/gear-resolver-facade-parity-v1.json",
             "tests/fixtures/gear-serializer-compact-payload.json",
             "tests/fixtures/gear-public-contract-observed-only.json",
             "tests/websim_payload_test.py gear detail and stat snapshot tests",

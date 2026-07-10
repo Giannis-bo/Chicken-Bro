@@ -311,21 +311,33 @@
           "server/gear_result_envelope.py",
           "server/gear_rule_matrix.py",
           "server/gear_evidence_ledger.py",
-          "server/gear_resolver.py"
+          "server/gear_resolver.py",
+          "server/pg_gear_authority_loader.py"
         ],
         "tests": [
           "tests/gear_contracts_test.py",
           "tests/gear_result_envelope_test.py",
           "tests/gear_rule_matrix_test.py",
           "tests/gear_evidence_ledger_test.py",
-          "tests/gear_resolver_test.py"
+          "tests/gear_resolver_test.py",
+          "tests/pg_gear_authority_loader_test.py"
         ],
         "runtimeConsumers": []
+      },
+      "dormantAdapters": {
+        "status": "contract_only_unconsumed",
+        "modules": [
+          "server/postgres_cache_store.py::get_gear_authority_context",
+          "server/websim_payload.py::gear_resolver_runtime_authority"
+        ],
+        "runtimeConsumers": [],
+        "queryBudget": "three cold domain queries or one warm revision query; no slot-count growth",
+        "cacheBoundary": "bounded entries and serialized bytes; incomplete contexts are not cached"
       },
       "publicContracts": [
         "communityTemplates public entry allows active raiderio_observed_profile only.",
         "baselineTemplates public default remains empty.",
-        "Phase 2A pure Resolver and Evidence Ledger consume the Phase 1 contracts without replacing or activating the current public read model."
+        "Phase 2B bounded Authority Context loader and dormant adapters do not replace or activate the current public read model."
       ],
       "mustNotChange": [
         "Do not reintroduce recommended_bis, season_recommendation, default_template, simc_preset or baseline_blocked into public gear entry.",
@@ -341,7 +353,8 @@
         "tests/gear_result_envelope_test.py",
         "tests/gear_rule_matrix_test.py",
         "tests/gear_evidence_ledger_test.py",
-        "tests/gear_resolver_test.py"
+        "tests/gear_resolver_test.py",
+        "tests/pg_gear_authority_loader_test.py"
       ],
       "runtimeSurfaces": [
         "server/gear_public_contract.py",
@@ -372,13 +385,16 @@
         "server/gear_rule_matrix.py",
         "server/gear_evidence_ledger.py",
         "server/gear_resolver.py",
+        "server/pg_gear_authority_loader.py",
+        "server/postgres_cache_store.py",
         "pages/builds/websim-api.js",
         "pages/builds/detail.*",
         "tests/gear_contracts_test.py",
         "tests/gear_result_envelope_test.py",
         "tests/gear_rule_matrix_test.py",
         "tests/gear_evidence_ledger_test.py",
-        "tests/gear_resolver_test.py"
+        "tests/gear_resolver_test.py",
+        "tests/pg_gear_authority_loader_test.py"
       ],
       "backendOwnerMapRef": {
         "hotspotFile": "server/websim_payload.py",
@@ -398,7 +414,8 @@
           "tests/gear_result_envelope_test.py",
           "tests/gear_rule_matrix_test.py",
           "tests/gear_evidence_ledger_test.py",
-          "tests/gear_resolver_test.py"
+          "tests/gear_resolver_test.py",
+          "tests/pg_gear_authority_loader_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {
@@ -574,23 +591,37 @@
           "server/gear_result_envelope.py",
           "server/gear_rule_matrix.py",
           "server/gear_evidence_ledger.py",
-          "server/gear_resolver.py"
+          "server/gear_resolver.py",
+          "server/pg_gear_authority_loader.py"
         ],
         "tests": [
           "tests/gear_contracts_test.py",
           "tests/gear_result_envelope_test.py",
           "tests/gear_rule_matrix_test.py",
           "tests/gear_evidence_ledger_test.py",
-          "tests/gear_resolver_test.py"
+          "tests/gear_resolver_test.py",
+          "tests/pg_gear_authority_loader_test.py"
         ],
         "runtimeConsumers": []
+      },
+      "dormantAdapters": {
+        "status": "contract_only_unconsumed",
+        "modules": [
+          "server/postgres_cache_store.py::get_gear_authority_context",
+          "server/websim_payload.py::gear_resolver_runtime_authority",
+          "server/websim_payload.py::build_websim_profile_response_from_resolved_snapshot"
+        ],
+        "runtimeConsumers": [],
+        "queryBudget": "three cold domain queries or one warm revision query; no slot-count growth",
+        "cacheBoundary": "bounded entries and serialized bytes; incomplete contexts are not cached"
       },
       "publicContracts": [
         "SimC profile generation stays backend-owned.",
         "Submitted gear enhancements require backend-attached catalog authority before serialization.",
         "Legacy gear stats preserve their response shape while stat_snapshot_v1 uses one iteration and process-global concurrency one.",
         "Task list/detail evidence does not expose raw internal diagnostics as user-facing truth.",
-        "Phase 2A emits deterministic structured serializer input and five evidence groups, but no current serializer, route, task or Worker imports the Resolver or Ledger."
+        "Phase 2A emits deterministic structured serializer input and five evidence groups, but no current serializer, route, task or Worker imports the Resolver or Ledger.",
+        "Phase 2B adds a PostgreSQL-only Authority Context loader and resolved-snapshot serializer parity facade, but both adapters remain dormant and compatibility-pg-live-v1 is not the formal Phase 4 Active Season Manifest."
       ],
       "mustNotChange": [
         "Do not assemble authoritative SimC profile strings client-side.",
@@ -611,7 +642,8 @@
         "tests/gear_result_envelope_test.py",
         "tests/gear_rule_matrix_test.py",
         "tests/gear_evidence_ledger_test.py",
-        "tests/gear_resolver_test.py"
+        "tests/gear_resolver_test.py",
+        "tests/pg_gear_authority_loader_test.py"
       ],
       "runtimeSurfaces": [
         "server/websim_payload.py",
@@ -643,6 +675,8 @@
         "server/gear_rule_matrix.py",
         "server/gear_evidence_ledger.py",
         "server/gear_resolver.py",
+        "server/pg_gear_authority_loader.py",
+        "server/postgres_cache_store.py",
         "server/codex_worker.py",
         "server/news_backend.py",
         "pages/simulator/simc.*",
@@ -651,7 +685,10 @@
         "tests/gear_result_envelope_test.py",
         "tests/gear_rule_matrix_test.py",
         "tests/gear_evidence_ledger_test.py",
-        "tests/gear_resolver_test.py"
+        "tests/gear_resolver_test.py",
+        "tests/pg_gear_authority_loader_test.py",
+        "tests/postgres_cache_store_test.py",
+        "tests/websim_payload_test.py"
       ],
       "criticalContract": {
         "status": "characterized",
@@ -669,7 +706,8 @@
           "tests/gear_result_envelope_test.py",
           "tests/gear_rule_matrix_test.py",
           "tests/gear_evidence_ledger_test.py",
-          "tests/gear_resolver_test.py"
+          "tests/gear_resolver_test.py",
+          "tests/pg_gear_authority_loader_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": null

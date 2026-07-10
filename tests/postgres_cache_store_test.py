@@ -8114,6 +8114,65 @@ class PostgresCacheStoreTest(unittest.TestCase):
         )
         self.assertIn("DELETE FROM cache.websim_gear_variants WHERE id = ANY", sql)
 
+    def test_gear_authority_context_loader_is_read_only_and_bounded(self):
+        from server import postgres_cache_store
+
+        class CountingConnection(FakeConnection):
+            def __init__(self):
+                super().__init__()
+                self.cursor_calls = 0
+
+            def cursor(self):
+                self.cursor_calls += 1
+                return super().cursor()
+
+        conn = CountingConnection()
+        store = postgres_cache_store.PostgresCacheStore(lambda: conn)
+        intent = {"schemaRevision": "selection-intent-v1"}
+        runtime_authority = {"dependencyRevisions": {"simcRuntimeRevision": "simc-v1"}}
+        expected = {"contractRevision": "gear-authority-context-v1", "missingFields": []}
+
+        def assert_read_only_then_delegate(cursor, selection_intent, authority, *, cache=None):
+            self.assertIs(cursor, conn.cursor_instance)
+            self.assertEqual(cursor.statements, ["SET TRANSACTION READ ONLY"])
+            self.assertIs(selection_intent, intent)
+            self.assertIs(authority, runtime_authority)
+            self.assertIsInstance(cache, postgres_cache_store.AuthorityContextCache)
+            self.assertLessEqual(cache.max_entries, 64)
+            self.assertLessEqual(cache.max_bytes, 8 * 1024 * 1024)
+            return expected
+
+        with patch.object(
+            postgres_cache_store,
+            "load_gear_authority_context",
+            side_effect=assert_read_only_then_delegate,
+        ) as loader:
+            result = store.get_gear_authority_context(intent, runtime_authority)
+
+        self.assertEqual(result, expected)
+        self.assertEqual(conn.cursor_calls, 1)
+        self.assertTrue(conn.committed)
+        self.assertFalse(conn.rolled_back)
+        loader.assert_called_once()
+
+    def test_gear_authority_context_loader_rolls_back_transient_failure(self):
+        from server import postgres_cache_store
+
+        conn = FakeConnection()
+        store = postgres_cache_store.PostgresCacheStore(lambda: conn)
+
+        with patch.object(
+            postgres_cache_store,
+            "load_gear_authority_context",
+            side_effect=RuntimeError("transient authority read failure"),
+        ):
+            with self.assertRaises(RuntimeError):
+                store.get_gear_authority_context({}, {})
+
+        self.assertTrue(conn.rolled_back)
+        self.assertFalse(conn.committed)
+        self.assertEqual(conn.cursor_instance.statements[0], "SET TRANSACTION READ ONLY")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 import json
 import io
 import gc
+import inspect
 import os
 import sqlite3
 import subprocess
@@ -23088,6 +23089,158 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertIn("main_hand=item_260408,id=260408,ilevel=298", item_line)
         self.assertIn("off_hand=old_offhand,id=2,ilevel=1", profile)
+
+
+    def gear_resolver_facade_fixture(self):
+        fixture_path = Path(__file__).parent / "fixtures" / "gear-resolver-facade-parity-v1.json"
+        return json.loads(fixture_path.read_text(encoding="utf-8"))
+
+    def resolved_snapshot_for_facade(self):
+        from server import gear_resolver
+
+        parity = self.gear_resolver_facade_fixture()
+        resolver_path = Path(__file__).parent / "fixtures" / parity["resolverFixturePath"]
+        resolver_fixture = json.loads(resolver_path.read_text(encoding="utf-8"))
+        snapshot = gear_resolver.resolve(
+            resolver_fixture["intent"], resolver_fixture["authorityContext"]
+        )
+        self.assertEqual(snapshot["serializerInput"], parity["expectedSerializerInput"])
+        return parity, snapshot
+
+    def test_resolved_snapshot_facade_rejects_wrong_contract_or_blocked_readiness(self):
+        _parity, snapshot = self.resolved_snapshot_for_facade()
+        wrong_contract = json.loads(json.dumps(snapshot))
+        wrong_contract["contractRevision"] = "gear-resolved-snapshot-v0"
+
+        result = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(
+            wrong_contract
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["profile"], "")
+        self.assertEqual(
+            result["problems"][0]["code"], "GEAR_RESOLVED_SNAPSHOT_CONTRACT_MISMATCH"
+        )
+
+        blocked = json.loads(json.dumps(snapshot))
+        blocked["profileReadiness"]["status"] = "blocked"
+        blocked["profileReadiness"]["simcReady"] = False
+        result = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(blocked)
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(
+            result["problems"][0]["code"], "GEAR_RESOLVED_SNAPSHOT_NOT_READY"
+        )
+
+        wrong_serializer = json.loads(json.dumps(snapshot))
+        wrong_serializer["profileReadiness"]["serializerRevision"] = "websim-profile-v0"
+        result = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(
+            wrong_serializer
+        )
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(
+            result["problems"][0]["code"], "GEAR_RESOLVED_SNAPSHOT_SERIALIZER_MISMATCH"
+        )
+
+    def test_resolved_snapshot_facade_uses_serializer_input_not_client_enhancement_options(self):
+        parity, snapshot = self.resolved_snapshot_for_facade()
+        source_context = {
+            **parity["sourceContext"],
+            "gearSelection": {
+                "items": [
+                    {
+                        "slot": "head",
+                        "itemId": "forged-item",
+                        "ilevel": 999,
+                        "simcReady": True,
+                    }
+                ]
+            },
+            "enhancementBySlot": {
+                "head": {"gem_id": "forged-gem", "enchant_id": "forged-enchant"}
+            },
+        }
+
+        result = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(
+            snapshot, source_context
+        )
+
+        self.assertEqual(result["status"], "resolved")
+        self.assertIn("gem_id=gem-haste", result["profile"])
+        self.assertNotIn("forged", result["profile"])
+        self.assertEqual(result["profileReadiness"], snapshot["profileReadiness"])
+
+    def test_resolved_snapshot_facade_matches_legacy_profile_golden(self):
+        parity, snapshot = self.resolved_snapshot_for_facade()
+        legacy = self.websim_payload.build_websim_profile_response(parity["legacyPayload"])
+
+        resolved = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(
+            snapshot, parity["sourceContext"]
+        )
+
+        self.assertEqual(resolved["profile"].splitlines(), legacy["profile"].splitlines())
+        for line in parity["expectedGearLines"]:
+            self.assertIn(line, resolved["profile"].splitlines())
+        self.assertEqual(resolved["profileReadiness"], parity["expectedProfileReadiness"])
+        for field in ("profile", "gearItems", "simcItems", "readiness", "talentEncoding", "preparation"):
+            self.assertIn(field, resolved)
+
+    def test_current_profile_route_does_not_call_resolved_snapshot_facade(self):
+        parity = self.gear_resolver_facade_fixture()
+        with patch.object(
+            self.websim_payload,
+            "build_websim_profile_response_from_resolved_snapshot",
+            side_effect=AssertionError("current profile route must remain dormant"),
+        ) as resolved_facade:
+            response = self.websim_payload.build_websim_profile_response(parity["legacyPayload"])
+
+        self.assertTrue(response["profile"])
+        resolved_facade.assert_not_called()
+
+    def test_runtime_authority_projects_existing_rules_without_client_input(self):
+        signature = inspect.signature(self.websim_payload.gear_resolver_runtime_authority)
+        self.assertNotIn("selection_intent", signature.parameters)
+        self.assertNotIn("payload", signature.parameters)
+
+        authority = self.websim_payload.gear_resolver_runtime_authority(
+            "mage", "arcane", simc_runtime_revision="simc-v1"
+        )
+        self.assertEqual(
+            authority["dependencyRevisions"]["gearRuleRevision"], "gear-rule-matrix-v1"
+        )
+        self.assertEqual(
+            authority["dependencyRevisions"]["simcRuntimeRevision"], "simc-v1"
+        )
+        self.assertEqual(
+            authority["ruleParameters"]["allowedArmorTypesByClass"]["mage"], ["Cloth"]
+        )
+        self.assertFalse(authority["capabilities"]["catalyst"]["enabled"])
+        self.assertTrue(authority["capabilities"]["catalyst"]["optionParseSupported"])
+
+        for spec_id in self.websim_payload.expected_spec_pairs():
+            class_key, spec_key = spec_id.split(":", 1)
+            weapon_rule = self.websim_payload.weapon_equipment_rule_payload(class_key, spec_key)
+            expected_types = sorted(
+                set(weapon_rule.get("mainHandTypes") or [])
+                | set(weapon_rule.get("offHandTypes") or [])
+            )
+            self.assertEqual(
+                authority["ruleParameters"]["allowedWeaponTypesByClassSpec"][spec_id],
+                expected_types,
+            )
+            expected_dual_wield = bool(
+                set(weapon_rule.get("offHandTypes") or [])
+                & self.websim_payload.DUAL_WIELDABLE_WEAPON_TYPES
+            )
+            self.assertEqual(
+                authority["ruleParameters"]["dualWieldByClassSpec"][spec_id],
+                expected_dual_wield,
+            )
+
+    def test_runtime_authority_requires_current_simc_runtime_revision(self):
+        with self.assertRaises(ValueError):
+            self.websim_payload.gear_resolver_runtime_authority(
+                "mage", "arcane", simc_runtime_revision=""
+            )
 
 
 if __name__ == "__main__":

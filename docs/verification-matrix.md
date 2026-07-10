@@ -182,3 +182,35 @@ python3 -m py_compile \
 Slice 2A fixes the slot pipeline at base item → verified variant → verified overlay → effective capabilities → legal enhancements. It returns structured static facts, canonical set state, ordered legality, readiness, constraints, serializer input and immutable Evidence Claim IDs; it never produces a profile string or DPS. Missing authority, evidence, resolved stats or overlay identity fails closed, and dynamic effects never become static attributes.
 
 Candidate verification must prove exact PR-head hashes and pure fixture outputs on the remote runtime tree while `/resolve` remains 404 and the current facade, PostgreSQL selectors, public observed-only payload, Phase 0A–0C guards, Phase 1 contracts, Catalyst blocker, timers and logs remain unchanged. Deployment does not activate a loader, facade, route, frontend consumer, Worker, write, migration, sync or cleanup.
+
+## Equipment Simulator Phase 2B PG Loader and Dormant Facade Profile
+
+The Strict Slice 2B packet at `artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity` adds the PostgreSQL-only Authority Context loader, bounded cache, one dormant store method, server-owned runtime-authority projection and resolved-snapshot serializer parity facade. Run it before candidate deployment:
+
+```bash
+python3 -m unittest \
+  tests.gear_contracts_test \
+  tests.gear_result_envelope_test \
+  tests.gear_rule_matrix_test \
+  tests.gear_evidence_ledger_test \
+  tests.gear_resolver_test \
+  tests.pg_gear_authority_loader_test
+python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test
+node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity \
+  --base origin/main
+python3 -m py_compile \
+  server/gear_evidence_ledger.py \
+  server/gear_resolver.py \
+  server/pg_gear_authority_loader.py \
+  server/postgres_cache_store.py \
+  server/websim_payload.py
+```
+
+Cold reads execute exactly three static domain queries for one or sixteen slots; a warm hit executes only the revision query. The cache is bounded by both entry count and canonical serialized bytes, keys bind the complete dependency vector and selection signature, and incomplete/transient authority is never cached. Loader output identifies `compatibility-pg-live-v1` as a compatibility view with `formalActiveManifest=false`; Phase 4 remains the formal Active Season Manifest owner.
+
+Candidate verification must execute the loader against the live PostgreSQL schema inside one read-only transaction, prove the cold/warm query budget, import the dormant facade, and reproduce the checked-in parity fixture. It must also prove no current route, serializer call site, Worker, frontend, sync job or public payload consumes either adapter: `/resolve` remains 404, the current `/profile` behavior stays unchanged, Catalyst remains fail-closed, and Phase 0–2A/public/timer/log guards remain green.

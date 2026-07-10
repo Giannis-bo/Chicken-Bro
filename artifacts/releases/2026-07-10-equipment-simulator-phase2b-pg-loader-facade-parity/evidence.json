@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase2b-pg-loader-facade-parity",
   "requirementSlug": "equipment-simulator-phase2b-pg-loader-facade-parity",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-phase2b-pg-loader-facade-parity",
-  "commit": "uncommitted",
+  "commit": "pending_candidate_commit",
   "scope": [
     "bounded PostgreSQL-only Authority Context loader",
     "one dormant PostgresCacheStore read-only method",
@@ -15,43 +15,48 @@
   "verification": [
     {
       "command": "focused loader query-budget, transformation and cache tests",
-      "status": "not_run",
-      "summary": "Loader TDD has not run yet."
+      "status": "pass",
+      "summary": "20 loader tests passed. Cold 1-slot and 16-slot reads use exactly three static domain queries, warm reads use one revision query, cache limits and dependency invalidation hold, explicit source evidence is required, structured stats are not parsed from display text or double-applied, and invalid facts remain fail-closed. The complete Phase 1-2B contract suite passed 79 tests."
     },
     {
       "command": "focused store read-only transaction test",
-      "status": "not_run",
-      "summary": "Dormant store method has not been implemented."
+      "status": "pass",
+      "summary": "Two store tests passed: one cursor and transaction are marked read-only before loader delegation, the bounded cache is reused, successful reads commit and transient loader failures roll back."
     },
     {
       "command": "six resolved-snapshot facade and runtime-authority parity tests",
-      "status": "not_run",
-      "summary": "Dormant facade parity has not been implemented."
+      "status": "pass",
+      "summary": "Six facade/runtime-authority tests passed: contract/readiness/revision gates fail closed, serializer input overrides forged client gear facts, golden profile lines match, the current profile path does not call the facade, all 40 specs match current armor/weapon/hand policy, and SimC runtime revision is required."
     },
     {
       "command": "python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test",
-      "status": "not_run",
-      "summary": "Current facade and backend regressions have not run yet."
+      "status": "pass",
+      "summary": "726 current facade, PostgreSQL store and backend regression tests passed; existing profile, public payload, health, task and simulator behavior remains unchanged."
     },
     {
       "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
-      "status": "not_run",
-      "summary": "Backend profile has not run yet."
+      "status": "pass",
+      "summary": "1147 Python tests passed with 1 skipped; compileall and Strict Harness passed."
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
-      "status": "not_run",
-      "summary": "Full profile has not run yet."
+      "status": "pass",
+      "summary": "365 Node tests and 1147 Python tests passed with 1 skipped; all 127 syntax, JSON, Harness and diff commands passed."
     },
     {
       "command": "static SQL/query-budget and dormant-consumer inspection plus Python compile",
-      "status": "not_run",
-      "summary": "Static boundary checks have not run yet."
+      "status": "pass",
+      "summary": "All five touched Python modules compiled. The loader contains exactly three cursor execute sites and three static SQL markers with no dynamic SQL identifiers; Resolver/Ledger have zero PG/facade coupling, and the store/facade helpers have definitions and test callers only."
     },
     {
       "command": "git diff --check",
-      "status": "not_run",
-      "summary": "Whitespace verification has not run yet."
+      "status": "pass",
+      "summary": "Diff whitespace verification passed."
+    },
+    {
+      "command": "local CR of origin/main...working tree",
+      "status": "pass",
+      "summary": "No unresolved findings. Review caught and fixed three fail-closed defects with red-to-green tests: structured variant stats were double-applied, absent source status defaulted to verified instead of unknown, and missing or invalid structured stat facts were sanitized into an allowed empty map. Review also confirmed bounded cache/query behavior, compatibility manifest wording, one PG boundary and no route, frontend, Worker, write, migration, sync, cleanup or Catalyst activation."
     }
   ],
   "candidateDeployment": {
@@ -105,5 +110,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 2B Strict contract is approved for bounded PostgreSQL loader and dormant facade parity implementation; no loader, store or facade file has changed yet."
+  "summary": "Slice 2B implementation is locally verified: the bounded PostgreSQL Authority Context loader, read-only store method, server-owned runtime authority and resolved-snapshot parity facade are complete and dormant; candidate deployment against the live PostgreSQL schema is the next gate."
 }

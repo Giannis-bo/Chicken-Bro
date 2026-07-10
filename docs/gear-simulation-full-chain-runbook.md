@@ -18,7 +18,7 @@
 - 可回滚：任何生产写库前必须备份实际写入的 PostgreSQL target，并保留历史 SQLite 文件备份作为迁移/审计证据。当前 runtime 必须是 `WOW_DATABASE_RUNTIME=postgres_only`；SQLite 不能作为线上 fallback 或健康判断来源。任何代码部署前必须能区分“代码回滚”和“DB 回滚”。
 - 下载/写入边界：拉取远端数据、下载外部文件、生产 SSH/DB 写入、Wago/SimC 数据刷新，默认都必须先取得 owner 明确批准。例外是已知云服务器上的 SimulationCraft runtime 更新：当用户明确要求处理 SimC 更新、WebSim/SimC readiness、赛季切换阻塞，或已授权 health follow-up 自动处理 SimC runtime 时，可直接下载配置好的 SimC 源包、构建、切换 `/opt/wow-simc/current` 并执行 smoke；不得扩展到本机下载、任意第三方下载、依赖安装或修改 SimC repo/branch。
 
-## Phase 1 / Phase 2A 纯解析边界（尚未切换 runtime）
+## Phase 1 / Phase 2A / Phase 2B 解析与只读适配边界（尚未切换 runtime）
 
 `server/gear_contracts.py`、`server/gear_result_envelope.py` 和 `server/gear_rule_matrix.py` 是可信装备配置工作台的 Phase 1 契约基础，当前没有 active runtime consumer：
 
@@ -28,7 +28,11 @@
 - `gear-rule-matrix-v1` 固定按 10 条显式纯函数规则执行，只返回 ordered legality results，不生成 Resolved Snapshot、属性、套装归属、Evidence Claims、SimC lines 或 readiness。
 - Phase 2A 新增 `server/gear_resolver.py` 与 `server/gear_evidence_ledger.py`：固定执行 base item → verified variant → verified overlay → effective capabilities → legal enhancements，并输出结构化静态属性、canonical `itemSetId`、constraints、serializer input 和五组 Evidence Claims。它们不接受连接、store、route 或文件系统参数，也不生成完整 profile 字符串或 DPS。
 - verified variant 缺少 `resolvedStats`、overlay 缺少 immutable source ref、overlay 与 base 的 canonical set identity 冲突、option 非法或 evidence record 缺失时必须 fail-closed；非法 enhancement 不得污染静态属性或 SimC options，dynamic effects 不得折算为静态 stats。
-- 现阶段仍由 `server/websim_payload.py`、PostgreSQL selectors、现有 frontend 和 observed-only public read model 提供线上事实。Phase 2A 不做 loader、facade、route、serializer、数据库、任务或 UI cutover；Phase 2B 才允许接入 bounded PostgreSQL Authority Context loader 与 dormant compatibility facade。
+- Phase 2B 新增 `server/pg_gear_authority_loader.py`：在一个 PostgreSQL read-only transaction 中，用三条 static domain query 批量读取 Authority Context；1 槽与 16 槽的 cold budget 都是 3，warm cache hit 只执行 revision query，不允许 per-slot SQL。
+- `AuthorityContextCache` 同时受 entry count 与 canonical serialized bytes 限制，cache key 绑定完整 Dependency Vector 与 Selection Signature；missing/unavailable/incomplete authority 不缓存。loader 只消费结构化 `itemStats`，不解析展示用 `statSummary`；source 必须显式 `sourceStatus/status=verified`，缺失状态按 `unknown` 阻断，非法数值类型不得静默清洗为空属性后放行。
+- Phase 2B 的 `PostgresCacheStore.get_gear_authority_context`、`gear_resolver_runtime_authority` 和 `build_websim_profile_response_from_resolved_snapshot` 都是 dormant adapter，当前 `runtimeConsumers=[]`。resolved-snapshot facade 只消费后端 Resolver 生成的 `serializerInput.gearItems`，委托现有 serializer，并以 golden parity 锁住兼容输出。
+- loader 返回的 `compatibility-pg-live-v1` 明确是当前 PG live state 的过渡兼容视图，`formalActiveManifest=false`；不可冒充 Phase 4 才拥有的 immutable Active Season Manifest。
+- 现阶段仍由 `server/websim_payload.py` 的既有调用链、PostgreSQL selectors、现有 frontend 和 observed-only public read model 提供线上事实。Phase 2B 不新增 route、serializer cutover、frontend consumer、Worker、migration/write、job、sync/backfill、cleanup 或 UI；`/resolve` 必须继续 404，现有 `/profile` 行为必须不变。
 - Catalyst 继续要求 verified capability 与 revision；当前保持 fail-closed，Phase 6 的 12.1 保留绿字转换仍是外部依赖型 TODO。
 
 ## 当前公开装备模板事实快照

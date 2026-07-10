@@ -25521,6 +25521,233 @@ def websim_profile_readiness_payload(readiness, talent_encoding):
     }
 
 
+def _blocked_resolved_snapshot_profile(code, title, *, kind="ILLEGAL_SELECTION"):
+    try:
+        from .gear_result_envelope import gear_problem
+    except ImportError:
+        from gear_result_envelope import gear_problem
+    problem = gear_problem(kind, code, title)
+    return {
+        "status": "blocked",
+        "profile": "",
+        "gearItems": [],
+        "simcItems": [],
+        "readiness": {"status": "blocked", "fullReady": False, "warnings": [title]},
+        "talentEncoding": blank_talent_encoding(),
+        "profileReadiness": {
+            "status": "blocked",
+            "simcReady": False,
+            "requiredSlots": [],
+            "readySlots": [],
+            "serializerRevision": "",
+            "simcRuntimeRevision": "",
+            "problems": [problem],
+        },
+        "preparation": {},
+        "problems": [problem],
+    }
+
+
+def build_websim_profile_response_from_resolved_snapshot(resolved_snapshot, source_context=None):
+    """Serialize one verified canonical snapshot through the dormant legacy adapter."""
+
+    snapshot = resolved_snapshot if isinstance(resolved_snapshot, dict) else {}
+    if snapshot.get("contractRevision") != "gear-resolved-snapshot-v1":
+        return _blocked_resolved_snapshot_profile(
+            "GEAR_RESOLVED_SNAPSHOT_CONTRACT_MISMATCH",
+            "Resolved gear snapshot contract revision is unavailable.",
+            kind="REVISION_CONFLICT",
+        )
+    readiness = snapshot.get("profileReadiness")
+    readiness = readiness if isinstance(readiness, dict) else {}
+    if (
+        snapshot.get("status") != "verified"
+        or readiness.get("status") != "verified"
+        or readiness.get("simcReady") is not True
+    ):
+        return _blocked_resolved_snapshot_profile(
+            "GEAR_RESOLVED_SNAPSHOT_NOT_READY",
+            "Resolved gear snapshot is not profile-ready.",
+        )
+    dependency_vector = snapshot.get("dependencyVector")
+    dependency_vector = dependency_vector if isinstance(dependency_vector, dict) else {}
+    expected_serializer_revision = "websim-profile-compat-v1"
+    if (
+        readiness.get("serializerRevision") != expected_serializer_revision
+        or dependency_vector.get("serializerRevision") != expected_serializer_revision
+    ):
+        return _blocked_resolved_snapshot_profile(
+            "GEAR_RESOLVED_SNAPSHOT_SERIALIZER_MISMATCH",
+            "Resolved snapshot serializer revision does not match the compatibility facade.",
+            kind="REVISION_CONFLICT",
+        )
+    serializer_input = snapshot.get("serializerInput")
+    serializer_input = serializer_input if isinstance(serializer_input, dict) else {}
+    gear_items = serializer_input.get("gearItems")
+    if not isinstance(gear_items, list) or not gear_items:
+        return _blocked_resolved_snapshot_profile(
+            "GEAR_SERIALIZER_INPUT_UNAVAILABLE",
+            "Resolved gear serializer input is unavailable.",
+            kind="AUTHORITY_UNAVAILABLE",
+        )
+
+    normalized_items = []
+    for index, raw in enumerate(gear_items):
+        if not isinstance(raw, dict):
+            return _blocked_resolved_snapshot_profile(
+                "GEAR_SERIALIZER_ITEM_INVALID",
+                f"Resolved serializer item {index} is invalid.",
+                kind="AUTHORITY_UNAVAILABLE",
+            )
+        slot = normalize_slot(raw.get("slot"))
+        item_id = normalize_option_value(raw.get("itemId"))
+        simc_options = raw.get("simcOptions")
+        if not slot or not item_id or not isinstance(simc_options, dict):
+            return _blocked_resolved_snapshot_profile(
+                "GEAR_SERIALIZER_ITEM_INVALID",
+                f"Resolved serializer item {index} is incomplete.",
+                kind="AUTHORITY_UNAVAILABLE",
+            )
+        authoritative_options = {
+            key: normalize_option_value(value)
+            for key, value in simc_options.items()
+            if key in SIMC_GEAR_OPTION_KEYS and normalize_option_value(value)
+        }
+        normalized_items.append(
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": item_id,
+                "id": item_id,
+                "name": f"item_{item_id}",
+                "displayName": f"item_{item_id}",
+                "variantKey": str(raw.get("variantKey") or ""),
+                "simcReady": True,
+                **authoritative_options,
+            }
+        )
+
+    source = dict(source_context) if isinstance(source_context, dict) else {}
+    for forbidden in (
+        "gearSelection",
+        "gearItems",
+        "items",
+        "enhancementBySlot",
+        "serializerInput",
+        "resolvedSlots",
+        "evidenceLedger",
+        "profileReadiness",
+    ):
+        source.pop(forbidden, None)
+    eligibility = snapshot.get("eligibilityContext")
+    eligibility = eligibility if isinstance(eligibility, dict) else {}
+    source.update(
+        {
+            "classKey": eligibility.get("classKey"),
+            "specKey": eligibility.get("specKey"),
+            "level": eligibility.get("level"),
+            "gearSelection": {"items": normalized_items},
+        }
+    )
+    response = build_websim_profile_response(source, conn=None)
+    response.update(
+        {
+            "status": "resolved",
+            "profileReadiness": json.loads(json.dumps(readiness, sort_keys=True)),
+            "resolvedGearSignature": str(snapshot.get("resolvedGearSignature") or ""),
+            "evidenceLedger": json.loads(
+                json.dumps(snapshot.get("evidenceLedger") or {}, sort_keys=True)
+            ),
+            "problems": [],
+        }
+    )
+    return response
+
+
+def gear_resolver_runtime_authority(class_key, spec_key, *, simc_runtime_revision):
+    """Project current backend-owned rules for the dormant PostgreSQL loader."""
+
+    class_key = slugify(class_key, "")
+    spec_key = slugify(spec_key, "")
+    simc_runtime_revision = str(simc_runtime_revision or "").strip()
+    playable_class_specs = {
+        str(klass.get("key") or ""): sorted(
+            str(spec.get("key") if isinstance(spec, dict) else spec)
+            for spec in (klass.get("specs") or [])
+            if str(spec.get("key") if isinstance(spec, dict) else spec)
+        )
+        for klass in WOW_CLASSES
+        if str(klass.get("key") or "")
+    }
+    if class_key not in playable_class_specs or spec_key not in playable_class_specs[class_key]:
+        raise ValueError("class_key and spec_key must identify a current playable specialization")
+    if not simc_runtime_revision:
+        raise ValueError("simc_runtime_revision is required")
+
+    allowed_weapons = {}
+    dual_wield = {}
+    for expected_spec in expected_spec_pairs():
+        expected_class, expected_spec_key = expected_spec.split(":", 1)
+        weapon_rule = weapon_equipment_rule_payload(expected_class, expected_spec_key)
+        main_types = set(weapon_rule.get("mainHandTypes") or [])
+        off_types = set(weapon_rule.get("offHandTypes") or [])
+        allowed_weapons[expected_spec] = sorted(main_types | off_types)
+        dual_wield[expected_spec] = bool(off_types & DUAL_WIELDABLE_WEAPON_TYPES)
+
+    inventory_types = {slot: [slot] for slot in CANONICAL_GEAR_SLOTS}
+    inventory_types["main_hand"] = ["main_hand", "weapon"]
+    inventory_types["off_hand"] = ["off_hand", "offhand", "weapon"]
+    catalyst_revision = "catalyst-retained-secondary-proof-v1"
+    source_id = "evidence:runtime:websim-gear-policy-v1"
+    return {
+        "dependencyRevisions": {
+            "gearRuleRevision": "gear-rule-matrix-v1",
+            "resolverContractRevision": "gear-resolver-contract-v1",
+            "serializerRevision": "websim-profile-compat-v1",
+            "simcRuntimeRevision": simc_runtime_revision,
+            "statPolicyRevision": "stat-snapshot-policy-v1",
+            "selectionSchemaRevision": "selection-intent-v1",
+        },
+        "ruleParameters": {
+            "inventoryTypesBySlot": inventory_types,
+            "allowedArmorTypesByClass": {
+                key: [value] for key, value in sorted(CLASS_ARMOR_TYPES.items())
+            },
+            "allowedWeaponTypesByClassSpec": allowed_weapons,
+            "dualWieldByClassSpec": dual_wield,
+            "requiredSlots": list(CANONICAL_GEAR_SLOTS),
+            "uniqueLimits": {},
+            "uniqueGemLimits": {},
+            "runeforgeAllowedClassSpecs": [
+                f"deathknight:{key}" for key in playable_class_specs.get("deathknight", [])
+            ],
+            "embellishmentLimit": 2,
+            "catalystRevision": catalyst_revision,
+            "crossSlotBlockers": [],
+            "setAggregationInputs": [],
+            "sourceRefIds": [source_id],
+        },
+        "capabilities": {
+            "serializer": {"enabled": True, "revision": "websim-profile-compat-v1"},
+            "catalyst": {
+                "enabled": False,
+                "revision": catalyst_revision,
+                "optionParseSupported": "redirected_base_stats" in SIMC_GEAR_OPTION_KEYS,
+                "failClosed": True,
+            },
+        },
+        "playableClassSpecs": playable_class_specs,
+        "requestedClassSpec": f"{class_key}:{spec_key}",
+        "sourceRefs": [
+            {
+                "id": source_id,
+                "sourceType": "backend_policy",
+                "sourceRevision": "gear-rule-matrix-v1",
+            }
+        ],
+    }
+
+
 def build_websim_profile_response(payload, conn=None):
     source = payload if isinstance(payload, dict) else {}
     class_key = slugify(source.get("classKey"), "mage")
