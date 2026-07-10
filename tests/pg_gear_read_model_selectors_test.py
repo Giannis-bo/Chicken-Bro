@@ -4,6 +4,56 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_build_websim_talent_authority_read_model_preserves_runtime_and_official_state(self):
+        from server.pg_gear_read_model_selectors import build_websim_talent_authority_read_model
+
+        payload = build_websim_talent_authority_read_model(
+            "verified",
+            {"seasonRevision": "midnight-1"},
+            [{"id": "node-a"}, {"id": "node-b"}],
+            {
+                "checkedAt": "2026-07-10T01:00:00+00:00",
+                "simc": {"build": "simc-dev", "traitEdgeSource": "simc-trait-data"},
+            },
+            schema_revision="talent-schema-v1",
+        )
+
+        self.assertEqual(
+            payload,
+            {
+                "schemaRevision": "talent-schema-v1",
+                "runtimeSource": "simc",
+                "diffStatus": "verified",
+                "checkedAt": "2026-07-10T01:00:00+00:00",
+                "runtime": {
+                    "status": "verified",
+                    "source": "simc",
+                    "simcBuild": "simc-dev",
+                    "traitEdgeSource": "simc-trait-data",
+                    "nodeCount": 2,
+                },
+                "official": {
+                    "status": "pending_audit",
+                    "revision": "midnight-1",
+                    "source": "blizzard-game-data-api",
+                },
+            },
+        )
+
+        fallback_payload = build_websim_talent_authority_read_model(
+            "fallback",
+            {"revision": "legacy-revision"},
+            None,
+            {},
+            schema_revision="talent-schema-v1",
+            now="2026-07-10T02:00:00+00:00",
+        )
+        self.assertEqual(fallback_payload["runtimeSource"], "fallback")
+        self.assertEqual(fallback_payload["diffStatus"], "pending_official_audit")
+        self.assertEqual(fallback_payload["checkedAt"], "2026-07-10T02:00:00+00:00")
+        self.assertEqual(fallback_payload["runtime"]["nodeCount"], 0)
+        self.assertEqual(fallback_payload["official"]["revision"], "legacy-revision")
+
     def test_build_websim_loot_read_model_wraps_items_instances_and_season(self):
         from server.pg_gear_read_model_selectors import build_websim_loot_read_model
 

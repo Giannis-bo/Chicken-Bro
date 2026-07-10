@@ -163,6 +163,37 @@ def build_admin_talent_records_read_model(template_rows, tree_rows, now=None):
     }
 
 
+def build_websim_talent_authority_read_model(
+    talent_status,
+    season,
+    nodes,
+    sync_state,
+    *,
+    schema_revision,
+    now=None,
+):
+    simc_state = sync_state.get("simc") if isinstance(sync_state.get("simc"), dict) else {}
+    runtime_source = "fallback" if talent_status == "fallback" else "simc"
+    return {
+        "schemaRevision": schema_revision,
+        "runtimeSource": runtime_source,
+        "diffStatus": "verified" if talent_status == "verified" else "pending_official_audit",
+        "checkedAt": sync_state.get("checkedAt") or sync_state.get("updatedAt") or now or utc_now(),
+        "runtime": {
+            "status": talent_status,
+            "source": runtime_source,
+            "simcBuild": simc_state.get("build") or "",
+            "traitEdgeSource": simc_state.get("traitEdgeSource") or "",
+            "nodeCount": len(nodes or []),
+        },
+        "official": {
+            "status": "pending_audit",
+            "revision": season.get("seasonRevision") or season.get("revision") or "",
+            "source": "blizzard-game-data-api",
+        },
+    }
+
+
 def build_websim_talent_import_template_read_model(row):
     if not row:
         return None
