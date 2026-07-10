@@ -44,6 +44,7 @@ test('project-state is the single machine-readable current truth entry', () => {
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
   assert.ok(activeContractIds.has('equipment_simulator_capability_architecture'))
+  assert.ok(activeContractIds.has('equipment_simulator_phase2_canonical_resolver_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_contracts_plan'))
 
   const historicalContractIds = new Set(state.historicalContracts.map((entry) => entry.id))

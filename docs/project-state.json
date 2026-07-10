@@ -13,6 +13,13 @@
       "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-1 are complete, Phase 2 Canonical Resolver planning is active, and Phase 6 remains deferred."
     },
     {
+      "id": "equipment_simulator_phase2_canonical_resolver_plan",
+      "path": "docs/plans/2026-07-10-equipment-simulator-phase2-canonical-resolver-plan.md",
+      "status": "implementation_plan_ready",
+      "lifecycle": "active",
+      "notes": "Executable two-slice Phase 2 plan for pure Resolver/Ledger, bounded PG Authority Context loading and dormant facade parity; no Phase 3 route or runtime cutover is active."
+    },
+    {
       "id": "repo_native_harness_v0_5",
       "path": "docs/harness.md",
       "status": "active",
