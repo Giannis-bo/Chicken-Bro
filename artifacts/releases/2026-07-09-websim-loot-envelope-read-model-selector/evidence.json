@@ -1,6 +1,6 @@
 {
-  "status": "candidate_verified",
-  "highestEvidenceLevel": "candidate_verified",
+  "status": "merged_to_main",
+  "highestEvidenceLevel": "candidate_deployment_verified",
   "scope": [
     "server/pg_gear_read_model_selectors.py",
     "server/postgres_cache_store.py",
@@ -87,6 +87,7 @@
     "branch": "codex/phase4-websim-loot-envelope-read-model-selector",
     "baseCommit": "5bfd1aabf7bb1107477d7296594df5d65a3878c5",
     "commit": "284004923283851e7c626f37bd51e88680336e3a",
+    "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/41",
     "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
     "asyncSyncStarted": false,
     "deploySummary": "Deploy succeeded to ubuntu@124.223.51.33:/opt/wow-mini-program, reused remote bootstrap dependencies, nginx config test passed, wow-backend health returned ok, and async PG-native sync starts were skipped.",
@@ -147,6 +148,14 @@
       "server/news_backend.py": "e30ef78c5d3a524f7b1f7b98c592bcdf5e91134d848799311de0af9b3ebbce99",
       "server/websim_payload.py": "a2d85e61d935ce6e5e65186c0b3833b492cd72e4d0b85d7ed098107a17d45f7a"
     }
+  },
+  "merge": {
+    "status": "merged_to_main",
+    "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/41",
+    "mergedAt": "2026-07-09T15:15:32Z",
+    "mergeCommit": "0a2878dd4d4016b5bd29fddeb0e656f2696c4b26",
+    "localMainSynced": true,
+    "headEqualsOriginMain": true
   },
   "risks": [
     {

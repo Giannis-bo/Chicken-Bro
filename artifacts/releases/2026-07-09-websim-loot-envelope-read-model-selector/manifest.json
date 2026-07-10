@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "candidate_verified",
+  "status": "merged_to_main",
   "generatedAt": "2026-07-09T15:04:08Z",
   "release": {
     "date": "2026-07-09",
@@ -55,6 +55,7 @@
         "pg_read_model",
         "websim_runtime"
       ],
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/41",
       "branch": "codex/phase4-websim-loot-envelope-read-model-selector",
       "commit": "284004923283851e7c626f37bd51e88680336e3a",
       "smoke": [
@@ -69,6 +70,12 @@
         "40-spec observed-only gear sweep",
         "systemd/log/hash parity"
       ]
+    },
+    "merge": {
+      "status": "merged_to_main",
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/41",
+      "mergeCommit": "0a2878dd4d4016b5bd29fddeb0e656f2696c4b26",
+      "headEqualsOriginMain": true
     }
   },
   "evidenceFile": "artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/evidence.json"
