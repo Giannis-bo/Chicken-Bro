@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase2b-pg-loader-facade-parity",
   "requirementSlug": "equipment-simulator-phase2b-pg-loader-facade-parity",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "deployable",
+  "highestEvidenceLevel": "deployable",
   "branch": "codex/equipment-simulator-phase2b-pg-loader-facade-parity",
   "commit": "833301cbef4611b4454ceb1ddef2962386daab3f",
   "scope": [
@@ -57,11 +57,21 @@
       "command": "local CR of origin/main...working tree",
       "status": "pass",
       "summary": "No unresolved findings. Review caught and fixed three fail-closed defects with red-to-green tests: structured variant stats were double-applied, absent source status defaulted to verified instead of unknown, and missing or invalid structured stat facts were sanitized into an allowed empty map. The first candidate attempt then exposed a direct-script import mismatch; production was immediately rolled back to the verified Phase 2A runtime, a reproducing test was added, and the loader now supports package and server-directory imports. Review also confirmed bounded cache/query behavior, compatibility manifest wording, one PG boundary and no route, frontend, Worker, write, migration, sync, cleanup or Catalyst activation."
+    },
+    {
+      "command": "GitHub Project Harness verify for PR #62",
+      "status": "pass",
+      "summary": "GitHub Actions Project Harness verify passed for candidate PR head 0eb57e4edd4f8d664ee62650fe208467d3b3aa91; PR #62 was ready, mergeable and CLEAN before evidence promotion."
     }
   ],
   "candidateDeployment": {
-    "status": "retry_required_after_rollback",
+    "status": "candidate_verified",
     "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase2b-pg-loader-facade-parity",
+    "commit": "833301cbef4611b4454ceb1ddef2962386daab3f",
+    "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/62",
+    "buildIdentity": "pg_gear_authority_loader.py sha256:92538818a6dbbf76a7f9d29eecd09eb87b25c8d99a3d7566ec959af90f94bf5a; postgres_cache_store.py sha256:04b0a8ea8606a0b5c2835603b71ca841d1d29d33d86e0d842fbe8ccce985def9; websim_payload.py sha256:83ee4aa2ba6a806850a07b7a0bcf72ab8525e65842654ddecfa58269d38e3cf9; gear-resolver-facade-parity-v1.json sha256:33f70e38e0ed16211fd3381834918bf432db82fc59282183805d7be0907fd61d",
+    "databaseRuntime": "postgres_only",
     "attempts": [
       {
         "head": "6fe8bbaa646daeeaef9e3214ab18a15171cebb97",
@@ -71,10 +81,12 @@
       }
     ],
     "smoke": {
-      "status": "retry_required"
+      "status": "pass",
+      "summary": "Second candidate deploy from PR head 0eb57e4 completed all built-in health/builds/PvE/simulator/WebSim/SimC smoke with async syncs disabled. Remote hashes matched. Seven remote direct-import/facade/runtime-authority tests passed. A live verified item/variant (151311, finger2) proved one read-only store transaction with cold trace SET READ ONLY plus exactly three static domain queries and a second read-only warm trace with one revision query; cache values matched, missingFields was empty and compatibility-pg-live-v1 kept formalActiveManifest=false. Current profile returned 200 with four fixture items, resolve remained 404, 40/40 initial public payloads were raiderio_observed_profile-only with zero baselines, Catalyst stayed blocked with optionParseSupported=true and failClosed=true, and the final service was active/success/0 with zero post-restart backend errors."
     },
     "timerBackflow": {
-      "status": "not_run"
+      "status": "pass",
+      "summary": "WOW_DEPLOY_START_ASYNC_SYNCS=0 started no async work. All relevant services remained inactive with Result=success and ExecMainStatus=0; journal activity since the successful candidate was zero. The last natural observed-backfill trigger was 23:38:30 and finished 23:38:35, before the successful candidate activation at 23:47:36."
     }
   },
   "runtimeEvidence": [],
@@ -118,5 +130,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 2B implementation is locally verified: the bounded PostgreSQL Authority Context loader, read-only store method, server-owned runtime authority and resolved-snapshot parity facade are complete and dormant; candidate deployment against the live PostgreSQL schema is the next gate."
+  "summary": "Slice 2B is deployable after local and live candidate verification: the bounded PostgreSQL Authority Context loader, read-only store method, server-owned runtime authority and resolved-snapshot parity facade are complete and dormant; PR #62 may merge after the evidence-only head passes GitHub Harness."
 }

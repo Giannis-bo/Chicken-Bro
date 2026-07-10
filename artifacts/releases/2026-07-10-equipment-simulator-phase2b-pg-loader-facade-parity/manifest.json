@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T15:47:11.390Z",
+  "generatedAt": "2026-07-10T15:59:27.804Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase2b-pg-loader-facade-parity"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
-    "sizeBytes": 7156,
+    "sizeBytes": 9346,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Slice 2B implementation is locally verified: the bounded PostgreSQL Authority Context loader, read-only store method, server-owned runtime authority and resolved-snapshot parity facade are complete and dormant; candidate deployment against the live PostgreSQL schema is the next gate."
+    "declaredStatus": "deployable",
+    "highestEvidenceLevel": "deployable",
+    "summary": "Slice 2B is deployable after local and live candidate verification: the bounded PostgreSQL Authority Context loader, read-only store method, server-owned runtime authority and resolved-snapshot parity facade are complete and dormant; PR #62 may merge after the evidence-only head passes GitHub Harness."
   },
   "evidence": {
     "localTests": {
