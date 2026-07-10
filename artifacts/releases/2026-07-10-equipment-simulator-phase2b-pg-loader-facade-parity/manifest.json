@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T16:22:13.273Z",
+  "generatedAt": "2026-07-10T16:24:11.823Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase2b-pg-loader-facade-parity"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
-    "sizeBytes": 11104,
+    "sizeBytes": 11158,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "6 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,14 +313,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 6,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
-        " M docs/backend-owner-map.json",
-        " M docs/gear-simulation-full-chain-runbook.md",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M docs/verification-matrix.md"
+        " M artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json"
       ]
     }
   },

@@ -36,12 +36,12 @@
     {
       "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
       "status": "pass",
-      "summary": "1148 Python tests passed with 1 skipped; compileall and Strict Harness passed."
+      "summary": "1155 Python tests passed with 1 skipped; compileall and Strict Harness passed on correction head 4bbbc70."
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
       "status": "pass",
-      "summary": "365 Node tests and 1148 Python tests passed with 1 skipped; all 127 syntax, JSON, Harness and diff commands passed."
+      "summary": "365 Node tests and 1155 Python tests passed with 1 skipped; all 127 syntax, JSON, Harness and diff commands passed on correction head 4bbbc70."
     },
     {
       "command": "static SQL/query-budget and dormant-consumer inspection plus Python compile",
