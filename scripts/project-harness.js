@@ -11,6 +11,7 @@ const DEFAULT_HOTSPOT_FILES = [
 ]
 
 const CURRENT_TRUTH_SOURCES = [
+  'docs/project-state.json',
   'docs/roadmap.md',
   'docs/README.md',
   'docs/harness.md',

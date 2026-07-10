@@ -2,11 +2,12 @@
 
 This repository maintains a project roadmap as shared context for all agents and development environments. Every agent working in this repo should follow these rules before planning or changing product direction.
 
-## Roadmap First
+## Current State First
 
-- Read [docs/roadmap.md](docs/roadmap.md) before making product, UX, data, backend, simulator, WebSim, deployment, or prioritization decisions.
-- For current UI delivery work, immediately read [docs/plans/2026-07-08-codex-goal-mode-ui-delivery-handoff.md](docs/plans/2026-07-08-codex-goal-mode-ui-delivery-handoff.md), then [docs/plans/2026-07-08-ui-goal-mode-entry-contract.md](docs/plans/2026-07-08-ui-goal-mode-entry-contract.md), and then [docs/plans/2026-07-08-current-ui-delivery-source-of-truth.md](docs/plans/2026-07-08-current-ui-delivery-source-of-truth.md) after the roadmap and before all older UI plans, scorecards, owner registries, implementation permits, browser demos, imagegen targets, stale tests, or historical artifacts. The Codex goal-mode handoff is the active first-read UI delivery contract unless the user explicitly replaces it.
-- Current UI rescue work must start from the goal-mode entry contract, source-of-truth proof matrix, and fresh real WeChat evidence. Do not continue old pass36/pass37 fixes, browser-only validation, static-test confidence, or memory-based UI edits before reading the latest user correction, proof matrix, DevTools rules, and Codex Goal Text.
+- Read [docs/project-state.json](docs/project-state.json) before [docs/roadmap.md](docs/roadmap.md) for Standard / Strict work. `project-state.json` is the machine-readable current status index: active milestone, feature freeze, active release artifact, accepted baselines, and historical contracts.
+- Read [docs/roadmap.md](docs/roadmap.md) after `project-state.json` before making product, UX, data, backend, simulator, WebSim, deployment, or prioritization decisions.
+- The 2026-07-08 UI rescue contracts are now historical accepted-baseline evidence unless `docs/project-state.json` marks UI delivery as an active milestone again. Do not restart old pass36/pass37 fixes, browser-only validation, static-test confidence, or memory-based UI edits from those documents unless a new UI Harness contract explicitly reactivates them.
+- For a new current UI delivery contract, read the active contract named by `docs/project-state.json`, then any delegated UI source-of-truth, `app.json`, current real WeChat evidence, source, and older docs in that order.
 - Treat [docs/plans/2026-07-08-0900-ui-emergency-delivery-lock.md](docs/plans/2026-07-08-0900-ui-emergency-delivery-lock.md) and [docs/plans/2026-07-08-0900-ui-delivery-handoff-lock.md](docs/plans/2026-07-08-0900-ui-delivery-handoff-lock.md) as historical rescue context unless the current source-of-truth document explicitly delegates to them.
 - If the top of `docs/roadmap.md` points to a current context lock, execution guard, or active delivery goal, read those linked documents before older plans, scorecards, implementation permits, or historical design docs. The newest roadmap control plane wins over stale plans.
 - Use [docs/roadmap/ideas.md](docs/roadmap/ideas.md) as the intake pool for loose ideas, local discussion outcomes, and directions that are not yet committed to a milestone.

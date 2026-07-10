@@ -1,5 +1,7 @@
 # 2026-07-08 UI Goal Mode Entry Contract
 
+> Archived current-state note (2026-07-10): this contract is no longer the active UI entry by default. `docs/project-state.json` records UI delivery as an accepted baseline; use this file as historical rescue evidence unless a new UI Harness contract explicitly reactivates UI delivery work.
+
 ## Purpose
 
 This is the first-read contract for the current WOW mini program UI delivery goal mode.

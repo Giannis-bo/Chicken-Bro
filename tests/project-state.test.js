@@ -1,0 +1,93 @@
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+
+const projectStatePath = 'docs/project-state.json'
+const phase4HistoryPath = 'docs/roadmap/history/2026-07-phase4-pg-read-model.md'
+const controlPlaneRelease = 'artifacts/releases/2026-07-10-harness-control-plane'
+
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'))
+}
+
+function assertPathExists(relativePath) {
+  assert.ok(fs.existsSync(relativePath), `${relativePath} should exist`)
+}
+
+function assertUniqueById(entries, label) {
+  const ids = entries.map((entry) => entry.id)
+  assert.equal(new Set(ids).size, ids.length, `${label} ids should be unique`)
+}
+
+test('project-state is the single machine-readable current truth entry', () => {
+  assertPathExists(projectStatePath)
+  const state = readJson(projectStatePath)
+
+  assert.equal(state.schemaVersion, 1)
+  assert.equal(state.updatedAt, '2026-07-10')
+  assert.equal(state.activeMilestone, 'project_harness_normalization')
+  assert.equal(state.featureIteration, 'frozen_until_milestone_exit')
+  assert.equal(state.activeReleaseArtifact, controlPlaneRelease)
+
+  assert.ok(Array.isArray(state.activeContracts), 'activeContracts should be an array')
+  assert.ok(Array.isArray(state.completedBaselines), 'completedBaselines should be an array')
+  assert.ok(Array.isArray(state.historicalContracts), 'historicalContracts should be an array')
+  assert.ok(Array.isArray(state.controlPlaneConclusions), 'controlPlaneConclusions should be an array')
+
+  assertUniqueById(state.activeContracts, 'activeContracts')
+  assertUniqueById(state.completedBaselines, 'completedBaselines')
+  assertUniqueById(state.historicalContracts, 'historicalContracts')
+
+  for (const entry of state.activeContracts) {
+    assert.notEqual(entry.lifecycle, 'historical', `${entry.id} should not be historical and active`)
+    assertPathExists(entry.path)
+  }
+  for (const entry of state.historicalContracts) {
+    assert.equal(entry.lifecycle, 'historical', `${entry.id} should be explicitly historical`)
+    assertPathExists(entry.path)
+  }
+
+  const activePaths = new Set(state.activeContracts.map((entry) => entry.path))
+  for (const entry of state.historicalContracts) {
+    assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
+  }
+
+  assertPathExists(path.join(controlPlaneRelease, 'requirement.json'))
+  assertPathExists(path.join(controlPlaneRelease, 'evidence.json'))
+  assertPathExists(path.join(controlPlaneRelease, 'manifest.json'))
+})
+
+test('current truth has one conclusion for UI, PG read-model and Harness normalization', () => {
+  const state = readJson(projectStatePath)
+  const conclusions = state.controlPlaneConclusions
+  const domains = conclusions.map((entry) => entry.domain)
+
+  assert.equal(new Set(domains).size, domains.length, 'control-plane conclusion domains should be unique')
+
+  const byDomain = new Map(conclusions.map((entry) => [entry.domain, entry]))
+  assert.equal(byDomain.get('ui_delivery').status, 'accepted_baseline')
+  assert.equal(byDomain.get('pg_read_model_phase4').status, 'completed')
+  assert.equal(byDomain.get('project_harness_normalization').status, 'active')
+
+  assert.equal(byDomain.get('ui_delivery').activeContract, null)
+  assert.equal(byDomain.get('pg_read_model_phase4').activeContract, null)
+  assert.equal(
+    byDomain.get('project_harness_normalization').activeContract,
+    'docs/plans/2026-07-10-project-harness-normalization-goal-plan.md'
+  )
+})
+
+test('roadmap top is concise and phase 4 PR-level detail is archived', () => {
+  assertPathExists(phase4HistoryPath)
+  const roadmapTop = fs.readFileSync('docs/roadmap.md', 'utf8')
+    .split(/\r?\n/)
+    .slice(0, 40)
+    .join('\n')
+  const history = fs.readFileSync(phase4HistoryPath, 'utf8')
+
+  assert.match(roadmapTop, /Project Harness 工程规范化/)
+  assert.doesNotMatch(roadmapTop, /Phase 4 第[一二三四五六七八九十]+刀/)
+  assert.match(history, /Phase 4 第四十刀/)
+  assert.match(history, /公开 observed-only gear 入口、baseline 默认空/)
+})

@@ -1,6 +1,6 @@
 # 历史计划索引
 
-`docs/plans/` 是实施证据归档区。这里的文件记录过往计划、审计、交接和阶段性实现路径，帮助追溯“当时为什么这么做”。它们不是产品或运行时决策的第一入口；需要当前结论时，先看 [../roadmap.md](../roadmap.md) 和下面列出的架构 / runbook。
+`docs/plans/` 是实施证据归档区。这里的文件记录过往计划、审计、交接和阶段性实现路径，帮助追溯“当时为什么这么做”。它们不是产品或运行时决策的第一入口；需要当前结论时，先看 [../project-state.json](../project-state.json)、[../roadmap.md](../roadmap.md) 和下面列出的架构 / runbook。
 
 ## 管理规则
 
@@ -14,6 +14,7 @@
 
 | 领域 | 现在看这里 |
 | --- | --- |
+| 当前机器可读状态和 active release artifact | [../project-state.json](../project-state.json) |
 | 产品状态和里程碑 | [../roadmap.md](../roadmap.md) |
 | 想法池和已采纳索引 | [../roadmap/ideas.md](../roadmap/ideas.md) |
 | 职业专精、装备 / 天赋 / SimC 入口 | [../builds-architecture.md](../builds-architecture.md) |
@@ -31,7 +32,7 @@
 
 | 计划 | 状态 | 当前入口 |
 | --- | --- | --- |
-| [2026-07-10-project-harness-normalization-goal-plan.md](2026-07-10-project-harness-normalization-goal-plan.md) | 方案已批准 / 等待新 Goal Session 实施 | [../harness.md](../harness.md), [../roadmap.md](../roadmap.md), [../backend-owner-map.json](../backend-owner-map.json) |
+| [2026-07-10-project-harness-normalization-goal-plan.md](2026-07-10-project-harness-normalization-goal-plan.md) | 正在实施 / Control plane PR | [../project-state.json](../project-state.json), [../harness.md](../harness.md), [../roadmap.md](../roadmap.md), [../backend-owner-map.json](../backend-owner-map.json) |
 | [2026-07-09-harness-guided-project-optimization-plan.md](2026-07-09-harness-guided-project-optimization-plan.md) | Phase 0 + Phase 1 已完成 / 当前 UI 基线已验收 | [../harness.md](../harness.md), [../roadmap.md](../roadmap.md) |
 | [2026-07-09-docs-implementation-current-truth-review.md](2026-07-09-docs-implementation-current-truth-review.md) | 当前对账索引 / 已同步 accepted baseline | [../roadmap.md](../roadmap.md), [../harness.md](../harness.md) |
 | [2026-06-09-specializations-tab.md](2026-06-09-specializations-tab.md) | 已落地 | [../builds-architecture.md](../builds-architecture.md), [../roadmap.md](../roadmap.md) |
