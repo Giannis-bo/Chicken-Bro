@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T01:59:17.645Z",
+  "generatedAt": "2026-07-10T02:05:05.572Z",
   "release": {
     "date": "2026-07-10",
     "slug": "websim-talent-authority-read-model-selector"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 402375
+          "sizeBytes": 403342
         },
         {
           "path": "docs/README.md",
@@ -217,7 +217,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-websim-talent-authority-read-model-selector/evidence.json",
-    "sizeBytes": 5455,
+    "sizeBytes": 10348,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,8 +235,8 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
+    "declaredStatus": "candidate_verified",
+    "highestEvidenceLevel": "candidate_verified",
     "summary": "Phase 4 continues the read-only PostgreSQL WebSim read-model selector split. server/pg_gear_read_model_selectors.py now owns build_websim_talent_authority_read_model(), which assembles talentAuthority from an already-computed talent status, active season payload, talent nodes, and sync state. server/postgres_cache_store.py keeps PostgreSQL SQL, node filtering and decoration, talent readiness, community templates, cache writes, sync, and backfill paths."
   },
   "evidence": {
@@ -262,7 +262,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "8 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -298,16 +298,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 8,
+      "changedFileCount": 3,
       "changedFiles": [
-        " M docs/backend-owner-map.json",
+        " M artifacts/releases/2026-07-10-websim-talent-authority-read-model-selector/evidence.json",
         " M docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
-        " M docs/roadmap.md",
-        " M server/pg_gear_read_model_selectors.py",
-        " M server/postgres_cache_store.py",
-        " M tests/backend-owner-map.test.js",
-        " M tests/pg_gear_read_model_selectors_test.py",
-        "?? artifacts/releases/2026-07-10-websim-talent-authority-read-model-selector/"
+        " M docs/roadmap.md"
       ]
     }
   },
