@@ -246,8 +246,85 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         cursor, _context = self.load()
         self.assertIn("unnest(%s::text[], %s::text[])", cursor.statements[1])
         self.assertIn("ANY(%s::text[])", cursor.statements[2])
+        self.assertIn("REGEXP_REPLACE", cursor.statements[1])
+        self.assertIn("LIMIT 8", cursor.statements[1])
         self.assertEqual(cursor.params[1], (["item-head"], ["variant-head"]))
         self.assertEqual(cursor.params[2], (["gem-haste"],))
+
+    def test_loader_deduplicates_reused_item_variant_pairs_before_array_query(self):
+        reused = self.intent()["slots"]["head"]
+        intent = self.intent({"finger1": reused, "finger2": copy.deepcopy(reused)})
+
+        cursor, _context = self.load(cursor=self.cursor(), intent=intent)
+
+        self.assertEqual(cursor.params[1], (["item-head"], ["variant-head"]))
+
+    def test_loader_accepts_the_existing_public_normalized_variant_alias(self):
+        requested_key = (
+            "observed-profile-2e3bad4f2811-observed_profile-wrist-289-"
+            "bonus_id:6652/13335gem_id:240216ilevel:289"
+        )
+        authority_key = (
+            'observed-profile-2e3bad4f2811-observed_profile-wrist-289-'
+            '{"bonus_id": "6652/13335", "gem_id": "240216", "ilevel": "289"}'
+        )
+        intent = self.intent()
+        intent["slots"]["head"]["variantKey"] = requested_key
+        row = list(self.item_row())
+        row[1] = requested_key
+        row[3]["variantKey"] = authority_key
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[tuple(row)]), intent=intent)
+
+        self.assertEqual(set(context["variantsByKey"]), {requested_key})
+        self.assertEqual(context["variantsByKey"][requested_key]["simcOptions"]["bonus_id"], "head-bonus")
+        self.assertEqual(context["missingFields"], [])
+
+    def test_loader_still_accepts_an_exact_raw_authority_variant_key(self):
+        authority_key = 'observed-profile-head-289-{"bonus_id":"123","ilevel":"289"}'
+        intent = self.intent()
+        intent["slots"]["head"]["variantKey"] = authority_key
+        row = list(self.item_row())
+        row[1] = authority_key
+        row[3]["variantKey"] = authority_key
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[tuple(row)]), intent=intent)
+
+        self.assertEqual(set(context["variantsByKey"]), {authority_key})
+        self.assertEqual(context["missingFields"], [])
+
+    def test_loader_blocks_ambiguous_public_variant_aliases(self):
+        requested_key = "observed-profile-head-289-bonus_id:123ilevel:289"
+        first = list(self.item_row())
+        first[1] = requested_key
+        first[3]["variantKey"] = 'observed-profile-head-289-{"bonus_id":"123","ilevel":"289"}'
+        second = copy.deepcopy(first)
+        second[3]["id"] = "variant-row-head-collision"
+        second[3]["variantKey"] = 'observed-profile-head-289-{"bonus_id": "123", "ilevel": "289"}'
+        intent = self.intent()
+        intent["slots"]["head"]["variantKey"] = requested_key
+
+        _cursor, context = self.load(
+            cursor=self.cursor(item_rows=[tuple(first), tuple(second)]),
+            intent=intent,
+        )
+
+        self.assertNotIn(requested_key, context["variantsByKey"])
+        self.assertIn(f"variantsByKey.{requested_key}", context["missingFields"])
+
+    def test_loader_never_matches_a_normalized_alias_from_the_wrong_item(self):
+        requested_key = "observed-profile-head-289-bonus_id:123ilevel:289"
+        row = list(self.item_row())
+        row[1] = requested_key
+        row[3]["itemId"] = "wrong-item"
+        row[3]["variantKey"] = 'observed-profile-head-289-{"bonus_id":"123","ilevel":"289"}'
+        intent = self.intent()
+        intent["slots"]["head"]["variantKey"] = requested_key
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[tuple(row)]), intent=intent)
+
+        self.assertNotIn(requested_key, context["variantsByKey"])
+        self.assertIn(f"variantsByKey.{requested_key}", context["missingFields"])
 
     def test_loader_warm_hit_executes_revision_query_only(self):
         cache = pg_gear_authority_loader.AuthorityContextCache(max_entries=4, max_bytes=100000)
@@ -440,6 +517,50 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertIn("itemsById.item-head", context["missingFields"])
         self.assertIn("payload_json->>'sourceStatus'", pg_gear_authority_loader.SELECTED_ITEM_VARIANT_SQL)
         self.assertIn("'unknown'", pg_gear_authority_loader.SELECTED_ITEM_VARIANT_SQL)
+
+    def test_loader_accepts_verified_status_without_upgrading_source_reference(self):
+        source = self.item_row(
+            sources=[
+                {
+                    "id": "source-row-head",
+                    "sourceType": "observed_profile",
+                    "sourceKey": "observed:head",
+                    "seasonRevision": "season-17-active",
+                    "status": "verified",
+                    "sourceStatus": "source_reference",
+                    "updatedAt": "2026-07-10T10:03:00+00:00",
+                }
+            ]
+        )
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[source]))
+
+        self.assertIn("item-head", context["itemsById"])
+        self.assertEqual(context["missingFields"], [])
+        self.assertIn("payload_json->>'status'", pg_gear_authority_loader.SELECTED_ITEM_VARIANT_SQL)
+        evidence = context["evidenceRecordsById"]["evidence:pg:source:source-row-head"]
+        self.assertEqual(evidence["sourceStatus"], "source_reference")
+        self.assertEqual(evidence["verificationStatus"], "verified")
+
+    def test_loader_accepts_explicit_verified_source_status(self):
+        source = self.item_row(
+            sources=[
+                {
+                    "id": "source-row-head",
+                    "sourceType": "dungeon",
+                    "sourceKey": "dungeon:head",
+                    "seasonRevision": "season-17-active",
+                    "status": "source_reference",
+                    "sourceStatus": "verified",
+                    "updatedAt": "2026-07-10T10:03:00+00:00",
+                }
+            ]
+        )
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[source]))
+
+        self.assertIn("item-head", context["itemsById"])
+        self.assertEqual(context["missingFields"], [])
 
     def test_loader_records_missing_item_variant_option_and_runtime_authority(self):
         runtime = self.runtime_authority()
