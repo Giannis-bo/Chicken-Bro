@@ -100,6 +100,9 @@
           ],
           "characterization": [
             "tests/websim_payload_test.py::WebSimPayloadTest.test_gear_serializer_matches_compact_golden_payload",
+            "tests/websim_payload_test.py::WebSimPayloadTest.test_pg_only_structured_enhancement_rejects_client_catalog_forgery",
+            "tests/websim_payload_test.py::WebSimPayloadTest.test_merge_enhancements_strips_forged_server_authority_marker",
+            "tests/websim_payload_test.py::WebSimPayloadTest.test_enhancement_validator_defaults_to_no_server_authority",
             "tests/fixtures/gear-serializer-compact-payload.json",
             "tests/fixtures/gear-public-contract-observed-only.json",
             "tests/websim_payload_test.py gear detail and stat snapshot tests",

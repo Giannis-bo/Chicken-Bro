@@ -1497,6 +1497,7 @@ BASE_ITEM_INSTANCE_OPTION_KEYS = ("bonus_id", "gem_id", "enchant_id", "crafted_s
 ITEM_INSTANCE_OPTION_KEYS = (*BASE_ITEM_INSTANCE_OPTION_KEYS, "embellishment")
 GEAR_ENHANCEMENT_SIMC_KEYS = ("gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "embellishment")
 GEAR_ENHANCEMENT_SNAPSHOT_REVISION = "websim-gear-enhancement-snapshot-v1"
+GEAR_ENHANCEMENT_AUTHORITY_MARKER = "_serverCatalogEnhancementAuthority"
 SIMC_READY_SOURCE_TYPES = {"simcPreset"}
 OFFICIAL_ITEM_LEVEL_TRACKS = [
     {"difficultyKey": "champion", "label": "勇士 263", "itemLevel": 263},
@@ -25218,7 +25219,13 @@ def item_supports_enhancement_type(item, option_type):
     return False
 
 
-def validate_enhancement_option(item, enhancement, option_type):
+def validate_enhancement_option(item, enhancement, option_type, authority_attached=False):
+    if not authority_attached:
+        return (
+            False,
+            f"{item.get('slot')} {option_type} option is not in verified rank-two catalog "
+            "(server authority unavailable)",
+        )
     if not item_supports_enhancement_type(item, option_type):
         return False, f"{item.get('slot')} {option_type} incompatible with selected gear"
     options = enhancement_options_for_type(item, option_type)
@@ -25260,8 +25267,15 @@ def selected_gear_weapon_rule_blockers(items, class_key, spec_key):
 
 
 def attach_catalog_enhancement_options(conn, items):
+    sanitized_items = []
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        sanitized = dict(item)
+        sanitized.pop(GEAR_ENHANCEMENT_AUTHORITY_MARKER, None)
+        sanitized_items.append(sanitized)
     if conn is None:
-        return items
+        return sanitized_items
     options_by_type = {}
     try:
         options_by_type = {
@@ -25270,11 +25284,9 @@ def attach_catalog_enhancement_options(conn, items):
             "embellishmentOptions": display_ready_gear_mod_options_by_slot(conn, "embellishment"),
         }
     except Exception:
-        return items
+        return sanitized_items
     enhanced = []
-    for item in items:
-        if not isinstance(item, dict):
-            continue
+    for item in sanitized_items:
         slot = item.get("slot") or ""
         next_item = dict(item)
         for key, by_slot in options_by_type.items():
@@ -25293,6 +25305,7 @@ def attach_catalog_enhancement_options(conn, items):
             else:
                 next_item[key] = by_slot.get(slot) or []
         next_item["_catalogEnhancementOptionsAttached"] = True
+        next_item[GEAR_ENHANCEMENT_AUTHORITY_MARKER] = True
         enhanced.append(next_item)
     return enhanced
 
@@ -25348,9 +25361,15 @@ def merge_websim_gear_enhancements(items, raw_enhancements, conn=None, class_key
         slot = item.get("slot") or ""
         enhancement = normalized_enhancements.get(slot) or {}
         next_item = dict(item)
+        catalog_authority_attached = next_item.get(GEAR_ENHANCEMENT_AUTHORITY_MARKER) is True
         if enhancement.get("gem_id"):
             if slot not in blocked_socket_unique_slots:
-                valid, reason = validate_enhancement_option(next_item, enhancement, "socket")
+                valid, reason = validate_enhancement_option(
+                    next_item,
+                    enhancement,
+                    "socket",
+                    authority_attached=catalog_authority_attached,
+                )
                 if valid:
                     for key in ("gem_id", "gem_bonus_id", "gem_ilevel", "socketOptionId"):
                         if enhancement.get(key):
@@ -25362,7 +25381,12 @@ def merge_websim_gear_enhancements(items, raw_enhancements, conn=None, class_key
             if blocker:
                 blockers.append(f"{slot} {blocker}")
             else:
-                valid, reason = validate_enhancement_option(next_item, enhancement, "enchant")
+                valid, reason = validate_enhancement_option(
+                    next_item,
+                    enhancement,
+                    "enchant",
+                    authority_attached=catalog_authority_attached,
+                )
                 if valid:
                     next_item["enchant_id"] = enhancement["enchant_id"]
                     if enhancement.get("enchantOptionId"):
@@ -25375,7 +25399,12 @@ def merge_websim_gear_enhancements(items, raw_enhancements, conn=None, class_key
             elif embellishment_total > 2:
                 blockers.append(f"{slot} embellishment blocked by 2 embellishment limit")
             else:
-                valid, reason = validate_enhancement_option(next_item, enhancement, "embellishment")
+                valid, reason = validate_enhancement_option(
+                    next_item,
+                    enhancement,
+                    "embellishment",
+                    authority_attached=catalog_authority_attached,
+                )
                 if valid:
                     next_item["embellishment"] = enhancement["embellishment"]
                     if enhancement.get("embellishmentOptionId"):
@@ -25394,6 +25423,7 @@ def merge_websim_gear_enhancements(items, raw_enhancements, conn=None, class_key
         next_item["missingFields"] = gear_item_missing_fields(next_item)
         next_item["simcReady"] = gear_item_simc_ready(next_item)
         next_item.pop("_catalogEnhancementOptionsAttached", None)
+        next_item.pop(GEAR_ENHANCEMENT_AUTHORITY_MARKER, None)
         enhanced.append(next_item)
     readiness = {
         "schemaRevision": GEAR_ENHANCEMENT_SNAPSHOT_REVISION,
