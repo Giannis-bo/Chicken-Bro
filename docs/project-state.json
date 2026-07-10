@@ -15,9 +15,9 @@
     {
       "id": "equipment_simulator_phase0_safety",
       "path": "docs/plans/2026-07-10-equipment-simulator-phase0-safety-plan.md",
-      "status": "phase0b_in_progress",
+      "status": "phase0b_archived_phase0c_next",
       "lifecycle": "active",
-      "notes": "Slice 0A merged and live-verified in PR #57; Slice 0B Catalyst false-green guard is the active Strict release."
+      "notes": "Slices 0A and 0B merged and live-verified in PRs #57 and #58; Slice 0C legacy stat endpoint containment is next."
     },
     {
       "id": "repo_native_harness_v0_5",
