@@ -14,7 +14,7 @@
 | 还没进入正式里程碑的想法 | [roadmap/ideas.md](roadmap/ideas.md) | 想法池和已采纳索引。 |
 | 文档结构、历史计划落点 | [plans/README.md](plans/README.md) | 记录 `docs/plans/` 每份历史计划现在对应的真实入口。 |
 | 需求挑战、方案门禁和交付 Harness | [harness.md](harness.md) | 所有需求进入实现前的分级、质疑、用户确认和证据晋级规则。 |
-| 当前 Harness 工程规范化里程碑 | [plans/2026-07-10-project-harness-normalization-goal-plan.md](plans/2026-07-10-project-harness-normalization-goal-plan.md) | 已批准的 B 路线、feature freeze、阶段交付物、退出条件和新 Goal Session Prompt。 |
+| Harness 工程规范化完成基线 | [project-state.json](project-state.json), [plans/2026-07-10-project-harness-normalization-goal-plan.md](plans/2026-07-10-project-harness-normalization-goal-plan.md), [../artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json](../artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json) | B 路线已完成；后续需求和功能迭代恢复为 `allowed_under_harness`，但必须继续使用 Harness contract、owner map、active release packet、verification profiles、CI 和 runtime candidate gate。 |
 | Phase 4 PG read-model 逐 PR 历史 | [roadmap/history/2026-07-phase4-pg-read-model.md](roadmap/history/2026-07-phase4-pg-read-model.md) | 从 roadmap 顶部迁出的候选部署、验证和合入日志；当前结论仍以 `project-state.json` 和 roadmap 顶部为准。 |
 | 项目级 critical domain owner map | [project-owner-map.json](project-owner-map.json) | 16 个冻结 critical domain 的一级 fact/write owner、consumer、public contract、verification profile 和 release trigger。 |
 | 统一验证 profiles 和 CI 入口 | [verification-matrix.md](verification-matrix.md) | `harness` / `backend` / `frontend` / `full` profile 的本地与 PR CI 执行入口。 |

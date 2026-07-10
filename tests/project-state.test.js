@@ -7,7 +7,8 @@ const projectStatePath = 'docs/project-state.json'
 const phase4HistoryPath = 'docs/roadmap/history/2026-07-phase4-pg-read-model.md'
 const controlPlaneRelease = 'artifacts/releases/2026-07-10-harness-control-plane'
 const executableHarnessRelease = 'artifacts/releases/2026-07-10-executable-project-harness'
-const activeRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
+const characterizationRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
+const activeRelease = 'artifacts/releases/2026-07-10-project-harness-normalization'
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'))
@@ -29,7 +30,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.schemaVersion, 1)
   assert.equal(state.updatedAt, '2026-07-10')
   assert.equal(state.activeMilestone, 'project_harness_normalization')
-  assert.equal(state.featureIteration, 'frozen_until_milestone_exit')
+  assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, activeRelease)
 
   assert.ok(Array.isArray(state.activeContracts), 'activeContracts should be an array')
@@ -55,11 +56,16 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [activeRelease, executableHarnessRelease, controlPlaneRelease]) {
+  for (const releasePath of [activeRelease, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))
   }
+
+  assert.ok(
+    state.completedBaselines.some((entry) => entry.id === 'project_harness_normalization_20260710'),
+    'Project Harness normalization should be recorded as a completed baseline'
+  )
 })
 
 test('current truth has one conclusion for UI, PG read-model and Harness normalization', () => {
@@ -72,14 +78,11 @@ test('current truth has one conclusion for UI, PG read-model and Harness normali
   const byDomain = new Map(conclusions.map((entry) => [entry.domain, entry]))
   assert.equal(byDomain.get('ui_delivery').status, 'accepted_baseline')
   assert.equal(byDomain.get('pg_read_model_phase4').status, 'completed')
-  assert.equal(byDomain.get('project_harness_normalization').status, 'active')
+  assert.equal(byDomain.get('project_harness_normalization').status, 'completed')
 
   assert.equal(byDomain.get('ui_delivery').activeContract, null)
   assert.equal(byDomain.get('pg_read_model_phase4').activeContract, null)
-  assert.equal(
-    byDomain.get('project_harness_normalization').activeContract,
-    'docs/plans/2026-07-10-project-harness-normalization-goal-plan.md'
-  )
+  assert.equal(byDomain.get('project_harness_normalization').activeContract, null)
 })
 
 test('roadmap top is concise and phase 4 PR-level detail is archived', () => {
@@ -90,7 +93,7 @@ test('roadmap top is concise and phase 4 PR-level detail is archived', () => {
     .join('\n')
   const history = fs.readFileSync(phase4HistoryPath, 'utf8')
 
-  assert.match(roadmapTop, /Project Harness 工程规范化/)
+  assert.match(roadmapTop, /Project Harness 工程规范化（已完成/)
   assert.doesNotMatch(roadmapTop, /Phase 4 第[一二三四五六七八九十]+刀/)
   assert.match(history, /Phase 4 第四十刀/)
   assert.match(history, /公开 observed-only gear 入口、baseline 默认空/)

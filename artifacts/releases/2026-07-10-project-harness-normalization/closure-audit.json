@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "slug": "project-harness-normalization-closure-audit",
+  "date": "2026-07-10",
+  "branch": "codex/project-harness-normalization-closure",
+  "base": "origin/main",
+  "runtimeSliceCount": 0,
+  "releasePacket": "artifacts/releases/2026-07-10-project-harness-normalization",
+  "priorPullRequests": [
+    {
+      "pr": 51,
+      "title": "Add project harness control plane",
+      "mergedCommit": "d9b480e",
+      "candidateDeployment": "not_applicable"
+    },
+    {
+      "pr": 52,
+      "title": "Add executable project harness validator",
+      "mergedCommit": "34e8e66",
+      "candidateDeployment": "not_applicable"
+    },
+    {
+      "pr": 53,
+      "title": "Add project harness owner map",
+      "mergedCommit": "0e8ad47",
+      "candidateDeployment": "not_applicable"
+    },
+    {
+      "pr": 54,
+      "title": "Add project harness verification profiles",
+      "mergedCommit": "e7a85ab",
+      "candidateDeployment": "not_applicable",
+      "ci": {
+        "workflow": "Project Harness",
+        "check": "verify",
+        "status": "pass",
+        "detailsUrl": "https://github.com/boyuan19910222-ui/wow_mini_program/actions/runs/29072469298/job/86296673510"
+      }
+    },
+    {
+      "pr": 55,
+      "title": "Add critical contract characterization baseline",
+      "mergedCommit": "888d7d3",
+      "candidateDeployment": "not_applicable",
+      "ci": {
+        "workflow": "Project Harness",
+        "check": "verify",
+        "status": "pass",
+        "detailsUrl": "https://github.com/boyuan19910222-ui/wow_mini_program/actions/runs/29072925453/job/86298100158"
+      }
+    }
+  ],
+  "criticalDomains": {
+    "frozenCount": 16,
+    "unownedCriticalDomains": 0,
+    "conflictingFactOwners": 0,
+    "criticalContractUnknown": 0,
+    "criticalContractBlocked": 0,
+    "characterized": 14,
+    "gapClosed": 0,
+    "healthWatch": 2,
+    "healthWatchDomains": [
+      "cache_sync_state_repository",
+      "scheduled_sync_backfill_cleanup"
+    ]
+  },
+  "runtimeBoundary": {
+    "publicGearEntry": "communityTemplates active raiderio_observed_profile only; baselineTemplates public default empty",
+    "blockedSourceKeys": [
+      "recommended_bis",
+      "season_recommendation",
+      "default_template",
+      "simc_preset",
+      "baseline_blocked"
+    ],
+    "runtimeChanged": false,
+    "candidateDeployment": "not_applicable",
+    "syncWriteBackfillCleanupChanged": false
+  },
+  "exitConditions": [
+    {
+      "id": 1,
+      "status": "pass",
+      "evidence": "docs/project-state.json is the single machine-readable current truth entry; active/historical contract conflicts are tested."
+    },
+    {
+      "id": 2,
+      "status": "pass",
+      "evidence": "docs/schemas/*, docs/templates/* and scripts/project-harness.js implement failing requirement/evidence validation."
+    },
+    {
+      "id": 3,
+      "status": "pass",
+      "evidence": "docs/project-owner-map.json and tests/project-owner-map.test.js freeze and characterize all 16 critical domains with unknown=0 and blocked=0."
+    },
+    {
+      "id": 4,
+      "status": "pass",
+      "evidence": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-project-harness-normalization --base origin/main must pass before PR creation."
+    },
+    {
+      "id": 5,
+      "status": "pass",
+      "evidence": "Full profile covers Node tests, Python unittest, compileall, JSON validation, JS syntax, Harness check and git diff --check."
+    },
+    {
+      "id": 6,
+      "status": "pass_with_pr_gate",
+      "evidence": "PR #54 and #55 real CI passed; Closure PR CI remains a hard merge gate."
+    },
+    {
+      "id": 7,
+      "status": "pass",
+      "evidence": "runtimeSliceCount=0; candidateDeployment=not_applicable for all docs/tooling-only milestone PRs."
+    },
+    {
+      "id": 8,
+      "status": "pass",
+      "evidence": "roadmap, docs index, owner map and release artifacts are updated in the Closure PR."
+    },
+    {
+      "id": 9,
+      "status": "pr_gate",
+      "evidence": "The Closure PR must be merged and local main must equal origin/main before final completion is reported."
+    },
+    {
+      "id": 10,
+      "status": "not_applicable",
+      "evidence": "No cloud runtime was touched by the closure work; no cloud deploy or smoke is meaningful for docs/tooling-only changes."
+    }
+  ],
+  "featureIteration": {
+    "from": "frozen_until_milestone_exit",
+    "to": "allowed_under_harness",
+    "condition": "Closure PR CI passes, PR merges and local main equals origin/main."
+  }
+}
