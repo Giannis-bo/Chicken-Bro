@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T02:43:15.153Z",
+  "status": "merged_to_main",
+  "generatedAt": "2026-07-10T02:45:02.963Z",
   "release": {
     "date": "2026-07-10",
     "slug": "active-season-read-model-selector"
@@ -38,7 +38,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 412572
+          "sizeBytes": 412584
         },
         {
           "path": "docs/README.md",
@@ -212,12 +212,18 @@
         "rule_promoted",
         "script_candidate"
       ]
+    },
+    "merge": {
+      "status": "merged_to_main",
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/45",
+      "mergeCommit": "3c4c42bf69231f99d0706b1e9dce2e62cc2884a0",
+      "headEqualsOriginMain": true
     }
   },
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-active-season-read-model-selector/evidence.json",
-    "sizeBytes": 10623,
+    "sizeBytes": 10907,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -235,7 +241,7 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "candidate_deployment_verified",
+    "declaredStatus": "merged_to_main",
     "highestEvidenceLevel": "candidate_deployment_verified",
     "summary": "Phase 4 extracts the PostgreSQL active-season read-model assembly into server/pg_season_read_model_selectors.py. server/postgres_cache_store.py keeps active-season and dungeon SQL, the active verified gate, cache writes, sync, and backfill paths."
   },
