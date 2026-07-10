@@ -1,10 +1,24 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-07-10",
-  "activeMilestone": "project_harness_normalization",
+  "activeMilestone": "equipment_simulator_phase0",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-10-project-harness-normalization",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard",
   "activeContracts": [
+    {
+      "id": "equipment_simulator_capability_architecture",
+      "path": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+      "status": "approved_active",
+      "lifecycle": "active",
+      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phase 6 remains deferred."
+    },
+    {
+      "id": "equipment_simulator_phase0_safety",
+      "path": "docs/plans/2026-07-10-equipment-simulator-phase0-safety-plan.md",
+      "status": "phase0a_in_progress",
+      "lifecycle": "active",
+      "notes": "Current detailed execution plan for three independently candidate-deployed Phase 0 safety slices."
+    },
     {
       "id": "repo_native_harness_v0_5",
       "path": "docs/harness.md",

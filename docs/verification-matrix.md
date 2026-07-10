@@ -28,3 +28,34 @@ node scripts/verify-project.js --profile full --release "$ACTIVE_RELEASE" --base
 ```
 
 The workflow does not deploy, SSH, install repository dependencies, run migrations, trigger sync jobs, or write production data. Failing tests, invalid JSON, owner-map conflicts, Harness packet failures, syntax failures, or whitespace errors must return nonzero.
+
+## Equipment Simulator Phase 0A Profile
+
+The Strict Slice 0A packet at `artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard` adds a PostgreSQL-only serializer safety profile. Run it before candidate deployment:
+
+```bash
+python3 -m unittest \
+  tests.websim_payload_test.WebSimPayloadTest.test_pg_only_structured_enhancement_rejects_client_catalog_forgery \
+  tests.websim_payload_test.WebSimPayloadTest.test_merge_enhancements_strips_forged_server_authority_marker \
+  tests.websim_payload_test.WebSimPayloadTest.test_enhancement_validator_defaults_to_no_server_authority \
+  tests.websim_payload_test.WebSimPayloadTest.test_structured_enhancement_snapshot_blocks_uncatalogued_options \
+  tests.websim_payload_test.WebSimPayloadTest.test_structured_enhancement_snapshot_uses_server_catalog_over_client_options \
+  tests.websim_payload_test.WebSimPayloadTest.test_structured_enhancement_snapshot_rejects_catalog_options_without_item_capability
+python3 -m unittest tests.websim_payload_test tests.news_backend_test
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard \
+  --base origin/main
+node scripts/project-harness.js --check \
+  --requirement-file artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard/requirement.json \
+  --evidence-file artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard/evidence.json \
+  --base origin/main
+python3 -m json.tool docs/backend-owner-map.json >/dev/null
+python3 -m json.tool docs/project-owner-map.json >/dev/null
+python3 -m json.tool docs/project-state.json >/dev/null
+git diff --check
+```
+
+Candidate verification must additionally prove exact PR commit/runtime hash parity, PostgreSQL-only `/api/websim/profile` rejection of a forged client enhancement, unchanged public observed-only gear initial/slot payloads, current timer/backflow state, recent logs, and `code_rollback` to the previous main commit.

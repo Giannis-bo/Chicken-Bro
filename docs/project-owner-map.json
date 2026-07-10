@@ -522,6 +522,7 @@
       "writeBehavior": true,
       "writeOwner": "server/news_backend.py",
       "consumers": [
+        "server/websim_payload.py",
         "server/simc_preparation.py",
         "server/codex_worker.py",
         "pages/simulator/simc.js",
@@ -529,19 +530,23 @@
       ],
       "publicContracts": [
         "SimC profile generation stays backend-owned.",
+        "Submitted gear enhancements require backend-attached catalog authority before serialization.",
         "Task list/detail evidence does not expose raw internal diagnostics as user-facing truth."
       ],
       "mustNotChange": [
         "Do not assemble authoritative SimC profile strings client-side.",
+        "Do not accept client-supplied gem, enchant or embellishment options as server authority.",
         "Do not promote queued task success to DPS correctness."
       ],
       "characterization": [
+        "tests/websim_payload_test.py",
         "tests/simulator-page.test.js",
         "tests/news_backend_test.py",
         "tests/codex_worker_test.py",
         "tests/simulator_smoke_test.py"
       ],
       "runtimeSurfaces": [
+        "server/websim_payload.py",
         "server/simc_profile_policy.py",
         "server/simc_preparation.py",
         "server/news_backend.py",
@@ -562,6 +567,7 @@
       ],
       "releaseTrigger": "backend_api",
       "changedPathPatterns": [
+        "server/websim_payload.py",
         "server/simc_profile_policy.py",
         "server/simc_preparation.py",
         "server/codex_worker.py",
@@ -573,6 +579,7 @@
         "status": "characterized",
         "summary": "Existing simulator frontend, backend route, codex worker and smoke tests characterize serializer, task snapshot, owner isolation and deterministic fallback boundaries.",
         "coverage": [
+          "tests/websim_payload_test.py",
           "tests/simulator-page.test.js",
           "tests/news_backend_test.py",
           "tests/codex_worker_test.py",

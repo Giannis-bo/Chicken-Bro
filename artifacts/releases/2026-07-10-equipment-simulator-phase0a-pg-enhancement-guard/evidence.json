@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase0a-pg-enhancement-guard",
+  "requirementSlug": "equipment-simulator-phase0a-pg-enhancement-guard",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/equipment-simulator-phase0a-pg-enhancement-guard",
+  "commit": "pending_pr_head",
+  "scope": [
+    "PostgreSQL-only enhancement authority fail-closed behavior",
+    "server/websim_payload.py compatibility facade",
+    "serializer characterization and Harness evidence",
+    "owner map and current project-state contracts"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.websim_payload_test.WebSimPayloadTest.test_pg_only_structured_enhancement_rejects_client_catalog_forgery tests.websim_payload_test.WebSimPayloadTest.test_merge_enhancements_strips_forged_server_authority_marker tests.websim_payload_test.WebSimPayloadTest.test_enhancement_validator_defaults_to_no_server_authority tests.websim_payload_test.WebSimPayloadTest.test_build_websim_profile_merges_structured_enhancement_snapshot tests.websim_payload_test.WebSimPayloadTest.test_structured_enhancement_snapshot_blocks_uncatalogued_options tests.websim_payload_test.WebSimPayloadTest.test_structured_enhancement_snapshot_uses_server_catalog_over_client_options tests.websim_payload_test.WebSimPayloadTest.test_structured_enhancement_snapshot_rejects_catalog_options_without_item_capability",
+      "status": "pass",
+      "summary": "7 targeted tests passed. TDD red evidence separately proved the original conn=None path accepted a client-only embellishment, removal of marker sanitization re-opened the forged-marker path, and a fail-open validator default accepted an unauthoritative option; each behavior passed after the minimum guard."
+    },
+    {
+      "command": "python3 -m unittest tests.websim_payload_test tests.news_backend_test",
+      "status": "pass",
+      "summary": "614 tests passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard --base origin/main",
+      "status": "pass",
+      "summary": "1058 Python tests passed with 1 skipped; compileall and Harness passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard --base origin/main",
+      "status": "pass",
+      "summary": "365 Node tests and 1058 Python tests passed with 1 skipped; 127 verification commands including syntax, JSON, Harness and diff checks passed."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "11 owner-map and current-truth contract tests passed."
+    },
+    {
+      "command": "local CR of origin/main...working tree",
+      "status": "pass",
+      "summary": "No unresolved findings. Review confirmed client marker sanitization, default fail-closed validation, server-catalog-backed valid serialization, unchanged public selector and frontend boundaries, and no sync/write/backfill/cleanup changes."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "requiredBeforeMerge": true,
+    "smoke": {
+      "status": "not_run"
+    },
+    "timerBackflow": {
+      "status": "not_run"
+    }
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "pg_authority_context_not_yet_available",
+      "status": "intentional_fail_closed",
+      "detail": "PostgreSQL-only structured enhancements remain blocked until the canonical Authority Context loader is delivered in Phase 2."
+    },
+    {
+      "id": "hotspot_compatibility_facade",
+      "status": "health_watch",
+      "detail": "The minimum guard changes server/websim_payload.py; local characterization and candidate smoke must prove no unrelated serializer behavior changed."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-delivery-plan.md",
+    "docs/plans/2026-07-10-equipment-simulator-phase0-safety-plan.md",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 0A is locally verified: submitted structured enhancements now require successfully attached server catalog authority, forged authority markers are stripped, and valid server-catalog-backed serialization remains characterized. Candidate deployment is still required before merge."
+}

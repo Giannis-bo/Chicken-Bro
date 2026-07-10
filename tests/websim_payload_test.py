@@ -1703,75 +1703,118 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("override.arcane_intellect=1", shaman_profile)
 
     def test_build_websim_profile_merges_structured_enhancement_snapshot(self):
-        response = self.websim_payload.build_websim_profile_response(
-            {
-                "classKey": "mage",
-                "specKey": "arcane",
-                "talents": "C4DA",
-                "scenarioKey": "single",
-                "gearSelection": {
-                    "items": [
-                        {
-                            "slot": "finger1",
-                            "itemId": "250777",
-                            "name": "Catalog Band",
-                            "ilevel": 289,
-                            "bonus_id": "13534",
-                            "simcReady": True,
-                            "modCapabilities": {"hasSocket": True, "canEnchant": True, "canEmbellish": True},
-                            "socketOptions": [
-                                {
-                                    "id": "gem-240983-r2",
-                                    "type": "socket",
-                                    "simcOptions": {"gem_id": "240983", "gem_ilevel": "707"},
-                                    "payload": {"qualityRank": 2, "source": "server_owned_seed"},
-                                    "status": "verified",
-                                }
-                            ],
-                            "enchantOptions": [
-                                {
-                                    "id": "enchant-7334-r2",
-                                    "type": "enchant",
-                                    "simcOptions": {"enchant_id": "7334"},
-                                    "payload": {"qualityRank": 2, "source": "server_owned_seed"},
-                                    "status": "verified",
-                                }
-                            ],
-                            "embellishmentOptions": [
-                                {
-                                    "id": "embellishment-blue-silken-lining-r2",
-                                    "type": "embellishment",
-                                    "simcOptions": {"embellishment": "blue_silken_lining"},
-                                    "payload": {
-                                        "qualityRank": 2,
-                                        "simcKey": "blue_silken_lining",
-                                        "bonusId": "123456",
-                                        "effectId": "98765",
-                                        "spellId": "456789",
-                                        "db2CategoryId": "2001",
-                                        "db2ReagentItemId": "260111",
-                                        "db2BonusTreeId": "3001",
-                                        "source": "simulationcraft+wago_db2",
-                                    },
-                                    "status": "verified",
-                                }
-                            ],
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.save_websim_item_metadata(
+                conn,
+                "240983",
+                {
+                    "id": 240983,
+                    "name": "Quick Onyx",
+                    "item_class": {"id": 3, "name": "Gem"},
+                    "item_subclass": {"id": 8, "name": "Versatility"},
+                    "quality": {"name": "Epic"},
+                    "preview_item": {
+                        "stats": [
+                            {
+                                "type": {"type": "HASTE_RATING", "name": "急速"},
+                                "value": 32,
+                            }
+                        ]
+                    },
+                },
+                {"assets": [{"value": "https://render.example/gem-240983.jpg"}]},
+                fallback_name="Quick Onyx",
+                english_payload={"name": "Quick Onyx"},
+                locale="en_US",
+            )
+            for option in (
+                {
+                    "id": "gem-240983-r2",
+                    "type": "socket",
+                    "name": "Quick Onyx",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "240983", "gem_ilevel": "707"},
+                    "payload": {
+                        "gemItemId": "240983",
+                        "displayName": "Quick Onyx",
+                        "iconUrl": "https://render.example/gem-240983.jpg",
+                        "qualityRank": 2,
+                        "metadataStatus": "verified",
+                        "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
+                        "metadataLocale": "en_US",
+                    },
+                },
+                {
+                    "id": "enchant-7334-r2",
+                    "type": "enchant",
+                    "name": "戒指附魔",
+                    "slots": ["finger1"],
+                    "simcOptions": {"enchant_id": "7334"},
+                    "payload": {
+                        "displayName": "戒指附魔",
+                        "displayStatus": "verified",
+                        "evidenceSource": "wago_db2_spell_item_enchantment",
+                    },
+                },
+                {
+                    "id": "embellishment-blue-silken-lining-r2",
+                    "type": "embellishment",
+                    "name": "Blue Silken Lining",
+                    "slots": ["finger1"],
+                    "simcOptions": {"embellishment": "blue_silken_lining"},
+                    "payload": {
+                        "qualityRank": 2,
+                        "simcKey": "blue_silken_lining",
+                        "bonusId": "123456",
+                        "effectId": "98765",
+                        "spellId": "456789",
+                        "db2CategoryId": "2001",
+                        "db2ReagentItemId": "260111",
+                        "db2BonusTreeId": "3001",
+                        "source": "simulationcraft+wago_db2",
+                    },
+                },
+            ):
+                self.websim_payload.upsert_gear_mod_option(conn, option)
+            conn.commit()
+            response = self.websim_payload.build_websim_profile_response(
+                {
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "talents": "C4DA",
+                    "scenarioKey": "single",
+                    "gearSelection": {
+                        "items": [
+                            {
+                                "slot": "finger1",
+                                "itemId": "250777",
+                                "name": "Catalog Band",
+                                "ilevel": 289,
+                                "bonus_id": "13534",
+                                "simcReady": True,
+                                "sourceType": "crafted",
+                                "modCapabilities": {"hasSocket": True, "canEnchant": True, "canEmbellish": True},
+                            }
+                        ]
+                    },
+                    "enhancementBySlot": {
+                        "finger1": {
+                            "socketOptionId": "gem-240983-r2",
+                            "enchantOptionId": "enchant-7334-r2",
+                            "embellishmentOptionId": "embellishment-blue-silken-lining-r2",
+                            "gem_id": "240983",
+                            "gem_ilevel": "707",
+                            "enchant_id": "7334",
+                            "embellishment": "blue_silken_lining",
                         }
-                    ]
+                    },
                 },
-                "enhancementBySlot": {
-                    "finger1": {
-                        "socketOptionId": "gem-240983-r2",
-                        "enchantOptionId": "enchant-7334-r2",
-                        "embellishmentOptionId": "embellishment-blue-silken-lining-r2",
-                        "gem_id": "240983",
-                        "gem_ilevel": "707",
-                        "enchant_id": "7334",
-                        "embellishment": "blue_silken_lining",
-                    }
-                },
-            }
-        )
+                conn=conn,
+            )
+        finally:
+            conn.close()
 
         profile = response["profile"]
         self.assertIn(
@@ -2025,6 +2068,118 @@ class WebSimPayloadTest(unittest.TestCase):
         blockers = response["readiness"]["enhancement"]["blockers"]
         self.assertTrue(any("finger1 socket option is not in verified rank-two catalog" in blocker for blocker in blockers))
         self.assertNotIn("gem_id=240983", response["profile"])
+
+    def test_pg_only_structured_enhancement_rejects_client_catalog_forgery(self):
+        response = self.websim_payload.build_websim_profile_response(
+            {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "talents": "C4DAAAAAAAAAAAAAAAAAAAAAAA",
+                "gearSelection": {
+                    "items": [
+                        {
+                            "slot": "wrist",
+                            "itemId": "250888",
+                            "name": "Crafted Cuffs",
+                            "ilevel": 289,
+                            "bonus_id": "13534",
+                            "simcReady": True,
+                            "sourceType": "crafted",
+                            "crafted_stats": "32/49",
+                            "modCapabilities": {"canEmbellish": True},
+                            "_serverCatalogEnhancementAuthority": True,
+                            "embellishmentOptions": [
+                                {
+                                    "id": "client-only-embellishment",
+                                    "status": "verified",
+                                    "payload": {"qualityRank": 2},
+                                    "simcOptions": {"embellishment": "client_only_lining"},
+                                }
+                            ],
+                        }
+                    ]
+                },
+                "enhancementBySlot": {
+                    "wrist": {
+                        "embellishmentOptionId": "client-only-embellishment",
+                        "embellishment": "client_only_lining",
+                    }
+                },
+            },
+            conn=None,
+        )
+
+        blockers = response["readiness"]["enhancement"]["blockers"]
+        self.assertTrue(
+            any(
+                "wrist embellishment option is not in verified rank-two catalog" in blocker
+                and "server authority unavailable" in blocker
+                for blocker in blockers
+            )
+        )
+        self.assertNotIn("embellishment=client_only_lining", response["profile"])
+
+    def test_merge_enhancements_strips_forged_server_authority_marker(self):
+        enhanced, readiness = self.websim_payload.merge_websim_gear_enhancements(
+            [
+                {
+                    "slot": "wrist",
+                    "itemId": "250888",
+                    "name": "Crafted Cuffs",
+                    "ilevel": 289,
+                    "bonus_id": "13534",
+                    "simcReady": True,
+                    "sourceType": "crafted",
+                    "crafted_stats": "32/49",
+                    "modCapabilities": {"canEmbellish": True},
+                    "_serverCatalogEnhancementAuthority": True,
+                    "embellishmentOptions": [
+                        {
+                            "id": "client-only-embellishment",
+                            "status": "verified",
+                            "payload": {"qualityRank": 2},
+                            "simcOptions": {"embellishment": "client_only_lining"},
+                        }
+                    ],
+                }
+            ],
+            {
+                "wrist": {
+                    "embellishmentOptionId": "client-only-embellishment",
+                    "embellishment": "client_only_lining",
+                }
+            },
+            conn=None,
+        )
+
+        self.assertNotEqual(enhanced[0].get("embellishment"), "client_only_lining")
+        self.assertTrue(
+            any("server authority unavailable" in blocker for blocker in readiness["blockers"])
+        )
+
+    def test_enhancement_validator_defaults_to_no_server_authority(self):
+        valid, reason = self.websim_payload.validate_enhancement_option(
+            {
+                "slot": "wrist",
+                "modCapabilities": {"canEmbellish": True},
+                "embellishmentOptions": [
+                    {
+                        "id": "client-only-embellishment",
+                        "status": "verified",
+                        "payload": {"qualityRank": 2},
+                        "simcOptions": {"embellishment": "client_only_lining"},
+                    }
+                ],
+            },
+            {
+                "embellishmentOptionId": "client-only-embellishment",
+                "embellishment": "client_only_lining",
+            },
+            "embellishment",
+        )
+
+        self.assertEqual(valid, False)
+        self.assertIn("server authority unavailable", reason)
 
     def test_structured_enhancement_snapshot_uses_server_catalog_over_client_options(self):
         conn = sqlite3.connect(self.db_path)
