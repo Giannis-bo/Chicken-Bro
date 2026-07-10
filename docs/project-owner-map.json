@@ -309,19 +309,23 @@
         "modules": [
           "server/gear_contracts.py",
           "server/gear_result_envelope.py",
-          "server/gear_rule_matrix.py"
+          "server/gear_rule_matrix.py",
+          "server/gear_evidence_ledger.py",
+          "server/gear_resolver.py"
         ],
         "tests": [
           "tests/gear_contracts_test.py",
           "tests/gear_result_envelope_test.py",
-          "tests/gear_rule_matrix_test.py"
+          "tests/gear_rule_matrix_test.py",
+          "tests/gear_evidence_ledger_test.py",
+          "tests/gear_resolver_test.py"
         ],
         "runtimeConsumers": []
       },
       "publicContracts": [
         "communityTemplates public entry allows active raiderio_observed_profile only.",
         "baselineTemplates public default remains empty.",
-        "Phase 1 Selection Intent, Result Envelope and ordered Rule Matrix are dormant contract foundations; they do not replace the current public read model."
+        "Phase 2A pure Resolver and Evidence Ledger consume the Phase 1 contracts without replacing or activating the current public read model."
       ],
       "mustNotChange": [
         "Do not reintroduce recommended_bis, season_recommendation, default_template, simc_preset or baseline_blocked into public gear entry.",
@@ -335,7 +339,9 @@
         "tests/builds-page.test.js",
         "tests/gear_contracts_test.py",
         "tests/gear_result_envelope_test.py",
-        "tests/gear_rule_matrix_test.py"
+        "tests/gear_rule_matrix_test.py",
+        "tests/gear_evidence_ledger_test.py",
+        "tests/gear_resolver_test.py"
       ],
       "runtimeSurfaces": [
         "server/gear_public_contract.py",
@@ -364,11 +370,15 @@
         "server/gear_contracts.py",
         "server/gear_result_envelope.py",
         "server/gear_rule_matrix.py",
+        "server/gear_evidence_ledger.py",
+        "server/gear_resolver.py",
         "pages/builds/websim-api.js",
         "pages/builds/detail.*",
         "tests/gear_contracts_test.py",
         "tests/gear_result_envelope_test.py",
-        "tests/gear_rule_matrix_test.py"
+        "tests/gear_rule_matrix_test.py",
+        "tests/gear_evidence_ledger_test.py",
+        "tests/gear_resolver_test.py"
       ],
       "backendOwnerMapRef": {
         "hotspotFile": "server/websim_payload.py",
@@ -386,7 +396,9 @@
           "tests/builds-page.test.js",
           "tests/gear_contracts_test.py",
           "tests/gear_result_envelope_test.py",
-          "tests/gear_rule_matrix_test.py"
+          "tests/gear_rule_matrix_test.py",
+          "tests/gear_evidence_ledger_test.py",
+          "tests/gear_resolver_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {
@@ -560,12 +572,16 @@
         "modules": [
           "server/gear_contracts.py",
           "server/gear_result_envelope.py",
-          "server/gear_rule_matrix.py"
+          "server/gear_rule_matrix.py",
+          "server/gear_evidence_ledger.py",
+          "server/gear_resolver.py"
         ],
         "tests": [
           "tests/gear_contracts_test.py",
           "tests/gear_result_envelope_test.py",
-          "tests/gear_rule_matrix_test.py"
+          "tests/gear_rule_matrix_test.py",
+          "tests/gear_evidence_ledger_test.py",
+          "tests/gear_resolver_test.py"
         ],
         "runtimeConsumers": []
       },
@@ -574,7 +590,7 @@
         "Submitted gear enhancements require backend-attached catalog authority before serialization.",
         "Legacy gear stats preserve their response shape while stat_snapshot_v1 uses one iteration and process-global concurrency one.",
         "Task list/detail evidence does not expose raw internal diagnostics as user-facing truth.",
-        "Phase 1 signatures declare selection, resolution and profile dependency subsets, but no current serializer or route imports the new modules."
+        "Phase 2A emits deterministic structured serializer input and five evidence groups, but no current serializer, route, task or Worker imports the Resolver or Ledger."
       ],
       "mustNotChange": [
         "Do not assemble authoritative SimC profile strings client-side.",
@@ -593,7 +609,9 @@
         "tests/simulator_smoke_test.py",
         "tests/gear_contracts_test.py",
         "tests/gear_result_envelope_test.py",
-        "tests/gear_rule_matrix_test.py"
+        "tests/gear_rule_matrix_test.py",
+        "tests/gear_evidence_ledger_test.py",
+        "tests/gear_resolver_test.py"
       ],
       "runtimeSurfaces": [
         "server/websim_payload.py",
@@ -623,13 +641,17 @@
         "server/gear_contracts.py",
         "server/gear_result_envelope.py",
         "server/gear_rule_matrix.py",
+        "server/gear_evidence_ledger.py",
+        "server/gear_resolver.py",
         "server/codex_worker.py",
         "server/news_backend.py",
         "pages/simulator/simc.*",
         "pages/simulator/simulator-api.js",
         "tests/gear_contracts_test.py",
         "tests/gear_result_envelope_test.py",
-        "tests/gear_rule_matrix_test.py"
+        "tests/gear_rule_matrix_test.py",
+        "tests/gear_evidence_ledger_test.py",
+        "tests/gear_resolver_test.py"
       ],
       "criticalContract": {
         "status": "characterized",
@@ -645,7 +667,9 @@
           "tests/simulator_smoke_test.py",
           "tests/gear_contracts_test.py",
           "tests/gear_result_envelope_test.py",
-          "tests/gear_rule_matrix_test.py"
+          "tests/gear_rule_matrix_test.py",
+          "tests/gear_evidence_ledger_test.py",
+          "tests/gear_resolver_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": null

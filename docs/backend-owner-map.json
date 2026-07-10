@@ -63,15 +63,17 @@
         {
           "id": "gear_legality_source_map",
           "status": "characterized",
-          "phase1ContractFoundations": {
+          "contractFoundations": {
             "status": "contract_only_unconsumed",
             "modules": [
               "server/gear_contracts.py",
               "server/gear_result_envelope.py",
-              "server/gear_rule_matrix.py"
+              "server/gear_rule_matrix.py",
+              "server/gear_evidence_ledger.py",
+              "server/gear_resolver.py"
             ],
             "runtimeConsumers": [],
-            "activationBoundary": "Phase 2 may consume the contracts in a new resolver; Phase 1 does not change websim_payload.py, PostgreSQL selectors, public payloads, routes, or frontend consumers."
+            "activationBoundary": "Phase 2A consumes the Phase 1 contracts only inside the pure Resolver. No current websim_payload.py facade, PostgreSQL selector, public payload, route, serializer, store or frontend imports the Resolver or Ledger."
           },
           "owns": [
             "apply_gear_template_legality_gate",
@@ -92,7 +94,9 @@
             "tests/gear_legality_test.py",
             "tests/gear_contracts_test.py",
             "tests/gear_result_envelope_test.py",
-            "tests/gear_rule_matrix_test.py"
+            "tests/gear_rule_matrix_test.py",
+            "tests/gear_evidence_ledger_test.py",
+            "tests/gear_resolver_test.py"
           ],
           "futureExtractionDirection": "Extract legality source-map helpers only after authority health and public gear API tests remain unchanged."
         },

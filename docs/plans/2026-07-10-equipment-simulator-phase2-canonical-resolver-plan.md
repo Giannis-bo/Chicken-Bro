@@ -18,8 +18,10 @@ Create:
 
 - `server/gear_evidence_ledger.py`
 - `server/gear_resolver.py`
+- `server/gear_rule_matrix.py` effective-capability compatibility only
 - `tests/gear_evidence_ledger_test.py`
 - `tests/gear_resolver_test.py`
+- `tests/gear_rule_matrix_test.py` overlay-order characterization
 - `tests/fixtures/gear-resolver-complete-authority-v1.json`
 - `artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/`
 
@@ -250,6 +252,7 @@ Expected: tests pass; purity search returns no coupling.
 - Create: `tests/gear_resolver_test.py`
 - Create: `tests/fixtures/gear-resolver-complete-authority-v1.json`
 - Modify: `server/gear_contracts.py` only if additive Authority typed fields are required
+- Modify: `server/gear_rule_matrix.py` and `tests/gear_rule_matrix_test.py` only to make existing enhancement rules consume verified post-overlay effective capabilities
 
 **Interface:**
 
@@ -324,9 +327,12 @@ test_resolver_returns_revision_conflict_without_reinterpreting_intent
 test_resolver_returns_authority_unavailable_without_client_fallback
 test_resolver_has_no_database_or_current_facade_dependency
 test_resolved_snapshot_signatures_are_deterministic
+test_rule_matrix_uses_verified_overlay_capabilities_before_options
 ```
 
 Reuse `parse_selection_intent`, `validate_authority_context`, Phase 1 signatures, structured problems, and `evaluate_rule_matrix`. Do not duplicate their allowlists.
+
+The ten-rule registry, IDs, order and blocker prefixes do not change. Add one shared pure helper that merges base capabilities, verified variant capability overrides and verified overlay capability overrides for the existing gem/enchant/crafted/Catalyst evaluators. Unverified or item-mismatched variants/overlays provide no capability and fail closed through the existing release/authority problems.
 
 - [ ] **Step 2: Write the pipeline-order red test**
 

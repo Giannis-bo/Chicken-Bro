@@ -273,6 +273,29 @@ class GearRuleMatrixTest(unittest.TestCase):
         self.assertEqual(catalyst["status"], "blocked")
         self.assertEqual(catalyst["problems"][0]["code"], "GEAR_CATALYST_CAPABILITY_BLOCKED")
 
+    def test_rule_matrix_uses_verified_overlay_capabilities_before_options(self):
+        authority = self.authority()
+        authority["itemsById"]["item-head"]["socketCount"] = 0
+        authority["itemsById"]["item-head"]["baseCapabilities"] = {"socketCount": 0}
+        authority["variantsByKey"]["variant-head"].update(
+            {
+                "status": "verified",
+                "overlay": {
+                    "status": "verified",
+                    "capabilityOverrides": {"socketCount": 1},
+                },
+            }
+        )
+        intent = self.intent(
+            {"head": self.slot("item-head", "variant-head", gemOptionIds=["gem-int"])}
+        )
+
+        result = gear_rule_matrix.evaluate_rule_matrix(intent, authority)
+
+        gem_rule = self.result_for(result, "socket_and_gem")
+        self.assertEqual(gem_rule["status"], "verified")
+        self.assertEqual(gem_rule["problems"], [])
+
     def test_rule_matrix_returns_all_ordered_results_without_resolving_attributes(self):
         authority = self.authority()
         authority["ruleParameters"]["crossSlotBlockers"] = [
