@@ -3,7 +3,7 @@
   "updatedAt": "2026-07-10",
   "activeMilestone": "equipment_simulator_phase0",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed",
   "activeContracts": [
     {
       "id": "equipment_simulator_capability_architecture",
@@ -15,9 +15,9 @@
     {
       "id": "equipment_simulator_phase0_safety",
       "path": "docs/plans/2026-07-10-equipment-simulator-phase0-safety-plan.md",
-      "status": "phase0a_archived_phase0b_next",
+      "status": "phase0b_in_progress",
       "lifecycle": "active",
-      "notes": "Slice 0A merged and live-verified in PR #57; Slice 0B Catalyst false-green guard is next under the same plan."
+      "notes": "Slice 0A merged and live-verified in PR #57; Slice 0B Catalyst false-green guard is the active Strict release."
     },
     {
       "id": "repo_native_harness_v0_5",

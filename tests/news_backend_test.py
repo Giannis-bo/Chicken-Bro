@@ -5379,10 +5379,20 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(details["revisionBindings"]["terminologyRevision"], "term-retail-12.0-s1")
         self.assertEqual(details["simcRuntime"]["sourceCommit"], "abc123")
         self.assertEqual(details["catalystOverlay"]["simcOption"], "redirected_base_stats")
-        self.assertEqual(details["catalystOverlay"]["status"], "verified")
+        self.assertEqual(details["catalystOverlay"]["status"], "blocked")
+        self.assertTrue(any("proof matrix" in blocker for blocker in details["blockers"]))
         self.assertEqual(details["terminologyCatalog"]["minimumTerms"][0]["canonicalName"], "疾咒师")
         self.assertIn("法术投射者", details["terminologyCatalog"]["minimumTerms"][0]["aliases"])
         self.assertEqual(details["officialReadPolicy"]["allowClientSeasonOverride"], False)
+
+    def test_catalyst_overlay_allowlist_does_not_prove_cutover_capability(self):
+        gate = self.backend.catalyst_overlay_cutover_gate()
+
+        self.assertIn("redirected_base_stats", gate["supportedSimcOptions"])
+        self.assertEqual(gate["simcOption"], "redirected_base_stats")
+        self.assertEqual(gate["status"], "blocked")
+        self.assertEqual(gate["capabilityEnabled"], False)
+        self.assertTrue(any("proof matrix" in blocker for blocker in gate["blockers"]))
 
     def test_catalyst_redirected_base_stats_is_a_controlled_simc_option(self):
         import server.websim_payload as websim_payload

@@ -2426,15 +2426,22 @@ def terminology_cutover_gate(season):
 
 
 def catalyst_overlay_cutover_gate():
-    supported = "redirected_base_stats" in SIMC_GEAR_OPTION_KEYS
+    option_parse_supported = "redirected_base_stats" in SIMC_GEAR_OPTION_KEYS
+    blocker = (
+        "12.1 Catalyst retained-secondary-stat capability proof matrix is incomplete; "
+        "catalog policy, Resolver claims, Serializer output, active SimC runtime, real fixture, "
+        "frontend explanation, and Manifest capability binding must all be verified"
+    )
     return {
-        "status": "verified" if supported else "blocked",
+        "status": "blocked",
         "simcOption": "redirected_base_stats",
+        "optionParseSupported": option_parse_supported,
+        "capabilityEnabled": False,
         "serializerAuthority": "backend",
         "frontendMaySynthesize": False,
         "failClosed": True,
         "supportedSimcOptions": sorted(SIMC_GEAR_OPTION_KEYS),
-        "blockers": [] if supported else ["redirected_base_stats is not in SIMC gear option allowlist"],
+        "blockers": [blocker],
     }
 
 

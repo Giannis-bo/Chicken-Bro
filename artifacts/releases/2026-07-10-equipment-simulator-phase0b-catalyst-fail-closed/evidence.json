@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase0b-catalyst-fail-closed",
+  "requirementSlug": "equipment-simulator-phase0b-catalyst-fail-closed",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
+  "branch": "codex/equipment-simulator-phase0b-catalyst-fail-closed",
+  "commit": "pending_pr_head",
+  "scope": [
+    "Catalyst allowlist false-green fail-closed behavior",
+    "server/news_backend.py season cutover health gate",
+    "health characterization and Harness evidence",
+    "owner map and current project-state contracts"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.news_backend_test.NewsBackendTest.test_catalyst_overlay_allowlist_does_not_prove_cutover_capability tests.news_backend_test.NewsBackendTest.test_data_health_payload_includes_season_cutover_readiness_control_plane tests.news_backend_test.NewsBackendTest.test_catalyst_redirected_base_stats_is_a_controlled_simc_option",
+      "status": "pass",
+      "summary": "3 targeted tests passed. TDD red produced two intended failures because both the direct gate and season-cutover details returned verified solely from the allowlist; the minimum fail-closed gate made them green while the parser test remained green."
+    },
+    {
+      "command": "python3 -m unittest tests.news_backend_test",
+      "status": "pass",
+      "summary": "230 tests passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed --base origin/main",
+      "status": "pass",
+      "summary": "1059 Python tests passed with 1 skipped; compileall and Harness passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed --base origin/main",
+      "status": "pass",
+      "summary": "365 Node tests and 1059 Python tests passed with 1 skipped; 127 verification commands including syntax, JSON, Harness and diff checks passed."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "11 owner-map and current-truth contract tests passed."
+    },
+    {
+      "command": "local CR of origin/main...working tree",
+      "status": "pass",
+      "summary": "No unresolved findings. Review confirmed the gate stays blocked independently of parser support, capabilityEnabled is false, the proof-matrix blocker reaches season-cutover details, parser compatibility remains characterized, and no Manifest, frontend, public selector, sync/write/backfill/cleanup or Phase 0A code changed."
+    },
+    {
+      "command": "GitHub Project Harness verify for PR #58",
+      "status": "pass",
+      "summary": "GitHub Actions Project Harness completed successfully for the Slice 0B PR."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase0b-catalyst-fail-closed",
+    "commit": "pending_pr_head",
+    "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/58",
+    "buildIdentity": "server/news_backend.py sha256:d6913191416912a962815a4c4c8f00ce7d263c682c853dedebd9207be1eceff9",
+    "databaseRuntime": "postgres_only",
+    "smoke": {
+      "status": "pass",
+      "summary": "Candidate /health returned 200. Live /api/data/health returned HTTP 200 with season_cutover_readiness.status=blocked, catalystOverlay.status=blocked, capabilityEnabled=false, optionParseSupported=true, redirected_base_stats still listed, and the complete proof-matrix blocker in both component and details."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "WOW_DEPLOY_START_ASYNC_SYNCS=0 skipped async starts. WebSim, stat weights, community template, observed backfill, season recommendation, community guard, recommended guard and health follow-up services were inactive with last Result=success/ExecMainStatus=0. The pre-existing observed-backfill timer remained enabled but cannot mutate the in-memory Catalyst gate."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "type": "deployment_identity",
+      "status": "pass",
+      "summary": "Candidate branch was hot-deployed with bootstrap skipped and async sync disabled. Local and runtime server/news_backend.py SHA-256 both equal d6913191416912a962815a4c4c8f00ce7d263c682c853dedebd9207be1eceff9; wow-backend is active with WOW_DATABASE_RUNTIME=postgres_only."
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "Live /api/data/health exposed Catalyst status=blocked, capabilityEnabled=false, optionParseSupported=true, simcOption=redirected_base_stats, failClosed=true and the approved proof-matrix blocker while overall health remained truthfully partial."
+    },
+    {
+      "type": "public_contract",
+      "status": "pass",
+      "summary": "Live mage/arcane compact initial and wrist-slot payloads remained dataStatus=verified with one complete 16/16 raiderio_observed_profile community winner, zero baseline templates, zero forbidden public sources and one wrist replacement candidate."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "No async sync was started. Relevant services were inactive with successful last results; scheduled data jobs cannot promote or rewrite this code-owned in-memory Catalyst gate."
+    },
+    {
+      "type": "logs",
+      "status": "pass",
+      "summary": "Recent wow-backend journal scan after candidate deployment found zero Traceback, ERROR, Exception or SQLite fallback matches."
+    },
+    {
+      "type": "rollback",
+      "status": "pass",
+      "summary": "Rollback anchor is origin/main 617ca6a85e7d230bf65840d7d99a75ea9e513f68; redeploying that checkout restores previous runtime server/news_backend.py hash e30ef78c5d3a524f7b1f7b98c592bcdf5e91134d848799311de0af9b3ebbce99 without data rollback."
+    }
+  ],
+  "risks": [
+    {
+      "id": "catalyst_proof_matrix_incomplete",
+      "status": "intentional_fail_closed",
+      "detail": "Catalyst retained-secondary-stat conversion remains blocked and UI-hidden until catalog policy, Resolver claims, Serializer output, active SimC runtime, a real fixture, frontend explanation and Manifest binding are all verified."
+    },
+    {
+      "id": "hotspot_health_gate",
+      "status": "health_watch",
+      "detail": "The minimum guard changes server/news_backend.py; direct health characterization and candidate smoke must prove no unrelated health component or public gear behavior changed."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-delivery-plan.md",
+    "docs/plans/2026-07-10-equipment-simulator-phase0-safety-plan.md",
+    "TODOS.md",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 0B candidate is live-verified before merge: Catalyst parser compatibility remains accepted while capability activation and season-cutover readiness fail closed, runtime hash parity and postgres_only mode are proven, public observed-only payloads are unchanged, and timer/log checks show no backflow. Merge and post-merge archive remain."
+}

@@ -59,3 +59,31 @@ git diff --check
 ```
 
 Candidate verification must additionally prove exact PR commit/runtime hash parity, PostgreSQL-only `/api/websim/profile` rejection of a forged client enhancement, unchanged public observed-only gear initial/slot payloads, current timer/backflow state, recent logs, and `code_rollback` to the previous main commit.
+
+## Equipment Simulator Phase 0B Profile
+
+The Strict Slice 0B packet at `artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed` separates SimC parser compatibility from Catalyst capability proof. Run it before candidate deployment:
+
+```bash
+python3 -m unittest \
+  tests.news_backend_test.NewsBackendTest.test_catalyst_overlay_allowlist_does_not_prove_cutover_capability \
+  tests.news_backend_test.NewsBackendTest.test_data_health_payload_includes_season_cutover_readiness_control_plane \
+  tests.news_backend_test.NewsBackendTest.test_catalyst_redirected_base_stats_is_a_controlled_simc_option
+python3 -m unittest tests.news_backend_test
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed \
+  --base origin/main
+node scripts/project-harness.js --check \
+  --requirement-file artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed/requirement.json \
+  --evidence-file artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed/evidence.json \
+  --base origin/main
+python3 -m json.tool docs/backend-owner-map.json >/dev/null
+python3 -m json.tool docs/project-owner-map.json >/dev/null
+python3 -m json.tool docs/project-state.json >/dev/null
+git diff --check
+```
+
+Candidate verification must additionally prove final PR-head/runtime hash parity, `WOW_DATABASE_RUNTIME=postgres_only`, live `/api/data/health` Catalyst `status=blocked` with `capabilityEnabled=false`, `optionParseSupported=true` and the proof-matrix blocker, unchanged public observed-only initial/slot payloads, current timer/backflow state, recent logs, and `code_rollback` to the previous main commit.
