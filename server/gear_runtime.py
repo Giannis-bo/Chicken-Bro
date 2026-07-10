@@ -1,0 +1,263 @@
+#!/usr/bin/env python3
+"""Runtime orchestration for canonical gear Resolve and profile requests."""
+
+from __future__ import annotations
+
+from typing import Any, Callable
+
+try:
+    from . import gear_resolver
+    from .gear_contracts import parse_selection_intent
+    from .gear_result_envelope import (
+        gear_problem,
+        http_status_for_envelope,
+        result_envelope,
+    )
+    from .websim_payload import (
+        build_websim_profile_response_from_resolved_snapshot,
+        gear_resolver_runtime_authority,
+    )
+except ImportError:
+    import gear_resolver
+    from gear_contracts import parse_selection_intent
+    from gear_result_envelope import (
+        gear_problem,
+        http_status_for_envelope,
+        result_envelope,
+    )
+    from websim_payload import (
+        build_websim_profile_response_from_resolved_snapshot,
+        gear_resolver_runtime_authority,
+    )
+
+
+PROFILE_CONTEXT_KEYS = (
+    "name",
+    "race",
+    "scenarioKey",
+    "heroKey",
+    "talents",
+    "talentImport",
+    "websimExportCode",
+    "talentState",
+)
+
+
+def _release_context(authority_context: Any) -> dict[str, Any]:
+    authority = authority_context if isinstance(authority_context, dict) else {}
+    manifest = authority.get("manifest") if isinstance(authority.get("manifest"), dict) else {}
+    vector = (
+        authority.get("dependencyVector")
+        if isinstance(authority.get("dependencyVector"), dict)
+        else {}
+    )
+    fields = (
+        "seasonRevision",
+        "gearCatalogReleaseId",
+        "gearCatalogRevision",
+        "gearRuleRevision",
+        "resolverContractRevision",
+        "serializerRevision",
+        "simcRuntimeRevision",
+        "statPolicyRevision",
+        "selectionSchemaRevision",
+    )
+    output = {
+        field: vector.get(field) or manifest.get(field) or ""
+        for field in fields
+    }
+    output["formalActiveManifest"] = manifest.get("formalActiveManifest") is True
+    return {key: value for key, value in output.items() if value not in (None, "")}
+
+
+def _invalid_intent_envelope(raw_intent: Any, request_id: str) -> tuple[int, dict[str, Any]]:
+    snapshot = gear_resolver.resolve(raw_intent, {})
+    envelope = result_envelope(
+        "blocked",
+        request_id,
+        {},
+        data=snapshot,
+        problems=snapshot.get("problems") or [],
+    )
+    return http_status_for_envelope(envelope), envelope
+
+
+def _error_envelope(
+    kind: str,
+    code: str,
+    title: str,
+    request_id: str,
+    *,
+    release_context: dict[str, Any] | None = None,
+) -> tuple[int, dict[str, Any]]:
+    status = "unavailable" if kind in {"AUTHORITY_UNAVAILABLE", "SIMC_UNAVAILABLE", "INTERNAL_ERROR"} else "blocked"
+    problem = gear_problem(kind, code, title, retryable=kind != "INVALID_INTENT")
+    envelope = result_envelope(
+        status,
+        request_id,
+        release_context or {},
+        problems=[problem],
+    )
+    return http_status_for_envelope(envelope), envelope
+
+
+def _snapshot_envelope(
+    snapshot: dict[str, Any],
+    authority_context: Any,
+    request_id: str,
+) -> tuple[int, dict[str, Any]]:
+    problems = snapshot.get("problems") if isinstance(snapshot.get("problems"), list) else []
+    kinds = {
+        problem.get("kind")
+        for problem in problems
+        if isinstance(problem, dict)
+    }
+    if snapshot.get("status") == "verified" and not problems:
+        status = "resolved"
+    elif kinds.intersection({"AUTHORITY_UNAVAILABLE", "SIMC_UNAVAILABLE", "INTERNAL_ERROR"}):
+        status = "unavailable"
+    else:
+        status = "blocked"
+    envelope = result_envelope(
+        status,
+        request_id,
+        _release_context(authority_context),
+        data=snapshot,
+        problems=problems,
+    )
+    return http_status_for_envelope(envelope), envelope
+
+
+def resolve_selection_intent(
+    raw_intent: Any,
+    *,
+    store: Any,
+    simc_runtime_revision: str,
+    request_id: str,
+) -> tuple[int, dict[str, Any]]:
+    """Resolve one untrusted Intent through current backend-owned authority."""
+
+    intent, issues = parse_selection_intent(raw_intent)
+    if issues:
+        return _invalid_intent_envelope(raw_intent, request_id)
+
+    eligibility = intent["eligibilityContext"]
+    try:
+        runtime_authority = gear_resolver_runtime_authority(
+            eligibility["classKey"],
+            eligibility["specKey"],
+            simc_runtime_revision=simc_runtime_revision,
+        )
+    except ValueError:
+        return _error_envelope(
+            "INVALID_INTENT",
+            "GEAR_ELIGIBILITY_UNKNOWN",
+            "Selection Intent eligibility is not a current playable specialization.",
+            request_id,
+        )
+
+    try:
+        authority_context = store.get_gear_authority_context(intent, runtime_authority)
+    except Exception:
+        return _error_envelope(
+            "AUTHORITY_UNAVAILABLE",
+            "GEAR_AUTHORITY_READ_UNAVAILABLE",
+            "Current gear authority is temporarily unavailable.",
+            request_id,
+        )
+
+    try:
+        snapshot = gear_resolver.resolve(intent, authority_context)
+    except Exception:
+        return _error_envelope(
+            "INTERNAL_ERROR",
+            "GEAR_RESOLVER_INTERNAL_ERROR",
+            "Gear resolution failed unexpectedly.",
+            request_id,
+            release_context=_release_context(authority_context),
+        )
+    return _snapshot_envelope(snapshot, authority_context, request_id)
+
+
+def is_canonical_profile_request(raw_request: Any) -> bool:
+    return isinstance(raw_request, dict) and "selectionIntent" in raw_request
+
+
+def _profile_context(raw_request: Any) -> dict[str, Any]:
+    request = raw_request if isinstance(raw_request, dict) else {}
+    source = request.get("profileContext")
+    source = source if isinstance(source, dict) else {}
+    return {
+        key: source[key]
+        for key in PROFILE_CONTEXT_KEYS
+        if key in source
+    }
+
+
+def build_profile_from_selection_intent(
+    raw_request: Any,
+    *,
+    store: Any,
+    simc_runtime_revision: str,
+    request_id: str,
+    profile_builder: Callable[..., dict[str, Any]] = build_websim_profile_response_from_resolved_snapshot,
+) -> tuple[int, dict[str, Any]]:
+    """Re-resolve canonical profile input and serialize only the server snapshot."""
+
+    request = raw_request if isinstance(raw_request, dict) else {}
+    http_status, resolved_envelope = resolve_selection_intent(
+        request.get("selectionIntent"),
+        store=store,
+        simc_runtime_revision=simc_runtime_revision,
+        request_id=request_id,
+    )
+    if http_status != 200 or resolved_envelope.get("status") != "resolved":
+        return http_status, resolved_envelope
+
+    snapshot = resolved_envelope["data"]
+    try:
+        profile = profile_builder(snapshot, source_context=_profile_context(request))
+    except Exception:
+        return _error_envelope(
+            "INTERNAL_ERROR",
+            "GEAR_PROFILE_SERIALIZER_INTERNAL_ERROR",
+            "Canonical profile serialization failed unexpectedly.",
+            request_id,
+            release_context=resolved_envelope.get("releaseContext") or {},
+        )
+    profile_problems = profile.get("problems") if isinstance(profile, dict) else None
+    profile_problems = profile_problems if isinstance(profile_problems, list) else []
+    if not isinstance(profile, dict) or profile.get("status") != "resolved" or profile_problems:
+        if not profile_problems:
+            profile_problems = [
+                gear_problem(
+                    "ILLEGAL_SELECTION",
+                    "GEAR_PROFILE_NOT_READY",
+                    "Canonical profile is not ready.",
+                )
+            ]
+        envelope = result_envelope(
+            "blocked",
+            request_id,
+            resolved_envelope.get("releaseContext") or {},
+            data=profile if isinstance(profile, dict) else {},
+            problems=profile_problems,
+        )
+        return http_status_for_envelope(envelope), envelope
+
+    envelope = result_envelope(
+        "resolved",
+        request_id,
+        resolved_envelope.get("releaseContext") or {},
+        data=profile,
+        problems=[],
+    )
+    return http_status_for_envelope(envelope), envelope
+
+
+__all__ = (
+    "PROFILE_CONTEXT_KEYS",
+    "build_profile_from_selection_intent",
+    "is_canonical_profile_request",
+    "resolve_selection_intent",
+)
