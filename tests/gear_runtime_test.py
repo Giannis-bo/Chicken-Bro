@@ -125,6 +125,26 @@ class GearRuntimeTest(unittest.TestCase):
         self.assertEqual(envelope["status"], "unavailable")
         self.assertTrue(any(problem["kind"] == "AUTHORITY_UNAVAILABLE" for problem in envelope["problems"]))
 
+    def test_missing_simc_runtime_revision_returns_503_without_store_call(self):
+        fixture = self.fixture()
+        store = FakeStore(error=AssertionError("missing runtime revision must not query authority"))
+
+        status, envelope = gear_runtime.resolve_selection_intent(
+            fixture["intent"],
+            store=store,
+            simc_runtime_revision="",
+            request_id="request-missing-simc",
+        )
+
+        self.assertEqual(status, 503)
+        self.assertEqual(envelope["status"], "unavailable")
+        self.assertEqual(envelope["problems"][0]["kind"], "AUTHORITY_UNAVAILABLE")
+        self.assertEqual(
+            envelope["problems"][0]["code"],
+            "GEAR_SIMC_RUNTIME_REVISION_UNAVAILABLE",
+        )
+        self.assertEqual(store.calls, [])
+
     def test_store_failure_returns_sanitized_503(self):
         fixture = self.fixture()
         store = FakeStore(

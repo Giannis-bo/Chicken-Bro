@@ -69,6 +69,11 @@ try:
         enrich_builds_detail_stat_weights,
         latest_stat_weight_run_payload,
     )
+    from .gear_runtime import (
+        build_profile_from_selection_intent,
+        is_canonical_profile_request,
+        resolve_selection_intent,
+    )
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
@@ -77,6 +82,7 @@ try:
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
+        build_websim_profile_response_from_resolved_snapshot,
         build_websim_simulator_request,
         CLASS_ARMOR_TYPES,
         community_talent_sync_state,
@@ -165,6 +171,11 @@ except ImportError:
         enrich_builds_detail_stat_weights,
         latest_stat_weight_run_payload,
     )
+    from gear_runtime import (
+        build_profile_from_selection_intent,
+        is_canonical_profile_request,
+        resolve_selection_intent,
+    )
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
@@ -173,6 +184,7 @@ except ImportError:
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
+        build_websim_profile_response_from_resolved_snapshot,
         build_websim_simulator_request,
         CLASS_ARMOR_TYPES,
         community_talent_sync_state,
@@ -7725,17 +7737,21 @@ def websim_gear_payload_with_template_legality(payload):
     return output
 
 
+def current_gear_simc_runtime_revision():
+    simc_status = simc_version_status()
+    return first_text_value(
+        simc_status.get("simcRuntimeRevision"),
+        simc_status.get("localTag"),
+        simc_status.get("sourceCommit"),
+    )
+
+
 def websim_gear_payload_with_resolver_context(payload, store, class_key, spec_key):
     if not isinstance(payload, dict) or not payload:
         return payload
     if not callable(getattr(store, "get_gear_resolver_context", None)):
         return payload
-    simc_status = simc_version_status()
-    simc_revision = first_text_value(
-        simc_status.get("simcRuntimeRevision"),
-        simc_status.get("localTag"),
-        simc_status.get("sourceCommit"),
-    )
+    simc_revision = current_gear_simc_runtime_revision()
     if not simc_revision:
         return payload
     try:
@@ -12497,13 +12513,33 @@ class Handler(BaseHTTPRequestHandler):
                 ),
             )
             return
+        if parsed.path == "/api/websim/gear/resolve":
+            http_status, envelope = resolve_selection_intent(
+                read_json_body(self),
+                store=cache_data_store(),
+                simc_runtime_revision=current_gear_simc_runtime_revision(),
+                request_id=f"gear-{uuid.uuid4().hex}",
+            )
+            json_response(self, http_status, envelope)
+            return
         if parsed.path == "/api/websim/profile":
+            request_payload = read_json_body(self)
+            if is_canonical_profile_request(request_payload):
+                http_status, envelope = build_profile_from_selection_intent(
+                    request_payload,
+                    store=cache_data_store(),
+                    simc_runtime_revision=current_gear_simc_runtime_revision(),
+                    request_id=f"gear-profile-{uuid.uuid4().hex}",
+                    profile_builder=build_websim_profile_response_from_resolved_snapshot,
+                )
+                json_response(self, http_status, envelope)
+                return
             if postgres_only_runtime_enabled():
-                json_response(self, 200, build_websim_profile_response(read_json_body(self), conn=None))
+                json_response(self, 200, build_websim_profile_response(request_payload, conn=None))
                 return
             init_db()
             with db_connection() as conn:
-                json_response(self, 200, build_websim_profile_response(read_json_body(self), conn=conn))
+                json_response(self, 200, build_websim_profile_response(request_payload, conn=conn))
             return
         if parsed.path == "/api/websim/gear/stats":
             if postgres_only_runtime_enabled():

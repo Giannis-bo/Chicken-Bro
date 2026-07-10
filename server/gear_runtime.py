@@ -140,6 +140,13 @@ def resolve_selection_intent(
     intent, issues = parse_selection_intent(raw_intent)
     if issues:
         return _invalid_intent_envelope(raw_intent, request_id)
+    if not str(simc_runtime_revision or "").strip():
+        return _error_envelope(
+            "AUTHORITY_UNAVAILABLE",
+            "GEAR_SIMC_RUNTIME_REVISION_UNAVAILABLE",
+            "Current SimulationCraft runtime revision is unavailable.",
+            request_id,
+        )
 
     eligibility = intent["eligibilityContext"]
     try:
