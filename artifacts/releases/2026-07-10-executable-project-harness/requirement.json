@@ -3,7 +3,7 @@
   "slug": "executable-project-harness",
   "classification": "Strict",
   "status": "implementation_allowed",
-  "goal": "Create executable Requirement and Evidence contracts for the Project Harness Engineering Normalization milestone.",
+  "goal": "Create executable Requirement and Evidence contracts and a project-level owner map for the Project Harness Engineering Normalization milestone.",
   "userValue": "Future Harness PRs can fail fast on invalid packets, missing evidence, path escapes, runtime proof overclaims and critical owner-map gaps before implementation proceeds.",
   "nonGoals": [
     "No product semantic changes",
@@ -19,6 +19,7 @@
       "docs/roadmap.md",
       "docs/harness.md",
       "docs/README.md",
+      "docs/project-owner-map.json",
       "docs/backend-owner-map.json",
       "docs/plans/2026-07-10-project-harness-normalization-goal-plan.md",
       "artifacts/releases/2026-07-10-harness-control-plane/requirement.json",
@@ -35,7 +36,10 @@
       "docs/schemas/harness-evidence.schema.json",
       "docs/templates/harness-requirement.json",
       "docs/templates/harness-evidence.json",
+      "docs/project-owner-map.json",
+      "docs/README.md",
       "docs/project-state.json",
+      "tests/project-owner-map.test.js",
       "artifacts/releases/2026-07-10-executable-project-harness/requirement.json",
       "artifacts/releases/2026-07-10-executable-project-harness/evidence.json",
       "artifacts/releases/2026-07-10-executable-project-harness/manifest.json"
@@ -51,6 +55,7 @@
     "evidenceRequired": [
       "invalid fixture red tests",
       "project harness validator tests",
+      "project owner-map contract tests",
       "retroactive control-plane packet validation",
       "current release packet validation",
       "JSON validation",
@@ -66,6 +71,7 @@
       "docs/schemas/harness-evidence.schema.json",
       "docs/templates/harness-requirement.json",
       "docs/templates/harness-evidence.json",
+      "docs/project-owner-map.json",
       "future scripts/verify-project.js profile runner",
       "future project-harness CI"
     ]
@@ -75,12 +81,13 @@
     "reason": "Docs/tooling-only validator work; no runtime surfaces, migrations, writes, deployments or public product semantics changed."
   },
   "acceptanceEvidence": [
-    "node --test tests/project-harness.test.js tests/project-state.test.js",
+    "node --test tests/project-harness.test.js tests/project-owner-map.test.js tests/project-state.test.js",
     "node --check scripts/project-harness.js",
     "python3 -m json.tool docs/schemas/harness-requirement.schema.json",
     "python3 -m json.tool docs/schemas/harness-evidence.schema.json",
     "python3 -m json.tool docs/templates/harness-requirement.json",
     "python3 -m json.tool docs/templates/harness-evidence.json",
+    "python3 -m json.tool docs/project-owner-map.json",
     "python3 -m json.tool artifacts/releases/2026-07-10-executable-project-harness/requirement.json",
     "python3 -m json.tool artifacts/releases/2026-07-10-executable-project-harness/evidence.json",
     "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-10-executable-project-harness/requirement.json --evidence-file artifacts/releases/2026-07-10-executable-project-harness/evidence.json --base origin/main",
@@ -100,6 +107,10 @@
     {
       "date": "2026-07-10",
       "decision": "Control plane bootstrap packet must validate with the new executable validator before this PR is complete; no second bootstrap exception is permitted."
+    },
+    {
+      "date": "2026-07-10",
+      "decision": "Task 3 freezes the 16 project critical domain IDs in docs/project-owner-map.json and integrates changed-path owner lookup into Harness check."
     }
   ]
 }

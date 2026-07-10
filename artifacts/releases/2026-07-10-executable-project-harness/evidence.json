@@ -4,20 +4,22 @@
   "requirementSlug": "executable-project-harness",
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
-  "branch": "codex/project-harness-executable-validator",
+  "branch": "codex/project-harness-owner-map",
   "commit": "pending_pr_head",
   "scope": [
     "harness_validator",
     "requirement_schema",
     "evidence_schema",
+    "project_owner_map",
+    "changed_path_owner_lookup",
     "release_packet_contract",
     "docs_tooling_only"
   ],
   "verification": [
     {
-      "command": "node --test tests/project-harness.test.js tests/project-state.test.js",
+      "command": "node --test tests/project-harness.test.js tests/project-owner-map.test.js tests/project-state.test.js",
       "status": "pass",
-      "summary": "Target tests pass after validator implementation."
+      "summary": "Target tests pass after validator and owner-map implementation."
     },
     {
       "command": "node --check scripts/project-harness.js",
@@ -35,9 +37,9 @@
       "summary": "Control plane bootstrap packet retroactively validates with the executable validator."
     },
     {
-      "command": "node -e \"const fs=require('fs'); for (const f of process.argv.slice(1)) JSON.parse(fs.readFileSync(f, 'utf8'))\" docs/schemas/harness-requirement.schema.json docs/schemas/harness-evidence.schema.json docs/templates/harness-requirement.json docs/templates/harness-evidence.json artifacts/releases/2026-07-10-executable-project-harness/requirement.json artifacts/releases/2026-07-10-executable-project-harness/evidence.json",
+      "command": "node -e \"const fs=require('fs'); for (const f of process.argv.slice(1)) JSON.parse(fs.readFileSync(f, 'utf8'))\" docs/schemas/harness-requirement.schema.json docs/schemas/harness-evidence.schema.json docs/templates/harness-requirement.json docs/templates/harness-evidence.json docs/project-owner-map.json artifacts/releases/2026-07-10-executable-project-harness/requirement.json artifacts/releases/2026-07-10-executable-project-harness/evidence.json",
       "status": "pass",
-      "summary": "All new schema, template and packet JSON files parse."
+      "summary": "All schema, template, owner-map and packet JSON files parse."
     },
     {
       "command": "git diff --check",
@@ -47,7 +49,7 @@
   ],
   "candidateDeployment": {
     "status": "not_applicable",
-    "reason": "Task 2 changes docs, local validator tooling, tests and release artifacts only; no backend/API/PG read-model/runtime surface is changed."
+    "reason": "Executable Harness stage changes docs, local validator tooling, tests and release artifacts only; no backend/API/PG read-model/runtime surface is changed."
   },
   "runtimeEvidence": [],
   "risks": [
@@ -65,6 +67,8 @@
   },
   "archivedReferences": [
     "docs/project-state.json",
+    "docs/project-owner-map.json",
+    "docs/README.md",
     "docs/schemas/harness-requirement.schema.json",
     "docs/schemas/harness-evidence.schema.json",
     "docs/templates/harness-requirement.json",
@@ -73,5 +77,5 @@
     "artifacts/releases/2026-07-10-harness-control-plane/evidence.json",
     "artifacts/releases/2026-07-10-harness-control-plane/manifest.json"
   ],
-  "summary": "Executable Requirement and Evidence validator with stable failure reason codes for Task 2 of the Project Harness Engineering Normalization milestone."
+  "summary": "Executable Requirement/Evidence validator and project-level owner map for the Project Harness Engineering Normalization milestone."
 }

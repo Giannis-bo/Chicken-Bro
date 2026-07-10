@@ -1,0 +1,962 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-10",
+  "status": "project_owner_map_active",
+  "harnessVersion": "v0.5",
+  "activeMilestone": "project_harness_normalization",
+  "unownedCriticalDomains": 0,
+  "conflictingFactOwners": 0,
+  "rules": {
+    "criticalDomainIdsFrozen": true,
+    "frontendCannotOwnBackendFactJudgment": true,
+    "healthAdminIsConsumerOrchestrator": true,
+    "deployIsConsumerOrchestrator": true,
+    "writeDomainsMustDeclareWriteOwner": true,
+    "backendOwnerMapRemainsSecondLevelDetail": true
+  },
+  "criticalDomains": [
+    {
+      "id": "app_shell_route_runtime",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "app.json",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "pages/common/tabbar-sync.js",
+        "pages/news/news.js",
+        "pages/builds/builds.js",
+        "pages/simulator/simulator.js",
+        "pages/profile/profile.js"
+      ],
+      "publicContracts": [
+        "app.json pages and tabBar define the mini-program route shell.",
+        "Every app.json route must stay smokeable before UI runtime evidence is promoted."
+      ],
+      "mustNotChange": [
+        "Do not remove or rename app.json routes without a current UI runtime evidence contract.",
+        "Do not treat static route presence as runtime UI acceptance."
+      ],
+      "characterization": [
+        "tests/project-config.test.js",
+        "tests/navigation-bar.test.js",
+        "tests/page-scroll-layout.test.js"
+      ],
+      "runtimeSurfaces": [
+        "app.json",
+        "project.config.json",
+        "pages/news/news.json",
+        "pages/builds/builds.json",
+        "pages/simulator/simulator.json",
+        "pages/profile/profile.json"
+      ],
+      "runbooks": [
+        "docs/README.md",
+        "docs/remote-debugging.md"
+      ],
+      "rollback": [
+        "code_rollback"
+      ],
+      "verificationProfiles": [
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "frontend_user_visible",
+      "changedPathPatterns": [
+        "app.json",
+        "project.config.json",
+        "pages/**/*.json",
+        "pages/common/tabbar-sync.js"
+      ]
+    },
+    {
+      "id": "frontend_api_auth_transport",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "pages/common/api-client.js",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "pages/common/auth-client.js",
+        "pages/common/analytics-client.js",
+        "pages/builds/builds-api.js",
+        "pages/builds/websim-api.js",
+        "pages/simulator/simulator-api.js",
+        "pages/news/news-api.js"
+      ],
+      "publicContracts": [
+        "Frontend transport preserves auth token boundaries and does not send Bearer tokens on insecure HTTP.",
+        "API clients forward backend-owned facts instead of reclassifying source/status/verified state."
+      ],
+      "mustNotChange": [
+        "Do not make frontend pages the owner of backend source, status or verified judgments.",
+        "Do not bypass auth-client or api-client for user asset writes."
+      ],
+      "characterization": [
+        "tests/frontend-api-client.test.js",
+        "tests/profile-auth.test.js",
+        "tests/analytics-instrumentation.test.js"
+      ],
+      "runtimeSurfaces": [
+        "pages/common/api-client.js",
+        "pages/common/auth-client.js",
+        "pages/news/news-api.js",
+        "pages/builds/websim-api.js",
+        "pages/simulator/simulator-api.js"
+      ],
+      "runbooks": [
+        "docs/builds-architecture.md",
+        "docs/database-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback"
+      ],
+      "verificationProfiles": [
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "frontend_user_visible",
+      "changedPathPatterns": [
+        "pages/common/api-client.js",
+        "pages/common/auth-client.js",
+        "pages/**/**/*-api.js",
+        "pages/news/news-api.js",
+        "pages/builds/websim-api.js",
+        "pages/simulator/simulator-api.js"
+      ]
+    },
+    {
+      "id": "personal_build_template_assets",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/news_backend.py",
+      "writeBehavior": true,
+      "writeOwner": "server/news_backend.py",
+      "consumers": [
+        "pages/common/build-template-storage.js",
+        "pages/profile/profile.js",
+        "pages/builds/detail.js",
+        "pages/builds/talent-simulator.js"
+      ],
+      "publicContracts": [
+        "Personal build templates are account-scoped assets.",
+        "List/detail/delete/write operations must preserve current owner isolation."
+      ],
+      "mustNotChange": [
+        "Do not let guest/local templates overwrite authenticated owner data.",
+        "Do not move template save/list authorization to frontend-only checks."
+      ],
+      "characterization": [
+        "tests/build-template-storage.test.js",
+        "tests/profile-auth.test.js",
+        "tests/builds-page.test.js",
+        "tests/news_backend_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/news_backend.py",
+        "pages/common/build-template-storage.js",
+        "pages/profile/profile.js"
+      ],
+      "runbooks": [
+        "docs/builds-architecture.md",
+        "docs/database-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "config_disable"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api",
+      "changedPathPatterns": [
+        "server/news_backend.py",
+        "pages/common/build-template-storage.js",
+        "pages/profile/**",
+        "pages/builds/detail.*",
+        "pages/builds/talent-simulator.*"
+      ]
+    },
+    {
+      "id": "news_content_public_api",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/news_backend.py",
+      "writeBehavior": true,
+      "writeOwner": "server/postgres_content_store.py",
+      "consumers": [
+        "pages/news/news-api.js",
+        "pages/news/news.js",
+        "pages/news/list.js",
+        "pages/news/detail.js"
+      ],
+      "publicContracts": [
+        "News list/detail payloads preserve source fidelity and translation status.",
+        "Summary-only payloads do not become article detail bodies."
+      ],
+      "mustNotChange": [
+        "Do not let frontend repair untrusted or incomplete news payloads.",
+        "Do not promote summary-only content to full article detail."
+      ],
+      "characterization": [
+        "tests/news_backend_test.py",
+        "tests/news-api-client.test.js",
+        "tests/news-detail-view.test.js",
+        "tests/news-home-payload.test.js",
+        "tests/news-page-style.test.js"
+      ],
+      "runtimeSurfaces": [
+        "server/news_backend.py",
+        "server/postgres_content_store.py",
+        "pages/news/news-api.js",
+        "pages/news/news.js",
+        "pages/news/detail.js"
+      ],
+      "runbooks": [
+        "docs/news-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "data_restore"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api",
+      "changedPathPatterns": [
+        "server/news_backend.py",
+        "server/postgres_content_store.py",
+        "server/news_collector.py",
+        "server/news_translator.py",
+        "pages/news/**"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/news_backend.py",
+        "ownerId": "news_content_api",
+        "factOwner": "server/news_backend.py"
+      }
+    },
+    {
+      "id": "websim_gear_public_read_model",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/gear_public_contract.py",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "server/websim_payload.py",
+        "server/pg_gear_template_selectors.py",
+        "pages/builds/websim-api.js",
+        "pages/builds/detail.js"
+      ],
+      "publicContracts": [
+        "communityTemplates public entry allows active raiderio_observed_profile only.",
+        "baselineTemplates public default remains empty."
+      ],
+      "mustNotChange": [
+        "Do not reintroduce recommended_bis, season_recommendation, default_template, simc_preset or baseline_blocked into public gear entry.",
+        "Do not move public source-quality decisions to frontend code."
+      ],
+      "characterization": [
+        "tests/gear_public_contract_test.py",
+        "tests/websim_payload_test.py",
+        "tests/news_backend_test.py",
+        "tests/pg_gear_template_selectors_test.py",
+        "tests/builds-page.test.js"
+      ],
+      "runtimeSurfaces": [
+        "server/gear_public_contract.py",
+        "server/websim_payload.py",
+        "server/pg_gear_template_selectors.py",
+        "pages/builds/websim-api.js"
+      ],
+      "runbooks": [
+        "docs/gear-simulation-full-chain-runbook.md",
+        "docs/community-template-import-full-chain-runbook.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "resync_repair"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "public_payload",
+      "changedPathPatterns": [
+        "server/gear_public_contract.py",
+        "server/websim_payload.py",
+        "server/pg_gear_template_selectors.py",
+        "pages/builds/websim-api.js",
+        "pages/builds/detail.*"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/websim_payload.py",
+        "ownerId": "gear_public_contract",
+        "factOwner": "server/gear_public_contract.py"
+      }
+    },
+    {
+      "id": "websim_talent_public_read_model",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/websim_payload.py",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "server/news_backend.py",
+        "pages/builds/websim-api.js",
+        "pages/builds/talent-simulator.js",
+        "pages/builds/talent-simulator-core.js"
+      ],
+      "publicContracts": [
+        "Talent readiness cannot be inferred from display-only spell text.",
+        "Fallback or blocked talent payloads do not become executable saveable templates."
+      ],
+      "mustNotChange": [
+        "Do not mark display-only talent descriptions as executable readiness.",
+        "Do not let frontend upgrade blocked talent payloads."
+      ],
+      "characterization": [
+        "tests/websim_payload_test.py",
+        "tests/news_backend_test.py",
+        "tests/talent-simulator-core.test.js"
+      ],
+      "runtimeSurfaces": [
+        "server/websim_payload.py",
+        "server/news_backend.py",
+        "pages/builds/talent-simulator.js",
+        "pages/builds/talent-simulator-core.js"
+      ],
+      "runbooks": [
+        "docs/talent-simulation-full-chain-runbook.md",
+        "docs/plans/2026-06-22-talent-catalog-health-contract.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "resync_repair"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "public_payload",
+      "changedPathPatterns": [
+        "server/websim_payload.py",
+        "server/pg_gear_read_model_selectors.py",
+        "pages/builds/talent-simulator.*"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/websim_payload.py",
+        "ownerId": "talent_public_contract",
+        "factOwner": "server/websim_payload.py"
+      }
+    },
+    {
+      "id": "websim_loot_assets_bootstrap",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/pg_gear_read_model_selectors.py",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "server/postgres_cache_store.py",
+        "server/websim_payload.py",
+        "pages/pve/pve-api.js",
+        "pages/pve/pve.js"
+      ],
+      "publicContracts": [
+        "Loot/assets/bootstrap read models preserve backend-owned source and coverage state.",
+        "Frontend displays read-model envelopes and does not invent missing loot readiness."
+      ],
+      "mustNotChange": [
+        "Do not silently fall back to stale SQLite payloads for PG read-model gaps.",
+        "Do not make PVE pages the owner of loot source trust."
+      ],
+      "characterization": [
+        "tests/pg_gear_read_model_selectors_test.py",
+        "tests/postgres_cache_store_test.py",
+        "tests/pve-page.test.js",
+        "tests/websim_payload_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/pg_gear_read_model_selectors.py",
+        "server/postgres_cache_store.py",
+        "pages/pve/pve-api.js"
+      ],
+      "runbooks": [
+        "docs/gear-simulation-full-chain-runbook.md",
+        "docs/database-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "resync_repair"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "pg_read_model",
+      "changedPathPatterns": [
+        "server/pg_gear_read_model_selectors.py",
+        "server/postgres_cache_store.py",
+        "pages/pve/**"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/postgres_cache_store.py",
+        "ownerId": "gear_catalog_read_model_selectors",
+        "factOwner": "server/pg_gear_read_model_selectors.py"
+      }
+    },
+    {
+      "id": "simc_template_task_pipeline",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/simc_profile_policy.py",
+      "writeBehavior": true,
+      "writeOwner": "server/news_backend.py",
+      "consumers": [
+        "server/simc_preparation.py",
+        "server/codex_worker.py",
+        "pages/simulator/simc.js",
+        "pages/simulator/simulator-api.js"
+      ],
+      "publicContracts": [
+        "SimC profile generation stays backend-owned.",
+        "Task list/detail evidence does not expose raw internal diagnostics as user-facing truth."
+      ],
+      "mustNotChange": [
+        "Do not assemble authoritative SimC profile strings client-side.",
+        "Do not promote queued task success to DPS correctness."
+      ],
+      "characterization": [
+        "tests/simulator-page.test.js",
+        "tests/news_backend_test.py",
+        "tests/codex_worker_test.py",
+        "tests/simulator_smoke_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/simc_profile_policy.py",
+        "server/simc_preparation.py",
+        "server/news_backend.py",
+        "pages/simulator/simc.js"
+      ],
+      "runbooks": [
+        "docs/simulator-simc-end-to-end.md",
+        "docs/plans/2026-06-11-simc-flow-risk-avoidance.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "config_disable"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api",
+      "changedPathPatterns": [
+        "server/simc_profile_policy.py",
+        "server/simc_preparation.py",
+        "server/codex_worker.py",
+        "server/news_backend.py",
+        "pages/simulator/simc.*",
+        "pages/simulator/simulator-api.js"
+      ]
+    },
+    {
+      "id": "chickenbro_session_evidence_pipeline",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/news_backend.py",
+      "writeBehavior": true,
+      "writeOwner": "server/news_backend.py",
+      "consumers": [
+        "server/codex_worker.py",
+        "pages/simulator/chickenbro.js",
+        "pages/simulator/chickenbro-chat.js",
+        "pages/simulator/simulator-api.js"
+      ],
+      "publicContracts": [
+        "Chickenbro may answer direct chat, but local evidence claims stay tied to backend evidence references.",
+        "Guest chat does not require WeChat login preflight."
+      ],
+      "mustNotChange": [
+        "Do not expose raw SimC, logs, tokens or internal blockers in chat payloads.",
+        "Do not let direct chat create verified local evidence without read-model support."
+      ],
+      "characterization": [
+        "tests/news_backend_test.py",
+        "tests/simulator-page.test.js",
+        "tests/profile-auth.test.js",
+        "tests/codex_worker_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/news_backend.py",
+        "server/codex_worker.py",
+        "pages/simulator/chickenbro.js",
+        "pages/simulator/chickenbro-chat.js"
+      ],
+      "runbooks": [
+        "docs/roadmap/ideas.md",
+        "docs/superpowers/plans/2026-06-28-simc-task-execution-budget.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "config_disable"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api",
+      "changedPathPatterns": [
+        "server/news_backend.py",
+        "server/codex_worker.py",
+        "pages/simulator/chickenbro.*",
+        "pages/simulator/chickenbro-chat.js"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/news_backend.py",
+        "ownerId": "chickenbro_session_api",
+        "factOwner": "server/news_backend.py"
+      }
+    },
+    {
+      "id": "external_source_provenance",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/websim_payload.py",
+      "writeBehavior": true,
+      "writeOwner": "server/websim_sync.py",
+      "consumers": [
+        "server/raiderio_payload.py",
+        "server/news_collector.py",
+        "server/stat_weights_payload.py",
+        "pages/pve/detail.js"
+      ],
+      "publicContracts": [
+        "External sources remain evidence with explicit source/status/confidence.",
+        "Observed evidence supports but does not upgrade authority to verified."
+      ],
+      "mustNotChange": [
+        "Do not treat Raider.IO, WCL or translation status as official truth without source evidence.",
+        "Do not hide stale, partial or blocked source state from backend payloads."
+      ],
+      "characterization": [
+        "tests/raiderio_payload_test.py",
+        "tests/news_collector_test.py",
+        "tests/stat_weights_payload_test.py",
+        "tests/websim_payload_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/websim_payload.py",
+        "server/raiderio_payload.py",
+        "server/news_collector.py",
+        "server/stat_weights_payload.py"
+      ],
+      "runbooks": [
+        "docs/gear-simulation-full-chain-runbook.md",
+        "docs/news-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "resync_repair"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api",
+      "changedPathPatterns": [
+        "server/raiderio_payload.py",
+        "server/news_collector.py",
+        "server/stat_weights_payload.py",
+        "server/websim_payload.py",
+        "pages/pve/detail.*"
+      ]
+    },
+    {
+      "id": "postgres_runtime_schema_boundary",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/postgres_cache_store.py",
+      "writeBehavior": true,
+      "writeOwner": "server/migrations/postgres",
+      "consumers": [
+        "server/postgres_personal_store.py",
+        "server/postgres_content_store.py",
+        "server/postgres_cache_store.py",
+        "server/postgres_ops_store.py"
+      ],
+      "publicContracts": [
+        "PG-only runtime boundaries must fail closed without silent SQLite fallback.",
+        "Schema changes require explicit migration and rollback evidence."
+      ],
+      "mustNotChange": [
+        "Do not execute migrations inside Harness docs/tooling PRs.",
+        "Do not reintroduce silent SQLite fallback for PG runtime read models."
+      ],
+      "characterization": [
+        "tests/postgres_schema_test.py",
+        "tests/postgres_only_scripts_test.py",
+        "tests/postgres_cache_store_test.py",
+        "tests/database_adapter_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/postgres_cache_store.py",
+        "server/postgres_personal_store.py",
+        "server/migrations/postgres"
+      ],
+      "runbooks": [
+        "docs/database-architecture.md",
+        "docs/postgres-identity-migration-runbook.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "data_restore"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "pg_read_model",
+      "changedPathPatterns": [
+        "server/postgres_*_store.py",
+        "server/migrations/postgres/**",
+        "server/db.py"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/postgres_cache_store.py",
+        "ownerId": "cache_payload_read_model_selectors",
+        "factOwner": "server/postgres_cache_store.py"
+      }
+    },
+    {
+      "id": "cache_sync_state_repository",
+      "status": "health_watch",
+      "ownerRole": "fact_owner",
+      "healthWatchTrigger": "Read/write state is owned by postgres_cache_store.py and sync scripts; future refactors must preserve sync-state partial/blocked truth and avoid cleanup/backfill side effects.",
+      "factOwner": "server/postgres_cache_store.py",
+      "writeBehavior": true,
+      "writeOwner": "server/postgres_cache_sync.py",
+      "consumers": [
+        "server/websim_sync.py",
+        "server/community_template_sync.py",
+        "server/data_health_followup.py",
+        "server/news_backend.py"
+      ],
+      "publicContracts": [
+        "Sync state records partial, stale and blocked truth without upgrading successful task execution to product quality.",
+        "Runtime reads do not hide stale PG cache state with fallback payloads."
+      ],
+      "mustNotChange": [
+        "Do not refactor sync/write/backfill/cleanup in this Harness normalization task.",
+        "Do not clear blockers or stale state without current sync evidence."
+      ],
+      "characterization": [
+        "tests/postgres_cache_sync_test.py",
+        "tests/websim_sync_test.py",
+        "tests/postgres_cache_store_test.py",
+        "tests/data_health_followup_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/postgres_cache_store.py",
+        "server/postgres_cache_sync.py",
+        "server/websim_sync.py",
+        "server/community_template_sync.py"
+      ],
+      "runbooks": [
+        "docs/community-template-import-full-chain-runbook.md",
+        "docs/database-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "resync_repair"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "scheduled_jobs",
+      "changedPathPatterns": [
+        "server/postgres_cache_store.py",
+        "server/postgres_cache_sync.py",
+        "server/websim_sync.py",
+        "server/community_template_sync.py",
+        "server/*-sync.service",
+        "server/*-sync.timer"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/postgres_cache_store.py",
+        "ownerId": "sync_state_repository",
+        "factOwner": "server/postgres_cache_store.py"
+      }
+    },
+    {
+      "id": "scheduled_sync_backfill_cleanup",
+      "status": "health_watch",
+      "ownerRole": "fact_owner",
+      "healthWatchTrigger": "Multiple scheduled jobs and backfill/cleanup scripts exist; owner map records current boundaries only and does not authorize refactor or execution.",
+      "factOwner": "docs/backend-owner-map.json",
+      "writeBehavior": true,
+      "writeOwner": "server/postgres_cache_sync.py",
+      "consumers": [
+        "server/community_best_guard_sync.py",
+        "server/recommended_bis_guard_sync.py",
+        "server/season_recommended_gear_sync.py",
+        "server/gear_observed_backfill.py",
+        "server/data_health_followup.py"
+      ],
+      "publicContracts": [
+        "Scheduled jobs must preserve observed-only public gear and baseline-default-empty semantics.",
+        "Cleanup/backfill residue controls must not overwrite public read-model gates."
+      ],
+      "mustNotChange": [
+        "Do not execute sync, write, backfill or cleanup tasks in this Harness normalization task.",
+        "Do not let recommended_bis or season_recommendation backflow into public entry."
+      ],
+      "characterization": [
+        "tests/postgres_cache_sync_test.py",
+        "tests/websim_sync_test.py",
+        "tests/gear_observed_backfill_test.py",
+        "tests/season_recommended_gear_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/community_best_guard_sync.py",
+        "server/recommended_bis_guard_sync.py",
+        "server/season_recommended_gear_sync.py",
+        "server/gear_observed_backfill.py",
+        "server/wow-community-template-sync.timer"
+      ],
+      "runbooks": [
+        "docs/community-template-import-full-chain-runbook.md",
+        "docs/roadmap/history/2026-07-phase4-pg-read-model.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "resync_repair",
+        "config_disable"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "scheduled_jobs",
+      "changedPathPatterns": [
+        "server/*_sync.py",
+        "server/*backfill*.py",
+        "server/*cleanup*.py",
+        "server/*.service",
+        "server/*.timer"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/postgres_cache_store.py",
+        "ownerId": "cleanup_residue_control",
+        "factOwner": "docs/backend-owner-map.json"
+      }
+    },
+    {
+      "id": "health_admin_observability",
+      "status": "active",
+      "ownerRole": "consumer_orchestrator",
+      "factOwner": "docs/backend-owner-map.json",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "server/news_backend.py",
+        "server/postgres_ops_store.py",
+        "server/data_health_followup.py",
+        "pages/builds/intel.js"
+      ],
+      "publicContracts": [
+        "Health/admin displays authoritative backend state without upgrading partial or internal evidence.",
+        "API 200 or task success does not become verified product quality."
+      ],
+      "mustNotChange": [
+        "Do not make health/admin the product fact owner.",
+        "Do not hide blocked or partial state in admin summaries."
+      ],
+      "characterization": [
+        "tests/news_backend_test.py",
+        "tests/postgres_ops_store_test.py",
+        "tests/data_health_followup_test.py",
+        "tests/builds-page.test.js"
+      ],
+      "runtimeSurfaces": [
+        "server/news_backend.py",
+        "server/postgres_ops_store.py",
+        "server/data_health_followup.py",
+        "pages/builds/intel.js"
+      ],
+      "runbooks": [
+        "docs/plans/2026-06-29-admin-gate-visualization-design.md",
+        "docs/roadmap/history/2026-07-phase4-pg-read-model.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "config_disable"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "health_admin",
+      "changedPathPatterns": [
+        "server/news_backend.py",
+        "server/postgres_ops_store.py",
+        "server/data_health_followup.py",
+        "pages/builds/intel.*"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/news_backend.py",
+        "ownerId": "health_admin_summary",
+        "factOwner": "docs/backend-owner-map.json"
+      }
+    },
+    {
+      "id": "deploy_runtime_services",
+      "status": "active",
+      "ownerRole": "consumer_orchestrator",
+      "factOwner": "docs/plans/2026-06-09-unified-backend-cloud-deploy.md",
+      "writeBehavior": true,
+      "writeOwner": "server/deploy_lighthouse.sh",
+      "consumers": [
+        "server/wow-websim-sync.service",
+        "server/wow-websim-sync.timer",
+        "server/wow-data-health-followup.service",
+        "server/wow-simc-runtime-update.service"
+      ],
+      "publicContracts": [
+        "Deploy scripts orchestrate release mechanics and do not create product judgment.",
+        "Runtime PRs require candidate deployment smoke before merge when feasible."
+      ],
+      "mustNotChange": [
+        "Do not deploy docs/tooling-only PRs for meaningless cloud evidence.",
+        "Do not treat deployment success as product correctness without endpoint/health smoke."
+      ],
+      "characterization": [
+        "tests/deploy-script.test.js",
+        "tests/deploy_lighthouse_test.py",
+        "tests/data_health_followup_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/deploy_lighthouse.sh",
+        "server/wow-websim-sync.service",
+        "server/wow-data-health-followup.service",
+        "server/wow-simc-runtime-update.service"
+      ],
+      "runbooks": [
+        "docs/plans/2026-06-09-unified-backend-cloud-deploy.md",
+        "docs/postgres-identity-migration-runbook.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "config_disable",
+        "data_restore"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "deploy_scripts",
+      "changedPathPatterns": [
+        "server/deploy_lighthouse.sh",
+        "server/*.service",
+        "server/*.timer",
+        ".github/workflows/**"
+      ]
+    },
+    {
+      "id": "ui_runtime_evidence",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "app.json",
+        "pages/news/news.js",
+        "pages/news/list.js",
+        "pages/news/detail.js",
+        "pages/builds/builds.js",
+        "pages/builds/workbench.js",
+        "pages/builds/intel.js",
+        "pages/builds/talent-simulator.js",
+        "pages/builds/detail.js",
+        "pages/simulator/simulator.js",
+        "pages/simulator/simc.js",
+        "pages/simulator/chickenbro.js",
+        "pages/simulator/tasks.js",
+        "pages/simulator/task-detail.js",
+        "pages/profile/profile.js"
+      ],
+      "publicContracts": [
+        "Current accepted UI runtime baseline covers all 14 app.json routes.",
+        "Future UI changes require fresh real mini-program evidence before promotion."
+      ],
+      "mustNotChange": [
+        "Do not use browser-only or static tests as UI runtime acceptance.",
+        "Do not continue old pass36/pass37 fixes without a new active UI contract."
+      ],
+      "characterization": [
+        "tests/ui-system-rebuild-goal.test.js",
+        "tests/ui-v2-1-browser-harness.test.js",
+        "tests/websim-page.test.js",
+        "tests/builds-page.test.js",
+        "tests/simulator-page.test.js"
+      ],
+      "runtimeSurfaces": [
+        "app.json",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json",
+        "pages/news/news.js",
+        "pages/builds/builds.js",
+        "pages/simulator/simulator.js",
+        "pages/profile/profile.js"
+      ],
+      "runbooks": [
+        "docs/remote-debugging.md",
+        "docs/roadmap.md"
+      ],
+      "rollback": [
+        "code_rollback"
+      ],
+      "verificationProfiles": [
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "user_visible_runtime",
+      "changedPathPatterns": [
+        "app.json",
+        "pages/**",
+        "components/**",
+        "artifacts/ui-system-rebuild/**"
+      ],
+      "appRoutes": [
+        "pages/news/news",
+        "pages/news/list",
+        "pages/news/detail",
+        "pages/builds/builds",
+        "pages/builds/workbench",
+        "pages/builds/intel",
+        "pages/builds/talent-simulator",
+        "pages/builds/detail",
+        "pages/simulator/simulator",
+        "pages/simulator/simc",
+        "pages/simulator/chickenbro",
+        "pages/simulator/tasks",
+        "pages/simulator/task-detail",
+        "pages/profile/profile"
+      ]
+    }
+  ]
+}

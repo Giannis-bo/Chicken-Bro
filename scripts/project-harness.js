@@ -12,6 +12,7 @@ const DEFAULT_HOTSPOT_FILES = [
 
 const CURRENT_TRUTH_SOURCES = [
   'docs/project-state.json',
+  'docs/project-owner-map.json',
   'docs/roadmap.md',
   'docs/README.md',
   'docs/harness.md',
@@ -482,9 +483,14 @@ function validateCriticalChangedFiles(root, base, failures) {
       addCheckFailure(failures, 'critical_changed_file_unowned', `Critical changed file has no owner map hit: ${criticalFile}`)
     }
   }
+  validateProjectOwnerMapChangedFiles(root, changedFiles, failures)
 }
 
 function ownerMapHasFile(root, filePath) {
+  if (projectOwnerMapHasValidDomainForFile(root, filePath)) {
+    return true
+  }
+
   const ownerMapPath = pathInsideRoot(root, 'docs/backend-owner-map.json', 'owner map')
   if (!fs.existsSync(ownerMapPath)) {
     return false
@@ -497,6 +503,77 @@ function ownerMapHasFile(root, filePath) {
   } catch (error) {
     return false
   }
+}
+
+function validateProjectOwnerMapChangedFiles(root, changedFiles, failures) {
+  const projectOwnerMap = loadProjectOwnerMap(root)
+  if (!projectOwnerMap || !Array.isArray(projectOwnerMap.criticalDomains)) {
+    return
+  }
+
+  for (const changedFile of changedFiles) {
+    const domains = projectOwnerMap.criticalDomains.filter((domain) => domainMatchesChangedFile(domain, changedFile))
+    for (const domain of domains) {
+      if (!validProjectOwnerDomain(domain)) {
+        addCheckFailure(
+          failures,
+          'critical_changed_file_unowned',
+          `Changed file ${changedFile} matched ${domain && domain.id ? domain.id : 'unknown domain'} without a valid fact owner.`
+        )
+      }
+    }
+  }
+}
+
+function projectOwnerMapHasValidDomainForFile(root, filePath) {
+  const projectOwnerMap = loadProjectOwnerMap(root)
+  if (!projectOwnerMap || !Array.isArray(projectOwnerMap.criticalDomains)) {
+    return false
+  }
+  return projectOwnerMap.criticalDomains.some((domain) => domainMatchesChangedFile(domain, filePath) && validProjectOwnerDomain(domain))
+}
+
+function loadProjectOwnerMap(root) {
+  const ownerMapPath = pathInsideRoot(root, 'docs/project-owner-map.json', 'project owner map')
+  if (!fs.existsSync(ownerMapPath)) {
+    return null
+  }
+  try {
+    return JSON.parse(fs.readFileSync(ownerMapPath, 'utf8'))
+  } catch (error) {
+    return null
+  }
+}
+
+function validProjectOwnerDomain(domain) {
+  return Boolean(
+    domain &&
+    domain.status !== 'blocked' &&
+    hasString(domain.factOwner) &&
+    domain.factOwner !== 'unknown'
+  )
+}
+
+function domainMatchesChangedFile(domain, filePath) {
+  if (!domain || !Array.isArray(domain.changedPathPatterns)) {
+    return false
+  }
+  return domain.changedPathPatterns.some((pattern) => pathPatternMatches(pattern, filePath))
+}
+
+function pathPatternMatches(pattern, filePath) {
+  if (!hasString(pattern)) {
+    return false
+  }
+  if (pattern === filePath) {
+    return true
+  }
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*\*/g, '\u0000')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\u0000/g, '.*')
+  return new RegExp(`^${escaped}$`).test(filePath)
 }
 
 function buildCheck(options) {

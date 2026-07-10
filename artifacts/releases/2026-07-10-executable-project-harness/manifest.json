@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T05:28:25.562Z",
+  "generatedAt": "2026-07-10T05:38:37.690Z",
   "release": {
     "date": "2026-07-10",
     "slug": "executable-project-harness"
@@ -38,7 +38,12 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 4595
+          "sizeBytes": 4857
+        },
+        {
+          "path": "docs/project-owner-map.json",
+          "exists": true,
+          "sizeBytes": 31936
         },
         {
           "path": "docs/roadmap.md",
@@ -48,7 +53,7 @@
         {
           "path": "docs/README.md",
           "exists": true,
-          "sizeBytes": 4864
+          "sizeBytes": 5088
         },
         {
           "path": "docs/harness.md",
@@ -222,7 +227,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-executable-project-harness/evidence.json",
-    "sizeBytes": 3436,
+    "sizeBytes": 3620,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -242,7 +247,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Executable Requirement and Evidence validator with stable failure reason codes for Task 2 of the Project Harness Engineering Normalization milestone."
+    "summary": "Executable Requirement/Evidence validator and project-level owner map for the Project Harness Engineering Normalization milestone."
   },
   "evidence": {
     "localTests": {
@@ -267,7 +272,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "7 changed files currently visible to git status."
+      "detail": "8 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -303,15 +308,16 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 7,
+      "changedFileCount": 8,
       "changedFiles": [
+        " M artifacts/releases/2026-07-10-executable-project-harness/evidence.json",
+        " M artifacts/releases/2026-07-10-executable-project-harness/requirement.json",
+        " M docs/README.md",
         " M docs/project-state.json",
         " M scripts/project-harness.js",
         " M tests/project-harness.test.js",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-10-executable-project-harness/",
-        "?? docs/schemas/",
-        "?? docs/templates/"
+        "?? docs/project-owner-map.json",
+        "?? tests/project-owner-map.test.js"
       ]
     }
   },
