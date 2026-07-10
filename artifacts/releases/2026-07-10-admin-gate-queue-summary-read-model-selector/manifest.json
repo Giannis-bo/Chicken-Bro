@@ -1,0 +1,313 @@
+{
+  "schemaVersion": 1,
+  "status": "project_harness_manifest_ready",
+  "generatedAt": "2026-07-10T04:07:17.896Z",
+  "release": {
+    "date": "2026-07-10",
+    "slug": "admin-gate-queue-summary-read-model-selector"
+  },
+  "harness": {
+    "version": "v0.5",
+    "lastUpdated": "2026-07-09",
+    "source": "docs/harness.md",
+    "policyChangeCount": 5
+  },
+  "safety": {
+    "noNetwork": true,
+    "repositoryRemoteSyncPreapproved": true,
+    "repositoryRemoteSyncScope": "configured_project_remote_only",
+    "autonomousProgressionEnabled": true,
+    "noDeploy": true,
+    "noSsh": true,
+    "productionWrites": false
+  },
+  "gates": {
+    "requirementChallenge": {
+      "status": "template_required",
+      "requiredOutputs": [
+        "requirement_contract",
+        "opposition_challenge",
+        "approach_comparison",
+        "acceptance_evidence",
+        "risks_degradation_rollback"
+      ]
+    },
+    "currentTruth": {
+      "status": "ready",
+      "sources": [
+        {
+          "path": "docs/roadmap.md",
+          "exists": true,
+          "sizeBytes": 422858
+        },
+        {
+          "path": "docs/README.md",
+          "exists": true,
+          "sizeBytes": 4060
+        },
+        {
+          "path": "docs/harness.md",
+          "exists": true,
+          "sizeBytes": 29780
+        },
+        {
+          "path": "docs/backend-owner-map.json",
+          "exists": true,
+          "sizeBytes": 30072
+        }
+      ],
+      "historicalDocsDefaultToEvidenceOnly": true
+    },
+    "impactMap": {
+      "status": "template_required",
+      "categories": [
+        "must_change",
+        "must_not_change",
+        "risk_unknown",
+        "evidence_required"
+      ]
+    },
+    "ownershipContract": {
+      "status": "template_required",
+      "ownerPrinciples": [
+        "backend_read_model_owns_structured_facts",
+        "frontend_consumes_read_model",
+        "health_admin_displays_authoritative_state",
+        "scheduled_jobs_write_owned_state_only",
+        "deploy_scripts_do_not_create_product_judgment"
+      ]
+    },
+    "engineeringHealth": {
+      "status": "health_watch",
+      "requiredForHotspots": true,
+      "hotspotFiles": [
+        {
+          "path": "server/websim_payload.py",
+          "exists": true,
+          "lineCount": 25687,
+          "hotspot": true
+        },
+        {
+          "path": "server/news_backend.py",
+          "exists": true,
+          "lineCount": 12562,
+          "hotspot": true
+        },
+        {
+          "path": "server/postgres_cache_store.py",
+          "exists": true,
+          "lineCount": 6240,
+          "hotspot": true
+        }
+      ],
+      "requiredQuestions": [
+        "structure_boundary",
+        "behavior_boundary",
+        "test_safety_net",
+        "performance",
+        "availability",
+        "data_safety",
+        "observability",
+        "rollback"
+      ]
+    },
+    "releaseRollback": {
+      "status": "template_required",
+      "rollbackStrategies": [
+        "code_rollback",
+        "data_restore",
+        "feature_hide",
+        "config_disable",
+        "resync_repair"
+      ],
+      "liveVerifiedRequiresCurrentOnlineEvidence": true,
+      "timerBackflowCheckRequired": true
+    },
+    "candidateDeployment": {
+      "status": "required_for_runtime_changes",
+      "requiredBeforeMergeForRuntimeChanges": true,
+      "runtimeChangeSurfaces": [
+        "backend_api",
+        "pg_read_model",
+        "public_payload",
+        "health_admin",
+        "scheduled_jobs",
+        "deploy_scripts",
+        "user_visible_runtime"
+      ],
+      "requiredEvidence": [
+        "candidate_deploy_or_preview_smoke",
+        "runtime_file_parity_or_build_identity",
+        "post_deploy_health_or_endpoint_smoke",
+        "timer_backflow_check",
+        "rollback_plan"
+      ],
+      "fallbackWhenPreMergeCandidateIsImpossible": "record_exception_and_post_merge_live_smoke",
+      "mergeRule": "merge_after_candidate_smoke_for_runtime_changes"
+    },
+    "repositoryRemoteSync": {
+      "status": "ready",
+      "preapprovedForConfiguredProjectRemote": true,
+      "allowedOperations": [
+        "git_fetch",
+        "git_pull_ff_only",
+        "git_push",
+        "publish_project_branch",
+        "create_update_read_merge_project_pr",
+        "read_project_commit_status"
+      ],
+      "stillRequiresConfirmation": [
+        "force_push",
+        "public_history_rewrite",
+        "remote_change",
+        "git_clone_other_repo",
+        "submodule_update",
+        "dependency_install",
+        "third_party_download",
+        "production_operation_without_current_scope"
+      ],
+      "preSyncCheck": "git status --short --branch"
+    },
+    "autonomousProgression": {
+      "status": "ready",
+      "continueWithoutStepByStepApproval": true,
+      "defaultContinueWhen": [
+        "plan_or_scope_approved",
+        "user_says_continue",
+        "direct_execution_authorized",
+        "next_step_is_in_scope",
+        "verification_passes"
+      ],
+      "stopForConfirmationWhen": [
+        "clear_blocker",
+        "failed_verification_with_tradeoff",
+        "product_or_technical_decision_required",
+        "scope_expansion",
+        "destructive_or_irreversible_operation",
+        "local_or_remote_conflict",
+        "outside_existing_approval_boundary"
+      ],
+      "interimUpdatePolicy": "key_state_changes_risks_and_verification_only"
+    },
+    "evidencePromotion": {
+      "status": "template_required",
+      "levels": [
+        "requirement_challenged",
+        "requirement_contract_approved",
+        "implementation_allowed",
+        "local_verified",
+        "runtime_verified",
+        "deployable",
+        "live_verified",
+        "archived"
+      ],
+      "oldEvidenceCannotPromoteCurrentState": true
+    },
+    "feedbackLoop": {
+      "status": "ready",
+      "findingRequiredForUnexpectedRework": true,
+      "promotionStatuses": [
+        "finding_only",
+        "rule_candidate",
+        "rule_promoted",
+        "script_candidate"
+      ]
+    }
+  },
+  "evidencePacket": {
+    "status": "ready",
+    "path": "artifacts/releases/2026-07-10-admin-gate-queue-summary-read-model-selector/evidence.json",
+    "sizeBytes": 12849,
+    "requiredFields": [
+      "status",
+      "highestEvidenceLevel",
+      "scope",
+      "verification",
+      "risks",
+      "rollback"
+    ],
+    "fieldsPresent": [
+      "status",
+      "highestEvidenceLevel",
+      "scope",
+      "verification",
+      "risks",
+      "rollback"
+    ],
+    "missingFields": [],
+    "declaredStatus": "candidate_deployment_verified",
+    "highestEvidenceLevel": "candidate_deployment_verified",
+    "summary": "Phase 4 extracts the PostgreSQL cache-store admin gate queue row summarizer into server/pg_cache_read_model_selectors.py. server/postgres_cache_store.py keeps admin SQL, table checks, official metadata reads, offhand coverage repair, and all write/sync paths."
+  },
+  "evidence": {
+    "localTests": {
+      "status": "not_run",
+      "note": "project-harness.js does not execute tests; attach command output in the release artifact."
+    },
+    "uiRuntimeEvidence": {
+      "status": "not_collected",
+      "note": "Attach real mini-program screenshots or DevTools ledger when applicable."
+    },
+    "dataHealth": {
+      "status": "not_collected",
+      "note": "Attach current /api/data/health or PG read-model evidence when applicable."
+    },
+    "deploySmoke": {
+      "status": "not_run",
+      "note": "Attach live HTTP/API/PG/timer smoke output when deployment is in scope."
+    }
+  },
+  "riskMatrix": [
+    {
+      "id": "dirty_worktree",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "3 changed files currently visible to git status."
+    },
+    {
+      "id": "hotspot_files_present",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "server/websim_payload.py:25687, server/news_backend.py:12562, server/postgres_cache_store.py:6240"
+    },
+    {
+      "id": "localTests_missing",
+      "severity": "low",
+      "status": "info",
+      "detail": "project-harness.js does not execute tests; attach command output in the release artifact."
+    },
+    {
+      "id": "uiRuntimeEvidence_missing",
+      "severity": "low",
+      "status": "info",
+      "detail": "Attach real mini-program screenshots or DevTools ledger when applicable."
+    },
+    {
+      "id": "dataHealth_missing",
+      "severity": "low",
+      "status": "info",
+      "detail": "Attach current /api/data/health or PG read-model evidence when applicable."
+    },
+    {
+      "id": "deploySmoke_missing",
+      "severity": "low",
+      "status": "info",
+      "detail": "Attach live HTTP/API/PG/timer smoke output when deployment is in scope."
+    }
+  ],
+  "repo": {
+    "git": {
+      "status": "dirty",
+      "changedFileCount": 3,
+      "changedFiles": [
+        " M docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+        " M docs/roadmap.md",
+        "?? artifacts/releases/2026-07-10-admin-gate-queue-summary-read-model-selector/"
+      ]
+    }
+  },
+  "write": {
+    "enabled": true,
+    "path": "artifacts/releases/2026-07-10-admin-gate-queue-summary-read-model-selector/manifest.json"
+  }
+}
