@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase0a-pg-enhancement-guard",
   "requirementSlug": "equipment-simulator-phase0a-pg-enhancement-guard",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase0a-pg-enhancement-guard",
   "commit": "pending_pr_head",
   "scope": [
@@ -47,19 +47,67 @@
       "command": "local CR of origin/main...working tree",
       "status": "pass",
       "summary": "No unresolved findings. Review confirmed client marker sanitization, default fail-closed validation, server-catalog-backed valid serialization, unchanged public selector and frontend boundaries, and no sync/write/backfill/cleanup changes."
+    },
+    {
+      "command": "GitHub Project Harness verify for PR #57",
+      "status": "pass",
+      "summary": "GitHub Actions Project Harness completed successfully for the Slice 0A PR."
     }
   ],
   "candidateDeployment": {
-    "status": "not_run",
+    "status": "candidate_verified",
     "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase0a-pg-enhancement-guard",
+    "commit": "pending_pr_head",
+    "pr": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/57",
+    "buildIdentity": "server/websim_payload.py sha256:b651d65adb5466361dafd851b2f1bb0f086a14c3f3cc5f0dff0e2a9dcb996746",
+    "databaseRuntime": "postgres_only",
     "smoke": {
-      "status": "not_run"
+      "status": "pass",
+      "summary": "Candidate /health returned 200. POST /api/websim/profile from the active mage/arcane Raider.IO observed wrist plus a forged client-only embellishment returned HTTP 200 compatibility with profileReadiness.simcReady=false, an explicit server-authority-unavailable blocker, no forged embellishment line, and no leaked private marker."
     },
     "timerBackflow": {
-      "status": "not_run"
+      "status": "pass",
+      "summary": "WOW_DEPLOY_START_ASYNC_SYNCS=0 skipped async starts. WebSim, stat weights, community template, observed backfill, season recommendation, community guard, recommended guard and health follow-up services were inactive with last Result=success/ExecMainStatus=0. The pre-existing observed-backfill timer remained enabled but did not run during deployment or smoke; its owned PG observed-data path cannot restore the rejected serializer authority behavior."
     }
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "type": "deployment_identity",
+      "status": "pass",
+      "summary": "Candidate branch was hot-deployed with bootstrap skipped and async sync disabled. Local and runtime server/websim_payload.py SHA-256 both equal b651d65adb5466361dafd851b2f1bb0f086a14c3f3cc5f0dff0e2a9dcb996746; wow-backend is active with WOW_DATABASE_RUNTIME=postgres_only."
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "Live forged-enhancement profile smoke returned HTTP 200, explicit wrist server-authority blocker, simcReady=false, forgedLinePresent=false and privateMarkerLeaked=false using observed item 250056 from Raider.IO profile Heated."
+    },
+    {
+      "type": "public_contract",
+      "status": "pass",
+      "summary": "Live mage/arcane compact initial and wrist-slot payloads remained dataStatus=verified with one complete 16/16 raiderio_observed_profile community winner, zero baseline templates, zero forbidden public sources and one wrist replacement candidate."
+    },
+    {
+      "type": "health",
+      "status": "pass",
+      "summary": "Live /health returned ok. /api/data/health returned the truthful existing overallStatus=partial; backend, Raider.IO and season components remained verified and no component was promoted by this slice."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "No async sync was started. Relevant services were inactive with successful last results; the existing observed-backfill timer state was preserved and no public source-key or baseline backflow was observed."
+    },
+    {
+      "type": "logs",
+      "status": "pass",
+      "summary": "Recent wow-backend journal scan after candidate deployment found zero Traceback, ERROR, Exception or SQLite fallback matches."
+    },
+    {
+      "type": "rollback",
+      "status": "pass",
+      "summary": "Rollback anchor is origin/main 8df8f36c70b21768b878c2147f6c13407d5a17fa; redeploying that checkout restores previous runtime server/websim_payload.py hash a2d85e61d935ce6e5e65186c0b3833b492cd72e4d0b85d7ed098107a17d45f7a without data rollback."
+    }
+  ],
   "risks": [
     {
       "id": "pg_authority_context_not_yet_available",
@@ -88,5 +136,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 0A is locally verified: submitted structured enhancements now require successfully attached server catalog authority, forged authority markers are stripped, and valid server-catalog-backed serialization remains characterized. Candidate deployment is still required before merge."
+  "summary": "Slice 0A candidate is live-verified before merge: submitted structured enhancements require server catalog authority, the forged PG-only smoke fails closed, runtime hash parity and postgres_only mode are proven, public observed-only payloads are unchanged, and timer/log checks show no backflow. Merge and post-merge archive remain."
 }
