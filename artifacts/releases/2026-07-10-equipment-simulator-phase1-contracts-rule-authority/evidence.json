@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-phase1-contracts-rule-authority",
-  "commit": "uncommitted",
+  "commit": "4f21d54b383666362d45e03c4c689539734c1b08",
   "scope": [
     "pure Selection Intent, Dependency Vector and signatures",
     "pure Authority Context validation",
