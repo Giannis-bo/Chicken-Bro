@@ -54,6 +54,48 @@ def _selected_items(intent: dict[str, Any], authority: dict[str, Any]):
         yield slot, selection, items.get(selection["itemId"])
 
 
+def _effective_item_for_selection(
+    selection: dict[str, Any],
+    item: dict[str, Any],
+    authority: dict[str, Any],
+) -> dict[str, Any]:
+    """Project verified variant/overlay capability overrides for option rules."""
+
+    effective = dict(item)
+    capabilities = dict(item.get("baseCapabilities") or {})
+    for field in (
+        "socketCount",
+        "canEnchant",
+        "canEmbellish",
+        "allowedGemOptionIds",
+        "allowedEnchantOptionIds",
+        "allowedEmbellishmentOptionIds",
+        "allowedCraftedOptionIds",
+        "allowedCatalystOptionIds",
+    ):
+        if field in item and field not in capabilities:
+            capabilities[field] = item[field]
+
+    variant = authority.get("variantsByKey", {}).get(selection.get("variantKey"))
+    if (
+        isinstance(variant, dict)
+        and variant.get("itemId") == selection.get("itemId")
+        and variant.get("status") == "verified"
+    ):
+        overrides = variant.get("capabilityOverrides")
+        if isinstance(overrides, dict):
+            capabilities.update(overrides)
+        overlay = variant.get("overlay")
+        if isinstance(overlay, dict) and overlay.get("status") == "verified":
+            overrides = overlay.get("capabilityOverrides")
+            if isinstance(overrides, dict):
+                capabilities.update(overrides)
+
+    effective["effectiveCapabilities"] = capabilities
+    effective.update(capabilities)
+    return effective
+
+
 def _season_release_identity(intent: dict[str, Any], authority: dict[str, Any]) -> list[dict[str, Any]]:
     problems: list[dict[str, Any]] = []
     authored = intent["authoredAgainst"]
@@ -207,6 +249,7 @@ def _socket_and_gem(intent: dict[str, Any], authority: dict[str, Any]) -> list[d
     for slot, selection, item in _selected_items(intent, authority):
         if not isinstance(item, dict):
             continue
+        item = _effective_item_for_selection(selection, item, authority)
         gem_ids = selection["gemOptionIds"]
         capacity = item.get("socketCount")
         if not isinstance(capacity, int):
@@ -248,6 +291,7 @@ def _enchant_and_runeforge(intent: dict[str, Any], authority: dict[str, Any]) ->
         option_id = selection["enchantOptionId"]
         if not option_id or not isinstance(item, dict):
             continue
+        item = _effective_item_for_selection(selection, item, authority)
         option = options.get(option_id)
         path = f"slots.{slot}.enchantOptionId"
         if not isinstance(option, dict):
@@ -270,6 +314,7 @@ def _embellishment_and_crafted(intent: dict[str, Any], authority: dict[str, Any]
     for slot, selection, item in _selected_items(intent, authority):
         if not isinstance(item, dict):
             continue
+        item = _effective_item_for_selection(selection, item, authority)
         for field, option_type, allowed_field, unknown_suffix in (
             ("embellishmentOptionId", "embellishment", "allowedEmbellishmentOptionIds", "EMBELLISHMENT_UNKNOWN"),
             ("craftedOptionId", "crafted", "allowedCraftedOptionIds", "OPTION_UNKNOWN"),
@@ -321,6 +366,8 @@ def _catalyst_tier_overlay(intent: dict[str, Any], authority: dict[str, Any]) ->
             continue
         if option.get("optionType") != "catalyst":
             problems.append(_problem("GEAR_CATALYST_", "OPTION_TYPE_MISMATCH", "Selected option is not a Catalyst overlay.", path=path))
+        if isinstance(item, dict):
+            item = _effective_item_for_selection(selection, item, authority)
         if not isinstance(item, dict) or option_id not in item.get("allowedCatalystOptionIds", []):
             problems.append(_problem("GEAR_CATALYST_", "OPTION_NOT_ALLOWED", "Catalyst option is not allowed for this item.", path=path))
         if expected_revision and option.get("capabilityRevision") != expected_revision:

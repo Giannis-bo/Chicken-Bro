@@ -151,3 +151,34 @@ python3 -m py_compile \
 Phase 1 is contract-only and has no active runtime consumer. Selection Intent rejects client-authored final facts; selection, resolved-gear and profile signatures each declare a different dependency subset; the Result Envelope HTTP mapping stays dormant until Phase 3; and the ordered pure Rule Matrix reports legality without producing a Resolved Snapshot. The current facade, frontend, PostgreSQL selectors and observed-only public read model remain active.
 
 Candidate verification must prove the new modules import on the deployed runtime tree while the current gear/profile/health surfaces and the Phase 0A–0C guards remain unchanged. Deployment does not activate a route, selector, Worker, sync job, database write, or Catalyst capability.
+
+## Equipment Simulator Phase 2A Pure Resolver Profile
+
+The Strict Slice 2A packet at `artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver` adds a pure canonical Resolver and five-group Evidence Ledger without activating a runtime consumer. Run it before candidate deployment:
+
+```bash
+python3 -m unittest \
+  tests.gear_contracts_test \
+  tests.gear_result_envelope_test \
+  tests.gear_rule_matrix_test \
+  tests.gear_evidence_ledger_test \
+  tests.gear_resolver_test
+python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test
+node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver \
+  --base origin/main
+python3 -m py_compile \
+  server/gear_contracts.py \
+  server/gear_result_envelope.py \
+  server/gear_rule_matrix.py \
+  server/gear_evidence_ledger.py \
+  server/gear_resolver.py
+```
+
+Slice 2A fixes the slot pipeline at base item → verified variant → verified overlay → effective capabilities → legal enhancements. It returns structured static facts, canonical set state, ordered legality, readiness, constraints, serializer input and immutable Evidence Claim IDs; it never produces a profile string or DPS. Missing authority, evidence, resolved stats or overlay identity fails closed, and dynamic effects never become static attributes.
+
+Candidate verification must prove exact PR-head hashes and pure fixture outputs on the remote runtime tree while `/resolve` remains 404 and the current facade, PostgreSQL selectors, public observed-only payload, Phase 0A–0C guards, Phase 1 contracts, Catalyst blocker, timers and logs remain unchanged. Deployment does not activate a loader, facade, route, frontend consumer, Worker, write, migration, sync or cleanup.

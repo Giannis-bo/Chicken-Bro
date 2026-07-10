@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase2a-pure-resolver",
+  "requirementSlug": "equipment-simulator-phase2a-pure-resolver",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/equipment-simulator-phase2a-pure-resolver",
+  "commit": "uncommitted",
+  "scope": [
+    "pure canonical slot and whole-character Resolver",
+    "typed five-group Evidence Ledger v1",
+    "deterministic structured serializer input without profile strings",
+    "dormant runtime boundary and Harness evidence"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.gear_evidence_ledger_test tests.gear_resolver_test",
+      "status": "pass",
+      "summary": "34 focused Ledger and Resolver tests passed; the complete Phase 1-2A contract suite passed 59 tests."
+    },
+    {
+      "command": "python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test",
+      "status": "pass",
+      "summary": "718 current facade, PostgreSQL store and backend tests passed with no runtime consumer activation."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver --base origin/main",
+      "status": "pass",
+      "summary": "1119 Python tests passed with 1 skipped; compileall and Strict Harness passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver --base origin/main",
+      "status": "pass",
+      "summary": "365 Node tests and 1119 Python tests passed with 1 skipped; all 127 syntax, JSON, Harness and diff commands passed."
+    },
+    {
+      "command": "zero database, facade and I/O coupling search plus Python compile",
+      "status": "pass",
+      "summary": "All five Phase 1-2A modules compiled; coupling search returned no database, facade, process or I/O dependency in Resolver/Ledger."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "Diff whitespace verification passed."
+    },
+    {
+      "command": "node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "23 Harness, owner-map and current-state contract tests passed; critical domain count remains 16."
+    },
+    {
+      "command": "five current-facade and Phase 0 characterization guards",
+      "status": "pass",
+      "summary": "Compact serializer golden payload, PG-only forged enhancement rejection, legacy stat concurrency, standard simulate and Catalyst false-green guard passed."
+    },
+    {
+      "command": "local CR of origin/main...working tree",
+      "status": "pass",
+      "summary": "No unresolved findings. Review added fail-closed coverage for illegal enhancement stat pollution, missing variant stats, negative deltas, missing overlay evidence and canonical set conflicts; confirmed deterministic non-mutating pure inputs, explicit five-stage order, bounded claim dependencies, no runtime import and no loader, facade, route, frontend, DB, Worker, sync, write or Catalyst activation."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "requiredBeforeMerge": true,
+    "smoke": {
+      "status": "not_run"
+    },
+    "timerBackflow": {
+      "status": "not_run"
+    }
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "premature_runtime_consumption",
+      "status": "blocked_by_scope",
+      "detail": "No current route, facade, store, selector or frontend may import the Slice 2A modules."
+    },
+    {
+      "id": "pipeline_or_claim_drift",
+      "status": "health_watch",
+      "detail": "Slot stage order, canonical itemSetId, deterministic stats and five claim groups must match the approved architecture exactly."
+    },
+    {
+      "id": "invented_dynamic_truth",
+      "status": "fail_closed",
+      "detail": "Dynamic effects, missing authority or unresolved Catalyst facts must never become static stats, profile readiness or verified claims."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-delivery-plan.md",
+    "docs/plans/2026-07-10-equipment-simulator-phase2-canonical-resolver-plan.md",
+    "artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/evidence.json",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 2A pure Resolver and Evidence Ledger are local_verified with focused, current-facade, backend and full profiles green; current runtime surfaces remain unconsumed and candidate deployment is pending."
+}
