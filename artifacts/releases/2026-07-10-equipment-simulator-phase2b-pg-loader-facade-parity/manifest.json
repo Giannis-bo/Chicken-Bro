@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T16:24:11.823Z",
+  "generatedAt": "2026-07-10T16:40:39.752Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase2b-pg-loader-facade-parity"
@@ -48,12 +48,12 @@
         {
           "path": "docs/verification-matrix.md",
           "exists": true,
-          "sizeBytes": 15154
+          "sizeBytes": 15331
         },
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 258937
+          "sizeBytes": 259085
         },
         {
           "path": "docs/README.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 33831
+          "sizeBytes": 34004
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -99,7 +99,7 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 25972,
+          "lineCount": 25975,
           "hotspot": true
         },
         {
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
-    "sizeBytes": 11158,
+    "sizeBytes": 13018,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -252,7 +252,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Slice 2B remains active after PR #62: the dormant runtime is healthy, but the complete planned hard gate exposed public variant alias and source-evidence parity gaps. The correction is locally verified and has passed a real PostgreSQL read-only SQL preflight; a new exact-head correction PR, candidate performance/Resolver/facade smoke, merge, post-merge parity and archive are still required."
+    "summary": "Slice 2B remains active on PR #63 after PR #62: the dormant runtime is healthy, and the first correction candidate proved complete live loader maps but the pure Resolver correctly exposed missing structured item type, equivalent-slot, handedness and canonical tier-set projection. The second correction reuses existing backend fact-owner helpers and is focused-test verified; updated exact-head CI, candidate performance/Resolver/facade smoke, merge, post-merge parity and archive are still required."
   },
   "evidence": {
     "localTests": {
@@ -277,13 +277,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "5 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:25972, server/news_backend.py:12569, server/postgres_cache_store.py:6262"
+      "detail": "server/websim_payload.py:25975, server/news_backend.py:12569, server/postgres_cache_store.py:6262"
     },
     {
       "id": "localTests_missing",
@@ -313,9 +313,13 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 5,
       "changedFiles": [
-        " M artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json"
+        " M artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
+        " M docs/backend-owner-map.json",
+        " M docs/gear-simulation-full-chain-runbook.md",
+        " M docs/roadmap.md",
+        " M docs/verification-matrix.md"
       ]
     }
   },
