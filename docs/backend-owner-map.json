@@ -172,6 +172,9 @@
             "Admin drilldown should not bypass backend legality or public visibility gates."
           ],
           "characterization": [
+            "tests/news_backend_test.py::NewsBackendTest.test_catalyst_overlay_allowlist_does_not_prove_cutover_capability",
+            "tests/news_backend_test.py::NewsBackendTest.test_data_health_payload_includes_season_cutover_readiness_control_plane",
+            "tests/news_backend_test.py::NewsBackendTest.test_catalyst_redirected_base_stats_is_a_controlled_simc_option",
             "tests/news_backend_test.py data health and admin gate tests",
             "tests/postgres_cache_store_test.py live health summary tests"
           ],

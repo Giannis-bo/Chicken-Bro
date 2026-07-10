@@ -973,13 +973,17 @@
       ],
       "publicContracts": [
         "Health/admin displays authoritative backend state without upgrading partial or internal evidence.",
+        "Catalyst parser-option compatibility does not prove retained-secondary-stat conversion capability.",
         "API 200 or task success does not become verified product quality."
       ],
       "mustNotChange": [
         "Do not make health/admin the product fact owner.",
+        "Do not report Catalyst capability enabled before the approved proof matrix is complete.",
         "Do not hide blocked or partial state in admin summaries."
       ],
       "characterization": [
+        "tests/news_backend_test.py::NewsBackendTest.test_catalyst_overlay_allowlist_does_not_prove_cutover_capability",
+        "tests/news_backend_test.py::NewsBackendTest.test_data_health_payload_includes_season_cutover_readiness_control_plane",
         "tests/news_backend_test.py",
         "tests/postgres_ops_store_test.py",
         "tests/data_health_followup_test.py",
@@ -1020,6 +1024,8 @@
         "status": "characterized",
         "summary": "Existing backend, ops store, data-health and frontend admin/intel tests characterize consumer-only observability and partial/blocked display boundaries.",
         "coverage": [
+          "tests/news_backend_test.py::NewsBackendTest.test_catalyst_overlay_allowlist_does_not_prove_cutover_capability",
+          "tests/news_backend_test.py::NewsBackendTest.test_data_health_payload_includes_season_cutover_readiness_control_plane",
           "tests/news_backend_test.py",
           "tests/postgres_ops_store_test.py",
           "tests/data_health_followup_test.py",

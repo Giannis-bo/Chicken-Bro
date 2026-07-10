@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase0b-catalyst-fail-closed",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Prevent the 12.1 Catalyst retained-secondary-stat capability from reporting verified solely because redirected_base_stats is parser-compatible.",
+  "userValue": "Users and operators cannot mistake a SimC option allowlist entry for an implemented, evidence-backed Catalyst conversion capability.",
+  "nonGoals": [
+    "No Catalyst retained-secondary-stat implementation",
+    "No Catalyst UI exposure",
+    "No active season manifest schema change",
+    "No Resolver or Authority Context implementation",
+    "No public gear template policy change",
+    "No sync, write, backfill or cleanup change",
+    "No dependency installation or third-party download"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+      "docs/plans/2026-07-10-equipment-simulator-capability-delivery-plan.md",
+      "docs/plans/2026-07-10-equipment-simulator-phase0-safety-plan.md",
+      "TODOS.md",
+      "docs/backend-owner-map.json",
+      "docs/project-owner-map.json"
+    ],
+    "activeMilestone": "equipment_simulator_phase0",
+    "featureIteration": "allowed_under_harness"
+  },
+  "impactMap": {
+    "mustChange": [
+      "server/news_backend.py Catalyst cutover gate",
+      "tests/news_backend_test.py Catalyst and season-cutover characterization",
+      "backend and project owner characterization",
+      "Phase 0B verification and release evidence"
+    ],
+    "mustNotChange": [
+      "redirected_base_stats parser compatibility",
+      "Phase 0A enhancement authority guard",
+      "active season manifest schema",
+      "public observed-only community template entry",
+      "PostgreSQL-only runtime boundary",
+      "frontend state and UI",
+      "sync, write, backfill and cleanup paths"
+    ],
+    "evidenceRequired": [
+      "red test proving allowlist compatibility currently reports Catalyst verified",
+      "green direct gate and season cutover tests",
+      "backend and full verification profiles",
+      "local CR and git diff check",
+      "candidate /api/data/health Catalyst blocker smoke",
+      "timer backflow and runtime hash parity evidence"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/news_backend.py",
+    "consumers": [
+      "/api/data/health season_cutover_readiness component",
+      "health and admin operator surfaces",
+      "future active Manifest capability binding"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch",
+    "reason": "The change is a narrow in-memory health gate in a backend hotspot; it adds no new domain responsibility and is protected by direct characterization, full verification, candidate health smoke and code rollback."
+  },
+  "acceptanceEvidence": [
+    "python3 -m unittest tests.news_backend_test.NewsBackendTest.test_catalyst_overlay_allowlist_does_not_prove_cutover_capability tests.news_backend_test.NewsBackendTest.test_data_health_payload_includes_season_cutover_readiness_control_plane tests.news_backend_test.NewsBackendTest.test_catalyst_redirected_base_stats_is_a_controlled_simc_option",
+    "python3 -m unittest tests.news_backend_test",
+    "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed --base origin/main",
+    "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed --base origin/main",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed/requirement.json --evidence-file artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed/evidence.json --base origin/main",
+    "git diff --check",
+    "candidate /api/data/health season_cutover_readiness Catalyst fail-closed smoke"
+  ],
+  "releaseTrigger": "health_admin",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-10",
+      "decision": "Keep redirected_base_stats parser compatibility while capabilityEnabled remains false until the approved proof matrix is complete."
+    },
+    {
+      "date": "2026-07-10",
+      "decision": "Phase 0B changes only the Catalyst health gate and does not implement Phase 6 or expose UI."
+    }
+  ]
+}

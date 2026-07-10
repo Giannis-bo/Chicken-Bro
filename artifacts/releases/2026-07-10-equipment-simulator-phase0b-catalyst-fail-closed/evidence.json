@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase0b-catalyst-fail-closed",
+  "requirementSlug": "equipment-simulator-phase0b-catalyst-fail-closed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/equipment-simulator-phase0b-catalyst-fail-closed",
+  "commit": "pending_pr_head",
+  "scope": [
+    "Catalyst allowlist false-green fail-closed behavior",
+    "server/news_backend.py season cutover health gate",
+    "health characterization and Harness evidence",
+    "owner map and current project-state contracts"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.news_backend_test.NewsBackendTest.test_catalyst_overlay_allowlist_does_not_prove_cutover_capability tests.news_backend_test.NewsBackendTest.test_data_health_payload_includes_season_cutover_readiness_control_plane tests.news_backend_test.NewsBackendTest.test_catalyst_redirected_base_stats_is_a_controlled_simc_option",
+      "status": "pass",
+      "summary": "3 targeted tests passed. TDD red produced two intended failures because both the direct gate and season-cutover details returned verified solely from the allowlist; the minimum fail-closed gate made them green while the parser test remained green."
+    },
+    {
+      "command": "python3 -m unittest tests.news_backend_test",
+      "status": "pass",
+      "summary": "230 tests passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed --base origin/main",
+      "status": "pass",
+      "summary": "1059 Python tests passed with 1 skipped; compileall and Harness passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed --base origin/main",
+      "status": "pass",
+      "summary": "365 Node tests and 1059 Python tests passed with 1 skipped; 127 verification commands including syntax, JSON, Harness and diff checks passed."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "11 owner-map and current-truth contract tests passed."
+    },
+    {
+      "command": "local CR of origin/main...working tree",
+      "status": "pass",
+      "summary": "No unresolved findings. Review confirmed the gate stays blocked independently of parser support, capabilityEnabled is false, the proof-matrix blocker reaches season-cutover details, parser compatibility remains characterized, and no Manifest, frontend, public selector, sync/write/backfill/cleanup or Phase 0A code changed."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "requiredBeforeMerge": true,
+    "smoke": {
+      "status": "not_run"
+    },
+    "timerBackflow": {
+      "status": "not_run"
+    }
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "catalyst_proof_matrix_incomplete",
+      "status": "intentional_fail_closed",
+      "detail": "Catalyst retained-secondary-stat conversion remains blocked and UI-hidden until catalog policy, Resolver claims, Serializer output, active SimC runtime, a real fixture, frontend explanation and Manifest binding are all verified."
+    },
+    {
+      "id": "hotspot_health_gate",
+      "status": "health_watch",
+      "detail": "The minimum guard changes server/news_backend.py; direct health characterization and candidate smoke must prove no unrelated health component or public gear behavior changed."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-delivery-plan.md",
+    "docs/plans/2026-07-10-equipment-simulator-phase0-safety-plan.md",
+    "TODOS.md",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 0B is locally verified: Catalyst parser compatibility remains accepted, but capability activation and season-cutover readiness now fail closed with an explicit proof-matrix blocker. Candidate deployment is still required before merge."
+}
