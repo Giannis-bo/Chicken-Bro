@@ -1,6 +1,6 @@
 {
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "candidate_verified",
+  "highestEvidenceLevel": "candidate_verified",
   "scope": [
     "server/pg_gear_read_model_selectors.py",
     "server/postgres_cache_store.py",
@@ -83,12 +83,98 @@
     "summary": "The production diff replaces only the final WebSim talents response envelope and community sync summary with a pure selector helper delegation. SQL, row filtering, authority/readiness decisions, cache writes, sync/backfill, public gear policy, and frontend contracts remain unchanged."
   },
   "candidateDeployment": {
-    "status": "pending",
+    "status": "passed",
     "requiredBeforeMerge": true,
     "branch": "codex/phase4-websim-talents-envelope-read-model-selector",
     "baseCommit": "2aad8161c5e925fd3ac636c7c0460254c5379b3a",
+    "commit": "71047e7f410355939f6219e029af489d843c2a87",
+    "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/44",
+    "completedAt": "2026-07-10T02:27:21Z",
     "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
-    "asyncSyncStarted": false
+    "asyncSyncStarted": false,
+    "deploySummary": "Candidate deploy succeeded to ubuntu@124.223.51.33:/opt/wow-mini-program, reused remote bootstrap dependencies, passed nginx configuration validation, restarted a healthy wow-backend, and skipped all async PG-native sync starts.",
+    "requiredSmoke": [
+      "/health",
+      "/api/data/health",
+      "/api/websim/bootstrap",
+      "/api/websim/assets",
+      "/api/websim/talents",
+      "/api/websim/loot",
+      "/api/websim/gear initial",
+      "/api/websim/gear slot",
+      "40-spec observed-only gear sweep",
+      "systemd backend/nginx/sync-backfill service/timer status",
+      "recent logs without Traceback/ERROR/SQLite fallback",
+      "runtime file hash parity"
+    ],
+    "httpSmoke": {
+      "base": "http://124.223.51.33",
+      "health": {"status": 200, "ok": true, "service": "wow-backend"},
+      "dataHealth": {"status": 200, "overallStatus": "partial", "components": 14},
+      "bootstrap": {"status": 200, "dataStatus": "verified", "classes": 13, "instances": 12, "defaultSelection": {"classKey": "deathknight", "specKey": "blood"}},
+      "assets": {"status": 200, "assetStatus": "verified", "assets": 200, "counts": {"byStatus": {"verified": 200}, "bySource": {"blizzard": 200}}},
+      "talents": {
+        "status": 200,
+        "path": "/api/websim/talents?class=mage&spec=frost&hero=spellslinger",
+        "classKey": "mage",
+        "specKey": "frost",
+        "heroKey": "spellslinger",
+        "talentSchemaRevision": "websim-talent-rules-v1",
+        "talentStatus": "simc",
+        "authorityRuntimeSource": "simc",
+        "blockers": ["talent spell descriptions/icons are incomplete", "talent spell descriptions contain unresolved formula text for 38 talent nodes"],
+        "nodes": 110,
+        "presets": 2,
+        "communityTemplates": 2,
+        "treeSections": 3,
+        "communityTemplateSync": {
+          "activeSpecSlots": {"total": 2, "verified": 2, "pendingCollection": 0, "blocked": 0},
+          "templates": {"total": 80, "verified": 80, "partial": 0, "blocked": 0}
+        },
+        "seasonRevision": "season-17-f131dd36ddf1",
+        "dataStatus": "verified"
+      },
+      "loot": {"status": 200, "dataStatus": "verified", "items": 120, "instances": 12},
+      "lootSlot": {"status": 200, "dataStatus": "verified", "items": 42, "instances": 12},
+      "gearInitial": {"status": 200, "dataStatus": "verified", "communityTemplates": 1, "baselineTemplates": 0, "sourceKeys": ["raiderio_observed_profile"], "canApplyGear": [true]},
+      "gearSlot": {"status": 200, "dataStatus": "verified", "communityTemplates": 1, "baselineTemplates": 0, "sourceKeys": ["raiderio_observed_profile"], "canApplyGear": [true]}
+    },
+    "gearSweep": {
+      "checkedSpecs": 40,
+      "failures": 0,
+      "dataStatus": {"verified": 40},
+      "communityTemplates": {"1": 40},
+      "baselineTemplates": {"0": 40},
+      "sourceKeys": {"raiderio_observed_profile": 40},
+      "canApplyGear": {"true": 40}
+    },
+    "systemd": {
+      "backend": {"activeState": "active", "subState": "running", "result": "success", "execMainStatus": 0},
+      "nginx": {"activeState": "active", "subState": "running", "result": "success", "execMainStatus": 0},
+      "syncBackfillServices": {
+        "wow-websim-sync.service": "activating/start since 2026-07-10 10:04:50 CST; triggered by existing data-health follow-up before candidate deploy",
+        "wow-stat-weights-sync.service": "activating/start since 2026-07-10 10:04:50 CST; triggered by existing data-health follow-up before candidate deploy",
+        "wow-community-template-sync.service": "inactive/dead result=success execMainStatus=0",
+        "wow-gear-observed-backfill.service": "inactive/dead result=success execMainStatus=0",
+        "wow-season-recommended-gear-sync.service": "inactive/dead result=success execMainStatus=0",
+        "wow-community-best-guard-sync.service": "inactive/dead result=success execMainStatus=0",
+        "wow-recommended-bis-guard-sync.service": "inactive/dead result=success execMainStatus=0",
+        "wow-data-health-followup.service": "inactive/dead result=success execMainStatus=0"
+      },
+      "timers": "9 wow-* timers listed",
+      "timerBackflowObservation": "wow-data-health-followup started websim/stat-weight sync at 10:04:50 CST before the candidate deploy. The deploy command itself skipped async sync starts, and post-deploy talents-envelope plus 40-spec public gear smoke passed while the pre-existing jobs were active."
+    },
+    "runtime": {
+      "WOW_DATABASE_RUNTIME": "postgres_only",
+      "recentLogs": "journalctl -u wow-backend.service -u nginx.service --since '20 minutes ago' had no Traceback/ERROR/SQLite fallback matches",
+      "hashParity": {
+        "server/pg_gear_read_model_selectors.py": "8cc6b9aae801d8fef1da02be86f09a6af358fdd2fdd0acff0c1e31f041545118",
+        "server/postgres_cache_store.py": "8366c52c2783915c68bea7006440a268ca5c4dee9232aea9ed799ac7e177075a",
+        "server/news_backend.py": "e30ef78c5d3a524f7b1f7b98c592bcdf5e91134d848799311de0af9b3ebbce99",
+        "server/websim_payload.py": "a2d85e61d935ce6e5e65186c0b3833b492cd72e4d0b85d7ed098107a17d45f7a",
+        "server/deploy_lighthouse.sh": "519d82e5ec62cb97fd3a1c9a92f9c5f98461cc56e748014a88323eed66a9594d"
+      }
+    }
   },
   "risks": [
     {
@@ -98,8 +184,8 @@
     },
     {
       "id": "candidate_deployment_pending",
-      "status": "open",
-      "detail": "Harness v0.5 Candidate Deployment Gate must pass on the PR branch before merge."
+      "status": "closed",
+      "detail": "Harness v0.5 Candidate Deployment Gate passed on PR #44 branch before merge, including deploy, talents-envelope/API smoke, 40-spec observed-only sweep, systemd/log checks, and runtime hash parity."
     },
     {
       "id": "write_paths_out_of_scope",
