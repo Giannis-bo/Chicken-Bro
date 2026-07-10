@@ -13,6 +13,7 @@
 | 还没进入正式里程碑的想法 | [roadmap/ideas.md](roadmap/ideas.md) | 想法池和已采纳索引。 |
 | 文档结构、历史计划落点 | [plans/README.md](plans/README.md) | 记录 `docs/plans/` 每份历史计划现在对应的真实入口。 |
 | 需求挑战、方案门禁和交付 Harness | [harness.md](harness.md) | 所有需求进入实现前的分级、质疑、用户确认和证据晋级规则。 |
+| 当前 Harness 工程规范化里程碑 | [plans/2026-07-10-project-harness-normalization-goal-plan.md](plans/2026-07-10-project-harness-normalization-goal-plan.md) | 已批准的 B 路线、feature freeze、阶段交付物、退出条件和新 Goal Session Prompt。 |
 | 后端热点文件 owner map / 重构前 characterization | [backend-owner-map.json](backend-owner-map.json) | `websim_payload.py`、`news_backend.py`、`postgres_cache_store.py` 拆分前的 owner、禁止改变项和 characterization anchors。 |
 | 职业专精、天赋、装备、SimC 入口 | [builds-architecture.md](builds-architecture.md) | 职业专精 tab 的产品和前后端架构。 |
 | PostgreSQL-only 运行时、schema 域、数据归属 | [database-architecture.md](database-architecture.md) | 当前数据库契约。 |
