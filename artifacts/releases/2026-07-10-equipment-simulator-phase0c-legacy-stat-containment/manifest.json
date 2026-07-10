@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T13:26:14.501Z",
+  "generatedAt": "2026-07-10T13:30:13.935Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase0c-legacy-stat-containment"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/evidence.json",
-    "sizeBytes": 5762,
+    "sizeBytes": 9837,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Slice 0C is locally verified: legacy gear stats keep their response contract while stat_snapshot_v1 uses iterations=1 and one process-global SimC permit; normal profile and simulator execution remain unchanged. Candidate deployment is still required before merge."
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "Slice 0C candidate is live-verified before merge: legacy gear stats keep their response contract while stat_snapshot_v1 uses iterations=1 and one process-global SimC permit; standard execution, Phase 0A/0B guards, public observed-only payloads, postgres_only runtime, hashes, timers and logs remain correct. Merge and post-merge Phase 0 closure remain."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "11 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,19 +313,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 11,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M docs/backend-owner-map.json",
-        " M docs/gear-simulation-full-chain-runbook.md",
-        " M docs/plans/README.md",
-        " M docs/project-owner-map.json",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M docs/verification-matrix.md",
-        " M server/websim_payload.py",
-        " M tests/project-state.test.js",
-        " M tests/websim_payload_test.py",
-        "?? artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/"
+        " M artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/evidence.json"
       ]
     }
   },
