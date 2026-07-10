@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase3a-resolve-profile-api",
   "requirementSlug": "equipment-simulator-phase3a-resolve-profile-api",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
-  "branch": "codex/equipment-simulator-phase2-closure-phase3-plan",
-  "commit": "13cc179d37e6350d1b9cdf6c372f435498d4c2e3",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/equipment-simulator-phase3a-resolve-profile-api",
+  "commit": "7983e04fb475111f476f0aac08467d3192c33d77",
   "scope": [
     "backend resolver authoring context",
     "canonical gear runtime orchestration",
@@ -25,8 +25,28 @@
     },
     {
       "command": "Slice 3A implementation and local verification",
-      "status": "not_run",
-      "summary": "Pending TDD implementation on the dedicated Slice 3A branch."
+      "status": "pass",
+      "summary": "TDD produced the shared revision projection, one-query resolver authoring context, injectable runtime orchestration, structured Resolve route and canonical profile mode. The focused domain suite passed 104 tests; the related orchestration/backend/facade/store suite passed 743 tests after review corrections; package and direct runtime modules compiled."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api --base origin/main",
+      "status": "pass",
+      "summary": "1177 Python tests passed with 1 skipped, compileall passed and the Strict Harness check passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api --base origin/main",
+      "status": "pass",
+      "summary": "365 Node tests and 1177 Python tests passed with 1 skipped; all 127 JSON, syntax, Harness and diff commands passed."
+    },
+    {
+      "command": "local CR of origin/main...7983e04",
+      "status": "pass",
+      "summary": "No unresolved critical or important findings. Review caught and fixed two trust-boundary defects with red-to-green tests: an independent resolver-context revision-query exception could discard an otherwise valid public gear payload, and the dormant facade could report a canonical profile resolved without executable talents. Optional authoring context is now isolated, while canonical profile readiness requires a non-empty profile, executable talent encoding and server-owned gear readiness; blocked output clears the profile and marks readiness false. Review also confirmed one selected-gear PostgreSQL boundary, unchanged pure Resolver/Ledger ownership, real 400/409/503 mapping, legacy profile compatibility, and no migration, write, sync, Worker, frontend, Phase 4 Manifest or Catalyst activation."
+    },
+    {
+      "command": "git diff --check and static scope inspection",
+      "status": "pass",
+      "summary": "Whitespace verification passed. The changed production surface is limited to the planned loader, PostgreSQL store, runtime orchestrator and backend route files; no write SQL, migration, sync, frontend or Catalyst activation was added."
     }
   ],
   "candidateDeployment": {
@@ -38,7 +58,7 @@
     "databaseRuntime": "postgres_only",
     "smoke": {
       "status": "blocked",
-      "summary": "Implementation, exact-head CI and candidate deploy have not started."
+      "summary": "Local implementation and CR passed; exact-head CI and candidate deployment remain required before merge."
     },
     "timerBackflow": {
       "status": "blocked",
@@ -91,5 +111,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 3A is implementation-allowed under the approved Phase 3 design and detailed plan. No code, route or frontend behavior has changed yet; TDD, local profiles, CR, exact-head CI, candidate deployment and post-merge smoke remain required."
+  "summary": "Slice 3A is local-verified at implementation head 7983e04. TDD, focused and full local verification and local CR passed; exact-head GitHub Harness, candidate PostgreSQL deployment, 40-spec Resolve/Profile, negative HTTP, latency/concurrency, unchanged-runtime and post-merge smoke remain required before archival."
 }
