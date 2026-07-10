@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T13:11:25.735Z",
+  "generatedAt": "2026-07-10T13:14:04.111Z",
   "release": {
     "date": "2026-07-10",
     "slug": "equipment-simulator-phase0b-catalyst-fail-closed"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed/evidence.json",
-    "sizeBytes": 4490,
+    "sizeBytes": 7653,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Slice 0B is locally verified: Catalyst parser compatibility remains accepted, but capability activation and season-cutover readiness now fail closed with an explicit proof-matrix blocker. Candidate deployment is still required before merge."
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "Slice 0B candidate is live-verified before merge: Catalyst parser compatibility remains accepted while capability activation and season-cutover readiness fail closed, runtime hash parity and postgres_only mode are proven, public observed-only payloads are unchanged, and timer/log checks show no backflow. Merge and post-merge archive remain."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "9 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,17 +313,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 9,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M docs/backend-owner-map.json",
-        " M docs/project-owner-map.json",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M docs/verification-matrix.md",
-        " M server/news_backend.py",
-        " M tests/news_backend_test.py",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed/"
+        " M artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed/evidence.json"
       ]
     }
   },
