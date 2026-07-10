@@ -242,6 +242,62 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         cursor, _context = self.load(cursor=self.cursor(item_rows=[], option_rows=[]), intent=self.intent(slots))
         self.assertEqual(len(cursor.statements), 3)
 
+    def test_resolver_authoring_context_matches_loader_revision_identity(self):
+        revision_row = self.revision_row()
+        runtime = self.runtime_authority()
+        cursor, authority = self.load(
+            cursor=self.cursor(revision_rows=[revision_row]),
+            runtime=runtime,
+        )
+
+        resolver_context = pg_gear_authority_loader.resolver_authoring_context(
+            revision_row,
+            runtime,
+        )
+
+        self.assertEqual(resolver_context["contractRevision"], "gear-resolver-context-v1")
+        self.assertFalse(resolver_context["formalActiveManifest"])
+        self.assertEqual(
+            resolver_context["authoredAgainst"],
+            {
+                "seasonRevision": authority["manifest"]["seasonRevision"],
+                "gearCatalogRevision": authority["manifest"]["gearCatalogRevision"],
+            },
+        )
+        self.assertEqual(
+            resolver_context["dependencyRevisions"],
+            {
+                key: authority["dependencyVector"][key]
+                for key in (
+                    "gearRuleRevision",
+                    "resolverContractRevision",
+                    "serializerRevision",
+                    "simcRuntimeRevision",
+                    "statPolicyRevision",
+                    "selectionSchemaRevision",
+                )
+            },
+        )
+        self.assertEqual(cursor.statements[0].count("gear_authority_revision"), 1)
+
+    def test_resolver_authoring_context_fails_closed_on_missing_revision_authority(self):
+        missing_season = list(self.revision_row())
+        missing_season[0] = ""
+        self.assertIsNone(
+            pg_gear_authority_loader.resolver_authoring_context(
+                tuple(missing_season),
+                self.runtime_authority(),
+            )
+        )
+
+        missing_runtime = self.runtime_authority(simcRuntimeRevision="")
+        self.assertIsNone(
+            pg_gear_authority_loader.resolver_authoring_context(
+                self.revision_row(),
+                missing_runtime,
+            )
+        )
+
     def test_loader_uses_array_parameters_not_per_slot_sql(self):
         cursor, _context = self.load()
         self.assertIn("unnest(%s::text[], %s::text[])", cursor.statements[1])

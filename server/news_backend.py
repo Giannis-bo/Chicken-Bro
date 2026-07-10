@@ -84,6 +84,7 @@ try:
         ensure_websim_tables,
         gear_catalog_health_payload,
         gear_legality_authority_health_payload,
+        gear_resolver_runtime_authority,
         GAME_CLASS_ID_TO_KEY,
         GEAR_SLOT_LABELS,
         talent_catalog_health_payload,
@@ -179,6 +180,7 @@ except ImportError:
         ensure_websim_tables,
         gear_catalog_health_payload,
         gear_legality_authority_health_payload,
+        gear_resolver_runtime_authority,
         GAME_CLASS_ID_TO_KEY,
         GEAR_SLOT_LABELS,
         talent_catalog_health_payload,
@@ -7723,6 +7725,33 @@ def websim_gear_payload_with_template_legality(payload):
     return output
 
 
+def websim_gear_payload_with_resolver_context(payload, store, class_key, spec_key):
+    if not isinstance(payload, dict) or not payload:
+        return payload
+    if not callable(getattr(store, "get_gear_resolver_context", None)):
+        return payload
+    simc_status = simc_version_status()
+    simc_revision = first_text_value(
+        simc_status.get("simcRuntimeRevision"),
+        simc_status.get("localTag"),
+        simc_status.get("sourceCommit"),
+    )
+    if not simc_revision:
+        return payload
+    try:
+        runtime_authority = gear_resolver_runtime_authority(
+            class_key,
+            spec_key,
+            simc_runtime_revision=simc_revision,
+        )
+        resolver_context = store.get_gear_resolver_context(runtime_authority)
+    except (RuntimeError, TypeError, ValueError):
+        return payload
+    if not isinstance(resolver_context, dict) or not resolver_context:
+        return payload
+    return {**payload, "resolverContext": resolver_context}
+
+
 def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slot=""):
     store = cache_data_store()
     allow_sqlite_fallback = (
@@ -7737,6 +7766,12 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
                 if "unexpected keyword" not in str(exc):
                     raise
                 payload = store.get_websim_gear(class_key, spec_key, compact=compact)
+            payload = websim_gear_payload_with_resolver_context(
+                payload,
+                store,
+                class_key,
+                spec_key,
+            )
         except Exception:
             payload = {}
         if postgres_only_runtime_enabled():

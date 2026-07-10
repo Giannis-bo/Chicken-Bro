@@ -37,9 +37,19 @@ except ImportError:
     import pg_cache_read_model_selectors
 
 try:
-    from .pg_gear_authority_loader import AuthorityContextCache, load_gear_authority_context
+    from .pg_gear_authority_loader import (
+        AUTHORITY_REVISION_SQL,
+        AuthorityContextCache,
+        load_gear_authority_context,
+        resolver_authoring_context,
+    )
 except ImportError:
-    from pg_gear_authority_loader import AuthorityContextCache, load_gear_authority_context
+    from pg_gear_authority_loader import (
+        AUTHORITY_REVISION_SQL,
+        AuthorityContextCache,
+        load_gear_authority_context,
+        resolver_authoring_context,
+    )
 
 try:
     from .websim_payload import (
@@ -966,6 +976,16 @@ class PostgresCacheStore:
                     runtime_authority,
                     cache=cache,
                 )
+
+    def get_gear_resolver_context(self, runtime_authority):
+        """Load the current Selection Intent authoring revisions without selected facts."""
+
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION READ ONLY")
+                cur.execute(AUTHORITY_REVISION_SQL)
+                revision_row = tuple(cur.fetchone() or ())
+                return resolver_authoring_context(revision_row, runtime_authority)
 
     def save_raiderio_payload(self, payload):
         payload = payload if isinstance(payload, dict) else {}

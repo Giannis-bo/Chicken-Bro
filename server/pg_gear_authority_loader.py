@@ -34,6 +34,7 @@ except ImportError:
 
 COMPATIBILITY_MANIFEST_REVISION = "compatibility-pg-live-v1"
 AUTHORITY_CONTEXT_CONTRACT_REVISION = "gear-authority-context-v1"
+RESOLVER_CONTEXT_CONTRACT_REVISION = "gear-resolver-context-v1"
 
 AUTHORITY_REVISION_SQL = """
 /* gear_authority_revision */
@@ -427,6 +428,63 @@ def compatibility_catalog_revision(revision_row: Any) -> str:
     return f"compatibility-pg:{digest}"
 
 
+def _revision_projection(revision_row: Any, runtime_authority: Any) -> dict[str, Any]:
+    row = tuple(revision_row or ())
+    runtime = runtime_authority if isinstance(runtime_authority, dict) else {}
+    catalog_revision = compatibility_catalog_revision(row)
+    season_revision = _text(row[0] if len(row) > 0 else "")
+    catalog_state = _json_value(row[1] if len(row) > 1 else {}, {})
+    websim_state = _json_value(row[2] if len(row) > 2 else {}, {})
+    revisions = runtime.get("dependencyRevisions")
+    revisions = revisions if isinstance(revisions, dict) else {}
+    release_id = f"compatibility:{catalog_revision.removeprefix('compatibility-pg:')[:16]}"
+    dependency_vector = {
+        "seasonRevision": season_revision,
+        "gearCatalogReleaseId": release_id,
+        "gearCatalogRevision": catalog_revision,
+        **{field: _text(revisions.get(field)) for field in _REQUIRED_RUNTIME_REVISIONS},
+    }
+    missing = []
+    if not season_revision:
+        missing.append("manifest.seasonRevision")
+    for field in _REQUIRED_RUNTIME_REVISIONS:
+        if not dependency_vector[field]:
+            missing.append(f"runtimeAuthority.dependencyRevisions.{field}")
+    return {
+        "catalogRevision": catalog_revision,
+        "seasonRevision": season_revision,
+        "catalogState": catalog_state,
+        "websimState": websim_state,
+        "releaseId": release_id,
+        "dependencyVector": dependency_vector,
+        "missingFields": sorted(set(missing)),
+    }
+
+
+def resolver_authoring_context(revision_row: Any, runtime_authority: Any) -> dict[str, Any] | None:
+    """Project the exact current revisions a client must bind into Selection Intent."""
+
+    projection = _revision_projection(revision_row, runtime_authority)
+    if projection["missingFields"]:
+        return None
+    dependency_vector = projection["dependencyVector"]
+    return _canonical(
+        {
+            "contractRevision": RESOLVER_CONTEXT_CONTRACT_REVISION,
+            "formalActiveManifest": False,
+            "selectionSchemaRevision": dependency_vector["selectionSchemaRevision"],
+            "authoredAgainst": {
+                "seasonRevision": projection["seasonRevision"],
+                "gearCatalogRevision": projection["catalogRevision"],
+            },
+            "dependencyRevisions": {
+                field: dependency_vector[field]
+                for field in _REQUIRED_RUNTIME_REVISIONS
+            },
+        }
+    )
+
+
 def _cache_key(intent: dict[str, Any], dependency_vector: dict[str, Any]) -> str:
     signature = selection_signature(intent, intent["eligibilityContext"])
     digest = hashlib.sha256(
@@ -767,19 +825,13 @@ def load_gear_authority_context(
     cursor.execute(AUTHORITY_REVISION_SQL)
     revision_row = cursor.fetchone()
     revision_row = tuple(revision_row or ())
-    catalog_revision = compatibility_catalog_revision(revision_row)
-    season_revision = _text(revision_row[0] if len(revision_row) > 0 else "")
-    catalog_state = _json_value(revision_row[1] if len(revision_row) > 1 else {}, {})
-    websim_state = _json_value(revision_row[2] if len(revision_row) > 2 else {}, {})
-    revisions = runtime.get("dependencyRevisions")
-    revisions = revisions if isinstance(revisions, dict) else {}
-    release_id = f"compatibility:{catalog_revision.removeprefix('compatibility-pg:')[:16]}"
-    dependency_vector = {
-        "seasonRevision": season_revision,
-        "gearCatalogReleaseId": release_id,
-        "gearCatalogRevision": catalog_revision,
-        **{field: _text(revisions.get(field)) for field in _REQUIRED_RUNTIME_REVISIONS},
-    }
+    revision = _revision_projection(revision_row, runtime)
+    catalog_revision = revision["catalogRevision"]
+    season_revision = revision["seasonRevision"]
+    catalog_state = revision["catalogState"]
+    websim_state = revision["websimState"]
+    release_id = revision["releaseId"]
+    dependency_vector = revision["dependencyVector"]
     cache_key = _cache_key(intent, dependency_vector)
     if cache is not None:
         cached = cache.get(cache_key)
@@ -891,10 +943,12 @@ def load_gear_authority_context(
 
 __all__ = (
     "COMPATIBILITY_MANIFEST_REVISION",
+    "RESOLVER_CONTEXT_CONTRACT_REVISION",
     "AUTHORITY_REVISION_SQL",
     "SELECTED_ITEM_VARIANT_SQL",
     "SELECTED_OPTION_SQL",
     "AuthorityContextCache",
     "compatibility_catalog_revision",
+    "resolver_authoring_context",
     "load_gear_authority_context",
 )

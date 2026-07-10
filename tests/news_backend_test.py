@@ -9405,6 +9405,64 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(captured["mode"], "initial")
         self.assertEqual(captured["slot"], "head")
 
+    def test_runtime_websim_gear_attaches_backend_resolver_context(self):
+        captured = {}
+        initial_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "gearPayloadMode": "initial",
+            "replacementCandidates": [],
+        }
+        resolver_context = {
+            "contractRevision": "gear-resolver-context-v1",
+            "formalActiveManifest": False,
+            "selectionSchemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-17-active",
+                "gearCatalogRevision": "compatibility-pg:resolver",
+            },
+        }
+        runtime_authority = {"dependencyRevisions": {"simcRuntimeRevision": "simc-v1"}}
+
+        class ResolverContextStore:
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                return initial_payload
+
+            def get_gear_resolver_context(self, authority):
+                captured["authority"] = authority
+                return resolver_context
+
+        with patch.object(
+            self.backend,
+            "cache_data_store",
+            return_value=ResolverContextStore(),
+        ), patch.object(
+            self.backend,
+            "simc_version_status",
+            return_value={"localTag": "simc-v1"},
+        ), patch.object(
+            self.backend,
+            "gear_resolver_runtime_authority",
+            return_value=runtime_authority,
+            create=True,
+        ) as authority_builder:
+            payload = self.backend.runtime_websim_gear_payload(
+                "mage",
+                "frost",
+                compact=True,
+                mode="initial",
+            )
+
+        self.assertIsNot(payload, initial_payload)
+        self.assertEqual(payload["resolverContext"], resolver_context)
+        self.assertEqual(captured["authority"], runtime_authority)
+        authority_builder.assert_called_once_with(
+            "mage",
+            "frost",
+            simc_runtime_revision="simc-v1",
+        )
+
     def test_runtime_websim_gear_adds_template_chain_state_to_cached_postgres_payload(self):
         observed = {
             "id": "observed-mage-frost",
