@@ -56,6 +56,7 @@ test('project harness emits the current repo-native harness manifest as read-onl
     'releaseRollback',
     'requirementChallenge'
   ].sort())
+  assert.ok(manifest.gates.currentTruth.sources.some((source) => source.path === 'docs/project-state.json' && source.exists))
   assert.ok(manifest.gates.currentTruth.sources.some((source) => source.path === 'docs/roadmap.md' && source.exists))
   assert.ok(manifest.gates.currentTruth.sources.some((source) => source.path === 'docs/backend-owner-map.json' && source.exists))
   assert.ok(manifest.gates.engineeringHealth.hotspotFiles.some((file) => file.path === 'server/websim_payload.py' && file.exists))

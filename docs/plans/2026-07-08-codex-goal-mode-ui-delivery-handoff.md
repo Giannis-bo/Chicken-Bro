@@ -1,8 +1,10 @@
 # 2026-07-08 Codex Goal Mode UI Delivery Handoff
 
+> Archived current-state note (2026-07-10): this handoff is no longer the active first-read contract by default. `docs/project-state.json` records the UI delivery domain as `accepted_baseline` with 14/14 current mini-program route screenshots accepted on 2026-07-09. Keep this file as historical rescue evidence unless a new UI Harness contract reactivates UI delivery work.
+
 ## Status
 
-`正在推进`
+`历史归档 / accepted baseline`
 
 This is the current goal-mode handoff for the WOW mini program UI delivery.
 

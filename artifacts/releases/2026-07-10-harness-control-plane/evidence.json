@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "slug": "harness-control-plane",
+  "requirementSlug": "harness-control-plane",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/project-harness-normalization-control-plane",
+  "commit": "pending_pr_head",
+  "scope": [
+    "current_truth_control_plane",
+    "docs_index",
+    "roadmap_history_archive",
+    "bootstrap_release_packet"
+  ],
+  "verification": [
+    {
+      "command": "node --test tests/project-state.test.js",
+      "status": "pass",
+      "summary": "3 tests passed"
+    },
+    {
+      "command": "node --test tests/project-harness.test.js",
+      "status": "pass",
+      "summary": "5 tests passed"
+    },
+    {
+      "command": "node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "exit code 0"
+    },
+    {
+      "command": "python3 -m json.tool docs/project-state.json",
+      "status": "pass",
+      "summary": "valid JSON"
+    },
+    {
+      "command": "python3 -m json.tool artifacts/releases/2026-07-10-harness-control-plane/requirement.json",
+      "status": "pass",
+      "summary": "valid JSON"
+    },
+    {
+      "command": "python3 -m json.tool artifacts/releases/2026-07-10-harness-control-plane/evidence.json",
+      "status": "pass",
+      "summary": "valid JSON"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "exit code 0"
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "reason": "Control plane PR changes docs, tests and local Harness artifacts only; no backend/API/PG read-model/runtime surface is changed."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "bootstrap_exception",
+      "status": "accepted_for_control_plane_only",
+      "detail": "The first Control plane PR creates project-state and its own release packet before the executable validator exists."
+    },
+    {
+      "id": "self_referential_commit_hash",
+      "status": "documented",
+      "detail": "A committed JSON file cannot contain its final commit hash without changing that hash; use the PR head commit as candidate identity for this bootstrap packet."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/roadmap/history/2026-07-phase4-pg-read-model.md",
+    "docs/project-state.json"
+  ],
+  "summary": "Bootstrap current truth control plane for the Project Harness Engineering Normalization milestone."
+}

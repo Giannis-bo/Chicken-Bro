@@ -1,5 +1,7 @@
 # 2026-07-08 Current UI Delivery Source Of Truth
 
+> Archived current-state note (2026-07-10): this source-of-truth has been superseded by `docs/project-state.json` for first-read status. The UI rescue baseline is accepted and historical; do not use this document to restart UI rescue work without a new active UI Harness contract.
+
 ## Purpose
 
 This is the current first-read document for WOW mini program UI delivery.

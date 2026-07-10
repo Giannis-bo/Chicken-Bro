@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-10",
+  "activeMilestone": "project_harness_normalization",
+  "featureIteration": "frozen_until_milestone_exit",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-10-harness-control-plane",
+  "activeContracts": [
+    {
+      "id": "project_harness_normalization_goal",
+      "path": "docs/plans/2026-07-10-project-harness-normalization-goal-plan.md",
+      "status": "implementation_allowed",
+      "lifecycle": "active",
+      "notes": "Approved B route. Feature iteration remains frozen until all milestone exit conditions pass."
+    },
+    {
+      "id": "repo_native_harness_v0_5",
+      "path": "docs/harness.md",
+      "status": "active",
+      "lifecycle": "active",
+      "notes": "Current delivery gate and evidence-promotion contract."
+    },
+    {
+      "id": "backend_hotspot_owner_map",
+      "path": "docs/backend-owner-map.json",
+      "status": "active_detail_map",
+      "lifecycle": "active",
+      "notes": "Second-level owner map for backend hotspot read-model characterization."
+    }
+  ],
+  "completedBaselines": [
+    {
+      "id": "ui_runtime_rescue_20260709",
+      "domain": "ui_delivery",
+      "status": "accepted_baseline",
+      "evidence": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json",
+      "notes": "14/14 current automated mini-program route screenshots accepted on 2026-07-09; future UI changes require a new Harness contract."
+    },
+    {
+      "id": "phase4_pg_read_model_selector_baseline",
+      "domain": "pg_read_model_phase4",
+      "status": "completed",
+      "evidence": "docs/roadmap/history/2026-07-phase4-pg-read-model.md",
+      "notes": "PG/cache/admin read-only selector vertical closed after the fortieth slice; sync_state_repository remains out of scope."
+    }
+  ],
+  "historicalContracts": [
+    {
+      "id": "harness_guided_project_optimization_plan",
+      "path": "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+      "status": "superseded_by_project_harness_normalization_goal",
+      "lifecycle": "historical"
+    },
+    {
+      "id": "ui_codex_goal_mode_handoff",
+      "path": "docs/plans/2026-07-08-codex-goal-mode-ui-delivery-handoff.md",
+      "status": "accepted_baseline_archived",
+      "lifecycle": "historical"
+    },
+    {
+      "id": "ui_goal_mode_entry_contract",
+      "path": "docs/plans/2026-07-08-ui-goal-mode-entry-contract.md",
+      "status": "accepted_baseline_archived",
+      "lifecycle": "historical"
+    },
+    {
+      "id": "ui_current_delivery_source_of_truth",
+      "path": "docs/plans/2026-07-08-current-ui-delivery-source-of-truth.md",
+      "status": "accepted_baseline_archived",
+      "lifecycle": "historical"
+    }
+  ],
+  "controlPlaneConclusions": [
+    {
+      "domain": "ui_delivery",
+      "status": "accepted_baseline",
+      "activeContract": null,
+      "evidence": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json"
+    },
+    {
+      "domain": "pg_read_model_phase4",
+      "status": "completed",
+      "activeContract": null,
+      "evidence": "docs/roadmap/history/2026-07-phase4-pg-read-model.md"
+    },
+    {
+      "domain": "project_harness_normalization",
+      "status": "active",
+      "activeContract": "docs/plans/2026-07-10-project-harness-normalization-goal-plan.md",
+      "evidence": "artifacts/releases/2026-07-10-harness-control-plane"
+    }
+  ],
+  "runtimeBaseline": {
+    "publicGearEntry": {
+      "communityTemplates": "active raiderio_observed_profile only",
+      "baselineTemplates": "public default empty",
+      "blockedSourceKeys": [
+        "recommended_bis",
+        "season_recommendation",
+        "default_template",
+        "simc_preset",
+        "baseline_blocked"
+      ]
+    },
+    "uiRuntimeEvidence": {
+      "status": "accepted_baseline",
+      "routeCount": 14,
+      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json"
+    },
+    "pgReadModel": {
+      "status": "phase4_completed",
+      "ownerMap": "docs/backend-owner-map.json",
+      "history": "docs/roadmap/history/2026-07-phase4-pg-read-model.md"
+    }
+  },
+  "knownRisks": [
+    {
+      "id": "feature_iteration_frozen",
+      "status": "intentional",
+      "trigger": "Only clear when the Project Harness Normalization milestone closure packet and CI evidence pass."
+    },
+    {
+      "id": "runtime_slice_limit",
+      "status": "guardrail",
+      "trigger": "Return to user if more than three runtime slices are required or a write/sync/backfill/cleanup boundary is needed."
+    }
+  ]
+}
