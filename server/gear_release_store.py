@@ -1093,7 +1093,7 @@ class GearReleaseStore:
                             "itemId": _text(row[0]),
                             "name": _text(row[1]),
                             "slot": _text(row[2]),
-                            "itemLevel": _int(row[3]),
+                            "itemLevel": None if row[3] is None else _int(row[3]),
                             "sourceStatus": _text(row[4]),
                             "payload": _canonical(row[5] if isinstance(row[5], dict) else {}),
                             "updatedAt": _text(row[6]),

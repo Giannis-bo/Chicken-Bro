@@ -537,6 +537,12 @@ def simc_version_status():
     for key in status:
         if key in payload:
             status[key] = payload[key]
+    local_commit = str(payload.get("localCommit") or "").strip().lower()
+    if re.fullmatch(r"[0-9a-f]{40}", local_commit):
+        if not str(status.get("sourceCommit") or "").strip():
+            status["sourceCommit"] = local_commit
+        if not str(status.get("simcRuntimeRevision") or "").strip():
+            status["simcRuntimeRevision"] = local_commit
     status["updateAvailable"] = bool(status["updateAvailable"])
     return status
 

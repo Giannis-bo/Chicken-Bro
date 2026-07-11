@@ -866,7 +866,8 @@ class GearReleaseStoreTest(unittest.TestCase):
     def test_active_public_gear_data_reads_only_bound_immutable_release_rows(self):
         from server.gear_release_store import GearReleaseStore
 
-        snapshot = self.snapshot()
+        snapshot = copy.deepcopy(self.snapshot())
+        snapshot["items"][0]["itemLevel"] = None
         gear = self.gear_release(snapshot)
         community_rows = self.community_rows()
         community = self.community_release(gear["releaseId"], community_rows)
@@ -888,7 +889,7 @@ class GearReleaseStoreTest(unittest.TestCase):
         conn = FakeConnection(rowsets={
             "FROM cache.websim_community_release_templates": [self.community_db_row(community_rows[0])],
             "FROM cache.websim_gear_release_items": [
-                ("item-a", "Item A", "head", 289, "verified", {"itemStats": [{"key": "intellect", "value": 100}]}, "2026-07-11T05:00:00+00:00")
+                ("item-a", "Item A", "head", None, "verified", {"itemStats": [{"key": "intellect", "value": 100}]}, "2026-07-11T05:00:00+00:00")
             ],
             "FROM cache.websim_gear_release_sources": [
                 ("source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "", "mythic", "season-17", {"status": "verified"}, "2026-07-11T05:00:00+00:00")
