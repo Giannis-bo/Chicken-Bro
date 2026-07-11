@@ -325,7 +325,7 @@
         "runtimeConsumers": []
       },
       "releaseTrainFoundations": {
-        "status": "phase4a_contract_only_unconsumed",
+        "status": "phase4a_completed_dormant",
         "modules": [
           "server/gear_release.py"
         ],
@@ -333,7 +333,7 @@
           "tests/gear_release_test.py"
         ],
         "runtimeConsumers": [],
-        "activationBoundary": "Phase 4A owns only pure release ID, manifest validation, observed candidate election, shadow comparison, promotion decision and pointer-command contracts. PostgreSQL schema/write, shadow readers, active pointer cutover and scheduled refresh remain forbidden until Slices 4B-4E."
+        "activationBoundary": "Phase 4A is merged and live-verified while remaining pure/dormant. Phase 4B may add one PostgreSQL registry/repository/tool and inactive legacy import; shadow readers, active pointer cutover and scheduled refresh remain forbidden until Slices 4C-4E."
       },
       "dormantAdapters": {
         "status": "contract_only_unconsumed",

@@ -63,7 +63,8 @@
 - 每专精选举最多一个 public winner；合法低排名项仅为 internal standby，非法/stale/source-invalid/binding mismatch 为 rejected。缺合法 winner 时该 spec 公开为空并标 degraded，禁止用 `season_recommendation`、default、SimC preset 或 baseline 补齐。
 - Shadow compare 必须覆盖 40 专精的 winner presence、Intent、resolved signature、legality、provenance、baseline=0、browse identity 与 Profile Dependency Vector。任何 illegal winner、mixed release、baseline leak、integrity error 或非 observed public source 都阻断 promotion。
 - Existing sync 只写 staging；Phase 4E release refresh 必须 candidate-first。相同 Gear Release 的 community winner 更新在完整 gate 后可自动发布；新赛季、rule、serializer、schema、capability 和高风险 gear 变化必须 controlled cutover。deploy 继续 `WOW_DEPLOY_START_ASYNC_SYNCS=0`，不得触发 refresh。
-- 详细 schema、任务、验证、candidate/rollback 门禁见 `docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md`；当前只授权 Slice 4A 纯 domain，不能提前做 migration、write、reader 或 pointer。
+- 2026-07-11 Slice 4A live acceptance：PR #71 exact head `69ece3d` 通过 GitHub Harness 并 squash 合入 `e8bfda9`，PR/merge tree 同为 `98167bbd`。`server/gear_release.py` 只拥有 pure Release/Manifest identity、observed election、shadow、promotion 与 pointer-command contract；22 focused、86 related、backend 1213、full 386 Node + 1213 Python / 130 commands 通过。candidate 与 clean-merge-equivalent 远端 hash 同为 `c135530...1a2401d`，remote 22/22、40/40 public、Resolve/Profile/health/Catalyst/timer/log 通过；没有 schema/write/reader/pointer/timer，`formalActiveManifest=false`。
+- 详细 schema、任务、验证、candidate/rollback 门禁见 `docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md`；当前只授权 Slice 4B additive PostgreSQL registry/repository/tool 与 inactive `legacy-import-r0`，不能提前做 shadow reader、retail pointer 或 scheduled refresh。
 
 ## 当前公开装备模板事实快照
 
