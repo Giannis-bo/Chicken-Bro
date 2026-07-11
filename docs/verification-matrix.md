@@ -396,3 +396,29 @@ git diff --check
 ```
 
 Slice 4E must prove every run consumes existing staging only, creates or reuses inactive immutable candidates before any pointer decision, rejects overlap through systemd and PostgreSQL leases, and records bounded append-only run facts. Same-Gear Community changes may auto-promote only after election, active/candidate shadow, 40-spec browse/Resolve/Profile and coverage gates; a still-legal active winner loss blocks, while a terminally illegal or expired winner may become an explicit degraded empty spec without baseline fallback. Additive Gear must preserve every active identity and row hash before full-matrix auto-promotion; mutation/removal and season/rule/serializer/schema/capability changes remain manual. Candidate deployment must prove the timer/service are installed without deploy-triggered execution, one controlled run, health/admin/timer truth, exact runtime parity, PG-only state, public/legacy compatibility, query/SLO/cache/memory bounds and rollback. Phase 5 and Catalyst remain excluded.
+
+## Equipment Simulator Phase 5A Stat Snapshot Store Profile
+
+The Strict Slice 5A packet at `artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store` opens only the dormant pure signature, additive PostgreSQL schema and fenced repository boundary:
+
+```bash
+python3 -m unittest \
+  tests.gear_stat_snapshot_test \
+  tests.gear_stat_snapshot_store_test \
+  tests.postgres_schema_test
+node --test tests/project-state.test.js tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store \
+  --base origin/main
+python3 -m py_compile server/gear_stat_snapshot.py server/gear_stat_snapshot_store.py
+node scripts/project-harness.js --check \
+  --requirement-file artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/requirement.json \
+  --evidence-file artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/evidence.json \
+  --base origin/main
+git diff --check
+```
+
+Slice 5A must prove order-stable revision-complete signatures, bounded no-DPS snapshot records, immutable content-hash reuse, partial-unique single-flight, global/per-client limits, deterministic blocker reuse, transient cooldown, SKIP LOCKED claim, heartbeat, maximum attempts, expired reclaim, stale-token fencing and bounded health aggregates. Candidate migration evidence must include a `wow_test` backup, atomic migration 0015 apply, exact constraints/indexes/grants, direct store smoke and post-merge schema parity. Route, worker, systemd service, frontend cutover, legacy behavior changes and Catalyst remain excluded.

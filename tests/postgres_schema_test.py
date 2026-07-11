@@ -17,6 +17,7 @@ WEBSIM_GEAR_TEMPLATE_CACHE = ROOT / "server" / "migrations" / "postgres" / "0011
 WEBSIM_ASSET_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0012_websim_asset_registry.sql"
 WEBSIM_RELEASE_TRAIN = ROOT / "server" / "migrations" / "postgres" / "0013_websim_release_train.sql"
 WEBSIM_POINTER_STATE = ROOT / "server" / "migrations" / "postgres" / "0014_websim_active_manifest_pointer_state.sql"
+WEBSIM_GEAR_STAT_SNAPSHOTS = ROOT / "server" / "migrations" / "postgres" / "0015_websim_gear_stat_snapshots.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -349,3 +350,19 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("pointer_mode = 'transitional' AND manifest_revision IS NULL", normalized)
         self.assertIn("GRANT SELECT, INSERT, UPDATE ON cache.websim_active_manifest_pointer TO wow_app", normalized)
         self.assertIn("0014_websim_active_manifest_pointer_state", normalized)
+
+    def test_websim_stat_snapshot_migration_adds_immutable_cache_and_fenced_jobs(self):
+        self.assertTrue(WEBSIM_GEAR_STAT_SNAPSHOTS.exists(), "missing async Gear stat snapshot migration")
+        normalized = " ".join(WEBSIM_GEAR_STAT_SNAPSHOTS.read_text(encoding="utf-8").split())
+        self.assertIn("CREATE TABLE IF NOT EXISTS cache.websim_gear_stat_snapshots", normalized)
+        self.assertIn("CREATE TABLE IF NOT EXISTS ops.websim_gear_stat_jobs", normalized)
+        self.assertIn("CREATE TABLE IF NOT EXISTS ops.websim_gear_stat_worker_state", normalized)
+        self.assertIn("CREATE UNIQUE INDEX IF NOT EXISTS", normalized)
+        self.assertIn("WHERE status IN ('queued', 'running')", normalized)
+        self.assertIn("lease_until", normalized)
+        self.assertIn("heartbeat_at", normalized)
+        self.assertIn("lock_token", normalized)
+        self.assertIn("BEFORE UPDATE OR DELETE ON cache.websim_gear_stat_snapshots", normalized)
+        self.assertIn("REVOKE UPDATE, DELETE ON cache.websim_gear_stat_snapshots FROM wow_app", normalized)
+        self.assertIn("REVOKE DELETE ON ops.websim_gear_stat_jobs FROM wow_app", normalized)
+        self.assertIn("0015_websim_gear_stat_snapshots", normalized)

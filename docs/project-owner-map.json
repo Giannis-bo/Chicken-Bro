@@ -353,6 +353,23 @@
         ],
         "activationBoundary": "Phase 4D is merged and live-verified with one formal active Manifest at generation 9. Phase 4E may consume staging into inactive candidates and auto-promote only same-Gear Community or fully compatible additive Gear changes; deploy-triggered refresh, Phase 5 and Catalyst remain forbidden."
       },
+      "statSnapshotFoundations": {
+        "status": "phase5a_dormant_store_implementation_allowed",
+        "factOwner": "server/gear_stat_snapshot.py",
+        "writeOwner": "server/gear_stat_snapshot_store.py",
+        "modules": [
+          "server/gear_stat_snapshot.py",
+          "server/gear_stat_snapshot_store.py",
+          "server/migrations/postgres/0015_websim_gear_stat_snapshots.sql"
+        ],
+        "tests": [
+          "tests/gear_stat_snapshot_test.py",
+          "tests/gear_stat_snapshot_store_test.py",
+          "tests/postgres_schema_test.py"
+        ],
+        "runtimeConsumers": [],
+        "activationBoundary": "Slice 5A may add only the pure revision-complete stat signature, immutable verified snapshot schema and fenced single-flight repository. API, worker, service and frontend consumers remain forbidden until later Phase 5 packets."
+      },
       "dormantAdapters": {
         "status": "contract_only_unconsumed",
         "modules": [
@@ -426,6 +443,9 @@
         "server/gear_release_refresh.py",
         "server/migrations/postgres/0013_websim_release_train.sql",
         "server/migrations/postgres/0014_websim_active_manifest_pointer_state.sql",
+        "server/gear_stat_snapshot.py",
+        "server/gear_stat_snapshot_store.py",
+        "server/migrations/postgres/0015_websim_gear_stat_snapshots.sql",
         "server/wow-gear-release-refresh.service",
         "server/wow-gear-release-refresh.timer",
         "server/pg_gear_authority_loader.py",
@@ -442,6 +462,8 @@
         "tests/gear_release_tool_test.py",
         "tests/gear_release_shadow_test.py",
         "tests/gear_release_refresh_test.py",
+        "tests/gear_stat_snapshot_test.py",
+        "tests/gear_stat_snapshot_store_test.py",
         "tests/pg_gear_authority_loader_test.py"
       ],
       "backendOwnerMapRef": {
