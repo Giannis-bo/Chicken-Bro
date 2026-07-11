@@ -331,3 +331,35 @@ git diff --check
 ```
 
 Slice 4C must prove one exact Gear/Community binding, release-ID constraints on every candidate content query, complete Community content-hash verification, selected Authority fail-closed behavior, current Resolver and canonical Profile shadow parity, 40-spec observed winner/provenance/semantic/baseline comparison, and bounded statement/latency/cache behavior. Public routes must continue transitional reads with `formalActiveManifest=false`; zero Manifest/Pointer rows, zero release/staging writes and zero release timer are hard gates. Missing/tampered/mixed release content cannot fall back to staging. Pointer cutover remains Slice 4D and scheduled refresh remains Slice 4E.
+
+## Equipment Simulator Phase 4D Atomic Manifest Cutover Profile
+
+The Strict Slice 4D packet at `artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover` activates one formal retail Season Manifest over the already sealed Phase 4C release pair. Before candidate deployment run:
+
+```bash
+python3 -m unittest \
+  tests.gear_release_test \
+  tests.gear_release_store_test \
+  tests.gear_release_tool_test \
+  tests.gear_runtime_test \
+  tests.postgres_cache_store_test \
+  tests.postgres_schema_test \
+  tests.news_backend_test
+node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover \
+  --base origin/main
+python3 -m py_compile \
+  server/gear_release.py \
+  server/gear_release_store.py \
+  server/gear_release_tool.py \
+  server/gear_runtime.py \
+  server/news_backend.py \
+  server/postgres_cache_store.py
+git diff --check
+```
+
+Slice 4D must prove migration 0014 is additive, preserves one `retail` pointer row, keeps `generation` monotonic and represents first-cutover rollback as `pointer_mode=transitional` with no active Manifest. Promotion must seal or reuse the exact Manifest and perform pointer CAS in one transaction; stale generation rolls back both writes. Formal browse, authoring context, Resolve and canonical Profile bind one pointer/Manifest identity and query only the referenced immutable Releases. Missing/tampered/mixed formal state returns 503 and never falls back to staging. Candidate evidence must record database backup, exact branch/runtime parity, generation `0→1 promote →2 transitional rollback →3 re-promote`, 40-spec browse/Resolve/Profile parity, one real WeChat 409 rebase, health/admin truth, p95/query/cache bounds, `WOW_DEPLOY_START_ASYNC_SYNCS=0`, timers/backflow, logs and rollback. Scheduled refresh remains Slice 4E; Phase 5 and Catalyst remain excluded.

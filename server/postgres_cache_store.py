@@ -985,6 +985,13 @@ class PostgresCacheStore:
     def get_gear_authority_context(self, selection_intent, runtime_authority):
         """Load a dormant canonical gear authority context in one read-only transaction."""
 
+        binding = self._gear_release_store.load_active_manifest_binding()
+        if binding.get("formalActiveManifest") is True:
+            return self._gear_release_store.load_active_authority_context(
+                selection_intent,
+                runtime_authority,
+                binding,
+            )
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SET TRANSACTION READ ONLY")
@@ -1038,9 +1045,60 @@ class PostgresCacheStore:
             "maxBytes": self._gear_authority_context_cache.max_bytes,
         }
 
-    def get_gear_resolver_context(self, runtime_authority):
+    def active_manifest_health(self):
+        """Expose truthful formal cutover state without reading mutable staging facts."""
+
+        try:
+            binding = self._gear_release_store.load_active_manifest_binding()
+        except Exception:
+            return {
+                "status": "blocked",
+                "details": {
+                    "pointerMode": "invalid",
+                    "formalActiveManifest": False,
+                    "pointerGeneration": 0,
+                },
+                "blockers": ["active Manifest pointer or release binding is invalid"],
+            }
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        mode = str(binding.get("pointerMode") or "invalid")
+        formal = binding.get("formalActiveManifest") is True
+        details = {
+            "pointerMode": mode,
+            "formalActiveManifest": formal,
+            "pointerGeneration": _int_value(binding.get("generation")),
+            "manifestRevision": str(binding.get("manifestRevision") or ""),
+            "rollbackManifestRevision": str(binding.get("rollbackManifestRevision") or ""),
+            "seasonRevision": str(manifest.get("seasonRevision") or ""),
+            "gearCatalogReleaseId": str(manifest.get("gearCatalogReleaseId") or ""),
+            "communityTemplateReleaseId": str(manifest.get("communityTemplateReleaseId") or ""),
+            "talentCatalogRevision": str(manifest.get("talentCatalogRevision") or ""),
+            "updatedAt": str(binding.get("updatedAt") or ""),
+        }
+        if mode == "active" and formal:
+            return {"status": "verified", "details": details, "blockers": []}
+        if mode in {"pre_cutover", "transitional"}:
+            return {
+                "status": "partial",
+                "details": details,
+                "blockers": [
+                    "formal retail Manifest has not been activated"
+                    if mode == "pre_cutover"
+                    else "formal retail Manifest is inactive after transitional rollback"
+                ],
+            }
+        return {
+            "status": "blocked",
+            "details": details,
+            "blockers": ["active Manifest pointer state is invalid"],
+        }
+
+    def get_gear_resolver_context(self, runtime_authority, binding=None):
         """Load the current Selection Intent authoring revisions without selected facts."""
 
+        binding = binding if isinstance(binding, dict) else self._gear_release_store.load_active_manifest_binding()
+        if binding.get("formalActiveManifest") is True:
+            return self._gear_release_store.active_resolver_context(binding, runtime_authority)
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SET TRANSACTION READ ONLY")
@@ -5918,13 +5976,177 @@ class PostgresCacheStore:
             coverage_repair=self._repair_template_offhand_occupancy,
         )
 
+    @staticmethod
+    def _active_release_identity(binding, data):
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        gear = data.get("gearRelease") if isinstance(data.get("gearRelease"), dict) else {}
+        community = data.get("communityRelease") if isinstance(data.get("communityRelease"), dict) else {}
+        return {
+            "formalActiveManifest": True,
+            "manifestRevision": str(manifest.get("manifestRevision") or ""),
+            "pointerGeneration": _int_value(binding.get("generation")),
+            "seasonRevision": str(manifest.get("seasonRevision") or ""),
+            "gearCatalogReleaseId": str(gear.get("releaseId") or ""),
+            "gearCatalogRevision": str(gear.get("releaseId") or ""),
+            "communityTemplateReleaseId": str(community.get("releaseId") or ""),
+            "talentCatalogRevision": str(manifest.get("talentCatalogRevision") or ""),
+        }
+
+    def _active_websim_gear_payload(self, binding, class_key, spec_key, compact, mode, slot):
+        include_catalog = mode != "initial"
+        data = self._gear_release_store.load_active_public_gear(
+            binding,
+            class_key,
+            spec_key,
+            include_catalog=include_catalog,
+        )
+        identity = self._active_release_identity(binding, data)
+        gear_release = data.get("gearRelease") if isinstance(data.get("gearRelease"), dict) else {}
+        release_status = str(gear_release.get("releaseStatus") or "blocked")
+        season = {
+            "seasonRevision": identity["seasonRevision"],
+            "dataStatus": "verified" if release_status == "validated" else "partial",
+            "errors": [],
+        }
+        season_fields = season_metadata_fields(season)
+        catalog_state = {
+            "status": "verified" if release_status == "validated" else "partial",
+            "sourceStatus": release_status,
+            "schemaRevision": identity["gearCatalogRevision"],
+            "itemDatabaseRevision": identity["gearCatalogRevision"],
+            "variantRevision": identity["gearCatalogRevision"],
+            "blockers": [] if release_status == "validated" else ["active Gear Release is degraded"],
+        }
+        catalog_blockers = list(catalog_state["blockers"])
+        persisted_templates = [
+            template
+            for template in data.get("communityTemplates") or []
+            if isinstance(template, dict)
+        ]
+        if mode == "initial":
+            payload = self._websim_gear_initial_payload(
+                class_key,
+                spec_key,
+                compact,
+                season,
+                season_fields,
+                catalog_state,
+                catalog_blockers,
+                persisted_templates,
+            )
+            return {**payload, **identity}
+
+        snapshot = data.get("gearSnapshot") if isinstance(data.get("gearSnapshot"), dict) else {}
+        source_rows = [
+            (
+                row.get("sourceId"), row.get("itemId"), row.get("sourceType"), row.get("sourceKey"),
+                row.get("sourceLabel"), row.get("instanceId"), row.get("encounterId"),
+                row.get("difficultyKey"), row.get("seasonRevision"), row.get("payload"), row.get("updatedAt"),
+            )
+            for row in snapshot.get("sources") or []
+            if isinstance(row, dict)
+        ]
+        variant_rows = [
+            (
+                row.get("variantId"), row.get("itemId"), row.get("slot"), row.get("variantKey"),
+                row.get("label"), row.get("sourceType"), row.get("difficultyKey"), row.get("itemLevel"),
+                row.get("simcOptions"), row.get("status"), row.get("blockers"), row.get("payload"),
+                row.get("updatedAt"),
+            )
+            for row in snapshot.get("variants") or []
+            if isinstance(row, dict)
+        ]
+        mod_option_rows = [
+            (
+                row.get("optionId"), row.get("optionType"), row.get("optionKey"), row.get("name"),
+                row.get("applicableSlots"), row.get("simcOptions"), row.get("status"), row.get("payload"),
+                row.get("updatedAt"),
+            )
+            for row in snapshot.get("options") or []
+            if isinstance(row, dict)
+        ]
+        item_rows = [
+            (
+                row.get("itemId"), row.get("name"), row.get("slot"), row.get("itemLevel"),
+                row.get("payload"), row.get("sourceStatus"),
+            )
+            for row in snapshot.get("items") or []
+            if isinstance(row, dict)
+        ]
+        sources_by_item = pg_gear_read_model_selectors.build_gear_sources_by_item_read_model(source_rows)
+        variants_by_item = pg_gear_read_model_selectors.build_gear_variants_by_item_read_model(variant_rows)
+        raw_options_by_slot = pg_gear_read_model_selectors.build_gear_mod_options_by_type_read_model(mod_option_rows)
+        catalog_items = pg_gear_read_model_selectors.build_gear_catalog_items_read_model(
+            item_rows,
+            sources_by_item,
+            variants_by_item,
+            raw_options_by_slot,
+            class_key,
+            spec_key,
+            season,
+        )
+        template_read_model = pg_gear_template_selectors.build_public_gear_template_read_model(
+            persisted_templates,
+            class_key,
+            spec_key,
+            compact=compact,
+        )
+        catalog_read_model = pg_gear_read_model_selectors.build_catalog_gear_read_model_fragment(
+            catalog_items,
+            raw_options_by_slot,
+            class_key,
+            spec_key,
+            compact=compact,
+        )
+        readiness = catalog_read_model["readiness"]
+        payload = {
+            "classKey": class_key,
+            "specKey": spec_key,
+            **pg_gear_read_model_selectors.build_common_gear_read_model_fragment(class_key, spec_key, readiness),
+            "replacementCandidates": catalog_read_model["replacementCandidates"],
+            "equippedSet": {},
+            "slotReadiness": catalog_read_model["slotReadiness"],
+            "baselineSet": [],
+            "communityTemplates": template_read_model["payloadCommunityTemplates"],
+            "baselineTemplates": template_read_model["payloadBaselineTemplates"],
+            "communityTemplateSync": template_read_model["communityTemplateSync"],
+            **pg_gear_read_model_selectors.build_catalog_state_read_model_fragment(catalog_state, catalog_blockers),
+            **season_fields,
+            **identity,
+        }
+        payload.update(
+            pg_gear_read_model_selectors.build_catalog_output_read_model_fragment(
+                catalog_read_model,
+                compact=compact,
+            )
+        )
+        return payload
+
     def get_websim_gear(self, class_key="mage", spec_key="arcane", compact=False, mode="", slot=""):
-        season = self.get_active_season_payload()
         class_key = slugify(class_key, "mage")
         spec_key = slugify(spec_key, "arcane")
         compact = bool(compact)
         mode = str(mode or "").strip().lower()
         slot = normalize_slot(slot) if mode == "slot" else str(slot or "").strip().lower()
+        binding = self._gear_release_store.load_active_manifest_binding()
+        if binding.get("formalActiveManifest") is True:
+            active_fingerprint = (
+                "pg-websim-gear-release-v1",
+                str(binding.get("manifestRevision") or ""),
+                _int_value(binding.get("generation")),
+                class_key,
+                spec_key,
+                compact,
+                mode,
+                slot,
+            )
+            cached_payload = _pg_gear_payload_cache_get(active_fingerprint)
+            if cached_payload is not None:
+                return {**cached_payload, "_activeManifestBinding": binding}
+            payload = self._active_websim_gear_payload(binding, class_key, spec_key, compact, mode, slot)
+            _pg_gear_payload_cache_put(active_fingerprint, payload)
+            return {**payload, "_activeManifestBinding": binding}
+        season = self.get_active_season_payload()
         season_fields = season_metadata_fields(season)
         catalog_state = self.get_sync_state("gearCatalog")
         season_errors = season.get("errors") if isinstance(season.get("errors"), list) else []

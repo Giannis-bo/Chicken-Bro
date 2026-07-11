@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase4d-atomic-manifest-cutover",
   "requirementSlug": "equipment-simulator-phase4d-atomic-manifest-cutover",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
-  "branch": "codex/equipment-simulator-phase4c-closure-phase4d-open",
-  "commit": "3e99d9811298788572f510592082b2f2978cb733",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/equipment-simulator-phase4d-atomic-manifest-cutover",
+  "commit": "ddabb19",
   "scope": [
     "atomic formal Season Manifest seal and retail pointer CAS",
     "release-scoped public browse, Resolve and Profile cutover",
@@ -22,6 +22,36 @@
       "command": "Phase 4D requirement challenge and first-cutover rollback review",
       "status": "pass",
       "summary": "The Slice is restricted to atomic cutover. The zero-pointer starting state is explicitly modeled: rollback must preserve monotonic generation in a transitional pointer state and cannot delete the pointer, reset to generation zero or fake rollback with an identical active Manifest."
+    },
+    {
+      "command": "python3 -m unittest tests.gear_runtime_test tests.gear_release_test tests.gear_release_store_test tests.gear_release_tool_test tests.postgres_cache_store_test tests.postgres_schema_test",
+      "status": "pass",
+      "summary": "207 focused Manifest identity, active/transitional pointer state, atomic seal plus CAS, immutable public readers, exact Authority/Resolver binding, tool and schema tests passed."
+    },
+    {
+      "command": "python3 -m unittest tests.news_backend_test",
+      "status": "pass",
+      "summary": "238 route, HTTP envelope, public browse resolver-context binding, data-health and admin composition tests passed."
+    },
+    {
+      "command": "node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "23 Repo-native Harness, owner-map and current-truth tests passed."
+    },
+    {
+      "command": "local CR plus python3 -m py_compile and git diff --check",
+      "status": "pass",
+      "summary": "Local CR retained one repository SQL owner, added first-insert conflict-to-stale handling, stripped internal binding metadata from HTTP payloads, bounded active payload cache identity by Manifest generation and found no whitespace or syntax errors."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover --base origin/main",
+      "status": "pass",
+      "summary": "Backend profile passed 1273 Python tests with 1 skipped, compileall and the Strict Harness packet check."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover --base origin/main",
+      "status": "pass",
+      "summary": "Full profile passed 386 Node tests, 1273 Python tests with 1 skipped, 130 JSON/syntax/Harness/diff commands and the Strict packet check."
     }
   ],
   "candidateDeployment": {
@@ -32,18 +62,18 @@
   "risks": [
     {
       "id": "first_cutover_aba",
-      "status": "blocked_by_requirement",
-      "detail": "Rollback cannot delete the first pointer row or reopen expectedGeneration=0; generation must advance through transitional rollback and re-promotion."
+      "status": "local_verified",
+      "detail": "Migration, pure command and store tests prove the single retail row advances through active generation 1, transitional generation 2 and active generation 3; rollback emits no pointer DELETE and first-insert races become stale CAS."
     },
     {
       "id": "mixed_release_request",
-      "status": "blocked_by_requirement",
-      "detail": "A request binds one pointer/Manifest once and every browse/Authority/Profile query uses that exact release combination."
+      "status": "local_verified",
+      "detail": "Local tests prove browse carries one internal binding into resolver-context projection, and active Authority/Resolve/Profile use immutable release IDs from the validated Manifest."
     },
     {
       "id": "silent_staging_fallback",
-      "status": "blocked_by_requirement",
-      "detail": "Formal mode fails closed for missing or invalid Manifest/release content. Staging is reachable only in explicit transitional mode."
+      "status": "local_verified",
+      "detail": "Missing or invalid active pointer, Manifest or release binding raises before staging reads; only zero-row pre-cutover and explicit transitional state enter compatibility readers."
     },
     {
       "id": "irreversible_public_cutover",
@@ -75,11 +105,13 @@
     "server/gear_release_store.py",
     "server/gear_release_shadow.py",
     "server/gear_release_tool.py",
+    "server/migrations/postgres/0014_websim_active_manifest_pointer_state.sql",
     "server/gear_runtime.py",
     "server/pg_gear_authority_loader.py",
     "server/pg_gear_read_model_selectors.py",
     "server/postgres_cache_store.py",
     "server/news_backend.py",
+    "docs/verification-matrix.md",
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],

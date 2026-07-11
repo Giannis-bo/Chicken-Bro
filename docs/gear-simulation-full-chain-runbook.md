@@ -67,6 +67,38 @@
 - 2026-07-11 Slice 4B live acceptance：PR #73 evidence head `4fe300e` 通过 GitHub Harness 并 squash 合入 `48aa44e`，PR/merge tree 同为 `54d43c54`。migration 0013、`server/gear_release_store.py` 与显式 tool 只拥有 immutable registry/inactive import；PG 管理员以单事务应用 migration，备份位于 `/opt/wow-mini-program-candidate-backups/phase4b-pre-2be5938-20260711T065905Z`。inactive Gear Release `342e3918...` 与 Community Release `923ccd05...` 已封存，40 winners / 319 rejected / 0 missing，40/40 winner ID/public observed parity；Manifest/Pointer 都是 0。focused 129、full 386 Node + 1235 Python / 130 commands、candidate/post-merge Resolve/Profile/health/Catalyst/timer/log 通过。一次性 import 为 73.29s / 1,598,864 KiB 峰值，只能作为 operator evidence，不能当成 4E scheduled budget。
 - 详细 schema、任务、验证、candidate/rollback 门禁见 `docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md`；Slice 4C 已由 PR #75 合入并完成 40-spec bounded shadow。当前只授权 Slice 4D atomic formal Manifest cutover、release-scoped public readers、monotonic pointer CAS 与显式首切回滚；不能增加 scheduled refresh、提前做 Phase 5 或启用 Catalyst。
 
+### Slice 4D 原子首切与回滚操作
+
+Slice 4D 使用 `server/migrations/postgres/0014_websim_active_manifest_pointer_state.sql` 增加显式 `active / transitional` pointer mode。`retail` 行一旦创建就不能删除：首次 promote 从 generation 0 写入 generation 1；首切回滚把同一行更新为 transitional generation 2；重新 promote 更新为 active generation 3。禁止删除 pointer、重置 generation 或重新开放 `expectedGeneration=0`。
+
+候选部署前必须备份目标 PostgreSQL、记录候选 commit/tree 和 0014 前的 Manifest/Pointer 行数，然后以 migration owner 在一个失败即终止的事务中应用 0014。部署仍固定 `WOW_DEPLOY_START_ASYNC_SYNCS=0`。应用后检查：`pointer_mode` 约束存在、active 必须有 Manifest FK、transitional 必须没有 Manifest、`wow_app` 只有 pointer 的 `SELECT/INSERT/UPDATE` 且没有 `DELETE`。
+
+首次 promote 命令必须显式携带当前已封存的 Gear/Community Release、season、talent、SimC 和 expected generation；tool 会重新验证 release/dependency 组合，在一个事务中 seal/reuse Manifest 并 CAS pointer：
+
+```bash
+python3 -m server.gear_release_tool promote \
+  --season-revision "$SEASON_REVISION" \
+  --simc-runtime-revision "$SIMC_RUNTIME_REVISION" \
+  --gear-release-id "$GEAR_RELEASE_ID" \
+  --community-release-id "$COMMUNITY_RELEASE_ID" \
+  --talent-catalog-revision "$TALENT_CATALOG_REVISION" \
+  --expected-generation 0 \
+  --updated-by "$CUTOVER_ACTOR"
+```
+
+首次回滚不伪造另一个相同 Manifest，也不恢复 staging 表。它只把 formal pointer 推进到显式 transitional 状态；公开读取随后按允许的 rollback 路径恢复 staging compatibility，但保留 generation 历史：
+
+```bash
+python3 -m server.gear_release_tool rollback \
+  --target-mode transitional \
+  --expected-generation 1 \
+  --updated-by "$CUTOVER_ACTOR"
+```
+
+重新 promote 使用同一个已封存 Manifest 内容重新构建相同 revision，并以当前 generation 2 CAS 到 generation 3。若以后已有旧 formal Manifest，可用 `rollback --target-mode active --manifest-revision ...` 做 active-to-active rollback；仍必须提供当前 generation，且 FK/Manifest 校验失败时不得降级 staging。
+
+每次状态变化后都要核对 pointer 单行、generation、Manifest/Release IDs、`/api/data/health` 的 `active_manifest` component、admin summary、40-spec initial browse/Resolve/Profile、observed-only + baseline-empty、未知 Catalyst 503、一次旧 Intent 409 rebase、service/timer/backflow/log。formal active 中任何 pointer、Manifest、Release 或 runtime dependency 损坏都必须 503；只有 zero-row pre-cutover 和显式 transitional rollback 允许 staging reader。代码回滚不能删除已创建的 pointer 行；若退回不认识 0014 的代码，必须先按记录的 generation 切到 transitional，并使用候选前备份作为最后的数据恢复路径。
+
 ## 当前公开装备模板事实快照
 
 | 链路 | 当前用户侧状态 | 内部/研发状态 | 不能误读成 |

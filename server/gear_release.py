@@ -22,7 +22,7 @@ except ImportError:
 GEAR_RELEASE_SCHEMA_REVISION = "gear-release-v1"
 COMMUNITY_RELEASE_SCHEMA_REVISION = "community-release-v1"
 ACTIVE_SEASON_MANIFEST_SCHEMA_REVISION = "active-season-manifest-v1"
-ACTIVE_MANIFEST_POINTER_COMMAND_REVISION = "active-manifest-pointer-command-v1"
+ACTIVE_MANIFEST_POINTER_COMMAND_REVISION = "active-manifest-pointer-command-v2"
 
 _RELEASE_KINDS = {"gear", "community"}
 _RELEASE_STATUSES = {"validated", "degraded", "blocked"}
@@ -735,22 +735,38 @@ def build_pointer_command(
     manifest_revision: str,
     expected_generation: int,
     rollback_manifest_revision: str = "",
+    *,
+    target_mode: str = "active",
 ) -> dict[str, Any]:
     """Build an exact compare-and-swap pointer mutation intent."""
 
     normalized_action = _text(action)
     if normalized_action not in {"promote", "rollback"}:
         raise ValueError("action must be promote or rollback")
-    manifest = _required_text(manifest_revision, "manifest_revision")
+    normalized_mode = _text(target_mode)
+    if normalized_mode not in {"active", "transitional"}:
+        raise ValueError("target_mode must be active or transitional")
+    manifest = _text(manifest_revision)
+    rollback_manifest = _text(rollback_manifest_revision)
+    if normalized_mode == "active" and not manifest:
+        raise ValueError("active pointer command requires manifest_revision")
+    if normalized_mode == "transitional":
+        if normalized_action != "rollback":
+            raise ValueError("only rollback may target transitional mode")
+        if manifest:
+            raise ValueError("transitional pointer command must not carry manifest_revision")
+        if rollback_manifest:
+            raise ValueError("transitional pointer command must not carry rollback_manifest_revision")
     if isinstance(expected_generation, bool) or not isinstance(expected_generation, int) or expected_generation < 0:
         raise ValueError("expected_generation must be a non-negative integer")
     return {
         "schemaRevision": ACTIVE_MANIFEST_POINTER_COMMAND_REVISION,
         "action": normalized_action,
         "environment": "retail",
+        "targetMode": normalized_mode,
         "manifestRevision": manifest,
         "expectedGeneration": expected_generation,
-        "rollbackManifestRevision": _text(rollback_manifest_revision),
+        "rollbackManifestRevision": rollback_manifest,
     }
 
 

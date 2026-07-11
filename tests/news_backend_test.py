@@ -5117,6 +5117,29 @@ class NewsBackendTest(unittest.TestCase):
         )
         self.assertIn("missing deterministic SimC variant preset", components["gear_catalog"]["blockers"])
 
+    def test_active_manifest_health_component_preserves_pointer_truth_for_health_and_admin(self):
+        class CacheStore:
+            def active_manifest_health(self):
+                return {
+                    "status": "partial",
+                    "details": {
+                        "pointerMode": "transitional",
+                        "formalActiveManifest": False,
+                        "pointerGeneration": 4,
+                        "manifestRevision": "",
+                        "rollbackManifestRevision": "season-manifest:sha256:active",
+                    },
+                    "blockers": ["formal retail Manifest is inactive after transitional rollback"],
+                }
+
+        component = self.backend.active_manifest_health_component(CacheStore())
+
+        self.assertEqual(component["key"], "active_manifest")
+        self.assertEqual(component["status"], "partial")
+        self.assertEqual(component["details"]["pointerMode"], "transitional")
+        self.assertEqual(component["details"]["pointerGeneration"], 4)
+        self.assertTrue(component["blockers"])
+
     def test_data_health_payload_includes_observed_backfill_defaults_without_syncing(self):
         with patch.object(self.backend, "sync_raiderio_cache", side_effect=AssertionError("health must be read-only")):
             payload = self.backend.build_data_health_payload()
@@ -5787,6 +5810,17 @@ class NewsBackendTest(unittest.TestCase):
                 }
 
         class CacheStore:
+            def active_manifest_health(self):
+                return {
+                    "status": "partial",
+                    "details": {
+                        "pointerMode": "pre_cutover",
+                        "formalActiveManifest": False,
+                        "pointerGeneration": 0,
+                    },
+                    "blockers": ["formal retail Manifest has not been activated"],
+                }
+
             def get_sync_state(self, key):
                 states = {
                     "websim_sync": {
@@ -5961,6 +5995,8 @@ class NewsBackendTest(unittest.TestCase):
             payload = self.backend.build_data_health_payload(include_template_evidence_audit=False)
 
         components = {item["key"]: item for item in payload["components"]}
+        self.assertEqual(components["active_manifest"]["status"], "partial")
+        self.assertEqual(components["active_manifest"]["details"]["pointerMode"], "pre_cutover")
         self.assertEqual(components["news"]["status"], "verified")
         self.assertEqual(components["websim_season"]["status"], "stale")
         self.assertEqual(components["websim_sync"]["status"], "blocked")
@@ -9689,6 +9725,54 @@ class NewsBackendTest(unittest.TestCase):
             "frost",
             simc_runtime_revision="simc-v1",
         )
+
+    def test_runtime_websim_gear_reuses_formal_browse_binding_for_resolver_context(self):
+        binding = {
+            "formalActiveManifest": True,
+            "manifestRevision": "season-manifest:sha256:active",
+            "generation": 3,
+        }
+        resolver_context = {
+            "contractRevision": "gear-resolver-context-v1",
+            "formalActiveManifest": True,
+            "manifestRevision": binding["manifestRevision"],
+            "pointerGeneration": 3,
+        }
+        captured = {}
+
+        class FormalStore:
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                return {
+                    "schemaRevision": "websim-gear-v1",
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "formalActiveManifest": True,
+                    "_activeManifestBinding": binding,
+                }
+
+            def get_gear_resolver_context(self, authority, *, binding=None):
+                captured["binding"] = binding
+                return resolver_context
+
+        with patch.object(
+            self.backend,
+            "cache_data_store",
+            return_value=FormalStore(),
+        ), patch.object(
+            self.backend,
+            "simc_version_status",
+            return_value={"localTag": "simc-v1"},
+        ):
+            payload = self.backend.runtime_websim_gear_payload(
+                "mage",
+                "frost",
+                compact=True,
+                mode="initial",
+            )
+
+        self.assertIs(captured["binding"], binding)
+        self.assertEqual(payload["resolverContext"], resolver_context)
+        self.assertNotIn("_activeManifestBinding", payload)
 
     def test_runtime_websim_gear_keeps_payload_when_resolver_context_read_fails(self):
         initial_payload = {

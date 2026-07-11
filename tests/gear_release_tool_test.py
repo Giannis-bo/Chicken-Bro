@@ -327,6 +327,101 @@ class GearReleaseToolTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             gear_release_tool.main(["shadow", "--simc-runtime-revision", "simc-r1"])
 
+    def test_promote_command_atomically_seals_manifest_and_cas_pointer(self):
+        from server import gear_release_tool
+        from server.gear_release_store import community_rows_summary, gear_snapshot_summary
+
+        snapshot = self.snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "legacy-import-r0"},
+        )
+        community_rows = [{
+            "templateId": "template-a", "classKey": "mage", "specKey": "arcane",
+            "role": "winner", "electionRank": 1, "sourceKey": "observed",
+        }]
+        community = gear_release.build_release(
+            release_kind="community",
+            season_revision="season-17",
+            schema_revision="community-release-v1",
+            content=community_rows_summary(community_rows),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "legacy-import-r0"},
+            validated_against_release_id=gear["releaseId"],
+        )
+
+        class CutoverStore:
+            def __init__(self):
+                self.activation = None
+
+            def get_release(self, release_id):
+                return {gear["releaseId"]: gear, community["releaseId"]: community}.get(release_id, {})
+
+            def seal_manifest_and_compare_and_swap_pointer(self, manifest, command, *, updated_by):
+                self.activation = (manifest, command, updated_by)
+                return {"manifest": {"status": "inserted"}, "pointer": {"generation": 1}}
+
+        store = CutoverStore()
+        output = io.StringIO()
+        with patch.object(gear_release_tool, "_store_from_environment", return_value=store), patch.object(
+            gear_release_tool,
+            "runtime_dependency_revisions",
+            return_value=self.dependencies(),
+        ), redirect_stdout(output):
+            status = gear_release_tool.main([
+                "promote",
+                "--season-revision", "season-17",
+                "--simc-runtime-revision", "simc-r1",
+                "--gear-release-id", gear["releaseId"],
+                "--community-release-id", community["releaseId"],
+                "--talent-catalog-revision", "talent-r1",
+                "--expected-generation", "0",
+                "--updated-by", "candidate-test",
+            ])
+
+        self.assertEqual(status, 0)
+        manifest, command, updated_by = store.activation
+        self.assertTrue(manifest["formalActiveManifest"])
+        self.assertEqual(command["manifestRevision"], manifest["manifestRevision"])
+        self.assertEqual(command["expectedGeneration"], 0)
+        self.assertEqual(updated_by, "candidate-test")
+        self.assertEqual(json.loads(output.getvalue())["pointer"]["generation"], 1)
+
+    def test_rollback_command_advances_to_explicit_transitional_pointer(self):
+        from server import gear_release_tool
+
+        class CutoverStore:
+            def __init__(self):
+                self.mutation = None
+
+            def compare_and_swap_pointer(self, command, *, updated_by):
+                self.mutation = (command, updated_by)
+                return {"status": "updated", "pointerMode": "transitional", "generation": 2}
+
+        store = CutoverStore()
+        output = io.StringIO()
+        with patch.object(gear_release_tool, "_store_from_environment", return_value=store), redirect_stdout(output):
+            status = gear_release_tool.main([
+                "rollback",
+                "--target-mode", "transitional",
+                "--expected-generation", "1",
+                "--updated-by", "candidate-test",
+            ])
+
+        self.assertEqual(status, 0)
+        command, updated_by = store.mutation
+        self.assertEqual(command["action"], "rollback")
+        self.assertEqual(command["targetMode"], "transitional")
+        self.assertEqual(command["manifestRevision"], "")
+        self.assertEqual(command["expectedGeneration"], 1)
+        self.assertEqual(updated_by, "candidate-test")
+
 
 if __name__ == "__main__":
     unittest.main()

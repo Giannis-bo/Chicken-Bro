@@ -2130,6 +2130,7 @@ ADMIN_GATE_SEVERITY_LABELS = {
 }
 ADMIN_GATE_MODULE_LABELS = {
     "backend": "后端服务",
+    "active_manifest": "正式赛季 Manifest",
     "news": "新闻发布门禁",
     "raiderio": "Raider.IO 缓存",
     "websim_season": "WebSim 当前赛季",
@@ -2144,6 +2145,10 @@ ADMIN_GATE_MODULE_LABELS = {
     "blizzard_api": "Battle.net 游戏数据 API",
 }
 ADMIN_GATE_BLOCKER_LABELS = {
+    "formal retail Manifest has not been activated": "正式零售服 Manifest 尚未激活",
+    "formal retail Manifest is inactive after transitional rollback": "正式零售服 Manifest 已回滚到过渡态",
+    "active Manifest pointer or release binding is invalid": "正式 Manifest 指针或 Release 绑定无效",
+    "active Manifest health reader is unavailable": "正式 Manifest 健康读取不可用",
     "missing deterministic SimC variant preset": "缺少确定性 SimC 装备变体预设",
     "SimC JSON did not include target item stats": "SimC JSON 未包含目标物品属性",
     "SimulationCraft update available": "SimulationCraft 有可用更新",
@@ -2935,6 +2940,35 @@ def postgres_only_template_bridge_health_component():
     )
 
 
+def active_manifest_health_component(cache_store):
+    reader = getattr(cache_store, "active_manifest_health", None) if cache_store else None
+    if callable(reader):
+        try:
+            state = reader()
+        except Exception:
+            state = {}
+    else:
+        state = {}
+    state = state if isinstance(state, dict) else {}
+    details = state.get("details") if isinstance(state.get("details"), dict) else {}
+    blockers = state.get("blockers") if isinstance(state.get("blockers"), list) else []
+    if not state:
+        details = {
+            "pointerMode": "unavailable",
+            "formalActiveManifest": False,
+            "pointerGeneration": 0,
+        }
+        blockers = ["active Manifest health reader is unavailable"]
+    return data_health_component(
+        "active_manifest",
+        "Active retail Season Manifest",
+        state.get("status") or "blocked",
+        checked_at=details.get("updatedAt") or "",
+        details=details,
+        blockers=blockers,
+    )
+
+
 def build_postgres_only_data_health_payload(*, include_template_evidence_audit=True):
     content_store = content_data_store()
     cache_store = cache_data_store()
@@ -3031,6 +3065,7 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         community_status = "partial" if community_status in {"synced", "verified"} else (community_status or "partial")
     components = [
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
+        active_manifest_health_component(cache_store),
         news_health_component_from_latest(latest),
         data_health_component(
             "raiderio",
@@ -7768,23 +7803,32 @@ def current_gear_simc_runtime_revision():
 def websim_gear_payload_with_resolver_context(payload, store, class_key, spec_key):
     if not isinstance(payload, dict) or not payload:
         return payload
+    binding = payload.get("_activeManifestBinding") if isinstance(payload.get("_activeManifestBinding"), dict) else None
+    public_payload = (
+        {key: value for key, value in payload.items() if key != "_activeManifestBinding"}
+        if "_activeManifestBinding" in payload
+        else payload
+    )
     if not callable(getattr(store, "get_gear_resolver_context", None)):
-        return payload
+        return public_payload
     simc_revision = current_gear_simc_runtime_revision()
     if not simc_revision:
-        return payload
+        return public_payload
     try:
         runtime_authority = gear_resolver_runtime_authority(
             class_key,
             spec_key,
             simc_runtime_revision=simc_revision,
         )
-        resolver_context = store.get_gear_resolver_context(runtime_authority)
+        if binding is not None:
+            resolver_context = store.get_gear_resolver_context(runtime_authority, binding=binding)
+        else:
+            resolver_context = store.get_gear_resolver_context(runtime_authority)
     except Exception:
-        return payload
+        return public_payload
     if not isinstance(resolver_context, dict) or not resolver_context:
-        return payload
-    return {**payload, "resolverContext": resolver_context}
+        return public_payload
+    return {**public_payload, "resolverContext": resolver_context}
 
 
 def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slot=""):

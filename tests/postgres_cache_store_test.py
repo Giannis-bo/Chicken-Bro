@@ -33,6 +33,11 @@ class FakeCursor:
                 else:
                     self.current_rows = list(rows)
                 break
+        if (
+            self.current_rows is None
+            and "FROM cache.websim_active_manifest_pointer pointer" in normalized_sql
+        ):
+            self.current_rows = []
 
     def fetchone(self):
         if self.current_rows is not None:
@@ -67,6 +72,15 @@ class FakeConnection:
 
     def rollback(self):
         self.rolled_back = True
+
+
+class PreCutoverReleaseStore:
+    def load_active_manifest_binding(self):
+        return {
+            "pointerMode": "pre_cutover",
+            "generation": 0,
+            "formalActiveManifest": False,
+        }
 
 
 class PostgresCacheStoreTest(unittest.TestCase):
@@ -8127,7 +8141,10 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 return super().cursor()
 
         conn = CountingConnection()
-        store = postgres_cache_store.PostgresCacheStore(lambda: conn)
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: conn,
+            gear_release_store=PreCutoverReleaseStore(),
+        )
         intent = {"schemaRevision": "selection-intent-v1"}
         runtime_authority = {"dependencyRevisions": {"simcRuntimeRevision": "simc-v1"}}
         expected = {"contractRevision": "gear-authority-context-v1", "missingFields": []}
@@ -8232,7 +8249,10 @@ class PostgresCacheStoreTest(unittest.TestCase):
             "2026-07-10T10:03:00+00:00",
         )
         conn = FakeConnection(rows=[revision_row])
-        store = postgres_cache_store.PostgresCacheStore(lambda: conn)
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: conn,
+            gear_release_store=PreCutoverReleaseStore(),
+        )
         runtime_authority = {"dependencyRevisions": {"simcRuntimeRevision": "simc-v1"}}
         expected = {
             "contractRevision": "gear-resolver-context-v1",
@@ -8254,11 +8274,212 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertFalse(conn.rolled_back)
         projector.assert_called_once_with(revision_row, runtime_authority)
 
+    def test_formal_manifest_routes_authority_and_resolver_context_to_exact_release_binding(self):
+        from server import postgres_cache_store
+
+        manifest = {
+            "schemaRevision": "active-season-manifest-v1",
+            "manifestRevision": "season-manifest:sha256:active",
+            "seasonRevision": "season-r1",
+            "gearCatalogReleaseId": "gear-release:active",
+            "communityTemplateReleaseId": "community-release:active",
+            "talentCatalogRevision": "talent-r1",
+            "dependencyRevisions": {
+                "gearRuleRevision": "rule-r1",
+                "resolverContractRevision": "resolver-r1",
+                "serializerRevision": "serializer-r1",
+                "simcRuntimeRevision": "simc-r1",
+                "statPolicyRevision": "stat-r1",
+                "selectionSchemaRevision": "selection-intent-v1",
+                "capabilityRevision": "capability-r1",
+            },
+            "rollbackManifestRevision": "",
+            "formalActiveManifest": True,
+        }
+        binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "manifestRevision": manifest["manifestRevision"],
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": {"releaseId": "gear-release:active"},
+            "communityRelease": {"releaseId": "community-release:active"},
+        }
+
+        class ActiveReleaseStore:
+            def __init__(self):
+                self.calls = []
+
+            def load_active_manifest_binding(self):
+                self.calls.append(("binding",))
+                return binding
+
+            def load_active_authority_context(self, intent, runtime_authority, exact_binding):
+                self.calls.append(("authority", intent, runtime_authority, exact_binding))
+                return {
+                    "manifest": {"formalActiveManifest": True, "manifestRevision": manifest["manifestRevision"]},
+                    "missingFields": [],
+                }
+
+            def active_resolver_context(self, exact_binding, runtime_authority):
+                self.calls.append(("resolver", exact_binding, runtime_authority))
+                return {
+                    "contractRevision": "gear-resolver-context-v1",
+                    "formalActiveManifest": True,
+                    "manifestRevision": manifest["manifestRevision"],
+                    "pointerGeneration": 3,
+                    "authoredAgainst": {
+                        "seasonRevision": "season-r1",
+                        "gearCatalogRevision": "gear-release:active",
+                    },
+                }
+
+            def load_active_public_gear(self, exact_binding, class_key, spec_key, *, include_catalog):
+                self.calls.append(("browse", exact_binding, class_key, spec_key, include_catalog))
+                return {
+                    "gearRelease": {
+                        "releaseId": "gear-release:active",
+                        "releaseStatus": "validated",
+                        "contentHash": "sha256:gear",
+                    },
+                    "communityRelease": {"releaseId": "community-release:active"},
+                    "communityTemplates": [{
+                        "id": "winner-a",
+                        "classKey": class_key,
+                        "specKey": spec_key,
+                        "status": "complete",
+                        "sourceStatus": "synced",
+                        "gearItems": [],
+                    }],
+                    "gearSnapshot": None,
+                }
+
+        release_store = ActiveReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("formal readers must not query mutable staging"),
+            gear_release_store=release_store,
+        )
+        intent = {"schemaRevision": "selection-intent-v1"}
+        runtime = {"dependencyRevisions": {"simcRuntimeRevision": "simc-r1"}}
+
+        authority = store.get_gear_authority_context(intent, runtime)
+        resolver = store.get_gear_resolver_context(runtime)
+        browse = store.get_websim_gear("mage", "arcane", compact=True, mode="initial")
+        cached_browse = store.get_websim_gear("mage", "arcane", compact=True, mode="initial")
+
+        self.assertTrue(authority["manifest"]["formalActiveManifest"])
+        self.assertTrue(resolver["formalActiveManifest"])
+        self.assertEqual(resolver["pointerGeneration"], 3)
+        self.assertTrue(browse["formalActiveManifest"])
+        self.assertIs(browse["_activeManifestBinding"], binding)
+        self.assertEqual(cached_browse["manifestRevision"], browse["manifestRevision"])
+        self.assertEqual(release_store.calls, [
+            ("binding",),
+            ("authority", intent, runtime, binding),
+            ("binding",),
+            ("resolver", binding, runtime),
+            ("binding",),
+            ("browse", binding, "mage", "arcane", False),
+            ("binding",),
+        ])
+
+        same_resolver = store.get_gear_resolver_context(runtime, binding=binding)
+        self.assertEqual(same_resolver["manifestRevision"], manifest["manifestRevision"])
+        self.assertEqual(release_store.calls[-1], ("resolver", binding, runtime))
+
+    def test_transitional_manifest_binding_keeps_staging_authority_explicit(self):
+        from server import postgres_cache_store
+
+        class TransitionalReleaseStore:
+            def load_active_manifest_binding(self):
+                return {
+                    "pointerMode": "transitional",
+                    "generation": 2,
+                    "formalActiveManifest": False,
+                }
+
+        revision_row = (
+            "season-17-active", {"status": "partial"}, {"status": "partial"},
+            10, "2026-07-10T10:00:00+00:00", 20, "2026-07-10T10:01:00+00:00",
+            5, "2026-07-10T10:02:00+00:00", 12, "2026-07-10T10:03:00+00:00",
+        )
+        conn = FakeConnection(rows=[revision_row])
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: conn,
+            gear_release_store=TransitionalReleaseStore(),
+        )
+        runtime = {"dependencyRevisions": {"simcRuntimeRevision": "simc-r1"}}
+        with patch.object(
+            postgres_cache_store,
+            "resolver_authoring_context",
+            return_value={"formalActiveManifest": False},
+        ):
+            resolver = store.get_gear_resolver_context(runtime)
+
+        self.assertFalse(resolver["formalActiveManifest"])
+        self.assertIn("gear_authority_revision", conn.cursor_instance.statements[1])
+
+    def test_active_manifest_health_distinguishes_formal_transitional_and_invalid_states(self):
+        from server import postgres_cache_store
+
+        active_binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "manifestRevision": "season-manifest:sha256:active",
+            "rollbackManifestRevision": "season-manifest:sha256:old",
+            "formalActiveManifest": True,
+            "manifest": {
+                "seasonRevision": "season-r1",
+                "gearCatalogReleaseId": "gear-release:active",
+                "communityTemplateReleaseId": "community-release:active",
+                "talentCatalogRevision": "talent-r1",
+            },
+        }
+
+        class ReleaseStore:
+            def __init__(self, value=None, error=None):
+                self.value = value
+                self.error = error
+
+            def load_active_manifest_binding(self):
+                if self.error:
+                    raise self.error
+                return self.value
+
+        active = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("health must use release repository"),
+            gear_release_store=ReleaseStore(active_binding),
+        ).active_manifest_health()
+        transitional = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("health must use release repository"),
+            gear_release_store=ReleaseStore({
+                "pointerMode": "transitional",
+                "generation": 4,
+                "formalActiveManifest": False,
+            }),
+        ).active_manifest_health()
+        invalid = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("health must use release repository"),
+            gear_release_store=ReleaseStore(error=RuntimeError("corrupt pointer")),
+        ).active_manifest_health()
+
+        self.assertEqual(active["status"], "verified")
+        self.assertEqual(active["details"]["pointerGeneration"], 3)
+        self.assertEqual(active["details"]["gearCatalogReleaseId"], "gear-release:active")
+        self.assertEqual(transitional["status"], "partial")
+        self.assertEqual(transitional["details"]["pointerMode"], "transitional")
+        self.assertTrue(transitional["blockers"])
+        self.assertEqual(invalid["status"], "blocked")
+        self.assertTrue(invalid["blockers"])
+
     def test_gear_resolver_context_rolls_back_projection_failure(self):
         from server import postgres_cache_store
 
         conn = FakeConnection(rows=[("season-17-active",)])
-        store = postgres_cache_store.PostgresCacheStore(lambda: conn)
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: conn,
+            gear_release_store=PreCutoverReleaseStore(),
+        )
 
         with patch.object(
             postgres_cache_store,
@@ -8275,7 +8496,10 @@ class PostgresCacheStoreTest(unittest.TestCase):
         from server import postgres_cache_store
 
         conn = FakeConnection()
-        store = postgres_cache_store.PostgresCacheStore(lambda: conn)
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: conn,
+            gear_release_store=PreCutoverReleaseStore(),
+        )
 
         with patch.object(
             postgres_cache_store,

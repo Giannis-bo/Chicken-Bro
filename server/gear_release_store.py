@@ -918,6 +918,280 @@ class GearReleaseStore:
             option_rows=option_rows,
         )
 
+    @staticmethod
+    def _active_runtime_dependencies(binding: dict[str, Any], runtime_authority: dict[str, Any]) -> dict[str, Any]:
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        manifest_dependencies = (
+            manifest.get("dependencyRevisions")
+            if isinstance(manifest.get("dependencyRevisions"), dict)
+            else {}
+        )
+        runtime_dependencies = (
+            runtime_authority.get("dependencyRevisions")
+            if isinstance(runtime_authority, dict)
+            and isinstance(runtime_authority.get("dependencyRevisions"), dict)
+            else {}
+        )
+        required = (
+            "gearRuleRevision",
+            "resolverContractRevision",
+            "serializerRevision",
+            "simcRuntimeRevision",
+            "statPolicyRevision",
+            "selectionSchemaRevision",
+        )
+        mismatched = [
+            field
+            for field in required
+            if not _text(manifest_dependencies.get(field))
+            or _text(runtime_dependencies.get(field)) != _text(manifest_dependencies.get(field))
+        ]
+        if mismatched:
+            raise GearReleaseIntegrityError(
+                "active runtime dependencies do not match the Manifest: " + ", ".join(mismatched)
+            )
+        return _canonical(manifest_dependencies)
+
+    def active_resolver_context(
+        self,
+        binding: dict[str, Any],
+        runtime_authority: dict[str, Any],
+    ) -> dict[str, Any]:
+        if not isinstance(binding, dict) or binding.get("formalActiveManifest") is not True:
+            raise GearReleaseIntegrityError("formal active Manifest binding is required")
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        dependencies = self._active_runtime_dependencies(binding, runtime_authority)
+        return _canonical({
+            "contractRevision": "gear-resolver-context-v1",
+            "formalActiveManifest": True,
+            "manifestRevision": _text(manifest.get("manifestRevision")),
+            "pointerGeneration": _int(binding.get("generation")),
+            "selectionSchemaRevision": _text(dependencies.get("selectionSchemaRevision")),
+            "authoredAgainst": {
+                "seasonRevision": _text(manifest.get("seasonRevision")),
+                "gearCatalogRevision": _text(manifest.get("gearCatalogReleaseId")),
+            },
+            "dependencyRevisions": {
+                field: _text(dependencies.get(field))
+                for field in (
+                    "gearRuleRevision",
+                    "resolverContractRevision",
+                    "serializerRevision",
+                    "simcRuntimeRevision",
+                    "statPolicyRevision",
+                    "selectionSchemaRevision",
+                )
+            },
+        })
+
+    def load_active_authority_context(
+        self,
+        selection_intent: dict[str, Any],
+        runtime_authority: dict[str, Any],
+        binding: dict[str, Any],
+    ) -> dict[str, Any]:
+        if not isinstance(binding, dict) or binding.get("formalActiveManifest") is not True:
+            raise GearReleaseIntegrityError("formal active Manifest binding is required")
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        gear_release_id = _text(manifest.get("gearCatalogReleaseId"))
+        dependencies = self._active_runtime_dependencies(binding, runtime_authority)
+        context = self.load_candidate_authority_context(
+            selection_intent,
+            runtime_authority,
+            gear_release_id,
+        )
+        context = _canonical(context)
+        gear_release = binding.get("gearRelease") if isinstance(binding.get("gearRelease"), dict) else {}
+        context["manifest"] = {
+            "contractRevision": "active-season-manifest-v1",
+            "manifestType": "retail",
+            "manifestRevision": _text(manifest.get("manifestRevision")),
+            "formalActiveManifest": True,
+            "pointerGeneration": _int(binding.get("generation")),
+            "seasonRevision": _text(manifest.get("seasonRevision")),
+            "gearCatalogReleaseId": gear_release_id,
+            "gearCatalogRevision": gear_release_id,
+            "communityTemplateReleaseId": _text(manifest.get("communityTemplateReleaseId")),
+            "talentCatalogRevision": _text(manifest.get("talentCatalogRevision")),
+            "catalogFingerprint": _text(gear_release.get("contentHash")),
+            "sourceStates": {"releaseStatus": _text(gear_release.get("releaseStatus"))},
+        }
+        context["dependencyVector"] = {
+            "seasonRevision": _text(manifest.get("seasonRevision")),
+            "gearCatalogReleaseId": gear_release_id,
+            "gearCatalogRevision": gear_release_id,
+            **dependencies,
+        }
+        return _canonical(context)
+
+    def load_active_public_gear(
+        self,
+        binding: dict[str, Any],
+        class_key: str,
+        spec_key: str,
+        *,
+        include_catalog: bool,
+    ) -> dict[str, Any]:
+        """Read public gear facts only from the immutable Releases in one active binding."""
+
+        if not isinstance(binding, dict) or binding.get("formalActiveManifest") is not True:
+            raise GearReleaseIntegrityError("formal active Manifest binding is required")
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        gear = _exact_release_descriptor(binding.get("gearRelease"))
+        gear_id = _text(manifest.get("gearCatalogReleaseId"))
+        if gear_id != gear["releaseId"]:
+            raise GearReleaseIntegrityError("active public Gear Release does not match the Manifest")
+        community_id = _text(manifest.get("communityTemplateReleaseId"))
+        community = None
+        if community_id:
+            community = _exact_release_descriptor(binding.get("communityRelease"))
+            if community_id != community["releaseId"] or community["validatedAgainstReleaseId"] != gear_id:
+                raise GearReleaseIntegrityError("active public Community Release does not match the Manifest")
+
+        snapshot = {"items": [], "sources": [], "variants": [], "options": []}
+        community_templates = []
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                if community_id:
+                    cur.execute(
+                        """
+                        SELECT template_id, class_key, spec_key, role, election_rank,
+                               source_key, source_url, source_status, sample_count,
+                               profile_hash, gear_hash, selection_intent_json,
+                               resolved_gear_signature, semantic_gear_signature,
+                               dependency_vector_json, evidence_json, problems_json,
+                               payload_json, payload_json->>'updatedAt',
+                               payload_json->>'expiresAt'
+                        FROM cache.websim_community_release_templates
+                        WHERE release_id = %s AND class_key = %s AND spec_key = %s
+                          AND role = 'winner'
+                        ORDER BY election_rank, template_id
+                        """,
+                        (community_id, _text(class_key), _text(spec_key)),
+                    )
+                    winner_rows = [self._community_row_from_db(row) for row in cur.fetchall()]
+                    if len(winner_rows) != 1:
+                        raise GearReleaseIntegrityError("active Community Release must expose exactly one winner per spec")
+                    community_templates = [
+                        _canonical(row.get("payload") if isinstance(row.get("payload"), dict) else {})
+                        for row in winner_rows
+                    ]
+                if include_catalog:
+                    cur.execute(
+                        """
+                        SELECT item_id, name, slot, item_level, source_status, payload_json,
+                               source_updated_at::text
+                        FROM cache.websim_gear_release_items
+                        WHERE release_id = %s
+                        ORDER BY item_id
+                        """,
+                        (gear_id,),
+                    )
+                    snapshot["items"] = [
+                        {
+                            "itemId": _text(row[0]),
+                            "name": _text(row[1]),
+                            "slot": _text(row[2]),
+                            "itemLevel": _int(row[3]),
+                            "sourceStatus": _text(row[4]),
+                            "payload": _canonical(row[5] if isinstance(row[5], dict) else {}),
+                            "updatedAt": _text(row[6]),
+                        }
+                        for row in cur.fetchall()
+                    ]
+                    cur.execute(
+                        """
+                        SELECT source_id, item_id, source_type, source_key, source_label,
+                               instance_id, encounter_id, difficulty_key, season_revision,
+                               payload_json, source_updated_at::text
+                        FROM cache.websim_gear_release_sources
+                        WHERE release_id = %s
+                        ORDER BY source_id
+                        """,
+                        (gear_id,),
+                    )
+                    snapshot["sources"] = [
+                        {
+                            "sourceId": _text(row[0]),
+                            "itemId": _text(row[1]),
+                            "sourceType": _text(row[2]),
+                            "sourceKey": _text(row[3]),
+                            "sourceLabel": _text(row[4]),
+                            "instanceId": _text(row[5]),
+                            "encounterId": _text(row[6]),
+                            "difficultyKey": _text(row[7]),
+                            "seasonRevision": _text(row[8]),
+                            "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
+                            "updatedAt": _text(row[10]),
+                        }
+                        for row in cur.fetchall()
+                    ]
+                    cur.execute(
+                        """
+                        SELECT variant_id, item_id, variant_key, slot, label, source_type,
+                               difficulty_key, item_level, simc_options_json, status,
+                               blockers_json, payload_json, source_updated_at::text
+                        FROM cache.websim_gear_release_variants
+                        WHERE release_id = %s
+                        ORDER BY variant_id
+                        """,
+                        (gear_id,),
+                    )
+                    snapshot["variants"] = [
+                        {
+                            "variantId": _text(row[0]),
+                            "itemId": _text(row[1]),
+                            "variantKey": _text(row[2]),
+                            "slot": _text(row[3]),
+                            "label": _text(row[4]),
+                            "sourceType": _text(row[5]),
+                            "difficultyKey": _text(row[6]),
+                            "itemLevel": _int(row[7]),
+                            "simcOptions": _canonical(row[8] if isinstance(row[8], dict) else {}),
+                            "status": _text(row[9]),
+                            "blockers": _canonical(row[10] if isinstance(row[10], list) else []),
+                            "payload": _canonical(row[11] if isinstance(row[11], dict) else {}),
+                            "updatedAt": _text(row[12]),
+                        }
+                        for row in cur.fetchall()
+                    ]
+                    cur.execute(
+                        """
+                        SELECT option_id, variant_id, option_key, option_type, name,
+                               applicable_slots_json, simc_options_json, status, is_visible,
+                               payload_json, source_updated_at::text
+                        FROM cache.websim_gear_release_mod_options
+                        WHERE release_id = %s
+                        ORDER BY option_id
+                        """,
+                        (gear_id,),
+                    )
+                    snapshot["options"] = [
+                        {
+                            "optionId": _text(row[0]),
+                            "variantId": _text(row[1]),
+                            "optionKey": _text(row[2]),
+                            "optionType": _text(row[3]),
+                            "name": _text(row[4]),
+                            "applicableSlots": _canonical(row[5] if isinstance(row[5], list) else []),
+                            "simcOptions": _canonical(row[6] if isinstance(row[6], dict) else {}),
+                            "status": _text(row[7]),
+                            "isVisible": row[8] is True,
+                            "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
+                            "updatedAt": _text(row[10]),
+                        }
+                        for row in cur.fetchall()
+                    ]
+        if include_catalog and gear_snapshot_summary(snapshot) != gear["content"]:
+            raise GearReleaseIntegrityError("active Gear Release content integrity failed")
+        return {
+            "gearRelease": gear,
+            "communityRelease": community,
+            "communityTemplates": community_templates,
+            "gearSnapshot": snapshot if include_catalog else None,
+        }
+
     def load_community_release(
         self,
         gear_release_id: str,
@@ -1223,62 +1497,70 @@ class GearReleaseStore:
             canonical_row_hash(row),
         )
 
-    def seal_manifest(self, manifest: dict[str, Any]) -> dict[str, str]:
+    @staticmethod
+    def _validated_manifest_revision(manifest: dict[str, Any]) -> str:
         if not isinstance(manifest, dict) or not _text(manifest.get("manifestRevision")):
             raise GearReleaseIntegrityError("manifest must contain manifestRevision")
         revision = _text(manifest["manifestRevision"])
         if revision != _expected_manifest_revision(manifest):
             raise GearReleaseIntegrityError("manifest identity does not match manifestRevision")
+        return revision
+
+    def _seal_manifest_with_cursor(self, cur, manifest: dict[str, Any]) -> dict[str, str]:
+        revision = self._validated_manifest_revision(manifest)
+        cur.execute(
+            """
+            SELECT payload_json
+            FROM cache.websim_season_manifests
+            WHERE manifest_revision = %s
+            """,
+            (revision,),
+        )
+        row = cur.fetchone()
+        if row:
+            if _canonical(row[0] if isinstance(row[0], dict) else {}) != _canonical(manifest):
+                raise GearReleaseIntegrityError("existing manifest revision has different content")
+            return {"status": "reused", "manifestRevision": revision}
+        cur.execute(
+            """
+            INSERT INTO cache.websim_season_manifests (
+                manifest_revision, schema_revision, season_revision, gear_release_id,
+                community_release_id, talent_catalog_revision, dependency_vector_json,
+                rollback_manifest_revision, manifest_hash, payload_json
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb)
+            """,
+            (
+                revision,
+                manifest.get("schemaRevision"),
+                manifest.get("seasonRevision"),
+                manifest.get("gearCatalogReleaseId"),
+                manifest.get("communityTemplateReleaseId") or None,
+                manifest.get("talentCatalogRevision"),
+                _json_param(manifest.get("dependencyRevisions") or {}),
+                manifest.get("rollbackManifestRevision") or None,
+                _hash({key: value for key, value in manifest.items() if key != "manifestRevision"}),
+                _json_param(manifest),
+            ),
+        )
+        self._insert_event(
+            cur,
+            manifest_revision=revision,
+            event_type="manifest_sealed",
+            event={"formalActiveManifest": bool(manifest.get("formalActiveManifest"))},
+        )
+        return {"status": "inserted", "manifestRevision": revision}
+
+    def seal_manifest(self, manifest: dict[str, Any]) -> dict[str, str]:
         with self.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT payload_json
-                    FROM cache.websim_season_manifests
-                    WHERE manifest_revision = %s
-                    """,
-                    (revision,),
-                )
-                row = cur.fetchone()
-                if row:
-                    if _canonical(row[0] if isinstance(row[0], dict) else {}) != _canonical(manifest):
-                        raise GearReleaseIntegrityError("existing manifest revision has different content")
-                    return {"status": "reused", "manifestRevision": revision}
-                cur.execute(
-                    """
-                    INSERT INTO cache.websim_season_manifests (
-                        manifest_revision, schema_revision, season_revision, gear_release_id,
-                        community_release_id, talent_catalog_revision, dependency_vector_json,
-                        rollback_manifest_revision, manifest_hash, payload_json
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb)
-                    """,
-                    (
-                        revision,
-                        manifest.get("schemaRevision"),
-                        manifest.get("seasonRevision"),
-                        manifest.get("gearCatalogReleaseId"),
-                        manifest.get("communityTemplateReleaseId") or None,
-                        manifest.get("talentCatalogRevision"),
-                        _json_param(manifest.get("dependencyRevisions") or {}),
-                        manifest.get("rollbackManifestRevision") or None,
-                        _hash({key: value for key, value in manifest.items() if key != "manifestRevision"}),
-                        _json_param(manifest),
-                    ),
-                )
-                self._insert_event(
-                    cur,
-                    manifest_revision=revision,
-                    event_type="manifest_sealed",
-                    event={"formalActiveManifest": bool(manifest.get("formalActiveManifest"))},
-                )
-        return {"status": "inserted", "manifestRevision": revision}
+                return self._seal_manifest_with_cursor(cur, manifest)
 
     def get_active_pointer(self) -> dict[str, Any]:
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT environment, manifest_revision, generation, rollback_manifest_revision,
+                    SELECT environment, pointer_mode, manifest_revision, generation, rollback_manifest_revision,
                            updated_at, updated_by
                     FROM cache.websim_active_manifest_pointer
                     WHERE environment = 'retail'
@@ -1289,95 +1571,227 @@ class GearReleaseStore:
             return {}
         return {
             "environment": _text(row[0]),
-            "manifestRevision": _text(row[1]),
-            "generation": _int(row[2]),
-            "rollbackManifestRevision": _text(row[3]),
-            "updatedAt": _text(row[4]),
-            "updatedBy": _text(row[5]),
+            "pointerMode": _text(row[1]),
+            "manifestRevision": _text(row[2]),
+            "generation": _int(row[3]),
+            "rollbackManifestRevision": _text(row[4]),
+            "updatedAt": _text(row[5]),
+            "updatedBy": _text(row[6]),
         }
 
-    def compare_and_swap_pointer(self, command: dict[str, Any], *, updated_by: str) -> dict[str, Any]:
+    def load_active_manifest_binding(self) -> dict[str, Any]:
+        """Bind one retail pointer/Manifest/release identity in a read-only snapshot."""
+
+        try:
+            from . import gear_release
+        except ImportError:
+            import gear_release
+
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                cur.execute(
+                    """
+                    SELECT pointer.environment, pointer.pointer_mode, pointer.manifest_revision,
+                           pointer.generation, pointer.rollback_manifest_revision,
+                           pointer.updated_at, pointer.updated_by, manifest.payload_json
+                    FROM cache.websim_active_manifest_pointer pointer
+                    LEFT JOIN cache.websim_season_manifests manifest
+                      ON manifest.manifest_revision = pointer.manifest_revision
+                    WHERE pointer.environment = 'retail'
+                    """
+                )
+                row = cur.fetchone()
+                if not row:
+                    return {
+                        "pointerMode": "pre_cutover",
+                        "generation": 0,
+                        "manifestRevision": "",
+                        "rollbackManifestRevision": "",
+                        "formalActiveManifest": False,
+                    }
+                values = list(row)
+                while len(values) < 8:
+                    values.append(None)
+                pointer_mode = _text(values[1])
+                manifest_revision = _text(values[2])
+                generation = _int(values[3])
+                rollback_revision = _text(values[4])
+                common = {
+                    "pointerMode": pointer_mode,
+                    "generation": generation,
+                    "manifestRevision": manifest_revision,
+                    "rollbackManifestRevision": rollback_revision,
+                    "updatedAt": _text(values[5]),
+                    "updatedBy": _text(values[6]),
+                }
+                if pointer_mode == "transitional":
+                    if manifest_revision or values[7] is not None:
+                        raise GearReleaseIntegrityError("transitional pointer unexpectedly binds a Manifest")
+                    return {**common, "formalActiveManifest": False}
+                if pointer_mode != "active" or not manifest_revision:
+                    raise GearReleaseIntegrityError("active Manifest pointer state is invalid")
+                manifest = values[7] if isinstance(values[7], dict) else None
+                if not isinstance(manifest, dict) or _text(manifest.get("manifestRevision")) != manifest_revision:
+                    raise GearReleaseIntegrityError("active Manifest is missing or does not match the pointer")
+                gear_id = _text(manifest.get("gearCatalogReleaseId"))
+                community_id = _text(manifest.get("communityTemplateReleaseId"))
+                releases = {}
+                gear = self._select_release(cur, gear_id)
+                if gear is not None:
+                    releases[gear_id] = _exact_release_descriptor(gear)
+                community = None
+                if community_id:
+                    community = self._select_release(cur, community_id)
+                    if community is not None:
+                        releases[community_id] = _exact_release_descriptor(community)
+                issues = gear_release.validate_manifest(manifest, releases)
+                if issues:
+                    raise GearReleaseIntegrityError(
+                        "active Manifest binding integrity failed: "
+                        + ", ".join(_text(issue.get("code")) for issue in issues)
+                    )
+                return {
+                    **common,
+                    "formalActiveManifest": True,
+                    "manifest": _canonical(manifest),
+                    "gearRelease": releases[gear_id],
+                    "communityRelease": releases.get(community_id) if community_id else None,
+                }
+
+    @staticmethod
+    def _validated_pointer_command(command: dict[str, Any], updated_by: str) -> tuple[str, str, str, int, str]:
         required_fields = {
             "schemaRevision",
             "action",
             "environment",
+            "targetMode",
             "manifestRevision",
             "expectedGeneration",
             "rollbackManifestRevision",
         }
         if not isinstance(command, dict) or set(command) != required_fields:
             raise ValueError("invalid pointer command")
-        if command.get("schemaRevision") != "active-manifest-pointer-command-v1":
+        if command.get("schemaRevision") != "active-manifest-pointer-command-v2":
             raise ValueError("invalid pointer command schema")
         if command.get("action") not in {"promote", "rollback"}:
             raise ValueError("invalid pointer command action")
         if command.get("environment") != "retail":
             raise ValueError("invalid pointer command environment")
-        if not _text(command.get("manifestRevision")):
-            raise ValueError("pointer command requires manifestRevision")
+        target_mode = _text(command.get("targetMode"))
+        manifest_revision = _text(command.get("manifestRevision"))
+        rollback_manifest_revision = _text(command.get("rollbackManifestRevision"))
+        if target_mode not in {"active", "transitional"}:
+            raise ValueError("invalid pointer targetMode")
+        if target_mode == "active" and not manifest_revision:
+            raise ValueError("active pointer command requires manifestRevision")
+        if target_mode == "transitional":
+            if command.get("action") != "rollback" or manifest_revision or rollback_manifest_revision:
+                raise ValueError("invalid transitional pointer command")
         expected_generation = command.get("expectedGeneration")
         if isinstance(expected_generation, bool) or not isinstance(expected_generation, int) or expected_generation < 0:
             raise ValueError("expectedGeneration must be a non-negative integer")
         if not _text(updated_by):
             raise ValueError("updated_by is required")
+        return (
+            _text(command.get("action")),
+            target_mode,
+            manifest_revision,
+            expected_generation,
+            rollback_manifest_revision,
+        )
+
+    def _compare_and_swap_pointer_with_cursor(self, cur, command: dict[str, Any], *, updated_by: str) -> dict[str, Any]:
+        action, target_mode, manifest_revision, expected_generation, rollback_manifest_revision = (
+            self._validated_pointer_command(command, updated_by)
+        )
         target_generation = expected_generation + 1
-        with self.connection() as conn:
-            with conn.cursor() as cur:
-                if expected_generation == 0:
-                    cur.execute(
-                        """
-                        INSERT INTO cache.websim_active_manifest_pointer (
-                            environment, manifest_revision, generation, rollback_manifest_revision,
-                            updated_by
-                        )
-                        SELECT 'retail', %s, %s, %s, %s
-                        WHERE NOT EXISTS (
-                            SELECT 1 FROM cache.websim_active_manifest_pointer WHERE environment = 'retail'
-                        )
-                        """,
-                        (
-                            command.get("manifestRevision"),
-                            target_generation,
-                            command.get("rollbackManifestRevision") or None,
-                            _text(updated_by),
-                        ),
-                    )
-                else:
-                    cur.execute(
-                        """
-                        UPDATE cache.websim_active_manifest_pointer
-                        SET manifest_revision = %s,
-                            generation = %s,
-                            rollback_manifest_revision = %s,
-                            updated_at = now(),
-                            updated_by = %s
-                        WHERE environment = 'retail' AND generation = %s
-                        """,
-                        (
-                            command.get("manifestRevision"),
-                            target_generation,
-                            command.get("rollbackManifestRevision") or None,
-                            _text(updated_by),
-                            expected_generation,
-                        ),
-                    )
-                if getattr(cur, "rowcount", 0) != 1:
-                    raise StaleManifestPointerError("active manifest pointer generation changed")
-                self._insert_event(
-                    cur,
-                    manifest_revision=_text(command.get("manifestRevision")),
-                    event_type=f"manifest_{command.get('action')}",
-                    event={
-                        "expectedGeneration": expected_generation,
-                        "generation": target_generation,
-                        "updatedBy": _text(updated_by),
-                    },
+        if expected_generation == 0:
+            cur.execute(
+                """
+                INSERT INTO cache.websim_active_manifest_pointer (
+                    environment, pointer_mode, manifest_revision, generation, rollback_manifest_revision,
+                    updated_by
                 )
+                SELECT 'retail', %s, %s, %s, %s, %s
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM cache.websim_active_manifest_pointer WHERE environment = 'retail'
+                )
+                ON CONFLICT (environment) DO NOTHING
+                """,
+                (
+                    target_mode,
+                    manifest_revision or None,
+                    target_generation,
+                    rollback_manifest_revision or None,
+                    _text(updated_by),
+                ),
+            )
+        else:
+            cur.execute(
+                """
+                UPDATE cache.websim_active_manifest_pointer
+                SET pointer_mode = %s,
+                    manifest_revision = %s,
+                    generation = %s,
+                    rollback_manifest_revision = %s,
+                    updated_at = now(),
+                    updated_by = %s
+                WHERE environment = 'retail' AND generation = %s
+                """,
+                (
+                    target_mode,
+                    manifest_revision or None,
+                    target_generation,
+                    rollback_manifest_revision or None,
+                    _text(updated_by),
+                    expected_generation,
+                ),
+            )
+        if getattr(cur, "rowcount", 0) != 1:
+            raise StaleManifestPointerError("active manifest pointer generation changed")
+        self._insert_event(
+            cur,
+            manifest_revision=manifest_revision,
+            event_type=f"manifest_{action}",
+            event={
+                "expectedGeneration": expected_generation,
+                "generation": target_generation,
+                "pointerMode": target_mode,
+                "updatedBy": _text(updated_by),
+            },
+        )
         return {
             "status": "updated",
-            "manifestRevision": _text(command.get("manifestRevision")),
+            "pointerMode": target_mode,
+            "manifestRevision": manifest_revision,
             "generation": target_generation,
         }
+
+    def compare_and_swap_pointer(self, command: dict[str, Any], *, updated_by: str) -> dict[str, Any]:
+        self._validated_pointer_command(command, updated_by)
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                return self._compare_and_swap_pointer_with_cursor(cur, command, updated_by=updated_by)
+
+    def seal_manifest_and_compare_and_swap_pointer(
+        self,
+        manifest: dict[str, Any],
+        command: dict[str, Any],
+        *,
+        updated_by: str,
+    ) -> dict[str, Any]:
+        revision = self._validated_manifest_revision(manifest)
+        action, target_mode, command_revision, _, _ = self._validated_pointer_command(command, updated_by)
+        if action != "promote" or target_mode != "active":
+            raise ValueError("atomic Manifest activation requires an active promote command")
+        if command_revision != revision:
+            raise GearReleaseIntegrityError("pointer command does not target the supplied Manifest")
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                seal = self._seal_manifest_with_cursor(cur, manifest)
+                pointer = self._compare_and_swap_pointer_with_cursor(cur, command, updated_by=updated_by)
+        return {"manifest": seal, "pointer": pointer}
 
 
 __all__ = (

@@ -630,24 +630,39 @@ class GearReleaseTest(unittest.TestCase):
         )
         rollback = gear_release.build_pointer_command(
             action="rollback",
-            manifest_revision="season-manifest:sha256:old",
+            manifest_revision="",
             expected_generation=8,
-            rollback_manifest_revision="season-manifest:sha256:new",
+            target_mode="transitional",
         )
 
         self.assertEqual(promote, {
-            "schemaRevision": "active-manifest-pointer-command-v1",
+            "schemaRevision": "active-manifest-pointer-command-v2",
             "action": "promote",
             "environment": "retail",
+            "targetMode": "active",
             "manifestRevision": "season-manifest:sha256:new",
             "expectedGeneration": 7,
             "rollbackManifestRevision": "season-manifest:sha256:old",
         })
-        self.assertEqual(rollback["action"], "rollback")
+        self.assertEqual(rollback, {
+            "schemaRevision": "active-manifest-pointer-command-v2",
+            "action": "rollback",
+            "environment": "retail",
+            "targetMode": "transitional",
+            "manifestRevision": "",
+            "expectedGeneration": 8,
+            "rollbackManifestRevision": "",
+        })
         with self.assertRaises(ValueError):
             gear_release.build_pointer_command("delete", "x", 1)
         with self.assertRaises(ValueError):
             gear_release.build_pointer_command("promote", "x", -1)
+        with self.assertRaises(ValueError):
+            gear_release.build_pointer_command("promote", "", 1, target_mode="transitional")
+        with self.assertRaises(ValueError):
+            gear_release.build_pointer_command("rollback", "x", 1, target_mode="transitional")
+        with self.assertRaises(ValueError):
+            gear_release.build_pointer_command("rollback", "", 1, "x", target_mode="transitional")
 
     def test_catalyst_allowlist_cannot_produce_verified_capability(self):
         capability = gear_release.validate_capability_proof({

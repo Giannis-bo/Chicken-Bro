@@ -16,6 +16,7 @@ ADMIN_GATE_DIAGNOSTICS = ROOT / "server" / "migrations" / "postgres" / "0010_adm
 WEBSIM_GEAR_TEMPLATE_CACHE = ROOT / "server" / "migrations" / "postgres" / "0011_websim_gear_template_cache.sql"
 WEBSIM_ASSET_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0012_websim_asset_registry.sql"
 WEBSIM_RELEASE_TRAIN = ROOT / "server" / "migrations" / "postgres" / "0013_websim_release_train.sql"
+WEBSIM_POINTER_STATE = ROOT / "server" / "migrations" / "postgres" / "0014_websim_active_manifest_pointer_state.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -337,3 +338,14 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("cache.websim_release_events TO wow_app", normalized)
         self.assertIn("GRANT SELECT, INSERT, UPDATE ON cache.websim_active_manifest_pointer TO wow_app", normalized)
         self.assertIn("0013_websim_release_train", normalized)
+
+    def test_websim_pointer_state_migration_supports_monotonic_transitional_rollback(self):
+        self.assertTrue(WEBSIM_POINTER_STATE.exists(), "missing active Manifest pointer state migration")
+        normalized = " ".join(WEBSIM_POINTER_STATE.read_text(encoding="utf-8").split())
+        self.assertIn("ALTER COLUMN manifest_revision DROP NOT NULL", normalized)
+        self.assertIn("ADD COLUMN IF NOT EXISTS pointer_mode text", normalized)
+        self.assertIn("CHECK (pointer_mode IN ('active', 'transitional'))", normalized)
+        self.assertIn("pointer_mode = 'active' AND manifest_revision IS NOT NULL", normalized)
+        self.assertIn("pointer_mode = 'transitional' AND manifest_revision IS NULL", normalized)
+        self.assertIn("GRANT SELECT, INSERT, UPDATE ON cache.websim_active_manifest_pointer TO wow_app", normalized)
+        self.assertIn("0014_websim_active_manifest_pointer_state", normalized)
