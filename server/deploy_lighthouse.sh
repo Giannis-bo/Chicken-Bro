@@ -547,7 +547,8 @@ sudo systemctl reset-failed wow-data-health-followup.service >/dev/null 2>&1 || 
 sudo systemctl enable --now wow-data-health-followup.timer
 sudo systemctl reset-failed wow-simc-runtime-update.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-gear-stat-snapshot-worker.service >/dev/null 2>&1 || true
-sudo systemctl enable --now wow-gear-stat-snapshot-worker.service
+sudo systemctl enable wow-gear-stat-snapshot-worker.service
+sudo systemctl restart wow-gear-stat-snapshot-worker.service
 echo "PG-native sync timers enabled; gear release refresh timer enabled but not started; observed gear backfill unit installed but not auto-enabled by deploy."
 sudo systemctl enable --now "${SERVICE_NAME}"
 sudo systemctl restart "${SERVICE_NAME}"

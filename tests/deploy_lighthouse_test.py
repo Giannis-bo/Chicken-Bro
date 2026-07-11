@@ -14,7 +14,8 @@ class DeployLighthouseScriptTest(unittest.TestCase):
         self.assertIn("ProtectHome=read-only", service)
         self.assertIn("PrivateTmp=true", service)
         self.assertIn('wow-gear-stat-snapshot-worker.service"', script)
-        self.assertIn("enable --now wow-gear-stat-snapshot-worker.service", script)
+        self.assertIn("enable wow-gear-stat-snapshot-worker.service", script)
+        self.assertIn("restart wow-gear-stat-snapshot-worker.service", script)
 
     def test_deploy_script_prepares_codex_cli_worker_without_danger_full_access(self):
         script = Path("server/deploy_lighthouse.sh").read_text(encoding="utf-8")
