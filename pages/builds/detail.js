@@ -6,9 +6,22 @@ const {
 } = require('./builds-api')
 const {
   requestWebsimGear,
+  requestWebsimGearResolve,
   requestWebsimGearStats,
   requestWebsimTalentImport
 } = require('./websim-api')
+const {
+  applyGearResolveResult,
+  beginGearResolve,
+  confirmGearIntent,
+  createGearWorkbenchState,
+  editGearIntent,
+  gearWorkbenchCanRunProfile,
+  gearWorkbenchCanUseVerifiedSnapshot,
+  gearWorkbenchView,
+  rebaseGearIntentRevisions
+} = require('./gear-workbench-state')
+const { completeResolverContext, serializeGearSelectionIntent } = require('./gear-selection-intent')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 const { listBuildTemplates, syncBuildTemplate } = require('../common/build-template-storage')
 const { attachGameAsset } = require('../common/game-asset')
@@ -912,6 +925,126 @@ function buildGearAttributePanel(gearPayload, selectedGearBySlot, selectedSpec, 
   }
 }
 
+const canonicalGearAttributeLabels = {
+  intellect: '智力',
+  agility: '敏捷',
+  strength: '力量',
+  stamina: '耐力',
+  haste: '急速',
+  crit: '暴击',
+  critical_strike: '暴击',
+  mastery: '精通',
+  versatility: '全能',
+  armor: '护甲'
+}
+
+function canonicalGearAttributePanel(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return emptyGearAttributePanel()
+  const totals = snapshot.staticAttributes && typeof snapshot.staticAttributes === 'object'
+    ? (snapshot.staticAttributes.totals || snapshot.staticAttributes)
+    : {}
+  const resolvedSlots = snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
+    ? snapshot.resolvedSlots
+    : {}
+  const itemLevels = Object.keys(resolvedSlots).map((slot) => Number(resolvedSlots[slot] && resolvedSlots[slot].itemLevel)).filter(Number.isFinite)
+  const itemLevel = itemLevels.length ? itemLevels.reduce((sum, value) => sum + value, 0) / itemLevels.length : null
+  const readiness = snapshot.profileReadiness && typeof snapshot.profileReadiness === 'object'
+    ? snapshot.profileReadiness
+    : {}
+  const requiredSlots = Array.isArray(readiness.requiredSlots) ? readiness.requiredSlots : Object.keys(resolvedSlots)
+  const readySlots = Array.isArray(readiness.readySlots) ? readiness.readySlots : Object.keys(resolvedSlots)
+  const constraints = snapshot.constraints && snapshot.constraints.slots && typeof snapshot.constraints.slots === 'object'
+    ? snapshot.constraints.slots
+    : {}
+  const selectedOptions = Object.keys(resolvedSlots).map((slot) => (resolvedSlots[slot] && resolvedSlots[slot].selectedOptions) || {})
+  const gemUsed = selectedOptions.reduce((count, options) => count + (Array.isArray(options.gemOptionIds) ? options.gemOptionIds.length : 0), 0)
+  const enchantUsed = selectedOptions.filter((options) => options.enchantOptionId).length
+  const embellishmentUsed = selectedOptions.filter((options) => options.embellishmentOptionId).length
+  const gemMax = Object.keys(constraints).reduce((count, slot) => count + (Number(constraints[slot] && constraints[slot].socketCount) || 0), 0)
+  const enchantMax = Object.keys(constraints).filter((slot) => constraints[slot] && constraints[slot].canEnchant).length
+  const setCounts = snapshot.setState && snapshot.setState.itemSetCounts && typeof snapshot.setState.itemSetCounts === 'object'
+    ? snapshot.setState.itemSetCounts
+    : {}
+  const tierCount = Object.keys(setCounts).reduce((maximum, key) => Math.max(maximum, Number(setCounts[key]) || 0), 0)
+  const preferredOrder = ['intellect', 'agility', 'strength', 'stamina', 'haste', 'crit', 'critical_strike', 'mastery', 'versatility', 'armor']
+  const orderedKeys = [
+    ...preferredOrder.filter((key) => Object.prototype.hasOwnProperty.call(totals, key)),
+    ...Object.keys(totals).sort().filter((key) => !preferredOrder.includes(key))
+  ]
+  return {
+    visible: orderedKeys.length > 0 || Object.keys(resolvedSlots).length > 0,
+    summary: `已校验 ${readySlots.length}/${requiredSlots.length} 槽`,
+    itemLevel: gearAttributeMetric('itemLevel', '装备等级', itemLevel, '待补'),
+    enhancementRows: [
+      gearEnhancementMetric('embellishment', '美化', embellishmentUsed, Number(snapshot.constraints && snapshot.constraints.embellishmentMax) || gearEnhancementMax),
+      gearEnhancementMetric('gem', '宝石', gemUsed, gemMax),
+      gearEnhancementMetric('enchant', '附魔', enchantUsed, enchantMax),
+      { ...gearEnhancementMetric('tierSet', '套装', tierCount, tierCount), value: String(tierCount) }
+    ],
+    statRows: orderedKeys.map((key) => gearAttributeMetric(key, canonicalGearAttributeLabels[key] || key, totals[key], '0'))
+  }
+}
+
+function workbenchProblemRows(problems) {
+  const labels = {
+    RESOLVER_CONTEXT_UNAVAILABLE: '缺少当前赛季校验上下文，请稍后重试',
+    AUTHORITY_UNAVAILABLE: '装备权威数据暂不可用，请稍后重试',
+    REVISION_CONFLICT: '装备数据版本已更新，请重新校验',
+    GEAR_REQUIRED_SLOTS_INCOMPLETE: '请补齐服务端标记的必需装备槽位',
+    GEAR_TRANSPORT_UNAVAILABLE: '网络连接异常，当前配置未完成校验'
+  }
+  return (Array.isArray(problems) ? problems : []).slice(0, 5).map((problem, index) => ({
+    key: `${String(problem && problem.code || 'GEAR_PROBLEM')}-${index}`,
+    code: String(problem && problem.code || ''),
+    text: String(labels[problem && problem.code] || '当前装备配置存在待处理问题').slice(0, 80)
+  }))
+}
+
+function canonicalGearSlotRows(rows, state) {
+  const sourceRows = Array.isArray(rows) ? rows : []
+  const snapshot = state && (state.currentSnapshot || state.lastVerifiedSnapshot)
+  const resolvedSlots = snapshot && snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
+    ? snapshot.resolvedSlots
+    : {}
+  return sourceRows.map((row) => {
+    if (state && ['resolving', 'pending', 'dirty'].includes(state.resolveStatus)) {
+      return { ...row, status: 'partial', statusLabel: '校验中', statusClass: 'partial' }
+    }
+    const resolved = resolvedSlots[row.slot]
+    const verified = !!(resolved && resolved.legality && resolved.legality.status === 'verified')
+    return {
+      ...row,
+      status: verified ? 'verified' : 'blocked',
+      statusLabel: verified ? '已校验' : '未通过校验',
+      statusClass: verified ? 'verified' : 'blocked'
+    }
+  })
+}
+
+function gearWorkbenchDataState(state, data) {
+  const view = gearWorkbenchView(state)
+  const displaySnapshot = state && (state.currentSnapshot || state.lastVerifiedSnapshot)
+  const statusText = {
+    idle: '等待校验当前装备配置',
+    dirty: '装备配置已修改，等待校验',
+    resolving: '正在校验当前装备配置',
+    pending: '服务端仍在校验当前装备配置',
+    blocked: '当前装备配置未通过校验',
+    revision_conflict: state && state.revisionRetryCount >= 1 ? '装备数据再次更新，已切换为只读' : '装备数据已更新，正在重新校验',
+    unavailable: '装备校验服务暂不可用',
+    offline: '网络连接异常，显示最近一次已校验结果',
+    verified: '当前装备配置已通过服务端校验'
+  }
+  return {
+    gearWorkbenchView: view,
+    gearWorkbenchStatusText: statusText[view.resolveStatus] || '等待校验当前装备配置',
+    gearWorkbenchSignatureLabel: view.resolvedGearSignature ? view.resolvedGearSignature.slice(0, 20) : '',
+    gearWorkbenchProblemRows: workbenchProblemRows(state && state.problems),
+    gearAttributePanel: canonicalGearAttributePanel(displaySnapshot),
+    ...((data && Array.isArray(data.gearSlotRows)) ? { gearSlotRows: canonicalGearSlotRows(data.gearSlotRows, state) } : {})
+  }
+}
+
 function itemDisplayName(item) {
   return (item && (item.displayName || item.localizedName || item.englishName || item.name)) || '待选择装备'
 }
@@ -1326,11 +1459,16 @@ function gearStatsRequestForPage(page) {
   if (data.activeQueryKey !== 'gear') blockers.push('当前不在装备模拟页')
   if (!gearPayload || !Array.isArray(gearPayload.slots)) blockers.push('等待装备数据')
   if (data.gearDataFallback) blockers.push(data.gearDataWarningText || '装备接口暂不可用')
+  const canonicalState = page && page.gearWorkbenchState
+  const canonicalSnapshot = canonicalState && canonicalState.currentSnapshot
+  if (canonicalState && !gearWorkbenchCanUseVerifiedSnapshot(canonicalState)) blockers.push('等待当前装备配置完成服务端校验')
   const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, data.selectedGearBySlot || {})
   const requiredSlots = requiredGearTemplateSlots(gearPayload)
   const indexed = selectedGearByCanonicalSlot(selectedGearBySlot)
-  const missingSlots = requiredSlots.filter((slot) => !gearTemplateLine(indexed[slot]))
-  if (missingSlots.length) blockers.push(`请补齐 ${requiredSlots.length} 个装备槽位`)
+  if (!canonicalState) {
+    const missingSlots = requiredSlots.filter((slot) => !gearTemplateLine(indexed[slot]))
+    if (missingSlots.length) blockers.push(`请补齐 ${requiredSlots.length} 个装备槽位`)
+  }
   const talents = gearTalentImportForStats(data)
   if (!talents) blockers.push('缺少天赋导入代码')
   if (blockers.length) {
@@ -1342,6 +1480,9 @@ function gearStatsRequestForPage(page) {
     websimSpecKey: selectedSpec.websimSpecKey || selectedSpec.specKey || gearPayload.specKey
   })
   const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, data.enhancementBySlot || {})
+  const serializerInput = canonicalSnapshot && canonicalSnapshot.serializerInput && typeof canonicalSnapshot.serializerInput === 'object'
+    ? canonicalSnapshot.serializerInput
+    : null
   const payload = {
     classKey: keys.classKey,
     specKey: keys.specKey,
@@ -1349,14 +1490,16 @@ function gearStatsRequestForPage(page) {
     scenarioKey: gearScenarioAt(data.selectedGearTemplateScenarioIndex).key,
     talents,
     gearSelection: {
-      items: requiredSlots.map((slot) => gearObjectForSnapshot(indexed[slot])).filter(Boolean)
+      items: serializerInput && Array.isArray(serializerInput.gearItems)
+        ? serializerInput.gearItems
+        : requiredSlots.map((slot) => gearObjectForSnapshot(indexed[slot])).filter(Boolean)
     },
-    enhancementBySlot
+    ...(serializerInput ? {} : { enhancementBySlot })
   }
   return {
     ready: true,
     payload,
-    signature: JSON.stringify(payload)
+    signature: JSON.stringify([canonicalSnapshot && canonicalSnapshot.resolvedGearSignature || '', payload])
   }
 }
 
@@ -1373,6 +1516,15 @@ function maybeRefreshGearStatsForPage(page) {
     return page.refreshGearStats(request.payload, request.signature)
   }
   return Promise.resolve(null)
+}
+
+function resolveOrRefreshGearForPage(page, selectedGearBySlot, enhancementBySlot) {
+  const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
+  if (completeResolverContext(gearPayload.resolverContext) && page && typeof page.confirmAndResolveGearIntent === 'function') {
+    return page.confirmAndResolveGearIntent(selectedGearBySlot, enhancementBySlot)
+      .then(() => maybeRefreshGearStatsForPage(page))
+  }
+  return maybeRefreshGearStatsForPage(page)
 }
 
 function optionQualityRank(option) {
@@ -2409,13 +2561,30 @@ function gearTemplateSaveDraft(page, templateTitle) {
   if (data.gearDataFallback) {
     return { blockMessage: data.gearDataWarningText || '装备接口暂不可用，无法保存装备模板' }
   }
+  const workbenchState = page.gearWorkbenchState
+  if (workbenchState && !gearWorkbenchCanUseVerifiedSnapshot(workbenchState)) {
+    return { blockMessage: '当前装备配置尚未通过服务端校验，暂不能保存' }
+  }
   const gearPayload = fullGearPayloadForPage(page) || data.gearPayload || {}
   const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, data.selectedGearBySlot || {})
   const selectedItems = selectedGearItems(selectedGearBySlot)
   const configLines = canonicalGearTemplateLines(selectedGearBySlot, gearPayload)
-  const status = gearTemplateStatus(selectedGearBySlot, gearPayload)
+  const resolvedSnapshot = workbenchState && workbenchState.currentSnapshot
+  const canonicalReadiness = resolvedSnapshot && resolvedSnapshot.profileReadiness
+  const status = workbenchState
+    ? {
+        status: 'complete',
+        statusLabel: '已校验配置',
+        missingSlots: [],
+        issues: [],
+        requiredSlots: Array.isArray(canonicalReadiness && canonicalReadiness.requiredSlots) ? canonicalReadiness.requiredSlots : [],
+        statPendingSlots: [],
+        sourcePendingSlots: [],
+        warningSummary: ''
+      }
+    : gearTemplateStatus(selectedGearBySlot, gearPayload)
   const requiredCount = (status.requiredSlots || requiredGearSlots).length
-  if (status.missingSlots.length || configLines.length !== requiredCount) {
+  if (!workbenchState && (status.missingSlots.length || configLines.length !== requiredCount)) {
     return {
       blockMessage: gearTemplateValidationMessage(status.issues, requiredCount) || `请补齐 ${requiredCount} 个装备槽位后再保存`,
       state: { selectedGearBySlot }
@@ -2427,7 +2596,7 @@ function gearTemplateSaveDraft(page, templateTitle) {
   const keys = specWebsimKeys(selectedSpec)
   const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, data.enhancementBySlot || {})
   const enhancementSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, false)
-  if ((enhancementSheet.blockers || []).length || enhancementSheet.embellishmentUsed > enhancementSheet.embellishmentMax) {
+  if (!workbenchState && ((enhancementSheet.blockers || []).length || enhancementSheet.embellishmentUsed > enhancementSheet.embellishmentMax)) {
     return {
       blockMessage: (enhancementSheet.blockers || [])[0] || `美化已超过上限 ${enhancementSheet.embellishmentUsed}/${enhancementSheet.embellishmentMax}`,
       state: {
@@ -2480,7 +2649,12 @@ function gearTemplateSaveDraft(page, templateTitle) {
         warningSummary: status.warningSummary || '',
         selectedItemCount: selectedItems.length,
         gearSchemaRevision: data.gearPayload && data.gearPayload.gearSchemaRevision,
-        maxLevel: data.gearPayload && data.gearPayload.maxLevel
+        maxLevel: data.gearPayload && data.gearPayload.maxLevel,
+        ...(resolvedSnapshot ? {
+          selectionIntent: workbenchState.confirmedIntent,
+          resolvedGearSignature: resolvedSnapshot.resolvedGearSignature || '',
+          dependencyVector: resolvedSnapshot.dependencyVector || {}
+        } : {})
       }
     }
   }
@@ -4116,6 +4290,17 @@ Page({
     gearEnhancementSheet: emptyGearEnhancementSheet(),
     gearSaveTemplateSheet: emptyGearSaveTemplateSheet(),
     gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet(),
+    gearWorkbenchView: {
+      resolveStatus: 'idle',
+      resolving: false,
+      readOnly: true,
+      canUseVerifiedSnapshot: false,
+      canRunProfile: false,
+      resolvedGearSignature: ''
+    },
+    gearWorkbenchStatusText: '等待校验当前装备配置',
+    gearWorkbenchSignatureLabel: '',
+    gearWorkbenchProblemRows: [],
     savedGearTemplates: [],
     fromFallback: true,
     requestError: ''
@@ -4281,11 +4466,11 @@ Page({
         gearDataWarningText: gearDataWarningText(error || '', payload, gearDataFallback),
         enhancementBySlot
       })
-      maybeRefreshGearStatsForPage(this)
+      const resolution = resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot)
       if (typeof this.loadGearStatsTalentImport === 'function') {
         this.loadGearStatsTalentImport(keys, selectionKey)
       }
-      return payload
+      return Promise.resolve(resolution).then(() => payload)
     }).catch((error) => {
       this.gearPayloadCache = null
       this.gearSlotCandidateCache = {}
@@ -4337,7 +4522,7 @@ Page({
     const selectedSpec = this.data.selectedSpec || {}
     const activeDetail = this.data.activeDetail || {}
     const activeQuery = this.data.activeQuery || {}
-    return {
+    const context = {
       specId: selectedDetail.id || selectedSpec.id || '',
       className: selectedDetail.className || selectedSpec.className || '',
       specName: selectedDetail.specName || selectedSpec.specName || '',
@@ -4360,6 +4545,89 @@ Page({
         }
       }
     }
+    if (this.data.activeQueryKey === 'gear' && this.gearWorkbenchState && gearWorkbenchCanRunProfile(this.gearWorkbenchState)) {
+      const snapshot = this.gearWorkbenchState.currentSnapshot || {}
+      context.simulatorState.gear = {
+        selectionIntent: this.gearWorkbenchState.confirmedIntent,
+        resolvedGearSignature: snapshot.resolvedGearSignature || '',
+        dependencyVector: snapshot.dependencyVector || {}
+      }
+    }
+    return context
+  },
+
+  confirmAndResolveGearIntent(selectedGearBySlot, enhancementBySlot) {
+    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
+    const selectedSpec = this.data.selectedSpec || {}
+    const keys = specWebsimKeys({
+      websimClassKey: selectedSpec.websimClassKey || selectedSpec.classKey || gearPayload.classKey,
+      websimSpecKey: selectedSpec.websimSpecKey || selectedSpec.specKey || gearPayload.specKey
+    })
+    const selection = selectedGearBySlot || {}
+    const enhancements = enhancementBySlot || {}
+    const selectionIntent = serializeGearSelectionIntent({
+      resolverContext: gearPayload.resolverContext,
+      eligibilityContext: {
+        classKey: keys.classKey,
+        specKey: keys.specKey,
+        level: Number(gearPayload.maxLevel) || 90
+      },
+      selectedGearBySlot: selection,
+      enhancementBySlot: enhancements
+    })
+    if (!selectionIntent) {
+      this.gearWorkbenchState = {
+        ...createGearWorkbenchState({}, {}),
+        resolveStatus: 'unavailable',
+        readOnly: true,
+        problems: [{ code: 'RESOLVER_CONTEXT_UNAVAILABLE', title: '缺少服务端装备校验上下文' }]
+      }
+      this.setData({
+        selectedGearBySlot: selection,
+        enhancementBySlot: enhancements,
+        ...gearWorkbenchDataState(this.gearWorkbenchState, this.data)
+      })
+      return Promise.resolve(null)
+    }
+
+    if (!this.gearWorkbenchState || !completeResolverContext(gearPayload.resolverContext)) {
+      this.gearWorkbenchState = createGearWorkbenchState(gearPayload.resolverContext, selectionIntent)
+    } else {
+      this.gearWorkbenchState = editGearIntent(this.gearWorkbenchState, selectionIntent)
+      this.gearWorkbenchState = confirmGearIntent(this.gearWorkbenchState)
+    }
+    const pending = beginGearResolve(this.gearWorkbenchState)
+    this.gearWorkbenchState = pending.state
+    this.setData({
+      selectedGearBySlot: selection,
+      enhancementBySlot: enhancements,
+      ...gearWorkbenchDataState(this.gearWorkbenchState, this.data)
+    })
+
+    const applyResult = (request, transportResult) => {
+      this.gearWorkbenchState = applyGearResolveResult(this.gearWorkbenchState, request, transportResult)
+      const envelope = transportResult && transportResult.payload
+      if (this.gearWorkbenchState.resolveStatus === 'revision_conflict') {
+        const rebased = rebaseGearIntentRevisions(this.gearWorkbenchState, envelope && envelope.releaseContext)
+        if (rebased !== this.gearWorkbenchState) {
+          this.gearWorkbenchState = rebased
+          const retry = beginGearResolve(this.gearWorkbenchState)
+          this.gearWorkbenchState = retry.state
+          this.setData(gearWorkbenchDataState(this.gearWorkbenchState, this.data))
+          return requestWebsimGearResolve(retry.request.selectionIntent).then((retryResult) => applyResult(retry.request, retryResult))
+        }
+      }
+      this.setData(gearWorkbenchDataState(this.gearWorkbenchState, this.data))
+      return this.gearWorkbenchState.currentSnapshot
+    }
+
+    return requestWebsimGearResolve(pending.request.selectionIntent)
+      .then((result) => applyResult(pending.request, result))
+      .catch((error) => applyResult(pending.request, {
+        fromFallback: true,
+        transportError: error && error.message ? error.message : String(error || 'gear resolve failed'),
+        offline: true
+      }))
   },
 
   refreshDerivedState(overrides) {
@@ -4373,7 +4641,10 @@ Page({
         ...(overrides || {})
       }
     )
-    this.setData(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState)
+    this.setData({
+      ...(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState),
+      ...(this.gearWorkbenchState ? gearWorkbenchDataState(this.gearWorkbenchState, this.data) : {})
+    })
   },
 
   clearGearStatsSnapshot(blockers) {
@@ -4390,7 +4661,8 @@ Page({
       gearStatSnapshot: snapshot,
       gearStatBlockers: messages,
       gearStatsLoading: false,
-      gearStatsRequestError: ''
+      gearStatsRequestError: '',
+      ...(this.gearWorkbenchState ? gearWorkbenchDataState(this.gearWorkbenchState, this.data) : {})
     })
     return Promise.resolve(null)
   },
@@ -4418,7 +4690,8 @@ Page({
       gearStatSnapshot: pendingSnapshot,
       gearStatBlockers: [],
       gearStatsLoading: true,
-      gearStatsRequestError: ''
+      gearStatsRequestError: '',
+      ...(this.gearWorkbenchState ? gearWorkbenchDataState(this.gearWorkbenchState, this.data) : {})
     })
     return requestWebsimGearStats(request.payload).then(({ payload, error }) => {
       if (requestSerial !== this.gearStatsRequestSerial) return null
@@ -4435,7 +4708,8 @@ Page({
         gearStatSnapshot: snapshot,
         gearStatBlockers: blockers,
         gearStatsLoading: false,
-        gearStatsRequestError: error || ''
+        gearStatsRequestError: error || '',
+        ...(this.gearWorkbenchState ? gearWorkbenchDataState(this.gearWorkbenchState, this.data) : {})
       })
       return snapshot
     }).catch((error) => {
@@ -4452,7 +4726,8 @@ Page({
         gearStatSnapshot: snapshot,
         gearStatBlockers: snapshot.blockers || [message],
         gearStatsLoading: false,
-        gearStatsRequestError: message
+        gearStatsRequestError: message,
+        ...(this.gearWorkbenchState ? gearWorkbenchDataState(this.gearWorkbenchState, this.data) : {})
       })
       return null
     })
@@ -4531,7 +4806,9 @@ Page({
         ...(enhancementChanged ? { enhancementBySlot } : {}),
         ...((selectionChanged || enhancementChanged) ? {
           gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
-          gearAttributePanel: buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot)
+          gearAttributePanel: this.gearWorkbenchState
+            ? canonicalGearAttributePanel(this.gearWorkbenchState.currentSnapshot || this.gearWorkbenchState.lastVerifiedSnapshot)
+            : buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot)
         } : {}),
         gearEnhancementSheet: sheet,
         gearSlotSheet: emptyGearSlotSheet(),
@@ -4621,11 +4898,13 @@ Page({
     this.setData({
       selectedGearBySlot,
       enhancementBySlot,
-      gearAttributePanel: buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot),
+      gearAttributePanel: this.gearWorkbenchState
+        ? canonicalGearAttributePanel(this.gearWorkbenchState.lastVerifiedSnapshot)
+        : buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot),
       gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
       gearEnhancementSheet: emptyGearEnhancementSheet()
     })
-    maybeRefreshGearStatsForPage(this)
+    return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot)
   },
 
   openGearCommunityTemplates() {
@@ -4671,10 +4950,11 @@ Page({
       gearEnhancementSheet: emptyGearEnhancementSheet(),
       gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
-    maybeRefreshGearStatsForPage(this)
+    const resolution = resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot)
     trackEvent('builds_gear_selection_reset', {
       specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
     }, { page: 'pages/builds/detail' })
+    return resolution
   },
 
   applySavedGearTemplate(event) {
@@ -4708,12 +4988,13 @@ Page({
       gearEnhancementSheet: emptyGearEnhancementSheet(),
       gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
-    maybeRefreshGearStatsForPage(this)
+    const resolution = resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot)
     trackEvent('builds_gear_saved_template_apply', {
       templateId,
       readySlotCount: Object.keys(templateSelection).length,
       specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
     }, { page: 'pages/builds/detail' })
+    return resolution
   },
 
   applyGearCommunityTemplate(event) {
@@ -4749,17 +5030,16 @@ Page({
         gearEnhancementSheet: emptyGearEnhancementSheet(),
         gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
       })
-      maybeRefreshGearStatsForPage(this)
       trackEvent('builds_gear_community_template_apply', {
         templateId,
         readySlotCount: template.readySlotCount || Object.keys(selectedGearBySlot || {}).length,
         specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
       }, { page: 'pages/builds/detail' })
+      return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot)
     }
     const detailPromise = loadCommunityTemplateWeaponRepairDetails(this, template)
     if (detailPromise) return detailPromise.then(applyWithCurrentPayload)
-    applyWithCurrentPayload()
-    return Promise.resolve()
+    return applyWithCurrentPayload()
   },
 
   setGearCandidateFilter(event) {
@@ -4846,12 +5126,14 @@ Page({
     const slot = sheet.slot || ''
     const candidate = sheet.appliedCandidate || appliedGearCandidate(sheet.activeCandidate, sheet.variantKey, sheet.craftedStatOptionKey)
     if (!slot || !candidate) return Promise.resolve()
-    if (!(candidate.simcReady && gearTemplateLine(candidate))) {
+    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
+    const canonicalResolverAvailable = completeResolverContext(gearPayload.resolverContext)
+    const candidateCanEnterResolver = !!normalizedGearItemId(candidate)
+    if (!(canonicalResolverAvailable ? candidateCanEnterResolver : (candidate.simcReady && gearTemplateLine(candidate)))) {
       const trust = gearTrustState(candidate, candidate.statusClass, candidate.reason)
       showToast(trust.blockerLabel || trust.reason || '该装备数据待补，暂不能应用')
       return Promise.resolve()
     }
-    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, {
       ...(this.data.selectedGearBySlot || {}),
       [slot]: candidate
@@ -4875,8 +5157,7 @@ Page({
       gearSlotSheet: emptyGearSlotSheet(),
       gearEnhancementSheet: emptyGearEnhancementSheet()
     })
-    maybeRefreshGearStatsForPage(this)
-    return Promise.resolve()
+    return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot)
   },
 
   selectGearTemplateScenario(event) {
@@ -4977,6 +5258,10 @@ Page({
 
   openSimcWithBuildContext() {
     if (!this.data.selectedDetail || !this.data.activeDetail) return
+    if (this.data.activeQueryKey === 'gear' && !gearWorkbenchCanRunProfile(this.gearWorkbenchState)) {
+      showToast('当前装备配置尚未通过服务端校验，暂不能进入 SimC')
+      return
+    }
     const context = this.buildSimcContext()
     trackEvent('builds_simc_entry_click', {
       queryKey: context.activeQueryKey || '',

@@ -62,6 +62,12 @@
           <text>{{gearDataWarningText}}</text>
         </view>
 
+        <view class="gear-workbench-status {{gearWorkbenchView.resolveStatus}}">
+          <text class="gear-workbench-status-title">{{gearWorkbenchStatusText}}</text>
+          <text class="gear-workbench-status-meta" wx:if="{{gearWorkbenchSignatureLabel}}">配置签名 {{gearWorkbenchSignatureLabel}}</text>
+          <text class="gear-workbench-problem" wx:for="{{gearWorkbenchProblemRows}}" wx:key="key">{{item.text}}</text>
+        </view>
+
         <view class="gear-attribute-panel" wx:if="{{gearAttributePanel.visible}}">
           <view class="gear-attribute-header">
             <view class="gear-attribute-title-group">
@@ -127,9 +133,10 @@
         </view>
 
         <view class="gear-template-actions" wx:if="{{!gearInitialLoading}}">
-          <button class="gear-template-action-button primary" loading="{{gearTemplateSaving}}" disabled="{{gearDataFallback || gearTemplateSaving}}" bindtap="saveGearTemplate">保存模板</button>
+          <button class="gear-template-action-button primary" loading="{{gearTemplateSaving}}" disabled="{{gearDataFallback || gearTemplateSaving || !gearWorkbenchView.canUseVerifiedSnapshot}}" bindtap="saveGearTemplate">保存模板</button>
           <button class="gear-template-action-button import" disabled="{{gearDataFallback}}" bindtap="openGearCommunityTemplates">导入</button>
           <button class="gear-template-action-button muted" bindtap="resetGearSelection">重置</button>
+          <button class="gear-template-action-button simc" disabled="{{!gearWorkbenchView.canRunProfile}}" bindtap="openSimcWithBuildContext">带当前配置去 SimC</button>
         </view>
       </view>
 

@@ -62,10 +62,17 @@ function loadBuildsDetailPageConfig(options = {}) {
       if (modulePath === './websim-api') {
         return {
           requestWebsimGear: options.requestWebsimGear || (() => Promise.resolve({ payload: {} })),
+          requestWebsimGearResolve: options.requestWebsimGearResolve || (() => Promise.resolve({ payload: null, fromFallback: true })),
           requestWebsimGearStats: options.requestWebsimGearStats || (() => Promise.resolve({ payload: {} })),
           requestWebsimTalentImport: options.requestWebsimTalentImport || (() => Promise.resolve({ payload: {} })),
           requestWebsimTalents: options.requestWebsimTalents || (() => Promise.resolve({ payload: {} }))
         }
+      }
+      if (modulePath === './gear-workbench-state') {
+        return require('../pages/builds/gear-workbench-state')
+      }
+      if (modulePath === './gear-selection-intent') {
+        return require('../pages/builds/gear-selection-intent')
       }
       if (modulePath === '../common/analytics-client') {
         return {
@@ -1491,7 +1498,10 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(wxml, /bindtap="openGearCommunityTemplates"/)
   assert.match(wxml, /bindtap="resetGearSelection"/)
   assert.match(wxml, /gearDataWarningText/)
-  assert.match(wxml, /disabled="\{\{gearDataFallback \|\| gearTemplateSaving\}\}"/)
+  assert.match(wxml, /disabled="\{\{gearDataFallback \|\| gearTemplateSaving \|\| !gearWorkbenchView\.canUseVerifiedSnapshot\}\}"/)
+  assert.match(wxml, /gearWorkbenchStatusText/)
+  assert.match(wxml, /gearWorkbenchProblemRows/)
+  assert.match(wxml, /disabled="\{\{!gearWorkbenchView\.canRunProfile\}\}"/)
   assert.match(wxml, /class="gear-template-action-button import"/)
   assert.match(wxml, />导入</)
   assert.doesNotMatch(wxml, />导入社区推荐</)
@@ -1623,6 +1633,274 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.ok(primaryGearActionCss)
   assert.doesNotMatch(primaryGearActionCss[0], /grid-column/)
   assert.match(css, /\.gear-attribute-converted/)
+})
+
+test('canonical gear workbench ignores forged client final facts and renders resolver snapshot facts', async () => {
+  const resolveRequests = []
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGearResolve(selectionIntent) {
+      resolveRequests.push(selectionIntent)
+      return Promise.resolve({
+        httpStatus: 200,
+        fromFallback: false,
+        payload: {
+          contractRevision: 'gear-result-envelope-v1',
+          status: 'resolved',
+          problems: [],
+          data: {
+            contractRevision: 'gear-resolved-snapshot-v1',
+            status: 'verified',
+            resolvedGearSignature: 'sha256:server-snapshot',
+            dependencyVector: { gearCatalogRevision: 'gear-r17', serializerRevision: 'serializer-r1' },
+            staticAttributes: { intellect: 120, stamina: 240, haste: 30 },
+            setState: { itemSetCounts: { 'set:server': 2 }, activeDynamicEffects: [] },
+            aggregateLegality: { status: 'verified', problemCodes: [] },
+            profileReadiness: { status: 'verified', simcReady: true, requiredSlots: ['head'], readySlots: ['head'] },
+            constraints: { slots: { head: { socketCount: 0 } } },
+            serializerInput: { gearItems: [{ slot: 'head', itemId: '250060' }] },
+            resolvedSlots: { head: { slot: 'head', itemId: '250060', legality: { status: 'verified', problemCodes: [] } } },
+            problems: []
+          }
+        }
+      })
+    }
+  })
+  const forged = {
+    head: {
+      slot: 'head', itemId: '250060', variantKey: 'variant-head', displayName: '浏览标签',
+      itemStats: { intellect: 999999 }, statSummary: '智力 999999', itemSetName: '伪造套装', simcReady: false
+    }
+  }
+  const page = {
+    data: {
+      ...pageConfig.data,
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedDetail: { details: { talents: { importCode: 'talent-code' }, gear: {} } },
+      selectedGearBySlot: forged,
+      enhancementBySlot: {},
+      gearPayload: {
+        classKey: 'mage', specKey: 'frost', maxLevel: 90,
+        slots: [{ slot: 'head', simcSlot: 'head', label: '头部' }],
+        equippedSet: forged,
+        replacementCandidates: [], slotReadiness: {}, readiness: {},
+        resolverContext: {
+          contractRevision: 'gear-resolver-context-v1',
+          selectionSchemaRevision: 'selection-intent-v1',
+          authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' }
+        }
+      }
+    },
+    setData(update) { this.data = { ...this.data, ...update } }
+  }
+
+  await pageConfig.confirmAndResolveGearIntent.call(page, forged, {})
+
+  assert.equal(resolveRequests.length, 1)
+  assert.deepEqual(Object.keys(resolveRequests[0].slots.head).sort(), [
+    'catalystOptionId', 'craftedOptionId', 'embellishmentOptionId', 'enchantOptionId',
+    'gemOptionIds', 'itemId', 'variantKey'
+  ])
+  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'intellect').value, '120')
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'tierSet').value, '2')
+  assert.equal(page.data.gearWorkbenchView.canRunProfile, true)
+  assert.equal(page.data.gearWorkbenchView.resolvedGearSignature, 'sha256:server-snapshot')
+  assert.equal(page.data.gearSlotRows.find((row) => row.slot === 'head').statusLabel, '已校验')
+})
+
+test('canonical gear workbench ignores stale resolve completion after a newer confirmed Intent', async () => {
+  const pending = []
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGearResolve(selectionIntent) {
+      return new Promise((resolve) => pending.push({ selectionIntent, resolve }))
+    }
+  })
+  const payload = {
+    classKey: 'mage', specKey: 'frost', maxLevel: 90,
+    slots: [{ slot: 'head', simcSlot: 'head', label: '头部' }], equippedSet: {},
+    replacementCandidates: [], slotReadiness: {}, readiness: {},
+    resolverContext: {
+      contractRevision: 'gear-resolver-context-v1', selectionSchemaRevision: 'selection-intent-v1',
+      authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' }
+    }
+  }
+  const page = {
+    data: { ...pageConfig.data, activeQueryKey: 'gear', gearPayload: payload, selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' }, selectedGearBySlot: {}, enhancementBySlot: {} },
+    setData(update) { this.data = { ...this.data, ...update } }
+  }
+  const first = pageConfig.confirmAndResolveGearIntent.call(page, { head: { slot: 'head', itemId: '250060', variantKey: 'v1' } }, {})
+  const second = pageConfig.confirmAndResolveGearIntent.call(page, { head: { slot: 'head', itemId: '250061', variantKey: 'v2' } }, {})
+  const response = (signature) => ({ httpStatus: 200, fromFallback: false, payload: {
+    contractRevision: 'gear-result-envelope-v1', status: 'resolved', problems: [], data: {
+      contractRevision: 'gear-resolved-snapshot-v1', status: 'verified', resolvedGearSignature: signature,
+      staticAttributes: {}, setState: { itemSetCounts: {}, activeDynamicEffects: [] },
+      aggregateLegality: { status: 'verified', problemCodes: [] },
+      profileReadiness: { status: 'verified', simcReady: true }, constraints: {}, serializerInput: { gearItems: [] }, resolvedSlots: {}, problems: []
+    }
+  } })
+  pending[1].resolve(response('sha256:newest'))
+  await second
+  pending[0].resolve(response('sha256:stale'))
+  await first
+
+  assert.equal(page.data.gearWorkbenchView.resolvedGearSignature, 'sha256:newest')
+  assert.equal(page.gearWorkbenchState.confirmedIntent.slots.head.itemId, '250061')
+})
+
+test('canonical gear workbench performs one revision-only 409 rebase and preserves slot choices', async () => {
+  const requests = []
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGearResolve(selectionIntent) {
+      requests.push(selectionIntent)
+      if (requests.length === 1) {
+        return Promise.resolve({ httpStatus: 409, fromFallback: false, payload: {
+          contractRevision: 'gear-result-envelope-v1', status: 'blocked', data: {},
+          releaseContext: { seasonRevision: 'season-18', gearCatalogRevision: 'gear-r18' },
+          problems: [{ kind: 'REVISION_CONFLICT', code: 'GEAR_CATALOG_REVISION_CONFLICT' }]
+        } })
+      }
+      return Promise.resolve({ httpStatus: 200, fromFallback: false, payload: {
+        contractRevision: 'gear-result-envelope-v1', status: 'resolved', problems: [], data: {
+          contractRevision: 'gear-resolved-snapshot-v1', status: 'verified', resolvedGearSignature: 'sha256:rebased',
+          staticAttributes: {}, setState: { itemSetCounts: {}, activeDynamicEffects: [] },
+          aggregateLegality: { status: 'verified', problemCodes: [] }, profileReadiness: { status: 'verified', simcReady: true },
+          constraints: {}, resolvedSlots: {}, serializerInput: { gearItems: [] }, problems: []
+        }
+      } })
+    }
+  })
+  const selection = { head: { slot: 'head', itemId: '250060', variantKey: 'v1' } }
+  const gearPayload = {
+    classKey: 'mage', specKey: 'frost', maxLevel: 90, slots: [{ slot: 'head' }],
+    resolverContext: {
+      contractRevision: 'gear-resolver-context-v1', selectionSchemaRevision: 'selection-intent-v1',
+      authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' }
+    }
+  }
+  const page = {
+    ...pageConfig,
+    data: { ...pageConfig.data, activeQueryKey: 'gear', gearPayload, selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' } },
+    setData(update) { this.data = { ...this.data, ...update } }
+  }
+
+  await pageConfig.confirmAndResolveGearIntent.call(page, selection, {})
+
+  assert.equal(requests.length, 2)
+  assert.equal(requests[0].slots.head.itemId, '250060')
+  assert.equal(requests[1].slots.head.itemId, '250060')
+  assert.equal(requests[1].authoredAgainst.seasonRevision, 'season-18')
+  assert.equal(requests[1].authoredAgainst.gearCatalogRevision, 'gear-r18')
+  assert.equal(page.data.gearWorkbenchView.resolvedGearSignature, 'sha256:rebased')
+})
+
+test('canonical legacy stat request uses matching resolver serializer input without replacing final facts', async () => {
+  let statRequest = null
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGearResolve: () => Promise.resolve({
+      httpStatus: 200,
+      fromFallback: false,
+      payload: {
+        contractRevision: 'gear-result-envelope-v1', status: 'resolved', problems: [],
+        data: {
+          contractRevision: 'gear-resolved-snapshot-v1', status: 'verified',
+          resolvedGearSignature: 'sha256:stat-bound', dependencyVector: {},
+          staticAttributes: { intellect: 321 }, setState: { itemSetCounts: {}, activeDynamicEffects: [] },
+          aggregateLegality: { status: 'verified', problemCodes: [] },
+          profileReadiness: { status: 'verified', simcReady: true, requiredSlots: ['head'], readySlots: ['head'] },
+          constraints: {}, resolvedSlots: { head: { itemLevel: 700, selectedOptions: {} } },
+          serializerInput: { gearItems: [{ slot: 'head', id: 'server-item', bonus_id: 'server-bonus' }] }, problems: []
+        }
+      }
+    }),
+    requestWebsimGearStats(payload) {
+      statRequest = payload
+      return Promise.resolve({ payload: {
+        statStatus: 'verified', blockers: [],
+        primary: { key: 'intellect', value: '999999', rawValue: 999999 }
+      } })
+    }
+  })
+  const forged = { head: { slot: 'head', itemId: '250060', variantKey: 'v1', itemStats: { intellect: 999999 }, simcReady: true } }
+  const gearPayload = {
+    classKey: 'mage', specKey: 'frost', maxLevel: 90,
+    slots: [{ slot: 'head', simcSlot: 'head' }], equippedSet: forged,
+    replacementCandidates: [], slotReadiness: {}, readiness: {},
+    resolverContext: {
+      contractRevision: 'gear-resolver-context-v1', selectionSchemaRevision: 'selection-intent-v1',
+      authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' }
+    }
+  }
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data, activeQueryKey: 'gear', gearPayload,
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedDetail: { details: { talents: { importCode: 'C4DA' }, gear: {} } },
+      selectedGearBySlot: forged, enhancementBySlot: { head: { enchantOptionId: 'client-enchant' } }
+    },
+    setData(update) { this.data = { ...this.data, ...update } }
+  }
+
+  await pageConfig.confirmAndResolveGearIntent.call(page, forged, page.data.enhancementBySlot)
+  await pageConfig.refreshGearStats.call(page)
+
+  assert.deepEqual(statRequest.gearSelection.items, [{ slot: 'head', id: 'server-item', bonus_id: 'server-bonus' }])
+  assert.equal(statRequest.enhancementBySlot, undefined)
+  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'intellect').value, '321')
+  assert.equal(page.data.gearWorkbenchView.canRunProfile, true)
+})
+
+test('canonical save gate binds Intent signature and dependency vector to legacy template metadata', async () => {
+  const savedTemplates = []
+  const toasts = []
+  const pageConfig = loadBuildsDetailPageConfig({
+    savedTemplates,
+    toasts,
+    requestWebsimGearResolve: () => Promise.resolve({
+      httpStatus: 200, fromFallback: false,
+      payload: { contractRevision: 'gear-result-envelope-v1', status: 'resolved', problems: [], data: {
+        contractRevision: 'gear-resolved-snapshot-v1', status: 'verified',
+        resolvedGearSignature: 'sha256:saved', dependencyVector: { gearCatalogRevision: 'gear-r17' },
+        staticAttributes: {}, setState: { itemSetCounts: {}, activeDynamicEffects: [] },
+        aggregateLegality: { status: 'verified', problemCodes: [] },
+        profileReadiness: { status: 'verified', simcReady: true, requiredSlots: ['head'], readySlots: ['head'] },
+        constraints: {}, resolvedSlots: { head: { selectedOptions: {} } }, serializerInput: { gearItems: [] }, problems: []
+      } }
+    })
+  })
+  const selection = completeGearSelection()
+  selection.head.variantKey = 'v1'
+  const gearPayload = {
+    classKey: 'mage', specKey: 'frost', maxLevel: 90,
+    slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot })), equippedSet: selection,
+    replacementCandidates: [], slotReadiness: {}, readiness: {},
+    resolverContext: {
+      contractRevision: 'gear-resolver-context-v1', selectionSchemaRevision: 'selection-intent-v1',
+      authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' }
+    }
+  }
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data, activeQueryKey: 'gear', gearPayload, selectedGearBySlot: selection, enhancementBySlot: {},
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedDetail: { className: '法师', specName: '冰霜', details: { talents: { importCode: 'C4DA' }, gear: {} } }
+    },
+    setData(update) { this.data = { ...this.data, ...update } }
+  }
+
+  page.gearWorkbenchState = { ...require('../pages/builds/gear-workbench-state').createGearWorkbenchState(gearPayload.resolverContext, {}), resolveStatus: 'blocked' }
+  pageConfig.saveGearTemplate.call(page)
+  assert.match(toasts.at(-1).title, /尚未通过服务端校验/)
+
+  await pageConfig.confirmAndResolveGearIntent.call(page, selection, {})
+  await confirmGearTemplateSave(pageConfig, page, '可信配置')
+
+  assert.equal(savedTemplates.length, 1)
+  assert.equal(savedTemplates[0].metadata.resolvedGearSignature, 'sha256:saved')
+  assert.deepEqual(savedTemplates[0].metadata.dependencyVector, { gearCatalogRevision: 'gear-r17' })
+  assert.equal(savedTemplates[0].metadata.selectionIntent.slots.head.itemId, '250000')
+  assert.equal(savedTemplates[0].metadata.selectionIntent.slots.head.simcReady, undefined)
 })
 
 test('gear detail summarizes selected equipment attributes above the slot grid', async () => {

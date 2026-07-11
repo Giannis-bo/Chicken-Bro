@@ -3,6 +3,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 
 const workbench = require('../pages/builds/gear-workbench-state')
+const { serializeGearSelectionIntent } = require('../pages/builds/gear-selection-intent')
 
 function intent(revision = 'gear-r17') {
   return {
@@ -84,6 +85,79 @@ function resolveVerified(state, signature) {
     transport(envelope('resolved', snapshot(signature)))
   )
 }
+
+test('Selection Intent serializer emits only client-owned identifiers from backend context', () => {
+  const selectedGearBySlot = {
+    head: {
+      slot: 'head',
+      itemId: '250060',
+      variantKey: 'variant-head',
+      displayName: 'forged name',
+      itemStats: { intellect: 999999 },
+      statSummary: '智力 999999',
+      itemSetName: 'forged set',
+      simcReady: true,
+      legality: { status: 'verified' }
+    }
+  }
+  const enhancementBySlot = {
+    head: {
+      socketOptionId: 'gem-haste',
+      enchantOptionId: 'enchant-head',
+      embellishmentOptionId: 'embellishment-head',
+      craftedOptionId: 'crafted-head',
+      catalystOptionId: 'catalyst-head',
+      gem_id: 'forged-simc-gem',
+      enchant_id: 'forged-simc-enchant'
+    }
+  }
+
+  assert.deepEqual(
+    serializeGearSelectionIntent({
+      resolverContext: {
+        contractRevision: 'gear-resolver-context-v1',
+        selectionSchemaRevision: 'selection-intent-v1',
+        authoredAgainst: {
+          seasonRevision: 'season-17',
+          gearCatalogRevision: 'gear-r17'
+        }
+      },
+      eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+      selectedGearBySlot,
+      enhancementBySlot
+    }),
+    {
+      schemaRevision: 'selection-intent-v1',
+      authoredAgainst: {
+        seasonRevision: 'season-17',
+        gearCatalogRevision: 'gear-r17'
+      },
+      eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+      slots: {
+        head: {
+          itemId: '250060',
+          variantKey: 'variant-head',
+          gemOptionIds: ['gem-haste'],
+          enchantOptionId: 'enchant-head',
+          embellishmentOptionId: 'embellishment-head',
+          craftedOptionId: 'crafted-head',
+          catalystOptionId: 'catalyst-head'
+        }
+      }
+    }
+  )
+})
+
+test('Selection Intent serializer fails closed when resolver context is incomplete', () => {
+  assert.equal(serializeGearSelectionIntent({
+    resolverContext: {
+      selectionSchemaRevision: 'selection-intent-v1',
+      authoredAgainst: { seasonRevision: 'season-17' }
+    },
+    eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+    selectedGearBySlot: { head: { itemId: '250060' } }
+  }), null)
+})
 
 test('draft edits preserve confirmed Intent and last verified snapshot until one confirm', () => {
   const initial = intent()
@@ -212,6 +286,7 @@ test('409 preserves choices and permits exactly one revision-only rebase', () =>
   })
   assert.strictEqual(stopped, secondConflict)
   assert.equal(stopped.confirmedIntent.authoredAgainst.gearCatalogRevision, 'gear-r18')
+  assert.equal(stopped.readOnly, true)
 })
 
 test('structured 503 is read-only but not offline while transport failure is offline', () => {
