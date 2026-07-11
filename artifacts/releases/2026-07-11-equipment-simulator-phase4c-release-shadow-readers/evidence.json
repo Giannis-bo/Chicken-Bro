@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase4c-release-shadow-readers",
   "requirementSlug": "equipment-simulator-phase4c-release-shadow-readers",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
-  "branch": "codex/equipment-simulator-phase4b-closure-phase4c-open",
-  "commit": "48aa44ef6ff85449814ae56ad6dbe7137d356250",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/equipment-simulator-phase4c-release-shadow-readers",
+  "commit": "50272885689602378929303f0706909cccc14f5d",
   "scope": [
     "release-scoped read-only candidate projections",
     "internal bounded old/new shadow comparison",
@@ -22,6 +22,31 @@
       "command": "Phase 4C requirement self-review",
       "status": "pass",
       "summary": "The Slice is limited to release-scoped read-only projections and internal shadow evidence. Public reader cutover, Manifest/Pointer writes, timers, scheduled refresh, Phase 5 and Catalyst activation remain excluded."
+    },
+    {
+      "command": "python3 -m unittest tests.gear_release_shadow_test tests.gear_release_store_test tests.gear_release_tool_test tests.gear_release_test tests.gear_runtime_test tests.pg_gear_authority_loader_test tests.pg_gear_read_model_selectors_test tests.postgres_cache_store_test",
+      "status": "pass",
+      "summary": "239 focused release store, release integrity, exact candidate Authority, cache identity, Resolve/Profile, shadow orchestration and PostgreSQL facade tests passed."
+    },
+    {
+      "command": "node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "23 Repo-native Harness, project-state and ownership contract tests passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers --base origin/main",
+      "status": "pass",
+      "summary": "Backend profile passed 1252 Python tests with 1 skipped, compileall and the strict Harness packet check."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers --base origin/main",
+      "status": "pass",
+      "summary": "Full profile passed 386 Node tests, 1252 Python tests with 1 skipped, 130 JSON/syntax/Harness/diff commands and the strict packet check."
+    },
+    {
+      "command": "local CR against origin/main plus python3 -m py_compile and git diff --check",
+      "status": "pass",
+      "summary": "Local CR fixed exact-release cache reuse, transitional reader exception handling, unexpected candidate winner filtering, user-visible Profile content parity and empty candidate Profile release fallback. Candidate paths remain explicit internal operator-only reads with no route, timer, Manifest/Pointer or staging fallback."
     }
   ],
   "candidateDeployment": {
@@ -73,5 +98,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 4C is implementation-allowed only as an internal read-only shadow path. No public reader, Manifest/Pointer, release write, timer or cutover has been implemented or claimed."
+  "summary": "Slice 4C implementation commit 5027288 is locally verified as an internal read-only shadow path. Candidate deployment and live 40-spec SQL/performance evidence remain pending; no public reader, Manifest/Pointer, release write, timer or cutover has been implemented or claimed."
 }
