@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase3c-workbench-cutover",
+  "requirementSlug": "equipment-simulator-phase3c-workbench-cutover",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase3c-workbench-cutover",
+  "commit": "8afebbf0e14d67ef197cdb1655e56847abf90a33",
+  "scope": [
+    "active gear page canonical Intent cutover",
+    "server snapshot final panels and gates",
+    "race-safe structured problem presentation",
+    "real mini-program and candidate verification"
+  ],
+  "verification": [
+    {
+      "command": "approved Phase 3 Slice 3C planning-contract review",
+      "status": "pass",
+      "summary": "The approved plan fixes existing page files, seven confirmation flows, exact Intent allowlist, server-owned final panels, signature-bound save/Profile/SimC gates, structured UI states, caller audit, real WeChat evidence and full candidate/post-merge gates."
+    },
+    {
+      "command": "Slice 3B closure and Slice 3C active-packet baseline verification",
+      "status": "pass",
+      "summary": "Slice 3B is archived at local/CI evidence without runtime overclaim, project-state and roadmap advance exactly one Slice, the Slice 3C Harness check and 22 current-truth tests pass, and the full 129-command baseline profile passes before active page edits."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "required_pending",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase3c-workbench-cutover",
+    "commit": "",
+    "buildIdentity": "pending exact PR head, candidate backend identity and mini-program evidence",
+    "databaseRuntime": "postgres_only"
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "frontend_final_fact_inference",
+      "status": "blocked_by_contract",
+      "detail": "Forged item stats, summaries, set labels, local readiness or legality may remain browse-only but cannot affect final panels, saves, Profile or SimC."
+    },
+    {
+      "id": "stale_response_overwrite",
+      "status": "blocked_by_serial_version",
+      "detail": "Every confirmed flow must use one serial/version path and ignore out-of-order results."
+    },
+    {
+      "id": "missing_resolver_context",
+      "status": "fail_closed",
+      "detail": "The page becomes unavailable/read-only and may not fabricate season or catalog revisions."
+    },
+    {
+      "id": "real_wechat_state",
+      "status": "candidate_gate",
+      "detail": "DevTools/login/project state must be inspected before capture; static or browser-only evidence cannot replace real mini-program runtime proof."
+    },
+    {
+      "id": "large_slot_payload_memory",
+      "status": "watch",
+      "detail": "Phase 3A observed large slot payload and extra-concurrency RSS retention. Slice 3C must preserve on-demand slot loading and avoid copying full candidates or Evidence Ledger into setData."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "feature_hide"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase3-resolve-profile-workbench-plan.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 3C is implementation-allowed as the active Phase 3 runtime cutover. No page, candidate or real mini-program evidence is claimed before TDD implementation, local CR, exact-head CI and candidate verification."
+}
