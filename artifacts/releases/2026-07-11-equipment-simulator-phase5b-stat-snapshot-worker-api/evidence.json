@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase5b-stat-snapshot-worker-api",
   "requirementSlug": "equipment-simulator-phase5b-stat-snapshot-worker-api",
-  "status": "live_verified",
+  "status": "archived",
   "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase5b-worker-api",
   "commit": "c44e872",
@@ -118,6 +118,19 @@
     },
     "rollbackTarget": "stop and disable wow-gear-stat-snapshot-worker, restore code to 8a75fd5, retain additive 0015 tables and immutable candidate snapshots, and use the recorded dump only for corruption recovery"
   },
+  "postMerge": {
+    "status": "live_verified",
+    "pullRequest": 80,
+    "exactHead": "796af0df0775afd4883173e2e673c26bbb0e213d",
+    "ciRun": 29153298891,
+    "mergeCommit": "9ee557bf88a32318c6d13717384097d7a313550e",
+    "tree": "681f3d248bba8cfd75c23bd9cf75b161aabd9cbb",
+    "runtimeParity": "PR head tree, squash merge tree and clean-main-equivalent deployed tree matched",
+    "smoke": {
+      "status": "pass",
+      "summary": "Post-merge duplicate misses reused job 10 and polled to verified after two polls; 40/40 public observed-only, Catalyst fail-closed, generation 9, 4 immutable snapshots, 4 completed jobs, one stable worker, zero active queue, services/timer/logs and NRestarts=0 passed."
+    }
+  },
   "runtimeEvidence": [
     {
       "id": "request_thread_no_simc",
@@ -184,5 +197,5 @@
     "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
     "artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/evidence.json"
   ],
-  "summary": "Phase 5B exact implementation commit c44e872 is candidate live-verified. The canonical async route, one-child fenced worker/service, bounded health/admin and legacy telemetry passed real 202-to-200, duplicate single-flight, worker-down hit/miss, reclaim/fencing, latency, resource, public, Catalyst, timer/backflow, parity and full Harness gates. Frontend traffic remains on the compatible legacy endpoint until 5C and Catalyst stays disabled."
+  "summary": "Phase 5B is archived after PR #80 exact-head CI, squash merge at 9ee557b and clean-main-equivalent post-merge smoke passed. The canonical async route, one-child fenced worker/service, bounded health/admin and legacy telemetry are live; frontend traffic still remains on the compatible legacy endpoint until 5C and Catalyst stays disabled."
 }

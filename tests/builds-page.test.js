@@ -63,7 +63,7 @@ function loadBuildsDetailPageConfig(options = {}) {
         return {
           requestWebsimGear: options.requestWebsimGear || (() => Promise.resolve({ payload: {} })),
           requestWebsimGearResolve: options.requestWebsimGearResolve || (() => Promise.resolve({ payload: null, fromFallback: true })),
-          requestWebsimGearStats: options.requestWebsimGearStats || (() => Promise.resolve({ payload: {} })),
+          requestWebsimGearStatSnapshot: options.requestWebsimGearStatSnapshot || options.requestWebsimGearStats || (() => Promise.resolve({ payload: null, fromFallback: true, offline: true })),
           requestWebsimTalentImport: options.requestWebsimTalentImport || (() => Promise.resolve({ payload: {} })),
           requestWebsimTalents: options.requestWebsimTalents || (() => Promise.resolve({ payload: {} }))
         }
@@ -124,6 +124,76 @@ function completeGearSelection(slots = canonicalGearSlots) {
     }
     return selection
   }, {})
+}
+
+function canonicalTestResolverContext() {
+  return {
+    contractRevision: 'gear-resolver-context-v1',
+    selectionSchemaRevision: 'selection-intent-v1',
+    authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' }
+  }
+}
+
+function canonicalResolveTransport(selectionIntent, signature = 'sha256:test-resolved') {
+  return Promise.resolve({
+    httpStatus: 200,
+    fromFallback: false,
+    payload: {
+      contractRevision: 'gear-result-envelope-v1',
+      requestId: 'resolve-test',
+      releaseContext: {},
+      status: 'resolved',
+      problems: [],
+      data: {
+        contractRevision: 'gear-resolved-snapshot-v1',
+        status: 'verified',
+        resolvedGearSignature: signature,
+        dependencyVector: {},
+        staticAttributes: {},
+        setState: { itemSetCounts: {}, activeDynamicEffects: [] },
+        aggregateLegality: { status: 'verified', problemCodes: [] },
+        profileReadiness: { status: 'verified', simcReady: true },
+        constraints: {},
+        resolvedSlots: Object.keys((selectionIntent && selectionIntent.slots) || {}).reduce((slots, slot) => {
+          slots[slot] = { itemLevel: 700, selectedOptions: {} }
+          return slots
+        }, {}),
+        problems: []
+      }
+    }
+  })
+}
+
+function canonicalStatTransport(snapshot, statSignature = 'sha256:test-stat') {
+  const verified = snapshot && snapshot.statStatus === 'verified'
+  const blockers = Array.isArray(snapshot && snapshot.blockers) ? snapshot.blockers : []
+  return {
+    httpStatus: verified ? 200 : 422,
+    fromFallback: false,
+    payload: {
+      contractRevision: 'gear-result-envelope-v1',
+      requestId: 'stat-test',
+      releaseContext: {},
+      status: verified ? 'resolved' : 'blocked',
+      data: verified ? { statSignature, statSnapshot: snapshot } : {},
+      problems: blockers.map((title) => ({ kind: 'ILLEGAL_SELECTION', code: 'GEAR_STAT_BLOCKED', title }))
+    }
+  }
+}
+
+function pendingStatTransport(retryAfterMs = 1500) {
+  return {
+    httpStatus: 202,
+    fromFallback: false,
+    payload: {
+      contractRevision: 'gear-result-envelope-v1',
+      requestId: 'stat-pending',
+      releaseContext: {},
+      status: 'pending',
+      data: { status: 'pending', statSignature: 'sha256:pending', retryAfterMs },
+      problems: []
+    }
+  }
 }
 
 async function confirmGearTemplateSave(pageConfig, page, name) {
@@ -1366,7 +1436,8 @@ test('gear detail page exposes inline equipment simulator state and replacement 
 
   assert.match(js, /game-asset/)
   assert.match(js, /requestWebsimGear/)
-  assert.match(js, /requestWebsimGearStats/)
+  assert.match(js, /requestWebsimGearStatSnapshot/)
+  assert.doesNotMatch(js, /\brequestWebsimGearStats\b/)
   assert.match(js, /selectedGearBySlot/)
   assert.match(js, /gearSlotRows/)
   assert.match(js, /buildGearAttributePanel/)
@@ -1794,7 +1865,7 @@ test('canonical gear workbench performs one revision-only 409 rebase and preserv
   assert.equal(page.data.gearWorkbenchView.resolvedGearSignature, 'sha256:rebased')
 })
 
-test('canonical legacy stat request uses matching resolver serializer input without replacing final facts', async () => {
+test('canonical async stat request sends only confirmed Intent and profile context without replacing final facts', async () => {
   let statRequest = null
   const pageConfig = loadBuildsDetailPageConfig({
     requestWebsimGearResolve: () => Promise.resolve({
@@ -1813,12 +1884,21 @@ test('canonical legacy stat request uses matching resolver serializer input with
         }
       }
     }),
-    requestWebsimGearStats(payload) {
-      statRequest = payload
-      return Promise.resolve({ payload: {
-        statStatus: 'verified', blockers: [],
-        primary: { key: 'intellect', value: '999999', rawValue: 999999 }
-      } })
+    requestWebsimGearStatSnapshot(selectionIntent, profileContext) {
+      statRequest = { selectionIntent, profileContext }
+      return Promise.resolve({
+        httpStatus: 200,
+        fromFallback: false,
+        payload: {
+          contractRevision: 'gear-result-envelope-v1', status: 'resolved', problems: [], data: {
+            statSignature: 'sha256:server-stat',
+            statSnapshot: {
+              statStatus: 'verified', blockers: [],
+              primary: { key: 'intellect', value: '999999', rawValue: 999999 }
+            }
+          }
+        }
+      })
     }
   })
   const forged = { head: { slot: 'head', itemId: '250060', variantKey: 'v1', itemStats: { intellect: 999999 }, simcReady: true } }
@@ -1845,8 +1925,13 @@ test('canonical legacy stat request uses matching resolver serializer input with
   await pageConfig.confirmAndResolveGearIntent.call(page, forged, page.data.enhancementBySlot)
   await pageConfig.refreshGearStats.call(page)
 
-  assert.deepEqual(statRequest.gearSelection.items, [{ slot: 'head', id: 'server-item', bonus_id: 'server-bonus' }])
-  assert.equal(statRequest.enhancementBySlot, undefined)
+  assert.equal(statRequest.selectionIntent.slots.head.itemId, '250060')
+  assert.equal(statRequest.selectionIntent.slots.head.enchantOptionId, 'client-enchant')
+  assert.deepEqual(Object.keys(statRequest.profileContext).sort(), ['scenarioKey', 'talents'])
+  assert.equal(statRequest.profileContext.talents, 'C4DA')
+  assert.equal(statRequest.profileContext.scenarioKey, 'single')
+  assert.equal(statRequest.profileContext.gearSelection, undefined)
+  assert.equal(page.gearStatSnapshotState.statSnapshotSignature, 'sha256:server-stat')
   assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'intellect').value, '321')
   assert.equal(page.data.gearWorkbenchView.canRunProfile, true)
 })
@@ -7143,14 +7228,15 @@ test('gear detail requests SimC stat snapshot when gear and talents are complete
           warnings: [],
           itemLevel: { key: 'itemLevel', label: '装备等级', value: '289', rawValue: 289 }
         },
-        communityTemplates: []
+        communityTemplates: [],
+        resolverContext: canonicalTestResolverContext()
       }
     }),
-    requestWebsimGearStats: (payload) => {
-      statsPayload = payload
+    requestWebsimGearResolve: (selectionIntent) => canonicalResolveTransport(selectionIntent),
+    requestWebsimGearStatSnapshot: (selectionIntent, profileContext) => {
+      statsPayload = { selectionIntent, profileContext }
       resolveStats()
-      return Promise.resolve({
-        payload: {
+      return Promise.resolve(canonicalStatTransport({
           statStatus: 'verified',
           statSource: 'simulationcraft_json',
           blockers: [],
@@ -7163,8 +7249,7 @@ test('gear detail requests SimC stat snapshot when gear and talents are complete
             { key: 'versatility', label: '全能', value: '83', rawValue: 83, convertedValue: '1.5%' }
           ],
           itemLevel: { key: 'itemLevel', label: '装备等级', value: '289', rawValue: 289 }
-        }
-      })
+      }))
     }
   })
   const page = {
@@ -7189,10 +7274,10 @@ test('gear detail requests SimC stat snapshot when gear and talents are complete
   await statsRequested
   await new Promise((resolve) => setImmediate(resolve))
 
-  assert.equal(statsPayload.classKey, 'mage')
-  assert.equal(statsPayload.specKey, 'frost')
-  assert.equal(statsPayload.talents, 'C4DA')
-  assert.equal(statsPayload.gearSelection.items.length, canonicalGearSlots.length)
+  assert.equal(statsPayload.selectionIntent.eligibilityContext.classKey, 'mage')
+  assert.equal(statsPayload.selectionIntent.eligibilityContext.specKey, 'frost')
+  assert.equal(Object.keys(statsPayload.selectionIntent.slots).length, canonicalGearSlots.length)
+  assert.equal(statsPayload.profileContext.talents, 'C4DA')
   assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'crit').convertedValue, '28.6%')
 })
 
@@ -7217,9 +7302,11 @@ test('gear detail requests SimC stat snapshot with community talent import when 
           warnings: [],
           itemLevel: { key: 'itemLevel', label: '瑁呭绛夌骇', value: '289', rawValue: 289 }
         },
-        communityTemplates: []
+        communityTemplates: [],
+        resolverContext: canonicalTestResolverContext()
       }
     }),
+    requestWebsimGearResolve: (selectionIntent) => canonicalResolveTransport(selectionIntent),
     requestWebsimTalentImport: (params) => {
       importRequest = params
       return Promise.resolve({
@@ -7233,11 +7320,10 @@ test('gear detail requests SimC stat snapshot with community talent import when 
     requestWebsimTalents: () => {
       throw new Error('gear stats talent import must use the narrow endpoint')
     },
-    requestWebsimGearStats: (payload) => {
-      statsPayload = payload
+    requestWebsimGearStatSnapshot: (selectionIntent, profileContext) => {
+      statsPayload = { selectionIntent, profileContext }
       resolveStats()
-      return Promise.resolve({
-        payload: {
+      return Promise.resolve(canonicalStatTransport({
           statStatus: 'verified',
           statSource: 'simulationcraft_json',
           blockers: [],
@@ -7246,8 +7332,7 @@ test('gear detail requests SimC stat snapshot with community talent import when 
           secondary: [
             { key: 'crit', label: '鏆村嚮', value: '994', rawValue: 994, convertedValue: '28.6%' }
           ]
-        }
-      })
+      }))
     }
   })
   const page = {
@@ -7272,41 +7357,38 @@ test('gear detail requests SimC stat snapshot with community talent import when 
   await statsRequested
   await new Promise((resolve) => setImmediate(resolve))
 
-  assert.equal(statsPayload.talents, 'COMMUNITY-C4DA')
+  assert.equal(statsPayload.profileContext.talents, 'COMMUNITY-C4DA')
   assert.equal(importRequest.classKey, 'mage')
   assert.equal(importRequest.specKey, 'frost')
   assert.equal(page.data.gearStatsTalentImport, 'COMMUNITY-C4DA')
   assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'crit').convertedValue, '28.6%')
 })
 
-test('gear stats refresh retries the same request signature after blocked snapshot', async () => {
+test('gear stats refresh polls one 202 into verified 200 and reuses the exact signature', async () => {
   let requestCount = 0
   const pageConfig = loadBuildsDetailPageConfig({
-    requestWebsimGearStats: () => {
+    requestWebsimGearStatSnapshot: () => {
       requestCount += 1
-      const payload = requestCount === 1
-        ? {
-            statStatus: 'blocked',
-            statSource: 'simulationcraft_json',
-            blockers: ['SimC item resolution warning']
-          }
-        : {
+      if (requestCount === 1) return Promise.resolve(pendingStatTransport(1))
+      return Promise.resolve(canonicalStatTransport({
             statStatus: 'verified',
             statSource: 'simulationcraft_json',
             blockers: [],
             secondary: [
-              { key: 'crit', label: '鏆村嚮', value: '994', rawValue: 994, convertedValue: '28.6%' }
+              { key: 'crit', label: '暴击', value: '994', rawValue: 994, convertedValue: '28.6%' }
             ]
-          }
-      return Promise.resolve({ payload })
+      }))
     }
   })
   const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
   const requestPayload = {
-    classKey: 'mage',
-    specKey: 'frost',
-    talents: 'C4DA',
-    gearSelection: { items: [] }
+    selectionIntent: {
+      schemaRevision: 'selection-intent-v1',
+      authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' },
+      eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+      slots: {}
+    },
+    profileContext: { talents: 'C4DA', scenarioKey: 'single' }
   }
   const page = {
     ...pageConfig,
@@ -7330,7 +7412,8 @@ test('gear stats refresh retries the same request signature after blocked snapsh
     },
     setData(update) {
       this.data = { ...this.data, ...update }
-    }
+    },
+    waitForGearStatSnapshotRetry: () => Promise.resolve()
   }
 
   await pageConfig.refreshGearStats.call(page, requestPayload, 'same-signature')
@@ -7338,6 +7421,50 @@ test('gear stats refresh retries the same request signature after blocked snapsh
 
   assert.equal(requestCount, 2)
   assert.equal(page.data.gearStatSnapshot.statStatus, 'verified')
+})
+
+test('gear detail suppresses an in-flight stat response after the current Intent becomes unavailable', async () => {
+  let resolveStatRequest
+  const deferred = new Promise((resolve) => {
+    resolveStatRequest = resolve
+  })
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGearStatSnapshot: () => deferred
+  })
+  const requestPayload = {
+    selectionIntent: {
+      schemaRevision: 'selection-intent-v1',
+      authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' },
+      eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+      slots: {}
+    },
+    profileContext: { talents: 'C4DA', scenarioKey: 'single' }
+  }
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      selectedDetail: { details: { talents: { importCode: 'C4DA' }, gear: {} } },
+      activeQueryKey: 'gear',
+      gearStatSnapshot: { statStatus: 'verified', blockers: [], primary: { key: 'intellect', value: '100' } }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  const refresh = pageConfig.refreshGearStats.call(page, requestPayload, 'intent-v1')
+  await pageConfig.clearGearStatsSnapshot.call(page, ['等待新的 Intent 完成校验'])
+  resolveStatRequest(canonicalStatTransport({
+    statStatus: 'verified', blockers: [], primary: { key: 'intellect', value: '999' }
+  }, 'sha256:stale-stat'))
+  await refresh
+
+  assert.notEqual(page.gearStatSnapshotState.statSnapshotStatus, 'verified')
+  assert.equal(page.data.gearStatSnapshot.primary && page.data.gearStatSnapshot.primary.value, '100')
+  assert.equal(page.data.gearStatSnapshot.stale, true)
+  assert.equal(page.data.gearStatSnapshot.readOnly, true)
+  assert.match(page.data.gearStatBlockers.join('；'), /新的 Intent/)
 })
 
 test('gear template save asks for a name before storing neutral complete status', async () => {
@@ -7425,6 +7552,12 @@ test('gear template save stores verified stat snapshot metadata for SimC summary
     },
     setData(update) {
       this.data = { ...this.data, ...update }
+    },
+    gearStatSnapshotState: {
+      statSnapshotStatus: 'verified',
+      currentStatSnapshot: verifiedStatSnapshot,
+      verifiedStatContextKey: 'intent-v1|profile-v1',
+      statSnapshotSignature: 'sha256:verified-stat'
     }
   }
 
@@ -7435,6 +7568,8 @@ test('gear template save stores verified stat snapshot metadata for SimC summary
   assert.equal(savedTemplates[0].metadata.statSnapshot.statStatus, 'verified')
   assert.equal(savedTemplates[0].metadata.statSnapshot.primary.value, '12,345')
   assert.deepEqual(savedTemplates[0].metadata.statSnapshot.secondary.map((row) => row.convertedValue), ['28.6%', '18.3%', '42.1%', '8.2%'])
+  assert.equal(savedTemplates[0].metadata.statSnapshotRequestSignature, 'intent-v1|profile-v1')
+  assert.equal(savedTemplates[0].metadata.statSnapshotSignature, 'sha256:verified-stat')
   const rawSnapshot = JSON.parse(savedTemplates[0].rawString)
   assert.equal(rawSnapshot.statSnapshot, undefined)
 })
