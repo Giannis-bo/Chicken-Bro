@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase4e-scheduled-refresh",
   "requirementSlug": "equipment-simulator-phase4e-scheduled-refresh",
-  "status": "live_verified",
+  "status": "archived",
   "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase4e-scheduled-refresh",
   "commit": "7e1c71d310d9f9bd8f4da48f31fe3aa65cb143ad",
@@ -74,6 +74,37 @@
       "summary": "Deploy left refresh event count at 2 and both timer/service inactive. Explicit timer start produced one completed controlled run, then remained enabled and active for the next systemd-owned trigger at 2026-07-12 18:43:06 CST; async sync stayed disabled."
     },
     "rollbackTarget": "stop and disable wow-gear-release-refresh.timer, restore code to a8c8d020f27b71ea319dd01fa9f5a009d47f8ed4, keep active generation 9 unchanged, and use the recorded wow_test dump only for last-resort data restore"
+  },
+  "postMerge": {
+    "status": "live_verified",
+    "pullRequest": 78,
+    "mergeCommit": "1e4b549867aac49ccbb73a4281821f0cf114423e",
+    "runtimePath": "/opt/wow-mini-program",
+    "deployDidNotTriggerRefresh": true,
+    "controlledRun": {
+      "startedAt": "2026-07-11 19:31:12.465002+08:00",
+      "finishedAt": "2026-07-11 19:33:16.650246+08:00",
+      "status": "manual_required",
+      "riskClass": "high_risk_gear",
+      "shadowStatus": "pass",
+      "shadowSpecCount": 40,
+      "memoryPeakBytes": 1497595904,
+      "cpuUsageNSec": 107417020000
+    },
+    "finalPointer": {
+      "mode": "active",
+      "generation": 9,
+      "manifestRevision": "season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d"
+    },
+    "publicMatrix": {
+      "checked": 40,
+      "failures": 0,
+      "resolvedProfiles": 11,
+      "truthfulBlockedProfiles": 29,
+      "p95Ms": 650.75
+    },
+    "runtimeParity": "main, origin/main and the seven critical deployed runtime files matched merge commit 1e4b549",
+    "summary": "Clean-main deploy left the refresh event count unchanged, then one explicit service run reused the exact candidate pair, passed 40-spec shadow, preserved generation 9 and completed with manual_required. Public and negative matrices, health, timer, service, logs and runtime parity passed."
   },
   "runtimeEvidence": [
     {
@@ -166,5 +197,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 4E candidate is live-verified at implementation commit 7e1c71d. The scheduled staging-only refresh builds or reuses immutable candidates before any pointer decision, runs the full shadow matrix, classifies high-risk Gear for manual cutover, records bounded audit and health truth, and preserves the active generation-9 Manifest on blocked or manual outcomes. Deploy did not trigger the job; one explicit timer run completed successfully and now owns the next schedule. Phase 5 and Catalyst remain excluded."
+  "summary": "Slice 4E is archived after PR #78 merged at 1e4b549 and clean-main live verification passed. The scheduled staging-only refresh builds or reuses immutable candidates before any pointer decision, runs the full shadow matrix, classifies high-risk Gear for manual cutover, records bounded audit and health truth, and preserves the active generation-9 Manifest on blocked or manual outcomes. Deploy does not trigger the job; systemd owns the schedule. Phase 5 is now active and Catalyst remains excluded."
 }

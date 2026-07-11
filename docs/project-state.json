@@ -1,23 +1,23 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-07-11",
-  "activeMilestone": "equipment_simulator_phase4",
+  "activeMilestone": "equipment_simulator_phase5",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store",
   "activeContracts": [
     {
       "id": "equipment_simulator_capability_architecture",
       "path": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
       "status": "approved_active",
       "lifecycle": "active",
-      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-3 are complete, Phase 4 release train is active under its detailed five-Slice plan, and Phase 6 remains deferred."
+      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-4 are complete, Phase 5 async stat snapshot delivery is active, and Phase 6 remains deferred."
     },
     {
-      "id": "equipment_simulator_phase4_release_train_plan",
-      "path": "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
-      "status": "phase4e_implementation_allowed",
+      "id": "equipment_simulator_phase5_async_stat_snapshot_plan",
+      "path": "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
+      "status": "phase5a_implementation_allowed",
       "lifecycle": "active",
-      "notes": "Phases 4A through 4D are merged and live-verified. Slice 4E may implement only a bounded candidate-first staging consumer, explicit risk-classified promotion, single-run scheduled execution and truthful health/admin operations. Phase 5 and Catalyst activation remain later independent work."
+      "notes": "Phase 4A through 4E are merged and live-verified. Slice 5A may implement only the pure stat-signature policy, additive PostgreSQL snapshot/job schema and fenced repository. Route, worker, frontend cutover and Catalyst activation remain later slices."
     },
     {
       "id": "repo_native_harness_v0_5",
@@ -146,9 +146,30 @@
       "status": "completed",
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/evidence.json",
       "notes": "PR #77 atomically activated the formal retail Season Manifest and release-scoped browse, Resolve and Profile readers with monotonic active/transitional pointer CAS. Exact-head CI, PostgreSQL backup and migration, candidate generation 0 through 9 rehearsal, real WeChat one-rebase proof, 40-spec matrices, runtime parity and clean-main post-merge smoke passed; final pointer is active generation 9 with one immutable Gear and Community Release, while Catalyst remains fail-closed."
+    },
+    {
+      "id": "equipment_simulator_phase4e_20260711",
+      "domain": "equipment_simulator_phase4e",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json",
+      "notes": "PR #78 added the candidate-first staging-only scheduled release refresh, risk-classified promotion, dual single-run locks, bounded refresh health/admin and non-deploy-triggered systemd timer. Candidate and clean-main controlled runs reused the same high-risk candidate, passed the 40-spec shadow, required manual cutover and preserved active generation 9; exact-head CI, public/negative matrices, runtime parity, service/timer/log and rollback evidence passed."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "equipment_simulator_phase4e_scheduled_refresh",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase4_release_train_plan",
+      "path": "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json"
+    },
     {
       "id": "equipment_simulator_phase4d_atomic_manifest_cutover",
       "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/requirement.json",
@@ -327,7 +348,7 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
     },
     "gearReleaseTrain": {
-      "status": "phase4d_completed_phase4e_implementation_allowed",
+      "status": "phase4_complete_live_verified",
       "formalActiveManifest": true,
       "pointerMode": "active",
       "pointerGeneration": 9,
@@ -338,7 +359,20 @@
       "activeGearReleaseId": "gear-release:sha256:342e3918b685ca0145514485d115fb74079be660d85ea8b835760c4bc61350f6",
       "activeCommunityReleaseId": "community-release:sha256:923ccd05f09fbe32b1827e45d7e9be163545fb187d49efcde730dbb0216682ed",
       "activeManifestPointerRows": 1,
-      "activePacket": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/requirement.json"
+      "scheduledRefresh": "active_candidate_first_manual_for_high_risk",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json"
+    },
+    "gearStatSnapshot": {
+      "status": "phase5a_implementation_allowed",
+      "plan": "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
+      "activePacket": "artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/requirement.json",
+      "legacyPath": "/api/websim/gear/stats",
+      "legacyExecution": "synchronous_stat_snapshot_v1_global_permit_1",
+      "newPath": "/api/websim/gear/stat-snapshots",
+      "newPathActive": false,
+      "snapshotStoreActive": false,
+      "workerActive": false,
+      "frontendCutover": false
     }
   },
   "knownRisks": [

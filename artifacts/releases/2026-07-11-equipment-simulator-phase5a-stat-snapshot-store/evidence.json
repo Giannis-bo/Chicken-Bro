@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase5a-stat-snapshot-store",
+  "requirementSlug": "equipment-simulator-phase5a-stat-snapshot-store",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase5-stat-snapshot",
+  "commit": "pending_implementation",
+  "scope": [
+    "pure_stat_signature_policy",
+    "additive_pg_snapshot_job_schema",
+    "fenced_single_flight_repository"
+  ],
+  "verification": [
+    {
+      "command": "initial current-truth and Phase 5 plan review",
+      "status": "pass",
+      "summary": "Confirmed the synchronous legacy path, reusable canonical Resolver/Profile and stat_snapshot_v1 boundaries, and the absence of any async snapshot store, worker, endpoint or frontend polling path."
+    },
+    {
+      "command": "Phase 5 plan self-review",
+      "status": "pass",
+      "summary": "Authority, signature, transaction, concurrency, fencing, recovery, backpressure, privacy, compatibility, performance, deployment and rollback boundaries are explicit with no unresolved product decision."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "incomplete_signature",
+      "status": "blocked_by_requirement",
+      "detail": "Signature includes server profile hash and the explicit revision vector; client-supplied signatures are never trusted."
+    },
+    {
+      "id": "duplicate_or_stale_workers",
+      "status": "blocked_by_requirement",
+      "detail": "Partial unique single-flight, SKIP LOCKED claim and lock-token fencing are mandatory before activation."
+    },
+    {
+      "id": "unsafe_schema_rollback",
+      "status": "blocked_by_requirement",
+      "detail": "Migration is additive and tables remain dormant in 5A; normal rollback is code/config, not destructive schema removal."
+    },
+    {
+      "id": "premature_worker_frontend_or_catalyst",
+      "status": "blocked_by_requirement",
+      "detail": "Route, worker, frontend cutover and Phase 6 Catalyst are explicitly excluded from Slice 5A."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "config_disable",
+    "data_restore"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json"
+  ],
+  "summary": "Phase 5A is implementation-allowed as a dormant pure signature plus additive PostgreSQL snapshot/job repository slice. No route, worker, frontend behavior or Catalyst capability is active."
+}

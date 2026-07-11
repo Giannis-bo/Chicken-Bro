@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase5a-stat-snapshot-store",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Establish the pure stat-signature policy, additive PostgreSQL snapshot/job schema and one fenced single-flight repository without activating a route, worker or frontend consumer.",
+  "userValue": "The later async SimC worker can deduplicate, recover and publish verified stat snapshots without trusting clients, mixing revisions or blocking HTTP request threads.",
+  "nonGoals": [
+    "No public stat-snapshot endpoint",
+    "No SimC worker or systemd unit",
+    "No frontend cutover",
+    "No change to legacy /api/websim/gear/stats",
+    "No DPS fields or raw SimC output",
+    "No Phase 4 Manifest or refresh change",
+    "No Phase 6 Catalyst activation"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+      "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
+      "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json",
+      "server/gear_runtime.py",
+      "server/websim_payload.py",
+      "server/migrations/postgres/0014_websim_active_manifest_pointer_state.sql"
+    ],
+    "phase4MergeCommit": "1e4b549867aac49ccbb73a4281821f0cf114423e",
+    "formalActiveManifest": true,
+    "pointerGeneration": 9,
+    "legacyStatExecutionFlavor": "stat_snapshot_v1",
+    "legacyStatExecutionMode": "synchronous_http_thread_global_permit_1",
+    "asyncSnapshotStoreExists": false
+  },
+  "impactMap": {
+    "mustChange": [
+      "one pure revision-complete server-owned stat signature contract",
+      "one additive PostgreSQL migration for immutable verified snapshots, append-attempt jobs and bounded worker state",
+      "one repository for cache lookup, transactional single-flight, global and per-client limits, fenced claim, heartbeat, reclaim, completion, cooldown and bounded health",
+      "least privileges with no DELETE and no verified snapshot mutation"
+    ],
+    "mustNotChange": [
+      "active Manifest or public payload",
+      "Resolver, Profile or legacy stat endpoint behavior",
+      "standard_profile and stat_snapshot_v1 serializer semantics",
+      "Phase 4 refresh ownership",
+      "Catalyst disabled fail-closed state"
+    ],
+    "evidenceRequired": [
+      "red-to-green pure policy, repository and schema tests",
+      "concurrent single-flight and stale-token fencing fixtures",
+      "candidate database backup and atomic migration apply",
+      "direct PostgreSQL insert, reuse, claim, heartbeat, reclaim, immutable conflict, limit and health smoke",
+      "backend/full verification, Strict Harness, local CR, exact-head CI and post-merge schema parity"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/gear_stat_snapshot.py owns pure signature and bounded result policy; server/gear_stat_snapshot_store.py owns all snapshot/job/worker SQL",
+    "consumers": [
+      "future Phase 5B API orchestration",
+      "future Phase 5B worker",
+      "future bounded health/admin projection"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "planned_additive_fenced_queue_boundary",
+    "reason": "This introduces a new write-capable execution queue. Signature completeness, transaction boundaries, partial uniqueness, lease fencing, immutable publication, least privilege and bounded aggregates must be proven before any route or worker is allowed to consume it."
+  },
+  "acceptanceEvidence": [
+    "python3 -m unittest tests.gear_stat_snapshot_test tests.gear_stat_snapshot_store_test tests.postgres_schema_test",
+    "node --test tests/project-state.test.js tests/project-owner-map.test.js tests/backend-owner-map.test.js tests/project-harness.test.js",
+    "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store --base origin/main",
+    "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store --base origin/main",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/requirement.json --evidence-file artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/evidence.json --base origin/main",
+    "candidate PostgreSQL backup, migration, direct store smoke and post-merge schema parity"
+  ],
+  "releaseTrigger": "pg_read_model",
+  "rollback": [
+    "code_rollback",
+    "config_disable",
+    "data_restore"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-11",
+      "decision": "Workers never execute stored profile text; they re-resolve and recompute the exact stat signature before SimC."
+    },
+    {
+      "date": "2026-07-11",
+      "decision": "Verified snapshots are immutable, jobs are append-attempt operational state, and stale worker completion is blocked by lock-token fencing."
+    },
+    {
+      "date": "2026-07-11",
+      "decision": "Phase 5 ships with one SimC child and no route/worker activation in Slice 5A."
+    }
+  ]
+}
