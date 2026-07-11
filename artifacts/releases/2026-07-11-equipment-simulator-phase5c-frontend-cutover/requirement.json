@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase5c-frontend-cutover",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Cut the active equipment and SimC summary consumers from synchronous legacy Gear stats to the canonical asynchronous stat-snapshot API with bounded race-safe polling.",
+  "userValue": "Complete equipment configurations show trustworthy verified character stats without holding an HTTP request open for SimulationCraft, while edits and stale responses remain safe.",
+  "nonGoals": [
+    "No backend API, PostgreSQL schema, worker, systemd or deploy-script changes",
+    "No worker concurrency increase",
+    "No removal of the legacy /api/websim/gear/stats route",
+    "No DPS, optimizer, recommendation or public-template change",
+    "No Catalyst activation or UI"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
+      "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json",
+      "pages/builds/websim-api.js",
+      "pages/builds/gear-workbench-state.js",
+      "pages/builds/detail.js",
+      "pages/simulator/simc.js"
+    ],
+    "phase5bMergeCommit": "9ee557bf88a32318c6d13717384097d7a313550e",
+    "newPath": "/api/websim/gear/stat-snapshots",
+    "newPathActive": true,
+    "workerActive": true,
+    "frontendCutover": false,
+    "activePointerGeneration": 9
+  },
+  "impactMap": {
+    "mustChange": [
+      "one structured async stat-snapshot API client wrapper",
+      "pure begin/apply/poll/stale transitions guarded by request serial and Intent version",
+      "bounded polling with at most 15 attempts and 45 seconds",
+      "equipment detail stat refresh sends only selectionIntent plus allowlisted profileContext",
+      "SimC summary stat refresh uses the same async contract",
+      "intent, template, race or scenario changes cancel or supersede old polls",
+      "200 verified updates the stat surface while 202, 409, 503 and offline remain truthful",
+      "no active frontend call site invokes requestWebsimGearStats after cutover"
+    ],
+    "mustNotChange": [
+      "Resolver-owned legality, readiness, set and serializer facts",
+      "save/Profile/SimC gates or legacy template compatibility fields except the stat transport",
+      "backend route, store, worker and one-child execution",
+      "public observed-only and baseline-empty policy",
+      "Catalyst disabled fail-closed state"
+    ],
+    "evidenceRequired": [
+      "structured 200/202/409/503 client tests",
+      "bounded attempt and wall-clock stop tests",
+      "out-of-order and changed-intent response suppression",
+      "last verified snapshot preservation during pending/unavailable state",
+      "both active consumer call sites use canonical bodies and no legacy stat wrapper",
+      "frontend/full profiles, local CR and exact-head GitHub Harness",
+      "real mini-program pending-to-verified and changed-input stale suppression evidence",
+      "candidate backend health, public/Catalyst/timer/log and rollback proof",
+      "clean-main post-merge mini-program and API smoke"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server verified stat snapshot envelope; pages/builds/gear-workbench-state.js owns only request ordering and presentation state",
+    "consumers": [
+      "pages/builds/detail.js equipment attribute summary",
+      "pages/simulator/simc.js saved-template summary"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "bounded_frontend_async_cutover",
+    "reason": "The live worker contract is already candidate and post-merge verified; this slice is safe only if polling, cancellation and last-verified behavior are pure and both consumers share the same wrapper."
+  },
+  "acceptanceEvidence": [
+    "node --test tests/frontend-api-client.test.js tests/gear-workbench-state.test.js tests/builds-page.test.js tests/simulator-page.test.js",
+    "node scripts/verify-project.js --profile frontend --release artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover --base origin/main",
+    "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover --base origin/main",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/requirement.json --evidence-file artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json --base origin/main",
+    "real mini-program pending-to-verified, changed-input stale suppression and candidate API/health/public/Catalyst/timer/log smoke",
+    "git diff --check"
+  ],
+  "releaseTrigger": "frontend_user_visible",
+  "rollback": [
+    "code_rollback",
+    "feature_hide"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-11",
+      "decision": "Polling starts at the server retryAfterMs hint, is capped at 15 attempts and 45 seconds, and is superseded by any newer request identity."
+    },
+    {
+      "date": "2026-07-11",
+      "decision": "Pending and unavailable states may preserve the last verified snapshot for stale read-only display but never relabel it as current."
+    },
+    {
+      "date": "2026-07-11",
+      "decision": "Both equipment detail and SimC summary use one canonical wrapper; the legacy wrapper remains only for older clients and compatibility tests."
+    }
+  ]
+}

@@ -1,11 +1,11 @@
 # Equipment Simulator Phase 5 Async Stat Snapshot Delivery Plan
 
-**Status:** Slice 5A merged/live-verified; Slice 5B candidate live-verified at `c44e872`, PR pending; Slice 5C next
+**Status:** Slices 5A-5B merged/live-verified; Slice 5C implementation allowed
 **Classification:** Strict  
 **Goal boundary:** Phase 5 only; Phase 6 Catalyst remains disabled and external-dependency gated  
 **Starting point:** main `1e4b549867aac49ccbb73a4281821f0cf114423e`, Phase 4E merged by PR #78 and clean-main live-verified
 
-> 2026-07-11 progress: Slice 5A merged through PR #79 at `8a75fd5`. Slice 5B now has a canonical async route, stable one-child worker, active-binding/authority cache seam, bounded operations health and best-effort legacy telemetry. Candidate evidence passed duplicate single-flight, 202→200 real SimC, worker-down hit/miss, forced reclaim/fencing, cache-hit p95 `93.1ms`, final concurrent miss max `345.9ms`, 40/40 public parity and full verification. Frontend consumers remain unchanged until 5C.
+> 2026-07-11 progress: Slice 5A merged through PR #79 at `8a75fd5`; Slice 5B merged through PR #80 at `9ee557b` after exact-head CI, candidate and clean-main live verification. The canonical async route, stable one-child worker, active-binding/authority cache seam, bounded operations health and best-effort legacy telemetry are live. Slice 5C now owns only the active frontend client/state cutover; backend execution and Catalyst remain unchanged.
 
 ## 1. Outcome
 

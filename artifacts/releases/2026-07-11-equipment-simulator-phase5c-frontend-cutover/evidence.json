@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase5c-frontend-cutover",
+  "requirementSlug": "equipment-simulator-phase5c-frontend-cutover",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase5c-frontend-cutover",
+  "commit": "pending_implementation",
+  "scope": [
+    "structured_async_frontend_client",
+    "bounded_race_safe_polling_state",
+    "equipment_and_simc_consumer_cutover"
+  ],
+  "verification": [
+    {
+      "command": "Phase 5C current-truth and plan review",
+      "status": "pass",
+      "summary": "Confirmed PR #80 merge and clean-main post-merge evidence, two remaining active legacy stat consumers, the existing structured transport and race-safe workbench state, and the explicit no-backend/no-Catalyst boundary."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "unbounded_polling",
+      "status": "blocked_by_requirement",
+      "detail": "Attempt and wall-clock limits plus cancellation identity are required before any active consumer changes."
+    },
+    {
+      "id": "stale_response_overwrite",
+      "status": "blocked_by_requirement",
+      "detail": "Pure serial and Intent/template context guards must reject every old 200/202/409/503 completion."
+    },
+    {
+      "id": "split_consumer_semantics",
+      "status": "blocked_by_requirement",
+      "detail": "Equipment detail and SimC summary must share one wrapper and state contract."
+    },
+    {
+      "id": "premature_backend_or_catalyst_scope",
+      "status": "blocked_by_requirement",
+      "detail": "No backend, schema, worker, public payload or Catalyst file may change in Slice 5C."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "feature_hide"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json"
+  ],
+  "summary": "Phase 5C is implementation-allowed for the structured async client, bounded race-safe stat polling state and the two active frontend consumers only. Backend execution and Catalyst remain unchanged."
+}

@@ -3,7 +3,7 @@
   "updatedAt": "2026-07-11",
   "activeMilestone": "equipment_simulator_phase5",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover",
   "activeContracts": [
     {
       "id": "equipment_simulator_capability_architecture",
@@ -15,9 +15,9 @@
     {
       "id": "equipment_simulator_phase5_async_stat_snapshot_plan",
       "path": "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
-      "status": "phase5b_candidate_verified_pr_pending",
+      "status": "phase5c_implementation_allowed",
       "lifecycle": "active",
-      "notes": "Phase 4A through 4E and Phase 5A are merged and live-verified. Slice 5B exact implementation c44e872 passed candidate deployment, real async SimC flow, worker-down/reclaim/fencing, latency/resource, public/Catalyst and full Harness gates; PR/CI/merge remain pending. Frontend cutover and Catalyst activation remain later slices."
+      "notes": "Phase 4A through 4E and Phase 5A-5B are merged and live-verified. Slice 5C may replace only active frontend legacy stat calls with the structured async client and bounded race-safe polling state. Backend, schema, worker concurrency and Catalyst activation remain unchanged."
     },
     {
       "id": "repo_native_harness_v0_5",
@@ -160,9 +160,23 @@
       "status": "completed",
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/evidence.json",
       "notes": "PR #79 added the pure revision-complete stat signature, additive migration 0015 and fenced PostgreSQL snapshot/job repository. Backup/apply, least privileges, real single-flight/claim/heartbeat/stale-token/publication rollback transaction, full CI, clean-main runtime parity and zero-row dormant state passed."
+    },
+    {
+      "id": "equipment_simulator_phase5b_20260711",
+      "domain": "equipment_simulator_phase5b",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json",
+      "notes": "PR #80 activated the canonical async snapshot API, one-child fenced worker/service, bounded health/admin and legacy telemetry. Exact-head CI, candidate and clean-main real 202-to-200, duplicate, worker-down, reclaim/fencing, latency/resource, 40-spec public, Catalyst, timer/backflow, logs and runtime parity passed."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "equipment_simulator_phase5b_stat_snapshot_worker_api",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json"
+    },
     {
       "id": "equipment_simulator_phase5a_stat_snapshot_store",
       "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/requirement.json",
@@ -377,9 +391,9 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json"
     },
     "gearStatSnapshot": {
-      "status": "phase5b_candidate_verified_pr_pending",
+      "status": "phase5b_complete_phase5c_implementation_allowed",
       "plan": "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
-      "activePacket": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/requirement.json",
+      "activePacket": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/requirement.json",
       "legacyPath": "/api/websim/gear/stats",
       "legacyExecution": "synchronous_stat_snapshot_v1_global_permit_1",
       "newPath": "/api/websim/gear/stat-snapshots",
