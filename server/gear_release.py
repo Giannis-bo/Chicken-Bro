@@ -649,6 +649,8 @@ def compare_shadow(
             blockers.append(_shadow_blocker("PUBLIC_WINNER_ILLEGAL", class_key, spec_key, "Candidate public winner is not legal."))
         if _text(new.get("validatedAgainstGearReleaseId")) != target_release:
             blockers.append(_shadow_blocker("COMMUNITY_GEAR_RELEASE_MISMATCH", class_key, spec_key, "Candidate winner is bound to a different Gear Release."))
+        if not (_text(new.get("profileHash")) or _text(new.get("gearHash"))):
+            blockers.append(_shadow_blocker("PUBLIC_PROVENANCE_HASH_MISSING", class_key, spec_key, "Candidate winner has no profile or gear provenance hash."))
 
         if old is None:
             classification = "new_winner"
@@ -659,8 +661,12 @@ def compare_shadow(
             selection_changed = _selection_semantics(old.get("selectionIntent")) != _selection_semantics(new.get("selectionIntent"))
             provenance_changed = any(
                 old.get(field) != new.get(field)
-                for field in ("sourceKey", "sourceUrl", "profileHash", "gearHash", "sampleCount")
+                for field in ("sourceKey", "sourceUrl", "gearHash", "sampleCount")
             )
+            old_profile_hash = _text(old.get("profileHash"))
+            new_profile_hash = _text(new.get("profileHash"))
+            if old_profile_hash and new_profile_hash and old_profile_hash != new_profile_hash:
+                provenance_changed = True
             semantic_changed = selection_changed or old_semantic != new_semantic or provenance_changed
             resolved_changed = old.get("resolvedGearSignature") != new.get("resolvedGearSignature")
             if semantic_changed:
