@@ -1431,6 +1431,35 @@ function gearSelectionWithoutEmbeddedSimcEnhancements(selectedGearBySlot) {
   return result
 }
 
+function canonicalWorkbenchSnapshot(page) {
+  const state = page && page.gearWorkbenchState
+  return state && (state.currentSnapshot || state.lastVerifiedSnapshot) || null
+}
+
+function gearSelectionWithCanonicalEnhancementConstraints(selectedGearBySlot, snapshot) {
+  const result = gearSelectionWithoutEmbeddedSimcEnhancements(selectedGearBySlot)
+  const constraints = snapshot && snapshot.constraints && snapshot.constraints.slots && typeof snapshot.constraints.slots === 'object'
+    ? snapshot.constraints.slots
+    : {}
+  Object.keys(result).forEach((slot) => {
+    const item = result[slot]
+    const slotConstraints = constraints[slot] && typeof constraints[slot] === 'object' ? constraints[slot] : {}
+    const socketCount = Math.max(0, Number(slotConstraints.socketCount) || 0)
+    result[slot] = {
+      ...item,
+      socketCount,
+      supportsSocket: socketCount > 0,
+      modCapabilities: {
+        hasSocket: socketCount > 0,
+        socketCount,
+        canEnchant: slotConstraints.canEnchant === true,
+        canEmbellish: slotConstraints.canEmbellish === true
+      }
+    }
+  })
+  return result
+}
+
 function gearTemplateSnapshot(selectedGearBySlot, enhancementBySlot, gearPayload) {
   return {
     schemaRevision: GEAR_ENHANCEMENT_SNAPSHOT_REVISION,
@@ -3386,13 +3415,20 @@ function gearEnhancementSlotNeedsDetail(gearPayload, item, selectedEnhancement) 
 
 function gearEnhancementDetailSlotsForPage(page) {
   const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
-  const selectedGearBySlot = (page && page.data && page.data.selectedGearBySlot) || {}
+  const currentSelectedGearBySlot = (page && page.data && page.data.selectedGearBySlot) || {}
+  const canonicalSnapshot = canonicalWorkbenchSnapshot(page)
+  const selectedGearBySlot = page && page.gearWorkbenchState
+    ? gearSelectionWithCanonicalEnhancementConstraints(currentSelectedGearBySlot, canonicalSnapshot)
+    : currentSelectedGearBySlot
   const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot)
-  const enhancement = normalizedEnhancementBySlot(
+  const currentEnhancement = (
     (page && page.data && page.data.gearEnhancementSheet && page.data.gearEnhancementSheet.draftEnhancementBySlot) ||
     (page && page.data && page.data.enhancementBySlot) ||
     {}
   )
+  const enhancement = page && page.gearWorkbenchState
+    ? optionIdentityEnhancementBySlot(currentEnhancement)
+    : normalizedEnhancementBySlot(currentEnhancement)
   return requiredGearTemplateSlots(gearPayload || {}).filter((slot) => {
     const item = indexed[slot]
     return !!(item && gearPayloadNeedsSlotDetail(page, slot) && gearEnhancementSlotNeedsDetail(gearPayload, item, enhancement[slot]))
@@ -3407,8 +3443,9 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
     page && page.data && page.data.gearEnhancementSheet && page.data.gearEnhancementSheet.draftEnhancementBySlot
   ) || (page && page.data && page.data.enhancementBySlot) || {}
   const canonicalWorkbench = !!(page && page.gearWorkbenchState)
+  const canonicalSnapshot = canonicalWorkbenchSnapshot(page)
   const selectedGearBySlot = canonicalWorkbench
-    ? gearSelectionWithoutEmbeddedSimcEnhancements(currentSelectedGearBySlot)
+    ? gearSelectionWithCanonicalEnhancementConstraints(currentSelectedGearBySlot, canonicalSnapshot)
     : currentSelectedGearBySlot
   const enhancementBySlot = canonicalWorkbench
     ? optionIdentityEnhancementBySlot(currentEnhancementBySlot)
@@ -3419,9 +3456,6 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
     enhancementBySlot,
     visible,
     requestedActiveSlot
-  )
-  const canonicalSnapshot = canonicalWorkbench && (
-    page.gearWorkbenchState.currentSnapshot || page.gearWorkbenchState.lastVerifiedSnapshot
   )
   if (canonicalSnapshot && canonicalSnapshot.constraints) {
     sheet.embellishmentMax = Number(canonicalSnapshot.constraints.embellishmentMax) || gearEnhancementMax
@@ -4973,7 +5007,7 @@ Page({
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, this.data.selectedGearBySlot || {})
     const editorSelectedGearBySlot = this.gearWorkbenchState
-      ? gearSelectionWithoutEmbeddedSimcEnhancements(selectedGearBySlot)
+      ? gearSelectionWithCanonicalEnhancementConstraints(selectedGearBySlot, canonicalWorkbenchSnapshot(this))
       : selectedGearBySlot
     const enhancementBySlot = prunedEnhancementBySlot(
       gearPayload,

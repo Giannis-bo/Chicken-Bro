@@ -2618,8 +2618,9 @@ test('canonical gear enhancement sheet ignores raw embedded SimC enhancement fie
     }
   }
   const gearPayload = {
+    gearPayloadMode: 'initial',
     slots: [{ slot: 'waist', simcSlot: 'waist', label: '腰部' }],
-    replacementCandidates: [{ slot: 'waist', simcSlot: 'waist', items: [] }],
+    replacementCandidates: [{ slot: 'waist', simcSlot: 'waist', detailMode: 'partial', items: [] }],
     equippedSet: {},
     slotReadiness: {},
     readiness: { fullReady: true }
@@ -2627,7 +2628,12 @@ test('canonical gear enhancement sheet ignores raw embedded SimC enhancement fie
   const page = {
     gearWorkbenchState: {
       currentSnapshot: {
-        constraints: { embellishmentMax: 2 },
+        constraints: {
+          embellishmentMax: 2,
+          slots: {
+            waist: { socketCount: 0, canEnchant: false, canEmbellish: false }
+          }
+        },
         resolvedSlots: { waist: { selectedOptions: {} } }
       }
     },
@@ -2651,6 +2657,8 @@ test('canonical gear enhancement sheet ignores raw embedded SimC enhancement fie
   assert.equal(page.data.gearEnhancementSheet.embellishmentUsed, 0)
   assert.equal(page.data.gearEnhancementSheet.embellishmentMax, 2)
   assert.deepEqual(Array.from(page.data.gearEnhancementSheet.blockers), [])
+  assert.deepEqual(Array.from(page.data.gearEnhancementSheet.equipmentRows), [])
+  assert.equal(page.data.gearEnhancementSheet.emptyText, '当前已选装备没有可配置的宝石、附魔或美化。')
 })
 
 test('gear attribute panel and slot badges reflect configured neck and ring gems', () => {
