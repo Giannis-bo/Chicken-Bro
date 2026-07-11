@@ -212,6 +212,7 @@ class GearStatSnapshotStoreTest(unittest.TestCase):
         self.assertIn("attempt < 20", sql)
         self.assertIn("FOR UPDATE SKIP LOCKED", sql)
         self.assertIn("lock_token", sql)
+        self.assertIn("RETURNING job.job_id", sql)
 
     def test_publish_verifies_fence_before_immutable_snapshot_insert(self):
         record = verified_snapshot_record(

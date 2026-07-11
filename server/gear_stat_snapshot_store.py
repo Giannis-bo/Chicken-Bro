@@ -91,11 +91,25 @@ gear_release_id, simc_runtime_revision, dependency_vector_json, profile_hash,
 snapshot_hash, snapshot_json, verified_at
 """
 
-_JOB_COLUMNS = """
-job_id, stat_signature, status, request_json, release_context_json,
-client_key_hash, attempt, locked_by, lock_token, lease_until,
-queued_at, started_at, heartbeat_at, finished_at, problem_json
-"""
+_JOB_COLUMN_NAMES = (
+    "job_id",
+    "stat_signature",
+    "status",
+    "request_json",
+    "release_context_json",
+    "client_key_hash",
+    "attempt",
+    "locked_by",
+    "lock_token",
+    "lease_until",
+    "queued_at",
+    "started_at",
+    "heartbeat_at",
+    "finished_at",
+    "problem_json",
+)
+_JOB_COLUMNS = ", ".join(_JOB_COLUMN_NAMES)
+_CLAIM_JOB_COLUMNS = ", ".join(f"job.{column}" for column in _JOB_COLUMN_NAMES)
 
 
 class GearStatSnapshotStore:
@@ -322,7 +336,7 @@ class GearStatSnapshotStore:
                         problem_json = '{{}}'::jsonb
                     FROM next_job
                     WHERE job.job_id = next_job.job_id
-                    RETURNING {_JOB_COLUMNS}
+                    RETURNING {_CLAIM_JOB_COLUMNS}
                     """,
                     (worker, token, _text(now), lease, _text(now), _text(now), _text(now)),
                 )
