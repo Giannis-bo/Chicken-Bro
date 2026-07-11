@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T12:12:49.590Z",
+  "generatedAt": "2026-07-11T12:49:19.649Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase5b-stat-snapshot-worker-api"
@@ -38,12 +38,12 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 24062
+          "sizeBytes": 24107
         },
         {
           "path": "docs/project-owner-map.json",
           "exists": true,
-          "sizeBytes": 54229
+          "sizeBytes": 54745
         },
         {
           "path": "docs/verification-matrix.md",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 261133
+          "sizeBytes": 260984
         },
         {
           "path": "docs/README.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 39912
+          "sizeBytes": 40308
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -99,19 +99,19 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 25982,
+          "lineCount": 25998,
           "hotspot": true
         },
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 12748,
+          "lineCount": 12845,
           "hotspot": true
         },
         {
           "path": "server/postgres_cache_store.py",
           "exists": true,
-          "lineCount": 6631,
+          "lineCount": 6698,
           "hotspot": true
         }
       ],
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json",
-    "sizeBytes": 2360,
+    "sizeBytes": 8986,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Phase 5B is implementation-allowed for the canonical async API, one-child fenced worker/service and bounded operations only. Frontend traffic remains on the compatible legacy endpoint and Catalyst stays disabled."
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "Phase 5B exact implementation commit c44e872 is candidate live-verified. The canonical async route, one-child fenced worker/service, bounded health/admin and legacy telemetry passed real 202-to-200, duplicate single-flight, worker-down hit/miss, reclaim/fencing, latency, resource, public, Catalyst, timer/backflow, parity and full Harness gates. Frontend traffic remains on the compatible legacy endpoint until 5C and Catalyst stays disabled."
   },
   "evidence": {
     "localTests": {
@@ -283,7 +283,7 @@
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:25982, server/news_backend.py:12748, server/postgres_cache_store.py:6631"
+      "detail": "server/websim_payload.py:25998, server/news_backend.py:12845, server/postgres_cache_store.py:6698"
     },
     {
       "id": "localTests_missing",
@@ -315,12 +315,12 @@
       "status": "dirty",
       "changedFileCount": 6,
       "changedFiles": [
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/evidence.json",
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json",
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/manifest.json",
         " M docs/gear-simulation-full-chain-runbook.md",
+        " M docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
         " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/"
+        " M docs/roadmap.md"
       ]
     }
   },

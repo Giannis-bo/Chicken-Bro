@@ -15,9 +15,9 @@
     {
       "id": "equipment_simulator_phase5_async_stat_snapshot_plan",
       "path": "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
-      "status": "phase5b_implementation_allowed",
+      "status": "phase5b_candidate_verified_pr_pending",
       "lifecycle": "active",
-      "notes": "Phase 4A through 4E and Phase 5A are merged and live-verified. Slice 5B may activate only the canonical async stat-snapshot API, one-child fenced worker/service, bounded health/admin and best-effort legacy telemetry. Frontend cutover and Catalyst activation remain later slices."
+      "notes": "Phase 4A through 4E and Phase 5A are merged and live-verified. Slice 5B exact implementation c44e872 passed candidate deployment, real async SimC flow, worker-down/reclaim/fencing, latency/resource, public/Catalyst and full Harness gates; PR/CI/merge remain pending. Frontend cutover and Catalyst activation remain later slices."
     },
     {
       "id": "repo_native_harness_v0_5",
@@ -377,15 +377,15 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json"
     },
     "gearStatSnapshot": {
-      "status": "phase5a_complete_phase5b_implementation_allowed",
+      "status": "phase5b_candidate_verified_pr_pending",
       "plan": "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
       "activePacket": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/requirement.json",
       "legacyPath": "/api/websim/gear/stats",
       "legacyExecution": "synchronous_stat_snapshot_v1_global_permit_1",
       "newPath": "/api/websim/gear/stat-snapshots",
-      "newPathActive": false,
+      "newPathActive": true,
       "snapshotStoreActive": true,
-      "workerActive": false,
+      "workerActive": true,
       "frontendCutover": false
     }
   },

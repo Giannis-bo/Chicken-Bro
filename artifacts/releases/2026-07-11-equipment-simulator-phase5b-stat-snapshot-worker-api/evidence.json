@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase5b-stat-snapshot-worker-api",
   "requirementSlug": "equipment-simulator-phase5b-stat-snapshot-worker-api",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase5b-worker-api",
-  "commit": "pending_implementation",
+  "commit": "c44e872",
   "scope": [
     "canonical_async_snapshot_api",
     "one_child_fenced_worker",
@@ -16,33 +16,155 @@
       "command": "Phase 5B current-truth and plan review",
       "status": "pass",
       "summary": "Confirmed live dormant 0015 store, reusable Resolver/stat serializer/parser, synchronous legacy route, absent worker/API/health consumer and the explicit no-frontend-cutover boundary."
+    },
+    {
+      "command": "focused TDD and regression profiles",
+      "status": "pass",
+      "summary": "API, store, worker, release-cache, route, health and deploy red-to-green coverage passed; the combined focused and related runs included 658 route/payload tests and 161 final store/worker/deploy tests."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend",
+      "status": "pass",
+      "summary": "1326 Python tests passed with one existing skip, followed by compileall and Project Harness."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full",
+      "status": "pass",
+      "summary": "388 Node tests and 1326 Python tests passed with one existing skip; 130 verification commands, JSON checks, node checks, Harness and diff check passed."
+    },
+    {
+      "command": "local CR against Phase 5B boundaries",
+      "status": "pass",
+      "summary": "No unresolved finding remained. Candidate findings for active-binding latency, cache-hit telemetry, PID worker-state growth and deploy restart semantics were fixed with focused regression coverage before final verification."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
-    "requiredBeforeMerge": true
+    "status": "live_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase5b-worker-api",
+    "commit": "c44e872",
+    "host": "wow-lighthouse",
+    "runtimePath": "/opt/wow-mini-program",
+    "database": "wow_test",
+    "databaseRuntime": "postgres_only",
+    "implementationCommit": "c44e872",
+    "backup": {
+      "path": "/opt/wow-mini-program-candidate-backups/phase5b-pre-536a52c-20260711T122734Z",
+      "dump": "wow_test.dump",
+      "sha256": "734dc52072c4a49cfc5d9750b6943a3536e46238973379ed13923e3e8dfa359e"
+    },
+    "deployFlags": {
+      "WOW_DEPLOY_SKIP_BOOTSTRAP": "1",
+      "WOW_DEPLOY_START_ASYNC_SYNCS": "0"
+    },
+    "runtimeParity": {
+      "status": "pass",
+      "files": 8,
+      "summary": "deploy script, async API, worker, store, active authority cache seam, backend route, serializer and systemd unit SHA-256 values matched the local implementation tree."
+    },
+    "realFlow": {
+      "status": "pass",
+      "summary": "Final exact worker accepted two concurrent Mage/Arcane misses as one job 9 and one signature; both 202 responses completed under 500ms and polling returned 200 verified JSON with four secondary rows and no DPS/raw fields after three polls."
+    },
+    "smoke": {
+      "status": "pass",
+      "summary": "Canonical Resolve/Profile, duplicate 202 single-flight, worker-owned SimC, 200 verified polling, worker-down hit/miss, real reclaim/fencing, legacy compatibility, health, public 40-spec, Catalyst, resource, parity and logs passed."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "Deploy used WOW_DEPLOY_START_ASYNC_SYNCS=0. Gear release refresh timer stayed active but its service and the WebSim, stat-weight and community sync services stayed inactive; no deploy-triggered sync or refresh occurred."
+    },
+    "workerDown": {
+      "status": "pass",
+      "summary": "After the 30-second freshness window, a verified hit remained 200 while a new race-bound signature returned structured 503 GEAR_STAT_WORKER_UNAVAILABLE and created no active job; service recovery restored verified health."
+    },
+    "reclaimAndFencing": {
+      "status": "pass",
+      "summary": "A real wow_app transaction reclaimed the same expired job from attempt 1/token-a to attempt 2/token-b; stale token heartbeat was false, current token heartbeat was true and rollback left zero probe rows."
+    },
+    "latency": {
+      "cacheHitLocalhostP95Ms": 93.1,
+      "cacheHitSamples": 20,
+      "getOrStartFinalConcurrentMaxMs": 345.9,
+      "limits": {
+        "cacheHitP95Ms": 200,
+        "getOrStartP95Ms": 500
+      }
+    },
+    "resources": {
+      "workerTasks": 1,
+      "workerMemoryCurrentBytes": 28819456,
+      "workerMemoryPeakBytes": 123052032,
+      "workerNRestarts": 0,
+      "backendTasks": 1,
+      "backendMemoryCurrentBytes": 56561664,
+      "backendNRestarts": 0
+    },
+    "databaseState": {
+      "snapshotRows": 3,
+      "completedJobs": 3,
+      "activeJobs": 0,
+      "workerRows": 1,
+      "workerId": "VM-4-8-ubuntu-gear-stat-snapshot",
+      "requestCount": 30,
+      "cacheHitCount": 24,
+      "queueMissCount": 3,
+      "legacyRequestCount": 1
+    },
+    "activePointer": {
+      "mode": "active",
+      "generation": 9,
+      "manifestRevision": "season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d"
+    },
+    "rollbackTarget": "stop and disable wow-gear-stat-snapshot-worker, restore code to 8a75fd5, retain additive 0015 tables and immutable candidate snapshots, and use the recorded dump only for corruption recovery"
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "id": "request_thread_no_simc",
+      "status": "pass",
+      "summary": "Route/API tests fail if the request handler calls SimC; candidate misses returned bounded 202 while only the worker process owned the child."
+    },
+    {
+      "id": "bounded_health_admin",
+      "status": "pass",
+      "summary": "gear_stat_snapshot health was verified with exact SimC revision, one fresh stable worker, zero queued/running/failed/blocked jobs, oldest age 0, three snapshots and cache hit rate 0.8."
+    },
+    {
+      "id": "legacy_compatibility",
+      "status": "pass",
+      "summary": "Legacy /api/websim/gear/stats remained HTTP 200 verified simulationcraft_json with every required field, four secondary rows, no DPS/raw fields and best-effort telemetry count 1."
+    },
+    {
+      "id": "public_and_catalyst_boundaries",
+      "status": "pass",
+      "summary": "Public initial browse passed 40/40 with one raiderio_observed_profile and zero baseline templates per spec; health retained Catalyst blocked, capabilityEnabled=false and failClosed=true."
+    },
+    {
+      "id": "timer_backflow_logs",
+      "status": "pass",
+      "summary": "Phase 4 refresh timer stayed active while its service and WebSim/stat/community sync services stayed inactive; deploy started no async sync, backend and worker had NRestarts=0 and final journals contained no fatal/error traceback."
+    }
+  ],
   "risks": [
     {
       "id": "http_thread_simc",
-      "status": "blocked_by_requirement",
-      "detail": "The new route may resolve/serialize/enqueue only and tests must fail if it invokes SimC."
+      "status": "mitigated_and_verified",
+      "detail": "The route resolves, serializes and enqueues only; tests fail if it invokes SimC and candidate process evidence kept the child in the worker."
     },
     {
       "id": "stale_execution",
-      "status": "blocked_by_requirement",
-      "detail": "Worker re-resolves and signature-compares under a fenced lease before execution/publication."
+      "status": "mitigated_and_verified",
+      "detail": "Worker re-resolve, signature drift, heartbeat loss, reclaim and stale-token fencing passed focused and real PostgreSQL evidence."
     },
     {
       "id": "worker_resource_contention",
-      "status": "blocked_by_requirement",
-      "detail": "One child only; candidate records CPU/memory/backend impact before merge."
+      "status": "mitigated_and_verified",
+      "detail": "One stable worker owned one child, TasksCurrent=1, NRestarts=0 and candidate memory stayed within the 2200M service cap."
     },
     {
       "id": "premature_frontend_or_catalyst",
-      "status": "blocked_by_requirement",
-      "detail": "No frontend call site or Catalyst capability changes are allowed in Slice 5B."
+      "status": "preserved",
+      "detail": "Frontend remains on compatible /gear/stats and Catalyst remains blocked/fail-closed."
     }
   ],
   "rollback": [
@@ -51,7 +173,9 @@
     "data_restore"
   ],
   "cleanup": {
-    "required": false
+    "required": true,
+    "status": "complete",
+    "summary": "Four candidate PID-derived worker-state rows were removed after stable worker identity shipped; exactly one current worker row remains. No snapshot or completed job evidence was deleted."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -60,5 +184,5 @@
     "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
     "artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/evidence.json"
   ],
-  "summary": "Phase 5B is implementation-allowed for the canonical async API, one-child fenced worker/service and bounded operations only. Frontend traffic remains on the compatible legacy endpoint and Catalyst stays disabled."
+  "summary": "Phase 5B exact implementation commit c44e872 is candidate live-verified. The canonical async route, one-child fenced worker/service, bounded health/admin and legacy telemetry passed real 202-to-200, duplicate single-flight, worker-down hit/miss, reclaim/fencing, latency, resource, public, Catalyst, timer/backflow, parity and full Harness gates. Frontend traffic remains on the compatible legacy endpoint until 5C and Catalyst stays disabled."
 }
