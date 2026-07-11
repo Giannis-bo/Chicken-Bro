@@ -6,6 +6,127 @@ function resetModule(path) {
   return require(path)
 }
 
+function gearEnvelope(status, overrides) {
+  return {
+    contractRevision: 'gear-result-envelope-v1',
+    requestId: 'gear-request-1',
+    status,
+    releaseContext: {},
+    data: {},
+    problems: [],
+    ...(overrides || {})
+  }
+}
+
+test('structured-problem mode preserves valid 200 202 409 and 503 envelopes without fallback', async () => {
+  const storage = {
+    wow_backend_api_base_url: 'https://api.example.test',
+    wow_backend_auth_token: 'token-structured'
+  }
+  const responses = [
+    [200, gearEnvelope('blocked', { problems: [{ kind: 'RULE_VIOLATION', code: 'GEAR_BLOCKED' }] })],
+    [202, gearEnvelope('pending')],
+    [409, gearEnvelope('blocked', { problems: [{ kind: 'REVISION_CONFLICT', code: 'GEAR_CATALOG_REVISION_CONFLICT' }] })],
+    [503, gearEnvelope('unavailable', { problems: [{ kind: 'AUTHORITY_UNAVAILABLE', code: 'GEAR_AUTHORITY_READ_UNAVAILABLE' }] })]
+  ]
+  let fallbackCalls = 0
+  const capturedHeaders = []
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: (key) => storage[key] || '',
+    setStorageSync: (key, value) => { storage[key] = value },
+    request: (options) => {
+      capturedHeaders.push(options.header)
+      const [statusCode, data] = responses.shift()
+      options.success({ statusCode, data })
+    }
+  }
+
+  const client = resetModule('../pages/common/api-client')
+  for (const expectedStatus of [200, 202, 409, 503]) {
+    const result = await client.requestJson('/api/websim/gear/resolve', {
+      auth: true,
+      responseMode: 'structured-problem',
+      fallback: () => {
+        fallbackCalls += 1
+        return { status: 'fallback' }
+      }
+    })
+    assert.equal(result.fromFallback, false)
+    assert.equal(result.httpStatus, expectedStatus)
+    assert.equal(result.error, '')
+    assert.equal(result.transportError, '')
+    assert.equal(result.offline, false)
+    assert.equal(result.payload.contractRevision, 'gear-result-envelope-v1')
+  }
+  assert.equal(fallbackCalls, 0)
+  assert.ok(capturedHeaders.every((headers) => headers.Authorization === 'Bearer token-structured'))
+  assert.ok(capturedHeaders.every((headers) => /^mp-/.test(headers['X-Wow-Client-Id'])))
+  assert.ok(capturedHeaders.every((headers) => /^session-/.test(headers['X-Wow-Session-Id'])))
+})
+
+test('structured-problem mode falls back for malformed HTTP bodies network failures and timeouts', async () => {
+  const storage = { wow_backend_api_base_url: 'https://api.example.test' }
+  const outcomes = [
+    (options) => options.success({ statusCode: 409, data: { error: 'not-an-envelope' } }),
+    (options) => options.fail({ errMsg: 'request:fail network down' }),
+    (options) => options.fail({ errMsg: 'request:fail timeout' })
+  ]
+  let fallbackCalls = 0
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: (key) => storage[key] || '',
+    setStorageSync: () => {},
+    request: (options) => outcomes.shift()(options)
+  }
+
+  const client = resetModule('../pages/common/api-client')
+  const malformed = await client.requestJson('/api/test', {
+    responseMode: 'structured-problem',
+    fallback: () => ({ status: `fallback-${++fallbackCalls}` })
+  })
+  const network = await client.requestJson('/api/test', {
+    responseMode: 'structured-problem',
+    fallback: () => ({ status: `fallback-${++fallbackCalls}` })
+  })
+  const timeout = await client.requestJson('/api/test', {
+    responseMode: 'structured-problem',
+    fallback: () => ({ status: `fallback-${++fallbackCalls}` })
+  })
+
+  assert.deepEqual(
+    [malformed.httpStatus, network.httpStatus, timeout.httpStatus],
+    [409, 0, 0]
+  )
+  assert.deepEqual(
+    [malformed.offline, network.offline, timeout.offline],
+    [false, true, true]
+  )
+  assert.match(malformed.transportError, /HTTP 409/)
+  assert.match(network.transportError, /network down/)
+  assert.match(timeout.transportError, /timeout/)
+  assert.ok([malformed, network, timeout].every((result) => result.fromFallback))
+  assert.equal(fallbackCalls, 3)
+})
+
+test('default request mode still falls back for a valid structured non-2xx body', async () => {
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    request: ({ success }) => success({ statusCode: 409, data: gearEnvelope('blocked') })
+  }
+  const client = resetModule('../pages/common/api-client')
+  const result = await client.requestJson('/api/test', {
+    fallback: () => ({ status: 'legacy-fallback' })
+  })
+
+  assert.deepEqual(result, {
+    payload: { status: 'legacy-fallback' },
+    fromFallback: true,
+    error: 'HTTP 409'
+  })
+})
+
 test('shared api client uses the Lighthouse backend in develop and no implicit URL in release', () => {
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
