@@ -85,7 +85,8 @@ const sampleGearTemplate = {
   specKey: 'arcane',
   specName: '奥术',
   status: 'complete',
-  updatedAt: '2026-06-19T09:00:00Z'
+  updatedAt: '2026-06-19T09:00:00Z',
+  metadata: { selectionIntent: null }
 }
 
 const sampleGearStatSnapshot = {
@@ -99,9 +100,66 @@ const sampleGearStatSnapshot = {
   ]
 }
 
+const sampleSelectionIntent = {
+  schemaRevision: 'selection-intent-v1',
+  authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' },
+  eligibilityContext: { classKey: 'mage', specKey: 'arcane', level: 90 },
+  slots: { head: { itemId: '1', variantKey: 'v1', gemOptionIds: [], enchantOptionId: '', embellishmentOptionId: '', craftedOptionId: '', catalystOptionId: '' } }
+}
+
+sampleGearTemplate.metadata.selectionIntent = sampleSelectionIntent
+
+const sampleStatRequestSignature = JSON.stringify({
+  selectionIntent: sampleSelectionIntent,
+  profileContext: {
+    race: 'troll',
+    scenarioKey: 'single',
+    talents: sampleTalentTemplate.rawString
+  }
+})
+
+function gearStatTransport(snapshot, statSignature = 'sha256:test-stat') {
+  const verified = snapshot && snapshot.statStatus === 'verified'
+  const blockers = Array.isArray(snapshot && snapshot.blockers) ? snapshot.blockers : []
+  return {
+    httpStatus: verified ? 200 : 422,
+    fromFallback: false,
+    error: '',
+    payload: {
+      contractRevision: 'gear-result-envelope-v1',
+      requestId: 'stat-test-request',
+      releaseContext: {},
+      status: verified ? 'resolved' : 'blocked',
+      data: verified ? { statSignature, statSnapshot: snapshot } : {},
+      problems: blockers.map((title) => ({ kind: 'ILLEGAL_SELECTION', code: 'GEAR_STAT_BLOCKED', title }))
+    }
+  }
+}
+
+function pendingGearStatTransport(retryAfterMs = 1500) {
+  return {
+    httpStatus: 202,
+    fromFallback: false,
+    error: '',
+    payload: {
+      contractRevision: 'gear-result-envelope-v1',
+      requestId: 'stat-pending-test',
+      releaseContext: {},
+      status: 'pending',
+      data: { status: 'pending', statSignature: 'sha256:pending', retryAfterMs },
+      problems: []
+    }
+  }
+}
+
 const sampleGearTemplateWithStatSnapshot = {
   ...sampleGearTemplate,
-  metadata: { statSnapshot: sampleGearStatSnapshot }
+  metadata: {
+    selectionIntent: sampleSelectionIntent,
+    statSnapshot: sampleGearStatSnapshot,
+    statSnapshotRequestSignature: sampleStatRequestSignature,
+    statSnapshotSignature: 'sha256:sample-stat'
+  }
 }
 
 const warriorTalentTemplate = {
@@ -182,7 +240,7 @@ test('simc page exposes single aoe5 and approximate mythic plus scenarios', () =
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptionsWithShaman }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+      requestWebsimGearStatSnapshot: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: () => Promise.resolve({ payload: { templates: [] }, fromFallback: true, error: '' }),
@@ -249,7 +307,7 @@ test('simc page exposes combat preparation policy and temporary buff toggles bef
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptionsWithShaman }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+      requestWebsimGearStatSnapshot: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: () => Promise.resolve({ payload: { templates: [] }, fromFallback: true, error: '' }),
@@ -285,7 +343,7 @@ test('simc page names the selected class combat buffs before validation', async 
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptionsWithShaman }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+      requestWebsimGearStatSnapshot: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: (type) => Promise.resolve({
@@ -682,7 +740,7 @@ test('simc page inherits workbench class spec and scenario without leaking other
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptionsMageSpecs }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+      requestWebsimGearStatSnapshot: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: (type) => Promise.resolve({
@@ -840,7 +898,12 @@ test('simc page derives the summary stat panel from verified gear stat snapshots
   const gearWithStats = {
     ...sampleGearTemplate,
     title: 'Very long Arcane gear template title that should stay single line in summary',
-    metadata: { statSnapshot: sampleGearStatSnapshot }
+    metadata: {
+      ...sampleGearTemplate.metadata,
+      statSnapshot: sampleGearStatSnapshot,
+      statSnapshotRequestSignature: sampleStatRequestSignature,
+      statSnapshotSignature: 'sha256:sample-stat'
+    }
   }
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
     '../pages/builds/builds-api.js': {
@@ -913,7 +976,7 @@ test('simc page refreshes summary stats for structured gear templates without ca
       gearBySlot: { head: { slot: 'head', itemId: '1', id: '1', ilevel: 707, bonus_id: '12345' } },
       enhancementBySlot: {}
     }),
-    metadata: { maxLevel: 90 }
+    metadata: { ...sampleGearTemplate.metadata, maxLevel: 90 }
   }
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
     '../pages/builds/builds-api.js': {
@@ -921,9 +984,9 @@ test('simc page refreshes summary stats for structured gear templates without ca
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: (request) => {
-        requests.push(request)
-        return statsResponse
+      requestWebsimGearStatSnapshot: (selectionIntent, profileContext) => {
+        requests.push({ selectionIntent, profileContext })
+        return requests.length === 1 ? Promise.resolve(pendingGearStatTransport(1)) : statsResponse
       }
     },
     '../pages/common/build-template-storage.js': {
@@ -949,18 +1012,19 @@ test('simc page refreshes summary stats for structured gear templates without ca
     }
   })
   const page = createPageInstance(pageDefinition)
+  page.waitForGearStatSnapshotRetry = () => Promise.resolve()
 
   const loadPromise = page.loadTemplateLists()
   await flushPromises()
 
-  assert.equal(requests.length, 1)
-  assert.equal(requests[0].classKey, 'mage')
-  assert.equal(requests[0].specKey, 'arcane')
-  assert.equal(requests[0].talents, sampleTalentTemplate.rawString)
-  assert.ok(requests[0].rawString.startsWith('{'))
+  assert.equal(requests.length, 2)
+  assert.deepEqual(requests[0].selectionIntent, sampleSelectionIntent)
+  assert.equal(requests[0].profileContext.race, 'troll')
+  assert.equal(requests[0].profileContext.scenarioKey, 'single')
+  assert.equal(requests[0].profileContext.talents, sampleTalentTemplate.rawString)
   assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['计算中', '计算中', '计算中', '计算中'])
 
-  resolveStats({ payload: { ...sampleGearStatSnapshot, blockers: [] }, fromFallback: false, error: '' })
+  resolveStats(gearStatTransport({ ...sampleGearStatSnapshot, blockers: [] }))
   await loadPromise
   await flushPromises()
   await flushPromises()
@@ -971,6 +1035,54 @@ test('simc page refreshes summary stats for structured gear templates without ca
   assert.equal(syncedTemplates[0].metadata.statSnapshot.statStatus, 'verified')
   assert.equal(page.data.selectedGearTemplate.metadata.statSnapshot, undefined)
   assert.equal(page.buildTemplatePayload(true, false).templateContext.gear.metadata.statSnapshot.statStatus, 'verified')
+})
+
+test('simc page fails closed for legacy gear templates without canonical Selection Intent', async () => {
+  let statRequests = 0
+  const legacyTemplate = {
+    ...sampleGearTemplate,
+    metadata: { maxLevel: 90, gearSnapshot: { gearBySlot: {}, enhancementBySlot: {} } }
+  }
+  const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
+    '../pages/builds/builds-api.js': {
+      fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
+      requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStatSnapshot: () => {
+        statRequests += 1
+        return Promise.resolve(gearStatTransport(sampleGearStatSnapshot))
+      }
+    },
+    '../pages/common/build-template-storage.js': {
+      fetchBuildTemplates: (type) => Promise.resolve({
+        payload: { templates: type === 'talent' ? [sampleTalentTemplate] : [legacyTemplate] },
+        fromFallback: true,
+        error: ''
+      }),
+      listBuildTemplates: () => [],
+      buildTemplateSummary: () => [],
+      syncBuildTemplate: () => Promise.resolve({ payload: {}, fromFallback: true, error: '' })
+    },
+    '../pages/simulator/simulator-api.js': {
+      requestSimulatorAnalysis: () => Promise.resolve({ payload: {}, fromFallback: false, error: '' })
+    },
+    '../pages/common/analytics-client.js': {
+      trackEvent: () => Promise.resolve(false),
+      trackPageLeave: () => Promise.resolve(false),
+      trackPageView: () => Promise.resolve(false)
+    }
+  })
+  const page = createPageInstance(pageDefinition)
+
+  await page.loadTemplateLists()
+  await flushPromises()
+
+  assert.equal(statRequests, 0)
+  assert.equal(page.data.summaryStatsLoading, false)
+  assert.equal(page.data.summaryStatSnapshot, null)
+  const source = fs.readFileSync('pages/simulator/simc.js', 'utf8')
+  assert.doesNotMatch(source, /\brequestWebsimGearStats\b/)
 })
 
 test('simc page does not rewrite large gear template objects when summary stats refresh completes', async () => {
@@ -997,7 +1109,7 @@ test('simc page does not rewrite large gear template objects when summary stats 
   const structuredGearTemplate = {
     ...sampleGearTemplate,
     rawString: 'legacy metadata snapshot',
-    metadata: { maxLevel: 90, gearSnapshot }
+    metadata: { ...sampleGearTemplate.metadata, maxLevel: 90, gearSnapshot }
   }
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
     '../pages/builds/builds-api.js': {
@@ -1005,7 +1117,7 @@ test('simc page does not rewrite large gear template objects when summary stats 
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: () => statsResponse
+      requestWebsimGearStatSnapshot: () => statsResponse
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: (type) => Promise.resolve({
@@ -1040,7 +1152,7 @@ test('simc page does not rewrite large gear template objects when summary stats 
   await flushPromises()
   updates.length = 0
 
-  resolveStats({ payload: { ...sampleGearStatSnapshot, blockers: [] }, fromFallback: false, error: '' })
+  resolveStats(gearStatTransport({ ...sampleGearStatSnapshot, blockers: [] }))
   await loadPromise
   await flushPromises()
   await flushPromises()
@@ -1068,7 +1180,7 @@ test('simc page clears pending summary stat refresh when selection no longer has
       gearBySlot: { head: { slot: 'head', itemId: '1', id: '1', ilevel: 707, bonus_id: '12345' } },
       enhancementBySlot: {}
     }),
-    metadata: { maxLevel: 90 }
+    metadata: { ...sampleGearTemplate.metadata, maxLevel: 90 }
   }
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
     '../pages/builds/builds-api.js': {
@@ -1076,8 +1188,8 @@ test('simc page clears pending summary stat refresh when selection no longer has
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: (request) => {
-        requests.push(request)
+      requestWebsimGearStatSnapshot: (selectionIntent, profileContext) => {
+        requests.push({ selectionIntent, profileContext })
         return statsResponse
       }
     },
@@ -1115,7 +1227,7 @@ test('simc page clears pending summary stat refresh when selection no longer has
   assert.equal(page.data.summaryStatsRequestSignature, '')
   assert.equal(page.data.summaryStatsLoading, false)
 
-  resolveStats({ payload: { ...sampleGearStatSnapshot, blockers: [] }, fromFallback: false, error: '' })
+  resolveStats(gearStatTransport({ ...sampleGearStatSnapshot, blockers: [] }))
   await flushPromises()
   await flushPromises()
 
@@ -1132,7 +1244,7 @@ test('simc page explains blocked summary stat snapshots', async () => {
       gearBySlot: { waist: { slot: 'waist', itemId: '244611', id: '244611', bonus_id: '1808/8960/12214' } },
       enhancementBySlot: {}
     }),
-    metadata: { maxLevel: 90 }
+    metadata: { ...sampleGearTemplate.metadata, maxLevel: 90 }
   }
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
     '../pages/builds/builds-api.js': {
@@ -1140,14 +1252,10 @@ test('simc page explains blocked summary stat snapshots', async () => {
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: () => Promise.resolve({
-        payload: {
-          statStatus: 'blocked',
-          blockers: ['Missing core SimC gear slots: waist, feet.']
-        },
-        fromFallback: false,
-        error: ''
-      })
+      requestWebsimGearStatSnapshot: () => Promise.resolve(gearStatTransport({
+        statStatus: 'blocked',
+        blockers: ['Missing core SimC gear slots: waist, feet.']
+      }))
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: (type) => Promise.resolve({
@@ -1187,7 +1295,7 @@ test('simc page does not leak raw simc diagnostics in blocked summary stat notes
       gearBySlot: { hands: { slot: 'hands', itemId: '249971', id: '249971', bonus_id: '13534' } },
       enhancementBySlot: {}
     }),
-    metadata: { maxLevel: 90 }
+    metadata: { ...sampleGearTemplate.metadata, maxLevel: 90 }
   }
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
     '../pages/builds/builds-api.js': {
@@ -1195,14 +1303,10 @@ test('simc page does not leak raw simc diagnostics in blocked summary stat notes
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: () => Promise.resolve({
-        payload: {
-          statStatus: 'blocked',
-          blockers: [rawDiagnostic]
-        },
-        fromFallback: false,
-        error: ''
-      })
+      requestWebsimGearStatSnapshot: () => Promise.resolve(gearStatTransport({
+        statStatus: 'blocked',
+        blockers: [rawDiagnostic]
+      }))
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: (type) => Promise.resolve({
@@ -1245,7 +1349,7 @@ test('simc page does not leak raw simc crashes in blocked summary stat notes', a
       gearBySlot: { hands: { slot: 'hands', itemId: '249971', id: '249971', bonus_id: '13534' } },
       enhancementBySlot: {}
     }),
-    metadata: { maxLevel: 90 }
+    metadata: { ...sampleGearTemplate.metadata, maxLevel: 90 }
   }
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
     '../pages/builds/builds-api.js': {
@@ -1253,14 +1357,10 @@ test('simc page does not leak raw simc crashes in blocked summary stat notes', a
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: () => Promise.resolve({
-        payload: {
-          statStatus: 'blocked',
-          blockers: [rawDiagnostic]
-        },
-        fromFallback: false,
-        error: ''
-      })
+      requestWebsimGearStatSnapshot: () => Promise.resolve(gearStatTransport({
+        statStatus: 'blocked',
+        blockers: [rawDiagnostic]
+      }))
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: (type) => Promise.resolve({
@@ -1299,7 +1399,7 @@ test('simc page localizes raw simc diagnostics in blocked validation reasons', a
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: () => Promise.resolve({ payload: sampleGearStatSnapshot, fromFallback: false, error: '' })
+      requestWebsimGearStatSnapshot: () => Promise.resolve(gearStatTransport(sampleGearStatSnapshot))
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: () => Promise.resolve({ payload: { templates: [] }, fromFallback: true, error: '' }),
@@ -1397,22 +1497,22 @@ test('simc page invalidates cached summary stats when the race changes', async (
     enhancementBySlot: {}
   })
   const cachedRequest = {
-    classKey: 'mage',
-    specKey: 'arcane',
-    raceKey: 'troll',
-    level: 90,
-    scenarioKey: 'single',
-    talents: sampleTalentTemplate.rawString,
-    rawString,
-    metadata: {}
+    selectionIntent: sampleSelectionIntent,
+    profileContext: {
+      race: 'troll',
+      scenarioKey: 'single',
+      talents: sampleTalentTemplate.rawString
+    }
   }
   const structuredGearTemplate = {
     ...sampleGearTemplate,
     rawString,
     metadata: {
+      ...sampleGearTemplate.metadata,
       maxLevel: 90,
       statSnapshot: sampleGearStatSnapshot,
-      statSnapshotSignature: JSON.stringify(cachedRequest)
+      statSnapshotRequestSignature: JSON.stringify(cachedRequest),
+      statSnapshotSignature: 'sha256:cached-stat'
     }
   }
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
@@ -1421,8 +1521,8 @@ test('simc page invalidates cached summary stats when the race changes', async (
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: (request) => {
-        requests.push(request)
+      requestWebsimGearStatSnapshot: (selectionIntent, profileContext) => {
+        requests.push({ selectionIntent, profileContext })
         return statsResponse
       }
     },
@@ -1456,11 +1556,13 @@ test('simc page invalidates cached summary stats when the race changes', async (
   await flushPromises()
 
   assert.equal(requests.length, 1)
-  assert.equal(requests[0].raceKey, 'human')
-  assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['计算中', '计算中', '计算中', '计算中'])
+  assert.equal(requests[0].profileContext.race, 'human')
+  assert.deepEqual(page.data.summaryStatPanel.secondaryRows.map((row) => row.percentText), ['28.6%', '18.3%', '42.1%', '8.2%'])
+  assert.match(page.data.summaryStatPanel.noteText, /上次已验证快照/)
+  assert.equal(page.data.summaryStatSnapshot, null)
   assert.equal(((page.buildTemplatePayload(true, false).templateContext.gear.metadata || {}).statSnapshot), undefined)
 
-  resolveStats({ payload: { ...sampleGearStatSnapshot, blockers: [] }, fromFallback: false, error: '' })
+  resolveStats(gearStatTransport({ ...sampleGearStatSnapshot, blockers: [] }))
   await flushPromises()
 })
 
@@ -1474,12 +1576,21 @@ test('simc page reuses the same template payload for confirm and final submit', 
   const gearTemplateWithSnapshot = {
     ...sampleGearTemplate,
     rawString: 'gear snapshot stored in metadata',
-    metadata: { gearSnapshot, statSnapshot: sampleGearStatSnapshot }
+    metadata: {
+      ...sampleGearTemplate.metadata,
+      gearSnapshot,
+      statSnapshot: sampleGearStatSnapshot,
+      statSnapshotRequestSignature: sampleStatRequestSignature,
+      statSnapshotSignature: 'sha256:sample-stat'
+    }
   }
   const pageDefinition = loadPageModule('../pages/simulator/simc.js', {
     '../pages/builds/builds-api.js': {
       fallbackBuildsHome: () => ({ classOptions: simcClassOptions }),
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
+    },
+    '../pages/builds/websim-api.js': {
+      requestWebsimGearStatSnapshot: () => Promise.resolve(gearStatTransport(sampleGearStatSnapshot, 'sha256:changed-stat'))
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: (type) => Promise.resolve({
@@ -1527,6 +1638,7 @@ test('simc page reuses the same template payload for confirm and final submit', 
     assert.ok(raceIndex >= 0)
     page.selectRace({ detail: { value: raceIndex } })
     page.selectScenario({ currentTarget: { dataset: { key: 'mythic_plus' } } })
+    await flushPromises()
     await page.confirmTemplateSimulation()
     await flushPromises()
     await page.submitConfirmedTask()
@@ -1546,7 +1658,10 @@ test('simc page reuses the same template payload for confirm and final submit', 
   assert.deepEqual(requests[0].request.temporaryBuffs, {})
   assert.equal(requests[0].request.templateContext.talent.id, 'talent-1')
   assert.equal(requests[0].request.templateContext.gear.id, 'gear-1')
-  assert.deepEqual(requests[0].request.templateContext.gear.metadata, { gearSnapshot, statSnapshot: sampleGearStatSnapshot })
+  assert.deepEqual(requests[0].request.templateContext.gear.metadata.gearSnapshot, gearSnapshot)
+  assert.deepEqual(requests[0].request.templateContext.gear.metadata.statSnapshot, sampleGearStatSnapshot)
+  assert.equal(requests[0].request.templateContext.gear.metadata.statSnapshotSignature, 'sha256:changed-stat')
+  assert.match(requests[0].request.templateContext.gear.metadata.statSnapshotRequestSignature, /void_elf/)
   assert.equal(requests[1].request.confirmOnly, false)
   assert.equal(requests[1].request.saveTask, true)
   assert.deepEqual(requests[1].request.templateContext, requests[0].request.templateContext)
@@ -1570,7 +1685,7 @@ test('simc page sends selected temporary combat buffs with confirm and submit pa
       requestBuildsHome: () => Promise.resolve({ payload: { classOptions: simcClassOptions }, fromFallback: true, error: '' })
     },
     '../pages/builds/websim-api.js': {
-      requestWebsimGearStats: () => Promise.resolve({ payload: sampleGearStatSnapshot, fromFallback: false, error: '' })
+      requestWebsimGearStatSnapshot: () => Promise.resolve(gearStatTransport(sampleGearStatSnapshot))
     },
     '../pages/common/build-template-storage.js': {
       fetchBuildTemplates: (type) => Promise.resolve({

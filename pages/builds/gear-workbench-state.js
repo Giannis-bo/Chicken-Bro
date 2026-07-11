@@ -37,6 +37,165 @@ function validEnvelope(value) {
   )
 }
 
+const GEAR_STAT_MAX_ATTEMPTS = 15
+const GEAR_STAT_MAX_DURATION_MS = 45000
+const GEAR_STAT_DEFAULT_RETRY_MS = 1500
+const GEAR_STAT_MIN_RETRY_MS = 250
+const GEAR_STAT_MAX_RETRY_MS = 5000
+
+function createGearStatSnapshotState(initialSnapshot, statSignature) {
+  const snapshot = initialSnapshot && typeof initialSnapshot === 'object' ? clone(initialSnapshot) : null
+  return {
+    latestStatSerial: 0,
+    activeStatRequest: null,
+    statSnapshotStatus: snapshot ? 'verified' : 'idle',
+    statSnapshotSignature: snapshot ? String(statSignature || '') : '',
+    verifiedStatContextKey: '',
+    currentStatSnapshot: snapshot,
+    lastVerifiedStatSnapshot: snapshot,
+    statProblems: [],
+    statOffline: false,
+    readOnlyStatSnapshot: false
+  }
+}
+
+function beginGearStatSnapshot(state, options, nowMs) {
+  const next = clone(state || createGearStatSnapshotState())
+  const source = options && typeof options === 'object' ? options : {}
+  const startedAtMs = Number(nowMs) || 0
+  const request = {
+    serial: Number(next.latestStatSerial || 0) + 1,
+    contextKey: String(source.contextKey || ''),
+    selectionIntent: clone(source.selectionIntent || {}),
+    profileContext: clone(source.profileContext || {}),
+    attempt: 1,
+    startedAtMs,
+    deadlineAtMs: startedAtMs + GEAR_STAT_MAX_DURATION_MS,
+    retryAfterMs: 0
+  }
+  next.latestStatSerial = request.serial
+  next.activeStatRequest = clone(request)
+  next.statSnapshotStatus = 'requesting'
+  next.currentStatSnapshot = null
+  next.statProblems = []
+  next.statOffline = false
+  next.readOnlyStatSnapshot = !!next.lastVerifiedStatSnapshot
+  return { state: next, request }
+}
+
+function statRequestMatches(state, request) {
+  const active = state && state.activeStatRequest
+  return !!(
+    active && request &&
+    Number(request.serial) === Number(state.latestStatSerial) &&
+    Number(request.serial) === Number(active.serial) &&
+    String(request.contextKey || '') === String(active.contextKey || '') &&
+    Number(request.attempt) === Number(active.attempt)
+  )
+}
+
+function retryDelay(value) {
+  const delay = Number(value) || GEAR_STAT_DEFAULT_RETRY_MS
+  return Math.min(GEAR_STAT_MAX_RETRY_MS, Math.max(GEAR_STAT_MIN_RETRY_MS, delay))
+}
+
+function gearStatRequestTimeoutMs(request, nowMs) {
+  const deadline = Number(request && request.deadlineAtMs) || 0
+  const remaining = deadline - (Number(nowMs) || 0)
+  return Math.min(30000, Math.max(1, remaining))
+}
+
+function applyGearStatSnapshotResult(state, request, transportResult, nowMs) {
+  if (!statRequestMatches(state, request)) return state
+  const next = clone(state)
+  const envelope = transportResult && transportResult.payload
+  const now = Number(nowMs) || 0
+  if (!transportResult || transportResult.fromFallback || !validEnvelope(envelope)) {
+    next.activeStatRequest = null
+    next.statSnapshotStatus = transportResult && transportResult.offline ? 'offline' : 'unavailable'
+    next.currentStatSnapshot = null
+    next.statProblems = [transportProblem(transportResult)]
+    next.statOffline = !!(transportResult && transportResult.offline)
+    next.readOnlyStatSnapshot = !!next.lastVerifiedStatSnapshot
+    return next
+  }
+
+  const httpStatus = Number(transportResult.httpStatus || 0)
+  const problems = problemList(envelope)
+  next.statProblems = problems
+  next.statOffline = false
+
+  if (httpStatus === 202 && envelope.status === 'pending') {
+    if (Number(request.attempt) >= GEAR_STAT_MAX_ATTEMPTS || now >= Number(request.deadlineAtMs)) {
+      next.activeStatRequest = null
+      next.statSnapshotStatus = 'timed_out'
+      next.currentStatSnapshot = null
+      next.readOnlyStatSnapshot = !!next.lastVerifiedStatSnapshot
+      return next
+    }
+    const following = {
+      ...clone(request),
+      attempt: Number(request.attempt) + 1,
+      retryAfterMs: Math.min(
+        retryDelay(envelope.data && envelope.data.retryAfterMs),
+        Math.max(1, Number(request.deadlineAtMs) - now)
+      )
+    }
+    next.activeStatRequest = following
+    next.statSnapshotStatus = 'pending'
+    next.currentStatSnapshot = null
+    next.readOnlyStatSnapshot = !!next.lastVerifiedStatSnapshot
+    return next
+  }
+
+  next.activeStatRequest = null
+  next.currentStatSnapshot = null
+  next.readOnlyStatSnapshot = !!next.lastVerifiedStatSnapshot
+  if (httpStatus === 409) {
+    next.statSnapshotStatus = 'revision_conflict'
+    return next
+  }
+  if (httpStatus === 503 || envelope.status === 'unavailable') {
+    next.statSnapshotStatus = 'unavailable'
+    return next
+  }
+
+  const data = envelope.data && typeof envelope.data === 'object' ? envelope.data : {}
+  const snapshot = data.statSnapshot && typeof data.statSnapshot === 'object'
+    ? clone(data.statSnapshot)
+    : null
+  if (
+    httpStatus === 200 &&
+    envelope.status === 'resolved' &&
+    snapshot &&
+    snapshot.statStatus === 'verified' &&
+    problems.length === 0 &&
+    String(data.statSignature || '')
+  ) {
+    next.statSnapshotStatus = 'verified'
+    next.statSnapshotSignature = String(data.statSignature)
+    next.verifiedStatContextKey = String(request.contextKey || '')
+    next.currentStatSnapshot = snapshot
+    next.lastVerifiedStatSnapshot = clone(snapshot)
+    next.readOnlyStatSnapshot = false
+    return next
+  }
+  next.statSnapshotStatus = envelope.status === 'blocked' ? 'blocked' : 'unavailable'
+  return next
+}
+
+function invalidateGearStatSnapshot(state) {
+  const next = clone(state || createGearStatSnapshotState())
+  next.latestStatSerial = Number(next.latestStatSerial || 0) + 1
+  next.activeStatRequest = null
+  next.currentStatSnapshot = null
+  next.statSnapshotStatus = next.lastVerifiedStatSnapshot ? 'stale' : 'idle'
+  next.statProblems = []
+  next.statOffline = false
+  next.readOnlyStatSnapshot = !!next.lastVerifiedStatSnapshot
+  return next
+}
+
 function createGearWorkbenchState(resolverContext, initialIntent) {
   const context = clone(resolverContext || {})
   const intent = clone(initialIntent || {})
@@ -62,8 +221,7 @@ function createGearWorkbenchState(resolverContext, initialIntent) {
     offline: false,
     readOnly: false,
     revisionRetryCount: 0,
-    statSnapshotSignature: '',
-    statSnapshotStatus: 'idle'
+    ...createGearStatSnapshotState()
   }
 }
 
@@ -271,13 +429,20 @@ function gearWorkbenchView(state) {
 }
 
 module.exports = {
+  GEAR_STAT_MAX_ATTEMPTS,
+  GEAR_STAT_MAX_DURATION_MS,
+  applyGearStatSnapshotResult,
   applyGearResolveResult,
+  beginGearStatSnapshot,
   beginGearResolve,
   confirmGearIntent,
+  createGearStatSnapshotState,
   createGearWorkbenchState,
   editGearIntent,
   gearWorkbenchCanRunProfile,
   gearWorkbenchCanUseVerifiedSnapshot,
   gearWorkbenchView,
+  gearStatRequestTimeoutMs,
+  invalidateGearStatSnapshot,
   rebaseGearIntentRevisions
 }

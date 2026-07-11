@@ -266,6 +266,21 @@ function requestWebsimProfileFromIntent(selectionIntent, profileContext) {
   })
 }
 
+function requestWebsimGearStatSnapshot(selectionIntent, profileContext, options) {
+  const timeoutMs = Math.min(30000, Math.max(1, Number(options && options.timeoutMs) || 30000))
+  return requestJson('/api/websim/gear/stat-snapshots', {
+    method: 'POST',
+    data: {
+      selectionIntent: selectionIntent || {},
+      profileContext: profileContext || {}
+    },
+    timeout: timeoutMs,
+    responseMode: 'structured-problem',
+    fallback: () => null,
+    validate: isGearResultEnvelope
+  })
+}
+
 function requestWebsimGear(params) {
   const options = params || {}
   const query = [
@@ -303,6 +318,7 @@ module.exports = {
   requestWebsimBootstrap,
   requestWebsimGear,
   requestWebsimGearResolve,
+  requestWebsimGearStatSnapshot,
   requestWebsimGearStats,
   requestWebsimProfile,
   requestWebsimProfileFromIntent,

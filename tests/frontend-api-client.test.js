@@ -420,6 +420,45 @@ test('canonical gear api clients preserve structured 409 and 503 with exact requ
   assert.deepEqual(captured[1].data, { selectionIntent: intent, profileContext })
 })
 
+test('canonical async gear stat client preserves 202 and posts only Intent plus profile context', async () => {
+  const captured = []
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    setStorageSync: () => {},
+    request: (options) => {
+      captured.push(options)
+      options.success({
+        statusCode: 202,
+        data: gearEnvelope('pending', { data: {
+          jobId: 17,
+          status: 'pending',
+          statSignature: 'sha256:pending',
+          retryAfterMs: 1500
+        } })
+      })
+    }
+  }
+
+  const api = resetModule('../pages/builds/websim-api')
+  const selectionIntent = {
+    schemaRevision: 'selection-intent-v1',
+    authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' },
+    eligibilityContext: { classKey: 'mage', specKey: 'arcane', level: 90 },
+    slots: {}
+  }
+  const profileContext = { name: 'Canonical', race: 'human', scenarioKey: 'single', talents: 'C4DA' }
+  const result = await api.requestWebsimGearStatSnapshot(selectionIntent, profileContext)
+
+  assert.equal(result.fromFallback, false)
+  assert.equal(result.httpStatus, 202)
+  assert.equal(result.payload.data.retryAfterMs, 1500)
+  assert.match(captured[0].url, /\/api\/websim\/gear\/stat-snapshots$/)
+  assert.equal(captured[0].method, 'POST')
+  assert.deepEqual(captured[0].data, { selectionIntent, profileContext })
+  assert.equal(captured[0].timeout, 30000)
+})
+
 test('canonical gear api clients reject malformed pseudo envelopes through fallback', async () => {
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),

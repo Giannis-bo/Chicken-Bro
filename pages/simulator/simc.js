@@ -1,6 +1,13 @@
 const { requestSimulatorAnalysis, requestSimulatorTasks } = require('./simulator-api')
 const { fallbackBuildsHome, requestBuildsHome } = require('../builds/builds-api')
-const { requestWebsimGearStats } = require('../builds/websim-api')
+const { requestWebsimGearStatSnapshot } = require('../builds/websim-api')
+const {
+  applyGearStatSnapshotResult,
+  beginGearStatSnapshot,
+  createGearStatSnapshotState,
+  gearStatRequestTimeoutMs,
+  invalidateGearStatSnapshot
+} = require('../builds/gear-workbench-state')
 const { fetchBuildTemplates, listBuildTemplates, syncBuildTemplate } = require('../common/build-template-storage')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 
@@ -295,10 +302,18 @@ function compactTemplate(template, options = {}) {
   }
   const metadata = template.metadata && typeof template.metadata === 'object' ? template.metadata : {}
   const compactMetadata = {}
-  if (metadata.gearSnapshot) {
-    compactMetadata.gearSnapshot = metadata.gearSnapshot
-  }
+  ;['gearSnapshot', 'selectionIntent', 'resolvedGearSignature', 'dependencyVector'].forEach((key) => {
+    if (metadata[key]) compactMetadata[key] = metadata[key]
+  })
   if (options.statSnapshot) compactMetadata.statSnapshot = options.statSnapshot
+  if (options.statSnapshot) {
+    compactMetadata.statSnapshotRequestSignature = cleanSummaryText(options.statSnapshotRequestSignature || metadata.statSnapshotRequestSignature || '')
+    compactMetadata.statSnapshotSignature = cleanSummaryText(options.statSnapshotSignature || metadata.statSnapshotSignature || '')
+    compactMetadata.statSnapshotSource = cleanSummaryText(metadata.statSnapshotSource || options.statSnapshot.statSource || '')
+    Object.keys(compactMetadata).forEach((key) => {
+      if (compactMetadata[key] === '') delete compactMetadata[key]
+    })
+  }
   if (Object.keys(compactMetadata).length) compact.metadata = compactMetadata
   return compact
 }
@@ -466,14 +481,8 @@ function summaryStatsRequestSignature(request) {
   const raw = JSON.stringify(request || {})
   if (raw.length <= 4096) return raw
   return JSON.stringify({
-    classKey: request && request.classKey,
-    specKey: request && request.specKey,
-    raceKey: request && request.raceKey,
-    level: request && request.level,
-    scenarioKey: request && request.scenarioKey,
-    talentsHash: stableTextHash(request && request.talents),
-    rawStringHash: stableTextHash(request && request.rawString),
-    metadataHash: stableTextHash(JSON.stringify((request && request.metadata) || {}))
+    selectionIntentHash: stableTextHash(JSON.stringify((request && request.selectionIntent) || {})),
+    profileContextHash: stableTextHash(JSON.stringify((request && request.profileContext) || {}))
   })
 }
 
@@ -674,8 +683,8 @@ function analysisWithoutStatusCard(analysis) {
 function statSnapshotFromTemplate(template, expectedSignature = '') {
   const metadata = (template && template.metadata) || {}
   const snapshot = verifiedSummarySnapshot(statSnapshotPayloadFromTemplate(template))
-  const storedSignature = cleanSummaryText(metadata.statSnapshotSignature || '')
-  if (snapshot && storedSignature && expectedSignature && storedSignature !== expectedSignature) return null
+  const storedSignature = cleanSummaryText(metadata.statSnapshotRequestSignature || metadata.statSnapshotSignature || '')
+  if (snapshot && expectedSignature && storedSignature !== expectedSignature) return null
   return snapshot
 }
 
@@ -852,35 +861,33 @@ function summaryStatPanelFromAnalysis(payload, fallbackTemplate, currentPanel) {
   return summaryStatPanelFromSnapshot(null)
 }
 
-function structuredGearTemplateRaw(template) {
-  const rawString = cleanSummaryText(template && template.rawString)
-  if (rawString.startsWith('{')) return rawString
-  const metadata = (template && template.metadata) || {}
-  return metadata.gearSnapshot ? JSON.stringify(metadata.gearSnapshot) : ''
-}
-
 function summaryStatsRequestForSelection(data, options = {}) {
   const gearTemplate = data && data.selectedGearTemplate
   const talentTemplate = data && data.selectedTalentTemplate
   if (!gearTemplate || !talentTemplate) return null
-  const rawString = structuredGearTemplateRaw(gearTemplate)
-  if (!rawString) return null
   const metadata = gearTemplate.metadata && typeof gearTemplate.metadata === 'object' ? gearTemplate.metadata : {}
+  const selectionIntent = metadata.selectionIntent && typeof metadata.selectionIntent === 'object'
+    ? metadata.selectionIntent
+    : null
+  if (!selectionIntent) return null
   const request = {
-    classKey: data.selectedClassKey || gearTemplate.classKey || talentTemplate.classKey || 'mage',
-    specKey: gearTemplate.specKey || talentTemplate.specKey || 'arcane',
-    raceKey: data.selectedRaceKey || '',
-    level: Number(metadata.maxLevel) || 90,
-    scenarioKey: data.selectedScenarioKey || gearTemplate.scenarioKey || 'single',
-    talents: talentTemplate.rawString || '',
-    rawString,
-    metadata: metadata.gearSnapshot ? { gearSnapshot: metadata.gearSnapshot } : {}
+    selectionIntent,
+    profileContext: {
+      name: cleanSummaryText(data.selectedCharacterName || ''),
+      race: cleanSummaryText(data.selectedRaceKey || ''),
+      scenarioKey: data.selectedScenarioKey || gearTemplate.scenarioKey || 'single',
+      heroKey: cleanSummaryText((talentTemplate.metadata || {}).heroKey || talentTemplate.heroKey || ''),
+      talents: talentTemplate.rawString || ''
+    }
   }
+  Object.keys(request.profileContext).forEach((key) => {
+    if (!request.profileContext[key]) delete request.profileContext[key]
+  })
   if (!options.ignoreSnapshot && statSnapshotFromTemplate(gearTemplate, summaryStatsRequestSignature(request))) return null
   return request
 }
 
-function templateWithStatSnapshot(template, snapshot, signature = '') {
+function templateWithStatSnapshot(template, snapshot, requestSignature = '', statSignature = '') {
   const source = verifiedSummarySnapshot(snapshot)
   if (!template || !source) return template || null
   return {
@@ -888,7 +895,8 @@ function templateWithStatSnapshot(template, snapshot, signature = '') {
     metadata: {
       ...((template && template.metadata) || {}),
       statSnapshot: source,
-      statSnapshotSignature: signature,
+      statSnapshotRequestSignature: requestSignature,
+      statSnapshotSignature: statSignature,
       statSnapshotSource: source.statSource || 'simulationcraft_json'
     }
   }
@@ -1265,49 +1273,107 @@ Page({
 
   refreshSummaryStatsForSelection() {
     const request = summaryStatsRequestForSelection(this.data)
-    if (!request) return Promise.resolve(null)
-    const signature = summaryStatsRequestSignature(request)
-    if (this.data.summaryStatsLoading || this.data.summaryStatsRequestSignature === signature) {
+    if (!request) {
+      if (this.summaryStatSnapshotState && this.summaryStatSnapshotState.activeStatRequest) {
+        this.summaryStatSnapshotState = invalidateGearStatSnapshot(this.summaryStatSnapshotState)
+      }
+      this.setData({
+        ...summaryStatsInvalidationState(),
+        summaryStatPanel: summaryStatPanelForSelection(this.data)
+      })
       return Promise.resolve(null)
     }
+    const signature = summaryStatsRequestSignature(request)
+    const existingState = this.summaryStatSnapshotState || createGearStatSnapshotState(
+      verifiedSummarySnapshot(this.data.summaryStatSnapshot) || verifiedSummarySnapshot(
+        statSnapshotPayloadFromTemplate(this.data.selectedGearTemplate)
+      ),
+      cleanSummaryText(((this.data.selectedGearTemplate || {}).metadata || {}).statSnapshotSignature || '')
+    )
+    if (existingState.activeStatRequest && existingState.activeStatRequest.contextKey === signature) {
+      return Promise.resolve(null)
+    }
+    if (existingState.statSnapshotStatus === 'verified' && existingState.verifiedStatContextKey === signature) return Promise.resolve(existingState.currentStatSnapshot)
+    const begun = beginGearStatSnapshot(existingState, {
+      contextKey: signature,
+      selectionIntent: request.selectionIntent,
+      profileContext: request.profileContext
+    }, Date.now())
+    this.summaryStatSnapshotState = begun.state
     this.setData({
       summaryStatsLoading: true,
       summaryStatsRequestSignature: signature,
-      summaryStatPanel: summaryStatPanelForSelection(this.data, SUMMARY_STAT_PENDING_TEXT.loading)
+      summaryStatPanel: begun.state.lastVerifiedStatSnapshot
+        ? summaryStatPanelFromSnapshot(begun.state.lastVerifiedStatSnapshot, SUMMARY_STAT_PENDING_TEXT.loading, '当前展示上次已验证快照；新配置仍在计算。')
+        : summaryStatPanelForSelection(this.data, SUMMARY_STAT_PENDING_TEXT.loading)
     })
-    return requestWebsimGearStats(request).then(({ payload }) => {
-      if (this.data.summaryStatsRequestSignature !== signature) return payload
-      const snapshot = verifiedSummarySnapshot(payload)
-      if (snapshot) {
-        const nextGearTemplate = templateWithStatSnapshot(this.data.selectedGearTemplate, snapshot, signature)
+
+    const renderState = () => {
+      const state = this.summaryStatSnapshotState
+      if (state.statSnapshotStatus === 'verified' && state.currentStatSnapshot) {
+        const snapshot = state.currentStatSnapshot
+        const nextGearTemplate = templateWithStatSnapshot(
+          this.data.selectedGearTemplate,
+          snapshot,
+          signature,
+          state.statSnapshotSignature
+        )
         this.setData({
           summaryStatPanel: summaryStatPanelFromSnapshot(snapshot),
           summaryStatSnapshot: snapshot,
-          summaryStatSnapshotSignature: signature
+          summaryStatSnapshotSignature: signature,
+          summaryStatsLoading: false
         })
         persistStatSnapshotTemplate(nextGearTemplate)
-      } else {
-        this.setData({
-          summaryStatPanel: summaryStatPanelFromBlockedPayload(payload),
-          summaryStatSnapshot: null,
-          summaryStatSnapshotSignature: ''
-        })
+        return snapshot
       }
-      return payload
-    }).catch(() => {
-      if (this.data.summaryStatsRequestSignature === signature) {
-        this.setData({
-          summaryStatPanel: summaryStatPanelFromBlockedPayload({ blockers: ['backend unavailable'] }),
-          summaryStatSnapshot: null,
-          summaryStatSnapshotSignature: ''
-        })
-      }
+      const problemPayload = { blockers: (state.statProblems || []).map((problem) => problem && (problem.title || problem.code)).filter(Boolean) }
+      const stale = state.lastVerifiedStatSnapshot
+      this.setData({
+        summaryStatPanel: state.activeStatRequest
+          ? (stale
+              ? summaryStatPanelFromSnapshot(stale, SUMMARY_STAT_PENDING_TEXT.loading, '当前展示上次已验证快照；新配置仍在计算。')
+              : summaryStatPanelFromSnapshot(null, SUMMARY_STAT_PENDING_TEXT.loading))
+          : (stale
+              ? summaryStatPanelFromSnapshot(stale, SUMMARY_STAT_PENDING_TEXT.unavailable, '当前展示上次已验证快照；新配置尚未验证。')
+              : summaryStatPanelFromBlockedPayload(problemPayload)),
+        summaryStatSnapshot: null,
+        summaryStatSnapshotSignature: '',
+        summaryStatsLoading: !!state.activeStatRequest
+      })
       return null
-    }).finally(() => {
-      if (this.data.summaryStatsRequestSignature === signature) {
-        this.setData({ summaryStatsLoading: false })
-      }
+    }
+
+    const poll = (statRequest) => requestWebsimGearStatSnapshot(
+      statRequest.selectionIntent,
+      statRequest.profileContext,
+      { timeoutMs: gearStatRequestTimeoutMs(statRequest, Date.now()) }
+    ).then((result) => {
+      const next = applyGearStatSnapshotResult(this.summaryStatSnapshotState, statRequest, result, Date.now())
+      if (next === this.summaryStatSnapshotState) return null
+      this.summaryStatSnapshotState = next
+      const snapshot = renderState()
+      const following = next.activeStatRequest
+      if (!following) return snapshot
+      const wait = typeof this.waitForGearStatSnapshotRetry === 'function'
+        ? this.waitForGearStatSnapshotRetry(following.retryAfterMs)
+        : new Promise((resolve) => setTimeout(resolve, following.retryAfterMs))
+      return Promise.resolve(wait).then(() => {
+        const active = this.summaryStatSnapshotState && this.summaryStatSnapshotState.activeStatRequest
+        if (!active || active.serial !== following.serial || active.contextKey !== following.contextKey) return null
+        return poll(active)
+      })
+    }).catch((error) => {
+      this.summaryStatSnapshotState = applyGearStatSnapshotResult(this.summaryStatSnapshotState, statRequest, {
+        payload: null,
+        fromFallback: true,
+        error: error && error.message ? error.message : 'backend unavailable',
+        offline: true
+      }, Date.now())
+      renderState()
+      return null
     })
+    return poll(begun.request)
   },
 
   loadTemplateLists() {
@@ -1563,7 +1629,11 @@ Page({
       templateValidation,
       templateContext: {
         talent: compactTemplate(this.data.selectedTalentTemplate),
-        gear: compactTemplate(this.data.selectedGearTemplate, { statSnapshot })
+        gear: compactTemplate(this.data.selectedGearTemplate, {
+          statSnapshot,
+          statSnapshotRequestSignature: this.data.summaryStatSnapshotSignature,
+          statSnapshotSignature: this.summaryStatSnapshotState && this.summaryStatSnapshotState.statSnapshotSignature
+        })
       }
     }
   },

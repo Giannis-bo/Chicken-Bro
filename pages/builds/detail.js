@@ -7,18 +7,23 @@ const {
 const {
   requestWebsimGear,
   requestWebsimGearResolve,
-  requestWebsimGearStats,
+  requestWebsimGearStatSnapshot,
   requestWebsimTalentImport
 } = require('./websim-api')
 const {
   applyGearResolveResult,
+  applyGearStatSnapshotResult,
+  beginGearStatSnapshot,
   beginGearResolve,
   confirmGearIntent,
   createGearWorkbenchState,
+  createGearStatSnapshotState,
   editGearIntent,
   gearWorkbenchCanRunProfile,
   gearWorkbenchCanUseVerifiedSnapshot,
   gearWorkbenchView,
+  gearStatRequestTimeoutMs,
+  invalidateGearStatSnapshot,
   rebaseGearIntentRevisions
 } = require('./gear-workbench-state')
 const { completeResolverContext, serializeGearSelectionIntent } = require('./gear-selection-intent')
@@ -938,7 +943,7 @@ const canonicalGearAttributeLabels = {
   armor: '护甲'
 }
 
-function canonicalGearAttributePanel(snapshot) {
+function canonicalGearAttributePanel(snapshot, statSnapshot) {
   if (!snapshot || typeof snapshot !== 'object') return emptyGearAttributePanel()
   const totals = snapshot.staticAttributes && typeof snapshot.staticAttributes === 'object'
     ? (snapshot.staticAttributes.totals || snapshot.staticAttributes)
@@ -967,9 +972,14 @@ function canonicalGearAttributePanel(snapshot) {
     : {}
   const tierCount = Object.keys(setCounts).reduce((maximum, key) => Math.max(maximum, Number(setCounts[key]) || 0), 0)
   const preferredOrder = ['intellect', 'agility', 'strength', 'stamina', 'haste', 'crit', 'critical_strike', 'mastery', 'versatility', 'armor']
+  const verifiedStatSnapshot = verifiedGearStatSnapshot(statSnapshot)
+  const snapshotSecondaryKeys = Array.isArray(verifiedStatSnapshot && verifiedStatSnapshot.secondary)
+    ? verifiedStatSnapshot.secondary.map((row) => cleanGearString(row && row.key)).filter(Boolean)
+    : []
   const orderedKeys = [
     ...preferredOrder.filter((key) => Object.prototype.hasOwnProperty.call(totals, key)),
-    ...Object.keys(totals).sort().filter((key) => !preferredOrder.includes(key))
+    ...Object.keys(totals).sort().filter((key) => !preferredOrder.includes(key)),
+    ...snapshotSecondaryKeys.filter((key) => !Object.prototype.hasOwnProperty.call(totals, key))
   ]
   return {
     visible: orderedKeys.length > 0 || Object.keys(resolvedSlots).length > 0,
@@ -981,7 +991,18 @@ function canonicalGearAttributePanel(snapshot) {
       gearEnhancementMetric('enchant', '附魔', enchantUsed, enchantMax),
       { ...gearEnhancementMetric('tierSet', '套装', tierCount, tierCount), value: String(tierCount) }
     ],
-    statRows: orderedKeys.map((key) => gearAttributeMetric(key, canonicalGearAttributeLabels[key] || key, totals[key], '0'))
+    statRows: orderedKeys.map((key) => {
+      const snapshotMetric = gearAttributeMetricFromSnapshot(
+        gearStatSnapshotMetric(verifiedStatSnapshot, key),
+        key,
+        canonicalGearAttributeLabels[key] || key
+      )
+      if (!Object.prototype.hasOwnProperty.call(totals, key)) return snapshotMetric || gearAttributeMetric(key, canonicalGearAttributeLabels[key] || key, 0, '0')
+      const canonicalMetric = gearAttributeMetric(key, canonicalGearAttributeLabels[key] || key, totals[key], '0')
+      return snapshotMetric && snapshotMetric.convertedValue
+        ? { ...canonicalMetric, convertedValue: snapshotMetric.convertedValue, convertedRawValue: snapshotMetric.convertedRawValue }
+        : canonicalMetric
+    })
   }
 }
 
@@ -1040,7 +1061,7 @@ function gearWorkbenchDataState(state, data) {
     gearWorkbenchStatusText: statusText[view.resolveStatus] || '等待校验当前装备配置',
     gearWorkbenchSignatureLabel: view.resolvedGearSignature ? view.resolvedGearSignature.slice(0, 20) : '',
     gearWorkbenchProblemRows: workbenchProblemRows(state && state.problems),
-    gearAttributePanel: canonicalGearAttributePanel(displaySnapshot),
+    gearAttributePanel: canonicalGearAttributePanel(displaySnapshot, data && data.gearStatSnapshot),
     ...((data && Array.isArray(data.gearSlotRows)) ? { gearSlotRows: canonicalGearSlotRows(data.gearSlotRows, state) } : {})
   }
 }
@@ -1498,7 +1519,7 @@ function gearStatsRequestForPage(page) {
   if (data.gearDataFallback) blockers.push(data.gearDataWarningText || '装备接口暂不可用')
   const canonicalState = page && page.gearWorkbenchState
   const canonicalSnapshot = canonicalState && canonicalState.currentSnapshot
-  if (canonicalState && !gearWorkbenchCanUseVerifiedSnapshot(canonicalState)) blockers.push('等待当前装备配置完成服务端校验')
+  if (!canonicalState || !gearWorkbenchCanUseVerifiedSnapshot(canonicalState)) blockers.push('等待当前装备配置完成服务端校验')
   const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, data.selectedGearBySlot || {})
   const requiredSlots = requiredGearTemplateSlots(gearPayload)
   const indexed = selectedGearByCanonicalSlot(selectedGearBySlot)
@@ -1511,32 +1532,26 @@ function gearStatsRequestForPage(page) {
   if (blockers.length) {
     return { ready: false, blockers: blockers.filter(Boolean) }
   }
-  const selectedSpec = data.selectedSpec || {}
-  const keys = specWebsimKeys({
-    websimClassKey: selectedSpec.websimClassKey || selectedSpec.classKey || gearPayload.classKey,
-    websimSpecKey: selectedSpec.websimSpecKey || selectedSpec.specKey || gearPayload.specKey
-  })
-  const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, data.enhancementBySlot || {})
-  const serializerInput = canonicalSnapshot && canonicalSnapshot.serializerInput && typeof canonicalSnapshot.serializerInput === 'object'
-    ? canonicalSnapshot.serializerInput
-    : null
-  const payload = {
-    classKey: keys.classKey,
-    specKey: keys.specKey,
-    level: Number(gearPayload.maxLevel) || 90,
+  const profileContext = {
+    name: cleanGearString(data.selectedCharacterName || data.characterName || ''),
+    race: cleanGearString(data.selectedRaceKey || data.raceKey || ''),
     scenarioKey: gearScenarioAt(data.selectedGearTemplateScenarioIndex).key,
-    talents,
-    gearSelection: {
-      items: serializerInput && Array.isArray(serializerInput.gearItems)
-        ? serializerInput.gearItems
-        : requiredSlots.map((slot) => gearObjectForSnapshot(indexed[slot])).filter(Boolean)
-    },
-    ...(serializerInput ? {} : { enhancementBySlot })
+    heroKey: cleanGearString(data.selectedHeroKey || ''),
+    talents
   }
+  Object.keys(profileContext).forEach((key) => {
+    if (!profileContext[key]) delete profileContext[key]
+  })
+  const selectionIntent = JSON.parse(JSON.stringify(canonicalState.confirmedIntent))
+  const payload = { selectionIntent, profileContext }
   return {
     ready: true,
     payload,
-    signature: JSON.stringify([canonicalSnapshot && canonicalSnapshot.resolvedGearSignature || '', payload])
+    signature: JSON.stringify([
+      canonicalState.intentVersion,
+      canonicalSnapshot && canonicalSnapshot.resolvedGearSignature || '',
+      payload
+    ])
   }
 }
 
@@ -2655,7 +2670,10 @@ function gearTemplateSaveDraft(page, templateTitle) {
     }
   }
   const snapshot = gearTemplateSnapshot(selectedGearBySlot, enhancementBySlot, gearPayload)
-  const statSnapshot = compactVerifiedGearStatSnapshot(data.gearStatSnapshot)
+  const statState = page && page.gearStatSnapshotState
+  const statSnapshot = statState && statState.statSnapshotStatus === 'verified'
+    ? compactVerifiedGearStatSnapshot(statState.currentStatSnapshot)
+    : null
   const defaultName = gearTemplateTitle(
     selectedDetail.className || selectedSpec.className || '',
     selectedDetail.specName || selectedSpec.title || selectedSpec.specName || '',
@@ -2680,7 +2698,12 @@ function gearTemplateSaveDraft(page, templateTitle) {
       statusLabel: status.statusLabel,
       source: '装备模拟器',
       metadata: {
-        ...(statSnapshot ? { statSnapshot } : {}),
+        ...(statSnapshot ? {
+          statSnapshot,
+          statSnapshotRequestSignature: statState.verifiedStatContextKey || '',
+          statSnapshotSignature: statState.statSnapshotSignature || '',
+          statSnapshotSource: statSnapshot.statSource || 'simulationcraft_json'
+        } : {}),
         gearSnapshot: snapshot,
         gearBySlot: snapshot.gearBySlot,
         enhancementBySlot,
@@ -4757,8 +4780,18 @@ Page({
   },
 
   clearGearStatsSnapshot(blockers) {
+    if (this.gearStatSnapshotState) {
+      this.gearStatSnapshotState = invalidateGearStatSnapshot(this.gearStatSnapshotState)
+      if (this.gearWorkbenchState) {
+        this.gearWorkbenchState.statSnapshotStatus = this.gearStatSnapshotState.statSnapshotStatus
+        this.gearWorkbenchState.statSnapshotSignature = this.gearStatSnapshotState.statSnapshotSignature
+      }
+    }
     const messages = Array.isArray(blockers) && blockers.length ? blockers : ['等待完整装备和天赋后计算属性百分比']
-    const snapshot = defaultGearStatSnapshot(messages[0])
+    const lastVerified = this.gearStatSnapshotState && this.gearStatSnapshotState.lastVerifiedStatSnapshot
+    const snapshot = lastVerified
+      ? { ...lastVerified, stale: true, readOnly: true }
+      : defaultGearStatSnapshot(messages[0])
     snapshot.blockers = messages
     this.gearStatsRequestKey = ''
     const nextState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
@@ -4782,64 +4815,90 @@ Page({
       : gearStatsRequestForPage(this)
     if (!request.ready) return this.clearGearStatsSnapshot(request.blockers)
     const currentSnapshot = this.data.gearStatSnapshot
-    if (this.gearStatsRequestKey === request.signature) {
-      if (this.data.gearStatsLoading) return Promise.resolve(currentSnapshot || null)
-      if (currentSnapshot && currentSnapshot.statStatus === 'verified') return Promise.resolve(currentSnapshot)
+    const existingState = this.gearStatSnapshotState || createGearStatSnapshotState(
+      currentSnapshot && currentSnapshot.statStatus === 'verified' ? currentSnapshot : null,
+      this.gearWorkbenchState && this.gearWorkbenchState.statSnapshotSignature
+    )
+    if (existingState.activeStatRequest && existingState.activeStatRequest.contextKey === request.signature) {
+      return Promise.resolve(existingState.lastVerifiedStatSnapshot || null)
+    }
+    if (existingState.statSnapshotStatus === 'verified' && existingState.verifiedStatContextKey === request.signature) {
+      return Promise.resolve(existingState.currentStatSnapshot)
     }
     this.gearStatsRequestKey = request.signature
-    this.gearStatsRequestSerial = (this.gearStatsRequestSerial || 0) + 1
-    const requestSerial = this.gearStatsRequestSerial
-    const pendingSnapshot = defaultGearStatSnapshot('SimC 属性快照计算中')
-    const pendingState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
-      ...this.data,
-      gearStatSnapshot: pendingSnapshot
-    })
-    this.setData({
-      ...(this.gearPayloadCache ? gearDerivedStateForData(pendingState) : pendingState),
-      gearStatSnapshot: pendingSnapshot,
-      gearStatBlockers: [],
-      gearStatsLoading: true,
-      gearStatsRequestError: '',
-      ...(this.gearWorkbenchState ? gearWorkbenchDataState(this.gearWorkbenchState, this.data) : {})
-    })
-    return requestWebsimGearStats(request.payload).then(({ payload, error }) => {
-      if (requestSerial !== this.gearStatsRequestSerial) return null
-      const snapshot = payload && payload.statStatus
-        ? payload
-        : defaultGearStatSnapshot('属性快照返回为空')
-      const blockers = Array.isArray(snapshot.blockers) ? snapshot.blockers : []
+    const begun = beginGearStatSnapshot(existingState, {
+      contextKey: request.signature,
+      selectionIntent: request.payload.selectionIntent,
+      profileContext: request.payload.profileContext
+    }, Date.now())
+    this.gearStatSnapshotState = begun.state
+
+    const renderStatState = () => {
+      const statState = this.gearStatSnapshotState
+      const staleSnapshot = statState.lastVerifiedStatSnapshot
+        ? { ...statState.lastVerifiedStatSnapshot, stale: statState.statSnapshotStatus !== 'verified', readOnly: statState.statSnapshotStatus !== 'verified' }
+        : null
+      const snapshot = statState.currentStatSnapshot || staleSnapshot || defaultGearStatSnapshot(
+        statState.statSnapshotStatus === 'timed_out' ? '属性快照等待超时' : 'SimC 属性快照计算中'
+      )
+      const problemMessages = (statState.statProblems || []).map((problem) => cleanGearString(problem && (problem.title || problem.code))).filter(Boolean)
       const nextState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
         ...this.data,
         gearStatSnapshot: snapshot
       })
+      if (this.gearWorkbenchState) {
+        this.gearWorkbenchState.statSnapshotStatus = statState.statSnapshotStatus
+        this.gearWorkbenchState.statSnapshotSignature = statState.statSnapshotSignature
+      }
       this.setData({
         ...(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState),
         gearStatSnapshot: snapshot,
-        gearStatBlockers: blockers,
-        gearStatsLoading: false,
-        gearStatsRequestError: error || '',
-        ...(this.gearWorkbenchState ? gearWorkbenchDataState(this.gearWorkbenchState, this.data) : {})
+        gearStatBlockers: problemMessages.length ? problemMessages : (snapshot.blockers || []),
+        gearStatsLoading: !!statState.activeStatRequest,
+        gearStatsRequestError: ['offline', 'unavailable', 'revision_conflict', 'timed_out', 'blocked'].includes(statState.statSnapshotStatus)
+          ? (problemMessages.join('；') || '装备属性暂不可用')
+          : '',
+        ...(this.gearWorkbenchState ? gearWorkbenchDataState(this.gearWorkbenchState, { ...this.data, gearStatSnapshot: snapshot }) : {})
       })
       return snapshot
+    }
+
+    renderStatState()
+    const poll = (statRequest) => requestWebsimGearStatSnapshot(
+      statRequest.selectionIntent,
+      statRequest.profileContext,
+      { timeoutMs: gearStatRequestTimeoutMs(statRequest, Date.now()) }
+    ).then((result) => {
+      const next = applyGearStatSnapshotResult(this.gearStatSnapshotState, statRequest, result, Date.now())
+      if (next === this.gearStatSnapshotState) return null
+      this.gearStatSnapshotState = next
+      const displayed = renderStatState()
+      const following = next.activeStatRequest
+      if (!following) {
+        if (next.statSnapshotStatus !== 'verified') this.gearStatsRequestKey = ''
+        return next.currentStatSnapshot || displayed
+      }
+      const wait = typeof this.waitForGearStatSnapshotRetry === 'function'
+        ? this.waitForGearStatSnapshotRetry(following.retryAfterMs)
+        : new Promise((resolve) => setTimeout(resolve, following.retryAfterMs))
+      return Promise.resolve(wait).then(() => {
+        const active = this.gearStatSnapshotState && this.gearStatSnapshotState.activeStatRequest
+        if (!active || active.serial !== following.serial || active.contextKey !== following.contextKey) return null
+        return poll(active)
+      })
     }).catch((error) => {
-      if (requestSerial !== this.gearStatsRequestSerial) return null
-      const message = error && error.message ? error.message : String(error || '属性快照请求失败')
+      const offlineResult = {
+        payload: null,
+        fromFallback: true,
+        error: error && error.message ? error.message : String(error || '属性快照请求失败'),
+        offline: true
+      }
+      this.gearStatSnapshotState = applyGearStatSnapshotResult(this.gearStatSnapshotState, statRequest, offlineResult, Date.now())
       this.gearStatsRequestKey = ''
-      const snapshot = defaultGearStatSnapshot(message)
-      const nextState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
-        ...this.data,
-        gearStatSnapshot: snapshot
-      })
-      this.setData({
-        ...(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState),
-        gearStatSnapshot: snapshot,
-        gearStatBlockers: snapshot.blockers || [message],
-        gearStatsLoading: false,
-        gearStatsRequestError: message,
-        ...(this.gearWorkbenchState ? gearWorkbenchDataState(this.gearWorkbenchState, this.data) : {})
-      })
+      renderStatState()
       return null
     })
+    return poll(begun.request)
   },
 
   loadGearSlotDetail(slot) {

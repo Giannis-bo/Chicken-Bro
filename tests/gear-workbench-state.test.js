@@ -339,6 +339,149 @@ test('Resolver readiness never promotes the independent stat snapshot state', ()
   assert.equal(confirmed.statSnapshotSignature, 'legacy-stat-signature')
 })
 
+test('async stat state polls 202 then accepts only a verified 200 snapshot', () => {
+  const oldSnapshot = { statStatus: 'verified', primary: { value: '100' } }
+  const initial = workbench.createGearStatSnapshotState(oldSnapshot, 'sha256:old')
+  const begun = workbench.beginGearStatSnapshot(initial, {
+    contextKey: 'intent-v1|race-human|single',
+    selectionIntent: intent(),
+    profileContext: { race: 'human', scenarioKey: 'single', talents: 'C4DA' }
+  }, 1000)
+
+  assert.equal(begun.state.statSnapshotStatus, 'requesting')
+  assert.equal(begun.state.currentStatSnapshot, null)
+  assert.deepEqual(begun.state.lastVerifiedStatSnapshot, oldSnapshot)
+  assert.equal(begun.request.attempt, 1)
+
+  const pending = workbench.applyGearStatSnapshotResult(
+    begun.state,
+    begun.request,
+    transport(envelope('pending', { status: 'pending', retryAfterMs: 1500 }), 202),
+    1100
+  )
+  assert.equal(pending.statSnapshotStatus, 'pending')
+  assert.equal(pending.activeStatRequest.attempt, 2)
+  assert.equal(pending.activeStatRequest.retryAfterMs, 1500)
+  assert.deepEqual(pending.lastVerifiedStatSnapshot, oldSnapshot)
+
+  const verifiedSnapshot = { statStatus: 'verified', primary: { value: '200' }, blockers: [] }
+  const verified = workbench.applyGearStatSnapshotResult(
+    pending,
+    pending.activeStatRequest,
+    transport(envelope('resolved', {
+      statSignature: 'sha256:new',
+      snapshotHash: 'sha256:snapshot',
+      statSnapshot: verifiedSnapshot
+    }), 200),
+    2700
+  )
+  assert.equal(verified.statSnapshotStatus, 'verified')
+  assert.equal(verified.statSnapshotSignature, 'sha256:new')
+  assert.deepEqual(verified.currentStatSnapshot, verifiedSnapshot)
+  assert.deepEqual(verified.lastVerifiedStatSnapshot, verifiedSnapshot)
+  assert.equal(verified.activeStatRequest, null)
+})
+
+test('async stat state ignores stale identity and keeps the last verified snapshot read-only', () => {
+  const oldSnapshot = { statStatus: 'verified', primary: { value: '100' } }
+  const initial = workbench.createGearStatSnapshotState(oldSnapshot, 'sha256:old')
+  const first = workbench.beginGearStatSnapshot(initial, {
+    contextKey: 'intent-v1', selectionIntent: intent(), profileContext: { race: 'human' }
+  }, 1000)
+  const changed = workbench.beginGearStatSnapshot(first.state, {
+    contextKey: 'intent-v2', selectionIntent: intent('gear-r18'), profileContext: { race: 'orc' }
+  }, 1200)
+  const stale = workbench.applyGearStatSnapshotResult(
+    changed.state,
+    first.request,
+    transport(envelope('resolved', {
+      statSignature: 'sha256:stale',
+      statSnapshot: { statStatus: 'verified', primary: { value: '999' } }
+    })),
+    1300
+  )
+  assert.strictEqual(stale, changed.state)
+  assert.equal(stale.statSnapshotStatus, 'requesting')
+  assert.equal(stale.currentStatSnapshot, null)
+  assert.deepEqual(stale.lastVerifiedStatSnapshot, oldSnapshot)
+
+  const unavailable = workbench.applyGearStatSnapshotResult(
+    stale,
+    stale.activeStatRequest,
+    transport(envelope('unavailable', {}, [{ code: 'GEAR_STAT_WORKER_UNAVAILABLE' }]), 503),
+    1400
+  )
+  assert.equal(unavailable.statSnapshotStatus, 'unavailable')
+  assert.equal(unavailable.currentStatSnapshot, null)
+  assert.deepEqual(unavailable.lastVerifiedStatSnapshot, oldSnapshot)
+  assert.equal(unavailable.readOnlyStatSnapshot, true)
+})
+
+test('async stat state caps polling at 15 attempts or 45 seconds and marks transport offline', () => {
+  let current = workbench.beginGearStatSnapshot(
+    workbench.createGearStatSnapshotState(),
+    { contextKey: 'same', selectionIntent: intent(), profileContext: {} },
+    1000
+  )
+  for (let attempt = 1; attempt < 15; attempt += 1) {
+    const next = workbench.applyGearStatSnapshotResult(
+      current.state,
+      current.request,
+      transport(envelope('pending', { status: 'pending', retryAfterMs: 999999 }), 202),
+      1000 + attempt
+    )
+    current = { state: next, request: next.activeStatRequest }
+  }
+  const timedOut = workbench.applyGearStatSnapshotResult(
+    current.state,
+    current.request,
+    transport(envelope('pending', { status: 'pending', retryAfterMs: 1500 }), 202),
+    1020
+  )
+  assert.equal(timedOut.statSnapshotStatus, 'timed_out')
+  assert.equal(timedOut.activeStatRequest, null)
+
+  const duration = workbench.beginGearStatSnapshot(
+    workbench.createGearStatSnapshotState(),
+    { contextKey: 'duration', selectionIntent: intent(), profileContext: {} },
+    1000
+  )
+  const durationTimeout = workbench.applyGearStatSnapshotResult(
+    duration.state,
+    duration.request,
+    transport(envelope('pending', { status: 'pending', retryAfterMs: 1500 }), 202),
+    46001
+  )
+  assert.equal(durationTimeout.statSnapshotStatus, 'timed_out')
+
+  const nearDeadline = workbench.beginGearStatSnapshot(
+    workbench.createGearStatSnapshotState(),
+    { contextKey: 'near-deadline', selectionIntent: intent(), profileContext: {} },
+    1000
+  )
+  const boundedDelay = workbench.applyGearStatSnapshotResult(
+    nearDeadline.state,
+    nearDeadline.request,
+    transport(envelope('pending', { status: 'pending', retryAfterMs: 5000 }), 202),
+    45900
+  )
+  assert.equal(boundedDelay.activeStatRequest.retryAfterMs, 100)
+
+  const offlineStart = workbench.beginGearStatSnapshot(
+    workbench.createGearStatSnapshotState(),
+    { contextKey: 'offline', selectionIntent: intent(), profileContext: {} },
+    0
+  )
+  const offline = workbench.applyGearStatSnapshotResult(offlineStart.state, offlineStart.request, {
+    payload: null, fromFallback: true, error: 'request:fail timeout', offline: true
+  }, 1)
+  assert.equal(offline.statSnapshotStatus, 'offline')
+  assert.equal(offline.statOffline, true)
+  assert.equal(workbench.gearStatRequestTimeoutMs(duration.request, 1000), 30000)
+  assert.equal(workbench.gearStatRequestTimeoutMs(duration.request, 32000), 14000)
+  assert.equal(workbench.gearStatRequestTimeoutMs(duration.request, 999999), 1)
+})
+
 test('view is compact display-only and the module has no runtime dependencies', () => {
   const initialIntent = intent()
   const context = resolverContext()
