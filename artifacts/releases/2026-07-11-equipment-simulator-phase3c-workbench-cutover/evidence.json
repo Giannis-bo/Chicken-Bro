@@ -2,70 +2,182 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase3c-workbench-cutover",
   "requirementSlug": "equipment-simulator-phase3c-workbench-cutover",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/equipment-simulator-phase3c-workbench-cutover",
-  "commit": "8afebbf0e14d67ef197cdb1655e56847abf90a33",
+  "commit": "2e9ecd729f6166d54ae0a4771688fdc8e92f9d83",
   "scope": [
     "active gear page canonical Intent cutover",
     "server snapshot final panels and gates",
     "race-safe structured problem presentation",
+    "resolver-owned enhancement option identity and capability gating",
     "real mini-program and candidate verification"
   ],
   "verification": [
     {
-      "command": "approved Phase 3 Slice 3C planning-contract review",
+      "command": "node --test tests/gear-workbench-state.test.js tests/frontend-api-client.test.js tests/builds-page.test.js",
       "status": "pass",
-      "summary": "The approved plan fixes existing page files, seven confirmation flows, exact Intent allowlist, server-owned final panels, signature-bound save/Profile/SimC gates, structured UI states, caller audit, real WeChat evidence and full candidate/post-merge gates."
+      "summary": "169 focused frontend tests pass, including exact Intent keys, forged-fact isolation, stale completion, one 409 rebase, signature-bound saves, on-demand enhancement detail, stable optionKey submission, and Resolver constraint gating."
     },
     {
-      "command": "Slice 3B closure and Slice 3C active-packet baseline verification",
+      "command": "node scripts/verify-project.js --profile frontend",
       "status": "pass",
-      "summary": "Slice 3B is archived at local/CI evidence without runtime overclaim, project-state and roadmap advance exactly one Slice, the Slice 3C Harness check and 22 current-truth tests pass, and the full 129-command baseline profile passes before active page edits."
+      "summary": "386 Node tests and 124 frontend verification commands pass; the project Harness check passes."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend",
+      "status": "pass",
+      "summary": "Full Python discovery passes with one existing skip, compileall passes, and the project Harness check passes."
+    },
+    {
+      "command": "python3 -m unittest tests.gear_runtime_test tests.news_backend_test tests.websim_payload_test tests.postgres_cache_store_test tests.pg_gear_read_model_selectors_test",
+      "status": "pass",
+      "summary": "Targeted backend, payload, PostgreSQL read-model, and compatibility regression suite exits 0."
+    },
+    {
+      "command": "gh pr checks 69",
+      "status": "pass",
+      "summary": "GitHub verify passed at exact PR head 2e9ecd729f6166d54ae0a4771688fdc8e92f9d83."
+    },
+    {
+      "command": "candidate 40-specialization Resolve matrix",
+      "status": "pass",
+      "summary": "40/40 public observed templates return HTTP 200 resolved; 18 use 15 effective slots and 22 use 16 slots; failures are empty."
+    },
+    {
+      "command": "candidate structured negative matrix",
+      "status": "pass",
+      "summary": "Malformed Intent is 400 blocked, stale revision is 409 blocked with GEAR_CATALOG_REVISION_CONFLICT, wrong-slot selection is 200 blocked, missing authority is 503 unavailable, unknown Catalyst is 503 unavailable, and an option UUID cannot impersonate optionKey authority."
+    },
+    {
+      "command": "candidate enhancement authority correction",
+      "status": "pass",
+      "summary": "PG payload publishes both row UUID and stable optionKey; Resolver accepts the stable key. Baseline snapshot constraints report zero authoritative sockets/enchants/embellishments for the observed Frost Mage setup, so exact-head UI hides those browse-only choices and remains fail-closed."
+    },
+    {
+      "command": "real WeChat DevTools candidate route and action ledger",
+      "status": "pass",
+      "summary": "The candidate worktree compiled with zero Problems. Applying the observed Frost Mage template showed pending then verified, changed signature sha256:c39022aa83082 to sha256:fcdf1c818c6fa, rendered 15/15 Resolver-owned slots, and enabled save/SimC. A discovered enhancement authority mismatch stayed unavailable without replacing the last verified panel; exact-head constraint gating is covered by focused tests and direct candidate API proof."
+    },
+    {
+      "command": "git diff --check and clean exact-head worktree",
+      "status": "pass",
+      "summary": "No whitespace errors; DevTools-generated project.config.json changes were restored exactly; the committed candidate worktree is clean."
     }
   ],
   "candidateDeployment": {
-    "status": "required_pending",
+    "status": "verified",
     "requiredBeforeMerge": true,
     "branch": "codex/equipment-simulator-phase3c-workbench-cutover",
-    "commit": "",
-    "buildIdentity": "pending exact PR head, candidate backend identity and mini-program evidence",
-    "databaseRuntime": "postgres_only"
+    "commit": "2e9ecd729f6166d54ae0a4771688fdc8e92f9d83",
+    "buildIdentity": "exact PR head plus remote file SHA-256 parity",
+    "databaseRuntime": "postgres_only",
+    "asyncSyncStart": false,
+    "frontendHashes": {
+      "pages/builds/detail.js": "2fe302c0a04f96aa86c23d740c57a66b530b5c0b17283fc49e9a19d844807708",
+      "pages/builds/detail.wxml": "9e1848e4fe603d2d02cbc238b944a300e5368dc83e501e62c5abddd1816a1cfd",
+      "pages/builds/detail.wxss": "1152ea9ec2f7b76551022410789ac1e466b3f8a36af9c6955eaafb2b9d2765bb",
+      "pages/builds/gear-workbench-state.js": "49b6aa6e8dacc3b88dde73598d6aa517753759af31e1401f2ec7a59015fc9e26",
+      "pages/builds/gear-selection-intent.js": "7a25e487bb4c0874fb52fb08a62f9970da37b22ff176d6bdc878dfd5193c369e"
+    },
+    "backendHashes": {
+      "server/pg_gear_read_model_selectors.py": "ee3c55858888ca073f2caf6484d42f3c01625aa231c6c7755fc6e35716ef1271",
+      "server/websim_payload.py": "a98cb16cbf02d5142bb433f7997dcef3a5face3ea9b38e434486689cddf3635f"
+    }
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "kind": "health",
+      "status": "pass",
+      "detail": "/health and /api/data/health returned HTTP 200; service remained active/running with NRestarts=0."
+    },
+    {
+      "kind": "resolver_matrix",
+      "status": "pass",
+      "detail": "40/40 baseline Resolve calls passed at exact PR head after final candidate deployment."
+    },
+    {
+      "kind": "performance",
+      "status": "pass",
+      "detail": "Warm 100-call Resolve probe at implementation candidate recorded p50 95.868 ms, p95 116.725 ms, p99 134.939 ms, max 138.914 ms. Exact-head changes only add option identity to browse payload and tighten client gating."
+    },
+    {
+      "kind": "query_cache",
+      "status": "pass",
+      "detail": "Cold authority load used 4 statements, warm load 2 statements; one bounded cache entry used 73,437 bytes under 32-entry and 4 MiB caps, with no missing fields."
+    },
+    {
+      "kind": "memory_recovery",
+      "status": "pass",
+      "detail": "The original all-slot enhancement fan-out was reproduced and removed. Exact-head 40-spec baseline smoke retained about 96 MiB; recovery restart returned the service to about 48 MiB and one task."
+    },
+    {
+      "kind": "timer_backflow",
+      "status": "pass",
+      "detail": "Candidate deploy used WOW_DEPLOY_START_ASYNC_SYNCS=0; no sync/backfill timer service was triggered by deployment."
+    },
+    {
+      "kind": "catalyst",
+      "status": "pass",
+      "detail": "Catalyst capability remains disabled and fail-closed; frontend synthesis remains prohibited."
+    },
+    {
+      "kind": "wechat_screenshot",
+      "status": "pass",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/wechat-verified-config.jpeg",
+      "sha256": "934f11f8703b009b4d829c5e2d10843afdfc3cf72a816a5468984d22426e2a8c"
+    },
+    {
+      "kind": "wechat_discovery_screenshot",
+      "status": "pass",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/wechat-enhancement-authority-discovery.jpeg",
+      "sha256": "439adf7e39ceeab826148a415155471e85d18312ce74ceb3cdd7cfcd10267417"
+    }
+  ],
   "risks": [
     {
       "id": "frontend_final_fact_inference",
-      "status": "blocked_by_contract",
-      "detail": "Forged item stats, summaries, set labels, local readiness or legality may remain browse-only but cannot affect final panels, saves, Profile or SimC."
+      "status": "closed",
+      "detail": "Forged client stats, set labels, legality, readiness, raw SimC enhancement fields and browse capabilities cannot affect final panels or canonical action gates."
     },
     {
       "id": "stale_response_overwrite",
-      "status": "blocked_by_serial_version",
-      "detail": "Every confirmed flow must use one serial/version path and ignore out-of-order results."
+      "status": "closed",
+      "detail": "Every confirmed flow uses one serial/version path and ignores out-of-order results."
     },
     {
-      "id": "missing_resolver_context",
+      "id": "enhancement_option_identity",
+      "status": "closed",
+      "detail": "Browse payload now preserves Resolver-owned optionKey separately from the database row UUID; client Intent submits optionKey only."
+    },
+    {
+      "id": "enhancement_authority_capability_gap",
       "status": "fail_closed",
-      "detail": "The page becomes unavailable/read-only and may not fabricate season or catalog revisions."
-    },
-    {
-      "id": "real_wechat_state",
-      "status": "candidate_gate",
-      "detail": "DevTools/login/project state must be inspected before capture; static or browser-only evidence cannot replace real mini-program runtime proof."
+      "detail": "When the Resolved Snapshot proves zero socket/enchant/embellishment capability, the canonical editor exposes no browse-only choices even if legacy item metadata claims them."
     },
     {
       "id": "large_slot_payload_memory",
-      "status": "watch",
-      "detail": "Phase 3A observed large slot payload and extra-concurrency RSS retention. Slice 3C must preserve on-demand slot loading and avoid copying full candidates or Evidence Ledger into setData."
+      "status": "mitigated_watch",
+      "detail": "Opening the enhancement sheet no longer hydrates up to 16 slot payloads. Slot detail is lazy and Resolver constraints may suppress it entirely; the general large detail payload allocator remains a watch item."
+    },
+    {
+      "id": "phase3c_backend_contract_exception",
+      "status": "documented_correction",
+      "detail": "The approved non-goal expected no backend contract change, but candidate QA proved the existing payload omitted the stable option identity required by the already-approved Resolver contract. The correction is additive and backward compatible."
     }
   ],
   "rollback": [
     "code_rollback",
     "feature_hide"
   ],
+  "rollbackEvidence": [
+    "/opt/wow-mini-program-candidate-backups/phase3c-pre-ac59745",
+    "/opt/wow-mini-program-candidate-backups/phase3c-pre-5a04806",
+    "/opt/wow-mini-program-candidate-backups/phase3c-pre-2e9ecd7"
+  ],
   "cleanup": {
-    "required": false
+    "required": false,
+    "detail": "No sync/backfill was started. DevTools project.config.json residue was removed; ignored private urlCheck remains local-only."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -77,5 +189,5 @@
     "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 3C is implementation-allowed as the active Phase 3 runtime cutover. No page, candidate or real mini-program evidence is claimed before TDD implementation, local CR, exact-head CI and candidate verification."
+  "summary": "Slice 3C is runtime-verified on the exact PR head. The active workbench uses canonical Intent and Resolver facts, enhancement choices are optionKey- and constraint-owned, exact-head CI and candidate matrices pass, and merge remains pending evidence commit plus final PR promotion."
 }

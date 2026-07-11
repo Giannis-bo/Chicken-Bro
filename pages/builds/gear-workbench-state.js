@@ -161,7 +161,7 @@ function applyGearResolveResult(state, request, transportResult) {
   if (httpStatus === 409) {
     next.resolveStatus = 'revision_conflict'
     next.currentSnapshot = null
-    next.readOnly = false
+    next.readOnly = next.revisionRetryCount >= 1
     return next
   }
   if (httpStatus === 503 || envelope.status === 'unavailable') {

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T04:05:12.479Z",
+  "generatedAt": "2026-07-11T05:40:44.711Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase3c-workbench-cutover"
@@ -99,7 +99,7 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 25981,
+          "lineCount": 25982,
           "hotspot": true
         },
         {
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json",
-    "sizeBytes": 3757,
+    "sizeBytes": 10153,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Slice 3C is implementation-allowed as the active Phase 3 runtime cutover. No page, candidate or real mini-program evidence is claimed before TDD implementation, local CR, exact-head CI and candidate verification."
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "Slice 3C is runtime-verified on the exact PR head. The active workbench uses canonical Intent and Resolver facts, enhancement choices are optionKey- and constraint-owned, exact-head CI and candidate matrices pass, and merge remains pending evidence commit plus final PR promotion."
   },
   "evidence": {
     "localTests": {
@@ -277,13 +277,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "7 changed files currently visible to git status."
+      "detail": "4 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:25981, server/news_backend.py:12659, server/postgres_cache_store.py:6283"
+      "detail": "server/websim_payload.py:25982, server/news_backend.py:12659, server/postgres_cache_store.py:6283"
     },
     {
       "id": "localTests_missing",
@@ -313,15 +313,12 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 7,
+      "changedFileCount": 4,
       "changedFiles": [
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json",
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/manifest.json",
-        " M docs/gear-simulation-full-chain-runbook.md",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/"
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json",
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/manifest.json",
+        "?? artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/wechat-enhancement-authority-discovery.jpeg",
+        "?? artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/wechat-verified-config.jpeg"
       ]
     }
   },

@@ -808,6 +808,7 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
         self.assertEqual(sorted(read_model.keys()), sorted(CANONICAL_GEAR_SLOTS))
         socket_option = read_model["head"][0]
         self.assertEqual(socket_option["id"], "301")
+        self.assertEqual(socket_option["optionKey"], "quick-ruby")
         self.assertEqual(socket_option["type"], "socket")
         self.assertEqual(socket_option["optionType"], "socket")
         self.assertEqual(socket_option["rawName"], "Quick Ruby")
