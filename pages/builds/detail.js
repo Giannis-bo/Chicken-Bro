@@ -4499,9 +4499,13 @@ Page({
     if (!specId) return
     this.setData({ loading: true })
     requestBuildsDetail(specId).then(({ payload, fromFallback, error }) => {
+      const gearPayload = fullGearPayloadForPage(this)
       this.setData({
         selectedDetail: payload,
-        ...createDetailDerivedState(payload, this.data.activeQueryKey, this.data),
+        ...createDetailDerivedState(payload, this.data.activeQueryKey, {
+          ...this.data,
+          gearPayload
+        }),
         fromFallback,
         requestError: error || ''
       })

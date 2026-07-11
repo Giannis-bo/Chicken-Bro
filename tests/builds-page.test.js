@@ -55,8 +55,8 @@ function loadBuildsDetailPageConfig(options = {}) {
               gear: {}
             }
           }),
-          requestBuildsDetail: () => Promise.resolve({ payload: null }),
-          requestBuildsHome: () => Promise.resolve({ payload: null })
+          requestBuildsDetail: options.requestBuildsDetail || (() => Promise.resolve({ payload: null })),
+          requestBuildsHome: options.requestBuildsHome || (() => Promise.resolve({ payload: null }))
         }
       }
       if (modulePath === './websim-api') {
@@ -3932,6 +3932,75 @@ test('gear community templates derive readable names from class spec hero and so
   assert.equal(page.data.activeGearCommunityTemplates[0].displaySourceName, 'Raider.IO 观测')
   assert.equal(page.data.activeGearCommunityTemplates[1].displayName, '法师-冰霜-法术投射者 · SimC 预设')
   assert.equal(page.data.activeGearCommunityTemplates[1].displaySourceName, 'SimC 预设')
+})
+
+test('late detail response preserves community templates from the full gear payload cache', async () => {
+  const selectedDetail = {
+    id: '法师-奥术',
+    className: '法师',
+    specName: '奥术',
+    details: {
+      talents: { coreTalents: [], importCode: '' },
+      gear: {}
+    }
+  }
+  const gearPayload = {
+    classKey: 'mage',
+    specKey: 'arcane',
+    maxLevel: 90,
+    slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    replacementCandidates: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot, items: [] })),
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: false },
+    communityTemplates: [{
+      id: 'active-observed-template',
+      classKey: 'mage',
+      specKey: 'arcane',
+      sourceKey: 'raiderio_observed_profile',
+      sourceName: 'Raider.IO observed gear',
+      sourceStatus: 'synced',
+      status: 'complete',
+      readySlotCount: 16,
+      missingSlots: [],
+      canApplyGear: true,
+      gearItems: Object.values(completeGearSelection(canonicalGearSlots.filter((slot) => slot !== 'off_hand')))
+    }],
+    baselineTemplates: [],
+    communityTemplateSync: {
+      sourceStatus: 'synced',
+      templates: { total: 1, verified: 1, partial: 0, blocked: 0 }
+    }
+  }
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestBuildsDetail: () => Promise.resolve({ payload: selectedDetail, fromFallback: false, error: '' })
+  })
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: null,
+      selectedSpec: { id: '法师-奥术', websimClassKey: 'mage', websimSpecKey: 'arcane' },
+      activeQueryKey: 'gear',
+      selectedGearBySlot: {},
+      enhancementBySlot: {},
+      gearPayload: { ...gearPayload, communityTemplates: [] },
+      gearSlotRows: [],
+      gearDataFallback: false,
+      gearRequestError: '',
+      gearCommunityTemplateSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.loadSelectedDetail.call(page, '法师-奥术')
+  await new Promise((resolve) => setImmediate(resolve))
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(page.data.activeGearCommunityTemplates.length, 1)
+  assert.equal(page.data.activeGearCommunityTemplates[0].id, 'active-observed-template')
+  assert.equal(page.data.activeGearCommunityTemplates[0].canApplyGear, true)
 })
 
 test('gear load preserves matched SimC-ready candidate evidence before saving templates', async () => {

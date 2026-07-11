@@ -1109,10 +1109,22 @@ class GearReleaseStore:
                         raise GearReleaseIntegrityError("active Community Release must expose exactly one winner per spec")
                     if canonical_row_hash(winner_rows[0]) != _text(winner_db_rows[0][20]):
                         raise GearReleaseIntegrityError("active Community winner row integrity failed")
-                    community_templates = [
-                        _canonical(row.get("payload") if isinstance(row.get("payload"), dict) else {})
-                        for row in winner_rows
-                    ]
+                    community_templates = []
+                    for row in winner_rows:
+                        public_template = _canonical(
+                            row.get("payload") if isinstance(row.get("payload"), dict) else {}
+                        )
+                        # Release storage owns an immutable internal templateId,
+                        # while the established public mini-program contract uses
+                        # id.  A validated winner is directly importable; project
+                        # that fact explicitly instead of leaking the release-row
+                        # identity shape into the existing public read model.
+                        public_template.pop("templateId", None)
+                        public_template["id"] = _text(
+                            public_template.get("id") or row.get("templateId")
+                        )
+                        public_template["canApplyGear"] = True
+                        community_templates.append(public_template)
                 if include_catalog:
                     normalized_slot = _text(catalog_slot)
                     variant_slot_clause = " AND slot = %s" if normalized_slot else ""

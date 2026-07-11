@@ -913,7 +913,11 @@ class GearReleaseStoreTest(unittest.TestCase):
             catalog_slot="head",
         )
 
-        self.assertEqual(data["communityTemplates"], [{"name": "Observed A"}])
+        self.assertEqual(data["communityTemplates"], [{
+            "id": "template-a",
+            "name": "Observed A",
+            "canApplyGear": True,
+        }])
         self.assertEqual(data["gearSnapshot"], snapshot)
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertIn("release_id = %s", sql)
