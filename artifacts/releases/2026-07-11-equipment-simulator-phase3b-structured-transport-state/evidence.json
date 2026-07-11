@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase3b-structured-transport-state",
+  "requirementSlug": "equipment-simulator-phase3b-structured-transport-state",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase3b-structured-transport-state",
+  "commit": "1b87bd645379bbb36cb16afc63caf693a44ac9e5",
+  "scope": [
+    "opt-in structured-problem transport",
+    "canonical gear API client wrappers",
+    "dormant pure gear workbench state"
+  ],
+  "verification": [
+    {
+      "command": "approved Phase 3 Slice 3B planning-contract review",
+      "status": "pass",
+      "summary": "The approved Phase 3 plan fixes exact files, request shapes, state fields, pure operations, stale-response semantics, one-time revision rebase, compatibility requirements, verification profiles and the dormant no-runtime boundary."
+    },
+    {
+      "command": "Phase 3A closure and Slice 3B active-packet verification",
+      "status": "pass",
+      "summary": "The Phase 3A packet is archived at live-verified evidence, project-state and roadmap advance exactly one Slice, stale runbook runtime wording is corrected, and long-lived RTT/slot-payload risks remain explicit. The Slice 3B Harness check, 22 current-truth/owner-map tests and the full 127-command verification profile all passed. No Slice 3B runtime or mini-program evidence is claimed."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_required_dormant_no_active_consumer",
+    "requiredBeforeMerge": false,
+    "reason": "Slice 3B changes opt-in transport and a pure state module but deliberately has no active page consumer. Runtime candidate and real mini-program evidence belong to Slice 3C; Slice 3B must not overclaim runtime verification."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "default_transport_regression",
+      "status": "blocked_by_tests",
+      "detail": "Default requestJson mode, auth headers, analytics headers and existing callers must remain byte-for-behavior compatible."
+    },
+    {
+      "id": "stale_response_overwrite",
+      "status": "blocked_by_state_contract",
+      "detail": "Resolve results with an old serial or intentVersion must be ignored without mutating current or last verified state."
+    },
+    {
+      "id": "frontend_final_fact_owner",
+      "status": "blocked_by_architecture",
+      "detail": "The pure state module may gate transitions but may not recompute backend legality, set, attribute, evidence or readiness facts."
+    },
+    {
+      "id": "premature_ui_activation",
+      "status": "blocked_by_slice_boundary",
+      "detail": "No active page may import or invoke the new state module before Slice 3C opens its own Strict runtime packet."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase3-resolve-profile-workbench-plan.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 3B is implementation-allowed as a Strict, dormant frontend slice. No runtime or mini-program evidence is claimed before implementation, exact-head CI and the separate active Slice 3C cutover."
+}
