@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase4d-atomic-manifest-cutover",
+  "requirementSlug": "equipment-simulator-phase4d-atomic-manifest-cutover",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase4c-closure-phase4d-open",
+  "commit": "3e99d9811298788572f510592082b2f2978cb733",
+  "scope": [
+    "atomic formal Season Manifest seal and retail pointer CAS",
+    "release-scoped public browse, Resolve and Profile cutover",
+    "monotonic first-cutover rollback and re-promotion",
+    "truthful health/admin and one-rebase client evidence"
+  ],
+  "verification": [
+    {
+      "command": "Phase 4C exact-head CI, merge and clean-equivalent live closure",
+      "status": "pass",
+      "summary": "PR #75 passed Project Harness and merged as 3e99d98 with identical PR/merge tree e4bf2ce9. Clean-main proof passed 242 host tests, 40/40 revision-only shadow, bounded p95/cache/statements with zero writes, unchanged release counts, zero Manifest/Pointer rows and public/health/service/log smoke."
+    },
+    {
+      "command": "Phase 4D requirement challenge and first-cutover rollback review",
+      "status": "pass",
+      "summary": "The Slice is restricted to atomic cutover. The zero-pointer starting state is explicitly modeled: rollback must preserve monotonic generation in a transitional pointer state and cannot delete the pointer, reset to generation zero or fake rollback with an identical active Manifest."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "first_cutover_aba",
+      "status": "blocked_by_requirement",
+      "detail": "Rollback cannot delete the first pointer row or reopen expectedGeneration=0; generation must advance through transitional rollback and re-promotion."
+    },
+    {
+      "id": "mixed_release_request",
+      "status": "blocked_by_requirement",
+      "detail": "A request binds one pointer/Manifest once and every browse/Authority/Profile query uses that exact release combination."
+    },
+    {
+      "id": "silent_staging_fallback",
+      "status": "blocked_by_requirement",
+      "detail": "Formal mode fails closed for missing or invalid Manifest/release content. Staging is reachable only in explicit transitional mode."
+    },
+    {
+      "id": "irreversible_public_cutover",
+      "status": "blocked_by_requirement",
+      "detail": "Candidate rehearsal must prove promote, rollback and re-promotion with backups and exact pointer generations before merge."
+    },
+    {
+      "id": "premature_refresh_or_catalyst",
+      "status": "blocked_by_requirement",
+      "detail": "No scheduled refresh, automatic promotion, Phase 5 work or Catalyst activation is in scope."
+    }
+  ],
+  "rollback": [
+    "config_disable",
+    "code_rollback",
+    "data_restore"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers/evidence.json",
+    "server/gear_release.py",
+    "server/gear_release_store.py",
+    "server/gear_release_shadow.py",
+    "server/gear_release_tool.py",
+    "server/gear_runtime.py",
+    "server/pg_gear_authority_loader.py",
+    "server/pg_gear_read_model_selectors.py",
+    "server/postgres_cache_store.py",
+    "server/news_backend.py",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 4D is implementation-allowed only for atomic formal Manifest cutover, release-scoped public readers, monotonic pointer rollback/re-promotion and truthful health/admin evidence. Scheduled refresh, Phase 5 and Catalyst remain excluded."
+}

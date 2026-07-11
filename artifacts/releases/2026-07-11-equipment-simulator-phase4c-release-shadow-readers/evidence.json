@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase4c-release-shadow-readers",
   "requirementSlug": "equipment-simulator-phase4c-release-shadow-readers",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase4c-release-shadow-readers",
-  "commit": "67be38ce1e79763c2e6947a39acc041cbe5d67bb",
+  "commit": "3e99d9811298788572f510592082b2f2978cb733",
   "scope": [
     "release-scoped read-only candidate projections",
     "internal bounded old/new shadow comparison",
@@ -60,11 +60,20 @@
     }
   ],
   "candidateDeployment": {
-    "status": "pass",
+    "status": "live_verified",
     "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase4c-release-shadow-readers",
     "commit": "67be38ce1e79763c2e6947a39acc041cbe5d67bb",
     "runtimeHashParity": "pass",
-    "backup": "/opt/wow-mini-program-candidate-backups/phase4c-pre-4922d64-20260711T080206Z"
+    "backup": "/opt/wow-mini-program-candidate-backups/phase4c-pre-4922d64-20260711T080206Z",
+    "smoke": {
+      "status": "pass",
+      "summary": "40/40 revision-only shadow, Resolve/Profile parity, zero blockers and unchanged public/API/DB/service state."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "Deploy kept async sync disabled; sync services were inactive and no release timer/unit exists."
+    }
   },
   "runtimeEvidence": [
     {
@@ -91,6 +100,11 @@
       "surface": "rollback",
       "status": "ready",
       "summary": "Restore the pre-candidate server files from /opt/wow-mini-program-candidate-backups/phase4c-pre-4922d64-20260711T080206Z and restart wow-backend. No schema or data rollback is required because the Slice executed zero DB writes."
+    },
+    {
+      "surface": "clean_merge_equivalent",
+      "status": "pass",
+      "summary": "PR #75 passed GitHub Project Harness and squash-merged as 3e99d98 with merge tree e4bf2ce9 identical to the PR head tree. Clean merge deployment passed runtime hash parity, 242 host tests, 40/40 revision-only shadow, p95 782.123ms, 684 statements with zero writes, unchanged release/Manifest/Pointer counts, public/health/service/log smoke and rollback backup /opt/wow-mini-program-candidate-backups/phase4c-pre-main-3e99d98-20260711T084858Z."
     }
   ],
   "risks": [
@@ -137,5 +151,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 4C exact head 67be38c is runtime-verified as an internal read-only shadow path: 40/40 revision-only browse/Resolve/Profile parity, bounded latency/cache/statement evidence and zero DB writes. Public readers remain transitional; no Manifest/Pointer, release write, timer or cutover has been implemented or claimed."
+  "summary": "Slice 4C is merged, live-verified and archived: PR #75 / 3e99d98 proves 40/40 revision-only browse/Resolve/Profile parity with bounded latency/cache/statements and zero writes. Public readers remain transitional and Manifest/Pointer rows remain zero; Slice 4D is opened separately for atomic cutover."
 }

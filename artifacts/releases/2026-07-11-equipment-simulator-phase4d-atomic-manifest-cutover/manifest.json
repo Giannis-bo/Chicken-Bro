@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T08:59:47.329Z",
+  "generatedAt": "2026-07-11T08:58:43.861Z",
   "release": {
     "date": "2026-07-11",
-    "slug": "equipment-simulator-phase4c-release-shadow-readers"
+    "slug": "equipment-simulator-phase4d-atomic-manifest-cutover"
   },
   "harness": {
     "version": "v0.5",
@@ -231,8 +231,8 @@
   },
   "evidencePacket": {
     "status": "ready",
-    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers/evidence.json",
-    "sizeBytes": 9780,
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/evidence.json",
+    "sizeBytes": 3949,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "archived",
-    "highestEvidenceLevel": "live_verified",
-    "summary": "Slice 4C is merged, live-verified and archived: PR #75 / 3e99d98 proves 40/40 revision-only browse/Resolve/Profile parity with bounded latency/cache/statements and zero writes. Public readers remain transitional and Manifest/Pointer rows remain zero; Slice 4D is opened separately for atomic cutover."
+    "declaredStatus": "implementation_allowed",
+    "highestEvidenceLevel": "implementation_allowed",
+    "summary": "Slice 4D is implementation-allowed only for atomic formal Manifest cutover, release-scoped public readers, monotonic pointer rollback/re-promotion and truthful health/admin evidence. Scheduled refresh, Phase 5 and Catalyst remain excluded."
   },
   "evidence": {
     "localTests": {
@@ -327,6 +327,6 @@
   },
   "write": {
     "enabled": true,
-    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers/manifest.json"
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/manifest.json"
   }
 }
