@@ -3,7 +3,7 @@
   "updatedAt": "2026-07-11",
   "activeMilestone": "equipment_simulator_phase4",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import",
   "activeContracts": [
     {
       "id": "equipment_simulator_capability_architecture",
@@ -15,9 +15,9 @@
     {
       "id": "equipment_simulator_phase4_release_train_plan",
       "path": "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
-      "status": "phase4a_implementation_allowed",
+      "status": "phase4b_implementation_allowed",
       "lifecycle": "active",
-      "notes": "Phase 3 closed through PR #69 and clean-main live verification. Slice 4A may add only the pure release/manifest/election/shadow policy domain; schema, release writes, shadow readers, pointer cutover and scheduled refresh remain in later independent Strict Slices."
+      "notes": "Phase 4A pure release policy merged through PR #71 and is live-verified while dormant. Slice 4B may add only the immutable PostgreSQL registry/repository/tool and inactive legacy-import-r0 candidates; shadow readers, pointer cutover and scheduled refresh remain later independent Strict Slices."
     },
     {
       "id": "repo_native_harness_v0_5",
@@ -118,9 +118,23 @@
       "status": "completed",
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json",
       "notes": "PRs #65, #67 and #69 activated canonical Resolve/Profile, preserved structured problems, added race-safe frontend state and cut the active gear page over to server-owned final facts. Slice 3C exact-head CI, candidate deployment, real WeChat proof, 40-spec matrices, clean-main runtime parity, recovery health and rollback evidence passed."
+    },
+    {
+      "id": "equipment_simulator_phase4a_20260711",
+      "domain": "equipment_simulator_phase4a",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/evidence.json",
+      "notes": "PR #71 added the pure immutable Release/Manifest identity, observed election, shadow classification, promotion decision and pointer-command contracts. Focused/related/backend/full/CI, candidate import/hash parity, 40-spec public compatibility and clean-merge-equivalent live smoke passed; no schema, write, reader, pointer or timer was activated."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "equipment_simulator_phase4a_release_contracts",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/evidence.json"
+    },
     {
       "id": "equipment_simulator_phase3_resolve_profile_workbench_plan",
       "path": "docs/plans/2026-07-11-equipment-simulator-phase3-resolve-profile-workbench-plan.md",
@@ -271,11 +285,12 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
     },
     "gearReleaseTrain": {
-      "status": "phase4a_planned_implementation_allowed",
+      "status": "phase4a_completed_phase4b_implementation_allowed",
       "formalActiveManifest": false,
       "currentCompatibilityManifest": "compatibility-pg-live-v1",
       "plan": "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
-      "activePacket": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/requirement.json"
+      "purePolicyModule": "server/gear_release.py",
+      "activePacket": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/requirement.json"
     }
   },
   "knownRisks": [

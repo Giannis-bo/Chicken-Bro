@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase4b-pg-registry-legacy-import",
+  "requirementSlug": "equipment-simulator-phase4b-pg-registry-legacy-import",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase4a-closure-phase4b-open",
+  "commit": "e8bfda9c826e0354d1b53afb833238f2c17604a2",
+  "scope": [
+    "additive immutable PostgreSQL release schema",
+    "single release repository and explicit tool",
+    "inactive Gear legacy-import-r0",
+    "inactive Resolver-revalidated Community legacy-import-r0"
+  ],
+  "verification": [
+    {
+      "command": "Phase 4A live closure and Phase 4B current-schema/store review",
+      "status": "pass",
+      "summary": "Phase 4A is merged and live-verified while formalActiveManifest remains false. Existing gear/community tables are confirmed mutable staging, so the 4B plan adds separate immutable release-scoped storage rather than changing staging ownership."
+    },
+    {
+      "command": "Phase 4B requirement self-review",
+      "status": "pass",
+      "summary": "The Slice is limited to additive schema, one repository/tool and inactive legacy import. Shadow readers, pointer cutover and scheduled refresh remain separate 4C-4E gates; public observed-only/baseline-empty, PG-only and Catalyst fail-closed contracts are unchanged."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "immutable_content_mutation",
+      "status": "blocked_by_requirement",
+      "detail": "Release content permits insert/select only; identical inserts are idempotent and hash/content mismatch must fail closed."
+    },
+    {
+      "id": "staging_writer_disruption",
+      "status": "blocked_by_requirement",
+      "detail": "Migration creates separate tables and the tool snapshots staging; existing sync writers and public selectors remain unchanged."
+    },
+    {
+      "id": "legacy_grandfathering",
+      "status": "blocked_by_requirement",
+      "detail": "Community import must re-author exact Intent and run the current Resolver against the candidate Gear Release; rejected rows remain internal."
+    },
+    {
+      "id": "premature_cutover",
+      "status": "blocked_by_requirement",
+      "detail": "No public release reader or active pointer mutation is allowed in Slice 4B; formalActiveManifest remains false."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "data_restore"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/evidence.json",
+    "server/gear_release.py",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 4B is implementation-allowed only after this Phase 4A closure packet lands. No migration, release table, import, reader, pointer or scheduled refresh has been implemented or claimed."
+}

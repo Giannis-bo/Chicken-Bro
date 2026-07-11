@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase4a-release-contracts",
   "requirementSlug": "equipment-simulator-phase4a-release-contracts",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase4a-release-contracts",
-  "commit": "b45ce1cca4ff9ae8d6b3ef56d98c65e17ff63784",
+  "commit": "e8bfda9c826e0354d1b53afb833238f2c17604a2",
   "scope": [
     "pure immutable release contracts",
     "Active Season Manifest validation",
@@ -57,6 +57,11 @@
       "command": "candidate public, Resolve/Profile, health and Catalyst smoke",
       "status": "pass",
       "summary": "All 40 specs returned verified initial payloads with exactly one raiderio_observed_profile template, public baseline zero and formalActiveManifest=false. Frost Resolve returned 200 resolved with signature, legacy Profile returned 200 talent-ready, /health stayed ok, and Catalyst remained blocked with capabilityEnabled=false."
+    },
+    {
+      "command": "PR #71 merge, clean equivalent-tree deployment and post-merge smoke",
+      "status": "pass",
+      "summary": "Exact PR head 69ece3d passed GitHub Harness and squash-merged as e8bfda9. PR and merge trees were both 98167bbd; the clean PR worktree was redeployed to avoid the main workspace .superpowers residue. Remote hash stayed exact, 22/22 on-host tests and 40/40 public smoke passed, /health was ok, and the service ended active/running with one task, about 53 MiB and NRestarts=0."
     }
   ],
   "candidateDeployment": {
@@ -72,7 +77,14 @@
     "activeManifestPointerChange": false,
     "rollbackBackup": "/opt/wow-mini-program-candidate-backups/phase4a-pre-b45ce1c",
     "service": "active/running, one task, NRestarts=0",
-    "timerBackflow": "The pre-existing observed-backfill timer naturally fired at 14:12:19 CST during the deployment window; timer ActiveEnterTimestamp remained 2026-07-03, the service reported no eligible rows and completed blocked without a release write. WebSim and community sync did not start."
+    "smoke": {
+      "status": "pass",
+      "summary": "Remote focused tests, deterministic hash parity, 40-spec public contract, Resolve, legacy Profile, health and Catalyst fail-closed checks passed on the exact candidate."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "The pre-existing observed-backfill timer naturally fired at 14:12:19 CST during the deployment window; timer ActiveEnterTimestamp remained 2026-07-03, the service reported no eligible rows and completed blocked without a release write. WebSim and community sync did not start."
+    }
   },
   "runtimeEvidence": [
     {
@@ -105,8 +117,30 @@
       "service": "active/running, one task, about 99 MiB after 40-spec payload smoke, NRestarts=0",
       "logs": "no traceback/sqlite fallback/database locked/segmentation/fatal match",
       "asyncSync": "WOW_DEPLOY_START_ASYNC_SYNCS=0; no WebSim or community sync start"
+    },
+    {
+      "kind": "post_merge_live",
+      "status": "pass",
+      "mergeCommit": "e8bfda9c826e0354d1b53afb833238f2c17604a2",
+      "tree": "98167bbd2ecdb9f952f7ae47403e7c612e40a863",
+      "runtimeHash": "c135530b31cd533629ece88347622fd33e331c5d7a248ee62318d613f1a2401d",
+      "remoteFocusedTests": "22/22",
+      "publicMatrix": "40/40",
+      "service": "active/running, one task, about 53 MiB, NRestarts=0, /health ok",
+      "timerBackflow": "No observed, WebSim or community sync service started after the clean-main-equivalent deployment"
     }
   ],
+  "postMerge": {
+    "status": "live_verified",
+    "pullRequest": 71,
+    "mergeCommit": "e8bfda9c826e0354d1b53afb833238f2c17604a2",
+    "tree": "98167bbd2ecdb9f952f7ae47403e7c612e40a863",
+    "deploymentBackup": "/opt/wow-mini-program-candidate-backups/phase4a-pre-main-e8bfda9",
+    "runtimeFileParity": true,
+    "publicMatrix": "40/40",
+    "health": "ok",
+    "automaticRestarts": 0
+  },
   "risks": [
     {
       "id": "mixed_release_read",
@@ -151,5 +185,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 4A is runtime-verified on implementation head b45ce1c. The pure release domain owns deterministic immutable Release/Manifest identities, observed election, shadow and promotion policy with 22 focused and 86 related tests; backend/full profiles pass. Candidate import/hash parity, 40-spec public behavior, Resolve/Profile/health and Catalyst gates pass while formalActiveManifest remains false and no schema, release write, reader, pointer or timer was added."
+  "summary": "Slice 4A is live-verified and archived after PR #71 merged as e8bfda9. The pure release domain owns deterministic immutable Release/Manifest identities, observed election, shadow and promotion policy with 22 focused and 86 related tests; backend/full profiles and exact-head CI passed. Candidate and clean-merge-equivalent deployments proved exact runtime hash, on-host pure fixtures, 40/40 public parity, health and timer truth while formalActiveManifest stayed false and no schema, release write, reader, pointer or timer was added."
 }

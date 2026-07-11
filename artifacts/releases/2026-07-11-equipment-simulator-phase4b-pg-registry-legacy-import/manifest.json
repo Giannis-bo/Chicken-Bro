@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T06:24:35.048Z",
+  "generatedAt": "2026-07-11T06:23:43.186Z",
   "release": {
     "date": "2026-07-11",
-    "slug": "equipment-simulator-phase4a-release-contracts"
+    "slug": "equipment-simulator-phase4b-pg-registry-legacy-import"
   },
   "harness": {
     "version": "v0.5",
@@ -231,8 +231,8 @@
   },
   "evidencePacket": {
     "status": "ready",
-    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/evidence.json",
-    "sizeBytes": 10657,
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/evidence.json",
+    "sizeBytes": 3207,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "archived",
-    "highestEvidenceLevel": "live_verified",
-    "summary": "Slice 4A is live-verified and archived after PR #71 merged as e8bfda9. The pure release domain owns deterministic immutable Release/Manifest identities, observed election, shadow and promotion policy with 22 focused and 86 related tests; backend/full profiles and exact-head CI passed. Candidate and clean-merge-equivalent deployments proved exact runtime hash, on-host pure fixtures, 40/40 public parity, health and timer truth while formalActiveManifest stayed false and no schema, release write, reader, pointer or timer was added."
+    "declaredStatus": "implementation_allowed",
+    "highestEvidenceLevel": "implementation_allowed",
+    "summary": "Slice 4B is implementation-allowed only after this Phase 4A closure packet lands. No migration, release table, import, reader, pointer or scheduled refresh has been implemented or claimed."
   },
   "evidence": {
     "localTests": {
@@ -329,6 +329,6 @@
   },
   "write": {
     "enabled": true,
-    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/manifest.json"
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/manifest.json"
   }
 }

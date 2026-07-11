@@ -62,7 +62,7 @@
         },
         {
           "id": "gear_release_policy",
-          "status": "phase4a_contract_only_unconsumed",
+          "status": "phase4a_completed_dormant",
           "extractedModule": "server/gear_release.py",
           "runtimeConsumers": [],
           "owns": [
