@@ -157,6 +157,40 @@ class GearReleaseShadowTest(unittest.TestCase):
             "compatibility-pg:old",
         )
 
+    def test_internal_shadow_accepts_legacy_sealed_signature_only_after_live_semantic_parity(self):
+        candidate = self.candidate_row()
+        candidate["semanticGearSignature"] = "sha256:legacy-evidence-sensitive"
+        store = FakeShadowStore(candidate)
+        original_pair_reader = store.get_candidate_community_release
+
+        def legacy_pair(gear_release_id, community_release_id):
+            pair = original_pair_reader(gear_release_id, community_release_id)
+            pair["communityRelease"]["source"] = {"sourceRevision": "legacy-import-r0"}
+            return pair
+
+        store.get_candidate_community_release = unittest.mock.Mock(side_effect=legacy_pair)
+        old_snapshot = self.snapshot(candidate["selectionIntent"], "sha256:old")
+        candidate_snapshot = self.snapshot(candidate["selectionIntent"], "sha256:candidate")
+        with patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_selection_intent",
+            return_value=(200, {"status": "resolved", "data": old_snapshot, "problems": []}),
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_candidate_selection_intent",
+            return_value=(200, {"status": "resolved", "data": candidate_snapshot, "problems": []}),
+        ):
+            result = gear_release_shadow.run_release_shadow(
+                store,
+                expected_specs=[("mage", "arcane")],
+                gear_release_id="gear-release:sha256:target",
+                community_release_id="community-release:sha256:target",
+                simc_runtime_revision="simc-r1",
+                compare_profiles=False,
+            )
+
+        self.assertEqual(result["status"], "pass")
+
     def test_internal_shadow_blocks_public_baseline_or_candidate_resolve_failure(self):
         candidate = self.candidate_row()
         store = FakeShadowStore(candidate, baseline_count=1)

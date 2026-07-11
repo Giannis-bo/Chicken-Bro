@@ -449,6 +449,26 @@ class GearReleaseTest(unittest.TestCase):
         self.assertEqual(election["winners"][0]["candidateId"], "active-winner")
         self.assertTrue(election["winners"][0]["carryForward"])
 
+    def test_semantic_signature_ignores_evidence_identity_only_fields(self):
+        intent = self.intent()
+        old = self.verified_result()
+        old["resolvedSlots"] = {
+            "head": {
+                "itemId": "item-head",
+                "variantKey": "variant-head",
+                "sourceRefIds": ["evidence:old"],
+                "evidenceClaimIds": ["sha256:old"],
+            }
+        }
+        new = copy.deepcopy(old)
+        new["resolvedSlots"]["head"]["sourceRefIds"] = ["evidence:new"]
+        new["resolvedSlots"]["head"]["evidenceClaimIds"] = ["sha256:new"]
+
+        self.assertEqual(
+            gear_release.semantic_gear_signature(intent, old),
+            gear_release.semantic_gear_signature(intent, new),
+        )
+
     def shadow_row(self, **overrides):
         row = {
             "classKey": "mage",

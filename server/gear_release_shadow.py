@@ -208,6 +208,16 @@ def run_release_shadow(
         for winner in pair.get("winners") or []
         if isinstance(winner, dict)
     ]
+    candidate_rows_by_spec = {
+        (_text(row.get("classKey")), _text(row.get("specKey"))): row
+        for row in candidate_rows
+    }
+    community_descriptor = pair.get("communityRelease") if isinstance(pair.get("communityRelease"), dict) else {}
+    community_source = community_descriptor.get("source") if isinstance(community_descriptor.get("source"), dict) else {}
+    # The first legacy import sealed evidence-sensitive slot hashes. Its immutable
+    # content hash remains verified, while live old/new parity uses the corrected
+    # user-visible semantic signature that excludes source/evidence identities.
+    legacy_sealed_semantic = _text(community_source.get("sourceRevision")) == "legacy-import-r0"
     spec_results = []
     formal_active = False
     public_read_count = 0
@@ -310,7 +320,13 @@ def run_release_shadow(
             continue
 
         live_candidate_semantic = gear_release.semantic_gear_signature(candidate_intent, new_snapshot)
-        if live_candidate_semantic != _text(candidate.get("semanticGearSignature")):
+        candidate_shadow_row = candidate_rows_by_spec.get(key)
+        if isinstance(candidate_shadow_row, dict):
+            candidate_shadow_row["semanticGearSignature"] = live_candidate_semantic
+        if (
+            not legacy_sealed_semantic
+            and live_candidate_semantic != _text(candidate.get("semanticGearSignature"))
+        ):
             blockers.append(_blocker("CANDIDATE_SEALED_RESULT_MISMATCH", class_key, spec_key, "Current release reader result differs from the sealed winner."))
         profile_result = {"status": "not_run"}
         if compare_profiles:
@@ -380,6 +396,11 @@ def run_release_shadow(
         "specResults": spec_results,
         "publicReadCount": public_read_count,
         "formalActiveManifest": formal_active,
+        "sealedSemanticMode": (
+            "legacy_evidence_identity_v1"
+            if legacy_sealed_semantic
+            else "current"
+        ),
     }
 
 

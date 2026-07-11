@@ -88,15 +88,33 @@ SELECT
               AND candidate.item_id = requested.item_id
             ORDER BY
                 candidate.source_type,
-                CASE WHEN LEFT(
-                    regexp_replace(
-                        COALESCE(candidate.payload_json->>'variantKey', ''),
-                        '[^A-Za-z0-9_:/.-]+',
-                        '',
-                        'g'
-                    ),
-                    240
-                ) = requested.variant_key THEN 0 ELSE 1 END,
+                CASE WHEN
+                    LOWER(COALESCE(candidate.payload_json->>'status', '')) = 'verified'
+                    OR LOWER(COALESCE(candidate.payload_json->>'sourceStatus', '')) = 'verified'
+                    OR (
+                        candidate.source_type = 'observed_profile'
+                        AND jsonb_array_length(
+                            CASE
+                                WHEN jsonb_typeof(candidate.payload_json->'itemStats') = 'array'
+                                THEN candidate.payload_json->'itemStats'
+                                ELSE '[]'::jsonb
+                            END
+                        ) > 0
+                    )
+                    OR (
+                        candidate.source_type = 'tier_set'
+                        AND candidate.payload_json->>'authority' = 'Battle.net Game Data API'
+                    )
+                    THEN 0 ELSE 1 END,
+                CASE WHEN requested.variant_key <> '' AND LEFT(
+                        regexp_replace(
+                            COALESCE(candidate.payload_json->>'variantKey', ''),
+                            '[^A-Za-z0-9_:/.-]+',
+                            '',
+                            'g'
+                        ),
+                        240
+                    ) = requested.variant_key THEN 0 ELSE 1 END,
                 candidate.source_updated_at DESC,
                 candidate.source_id
             LIMIT 8
@@ -271,6 +289,34 @@ def _observed_release_variant_record(
     return None
 
 
+def _verified_release_source_records(source_records: Any) -> list[dict[str, Any]]:
+    """Normalize immutable observed stat evidence into the existing verified-source contract."""
+
+    try:
+        from .websim_payload import observed_variant_stat_payload_fields
+    except ImportError:
+        from websim_payload import observed_variant_stat_payload_fields
+
+    normalized = []
+    for raw in source_records if isinstance(source_records, list) else []:
+        if not isinstance(raw, dict):
+            continue
+        source = _canonical(raw)
+        payload = source.get("payload") if isinstance(source.get("payload"), dict) else {}
+        statuses = {
+            _text(source.get("status")).lower(),
+            _text(source.get("sourceStatus")).lower(),
+        }
+        if (
+            _text(source.get("sourceType")) == "observed_profile"
+            and not statuses.intersection({"blocked", "rejected", "expired"})
+            and observed_variant_stat_payload_fields(payload)
+        ):
+            source["status"] = "verified"
+        normalized.append(source)
+    return normalized
+
+
 def canonical_row_hash(row: dict[str, Any]) -> str:
     return _hash(_canonical(row))
 
@@ -417,6 +463,7 @@ def build_candidate_authority_context(
             }
             for source in sources_by_item.get(item_id, [])
         ]
+        source_records = _verified_release_source_records(source_records)
         matching = [
             row for row in variants_by_item.get(item_id, [])
             if requested_variant
@@ -835,6 +882,7 @@ class GearReleaseStore:
                     values = list(row or ())
                     while len(values) < 5:
                         values.append(None)
+                    values[4] = _verified_release_source_records(values[4])
                     if values[3] is None:
                         values[3] = _observed_release_variant_record(
                             _text(values[1]),

@@ -440,6 +440,18 @@ def _resolver_result_issues(result: Any, gear_release_id: str) -> list[dict[str,
     return issues
 
 
+def _without_evidence_identity(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: _without_evidence_identity(item)
+            for key, item in value.items()
+            if key not in {"sourceRefIds", "evidenceClaimIds"}
+        }
+    if isinstance(value, list):
+        return [_without_evidence_identity(item) for item in value]
+    return value
+
+
 def semantic_gear_signature(intent: Any, result: Any) -> str:
     """Hash resolved gear semantics without release-identity-only fields."""
 
@@ -448,7 +460,7 @@ def semantic_gear_signature(intent: Any, result: Any) -> str:
     return "sha256:" + hashlib.sha256(
         _canonical_bytes({
             "eligibilityContext": snapshot.get("eligibilityContext") or selection.get("eligibilityContext") or {},
-            "resolvedSlots": snapshot.get("resolvedSlots") or {},
+            "resolvedSlots": _without_evidence_identity(snapshot.get("resolvedSlots") or {}),
             "staticAttributes": snapshot.get("staticAttributes") or {},
             "setState": snapshot.get("setState") or {},
             "constraints": snapshot.get("constraints") or {},
