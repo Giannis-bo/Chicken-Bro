@@ -701,6 +701,7 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("cache.websim_gear_release_variants", sql)
         self.assertIn("cache.websim_gear_release_sources", sql)
         self.assertIn("cache.websim_gear_release_mod_options", sql)
+        self.assertIn("regexp_replace(variant.variant_key", " ".join(sql.split()))
         self.assertNotIn("FROM cache.websim_items", sql)
         self.assertNotIn("FROM cache.websim_gear_variants", sql)
         self.assertEqual(context["manifest"]["gearCatalogReleaseId"], release["releaseId"])

@@ -110,7 +110,13 @@ LEFT JOIN cache.websim_gear_release_items item
 LEFT JOIN cache.websim_gear_release_variants variant
   ON variant.release_id = target.release_id
  AND variant.item_id = requested.item_id
- AND variant.variant_key = requested.variant_key
+ AND (
+      variant.variant_key = requested.variant_key
+      OR LEFT(
+          regexp_replace(variant.variant_key, '[^A-Za-z0-9_:/.-]+', '', 'g'),
+          240
+      ) = requested.variant_key
+ )
 ORDER BY requested.item_id, requested.variant_key
 """
 
