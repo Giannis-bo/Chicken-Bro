@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T12:56:17.205Z",
+  "generatedAt": "2026-07-11T13:23:28.569Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase5c-frontend-cutover"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json",
-    "sizeBytes": 2382,
+    "sizeBytes": 4323,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Phase 5C is implementation-allowed for the structured async client, bounded race-safe stat polling state and the two active frontend consumers only. Backend execution and Catalyst remain unchanged."
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "Phase 5C is locally verified at f8105c6: both active frontend consumers use the canonical asynchronous stat-snapshot contract with bounded race-safe polling, stale read-only preservation and signature-bound persistence. Candidate mini-program and live read-only smoke remain required before merge."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "6 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,14 +313,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 6,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json",
-        " M docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/"
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json"
       ]
     }
   },
