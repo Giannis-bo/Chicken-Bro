@@ -84,6 +84,65 @@ JOB_ROW = (
 
 
 class GearStatSnapshotStoreTest(unittest.TestCase):
+    def test_lookup_can_record_one_api_request_and_verified_cache_hit_in_same_transaction(self):
+        snapshot_row = (
+            SIGNATURE,
+            "stat-signature-v1",
+            "sha256:gear",
+            "season-manifest:a",
+            "gear-release:a",
+            "simc-v1",
+            {"simcRuntimeRevision": "simc-v1"},
+            "sha256:profile",
+            "sha256:snapshot",
+            {"statStatus": "verified", "secondary": []},
+            "2026-07-11T12:00:00+00:00",
+        )
+        conn = FakeConnection(
+            lambda sql, _params: snapshot_row
+            if "FROM cache.websim_gear_stat_snapshots" in sql
+            else None
+        )
+
+        result = GearStatSnapshotStore(lambda: conn).lookup_snapshot(
+            SIGNATURE,
+            record_request=True,
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(result["statSignature"], SIGNATURE)
+        self.assertIn("request_count", sql)
+        self.assertIn("cache_hit_count", sql)
+        self.assertNotIn("SET TRANSACTION READ ONLY", sql)
+
+    def test_worker_readiness_requires_fresh_matching_runtime(self):
+        worker_row = (
+            "worker-a",
+            "idle",
+            "gear-stat-worker-v1",
+            "simc-v1",
+            None,
+            "2026-07-11T12:00:00+00:00",
+        )
+        conn = FakeConnection(
+            lambda sql, _params: worker_row
+            if "FROM ops.websim_gear_stat_worker_state" in sql
+            else None
+        )
+
+        result = GearStatSnapshotStore(lambda: conn).worker_readiness(
+            simc_runtime_revision="simc-v1",
+            now="2026-07-11T12:00:10+00:00",
+            max_age_seconds=30,
+        )
+
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["workerId"], "worker-a")
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("simc_runtime_revision = %s", sql)
+        self.assertIn("heartbeat_at >=", sql)
+        self.assertIn("LIMIT 1", sql)
+
     def test_get_or_start_miss_inserts_one_job_after_bounded_limits(self):
         def responder(sql, _params):
             if "FROM cache.websim_gear_stat_snapshots" in sql:
@@ -307,7 +366,7 @@ class GearStatSnapshotStoreTest(unittest.TestCase):
     def test_health_summary_uses_bounded_history_and_caps_snapshot_count(self):
         def responder(sql, _params):
             if "WITH active_jobs AS" in sql:
-                return (1, 0, 3, 4, "2026-07-11T12:00:00+00:00")
+                return (1, 0, 3, 4, "2026-07-11T11:59:30+00:00", 30)
             if "LIMIT 10001" in sql:
                 return (10001,)
             if "FROM ops.websim_gear_stat_worker_state" in sql:
@@ -320,6 +379,7 @@ class GearStatSnapshotStoreTest(unittest.TestCase):
         health = GearStatSnapshotStore(lambda: conn).health_summary(now="2026-07-11T12:00:00+00:00")
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertEqual(health["queue"]["queued"], 1)
+        self.assertEqual(health["queue"]["oldestQueuedAgeSeconds"], 30)
         self.assertEqual(health["snapshotCount"], 10000)
         self.assertTrue(health["snapshotCountTruncated"])
         self.assertEqual(health["metrics"]["cacheHitRate"], 0.4)

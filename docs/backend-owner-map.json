@@ -391,9 +391,10 @@
         },
         {
           "id": "gear_stat_snapshot_store",
-          "status": "phase5a_dormant_store_implementation_allowed",
-          "factOwner": "server/gear_stat_snapshot.py",
+          "status": "phase5a_complete_phase5b_worker_api_implementation_allowed",
+          "factOwner": "server/gear_stat_snapshot_api.py",
           "writeOwner": "server/gear_stat_snapshot_store.py",
+          "executionOwner": "server/gear_stat_snapshot_worker.py",
           "migration": "server/migrations/postgres/0015_websim_gear_stat_snapshots.sql",
           "owns": [
             "revision-complete server-owned stat signature identity",
@@ -406,17 +407,22 @@
             "bounded queue, worker, cache and legacy telemetry projection"
           ],
           "mustNotChange": [
-            "Slice 5A has no route, worker, service or frontend runtime consumer.",
-            "Workers in later slices must re-resolve and recompute the signature; stored profile text is never execution authority.",
+            "Slice 5B must not add a frontend runtime consumer; frontend cutover is reserved for Slice 5C.",
+            "The worker must re-resolve and recompute the signature; stored profile text is never execution authority.",
             "Verified snapshots are immutable and never contain DPS, raw profile text or raw SimC output.",
-            "Legacy /gear/stats, Phase 4 refresh and Catalyst remain unchanged."
+            "Legacy /gear/stats response shape, Phase 4 refresh and Catalyst remain unchanged.",
+            "The request handler never runs SimC and the worker never exceeds one child."
           ],
           "characterization": [
             "tests/gear_stat_snapshot_test.py",
             "tests/gear_stat_snapshot_store_test.py",
+            "tests/gear_stat_snapshot_api_test.py",
+            "tests/gear_stat_snapshot_worker_test.py",
+            "tests/news_backend_test.py",
+            "tests/deploy_lighthouse_test.py",
             "tests/postgres_schema_test.py"
           ],
-          "futureExtractionDirection": "Slice 5B may add one API orchestration facade and one worker runner over this repository without moving SQL into news_backend.py or websim_payload.py."
+          "futureExtractionDirection": "Slice 5C may add a bounded frontend polling client over this API without moving resolver, signature, SQL or SimC execution authority to the client."
         },
         {
           "id": "gear_catalog_read_model_selectors",

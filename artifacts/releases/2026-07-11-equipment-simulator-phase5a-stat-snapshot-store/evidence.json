@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase5a-stat-snapshot-store",
   "requirementSlug": "equipment-simulator-phase5a-stat-snapshot-store",
-  "status": "live_verified",
+  "status": "archived",
   "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase5-stat-snapshot",
   "commit": "2b98dbe72dc789e7e0700d0274f8bc3a2f73de31",
@@ -92,6 +92,20 @@
     },
     "rollbackTarget": "stop future consumers if any, restore code to 1e4b549, retain additive dormant 0015 tables, and use the recorded wow_test dump only for corruption recovery"
   },
+  "postMerge": {
+    "status": "live_verified",
+    "pullRequest": 79,
+    "mergeCommit": "8a75fd54375377ec2ca0b93aaebe4dc70fc8115d",
+    "runtimeParity": "main, origin/main and deployed gear_stat_snapshot.py, gear_stat_snapshot_store.py and migration 0015 matched",
+    "schemaState": {
+      "migrationRows": 1,
+      "snapshotRows": 0,
+      "jobRows": 0,
+      "workerRows": 0
+    },
+    "activeManifestGeneration": 9,
+    "summary": "Clean-main deploy preserved the dormant additive 0015 schema with zero operational rows, exact runtime parity, active generation 9 and an active backend with NRestarts=0."
+  },
   "runtimeEvidence": [
     {
       "id": "migration_constraints_indexes_and_privileges",
@@ -162,5 +176,5 @@
     "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
     "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json"
   ],
-  "summary": "Phase 5A candidate is live-verified at implementation commit 2b98dbe as a dormant pure signature plus additive PostgreSQL snapshot/job repository slice. Migration backup/apply, least privileges, real single-flight claim/heartbeat/fencing/publication rollback transaction, runtime parity, public compatibility, health/service/log and Phase 6 fail-closed evidence passed. No route, worker, frontend behavior or Catalyst capability is active."
+  "summary": "Phase 5A is archived after PR #79 merged at 8a75fd5 and clean-main live verification passed. The pure revision-complete signature, additive PostgreSQL snapshot/job schema and fenced repository are active but dormant with zero operational rows. No route, worker, frontend behavior or Catalyst capability is active."
 }

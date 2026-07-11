@@ -25549,7 +25549,11 @@ def _blocked_resolved_snapshot_profile(code, title, *, kind="ILLEGAL_SELECTION")
     }
 
 
-def build_websim_profile_response_from_resolved_snapshot(resolved_snapshot, source_context=None):
+def build_websim_profile_response_from_resolved_snapshot(
+    resolved_snapshot,
+    source_context=None,
+    execution_flavor=WEBSIM_EXECUTION_FLAVOR_STANDARD_PROFILE,
+):
     """Serialize one verified canonical snapshot through the dormant legacy adapter."""
 
     snapshot = resolved_snapshot if isinstance(resolved_snapshot, dict) else {}
@@ -25650,7 +25654,11 @@ def build_websim_profile_response_from_resolved_snapshot(resolved_snapshot, sour
             "gearSelection": {"items": normalized_items},
         }
     )
-    response = build_websim_profile_response(source, conn=None)
+    response = build_websim_profile_response(
+        source,
+        conn=None,
+        execution_flavor=execution_flavor,
+    )
     response.update(
         {
             "status": "resolved",
@@ -25758,14 +25766,22 @@ def gear_resolver_runtime_authority(class_key, spec_key, *, simc_runtime_revisio
     }
 
 
-def build_websim_profile_response(payload, conn=None):
+def build_websim_profile_response(
+    payload,
+    conn=None,
+    execution_flavor=WEBSIM_EXECUTION_FLAVOR_STANDARD_PROFILE,
+):
     source = payload if isinstance(payload, dict) else {}
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
     gear_payload = websim_selected_gear_payload(source, class_key, spec_key, conn=conn)
     talent_encoding = encode_websim_talents(conn, source) if conn is not None else encode_websim_talents(None, source)
     response = {
-        "profile": build_websim_profile(payload, conn=conn),
+        "profile": build_websim_profile(
+            payload,
+            conn=conn,
+            execution_flavor=execution_flavor,
+        ),
         "gearItems": gear_payload["items"],
         "simcItems": gear_payload["simcItems"],
         "readiness": gear_payload["readiness"],

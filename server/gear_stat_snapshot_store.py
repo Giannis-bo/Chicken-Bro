@@ -142,16 +142,27 @@ class GearStatSnapshotStore:
             """
         )
 
-    def lookup_snapshot(self, stat_signature: str) -> dict[str, Any]:
+    def lookup_snapshot(
+        self,
+        stat_signature: str,
+        *,
+        record_request: bool = False,
+    ) -> dict[str, Any]:
         signature = self._validate_signature(stat_signature)
         with self.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SET TRANSACTION READ ONLY")
+                if record_request:
+                    self._record_metric(cur, "request_count")
+                else:
+                    cur.execute("SET TRANSACTION READ ONLY")
                 cur.execute(
                     f"SELECT {_SNAPSHOT_COLUMNS} FROM cache.websim_gear_stat_snapshots WHERE stat_signature = %s",
                     (signature,),
                 )
-                return _snapshot_from_row(cur.fetchone())
+                snapshot = _snapshot_from_row(cur.fetchone())
+                if snapshot and record_request:
+                    self._record_metric(cur, "cache_hit_count")
+                return snapshot
 
     def get_or_start(
         self,
@@ -163,6 +174,7 @@ class GearStatSnapshotStore:
         now: str,
         global_limit: int = 100,
         per_client_limit: int = 2,
+        record_request: bool = True,
     ) -> dict[str, Any]:
         """Return one verified cache hit or create/reuse one active job."""
 
@@ -174,7 +186,8 @@ class GearStatSnapshotStore:
         client_cap = max(1, min(_int(per_client_limit), 100))
         with self.connection() as conn:
             with conn.cursor() as cur:
-                self._record_metric(cur, "request_count")
+                if record_request:
+                    self._record_metric(cur, "request_count")
                 cur.execute(
                     f"SELECT {_SNAPSHOT_COLUMNS} FROM cache.websim_gear_stat_snapshots WHERE stat_signature = %s",
                     (signature,),
@@ -522,6 +535,48 @@ class GearStatSnapshotStore:
                     ),
                 )
 
+    def worker_readiness(
+        self,
+        *,
+        simc_runtime_revision: str,
+        now: str,
+        max_age_seconds: int = 30,
+    ) -> dict[str, Any]:
+        """Return one fresh idle/running worker for the exact SimC runtime."""
+
+        revision = _text(simc_runtime_revision)
+        freshness = max(5, min(_int(max_age_seconds), 300))
+        if not revision:
+            return {"ready": False}
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION READ ONLY")
+                cur.execute(
+                    """
+                    SELECT worker_id, status, worker_revision, simc_runtime_revision,
+                           current_job_id, heartbeat_at
+                    FROM ops.websim_gear_stat_worker_state
+                    WHERE status IN ('idle', 'running')
+                      AND simc_runtime_revision = %s
+                      AND heartbeat_at >= %s::timestamptz - make_interval(secs => %s)
+                    ORDER BY heartbeat_at DESC, worker_id
+                    LIMIT 1
+                    """,
+                    (revision, _text(now), freshness),
+                )
+                row = cur.fetchone()
+        if not row:
+            return {"ready": False}
+        return {
+            "ready": True,
+            "workerId": _text(row[0]),
+            "status": _text(row[1]),
+            "workerRevision": _text(row[2]),
+            "simcRuntimeRevision": _text(row[3]),
+            "currentJobId": _int(row[4]),
+            "heartbeatAt": _text(row[5]),
+        }
+
     def record_legacy_request(self) -> None:
         with self.connection() as conn:
             with conn.cursor() as cur:
@@ -553,11 +608,18 @@ class GearStatSnapshotStore:
                         count(*) FILTER (WHERE status = 'running'),
                         count(*) FILTER (WHERE status = 'failed'),
                         count(*) FILTER (WHERE status = 'blocked'),
-                        min(queued_at) FILTER (WHERE status = 'queued')
+                        min(queued_at) FILTER (WHERE status = 'queued'),
+                        GREATEST(
+                            0,
+                            EXTRACT(EPOCH FROM (
+                                %s::timestamptz - min(queued_at) FILTER (WHERE status = 'queued')
+                            ))
+                        )::bigint
                     FROM bounded_jobs
-                    """
+                    """,
+                    (_text(now),),
                 )
-                queue = cur.fetchone() or (0, 0, 0, 0, None)
+                queue = cur.fetchone() or (0, 0, 0, 0, None, 0)
                 cur.execute(
                     """
                     SELECT count(*)
@@ -609,6 +671,7 @@ class GearStatSnapshotStore:
                 "failed": _int(queue[2]),
                 "blocked": _int(queue[3]),
                 "oldestQueuedAt": _text(queue[4]),
+                "oldestQueuedAgeSeconds": _int(queue[5]),
             },
             "snapshotCount": min(raw_snapshot_count, 10000),
             "snapshotCountTruncated": raw_snapshot_count > 10000,
