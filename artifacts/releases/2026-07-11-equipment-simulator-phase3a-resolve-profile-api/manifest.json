@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T03:03:01.436Z",
+  "generatedAt": "2026-07-11T03:33:23.487Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase3a-resolve-profile-api"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
-    "sizeBytes": 13276,
+    "sizeBytes": 17414,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Slice 3A remains local-verified at performance-correction implementation head 9be919b. Three failed candidates were truthfully rolled back: direct systemd imports, 40-spec live authority mismatches, then a functionally correct candidate whose request-scoped Authority cache failed the warm latency gate. TDD now shares only a bounded DSN-isolated Authority LRU across request-scoped stores, keeps unrelated catalog state and PG connections unshared, and serializes LRU mutation safely under ThreadingHTTPServer. Fresh backend/full profiles pass. New exact-head GitHub Harness, a fresh full candidate deployment, latency/concurrency, unchanged-runtime and post-merge smoke remain required before archival."
+    "declaredStatus": "deployable",
+    "highestEvidenceLevel": "deployable",
+    "summary": "Slice 3A is deployable after fourth-candidate verification at PR #65 head 93ff7d8. The candidate passed exact-head CI, exact runtime hashes, PG-only 40-spec Resolve, truthful Profile and negative envelopes, on-host production-entry warm p95 112.334ms, query/cache budgets, production-entry concurrency, legacy compatibility and post-QA recovery health. Public-client RTT and the extra large slot-payload stress are retained as limitations, not reclassified as passes. Final evidence-head CI, merge, clean-main parity deploy and post-merge smoke remain required before archival and Slice 3B."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "2 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,10 +313,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 2,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/manifest.json"
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json"
       ]
     }
   },
