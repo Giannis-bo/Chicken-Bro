@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T17:40:36.670Z",
+  "generatedAt": "2026-07-11T02:24:58.202Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase3a-resolve-profile-api"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
-    "sizeBytes": 6584,
+    "sizeBytes": 7641,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -252,7 +252,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Slice 3A is local-verified at implementation head 7983e04. TDD, focused and full local verification and local CR passed; exact-head GitHub Harness, candidate PostgreSQL deployment, 40-spec Resolve/Profile, negative HTTP, latency/concurrency, unchanged-runtime and post-merge smoke remain required before archival."
+    "summary": "Slice 3A remains local-verified at corrected implementation head d31e225. The first candidate failed on the real direct systemd import path and was immediately rolled back to exact Phase 2B hashes; a red-to-green subprocess test now covers that boundary, and focused regressions pass. New exact-head GitHub Harness, a fresh candidate PostgreSQL deployment, 40-spec Resolve/Profile, negative HTTP, latency/concurrency, unchanged-runtime and post-merge smoke remain required before archival."
   },
   "evidence": {
     "localTests": {

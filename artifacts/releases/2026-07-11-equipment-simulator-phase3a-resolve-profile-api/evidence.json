@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-phase3a-resolve-profile-api",
-  "commit": "7983e04fb475111f476f0aac08467d3192c33d77",
+  "commit": "d31e2255a85a63800ebcc694d6be8e4244182eaa",
   "scope": [
     "backend resolver authoring context",
     "canonical gear runtime orchestration",
@@ -26,7 +26,7 @@
     {
       "command": "Slice 3A implementation and local verification",
       "status": "pass",
-      "summary": "TDD produced the shared revision projection, one-query resolver authoring context, injectable runtime orchestration, structured Resolve route and canonical profile mode. The focused domain suite passed 104 tests; the related orchestration/backend/facade/store suite passed 743 tests after review corrections; package and direct runtime modules compiled."
+      "summary": "TDD produced the shared revision projection, one-query resolver authoring context, injectable runtime orchestration, structured Resolve route and canonical profile mode. After the first candidate exposed the real systemd direct-start import boundary, a subprocess regression test reproduced it and the focused domain suite passed 106 tests; the related orchestration/backend/facade/store suite passed 744 tests; package and direct runtime imports and modules compiled."
     },
     {
       "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api --base origin/main",
@@ -56,9 +56,17 @@
     "commit": "",
     "buildIdentity": "pending exact PR head and runtime hashes",
     "databaseRuntime": "postgres_only",
+    "attempts": [
+      {
+        "head": "c1151cba2dcdc0b2b65884ad7458cb44a8d7463a",
+        "status": "failed_then_rolled_back",
+        "failure": "The direct systemd startup path imported gear_runtime from the server directory, then gear_resolver required the unavailable server package and raised ModuleNotFoundError before binding port 8787.",
+        "rollback": "Restored the exact Phase 2B news_backend, loader and store files from /opt/wow-mini-program-candidate-backups/phase3a-pre-c1151cba, removed the new gear_runtime.py, restarted wow-backend and confirmed active/success with the original three file hashes. No database write or restore was required."
+      }
+    ],
     "smoke": {
       "status": "blocked",
-      "summary": "Local implementation and CR passed; exact-head CI and candidate deployment remain required before merge."
+      "summary": "The first candidate failed startup and was rolled back. Direct-server import correction is local-verified; new exact-head CI and a fresh candidate deployment remain required before merge."
     },
     "timerBackflow": {
       "status": "blocked",
@@ -111,5 +119,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 3A is local-verified at implementation head 7983e04. TDD, focused and full local verification and local CR passed; exact-head GitHub Harness, candidate PostgreSQL deployment, 40-spec Resolve/Profile, negative HTTP, latency/concurrency, unchanged-runtime and post-merge smoke remain required before archival."
+  "summary": "Slice 3A remains local-verified at corrected implementation head d31e225. The first candidate failed on the real direct systemd import path and was immediately rolled back to exact Phase 2B hashes; a red-to-green subprocess test now covers that boundary, and focused regressions pass. New exact-head GitHub Harness, a fresh candidate PostgreSQL deployment, 40-spec Resolve/Profile, negative HTTP, latency/concurrency, unchanged-runtime and post-merge smoke remain required before archival."
 }
