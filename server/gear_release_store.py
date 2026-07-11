@@ -112,11 +112,40 @@ def _expected_manifest_revision(manifest: dict[str, Any]) -> str:
     return "season-manifest:" + _hash(identity)
 
 
+class CandidateGearAuthorityIndex:
+    """One validated, reusable index over an exact candidate Gear snapshot."""
+
+    def __init__(self, snapshot: dict[str, Any], gear_release: dict[str, Any]):
+        self.release = _exact_release_descriptor(gear_release)
+        if self.release["releaseKind"] != "gear":
+            raise GearReleaseIntegrityError("candidate authority requires a Gear Release")
+        self.snapshot_summary = gear_snapshot_summary(snapshot)
+        if self.snapshot_summary != self.release["content"]:
+            raise GearReleaseIntegrityError("candidate authority snapshot does not match Gear Release")
+        self.items = {
+            _text(row.get("itemId")): row
+            for row in _canonical_rows(snapshot.get("items"))
+        }
+        self.sources_by_item: dict[str, list[dict[str, Any]]] = {}
+        for row in _canonical_rows(snapshot.get("sources")):
+            self.sources_by_item.setdefault(_text(row.get("itemId")), []).append(row)
+        self.variants_by_item: dict[str, list[dict[str, Any]]] = {}
+        for row in _canonical_rows(snapshot.get("variants")):
+            self.variants_by_item.setdefault(_text(row.get("itemId")), []).append(row)
+        self.options_by_key = {
+            _text(row.get("optionKey")): row
+            for row in _canonical_rows(snapshot.get("options"))
+            if _text(row.get("optionKey"))
+        }
+
+
 def build_candidate_authority_context(
     snapshot: dict[str, Any],
     selection_intent: dict[str, Any],
     runtime_authority: dict[str, Any],
     gear_release: dict[str, Any],
+    *,
+    prepared_index: CandidateGearAuthorityIndex | None = None,
 ) -> dict[str, Any]:
     """Build an inactive candidate Authority Context from an exact sealed snapshot."""
 
@@ -128,26 +157,17 @@ def build_candidate_authority_context(
         from websim_payload import normalize_option_value
 
     release = _exact_release_descriptor(gear_release)
-    if release["releaseKind"] != "gear":
-        raise GearReleaseIntegrityError("candidate authority requires a Gear Release")
-    if gear_snapshot_summary(snapshot) != release["content"]:
-        raise GearReleaseIntegrityError("candidate authority snapshot does not match Gear Release")
+    prepared = prepared_index or CandidateGearAuthorityIndex(snapshot, release)
+    if prepared.release != release:
+        raise GearReleaseIntegrityError("prepared candidate authority does not match Gear Release")
     authored = selection_intent.get("authoredAgainst") if isinstance(selection_intent, dict) else {}
     if not isinstance(authored, dict) or authored.get("seasonRevision") != release["seasonRevision"] or authored.get("gearCatalogRevision") != release["releaseId"]:
         raise GearReleaseIntegrityError("candidate Intent is not authored against the Gear Release")
 
-    items = {row.get("itemId"): row for row in _canonical_rows(snapshot.get("items"))}
-    sources_by_item: dict[str, list[dict[str, Any]]] = {}
-    for row in _canonical_rows(snapshot.get("sources")):
-        sources_by_item.setdefault(_text(row.get("itemId")), []).append(row)
-    variants_by_item: dict[str, list[dict[str, Any]]] = {}
-    for row in _canonical_rows(snapshot.get("variants")):
-        variants_by_item.setdefault(_text(row.get("itemId")), []).append(row)
-    options_by_key = {
-        _text(row.get("optionKey")): row
-        for row in _canonical_rows(snapshot.get("options"))
-        if _text(row.get("optionKey"))
-    }
+    items = prepared.items
+    sources_by_item = prepared.sources_by_item
+    variants_by_item = prepared.variants_by_item
+    options_by_key = prepared.options_by_key
 
     item_rows = []
     for selection in (selection_intent.get("slots") or {}).values():
@@ -934,6 +954,7 @@ class GearReleaseStore:
 
 
 __all__ = (
+    "CandidateGearAuthorityIndex",
     "GearReleaseIntegrityError",
     "GearReleaseStore",
     "StaleManifestPointerError",

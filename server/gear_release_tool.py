@@ -12,6 +12,7 @@ try:
     from . import gear_release, gear_resolver
     from .db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
     from .gear_release_store import (
+        CandidateGearAuthorityIndex,
         GearReleaseIntegrityError,
         GearReleaseStore,
         build_candidate_authority_context,
@@ -24,6 +25,7 @@ except ImportError:
     import gear_resolver
     from db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
     from gear_release_store import (
+        CandidateGearAuthorityIndex,
         GearReleaseIntegrityError,
         GearReleaseStore,
         build_candidate_authority_context,
@@ -328,6 +330,11 @@ def build_legacy_community_release(
         )
         for template in templates
     ]
+    prepared_authority = (
+        CandidateGearAuthorityIndex(gear_snapshot, gear_release_descriptor)
+        if resolver_for_spec is None
+        else None
+    )
 
     def resolve_candidate(intent: dict[str, Any]) -> dict[str, Any]:
         eligibility = intent.get("eligibilityContext") or {}
@@ -346,6 +353,7 @@ def build_legacy_community_release(
             intent,
             runtime,
             gear_release_descriptor,
+            prepared_index=prepared_authority,
         )
         return gear_resolver.resolve(intent, authority)
 

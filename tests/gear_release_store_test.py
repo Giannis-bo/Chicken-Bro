@@ -260,11 +260,69 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(context["manifest"]["gearCatalogRevision"], release["releaseId"])
         self.assertEqual(context["manifest"]["manifestType"], "candidate")
         self.assertFalse(context["manifest"]["formalActiveManifest"])
-        self.assertEqual(context["dependencyVector"]["gearCatalogReleaseId"], release["releaseId"])
-        self.assertEqual(context["dependencyVector"]["capabilityRevision"], "gear-capability-v1")
-        self.assertIn("item-a", context["itemsById"])
-        self.assertIn("variant-a", context["variantsByKey"])
-        self.assertEqual(context["missingFields"], [])
+
+    def test_prepared_candidate_authority_indexes_full_snapshot_only_once(self):
+        from unittest.mock import patch
+
+        from server import gear_release_store
+        from server.gear_release_store import (
+            CandidateGearAuthorityIndex,
+            build_candidate_authority_context,
+        )
+        from server.websim_payload import gear_resolver_runtime_authority
+
+        snapshot = self.snapshot()
+        release = self.gear_release(snapshot)
+        intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": release["releaseId"],
+            },
+            "eligibilityContext": {"classKey": "mage", "specKey": "arcane", "level": 90},
+            "slots": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": "variant-a",
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            },
+        }
+        runtime = gear_resolver_runtime_authority("mage", "arcane", simc_runtime_revision="simc-r1")
+        runtime["dependencyRevisions"]["capabilityRevision"] = "gear-capability-v1"
+
+        with patch.object(
+            gear_release_store,
+            "gear_snapshot_summary",
+            wraps=gear_release_store.gear_snapshot_summary,
+        ) as summary:
+            prepared = CandidateGearAuthorityIndex(snapshot, release)
+            first = build_candidate_authority_context(
+                snapshot,
+                intent,
+                runtime,
+                release,
+                prepared_index=prepared,
+            )
+            second = build_candidate_authority_context(
+                snapshot,
+                intent,
+                runtime,
+                release,
+                prepared_index=prepared,
+            )
+
+        self.assertEqual(summary.call_count, 1)
+        self.assertEqual(first, second)
+        self.assertEqual(first["dependencyVector"]["gearCatalogReleaseId"], release["releaseId"])
+        self.assertEqual(first["dependencyVector"]["capabilityRevision"], "gear-capability-v1")
+        self.assertIn("item-a", first["itemsById"])
+        self.assertIn("variant-a", first["variantsByKey"])
+        self.assertEqual(first["missingFields"], [])
 
     def test_snapshot_staging_community_templates_is_read_only_and_bounded(self):
         from server.gear_release_store import GearReleaseStore
