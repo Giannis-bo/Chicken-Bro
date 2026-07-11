@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T13:45:11.862Z",
+  "generatedAt": "2026-07-11T13:58:35.193Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase5c-frontend-cutover"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json",
-    "sizeBytes": 8876,
+    "sizeBytes": 11399,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -252,7 +252,7 @@
     "missingFields": [],
     "declaredStatus": "deployable",
     "highestEvidenceLevel": "deployable",
-    "summary": "Phase 5C is deployable after exact-head CI, WeChat candidate preview, real mini-program pending-to-verified and changed-input stale/read-only proof, live canonical API smoke, 40-spec public boundary, fail-closed Catalyst, timer/backflow and clean-log checks passed at candidate head 39aa993. No backend deployment or formal mini-program upload occurred."
+    "summary": "Phase 5C remains deployable after PR #81 merged at e7ac53a and clean-main smoke exposed a real slim-payload rederive regression. The TDD correction at fdddee5 passed related/frontend/full verification and exact WeChat candidate proof that the observed template survives initial invalidation and async stat rendering. Follow-up merge and a fresh clean-main smoke remain required before live_verified closure; no backend deployment or formal mini-program upload occurred."
   },
   "evidence": {
     "localTests": {
