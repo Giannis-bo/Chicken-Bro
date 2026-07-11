@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-phase4d-atomic-manifest-cutover",
-  "commit": "ddabb19",
+  "commit": "024aba669685c21487fb96c5455467e04c539d58",
   "scope": [
     "atomic formal Season Manifest seal and retail pointer CAS",
     "release-scoped public browse, Resolve and Profile cutover",
