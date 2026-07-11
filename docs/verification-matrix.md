@@ -267,3 +267,32 @@ git diff --check
 ```
 
 Slice 4A must prove canonical hash-addressed Gear/Community Releases, exact manifest binding, deterministic observed winner/standby election, rejection of illegal/stale/source-invalid/mixed-release candidates, strict 40-spec shadow classification, risk-classified promotion decisions and pointer compare-and-swap command shapes. `server/gear_release.py` has no SQL, store, route, environment, filesystem, network, clock or process-execution owner and calls current Resolver behavior only through an injected callable. Candidate deployment proves import/hash/pure fixture parity and unchanged live gear/Profile/health/Catalyst behavior; no schema, write, release row, shadow reader, formal pointer, timer or public cutover may be claimed.
+
+## Equipment Simulator Phase 4B PG Registry And Legacy Import Profile
+
+The Strict Slice 4B packet at `artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import` adds one append-only PostgreSQL release registry/repository and one explicit inactive import tool. Before candidate deployment run:
+
+```bash
+python3 -m unittest \
+  tests.gear_release_tool_test \
+  tests.gear_release_store_test \
+  tests.gear_release_test \
+  tests.pg_gear_authority_loader_test \
+  tests.gear_resolver_test \
+  tests.postgres_schema_test
+node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import \
+  --base origin/main
+python3 -m py_compile \
+  server/gear_release.py \
+  server/gear_release_store.py \
+  server/gear_release_tool.py \
+  server/pg_gear_authority_loader.py
+git diff --check
+```
+
+Slice 4B must prove an additive immutable schema, exact-descriptor idempotency, repeatable-read legacy snapshots, inactive Gear/Community `legacy-import-r0` construction, exact candidate Gear Release authority binding, current Resolver revalidation, strict pointer CAS validation and zero pointer mutation. Candidate deployment requires a pre-migration PostgreSQL backup, exact implementation identity, migration/grant/trigger inspection, inactive release row/count/hash evidence, zero active pointer rows, unchanged 40/40 observed-only public selection with zero baseline/formal manifest activation, Resolve/Profile/health/Catalyst parity, timer/backflow state and an explicit rollback path. No public/shadow reader, pointer promotion, scheduled refresh, Catalyst capability enablement or public cutover may be claimed.

@@ -345,6 +345,33 @@
           "futureExtractionDirection": "Continue extracting repository-level selectors after official metadata row filtering, community item ref collection, row/list/admin queue/display assembly and hydration, compact/full candidate grouping, and write-intent boundaries are characterized separately."
         },
         {
+          "id": "gear_release_registry",
+          "status": "phase4b_inactive_registry_candidate",
+          "extractedModule": "server/gear_release_store.py",
+          "operatorTool": "server/gear_release_tool.py",
+          "migration": "server/migrations/postgres/0013_websim_release_train.sql",
+          "usesModule": "server/gear_release.py",
+          "owns": [
+            "repeatable-read snapshots of mutable legacy gear and community staging rows",
+            "append-only hash-addressed Gear and Community Release persistence",
+            "inactive Season Manifest persistence",
+            "strict dormant retail pointer compare-and-swap storage boundary",
+            "explicit legacy-import-r0 release construction and revalidation"
+          ],
+          "mustNotChange": [
+            "Phase 4B must not activate a shadow/public reader or write the retail manifest pointer.",
+            "Phase 4B must not add a timer, public payload cutover or Catalyst capability enablement.",
+            "Release content is immutable; exact descriptor reuse is the only idempotent reuse path.",
+            "Legacy community candidates must be re-resolved against the exact sealed Gear Release snapshot."
+          ],
+          "characterization": [
+            "tests/gear_release_store_test.py",
+            "tests/gear_release_tool_test.py",
+            "tests/postgres_schema_test.py"
+          ],
+          "futureExtractionDirection": "Phase 4C may add a read-only shadow reader only after inactive import evidence is sealed and public observed-only parity remains green."
+        },
+        {
           "id": "gear_catalog_read_model_selectors",
           "status": "extracted_selector",
           "extractedModule": "server/pg_gear_read_model_selectors.py",

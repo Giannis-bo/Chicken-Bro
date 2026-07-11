@@ -840,6 +840,98 @@ def _link_allowed_options(
             item["baseCapabilities"][field] = list(item[field])
 
 
+def build_gear_authority_context_from_rows(
+    selection_intent: Any,
+    runtime_authority: Any,
+    *,
+    manifest: dict[str, Any],
+    dependency_vector: dict[str, Any],
+    item_rows: Iterable[Any],
+    option_rows: Iterable[Any],
+    missing_fields: Iterable[str] = (),
+) -> dict[str, Any]:
+    """Project one Authority Context from caller-owned, release-scoped rows."""
+
+    intent, intent_issues = parse_selection_intent(selection_intent)
+    if intent_issues:
+        paths = ", ".join(issue.get("path", "intent") for issue in intent_issues)
+        raise ValueError(f"Invalid Selection Intent: {paths}")
+    runtime = runtime_authority if isinstance(runtime_authority, dict) else {}
+    missing = [*_runtime_missing(runtime), *(_text(value) for value in missing_fields)]
+    missing = [value for value in missing if value]
+    evidence = _runtime_source_records(runtime)
+    items_by_id: dict[str, dict[str, Any]] = {}
+    variants_by_key: dict[str, dict[str, Any]] = {}
+    variant_candidates_by_key: dict[str, list[dict[str, Any]]] = {}
+    for row in item_rows:
+        row = list(row or ())
+        requested_item_id = _text(row[0] if len(row) > 0 else "")
+        requested_variant_key = _text(row[1] if len(row) > 1 else "")
+        item = _project_item(
+            requested_item_id,
+            row[2] if len(row) > 2 else None,
+            row[4] if len(row) > 4 else [],
+            runtime,
+            evidence,
+        )
+        if item is not None:
+            items_by_id[requested_item_id] = item
+        variant = _project_variant(
+            requested_item_id,
+            requested_variant_key,
+            row[3] if len(row) > 3 else None,
+            item.get("sourceRefIds", []) if item else [],
+            evidence,
+        )
+        if variant is not None:
+            variant_candidates_by_key.setdefault(requested_variant_key, []).append(variant)
+
+    for requested_variant_key, candidates in variant_candidates_by_key.items():
+        merged = _merge_equivalent_variant_candidates(candidates)
+        if merged is not None:
+            variants_by_key[requested_variant_key] = merged
+
+    options_by_id: dict[str, dict[str, Any]] = {}
+    for row in option_rows:
+        row = list(row or ())
+        requested_option_id = _text(row[0] if len(row) > 0 else "")
+        option = _project_option(
+            requested_option_id,
+            row[1] if len(row) > 1 else None,
+            evidence,
+        )
+        if option is not None:
+            options_by_id[requested_option_id] = option
+    _link_allowed_options(intent, items_by_id, options_by_id)
+
+    selections = list(intent["slots"].values())
+    option_ids = _selected_option_ids(intent)
+    for selection in selections:
+        item_id = selection["itemId"]
+        variant_key = selection["variantKey"]
+        if item_id not in items_by_id:
+            missing.append(f"itemsById.{item_id}")
+        if variant_key and variant_key not in variants_by_key:
+            missing.append(f"variantsByKey.{variant_key}")
+    for option_id in option_ids:
+        if option_id not in options_by_id:
+            missing.append(f"optionsById.{option_id}")
+
+    context = {
+        "contractRevision": AUTHORITY_CONTEXT_CONTRACT_REVISION,
+        "manifest": _canonical(manifest),
+        "dependencyVector": _canonical(dependency_vector),
+        "itemsById": {key: items_by_id[key] for key in sorted(items_by_id)},
+        "variantsByKey": {key: variants_by_key[key] for key in sorted(variants_by_key)},
+        "optionsById": {key: options_by_id[key] for key in sorted(options_by_id)},
+        "ruleParameters": _json_value(runtime.get("ruleParameters"), {}),
+        "capabilities": _json_value(runtime.get("capabilities"), {}),
+        "evidenceRecordsById": {key: evidence[key] for key in sorted(evidence)},
+        "missingFields": sorted(set(missing)),
+    }
+    return _canonical(context)
+
+
 def load_gear_authority_context(
     cursor: Any,
     selection_intent: Any,
@@ -886,68 +978,10 @@ def load_gear_authority_context(
     cursor.execute(SELECTED_OPTION_SQL, (option_ids,))
     option_rows = cursor.fetchall()
 
-    missing = _runtime_missing(runtime)
-    if not season_revision:
-        missing.append("manifest.seasonRevision")
-    evidence = _runtime_source_records(runtime)
-    items_by_id: dict[str, dict[str, Any]] = {}
-    variants_by_key: dict[str, dict[str, Any]] = {}
-    variant_candidates_by_key: dict[str, list[dict[str, Any]]] = {}
-    for row in item_rows:
-        requested_item_id = _text(row[0] if len(row) > 0 else "")
-        requested_variant_key = _text(row[1] if len(row) > 1 else "")
-        item = _project_item(
-            requested_item_id,
-            row[2] if len(row) > 2 else None,
-            row[4] if len(row) > 4 else [],
-            runtime,
-            evidence,
-        )
-        if item is not None:
-            items_by_id[requested_item_id] = item
-        variant = _project_variant(
-            requested_item_id,
-            requested_variant_key,
-            row[3] if len(row) > 3 else None,
-            item.get("sourceRefIds", []) if item else [],
-            evidence,
-        )
-        if variant is not None:
-            variant_candidates_by_key.setdefault(requested_variant_key, []).append(variant)
-
-    for requested_variant_key, candidates in variant_candidates_by_key.items():
-        merged = _merge_equivalent_variant_candidates(candidates)
-        if merged is not None:
-            variants_by_key[requested_variant_key] = merged
-
-    options_by_id: dict[str, dict[str, Any]] = {}
-    for row in option_rows:
-        requested_option_id = _text(row[0] if len(row) > 0 else "")
-        option = _project_option(
-            requested_option_id,
-            row[1] if len(row) > 1 else None,
-            evidence,
-        )
-        if option is not None:
-            options_by_id[requested_option_id] = option
-    _link_allowed_options(intent, items_by_id, options_by_id)
-
-    for selection in selections:
-        item_id = selection["itemId"]
-        variant_key = selection["variantKey"]
-        if item_id not in items_by_id:
-            missing.append(f"itemsById.{item_id}")
-        if variant_key and variant_key not in variants_by_key:
-            missing.append(f"variantsByKey.{variant_key}")
-    for option_id in option_ids:
-        if option_id not in options_by_id:
-            missing.append(f"optionsById.{option_id}")
-
-    rule_parameters = _json_value(runtime.get("ruleParameters"), {})
-    capabilities = _json_value(runtime.get("capabilities"), {})
-    context = {
-        "contractRevision": AUTHORITY_CONTEXT_CONTRACT_REVISION,
-        "manifest": {
+    context = build_gear_authority_context_from_rows(
+        intent,
+        runtime,
+        manifest={
             "contractRevision": COMPATIBILITY_MANIFEST_REVISION,
             "manifestType": "compatibility",
             "formalActiveManifest": False,
@@ -960,16 +994,11 @@ def load_gear_authority_context(
                 "websimSync": websim_state,
             },
         },
-        "dependencyVector": dependency_vector,
-        "itemsById": {key: items_by_id[key] for key in sorted(items_by_id)},
-        "variantsByKey": {key: variants_by_key[key] for key in sorted(variants_by_key)},
-        "optionsById": {key: options_by_id[key] for key in sorted(options_by_id)},
-        "ruleParameters": rule_parameters,
-        "capabilities": capabilities,
-        "evidenceRecordsById": {key: evidence[key] for key in sorted(evidence)},
-        "missingFields": sorted(set(missing)),
-    }
-    context = _canonical(context)
+        dependency_vector=dependency_vector,
+        item_rows=item_rows,
+        option_rows=option_rows,
+        missing_fields=[] if season_revision else ["manifest.seasonRevision"],
+    )
     if cache is not None and not context["missingFields"]:
         cache.put(cache_key, context)
     return context
@@ -982,6 +1011,7 @@ __all__ = (
     "SELECTED_ITEM_VARIANT_SQL",
     "SELECTED_OPTION_SQL",
     "AuthorityContextCache",
+    "build_gear_authority_context_from_rows",
     "compatibility_catalog_revision",
     "resolver_authoring_context",
     "load_gear_authority_context",

@@ -155,6 +155,14 @@ class GearReleaseTest(unittest.TestCase):
         self.assertNotEqual(baseline["releaseId"], dependency_changed["releaseId"])
         self.assertNotEqual(community_a["releaseId"], community_b["releaseId"])
 
+    def test_validate_release_rejects_forged_hash_addressed_identity(self):
+        release = self.gear_release()
+        self.assertEqual(gear_release.validate_release(release), [])
+        forged = {**release, "releaseId": "gear-release:sha256:forged"}
+        self.assertTrue(
+            any(issue["code"] == "RELEASE_ID_MISMATCH" for issue in gear_release.validate_release(forged))
+        )
+
     def test_release_builder_rejects_invalid_kind_status_or_missing_revision(self):
         for mutation in (
             {"release_kind": "talent"},
