@@ -95,8 +95,10 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             "ruleParameters": {
                 "inventoryTypesBySlot": {"head": ["head"]},
                 "allowedArmorTypesByClass": {"warrior": ["plate"]},
+                "armorRestrictedSlots": ["head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"],
                 "allowedWeaponTypesByClassSpec": {"warrior:fury": ["sword"]},
                 "dualWieldByClassSpec": {"warrior:fury": True},
+                "weaponModesByClassSpec": {"warrior:fury": "dual_wield_2h"},
                 "requiredSlots": ["head"],
                 "uniqueLimits": {},
                 "uniqueGemLimits": {},
@@ -112,6 +114,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                 "catalyst": {"enabled": False, "revision": "catalyst-proof-v1"},
             },
             "playableClassSpecs": {"warrior": ["fury", "arms", "protection"]},
+            "requestedClassSpec": "warrior:fury",
             "sourceRefs": [
                 {
                     "id": "evidence:runtime:rules",
@@ -349,7 +352,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertEqual(set(context["variantsByKey"]), {authority_key})
         self.assertEqual(context["missingFields"], [])
 
-    def test_loader_blocks_ambiguous_public_variant_aliases(self):
+    def test_loader_blocks_semantically_divergent_public_variant_aliases(self):
         requested_key = "observed-profile-head-289-bonus_id:123ilevel:289"
         first = list(self.item_row())
         first[1] = requested_key
@@ -357,6 +360,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         second = copy.deepcopy(first)
         second[3]["id"] = "variant-row-head-collision"
         second[3]["variantKey"] = 'observed-profile-head-289-{"bonus_id": "123", "ilevel": "289"}'
+        second[3]["simcOptions"]["bonus_id"] = "different-authority"
         intent = self.intent()
         intent["slots"]["head"]["variantKey"] = requested_key
 
@@ -367,6 +371,29 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
 
         self.assertNotIn(requested_key, context["variantsByKey"])
         self.assertIn(f"variantsByKey.{requested_key}", context["missingFields"])
+
+    def test_loader_merges_semantically_identical_public_variant_alias_rows(self):
+        requested_key = "observed-profile-head-289-bonus_id:123ilevel:289"
+        first = list(self.item_row())
+        first[1] = requested_key
+        first[3]["variantKey"] = 'observed-profile-head-289-{"bonus_id":"123","ilevel":"289"}'
+        second = copy.deepcopy(first)
+        second[3]["id"] = "variant-row-head-duplicate"
+        second[3]["variantKey"] = 'observed-profile-head-289-{"bonus_id": "123", "ilevel": "289"}'
+        intent = self.intent()
+        intent["slots"]["head"]["variantKey"] = requested_key
+
+        _cursor, context = self.load(
+            cursor=self.cursor(item_rows=[tuple(first), tuple(second)]),
+            intent=intent,
+        )
+
+        self.assertIn(requested_key, context["variantsByKey"])
+        self.assertEqual(context["missingFields"], [])
+        self.assertIn(
+            "evidence:pg:variant:variant-row-head-duplicate",
+            context["variantsByKey"][requested_key]["sourceRefIds"],
+        )
 
     def test_loader_never_matches_a_normalized_alias_from_the_wrong_item(self):
         requested_key = "observed-profile-head-289-bonus_id:123ilevel:289"
@@ -465,6 +492,36 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertEqual(item["inventoryType"], "weapon")
         self.assertEqual(item["weaponType"], "Staff")
         self.assertEqual(item["handedness"], "two_hand")
+
+    def test_loader_allows_two_hand_weapon_in_offhand_for_authorized_fury_mode(self):
+        weapon = self.item_row(
+            item={
+                "slot": "main_hand",
+                "payload": {
+                    "inventory_type": {"type": "TWOHWEAPON", "name": "Two-Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"name": "Two-Handed Sword"},
+                },
+            }
+        )
+        intent = self.intent(
+            {
+                "off_hand": {
+                    "itemId": "item-head",
+                    "variantKey": "variant-head",
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            }
+        )
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[weapon]), intent=intent)
+
+        self.assertEqual(context["itemsById"]["item-head"]["handedness"], "two_hand")
+        self.assertEqual(context["itemsById"]["item-head"]["allowedSlots"], ["main_hand", "off_hand"])
 
     def test_loader_allows_one_hand_weapon_authority_in_either_hand(self):
         sword = self.item_row(

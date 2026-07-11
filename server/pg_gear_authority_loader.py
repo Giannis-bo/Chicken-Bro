@@ -613,9 +613,17 @@ def _project_item(
         handedness = _text(
             gear_item_handedness_fields({"weaponType": weapon_type}).get("handedness")
         )
+    requested_spec = _text(runtime_authority.get("requestedClassSpec"))
+    weapon_mode = _text(
+        (_json_value(runtime_authority.get("ruleParameters"), {}) or {})
+        .get("weaponModesByClassSpec", {})
+        .get(requested_spec)
+    )
     if payload.get("allowedSlots"):
         allowed_slots = _texts(payload.get("allowedSlots"))
     elif handedness == "one_hand":
+        allowed_slots = ["main_hand", "off_hand"]
+    elif handedness == "two_hand" and weapon_mode == "dual_wield_2h":
         allowed_slots = ["main_hand", "off_hand"]
     else:
         allowed_slots = _texts(EQUIVALENT_GEAR_SLOTS.get(canonical_slot, [canonical_slot]))
@@ -711,6 +719,25 @@ def _project_variant(
     if overlay:
         projected["overlay"] = overlay
     return projected
+
+
+def _merge_equivalent_variant_candidates(candidates: Iterable[Any]) -> dict[str, Any] | None:
+    projected = [candidate for candidate in candidates if isinstance(candidate, dict)]
+    if not projected:
+        return None
+    semantic_values = [
+        _canonical({key: value for key, value in candidate.items() if key != "sourceRefIds"})
+        for candidate in projected
+    ]
+    if any(value != semantic_values[0] for value in semantic_values[1:]):
+        return None
+    merged = dict(projected[0])
+    merged["sourceRefIds"] = _texts(
+        source
+        for candidate in projected
+        for source in candidate.get("sourceRefIds", [])
+    )
+    return _canonical(merged)
 
 
 def _normalized_option_type(value: Any) -> str:
@@ -883,8 +910,9 @@ def load_gear_authority_context(
             variant_candidates_by_key.setdefault(requested_variant_key, []).append(variant)
 
     for requested_variant_key, candidates in variant_candidates_by_key.items():
-        if len(candidates) == 1:
-            variants_by_key[requested_variant_key] = candidates[0]
+        merged = _merge_equivalent_variant_candidates(candidates)
+        if merged is not None:
+            variants_by_key[requested_variant_key] = merged
 
     options_by_id: dict[str, dict[str, Any]] = {}
     for row in option_rows:

@@ -25686,13 +25686,17 @@ def gear_resolver_runtime_authority(class_key, spec_key, *, simc_runtime_revisio
 
     allowed_weapons = {}
     dual_wield = {}
+    weapon_modes = {}
     for expected_spec in expected_spec_pairs():
         expected_class, expected_spec_key = expected_spec.split(":", 1)
         weapon_rule = weapon_equipment_rule_payload(expected_class, expected_spec_key)
         main_types = set(weapon_rule.get("mainHandTypes") or [])
         off_types = set(weapon_rule.get("offHandTypes") or [])
         allowed_weapons[expected_spec] = sorted(main_types | off_types)
-        dual_wield[expected_spec] = bool(off_types & DUAL_WIELDABLE_WEAPON_TYPES)
+        weapon_modes[expected_spec] = str(weapon_rule.get("mode") or "")
+        dual_wield[expected_spec] = bool(
+            off_types & DUAL_WIELDABLE_WEAPON_TYPES
+        ) or weapon_modes[expected_spec] == "dual_wield_2h"
 
     inventory_types = {
         slot: sorted(set(EQUIVALENT_GEAR_SLOTS.get(slot, [slot])))
@@ -25716,8 +25720,10 @@ def gear_resolver_runtime_authority(class_key, spec_key, *, simc_runtime_revisio
             "allowedArmorTypesByClass": {
                 key: [value] for key, value in sorted(CLASS_ARMOR_TYPES.items())
             },
+            "armorRestrictedSlots": sorted(ARMOR_SLOTS),
             "allowedWeaponTypesByClassSpec": allowed_weapons,
             "dualWieldByClassSpec": dual_wield,
+            "weaponModesByClassSpec": weapon_modes,
             "requiredSlots": list(CANONICAL_GEAR_SLOTS),
             "uniqueLimits": {},
             "uniqueGemLimits": {},

@@ -184,6 +184,18 @@ def _class_spec_armor_weapon(intent: dict[str, Any], authority: dict[str, Any]) 
     spec_key = eligibility["specKey"]
     params = authority["ruleParameters"]
     armor_by_class = params.get("allowedArmorTypesByClass", {})
+    raw_armor_restricted_slots = params.get("armorRestrictedSlots")
+    if not isinstance(raw_armor_restricted_slots, list):
+        return [
+            _problem(
+                "GEAR_ELIGIBILITY_",
+                "AUTHORITY_UNAVAILABLE",
+                "Armor-slot restriction parameters are unavailable.",
+                kind="AUTHORITY_UNAVAILABLE",
+                path="ruleParameters.armorRestrictedSlots",
+            )
+        ]
+    armor_restricted_slots = set(raw_armor_restricted_slots)
     weapon_by_spec = params.get("allowedWeaponTypesByClassSpec", {})
     for slot, _selection, item in _selected_items(intent, authority):
         if not isinstance(item, dict):
@@ -193,7 +205,11 @@ def _class_spec_armor_weapon(intent: dict[str, Any], authority: dict[str, Any]) 
         if spec_key not in item.get("allowedSpecKeys", []):
             problems.append(_problem("GEAR_ELIGIBILITY_", "SPEC_MISMATCH", "Item is not allowed for this specialization.", path=f"slots.{slot}.itemId"))
         armor_type = item.get("armorType")
-        if armor_type and armor_type not in armor_by_class.get(class_key, []):
+        if (
+            slot in armor_restricted_slots
+            and armor_type
+            and armor_type not in armor_by_class.get(class_key, [])
+        ):
             problems.append(_problem("GEAR_ELIGIBILITY_", "ARMOR_TYPE_MISMATCH", "Armor type is not allowed for this class.", path=f"slots.{slot}.itemId"))
         weapon_type = item.get("weaponType")
         if weapon_type and weapon_type not in weapon_by_spec.get(f"{class_key}:{spec_key}", []):
@@ -209,13 +225,30 @@ def _weapon_hand_configuration(intent: dict[str, Any], authority: dict[str, Any]
     items = authority["itemsById"]
     main_item = items.get(main_selection["itemId"]) if main_selection else None
     off_item = items.get(off_selection["itemId"]) if off_selection else None
+    eligibility = intent["eligibilityContext"]
+    spec = f"{eligibility['classKey']}:{eligibility['specKey']}"
+    weapon_modes = authority["ruleParameters"].get("weaponModesByClassSpec")
+    if not isinstance(weapon_modes, dict):
+        return [
+            _problem(
+                "GEAR_HAND_",
+                "AUTHORITY_UNAVAILABLE",
+                "Weapon-mode parameters are unavailable.",
+                kind="AUTHORITY_UNAVAILABLE",
+                path="ruleParameters.weaponModesByClassSpec",
+            )
+        ]
+    weapon_mode = weapon_modes.get(spec)
     if off_selection and not main_selection:
         problems.append(_problem("GEAR_HAND_", "OFFHAND_REQUIRES_MAIN_HAND", "Off-hand selection requires a main-hand item.", path="slots.off_hand"))
-    if isinstance(main_item, dict) and main_item.get("handedness") == "two_hand" and off_selection:
+    if (
+        isinstance(main_item, dict)
+        and main_item.get("handedness") == "two_hand"
+        and off_selection
+        and weapon_mode != "dual_wield_2h"
+    ):
         problems.append(_problem("GEAR_HAND_", "TWO_HAND_OFFHAND_CONFLICT", "A two-hand weapon cannot be combined with an off-hand item.", path="slots.off_hand"))
     if isinstance(off_item, dict) and off_item.get("inventoryType") == "weapon":
-        eligibility = intent["eligibilityContext"]
-        spec = f"{eligibility['classKey']}:{eligibility['specKey']}"
         dual_wield = authority["ruleParameters"].get("dualWieldByClassSpec", {}).get(spec)
         if dual_wield is not True:
             problems.append(_problem("GEAR_HAND_", "DUAL_WIELD_NOT_ALLOWED", "This class and specialization cannot dual-wield weapons.", path="slots.off_hand"))
@@ -409,8 +442,8 @@ def _cross_slot_set_aggregate(intent: dict[str, Any], authority: dict[str, Any])
 _RULES = (
     RuleDefinition("season_release_identity", RULE_MATRIX_REVISION, 10, "release,item,variant", ("seasonRevision", "gearCatalogRevision"), ("manifest", "dependencyVector", "itemsById", "variantsByKey"), "GEAR_RELEASE_", _season_release_identity),
     RuleDefinition("slot_inventory_type", RULE_MATRIX_REVISION, 20, "slot,item", ("inventoryTypesBySlot",), ("itemsById", "ruleParameters"), "GEAR_SLOT_", _slot_inventory_type),
-    RuleDefinition("class_spec_armor_weapon", RULE_MATRIX_REVISION, 30, "character,item", ("allowedArmorTypesByClass", "allowedWeaponTypesByClassSpec"), ("itemsById", "ruleParameters"), "GEAR_ELIGIBILITY_", _class_spec_armor_weapon),
-    RuleDefinition("weapon_hand_configuration", RULE_MATRIX_REVISION, 40, "main_hand,off_hand", ("dualWieldByClassSpec",), ("itemsById", "ruleParameters"), "GEAR_HAND_", _weapon_hand_configuration),
+    RuleDefinition("class_spec_armor_weapon", RULE_MATRIX_REVISION, 30, "character,item", ("allowedArmorTypesByClass", "armorRestrictedSlots", "allowedWeaponTypesByClassSpec"), ("itemsById", "ruleParameters"), "GEAR_ELIGIBILITY_", _class_spec_armor_weapon),
+    RuleDefinition("weapon_hand_configuration", RULE_MATRIX_REVISION, 40, "main_hand,off_hand", ("dualWieldByClassSpec", "weaponModesByClassSpec"), ("itemsById", "ruleParameters"), "GEAR_HAND_", _weapon_hand_configuration),
     RuleDefinition("unique_equipped", RULE_MATRIX_REVISION, 50, "whole_character", ("uniqueLimits",), ("itemsById", "ruleParameters"), "GEAR_UNIQUE_", _unique_equipped),
     RuleDefinition("socket_and_gem", RULE_MATRIX_REVISION, 60, "slot,sockets,whole_character", ("uniqueGemLimits",), ("itemsById", "optionsById", "ruleParameters"), "GEAR_GEM_", _socket_and_gem),
     RuleDefinition("enchant_and_runeforge", RULE_MATRIX_REVISION, 70, "slot,character", ("runeforgeAllowedClassSpecs",), ("itemsById", "optionsById", "ruleParameters"), "GEAR_ENCHANT_", _enchant_and_runeforge),

@@ -133,8 +133,10 @@ class GearRuleMatrixTest(unittest.TestCase):
                     "off_hand": ["weapon", "offhand"],
                 },
                 "allowedArmorTypesByClass": {"mage": ["cloth"]},
+                "armorRestrictedSlots": ["head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"],
                 "allowedWeaponTypesByClassSpec": {"mage:arcane": ["staff", "dagger", "sword"]},
                 "dualWieldByClassSpec": {"mage:arcane": False},
+                "weaponModesByClassSpec": {"mage:arcane": "caster_1h_or_staff"},
                 "uniqueLimits": {"unique-ring": 1},
                 "uniqueGemLimits": {"unique-gem": 1},
                 "runeforgeAllowedClassSpecs": [],
@@ -225,6 +227,97 @@ class GearRuleMatrixTest(unittest.TestCase):
         eligibility_rule = self.result_for(result, "class_spec_armor_weapon")
         self.assertEqual(eligibility_rule["status"], "blocked")
         self.assertTrue(all(problem["code"].startswith("GEAR_ELIGIBILITY_") for problem in eligibility_rule["problems"]))
+
+    def test_rule_matrix_fails_closed_when_new_slot_or_weapon_mode_authority_is_missing(self):
+        authority = self.authority()
+        authority["ruleParameters"].pop("armorRestrictedSlots")
+
+        result = gear_rule_matrix.evaluate_rule_matrix(self.intent(), authority)
+
+        armor_problem = self.result_for(result, "class_spec_armor_weapon")["problems"][0]
+        self.assertEqual(armor_problem["kind"], "AUTHORITY_UNAVAILABLE")
+        self.assertEqual(armor_problem["code"], "GEAR_ELIGIBILITY_AUTHORITY_UNAVAILABLE")
+
+        authority = self.authority()
+        authority["ruleParameters"].pop("weaponModesByClassSpec")
+        result = gear_rule_matrix.evaluate_rule_matrix(self.intent(), authority)
+        weapon_problem = self.result_for(result, "weapon_hand_configuration")["problems"][0]
+        self.assertEqual(weapon_problem["kind"], "AUTHORITY_UNAVAILABLE")
+        self.assertEqual(weapon_problem["code"], "GEAR_HAND_AUTHORITY_UNAVAILABLE")
+
+    def test_class_armor_restriction_does_not_apply_to_cloak_or_shield_slots(self):
+        authority = self.authority()
+        common = authority["itemsById"]["item-head"]
+        authority["itemsById"]["item-back"] = {
+            **common,
+            "itemId": "item-back",
+            "allowedSlots": ["back"],
+            "inventoryType": "back",
+            "armorType": "cloth",
+            "socketCount": 0,
+        }
+        authority["itemsById"]["item-shield"] = {
+            **common,
+            "itemId": "item-shield",
+            "allowedSlots": ["off_hand"],
+            "inventoryType": "offhand",
+            "armorType": "shield",
+            "weaponType": "shield",
+            "socketCount": 0,
+        }
+        authority["variantsByKey"].update(
+            {
+                "variant-back": {"itemId": "item-back"},
+                "variant-shield": {"itemId": "item-shield"},
+            }
+        )
+        authority["ruleParameters"]["inventoryTypesBySlot"]["back"] = ["back"]
+        authority["ruleParameters"]["allowedWeaponTypesByClassSpec"]["mage:arcane"].append("shield")
+
+        result = gear_rule_matrix.evaluate_rule_matrix(
+            self.intent(
+                {
+                    "back": self.slot("item-back", "variant-back"),
+                    "off_hand": self.slot("item-shield", "variant-shield"),
+                }
+            ),
+            authority,
+        )
+
+        self.assertEqual(self.result_for(result, "class_spec_armor_weapon")["problems"], [])
+
+    def test_weapon_hand_configuration_allows_authorized_two_hand_dual_wield(self):
+        authority = self.authority()
+        intent = self.intent(
+            {
+                "main_hand": self.slot("item-twohand", "variant-twohand"),
+                "off_hand": self.slot("item-off-twohand", "variant-off-twohand"),
+            }
+        )
+        intent["eligibilityContext"].update({"classKey": "warrior", "specKey": "fury"})
+        for item_id in ("item-twohand", "item-off-twohand"):
+            authority["itemsById"][item_id] = {
+                **authority["itemsById"]["item-twohand"],
+                "itemId": item_id,
+                "allowedSlots": ["main_hand", "off_hand"],
+                "allowedClassKeys": ["warrior"],
+                "allowedSpecKeys": ["fury"],
+                "weaponType": "two-handed sword",
+            }
+        authority["variantsByKey"].update(
+            {
+                "variant-twohand": {"itemId": "item-twohand"},
+                "variant-off-twohand": {"itemId": "item-off-twohand"},
+            }
+        )
+        authority["ruleParameters"]["allowedArmorTypesByClass"]["warrior"] = ["plate"]
+        authority["ruleParameters"]["allowedWeaponTypesByClassSpec"]["warrior:fury"] = ["two-handed sword"]
+        authority["ruleParameters"]["dualWieldByClassSpec"]["warrior:fury"] = True
+        authority["ruleParameters"]["weaponModesByClassSpec"]["warrior:fury"] = "dual_wield_2h"
+
+        result = gear_rule_matrix.evaluate_rule_matrix(intent, authority)
+
+        self.assertEqual(self.result_for(result, "weapon_hand_configuration")["problems"], [])
 
     def test_rule_matrix_blocks_two_hand_offhand_and_unique_limit_conflicts(self):
         intent = self.intent(
