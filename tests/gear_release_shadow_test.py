@@ -160,6 +160,71 @@ class GearReleaseShadowTest(unittest.TestCase):
             "compatibility-pg:old",
         )
 
+    def test_refresh_shadow_accepts_expected_formal_active_public_reader(self):
+        candidate = self.candidate_row()
+        store = FakeShadowStore(candidate)
+        store.get_gear_resolver_context = lambda _runtime: {
+            "formalActiveManifest": True,
+            "authoredAgainst": {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": "gear-release:sha256:target",
+            },
+        }
+        snapshot = self.snapshot(candidate["selectionIntent"], "sha256:candidate")
+        with patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_selection_intent",
+            return_value=(200, {"status": "resolved", "data": snapshot, "problems": []}),
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_candidate_selection_intent",
+            return_value=(200, {"status": "resolved", "data": snapshot, "problems": []}),
+        ):
+            result = gear_release_shadow.run_release_shadow(
+                store,
+                expected_specs=[("mage", "arcane")],
+                gear_release_id="gear-release:sha256:target",
+                community_release_id="community-release:sha256:target",
+                simc_runtime_revision="simc-r1",
+                compare_profiles=False,
+                expect_formal_active=True,
+            )
+
+        self.assertEqual(result["status"], "pass")
+        self.assertTrue(result["formalActiveManifest"])
+
+    def test_refresh_shadow_allows_explicit_degraded_empty_for_policy_gate(self):
+        candidate = self.candidate_row()
+        store = FakeShadowStore(candidate)
+        store.get_candidate_community_release = lambda gear_id, community_id: {
+            "gearRelease": {"releaseId": gear_id},
+            "communityRelease": {"releaseId": community_id, "validatedAgainstReleaseId": gear_id},
+            "rows": [{**candidate, "role": "rejected", "problems": [{"code": "COMMUNITY_SOURCE_STALE"}]}],
+            "winners": [],
+        }
+        store.get_gear_resolver_context = lambda _runtime: {
+            "formalActiveManifest": True,
+            "authoredAgainst": {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": "gear-release:sha256:target",
+            },
+        }
+        result = gear_release_shadow.run_release_shadow(
+            store,
+            expected_specs=[("mage", "arcane")],
+            gear_release_id="gear-release:sha256:target",
+            community_release_id="community-release:sha256:target",
+            simc_runtime_revision="simc-r1",
+            compare_profiles=False,
+            expect_formal_active=True,
+            allow_degraded_empty=True,
+        )
+
+        self.assertEqual(result["status"], "degraded")
+        self.assertEqual(result["report"]["emptySpecs"], [{"classKey": "mage", "specKey": "arcane"}])
+        self.assertEqual(result["specResults"][0]["status"], "degraded_empty")
+        self.assertEqual(result["blockers"], [])
+
     def test_internal_shadow_accepts_legacy_sealed_signature_only_after_live_semantic_parity(self):
         candidate = self.candidate_row()
         candidate["semanticGearSignature"] = "sha256:legacy-evidence-sensitive"

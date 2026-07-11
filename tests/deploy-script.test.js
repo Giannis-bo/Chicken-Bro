@@ -98,6 +98,29 @@ test('lighthouse deploy script enables PG-native sync timers in PG-only mode', (
   assert.doesNotMatch(script, /start --no-block wow-gear-observed-backfill\.service/)
 })
 
+test('gear release refresh timer is installed without deploy-triggered execution', () => {
+  const script = fs.readFileSync(scriptPath, 'utf8')
+  const service = fs.readFileSync('server/wow-gear-release-refresh.service', 'utf8')
+  const timer = fs.readFileSync('server/wow-gear-release-refresh.timer', 'utf8')
+
+  assert.match(service, /Environment=WOW_DATABASE_RUNTIME=postgres_only/)
+  assert.match(service, /flock -n \/run\/lock\/wow-gear-release-refresh\.lock/)
+  assert.match(service, /ReadWritePaths=\/run\/lock/)
+  assert.match(service, /ProtectHome=read-only/)
+  assert.doesNotMatch(service, /ProtectHome=true/)
+  assert.match(service, /python3 \/opt\/wow-mini-program\/server\/gear_release_refresh\.py --json/)
+  assert.doesNotMatch(service, /curl|wget|HTTPS_PROXY|HTTP_PROXY/)
+  assert.match(timer, /OnCalendar=\*-\*-\* 18:30:00/)
+  assert.match(timer, /RandomizedDelaySec=15min/)
+  assert.match(timer, /Persistent=true/)
+
+  assert.match(script, /wow-gear-release-refresh\.service/)
+  assert.match(script, /wow-gear-release-refresh\.timer/)
+  assert.match(script, /sudo systemctl enable wow-gear-release-refresh\.timer/)
+  assert.doesNotMatch(script, /enable --now wow-gear-release-refresh\.timer/)
+  assert.doesNotMatch(script, /systemctl start (?:--no-block )?wow-gear-release-refresh\.service/)
+})
+
 test('recommended bis guard sync has a daily readiness-only systemd timer', () => {
   const service = fs.readFileSync('server/wow-recommended-bis-guard-sync.service', 'utf8')
   const timer = fs.readFileSync('server/wow-recommended-bis-guard-sync.timer', 'utf8')

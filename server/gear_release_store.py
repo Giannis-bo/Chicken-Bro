@@ -833,6 +833,119 @@ class GearReleaseStore:
                 release = self._select_release(cur, normalized)
         return release or {}
 
+    def get_gear_release_row_hashes(self, release_id: str) -> dict[str, dict[str, str]]:
+        """Read only immutable identity/hash pairs for additive risk classification."""
+
+        normalized = _text(release_id)
+        if not normalized:
+            raise GearReleaseIntegrityError("Gear Release ID is required")
+        queries = (
+            ("items", "SELECT item_id, row_hash FROM cache.websim_gear_release_items WHERE release_id = %s"),
+            ("sources", "SELECT source_id, row_hash FROM cache.websim_gear_release_sources WHERE release_id = %s"),
+            ("variants", "SELECT variant_id, row_hash FROM cache.websim_gear_release_variants WHERE release_id = %s"),
+            ("options", "SELECT option_id, row_hash FROM cache.websim_gear_release_mod_options WHERE release_id = %s"),
+        )
+        result: dict[str, dict[str, str]] = {}
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION READ ONLY")
+                for category, statement in queries:
+                    cur.execute(statement, (normalized,))
+                    result[category] = {
+                        _text(identity): _text(row_hash)
+                        for identity, row_hash in cur.fetchall()
+                        if _text(identity) and _text(row_hash)
+                    }
+        return result
+
+    def record_refresh_event(
+        self,
+        event_type: str,
+        event: dict[str, Any],
+        *,
+        release_id: str = "",
+        manifest_revision: str = "",
+    ) -> None:
+        normalized_type = _text(event_type)
+        if normalized_type not in {
+            "gear_release_refresh_started",
+            "gear_release_refresh_completed",
+            "gear_release_refresh_failed",
+            "gear_release_refresh_lease_conflict",
+        }:
+            raise GearReleaseIntegrityError("unsupported release refresh event type")
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                self._insert_event(
+                    cur,
+                    release_id=_text(release_id),
+                    manifest_revision=_text(manifest_revision),
+                    event_type=normalized_type,
+                    event=_canonical(event if isinstance(event, dict) else {}),
+                )
+
+    def latest_refresh_state(self) -> dict[str, Any]:
+        """Expose one bounded latest-run projection without raw operator data."""
+
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION READ ONLY")
+                cur.execute(
+                    """
+                    SELECT event_type, event_json, created_at, release_id, manifest_revision
+                    FROM cache.websim_release_events
+                    WHERE event_type LIKE 'gear_release_refresh_%'
+                    ORDER BY created_at DESC, event_id DESC
+                    LIMIT 1
+                    """
+                )
+                row = cur.fetchone()
+        if not row:
+            return {}
+        event_type, payload, created_at, release_id, manifest_revision = row
+        payload = payload if isinstance(payload, dict) else {}
+        gear_change = payload.get("gearChange") if isinstance(payload.get("gearChange"), dict) else {}
+        seal_status = payload.get("sealStatus") if isinstance(payload.get("sealStatus"), dict) else {}
+        shadow_performance = (
+            payload.get("shadowPerformance")
+            if isinstance(payload.get("shadowPerformance"), dict)
+            else {}
+        )
+        return {
+            "eventType": _text(event_type),
+            "status": _text(payload.get("status")),
+            "checkedAt": _text(created_at),
+            "gearReleaseId": _text(payload.get("gearReleaseId")),
+            "communityReleaseId": _text(payload.get("communityReleaseId") or release_id),
+            "manifestRevision": _text(payload.get("manifestRevision") or manifest_revision),
+            "riskClass": _text(payload.get("riskClass")),
+            "decision": _text(payload.get("decision")),
+            "blockerCodes": [
+                _text(code)
+                for code in (payload.get("blockerCodes") or [])[:16]
+                if _text(code)
+            ],
+            "counts": _canonical(payload.get("counts") if isinstance(payload.get("counts"), dict) else {}),
+            "gearChange": _canonical({
+                change_kind: {
+                    category: _int((gear_change.get(change_kind) or {}).get(category))
+                    for category in ("items", "sources", "variants", "options")
+                }
+                for change_kind in ("addedCounts", "changedCounts", "removedCounts")
+            }),
+            "sealStatus": {
+                "gear": _text(seal_status.get("gear")),
+                "community": _text(seal_status.get("community")),
+            },
+            "shadowStatus": _text(payload.get("shadowStatus")),
+            "shadowSpecCount": _int(payload.get("shadowSpecCount")),
+            "shadowPerformance": {
+                key: value
+                for key in ("specP95Ms", "specMaxMs", "totalDurationMs")
+                if isinstance((value := shadow_performance.get(key)), (int, float))
+            },
+        }
+
     def load_candidate_authority_context(
         self,
         selection_intent: dict[str, Any],

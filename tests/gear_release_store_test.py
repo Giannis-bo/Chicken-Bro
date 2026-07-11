@@ -372,6 +372,72 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(rows[0]["gearItems"][0]["variantKey"], "variant-a")
         self.assertEqual(rows[0]["payload"]["profileHash"], "profile:a")
 
+    def test_release_refresh_reads_only_identity_hashes_for_additive_classification(self):
+        from server.gear_release_store import GearReleaseStore
+
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_gear_release_items": [("item-a", "hash-item")],
+            "FROM cache.websim_gear_release_sources": [("source-a", "hash-source")],
+            "FROM cache.websim_gear_release_variants": [("variant-a", "hash-variant")],
+            "FROM cache.websim_gear_release_mod_options": [("option-a", "hash-option")],
+        })
+        result = GearReleaseStore(lambda: conn).get_gear_release_row_hashes("gear-release:a")
+        sql = "\n".join(conn.cursor_instance.statements)
+
+        self.assertEqual(result, {
+            "items": {"item-a": "hash-item"},
+            "sources": {"source-a": "hash-source"},
+            "variants": {"variant-a": "hash-variant"},
+            "options": {"option-a": "hash-option"},
+        })
+        self.assertIn("SET TRANSACTION READ ONLY", sql)
+        self.assertNotIn("payload_json", sql)
+        self.assertNotIn("UPDATE ", sql)
+
+    def test_release_refresh_events_are_append_only_and_latest_state_is_bounded(self):
+        from server.gear_release_store import GearReleaseStore
+
+        write_conn = FakeConnection()
+        store = GearReleaseStore(lambda: write_conn)
+        store.record_refresh_event(
+            "gear_release_refresh_completed",
+            {"status": "blocked", "blockerCodes": ["FULL_MATRIX_REQUIRED"]},
+            release_id="community-release:a",
+            manifest_revision="season-manifest:a",
+        )
+        write_sql = "\n".join(write_conn.cursor_instance.statements)
+        self.assertIn("INSERT INTO cache.websim_release_events", write_sql)
+        self.assertNotIn("UPDATE cache.websim_release_events", write_sql)
+
+        read_conn = FakeConnection(rowsets={
+            "FROM cache.websim_release_events": [(
+                "gear_release_refresh_completed",
+                {
+                    "status": "blocked",
+                    "blockerCodes": ["FULL_MATRIX_REQUIRED"],
+                    "gearChange": {"addedCounts": {"items": 2}},
+                    "sealStatus": {"gear": "inserted", "community": "inserted"},
+                    "shadowStatus": "pass",
+                    "shadowSpecCount": 40,
+                    "shadowPerformance": {"specP95Ms": 123.4},
+                    "raw": "not returned",
+                },
+                "2026-07-11T12:00:00+00:00",
+                "community-release:a",
+                "season-manifest:a",
+            )]
+        })
+        latest = GearReleaseStore(lambda: read_conn).latest_refresh_state()
+        self.assertEqual(latest["status"], "blocked")
+        self.assertEqual(latest["eventType"], "gear_release_refresh_completed")
+        self.assertEqual(latest["blockerCodes"], ["FULL_MATRIX_REQUIRED"])
+        self.assertEqual(latest["gearChange"]["addedCounts"]["items"], 2)
+        self.assertEqual(latest["sealStatus"]["gear"], "inserted")
+        self.assertEqual(latest["shadowStatus"], "pass")
+        self.assertEqual(latest["shadowSpecCount"], 40)
+        self.assertEqual(latest["shadowPerformance"]["specP95Ms"], 123.4)
+        self.assertNotIn("raw", latest)
+
     def test_seal_gear_release_inserts_registry_rows_and_append_only_event(self):
         from server.gear_release_store import GearReleaseStore
 

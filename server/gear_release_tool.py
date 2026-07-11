@@ -174,12 +174,13 @@ def selection_intent_from_template(
     }
 
 
-def build_legacy_gear_release(
+def prepare_staging_gear_release(
     store: GearReleaseStore,
     *,
     season_revision: str,
     dependency_revisions: dict[str, Any],
     source_revision: str = "legacy-import-r0",
+    parent_release_id: str = "",
 ) -> dict[str, Any]:
     snapshot = store.snapshot_staging_gear()
     problems = validate_gear_snapshot(snapshot)
@@ -194,8 +195,28 @@ def build_legacy_gear_release(
         dependency_revisions=dependency_revisions,
         release_status="validated",
         source={"sourceRevision": source_revision, "stagingSnapshotHash": summary["snapshotHash"]},
+        parent_release_id=parent_release_id,
     )
     gate = {"status": "validated", **summary}
+    return {"release": release, "snapshot": snapshot, "gate": gate}
+
+
+def build_legacy_gear_release(
+    store: GearReleaseStore,
+    *,
+    season_revision: str,
+    dependency_revisions: dict[str, Any],
+    source_revision: str = "legacy-import-r0",
+) -> dict[str, Any]:
+    prepared = prepare_staging_gear_release(
+        store,
+        season_revision=season_revision,
+        dependency_revisions=dependency_revisions,
+        source_revision=source_revision,
+    )
+    release = prepared["release"]
+    snapshot = prepared["snapshot"]
+    gate = prepared["gate"]
     seal = store.seal_gear_release(
         release,
         snapshot,
@@ -298,7 +319,7 @@ def _release_rows_from_election(
     return sorted(rows, key=lambda row: (row["classKey"], row["specKey"], row["role"], row["electionRank"], row["templateId"]))
 
 
-def build_legacy_community_release(
+def prepare_staging_community_release(
     store: GearReleaseStore,
     *,
     gear_release_descriptor: dict[str, Any],
@@ -308,6 +329,7 @@ def build_legacy_community_release(
     now: str,
     level: int = 90,
     source_revision: str = "legacy-import-r0",
+    parent_release_id: str = "",
     resolver_for_spec: Callable[[str, str, dict[str, Any]], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     expected = sorted({
@@ -381,6 +403,7 @@ def build_legacy_community_release(
             "validatedAgainstGearReleaseId": gear_release_descriptor["releaseId"],
             "stagingTemplateCount": len(templates),
         },
+        parent_release_id=parent_release_id,
         validated_against_release_id=gear_release_descriptor["releaseId"],
     )
     gate = {
@@ -392,6 +415,36 @@ def build_legacy_community_release(
         "missingSpecs": election.get("missingSpecs") or [],
         **summary,
     }
+    return {"release": release, "rows": rows, "election": election, "gate": gate}
+
+
+def build_legacy_community_release(
+    store: GearReleaseStore,
+    *,
+    gear_release_descriptor: dict[str, Any],
+    gear_snapshot: dict[str, Any],
+    dependency_revisions: dict[str, Any],
+    expected_specs: Iterable[tuple[str, str]],
+    now: str,
+    level: int = 90,
+    source_revision: str = "legacy-import-r0",
+    resolver_for_spec: Callable[[str, str, dict[str, Any]], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    prepared = prepare_staging_community_release(
+        store,
+        gear_release_descriptor=gear_release_descriptor,
+        gear_snapshot=gear_snapshot,
+        dependency_revisions=dependency_revisions,
+        expected_specs=expected_specs,
+        now=now,
+        level=level,
+        source_revision=source_revision,
+        resolver_for_spec=resolver_for_spec,
+    )
+    release = prepared["release"]
+    rows = prepared["rows"]
+    election = prepared["election"]
+    gate = prepared["gate"]
     seal = store.seal_community_release(
         release,
         rows,

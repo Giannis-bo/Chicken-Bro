@@ -457,6 +457,8 @@ sudo cp "${REMOTE_DIR}/server/wow-community-template-sync.service" "/etc/systemd
 sudo cp "${REMOTE_DIR}/server/wow-community-template-sync.timer" "/etc/systemd/system/wow-community-template-sync.timer"
 sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.service" "/etc/systemd/system/wow-gear-observed-backfill.service"
 sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.timer" "/etc/systemd/system/wow-gear-observed-backfill.timer"
+sudo cp "${REMOTE_DIR}/server/wow-gear-release-refresh.service" "/etc/systemd/system/wow-gear-release-refresh.service"
+sudo cp "${REMOTE_DIR}/server/wow-gear-release-refresh.timer" "/etc/systemd/system/wow-gear-release-refresh.timer"
 sudo cp "${REMOTE_DIR}/server/wow-season-recommended-gear-sync.service" "/etc/systemd/system/wow-season-recommended-gear-sync.service"
 sudo cp "${REMOTE_DIR}/server/wow-season-recommended-gear-sync.timer" "/etc/systemd/system/wow-season-recommended-gear-sync.timer"
 sudo cp "${REMOTE_DIR}/server/wow-community-best-guard-sync.service" "/etc/systemd/system/wow-community-best-guard-sync.service"
@@ -531,6 +533,8 @@ sudo systemctl enable --now wow-stat-weights-sync.timer
 sudo systemctl reset-failed wow-community-template-sync.service >/dev/null 2>&1 || true
 sudo systemctl enable --now wow-community-template-sync.timer
 sudo systemctl reset-failed wow-gear-observed-backfill.service >/dev/null 2>&1 || true
+sudo systemctl reset-failed wow-gear-release-refresh.service >/dev/null 2>&1 || true
+sudo systemctl enable wow-gear-release-refresh.timer
 sudo systemctl reset-failed wow-season-recommended-gear-sync.service >/dev/null 2>&1 || true
 sudo systemctl enable --now wow-season-recommended-gear-sync.timer
 sudo systemctl reset-failed wow-community-best-guard-sync.service >/dev/null 2>&1 || true
@@ -541,7 +545,7 @@ sudo systemctl reset-failed wow-recommended-bis-prototype-sync.service >/dev/nul
 sudo systemctl reset-failed wow-data-health-followup.service >/dev/null 2>&1 || true
 sudo systemctl enable --now wow-data-health-followup.timer
 sudo systemctl reset-failed wow-simc-runtime-update.service >/dev/null 2>&1 || true
-echo "PG-native sync timers enabled; observed gear backfill unit installed but not auto-enabled by deploy."
+echo "PG-native sync timers enabled; gear release refresh timer enabled but not started; observed gear backfill unit installed but not auto-enabled by deploy."
 sudo systemctl enable --now "${SERVICE_NAME}"
 sudo systemctl restart "${SERVICE_NAME}"
 sudo systemctl restart nginx

@@ -2131,6 +2131,7 @@ ADMIN_GATE_SEVERITY_LABELS = {
 ADMIN_GATE_MODULE_LABELS = {
     "backend": "后端服务",
     "active_manifest": "正式赛季 Manifest",
+    "gear_release_refresh": "装备 Release 定时刷新",
     "news": "新闻发布门禁",
     "raiderio": "Raider.IO 缓存",
     "websim_season": "WebSim 当前赛季",
@@ -2969,6 +2970,37 @@ def active_manifest_health_component(cache_store):
     )
 
 
+def release_refresh_health_component(cache_store):
+    reader = getattr(cache_store, "release_refresh_health", None) if cache_store else None
+    if callable(reader):
+        try:
+            state = reader()
+        except Exception:
+            state = {}
+    else:
+        state = {}
+    state = state if isinstance(state, dict) else {}
+    details = state.get("details") if isinstance(state.get("details"), dict) else {}
+    blockers = state.get("blockers") if isinstance(state.get("blockers"), list) else []
+    if not state:
+        details = {
+            "lastStatus": "unavailable",
+            "timer": {
+                "unit": "wow-gear-release-refresh.timer",
+                "deployStartsService": False,
+            },
+        }
+        blockers = ["gear release refresh health reader is unavailable"]
+    return data_health_component(
+        "gear_release_refresh",
+        "Immutable gear release refresh",
+        state.get("status") or "blocked",
+        checked_at=details.get("lastRunAt") or "",
+        details=details,
+        blockers=blockers,
+    )
+
+
 def build_postgres_only_data_health_payload(*, include_template_evidence_audit=True):
     content_store = content_data_store()
     cache_store = cache_data_store()
@@ -3066,6 +3098,7 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
     components = [
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
         active_manifest_health_component(cache_store),
+        release_refresh_health_component(cache_store),
         news_health_component_from_latest(latest),
         data_health_component(
             "raiderio",

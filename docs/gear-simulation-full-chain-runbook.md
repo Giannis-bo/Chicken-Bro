@@ -57,7 +57,7 @@
 ## Phase 4 Release Train 与 Community Migration 边界
 
 - Phase 4 按 4A pure release contracts、4B immutable PG registry + `legacy-import-r0`、4C shadow readers、4D atomic Active Manifest cutover、4E scheduled candidate refresh 五个 Strict Slice 推进；不得把 migration、reader、pointer cutover 与 timer 混成一个不可回滚 PR。
-- 当前 `cache.websim_items`、gear source/variant/mod option 和 community template 表继续是 mutable staging。Phase 4B 已创建独立 immutable release-scoped 表并封存 inactive Gear/Community Releases，但 public reader 仍为 `compatibility-pg-live-v1`、`formalActiveManifest=false`，Manifest/Pointer 都是 0；不能把 inactive registry 写成已 cutover 能力。
+- 当前 `cache.websim_items`、gear source/variant/mod option 和 community template 表继续是 mutable staging。Phase 4D 已把 public reader 切到正式 active Manifest generation 9，精确绑定一个 immutable Gear Release 与 Community Release；staging 仍只供 sync 和后续 candidate build 使用，不得绕过 Release/Manifest pointer 进入正式读取。
 - 不可变 Gear/Community Release 必须以 canonical content hash 生成 release ID；sealed content 不 update/delete。Active Retail Season Manifest 原子绑定 Gear Release、可空 Community Release 与 Dependency Revisions；promotion/rollback 只 compare-and-swap 一个 pointer，不逐表回写。
 - 第一轮 Community Release 标记 `legacy-import-r0`，但每个模板必须重新生成 exact Selection Intent，并对目标 Gear Release 运行 current Resolver。legacy 只表示来源，不能 grandfather 合法性、freshness、source evidence 或 signature。
 - 每专精选举最多一个 public winner；合法低排名项仅为 internal standby，非法/stale/source-invalid/binding mismatch 为 rejected。缺合法 winner 时该 spec 公开为空并标 degraded，禁止用 `season_recommendation`、default、SimC preset 或 baseline 补齐。
@@ -65,7 +65,8 @@
 - Existing sync 只写 staging；Phase 4E release refresh 必须 candidate-first。相同 Gear Release 的 community winner 更新在完整 gate 后可自动发布；新赛季、rule、serializer、schema、capability 和高风险 gear 变化必须 controlled cutover。deploy 继续 `WOW_DEPLOY_START_ASYNC_SYNCS=0`，不得触发 refresh。
 - 2026-07-11 Slice 4A live acceptance：PR #71 exact head `69ece3d` 通过 GitHub Harness 并 squash 合入 `e8bfda9`，PR/merge tree 同为 `98167bbd`。`server/gear_release.py` 只拥有 pure Release/Manifest identity、observed election、shadow、promotion 与 pointer-command contract；22 focused、86 related、backend 1213、full 386 Node + 1213 Python / 130 commands 通过。candidate 与 clean-merge-equivalent 远端 hash 同为 `c135530...1a2401d`，remote 22/22、40/40 public、Resolve/Profile/health/Catalyst/timer/log 通过；没有 schema/write/reader/pointer/timer，`formalActiveManifest=false`。
 - 2026-07-11 Slice 4B live acceptance：PR #73 evidence head `4fe300e` 通过 GitHub Harness 并 squash 合入 `48aa44e`，PR/merge tree 同为 `54d43c54`。migration 0013、`server/gear_release_store.py` 与显式 tool 只拥有 immutable registry/inactive import；PG 管理员以单事务应用 migration，备份位于 `/opt/wow-mini-program-candidate-backups/phase4b-pre-2be5938-20260711T065905Z`。inactive Gear Release `342e3918...` 与 Community Release `923ccd05...` 已封存，40 winners / 319 rejected / 0 missing，40/40 winner ID/public observed parity；Manifest/Pointer 都是 0。focused 129、full 386 Node + 1235 Python / 130 commands、candidate/post-merge Resolve/Profile/health/Catalyst/timer/log 通过。一次性 import 为 73.29s / 1,598,864 KiB 峰值，只能作为 operator evidence，不能当成 4E scheduled budget。
-- 详细 schema、任务、验证、candidate/rollback 门禁见 `docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md`；Slice 4C 已由 PR #75 合入并完成 40-spec bounded shadow。当前只授权 Slice 4D atomic formal Manifest cutover、release-scoped public readers、monotonic pointer CAS 与显式首切回滚；不能增加 scheduled refresh、提前做 Phase 5 或启用 Catalyst。
+- 2026-07-11 Slice 4D live acceptance：PR #77 final evidence head `58cae95` 的 full profile 为 387 Node + 1276 Python（1 skipped）/ 130 commands，Strict Harness 与 GitHub `verify` 通过，并 squash 合入 `a8c8d02`。migration 0014、formal Manifest、release-scoped browse/Resolve/Profile、active/transitional monotonic CAS 与 fail-closed 503 已生效；候选指针演练到 final active generation 9，真实微信一次确认只产生一次 409 + 一次 200 retry，40/40 formal browse/Resolve、11 resolved Profile + 29 truthful blocked、负向矩阵、runtime parity、service/timer/log 与 clean-main smoke 均通过。当前只授权 Slice 4E candidate-first scheduled refresh、风险分级 promotion、单实例运行与 bounded health/admin；不能提前做 Phase 5 或启用 Catalyst。
+- 详细 schema、任务、验证、candidate/rollback 门禁见 `docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md`；Slice 4E 必须新开 Strict packet，timer 只消费 staging、不做外部下载。deploy 可安装并 enable timer，但不得启动 refresh service；相同 Gear 的 Community 变化与完整兼容的低风险 additive Gear 才可能自动 promotion，其他风险类型必须 controlled cutover。
 
 ### Slice 4D 原子首切与回滚操作
 
@@ -98,6 +99,32 @@ python3 -m server.gear_release_tool rollback \
 重新 promote 使用同一个已封存 Manifest 内容重新构建相同 revision，并以当前 generation 2 CAS 到 generation 3。若以后已有旧 formal Manifest，可用 `rollback --target-mode active --manifest-revision ...` 做 active-to-active rollback；仍必须提供当前 generation，且 FK/Manifest 校验失败时不得降级 staging。
 
 每次状态变化后都要核对 pointer 单行、generation、Manifest/Release IDs、`/api/data/health` 的 `active_manifest` component、admin summary、40-spec initial browse/Resolve/Profile、observed-only + baseline-empty、未知 Catalyst 503、一次旧 Intent 409 rebase、service/timer/backflow/log。formal active 中任何 pointer、Manifest、Release 或 runtime dependency 损坏都必须 503；只有 zero-row pre-cutover 和显式 transitional rollback 允许 staging reader。代码回滚不能删除已创建的 pointer 行；若退回不认识 0014 的代码，必须先按记录的 generation 切到 transitional，并使用候选前备份作为最后的数据恢复路径。
+
+### Slice 4E candidate-first 定时刷新操作
+
+`server/gear_release_refresh.py` 只读取现有 PostgreSQL staging，不执行任何外部下载或 sync。每次运行先用 systemd `flock -n` 与 PostgreSQL session advisory lock 防止重入，再记录 bounded started event；随后 snapshot staging、创建或复用 immutable Gear/Community candidates、执行 active/candidate shadow 和 40-spec Resolve/Profile/browse gate，最后才允许 Manifest pointer CAS。blocked、manual-required、failed 或 lease-conflict 都不得移动 active pointer。
+
+部署脚本只复制 service/timer、`reset-failed` 并执行 `systemctl enable wow-gear-release-refresh.timer`；禁止 `enable --now` 或启动 refresh service。candidate/clean-main controlled run 必须由 operator 显式触发：
+
+```bash
+sudo systemctl start wow-gear-release-refresh.service
+sudo systemctl show wow-gear-release-refresh.service \
+  -p Result -p ExecMainStatus -p MemoryPeak -p ActiveEnterTimestamp -p InactiveEnterTimestamp
+sudo journalctl -u wow-gear-release-refresh.service --since "10 minutes ago" --no-pager
+```
+
+确认 controlled run 后才显式启动 timer；`Persistent=true`，日程为 `18:30`、随机延迟 15 分钟，下一次触发时间以 systemd 为事实源：
+
+```bash
+sudo systemctl start wow-gear-release-refresh.timer
+systemctl list-timers wow-gear-release-refresh.timer --all --no-pager
+```
+
+验收必须同时读取 `cache.websim_release_events` 最新 `gear_release_refresh_*` event、pointer generation、candidate/active Release 与 Manifest IDs、`/api/data/health` 的 `active_manifest` 和 `gear_release_refresh` components、admin summary、40-spec public/Resolve/Profile、legacy Profile/stats、未知 Catalyst 503、service memory/time、timer next/last、sync/backflow 和错误日志。event/health 只暴露 bounded code/count/identity，不暴露 SQL、DSN、traceback 或无界 evidence。
+
+风险分级固定如下：相同 Gear 的 Community 变化在完整 gate 通过后可自动 promotion；Gear candidate 只有保留每个 active identity 与 row hash、且只新增 identity 时才是 low-risk additive；任何 mutation/removal、new season、rule、serializer、schema、capability、SimC/stat policy 变化都必须 manual controlled cutover。active winner 缺失默认是 coverage regression；只有该 winner 在 candidate 中带明确 stale/blocked/illegal/profile-not-ready 终止性证据时，才允许该 spec 公开为空并标 degraded，仍禁止 baseline 补位。
+
+回滚顺序：先 `systemctl stop/disable wow-gear-release-refresh.timer` 阻断后续运行；若本次没有 auto promotion，active pointer 本来就不应变化，保留 candidate/events 作审计即可。若已安全 auto promotion，使用当前 generation 和运行前 Manifest revision 执行 active-to-active CAS rollback，再验证 40-spec 与 health；禁止更新/删除 sealed candidates、Manifest 或 events。代码回滚不能替代 pointer rollback，数据库 dump 仍只作最后恢复路径。
 
 ## 当前公开装备模板事实快照
 
