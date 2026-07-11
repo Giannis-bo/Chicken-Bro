@@ -15,6 +15,7 @@ RUNTIME_RECONCILE_PRIVILEGES = ROOT / "server" / "migrations" / "postgres" / "00
 ADMIN_GATE_DIAGNOSTICS = ROOT / "server" / "migrations" / "postgres" / "0010_admin_gate_diagnostics.sql"
 WEBSIM_GEAR_TEMPLATE_CACHE = ROOT / "server" / "migrations" / "postgres" / "0011_websim_gear_template_cache.sql"
 WEBSIM_ASSET_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0012_websim_asset_registry.sql"
+WEBSIM_RELEASE_TRAIN = ROOT / "server" / "migrations" / "postgres" / "0013_websim_release_train.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -290,3 +291,49 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("CREATE INDEX IF NOT EXISTS idx_cache_websim_asset_registry_entity", normalized)
         self.assertIn("GRANT SELECT, INSERT, UPDATE, DELETE ON cache.websim_asset_registry TO wow_app", normalized)
         self.assertIn("0012_websim_asset_registry", normalized)
+
+    def test_websim_release_train_migration_adds_immutable_release_registry(self):
+        self.assertTrue(WEBSIM_RELEASE_TRAIN.exists(), "missing WebSim release train migration")
+        normalized = " ".join(WEBSIM_RELEASE_TRAIN.read_text(encoding="utf-8").split())
+        for table in (
+            "cache.websim_release_registry",
+            "cache.websim_gear_release_items",
+            "cache.websim_gear_release_sources",
+            "cache.websim_gear_release_variants",
+            "cache.websim_gear_release_mod_options",
+            "cache.websim_community_release_templates",
+            "cache.websim_season_manifests",
+            "cache.websim_active_manifest_pointer",
+            "cache.websim_release_events",
+        ):
+            self.assertIn(f"CREATE TABLE IF NOT EXISTS {table}", normalized)
+        self.assertIn("CHECK (release_kind IN ('gear', 'community'))", normalized)
+        self.assertIn("CHECK (release_status IN ('validated', 'degraded', 'blocked'))", normalized)
+        self.assertIn("PRIMARY KEY (release_id, item_id)", normalized)
+        self.assertIn("UNIQUE (release_id, item_id, variant_key)", normalized)
+        self.assertIn("UNIQUE (release_id, option_key)", normalized)
+        self.assertIn("CHECK (role IN ('winner', 'standby', 'rejected'))", normalized)
+        self.assertIn(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_cache_websim_community_release_one_winner ON cache.websim_community_release_templates (release_id, class_key, spec_key) WHERE role = 'winner'",
+            normalized,
+        )
+        self.assertIn("CHECK (environment = 'retail')", normalized)
+        self.assertIn("generation bigint NOT NULL", normalized)
+        self.assertIn("CREATE OR REPLACE FUNCTION cache.reject_websim_release_mutation", normalized)
+        for table in (
+            "websim_release_registry",
+            "websim_gear_release_items",
+            "websim_gear_release_sources",
+            "websim_gear_release_variants",
+            "websim_gear_release_mod_options",
+            "websim_community_release_templates",
+            "websim_season_manifests",
+            "websim_release_events",
+        ):
+            self.assertIn(f"BEFORE UPDATE OR DELETE ON cache.{table}", normalized)
+        self.assertIn("REVOKE UPDATE, DELETE ON cache.websim_release_registry,", normalized)
+        self.assertIn("cache.websim_release_events FROM wow_app", normalized)
+        self.assertIn("GRANT SELECT, INSERT ON cache.websim_release_registry,", normalized)
+        self.assertIn("cache.websim_release_events TO wow_app", normalized)
+        self.assertIn("GRANT SELECT, INSERT, UPDATE ON cache.websim_active_manifest_pointer TO wow_app", normalized)
+        self.assertIn("0013_websim_release_train", normalized)

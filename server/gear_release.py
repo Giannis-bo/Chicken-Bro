@@ -202,6 +202,12 @@ def _release_integrity_issues(release: Any, path: str) -> list[dict[str, str]]:
     return issues
 
 
+def validate_release(release: Any) -> list[dict[str, str]]:
+    """Validate one detached hash-addressed release descriptor."""
+
+    return _release_integrity_issues(release, "release")
+
+
 def _manifest_identity_payload(manifest: dict[str, Any]) -> dict[str, Any]:
     return {
         "schemaRevision": manifest.get("schemaRevision"),
@@ -435,6 +441,16 @@ def _resolver_result_issues(result: Any, gear_release_id: str) -> list[dict[str,
 
 
 def _elected_row(candidate: dict[str, Any], intent: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+    semantic_signature = "sha256:" + hashlib.sha256(
+        _canonical_bytes({
+            "eligibilityContext": result.get("eligibilityContext") or intent.get("eligibilityContext") or {},
+            "resolvedSlots": result.get("resolvedSlots") or {},
+            "staticAttributes": result.get("staticAttributes") or {},
+            "setState": result.get("setState") or {},
+            "constraints": result.get("constraints") or {},
+            "serializerInput": result.get("serializerInput") or {},
+        })
+    ).hexdigest()
     return {
         "candidateId": _text(candidate.get("id")),
         "classKey": _text(candidate.get("classKey")),
@@ -451,6 +467,7 @@ def _elected_row(candidate: dict[str, Any], intent: dict[str, Any], result: dict
         "expiresAt": _text(candidate.get("expiresAt")),
         "selectionIntent": _canonical(intent),
         "resolvedGearSignature": _text(result.get("resolvedGearSignature")),
+        "semanticGearSignature": semantic_signature,
         "dependencyVector": _canonical(result.get("dependencyVector") or {}),
         "aggregateLegality": _canonical(result.get("aggregateLegality") or {}),
         "profileReadiness": _canonical(result.get("profileReadiness") or {}),
@@ -749,5 +766,6 @@ __all__ = [
     "decide_promotion",
     "elect_community_candidates",
     "validate_capability_proof",
+    "validate_release",
     "validate_manifest",
 ]
