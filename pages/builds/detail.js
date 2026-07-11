@@ -4796,6 +4796,7 @@ Page({
     this.gearStatsRequestKey = ''
     const nextState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
       ...this.data,
+      gearPayload: fullGearPayloadForPage(this),
       gearStatSnapshot: snapshot
     })
     this.setData({
@@ -4844,6 +4845,7 @@ Page({
       const problemMessages = (statState.statProblems || []).map((problem) => cleanGearString(problem && (problem.title || problem.code))).filter(Boolean)
       const nextState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
         ...this.data,
+        gearPayload: fullGearPayloadForPage(this),
         gearStatSnapshot: snapshot
       })
       if (this.gearWorkbenchState) {
@@ -5134,6 +5136,7 @@ Page({
     const enhancementBySlot = {}
     const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
       ...this.data,
+      gearPayload,
       selectedGearBySlot,
       enhancementBySlot
     })
@@ -5172,6 +5175,7 @@ Page({
     const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, template.savedEnhancementBySlot || {})
     const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
       ...this.data,
+      gearPayload,
       selectedGearBySlot,
       enhancementBySlot
     })
@@ -5214,6 +5218,7 @@ Page({
       )
       const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
         ...this.data,
+        gearPayload,
         selectedGearBySlot,
         enhancementBySlot
       })
@@ -5342,6 +5347,7 @@ Page({
     }, { page: 'pages/builds/detail' })
     const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
       ...this.data,
+      gearPayload,
       selectedGearBySlot,
       enhancementBySlot
     })

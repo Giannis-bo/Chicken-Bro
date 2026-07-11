@@ -4,8 +4,8 @@
   "requirementSlug": "equipment-simulator-phase5c-frontend-cutover",
   "status": "deployable",
   "highestEvidenceLevel": "deployable",
-  "branch": "codex/equipment-simulator-phase5c-frontend-cutover",
-  "commit": "39aa99314d74a3c734535338252527f3585cd93e",
+  "branch": "codex/equipment-simulator-phase5c-postmerge-fix",
+  "commit": "fdddee5d0d655e1ca0a77670d6adfdaf5faf9a23",
   "scope": [
     "structured_async_frontend_client",
     "bounded_race_safe_polling_state",
@@ -51,18 +51,33 @@
       "command": "live backend, public contract, health, timer and log smoke",
       "status": "pass",
       "summary": "A real canonical async request returned 202 then 200 verified; gear_stat_snapshot health and the one-child worker were ready, 40/40 public specs remained observed-only, Catalyst remained blocked and fail-closed, async backflows stayed off, and recent backend/worker error-priority journals were empty."
+    },
+    {
+      "command": "post-merge red test: node --test --test-name-pattern='keeps community templates when stat invalidation' tests/builds-page.test.js",
+      "status": "pass",
+      "summary": "The regression test first failed 0 !== 1 against merge e7ac53a, proving that stat invalidation rederived from the slim page payload and cleared the just-loaded community template list."
+    },
+    {
+      "command": "post-merge correction related, frontend and full verification",
+      "status": "pass",
+      "summary": "230 related tests, 395 frontend tests across 124 commands, and 395 Node plus 1326 Python tests with one existing skip across 130 full-profile commands passed at fdddee5."
+    },
+    {
+      "command": "WeChat DevTools correction candidate preview and official automation-port smoke",
+      "status": "pass",
+      "summary": "The fdddee5 candidate previewed at 791116 bytes (772.6 KB). Without any manual reload, the live Mage/Arcane page retained exactly one observed template through initial stat invalidation and through resolving/requesting/verified; the minimum observed template count remained one."
     }
   ],
   "candidateDeployment": {
     "status": "preview_verified",
     "requiredBeforeMerge": true,
-    "branch": "codex/equipment-simulator-phase5c-frontend-cutover",
-    "commit": "39aa99314d74a3c734535338252527f3585cd93e",
-    "buildIdentity": "wechat-devtools-preview:39aa993:791021-bytes",
+    "branch": "codex/equipment-simulator-phase5c-postmerge-fix",
+    "commit": "fdddee5d0d655e1ca0a77670d6adfdaf5faf9a23",
+    "buildIdentity": "wechat-devtools-preview:fdddee5:791116-bytes",
     "implementationCommit": "f8105c66ea804bd59708bdc1afe402872e6fa4e4",
     "runtimeParity": {
       "status": "pass",
-      "summary": "WeChat DevTools opened and previewed the exact candidate worktree at 39aa993; no backend file was deployed because Slice 5C changes only frontend consumers."
+      "summary": "WeChat DevTools opened and previewed the exact correction candidate at fdddee5; no backend file was deployed because Slice 5C and its correction change only the frontend consumer."
     },
     "smoke": {
       "status": "pass",
@@ -84,6 +99,14 @@
       "backendTasks": 1,
       "backendNRestarts": 0,
       "queueDepth": 0
+    },
+    "postMergeCorrection": {
+      "status": "candidate_verified",
+      "failedMergeCommit": "e7ac53a2d65139f0cfb2d3c40f6c47daa5e4c26e",
+      "correctionCommit": "fdddee5d0d655e1ca0a77670d6adfdaf5faf9a23",
+      "finding": "Stat invalidation and several gear-page state transitions rederived from the slim setData payload after communityTemplates had been intentionally removed, clearing the visible template list despite a valid full payload cache.",
+      "fix": "All affected derived-state paths now bind gearPayload to fullGearPayloadForPage(this), preserving large payload data outside setData while retaining its derived template view.",
+      "candidateSmoke": "Initial templateCount=1 without reload; minimum templateCount=1 through resolving/requesting/verified; final signature stat-snapshot:sha256:74ab780432b801f60719402e8be596efd16a168904e577219847971ceba8912e."
     },
     "rollbackTarget": "revert the frontend cutover to 9ee557b or hide the affected frontend entry; retain the already-live Phase 5B async API and worker unchanged"
   },
@@ -111,6 +134,12 @@
       "type": "timer_backflow",
       "status": "pass",
       "summary": "No refresh or sync backflow ran, backend and worker remained restart-free, and the final 15-minute error-priority journal query returned no entries."
+    },
+    {
+      "id": "postmerge_template_rederive_correction",
+      "type": "smoke",
+      "status": "pass",
+      "summary": "The exact correction candidate preserved observed_profile_mage_arcane from initial load through stat invalidation and verified cache-hit rendering without a manual reload; project.config temporary urlCheck override was removed afterward."
     }
   ],
   "risks": [
@@ -150,5 +179,5 @@
     "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
     "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json"
   ],
-  "summary": "Phase 5C is deployable after exact-head CI, WeChat candidate preview, real mini-program pending-to-verified and changed-input stale/read-only proof, live canonical API smoke, 40-spec public boundary, fail-closed Catalyst, timer/backflow and clean-log checks passed at candidate head 39aa993. No backend deployment or formal mini-program upload occurred."
+  "summary": "Phase 5C remains deployable after PR #81 merged at e7ac53a and clean-main smoke exposed a real slim-payload rederive regression. The TDD correction at fdddee5 passed related/frontend/full verification and exact WeChat candidate proof that the observed template survives initial invalidation and async stat rendering. Follow-up merge and a fresh clean-main smoke remain required before live_verified closure; no backend deployment or formal mini-program upload occurred."
 }
