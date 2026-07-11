@@ -23213,6 +23213,10 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(
             authority["ruleParameters"]["allowedArmorTypesByClass"]["mage"], ["Cloth"]
         )
+        self.assertEqual(
+            authority["ruleParameters"]["armorRestrictedSlots"],
+            sorted(self.websim_payload.ARMOR_SLOTS),
+        )
         self.assertFalse(authority["capabilities"]["catalyst"]["enabled"])
         self.assertTrue(authority["capabilities"]["catalyst"]["optionParseSupported"])
         self.assertEqual(
@@ -23238,10 +23242,14 @@ class WebSimPayloadTest(unittest.TestCase):
             expected_dual_wield = bool(
                 set(weapon_rule.get("offHandTypes") or [])
                 & self.websim_payload.DUAL_WIELDABLE_WEAPON_TYPES
-            )
+            ) or weapon_rule.get("mode") == "dual_wield_2h"
             self.assertEqual(
                 authority["ruleParameters"]["dualWieldByClassSpec"][spec_id],
                 expected_dual_wield,
+            )
+            self.assertEqual(
+                authority["ruleParameters"]["weaponModesByClassSpec"][spec_id],
+                weapon_rule.get("mode"),
             )
 
     def test_runtime_authority_requires_current_simc_runtime_revision(self):

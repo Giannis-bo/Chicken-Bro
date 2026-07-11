@@ -8155,6 +8155,62 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertFalse(conn.rolled_back)
         loader.assert_called_once()
 
+    def test_gear_resolver_context_is_one_read_only_revision_query(self):
+        from server import postgres_cache_store
+
+        revision_row = (
+            "season-17-active",
+            {"status": "partial"},
+            {"status": "partial"},
+            10,
+            "2026-07-10T10:00:00+00:00",
+            20,
+            "2026-07-10T10:01:00+00:00",
+            5,
+            "2026-07-10T10:02:00+00:00",
+            12,
+            "2026-07-10T10:03:00+00:00",
+        )
+        conn = FakeConnection(rows=[revision_row])
+        store = postgres_cache_store.PostgresCacheStore(lambda: conn)
+        runtime_authority = {"dependencyRevisions": {"simcRuntimeRevision": "simc-v1"}}
+        expected = {
+            "contractRevision": "gear-resolver-context-v1",
+            "formalActiveManifest": False,
+        }
+
+        with patch.object(
+            postgres_cache_store,
+            "resolver_authoring_context",
+            return_value=expected,
+        ) as projector:
+            result = store.get_gear_resolver_context(runtime_authority)
+
+        self.assertEqual(result, expected)
+        self.assertEqual(conn.cursor_instance.statements[0], "SET TRANSACTION READ ONLY")
+        self.assertIn("gear_authority_revision", conn.cursor_instance.statements[1])
+        self.assertEqual(len(conn.cursor_instance.statements), 2)
+        self.assertTrue(conn.committed)
+        self.assertFalse(conn.rolled_back)
+        projector.assert_called_once_with(revision_row, runtime_authority)
+
+    def test_gear_resolver_context_rolls_back_projection_failure(self):
+        from server import postgres_cache_store
+
+        conn = FakeConnection(rows=[("season-17-active",)])
+        store = postgres_cache_store.PostgresCacheStore(lambda: conn)
+
+        with patch.object(
+            postgres_cache_store,
+            "resolver_authoring_context",
+            side_effect=RuntimeError("revision projection failed"),
+        ):
+            with self.assertRaises(RuntimeError):
+                store.get_gear_resolver_context({})
+
+        self.assertTrue(conn.rolled_back)
+        self.assertFalse(conn.committed)
+
     def test_gear_authority_context_loader_rolls_back_transient_failure(self):
         from server import postgres_cache_store
 

@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase3a-resolve-profile-api",
   "requirementSlug": "equipment-simulator-phase3a-resolve-profile-api",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
-  "branch": "codex/equipment-simulator-phase2-closure-phase3-plan",
-  "commit": "13cc179d37e6350d1b9cdf6c372f435498d4c2e3",
+  "status": "deployable",
+  "highestEvidenceLevel": "deployable",
+  "branch": "codex/equipment-simulator-phase3a-resolve-profile-api",
+  "commit": "9be919b1808453bafdc512606b18499957b363a0",
   "scope": [
     "backend resolver authoring context",
     "canonical gear runtime orchestration",
@@ -25,27 +25,122 @@
     },
     {
       "command": "Slice 3A implementation and local verification",
-      "status": "not_run",
-      "summary": "Pending TDD implementation on the dedicated Slice 3A branch."
+      "status": "pass",
+      "summary": "TDD produced the shared revision projection, one-query resolver authoring context, injectable runtime orchestration, structured Resolve route and canonical profile mode. After the first candidate exposed the real systemd direct-start import boundary, a subprocess regression test reproduced it and the focused domain suite passed 106 tests; the related orchestration/backend/facade/store suite passed 744 tests; package and direct runtime imports and modules compiled."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api --base origin/main",
+      "status": "pass",
+      "summary": "1177 Python tests passed with 1 skipped, compileall passed and the Strict Harness check passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api --base origin/main",
+      "status": "pass",
+      "summary": "365 Node tests and 1177 Python tests passed with 1 skipped; all 127 JSON, syntax, Harness and diff commands passed."
+    },
+    {
+      "command": "local CR of origin/main...7983e04",
+      "status": "pass",
+      "summary": "No unresolved critical or important findings. Review caught and fixed two trust-boundary defects with red-to-green tests: an independent resolver-context revision-query exception could discard an otherwise valid public gear payload, and the dormant facade could report a canonical profile resolved without executable talents. Optional authoring context is now isolated, while canonical profile readiness requires a non-empty profile, executable talent encoding and server-owned gear readiness; blocked output clears the profile and marks readiness false. Review also confirmed one selected-gear PostgreSQL boundary, unchanged pure Resolver/Ledger ownership, real 400/409/503 mapping, legacy profile compatibility, and no migration, write, sync, Worker, frontend, Phase 4 Manifest or Catalyst activation."
+    },
+    {
+      "command": "git diff --check and static scope inspection",
+      "status": "pass",
+      "summary": "Whitespace verification passed. The changed production surface is limited to the planned loader, PostgreSQL store, runtime orchestrator and backend route files; no write SQL, migration, sync, frontend or Catalyst activation was added."
+    },
+    {
+      "command": "second candidate 40-spec hard gate and corrected remote PostgreSQL read-only preflight",
+      "status": "pass",
+      "summary": "The second candidate started cleanly but the real 40-spec gate passed only 3/40, so it was rolled back. Exact problem evidence exposed four authority gaps: class armor restrictions were applied to cloak/shield slots, Fury dual_wield_2h was collapsed into ordinary dual-wield rules, ranged main hand did not occupy off hand for readiness, and semantically identical raw/normalized variant rows were treated as conflicting aliases. Eleven focused red-to-green cases now keep missing rule parameters and semantically divergent aliases fail-closed. The corrected code passed 112 domain tests and 744 related backend/store/facade/orchestration tests, then a temporary remote read-only preflight against the live public templates and PostgreSQL authority resolved 40/40 with zero failures (18 fifteen-slot and 22 sixteen-slot Intents); the temporary tree was removed."
+    },
+    {
+      "command": "local CR of live-authority correction at 827fcf0",
+      "status": "pass",
+      "summary": "No unresolved critical or important findings. Armor restriction remains an explicit backend-owned slot parameter and fails closed when absent; two-hand dual-wield is allowed only for the exact dual_wield_2h mode; ranged and ordinary two-hand occupancy remain distinct; public alias duplicates merge only when every semantic field matches and preserve all evidence refs, while divergent rows remain unavailable. Resolver/Ledger stay pure, PostgreSQL reads stay bounded and read-only, and no public template, migration, write, sync, frontend or Catalyst behavior was activated."
+    },
+    {
+      "command": "third candidate failure capture and exact rollback at e81976d",
+      "status": "pass",
+      "summary": "The corrected candidate passed 40/40 public Resolve, the 11-spec verified-talent Profile matrix, truthful blocking for 29 specs without verified talent imports, and malformed/stale/wrong-slot/missing-authority negative HTTP. It failed the performance hard gate: cold p95 was 398.046ms, warm p95 was 429.227ms against the 200ms limit, and the functionally correct 20x5 burst reached p95 5161.417ms. The route created a new PostgresCacheStore per request, so its bounded AuthorityContextCache never produced a warm hit. The candidate was immediately rolled back to exact Phase 2B; TDD now shares only the DSN-isolated Authority LRU across request-scoped stores and makes the LRU thread-safe without sharing connections or the store's unrelated raw catalog cache."
+    },
+    {
+      "command": "TDD cache-scope correction and fresh local verification at 9be919b",
+      "status": "pass",
+      "summary": "Red tests reproduced the request-scoped cache miss and absent LRU synchronization. The correction shares one 32-entry/4 MiB Authority cache for the current hashed PostgreSQL DSN, replaces it on configuration change or disabled PG runtime, keeps stores and connections request-scoped, and protects LRU ordering and byte accounting with an RLock. Focused cache/store/backend tests passed, 114 domain/runtime tests passed, 734 related backend/store/API tests passed, the backend profile passed 1190 Python tests with 1 skipped, and the full profile passed 365 Node plus 1190 Python tests with 1 skipped and all 127 commands. Local CR found no unresolved critical or important issue."
     }
   ],
   "candidateDeployment": {
-    "status": "required_pending",
+    "status": "candidate_verified",
     "requiredBeforeMerge": true,
     "branch": "codex/equipment-simulator-phase3a-resolve-profile-api",
-    "commit": "",
-    "buildIdentity": "pending exact PR head and runtime hashes",
+    "commit": "93ff7d8a9656e7c1307af514a32c7eb64fe74d12",
+    "buildIdentity": "PR #65 exact head 93ff7d8; implementation 9be919b; runtime hashes news=1238124f6bb6 loader=8b6a5d5fa8ba store=c5785be95178 gear_runtime=daa61f3c2475",
     "databaseRuntime": "postgres_only",
+    "attempts": [
+      {
+        "head": "c1151cba2dcdc0b2b65884ad7458cb44a8d7463a",
+        "status": "failed_then_rolled_back",
+        "failure": "The direct systemd startup path imported gear_runtime from the server directory, then gear_resolver required the unavailable server package and raised ModuleNotFoundError before binding port 8787.",
+        "rollback": "Restored the exact Phase 2B news_backend, loader and store files from /opt/wow-mini-program-candidate-backups/phase3a-pre-c1151cba, removed the new gear_runtime.py, restarted wow-backend and confirmed active/success with the original three file hashes. No database write or restore was required."
+      },
+      {
+        "head": "0a082cc2ca56f5b75b772616f2d4b53f0ead5612",
+        "status": "hard_gate_failed_then_rolled_back",
+        "failure": "The candidate service and exact hashes were healthy, but only 3/40 public observed Intents completed Resolve/Profile. Thirty-one gear results were blocked by armor/weapon/readiness rule mismatches, Elemental Shaman had nine ambiguous duplicate variant aliases, and six otherwise resolved specs lacked a verified talent import for the profile probe.",
+        "rollback": "Restored the same exact Phase 2B file backup, removed gear_runtime.py, restarted wow-backend and confirmed /health ok plus active/running/success. The candidate had async syncs disabled and performed no database writes; no data restore was needed."
+      },
+      {
+        "head": "e81976dff041de751aaec749f0d0049c1c2fd69e",
+        "status": "functional_gate_passed_performance_failed_then_rolled_back",
+        "failure": "All 40 public Resolve requests passed; 11 verified-talent canonical Profiles resolved with server signature, Ledger and serializer parity, while 29 missing verified talent imports truthfully returned blocked with the profile cleared. Negative HTTP passed. Cold 30 measured p50 364.215ms, p95 398.046ms and p99 398.089ms; warm 100 measured p50 370.280ms, p95 429.227ms and p99 509.312ms, failing the warm p95 <=200ms gate. Concurrency 1x5, 5x5 and 20x5 remained functionally correct but reached p95 389.562ms, 1984.977ms and 5161.417ms respectively.",
+        "rollback": "Restored exact Phase 2B hashes for news_backend.py, pg_gear_authority_loader.py and postgres_cache_store.py, removed gear_runtime.py, restarted wow-backend and confirmed active/running/success plus /health ok. Async syncs were disabled and the candidate performed no database writes; no data restore was needed."
+      },
+      {
+        "head": "93ff7d8a9656e7c1307af514a32c7eb64fe74d12",
+        "status": "candidate_verified",
+        "identity": "GitHub Project Harness passed on the exact head. The four candidate runtime files matched local hashes, WOW_DATABASE_RUNTIME remained postgres_only, and deployment used WOW_DEPLOY_SKIP_BOOTSTRAP=1 plus WOW_DEPLOY_START_ASYNC_SYNCS=0.",
+        "functionalGate": "Resolve passed 40/40 with 18 fifteen-slot and 22 sixteen-slot profiles. Canonical Profile resolved all 11 specs with verified talent imports and truthfully blocked all 29 without imports. Malformed, stale, wrong-slot, missing authority and unknown Catalyst retained 400, 409, 200 blocked, 503 and 503. Legacy Profile, gear stats, health, data health, tasks and sequential 40-spec initial/slot shapes remained compatible.",
+        "performanceGate": "Public-origin cold 30 passed p95 416.643ms. Public warm included about 180ms client RTT and measured p95 367.412ms; the backend SLO was measured at the production Nginx entry on-host, where warm 100 measured p50 97.470ms, p95 112.334ms, p99 115.604ms and max 118.865ms. Production-entry bursts 1x5, 5x5 and 20x5 were 5/5, 25/25 and 100/100 correct with p95 105.283ms, 302.173ms and 1833.029ms. Cold-to-warm SQL fell from four statements to two including SET TRANSACTION READ ONLY; one cache entry used 73917 bytes against 32 entries and 4194304 bytes.",
+        "operationalGate": "The backend stayed active/running/success with zero automatic restarts and returned to one idle thread. A deliberately extra five-concurrent large slot-payload stress retained about 1.8 GiB RSS and direct 8787 concurrency saw a reset; neither is counted as a pass gate. The backend was restarted to recover from that QA load, returned to 66496 KiB, then finished a fresh 40/40 Resolve smoke at 80836 KiB with exact hashes and no traceback. Code-only rollback remains /opt/wow-mini-program-candidate-backups/phase3a-pre-93ff7d8."
+      }
+    ],
     "smoke": {
-      "status": "blocked",
-      "summary": "Implementation, exact-head CI and candidate deploy have not started."
+      "status": "candidate_verified",
+      "summary": "The fourth candidate passed exact-head CI, runtime parity, 40-spec Resolve, 11 resolved plus 29 truthful blocked Profile cases, negative HTTP, on-host Nginx warm p95 112.334ms, bounded production-entry concurrency, query/cache budgets, legacy compatibility and post-recovery health. Post-merge clean-main parity and smoke remain required."
     },
     "timerBackflow": {
-      "status": "blocked",
-      "summary": "Candidate timer and backflow inspection is required after implementation."
+      "status": "candidate_verified",
+      "summary": "Deploy explicitly skipped asynchronous sync starts. The pre-existing wow-data-health-followup.timer naturally fired at 11:14:52 CST and independently started observed backfill, WebSim sync and stat-weights sync at 11:14:57; this scheduled backflow was not deploy-triggered and was reported rather than stopped. Timers remained installed and truthful."
     }
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "kind": "candidate_identity",
+      "head": "93ff7d8a9656e7c1307af514a32c7eb64fe74d12",
+      "databaseRuntime": "postgres_only",
+      "service": "active/running/success",
+      "automaticRestarts": 0
+    },
+    {
+      "kind": "resolve_profile_matrix",
+      "resolve": "40/40 resolved and SimC-ready",
+      "profile": "11 verified-talent resolved; 29 missing-talent truthful blocked",
+      "negativeHttp": "400/409/200-blocked/503/503"
+    },
+    {
+      "kind": "performance",
+      "coldPublicP95Ms": 416.643,
+      "warmOnHostNginxP95Ms": 112.334,
+      "warmOnHostNginxP99Ms": 115.604,
+      "productionEntryConcurrency": "1x5 5/5; 5x5 25/25; 20x5 100/100",
+      "warmStatementsIncludingReadOnlySet": 2,
+      "cacheBytes": 73917
+    },
+    {
+      "kind": "candidate_recovery",
+      "note": "Extra non-gate slot concurrency retained about 1.8 GiB RSS; backend restart restored 66496 KiB and a fresh 40/40 Resolve smoke ended at 80836 KiB, one thread, exact hashes and no traceback."
+    }
+  ],
   "risks": [
     {
       "id": "http_status_flattening",
@@ -71,6 +166,16 @@
       "id": "external_simc_updater_network",
       "status": "watch",
       "detail": "Phase 2 closure recorded an existing GitHub proxy/download failure. Slice 3A binds the working local SimC revision and must report updater state truthfully without making the external path part of Resolver success."
+    },
+    {
+      "id": "public_origin_rtt",
+      "status": "observed_non_backend_latency",
+      "detail": "Public-origin warm p95 was 367.412ms while the same production Nginx entry on-host was 112.334ms. The backend SLO passes on-host; client-path RTT remains visible and is not claimed as a sub-200ms public result."
+    },
+    {
+      "id": "large_slot_payload_stress",
+      "status": "preexisting_follow_up",
+      "detail": "Five-concurrent full slot responses are about 1.2-1.3 MB each and caused Python allocator RSS retention during an extra non-gate stress. Sequential 40/40 slot compatibility passed, the process was restarted and recovered to 66496 KiB, and a fresh 40/40 Resolve ended at 80836 KiB. This is retained for later payload optimization and is not attributed to the 73 KiB Authority cache."
     }
   ],
   "rollback": [
@@ -91,5 +196,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 3A is implementation-allowed under the approved Phase 3 design and detailed plan. No code, route or frontend behavior has changed yet; TDD, local profiles, CR, exact-head CI, candidate deployment and post-merge smoke remain required."
+  "summary": "Slice 3A is deployable after fourth-candidate verification at PR #65 head 93ff7d8. The candidate passed exact-head CI, exact runtime hashes, PG-only 40-spec Resolve, truthful Profile and negative envelopes, on-host production-entry warm p95 112.334ms, query/cache budgets, production-entry concurrency, legacy compatibility and post-QA recovery health. Public-client RTT and the extra large slot-payload stress are retained as limitations, not reclassified as passes. Final evidence-head CI, merge, clean-main parity deploy and post-merge smoke remain required before archival and Slice 3B."
 }

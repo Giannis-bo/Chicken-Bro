@@ -7,7 +7,10 @@ import hashlib
 import json
 from typing import Any, Iterable
 
-from server.gear_result_envelope import gear_problem
+try:
+    from .gear_result_envelope import gear_problem
+except ImportError:
+    from gear_result_envelope import gear_problem
 
 
 EVIDENCE_LEDGER_CONTRACT_REVISION = "gear-evidence-ledger-v1"

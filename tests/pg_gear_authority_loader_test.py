@@ -1,4 +1,5 @@
 import copy
+from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
 import subprocess
@@ -95,8 +96,10 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             "ruleParameters": {
                 "inventoryTypesBySlot": {"head": ["head"]},
                 "allowedArmorTypesByClass": {"warrior": ["plate"]},
+                "armorRestrictedSlots": ["head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"],
                 "allowedWeaponTypesByClassSpec": {"warrior:fury": ["sword"]},
                 "dualWieldByClassSpec": {"warrior:fury": True},
+                "weaponModesByClassSpec": {"warrior:fury": "dual_wield_2h"},
                 "requiredSlots": ["head"],
                 "uniqueLimits": {},
                 "uniqueGemLimits": {},
@@ -112,6 +115,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                 "catalyst": {"enabled": False, "revision": "catalyst-proof-v1"},
             },
             "playableClassSpecs": {"warrior": ["fury", "arms", "protection"]},
+            "requestedClassSpec": "warrior:fury",
             "sourceRefs": [
                 {
                     "id": "evidence:runtime:rules",
@@ -242,6 +246,62 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         cursor, _context = self.load(cursor=self.cursor(item_rows=[], option_rows=[]), intent=self.intent(slots))
         self.assertEqual(len(cursor.statements), 3)
 
+    def test_resolver_authoring_context_matches_loader_revision_identity(self):
+        revision_row = self.revision_row()
+        runtime = self.runtime_authority()
+        cursor, authority = self.load(
+            cursor=self.cursor(revision_rows=[revision_row]),
+            runtime=runtime,
+        )
+
+        resolver_context = pg_gear_authority_loader.resolver_authoring_context(
+            revision_row,
+            runtime,
+        )
+
+        self.assertEqual(resolver_context["contractRevision"], "gear-resolver-context-v1")
+        self.assertFalse(resolver_context["formalActiveManifest"])
+        self.assertEqual(
+            resolver_context["authoredAgainst"],
+            {
+                "seasonRevision": authority["manifest"]["seasonRevision"],
+                "gearCatalogRevision": authority["manifest"]["gearCatalogRevision"],
+            },
+        )
+        self.assertEqual(
+            resolver_context["dependencyRevisions"],
+            {
+                key: authority["dependencyVector"][key]
+                for key in (
+                    "gearRuleRevision",
+                    "resolverContractRevision",
+                    "serializerRevision",
+                    "simcRuntimeRevision",
+                    "statPolicyRevision",
+                    "selectionSchemaRevision",
+                )
+            },
+        )
+        self.assertEqual(cursor.statements[0].count("gear_authority_revision"), 1)
+
+    def test_resolver_authoring_context_fails_closed_on_missing_revision_authority(self):
+        missing_season = list(self.revision_row())
+        missing_season[0] = ""
+        self.assertIsNone(
+            pg_gear_authority_loader.resolver_authoring_context(
+                tuple(missing_season),
+                self.runtime_authority(),
+            )
+        )
+
+        missing_runtime = self.runtime_authority(simcRuntimeRevision="")
+        self.assertIsNone(
+            pg_gear_authority_loader.resolver_authoring_context(
+                self.revision_row(),
+                missing_runtime,
+            )
+        )
+
     def test_loader_uses_array_parameters_not_per_slot_sql(self):
         cursor, _context = self.load()
         self.assertIn("unnest(%s::text[], %s::text[])", cursor.statements[1])
@@ -293,7 +353,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertEqual(set(context["variantsByKey"]), {authority_key})
         self.assertEqual(context["missingFields"], [])
 
-    def test_loader_blocks_ambiguous_public_variant_aliases(self):
+    def test_loader_blocks_semantically_divergent_public_variant_aliases(self):
         requested_key = "observed-profile-head-289-bonus_id:123ilevel:289"
         first = list(self.item_row())
         first[1] = requested_key
@@ -301,6 +361,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         second = copy.deepcopy(first)
         second[3]["id"] = "variant-row-head-collision"
         second[3]["variantKey"] = 'observed-profile-head-289-{"bonus_id": "123", "ilevel": "289"}'
+        second[3]["simcOptions"]["bonus_id"] = "different-authority"
         intent = self.intent()
         intent["slots"]["head"]["variantKey"] = requested_key
 
@@ -311,6 +372,29 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
 
         self.assertNotIn(requested_key, context["variantsByKey"])
         self.assertIn(f"variantsByKey.{requested_key}", context["missingFields"])
+
+    def test_loader_merges_semantically_identical_public_variant_alias_rows(self):
+        requested_key = "observed-profile-head-289-bonus_id:123ilevel:289"
+        first = list(self.item_row())
+        first[1] = requested_key
+        first[3]["variantKey"] = 'observed-profile-head-289-{"bonus_id":"123","ilevel":"289"}'
+        second = copy.deepcopy(first)
+        second[3]["id"] = "variant-row-head-duplicate"
+        second[3]["variantKey"] = 'observed-profile-head-289-{"bonus_id": "123", "ilevel": "289"}'
+        intent = self.intent()
+        intent["slots"]["head"]["variantKey"] = requested_key
+
+        _cursor, context = self.load(
+            cursor=self.cursor(item_rows=[tuple(first), tuple(second)]),
+            intent=intent,
+        )
+
+        self.assertIn(requested_key, context["variantsByKey"])
+        self.assertEqual(context["missingFields"], [])
+        self.assertIn(
+            "evidence:pg:variant:variant-row-head-duplicate",
+            context["variantsByKey"][requested_key]["sourceRefIds"],
+        )
 
     def test_loader_never_matches_a_normalized_alias_from_the_wrong_item(self):
         requested_key = "observed-profile-head-289-bonus_id:123ilevel:289"
@@ -409,6 +493,36 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertEqual(item["inventoryType"], "weapon")
         self.assertEqual(item["weaponType"], "Staff")
         self.assertEqual(item["handedness"], "two_hand")
+
+    def test_loader_allows_two_hand_weapon_in_offhand_for_authorized_fury_mode(self):
+        weapon = self.item_row(
+            item={
+                "slot": "main_hand",
+                "payload": {
+                    "inventory_type": {"type": "TWOHWEAPON", "name": "Two-Hand"},
+                    "item_class": {"id": 2, "name": "Weapon"},
+                    "item_subclass": {"name": "Two-Handed Sword"},
+                },
+            }
+        )
+        intent = self.intent(
+            {
+                "off_hand": {
+                    "itemId": "item-head",
+                    "variantKey": "variant-head",
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            }
+        )
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[weapon]), intent=intent)
+
+        self.assertEqual(context["itemsById"]["item-head"]["handedness"], "two_hand")
+        self.assertEqual(context["itemsById"]["item-head"]["allowedSlots"], ["main_hand", "off_hand"])
 
     def test_loader_allows_one_hand_weapon_authority_in_either_hand(self):
         sword = self.item_row(
@@ -714,6 +828,24 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         first["nested"]["b"] = 999
         second = cache.get("detached")
         self.assertEqual(second, {"nested": {"a": 1, "b": 2}})
+
+    def test_cache_is_thread_safe_and_stays_within_both_bounds(self):
+        cache = pg_gear_authority_loader.AuthorityContextCache(max_entries=16, max_bytes=4096)
+        self.assertTrue(hasattr(cache, "_lock"))
+
+        def exercise(worker_id):
+            for index in range(250):
+                key = f"{worker_id}:{index % 24}"
+                cache.put(key, {"worker": worker_id, "index": index, "value": "x" * 20})
+                value = cache.get(key)
+                if value is not None:
+                    self.assertEqual(value["worker"], worker_id)
+
+        with ThreadPoolExecutor(max_workers=16) as executor:
+            list(executor.map(exercise, range(16)))
+
+        self.assertLessEqual(cache.entry_count, cache.max_entries)
+        self.assertLessEqual(cache.byte_size, cache.max_bytes)
 
     def test_cache_key_contains_full_dependency_vector_and_selection_signature(self):
         cache = pg_gear_authority_loader.AuthorityContextCache(max_entries=8, max_bytes=200000)

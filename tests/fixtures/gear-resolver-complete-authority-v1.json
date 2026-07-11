@@ -511,6 +511,16 @@
           "plate"
         ]
       },
+      "armorRestrictedSlots": [
+        "head",
+        "shoulder",
+        "chest",
+        "wrist",
+        "hands",
+        "waist",
+        "legs",
+        "feet"
+      ],
       "allowedWeaponTypesByClassSpec": {
         "warrior:fury": [
           "sword",
@@ -519,6 +529,9 @@
       },
       "dualWieldByClassSpec": {
         "warrior:fury": true
+      },
+      "weaponModesByClassSpec": {
+        "warrior:fury": "selectable_two_hand_or_dual_wield_1h"
       },
       "requiredSlots": [
         "head",

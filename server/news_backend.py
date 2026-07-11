@@ -69,6 +69,11 @@ try:
         enrich_builds_detail_stat_weights,
         latest_stat_weight_run_payload,
     )
+    from .gear_runtime import (
+        build_profile_from_selection_intent,
+        is_canonical_profile_request,
+        resolve_selection_intent,
+    )
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
@@ -77,6 +82,7 @@ try:
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
+        build_websim_profile_response_from_resolved_snapshot,
         build_websim_simulator_request,
         CLASS_ARMOR_TYPES,
         community_talent_sync_state,
@@ -84,6 +90,7 @@ try:
         ensure_websim_tables,
         gear_catalog_health_payload,
         gear_legality_authority_health_payload,
+        gear_resolver_runtime_authority,
         GAME_CLASS_ID_TO_KEY,
         GEAR_SLOT_LABELS,
         talent_catalog_health_payload,
@@ -164,6 +171,11 @@ except ImportError:
         enrich_builds_detail_stat_weights,
         latest_stat_weight_run_payload,
     )
+    from gear_runtime import (
+        build_profile_from_selection_intent,
+        is_canonical_profile_request,
+        resolve_selection_intent,
+    )
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
@@ -172,6 +184,7 @@ except ImportError:
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
+        build_websim_profile_response_from_resolved_snapshot,
         build_websim_simulator_request,
         CLASS_ARMOR_TYPES,
         community_talent_sync_state,
@@ -179,6 +192,7 @@ except ImportError:
         ensure_websim_tables,
         gear_catalog_health_payload,
         gear_legality_authority_health_payload,
+        gear_resolver_runtime_authority,
         GAME_CLASS_ID_TO_KEY,
         GEAR_SLOT_LABELS,
         talent_catalog_health_payload,
@@ -247,6 +261,9 @@ CHICKENBRO_SCENARIOS = {
 _WEB_GEAR_BUILD_LIMITER = None
 _WEB_GEAR_BUILD_LIMITER_LIMIT = None
 _WEB_GEAR_BUILD_LIMITER_LOCK = threading.Lock()
+_GEAR_AUTHORITY_CACHE_KEY = None
+_GEAR_AUTHORITY_CACHE = None
+_GEAR_AUTHORITY_CACHE_LOCK = threading.Lock()
 CHICKENBRO_ALLOWED_TOOL_TOPICS = {
     "wcl",
     "warcraft logs",
@@ -463,14 +480,30 @@ def content_data_store():
 
 
 def cache_data_store():
+    global _GEAR_AUTHORITY_CACHE_KEY, _GEAR_AUTHORITY_CACHE
     config = database_config_from_env()
     if not postgres_personal_runtime_enabled(config):
+        with _GEAR_AUTHORITY_CACHE_LOCK:
+            _GEAR_AUTHORITY_CACHE_KEY = None
+            _GEAR_AUTHORITY_CACHE = None
         return None
     try:
-        from .postgres_cache_store import PostgresCacheStore
+        from .postgres_cache_store import AuthorityContextCache, PostgresCacheStore
     except ImportError:
-        from postgres_cache_store import PostgresCacheStore
-    return PostgresCacheStore(lambda: connect_postgres(config.database_url))
+        from postgres_cache_store import AuthorityContextCache, PostgresCacheStore
+    cache_key = hashlib.sha256(config.database_url.encode("utf-8")).hexdigest()
+    with _GEAR_AUTHORITY_CACHE_LOCK:
+        if _GEAR_AUTHORITY_CACHE_KEY != cache_key or _GEAR_AUTHORITY_CACHE is None:
+            _GEAR_AUTHORITY_CACHE_KEY = cache_key
+            _GEAR_AUTHORITY_CACHE = AuthorityContextCache(
+                max_entries=32,
+                max_bytes=4 * 1024 * 1024,
+            )
+        authority_cache = _GEAR_AUTHORITY_CACHE
+    return PostgresCacheStore(
+        lambda: connect_postgres(config.database_url),
+        gear_authority_context_cache=authority_cache,
+    )
 
 
 def ops_data_store():
@@ -7723,6 +7756,37 @@ def websim_gear_payload_with_template_legality(payload):
     return output
 
 
+def current_gear_simc_runtime_revision():
+    simc_status = simc_version_status()
+    return first_text_value(
+        simc_status.get("simcRuntimeRevision"),
+        simc_status.get("localTag"),
+        simc_status.get("sourceCommit"),
+    )
+
+
+def websim_gear_payload_with_resolver_context(payload, store, class_key, spec_key):
+    if not isinstance(payload, dict) or not payload:
+        return payload
+    if not callable(getattr(store, "get_gear_resolver_context", None)):
+        return payload
+    simc_revision = current_gear_simc_runtime_revision()
+    if not simc_revision:
+        return payload
+    try:
+        runtime_authority = gear_resolver_runtime_authority(
+            class_key,
+            spec_key,
+            simc_runtime_revision=simc_revision,
+        )
+        resolver_context = store.get_gear_resolver_context(runtime_authority)
+    except Exception:
+        return payload
+    if not isinstance(resolver_context, dict) or not resolver_context:
+        return payload
+    return {**payload, "resolverContext": resolver_context}
+
+
 def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slot=""):
     store = cache_data_store()
     allow_sqlite_fallback = (
@@ -7737,6 +7801,12 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
                 if "unexpected keyword" not in str(exc):
                     raise
                 payload = store.get_websim_gear(class_key, spec_key, compact=compact)
+            payload = websim_gear_payload_with_resolver_context(
+                payload,
+                store,
+                class_key,
+                spec_key,
+            )
         except Exception:
             payload = {}
         if postgres_only_runtime_enabled():
@@ -12462,13 +12532,33 @@ class Handler(BaseHTTPRequestHandler):
                 ),
             )
             return
+        if parsed.path == "/api/websim/gear/resolve":
+            http_status, envelope = resolve_selection_intent(
+                read_json_body(self),
+                store=cache_data_store(),
+                simc_runtime_revision=current_gear_simc_runtime_revision(),
+                request_id=f"gear-{uuid.uuid4().hex}",
+            )
+            json_response(self, http_status, envelope)
+            return
         if parsed.path == "/api/websim/profile":
+            request_payload = read_json_body(self)
+            if is_canonical_profile_request(request_payload):
+                http_status, envelope = build_profile_from_selection_intent(
+                    request_payload,
+                    store=cache_data_store(),
+                    simc_runtime_revision=current_gear_simc_runtime_revision(),
+                    request_id=f"gear-profile-{uuid.uuid4().hex}",
+                    profile_builder=build_websim_profile_response_from_resolved_snapshot,
+                )
+                json_response(self, http_status, envelope)
+                return
             if postgres_only_runtime_enabled():
-                json_response(self, 200, build_websim_profile_response(read_json_body(self), conn=None))
+                json_response(self, 200, build_websim_profile_response(request_payload, conn=None))
                 return
             init_db()
             with db_connection() as conn:
-                json_response(self, 200, build_websim_profile_response(read_json_body(self), conn=conn))
+                json_response(self, 200, build_websim_profile_response(request_payload, conn=conn))
             return
         if parsed.path == "/api/websim/gear/stats":
             if postgres_only_runtime_enabled():

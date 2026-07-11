@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-10T17:17:30.496Z",
+  "generatedAt": "2026-07-11T03:33:23.487Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase3a-resolve-profile-api"
@@ -99,19 +99,19 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 25975,
+          "lineCount": 25981,
           "hotspot": true
         },
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 12569,
+          "lineCount": 12659,
           "hotspot": true
         },
         {
           "path": "server/postgres_cache_store.py",
           "exists": true,
-          "lineCount": 6262,
+          "lineCount": 6283,
           "hotspot": true
         }
       ],
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
-    "sizeBytes": 4256,
+    "sizeBytes": 17414,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Slice 3A is implementation-allowed under the approved Phase 3 design and detailed plan. No code, route or frontend behavior has changed yet; TDD, local profiles, CR, exact-head CI, candidate deployment and post-merge smoke remain required."
+    "declaredStatus": "deployable",
+    "highestEvidenceLevel": "deployable",
+    "summary": "Slice 3A is deployable after fourth-candidate verification at PR #65 head 93ff7d8. The candidate passed exact-head CI, exact runtime hashes, PG-only 40-spec Resolve, truthful Profile and negative envelopes, on-host production-entry warm p95 112.334ms, query/cache budgets, production-entry concurrency, legacy compatibility and post-QA recovery health. Public-client RTT and the extra large slot-payload stress are retained as limitations, not reclassified as passes. Final evidence-head CI, merge, clean-main parity deploy and post-merge smoke remain required before archival and Slice 3B."
   },
   "evidence": {
     "localTests": {
@@ -277,13 +277,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "12 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:25975, server/news_backend.py:12569, server/postgres_cache_store.py:6262"
+      "detail": "server/websim_payload.py:25981, server/news_backend.py:12659, server/postgres_cache_store.py:6283"
     },
     {
       "id": "localTests_missing",
@@ -313,20 +313,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 12,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
-        " M artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/manifest.json",
-        " M docs/backend-owner-map.json",
-        " M docs/gear-simulation-full-chain-runbook.md",
-        " M docs/plans/README.md",
-        " M docs/project-owner-map.json",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M docs/verification-matrix.md",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/",
-        "?? docs/plans/2026-07-11-equipment-simulator-phase3-resolve-profile-workbench-plan.md"
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json"
       ]
     }
   },

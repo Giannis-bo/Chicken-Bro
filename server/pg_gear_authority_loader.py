@@ -7,6 +7,7 @@ from collections import OrderedDict
 import hashlib
 import json
 import re
+import threading
 from typing import Any, Iterable
 
 try:
@@ -34,6 +35,7 @@ except ImportError:
 
 COMPATIBILITY_MANIFEST_REVISION = "compatibility-pg-live-v1"
 AUTHORITY_CONTEXT_CONTRACT_REVISION = "gear-authority-context-v1"
+RESOLVER_CONTEXT_CONTRACT_REVISION = "gear-resolver-context-v1"
 
 AUTHORITY_REVISION_SQL = """
 /* gear_authority_revision */
@@ -359,21 +361,25 @@ class AuthorityContextCache:
         self.max_bytes = max_bytes
         self._entries: OrderedDict[str, tuple[int, Any]] = OrderedDict()
         self._byte_size = 0
+        self._lock = threading.RLock()
 
     @property
     def entry_count(self) -> int:
-        return len(self._entries)
+        with self._lock:
+            return len(self._entries)
 
     @property
     def byte_size(self) -> int:
-        return self._byte_size
+        with self._lock:
+            return self._byte_size
 
     def get(self, key: str) -> Any | None:
         normalized = _text(key)
-        if normalized not in self._entries:
-            return None
-        size, value = self._entries.pop(normalized)
-        self._entries[normalized] = (size, value)
+        with self._lock:
+            if normalized not in self._entries:
+                return None
+            size, value = self._entries.pop(normalized)
+            self._entries[normalized] = (size, value)
         return _canonical(value)
 
     def put(self, key: str, value: Any) -> bool:
@@ -384,15 +390,16 @@ class AuthorityContextCache:
         size = len(_serialized(detached))
         if size > self.max_bytes:
             return False
-        previous = self._entries.pop(normalized, None)
-        if previous:
-            self._byte_size -= previous[0]
-        self._entries[normalized] = (size, detached)
-        self._byte_size += size
-        while len(self._entries) > self.max_entries or self._byte_size > self.max_bytes:
-            _old_key, (old_size, _old_value) = self._entries.popitem(last=False)
-            self._byte_size -= old_size
-        return normalized in self._entries
+        with self._lock:
+            previous = self._entries.pop(normalized, None)
+            if previous:
+                self._byte_size -= previous[0]
+            self._entries[normalized] = (size, detached)
+            self._byte_size += size
+            while len(self._entries) > self.max_entries or self._byte_size > self.max_bytes:
+                _old_key, (old_size, _old_value) = self._entries.popitem(last=False)
+                self._byte_size -= old_size
+            return normalized in self._entries
 
 
 def compatibility_catalog_revision(revision_row: Any) -> str:
@@ -425,6 +432,63 @@ def compatibility_catalog_revision(revision_row: Any) -> str:
     }
     digest = hashlib.sha256(_serialized(payload)).hexdigest()
     return f"compatibility-pg:{digest}"
+
+
+def _revision_projection(revision_row: Any, runtime_authority: Any) -> dict[str, Any]:
+    row = tuple(revision_row or ())
+    runtime = runtime_authority if isinstance(runtime_authority, dict) else {}
+    catalog_revision = compatibility_catalog_revision(row)
+    season_revision = _text(row[0] if len(row) > 0 else "")
+    catalog_state = _json_value(row[1] if len(row) > 1 else {}, {})
+    websim_state = _json_value(row[2] if len(row) > 2 else {}, {})
+    revisions = runtime.get("dependencyRevisions")
+    revisions = revisions if isinstance(revisions, dict) else {}
+    release_id = f"compatibility:{catalog_revision.removeprefix('compatibility-pg:')[:16]}"
+    dependency_vector = {
+        "seasonRevision": season_revision,
+        "gearCatalogReleaseId": release_id,
+        "gearCatalogRevision": catalog_revision,
+        **{field: _text(revisions.get(field)) for field in _REQUIRED_RUNTIME_REVISIONS},
+    }
+    missing = []
+    if not season_revision:
+        missing.append("manifest.seasonRevision")
+    for field in _REQUIRED_RUNTIME_REVISIONS:
+        if not dependency_vector[field]:
+            missing.append(f"runtimeAuthority.dependencyRevisions.{field}")
+    return {
+        "catalogRevision": catalog_revision,
+        "seasonRevision": season_revision,
+        "catalogState": catalog_state,
+        "websimState": websim_state,
+        "releaseId": release_id,
+        "dependencyVector": dependency_vector,
+        "missingFields": sorted(set(missing)),
+    }
+
+
+def resolver_authoring_context(revision_row: Any, runtime_authority: Any) -> dict[str, Any] | None:
+    """Project the exact current revisions a client must bind into Selection Intent."""
+
+    projection = _revision_projection(revision_row, runtime_authority)
+    if projection["missingFields"]:
+        return None
+    dependency_vector = projection["dependencyVector"]
+    return _canonical(
+        {
+            "contractRevision": RESOLVER_CONTEXT_CONTRACT_REVISION,
+            "formalActiveManifest": False,
+            "selectionSchemaRevision": dependency_vector["selectionSchemaRevision"],
+            "authoredAgainst": {
+                "seasonRevision": projection["seasonRevision"],
+                "gearCatalogRevision": projection["catalogRevision"],
+            },
+            "dependencyRevisions": {
+                field: dependency_vector[field]
+                for field in _REQUIRED_RUNTIME_REVISIONS
+            },
+        }
+    )
 
 
 def _cache_key(intent: dict[str, Any], dependency_vector: dict[str, Any]) -> str:
@@ -555,9 +619,17 @@ def _project_item(
         handedness = _text(
             gear_item_handedness_fields({"weaponType": weapon_type}).get("handedness")
         )
+    requested_spec = _text(runtime_authority.get("requestedClassSpec"))
+    weapon_mode = _text(
+        (_json_value(runtime_authority.get("ruleParameters"), {}) or {})
+        .get("weaponModesByClassSpec", {})
+        .get(requested_spec)
+    )
     if payload.get("allowedSlots"):
         allowed_slots = _texts(payload.get("allowedSlots"))
     elif handedness == "one_hand":
+        allowed_slots = ["main_hand", "off_hand"]
+    elif handedness == "two_hand" and weapon_mode == "dual_wield_2h":
         allowed_slots = ["main_hand", "off_hand"]
     else:
         allowed_slots = _texts(EQUIVALENT_GEAR_SLOTS.get(canonical_slot, [canonical_slot]))
@@ -653,6 +725,25 @@ def _project_variant(
     if overlay:
         projected["overlay"] = overlay
     return projected
+
+
+def _merge_equivalent_variant_candidates(candidates: Iterable[Any]) -> dict[str, Any] | None:
+    projected = [candidate for candidate in candidates if isinstance(candidate, dict)]
+    if not projected:
+        return None
+    semantic_values = [
+        _canonical({key: value for key, value in candidate.items() if key != "sourceRefIds"})
+        for candidate in projected
+    ]
+    if any(value != semantic_values[0] for value in semantic_values[1:]):
+        return None
+    merged = dict(projected[0])
+    merged["sourceRefIds"] = _texts(
+        source
+        for candidate in projected
+        for source in candidate.get("sourceRefIds", [])
+    )
+    return _canonical(merged)
 
 
 def _normalized_option_type(value: Any) -> str:
@@ -767,19 +858,13 @@ def load_gear_authority_context(
     cursor.execute(AUTHORITY_REVISION_SQL)
     revision_row = cursor.fetchone()
     revision_row = tuple(revision_row or ())
-    catalog_revision = compatibility_catalog_revision(revision_row)
-    season_revision = _text(revision_row[0] if len(revision_row) > 0 else "")
-    catalog_state = _json_value(revision_row[1] if len(revision_row) > 1 else {}, {})
-    websim_state = _json_value(revision_row[2] if len(revision_row) > 2 else {}, {})
-    revisions = runtime.get("dependencyRevisions")
-    revisions = revisions if isinstance(revisions, dict) else {}
-    release_id = f"compatibility:{catalog_revision.removeprefix('compatibility-pg:')[:16]}"
-    dependency_vector = {
-        "seasonRevision": season_revision,
-        "gearCatalogReleaseId": release_id,
-        "gearCatalogRevision": catalog_revision,
-        **{field: _text(revisions.get(field)) for field in _REQUIRED_RUNTIME_REVISIONS},
-    }
+    revision = _revision_projection(revision_row, runtime)
+    catalog_revision = revision["catalogRevision"]
+    season_revision = revision["seasonRevision"]
+    catalog_state = revision["catalogState"]
+    websim_state = revision["websimState"]
+    release_id = revision["releaseId"]
+    dependency_vector = revision["dependencyVector"]
     cache_key = _cache_key(intent, dependency_vector)
     if cache is not None:
         cached = cache.get(cache_key)
@@ -831,8 +916,9 @@ def load_gear_authority_context(
             variant_candidates_by_key.setdefault(requested_variant_key, []).append(variant)
 
     for requested_variant_key, candidates in variant_candidates_by_key.items():
-        if len(candidates) == 1:
-            variants_by_key[requested_variant_key] = candidates[0]
+        merged = _merge_equivalent_variant_candidates(candidates)
+        if merged is not None:
+            variants_by_key[requested_variant_key] = merged
 
     options_by_id: dict[str, dict[str, Any]] = {}
     for row in option_rows:
@@ -891,10 +977,12 @@ def load_gear_authority_context(
 
 __all__ = (
     "COMPATIBILITY_MANIFEST_REVISION",
+    "RESOLVER_CONTEXT_CONTRACT_REVISION",
     "AUTHORITY_REVISION_SQL",
     "SELECTED_ITEM_VARIANT_SQL",
     "SELECTED_OPTION_SQL",
     "AuthorityContextCache",
     "compatibility_catalog_revision",
+    "resolver_authoring_context",
     "load_gear_authority_context",
 )

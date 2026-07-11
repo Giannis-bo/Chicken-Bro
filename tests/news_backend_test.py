@@ -126,6 +126,42 @@ class NewsBackendTest(unittest.TestCase):
         self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
         simulator_payload.call_chat_completion = fake_call_chat_completion
 
+    def test_cache_data_store_reuses_only_authority_cache_for_same_database_url(self):
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://example.invalid/wow-a",
+                "WOW_DATABASE_RUNTIME": "postgres_only",
+            },
+        ):
+            first = self.backend.cache_data_store()
+            second = self.backend.cache_data_store()
+
+            self.assertIsNot(first, second)
+            self.assertIs(
+                first._gear_authority_context_cache,
+                second._gear_authority_context_cache,
+            )
+
+            os.environ["WOW_DATABASE_URL"] = "postgresql://example.invalid/wow-b"
+            other_database = self.backend.cache_data_store()
+
+            self.assertIsNot(
+                first._gear_authority_context_cache,
+                other_database._gear_authority_context_cache,
+            )
+
+    def test_cache_data_store_does_not_retain_authority_cache_when_pg_runtime_is_disabled(self):
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://example.invalid/wow-disabled",
+                "WOW_DATABASE_RUNTIME": "",
+            },
+        ):
+            self.assertIsNone(self.backend.cache_data_store())
+            self.assertIsNone(self.backend._GEAR_AUTHORITY_CACHE)
+
     def test_blizzard_forum_source_uses_slug_url_without_stale_category_id(self):
         forum_source = self.backend.NEWS_SOURCES_BY_ID["blizzard-forums"]
         feed_source = next(source for source in self.backend.FEED_SOURCES if source["sourceId"] == "blizzard-forums")
@@ -7278,6 +7314,197 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("talents=C4DA", payload["profile"])
         self.assertEqual(payload["profileReadiness"]["talentReady"], True)
 
+    def test_pg_only_gear_resolve_route_preserves_result_envelope_http_statuses(self):
+        store = object()
+        calls = []
+
+        def fake_resolve(payload, *, store, simc_runtime_revision, request_id):
+            calls.append(
+                {
+                    "payload": payload,
+                    "store": store,
+                    "simcRuntimeRevision": simc_runtime_revision,
+                    "requestId": request_id,
+                }
+            )
+            http_status = payload["expectedHttpStatus"]
+            status = "resolved" if http_status == 200 else ("unavailable" if http_status >= 500 else "blocked")
+            return http_status, {
+                "contractRevision": "gear-result-envelope-v1",
+                "requestId": request_id,
+                "status": status,
+                "releaseContext": {"gearCatalogRevision": "gear-r18"},
+                "data": {"echo": http_status},
+                "problems": [] if http_status == 200 else [
+                    {
+                        "kind": "AUTHORITY_UNAVAILABLE" if http_status == 503 else "REVISION_CONFLICT",
+                        "code": "TEST_PROBLEM",
+                        "title": "test",
+                        "detail": "",
+                        "path": "",
+                        "retryable": False,
+                        "meta": {},
+                    }
+                ],
+            }
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                    "WOW_DATABASE_RUNTIME": "postgres_only",
+                },
+            ), patch.object(
+                self.backend,
+                "cache_data_store",
+                return_value=store,
+            ), patch.object(
+                self.backend,
+                "simc_version_status",
+                return_value={"localTag": "simc-route-v1"},
+            ), patch.object(
+                self.backend,
+                "resolve_selection_intent",
+                side_effect=fake_resolve,
+                create=True,
+            ), patch.object(
+                self.backend,
+                "init_db",
+                side_effect=AssertionError("canonical Resolve must not initialize SQLite"),
+            ), patch.object(
+                self.backend,
+                "db_connection",
+                side_effect=AssertionError("canonical Resolve must not open SQLite"),
+            ):
+                for expected_status in (200, 400, 409, 503):
+                    with self.subTest(httpStatus=expected_status):
+                        request = Request(
+                            f"http://127.0.0.1:{server.server_port}/api/websim/gear/resolve",
+                            data=json.dumps({"expectedHttpStatus": expected_status}).encode("utf-8"),
+                            headers={"Content-Type": "application/json"},
+                            method="POST",
+                        )
+                        try:
+                            response = urlopen(request, timeout=5)
+                        except HTTPError as error:
+                            response = error
+                        with response:
+                            body = json.loads(response.read().decode("utf-8"))
+
+                        self.assertEqual(response.status, expected_status)
+                        self.assertEqual(body["contractRevision"], "gear-result-envelope-v1")
+                        self.assertTrue(body["requestId"])
+                        self.assertEqual(body["data"]["echo"], expected_status)
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(len(calls), 4)
+        self.assertTrue(all(call["store"] is store for call in calls))
+        self.assertTrue(all(call["simcRuntimeRevision"] == "simc-route-v1" for call in calls))
+        self.assertEqual(len({call["requestId"] for call in calls}), 4)
+
+    def test_pg_only_canonical_profile_route_re_resolves_and_preserves_503(self):
+        store = object()
+        calls = []
+        request_payload = {
+            "selectionIntent": {"schemaRevision": "selection-intent-v1"},
+            "profileContext": {"talents": "external-code"},
+        }
+
+        def fake_profile(payload, *, store, simc_runtime_revision, request_id, profile_builder):
+            calls.append(
+                {
+                    "payload": payload,
+                    "store": store,
+                    "simcRuntimeRevision": simc_runtime_revision,
+                    "requestId": request_id,
+                    "profileBuilder": profile_builder,
+                }
+            )
+            return 503, {
+                "contractRevision": "gear-result-envelope-v1",
+                "requestId": request_id,
+                "status": "unavailable",
+                "releaseContext": {},
+                "data": {},
+                "problems": [
+                    {
+                        "kind": "AUTHORITY_UNAVAILABLE",
+                        "code": "GEAR_AUTHORITY_READ_UNAVAILABLE",
+                        "title": "authority unavailable",
+                        "detail": "",
+                        "path": "",
+                        "retryable": True,
+                        "meta": {},
+                    }
+                ],
+            }
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                    "WOW_DATABASE_RUNTIME": "postgres_only",
+                },
+            ), patch.object(
+                self.backend,
+                "cache_data_store",
+                return_value=store,
+            ), patch.object(
+                self.backend,
+                "simc_version_status",
+                return_value={"simcRuntimeRevision": "simc-profile-v1"},
+            ), patch.object(
+                self.backend,
+                "is_canonical_profile_request",
+                return_value=True,
+                create=True,
+            ), patch.object(
+                self.backend,
+                "build_profile_from_selection_intent",
+                side_effect=fake_profile,
+                create=True,
+            ), patch.object(
+                self.backend,
+                "init_db",
+                side_effect=AssertionError("canonical profile must not initialize SQLite"),
+            ), patch.object(
+                self.backend,
+                "db_connection",
+                side_effect=AssertionError("canonical profile must not open SQLite"),
+            ):
+                request = Request(
+                    f"http://127.0.0.1:{server.server_port}/api/websim/profile",
+                    data=json.dumps(request_payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with self.assertRaises(HTTPError) as raised:
+                    urlopen(request, timeout=5)
+                response = raised.exception
+                body = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(response.code, 503)
+        self.assertEqual(body["contractRevision"], "gear-result-envelope-v1")
+        self.assertEqual(body["status"], "unavailable")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["payload"], request_payload)
+        self.assertIs(calls[0]["store"], store)
+        self.assertEqual(calls[0]["simcRuntimeRevision"], "simc-profile-v1")
+        self.assertIs(calls[0]["profileBuilder"], self.backend.build_websim_profile_response_from_resolved_snapshot)
+
     def test_pg_only_websim_gear_stats_route_returns_blocked_without_sqlite(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -9404,6 +9631,99 @@ class NewsBackendTest(unittest.TestCase):
         self.assertTrue(captured["compact"])
         self.assertEqual(captured["mode"], "initial")
         self.assertEqual(captured["slot"], "head")
+
+    def test_runtime_websim_gear_attaches_backend_resolver_context(self):
+        captured = {}
+        initial_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "gearPayloadMode": "initial",
+            "replacementCandidates": [],
+        }
+        resolver_context = {
+            "contractRevision": "gear-resolver-context-v1",
+            "formalActiveManifest": False,
+            "selectionSchemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-17-active",
+                "gearCatalogRevision": "compatibility-pg:resolver",
+            },
+        }
+        runtime_authority = {"dependencyRevisions": {"simcRuntimeRevision": "simc-v1"}}
+
+        class ResolverContextStore:
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                return initial_payload
+
+            def get_gear_resolver_context(self, authority):
+                captured["authority"] = authority
+                return resolver_context
+
+        with patch.object(
+            self.backend,
+            "cache_data_store",
+            return_value=ResolverContextStore(),
+        ), patch.object(
+            self.backend,
+            "simc_version_status",
+            return_value={"localTag": "simc-v1"},
+        ), patch.object(
+            self.backend,
+            "gear_resolver_runtime_authority",
+            return_value=runtime_authority,
+            create=True,
+        ) as authority_builder:
+            payload = self.backend.runtime_websim_gear_payload(
+                "mage",
+                "frost",
+                compact=True,
+                mode="initial",
+            )
+
+        self.assertIsNot(payload, initial_payload)
+        self.assertEqual(payload["resolverContext"], resolver_context)
+        self.assertEqual(captured["authority"], runtime_authority)
+        authority_builder.assert_called_once_with(
+            "mage",
+            "frost",
+            simc_runtime_revision="simc-v1",
+        )
+
+    def test_runtime_websim_gear_keeps_payload_when_resolver_context_read_fails(self):
+        initial_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "gearPayloadMode": "initial",
+            "replacementCandidates": [],
+        }
+
+        class ResolverContextFailureStore:
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                return initial_payload
+
+            def get_gear_resolver_context(self, authority):
+                raise OSError("independent revision query failed")
+
+        with patch.object(
+            self.backend,
+            "cache_data_store",
+            return_value=ResolverContextFailureStore(),
+        ), patch.object(
+            self.backend,
+            "simc_version_status",
+            return_value={"localTag": "simc-v1"},
+        ):
+            payload = self.backend.runtime_websim_gear_payload(
+                "mage",
+                "frost",
+                compact=True,
+                mode="initial",
+            )
+
+        self.assertIs(payload, initial_payload)
+        self.assertNotIn("resolverContext", payload)
 
     def test_runtime_websim_gear_adds_template_chain_state_to_cached_postgres_payload(self):
         observed = {

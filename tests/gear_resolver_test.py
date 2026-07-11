@@ -58,6 +58,21 @@ class GearResolverTest(unittest.TestCase):
         self.assertEqual(result["status"], "unavailable")
         self.assertTrue(any(problem["kind"] == "AUTHORITY_UNAVAILABLE" for problem in result["problems"]))
 
+    def test_resolver_keeps_missing_weapon_mode_authority_structured(self):
+        fixture = self.fixture()
+        fixture["authorityContext"]["ruleParameters"].pop("weaponModesByClassSpec")
+
+        result = self.resolve(fixture)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertFalse(result["profileReadiness"]["simcReady"])
+        self.assertTrue(
+            any(
+                problem["code"] == "GEAR_HAND_AUTHORITY_UNAVAILABLE"
+                for problem in result["problems"]
+            )
+        )
+
     def test_resolver_has_no_database_or_current_facade_dependency(self):
         source = inspect.getsource(gear_resolver)
         for forbidden in ("sqlite3", "psycopg", "postgres", "websim_payload", "news_backend", "subprocess"):
@@ -211,6 +226,38 @@ class GearResolverTest(unittest.TestCase):
         fixture["intent"]["slots"]["main_hand"] = {
             "itemId": "item-twohand",
             "variantKey": "variant-twohand",
+            "gemOptionIds": [],
+            "enchantOptionId": "",
+            "embellishmentOptionId": "",
+            "craftedOptionId": "",
+            "catalystOptionId": "",
+        }
+        fixture["intent"]["slots"].pop("off_hand")
+
+        result = self.resolve(fixture)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertNotIn("off_hand", result["profileReadiness"]["requiredSlots"])
+        self.assertTrue(result["profileReadiness"]["simcReady"])
+
+    def test_ranged_main_hand_does_not_require_a_fake_offhand(self):
+        fixture = self.fixture()
+        fixture["authorityContext"]["itemsById"]["item-ranged"] = {
+            **fixture["authorityContext"]["itemsById"]["item-twohand"],
+            "itemId": "item-ranged",
+            "weaponType": "bow",
+            "handedness": "ranged",
+        }
+        fixture["authorityContext"]["variantsByKey"]["variant-ranged"] = {
+            **fixture["authorityContext"]["variantsByKey"]["variant-twohand"],
+            "variantKey": "variant-ranged",
+            "itemId": "item-ranged",
+        }
+        fixture["authorityContext"]["ruleParameters"]["allowedWeaponTypesByClassSpec"]["warrior:fury"].append("bow")
+        fixture["authorityContext"]["ruleParameters"]["weaponModesByClassSpec"] = {"warrior:fury": "ranged"}
+        fixture["intent"]["slots"]["main_hand"] = {
+            "itemId": "item-ranged",
+            "variantKey": "variant-ranged",
             "gemOptionIds": [],
             "enchantOptionId": "",
             "embellishmentOptionId": "",

@@ -13,15 +13,26 @@ from collections import Counter
 import json
 from typing import Any, Iterable
 
-from server.gear_contracts import (
-    parse_selection_intent,
-    resolved_gear_signature,
-    selection_signature,
-    validate_authority_context,
-)
-from server.gear_evidence_ledger import build_evidence_ledger, evidence_claim
-from server.gear_result_envelope import gear_problem
-from server.gear_rule_matrix import evaluate_rule_matrix, ordered_rule_matrix
+try:
+    from .gear_contracts import (
+        parse_selection_intent,
+        resolved_gear_signature,
+        selection_signature,
+        validate_authority_context,
+    )
+    from .gear_evidence_ledger import build_evidence_ledger, evidence_claim
+    from .gear_result_envelope import gear_problem
+    from .gear_rule_matrix import evaluate_rule_matrix, ordered_rule_matrix
+except ImportError:
+    from gear_contracts import (
+        parse_selection_intent,
+        resolved_gear_signature,
+        selection_signature,
+        validate_authority_context,
+    )
+    from gear_evidence_ledger import build_evidence_ledger, evidence_claim
+    from gear_result_envelope import gear_problem
+    from gear_rule_matrix import evaluate_rule_matrix, ordered_rule_matrix
 
 
 RESOLVED_SNAPSHOT_CONTRACT_REVISION = "gear-resolved-snapshot-v1"
@@ -574,12 +585,19 @@ def _constraints(resolved_slots: dict[str, dict[str, Any]]) -> dict[str, Any]:
 def _profile_readiness(
     resolved_slots: dict[str, dict[str, Any]],
     authority_context: dict[str, Any],
+    selection_intent: dict[str, Any],
     problems: list[dict[str, Any]],
 ) -> dict[str, Any]:
     vector = authority_context["dependencyVector"]
-    required = list(authority_context["ruleParameters"].get("requiredSlots", []))
+    parameters = authority_context["ruleParameters"]
+    required = list(parameters.get("requiredSlots", []))
     main_hand = resolved_slots.get("main_hand", {})
-    if main_hand.get("handedness") == "two_hand":
+    eligibility = selection_intent["eligibilityContext"]
+    requested_spec = f"{eligibility['classKey']}:{eligibility['specKey']}"
+    weapon_mode = parameters.get("weaponModesByClassSpec", {}).get(requested_spec)
+    if main_hand.get("handedness") == "ranged" or (
+        main_hand.get("handedness") == "two_hand" and weapon_mode != "dual_wield_2h"
+    ):
         required = [slot for slot in required if slot != "off_hand"]
     required = sorted(set(required))
     ready = sorted(slot for slot in required if slot in resolved_slots and not resolved_slots[slot]["problems"])
@@ -863,7 +881,7 @@ def resolve(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
         all_sources, authority_context["evidenceRecordsById"]
     )
     problems = _dedupe_problems(problems + evidence_problems)
-    readiness = _profile_readiness(resolved_slots, authority_context, problems)
+    readiness = _profile_readiness(resolved_slots, authority_context, intent, problems)
     claims = _claims(
         resolved_slots,
         rule_results,
@@ -883,7 +901,7 @@ def resolve(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
         )
     problems = _dedupe_problems(problems + ledger["problems"] + readiness["problems"])
     if problems and readiness["simcReady"]:
-        readiness = _profile_readiness(resolved_slots, authority_context, problems)
+        readiness = _profile_readiness(resolved_slots, authority_context, intent, problems)
 
     aggregate_legality = {
         "status": "verified" if not matrix["problems"] else "blocked",
