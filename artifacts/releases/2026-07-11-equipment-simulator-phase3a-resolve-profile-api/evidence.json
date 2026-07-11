@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-phase3a-resolve-profile-api",
-  "commit": "d31e2255a85a63800ebcc694d6be8e4244182eaa",
+  "commit": "827fcf0deff4f4639b6ca977ef4fbf7ad5f0659c",
   "scope": [
     "backend resolver authoring context",
     "canonical gear runtime orchestration",
@@ -47,6 +47,16 @@
       "command": "git diff --check and static scope inspection",
       "status": "pass",
       "summary": "Whitespace verification passed. The changed production surface is limited to the planned loader, PostgreSQL store, runtime orchestrator and backend route files; no write SQL, migration, sync, frontend or Catalyst activation was added."
+    },
+    {
+      "command": "second candidate 40-spec hard gate and corrected remote PostgreSQL read-only preflight",
+      "status": "pass",
+      "summary": "The second candidate started cleanly but the real 40-spec gate passed only 3/40, so it was rolled back. Exact problem evidence exposed four authority gaps: class armor restrictions were applied to cloak/shield slots, Fury dual_wield_2h was collapsed into ordinary dual-wield rules, ranged main hand did not occupy off hand for readiness, and semantically identical raw/normalized variant rows were treated as conflicting aliases. Eleven focused red-to-green cases now keep missing rule parameters and semantically divergent aliases fail-closed. The corrected code passed 112 domain tests and 744 related backend/store/facade/orchestration tests, then a temporary remote read-only preflight against the live public templates and PostgreSQL authority resolved 40/40 with zero failures (18 fifteen-slot and 22 sixteen-slot Intents); the temporary tree was removed."
+    },
+    {
+      "command": "local CR of live-authority correction at 827fcf0",
+      "status": "pass",
+      "summary": "No unresolved critical or important findings. Armor restriction remains an explicit backend-owned slot parameter and fails closed when absent; two-hand dual-wield is allowed only for the exact dual_wield_2h mode; ranged and ordinary two-hand occupancy remain distinct; public alias duplicates merge only when every semantic field matches and preserve all evidence refs, while divergent rows remain unavailable. Resolver/Ledger stay pure, PostgreSQL reads stay bounded and read-only, and no public template, migration, write, sync, frontend or Catalyst behavior was activated."
     }
   ],
   "candidateDeployment": {
@@ -62,11 +72,17 @@
         "status": "failed_then_rolled_back",
         "failure": "The direct systemd startup path imported gear_runtime from the server directory, then gear_resolver required the unavailable server package and raised ModuleNotFoundError before binding port 8787.",
         "rollback": "Restored the exact Phase 2B news_backend, loader and store files from /opt/wow-mini-program-candidate-backups/phase3a-pre-c1151cba, removed the new gear_runtime.py, restarted wow-backend and confirmed active/success with the original three file hashes. No database write or restore was required."
+      },
+      {
+        "head": "0a082cc2ca56f5b75b772616f2d4b53f0ead5612",
+        "status": "hard_gate_failed_then_rolled_back",
+        "failure": "The candidate service and exact hashes were healthy, but only 3/40 public observed Intents completed Resolve/Profile. Thirty-one gear results were blocked by armor/weapon/readiness rule mismatches, Elemental Shaman had nine ambiguous duplicate variant aliases, and six otherwise resolved specs lacked a verified talent import for the profile probe.",
+        "rollback": "Restored the same exact Phase 2B file backup, removed gear_runtime.py, restarted wow-backend and confirmed /health ok plus active/running/success. The candidate had async syncs disabled and performed no database writes; no data restore was needed."
       }
     ],
     "smoke": {
       "status": "blocked",
-      "summary": "The first candidate failed startup and was rolled back. Direct-server import correction is local-verified; new exact-head CI and a fresh candidate deployment remain required before merge."
+      "summary": "The first candidate failed startup and the second failed the 40-spec authority gate; both were rolled back to exact Phase 2B files. The corrected implementation is local-verified and passed a 40/40 remote PostgreSQL read-only preflight; new exact-head CI and a fresh full candidate deployment remain required before merge."
     },
     "timerBackflow": {
       "status": "blocked",
@@ -119,5 +135,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 3A remains local-verified at corrected implementation head d31e225. The first candidate failed on the real direct systemd import path and was immediately rolled back to exact Phase 2B hashes; a red-to-green subprocess test now covers that boundary, and focused regressions pass. New exact-head GitHub Harness, a fresh candidate PostgreSQL deployment, 40-spec Resolve/Profile, negative HTTP, latency/concurrency, unchanged-runtime and post-merge smoke remain required before archival."
+  "summary": "Slice 3A remains local-verified at corrected implementation head 827fcf0. Two failed candidates were truthfully rolled back: the first exposed direct systemd imports, the second exposed 40-spec armor/weapon/readiness and duplicate-alias authority gaps. Red-to-green tests cover both findings, 112 domain and 744 related tests pass, and a temporary remote PostgreSQL read-only preflight now resolves 40/40 public observed Intents. New exact-head GitHub Harness, a fresh full candidate deployment, negative HTTP, Profile matrix, latency/concurrency, unchanged-runtime and post-merge smoke remain required before archival."
 }
