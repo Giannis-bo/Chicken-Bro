@@ -10,11 +10,13 @@ class FakeReleaseStore:
         self.templates = templates or []
         self.gear_seals = []
         self.community_seals = []
+        self.requested_specs = []
 
     def snapshot_staging_gear(self):
         return copy.deepcopy(self.gear_snapshot)
 
-    def snapshot_staging_community_templates(self):
+    def snapshot_staging_community_templates(self, expected_specs):
+        self.requested_specs = list(expected_specs)
         return copy.deepcopy(self.templates)
 
     def seal_gear_release(self, release, snapshot, **kwargs):
@@ -215,6 +217,7 @@ class GearReleaseToolTest(unittest.TestCase):
         )
 
         self.assertEqual(len(calls), 1)
+        self.assertEqual(store.requested_specs, [("mage", "arcane")])
         self.assertEqual(result["election"]["status"], "validated")
         self.assertEqual(result["election"]["winnerSpecCount"], 1)
         self.assertEqual(result["release"]["releaseKind"], "community")

@@ -305,7 +305,14 @@ def build_legacy_community_release(
     source_revision: str = "legacy-import-r0",
     resolver_for_spec: Callable[[str, str, dict[str, Any]], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    templates = store.snapshot_staging_community_templates()
+    expected = sorted({
+        (_text(class_key), _text(spec_key))
+        for class_key, spec_key in expected_specs
+        if _text(class_key) and _text(spec_key)
+    })
+    if not expected:
+        raise GearReleaseIntegrityError("expected_specs must contain at least one spec")
+    templates = store.snapshot_staging_community_templates(expected)
     template_ids = [_text(row.get("templateId")) for row in templates]
     if any(not template_id for template_id in template_ids):
         raise GearReleaseIntegrityError("staging community templateId must be non-empty")
@@ -347,7 +354,7 @@ def build_legacy_community_release(
         gear_release_id=gear_release_descriptor["releaseId"],
         resolver=resolve_candidate,
         now=now,
-        expected_specs=expected_specs,
+        expected_specs=expected,
     )
     rows = _release_rows_from_election(election, templates_by_id)
     summary = community_rows_summary(rows)

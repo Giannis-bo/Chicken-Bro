@@ -448,23 +448,57 @@ class GearReleaseStore:
             ],
         }
 
-    def snapshot_staging_community_templates(self, limit: int = 400) -> list[dict[str, Any]]:
-        bounded_limit = max(1, min(_int(limit), 400))
+    def snapshot_staging_community_templates(
+        self,
+        expected_specs: Iterable[tuple[str, str]],
+    ) -> list[dict[str, Any]]:
+        specs = sorted({
+            (_text(class_key), _text(spec_key))
+            for class_key, spec_key in expected_specs
+            if _text(class_key) and _text(spec_key)
+        })
+        if not specs or len(specs) > 40:
+            raise GearReleaseIntegrityError("community snapshot requires 1 to 40 explicit specs")
+        class_keys = [class_key for class_key, _spec_key in specs]
+        spec_keys = [spec_key for _class_key, spec_key in specs]
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
                 cur.execute(
                     """
+                    WITH expected(class_key, spec_key) AS (
+                        SELECT * FROM unnest(%s::text[], %s::text[])
+                    ), ranked AS (
+                        SELECT template.id, template.class_key, template.spec_key, template.name,
+                               template.source_key, template.source_name, template.source_url,
+                               template.source_status, template.status, template.signature,
+                               template.source_refs_json, template.gear_items_json,
+                               template.raw_string, template.ready_slot_count,
+                               template.missing_slots_json, template.analysis_window,
+                               template.payload_json, template.updated_at, template.expires_at,
+                               template.scan_run_id,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY template.class_key, template.spec_key
+                                   ORDER BY template.status, template.ready_slot_count DESC,
+                                            template.updated_at DESC, template.id
+                               ) AS candidate_rank
+                        FROM cache.websim_community_gear_templates AS template
+                        INNER JOIN expected
+                          ON expected.class_key = template.class_key
+                         AND expected.spec_key = template.spec_key
+                    )
                     SELECT id, class_key, spec_key, name, source_key, source_name, source_url,
                            source_status, status, signature, source_refs_json, gear_items_json,
                            raw_string, ready_slot_count, missing_slots_json, analysis_window,
                            payload_json, updated_at, expires_at, scan_run_id
-                    FROM cache.websim_community_gear_templates
-                    ORDER BY class_key, spec_key, status, ready_slot_count DESC, updated_at DESC, id
+                    FROM ranked
+                    WHERE candidate_rank <= 10
+                    ORDER BY class_key, spec_key, candidate_rank, id
                     LIMIT 400
-                    """
+                    """,
+                    (class_keys, spec_keys),
                 )
-                rows = cur.fetchall()[:bounded_limit]
+                rows = cur.fetchall()
         return [
             {
                 "templateId": _text(row[0]),

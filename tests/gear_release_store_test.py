@@ -281,12 +281,19 @@ class GearReleaseStoreTest(unittest.TestCase):
                 )
             ]
         })
-        rows = GearReleaseStore(lambda: conn).snapshot_staging_community_templates()
+        rows = GearReleaseStore(lambda: conn).snapshot_staging_community_templates(
+            [("mage", "arcane")]
+        )
         sql = "\n".join(conn.cursor_instance.statements)
 
         self.assertIn("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY", sql)
         self.assertIn("FROM cache.websim_community_gear_templates", sql)
+        self.assertIn("unnest(%s::text[], %s::text[])", sql)
+        self.assertIn("PARTITION BY template.class_key, template.spec_key", sql)
+        self.assertIn("candidate_rank <= 10", sql)
         self.assertIn("LIMIT 400", sql)
+        self.assertEqual(conn.cursor_instance.params[-1][0], ["mage"])
+        self.assertEqual(conn.cursor_instance.params[-1][1], ["arcane"])
         self.assertEqual(rows[0]["templateId"], "template-a")
         self.assertEqual(rows[0]["gearItems"][0]["variantKey"], "variant-a")
         self.assertEqual(rows[0]["payload"]["profileHash"], "profile:a")
