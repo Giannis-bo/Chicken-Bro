@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T11:55:50.756Z",
+  "generatedAt": "2026-07-11T12:04:20.672Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase5a-stat-snapshot-store"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/evidence.json",
-    "sizeBytes": 4299,
+    "sizeBytes": 8761,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Phase 5A is locally verified as a dormant pure signature plus additive PostgreSQL snapshot/job repository slice. Revision-complete identity, bounded no-DPS payloads, immutable content hashes, single-flight, limits, cooldown, fenced lease/reclaim and bounded health contracts are green. Candidate PostgreSQL migration/store smoke remains pending; no route, worker, frontend behavior or Catalyst capability is active."
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "Phase 5A candidate is live-verified at implementation commit 2b98dbe as a dormant pure signature plus additive PostgreSQL snapshot/job repository slice. Migration backup/apply, least privileges, real single-flight claim/heartbeat/fencing/publication rollback transaction, runtime parity, public compatibility, health/service/log and Phase 6 fail-closed evidence passed. No route, worker, frontend behavior or Catalyst capability is active."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "10 changed files currently visible to git status."
+      "detail": "2 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,18 +313,10 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 10,
+      "changedFileCount": 2,
       "changedFiles": [
         " M artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/evidence.json",
-        " M docs/backend-owner-map.json",
-        " M docs/project-owner-map.json",
-        " M docs/verification-matrix.md",
-        " M tests/postgres_schema_test.py",
-        "?? server/gear_stat_snapshot.py",
-        "?? server/gear_stat_snapshot_store.py",
-        "?? server/migrations/postgres/0015_websim_gear_stat_snapshots.sql",
-        "?? tests/gear_stat_snapshot_store_test.py",
-        "?? tests/gear_stat_snapshot_test.py"
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/manifest.json"
       ]
     }
   },
