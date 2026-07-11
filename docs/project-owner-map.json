@@ -325,26 +325,33 @@
         "runtimeConsumers": []
       },
       "releaseTrainFoundations": {
-        "status": "phase4c_internal_shadow_candidate",
+        "status": "phase4e_active_manifest_and_scheduled_candidates",
         "modules": [
           "server/gear_release.py",
           "server/gear_release_store.py",
           "server/gear_release_tool.py",
           "server/gear_release_shadow.py",
-          "server/migrations/postgres/0013_websim_release_train.sql"
+          "server/gear_release_refresh.py",
+          "server/migrations/postgres/0013_websim_release_train.sql",
+          "server/migrations/postgres/0014_websim_active_manifest_pointer_state.sql",
+          "server/wow-gear-release-refresh.service",
+          "server/wow-gear-release-refresh.timer"
         ],
         "tests": [
           "tests/gear_release_test.py",
           "tests/gear_release_store_test.py",
           "tests/gear_release_tool_test.py",
           "tests/gear_release_shadow_test.py",
+          "tests/gear_release_refresh_test.py",
+          "tests/deploy-script.test.js",
           "tests/postgres_schema_test.py"
         ],
         "runtimeConsumers": [
-          "server/gear_release_tool.py explicit operator command only",
-          "server/gear_release_shadow.py internal read-only old/new comparison"
+          "server/gear_release_tool.py explicit operator command",
+          "server/gear_release_shadow.py internal active/candidate comparison",
+          "server/gear_release_refresh.py bounded scheduled candidate-first orchestrator"
         ],
-        "activationBoundary": "Phase 4B is merged and live-verified with inactive Gear/Community Releases and zero Manifest/Pointer rows. Phase 4C may add release-scoped read-only candidate projections and internal shadow diffs only; public reader cutover, pointer mutation, timers and Catalyst enablement remain forbidden."
+        "activationBoundary": "Phase 4D is merged and live-verified with one formal active Manifest at generation 9. Phase 4E may consume staging into inactive candidates and auto-promote only same-Gear Community or fully compatible additive Gear changes; deploy-triggered refresh, Phase 5 and Catalyst remain forbidden."
       },
       "dormantAdapters": {
         "status": "contract_only_unconsumed",
@@ -380,7 +387,8 @@
         "tests/gear_release_test.py",
         "tests/gear_release_store_test.py",
         "tests/gear_release_tool_test.py",
-        "tests/gear_release_shadow_test.py"
+        "tests/gear_release_shadow_test.py",
+        "tests/gear_release_refresh_test.py"
       ],
       "runtimeSurfaces": [
         "server/gear_public_contract.py",
@@ -415,7 +423,11 @@
         "server/gear_release_store.py",
         "server/gear_release_tool.py",
         "server/gear_release_shadow.py",
+        "server/gear_release_refresh.py",
         "server/migrations/postgres/0013_websim_release_train.sql",
+        "server/migrations/postgres/0014_websim_active_manifest_pointer_state.sql",
+        "server/wow-gear-release-refresh.service",
+        "server/wow-gear-release-refresh.timer",
         "server/pg_gear_authority_loader.py",
         "server/postgres_cache_store.py",
         "pages/builds/websim-api.js",
@@ -429,6 +441,7 @@
         "tests/gear_release_store_test.py",
         "tests/gear_release_tool_test.py",
         "tests/gear_release_shadow_test.py",
+        "tests/gear_release_refresh_test.py",
         "tests/pg_gear_authority_loader_test.py"
       ],
       "backendOwnerMapRef": {
@@ -1091,6 +1104,9 @@
         "server/recommended_bis_guard_sync.py",
         "server/season_recommended_gear_sync.py",
         "server/gear_observed_backfill.py",
+        "server/gear_release_refresh.py",
+        "server/wow-gear-release-refresh.service",
+        "server/wow-gear-release-refresh.timer",
         "server/wow-community-template-sync.timer"
       ],
       "runbooks": [
@@ -1125,8 +1141,10 @@
         "coverage": [
           "tests/postgres_cache_sync_test.py",
           "tests/websim_sync_test.py",
-          "tests/gear_observed_backfill_test.py",
-          "tests/season_recommended_gear_test.py"
+        "tests/gear_observed_backfill_test.py",
+        "tests/season_recommended_gear_test.py",
+        "tests/gear_release_refresh_test.py",
+        "tests/deploy-script.test.js"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {
@@ -1227,6 +1245,8 @@
       "consumers": [
         "server/wow-websim-sync.service",
         "server/wow-websim-sync.timer",
+        "server/wow-gear-release-refresh.service",
+        "server/wow-gear-release-refresh.timer",
         "server/wow-data-health-followup.service",
         "server/wow-simc-runtime-update.service"
       ],
@@ -1246,6 +1266,8 @@
       "runtimeSurfaces": [
         "server/deploy_lighthouse.sh",
         "server/wow-websim-sync.service",
+        "server/wow-gear-release-refresh.service",
+        "server/wow-gear-release-refresh.timer",
         "server/wow-data-health-followup.service",
         "server/wow-simc-runtime-update.service"
       ],

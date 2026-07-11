@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase4e-scheduled-refresh",
   "requirementSlug": "equipment-simulator-phase4e-scheduled-refresh",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-phase4e-scheduled-refresh",
-  "commit": "pending_implementation",
+  "commit": "pending_candidate_head",
   "scope": [
     "candidate_first_release_refresh",
     "risk_classified_promotion",
@@ -15,8 +15,23 @@
   "verification": [
     {
       "command": "python3 -m unittest tests.gear_release_refresh_test",
-      "status": "not_run",
-      "summary": "TDD implementation has not started."
+      "status": "pass",
+      "summary": "Candidate-first policy, additive/high-risk classification, active-winner coverage, degraded empty, lease, bounded failure and CLI tests passed."
+    },
+    {
+      "command": "python3 -m unittest tests.gear_release_refresh_test tests.gear_release_store_test tests.gear_release_shadow_test tests.gear_release_tool_test tests.gear_release_test tests.postgres_cache_store_test tests.postgres_schema_test tests.news_backend_test",
+      "status": "pass",
+      "summary": "458 focused release, store, shadow, route, health/admin and schema tests passed at the final local implementation state."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh --base origin/main",
+      "status": "pass",
+      "summary": "Backend profile passed 1294 Python tests with 1 skipped, compileall and Strict Harness."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh --base origin/main",
+      "status": "pass",
+      "summary": "Full profile passed 388 Node tests, 1294 Python tests with 1 skipped, 130 JSON/syntax/Harness/diff commands and Strict Harness."
     }
   ],
   "candidateDeployment": {
@@ -73,5 +88,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 4E is implementation-allowed only for a bounded staging-consumer that creates inactive candidates first, applies explicit risk-classified promotion gates, preserves the active pointer on uncertainty, installs a non-deploy-triggered timer, and keeps Phase 5 and Catalyst excluded."
+  "summary": "Slice 4E is locally verified as a bounded staging-only candidate builder with immutable candidate-first sealing, explicit risk-classified promotion, active-winner coverage protection, terminal degraded-empty handling, dual single-run locks, bounded append-only events, non-deploy-triggered timer installation and health/admin truth. Candidate deployment, controlled timer execution and live gates remain pending; Phase 5 and Catalyst stay excluded."
 }

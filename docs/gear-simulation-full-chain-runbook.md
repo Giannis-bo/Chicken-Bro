@@ -100,6 +100,32 @@ python3 -m server.gear_release_tool rollback \
 
 每次状态变化后都要核对 pointer 单行、generation、Manifest/Release IDs、`/api/data/health` 的 `active_manifest` component、admin summary、40-spec initial browse/Resolve/Profile、observed-only + baseline-empty、未知 Catalyst 503、一次旧 Intent 409 rebase、service/timer/backflow/log。formal active 中任何 pointer、Manifest、Release 或 runtime dependency 损坏都必须 503；只有 zero-row pre-cutover 和显式 transitional rollback 允许 staging reader。代码回滚不能删除已创建的 pointer 行；若退回不认识 0014 的代码，必须先按记录的 generation 切到 transitional，并使用候选前备份作为最后的数据恢复路径。
 
+### Slice 4E candidate-first 定时刷新操作
+
+`server/gear_release_refresh.py` 只读取现有 PostgreSQL staging，不执行任何外部下载或 sync。每次运行先用 systemd `flock -n` 与 PostgreSQL session advisory lock 防止重入，再记录 bounded started event；随后 snapshot staging、创建或复用 immutable Gear/Community candidates、执行 active/candidate shadow 和 40-spec Resolve/Profile/browse gate，最后才允许 Manifest pointer CAS。blocked、manual-required、failed 或 lease-conflict 都不得移动 active pointer。
+
+部署脚本只复制 service/timer、`reset-failed` 并执行 `systemctl enable wow-gear-release-refresh.timer`；禁止 `enable --now` 或启动 refresh service。candidate/clean-main controlled run 必须由 operator 显式触发：
+
+```bash
+sudo systemctl start wow-gear-release-refresh.service
+sudo systemctl show wow-gear-release-refresh.service \
+  -p Result -p ExecMainStatus -p MemoryPeak -p ActiveEnterTimestamp -p InactiveEnterTimestamp
+sudo journalctl -u wow-gear-release-refresh.service --since "10 minutes ago" --no-pager
+```
+
+确认 controlled run 后才显式启动 timer；`Persistent=true`，日程为 `18:30`、随机延迟 15 分钟，下一次触发时间以 systemd 为事实源：
+
+```bash
+sudo systemctl start wow-gear-release-refresh.timer
+systemctl list-timers wow-gear-release-refresh.timer --all --no-pager
+```
+
+验收必须同时读取 `cache.websim_release_events` 最新 `gear_release_refresh_*` event、pointer generation、candidate/active Release 与 Manifest IDs、`/api/data/health` 的 `active_manifest` 和 `gear_release_refresh` components、admin summary、40-spec public/Resolve/Profile、legacy Profile/stats、未知 Catalyst 503、service memory/time、timer next/last、sync/backflow 和错误日志。event/health 只暴露 bounded code/count/identity，不暴露 SQL、DSN、traceback 或无界 evidence。
+
+风险分级固定如下：相同 Gear 的 Community 变化在完整 gate 通过后可自动 promotion；Gear candidate 只有保留每个 active identity 与 row hash、且只新增 identity 时才是 low-risk additive；任何 mutation/removal、new season、rule、serializer、schema、capability、SimC/stat policy 变化都必须 manual controlled cutover。active winner 缺失默认是 coverage regression；只有该 winner 在 candidate 中带明确 stale/blocked/illegal/profile-not-ready 终止性证据时，才允许该 spec 公开为空并标 degraded，仍禁止 baseline 补位。
+
+回滚顺序：先 `systemctl stop/disable wow-gear-release-refresh.timer` 阻断后续运行；若本次没有 auto promotion，active pointer 本来就不应变化，保留 candidate/events 作审计即可。若已安全 auto promotion，使用当前 generation 和运行前 Manifest revision 执行 active-to-active CAS rollback，再验证 40-spec 与 health；禁止更新/删除 sealed candidates、Manifest 或 events。代码回滚不能替代 pointer rollback，数据库 dump 仍只作最后恢复路径。
+
 ## 当前公开装备模板事实快照
 
 | 链路 | 当前用户侧状态 | 内部/研发状态 | 不能误读成 |

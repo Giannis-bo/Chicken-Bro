@@ -136,6 +136,8 @@ def run_release_shadow(
     level: int = 90,
     profile_context_by_spec: dict[str, dict[str, Any]] | None = None,
     compare_profiles: bool = True,
+    expect_formal_active: bool = False,
+    allow_degraded_empty: bool = False,
 ) -> dict[str, Any]:
     """Run an internal shadow matrix without changing public routing or state."""
 
@@ -271,9 +273,9 @@ def run_release_shadow(
             blockers.append(_blocker("PUBLIC_BASELINE_LEAK", class_key, spec_key, "Transitional public baseline is not empty."))
         if len(public_templates) != 1:
             blockers.append(_blocker("TRANSITIONAL_WINNER_COUNT_INVALID", class_key, spec_key, "Transitional public winner count must equal one."))
-        if candidate is None:
+        if candidate is None and not allow_degraded_empty:
             blockers.append(_blocker("CANDIDATE_WINNER_MISSING", class_key, spec_key, "Candidate Community Release has no winner."))
-        if len(public_templates) != 1 or candidate is None:
+        if len(public_templates) != 1:
             spec_results.append({
                 "classKey": class_key,
                 "specKey": spec_key,
@@ -283,8 +285,6 @@ def run_release_shadow(
             continue
 
         public_template = public_templates[0]
-        if _text(public_template.get("id")) != _text(candidate.get("templateId")):
-            blockers.append(_blocker("PUBLIC_WINNER_ID_MISMATCH", class_key, spec_key, "Candidate winner identity differs from public."))
         authored = resolver_context.get("authoredAgainst") if isinstance(resolver_context.get("authoredAgainst"), dict) else {}
         legacy_intent = _selection_intent_from_template(
             public_template,
@@ -292,6 +292,28 @@ def run_release_shadow(
             season_revision=_text(authored.get("seasonRevision")),
             level=level,
         )
+        if candidate is None:
+            legacy_rows.append(
+                pg_gear_read_model_selectors.build_transitional_release_shadow_row(
+                    public_template,
+                    legacy_intent,
+                    {},
+                    gear_release_id=gear_id,
+                    baseline_count=len(baselines),
+                )
+            )
+            spec_results.append({
+                "classKey": class_key,
+                "specKey": spec_key,
+                "status": "degraded_empty",
+                "transitionalHttpStatus": 200,
+                "candidateHttpStatus": 200,
+                "profileParity": {"status": "not_run"},
+                "durationMs": round((time.perf_counter() - spec_started) * 1000, 3),
+            })
+            continue
+        if _text(public_template.get("id")) != _text(candidate.get("templateId")):
+            blockers.append(_blocker("PUBLIC_WINNER_ID_MISMATCH", class_key, spec_key, "Candidate winner identity differs from public."))
         candidate_intent = candidate.get("selectionIntent") if isinstance(candidate.get("selectionIntent"), dict) else {}
         old_status, old_envelope = gear_runtime.resolve_selection_intent(
             legacy_intent,
@@ -383,8 +405,11 @@ def run_release_shadow(
             "durationMs": round((time.perf_counter() - spec_started) * 1000, 3),
         })
 
-    if formal_active:
-        blockers.append(_blocker("PUBLIC_FORMAL_MANIFEST_PREMATURE", detail="Public reader activated a formal Manifest during shadow."))
+    if formal_active is not bool(expect_formal_active):
+        blockers.append(_blocker(
+            "PUBLIC_FORMAL_MANIFEST_STATE_MISMATCH",
+            detail="Public reader formal Manifest state does not match the shadow contract.",
+        ))
     report = gear_release.compare_shadow(
         legacy_rows,
         candidate_rows,

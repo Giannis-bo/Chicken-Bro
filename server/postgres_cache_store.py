@@ -1093,6 +1093,62 @@ class PostgresCacheStore:
             "blockers": ["active Manifest pointer state is invalid"],
         }
 
+    def release_refresh_health(self):
+        """Project one bounded release-refresh and timer control-plane state."""
+
+        active = self.active_manifest_health()
+        active_details = active.get("details") if isinstance(active.get("details"), dict) else {}
+        try:
+            latest = self._gear_release_store.latest_refresh_state()
+        except Exception:
+            latest = {}
+        latest = latest if isinstance(latest, dict) else {}
+        last_status = str(latest.get("status") or "never_run")
+        if last_status == "promoted":
+            status = "verified"
+        elif last_status in {"blocked", "manual_required", "failed"}:
+            status = "blocked"
+        else:
+            status = "partial"
+        blocker_codes = [str(code) for code in (latest.get("blockerCodes") or [])[:16] if str(code)]
+        blockers = blocker_codes
+        if not latest:
+            blockers = ["gear release refresh has not recorded a controlled run"]
+        elif last_status == "manual_required" and not blockers:
+            blockers = ["latest release candidate requires a controlled cutover"]
+        elif last_status == "failed" and not blockers:
+            blockers = ["latest release refresh failed before a safe pointer decision"]
+        return {
+            "status": status,
+            "details": {
+                "activeManifestRevision": str(active_details.get("manifestRevision") or ""),
+                "activeGearReleaseId": str(active_details.get("gearCatalogReleaseId") or ""),
+                "activeCommunityReleaseId": str(active_details.get("communityTemplateReleaseId") or ""),
+                "pointerGeneration": _int_value(active_details.get("pointerGeneration")),
+                "rollbackManifestRevision": str(active_details.get("rollbackManifestRevision") or ""),
+                "lastEventType": str(latest.get("eventType") or ""),
+                "lastStatus": last_status,
+                "lastRunAt": str(latest.get("checkedAt") or ""),
+                "candidateGearReleaseId": str(latest.get("gearReleaseId") or ""),
+                "candidateCommunityReleaseId": str(latest.get("communityReleaseId") or ""),
+                "candidateManifestRevision": str(latest.get("manifestRevision") or ""),
+                "lastRiskClass": str(latest.get("riskClass") or ""),
+                "lastDecision": str(latest.get("decision") or ""),
+                "counts": latest.get("counts") if isinstance(latest.get("counts"), dict) else {},
+                "blockerCodes": blocker_codes,
+                "timer": {
+                    "unit": "wow-gear-release-refresh.timer",
+                    "service": "wow-gear-release-refresh.service",
+                    "schedule": "*-*-* 18:30:00",
+                    "randomizedDelay": "15min",
+                    "persistent": True,
+                    "nextRunAuthority": "systemd",
+                    "deployStartsService": False,
+                },
+            },
+            "blockers": blockers,
+        }
+
     def get_gear_resolver_context(self, runtime_authority, binding=None):
         """Load the current Selection Intent authoring revisions without selected facts."""
 

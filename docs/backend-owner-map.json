@@ -62,9 +62,13 @@
         },
         {
           "id": "gear_release_policy",
-          "status": "phase4a_completed_dormant",
+          "status": "phase4e_active_release_policy",
           "extractedModule": "server/gear_release.py",
-          "runtimeConsumers": [],
+          "runtimeConsumers": [
+            "server/gear_release_store.py",
+            "server/gear_release_refresh.py",
+            "server/gear_release_shadow.py"
+          ],
           "owns": [
             "hash-addressed immutable Gear and Community Release descriptors",
             "formal Active Season Manifest validation",
@@ -75,14 +79,14 @@
           ],
           "mustNotChange": [
             "Slice 4A must not access PostgreSQL, environment, filesystem, network, process execution or current time.",
-            "Slice 4A must not activate a reader, release write, manifest pointer, timer or public payload change.",
+            "Pure release policy must not access PostgreSQL, environment, filesystem, network, process execution or current time.",
             "Only real-player observed sources may become public winners; baseline/recommended/default/SimC templates remain internal.",
             "Catalyst parser allowlist alone must never enable retained-secondary-stat capability."
           ],
           "characterization": [
             "tests/gear_release_test.py"
           ],
-          "futureExtractionDirection": "Phase 4B may add one PostgreSQL release repository that consumes these pure contracts; persistence and pointer mutation must not leak back into this module."
+          "futureExtractionDirection": "Keep refresh orchestration, persistence, pointer mutation, timers and runtime inspection outside this pure module."
         },
         {
           "id": "gear_legality_source_map",
@@ -346,34 +350,44 @@
         },
         {
           "id": "gear_release_registry",
-          "status": "phase4c_internal_shadow_candidate",
+          "status": "phase4e_active_manifest_and_scheduled_candidates",
           "extractedModule": "server/gear_release_store.py",
           "operatorTool": "server/gear_release_tool.py",
           "shadowOrchestrator": "server/gear_release_shadow.py",
-          "migration": "server/migrations/postgres/0013_websim_release_train.sql",
+          "refreshOrchestrator": "server/gear_release_refresh.py",
+          "service": "server/wow-gear-release-refresh.service",
+          "timer": "server/wow-gear-release-refresh.timer",
+          "migrations": [
+            "server/migrations/postgres/0013_websim_release_train.sql",
+            "server/migrations/postgres/0014_websim_active_manifest_pointer_state.sql"
+          ],
           "usesModule": "server/gear_release.py",
           "owns": [
             "repeatable-read snapshots of mutable legacy gear and community staging rows",
             "append-only hash-addressed Gear and Community Release persistence",
-            "inactive Season Manifest persistence",
-            "strict dormant retail pointer compare-and-swap storage boundary",
+            "inactive and active Season Manifest persistence",
+            "strict monotonic retail pointer compare-and-swap storage boundary",
             "explicit legacy-import-r0 release construction and revalidation",
             "release-scoped selected Authority and complete Community Release reads",
-            "internal bounded transitional versus candidate shadow orchestration"
+            "internal bounded active versus candidate shadow orchestration",
+            "candidate-first staging refresh, risk-classified promotion and bounded run events"
           ],
           "mustNotChange": [
-            "Phase 4B must not activate a shadow/public reader or write the retail manifest pointer.",
-            "Phase 4B must not add a timer, public payload cutover or Catalyst capability enablement.",
+            "Refresh must seal or reuse inactive candidates and finish all gates before pointer CAS.",
+            "Deploy may install and enable the timer but must not start the refresh service.",
             "Release content is immutable; exact descriptor reuse is the only idempotent reuse path.",
-            "Legacy community candidates must be re-resolved against the exact sealed Gear Release snapshot."
+            "Community candidates must be re-resolved against the exact sealed Gear Release snapshot.",
+            "Phase 5 and Catalyst capability enablement remain excluded."
           ],
           "characterization": [
             "tests/gear_release_store_test.py",
             "tests/gear_release_tool_test.py",
             "tests/gear_release_shadow_test.py",
+            "tests/gear_release_refresh_test.py",
+            "tests/deploy-script.test.js",
             "tests/postgres_schema_test.py"
           ],
-          "futureExtractionDirection": "Phase 4C may add a read-only shadow reader only after inactive import evidence is sealed and public observed-only parity remains green."
+          "futureExtractionDirection": "Keep future Phase 5 SimC snapshot execution out of the release refresh and open a separate owner boundary."
         },
         {
           "id": "gear_catalog_read_model_selectors",

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T10:43:05.028Z",
+  "generatedAt": "2026-07-11T11:03:05.015Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase4e-scheduled-refresh"
@@ -43,12 +43,12 @@
         {
           "path": "docs/project-owner-map.json",
           "exists": true,
-          "sizeBytes": 51933
+          "sizeBytes": 53094
         },
         {
           "path": "docs/verification-matrix.md",
           "exists": true,
-          "sizeBytes": 25257
+          "sizeBytes": 27584
         },
         {
           "path": "docs/roadmap.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 37477
+          "sizeBytes": 38147
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -105,13 +105,13 @@
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 12715,
+          "lineCount": 12748,
           "hotspot": true
         },
         {
           "path": "server/postgres_cache_store.py",
           "exists": true,
-          "lineCount": 6566,
+          "lineCount": 6622,
           "hotspot": true
         }
       ],
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json",
-    "sizeBytes": 2752,
+    "sizeBytes": 4123,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Slice 4E is implementation-allowed only for a bounded staging-consumer that creates inactive candidates first, applies explicit risk-classified promotion gates, preserves the active pointer on uncertainty, installs a non-deploy-triggered timer, and keeps Phase 5 and Catalyst excluded."
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "Slice 4E is locally verified as a bounded staging-only candidate builder with immutable candidate-first sealing, explicit risk-classified promotion, active-winner coverage protection, terminal degraded-empty handling, dual single-run locks, bounded append-only events, non-deploy-triggered timer installation and health/admin truth. Candidate deployment, controlled timer execution and live gates remain pending; Phase 5 and Catalyst stay excluded."
   },
   "evidence": {
     "localTests": {
@@ -277,13 +277,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "4 changed files currently visible to git status."
+      "detail": "20 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:25982, server/news_backend.py:12715, server/postgres_cache_store.py:6566"
+      "detail": "server/websim_payload.py:25982, server/news_backend.py:12748, server/postgres_cache_store.py:6622"
     },
     {
       "id": "localTests_missing",
@@ -313,12 +313,28 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 4,
+      "changedFileCount": 20,
       "changedFiles": [
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json",
+        " M docs/backend-owner-map.json",
         " M docs/gear-simulation-full-chain-runbook.md",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        "?? artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/"
+        " M docs/project-owner-map.json",
+        " M docs/verification-matrix.md",
+        " M server/deploy_lighthouse.sh",
+        " M server/gear_release_shadow.py",
+        " M server/gear_release_store.py",
+        " M server/gear_release_tool.py",
+        " M server/news_backend.py",
+        " M server/postgres_cache_store.py",
+        " M tests/deploy-script.test.js",
+        " M tests/gear_release_shadow_test.py",
+        " M tests/gear_release_store_test.py",
+        " M tests/news_backend_test.py",
+        " M tests/postgres_cache_store_test.py",
+        "?? server/gear_release_refresh.py",
+        "?? server/wow-gear-release-refresh.service",
+        "?? server/wow-gear-release-refresh.timer",
+        "?? tests/gear_release_refresh_test.py"
       ]
     }
   },

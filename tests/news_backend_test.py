@@ -5140,6 +5140,38 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(component["details"]["pointerGeneration"], 4)
         self.assertTrue(component["blockers"])
 
+    def test_release_refresh_health_component_exposes_bounded_candidate_and_timer_truth(self):
+        class CacheStore:
+            def release_refresh_health(self):
+                return {
+                    "status": "verified",
+                    "details": {
+                        "activeManifestRevision": "season-manifest:active",
+                        "pointerGeneration": 10,
+                        "candidateGearReleaseId": "gear-release:candidate",
+                        "candidateCommunityReleaseId": "community-release:candidate",
+                        "lastDecision": "auto_promote",
+                        "lastRiskClass": "same_gear_community",
+                        "counts": {"winner": 40, "standby": 0, "rejected": 319, "empty": 0},
+                        "timer": {
+                            "unit": "wow-gear-release-refresh.timer",
+                            "schedule": "*-*-* 18:30:00",
+                            "persistent": True,
+                            "deployStartsService": False,
+                        },
+                    },
+                    "blockers": [],
+                }
+
+        component = self.backend.release_refresh_health_component(CacheStore())
+
+        self.assertEqual(component["key"], "gear_release_refresh")
+        self.assertEqual(component["status"], "verified")
+        self.assertEqual(component["details"]["pointerGeneration"], 10)
+        self.assertEqual(component["details"]["counts"]["winner"], 40)
+        self.assertFalse(component["details"]["timer"]["deployStartsService"])
+        self.assertNotIn("dsn", str(component).lower())
+
     def test_data_health_payload_includes_observed_backfill_defaults_without_syncing(self):
         with patch.object(self.backend, "sync_raiderio_cache", side_effect=AssertionError("health must be read-only")):
             payload = self.backend.build_data_health_payload()

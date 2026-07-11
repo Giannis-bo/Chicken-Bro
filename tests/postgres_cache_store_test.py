@@ -8472,6 +8472,50 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(invalid["status"], "blocked")
         self.assertTrue(invalid["blockers"])
 
+    def test_release_refresh_health_combines_active_pointer_latest_candidate_and_timer_policy(self):
+        from server import postgres_cache_store
+
+        class ReleaseStore:
+            def load_active_manifest_binding(self):
+                return {
+                    "pointerMode": "active",
+                    "generation": 10,
+                    "manifestRevision": "season-manifest:active",
+                    "formalActiveManifest": True,
+                    "manifest": {
+                        "seasonRevision": "season-17",
+                        "gearCatalogReleaseId": "gear-release:active",
+                        "communityTemplateReleaseId": "community-release:active",
+                        "talentCatalogRevision": "talent-r1",
+                    },
+                }
+
+            def latest_refresh_state(self):
+                return {
+                    "eventType": "gear_release_refresh_completed",
+                    "status": "promoted",
+                    "checkedAt": "2026-07-11T12:00:00+00:00",
+                    "gearReleaseId": "gear-release:candidate",
+                    "communityReleaseId": "community-release:candidate",
+                    "manifestRevision": "season-manifest:candidate",
+                    "riskClass": "same_gear_community",
+                    "decision": "auto_promote",
+                    "blockerCodes": [],
+                    "counts": {"winner": 40, "standby": 0, "rejected": 319, "empty": 0},
+                }
+
+        health = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("health must use release repository"),
+            gear_release_store=ReleaseStore(),
+        ).release_refresh_health()
+
+        self.assertEqual(health["status"], "verified")
+        self.assertEqual(health["details"]["pointerGeneration"], 10)
+        self.assertEqual(health["details"]["candidateManifestRevision"], "season-manifest:candidate")
+        self.assertEqual(health["details"]["counts"]["winner"], 40)
+        self.assertEqual(health["details"]["timer"]["nextRunAuthority"], "systemd")
+        self.assertFalse(health["details"]["timer"]["deployStartsService"])
+
     def test_gear_resolver_context_rolls_back_projection_failure(self):
         from server import postgres_cache_store
 

@@ -363,3 +363,36 @@ git diff --check
 ```
 
 Slice 4D must prove migration 0014 is additive, preserves one `retail` pointer row, keeps `generation` monotonic and represents first-cutover rollback as `pointer_mode=transitional` with no active Manifest. Promotion must seal or reuse the exact Manifest and perform pointer CAS in one transaction; stale generation rolls back both writes. Formal browse, authoring context, Resolve and canonical Profile bind one pointer/Manifest identity and query only the referenced immutable Releases. Missing/tampered/mixed formal state returns 503 and never falls back to staging. Candidate evidence must record database backup, exact branch/runtime parity, generation `0→1 promote →2 transitional rollback →3 re-promote`, 40-spec browse/Resolve/Profile parity, one real WeChat 409 rebase, health/admin truth, p95/query/cache bounds, `WOW_DEPLOY_START_ASYNC_SYNCS=0`, timers/backflow, logs and rollback. Scheduled refresh remains Slice 4E; Phase 5 and Catalyst remain excluded.
+
+The Strict Slice 4E packet at `artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh` adds the final Phase 4 candidate-first scheduled refresh and risk-classified promotion boundary. Before candidate deployment run:
+
+```bash
+python3 -m unittest \
+  tests.gear_release_refresh_test \
+  tests.gear_release_store_test \
+  tests.gear_release_shadow_test \
+  tests.gear_release_tool_test \
+  tests.gear_release_test \
+  tests.postgres_cache_store_test \
+  tests.postgres_schema_test \
+  tests.news_backend_test
+node --test tests/deploy-script.test.js tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh \
+  --base origin/main
+python3 -m py_compile \
+  server/gear_release.py \
+  server/gear_release_store.py \
+  server/gear_release_shadow.py \
+  server/gear_release_tool.py \
+  server/gear_release_refresh.py \
+  server/news_backend.py \
+  server/postgres_cache_store.py
+bash -n server/deploy_lighthouse.sh
+git diff --check
+```
+
+Slice 4E must prove every run consumes existing staging only, creates or reuses inactive immutable candidates before any pointer decision, rejects overlap through systemd and PostgreSQL leases, and records bounded append-only run facts. Same-Gear Community changes may auto-promote only after election, active/candidate shadow, 40-spec browse/Resolve/Profile and coverage gates; a still-legal active winner loss blocks, while a terminally illegal or expired winner may become an explicit degraded empty spec without baseline fallback. Additive Gear must preserve every active identity and row hash before full-matrix auto-promotion; mutation/removal and season/rule/serializer/schema/capability changes remain manual. Candidate deployment must prove the timer/service are installed without deploy-triggered execution, one controlled run, health/admin/timer truth, exact runtime parity, PG-only state, public/legacy compatibility, query/SLO/cache/memory bounds and rollback. Phase 5 and Catalyst remain excluded.
