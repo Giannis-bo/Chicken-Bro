@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase3a-resolve-profile-api",
   "requirementSlug": "equipment-simulator-phase3a-resolve-profile-api",
-  "status": "deployable",
-  "highestEvidenceLevel": "deployable",
+  "status": "archived",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase3a-resolve-profile-api",
-  "commit": "9be919b1808453bafdc512606b18499957b363a0",
+  "commit": "1b87bd645379bbb36cb16afc63caf693a44ac9e5",
   "scope": [
     "backend resolver authoring context",
     "canonical gear runtime orchestration",
@@ -67,6 +67,11 @@
       "command": "TDD cache-scope correction and fresh local verification at 9be919b",
       "status": "pass",
       "summary": "Red tests reproduced the request-scoped cache miss and absent LRU synchronization. The correction shares one 32-entry/4 MiB Authority cache for the current hashed PostgreSQL DSN, replaces it on configuration change or disabled PG runtime, keeps stores and connections request-scoped, and protects LRU ordering and byte accounting with an RLock. Focused cache/store/backend tests passed, 114 domain/runtime tests passed, 734 related backend/store/API tests passed, the backend profile passed 1190 Python tests with 1 skipped, and the full profile passed 365 Node plus 1190 Python tests with 1 skipped and all 127 commands. Local CR found no unresolved critical or important issue."
+    },
+    {
+      "command": "PR #65 merge, clean-main equivalent deployment and post-merge smoke",
+      "status": "pass",
+      "summary": "Final evidence head 9d02686 passed GitHub Project Harness and PR #65 squash-merged as 1b87bd6. Local main and origin/main fast-forwarded to the merge commit; the clean feature worktree and merge tree both had tree c323141a7802473cfacc25fe8bc1d91e17f29bc0, so the clean equivalent tree was redeployed without the main worktree's untracked .superpowers residue. Remote hashes stayed exact, PG-only remained active, async sync starts remained disabled, 40/40 Resolve passed after the clean deploy, representative resolved and truthful blocked Profile cases passed, malformed and stale stayed 400/409, health/data-health/tasks returned 200, and the backend ended active/running/success with one thread, about 115 MiB RSS, zero automatic restarts and no traceback."
     }
   ],
   "candidateDeployment": {
@@ -105,12 +110,12 @@
       }
     ],
     "smoke": {
-      "status": "candidate_verified",
-      "summary": "The fourth candidate passed exact-head CI, runtime parity, 40-spec Resolve, 11 resolved plus 29 truthful blocked Profile cases, negative HTTP, on-host Nginx warm p95 112.334ms, bounded production-entry concurrency, query/cache budgets, legacy compatibility and post-recovery health. Post-merge clean-main parity and smoke remain required."
+      "status": "live_verified",
+      "summary": "The fourth candidate passed all candidate gates, then PR #65 merged as 1b87bd6. The identical clean merge tree was redeployed and post-merge 40-spec Resolve, representative Profile, 400/409, health, data health, tasks, runtime hashes, process and log checks all passed."
     },
     "timerBackflow": {
-      "status": "candidate_verified",
-      "summary": "Deploy explicitly skipped asynchronous sync starts. The pre-existing wow-data-health-followup.timer naturally fired at 11:14:52 CST and independently started observed backfill, WebSim sync and stat-weights sync at 11:14:57; this scheduled backflow was not deploy-triggered and was reported rather than stopped. Timers remained installed and truthful."
+      "status": "live_verified",
+      "summary": "Candidate and clean-main deploys explicitly skipped asynchronous sync starts. The pre-existing wow-data-health-followup.timer naturally fired at 11:14:52 CST and independently started observed backfill, WebSim sync and stat-weights sync at 11:14:57; this scheduled backflow was not deploy-triggered and was reported rather than stopped. Timers remained installed and truthful after merge."
     }
   },
   "runtimeEvidence": [
@@ -139,6 +144,14 @@
     {
       "kind": "candidate_recovery",
       "note": "Extra non-gate slot concurrency retained about 1.8 GiB RSS; backend restart restored 66496 KiB and a fresh 40/40 Resolve smoke ended at 80836 KiB, one thread, exact hashes and no traceback."
+    },
+    {
+      "kind": "post_merge_live",
+      "mergeCommit": "1b87bd645379bbb36cb16afc63caf693a44ac9e5",
+      "tree": "c323141a7802473cfacc25fe8bc1d91e17f29bc0",
+      "resolve": "40/40",
+      "negativeHttp": "400/409",
+      "service": "active/running/success, one thread, zero automatic restarts, no traceback"
     }
   ],
   "risks": [
@@ -196,5 +209,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 3A is deployable after fourth-candidate verification at PR #65 head 93ff7d8. The candidate passed exact-head CI, exact runtime hashes, PG-only 40-spec Resolve, truthful Profile and negative envelopes, on-host production-entry warm p95 112.334ms, query/cache budgets, production-entry concurrency, legacy compatibility and post-QA recovery health. Public-client RTT and the extra large slot-payload stress are retained as limitations, not reclassified as passes. Final evidence-head CI, merge, clean-main parity deploy and post-merge smoke remain required before archival and Slice 3B."
+  "summary": "Slice 3A is live-verified and archived after PR #65 merged as 1b87bd6. Candidate and clean-main evidence prove exact hashes, PG-only 40-spec Resolve, truthful Profile and negative envelopes, on-host production-entry warm p95 112.334ms, query/cache budgets, legacy compatibility, clean tree parity, post-merge health and timer/log truth. Public-client RTT and the extra large slot-payload stress remain explicit follow-up risks rather than hidden or reclassified passes. Current implementation moves to dormant Slice 3B structured transport and pure workbench state."
 }

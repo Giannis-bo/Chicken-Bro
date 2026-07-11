@@ -3,21 +3,21 @@
   "updatedAt": "2026-07-11",
   "activeMilestone": "equipment_simulator_phase3",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state",
   "activeContracts": [
     {
       "id": "equipment_simulator_capability_architecture",
       "path": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
       "status": "approved_active",
       "lifecycle": "active",
-      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-2 are complete and live-verified, Phase 3 detailed planning and Slice 3A implementation are active, and Phase 6 remains deferred."
+      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-2 and Slice 3A are complete and live-verified, Slice 3B dormant frontend transport/state implementation is active, and Phase 6 remains deferred."
     },
     {
       "id": "equipment_simulator_phase3_resolve_profile_workbench_plan",
       "path": "docs/plans/2026-07-11-equipment-simulator-phase3-resolve-profile-workbench-plan.md",
-      "status": "phase3a_implementation_allowed",
+      "status": "phase3b_implementation_allowed",
       "lifecycle": "active",
-      "notes": "Phase 3 is split into backend Resolve/Profile API, dormant structured transport and pure state, then active gear-page cutover. Slice 3A may start under its Strict packet; every runtime Slice still requires TDD, local CR, exact-head CI, candidate deployment and post-merge smoke."
+      "notes": "Phase 3 is split into backend Resolve/Profile API, dormant structured transport and pure state, then active gear-page cutover. Slice 3A merged through PR #65 and is live-verified. Slice 3B may implement only its dormant transport/state packet; active UI and runtime evidence remain reserved for Slice 3C."
     },
     {
       "id": "repo_native_harness_v0_5",
@@ -97,9 +97,23 @@
       "status": "completed",
       "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
       "notes": "PRs #61-#63 established and corrected the pure Resolver, five-group Evidence Ledger, bounded PostgreSQL Authority Context loader and dormant serializer facade. Final candidate and post-merge proof covered fixed one/16-slot queries, latency/cache budgets, fail-closed behavior, 92 remote contract tests, 40-spec public parity, timer/log state and exact merge/runtime tree parity."
+    },
+    {
+      "id": "equipment_simulator_phase3a_20260711",
+      "domain": "equipment_simulator_phase3a",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
+      "notes": "PR #65 activated backend-owned resolverContext, structured Resolve and canonical Profile re-resolution while preserving legacy Profile and gear stats. Candidate and clean-main evidence covered 40-spec Resolve, truthful 11/29 Profile split, negative HTTP, on-host warm p95, bounded cache/query behavior, exact hashes, timer/log truth and post-merge smoke."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "equipment_simulator_phase3a_resolve_profile_api",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json"
+    },
     {
       "id": "equipment_simulator_phase2b_pg_loader_facade_parity",
       "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/requirement.json",
@@ -208,6 +222,12 @@
       "status": "phase4_completed",
       "ownerMap": "docs/backend-owner-map.json",
       "history": "docs/roadmap/history/2026-07-phase4-pg-read-model.md"
+    },
+    "canonicalGearApi": {
+      "status": "phase3a_live_verified",
+      "resolvePath": "/api/websim/gear/resolve",
+      "canonicalProfilePath": "/api/websim/profile with selectionIntent",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json"
     }
   },
   "knownRisks": [
@@ -230,6 +250,16 @@
       "id": "simc_updater_github_transport",
       "status": "external_dependency_watch",
       "trigger": "Phase 2 closure observed GitHub proxy TLS EOF and direct archive timeout in the existing SimC updater. The active binary remained usable at commit 1e357922; future runtime work must report updater state truthfully and must not weaken Resolver or Catalyst gates."
+    },
+    {
+      "id": "gear_slot_payload_memory",
+      "status": "preexisting_follow_up",
+      "trigger": "Phase 3A extra non-gate stress found 1.2-1.3 MB slot payloads and Python RSS retention under five-concurrent slot reads. Sequential 40/40 remained correct and the backend recovered after restart; future payload optimization must not be confused with the bounded 73 KiB Authority cache."
+    },
+    {
+      "id": "phase3a_public_origin_rtt",
+      "status": "observed_client_path_latency",
+      "trigger": "Phase 3A backend warm p95 passed at 112.334ms through on-host production Nginx, while the remote client path measured 367.412ms with about 180ms RTT. Do not claim sub-200ms public-client latency from the backend SLO."
     }
   ]
 }

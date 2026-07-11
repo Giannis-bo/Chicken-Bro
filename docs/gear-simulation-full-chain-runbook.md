@@ -1,7 +1,7 @@
 # 装备模拟全链路 Runbook
 
 > 适用范围：`/api/websim/gear` 装备模拟读模型、装备自建数据库、装备强化配置、制造业装备、全职业专精装备适配、前端展示、SimC profile serializer、生产刷新和回滚。
-> 最后更新：2026-07-10。
+> 最后更新：2026-07-11。
 
 本文是下一次大版本或赛季装备更新的执行手册。目标不是记录某一次修复，而是把“从上游 API 到线上 UI 和可执行 SimC profile”的完整链路固化成可复用流程。任何新版本装备更新，都应先按本文确认数据入口、证据门禁、审计 SQL、健康指标、全职业专精适配和回滚边界，再做写库或部署。
 
@@ -18,13 +18,13 @@
 - 可回滚：任何生产写库前必须备份实际写入的 PostgreSQL target，并保留历史 SQLite 文件备份作为迁移/审计证据。当前 runtime 必须是 `WOW_DATABASE_RUNTIME=postgres_only`；SQLite 不能作为线上 fallback 或健康判断来源。任何代码部署前必须能区分“代码回滚”和“DB 回滚”。
 - 下载/写入边界：拉取远端数据、下载外部文件、生产 SSH/DB 写入、Wago/SimC 数据刷新，默认都必须先取得 owner 明确批准。例外是已知云服务器上的 SimulationCraft runtime 更新：当用户明确要求处理 SimC 更新、WebSim/SimC readiness、赛季切换阻塞，或已授权 health follow-up 自动处理 SimC runtime 时，可直接下载配置好的 SimC 源包、构建、切换 `/opt/wow-simc/current` 并执行 smoke；不得扩展到本机下载、任意第三方下载、依赖安装或修改 SimC repo/branch。
 
-## Phase 1 / Phase 2A / Phase 2B 解析与只读适配边界（尚未切换 runtime）
+## Phase 1 / Phase 2A / Phase 2B 解析与只读适配边界（Phase 3A 已接入 runtime）
 
-`server/gear_contracts.py`、`server/gear_result_envelope.py` 和 `server/gear_rule_matrix.py` 是可信装备配置工作台的 Phase 1 契约基础，当前没有 active runtime consumer：
+`server/gear_contracts.py`、`server/gear_result_envelope.py` 和 `server/gear_rule_matrix.py` 是可信装备配置工作台的 Phase 1 契约基础，Phase 3A 已通过单一 backend orchestrator 接入 active runtime：
 
 - `selection-intent-v1` 只接受选择意图；客户端提交的 `itemSetId`、属性、SimC 选项、合法性、readiness、证据或 claims 一律拒绝。
 - `selectionSignature`、`resolvedGearSignature` 和 `profileSignature` 分别绑定选择、解析 authority、角色/天赋/serializer/SimC/stat policy 依赖，不允许用一个模糊 hash 替代三层失效边界。
-- `gear-result-envelope-v1` 的 HTTP 语义要到 Phase 3 新路由接入后才生效；Phase 1 不修改现有 route。
+- `gear-result-envelope-v1` 的 HTTP 语义已在 Phase 3A `POST /api/websim/gear/resolve` 与 canonical Profile mode 生效；旧 Profile body 仍保持原 shape。
 - `gear-rule-matrix-v1` 固定按 10 条显式纯函数规则执行，只返回 ordered legality results，不生成 Resolved Snapshot、属性、套装归属、Evidence Claims、SimC lines 或 readiness。
 - Phase 2A 新增 `server/gear_resolver.py` 与 `server/gear_evidence_ledger.py`：固定执行 base item → verified variant → verified overlay → effective capabilities → legal enhancements，并输出结构化静态属性、canonical `itemSetId`、constraints、serializer input 和五组 Evidence Claims。它们不接受连接、store、route 或文件系统参数，也不生成完整 profile 字符串或 DPS。
 - verified variant 缺少 `resolvedStats`、overlay 缺少 immutable source ref、overlay 与 base 的 canonical set identity 冲突、option 非法或 evidence record 缺失时必须 fail-closed；非法 enhancement 不得污染静态属性或 SimC options，dynamic effects 不得折算为静态 stats。
@@ -33,9 +33,9 @@
 - 公共 observed template 的 `variantKey` 是 PG 原始 key 经既有 `normalize_option_value` 得到的 public alias。loader 必须在同一条静态数组 SQL 中同时接受 exact raw key 与该 alias，仍以 itemId 绑定匹配；任何 alias 碰撞、wrong-item 记录或缺失 authority 都 fail-closed，重复 `(itemId, variantKey)` pair 在查询前去重且不增加 SQL 往返。
 - item 的装备类型、护甲/武器类型、handedness 与等价槽必须复用现有 Battle.net structured payload helper，不能从名称或当前玩家选择反推。`finger1/finger2`、`trinket1/trinket2` 共用等价槽 authority；one-hand weapon 的 item authority 可进入主手/副手，最终是否允许双持仍由 Rule Matrix 的 class/spec rule 决定；two-hand weapon 必须让 profile readiness 正确免除空副手。
 - canonical tier membership 只接受显式 verified tier source，或 `source_type=tier_set` 且 `authority=Battle.net Game Data API`、`setId` 非空的结构化 membership。loader 在同一 item/variant SQL 中聚合所有可信 setId；0 个表示无套装证据，1 个进入 canonical `itemSetId`，多个冲突必须把 item authority 整体阻断。source evidence 每个 source type 只保留最新一条，总数仍最多 8。
-- Phase 2B 的 `PostgresCacheStore.get_gear_authority_context`、`gear_resolver_runtime_authority` 和 `build_websim_profile_response_from_resolved_snapshot` 都是 dormant adapter，当前 `runtimeConsumers=[]`。resolved-snapshot facade 只消费后端 Resolver 生成的 `serializerInput.gearItems`，委托现有 serializer，并以 golden parity 锁住兼容输出。
+- Phase 2B 的 `PostgresCacheStore.get_gear_authority_context`、`gear_resolver_runtime_authority` 和 `build_websim_profile_response_from_resolved_snapshot` 已由 Phase 3A `server/gear_runtime.py` 统一编排。resolved-snapshot facade 仍只消费后端 Resolver 生成的 `serializerInput.gearItems`，委托现有 serializer，并以 golden parity 锁住兼容输出；不得出现第二套规则或客户端 snapshot 快捷路径。
 - loader 返回的 `compatibility-pg-live-v1` 明确是当前 PG live state 的过渡兼容视图，`formalActiveManifest=false`；不可冒充 Phase 4 才拥有的 immutable Active Season Manifest。
-- 现阶段仍由 `server/websim_payload.py` 的既有调用链、PostgreSQL selectors、现有 frontend 和 observed-only public read model 提供线上事实。Phase 2B 不新增 route、serializer cutover、frontend consumer、Worker、migration/write、job、sync/backfill、cleanup 或 UI；`/resolve` 必须继续 404，现有 `/profile` 行为必须不变。
+- 既有 `server/websim_payload.py`、PostgreSQL selectors 和 observed-only public read model 继续提供 browse 事实；Phase 3A 只增加 backend-owned `resolverContext`、`/resolve` 和带 `selectionIntent` 的 canonical Profile strangler mode。旧 `/profile` body、`/gear/stats`、frontend page、Worker、migration/write、job、sync/backfill、cleanup 和公开模板合同均未改变。
 - Catalyst 继续要求 verified capability 与 revision；当前保持 fail-closed，Phase 6 的 12.1 保留绿字转换仍是外部依赖型 TODO。
 - 2026-07-11 PR #63 候选硬门禁：cold 1/16 槽都执行 `SET TRANSACTION READ ONLY + revision/items/options`，warm 16 槽只执行 `SET TRANSACTION READ ONLY + revision`；真实 Mage/Arcane 15 槽与 DK/Frost 16 槽 authority 都是 `missingFields=[]`。Mage Resolver/五组 Ledger/Facade 全绿，cold 30 次 `p95=201.275ms`、warm 100 次 `p95=105.726ms` 且 cache hit `100/100`，低于 `500ms/200ms` 阈值；四类 fail-closed、`/profile=200`、`/resolve=404`、40/40 observed-only/baseline=0、slot payload、单线程 backend 和零 backend error 都通过。
 - 候选 timer/backflow 证据必须区分代码部署与自然外部任务：本次 `WOW_DEPLOY_START_ASYNC_SYNCS=0` 没有启动任何装备 sync/write/backflow；自然 `data-health-followup` 在候选 backend 激活前 1 秒完成，随后独立 SimC updater 因既有 GitHub proxy TLS EOF 失败。恢复探针未切换 binary，`/opt/wow-simc/.commit` 仍为可用的 `1e357922af363f3d87cc0758863c2bb6d7701b72`；该外部下载链路异常要单独记录，不能删掉失败事实，也不能把它解释成 Phase 2B Resolver/loader 回归或借机开启 Catalyst。
@@ -50,6 +50,8 @@
 - 3C 页面对 confirmed Intent 与 draft 分层；409 只更新 revisions 并最多自动重试一次，503 与 offline 分开显示。last verified snapshot 可只读展示，但 dirty/stale/blocked/read-only 状态不得保存为 verified、生成 profile 或进入 SimC。
 - 前端可保留 candidate/source/variant 的浏览与格式化，但最终合法性、Tier identity、set count、确定性总属性、constraints 与 profile readiness 只能来自匹配当前 Intent 的 Resolved Snapshot。legacy stat snapshot 在 Phase 5 前保持独立，不能覆盖 Resolver readiness。
 - Phase 3 不新增 migration/write/sync/backfill/cleanup/job/Worker，不改变 public observed-only/baseline-empty，不创建正式 release registry，不开放 Catalyst。
+- 2026-07-11 Phase 3A live acceptance：PR #65 合入 `1b87bd6`，merge/candidate tree 同为 `c323141a`，clean-main 等价树已重部署。40/40 public Intent Resolve，11 个 verified talent import Profile resolved、29 个缺导入 Profile truthful blocked；负向 HTTP 为 malformed 400、stale 409、wrong-slot 200 blocked、missing authority 503、unknown Catalyst 503。on-host production Nginx warm 100 为 `p50=97.470ms / p95=112.334ms / p99=115.604ms`，cold→warm statement budget 为 `4→2`（含 `SET TRANSACTION READ ONLY`），cache 为 `1 entry / 73,917 bytes / limit 32 entries + 4 MiB`。公网 client path warm p95 `367.412ms` 要单独报告为 RTT 路径事实；额外 5 并发大 slot payload 压测造成的 Python RSS 保留已通过 backend restart 恢复，不能归因于 Authority cache，也不能冒充通过项。candidate 与 post-merge deploy 都使用 `WOW_DEPLOY_START_ASYNC_SYNCS=0`；11:14 的 observed/WebSim/stat sync 是既有 health-followup timer 自然触发，不是 deploy backflow。
+- Slice 3B 只允许实现 opt-in structured-problem transport 与纯状态模块。它没有 active page consumer，因此最高证据只能是 local/CI，不能声称 runtime 或真实微信验证；active page candidate、409 rebase、503/offline UI 与最终事实权移交都保留给 Slice 3C。
 
 ## 当前公开装备模板事实快照
 

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T03:44:09.049Z",
+  "generatedAt": "2026-07-11T03:44:09.099Z",
   "release": {
     "date": "2026-07-11",
-    "slug": "equipment-simulator-phase3a-resolve-profile-api"
+    "slug": "equipment-simulator-phase3b-structured-transport-state"
   },
   "harness": {
     "version": "v0.5",
@@ -231,8 +231,8 @@
   },
   "evidencePacket": {
     "status": "ready",
-    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
-    "sizeBytes": 18574,
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json",
+    "sizeBytes": 3404,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "archived",
-    "highestEvidenceLevel": "live_verified",
-    "summary": "Slice 3A is live-verified and archived after PR #65 merged as 1b87bd6. Candidate and clean-main evidence prove exact hashes, PG-only 40-spec Resolve, truthful Profile and negative envelopes, on-host production-entry warm p95 112.334ms, query/cache budgets, legacy compatibility, clean tree parity, post-merge health and timer/log truth. Public-client RTT and the extra large slot-payload stress remain explicit follow-up risks rather than hidden or reclassified passes. Current implementation moves to dormant Slice 3B structured transport and pure workbench state."
+    "declaredStatus": "implementation_allowed",
+    "highestEvidenceLevel": "implementation_allowed",
+    "summary": "Slice 3B is implementation-allowed as a Strict, dormant frontend slice. No runtime or mini-program evidence is claimed before implementation, exact-head CI and the separate active Slice 3C cutover."
   },
   "evidence": {
     "localTests": {
@@ -327,6 +327,6 @@
   },
   "write": {
     "enabled": true,
-    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/manifest.json"
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/manifest.json"
   }
 }
