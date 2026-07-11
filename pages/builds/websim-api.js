@@ -237,6 +237,35 @@ function requestWebsimProfile(payload) {
   })
 }
 
+function isGearResultEnvelope(data) {
+  return !!(data && data.contractRevision === 'gear-result-envelope-v1')
+}
+
+function requestWebsimGearResolve(selectionIntent) {
+  return requestJson('/api/websim/gear/resolve', {
+    method: 'POST',
+    data: selectionIntent || {},
+    timeout: 30000,
+    responseMode: 'structured-problem',
+    fallback: () => null,
+    validate: isGearResultEnvelope
+  })
+}
+
+function requestWebsimProfileFromIntent(selectionIntent, profileContext) {
+  return requestJson('/api/websim/profile', {
+    method: 'POST',
+    data: {
+      selectionIntent: selectionIntent || {},
+      profileContext: profileContext || {}
+    },
+    timeout: 30000,
+    responseMode: 'structured-problem',
+    fallback: () => null,
+    validate: isGearResultEnvelope
+  })
+}
+
 function requestWebsimGear(params) {
   const options = params || {}
   const query = [
@@ -273,8 +302,10 @@ module.exports = {
   fallbackWebsimTalents,
   requestWebsimBootstrap,
   requestWebsimGear,
+  requestWebsimGearResolve,
   requestWebsimGearStats,
   requestWebsimProfile,
+  requestWebsimProfileFromIntent,
   requestWebsimTalentImport,
   requestWebsimTalents
 }

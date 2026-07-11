@@ -362,6 +362,91 @@ test('websim mini api wraps bootstrap talents profile gear and gear stats endpoi
   assert.deepEqual(captured[4].data.talentState.selectedNodes, [{ id: 'n1', rank: 1 }])
 })
 
+test('canonical gear api clients preserve structured 409 and 503 with exact request bodies', async () => {
+  const captured = []
+  const responses = [
+    {
+      statusCode: 409,
+      data: gearEnvelope('blocked', {
+        requestId: 'resolve-409',
+        problems: [{ kind: 'REVISION_CONFLICT', code: 'GEAR_CATALOG_REVISION_CONFLICT' }]
+      })
+    },
+    {
+      statusCode: 503,
+      data: gearEnvelope('unavailable', {
+        requestId: 'profile-503',
+        problems: [{ kind: 'AUTHORITY_UNAVAILABLE', code: 'GEAR_AUTHORITY_READ_UNAVAILABLE' }]
+      })
+    }
+  ]
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    setStorageSync: () => {},
+    request: (options) => {
+      captured.push(options)
+      options.success(responses.shift())
+    }
+  }
+
+  const api = resetModule('../pages/builds/websim-api')
+  const intent = {
+    schemaRevision: 'selection-intent-v1',
+    authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' },
+    eligibilityContext: { classKey: 'mage', specKey: 'arcane', level: 90 },
+    slots: {}
+  }
+  const profileContext = {
+    name: 'Canonical',
+    talents: 'external-code',
+    ignoredFinalFact: { simcReady: true }
+  }
+  const resolveResult = await api.requestWebsimGearResolve(intent)
+  const profileResult = await api.requestWebsimProfileFromIntent(intent, profileContext)
+
+  assert.equal(resolveResult.fromFallback, false)
+  assert.equal(resolveResult.httpStatus, 409)
+  assert.equal(resolveResult.payload.requestId, 'resolve-409')
+  assert.equal(profileResult.fromFallback, false)
+  assert.equal(profileResult.httpStatus, 503)
+  assert.equal(profileResult.payload.requestId, 'profile-503')
+
+  assert.match(captured[0].url, /\/api\/websim\/gear\/resolve$/)
+  assert.equal(captured[0].method, 'POST')
+  assert.deepEqual(captured[0].data, intent)
+  assert.match(captured[1].url, /\/api\/websim\/profile$/)
+  assert.equal(captured[1].method, 'POST')
+  assert.deepEqual(captured[1].data, { selectionIntent: intent, profileContext })
+})
+
+test('canonical gear api clients reject malformed pseudo envelopes through fallback', async () => {
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    setStorageSync: () => {},
+    request: ({ success }) => success({
+      statusCode: 409,
+      data: {
+        contractRevision: 'not-the-gear-contract',
+        requestId: 'bad-contract',
+        status: 'blocked',
+        releaseContext: {},
+        data: {},
+        problems: []
+      }
+    })
+  }
+
+  const api = resetModule('../pages/builds/websim-api')
+  const result = await api.requestWebsimGearResolve({ schemaRevision: 'selection-intent-v1' })
+
+  assert.equal(result.fromFallback, true)
+  assert.equal(result.httpStatus, 409)
+  assert.equal(result.offline, false)
+  assert.equal(result.payload, null)
+})
+
 test('websim gear request uses the compact mobile payload with an explicit long timeout', async () => {
   const captured = []
   global.wx = {
