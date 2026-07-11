@@ -985,9 +985,9 @@ class PostgresCacheStore:
     def get_gear_authority_context(self, selection_intent, runtime_authority):
         """Load a dormant canonical gear authority context in one read-only transaction."""
 
-        binding = self._gear_release_store.load_active_manifest_binding()
+        binding = self._active_manifest_binding_for_authority()
         if binding.get("formalActiveManifest") is True:
-            return self._gear_release_store.load_active_authority_context(
+            return self._cached_active_authority_context(
                 selection_intent,
                 runtime_authority,
                 binding,
@@ -1001,6 +1001,73 @@ class PostgresCacheStore:
                     runtime_authority,
                     cache=self._gear_authority_context_cache,
                 )
+
+    def _active_manifest_binding_for_authority(self):
+        """Reuse a validated binding behind one cheap pointer identity read."""
+
+        pointer_reader = getattr(self._gear_release_store, "get_active_pointer", None)
+        if not callable(pointer_reader):
+            return self._gear_release_store.load_active_manifest_binding()
+        pointer = pointer_reader()
+        pointer = pointer if isinstance(pointer, dict) else {}
+        pointer_mode = str(pointer.get("pointerMode") or "").strip()
+        manifest_revision = str(pointer.get("manifestRevision") or "").strip()
+        generation = _int_value(pointer.get("generation"))
+        if pointer_mode == "active" and manifest_revision:
+            cache_key = f"active-manifest-binding:{generation}:{manifest_revision}"
+            cached = self._gear_authority_context_cache.get(cache_key)
+            if (
+                isinstance(cached, dict)
+                and cached.get("formalActiveManifest") is True
+                and _int_value(cached.get("generation")) == generation
+                and str(cached.get("manifestRevision") or "").strip() == manifest_revision
+            ):
+                return cached
+            binding = self._gear_release_store.load_active_manifest_binding()
+            if (
+                isinstance(binding, dict)
+                and binding.get("formalActiveManifest") is True
+                and _int_value(binding.get("generation")) == generation
+                and str(binding.get("manifestRevision") or "").strip() == manifest_revision
+            ):
+                self._gear_authority_context_cache.put(cache_key, binding)
+            return binding
+        return self._gear_release_store.load_active_manifest_binding()
+
+    def _cached_active_authority_context(
+        self,
+        selection_intent,
+        runtime_authority,
+        binding,
+    ):
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        gear_release_id = str(manifest.get("gearCatalogReleaseId") or "").strip()
+        identity = {
+            "selectionIntent": selection_intent if isinstance(selection_intent, dict) else {},
+            "runtimeDependencies": (
+                runtime_authority.get("dependencyRevisions")
+                if isinstance(runtime_authority, dict)
+                and isinstance(runtime_authority.get("dependencyRevisions"), dict)
+                else {}
+            ),
+            "gearReleaseId": gear_release_id,
+            "pointerGeneration": _int_value(binding.get("generation")),
+        }
+        digest = hashlib.sha256(
+            json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+        ).hexdigest()
+        cache_key = f"active-authority:{digest}"
+        cached = self._gear_authority_context_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        context = self._gear_release_store.load_active_authority_context(
+            selection_intent,
+            runtime_authority,
+            binding,
+        )
+        if isinstance(context, dict) and context.get("missingFields") == []:
+            self._gear_authority_context_cache.put(cache_key, context)
+        return context
 
     def get_candidate_gear_authority_context(
         self,

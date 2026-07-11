@@ -8232,6 +8232,62 @@ class PostgresCacheStoreTest(unittest.TestCase):
             ("community", "gear-release:a", "community-release:a"),
         ])
 
+    def test_formal_authority_reuses_binding_after_one_pointer_identity_query(self):
+        from server import postgres_cache_store
+
+        class ActiveReleaseStore:
+            def __init__(self):
+                self.generation = 9
+                self.binding_calls = 0
+                self.pointer_calls = 0
+                self.authority_calls = 0
+
+            def get_active_pointer(self):
+                self.pointer_calls += 1
+                return {
+                    "pointerMode": "active",
+                    "generation": self.generation,
+                    "manifestRevision": f"manifest-{self.generation}",
+                }
+
+            def load_active_manifest_binding(self):
+                self.binding_calls += 1
+                return {
+                    "pointerMode": "active",
+                    "generation": self.generation,
+                    "manifestRevision": f"manifest-{self.generation}",
+                    "formalActiveManifest": True,
+                    "manifest": {"manifestRevision": f"manifest-{self.generation}"},
+                }
+
+            def load_active_authority_context(self, intent, runtime_authority, binding):
+                self.authority_calls += 1
+                return {
+                    "manifest": binding["manifest"],
+                    "dependencyVector": runtime_authority["dependencyRevisions"],
+                    "missingFields": [],
+                }
+
+        release_store = ActiveReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("formal authority must stay in the release repository"),
+            gear_release_store=release_store,
+        )
+        intent = {"schemaRevision": "selection-intent-v1"}
+        runtime = {"dependencyRevisions": {"simcRuntimeRevision": "simc-v1"}}
+
+        first = store.get_gear_authority_context(intent, runtime)
+        second = store.get_gear_authority_context(intent, runtime)
+        release_store.generation = 10
+        third = store.get_gear_authority_context(intent, runtime)
+
+        self.assertEqual(first["manifest"]["manifestRevision"], "manifest-9")
+        self.assertEqual(second["manifest"]["manifestRevision"], "manifest-9")
+        self.assertEqual(third["manifest"]["manifestRevision"], "manifest-10")
+        self.assertEqual(release_store.pointer_calls, 3)
+        self.assertEqual(release_store.binding_calls, 2)
+        self.assertEqual(release_store.authority_calls, 2)
+
     def test_gear_resolver_context_is_one_read_only_revision_query(self):
         from server import postgres_cache_store
 
