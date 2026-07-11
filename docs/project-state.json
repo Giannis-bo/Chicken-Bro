@@ -3,21 +3,21 @@
   "updatedAt": "2026-07-11",
   "activeMilestone": "equipment_simulator_phase3",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover",
   "activeContracts": [
     {
       "id": "equipment_simulator_capability_architecture",
       "path": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
       "status": "approved_active",
       "lifecycle": "active",
-      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-2 and Slice 3A are complete and live-verified, Slice 3B dormant frontend transport/state implementation is active, and Phase 6 remains deferred."
+      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-2 and Slice 3A are live-verified, Slice 3B is merged and local/CI-verified, Slice 3C active workbench cutover is active, and Phase 6 remains deferred."
     },
     {
       "id": "equipment_simulator_phase3_resolve_profile_workbench_plan",
       "path": "docs/plans/2026-07-11-equipment-simulator-phase3-resolve-profile-workbench-plan.md",
-      "status": "phase3b_implementation_allowed",
+      "status": "phase3c_implementation_allowed",
       "lifecycle": "active",
-      "notes": "Phase 3 is split into backend Resolve/Profile API, dormant structured transport and pure state, then active gear-page cutover. Slice 3A merged through PR #65 and is live-verified. Slice 3B may implement only its dormant transport/state packet; active UI and runtime evidence remain reserved for Slice 3C."
+      "notes": "Phase 3A merged through PR #65 and is live-verified; dormant Slice 3B merged through PR #67 with local/full/CI evidence and no runtime overclaim. Slice 3C may now integrate the active gear page under its Strict packet and must pass real WeChat plus candidate deployment gates."
     },
     {
       "id": "repo_native_harness_v0_5",
@@ -104,9 +104,23 @@
       "status": "completed",
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
       "notes": "PR #65 activated backend-owned resolverContext, structured Resolve and canonical Profile re-resolution while preserving legacy Profile and gear stats. Candidate and clean-main evidence covered 40-spec Resolve, truthful 11/29 Profile split, negative HTTP, on-host warm p95, bounded cache/query behavior, exact hashes, timer/log truth and post-merge smoke."
+    },
+    {
+      "id": "equipment_simulator_phase3b_20260711",
+      "domain": "equipment_simulator_phase3b",
+      "status": "completed_local_verified",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json",
+      "notes": "PR #67 added opt-in structured problem transport, exact canonical client wrappers and a pure serial/version workbench state. Targeted/frontend/full/local CR and exact-head CI passed; active imports remained zero, so deployment and mini-program runtime evidence were correctly not claimed."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "equipment_simulator_phase3b_structured_transport_state",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/requirement.json",
+      "status": "completed_local_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json"
+    },
     {
       "id": "equipment_simulator_phase3a_resolve_profile_api",
       "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/requirement.json",
@@ -228,6 +242,12 @@
       "resolvePath": "/api/websim/gear/resolve",
       "canonicalProfilePath": "/api/websim/profile with selectionIntent",
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json"
+    },
+    "gearWorkbenchState": {
+      "status": "phase3b_merged_dormant",
+      "module": "pages/builds/gear-workbench-state.js",
+      "activeConsumerCount": 0,
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json"
     }
   },
   "knownRisks": [

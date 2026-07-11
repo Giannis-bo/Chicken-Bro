@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T04:05:12.427Z",
+  "generatedAt": "2026-07-11T04:05:12.479Z",
   "release": {
     "date": "2026-07-11",
-    "slug": "equipment-simulator-phase3b-structured-transport-state"
+    "slug": "equipment-simulator-phase3c-workbench-cutover"
   },
   "harness": {
     "version": "v0.5",
@@ -231,8 +231,8 @@
   },
   "evidencePacket": {
     "status": "ready",
-    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json",
-    "sizeBytes": 5967,
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json",
+    "sizeBytes": 3757,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "archived",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Slice 3B is archived at local-verified evidence after PR #67 merged as 8afebbf. Opt-in structured transport preserves backend problem truth without changing default callers; canonical wrappers use exact request shapes; the pure state rejects stale responses and gates Profile fail-closed. Targeted/frontend/full verification, local CR and exact-head CI pass. Active imports remained zero, so runtime, deployment and real mini-program evidence are correctly absent and reserved for Slice 3C."
+    "declaredStatus": "implementation_allowed",
+    "highestEvidenceLevel": "implementation_allowed",
+    "summary": "Slice 3C is implementation-allowed as the active Phase 3 runtime cutover. No page, candidate or real mini-program evidence is claimed before TDD implementation, local CR, exact-head CI and candidate verification."
   },
   "evidence": {
     "localTests": {
@@ -327,6 +327,6 @@
   },
   "write": {
     "enabled": true,
-    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/manifest.json"
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/manifest.json"
   }
 }
