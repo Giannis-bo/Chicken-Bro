@@ -30,6 +30,23 @@ class FakeStore:
         return copy.deepcopy(self.context)
 
 
+class FakeCandidateStore(FakeStore):
+    def get_gear_authority_context(self, intent, runtime_authority):
+        raise AssertionError("candidate shadow must not use transitional authority")
+
+    def get_candidate_gear_authority_context(self, intent, runtime_authority, gear_release_id):
+        self.calls.append(
+            {
+                "intent": copy.deepcopy(intent),
+                "runtimeAuthority": copy.deepcopy(runtime_authority),
+                "gearReleaseId": gear_release_id,
+            }
+        )
+        if self.error is not None:
+            raise self.error
+        return copy.deepcopy(self.context)
+
+
 class GearRuntimeTest(unittest.TestCase):
     def fixture(self):
         return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
@@ -103,6 +120,35 @@ class GearRuntimeTest(unittest.TestCase):
             envelope["releaseContext"]["gearCatalogRevision"],
             fixture["authorityContext"]["manifest"]["gearCatalogRevision"],
         )
+
+    def test_candidate_shadow_resolves_only_through_exact_release_reader(self):
+        fixture = self.fixture()
+        gear_release_id = fixture["intent"]["authoredAgainst"]["gearCatalogRevision"]
+        store = FakeCandidateStore(fixture["authorityContext"])
+
+        status, envelope = gear_runtime.resolve_candidate_selection_intent(
+            fixture["intent"],
+            store=store,
+            gear_release_id=gear_release_id,
+            simc_runtime_revision="simc-v1",
+            request_id="request-candidate",
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(envelope["status"], "resolved")
+        self.assertEqual(len(store.calls), 1)
+        self.assertEqual(store.calls[0]["gearReleaseId"], gear_release_id)
+
+        unavailable = FakeCandidateStore(error=RuntimeError("release content missing"))
+        failed_status, failed = gear_runtime.resolve_candidate_selection_intent(
+            fixture["intent"],
+            store=unavailable,
+            gear_release_id=gear_release_id,
+            simc_runtime_revision="simc-v1",
+            request_id="request-candidate-missing",
+        )
+        self.assertEqual(failed_status, 503)
+        self.assertEqual(failed["problems"][0]["code"], "GEAR_AUTHORITY_READ_UNAVAILABLE")
 
     def test_illegal_intent_returns_200_blocked_with_snapshot_problems(self):
         fixture = self.fixture()
@@ -302,6 +348,53 @@ class GearRuntimeTest(unittest.TestCase):
         self.assertFalse(envelope["data"]["profileReadiness"]["simcReady"])
         self.assertEqual(envelope["data"]["profileReadiness"]["status"], "blocked")
         self.assertEqual(envelope["problems"][0]["code"], "GEAR_PROFILE_NOT_READY")
+
+    def test_candidate_profile_re_resolves_through_exact_release_reader(self):
+        fixture = self.fixture()
+        gear_release_id = fixture["intent"]["authoredAgainst"]["gearCatalogRevision"]
+        store = FakeCandidateStore(fixture["authorityContext"])
+
+        def profile_builder(snapshot, source_context=None):
+            return {
+                "status": "resolved",
+                "profile": 'warrior="Candidate"',
+                "talentEncoding": {"status": "external"},
+                "profileReadiness": {"status": "verified", "simcReady": True},
+                "problems": [],
+            }
+
+        status, envelope = gear_runtime.build_candidate_profile_from_selection_intent(
+            {
+                "selectionIntent": fixture["intent"],
+                "profileContext": {"talents": "external-talent-code"},
+            },
+            store=store,
+            gear_release_id=gear_release_id,
+            simc_runtime_revision="simc-v1",
+            request_id="request-candidate-profile",
+            profile_builder=profile_builder,
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(envelope["status"], "resolved")
+        self.assertEqual(envelope["data"]["profile"], 'warrior="Candidate"')
+        self.assertEqual(store.calls[0]["gearReleaseId"], gear_release_id)
+
+    def test_candidate_profile_fails_closed_without_release_id(self):
+        fixture = self.fixture()
+        store = FakeCandidateStore(fixture["authorityContext"])
+
+        status, envelope = gear_runtime.build_candidate_profile_from_selection_intent(
+            {"selectionIntent": fixture["intent"], "profileContext": {}},
+            store=store,
+            gear_release_id="",
+            simc_runtime_revision="simc-v1",
+            request_id="request-candidate-profile-missing-release",
+        )
+
+        self.assertEqual(status, 503)
+        self.assertEqual(envelope["problems"][0]["code"], "GEAR_RELEASE_ID_UNAVAILABLE")
+        self.assertEqual(store.calls, [])
 
     def test_legacy_profile_request_is_not_claimed_by_canonical_mode(self):
         self.assertFalse(gear_runtime.is_canonical_profile_request({"classKey": "mage"}))

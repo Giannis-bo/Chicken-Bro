@@ -325,21 +325,24 @@
         "runtimeConsumers": []
       },
       "releaseTrainFoundations": {
-        "status": "phase4b_completed_inactive_phase4c_shadow_allowed",
+        "status": "phase4c_internal_shadow_candidate",
         "modules": [
           "server/gear_release.py",
           "server/gear_release_store.py",
           "server/gear_release_tool.py",
+          "server/gear_release_shadow.py",
           "server/migrations/postgres/0013_websim_release_train.sql"
         ],
         "tests": [
           "tests/gear_release_test.py",
           "tests/gear_release_store_test.py",
           "tests/gear_release_tool_test.py",
+          "tests/gear_release_shadow_test.py",
           "tests/postgres_schema_test.py"
         ],
         "runtimeConsumers": [
-          "server/gear_release_tool.py explicit operator command only"
+          "server/gear_release_tool.py explicit operator command only",
+          "server/gear_release_shadow.py internal read-only old/new comparison"
         ],
         "activationBoundary": "Phase 4B is merged and live-verified with inactive Gear/Community Releases and zero Manifest/Pointer rows. Phase 4C may add release-scoped read-only candidate projections and internal shadow diffs only; public reader cutover, pointer mutation, timers and Catalyst enablement remain forbidden."
       },
@@ -376,7 +379,8 @@
         "tests/pg_gear_authority_loader_test.py",
         "tests/gear_release_test.py",
         "tests/gear_release_store_test.py",
-        "tests/gear_release_tool_test.py"
+        "tests/gear_release_tool_test.py",
+        "tests/gear_release_shadow_test.py"
       ],
       "runtimeSurfaces": [
         "server/gear_public_contract.py",
@@ -410,6 +414,7 @@
         "server/gear_release.py",
         "server/gear_release_store.py",
         "server/gear_release_tool.py",
+        "server/gear_release_shadow.py",
         "server/migrations/postgres/0013_websim_release_train.sql",
         "server/pg_gear_authority_loader.py",
         "server/postgres_cache_store.py",
@@ -423,6 +428,7 @@
         "tests/gear_release_test.py",
         "tests/gear_release_store_test.py",
         "tests/gear_release_tool_test.py",
+        "tests/gear_release_shadow_test.py",
         "tests/pg_gear_authority_loader_test.py"
       ],
       "backendOwnerMapRef": {
@@ -447,7 +453,8 @@
           "tests/pg_gear_authority_loader_test.py",
           "tests/gear_release_test.py",
           "tests/gear_release_store_test.py",
-          "tests/gear_release_tool_test.py"
+          "tests/gear_release_tool_test.py",
+          "tests/gear_release_shadow_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {
@@ -899,7 +906,8 @@
         "server/postgres_cache_store.py",
         "server/postgres_ops_store.py",
         "server/gear_release_store.py",
-        "server/gear_release_tool.py"
+        "server/gear_release_tool.py",
+        "server/gear_release_shadow.py"
       ],
       "publicContracts": [
         "PG-only runtime boundaries must fail closed without silent SQLite fallback.",
@@ -915,14 +923,16 @@
         "tests/postgres_cache_store_test.py",
         "tests/database_adapter_test.py",
         "tests/gear_release_store_test.py",
-        "tests/gear_release_tool_test.py"
+        "tests/gear_release_tool_test.py",
+        "tests/gear_release_shadow_test.py"
       ],
       "runtimeSurfaces": [
         "server/postgres_cache_store.py",
         "server/postgres_personal_store.py",
         "server/migrations/postgres",
         "server/gear_release_store.py",
-        "server/gear_release_tool.py"
+        "server/gear_release_tool.py",
+        "server/gear_release_shadow.py"
       ],
       "runbooks": [
         "docs/database-architecture.md",
@@ -941,6 +951,7 @@
         "server/postgres_*_store.py",
         "server/gear_release_store.py",
         "server/gear_release_tool.py",
+        "server/gear_release_shadow.py",
         "server/migrations/postgres/**",
         "server/db.py"
       ],
@@ -958,7 +969,8 @@
           "tests/postgres_cache_store_test.py",
           "tests/database_adapter_test.py",
           "tests/gear_release_store_test.py",
-          "tests/gear_release_tool_test.py"
+          "tests/gear_release_tool_test.py",
+          "tests/gear_release_shadow_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {

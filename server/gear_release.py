@@ -440,17 +440,37 @@ def _resolver_result_issues(result: Any, gear_release_id: str) -> list[dict[str,
     return issues
 
 
-def _elected_row(candidate: dict[str, Any], intent: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
-    semantic_signature = "sha256:" + hashlib.sha256(
+def _without_evidence_identity(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: _without_evidence_identity(item)
+            for key, item in value.items()
+            if key not in {"sourceRefIds", "evidenceClaimIds"}
+        }
+    if isinstance(value, list):
+        return [_without_evidence_identity(item) for item in value]
+    return value
+
+
+def semantic_gear_signature(intent: Any, result: Any) -> str:
+    """Hash resolved gear semantics without release-identity-only fields."""
+
+    selection = intent if isinstance(intent, dict) else {}
+    snapshot = result if isinstance(result, dict) else {}
+    return "sha256:" + hashlib.sha256(
         _canonical_bytes({
-            "eligibilityContext": result.get("eligibilityContext") or intent.get("eligibilityContext") or {},
-            "resolvedSlots": result.get("resolvedSlots") or {},
-            "staticAttributes": result.get("staticAttributes") or {},
-            "setState": result.get("setState") or {},
-            "constraints": result.get("constraints") or {},
-            "serializerInput": result.get("serializerInput") or {},
+            "eligibilityContext": snapshot.get("eligibilityContext") or selection.get("eligibilityContext") or {},
+            "resolvedSlots": _without_evidence_identity(snapshot.get("resolvedSlots") or {}),
+            "staticAttributes": snapshot.get("staticAttributes") or {},
+            "setState": snapshot.get("setState") or {},
+            "constraints": snapshot.get("constraints") or {},
+            "serializerInput": snapshot.get("serializerInput") or {},
         })
     ).hexdigest()
+
+
+def _elected_row(candidate: dict[str, Any], intent: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+    semantic_signature = semantic_gear_signature(intent, result)
     return {
         "candidateId": _text(candidate.get("id")),
         "classKey": _text(candidate.get("classKey")),
@@ -629,6 +649,8 @@ def compare_shadow(
             blockers.append(_shadow_blocker("PUBLIC_WINNER_ILLEGAL", class_key, spec_key, "Candidate public winner is not legal."))
         if _text(new.get("validatedAgainstGearReleaseId")) != target_release:
             blockers.append(_shadow_blocker("COMMUNITY_GEAR_RELEASE_MISMATCH", class_key, spec_key, "Candidate winner is bound to a different Gear Release."))
+        if not (_text(new.get("profileHash")) or _text(new.get("gearHash"))):
+            blockers.append(_shadow_blocker("PUBLIC_PROVENANCE_HASH_MISSING", class_key, spec_key, "Candidate winner has no profile or gear provenance hash."))
 
         if old is None:
             classification = "new_winner"
@@ -639,8 +661,12 @@ def compare_shadow(
             selection_changed = _selection_semantics(old.get("selectionIntent")) != _selection_semantics(new.get("selectionIntent"))
             provenance_changed = any(
                 old.get(field) != new.get(field)
-                for field in ("sourceKey", "sourceUrl", "profileHash", "gearHash", "sampleCount")
+                for field in ("sourceKey", "sourceUrl", "gearHash", "sampleCount")
             )
+            old_profile_hash = _text(old.get("profileHash"))
+            new_profile_hash = _text(new.get("profileHash"))
+            if old_profile_hash and new_profile_hash and old_profile_hash != new_profile_hash:
+                provenance_changed = True
             semantic_changed = selection_changed or old_semantic != new_semantic or provenance_changed
             resolved_changed = old.get("resolvedGearSignature") != new.get("resolvedGearSignature")
             if semantic_changed:
@@ -765,6 +791,7 @@ __all__ = [
     "compare_shadow",
     "decide_promotion",
     "elect_community_candidates",
+    "semantic_gear_signature",
     "validate_capability_proof",
     "validate_release",
     "validate_manifest",

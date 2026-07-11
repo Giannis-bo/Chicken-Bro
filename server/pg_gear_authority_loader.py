@@ -504,6 +504,30 @@ def _cache_key(intent: dict[str, Any], dependency_vector: dict[str, Any]) -> str
     return f"gear-authority:{digest}"
 
 
+def candidate_authority_cache_key(
+    selection_intent: Any,
+    runtime_authority: Any,
+    gear_release_id: Any,
+) -> str:
+    """Return the exact-release cache identity for an internal candidate read."""
+
+    intent, intent_issues = parse_selection_intent(selection_intent)
+    if intent_issues:
+        paths = ", ".join(issue.get("path", "intent") for issue in intent_issues)
+        raise ValueError(f"Invalid Selection Intent: {paths}")
+    runtime = runtime_authority if isinstance(runtime_authority, dict) else {}
+    revisions = runtime.get("dependencyRevisions")
+    revisions = revisions if isinstance(revisions, dict) else {}
+    release_id = _text(gear_release_id)
+    dependency_vector = {
+        "seasonRevision": intent["authoredAgainst"]["seasonRevision"],
+        "gearCatalogReleaseId": release_id,
+        "gearCatalogRevision": release_id,
+        **{field: _text(revisions.get(field)) for field in _REQUIRED_RUNTIME_REVISIONS},
+    }
+    return _cache_key(intent, dependency_vector)
+
+
 def _runtime_source_records(runtime_authority: dict[str, Any]) -> dict[str, dict[str, Any]]:
     records: dict[str, dict[str, Any]] = {}
     for raw in runtime_authority.get("sourceRefs", []) if isinstance(runtime_authority, dict) else []:
@@ -1012,6 +1036,7 @@ __all__ = (
     "SELECTED_OPTION_SQL",
     "AuthorityContextCache",
     "build_gear_authority_context_from_rows",
+    "candidate_authority_cache_key",
     "compatibility_catalog_revision",
     "resolver_authoring_context",
     "load_gear_authority_context",

@@ -296,3 +296,38 @@ git diff --check
 ```
 
 Slice 4B must prove an additive immutable schema, exact-descriptor idempotency, repeatable-read legacy snapshots, inactive Gear/Community `legacy-import-r0` construction, exact candidate Gear Release authority binding, current Resolver revalidation, strict pointer CAS validation and zero pointer mutation. Candidate deployment requires a pre-migration PostgreSQL backup, exact implementation identity, migration/grant/trigger inspection, inactive release row/count/hash evidence, zero active pointer rows, unchanged 40/40 observed-only public selection with zero baseline/formal manifest activation, Resolve/Profile/health/Catalyst parity, timer/backflow state and an explicit rollback path. No public/shadow reader, pointer promotion, scheduled refresh, Catalyst capability enablement or public cutover may be claimed.
+
+## Equipment Simulator Phase 4C Release Shadow Readers Profile
+
+The Strict Slice 4C packet at `artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers` adds only release-scoped read-only candidate projections and internal old/new shadow orchestration. Before candidate deployment run:
+
+```bash
+python3 -m unittest \
+  tests.gear_release_shadow_test \
+  tests.gear_release_store_test \
+  tests.gear_release_tool_test \
+  tests.gear_release_test \
+  tests.gear_runtime_test \
+  tests.pg_gear_authority_loader_test \
+  tests.pg_gear_read_model_selectors_test \
+  tests.postgres_cache_store_test
+node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers \
+  --base origin/main
+python3 -m py_compile \
+  server/gear_release.py \
+  server/gear_release_store.py \
+  server/gear_release_shadow.py \
+  server/gear_release_tool.py \
+  server/gear_runtime.py \
+  server/pg_gear_authority_loader.py \
+  server/pg_gear_read_model_selectors.py \
+  server/postgres_cache_store.py
+git diff --check
+```
+
+Slice 4C must prove one exact Gear/Community binding, release-ID constraints on every candidate content query, complete Community content-hash verification, selected Authority fail-closed behavior, current Resolver and canonical Profile shadow parity, 40-spec observed winner/provenance/semantic/baseline comparison, and bounded statement/latency/cache behavior. Public routes must continue transitional reads with `formalActiveManifest=false`; zero Manifest/Pointer rows, zero release/staging writes and zero release timer are hard gates. Missing/tampered/mixed release content cannot fall back to staging. Pointer cutover remains Slice 4D and scheduled refresh remains Slice 4E.

@@ -449,6 +449,26 @@ class GearReleaseTest(unittest.TestCase):
         self.assertEqual(election["winners"][0]["candidateId"], "active-winner")
         self.assertTrue(election["winners"][0]["carryForward"])
 
+    def test_semantic_signature_ignores_evidence_identity_only_fields(self):
+        intent = self.intent()
+        old = self.verified_result()
+        old["resolvedSlots"] = {
+            "head": {
+                "itemId": "item-head",
+                "variantKey": "variant-head",
+                "sourceRefIds": ["evidence:old"],
+                "evidenceClaimIds": ["sha256:old"],
+            }
+        }
+        new = copy.deepcopy(old)
+        new["resolvedSlots"]["head"]["sourceRefIds"] = ["evidence:new"]
+        new["resolvedSlots"]["head"]["evidenceClaimIds"] = ["sha256:new"]
+
+        self.assertEqual(
+            gear_release.semantic_gear_signature(intent, old),
+            gear_release.semantic_gear_signature(intent, new),
+        )
+
     def shadow_row(self, **overrides):
         row = {
             "classKey": "mage",
@@ -484,9 +504,28 @@ class GearReleaseTest(unittest.TestCase):
         self.assertEqual(report["blockers"], [])
         self.assertEqual(report["diffs"][0]["classification"], "revision_only")
 
+    def test_shadow_compare_accepts_gear_hash_when_legacy_profile_hash_is_missing(self):
+        legacy = self.shadow_row()
+        candidate = self.shadow_row(
+            profileHash="",
+            resolvedGearSignature="sha256:new-release-bound",
+        )
+        candidate["selectionIntent"]["authoredAgainst"]["gearCatalogRevision"] = "gear-release:sha256:target"
+
+        report = gear_release.compare_shadow(
+            [legacy],
+            [candidate],
+            expected_specs=[("mage", "arcane")],
+            gear_release_id="gear-release:sha256:target",
+        )
+
+        self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["diffs"][0]["classification"], "revision_only")
+
     def test_shadow_compare_blocks_semantic_winner_provenance_or_baseline_regression(self):
         mutations = (
             {"semanticGearSignature": "sha256:different"},
+            {"profileHash": "profile-hash-different"},
             {"sourceUrl": "https://different.example"},
             {"baselineCount": 1},
             {"sourceKey": "season_recommendation"},

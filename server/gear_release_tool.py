@@ -9,7 +9,7 @@ import json
 from typing import Any, Callable, Iterable
 
 try:
-    from . import gear_release, gear_resolver
+    from . import gear_release, gear_release_shadow, gear_resolver
     from .db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
     from .gear_release_store import (
         CandidateGearAuthorityIndex,
@@ -20,8 +20,10 @@ try:
         gear_snapshot_summary,
     )
     from .websim_payload import WOW_CLASSES, gear_resolver_runtime_authority, normalize_slot
+    from .postgres_cache_store import PostgresCacheStore
 except ImportError:
     import gear_release
+    import gear_release_shadow
     import gear_resolver
     from db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
     from gear_release_store import (
@@ -33,6 +35,7 @@ except ImportError:
         gear_snapshot_summary,
     )
     from websim_payload import WOW_CLASSES, gear_resolver_runtime_authority, normalize_slot
+    from postgres_cache_store import PostgresCacheStore
 
 
 CAPABILITY_REVISION = "gear-capability-matrix-v1"
@@ -405,12 +408,90 @@ def _store_from_environment() -> GearReleaseStore:
     return GearReleaseStore(lambda: connect_postgres(config.database_url))
 
 
+class _CountingCursor:
+    def __init__(self, cursor, counter):
+        self._cursor = cursor
+        self._counter = counter
+
+    def execute(self, statement, *args, **kwargs):
+        self._counter.record(statement)
+        return self._cursor.execute(statement, *args, **kwargs)
+
+    def executemany(self, statement, *args, **kwargs):
+        self._counter.record(statement)
+        return self._cursor.executemany(statement, *args, **kwargs)
+
+    def __enter__(self):
+        self._cursor.__enter__()
+        return self
+
+    def __exit__(self, *args):
+        return self._cursor.__exit__(*args)
+
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+
+
+class _CountingConnection:
+    def __init__(self, connection, counter):
+        self._connection = connection
+        self._counter = counter
+
+    def cursor(self, *args, **kwargs):
+        return _CountingCursor(self._connection.cursor(*args, **kwargs), self._counter)
+
+    def __getattr__(self, name):
+        return getattr(self._connection, name)
+
+
+class _StatementCounter:
+    def __init__(self, connection_factory):
+        self._connection_factory = connection_factory
+        self.total = 0
+        self.transaction_control = 0
+        self.read_queries = 0
+        self.write_statements = 0
+
+    def __call__(self):
+        return _CountingConnection(self._connection_factory(), self)
+
+    def record(self, statement):
+        normalized = " ".join(str(statement or "").split()).upper()
+        self.total += 1
+        if normalized.startswith("SET TRANSACTION"):
+            self.transaction_control += 1
+        elif normalized.startswith(("INSERT ", "UPDATE ", "DELETE ", "MERGE ", "TRUNCATE ")):
+            self.write_statements += 1
+        else:
+            self.read_queries += 1
+
+    def snapshot(self):
+        return {
+            "total": self.total,
+            "transactionControl": self.transaction_control,
+            "readQueries": self.read_queries,
+            "writeStatements": self.write_statements,
+        }
+
+
+def _shadow_store_from_environment() -> PostgresCacheStore:
+    config = database_config_from_env()
+    if not postgres_only_runtime_enabled(config):
+        raise RuntimeError("gear release shadow requires WOW_DATABASE_RUNTIME=postgres_only and WOW_DATABASE_URL")
+    counter = _StatementCounter(lambda: connect_postgres(config.database_url))
+    store = PostgresCacheStore(counter)
+    store.shadow_read_statement_metrics = counter.snapshot
+    return store
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("build-legacy-gear", "build-legacy-all", "show", "promote", "rollback"))
+    parser.add_argument("command", choices=("build-legacy-gear", "build-legacy-all", "show", "shadow", "promote", "rollback"))
     parser.add_argument("--season-revision", default="")
     parser.add_argument("--simc-runtime-revision", default="")
     parser.add_argument("--release-id", default="")
+    parser.add_argument("--gear-release-id", default="")
+    parser.add_argument("--community-release-id", default="")
     parser.add_argument("--level", type=int, default=90)
     return parser
 
@@ -418,8 +499,39 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
     if args.command in {"promote", "rollback"}:
-        print(json.dumps({"status": "blocked", "reason": "pointer mutation is disabled in Phase 4B"}, sort_keys=True))
+        print(json.dumps({"status": "blocked", "reason": "pointer mutation is disabled in Phase 4C"}, sort_keys=True))
         return 2
+    if args.command == "shadow":
+        if not args.gear_release_id or not args.community_release_id or not args.simc_runtime_revision:
+            raise SystemExit("--gear-release-id, --community-release-id and --simc-runtime-revision are required")
+        shadow_store = _shadow_store_from_environment()
+        result = gear_release_shadow.run_release_shadow(
+            shadow_store,
+            expected_specs=expected_spec_pairs(),
+            gear_release_id=args.gear_release_id,
+            community_release_id=args.community_release_id,
+            simc_runtime_revision=args.simc_runtime_revision,
+            level=args.level,
+        )
+        cache_metrics = getattr(shadow_store, "gear_authority_cache_metrics", None)
+        statement_metrics = getattr(shadow_store, "shadow_read_statement_metrics", None)
+        if callable(cache_metrics):
+            result["authorityCache"] = cache_metrics()
+        if callable(statement_metrics):
+            result["databaseStatements"] = statement_metrics()
+            if result["databaseStatements"].get("writeStatements"):
+                result["status"] = "blocked"
+                result.setdefault("blockers", []).append({
+                    "kind": "SHADOW_COMPARE_BLOCKED",
+                    "code": "SHADOW_WRITE_STATEMENT_DETECTED",
+                    "title": "Release shadow comparison blocked.",
+                    "detail": "Internal shadow executed a write statement.",
+                    "path": "shadow",
+                    "retryable": False,
+                    "meta": {},
+                })
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0 if result.get("status") == "pass" else 2
     store = _store_from_environment()
     if args.command == "show":
         print(json.dumps(store.get_release(args.release_id), ensure_ascii=False, sort_keys=True))
