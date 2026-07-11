@@ -354,21 +354,30 @@
         "activationBoundary": "Phase 4D is merged and live-verified with one formal active Manifest at generation 9. Phase 4E may consume staging into inactive candidates and auto-promote only same-Gear Community or fully compatible additive Gear changes; deploy-triggered refresh, Phase 5 and Catalyst remain forbidden."
       },
       "statSnapshotFoundations": {
-        "status": "phase5a_dormant_store_implementation_allowed",
-        "factOwner": "server/gear_stat_snapshot.py",
+        "status": "phase5a_complete_phase5b_worker_api_implementation_allowed",
+        "factOwner": "server/gear_stat_snapshot_api.py",
         "writeOwner": "server/gear_stat_snapshot_store.py",
+        "executionOwner": "server/gear_stat_snapshot_worker.py",
         "modules": [
           "server/gear_stat_snapshot.py",
           "server/gear_stat_snapshot_store.py",
-          "server/migrations/postgres/0015_websim_gear_stat_snapshots.sql"
+          "server/gear_stat_snapshot_api.py",
+          "server/gear_stat_snapshot_worker.py",
+          "server/migrations/postgres/0015_websim_gear_stat_snapshots.sql",
+          "server/wow-gear-stat-snapshot-worker.service"
         ],
         "tests": [
           "tests/gear_stat_snapshot_test.py",
           "tests/gear_stat_snapshot_store_test.py",
+          "tests/gear_stat_snapshot_api_test.py",
+          "tests/gear_stat_snapshot_worker_test.py",
           "tests/postgres_schema_test.py"
         ],
-        "runtimeConsumers": [],
-        "activationBoundary": "Slice 5A may add only the pure revision-complete stat signature, immutable verified snapshot schema and fenced single-flight repository. API, worker, service and frontend consumers remain forbidden until later Phase 5 packets."
+        "runtimeConsumers": [
+          "server/news_backend.py canonical async route and bounded health/admin projection",
+          "server/gear_stat_snapshot_worker.py one-child fenced execution loop"
+        ],
+        "activationBoundary": "Slice 5B may activate the canonical async route, one-child fenced worker/service, bounded operations projection and best-effort legacy telemetry. Frontend cutover remains forbidden until 5C and Catalyst remains disabled."
       },
       "dormantAdapters": {
         "status": "contract_only_unconsumed",

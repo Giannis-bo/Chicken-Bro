@@ -7616,6 +7616,126 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(payload["statStatus"], "blocked")
         self.assertIn("selected gear is not fully SimC-ready", payload["blockers"])
 
+    def test_pg_only_async_stat_snapshot_route_forwards_client_identity_without_running_simc(self):
+        authority_store = object()
+        snapshot_store = object()
+        calls = []
+
+        def fake_start(payload, **kwargs):
+            calls.append((payload, kwargs))
+            return 202, {
+                "contractRevision": "gear-result-envelope-v1",
+                "requestId": kwargs["request_id"],
+                "status": "pending",
+                "releaseContext": {},
+                "data": {"jobId": 7, "retryAfterMs": 1500},
+                "problems": [],
+            }
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                    "WOW_DATABASE_RUNTIME": "postgres_only",
+                },
+            ), patch.object(self.backend, "cache_data_store", return_value=authority_store), patch.object(
+                self.backend, "gear_stat_snapshot_data_store", return_value=snapshot_store, create=True
+            ), patch.object(
+                self.backend, "get_or_start_stat_snapshot", side_effect=fake_start, create=True
+            ), patch.object(
+                self.backend,
+                "run_websim_stat_simcraft",
+                side_effect=AssertionError("async API must never run SimC"),
+                create=True,
+            ), patch.object(
+                self.backend, "current_gear_simc_runtime_revision", return_value="simc-v1"
+            ):
+                request = Request(
+                    f"http://127.0.0.1:{server.server_port}/api/websim/gear/stat-snapshots",
+                    data=json.dumps({"selectionIntent": {"schemaRevision": "selection-intent-v1"}}).encode(),
+                    headers={"Content-Type": "application/json", "X-Wow-Client-Id": "client-a"},
+                    method="POST",
+                )
+                with urlopen(request, timeout=5) as response:
+                    body = json.loads(response.read().decode())
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(response.status, 202)
+        self.assertEqual(body["status"], "pending")
+        self.assertEqual(len(calls), 1)
+        self.assertIs(calls[0][1]["authority_store"], authority_store)
+        self.assertIs(calls[0][1]["snapshot_store"], snapshot_store)
+        self.assertEqual(calls[0][1]["client_id"], "client-a")
+
+    def test_legacy_gear_stats_telemetry_is_best_effort_and_response_compatible(self):
+        class BrokenTelemetry:
+            def record_legacy_request(self):
+                raise RuntimeError("metrics unavailable")
+
+        expected = {"statStatus": "blocked", "blockers": ["fixture"]}
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                    "WOW_DATABASE_RUNTIME": "postgres_only",
+                },
+            ), patch.object(
+                self.backend, "gear_stat_snapshot_data_store", return_value=BrokenTelemetry(), create=True
+            ), patch.object(
+                self.backend, "build_websim_gear_stats_response", return_value=expected
+            ):
+                request = Request(
+                    f"http://127.0.0.1:{server.server_port}/api/websim/gear/stats",
+                    data=b"{}",
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(request, timeout=5) as response:
+                    body = json.loads(response.read().decode())
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(body, expected)
+
+    def test_stat_snapshot_health_is_bounded_and_requires_matching_fresh_worker(self):
+        class Store:
+            def health_summary(self, *, now):
+                return {
+                    "checkedAt": now,
+                    "queue": {"queued": 2, "running": 1, "failed": 0, "blocked": 0},
+                    "snapshotCount": 12,
+                    "snapshotCountTruncated": False,
+                    "workers": [{"workerId": "worker-a"}],
+                    "metrics": {"requestCount": 10, "cacheHitCount": 4, "cacheHitRate": 0.4},
+                }
+
+            def worker_readiness(self, **_kwargs):
+                return {"ready": True, "workerId": "worker-a", "status": "running"}
+
+        component = self.backend.gear_stat_snapshot_health_component(
+            store=Store(),
+            now="2026-07-11T12:00:00+00:00",
+            simc_runtime_revision="simc-v1",
+        )
+
+        self.assertEqual(component["key"], "gear_stat_snapshot")
+        self.assertEqual(component["status"], "verified")
+        self.assertEqual(component["details"]["queue"]["queued"], 2)
+        self.assertEqual(component["details"]["workerReadiness"]["workerId"], "worker-a")
+        self.assertLessEqual(len(component["details"]["workers"]), 4)
+
     def test_pg_only_public_builds_and_pve_routes_do_not_open_sqlite(self):
         class CacheStore:
             def get_raiderio_payload(self):

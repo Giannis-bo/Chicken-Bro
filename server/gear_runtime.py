@@ -66,6 +66,18 @@ def _release_context(authority_context: Any) -> dict[str, Any]:
         field: vector.get(field) or manifest.get(field) or ""
         for field in fields
     }
+    output.update(
+        {
+            "manifestRevision": manifest.get("manifestRevision") or "",
+            "pointerGeneration": manifest.get("pointerGeneration"),
+            "communityTemplateRevision": (
+                manifest.get("communityTemplateRevision")
+                or manifest.get("communityTemplateReleaseId")
+                or ""
+            ),
+            "talentCatalogRevision": manifest.get("talentCatalogRevision") or "",
+        }
+    )
     output["formalActiveManifest"] = manifest.get("formalActiveManifest") is True
     return {key: value for key, value in output.items() if value not in (None, "")}
 

@@ -101,6 +101,15 @@ class GearRuntimeTest(unittest.TestCase):
 
     def test_legal_intent_resolves_once_into_200_envelope(self):
         fixture = self.fixture()
+        fixture["authorityContext"]["manifest"].update(
+            {
+                "manifestRevision": "season-manifest:r17",
+                "pointerGeneration": 9,
+                "communityTemplateReleaseId": "community-release:r17",
+                "talentCatalogRevision": "talent-catalog:r17",
+                "formalActiveManifest": True,
+            }
+        )
 
         store, status, envelope = self.resolve(fixture, request_id="request-legal")
 
@@ -120,6 +129,14 @@ class GearRuntimeTest(unittest.TestCase):
             envelope["releaseContext"]["gearCatalogRevision"],
             fixture["authorityContext"]["manifest"]["gearCatalogRevision"],
         )
+        self.assertEqual(envelope["releaseContext"]["manifestRevision"], "season-manifest:r17")
+        self.assertEqual(envelope["releaseContext"]["pointerGeneration"], 9)
+        self.assertEqual(
+            envelope["releaseContext"]["communityTemplateRevision"],
+            "community-release:r17",
+        )
+        self.assertEqual(envelope["releaseContext"]["talentCatalogRevision"], "talent-catalog:r17")
+        self.assertTrue(envelope["releaseContext"]["formalActiveManifest"])
 
     def test_candidate_shadow_resolves_only_through_exact_release_reader(self):
         fixture = self.fixture()

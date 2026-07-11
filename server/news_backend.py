@@ -74,6 +74,7 @@ try:
         is_canonical_profile_request,
         resolve_selection_intent,
     )
+    from .gear_stat_snapshot_api import get_or_start_stat_snapshot
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
@@ -176,6 +177,7 @@ except ImportError:
         is_canonical_profile_request,
         resolve_selection_intent,
     )
+    from gear_stat_snapshot_api import get_or_start_stat_snapshot
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
@@ -515,6 +517,17 @@ def ops_data_store():
     except ImportError:
         from postgres_ops_store import PostgresOpsStore
     return PostgresOpsStore(lambda: connect_postgres(config.database_url))
+
+
+def gear_stat_snapshot_data_store():
+    config = database_config_from_env()
+    if not postgres_personal_runtime_enabled(config):
+        return None
+    try:
+        from .gear_stat_snapshot_store import GearStatSnapshotStore
+    except ImportError:
+        from gear_stat_snapshot_store import GearStatSnapshotStore
+    return GearStatSnapshotStore(lambda: connect_postgres(config.database_url))
 
 
 def init_db():
@@ -2142,6 +2155,7 @@ ADMIN_GATE_MODULE_LABELS = {
     "template_simc_bridge": "模板到 SimC 桥接",
     "community_templates": "社区天赋与装备模板",
     "stat_weights": "Raider.IO + SimC 属性权重",
+    "gear_stat_snapshot": "异步装备属性快照",
     "wcl_credentials": "Warcraft Logs API 凭据",
     "blizzard_api": "Battle.net 游戏数据 API",
 }
@@ -2265,6 +2279,70 @@ def data_health_component(key, title, status, *, checked_at="", details=None, bl
         "details": sanitize_health_value(details or {}),
         "blockers": sanitized_blockers,
     }
+
+
+def gear_stat_snapshot_health_component(*, store=None, now="", simc_runtime_revision=""):
+    checked_at = str(now or utc_now())
+    active_store = store if store is not None else gear_stat_snapshot_data_store()
+    if active_store is None:
+        return data_health_component(
+            "gear_stat_snapshot",
+            "Gear stat snapshot worker",
+            "blocked",
+            checked_at=checked_at,
+            blockers=["stat snapshot PostgreSQL store is unavailable"],
+        )
+    revision = str(simc_runtime_revision or current_gear_simc_runtime_revision()).strip()
+    try:
+        summary = active_store.health_summary(now=checked_at)
+        readiness = active_store.worker_readiness(
+            simc_runtime_revision=revision,
+            now=checked_at,
+            max_age_seconds=30,
+        )
+    except Exception:
+        return data_health_component(
+            "gear_stat_snapshot",
+            "Gear stat snapshot worker",
+            "blocked",
+            checked_at=checked_at,
+            blockers=["stat snapshot health reader is unavailable"],
+        )
+    queue = summary.get("queue") if isinstance(summary.get("queue"), dict) else {}
+    metrics = summary.get("metrics") if isinstance(summary.get("metrics"), dict) else {}
+    workers = summary.get("workers") if isinstance(summary.get("workers"), list) else []
+    bounded_workers = [
+        {
+            key: worker.get(key)
+            for key in (
+                "workerId",
+                "status",
+                "workerRevision",
+                "simcRuntimeRevision",
+                "currentJobId",
+                "heartbeatAt",
+            )
+        }
+        for worker in workers[:4]
+        if isinstance(worker, dict)
+    ]
+    blockers = [] if readiness.get("ready") is True else ["matching stat snapshot worker is not fresh"]
+    return data_health_component(
+        "gear_stat_snapshot",
+        "Gear stat snapshot worker",
+        "verified" if not blockers else "blocked",
+        checked_at=summary.get("checkedAt") or checked_at,
+        details={
+            "simcRuntimeRevision": revision,
+            "workerReadiness": readiness,
+            "queue": queue,
+            "snapshotCount": int(summary.get("snapshotCount") or 0),
+            "snapshotCountTruncated": summary.get("snapshotCountTruncated") is True,
+            "workers": bounded_workers,
+            "metrics": metrics,
+        },
+        blockers=blockers,
+    )
 
 
 def gear_legality_template_records_from_cache_store(cache_store):
@@ -3099,6 +3177,7 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
         active_manifest_health_component(cache_store),
         release_refresh_health_component(cache_store),
+        gear_stat_snapshot_health_component(),
         news_health_component_from_latest(latest),
         data_health_component(
             "raiderio",
@@ -12630,6 +12709,18 @@ class Handler(BaseHTTPRequestHandler):
             )
             json_response(self, http_status, envelope)
             return
+        if parsed.path == "/api/websim/gear/stat-snapshots":
+            http_status, envelope = get_or_start_stat_snapshot(
+                read_json_body(self),
+                authority_store=cache_data_store(),
+                snapshot_store=gear_stat_snapshot_data_store(),
+                simc_runtime_revision=current_gear_simc_runtime_revision(),
+                request_id=f"gear-stat-{uuid.uuid4().hex}",
+                client_id=self.headers.get("X-Wow-Client-Id", ""),
+                now=utc_now(),
+            )
+            json_response(self, http_status, envelope)
+            return
         if parsed.path == "/api/websim/profile":
             request_payload = read_json_body(self)
             if is_canonical_profile_request(request_payload):
@@ -12650,6 +12741,12 @@ class Handler(BaseHTTPRequestHandler):
                 json_response(self, 200, build_websim_profile_response(request_payload, conn=conn))
             return
         if parsed.path == "/api/websim/gear/stats":
+            try:
+                stat_store = gear_stat_snapshot_data_store()
+                if stat_store is not None:
+                    stat_store.record_legacy_request()
+            except Exception:
+                pass
             if postgres_only_runtime_enabled():
                 json_response(self, 200, build_websim_gear_stats_response(read_json_body(self), conn=None))
                 return
