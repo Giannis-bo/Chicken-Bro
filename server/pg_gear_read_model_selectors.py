@@ -3,6 +3,11 @@ import json
 from datetime import datetime, timezone
 
 try:
+    from . import gear_release
+except ImportError:
+    import gear_release
+
+try:
     from .websim_payload import (
         CANONICAL_GEAR_SLOTS,
         GEAR_CATALOG_REVISION,
@@ -117,6 +122,72 @@ def _int_value(value, fallback=0):
         return int(value)
     except (TypeError, ValueError):
         return fallback
+
+
+def _shadow_template_evidence(template):
+    value = template if isinstance(template, dict) else {}
+    payload = value.get("payload") if isinstance(value.get("payload"), dict) else {}
+    evidence = payload.get("templateEvidence") if isinstance(payload.get("templateEvidence"), dict) else {}
+    refs = [row for row in value.get("sourceRefs") or [] if isinstance(row, dict)]
+    ref = refs[0] if refs else {}
+    return {
+        "sampleCount": _int_value(value.get("sampleCount") or evidence.get("sampleCount") or ref.get("sampleCount")),
+        "profileHash": str(value.get("profileHash") or evidence.get("profileHash") or "").strip(),
+        "gearHash": str(value.get("gearHash") or evidence.get("gearHash") or value.get("signature") or "").strip(),
+    }
+
+
+def build_transitional_release_shadow_row(
+    template,
+    selection_intent,
+    resolved_snapshot,
+    *,
+    gear_release_id,
+    baseline_count=0,
+):
+    """Normalize one accepted transitional winner for release shadow comparison."""
+
+    value = template if isinstance(template, dict) else {}
+    snapshot = resolved_snapshot if isinstance(resolved_snapshot, dict) else {}
+    evidence = _shadow_template_evidence(value)
+    legality = snapshot.get("aggregateLegality") if isinstance(snapshot.get("aggregateLegality"), dict) else {}
+    return {
+        "classKey": str(value.get("classKey") or "").strip(),
+        "specKey": str(value.get("specKey") or "").strip(),
+        "selectionIntent": selection_intent if isinstance(selection_intent, dict) else {},
+        "resolvedGearSignature": str(snapshot.get("resolvedGearSignature") or "").strip(),
+        "semanticGearSignature": gear_release.semantic_gear_signature(selection_intent, snapshot),
+        "aggregateLegality": str(legality.get("status") or "").strip(),
+        "sourceKey": str(value.get("sourceKey") or "").strip(),
+        "sourceUrl": str(value.get("sourceUrl") or "").strip(),
+        "profileHash": evidence["profileHash"],
+        "gearHash": evidence["gearHash"],
+        "sampleCount": evidence["sampleCount"],
+        "baselineCount": _int_value(baseline_count),
+        "validatedAgainstGearReleaseId": str(gear_release_id or "").strip(),
+    }
+
+
+def build_candidate_release_shadow_row(row, *, gear_release_id):
+    """Normalize one sealed Community Release winner for shadow comparison."""
+
+    value = row if isinstance(row, dict) else {}
+    problems = value.get("problems") if isinstance(value.get("problems"), list) else []
+    return {
+        "classKey": str(value.get("classKey") or "").strip(),
+        "specKey": str(value.get("specKey") or "").strip(),
+        "selectionIntent": value.get("selectionIntent") if isinstance(value.get("selectionIntent"), dict) else {},
+        "resolvedGearSignature": str(value.get("resolvedGearSignature") or "").strip(),
+        "semanticGearSignature": str(value.get("semanticGearSignature") or "").strip(),
+        "aggregateLegality": "verified" if value.get("role") == "winner" and not problems else "blocked",
+        "sourceKey": str(value.get("sourceKey") or "").strip(),
+        "sourceUrl": str(value.get("sourceUrl") or "").strip(),
+        "profileHash": str(value.get("profileHash") or "").strip(),
+        "gearHash": str(value.get("gearHash") or "").strip(),
+        "sampleCount": _int_value(value.get("sampleCount")),
+        "baselineCount": 0,
+        "validatedAgainstGearReleaseId": str(gear_release_id or "").strip(),
+    }
 
 
 def _datetime_value(value):

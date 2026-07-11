@@ -128,12 +128,13 @@ def _snapshot_envelope(
     return http_status_for_envelope(envelope), envelope
 
 
-def resolve_selection_intent(
+def _resolve_selection_intent(
     raw_intent: Any,
     *,
     store: Any,
     simc_runtime_revision: str,
     request_id: str,
+    gear_release_id: str = "",
 ) -> tuple[int, dict[str, Any]]:
     """Resolve one untrusted Intent through current backend-owned authority."""
 
@@ -164,7 +165,14 @@ def resolve_selection_intent(
         )
 
     try:
-        authority_context = store.get_gear_authority_context(intent, runtime_authority)
+        if gear_release_id:
+            authority_context = store.get_candidate_gear_authority_context(
+                intent,
+                runtime_authority,
+                gear_release_id,
+            )
+        else:
+            authority_context = store.get_gear_authority_context(intent, runtime_authority)
     except Exception:
         return _error_envelope(
             "AUTHORITY_UNAVAILABLE",
@@ -184,6 +192,50 @@ def resolve_selection_intent(
             release_context=_release_context(authority_context),
         )
     return _snapshot_envelope(snapshot, authority_context, request_id)
+
+
+def resolve_selection_intent(
+    raw_intent: Any,
+    *,
+    store: Any,
+    simc_runtime_revision: str,
+    request_id: str,
+) -> tuple[int, dict[str, Any]]:
+    """Resolve one untrusted Intent through the transitional public authority."""
+
+    return _resolve_selection_intent(
+        raw_intent,
+        store=store,
+        simc_runtime_revision=simc_runtime_revision,
+        request_id=request_id,
+    )
+
+
+def resolve_candidate_selection_intent(
+    raw_intent: Any,
+    *,
+    store: Any,
+    gear_release_id: str,
+    simc_runtime_revision: str,
+    request_id: str,
+) -> tuple[int, dict[str, Any]]:
+    """Resolve one Intent through an exact inactive Gear Release for shadow only."""
+
+    release_id = str(gear_release_id or "").strip()
+    if not release_id:
+        return _error_envelope(
+            "AUTHORITY_UNAVAILABLE",
+            "GEAR_RELEASE_ID_UNAVAILABLE",
+            "Candidate Gear Release is unavailable.",
+            request_id,
+        )
+    return _resolve_selection_intent(
+        raw_intent,
+        store=store,
+        simc_runtime_revision=simc_runtime_revision,
+        request_id=request_id,
+        gear_release_id=release_id,
+    )
 
 
 def is_canonical_profile_request(raw_request: Any) -> bool:
@@ -237,23 +289,33 @@ def _blocked_profile_data(profile: Any, problems: list[dict[str, Any]]) -> dict[
     return data
 
 
-def build_profile_from_selection_intent(
+def _build_profile_from_selection_intent(
     raw_request: Any,
     *,
     store: Any,
     simc_runtime_revision: str,
     request_id: str,
     profile_builder: Callable[..., dict[str, Any]] = build_websim_profile_response_from_resolved_snapshot,
+    gear_release_id: str = "",
 ) -> tuple[int, dict[str, Any]]:
     """Re-resolve canonical profile input and serialize only the server snapshot."""
 
     request = raw_request if isinstance(raw_request, dict) else {}
-    http_status, resolved_envelope = resolve_selection_intent(
-        request.get("selectionIntent"),
-        store=store,
-        simc_runtime_revision=simc_runtime_revision,
-        request_id=request_id,
-    )
+    if gear_release_id:
+        http_status, resolved_envelope = resolve_candidate_selection_intent(
+            request.get("selectionIntent"),
+            store=store,
+            gear_release_id=gear_release_id,
+            simc_runtime_revision=simc_runtime_revision,
+            request_id=request_id,
+        )
+    else:
+        http_status, resolved_envelope = resolve_selection_intent(
+            request.get("selectionIntent"),
+            store=store,
+            simc_runtime_revision=simc_runtime_revision,
+            request_id=request_id,
+        )
     if http_status != 200 or resolved_envelope.get("status") != "resolved":
         return http_status, resolved_envelope
 
@@ -298,9 +360,59 @@ def build_profile_from_selection_intent(
     return http_status_for_envelope(envelope), envelope
 
 
+def build_profile_from_selection_intent(
+    raw_request: Any,
+    *,
+    store: Any,
+    simc_runtime_revision: str,
+    request_id: str,
+    profile_builder: Callable[..., dict[str, Any]] = build_websim_profile_response_from_resolved_snapshot,
+) -> tuple[int, dict[str, Any]]:
+    """Build a canonical Profile through the transitional public authority."""
+
+    return _build_profile_from_selection_intent(
+        raw_request,
+        store=store,
+        simc_runtime_revision=simc_runtime_revision,
+        request_id=request_id,
+        profile_builder=profile_builder,
+    )
+
+
+def build_candidate_profile_from_selection_intent(
+    raw_request: Any,
+    *,
+    store: Any,
+    gear_release_id: str,
+    simc_runtime_revision: str,
+    request_id: str,
+    profile_builder: Callable[..., dict[str, Any]] = build_websim_profile_response_from_resolved_snapshot,
+) -> tuple[int, dict[str, Any]]:
+    """Build a canonical Profile through an exact inactive Gear Release."""
+
+    release_id = str(gear_release_id or "").strip()
+    if not release_id:
+        return _error_envelope(
+            "AUTHORITY_UNAVAILABLE",
+            "GEAR_RELEASE_ID_UNAVAILABLE",
+            "Candidate Gear Release is unavailable.",
+            request_id,
+        )
+    return _build_profile_from_selection_intent(
+        raw_request,
+        store=store,
+        gear_release_id=release_id,
+        simc_runtime_revision=simc_runtime_revision,
+        request_id=request_id,
+        profile_builder=profile_builder,
+    )
+
+
 __all__ = (
     "PROFILE_CONTEXT_KEYS",
+    "build_candidate_profile_from_selection_intent",
     "build_profile_from_selection_intent",
     "is_canonical_profile_request",
+    "resolve_candidate_selection_intent",
     "resolve_selection_intent",
 )

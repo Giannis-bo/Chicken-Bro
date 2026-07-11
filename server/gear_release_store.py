@@ -13,6 +13,123 @@ import json
 from typing import Any, Iterable
 
 
+RELEASE_SELECTED_ITEM_VARIANT_SQL = """
+/* gear_release_authority_items_variants */
+WITH target AS (
+    SELECT %s::text AS release_id
+), requested(item_id, variant_key) AS (
+    SELECT * FROM unnest(%s::text[], %s::text[])
+)
+SELECT
+    requested.item_id,
+    requested.variant_key,
+    CASE WHEN item.item_id IS NULL THEN NULL ELSE jsonb_build_object(
+        'id', item.item_id,
+        'name', item.name,
+        'slot', item.slot,
+        'itemLevel', item.item_level,
+        'sourceStatus', item.source_status,
+        'itemSetIds', COALESCE((
+            SELECT jsonb_agg(DISTINCT COALESCE(
+                NULLIF(set_source.payload_json->>'setId', ''),
+                NULLIF(set_source.payload_json->>'set_id', ''),
+                NULLIF(set_source.payload_json->>'itemSetId', ''),
+                NULLIF(set_source.payload_json->>'item_set_id', '')
+            ))
+            FROM cache.websim_gear_release_sources set_source
+            WHERE set_source.release_id = target.release_id
+              AND set_source.item_id = requested.item_id
+              AND set_source.source_type = 'tier_set'
+        ), '[]'::jsonb),
+        'payload', item.payload_json,
+        'updatedAt', item.source_updated_at::text
+    ) END AS item_record,
+    CASE WHEN variant.variant_id IS NULL THEN NULL ELSE jsonb_build_object(
+        'id', variant.variant_id,
+        'itemId', variant.item_id,
+        'slot', variant.slot,
+        'variantKey', variant.variant_key,
+        'label', variant.label,
+        'sourceType', variant.source_type,
+        'difficultyKey', variant.difficulty_key,
+        'itemLevel', variant.item_level,
+        'simcOptions', variant.simc_options_json,
+        'status', variant.status,
+        'blockers', variant.blockers_json,
+        'payload', variant.payload_json,
+        'updatedAt', variant.source_updated_at::text
+    ) END AS variant_record,
+    COALESCE((
+        SELECT jsonb_agg(jsonb_build_object(
+            'id', source.source_id,
+            'sourceType', source.source_type,
+            'sourceKey', source.source_key,
+            'sourceLabel', source.source_label,
+            'instanceId', source.instance_id,
+            'encounterId', source.encounter_id,
+            'difficultyKey', source.difficulty_key,
+            'seasonRevision', source.season_revision,
+            'status', COALESCE(
+                NULLIF(source.payload_json->>'status', ''),
+                NULLIF(source.payload_json->>'sourceStatus', ''),
+                'unknown'
+            ),
+            'sourceStatus', COALESCE(
+                NULLIF(source.payload_json->>'sourceStatus', ''),
+                'unknown'
+            ),
+            'payload', source.payload_json,
+            'updatedAt', source.source_updated_at::text
+        ) ORDER BY source.source_type, source.source_id)
+        FROM (
+            SELECT DISTINCT ON (candidate.source_type) candidate.*
+            FROM cache.websim_gear_release_sources candidate
+            WHERE candidate.release_id = target.release_id
+              AND candidate.item_id = requested.item_id
+            ORDER BY candidate.source_type, candidate.source_updated_at DESC, candidate.source_id
+            LIMIT 8
+        ) source
+    ), '[]'::jsonb) AS source_records
+FROM requested
+CROSS JOIN target
+LEFT JOIN cache.websim_gear_release_items item
+  ON item.release_id = target.release_id
+ AND item.item_id = requested.item_id
+LEFT JOIN cache.websim_gear_release_variants variant
+  ON variant.release_id = target.release_id
+ AND variant.item_id = requested.item_id
+ AND variant.variant_key = requested.variant_key
+ORDER BY requested.item_id, requested.variant_key
+"""
+
+
+RELEASE_SELECTED_OPTION_SQL = """
+/* gear_release_authority_options */
+WITH target AS (
+    SELECT %s::text AS release_id
+)
+SELECT
+    option.option_key,
+    jsonb_build_object(
+        'id', option.option_id,
+        'optionKey', option.option_key,
+        'optionType', option.option_type,
+        'name', option.name,
+        'applicableSlots', option.applicable_slots_json,
+        'simcOptions', option.simc_options_json,
+        'status', option.status,
+        'isVisible', option.is_visible,
+        'payload', option.payload_json,
+        'updatedAt', option.source_updated_at::text
+    ) AS option_record
+FROM cache.websim_gear_release_mod_options option
+CROSS JOIN target
+WHERE option.release_id = target.release_id
+  AND option.option_key = ANY(%s::text[])
+ORDER BY option.option_key
+"""
+
+
 class GearReleaseIntegrityError(RuntimeError):
     pass
 
@@ -57,6 +174,25 @@ def _int(value: Any) -> int:
 def _canonical_rows(rows: Any) -> list[dict[str, Any]]:
     values = [_canonical(row) for row in rows or [] if isinstance(row, dict)]
     return sorted(values, key=lambda row: _canonical_bytes(row))
+
+
+def _selected_option_ids(selection_intent: Any) -> list[str]:
+    intent = selection_intent if isinstance(selection_intent, dict) else {}
+    selected = set()
+    for selection in (intent.get("slots") or {}).values():
+        if not isinstance(selection, dict):
+            continue
+        selected.update(_text(value) for value in selection.get("gemOptionIds") or [])
+        selected.update(
+            _text(selection.get(field))
+            for field in (
+                "enchantOptionId",
+                "embellishmentOptionId",
+                "craftedOptionId",
+                "catalystOptionId",
+            )
+        )
+    return sorted(value for value in selected if value)
 
 
 def canonical_row_hash(row: dict[str, Any]) -> str:
@@ -567,6 +703,156 @@ class GearReleaseStore:
             with conn.cursor() as cur:
                 release = self._select_release(cur, normalized)
         return release or {}
+
+    def load_candidate_authority_context(
+        self,
+        selection_intent: dict[str, Any],
+        runtime_authority: dict[str, Any],
+        gear_release_id: str,
+    ) -> dict[str, Any]:
+        """Read selected authority facts from one exact inactive Gear Release."""
+
+        try:
+            from .pg_gear_authority_loader import build_gear_authority_context_from_rows
+        except ImportError:
+            from pg_gear_authority_loader import build_gear_authority_context_from_rows
+
+        release_id = _text(gear_release_id)
+        intent = selection_intent if isinstance(selection_intent, dict) else {}
+        slots = intent.get("slots") if isinstance(intent.get("slots"), dict) else {}
+        requested_pairs = list(dict.fromkeys(
+            (_text(selection.get("itemId")), _text(selection.get("variantKey")))
+            for selection in slots.values()
+            if isinstance(selection, dict)
+        ))
+        item_ids = [item_id for item_id, _variant_key in requested_pairs]
+        variant_keys = [variant_key for _item_id, variant_key in requested_pairs]
+        option_ids = _selected_option_ids(intent)
+
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                release = self._select_release(cur, release_id)
+                if release is None:
+                    raise GearReleaseIntegrityError("candidate Gear Release is missing")
+                release = _exact_release_descriptor(release)
+                if release["releaseKind"] != "gear":
+                    raise GearReleaseIntegrityError("candidate authority requires a Gear Release")
+                authored = intent.get("authoredAgainst") if isinstance(intent.get("authoredAgainst"), dict) else {}
+                if (
+                    authored.get("seasonRevision") != release["seasonRevision"]
+                    or authored.get("gearCatalogRevision") != release["releaseId"]
+                ):
+                    raise GearReleaseIntegrityError("candidate Intent is not authored against the Gear Release")
+                cur.execute(
+                    RELEASE_SELECTED_ITEM_VARIANT_SQL,
+                    (release_id, item_ids, variant_keys),
+                )
+                item_rows = cur.fetchall()
+                cur.execute(RELEASE_SELECTED_OPTION_SQL, (release_id, option_ids))
+                option_rows = cur.fetchall()
+
+        dependencies = {
+            "seasonRevision": release["seasonRevision"],
+            "gearCatalogReleaseId": release["releaseId"],
+            "gearCatalogRevision": release["releaseId"],
+            **_canonical(release.get("dependencyRevisions") or {}),
+        }
+        return build_gear_authority_context_from_rows(
+            intent,
+            runtime_authority,
+            manifest={
+                "contractRevision": "active-season-manifest-v1",
+                "manifestType": "candidate_shadow",
+                "manifestRevision": f"candidate-shadow:{release['releaseId']}",
+                "formalActiveManifest": False,
+                "seasonRevision": release["seasonRevision"],
+                "gearCatalogReleaseId": release["releaseId"],
+                "gearCatalogRevision": release["releaseId"],
+                "catalogFingerprint": release["contentHash"],
+                "sourceStates": {"releaseStatus": release["releaseStatus"]},
+            },
+            dependency_vector=dependencies,
+            item_rows=item_rows,
+            option_rows=option_rows,
+        )
+
+    def load_community_release(
+        self,
+        gear_release_id: str,
+        community_release_id: str,
+    ) -> dict[str, Any]:
+        """Read and integrity-check one Community Release bound to one Gear Release."""
+
+        gear_id = _text(gear_release_id)
+        community_id = _text(community_release_id)
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                gear = self._select_release(cur, gear_id)
+                community = self._select_release(cur, community_id)
+                if gear is None or community is None:
+                    raise GearReleaseIntegrityError("candidate release pair is missing")
+                gear = _exact_release_descriptor(gear)
+                community = _exact_release_descriptor(community)
+                if gear["releaseKind"] != "gear" or community["releaseKind"] != "community":
+                    raise GearReleaseIntegrityError("candidate release pair kind is invalid")
+                if community["validatedAgainstReleaseId"] != gear["releaseId"]:
+                    raise GearReleaseIntegrityError("Community Release is not bound to the Gear Release")
+                if community["seasonRevision"] != gear["seasonRevision"]:
+                    raise GearReleaseIntegrityError("candidate release pair season mismatch")
+                if community["dependencyRevisions"] != gear["dependencyRevisions"]:
+                    raise GearReleaseIntegrityError("candidate release pair dependency mismatch")
+                cur.execute(
+                    """
+                    SELECT template_id, class_key, spec_key, role, election_rank,
+                           source_key, source_url, source_status, sample_count,
+                           profile_hash, gear_hash, selection_intent_json,
+                           resolved_gear_signature, semantic_gear_signature,
+                           dependency_vector_json, evidence_json, problems_json,
+                           payload_json, payload_json->>'updatedAt',
+                           payload_json->>'expiresAt'
+                    FROM cache.websim_community_release_templates
+                    WHERE release_id = %s
+                    ORDER BY class_key, spec_key, role, election_rank, template_id
+                    """,
+                    (community_id,),
+                )
+                rows = [self._community_row_from_db(row) for row in cur.fetchall()]
+        if community_rows_summary(rows) != community["content"]:
+            raise GearReleaseIntegrityError("Community Release content integrity failed")
+        return {
+            "gearRelease": gear,
+            "communityRelease": community,
+            "rows": rows,
+            "winners": [row for row in rows if row.get("role") == "winner"],
+        }
+
+    @staticmethod
+    def _community_row_from_db(row: Any) -> dict[str, Any]:
+        values = list(row or ())
+        return {
+            "templateId": _text(values[0]),
+            "classKey": _text(values[1]),
+            "specKey": _text(values[2]),
+            "role": _text(values[3]),
+            "electionRank": _int(values[4]),
+            "sourceKey": _text(values[5]),
+            "sourceUrl": _text(values[6]),
+            "sourceStatus": _text(values[7]),
+            "sampleCount": _int(values[8]),
+            "profileHash": _text(values[9]),
+            "gearHash": _text(values[10]),
+            "selectionIntent": _canonical(values[11] if isinstance(values[11], dict) else {}),
+            "resolvedGearSignature": _text(values[12]),
+            "semanticGearSignature": _text(values[13]),
+            "dependencyVector": _canonical(values[14] if isinstance(values[14], dict) else {}),
+            "evidence": _canonical(values[15] if isinstance(values[15], (dict, list)) else {}),
+            "problems": _canonical(values[16] if isinstance(values[16], list) else []),
+            "payload": _canonical(values[17] if isinstance(values[17], dict) else {}),
+            "updatedAt": _text(values[18]),
+            "expiresAt": _text(values[19]),
+        }
 
     @staticmethod
     def _insert_registry(cur, release: dict[str, Any], gate_result: dict[str, Any]) -> None:

@@ -1,5 +1,9 @@
 import copy
+import io
+import json
 import unittest
+from contextlib import redirect_stdout
+from unittest.mock import patch
 
 from server import gear_release
 
@@ -283,6 +287,35 @@ class GearReleaseToolTest(unittest.TestCase):
                 now="2026-07-11T06:00:00+00:00",
                 resolver_for_spec=lambda *_args: self.fail("duplicates must fail before Resolver"),
             )
+
+    def test_shadow_command_is_read_only_and_requires_explicit_release_pair(self):
+        from server import gear_release_tool
+
+        output = io.StringIO()
+        with patch.object(
+            gear_release_tool,
+            "_shadow_store_from_environment",
+            return_value=object(),
+        ), patch.object(
+            gear_release_tool.gear_release_shadow,
+            "run_release_shadow",
+            return_value={"status": "pass", "publicReadCount": 40, "blockers": []},
+        ) as shadow, redirect_stdout(output):
+            status = gear_release_tool.main([
+                "shadow",
+                "--gear-release-id", "gear-release:a",
+                "--community-release-id", "community-release:a",
+                "--simc-runtime-revision", "simc-r1",
+            ])
+
+        self.assertEqual(status, 0)
+        self.assertEqual(json.loads(output.getvalue())["status"], "pass")
+        shadow.assert_called_once()
+        self.assertEqual(shadow.call_args.kwargs["gear_release_id"], "gear-release:a")
+        self.assertEqual(shadow.call_args.kwargs["community_release_id"], "community-release:a")
+
+        with self.assertRaises(SystemExit):
+            gear_release_tool.main(["shadow", "--simc-runtime-revision", "simc-r1"])
 
 
 if __name__ == "__main__":

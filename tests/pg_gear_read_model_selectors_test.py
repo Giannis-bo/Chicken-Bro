@@ -4,6 +4,80 @@ import unittest
 
 
 class PgGearReadModelSelectorsTest(unittest.TestCase):
+    def test_release_shadow_rows_normalize_transitional_and_candidate_winners(self):
+        from server import gear_release
+        from server.pg_gear_read_model_selectors import (
+            build_candidate_release_shadow_row,
+            build_transitional_release_shadow_row,
+        )
+
+        gear_release_id = "gear-release:sha256:target"
+        intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": "compatibility-pg:old",
+            },
+            "eligibilityContext": {"classKey": "mage", "specKey": "arcane", "level": 90},
+            "slots": {"head": {"itemId": "item-a", "variantKey": "variant-a"}},
+        }
+        resolved = {
+            "eligibilityContext": intent["eligibilityContext"],
+            "resolvedGearSignature": "sha256:release-bound",
+            "resolvedSlots": {"head": {"itemId": "item-a", "variantKey": "variant-a"}},
+            "staticAttributes": {"intellect": 100},
+            "setState": {"itemSetCounts": {}},
+            "constraints": {"slots": {}},
+            "serializerInput": {"gearItems": [{"slot": "head", "itemId": "item-a"}]},
+            "aggregateLegality": {"status": "verified"},
+        }
+        template = {
+            "id": "template-a",
+            "classKey": "mage",
+            "specKey": "arcane",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceUrl": "https://raider.io/a",
+            "sourceStatus": "synced",
+            "signature": "gear:a",
+            "sourceRefs": [{"sampleCount": 1}],
+            "payload": {"templateEvidence": {"profileHash": "profile:a", "gearHash": "gear:a", "sampleCount": 1}},
+        }
+        transitional = build_transitional_release_shadow_row(
+            template,
+            intent,
+            resolved,
+            gear_release_id=gear_release_id,
+            baseline_count=0,
+        )
+        candidate = build_candidate_release_shadow_row({
+            "templateId": "template-a",
+            "classKey": "mage",
+            "specKey": "arcane",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceUrl": "https://raider.io/a",
+            "sourceStatus": "synced",
+            "sampleCount": 1,
+            "profileHash": "profile:a",
+            "gearHash": "gear:a",
+            "selectionIntent": intent,
+            "resolvedGearSignature": "sha256:candidate-release-bound",
+            "semanticGearSignature": gear_release.semantic_gear_signature(intent, resolved),
+            "role": "winner",
+            "problems": [],
+        }, gear_release_id=gear_release_id)
+
+        report = gear_release.compare_shadow(
+            [transitional],
+            [candidate],
+            expected_specs=[("mage", "arcane")],
+            gear_release_id=gear_release_id,
+        )
+
+        self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["diffs"][0]["classification"], "revision_only")
+        self.assertEqual(transitional["baselineCount"], 0)
+        self.assertEqual(candidate["validatedAgainstGearReleaseId"], gear_release_id)
+
     def test_build_websim_talents_read_model_assembles_sync_blockers_and_season(self):
         from server.pg_gear_read_model_selectors import build_websim_talents_read_model
 

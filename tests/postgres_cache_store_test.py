@@ -8155,6 +8155,60 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertFalse(conn.rolled_back)
         loader.assert_called_once()
 
+    def test_candidate_release_readers_delegate_to_single_release_repository(self):
+        from server import postgres_cache_store
+
+        class CandidateReleaseStore:
+            def __init__(self):
+                self.calls = []
+
+            def load_candidate_authority_context(self, intent, runtime_authority, gear_release_id):
+                self.calls.append(("authority", intent, runtime_authority, gear_release_id))
+                return {
+                    "manifest": {"gearCatalogReleaseId": gear_release_id},
+                    "missingFields": [],
+                }
+
+            def load_community_release(self, gear_release_id, community_release_id):
+                self.calls.append(("community", gear_release_id, community_release_id))
+                return {"winners": [{"templateId": "winner-a"}]}
+
+        release_store = CandidateReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("candidate facade must not open the staging store directly"),
+            gear_release_store=release_store,
+        )
+        intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-r1",
+                "gearCatalogRevision": "gear-release:a",
+            },
+            "eligibilityContext": {"classKey": "warrior", "specKey": "arms", "level": 80},
+            "slots": {},
+        }
+        runtime = {"dependencyRevisions": {
+            "gearRuleRevision": "rule-r1",
+            "resolverContractRevision": "resolver-r1",
+            "serializerRevision": "serializer-r1",
+            "simcRuntimeRevision": "simc-r1",
+            "statPolicyRevision": "stat-r1",
+            "selectionSchemaRevision": "selection-intent-v1",
+        }}
+
+        authority = store.get_candidate_gear_authority_context(intent, runtime, "gear-release:a")
+        cached_authority = store.get_candidate_gear_authority_context(intent, runtime, "gear-release:a")
+        community = store.get_candidate_community_release("gear-release:a", "community-release:a")
+
+        self.assertEqual(authority["manifest"]["gearCatalogReleaseId"], "gear-release:a")
+        self.assertEqual(cached_authority, authority)
+        self.assertEqual(community["winners"][0]["templateId"], "winner-a")
+        self.assertEqual(store._gear_authority_context_cache.entry_count, 1)
+        self.assertEqual(release_store.calls, [
+            ("authority", intent, runtime, "gear-release:a"),
+            ("community", "gear-release:a", "community-release:a"),
+        ])
+
     def test_gear_resolver_context_is_one_read_only_revision_query(self):
         from server import postgres_cache_store
 

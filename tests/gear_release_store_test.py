@@ -180,6 +180,22 @@ class GearReleaseStoreTest(unittest.TestCase):
             validated_against_release_id=gear_release_id,
         )
 
+    def release_row(self, release):
+        return (
+            release["releaseId"],
+            release["releaseKind"],
+            release["seasonRevision"],
+            release["schemaRevision"],
+            release["contentHash"],
+            release["parentReleaseId"] or None,
+            release["validatedAgainstReleaseId"] or None,
+            release["releaseStatus"],
+            release["dependencyRevisions"],
+            {},
+            release["source"],
+            release["content"],
+        )
+
     def test_gear_snapshot_summary_is_order_stable_and_content_sensitive(self):
         from server import gear_release_store
 
@@ -468,6 +484,16 @@ class GearReleaseStoreTest(unittest.TestCase):
             }
         ]
 
+    def community_db_row(self, row):
+        return (
+            row["templateId"], row["classKey"], row["specKey"], row["role"],
+            row["electionRank"], row["sourceKey"], row["sourceUrl"],
+            row["sourceStatus"], row["sampleCount"], row["profileHash"],
+            row["gearHash"], row["selectionIntent"], row["resolvedGearSignature"],
+            row["semanticGearSignature"], row["dependencyVector"], row["evidence"],
+            row["problems"], row["payload"], row["updatedAt"], row["expiresAt"],
+        )
+
     def test_seal_community_release_inserts_elected_rows_without_pointer_write(self):
         from server.gear_release_store import GearReleaseStore
 
@@ -582,6 +608,165 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_active_manifest_pointer", sql)
         self.assertNotIn("websim_season_state", sql)
         self.assertNotIn("websim_sync_state", sql)
+
+    def test_candidate_authority_reads_one_exact_release_without_staging_fallback(self):
+        from server.gear_release_store import GearReleaseStore
+        from server.websim_payload import gear_resolver_runtime_authority
+
+        snapshot = self.snapshot()
+        release = self.gear_release(snapshot)
+        intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": release["releaseId"],
+            },
+            "eligibilityContext": {"classKey": "mage", "specKey": "arcane", "level": 90},
+            "slots": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": "variant-a",
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            },
+        }
+        runtime = gear_resolver_runtime_authority("mage", "arcane", simc_runtime_revision="simc-r1")
+        runtime["dependencyRevisions"]["capabilityRevision"] = "gear-capability-v1"
+        item_record = {
+            "id": "item-a",
+            "name": "Item A",
+            "slot": "head",
+            "itemLevel": 289,
+            "sourceStatus": "verified",
+            "itemSetIds": [],
+            "payload": {"itemStats": [{"key": "intellect", "value": 100}]},
+            "updatedAt": "2026-07-11T05:00:00+00:00",
+        }
+        variant_record = {
+            "id": "variant-a-id",
+            "itemId": "item-a",
+            "slot": "head",
+            "variantKey": "variant-a",
+            "label": "289",
+            "sourceType": "observed_profile",
+            "difficultyKey": "mythic",
+            "itemLevel": 289,
+            "simcOptions": {"ilevel": "289"},
+            "status": "verified",
+            "blockers": [],
+            "payload": {"resolvedStats": {"intellect": 100}},
+            "updatedAt": "2026-07-11T05:00:00+00:00",
+        }
+        source_records = [{
+            "id": "source-a",
+            "sourceType": "observed_profile",
+            "sourceKey": "profile:a",
+            "sourceLabel": "Observed",
+            "difficultyKey": "mythic",
+            "seasonRevision": "season-17",
+            "status": "verified",
+            "sourceStatus": "unknown",
+            "payload": {"status": "verified"},
+            "updatedAt": "2026-07-11T05:00:00+00:00",
+        }]
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_release_registry": [self.release_row(release)],
+            "gear_release_authority_items_variants": [
+                ("item-a", "variant-a", item_record, variant_record, source_records)
+            ],
+            "gear_release_authority_options": [],
+        })
+
+        context = GearReleaseStore(lambda: conn).load_candidate_authority_context(
+            intent,
+            runtime,
+            release["releaseId"],
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY", sql)
+        self.assertIn("cache.websim_gear_release_items", sql)
+        self.assertIn("cache.websim_gear_release_variants", sql)
+        self.assertIn("cache.websim_gear_release_sources", sql)
+        self.assertIn("cache.websim_gear_release_mod_options", sql)
+        self.assertNotIn("FROM cache.websim_items", sql)
+        self.assertNotIn("FROM cache.websim_gear_variants", sql)
+        self.assertEqual(context["manifest"]["gearCatalogReleaseId"], release["releaseId"])
+        self.assertEqual(context["manifest"]["manifestType"], "candidate_shadow")
+        self.assertFalse(context["manifest"]["formalActiveManifest"])
+        self.assertEqual(context["missingFields"], [])
+
+    def test_candidate_community_release_rejects_missing_or_mixed_binding(self):
+        from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
+
+        gear = self.gear_release()
+        rows = self.community_rows()
+        community = self.community_release(gear["releaseId"], rows)
+
+        missing = FakeConnection(rowsets={"FROM cache.websim_release_registry": []})
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(lambda: missing).load_community_release(
+                gear["releaseId"],
+                community["releaseId"],
+            )
+        self.assertNotIn("websim_community_release_templates", "\n".join(missing.cursor_instance.statements))
+
+        other_gear = self.gear_release({
+            **self.snapshot(),
+            "items": [{**self.snapshot()["items"][0], "name": "Other"}],
+        })
+        mixed = FakeConnection(rowsets={
+            "FROM cache.websim_release_registry": {
+                (other_gear["releaseId"],): [self.release_row(other_gear)],
+                (community["releaseId"],): [self.release_row(community)],
+            }
+        })
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(lambda: mixed).load_community_release(
+                other_gear["releaseId"],
+                community["releaseId"],
+            )
+        self.assertNotIn("websim_community_release_templates", "\n".join(mixed.cursor_instance.statements))
+
+    def test_candidate_community_release_checks_complete_content_hash(self):
+        from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
+
+        gear = self.gear_release()
+        rows = self.community_rows()
+        community = self.community_release(gear["releaseId"], rows)
+        registry = {
+            (gear["releaseId"],): [self.release_row(gear)],
+            (community["releaseId"],): [self.release_row(community)],
+        }
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_release_registry": registry,
+            "FROM cache.websim_community_release_templates": [self.community_db_row(rows[0])],
+        })
+
+        result = GearReleaseStore(lambda: conn).load_community_release(
+            gear["releaseId"], community["releaseId"]
+        )
+
+        self.assertEqual(result["communityRelease"]["releaseId"], community["releaseId"])
+        self.assertEqual([row["templateId"] for row in result["winners"]], ["template-a"])
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("WHERE release_id = %s", sql)
+        self.assertNotIn("FROM cache.websim_community_gear_templates", sql)
+
+        tampered = list(self.community_db_row(rows[0]))
+        tampered[13] = "sha256:tampered"
+        bad = FakeConnection(rowsets={
+            "FROM cache.websim_release_registry": registry,
+            "FROM cache.websim_community_release_templates": [tuple(tampered)],
+        })
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(lambda: bad).load_community_release(
+                gear["releaseId"], community["releaseId"]
+            )
 
 
 if __name__ == "__main__":

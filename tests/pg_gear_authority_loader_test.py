@@ -860,6 +860,25 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         cursor, _context = self.load(cursor=self.cursor(), intent=changed_intent, cache=cache)
         self.assertEqual(len(cursor.statements), 3)
 
+    def test_candidate_cache_key_is_scoped_to_exact_release_and_runtime_vector(self):
+        intent = self.intent()
+        runtime = self.runtime_authority()
+
+        release_a = pg_gear_authority_loader.candidate_authority_cache_key(
+            intent, runtime, "gear-release:a"
+        )
+        release_b = pg_gear_authority_loader.candidate_authority_cache_key(
+            intent, runtime, "gear-release:b"
+        )
+        changed_runtime = pg_gear_authority_loader.candidate_authority_cache_key(
+            intent,
+            self.runtime_authority(statPolicyRevision="stat-snapshot-policy-v2"),
+            "gear-release:a",
+        )
+
+        self.assertNotEqual(release_a, release_b)
+        self.assertNotEqual(release_a, changed_runtime)
+
     def test_complete_authority_context_may_cache_but_transient_unavailable_does_not(self):
         cache = pg_gear_authority_loader.AuthorityContextCache(max_entries=4, max_bytes=100000)
         self.load(cursor=self.cursor(item_rows=[]), cache=cache)

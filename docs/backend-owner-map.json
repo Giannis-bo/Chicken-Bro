@@ -346,9 +346,10 @@
         },
         {
           "id": "gear_release_registry",
-          "status": "phase4b_completed_inactive_phase4c_shadow_allowed",
+          "status": "phase4c_internal_shadow_candidate",
           "extractedModule": "server/gear_release_store.py",
           "operatorTool": "server/gear_release_tool.py",
+          "shadowOrchestrator": "server/gear_release_shadow.py",
           "migration": "server/migrations/postgres/0013_websim_release_train.sql",
           "usesModule": "server/gear_release.py",
           "owns": [
@@ -356,7 +357,9 @@
             "append-only hash-addressed Gear and Community Release persistence",
             "inactive Season Manifest persistence",
             "strict dormant retail pointer compare-and-swap storage boundary",
-            "explicit legacy-import-r0 release construction and revalidation"
+            "explicit legacy-import-r0 release construction and revalidation",
+            "release-scoped selected Authority and complete Community Release reads",
+            "internal bounded transitional versus candidate shadow orchestration"
           ],
           "mustNotChange": [
             "Phase 4B must not activate a shadow/public reader or write the retail manifest pointer.",
@@ -367,6 +370,7 @@
           "characterization": [
             "tests/gear_release_store_test.py",
             "tests/gear_release_tool_test.py",
+            "tests/gear_release_shadow_test.py",
             "tests/postgres_schema_test.py"
           ],
           "futureExtractionDirection": "Phase 4C may add a read-only shadow reader only after inactive import evidence is sealed and public observed-only parity remains green."

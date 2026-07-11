@@ -40,6 +40,7 @@ try:
     from .pg_gear_authority_loader import (
         AUTHORITY_REVISION_SQL,
         AuthorityContextCache,
+        candidate_authority_cache_key,
         load_gear_authority_context,
         resolver_authoring_context,
     )
@@ -47,9 +48,15 @@ except ImportError:
     from pg_gear_authority_loader import (
         AUTHORITY_REVISION_SQL,
         AuthorityContextCache,
+        candidate_authority_cache_key,
         load_gear_authority_context,
         resolver_authoring_context,
     )
+
+try:
+    from .gear_release_store import GearReleaseStore
+except ImportError:
+    from gear_release_store import GearReleaseStore
 
 try:
     from .websim_payload import (
@@ -904,12 +911,22 @@ def promote_community_talent_template_inventory(templates):
 
 
 class PostgresCacheStore:
-    def __init__(self, connection_factory, gear_authority_context_cache=None):
+    def __init__(
+        self,
+        connection_factory,
+        gear_authority_context_cache=None,
+        gear_release_store=None,
+    ):
         self.connection_factory = connection_factory
         self._gear_authority_context_cache = (
             gear_authority_context_cache
             if gear_authority_context_cache is not None
             else AuthorityContextCache(max_entries=32, max_bytes=4 * 1024 * 1024)
+        )
+        self._gear_release_store = (
+            gear_release_store
+            if gear_release_store is not None
+            else GearReleaseStore(connection_factory)
         )
 
     @contextmanager
@@ -977,6 +994,39 @@ class PostgresCacheStore:
                     runtime_authority,
                     cache=self._gear_authority_context_cache,
                 )
+
+    def get_candidate_gear_authority_context(
+        self,
+        selection_intent,
+        runtime_authority,
+        gear_release_id,
+    ):
+        """Read exact inactive Gear Release authority for internal shadow use only."""
+
+        cache_key = candidate_authority_cache_key(
+            selection_intent,
+            runtime_authority,
+            gear_release_id,
+        )
+        cached = self._gear_authority_context_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        context = self._gear_release_store.load_candidate_authority_context(
+            selection_intent,
+            runtime_authority,
+            gear_release_id,
+        )
+        if isinstance(context, dict) and context.get("missingFields") == []:
+            self._gear_authority_context_cache.put(cache_key, context)
+        return context
+
+    def get_candidate_community_release(self, gear_release_id, community_release_id):
+        """Read one exact inactive Community/Gear pair for internal shadow use only."""
+
+        return self._gear_release_store.load_community_release(
+            gear_release_id,
+            community_release_id,
+        )
 
     def get_gear_resolver_context(self, runtime_authority):
         """Load the current Selection Intent authoring revisions without selected facts."""
