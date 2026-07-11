@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase4a-release-contracts",
   "requirementSlug": "equipment-simulator-phase4a-release-contracts",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
-  "branch": "codex/equipment-simulator-phase3-closure-phase4-plan",
-  "commit": "869372d793ad67cc250a1193d6570be5de9c293f",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/equipment-simulator-phase4a-release-contracts",
+  "commit": "b45ce1cca4ff9ae8d6b3ef56d98c65e17ff63784",
   "scope": [
     "pure immutable release contracts",
     "Active Season Manifest validation",
@@ -22,33 +22,116 @@
       "command": "Phase 4 detailed plan self-review",
       "status": "pass",
       "summary": "Five bounded Slices define exact schema ownership, legacy import, 40-spec shadow proof, atomic pointer cutover, scheduled candidate-first refresh, rollback and per-Slice candidate gates without implementing Phase 5 or Phase 6 early."
+    },
+    {
+      "command": "python3 -m unittest tests.gear_release_test",
+      "status": "pass",
+      "summary": "22 focused pure-domain tests pass. They cover deterministic release/manifest hashes, dependency and Gear/Community bindings, immutable integrity, observed winner/standby/rejected election, current Resolver revalidation, stale/source-invalid/client-forged/mixed-release rejection, strict shadow classification, promotion decisions, pointer commands, Catalyst proof and purity."
+    },
+    {
+      "command": "python3 -m unittest tests.gear_release_test tests.gear_contracts_test tests.gear_result_envelope_test tests.gear_rule_matrix_test tests.gear_evidence_ledger_test tests.gear_resolver_test",
+      "status": "pass",
+      "summary": "86 related release, contract, Result Envelope, rule, Evidence Ledger and canonical Resolver tests pass."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts --base origin/main",
+      "status": "pass",
+      "summary": "1213 Python tests pass with one existing skip, compileall passes, and the Strict Harness check passes."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts --base origin/main",
+      "status": "pass",
+      "summary": "386 Node tests and 1213 Python tests pass with one existing skip; all 130 JSON, syntax, Harness and diff commands pass."
+    },
+    {
+      "command": "local CR of b45ce1c implementation scope",
+      "status": "pass",
+      "summary": "No unresolved critical or important findings. Review added red-to-green checks for exact manifest/release Dependency Revision parity, timezone-aware freshness authority and a mandatory completed shadow report before promotion. The module has no persistence, route, environment, filesystem, network, current-time or process-execution access; schema/write/reader/pointer/timer work remains absent."
+    },
+    {
+      "command": "exact-head candidate dormant import and runtime parity",
+      "status": "pass",
+      "summary": "Remote gear_release.py matched local SHA-256 c135530b31cd533629ece88347622fd33e331c5d7a248ee62318d613f1a2401d. All 22 focused tests passed on-host and the deterministic smoke produced the same release ID/content hash locally and remotely. The live API remained compatibility-pg-live-v1 with formalActiveManifest=false."
+    },
+    {
+      "command": "candidate public, Resolve/Profile, health and Catalyst smoke",
+      "status": "pass",
+      "summary": "All 40 specs returned verified initial payloads with exactly one raiderio_observed_profile template, public baseline zero and formalActiveManifest=false. Frost Resolve returned 200 resolved with signature, legacy Profile returned 200 talent-ready, /health stayed ok, and Catalyst remained blocked with capabilityEnabled=false."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
-    "requiredBeforeMerge": true
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase4a-release-contracts",
+    "commit": "b45ce1cca4ff9ae8d6b3ef56d98c65e17ff63784",
+    "buildIdentity": "exact implementation head plus server/gear_release.py SHA-256 c135530b31cd533629ece88347622fd33e331c5d7a248ee62318d613f1a2401d",
+    "databaseRuntime": "postgres_only",
+    "asyncSyncStart": false,
+    "schemaMigration": false,
+    "releaseWrites": 0,
+    "activeManifestPointerChange": false,
+    "rollbackBackup": "/opt/wow-mini-program-candidate-backups/phase4a-pre-b45ce1c",
+    "service": "active/running, one task, NRestarts=0",
+    "timerBackflow": "The pre-existing observed-backfill timer naturally fired at 14:12:19 CST during the deployment window; timer ActiveEnterTimestamp remained 2026-07-03, the service reported no eligible rows and completed blocked without a release write. WebSim and community sync did not start."
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "kind": "candidate_identity",
+      "status": "pass",
+      "head": "b45ce1cca4ff9ae8d6b3ef56d98c65e17ff63784",
+      "sha256": "c135530b31cd533629ece88347622fd33e331c5d7a248ee62318d613f1a2401d",
+      "remoteFocusedTests": "22/22"
+    },
+    {
+      "kind": "public_contract_matrix",
+      "status": "pass",
+      "checkedSpecs": 40,
+      "failureCount": 0,
+      "communitySource": "raiderio_observed_profile only",
+      "baselineCount": 0,
+      "formalActiveManifest": false
+    },
+    {
+      "kind": "compatibility_smoke",
+      "status": "pass",
+      "resolve": "HTTP 200 resolved with server signature",
+      "legacyProfile": "HTTP 200 talent-ready",
+      "health": "ok",
+      "catalyst": "blocked; capabilityEnabled=false"
+    },
+    {
+      "kind": "operational_state",
+      "status": "pass",
+      "service": "active/running, one task, about 99 MiB after 40-spec payload smoke, NRestarts=0",
+      "logs": "no traceback/sqlite fallback/database locked/segmentation/fatal match",
+      "asyncSync": "WOW_DEPLOY_START_ASYNC_SYNCS=0; no WebSim or community sync start"
+    }
+  ],
   "risks": [
     {
       "id": "mixed_release_read",
-      "status": "blocked_by_plan",
-      "detail": "Every active request must read one manifest and scope Gear and Community rows to its exact release IDs; missing or mixed bindings fail closed."
+      "status": "blocked_by_contract",
+      "detail": "Manifest construction/validation rejects missing, tampered, season/dependency-mismatched or differently bound Gear/Community Releases; runtime reader enforcement remains reserved for Slice 4C."
     },
     {
       "id": "legacy_grandfathering",
-      "status": "blocked_by_plan",
-      "detail": "legacy-import-r0 describes provenance only; every candidate must re-pass the current Resolver against the candidate Gear Release."
+      "status": "blocked_by_contract",
+      "detail": "Election calls the injected current Resolver for every otherwise eligible candidate, including carry-forward rows, and rejects illegal, unready or differently bound results."
     },
     {
       "id": "public_template_regression",
-      "status": "blocked_by_plan",
-      "detail": "Shadow and election gates preserve real-player observed-only winners and public baseline zero; illegal rows remain rejected/internal."
+      "status": "blocked_by_contract",
+      "detail": "Election only exposes real-player observed winners; strict shadow blocks semantic/provenance/legality/baseline/binding regressions and keeps lower-ranked legal rows internal standby."
     },
     {
       "id": "destructive_release_rollback",
-      "status": "blocked_by_plan",
-      "detail": "Promotion and rollback compare-and-swap the active pointer; immutable content is not rewritten or deleted."
+      "status": "blocked_by_contract",
+      "detail": "Pure pointer commands contain only promote/rollback, exact manifest IDs and expected generations; persistence enforcement remains reserved for Slice 4B."
+    },
+    {
+      "id": "premature_runtime_activation",
+      "status": "closed",
+      "detail": "Candidate verification proves the new module is dormant: no migration, release write, shadow reader, active pointer, timer or public behavior change exists."
     }
   ],
   "rollback": [
@@ -68,5 +151,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 4A is planned and implementation-allowed only after the Phase 3 closure PR lands. No production module, schema, release write, shadow read or active manifest behavior has been implemented or claimed."
+  "summary": "Slice 4A is runtime-verified on implementation head b45ce1c. The pure release domain owns deterministic immutable Release/Manifest identities, observed election, shadow and promotion policy with 22 focused and 86 related tests; backend/full profiles pass. Candidate import/hash parity, 40-spec public behavior, Resolve/Profile/health and Catalyst gates pass while formalActiveManifest remains false and no schema, release write, reader, pointer or timer was added."
 }

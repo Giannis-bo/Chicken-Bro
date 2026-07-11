@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T05:56:46.453Z",
+  "generatedAt": "2026-07-11T06:16:52.588Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase4a-release-contracts"
@@ -43,12 +43,12 @@
         {
           "path": "docs/project-owner-map.json",
           "exists": true,
-          "sizeBytes": 49433
+          "sizeBytes": 50159
         },
         {
           "path": "docs/verification-matrix.md",
           "exists": true,
-          "sizeBytes": 17283
+          "sizeBytes": 18952
         },
         {
           "path": "docs/roadmap.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 34193
+          "sizeBytes": 35594
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/evidence.json",
-    "sizeBytes": 3166,
+    "sizeBytes": 8846,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Slice 4A is planned and implementation-allowed only after the Phase 3 closure PR lands. No production module, schema, release write, shadow read or active manifest behavior has been implemented or claimed."
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "Slice 4A is runtime-verified on implementation head b45ce1c. The pure release domain owns deterministic immutable Release/Manifest identities, observed election, shadow and promotion policy with 22 focused and 86 related tests; backend/full profiles pass. Candidate import/hash parity, 40-spec public behavior, Resolve/Profile/health and Catalyst gates pass while formalActiveManifest remains false and no schema, release write, reader, pointer or timer was added."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "9 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,17 +313,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 9,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json",
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/manifest.json",
-        " M docs/gear-simulation-full-chain-runbook.md",
-        " M docs/plans/README.md",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/",
-        "?? docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md"
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/evidence.json"
       ]
     }
   },
