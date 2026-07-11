@@ -14333,6 +14333,22 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(compact[0]["displayLabel"], "朗多雷之锐")
         self.assertEqual(compact[0]["simcOptions"]["enchant_id"], "8017")
 
+    def test_compact_gear_mod_option_preserves_resolver_option_key(self):
+        compact = self.websim_payload.compact_gear_mod_options(
+            [
+                {
+                    "id": "616797f3-b17e-5311-aeaf-298ce21bf7d9",
+                    "optionKey": "socket:240971",
+                    "type": "socket",
+                    "status": "verified",
+                    "simcOptions": {"gem_id": "240971"},
+                }
+            ]
+        )
+
+        self.assertEqual(compact[0]["id"], "616797f3-b17e-5311-aeaf-298ce21bf7d9")
+        self.assertEqual(compact[0]["optionKey"], "socket:240971")
+
     def test_display_ready_enchants_use_verified_wago_id_fallback_names(self):
         conn = sqlite3.connect(self.db_path)
         try:

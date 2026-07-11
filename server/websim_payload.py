@@ -22842,6 +22842,7 @@ COMPACT_GEAR_VARIANT_KEYS = {
 }
 COMPACT_GEAR_MOD_OPTION_KEYS = {
     "id",
+    "optionKey",
     "type",
     "optionType",
     "name",

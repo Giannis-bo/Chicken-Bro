@@ -1403,22 +1403,30 @@ function normalizedEnhancementBySlot(enhancementBySlot) {
   return result
 }
 
-function embeddedEnhancementRecordFromGearItem(item) {
-  if (!item || typeof item !== 'object') return null
-  const next = {}
-  ;['gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'embellishment'].forEach((key) => {
-    const value = cleanGearString(item[key])
-    if (value) next[key] = value
+function optionIdentityEnhancementBySlot(enhancementBySlot) {
+  const normalized = normalizedEnhancementBySlot(enhancementBySlot)
+  const result = {}
+  Object.keys(normalized).forEach((slot) => {
+    const next = {}
+    ;['socketOptionId', 'enchantOptionId', 'embellishmentOptionId'].forEach((key) => {
+      const value = cleanGearString(normalized[slot] && normalized[slot][key])
+      if (value) next[key] = value
+    })
+    if (Object.keys(next).length) result[slot] = next
   })
-  return Object.keys(next).length ? next : null
+  return result
 }
 
-function embeddedEnhancementBySlotFromGearSelection(selectedGearBySlot) {
+function gearSelectionWithoutEmbeddedSimcEnhancements(selectedGearBySlot) {
   const result = {}
-  const indexed = selectedGearByCanonicalSlot(selectedGearBySlot || {})
-  Object.keys(indexed).sort().forEach((slot) => {
-    const record = embeddedEnhancementRecordFromGearItem(indexed[slot])
-    if (record) result[slot] = record
+  Object.keys(selectedGearBySlot || {}).forEach((slot) => {
+    const item = selectedGearBySlot[slot]
+    if (!item || typeof item !== 'object') return
+    const next = { ...item }
+    ;['gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'embellishment', 'embellishmentSource'].forEach((key) => {
+      delete next[key]
+    })
+    result[slot] = next
   })
   return result
 }
@@ -1923,23 +1931,28 @@ function gearSlotEnhancementBadgeLabels(gearPayload, item, enhancementRecord) {
   return labels
 }
 
+function enhancementOptionIdentity(option) {
+  return cleanGearString(option && (option.optionKey || option.option_key || option.id || option.key))
+}
+
 function enhancementOptionSelected(option, selected, type) {
   const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
+  const optionId = enhancementOptionIdentity(option)
   if (type === 'gem') {
     return !!(
-      (selected.socketOptionId && option.id === selected.socketOptionId) ||
+      (selected.socketOptionId && optionId === selected.socketOptionId) ||
       (selected.gem_id && cleanGearString(simcOptions.gem_id) === selected.gem_id)
     )
   }
   if (type === 'enchant') {
     return !!(
-      (selected.enchantOptionId && option.id === selected.enchantOptionId) ||
+      (selected.enchantOptionId && optionId === selected.enchantOptionId) ||
       (selected.enchant_id && cleanGearString(simcOptions.enchant_id) === selected.enchant_id)
     )
   }
   if (type === 'embellishment') {
     return !!(
-      (selected.embellishmentOptionId && option.id === selected.embellishmentOptionId) ||
+      (selected.embellishmentOptionId && optionId === selected.embellishmentOptionId) ||
       (selected.embellishment && cleanGearString(simcOptions.embellishment) === selected.embellishment)
     )
   }
@@ -2120,7 +2133,7 @@ function enhancementOptionForData(option, selected, type, disabled, slot) {
   const uniqueLimit = enhancementOptionUniqueLimit(option || {}, type)
   const isDisabled = typeof disabled === 'function' ? disabled(option || {}, isSelected, slot) : disabled
   return {
-    id: cleanGearString(option.id || option.key || option.label || option.name),
+    id: enhancementOptionIdentity(option) || cleanGearString(option.label || option.name),
     label: displayLabel,
     selected: isSelected,
     disabled: !!(isDisabled && !isSelected),
@@ -2172,7 +2185,7 @@ function gearEnhancementSlotSortKey(slot, fallbackIndex) {
   ]
 }
 
-function buildGearEnhancementEquipmentRows(slots, indexed, gemRows, enchantRows, embellishmentRows, activeSlot) {
+function buildGearEnhancementEquipmentRows(slots, indexed, gemRows, enchantRows, embellishmentRows, activeSlot, pendingSlots) {
   const rowMaps = {
     gem: new Map(gemRows.map((row) => [row.slot, row])),
     enchant: new Map(enchantRows.map((row) => [row.slot, row])),
@@ -2183,6 +2196,7 @@ function buildGearEnhancementEquipmentRows(slots, indexed, gemRows, enchantRows,
     if (rowMaps.gem.has(slot)) typeLabels.push('宝石')
     if (rowMaps.enchant.has(slot)) typeLabels.push('附魔')
     if (rowMaps.embellishment.has(slot)) typeLabels.push('美化')
+    if (!typeLabels.length && pendingSlots && pendingSlots.has(slot)) typeLabels.push('加载选项')
     if (!typeLabels.length) return null
     const item = indexed[slot] || {}
     return {
@@ -2218,7 +2232,9 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
   const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
   const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
   const builtInCount = Object.keys(indexed).filter((slot) => builtInEmbellishmentValue(indexed[slot])).length
-  const selectedEmbellishmentCount = Object.keys(enhancement).filter((slot) => cleanGearString(enhancement[slot].embellishment)).length
+  const selectedEmbellishmentCount = Object.keys(enhancement).filter((slot) => (
+    cleanGearString(enhancement[slot].embellishmentOptionId) || cleanGearString(enhancement[slot].embellishment)
+  )).length
   const embellishmentUsed = builtInCount + selectedEmbellishmentCount
   const gemUniqueGroups = selectedEnhancementUniqueGroups(gearPayload, indexed, enhancement, 'gem')
   const gemRows = []
@@ -3222,15 +3238,12 @@ function communityTemplateBaseGearSelection(gearPayload, template) {
   return prunedGearSelectionByWeaponRule(gearPayload, templateSelection)
 }
 
-function communityTemplateEmbeddedEnhancementBySlot(template, selectedGearBySlot) {
+function communityTemplateEnhancementIntentBySlot(template) {
   const explicit = normalizedEnhancementBySlot(
     (template && template.enhancementBySlot) ||
     ((template && template.payload && template.payload.enhancementBySlot) || {})
   )
-  return normalizedEnhancementBySlot({
-    ...explicit,
-    ...embeddedEnhancementBySlotFromGearSelection(selectedGearBySlot)
-  })
+  return optionIdentityEnhancementBySlot(explicit)
 }
 
 function communityTemplateNeedsWeaponSlotDetail(page, gearPayload, slot, selectedGearBySlot) {
@@ -3339,6 +3352,9 @@ function gearPayloadNeedsSlotDetail(page, slot) {
   }
   const group = gearGroupsBySlot(payload)[slot] || {}
   const items = Array.isArray(group.items) ? group.items : []
+  if (group.detailMode === 'complete' && !items.some((item) => item && item.detailMode === 'summary')) {
+    return false
+  }
   return payload.gearPayloadMode === 'initial' || group.detailMode === 'partial' || items.some((item) => item && item.detailMode === 'summary')
 }
 
@@ -3383,6 +3399,67 @@ function gearEnhancementDetailSlotsForPage(page) {
   })
 }
 
+function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, overrides) {
+  const state = overrides || {}
+  const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
+  const currentSelectedGearBySlot = state.selectedGearBySlot || (page && page.data && page.data.selectedGearBySlot) || {}
+  const currentEnhancementBySlot = state.enhancementBySlot || (
+    page && page.data && page.data.gearEnhancementSheet && page.data.gearEnhancementSheet.draftEnhancementBySlot
+  ) || (page && page.data && page.data.enhancementBySlot) || {}
+  const canonicalWorkbench = !!(page && page.gearWorkbenchState)
+  const selectedGearBySlot = canonicalWorkbench
+    ? gearSelectionWithoutEmbeddedSimcEnhancements(currentSelectedGearBySlot)
+    : currentSelectedGearBySlot
+  const enhancementBySlot = canonicalWorkbench
+    ? optionIdentityEnhancementBySlot(currentEnhancementBySlot)
+    : currentEnhancementBySlot
+  const sheet = buildGearEnhancementSheet(
+    gearPayload,
+    selectedGearBySlot,
+    enhancementBySlot,
+    visible,
+    requestedActiveSlot
+  )
+  const canonicalSnapshot = canonicalWorkbench && (
+    page.gearWorkbenchState.currentSnapshot || page.gearWorkbenchState.lastVerifiedSnapshot
+  )
+  if (canonicalSnapshot && canonicalSnapshot.constraints) {
+    sheet.embellishmentMax = Number(canonicalSnapshot.constraints.embellishmentMax) || gearEnhancementMax
+  }
+  const detailSlots = gearEnhancementDetailSlotsForPage(page)
+  if (!detailSlots.length) return sheet
+  if (sheet.emptyText) sheet.emptyText = '请选择装备槽位加载可配置选项。'
+  const configurableSlots = (sheet.equipmentRows || []).map((row) => row.slot)
+  const allSlots = requiredGearTemplateSlots(gearPayload || {})
+  const equipmentSlots = Array.from(new Set([...configurableSlots, ...detailSlots])).sort((left, right) => {
+    const leftKey = gearEnhancementSlotSortKey(left, allSlots.indexOf(left))
+    const rightKey = gearEnhancementSlotSortKey(right, allSlots.indexOf(right))
+    return leftKey[0] - rightKey[0] || leftKey[1] - rightKey[1]
+  })
+  const activeSlot = equipmentSlots.includes(requestedActiveSlot)
+    ? requestedActiveSlot
+    : (sheet.activeSlot || equipmentSlots[0] || '')
+  const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot)
+  return {
+    ...sheet,
+    equipmentRows: buildGearEnhancementEquipmentRows(
+      equipmentSlots,
+      indexed,
+      sheet.gemRows || [],
+      sheet.enchantRows || [],
+      sheet.embellishmentRows || [],
+      activeSlot,
+      new Set(detailSlots)
+    ),
+    activeSlot,
+    activeTitle: activeSlot ? (gearSlotDisplayLabels[activeSlot] || activeSlot) : '',
+    activeItemName: activeSlot ? itemDisplayName(indexed[activeSlot]) : '',
+    activeGemRows: activeSlot ? (sheet.gemRows || []).filter((row) => row.slot === activeSlot) : [],
+    activeEnchantRows: activeSlot ? (sheet.enchantRows || []).filter((row) => row.slot === activeSlot) : [],
+    activeEmbellishmentRows: activeSlot ? (sheet.embellishmentRows || []).filter((row) => row.slot === activeSlot) : []
+  }
+}
+
 function loadGearSlotDetailForPage(page, slot) {
   if (!page || !slot) return Promise.resolve(fullGearPayloadForPage(page))
   if (!gearPayloadNeedsSlotDetail(page, slot)) return Promise.resolve(fullGearPayloadForPage(page))
@@ -3405,12 +3482,6 @@ function loadGearSlotDetailForPage(page, slot) {
   })
   page.gearSlotDetailRequestCache[requestKey] = requestPromise
   return requestPromise
-}
-
-function loadGearSlotDetailsSequentiallyForPage(page, slots) {
-  return (Array.isArray(slots) ? slots : []).reduce((chain, slot) => (
-    chain.then(() => loadGearSlotDetailForPage(page, slot).catch(() => fullGearPayloadForPage(page)))
-  ), Promise.resolve(fullGearPayloadForPage(page)))
 }
 
 function gearCandidateKey(item, slot, index) {
@@ -4782,8 +4853,7 @@ Page({
       showToast(this.data.gearDataWarningText || '装备接口暂不可用，无法配置强化')
       return Promise.resolve()
     }
-    const openWithCurrentPayload = (options) => {
-      const state = options || {}
+    const openWithCurrentPayload = () => {
       const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
       const currentSelectedGearBySlot = this.data.selectedGearBySlot || {}
       const currentEnhancementBySlot = this.data.enhancementBySlot || {}
@@ -4791,38 +4861,19 @@ Page({
       const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, currentEnhancementBySlot)
       const selectionChanged = JSON.stringify(selectedGearBySlot) !== JSON.stringify(currentSelectedGearBySlot)
       const enhancementChanged = JSON.stringify(enhancementBySlot) !== JSON.stringify(currentEnhancementBySlot)
-      const sheet = buildGearEnhancementSheet(
-        gearPayload,
-        selectedGearBySlot,
-        enhancementBySlot,
-        true
-      )
-      if (state.loading) {
-        sheet.loading = true
-        if (sheet.emptyText) sheet.emptyText = '正在加载可配置宝石、附魔和美化...'
-      }
-      this.setData({
+      if (selectionChanged || enhancementChanged) this.setData({
         ...(selectionChanged ? { selectedGearBySlot } : {}),
         ...(enhancementChanged ? { enhancementBySlot } : {}),
-        ...((selectionChanged || enhancementChanged) ? {
-          gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
-          gearAttributePanel: this.gearWorkbenchState
-            ? canonicalGearAttributePanel(this.gearWorkbenchState.currentSnapshot || this.gearWorkbenchState.lastVerifiedSnapshot)
-            : buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot)
-        } : {}),
-        gearEnhancementSheet: sheet,
+        gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
+        gearAttributePanel: this.gearWorkbenchState
+          ? canonicalGearAttributePanel(this.gearWorkbenchState.currentSnapshot || this.gearWorkbenchState.lastVerifiedSnapshot)
+          : buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot)
+      })
+      this.setData({
+        gearEnhancementSheet: buildGearEnhancementSheetForPage(this, true),
         gearSlotSheet: emptyGearSlotSheet(),
         gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
       })
-    }
-    const detailSlots = gearEnhancementDetailSlotsForPage(this)
-    if (detailSlots.length) {
-      openWithCurrentPayload({ loading: true })
-      loadGearSlotDetailsSequentiallyForPage(this, detailSlots).then(() => {
-        const sheet = this.data.gearEnhancementSheet || {}
-        if (sheet.visible) openWithCurrentPayload()
-      })
-      return Promise.resolve()
     }
     openWithCurrentPayload()
     return Promise.resolve()
@@ -4836,17 +4887,55 @@ Page({
 
   selectGearEnhancementSlot(event) {
     const slot = event.currentTarget.dataset.slot || ''
-    if (!slot) return
+    if (!slot) return Promise.resolve()
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
-    this.setData({
-      gearEnhancementSheet: buildGearEnhancementSheet(
-        gearPayload,
-        this.data.selectedGearBySlot || {},
-        (this.data.gearEnhancementSheet && this.data.gearEnhancementSheet.draftEnhancementBySlot) || this.data.enhancementBySlot || {},
-        true,
-        slot
-      )
-    })
+    const selectedGearBySlot = this.data.selectedGearBySlot || {}
+    const currentSheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
+    const enhancementBySlot = currentSheet.draftEnhancementBySlot || this.data.enhancementBySlot || {}
+    const selectedItem = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot)[slot]
+    const needsDetail = gearPayloadNeedsSlotDetail(this, slot) &&
+      gearEnhancementSlotNeedsDetail(gearPayload, selectedItem, normalizedEnhancementBySlot(enhancementBySlot)[slot])
+    const nextSheet = buildGearEnhancementSheetForPage(this, true, slot)
+    if (!needsDetail) {
+      this.setData({ gearEnhancementSheet: nextSheet })
+      return Promise.resolve()
+    }
+    nextSheet.loading = true
+    if (nextSheet.emptyText) nextSheet.emptyText = '正在加载当前槽位的可配置选项...'
+    this.setData({ gearEnhancementSheet: nextSheet })
+    return loadGearSlotDetailForPage(this, slot)
+      .catch(() => fullGearPayloadForPage(this) || gearPayload)
+      .then(() => {
+        const activeSheet = this.data.gearEnhancementSheet || {}
+        if (!activeSheet.visible || activeSheet.activeSlot !== slot) return
+        const refreshedPayload = fullGearPayloadForPage(this) || gearPayload
+        const currentSelectedGearBySlot = this.data.selectedGearBySlot || selectedGearBySlot
+        const refreshedSelectedGearBySlot = prunedGearSelectionByWeaponRule(refreshedPayload, currentSelectedGearBySlot)
+        const refreshedEnhancementBySlot = prunedEnhancementBySlot(
+          refreshedPayload,
+          refreshedSelectedGearBySlot,
+          activeSheet.draftEnhancementBySlot || enhancementBySlot
+        )
+        const selectionChanged = JSON.stringify(refreshedSelectedGearBySlot) !== JSON.stringify(currentSelectedGearBySlot)
+        const enhancementChanged = JSON.stringify(refreshedEnhancementBySlot) !== JSON.stringify(activeSheet.draftEnhancementBySlot || enhancementBySlot)
+        if (selectionChanged || enhancementChanged) this.setData({
+          ...(selectionChanged ? { selectedGearBySlot: refreshedSelectedGearBySlot } : {}),
+          ...(enhancementChanged ? { enhancementBySlot: refreshedEnhancementBySlot } : {}),
+          gearSlotRows: buildGearSlotRows(refreshedPayload, refreshedSelectedGearBySlot, refreshedEnhancementBySlot),
+          gearAttributePanel: this.gearWorkbenchState
+            ? canonicalGearAttributePanel(this.gearWorkbenchState.currentSnapshot || this.gearWorkbenchState.lastVerifiedSnapshot)
+            : buildGearAttributePanel(
+              refreshedPayload,
+              refreshedSelectedGearBySlot,
+              this.data.selectedSpec,
+              refreshedEnhancementBySlot,
+              this.data.gearStatSnapshot
+            )
+        })
+        this.setData({
+          gearEnhancementSheet: buildGearEnhancementSheetForPage(this, true, slot)
+        })
+      })
   },
 
   selectGearEnhancementOption(event) {
@@ -4871,9 +4960,11 @@ Page({
     const compactRecord = compactEnhancementRecord(nextRecord)
     if (compactRecord) current[slot] = compactRecord
     else delete current[slot]
-    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     this.setData({
-      gearEnhancementSheet: buildGearEnhancementSheet(gearPayload, this.data.selectedGearBySlot || {}, current, true, sheet.activeSlot || slot)
+      gearEnhancementSheet: buildGearEnhancementSheetForPage(this, true, sheet.activeSlot || slot, {
+        selectedGearBySlot: this.data.selectedGearBySlot || {},
+        enhancementBySlot: current
+      })
     })
   },
 
@@ -4881,12 +4972,18 @@ Page({
     const sheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, this.data.selectedGearBySlot || {})
+    const editorSelectedGearBySlot = this.gearWorkbenchState
+      ? gearSelectionWithoutEmbeddedSimcEnhancements(selectedGearBySlot)
+      : selectedGearBySlot
     const enhancementBySlot = prunedEnhancementBySlot(
       gearPayload,
-      selectedGearBySlot,
+      editorSelectedGearBySlot,
       sheet.draftEnhancementBySlot || this.data.enhancementBySlot || {}
     )
-    const validationSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, true, sheet.activeSlot)
+    const validationSheet = buildGearEnhancementSheetForPage(this, true, sheet.activeSlot, {
+      selectedGearBySlot,
+      enhancementBySlot
+    })
     if ((validationSheet.blockers || []).length || validationSheet.embellishmentUsed > validationSheet.embellishmentMax) {
       showToast((validationSheet.blockers || [])[0] || `美化已超过上限 ${validationSheet.embellishmentUsed}/${validationSheet.embellishmentMax}`)
       this.setData({
@@ -5016,7 +5113,7 @@ Page({
       const enhancementBySlot = prunedEnhancementBySlot(
         gearPayload,
         selectedGearBySlot,
-        communityTemplateEmbeddedEnhancementBySlot(template, selectedGearBySlot)
+        communityTemplateEnhancementIntentBySlot(template)
       )
       const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
         ...this.data,

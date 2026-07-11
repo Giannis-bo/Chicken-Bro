@@ -1494,6 +1494,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(wxml, /gearEnhancementSheet\.activeEmbellishmentRows/)
   assert.match(wxml, /bindtap="selectGearEnhancementSlot"/)
   assert.match(wxml, /bindtap="confirmGearEnhancementSheet"/)
+  assert.ok(wxml.indexOf('class="gear-enhancement-equipment-grid"') < wxml.indexOf('class="gear-enhancement-blockers"'))
   assert.match(wxml, />确认<\/button>/)
   assert.match(wxml, /bindtap="openGearCommunityTemplates"/)
   assert.match(wxml, /bindtap="resetGearSelection"/)
@@ -2500,6 +2501,156 @@ test('gear attribute panel counts enchant cap from configurable rows including l
   assert.equal(configurableSlots.includes('legs'), true)
   assert.equal(configurableSlots.includes('wrist'), false)
   assert.equal(page.data.gearEnhancementSheet.enchantRows.find((row) => row.slot === 'legs').options[0].label, '森林猎手的护甲片')
+})
+
+test('gear enhancement sheet loads only the selected slot detail on demand', async () => {
+  const requests = []
+  let finishRequest
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear(params) {
+      requests.push(params)
+      return new Promise((resolve) => {
+        finishRequest = () => resolve({
+          fromFallback: false,
+          error: '',
+          payload: {
+            replacementCandidates: [{
+              slot: params.slot,
+              simcSlot: params.slot,
+              detailMode: 'complete',
+              items: [],
+              enchantOptions: [{
+                id: 'uuid-back-enchant',
+                optionKey: 'authority-back-enchant',
+                name: '披风附魔',
+                label: '披风附魔',
+                status: 'verified',
+                simcOptions: { enchant_id: '1234' }
+              }]
+            }]
+          }
+        })
+      })
+    }
+  })
+  const selectedGearBySlot = {
+    back: {
+      slot: 'back',
+      itemId: '250060',
+      variantKey: 'back-v1',
+      modCapabilities: { canEnchant: true }
+    },
+    shoulder: {
+      slot: 'shoulder',
+      itemId: '250061',
+      variantKey: 'shoulder-v1',
+      modCapabilities: { canEnchant: true }
+    }
+  }
+  const gearPayload = {
+    gearPayloadMode: 'initial',
+    slots: [
+      { slot: 'back', simcSlot: 'back', label: '背部' },
+      { slot: 'shoulder', simcSlot: 'shoulder', label: '肩部' }
+    ],
+    replacementCandidates: [
+      { slot: 'back', simcSlot: 'back', detailMode: 'partial', items: [] },
+      { slot: 'shoulder', simcSlot: 'shoulder', detailMode: 'partial', items: [] }
+    ],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      ...pageConfig.data,
+      activeQueryKey: 'gear',
+      gearPayload,
+      gearSelectionKey: 'mage:frost',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  await pageConfig.openGearEnhancementSheet.call(page)
+  assert.equal(requests.length, 0)
+  assert.equal(page.data.gearEnhancementSheet.loading, false)
+  assert.equal(page.data.gearEnhancementSheet.emptyText, '请选择装备槽位加载可配置选项。')
+  assert.equal(JSON.stringify(page.data.gearEnhancementSheet.equipmentRows.map((row) => row.slot)), JSON.stringify(['back']))
+  assert.equal(page.data.gearEnhancementSheet.equipmentRows[0].typeSummary, '加载选项')
+
+  const detailPromise = pageConfig.selectGearEnhancementSlot.call(page, {
+    currentTarget: { dataset: { slot: 'back' } }
+  })
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0].slot, 'back')
+  assert.equal(page.data.gearEnhancementSheet.loading, true)
+  finishRequest()
+  await detailPromise
+
+  assert.equal(requests.length, 1)
+  assert.equal(page.data.gearEnhancementSheet.loading, false)
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, 'back')
+  assert.equal(page.data.gearEnhancementSheet.activeEnchantRows[0].options[0].id, 'authority-back-enchant')
+  await pageConfig.selectGearEnhancementSlot.call(page, {
+    currentTarget: { dataset: { slot: 'back' } }
+  })
+  assert.equal(requests.length, 1)
+})
+
+test('canonical gear enhancement sheet ignores raw embedded SimC enhancement fields', async () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const selectedGearBySlot = {
+    waist: {
+      slot: 'waist',
+      itemId: '250060',
+      variantKey: 'waist-v1',
+      gem_id: '240908',
+      enchant_id: '7967',
+      embellishment: 'legacy_embellishment',
+      modCapabilities: { hasSocket: true, canEnchant: true, canEmbellish: true }
+    }
+  }
+  const gearPayload = {
+    slots: [{ slot: 'waist', simcSlot: 'waist', label: '腰部' }],
+    replacementCandidates: [{ slot: 'waist', simcSlot: 'waist', items: [] }],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const page = {
+    gearWorkbenchState: {
+      currentSnapshot: {
+        constraints: { embellishmentMax: 2 },
+        resolvedSlots: { waist: { selectedOptions: {} } }
+      }
+    },
+    gearPayloadCache: gearPayload,
+    data: {
+      ...pageConfig.data,
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      selectedGearBySlot,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  await pageConfig.openGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.gearEnhancementSheet.embellishmentUsed, 0)
+  assert.equal(page.data.gearEnhancementSheet.embellishmentMax, 2)
+  assert.deepEqual(Array.from(page.data.gearEnhancementSheet.blockers), [])
 })
 
 test('gear attribute panel and slot badges reflect configured neck and ring gems', () => {
@@ -4463,6 +4614,12 @@ test('gear enhancement sheet opens immediately and refreshes after selected slot
 
   await openResult
   await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(calls, [])
+  for (const slot of ['finger1', 'legs', 'neck']) {
+    await pageConfig.selectGearEnhancementSlot.call(page, {
+      currentTarget: { dataset: { slot } }
+    })
+  }
   const fetchedSlots = calls.map((params) => params.slot).sort()
   assert.deepEqual(fetchedSlots, ['finger1', 'legs', 'neck'])
   assert.equal(page.data.gearEnhancementSheet.visible, true)
@@ -6495,8 +6652,13 @@ test('gear enhancement sheet shows loading state while selected slot options are
   pageConfig.openGearEnhancementSheet.call(page)
 
   assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.equal(page.data.gearEnhancementSheet.loading, false)
+  assert.deepEqual(calls, [])
+  const selectedSlotRequest = pageConfig.selectGearEnhancementSlot.call(page, {
+    currentTarget: { dataset: { slot: 'neck' } }
+  })
   assert.equal(page.data.gearEnhancementSheet.loading, true)
-  assert.equal(page.data.gearEnhancementSheet.emptyText, '正在加载可配置宝石、附魔和美化...')
+  assert.equal(page.data.gearEnhancementSheet.emptyText, '正在加载当前槽位的可配置选项...')
   await Promise.resolve()
   assert.deepEqual(calls.map((params) => params.slot), ['neck'])
 
@@ -6523,8 +6685,7 @@ test('gear enhancement sheet shows loading state while selected slot options are
     fromFallback: false,
     error: ''
   })
-  await detailRequest
-  await new Promise((resolve) => setImmediate(resolve))
+  await selectedSlotRequest
 
   assert.equal(page.data.gearEnhancementSheet.loading, false)
   assert.equal(page.data.gearEnhancementSheet.emptyText, '')
@@ -6622,7 +6783,10 @@ test('gear enhancement sheet clears stale enhancement when slot detail marks sel
   }
 
   await pageConfig.openGearEnhancementSheet.call(page)
-  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(calls, [])
+  await pageConfig.selectGearEnhancementSlot.call(page, {
+    currentTarget: { dataset: { slot: 'neck' } }
+  })
 
   assert.deepEqual(calls.map((params) => params.slot), ['neck'])
   assert.equal(page.data.selectedGearBySlot.neck, undefined)
@@ -7953,7 +8117,7 @@ test('gear community template import keeps matched enhancement options configura
   assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options[0].label, '奥纹内衬')
 })
 
-test('gear community template import restores embedded observed gems and enchants', () => {
+test('gear community template import ignores raw embedded SimC enhancements without option identities', () => {
   const pageConfig = loadBuildsDetailPageConfig()
   const baseline = completeGearSelection(['finger1'])
   const candidateRing = {
@@ -8031,15 +8195,12 @@ test('gear community template import restores embedded observed gems and enchant
   pageConfig.applyGearCommunityTemplate.call(page, { currentTarget: { dataset: { id: 'observed-ring-template' } } })
 
   assert.equal(page.data.selectedGearBySlot.finger1.itemId, '249919')
-  assert.equal(JSON.stringify(page.data.enhancementBySlot.finger1), JSON.stringify({
-    gem_id: '240908',
-    enchant_id: '7967'
-  }))
-  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'gem').value, '1/1')
-  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'enchant').value, '1/1')
+  assert.equal(page.data.enhancementBySlot.finger1, undefined)
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'gem').value, '0/1')
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'enchant').value, '0/1')
   assert.equal(
     JSON.stringify(page.data.gearSlotRows.find((row) => row.slot === 'finger1').enhancementBadgeLabels),
-    JSON.stringify(['宝石', '附魔'])
+    JSON.stringify([])
   )
 })
 

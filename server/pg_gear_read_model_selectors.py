@@ -626,6 +626,7 @@ def build_gear_mod_options_by_slot_read_model(rows):
         ).strip()
         option = {
             "id": str(row[0]),
+            "optionKey": str(row[2] or ""),
             "type": option_type,
             "optionType": option_type,
             "name": label,

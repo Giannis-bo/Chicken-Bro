@@ -329,12 +329,6 @@
     <view class="gear-enhancement-empty" wx:if="{{gearEnhancementSheet.emptyText}}">
       <text>{{gearEnhancementSheet.emptyText}}</text>
     </view>
-    <view class="gear-enhancement-warnings" wx:if="{{gearEnhancementSheet.warnings.length}}">
-      <text class="gear-enhancement-warning" wx:for="{{gearEnhancementSheet.warnings}}" wx:key="*this">{{item}}</text>
-    </view>
-    <view class="gear-enhancement-blockers" wx:if="{{gearEnhancementSheet.blockers.length}}">
-      <text class="gear-enhancement-blocker" wx:for="{{gearEnhancementSheet.blockers}}" wx:key="*this">{{item}}</text>
-    </view>
     <view class="gear-enhancement-section" wx:if="{{gearEnhancementSheet.equipmentRows.length}}">
       <view class="gear-sheet-section-heading">
         <text class="gear-sheet-section-title">可强化装备</text>
@@ -370,6 +364,12 @@
           <button class="gear-enhancement-option {{option.selected ? 'active' : ''}} {{option.disabled ? 'disabled' : ''}}" wx:for="{{row.options}}" wx:for-item="option" wx:key="id" data-slot="{{row.slot}}" data-type="embellishment" data-id="{{option.id}}" disabled="{{option.disabled}}" bindtap="selectGearEnhancementOption">{{option.label}}</button>
         </view>
       </view>
+    </view>
+    <view class="gear-enhancement-warnings" wx:if="{{gearEnhancementSheet.warnings.length}}">
+      <text class="gear-enhancement-warning" wx:for="{{gearEnhancementSheet.warnings}}" wx:key="*this">{{item}}</text>
+    </view>
+    <view class="gear-enhancement-blockers" wx:if="{{gearEnhancementSheet.blockers.length}}">
+      <text class="gear-enhancement-blocker" wx:for="{{gearEnhancementSheet.blockers}}" wx:key="*this">{{item}}</text>
     </view>
     <view class="gear-enhancement-action-row" wx:if="{{gearEnhancementSheet.equipmentRows.length}}">
       <button class="gear-enhancement-confirm" bindtap="confirmGearEnhancementSheet">确认</button>
