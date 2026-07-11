@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T07:27:33.979Z",
+  "generatedAt": "2026-07-11T07:26:45.531Z",
   "release": {
     "date": "2026-07-11",
-    "slug": "equipment-simulator-phase4b-pg-registry-legacy-import"
+    "slug": "equipment-simulator-phase4c-release-shadow-readers"
   },
   "harness": {
     "version": "v0.5",
@@ -231,8 +231,8 @@
   },
   "evidencePacket": {
     "status": "ready",
-    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/evidence.json",
-    "sizeBytes": 11702,
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers/evidence.json",
+    "sizeBytes": 3322,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "archived",
-    "highestEvidenceLevel": "live_verified",
-    "summary": "Slice 4B is merged, live-verified and archived: immutable PG release storage and inactive legacy-import-r0 are sealed with 40/40 observed winner parity while Manifest/Pointer/public reader/timer/Catalyst activation remain absent."
+    "declaredStatus": "implementation_allowed",
+    "highestEvidenceLevel": "implementation_allowed",
+    "summary": "Slice 4C is implementation-allowed only as an internal read-only shadow path. No public reader, Manifest/Pointer, release write, timer or cutover has been implemented or claimed."
   },
   "evidence": {
     "localTests": {
@@ -329,6 +329,6 @@
   },
   "write": {
     "enabled": true,
-    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/manifest.json"
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers/manifest.json"
   }
 }

@@ -346,7 +346,7 @@
         },
         {
           "id": "gear_release_registry",
-          "status": "phase4b_inactive_registry_candidate",
+          "status": "phase4b_completed_inactive_phase4c_shadow_allowed",
           "extractedModule": "server/gear_release_store.py",
           "operatorTool": "server/gear_release_tool.py",
           "migration": "server/migrations/postgres/0013_websim_release_train.sql",

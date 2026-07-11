@@ -325,7 +325,7 @@
         "runtimeConsumers": []
       },
       "releaseTrainFoundations": {
-        "status": "phase4b_inactive_registry_candidate",
+        "status": "phase4b_completed_inactive_phase4c_shadow_allowed",
         "modules": [
           "server/gear_release.py",
           "server/gear_release_store.py",
@@ -341,7 +341,7 @@
         "runtimeConsumers": [
           "server/gear_release_tool.py explicit operator command only"
         ],
-        "activationBoundary": "Phase 4B adds an append-only PostgreSQL registry, one repository and an explicit legacy import tool. Imported Gear/Community Releases remain inactive: no public/shadow reader, active pointer mutation, timer, Catalyst enablement or public cutover is allowed until later gated slices."
+        "activationBoundary": "Phase 4B is merged and live-verified with inactive Gear/Community Releases and zero Manifest/Pointer rows. Phase 4C may add release-scoped read-only candidate projections and internal shadow diffs only; public reader cutover, pointer mutation, timers and Catalyst enablement remain forbidden."
       },
       "dormantAdapters": {
         "status": "contract_only_unconsumed",
