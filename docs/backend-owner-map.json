@@ -390,6 +390,35 @@
           "futureExtractionDirection": "Keep future Phase 5 SimC snapshot execution out of the release refresh and open a separate owner boundary."
         },
         {
+          "id": "gear_stat_snapshot_store",
+          "status": "phase5a_dormant_store_implementation_allowed",
+          "factOwner": "server/gear_stat_snapshot.py",
+          "writeOwner": "server/gear_stat_snapshot_store.py",
+          "migration": "server/migrations/postgres/0015_websim_gear_stat_snapshots.sql",
+          "owns": [
+            "revision-complete server-owned stat signature identity",
+            "bounded verified stat snapshot publication record",
+            "immutable snapshot cache lookup and content-hash verification",
+            "transactional cross-process single-flight queue insertion",
+            "global and per-client active limits",
+            "SKIP LOCKED claim, heartbeat, expired reclaim and lock-token fencing",
+            "deterministic blocker and transient cooldown state",
+            "bounded queue, worker, cache and legacy telemetry projection"
+          ],
+          "mustNotChange": [
+            "Slice 5A has no route, worker, service or frontend runtime consumer.",
+            "Workers in later slices must re-resolve and recompute the signature; stored profile text is never execution authority.",
+            "Verified snapshots are immutable and never contain DPS, raw profile text or raw SimC output.",
+            "Legacy /gear/stats, Phase 4 refresh and Catalyst remain unchanged."
+          ],
+          "characterization": [
+            "tests/gear_stat_snapshot_test.py",
+            "tests/gear_stat_snapshot_store_test.py",
+            "tests/postgres_schema_test.py"
+          ],
+          "futureExtractionDirection": "Slice 5B may add one API orchestration facade and one worker runner over this repository without moving SQL into news_backend.py or websim_payload.py."
+        },
+        {
           "id": "gear_catalog_read_model_selectors",
           "status": "extracted_selector",
           "extractedModule": "server/pg_gear_read_model_selectors.py",
