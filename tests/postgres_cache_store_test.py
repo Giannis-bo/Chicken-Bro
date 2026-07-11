@@ -8502,6 +8502,11 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     "decision": "auto_promote",
                     "blockerCodes": [],
                     "counts": {"winner": 40, "standby": 0, "rejected": 319, "empty": 0},
+                    "gearChange": {"addedCounts": {"items": 2}},
+                    "sealStatus": {"gear": "inserted", "community": "inserted"},
+                    "shadowStatus": "pass",
+                    "shadowSpecCount": 40,
+                    "shadowPerformance": {"specP95Ms": 123.4},
                 }
 
         health = postgres_cache_store.PostgresCacheStore(
@@ -8513,6 +8518,11 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(health["details"]["pointerGeneration"], 10)
         self.assertEqual(health["details"]["candidateManifestRevision"], "season-manifest:candidate")
         self.assertEqual(health["details"]["counts"]["winner"], 40)
+        self.assertEqual(health["details"]["gearChange"]["addedCounts"]["items"], 2)
+        self.assertEqual(health["details"]["sealStatus"]["gear"], "inserted")
+        self.assertEqual(health["details"]["shadowStatus"], "pass")
+        self.assertEqual(health["details"]["shadowSpecCount"], 40)
+        self.assertEqual(health["details"]["shadowPerformance"]["specP95Ms"], 123.4)
         self.assertEqual(health["details"]["timer"]["nextRunAuthority"], "systemd")
         self.assertFalse(health["details"]["timer"]["deployStartsService"])
 

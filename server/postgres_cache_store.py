@@ -1135,6 +1135,15 @@ class PostgresCacheStore:
                 "lastRiskClass": str(latest.get("riskClass") or ""),
                 "lastDecision": str(latest.get("decision") or ""),
                 "counts": latest.get("counts") if isinstance(latest.get("counts"), dict) else {},
+                "gearChange": latest.get("gearChange") if isinstance(latest.get("gearChange"), dict) else {},
+                "sealStatus": latest.get("sealStatus") if isinstance(latest.get("sealStatus"), dict) else {},
+                "shadowStatus": str(latest.get("shadowStatus") or ""),
+                "shadowSpecCount": _int_value(latest.get("shadowSpecCount")),
+                "shadowPerformance": (
+                    latest.get("shadowPerformance")
+                    if isinstance(latest.get("shadowPerformance"), dict)
+                    else {}
+                ),
                 "blockerCodes": blocker_codes,
                 "timer": {
                     "unit": "wow-gear-release-refresh.timer",

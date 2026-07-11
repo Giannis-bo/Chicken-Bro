@@ -412,11 +412,22 @@ def _event_summary(
     candidate: dict[str, Any] | None = None,
     decision: dict[str, Any] | None = None,
     manifest_revision: str = "",
+    shadow: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     candidate = candidate if isinstance(candidate, dict) else {}
     gear = candidate.get("gearRelease") if isinstance(candidate.get("gearRelease"), dict) else {}
     community = candidate.get("communityRelease") if isinstance(candidate.get("communityRelease"), dict) else {}
     decision = decision if isinstance(decision, dict) else {}
+    shadow = shadow if isinstance(shadow, dict) else {}
+    shadow_report = shadow.get("report") if isinstance(shadow.get("report"), dict) else {}
+    performance = shadow.get("performance") if isinstance(shadow.get("performance"), dict) else {}
+    gear_change = candidate.get("gearChange") if isinstance(candidate.get("gearChange"), dict) else {}
+    bounded_change = {
+        change_kind: _canonical_counts(
+            gear_change.get(change_kind) if isinstance(gear_change.get(change_kind), dict) else {}
+        )
+        for change_kind in ("addedCounts", "changedCounts", "removedCounts")
+    }
     return {
         "status": status,
         "gearReleaseId": _text(gear.get("releaseId")),
@@ -430,6 +441,20 @@ def _event_summary(
             if isinstance(problem, dict) and _text(problem.get("code"))
         ],
         "counts": candidate.get("counts") if isinstance(candidate.get("counts"), dict) else {},
+        "gearChange": bounded_change,
+        "sealStatus": {
+            "gear": _text((candidate.get("gearSeal") or {}).get("status")),
+            "community": _text((candidate.get("communitySeal") or {}).get("status")),
+        },
+        "shadowStatus": _text(shadow.get("status") or shadow_report.get("status")),
+        "shadowSpecCount": len([
+            row for row in shadow.get("specResults") or [] if isinstance(row, dict)
+        ]),
+        "shadowPerformance": {
+            key: performance.get(key)
+            for key in ("specP95Ms", "specMaxMs", "totalDurationMs")
+            if isinstance(performance.get(key), (int, float))
+        },
     }
 
 
@@ -530,6 +555,7 @@ def run_release_refresh(
                 candidate=candidate,
                 decision=decision,
                 manifest_revision=manifest["manifestRevision"],
+                shadow=shadow,
             )
             event["at"] = _text(now)
             store.record_refresh_event(

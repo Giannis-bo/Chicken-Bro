@@ -118,6 +118,11 @@ def candidate_bundle(store, *, risk_class="same_gear_community", rows=None):
         "communityRelease": candidate_community,
         "gearSeal": {"status": "reused", "releaseId": candidate_gear["releaseId"]},
         "communitySeal": {"status": "inserted", "releaseId": candidate_community["releaseId"]},
+        "gearChange": {
+            "addedCounts": {"items": 1, "sources": 0, "variants": 0, "options": 0},
+            "changedCounts": {"items": 0, "sources": 0, "variants": 0, "options": 0},
+            "removedCounts": {"items": 0, "sources": 0, "variants": 0, "options": 0},
+        },
         "riskClass": risk_class,
         "activeWinners": [winner()],
         "candidateRows": rows if rows is not None else [winner()],
@@ -131,6 +136,7 @@ def passing_shadow(status="pass", expected_count=1):
         "report": {"status": status, "blockers": []},
         "blockers": [],
         "specResults": [{"classKey": "mage", "specKey": "arcane", "status": "pass"}] * expected_count,
+        "performance": {"specP95Ms": 12.5, "specMaxMs": 15.0, "totalDurationMs": 20.0},
     }
 
 
@@ -261,6 +267,12 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
         self.assertEqual(store.promotions[0]["command"]["expectedGeneration"], 9)
         self.assertEqual(store.events[0]["eventType"], "gear_release_refresh_started")
         self.assertEqual(store.events[-1]["eventType"], "gear_release_refresh_completed")
+        event = store.events[-1]["event"]
+        self.assertEqual(event["gearChange"]["addedCounts"]["items"], 1)
+        self.assertEqual(event["sealStatus"], {"gear": "reused", "community": "inserted"})
+        self.assertEqual(event["shadowStatus"], "pass")
+        self.assertEqual(event["shadowSpecCount"], 1)
+        self.assertEqual(event["shadowPerformance"]["specP95Ms"], 12.5)
 
     def test_missing_still_legal_winner_blocks_and_preserves_pointer(self):
         store = FakeStore()

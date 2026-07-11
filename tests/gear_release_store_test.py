@@ -412,7 +412,16 @@ class GearReleaseStoreTest(unittest.TestCase):
         read_conn = FakeConnection(rowsets={
             "FROM cache.websim_release_events": [(
                 "gear_release_refresh_completed",
-                {"status": "blocked", "blockerCodes": ["FULL_MATRIX_REQUIRED"], "raw": "not returned"},
+                {
+                    "status": "blocked",
+                    "blockerCodes": ["FULL_MATRIX_REQUIRED"],
+                    "gearChange": {"addedCounts": {"items": 2}},
+                    "sealStatus": {"gear": "inserted", "community": "inserted"},
+                    "shadowStatus": "pass",
+                    "shadowSpecCount": 40,
+                    "shadowPerformance": {"specP95Ms": 123.4},
+                    "raw": "not returned",
+                },
                 "2026-07-11T12:00:00+00:00",
                 "community-release:a",
                 "season-manifest:a",
@@ -422,6 +431,11 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(latest["status"], "blocked")
         self.assertEqual(latest["eventType"], "gear_release_refresh_completed")
         self.assertEqual(latest["blockerCodes"], ["FULL_MATRIX_REQUIRED"])
+        self.assertEqual(latest["gearChange"]["addedCounts"]["items"], 2)
+        self.assertEqual(latest["sealStatus"]["gear"], "inserted")
+        self.assertEqual(latest["shadowStatus"], "pass")
+        self.assertEqual(latest["shadowSpecCount"], 40)
+        self.assertEqual(latest["shadowPerformance"]["specP95Ms"], 123.4)
         self.assertNotIn("raw", latest)
 
     def test_seal_gear_release_inserts_registry_rows_and_append_only_event(self):

@@ -904,6 +904,13 @@ class GearReleaseStore:
             return {}
         event_type, payload, created_at, release_id, manifest_revision = row
         payload = payload if isinstance(payload, dict) else {}
+        gear_change = payload.get("gearChange") if isinstance(payload.get("gearChange"), dict) else {}
+        seal_status = payload.get("sealStatus") if isinstance(payload.get("sealStatus"), dict) else {}
+        shadow_performance = (
+            payload.get("shadowPerformance")
+            if isinstance(payload.get("shadowPerformance"), dict)
+            else {}
+        )
         return {
             "eventType": _text(event_type),
             "status": _text(payload.get("status")),
@@ -919,6 +926,24 @@ class GearReleaseStore:
                 if _text(code)
             ],
             "counts": _canonical(payload.get("counts") if isinstance(payload.get("counts"), dict) else {}),
+            "gearChange": _canonical({
+                change_kind: {
+                    category: _int((gear_change.get(change_kind) or {}).get(category))
+                    for category in ("items", "sources", "variants", "options")
+                }
+                for change_kind in ("addedCounts", "changedCounts", "removedCounts")
+            }),
+            "sealStatus": {
+                "gear": _text(seal_status.get("gear")),
+                "community": _text(seal_status.get("community")),
+            },
+            "shadowStatus": _text(payload.get("shadowStatus")),
+            "shadowSpecCount": _int(payload.get("shadowSpecCount")),
+            "shadowPerformance": {
+                key: value
+                for key in ("specP95Ms", "specMaxMs", "totalDurationMs")
+                if isinstance((value := shadow_performance.get(key)), (int, float))
+            },
         }
 
     def load_candidate_authority_context(
