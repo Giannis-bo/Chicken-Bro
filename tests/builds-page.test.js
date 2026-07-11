@@ -7467,6 +7467,61 @@ test('gear detail suppresses an in-flight stat response after the current Intent
   assert.match(page.data.gearStatBlockers.join('；'), /新的 Intent/)
 })
 
+test('gear detail keeps community templates when stat invalidation rederives from the slim page payload', async () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  const fullGearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    slots,
+    replacementCandidates: [],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: false },
+    communityTemplates: [{
+      id: 'observed-profile-mage-frost',
+      classKey: 'mage',
+      specKey: 'frost',
+      name: 'Raider.IO observed gear',
+      sourceKey: 'raiderio_observed_profile',
+      sourceStatus: 'synced',
+      status: 'complete',
+      readySlotCount: 16,
+      missingSlots: [],
+      canApplyGear: true,
+      gearItems: []
+    }],
+    baselineTemplates: [],
+    communityTemplateSync: { sourceStatus: 'synced' }
+  }
+  const page = {
+    ...pageConfig,
+    gearPayloadCache: fullGearPayload,
+    data: {
+      ...pageConfig.data,
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearPayload: {
+        classKey: 'mage',
+        specKey: 'frost',
+        slots,
+        readiness: { fullReady: false }
+      },
+      activeGearCommunityTemplates: [{ id: 'observed-profile-mage-frost' }],
+      gearStatSnapshot: { statStatus: 'verified', blockers: [] }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  await pageConfig.clearGearStatsSnapshot.call(page, ['等待完整装备和天赋后计算属性百分比'])
+
+  assert.equal(page.data.activeGearCommunityTemplates.length, 1)
+  assert.equal(page.data.activeGearCommunityTemplates[0].id, 'observed-profile-mage-frost')
+})
+
 test('gear template save asks for a name before storing neutral complete status', async () => {
   const savedTemplates = []
   const toasts = []
