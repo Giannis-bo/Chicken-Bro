@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase4a-release-contracts",
+  "requirementSlug": "equipment-simulator-phase4a-release-contracts",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase3-closure-phase4-plan",
+  "commit": "869372d793ad67cc250a1193d6570be5de9c293f",
+  "scope": [
+    "pure immutable release contracts",
+    "Active Season Manifest validation",
+    "community winner and standby election",
+    "shadow comparison and promotion policy"
+  ],
+  "verification": [
+    {
+      "command": "approved architecture, Phase 3 closure evidence and current PostgreSQL reader review",
+      "status": "pass",
+      "summary": "The plan preserves mutable sync tables as staging, introduces one pure release policy boundary before persistence, and keeps public observed-only, baseline-empty, PostgreSQL-only and Catalyst fail-closed contracts unchanged."
+    },
+    {
+      "command": "Phase 4 detailed plan self-review",
+      "status": "pass",
+      "summary": "Five bounded Slices define exact schema ownership, legacy import, 40-spec shadow proof, atomic pointer cutover, scheduled candidate-first refresh, rollback and per-Slice candidate gates without implementing Phase 5 or Phase 6 early."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "mixed_release_read",
+      "status": "blocked_by_plan",
+      "detail": "Every active request must read one manifest and scope Gear and Community rows to its exact release IDs; missing or mixed bindings fail closed."
+    },
+    {
+      "id": "legacy_grandfathering",
+      "status": "blocked_by_plan",
+      "detail": "legacy-import-r0 describes provenance only; every candidate must re-pass the current Resolver against the candidate Gear Release."
+    },
+    {
+      "id": "public_template_regression",
+      "status": "blocked_by_plan",
+      "detail": "Shadow and election gates preserve real-player observed-only winners and public baseline zero; illegal rows remain rejected/internal."
+    },
+    {
+      "id": "destructive_release_rollback",
+      "status": "blocked_by_plan",
+      "detail": "Promotion and rollback compare-and-swap the active pointer; immutable content is not rewritten or deleted."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 4A is planned and implementation-allowed only after the Phase 3 closure PR lands. No production module, schema, release write, shadow read or active manifest behavior has been implemented or claimed."
+}

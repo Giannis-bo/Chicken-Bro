@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T05:56:09.618Z",
+  "generatedAt": "2026-07-11T05:56:46.453Z",
   "release": {
     "date": "2026-07-11",
-    "slug": "equipment-simulator-phase3c-workbench-cutover"
+    "slug": "equipment-simulator-phase4a-release-contracts"
   },
   "harness": {
     "version": "v0.5",
@@ -231,8 +231,8 @@
   },
   "evidencePacket": {
     "status": "ready",
-    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json",
-    "sizeBytes": 12150,
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/evidence.json",
+    "sizeBytes": 3166,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "archived",
-    "highestEvidenceLevel": "live_verified",
-    "summary": "Slice 3C is live-verified and archived after PR #69 merged as 869372d. The active workbench uses canonical Intent and Resolver facts, enhancement choices are optionKey- and constraint-owned, exact-head CI and candidate matrices passed, clean-main runtime hashes matched, post-merge 40/40 and negative smoke passed, and the service recovered to one task and about 49 MiB with no automatic restart or fatal log match. Phase 6 Catalyst remains disabled and fail-closed."
+    "declaredStatus": "implementation_allowed",
+    "highestEvidenceLevel": "implementation_allowed",
+    "summary": "Slice 4A is planned and implementation-allowed only after the Phase 3 closure PR lands. No production module, schema, release write, shadow read or active manifest behavior has been implemented or claimed."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "8 changed files currently visible to git status."
+      "detail": "9 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,9 +313,10 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 8,
+      "changedFileCount": 9,
       "changedFiles": [
         " M artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json",
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/manifest.json",
         " M docs/gear-simulation-full-chain-runbook.md",
         " M docs/plans/README.md",
         " M docs/project-state.json",
@@ -328,6 +329,6 @@
   },
   "write": {
     "enabled": true,
-    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/manifest.json"
+    "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/manifest.json"
   }
 }
