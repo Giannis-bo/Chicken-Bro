@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase5c-frontend-cutover",
   "requirementSlug": "equipment-simulator-phase5c-frontend-cutover",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "deployable",
+  "highestEvidenceLevel": "deployable",
   "branch": "codex/equipment-simulator-phase5c-frontend-cutover",
-  "commit": "f8105c66ea804bd59708bdc1afe402872e6fa4e4",
+  "commit": "39aa99314d74a3c734535338252527f3585cd93e",
   "scope": [
     "structured_async_frontend_client",
     "bounded_race_safe_polling_state",
@@ -36,27 +36,97 @@
       "command": "local CR against origin/main plus git diff --check",
       "status": "pass",
       "summary": "No backend, schema, worker, public payload, deployment or Catalyst source changed. Review tightened total timeout budgeting, stale-response invalidation, current-vs-stale rendering and request/server signature persistence before verification."
+    },
+    {
+      "command": "GitHub Project Harness run 29154249994 job 86548658275",
+      "status": "pass",
+      "summary": "PR #81 exact head 39aa993 passed the Project Harness workflow before candidate runtime verification."
+    },
+    {
+      "command": "WeChat DevTools CLI preview and official automation-port candidate smoke",
+      "status": "pass",
+      "summary": "The candidate project previewed successfully at 791021 bytes (772.5 KB). The real mini-program runtime loaded the live Mage/Arcane observed template, traversed resolving to requesting to pending to verified, and then proved changed-input stale read-only preservation before accepting a new verified signature."
+    },
+    {
+      "command": "live backend, public contract, health, timer and log smoke",
+      "status": "pass",
+      "summary": "A real canonical async request returned 202 then 200 verified; gear_stat_snapshot health and the one-child worker were ready, 40/40 public specs remained observed-only, Catalyst remained blocked and fail-closed, async backflows stayed off, and recent backend/worker error-priority journals were empty."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
-    "requiredBeforeMerge": true
+    "status": "preview_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase5c-frontend-cutover",
+    "commit": "39aa99314d74a3c734535338252527f3585cd93e",
+    "buildIdentity": "wechat-devtools-preview:39aa993:791021-bytes",
+    "implementationCommit": "f8105c66ea804bd59708bdc1afe402872e6fa4e4",
+    "runtimeParity": {
+      "status": "pass",
+      "summary": "WeChat DevTools opened and previewed the exact candidate worktree at 39aa993; no backend file was deployed because Slice 5C changes only frontend consumers."
+    },
+    "smoke": {
+      "status": "pass",
+      "summary": "Real candidate mini-program and live backend smoke passed canonical pending-to-verified, changed-input stale/read-only suppression, signature replacement, public 40-spec and fail-closed Catalyst boundaries."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "The gear release refresh timer remained active/waiting while its service plus WebSim/stat/community sync services remained inactive/dead-success; Slice 5C triggered no deployment or async backflow."
+    },
+    "realFlow": {
+      "status": "pass",
+      "summary": "Applying observed_profile_mage_arcane produced requesting and pending before verified signature stat-snapshot:sha256:74ab780432b801f60719402e8be596efd16a168904e577219847971ceba8912e. Changing head to item 260370 kept that snapshot stale=true/readOnly=true through the new pending state, then replaced it only after verification with stat-snapshot:sha256:388c657e663c7119ee74e3873305abe1945982e37f0ead080a71d07e3b973790."
+    },
+    "backendState": {
+      "databaseRuntime": "postgres_only",
+      "workerStatus": "ready_idle",
+      "workerTasks": 1,
+      "workerNRestarts": 0,
+      "backendTasks": 1,
+      "backendNRestarts": 0,
+      "queueDepth": 0
+    },
+    "rollbackTarget": "revert the frontend cutover to 9ee557b or hide the affected frontend entry; retain the already-live Phase 5B async API and worker unchanged"
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "id": "wechat_candidate_pending_verified",
+      "type": "smoke",
+      "status": "pass",
+      "summary": "Official WeChat automation observed the actual detail-page state transition resolving -> requesting -> pending -> verified against the live canonical async endpoint."
+    },
+    {
+      "id": "wechat_changed_input_stale_suppression",
+      "type": "smoke",
+      "status": "pass",
+      "summary": "After changing the selected head item, the old verified stat signature remained visible only with stale=true and readOnly=true during resolve/request/pending, then a distinct verified signature replaced it for the current item."
+    },
+    {
+      "id": "public_catalyst_boundary",
+      "type": "smoke",
+      "status": "pass",
+      "summary": "All 40 public specs remained verified with one raiderio_observed_profile template, zero baseline templates and canApplyGear=true; Catalyst remained capabilityEnabled=false, frontendMaySynthesize=false and failClosed=true."
+    },
+    {
+      "id": "timer_backflow_and_logs",
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "No refresh or sync backflow ran, backend and worker remained restart-free, and the final 15-minute error-priority journal query returned no entries."
+    }
+  ],
   "risks": [
     {
       "id": "unbounded_polling",
-      "status": "mitigated_local",
-      "detail": "Pure state caps requests at 15 and total time at 45 seconds, including bounded retry delay and per-request timeout; focused and full tests pass."
+      "status": "mitigated_and_verified",
+      "detail": "Pure state caps requests at 15 and total time at 45 seconds, including bounded retry delay and per-request timeout; focused/full tests and the real candidate pending-to-verified flow passed."
     },
     {
       "id": "stale_response_overwrite",
-      "status": "mitigated_local",
-      "detail": "Request serial plus canonical context identity reject old completions; equipment clear and SimC selection changes invalidate in-flight state while preserving only the prior read-only snapshot."
+      "status": "mitigated_and_verified",
+      "detail": "Request serial plus canonical context identity reject old completions; real candidate evidence preserved the prior snapshot only as stale/read-only until the changed item received a distinct verified signature."
     },
     {
       "id": "split_consumer_semantics",
-      "status": "mitigated_local",
+      "status": "mitigated_and_verified",
       "detail": "Both consumers use requestWebsimGearStatSnapshot and the same begin/apply/timeout state contract; active source has no requestWebsimGearStats call site."
     },
     {
@@ -70,7 +140,9 @@
     "feature_hide"
   ],
   "cleanup": {
-    "required": false
+    "required": false,
+    "temporaryUrlCheckOverrideRemoved": true,
+    "projectConfigResidue": false
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -78,5 +150,5 @@
     "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
     "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json"
   ],
-  "summary": "Phase 5C is locally verified at f8105c6: both active frontend consumers use the canonical asynchronous stat-snapshot contract with bounded race-safe polling, stale read-only preservation and signature-bound persistence. Candidate mini-program and live read-only smoke remain required before merge."
+  "summary": "Phase 5C is deployable after exact-head CI, WeChat candidate preview, real mini-program pending-to-verified and changed-input stale/read-only proof, live canonical API smoke, 40-spec public boundary, fail-closed Catalyst, timer/backflow and clean-log checks passed at candidate head 39aa993. No backend deployment or formal mini-program upload occurred."
 }

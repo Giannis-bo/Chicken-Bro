@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T13:23:28.569Z",
+  "generatedAt": "2026-07-11T13:45:11.862Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase5c-frontend-cutover"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json",
-    "sizeBytes": 4323,
+    "sizeBytes": 8876,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Phase 5C is locally verified at f8105c6: both active frontend consumers use the canonical asynchronous stat-snapshot contract with bounded race-safe polling, stale read-only preservation and signature-bound persistence. Candidate mini-program and live read-only smoke remain required before merge."
+    "declaredStatus": "deployable",
+    "highestEvidenceLevel": "deployable",
+    "summary": "Phase 5C is deployable after exact-head CI, WeChat candidate preview, real mini-program pending-to-verified and changed-input stale/read-only proof, live canonical API smoke, 40-spec public boundary, fail-closed Catalyst, timer/backflow and clean-log checks passed at candidate head 39aa993. No backend deployment or formal mini-program upload occurred."
   },
   "evidence": {
     "localTests": {
