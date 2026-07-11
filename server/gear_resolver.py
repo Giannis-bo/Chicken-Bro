@@ -13,15 +13,26 @@ from collections import Counter
 import json
 from typing import Any, Iterable
 
-from server.gear_contracts import (
-    parse_selection_intent,
-    resolved_gear_signature,
-    selection_signature,
-    validate_authority_context,
-)
-from server.gear_evidence_ledger import build_evidence_ledger, evidence_claim
-from server.gear_result_envelope import gear_problem
-from server.gear_rule_matrix import evaluate_rule_matrix, ordered_rule_matrix
+try:
+    from .gear_contracts import (
+        parse_selection_intent,
+        resolved_gear_signature,
+        selection_signature,
+        validate_authority_context,
+    )
+    from .gear_evidence_ledger import build_evidence_ledger, evidence_claim
+    from .gear_result_envelope import gear_problem
+    from .gear_rule_matrix import evaluate_rule_matrix, ordered_rule_matrix
+except ImportError:
+    from gear_contracts import (
+        parse_selection_intent,
+        resolved_gear_signature,
+        selection_signature,
+        validate_authority_context,
+    )
+    from gear_evidence_ledger import build_evidence_ledger, evidence_claim
+    from gear_result_envelope import gear_problem
+    from gear_rule_matrix import evaluate_rule_matrix, ordered_rule_matrix
 
 
 RESOLVED_SNAPSHOT_CONTRACT_REVISION = "gear-resolved-snapshot-v1"

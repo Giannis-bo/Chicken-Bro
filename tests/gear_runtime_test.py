@@ -1,6 +1,8 @@
 import copy
 import json
 from pathlib import Path
+import subprocess
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -42,6 +44,24 @@ class GearRuntimeTest(unittest.TestCase):
             request_id=request_id,
         )
         return store, status, envelope
+
+    def test_runtime_imports_from_server_directory_for_direct_backend_startup(self):
+        server_dir = Path(__file__).resolve().parents[1] / "server"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import gear_runtime; print(gear_runtime.resolve_selection_intent.__name__)",
+            ],
+            cwd=server_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "resolve_selection_intent")
 
     def test_malformed_intent_returns_400_without_store_call(self):
         store = FakeStore(error=AssertionError("invalid Intent must not query authority"))

@@ -7,8 +7,12 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from server.gear_contracts import parse_selection_intent, validate_authority_context
-from server.gear_result_envelope import gear_problem
+try:
+    from .gear_contracts import parse_selection_intent, validate_authority_context
+    from .gear_result_envelope import gear_problem
+except ImportError:
+    from gear_contracts import parse_selection_intent, validate_authority_context
+    from gear_result_envelope import gear_problem
 
 
 RULE_MATRIX_REVISION = "gear-rule-matrix-v1"
