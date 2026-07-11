@@ -5999,6 +5999,7 @@ class PostgresCacheStore:
             class_key,
             spec_key,
             include_catalog=include_catalog,
+            catalog_slot=slot if mode == "slot" else "",
         )
         identity = self._active_release_identity(binding, data)
         gear_release = data.get("gearRelease") if isinstance(data.get("gearRelease"), dict) else {}

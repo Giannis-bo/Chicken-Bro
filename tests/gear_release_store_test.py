@@ -864,7 +864,7 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertTrue(conn.rolled_back)
 
     def test_active_public_gear_data_reads_only_bound_immutable_release_rows(self):
-        from server.gear_release_store import GearReleaseStore
+        from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore, canonical_row_hash
 
         snapshot = copy.deepcopy(self.snapshot())
         snapshot["items"][0]["itemLevel"] = None
@@ -887,18 +887,21 @@ class GearReleaseStoreTest(unittest.TestCase):
             "communityRelease": community,
         }
         conn = FakeConnection(rowsets={
-            "FROM cache.websim_community_release_templates": [self.community_db_row(community_rows[0])],
+            "gear_release_public_counts": [(1, 1, 1, 1)],
+            "FROM cache.websim_community_release_templates": [
+                self.community_db_row(community_rows[0]) + (canonical_row_hash(community_rows[0]),)
+            ],
             "FROM cache.websim_gear_release_items": [
-                ("item-a", "Item A", "head", None, "verified", {"itemStats": [{"key": "intellect", "value": 100}]}, "2026-07-11T05:00:00+00:00")
+                ("item-a", "Item A", "head", None, "verified", {"itemStats": [{"key": "intellect", "value": 100}]}, "2026-07-11T05:00:00+00:00", canonical_row_hash(snapshot["items"][0]))
             ],
             "FROM cache.websim_gear_release_sources": [
-                ("source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "", "mythic", "season-17", {"status": "verified"}, "2026-07-11T05:00:00+00:00")
+                ("source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "", "mythic", "season-17", {"status": "verified"}, "2026-07-11T05:00:00+00:00", canonical_row_hash(snapshot["sources"][0]))
             ],
             "FROM cache.websim_gear_release_variants": [
-                ("variant-a-id", "item-a", "variant-a", "head", "289", "observed_profile", "mythic", 289, {"ilevel": "289"}, "verified", [], {"resolvedStats": {"intellect": 100}}, "2026-07-11T05:00:00+00:00")
+                ("variant-a-id", "item-a", "variant-a", "head", "289", "observed_profile", "mythic", 289, {"ilevel": "289"}, "verified", [], {"resolvedStats": {"intellect": 100}}, "2026-07-11T05:00:00+00:00", canonical_row_hash(snapshot["variants"][0]))
             ],
             "FROM cache.websim_gear_release_mod_options": [
-                ("option-a-id", "variant-a-id", "gem-a", "gem", "Gem A", ["head"], {"gem_id": "1"}, "verified", True, {"itemStats": [{"key": "haste", "value": 10}]}, "2026-07-11T05:00:00+00:00")
+                ("option-a-id", "variant-a-id", "gem-a", "gem", "Gem A", ["head"], {"gem_id": "1"}, "verified", True, {"itemStats": [{"key": "haste", "value": 10}]}, "2026-07-11T05:00:00+00:00", canonical_row_hash(snapshot["options"][0]))
             ],
         })
 
@@ -907,15 +910,32 @@ class GearReleaseStoreTest(unittest.TestCase):
             "mage",
             "arcane",
             include_catalog=True,
+            catalog_slot="head",
         )
 
         self.assertEqual(data["communityTemplates"], [{"name": "Observed A"}])
         self.assertEqual(data["gearSnapshot"], snapshot)
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertIn("release_id = %s", sql)
+        self.assertIn("gear_release_public_counts", sql)
+        self.assertIn("slot = %s", sql)
+        self.assertIn("row_hash", sql)
         self.assertNotIn("source_updated_at::text", sql)
         self.assertNotIn("FROM cache.websim_items", sql)
         self.assertNotIn("FROM cache.websim_community_gear_templates", sql)
+
+        tampered_rowsets = copy.deepcopy(conn.cursor_instance.rowsets)
+        tampered_item = list(tampered_rowsets["FROM cache.websim_gear_release_items"][0])
+        tampered_item[-1] = "sha256:tampered"
+        tampered_rowsets["FROM cache.websim_gear_release_items"] = [tuple(tampered_item)]
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(lambda: FakeConnection(rowsets=tampered_rowsets)).load_active_public_gear(
+                binding,
+                "mage",
+                "arcane",
+                include_catalog=True,
+                catalog_slot="head",
+            )
 
     def test_active_resolver_context_is_manifest_bound_and_rejects_runtime_drift(self):
         from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore

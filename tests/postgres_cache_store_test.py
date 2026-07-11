@@ -8334,8 +8334,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     },
                 }
 
-            def load_active_public_gear(self, exact_binding, class_key, spec_key, *, include_catalog):
-                self.calls.append(("browse", exact_binding, class_key, spec_key, include_catalog))
+            def load_active_public_gear(self, exact_binding, class_key, spec_key, *, include_catalog, catalog_slot=""):
+                self.calls.append(("browse", exact_binding, class_key, spec_key, include_catalog, catalog_slot))
                 return {
                     "gearRelease": {
                         "releaseId": "gear-release:active",
@@ -8379,7 +8379,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
             ("binding",),
             ("resolver", binding, runtime),
             ("binding",),
-            ("browse", binding, "mage", "arcane", False),
+            ("browse", binding, "mage", "arcane", False, ""),
             ("binding",),
         ])
 
