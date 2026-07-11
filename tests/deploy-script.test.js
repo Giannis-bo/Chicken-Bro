@@ -106,6 +106,8 @@ test('gear release refresh timer is installed without deploy-triggered execution
   assert.match(service, /Environment=WOW_DATABASE_RUNTIME=postgres_only/)
   assert.match(service, /flock -n \/run\/lock\/wow-gear-release-refresh\.lock/)
   assert.match(service, /ReadWritePaths=\/run\/lock/)
+  assert.match(service, /ProtectHome=read-only/)
+  assert.doesNotMatch(service, /ProtectHome=true/)
   assert.match(service, /python3 \/opt\/wow-mini-program\/server\/gear_release_refresh\.py --json/)
   assert.doesNotMatch(service, /curl|wget|HTTPS_PROXY|HTTP_PROXY/)
   assert.match(timer, /OnCalendar=\*-\*-\* 18:30:00/)

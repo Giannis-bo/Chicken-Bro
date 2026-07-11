@@ -15,6 +15,6 @@ MemoryMax=2200M
 Nice=10
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectHome=true
+ProtectHome=read-only
 ProtectSystem=strict
 ReadWritePaths=/run/lock
