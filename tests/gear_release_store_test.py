@@ -973,6 +973,59 @@ class GearReleaseStoreTest(unittest.TestCase):
         with self.assertRaises(GearReleaseIntegrityError):
             GearReleaseStore(lambda: FakeConnection()).active_resolver_context(binding, drifted)
 
+    def test_active_authority_reads_current_release_for_stale_intent_so_resolver_can_report_409(self):
+        from server.gear_release_store import GearReleaseStore
+
+        gear = self.gear_release()
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=None,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": gear,
+            "communityRelease": None,
+        }
+        runtime = {"dependencyRevisions": self.dependencies()}
+        stale_intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-16",
+                "gearCatalogRevision": "gear-release:stale",
+            },
+            "eligibilityContext": {"classKey": "mage", "specKey": "arcane", "level": 90},
+            "slots": {},
+        }
+        original_intent = copy.deepcopy(stale_intent)
+        loaded_intents = []
+        store = GearReleaseStore(lambda: FakeConnection())
+
+        def load_current_release(intent, runtime_authority, release_id):
+            loaded_intents.append(copy.deepcopy(intent))
+            self.assertEqual(intent["authoredAgainst"], {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": gear["releaseId"],
+            })
+            self.assertIs(runtime_authority, runtime)
+            self.assertEqual(release_id, gear["releaseId"])
+            return {"missingFields": [], "itemsById": {}, "variantsByKey": {}, "optionsById": {}}
+
+        store.load_candidate_authority_context = load_current_release
+
+        context = store.load_active_authority_context(stale_intent, runtime, binding)
+
+        self.assertEqual(stale_intent, original_intent)
+        self.assertEqual(len(loaded_intents), 1)
+        self.assertTrue(context["manifest"]["formalActiveManifest"])
+        self.assertEqual(context["manifest"]["gearCatalogRevision"], gear["releaseId"])
+        self.assertEqual(context["dependencyVector"]["gearCatalogRevision"], gear["releaseId"])
+
     def test_candidate_authority_reads_one_exact_release_without_staging_fallback(self):
         from server.gear_release_store import GearReleaseStore
         from server.websim_payload import gear_resolver_runtime_authority

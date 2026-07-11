@@ -995,8 +995,19 @@ class GearReleaseStore:
         manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
         gear_release_id = _text(manifest.get("gearCatalogReleaseId"))
         dependencies = self._active_runtime_dependencies(binding, runtime_authority)
+        # The exact-release reader is intentionally strict for inactive shadow
+        # calls.  Active Resolve must still be able to read current authority
+        # for an older Intent so the pure resolver can return a truthful 409
+        # with the current release context instead of collapsing to a 503.
+        authority_read_intent = _canonical(
+            selection_intent if isinstance(selection_intent, dict) else {}
+        )
+        authority_read_intent["authoredAgainst"] = {
+            "seasonRevision": _text(manifest.get("seasonRevision")),
+            "gearCatalogRevision": gear_release_id,
+        }
         context = self.load_candidate_authority_context(
-            selection_intent,
+            authority_read_intent,
             runtime_authority,
             gear_release_id,
         )
