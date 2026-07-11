@@ -9726,6 +9726,22 @@ class NewsBackendTest(unittest.TestCase):
             simc_runtime_revision="simc-v1",
         )
 
+    def test_current_gear_simc_runtime_revision_prefers_full_commit_from_runtime_source(self):
+        full_commit = "1e357922af363f3d87cc0758863c2bb6d7701b72"
+        with patch.object(
+            self.backend,
+            "simc_version_status",
+            return_value={
+                "localTag": "1e357922af36",
+                "websimState": {
+                    "source": f"/opt/wow-simc/source-{full_commit}.tar.gz",
+                },
+            },
+        ):
+            revision = self.backend.current_gear_simc_runtime_revision()
+
+        self.assertEqual(revision, full_commit)
+
     def test_runtime_websim_gear_reuses_formal_browse_binding_for_resolver_context(self):
         binding = {
             "formalActiveManifest": True,

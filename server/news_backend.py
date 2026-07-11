@@ -7793,6 +7793,18 @@ def websim_gear_payload_with_template_legality(payload):
 
 def current_gear_simc_runtime_revision():
     simc_status = simc_version_status()
+    websim_state = simc_status.get("websimState") if isinstance(simc_status.get("websimState"), dict) else {}
+    for candidate in (
+        simc_status.get("sourceCommit"),
+        simc_status.get("simcRuntimeRevision"),
+        simc_status.get("localTag"),
+    ):
+        value = str(candidate or "").strip().lower()
+        if re.fullmatch(r"[0-9a-f]{40}", value):
+            return value
+    source_match = re.search(r"(?<![0-9a-f])([0-9a-f]{40})(?![0-9a-f])", str(websim_state.get("source") or "").lower())
+    if source_match:
+        return source_match.group(1)
     return first_text_value(
         simc_status.get("simcRuntimeRevision"),
         simc_status.get("localTag"),

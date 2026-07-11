@@ -1081,7 +1081,7 @@ class GearReleaseStore:
                     cur.execute(
                         """
                         SELECT item_id, name, slot, item_level, source_status, payload_json,
-                               source_updated_at::text
+                               source_updated_at
                         FROM cache.websim_gear_release_items
                         WHERE release_id = %s
                         ORDER BY item_id
@@ -1104,7 +1104,7 @@ class GearReleaseStore:
                         """
                         SELECT source_id, item_id, source_type, source_key, source_label,
                                instance_id, encounter_id, difficulty_key, season_revision,
-                               payload_json, source_updated_at::text
+                               payload_json, source_updated_at
                         FROM cache.websim_gear_release_sources
                         WHERE release_id = %s
                         ORDER BY source_id
@@ -1131,7 +1131,7 @@ class GearReleaseStore:
                         """
                         SELECT variant_id, item_id, variant_key, slot, label, source_type,
                                difficulty_key, item_level, simc_options_json, status,
-                               blockers_json, payload_json, source_updated_at::text
+                               blockers_json, payload_json, source_updated_at
                         FROM cache.websim_gear_release_variants
                         WHERE release_id = %s
                         ORDER BY variant_id
@@ -1160,7 +1160,7 @@ class GearReleaseStore:
                         """
                         SELECT option_id, variant_id, option_key, option_type, name,
                                applicable_slots_json, simc_options_json, status, is_visible,
-                               payload_json, source_updated_at::text
+                               payload_json, source_updated_at
                         FROM cache.websim_gear_release_mod_options
                         WHERE release_id = %s
                         ORDER BY option_id

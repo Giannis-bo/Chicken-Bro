@@ -912,6 +912,7 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(data["gearSnapshot"], snapshot)
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertIn("release_id = %s", sql)
+        self.assertNotIn("source_updated_at::text", sql)
         self.assertNotIn("FROM cache.websim_items", sql)
         self.assertNotIn("FROM cache.websim_community_gear_templates", sql)
 
