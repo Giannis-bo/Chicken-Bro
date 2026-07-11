@@ -571,6 +571,103 @@ class GearReleaseStoreTest(unittest.TestCase):
         with self.assertRaises(GearReleaseIntegrityError):
             GearReleaseStore(lambda: FakeConnection()).seal_manifest(manifest)
 
+    def test_manifest_seal_and_pointer_promote_share_one_atomic_transaction(self):
+        from server.gear_release_store import GearReleaseStore
+
+        gear = self.gear_release()
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=None,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        command = gear_release.build_pointer_command(
+            "promote",
+            manifest["manifestRevision"],
+            0,
+        )
+        connection_calls = []
+        conn = FakeConnection(
+            rowsets={"FROM cache.websim_season_manifests": []},
+            rowcounts={"INSERT INTO cache.websim_active_manifest_pointer": 1},
+        )
+
+        result = GearReleaseStore(lambda: connection_calls.append(conn) or conn).seal_manifest_and_compare_and_swap_pointer(
+            manifest,
+            command,
+            updated_by="candidate-test",
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(len(connection_calls), 1)
+        self.assertTrue(conn.committed)
+        self.assertEqual(result["manifest"]["status"], "inserted")
+        self.assertEqual(result["pointer"]["generation"], 1)
+        self.assertIn("INSERT INTO cache.websim_season_manifests", sql)
+        self.assertIn("INSERT INTO cache.websim_active_manifest_pointer", sql)
+        self.assertLess(
+            sql.index("INSERT INTO cache.websim_season_manifests"),
+            sql.index("INSERT INTO cache.websim_active_manifest_pointer"),
+        )
+
+    def test_atomic_manifest_promote_rolls_back_manifest_when_pointer_generation_is_stale(self):
+        from server.gear_release_store import GearReleaseStore, StaleManifestPointerError
+
+        gear = self.gear_release()
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=None,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        command = gear_release.build_pointer_command("promote", manifest["manifestRevision"], 7)
+        conn = FakeConnection(
+            rowsets={"FROM cache.websim_season_manifests": []},
+            rowcounts={"UPDATE cache.websim_active_manifest_pointer": 0},
+        )
+
+        with self.assertRaises(StaleManifestPointerError):
+            GearReleaseStore(lambda: conn).seal_manifest_and_compare_and_swap_pointer(
+                manifest,
+                command,
+                updated_by="candidate-test",
+            )
+
+        self.assertTrue(conn.rolled_back)
+        self.assertFalse(conn.committed)
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("INSERT INTO cache.websim_season_manifests", sql)
+        self.assertIn("UPDATE cache.websim_active_manifest_pointer", sql)
+
+    def test_atomic_manifest_promote_rejects_mismatched_or_non_promote_command_before_sql(self):
+        from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
+
+        gear = self.gear_release()
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=None,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        invalid_commands = (
+            gear_release.build_pointer_command("promote", "season-manifest:sha256:other", 0),
+            gear_release.build_pointer_command("rollback", manifest["manifestRevision"], 1),
+            gear_release.build_pointer_command("rollback", "", 1, target_mode="transitional"),
+        )
+        for command in invalid_commands:
+            with self.subTest(command=command):
+                conn = FakeConnection()
+                with self.assertRaises((GearReleaseIntegrityError, ValueError)):
+                    GearReleaseStore(lambda: conn).seal_manifest_and_compare_and_swap_pointer(
+                        manifest,
+                        command,
+                        updated_by="candidate-test",
+                    )
+                self.assertEqual(conn.cursor_instance.statements, [])
+
     def test_pointer_cas_rejects_untrusted_command_shapes_before_sql(self):
         from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
 
@@ -583,6 +680,7 @@ class GearReleaseStoreTest(unittest.TestCase):
         invalid_commands = (
             {**valid, "schemaRevision": "unknown"},
             {**valid, "environment": "staging"},
+            {**valid, "targetMode": "unknown"},
             {**valid, "manifestRevision": ""},
             {**valid, "expectedGeneration": True},
             {**valid, "expectedGeneration": "0"},
@@ -598,6 +696,75 @@ class GearReleaseStoreTest(unittest.TestCase):
                     )
                 self.assertEqual(conn.cursor_instance.statements, [])
 
+    def test_pointer_cas_keeps_one_row_and_advances_generation_through_transitional_rollback(self):
+        from server.gear_release_store import GearReleaseStore
+
+        promote = gear_release.build_pointer_command(
+            "promote",
+            "season-manifest:sha256:new",
+            0,
+        )
+        first_conn = FakeConnection(rowcounts={"INSERT INTO cache.websim_active_manifest_pointer": 1})
+        first = GearReleaseStore(lambda: first_conn).compare_and_swap_pointer(promote, updated_by="candidate-test")
+        self.assertEqual(first, {
+            "status": "updated",
+            "pointerMode": "active",
+            "manifestRevision": "season-manifest:sha256:new",
+            "generation": 1,
+        })
+        first_sql = "\n".join(first_conn.cursor_instance.statements)
+        self.assertIn("pointer_mode", first_sql)
+        self.assertIn("ON CONFLICT (environment) DO NOTHING", first_sql)
+
+        rollback = gear_release.build_pointer_command(
+            "rollback",
+            "",
+            1,
+            target_mode="transitional",
+        )
+        rollback_conn = FakeConnection(rowcounts={"UPDATE cache.websim_active_manifest_pointer": 1})
+        rolled_back = GearReleaseStore(lambda: rollback_conn).compare_and_swap_pointer(
+            rollback,
+            updated_by="candidate-test",
+        )
+        self.assertEqual(rolled_back, {
+            "status": "updated",
+            "pointerMode": "transitional",
+            "manifestRevision": "",
+            "generation": 2,
+        })
+        rollback_sql = "\n".join(rollback_conn.cursor_instance.statements)
+        self.assertIn("SET pointer_mode = %s", rollback_sql)
+        self.assertNotIn("DELETE FROM cache.websim_active_manifest_pointer", rollback_sql)
+
+        repromote = gear_release.build_pointer_command(
+            "promote",
+            "season-manifest:sha256:newer",
+            2,
+        )
+        repromote_conn = FakeConnection(rowcounts={"UPDATE cache.websim_active_manifest_pointer": 1})
+        repromoted = GearReleaseStore(lambda: repromote_conn).compare_and_swap_pointer(
+            repromote,
+            updated_by="candidate-test",
+        )
+        self.assertEqual(repromoted["generation"], 3)
+        self.assertEqual(repromoted["pointerMode"], "active")
+
+    def test_active_pointer_read_exposes_pointer_mode(self):
+        from server.gear_release_store import GearReleaseStore
+
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_active_manifest_pointer": [
+                ("retail", "transitional", None, 2, None, "2026-07-11T09:00:00+00:00", "candidate-test")
+            ]
+        })
+
+        pointer = GearReleaseStore(lambda: conn).get_active_pointer()
+
+        self.assertEqual(pointer["pointerMode"], "transitional")
+        self.assertEqual(pointer["manifestRevision"], "")
+        self.assertEqual(pointer["generation"], 2)
+
     def test_active_pointer_read_returns_empty_without_legacy_fallback(self):
         from server.gear_release_store import GearReleaseStore
 
@@ -608,6 +775,260 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_active_manifest_pointer", sql)
         self.assertNotIn("websim_season_state", sql)
         self.assertNotIn("websim_sync_state", sql)
+
+    def test_active_manifest_binding_reads_and_validates_one_exact_release_combination(self):
+        from server.gear_release_store import GearReleaseStore
+
+        gear = self.gear_release()
+        community_rows = self.community_rows()
+        community = self.community_release(gear["releaseId"], community_rows)
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=community,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_active_manifest_pointer pointer": [(
+                "retail",
+                "active",
+                manifest["manifestRevision"],
+                3,
+                None,
+                "2026-07-11T09:00:00+00:00",
+                "candidate-test",
+                manifest,
+            )],
+            "FROM cache.websim_release_registry": {
+                (gear["releaseId"],): [self.release_row(gear)],
+                (community["releaseId"],): [self.release_row(community)],
+            },
+        })
+
+        binding = GearReleaseStore(lambda: conn).load_active_manifest_binding()
+
+        self.assertEqual(binding["pointerMode"], "active")
+        self.assertEqual(binding["generation"], 3)
+        self.assertTrue(binding["formalActiveManifest"])
+        self.assertEqual(binding["manifest"], manifest)
+        self.assertEqual(binding["gearRelease"]["releaseId"], gear["releaseId"])
+        self.assertEqual(binding["communityRelease"]["releaseId"], community["releaseId"])
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY", sql)
+        self.assertEqual(sql.count("FROM cache.websim_active_manifest_pointer pointer"), 1)
+
+    def test_active_manifest_binding_models_zero_row_and_transitional_without_staging_queries(self):
+        from server.gear_release_store import GearReleaseStore
+
+        cases = (
+            ([], "pre_cutover", 0),
+            ([
+                ("retail", "transitional", None, 2, None, "2026-07-11T09:00:00+00:00", "candidate-test", None)
+            ], "transitional", 2),
+        )
+        for rows, expected_mode, expected_generation in cases:
+            with self.subTest(expected_mode=expected_mode):
+                conn = FakeConnection(rowsets={"FROM cache.websim_active_manifest_pointer pointer": rows})
+                binding = GearReleaseStore(lambda: conn).load_active_manifest_binding()
+                self.assertEqual(binding["pointerMode"], expected_mode)
+                self.assertEqual(binding["generation"], expected_generation)
+                self.assertFalse(binding["formalActiveManifest"])
+                self.assertNotIn(
+                    "FROM cache.websim_release_registry",
+                    "\n".join(conn.cursor_instance.statements),
+                )
+
+    def test_active_manifest_binding_fails_closed_for_missing_or_invalid_active_release(self):
+        from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
+
+        gear = self.gear_release()
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=None,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_active_manifest_pointer pointer": [(
+                "retail", "active", manifest["manifestRevision"], 1, None,
+                "2026-07-11T09:00:00+00:00", "candidate-test", manifest,
+            )],
+            "FROM cache.websim_release_registry": [],
+        })
+
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(lambda: conn).load_active_manifest_binding()
+
+        self.assertTrue(conn.rolled_back)
+
+    def test_active_public_gear_data_reads_only_bound_immutable_release_rows(self):
+        from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore, canonical_row_hash
+
+        snapshot = copy.deepcopy(self.snapshot())
+        snapshot["items"][0]["itemLevel"] = None
+        gear = self.gear_release(snapshot)
+        community_rows = self.community_rows()
+        community = self.community_release(gear["releaseId"], community_rows)
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=community,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": gear,
+            "communityRelease": community,
+        }
+        conn = FakeConnection(rowsets={
+            "gear_release_public_counts": [(1, 1, 1, 1)],
+            "FROM cache.websim_community_release_templates": [
+                self.community_db_row(community_rows[0]) + (canonical_row_hash(community_rows[0]),)
+            ],
+            "FROM cache.websim_gear_release_items": [
+                ("item-a", "Item A", "head", None, "verified", {"itemStats": [{"key": "intellect", "value": 100}]}, "2026-07-11T05:00:00+00:00", canonical_row_hash(snapshot["items"][0]))
+            ],
+            "FROM cache.websim_gear_release_sources": [
+                ("source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "", "mythic", "season-17", {"status": "verified"}, "2026-07-11T05:00:00+00:00", canonical_row_hash(snapshot["sources"][0]))
+            ],
+            "FROM cache.websim_gear_release_variants": [
+                ("variant-a-id", "item-a", "variant-a", "head", "289", "observed_profile", "mythic", 289, {"ilevel": "289"}, "verified", [], {"resolvedStats": {"intellect": 100}}, "2026-07-11T05:00:00+00:00", canonical_row_hash(snapshot["variants"][0]))
+            ],
+            "FROM cache.websim_gear_release_mod_options": [
+                ("option-a-id", "variant-a-id", "gem-a", "gem", "Gem A", ["head"], {"gem_id": "1"}, "verified", True, {"itemStats": [{"key": "haste", "value": 10}]}, "2026-07-11T05:00:00+00:00", canonical_row_hash(snapshot["options"][0]))
+            ],
+        })
+
+        data = GearReleaseStore(lambda: conn).load_active_public_gear(
+            binding,
+            "mage",
+            "arcane",
+            include_catalog=True,
+            catalog_slot="head",
+        )
+
+        self.assertEqual(data["communityTemplates"], [{
+            "id": "template-a",
+            "name": "Observed A",
+            "canApplyGear": True,
+        }])
+        self.assertEqual(data["gearSnapshot"], snapshot)
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("release_id = %s", sql)
+        self.assertIn("gear_release_public_counts", sql)
+        self.assertIn("slot = %s", sql)
+        self.assertIn("row_hash", sql)
+        self.assertNotIn("source_updated_at::text", sql)
+        self.assertNotIn("FROM cache.websim_items", sql)
+        self.assertNotIn("FROM cache.websim_community_gear_templates", sql)
+
+        tampered_rowsets = copy.deepcopy(conn.cursor_instance.rowsets)
+        tampered_item = list(tampered_rowsets["FROM cache.websim_gear_release_items"][0])
+        tampered_item[-1] = "sha256:tampered"
+        tampered_rowsets["FROM cache.websim_gear_release_items"] = [tuple(tampered_item)]
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(lambda: FakeConnection(rowsets=tampered_rowsets)).load_active_public_gear(
+                binding,
+                "mage",
+                "arcane",
+                include_catalog=True,
+                catalog_slot="head",
+            )
+
+    def test_active_resolver_context_is_manifest_bound_and_rejects_runtime_drift(self):
+        from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
+
+        gear = self.gear_release()
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=None,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": gear,
+            "communityRelease": None,
+        }
+        runtime = {"dependencyRevisions": self.dependencies()}
+
+        context = GearReleaseStore(lambda: FakeConnection()).active_resolver_context(binding, runtime)
+
+        self.assertTrue(context["formalActiveManifest"])
+        self.assertEqual(context["manifestRevision"], manifest["manifestRevision"])
+        self.assertEqual(context["pointerGeneration"], 3)
+        self.assertEqual(context["authoredAgainst"], {
+            "seasonRevision": "season-17",
+            "gearCatalogRevision": gear["releaseId"],
+        })
+
+        drifted = copy.deepcopy(runtime)
+        drifted["dependencyRevisions"]["simcRuntimeRevision"] = "simc-other"
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(lambda: FakeConnection()).active_resolver_context(binding, drifted)
+
+    def test_active_authority_reads_current_release_for_stale_intent_so_resolver_can_report_409(self):
+        from server.gear_release_store import GearReleaseStore
+
+        gear = self.gear_release()
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=None,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": gear,
+            "communityRelease": None,
+        }
+        runtime = {"dependencyRevisions": self.dependencies()}
+        stale_intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-16",
+                "gearCatalogRevision": "gear-release:stale",
+            },
+            "eligibilityContext": {"classKey": "mage", "specKey": "arcane", "level": 90},
+            "slots": {},
+        }
+        original_intent = copy.deepcopy(stale_intent)
+        loaded_intents = []
+        store = GearReleaseStore(lambda: FakeConnection())
+
+        def load_current_release(intent, runtime_authority, release_id):
+            loaded_intents.append(copy.deepcopy(intent))
+            self.assertEqual(intent["authoredAgainst"], {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": gear["releaseId"],
+            })
+            self.assertIs(runtime_authority, runtime)
+            self.assertEqual(release_id, gear["releaseId"])
+            return {"missingFields": [], "itemsById": {}, "variantsByKey": {}, "optionsById": {}}
+
+        store.load_candidate_authority_context = load_current_release
+
+        context = store.load_active_authority_context(stale_intent, runtime, binding)
+
+        self.assertEqual(stale_intent, original_intent)
+        self.assertEqual(len(loaded_intents), 1)
+        self.assertTrue(context["manifest"]["formalActiveManifest"])
+        self.assertEqual(context["manifest"]["gearCatalogRevision"], gear["releaseId"])
+        self.assertEqual(context["dependencyVector"]["gearCatalogRevision"], gear["releaseId"])
 
     def test_candidate_authority_reads_one_exact_release_without_staging_fallback(self):
         from server.gear_release_store import GearReleaseStore

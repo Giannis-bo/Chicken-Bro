@@ -492,15 +492,81 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--release-id", default="")
     parser.add_argument("--gear-release-id", default="")
     parser.add_argument("--community-release-id", default="")
+    parser.add_argument("--talent-catalog-revision", default="")
+    parser.add_argument("--manifest-revision", default="")
+    parser.add_argument("--rollback-manifest-revision", default="")
+    parser.add_argument("--expected-generation", type=int, default=-1)
+    parser.add_argument("--target-mode", choices=("active", "transitional"), default="active")
+    parser.add_argument("--updated-by", default="")
     parser.add_argument("--level", type=int, default=90)
     return parser
 
 
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
-    if args.command in {"promote", "rollback"}:
-        print(json.dumps({"status": "blocked", "reason": "pointer mutation is disabled in Phase 4C"}, sort_keys=True))
-        return 2
+    if args.command == "promote":
+        required = {
+            "--season-revision": args.season_revision,
+            "--simc-runtime-revision": args.simc_runtime_revision,
+            "--gear-release-id": args.gear_release_id,
+            "--talent-catalog-revision": args.talent_catalog_revision,
+            "--updated-by": args.updated_by,
+        }
+        missing = [name for name, value in required.items() if not _text(value)]
+        if args.expected_generation < 0:
+            missing.append("--expected-generation")
+        if missing:
+            raise SystemExit(", ".join(missing) + " are required")
+        store = _store_from_environment()
+        gear_descriptor = store.get_release(args.gear_release_id)
+        if not gear_descriptor:
+            raise GearReleaseIntegrityError("Gear Release is missing")
+        community_descriptor = None
+        if args.community_release_id:
+            community_descriptor = store.get_release(args.community_release_id)
+            if not community_descriptor:
+                raise GearReleaseIntegrityError("Community Release is missing")
+        dependencies = runtime_dependency_revisions(args.simc_runtime_revision)
+        manifest = gear_release.build_manifest(
+            season_revision=args.season_revision,
+            gear_release=gear_descriptor,
+            community_release=community_descriptor,
+            talent_catalog_revision=args.talent_catalog_revision,
+            dependency_revisions=dependencies,
+            rollback_manifest_revision=args.rollback_manifest_revision,
+        )
+        command = gear_release.build_pointer_command(
+            "promote",
+            manifest["manifestRevision"],
+            args.expected_generation,
+            args.rollback_manifest_revision,
+            target_mode="active",
+        )
+        result = store.seal_manifest_and_compare_and_swap_pointer(
+            manifest,
+            command,
+            updated_by=args.updated_by,
+        )
+        print(json.dumps({"status": "updated", "manifestRevision": manifest["manifestRevision"], **result}, ensure_ascii=False, sort_keys=True))
+        return 0
+    if args.command == "rollback":
+        if args.expected_generation < 0 or not _text(args.updated_by):
+            raise SystemExit("--expected-generation and --updated-by are required")
+        if args.target_mode == "active" and not _text(args.manifest_revision):
+            raise SystemExit("--manifest-revision is required for active rollback")
+        command = gear_release.build_pointer_command(
+            "rollback",
+            args.manifest_revision,
+            args.expected_generation,
+            args.rollback_manifest_revision,
+            target_mode=args.target_mode,
+        )
+        result = _store_from_environment().compare_and_swap_pointer(
+            command,
+            updated_by=args.updated_by,
+        )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0
     if args.command == "shadow":
         if not args.gear_release_id or not args.community_release_id or not args.simc_runtime_revision:
             raise SystemExit("--gear-release-id, --community-release-id and --simc-runtime-revision are required")

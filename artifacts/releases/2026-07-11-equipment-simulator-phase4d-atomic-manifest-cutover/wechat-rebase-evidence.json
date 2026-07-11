@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "status": "live_verified",
+  "candidateImplementationCommit": "13bb78d8ffd17f92545d0747f4e1085ced9bd567",
+  "tool": {
+    "name": "WeChat DevTools automator",
+    "version": "2.01.2510290",
+    "sdkVersion": "3.14.2",
+    "appid": "wx17543b6fc4305479",
+    "candidateProject": "/Users/boyuan/Documents/wow_mini_program/.worktrees/equipment-simulator-phase4d-atomic-manifest-cutover",
+    "automatorEndpoint": "ws://127.0.0.1:9854"
+  },
+  "pointerTransition": {
+    "before": {
+      "mode": "active",
+      "generation": 7,
+      "manifestRevision": "season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d"
+    },
+    "rollback": {
+      "mode": "transitional",
+      "generation": 8,
+      "manifestRevision": ""
+    },
+    "after": {
+      "mode": "active",
+      "generation": 9,
+      "manifestRevision": "season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d"
+    }
+  },
+  "transitionalImport": {
+    "route": "pages/builds/detail",
+    "classKey": "mage",
+    "specKey": "arcane",
+    "action": "openGearCommunityTemplates then applyGearCommunityTemplate through the real page handler",
+    "templateId": "observed_profile_mage_arcane",
+    "canApplyGear": true,
+    "readySlotCount": 16,
+    "selectedSlotCount": 15,
+    "resolverFormalActiveManifest": false,
+    "authoredGearCatalogRevision": "compatibility-pg:0cd546f12f7e20a9e047ce8208faaec3de790a1829cefb51d00297b148af4a59",
+    "resolveStatus": "verified"
+  },
+  "oneRebase": {
+    "actionCount": 1,
+    "beforeRevision": "compatibility-pg:0cd546f12f7e20a9e047ce8208faaec3de790a1829cefb51d00297b148af4a59",
+    "currentRevision": "gear-release:sha256:342e3918b685ca0145514485d115fb74079be660d85ea8b835760c4bc61350f6",
+    "timeline": [
+      {
+        "elapsedMs": 0,
+        "resolveStatus": "verified"
+      },
+      {
+        "elapsedMs": 96,
+        "resolveStatus": "resolving",
+        "statusText": "正在校验当前装备配置"
+      },
+      {
+        "elapsedMs": 549,
+        "resolveStatus": "verified",
+        "statusText": "当前装备配置已通过服务端校验"
+      }
+    ],
+    "nginxEvidence": [
+      {
+        "at": "2026-07-11T18:20:16+08:00",
+        "httpStatus": 409,
+        "path": "/api/websim/gear/resolve",
+        "userAgentContains": "wechatdevtools/2.01.2510290"
+      },
+      {
+        "at": "2026-07-11T18:20:17+08:00",
+        "httpStatus": 200,
+        "path": "/api/websim/gear/resolve",
+        "userAgentContains": "wechatdevtools/2.01.2510290"
+      }
+    ],
+    "result": "exactly one 409 was followed by exactly one verified retry for one page confirmation action"
+  },
+  "formalImport": {
+    "route": "pages/builds/detail",
+    "templateId": "observed_profile_mage_arcane",
+    "canApplyGear": true,
+    "readySlotCount": 16,
+    "selectedSlotCount": 15,
+    "resolverFormalActiveManifest": true,
+    "resolverManifestRevision": "season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d",
+    "resolverPointerGeneration": 9,
+    "resolveStatus": "verified",
+    "canUseVerifiedSnapshot": true
+  },
+  "screenshot": "wechat-rebase-gen9.png",
+  "safety": {
+    "closedDevTools": false,
+    "restartedDevTools": false,
+    "clearedCache": false,
+    "changedAppid": false,
+    "candidateProjectOpenedTemporarily": true,
+    "originalMainProjectRestored": true
+  }
+}
