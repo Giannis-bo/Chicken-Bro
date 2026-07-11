@@ -291,11 +291,18 @@ class GearReleaseToolTest(unittest.TestCase):
     def test_shadow_command_is_read_only_and_requires_explicit_release_pair(self):
         from server import gear_release_tool
 
+        class ShadowStore:
+            def gear_authority_cache_metrics(self):
+                return {"entryCount": 32, "byteSize": 1024, "maxEntries": 32, "maxBytes": 4096}
+
+            def shadow_read_statement_metrics(self):
+                return {"total": 203, "transactionControl": 81, "readQueries": 122}
+
         output = io.StringIO()
         with patch.object(
             gear_release_tool,
             "_shadow_store_from_environment",
-            return_value=object(),
+            return_value=ShadowStore(),
         ), patch.object(
             gear_release_tool.gear_release_shadow,
             "run_release_shadow",
@@ -309,7 +316,10 @@ class GearReleaseToolTest(unittest.TestCase):
             ])
 
         self.assertEqual(status, 0)
-        self.assertEqual(json.loads(output.getvalue())["status"], "pass")
+        rendered = json.loads(output.getvalue())
+        self.assertEqual(rendered["status"], "pass")
+        self.assertEqual(rendered["authorityCache"]["entryCount"], 32)
+        self.assertEqual(rendered["databaseStatements"]["readQueries"], 122)
         shadow.assert_called_once()
         self.assertEqual(shadow.call_args.kwargs["gear_release_id"], "gear-release:a")
         self.assertEqual(shadow.call_args.kwargs["community_release_id"], "community-release:a")

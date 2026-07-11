@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any, Iterable
 
 try:
@@ -138,6 +139,7 @@ def run_release_shadow(
 ) -> dict[str, Any]:
     """Run an internal shadow matrix without changing public routing or state."""
 
+    shadow_started = time.perf_counter()
     expected = sorted({
         (_text(class_key), _text(spec_key))
         for class_key, spec_key in expected_specs
@@ -223,6 +225,7 @@ def run_release_shadow(
     public_read_count = 0
     profile_contexts = profile_context_by_spec if isinstance(profile_context_by_spec, dict) else {}
     for class_key, spec_key in expected:
+        spec_started = time.perf_counter()
         key = (class_key, spec_key)
         candidate = winners_by_spec.get(key)
         try:
@@ -243,6 +246,7 @@ def run_release_shadow(
                 "classKey": class_key,
                 "specKey": spec_key,
                 "status": "blocked",
+                "durationMs": round((time.perf_counter() - spec_started) * 1000, 3),
             })
             continue
         public_read_count += 1
@@ -274,6 +278,7 @@ def run_release_shadow(
                 "classKey": class_key,
                 "specKey": spec_key,
                 "status": "blocked",
+                "durationMs": round((time.perf_counter() - spec_started) * 1000, 3),
             })
             continue
 
@@ -316,6 +321,7 @@ def run_release_shadow(
                 "candidateHttpStatus": new_status,
                 "transitionalProblemCodes": _problem_codes(old_envelope),
                 "candidateProblemCodes": _problem_codes(new_envelope),
+                "durationMs": round((time.perf_counter() - spec_started) * 1000, 3),
             })
             continue
 
@@ -374,6 +380,7 @@ def run_release_shadow(
             "transitionalHttpStatus": old_status,
             "candidateHttpStatus": new_status,
             "profileParity": profile_result,
+            "durationMs": round((time.perf_counter() - spec_started) * 1000, 3),
         })
 
     if formal_active:
@@ -386,6 +393,12 @@ def run_release_shadow(
     )
     blockers.extend(report.get("blockers") or [])
     status = "blocked" if blockers else report.get("status", "blocked")
+    spec_durations = sorted(
+        float(row.get("durationMs") or 0)
+        for row in spec_results
+        if isinstance(row, dict)
+    )
+    p95_index = max(0, ((len(spec_durations) * 95 + 99) // 100) - 1)
     return {
         "schemaRevision": "gear-release-shadow-execution-v1",
         "status": status,
@@ -401,6 +414,11 @@ def run_release_shadow(
             if legacy_sealed_semantic
             else "current"
         ),
+        "performance": {
+            "totalDurationMs": round((time.perf_counter() - shadow_started) * 1000, 3),
+            "specP95Ms": spec_durations[p95_index] if spec_durations else 0,
+            "specMaxMs": spec_durations[-1] if spec_durations else 0,
+        },
     }
 
 

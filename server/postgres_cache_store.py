@@ -1028,6 +1028,16 @@ class PostgresCacheStore:
             community_release_id,
         )
 
+    def gear_authority_cache_metrics(self):
+        """Expose bounded in-process cache usage for internal shadow evidence."""
+
+        return {
+            "entryCount": self._gear_authority_context_cache.entry_count,
+            "byteSize": self._gear_authority_context_cache.byte_size,
+            "maxEntries": self._gear_authority_context_cache.max_entries,
+            "maxBytes": self._gear_authority_context_cache.max_bytes,
+        }
+
     def get_gear_resolver_context(self, runtime_authority):
         """Load the current Selection Intent authoring revisions without selected facts."""
 

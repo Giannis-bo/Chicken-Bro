@@ -8204,6 +8204,12 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(cached_authority, authority)
         self.assertEqual(community["winners"][0]["templateId"], "winner-a")
         self.assertEqual(store._gear_authority_context_cache.entry_count, 1)
+        self.assertEqual(store.gear_authority_cache_metrics(), {
+            "entryCount": 1,
+            "byteSize": store._gear_authority_context_cache.byte_size,
+            "maxEntries": 32,
+            "maxBytes": 4 * 1024 * 1024,
+        })
         self.assertEqual(release_store.calls, [
             ("authority", intent, runtime, "gear-release:a"),
             ("community", "gear-release:a", "community-release:a"),
