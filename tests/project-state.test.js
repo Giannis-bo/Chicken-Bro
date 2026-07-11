@@ -8,7 +8,7 @@ const phase4HistoryPath = 'docs/roadmap/history/2026-07-phase4-pg-read-model.md'
 const controlPlaneRelease = 'artifacts/releases/2026-07-10-harness-control-plane'
 const executableHarnessRelease = 'artifacts/releases/2026-07-10-executable-project-harness'
 const characterizationRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
-const activeRelease = 'artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import'
+const activeRelease = 'artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers'
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'))
@@ -59,6 +59,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(historicalContractIds.has('equipment_simulator_phase3c_workbench_cutover'))
   assert.ok(historicalContractIds.has('equipment_simulator_phase3_resolve_profile_workbench_plan'))
   assert.ok(historicalContractIds.has('equipment_simulator_phase4a_release_contracts'))
+  assert.ok(historicalContractIds.has('equipment_simulator_phase4b_pg_registry_legacy_import'))
 
   for (const entry of state.activeContracts) {
     assert.notEqual(entry.lifecycle, 'historical', `${entry.id} should not be historical and active`)
@@ -111,6 +112,10 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(
     state.completedBaselines.some((entry) => entry.id === 'equipment_simulator_phase4a_20260711'),
     'Equipment simulator Phase 4A should be recorded as a completed baseline'
+  )
+  assert.ok(
+    state.completedBaselines.some((entry) => entry.id === 'equipment_simulator_phase4b_20260711'),
+    'Equipment simulator Phase 4B should be recorded as a completed baseline'
   )
 })
 

@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase4b-pg-registry-legacy-import",
   "requirementSlug": "equipment-simulator-phase4b-pg-registry-legacy-import",
-  "status": "deployable",
-  "highestEvidenceLevel": "deployable",
+  "status": "archived",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase4b-pg-registry-legacy-import",
-  "commit": "a8b1f17a73b1fbb47f622afdee4e1617a4e300d6",
+  "commit": "48aa44ef6ff85449814ae56ad6dbe7137d356250",
   "scope": [
     "additive immutable PostgreSQL release schema",
     "single release repository and explicit tool",
@@ -52,6 +52,11 @@
       "command": "candidate PG integrity, query-plan and public/runtime smoke",
       "status": "pass",
       "summary": "Release row counts match the staging snapshot, all 40 winners bind to the exact Gear Release and allowed observed source, and winner IDs match current public IDs 40/40. The bounded 40-spec snapshot plan executed in 2.403 ms. Public baseline and formal manifest activation remain zero; Resolve 200, legacy Profile 200, Catalyst unknown 503 fail-closed and data health 200 partial all remain truthful."
+    },
+    {
+      "command": "PR #73 exact-head CI, squash merge and clean-equivalent post-merge smoke",
+      "status": "pass",
+      "summary": "Evidence head 4fe300e passed GitHub Project Harness and squash-merged as 48aa44e. PR and merge trees are both 54d43c54. Clean-equivalent deployment preserved exact repository/tool/evidence hashes, 129/129 remote focused tests, two inactive releases, 40 winners, zero Manifest/Pointer rows, 40/40 public parity, Resolve/Profile/Catalyst/health behavior, zero backend error matches and active one-task service state."
     }
   ],
   "candidateDeployment": {
@@ -73,7 +78,7 @@
       "summary": "Remote 129 focused tests, registry integrity, 40-spec public/winner parity, Resolve, Profile, health and Catalyst fail-closed checks passed."
     },
     "timerBackflow": {
-      "status": "pass_with_observed_natural_timer",
+      "status": "pass",
       "summary": "WOW_DEPLOY_START_ASYNC_SYNCS=0 did not directly start WebSim, stat-weight or community sync. The pre-existing observed-backfill timer naturally ran at 14:59:27 CST and completed success; no release refresh unit exists and the release registry remained operator-import only."
     }
   },
@@ -133,8 +138,35 @@
       "service": "active/running, one task, about 67 MiB, NRestarts=0",
       "logs": "zero traceback/fatal/uncaught/exception matches since candidate start",
       "asyncSync": "WOW_DEPLOY_START_ASYNC_SYNCS=0; no release timer/unit exists"
+    },
+    {
+      "kind": "post_merge_live",
+      "status": "pass",
+      "pullRequest": 73,
+      "evidenceHead": "4fe300e22b687f25c8d6254091d59cc79aa3945c",
+      "mergeCommit": "48aa44ef6ff85449814ae56ad6dbe7137d356250",
+      "tree": "54d43c5459873e6253ff5a13321d2e4f24dd1435",
+      "runtimeHashes": "store 240f3189; tool fb09c448; evidence 27e96363",
+      "remoteFocusedTests": "129/129",
+      "publicMatrix": "40/40; baseline 0; formalActiveManifest false",
+      "service": "active/running, one task, about 67 MiB, NRestarts=0, zero backend error matches"
     }
   ],
+  "postMerge": {
+    "status": "live_verified",
+    "pullRequest": 73,
+    "mergeCommit": "48aa44ef6ff85449814ae56ad6dbe7137d356250",
+    "tree": "54d43c5459873e6253ff5a13321d2e4f24dd1435",
+    "deploymentBackup": "/opt/wow-mini-program-candidate-backups/phase4b-pre-main-48aa44e",
+    "runtimeFileParity": true,
+    "remoteFocusedTests": "129/129",
+    "publicMatrix": "40/40",
+    "releaseRows": "1 Gear plus 1 Community; 40 winners",
+    "manifestRows": 0,
+    "pointerRows": 0,
+    "health": "HTTP 200 overallStatus=partial",
+    "automaticRestarts": 0
+  },
   "risks": [
     {
       "id": "immutable_content_mutation",
@@ -183,5 +215,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 4B is candidate-verified and deployable: immutable PG release storage and inactive legacy-import-r0 are sealed with 40/40 observed winner parity while Manifest/Pointer/public reader/timer/Catalyst activation remain absent."
+  "summary": "Slice 4B is merged, live-verified and archived: immutable PG release storage and inactive legacy-import-r0 are sealed with 40/40 observed winner parity while Manifest/Pointer/public reader/timer/Catalyst activation remain absent."
 }

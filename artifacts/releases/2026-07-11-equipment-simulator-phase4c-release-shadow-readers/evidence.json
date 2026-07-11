@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase4c-release-shadow-readers",
+  "requirementSlug": "equipment-simulator-phase4c-release-shadow-readers",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase4b-closure-phase4c-open",
+  "commit": "48aa44ef6ff85449814ae56ad6dbe7137d356250",
+  "scope": [
+    "release-scoped read-only candidate projections",
+    "internal bounded old/new shadow comparison",
+    "40-spec browse, Resolve and Profile parity",
+    "mixed-release and missing-content fail-closed behavior"
+  ],
+  "verification": [
+    {
+      "command": "Phase 4B exact-head CI, merge and clean-equivalent live closure",
+      "status": "pass",
+      "summary": "PR #73 merged as 48aa44e with identical PR/merge tree 54d43c54. Post-merge runtime hashes, 129 focused tests, two inactive releases, 40 winners, zero Manifest/Pointer rows, 40/40 public parity and runtime smoke passed."
+    },
+    {
+      "command": "Phase 4C requirement self-review",
+      "status": "pass",
+      "summary": "The Slice is limited to release-scoped read-only projections and internal shadow evidence. Public reader cutover, Manifest/Pointer writes, timers, scheduled refresh, Phase 5 and Catalyst activation remain excluded."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "mixed_release_read",
+      "status": "blocked_by_requirement",
+      "detail": "Every candidate query must be constrained to one exact release ID and Community rows must bind to the exact Gear Release; mismatch fails closed."
+    },
+    {
+      "id": "silent_staging_fallback",
+      "status": "blocked_by_requirement",
+      "detail": "Candidate release projections cannot fall back to staging on missing/tampered content; transitional staging behavior is entered only when no candidate shadow is requested."
+    },
+    {
+      "id": "premature_public_cutover",
+      "status": "blocked_by_requirement",
+      "detail": "The candidate path is internal shadow-only and cannot create a Manifest/Pointer or change public routing."
+    },
+    {
+      "id": "unbounded_dual_read",
+      "status": "blocked_by_requirement",
+      "detail": "Candidate shadow requires fixed statement, latency, cache-size and 40-spec evidence before merge."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/evidence.json",
+    "server/gear_release.py",
+    "server/gear_release_store.py",
+    "server/pg_gear_authority_loader.py",
+    "server/postgres_cache_store.py",
+    "server/pg_gear_read_model_selectors.py",
+    "server/gear_runtime.py",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 4C is implementation-allowed only as an internal read-only shadow path. No public reader, Manifest/Pointer, release write, timer or cutover has been implemented or claimed."
+}

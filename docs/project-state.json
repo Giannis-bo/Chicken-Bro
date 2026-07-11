@@ -3,7 +3,7 @@
   "updatedAt": "2026-07-11",
   "activeMilestone": "equipment_simulator_phase4",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers",
   "activeContracts": [
     {
       "id": "equipment_simulator_capability_architecture",
@@ -15,9 +15,9 @@
     {
       "id": "equipment_simulator_phase4_release_train_plan",
       "path": "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
-      "status": "phase4b_implementation_allowed",
+      "status": "phase4c_implementation_allowed",
       "lifecycle": "active",
-      "notes": "Phase 4A pure release policy merged through PR #71 and is live-verified while dormant. Slice 4B may add only the immutable PostgreSQL registry/repository/tool and inactive legacy-import-r0 candidates; shadow readers, pointer cutover and scheduled refresh remain later independent Strict Slices."
+      "notes": "Phases 4A and 4B are merged and live-verified. Slice 4C may add only release-scoped read-only candidate shadow projections and bounded internal old/new diff evidence; public readers remain transitional, active Manifest/Pointer rows stay absent, and cutover/scheduled refresh remain later independent Strict Slices."
     },
     {
       "id": "repo_native_harness_v0_5",
@@ -125,9 +125,23 @@
       "status": "completed",
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/evidence.json",
       "notes": "PR #71 added the pure immutable Release/Manifest identity, observed election, shadow classification, promotion decision and pointer-command contracts. Focused/related/backend/full/CI, candidate import/hash parity, 40-spec public compatibility and clean-merge-equivalent live smoke passed; no schema, write, reader, pointer or timer was activated."
+    },
+    {
+      "id": "equipment_simulator_phase4b_20260711",
+      "domain": "equipment_simulator_phase4b",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/evidence.json",
+      "notes": "PR #73 added the additive immutable PostgreSQL release registry, one repository/tool and inactive legacy-import-r0. Candidate and post-merge proof covered atomic migration backup/apply, 129 focused tests, full CI, one Gear plus one Community Release, 40 winners, 319 rejected, bounded 40-spec snapshot/query evidence, exact public winner parity, zero Manifest/Pointer rows and unchanged Resolve/Profile/health/Catalyst behavior."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "equipment_simulator_phase4b_pg_registry_legacy_import",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/evidence.json"
+    },
     {
       "id": "equipment_simulator_phase4a_release_contracts",
       "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/requirement.json",
@@ -285,12 +299,16 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
     },
     "gearReleaseTrain": {
-      "status": "phase4a_completed_phase4b_implementation_allowed",
+      "status": "phase4b_completed_phase4c_implementation_allowed",
       "formalActiveManifest": false,
       "currentCompatibilityManifest": "compatibility-pg-live-v1",
       "plan": "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
       "purePolicyModule": "server/gear_release.py",
-      "activePacket": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/requirement.json"
+      "releaseRepository": "server/gear_release_store.py",
+      "inactiveGearReleaseId": "gear-release:sha256:342e3918b685ca0145514485d115fb74079be660d85ea8b835760c4bc61350f6",
+      "inactiveCommunityReleaseId": "community-release:sha256:923ccd05f09fbe32b1827e45d7e9be163545fb187d49efcde730dbb0216682ed",
+      "activeManifestPointerRows": 0,
+      "activePacket": "artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers/requirement.json"
     }
   },
   "knownRisks": [
