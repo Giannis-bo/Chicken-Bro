@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase3c-workbench-cutover",
   "requirementSlug": "equipment-simulator-phase3c-workbench-cutover",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase3c-workbench-cutover",
-  "commit": "2e9ecd729f6166d54ae0a4771688fdc8e92f9d83",
+  "commit": "869372d793ad67cc250a1193d6570be5de9c293f",
   "scope": [
     "active gear page canonical Intent cutover",
     "server snapshot final panels and gates",
@@ -63,6 +63,11 @@
       "command": "git diff --check and clean exact-head worktree",
       "status": "pass",
       "summary": "No whitespace errors; DevTools-generated project.config.json changes were restored exactly; the committed candidate worktree is clean."
+    },
+    {
+      "command": "PR #69 merge, clean-main deployment and post-merge live smoke",
+      "status": "pass",
+      "summary": "Exact evidence head b9f568e passed GitHub Harness and PR #69 squash-merged as 869372d. Main and origin/main were exact, the clean main tree was deployed with async sync disabled, seven runtime files matched local SHA-256, 40/40 Resolve and the structured negative matrix passed, and a recovery restart returned /health ok with one task, about 49 MiB RSS, NRestarts=0 and no fatal backend log match."
     }
   ],
   "candidateDeployment": {
@@ -132,8 +137,30 @@
       "status": "pass",
       "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/wechat-enhancement-authority-discovery.jpeg",
       "sha256": "439adf7e39ceeab826148a415155471e85d18312ce74ceb3cdd7cfcd10267417"
+    },
+    {
+      "kind": "post_merge_live",
+      "status": "pass",
+      "mergeCommit": "869372d793ad67cc250a1193d6570be5de9c293f",
+      "resolve": "40/40; 18 fifteen-slot and 22 sixteen-slot",
+      "negativeHttp": "malformed 400 blocked; stale 409 blocked; illegal gem 200 blocked; unknown Catalyst 503 unavailable",
+      "runtimeParity": "seven frontend/backend runtime files matched local SHA-256",
+      "service": "active/running, one task, about 49 MiB after recovery restart, NRestarts=0, /health ok, no traceback/sqlite fallback/database locked/segmentation/fatal match",
+      "timerBackflow": "deploy used WOW_DEPLOY_START_ASYNC_SYNCS=0; observed backfill last ran before deployment and was not deploy-triggered; the already-running WebSim timer invocation also started before deployment"
     }
   ],
+  "postMerge": {
+    "status": "live_verified",
+    "pullRequest": 69,
+    "mergeCommit": "869372d793ad67cc250a1193d6570be5de9c293f",
+    "deploymentBackup": "/opt/wow-mini-program-candidate-backups/phase3c-pre-main-869372d",
+    "databaseRuntime": "postgres_only",
+    "asyncSyncStart": false,
+    "runtimeFileParity": true,
+    "resolveMatrix": "40/40",
+    "health": "ok",
+    "automaticRestarts": 0
+  },
   "risks": [
     {
       "id": "frontend_final_fact_inference",
@@ -173,7 +200,8 @@
   "rollbackEvidence": [
     "/opt/wow-mini-program-candidate-backups/phase3c-pre-ac59745",
     "/opt/wow-mini-program-candidate-backups/phase3c-pre-5a04806",
-    "/opt/wow-mini-program-candidate-backups/phase3c-pre-2e9ecd7"
+    "/opt/wow-mini-program-candidate-backups/phase3c-pre-2e9ecd7",
+    "/opt/wow-mini-program-candidate-backups/phase3c-pre-main-869372d"
   ],
   "cleanup": {
     "required": false,
@@ -189,5 +217,5 @@
     "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 3C is runtime-verified on the exact PR head. The active workbench uses canonical Intent and Resolver facts, enhancement choices are optionKey- and constraint-owned, exact-head CI and candidate matrices pass, and merge remains pending evidence commit plus final PR promotion."
+  "summary": "Slice 3C is live-verified and archived after PR #69 merged as 869372d. The active workbench uses canonical Intent and Resolver facts, enhancement choices are optionKey- and constraint-owned, exact-head CI and candidate matrices passed, clean-main runtime hashes matched, post-merge 40/40 and negative smoke passed, and the service recovered to one task and about 49 MiB with no automatic restart or fatal log match. Phase 6 Catalyst remains disabled and fail-closed."
 }
