@@ -87,16 +87,50 @@ function analyticsHeaders(platform) {
   }
 }
 
+function isStructuredProblemEnvelope(data) {
+  return !!(
+    data &&
+    typeof data === 'object' &&
+    !Array.isArray(data) &&
+    data.contractRevision === 'gear-result-envelope-v1' &&
+    typeof data.requestId === 'string' &&
+    data.requestId &&
+    typeof data.status === 'string' &&
+    data.status &&
+    data.releaseContext &&
+    typeof data.releaseContext === 'object' &&
+    !Array.isArray(data.releaseContext) &&
+    data.data &&
+    typeof data.data === 'object' &&
+    !Array.isArray(data.data) &&
+    Array.isArray(data.problems)
+  )
+}
+
 function requestJson(path, options) {
   const requestOptions = options || {}
+  const structuredProblemMode = requestOptions.responseMode === 'structured-problem'
   return new Promise((resolve) => {
+    const fallbackResult = (message, httpStatus, offline) => {
+      const result = {
+        payload: requestOptions.fallback(),
+        fromFallback: true,
+        error: message
+      }
+      if (structuredProblemMode) {
+        result.httpStatus = httpStatus || 0
+        result.transportError = message
+        result.offline = !!offline
+      }
+      return result
+    }
     const url = apiUrl(path)
     if (!url) {
-      resolve({ payload: requestOptions.fallback(), fromFallback: true, error: 'missing api base url' })
+      resolve(fallbackResult('missing api base url', 0, true))
       return
     }
     if (requestOptions.auth && isInsecureHttpUrl(url) && !requestOptions.allowInsecureGuestRequest) {
-      resolve({ payload: requestOptions.fallback(), fromFallback: true, error: 'insecure api base url for authenticated request' })
+      resolve(fallbackResult('insecure api base url for authenticated request', 0, false))
       return
     }
     const header = Object.assign({}, analyticsHeaders('miniprogram'), requestOptions.header || {})
@@ -112,14 +146,31 @@ function requestJson(path, options) {
       timeout: requestOptions.timeout || 6000,
       success: (res) => {
         const validate = requestOptions.validate || ((data) => !!data)
+        if (structuredProblemMode) {
+          const validEnvelope = isStructuredProblemEnvelope(res.data) && validate(res.data)
+          if (validEnvelope) {
+            resolve({
+              payload: res.data,
+              fromFallback: false,
+              error: '',
+              httpStatus: res.statusCode,
+              transportError: '',
+              offline: false
+            })
+            return
+          }
+          resolve(fallbackResult(`HTTP ${res.statusCode}`, res.statusCode, false))
+          return
+        }
         if (res.statusCode >= 200 && res.statusCode < 300 && validate(res.data)) {
           resolve({ payload: res.data, fromFallback: false, error: '' })
           return
         }
-        resolve({ payload: requestOptions.fallback(), fromFallback: true, error: `HTTP ${res.statusCode}` })
+        resolve(fallbackResult(`HTTP ${res.statusCode}`, res.statusCode, false))
       },
       fail: (error) => {
-        resolve({ payload: requestOptions.fallback(), fromFallback: true, error: error.errMsg || 'request failed' })
+        const message = error.errMsg || 'request failed'
+        resolve(fallbackResult(message, 0, true))
       }
     })
   })

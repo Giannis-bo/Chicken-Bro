@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T03:44:09.099Z",
+  "generatedAt": "2026-07-11T03:58:20.054Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase3b-structured-transport-state"
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json",
-    "sizeBytes": 3404,
+    "sizeBytes": 5626,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Slice 3B is implementation-allowed as a Strict, dormant frontend slice. No runtime or mini-program evidence is claimed before implementation, exact-head CI and the separate active Slice 3C cutover."
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "Slice 3B is local-verified at implementation head 13e9aa0. Opt-in structured transport preserves backend problem truth without changing default callers; canonical client wrappers use exact request shapes; the pure workbench state rejects stale responses and gates Profile fail-closed. Targeted, frontend and full verification plus local CR pass, and active imports remain zero. Exact-head GitHub Harness and merge are still required; runtime, deployment and real mini-program evidence remain deliberately unclaimed until Slice 3C."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "7 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,15 +313,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 7,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/manifest.json",
-        " M docs/gear-simulation-full-chain-runbook.md",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/"
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json"
       ]
     }
   },

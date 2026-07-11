@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase3b-structured-transport-state",
   "requirementSlug": "equipment-simulator-phase3b-structured-transport-state",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-phase3b-structured-transport-state",
-  "commit": "1b87bd645379bbb36cb16afc63caf693a44ac9e5",
+  "commit": "13e9aa02ae352ec7dc966c4af013595e5f0aa4ea",
   "scope": [
     "opt-in structured-problem transport",
     "canonical gear API client wrappers",
@@ -21,6 +21,26 @@
       "command": "Phase 3A closure and Slice 3B active-packet verification",
       "status": "pass",
       "summary": "The Phase 3A packet is archived at live-verified evidence, project-state and roadmap advance exactly one Slice, stale runbook runtime wording is corrected, and long-lived RTT/slot-payload risks remain explicit. The Slice 3B Harness check, 22 current-truth/owner-map tests and the full 127-command verification profile all passed. No Slice 3B runtime or mini-program evidence is claimed."
+    },
+    {
+      "command": "Task 8 structured-problem transport TDD",
+      "status": "pass",
+      "summary": "Red tests proved the old client flattened non-2xx envelopes. The opt-in mode now preserves valid 200, 202, 409 and 503 gear-result envelopes with original HTTP status and empty transport error, while malformed bodies, network failure and timeout use fallback with explicit transport/offline fields. Default mode, bearer handling and analytics headers remain unchanged."
+    },
+    {
+      "command": "Task 9 canonical gear API wrapper TDD",
+      "status": "pass",
+      "summary": "Resolve posts the exact Selection Intent without a wrapper; canonical Profile posts only selectionIntent and profileContext. Both opt into structured-problem mode, preserve 409/503 bodies, reject pseudo envelopes and leave legacy Profile and gear stats wrappers compatible."
+    },
+    {
+      "command": "Task 10 pure workbench state TDD",
+      "status": "pass",
+      "summary": "Seven focused state groups prove confirmed/draft separation, one confirm increment, serial/version stale-response rejection, current versus last-verified snapshots, 200 blocked truth, one revision-only 409 rebase, structured 503 versus offline, strict Profile gating, stat snapshot separation, deterministic immutability and zero wx/storage/network/clock/page dependencies."
+    },
+    {
+      "command": "frontend and full verification profiles plus local CR",
+      "status": "pass",
+      "summary": "Targeted transport/state tests passed 45/45. The frontend profile passed 377 Node tests and 123 commands; the full profile passed all 129 commands. Static active-import inspection found no page or component consumer of gear-workbench-state. Local CR found no unresolved critical or important issue and rejected an unsafe no-op restoration idea because it could reuse a verified snapshot from an older confirmed Intent."
     }
   ],
   "candidateDeployment": {
@@ -65,5 +85,5 @@
     "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 3B is implementation-allowed as a Strict, dormant frontend slice. No runtime or mini-program evidence is claimed before implementation, exact-head CI and the separate active Slice 3C cutover."
+  "summary": "Slice 3B is local-verified at implementation head 13e9aa0. Opt-in structured transport preserves backend problem truth without changing default callers; canonical client wrappers use exact request shapes; the pure workbench state rejects stale responses and gates Profile fail-closed. Targeted, frontend and full verification plus local CR pass, and active imports remain zero. Exact-head GitHub Harness and merge are still required; runtime, deployment and real mini-program evidence remain deliberately unclaimed until Slice 3C."
 }
