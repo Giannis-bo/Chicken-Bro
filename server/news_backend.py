@@ -261,6 +261,9 @@ CHICKENBRO_SCENARIOS = {
 _WEB_GEAR_BUILD_LIMITER = None
 _WEB_GEAR_BUILD_LIMITER_LIMIT = None
 _WEB_GEAR_BUILD_LIMITER_LOCK = threading.Lock()
+_GEAR_AUTHORITY_CACHE_KEY = None
+_GEAR_AUTHORITY_CACHE = None
+_GEAR_AUTHORITY_CACHE_LOCK = threading.Lock()
 CHICKENBRO_ALLOWED_TOOL_TOPICS = {
     "wcl",
     "warcraft logs",
@@ -477,14 +480,30 @@ def content_data_store():
 
 
 def cache_data_store():
+    global _GEAR_AUTHORITY_CACHE_KEY, _GEAR_AUTHORITY_CACHE
     config = database_config_from_env()
     if not postgres_personal_runtime_enabled(config):
+        with _GEAR_AUTHORITY_CACHE_LOCK:
+            _GEAR_AUTHORITY_CACHE_KEY = None
+            _GEAR_AUTHORITY_CACHE = None
         return None
     try:
-        from .postgres_cache_store import PostgresCacheStore
+        from .postgres_cache_store import AuthorityContextCache, PostgresCacheStore
     except ImportError:
-        from postgres_cache_store import PostgresCacheStore
-    return PostgresCacheStore(lambda: connect_postgres(config.database_url))
+        from postgres_cache_store import AuthorityContextCache, PostgresCacheStore
+    cache_key = hashlib.sha256(config.database_url.encode("utf-8")).hexdigest()
+    with _GEAR_AUTHORITY_CACHE_LOCK:
+        if _GEAR_AUTHORITY_CACHE_KEY != cache_key or _GEAR_AUTHORITY_CACHE is None:
+            _GEAR_AUTHORITY_CACHE_KEY = cache_key
+            _GEAR_AUTHORITY_CACHE = AuthorityContextCache(
+                max_entries=32,
+                max_bytes=4 * 1024 * 1024,
+            )
+        authority_cache = _GEAR_AUTHORITY_CACHE
+    return PostgresCacheStore(
+        lambda: connect_postgres(config.database_url),
+        gear_authority_context_cache=authority_cache,
+    )
 
 
 def ops_data_store():

@@ -1,4 +1,5 @@
 import copy
+from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
 import subprocess
@@ -827,6 +828,24 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         first["nested"]["b"] = 999
         second = cache.get("detached")
         self.assertEqual(second, {"nested": {"a": 1, "b": 2}})
+
+    def test_cache_is_thread_safe_and_stays_within_both_bounds(self):
+        cache = pg_gear_authority_loader.AuthorityContextCache(max_entries=16, max_bytes=4096)
+        self.assertTrue(hasattr(cache, "_lock"))
+
+        def exercise(worker_id):
+            for index in range(250):
+                key = f"{worker_id}:{index % 24}"
+                cache.put(key, {"worker": worker_id, "index": index, "value": "x" * 20})
+                value = cache.get(key)
+                if value is not None:
+                    self.assertEqual(value["worker"], worker_id)
+
+        with ThreadPoolExecutor(max_workers=16) as executor:
+            list(executor.map(exercise, range(16)))
+
+        self.assertLessEqual(cache.entry_count, cache.max_entries)
+        self.assertLessEqual(cache.byte_size, cache.max_bytes)
 
     def test_cache_key_contains_full_dependency_vector_and_selection_signature(self):
         cache = pg_gear_authority_loader.AuthorityContextCache(max_entries=8, max_bytes=200000)

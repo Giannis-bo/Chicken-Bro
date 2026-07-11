@@ -7,6 +7,7 @@ from collections import OrderedDict
 import hashlib
 import json
 import re
+import threading
 from typing import Any, Iterable
 
 try:
@@ -360,21 +361,25 @@ class AuthorityContextCache:
         self.max_bytes = max_bytes
         self._entries: OrderedDict[str, tuple[int, Any]] = OrderedDict()
         self._byte_size = 0
+        self._lock = threading.RLock()
 
     @property
     def entry_count(self) -> int:
-        return len(self._entries)
+        with self._lock:
+            return len(self._entries)
 
     @property
     def byte_size(self) -> int:
-        return self._byte_size
+        with self._lock:
+            return self._byte_size
 
     def get(self, key: str) -> Any | None:
         normalized = _text(key)
-        if normalized not in self._entries:
-            return None
-        size, value = self._entries.pop(normalized)
-        self._entries[normalized] = (size, value)
+        with self._lock:
+            if normalized not in self._entries:
+                return None
+            size, value = self._entries.pop(normalized)
+            self._entries[normalized] = (size, value)
         return _canonical(value)
 
     def put(self, key: str, value: Any) -> bool:
@@ -385,15 +390,16 @@ class AuthorityContextCache:
         size = len(_serialized(detached))
         if size > self.max_bytes:
             return False
-        previous = self._entries.pop(normalized, None)
-        if previous:
-            self._byte_size -= previous[0]
-        self._entries[normalized] = (size, detached)
-        self._byte_size += size
-        while len(self._entries) > self.max_entries or self._byte_size > self.max_bytes:
-            _old_key, (old_size, _old_value) = self._entries.popitem(last=False)
-            self._byte_size -= old_size
-        return normalized in self._entries
+        with self._lock:
+            previous = self._entries.pop(normalized, None)
+            if previous:
+                self._byte_size -= previous[0]
+            self._entries[normalized] = (size, detached)
+            self._byte_size += size
+            while len(self._entries) > self.max_entries or self._byte_size > self.max_bytes:
+                _old_key, (old_size, _old_value) = self._entries.popitem(last=False)
+                self._byte_size -= old_size
+            return normalized in self._entries
 
 
 def compatibility_catalog_revision(revision_row: Any) -> str:

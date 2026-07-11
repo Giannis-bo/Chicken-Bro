@@ -904,8 +904,13 @@ def promote_community_talent_template_inventory(templates):
 
 
 class PostgresCacheStore:
-    def __init__(self, connection_factory):
+    def __init__(self, connection_factory, gear_authority_context_cache=None):
         self.connection_factory = connection_factory
+        self._gear_authority_context_cache = (
+            gear_authority_context_cache
+            if gear_authority_context_cache is not None
+            else AuthorityContextCache(max_entries=32, max_bytes=4 * 1024 * 1024)
+        )
 
     @contextmanager
     def connection(self):
@@ -963,10 +968,6 @@ class PostgresCacheStore:
     def get_gear_authority_context(self, selection_intent, runtime_authority):
         """Load a dormant canonical gear authority context in one read-only transaction."""
 
-        cache = getattr(self, "_gear_authority_context_cache", None)
-        if cache is None:
-            cache = AuthorityContextCache(max_entries=32, max_bytes=4 * 1024 * 1024)
-            self._gear_authority_context_cache = cache
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SET TRANSACTION READ ONLY")
@@ -974,7 +975,7 @@ class PostgresCacheStore:
                     cur,
                     selection_intent,
                     runtime_authority,
-                    cache=cache,
+                    cache=self._gear_authority_context_cache,
                 )
 
     def get_gear_resolver_context(self, runtime_authority):

@@ -126,6 +126,42 @@ class NewsBackendTest(unittest.TestCase):
         self.addCleanup(setattr, simulator_payload, "call_chat_completion", original_call_chat_completion)
         simulator_payload.call_chat_completion = fake_call_chat_completion
 
+    def test_cache_data_store_reuses_only_authority_cache_for_same_database_url(self):
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://example.invalid/wow-a",
+                "WOW_DATABASE_RUNTIME": "postgres_only",
+            },
+        ):
+            first = self.backend.cache_data_store()
+            second = self.backend.cache_data_store()
+
+            self.assertIsNot(first, second)
+            self.assertIs(
+                first._gear_authority_context_cache,
+                second._gear_authority_context_cache,
+            )
+
+            os.environ["WOW_DATABASE_URL"] = "postgresql://example.invalid/wow-b"
+            other_database = self.backend.cache_data_store()
+
+            self.assertIsNot(
+                first._gear_authority_context_cache,
+                other_database._gear_authority_context_cache,
+            )
+
+    def test_cache_data_store_does_not_retain_authority_cache_when_pg_runtime_is_disabled(self):
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_DATABASE_URL": "postgresql://example.invalid/wow-disabled",
+                "WOW_DATABASE_RUNTIME": "",
+            },
+        ):
+            self.assertIsNone(self.backend.cache_data_store())
+            self.assertIsNone(self.backend._GEAR_AUTHORITY_CACHE)
+
     def test_blizzard_forum_source_uses_slug_url_without_stale_category_id(self):
         forum_source = self.backend.NEWS_SOURCES_BY_ID["blizzard-forums"]
         feed_source = next(source for source in self.backend.FEED_SOURCES if source["sourceId"] == "blizzard-forums")
