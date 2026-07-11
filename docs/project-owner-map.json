@@ -324,6 +324,17 @@
         ],
         "runtimeConsumers": []
       },
+      "releaseTrainFoundations": {
+        "status": "phase4a_contract_only_unconsumed",
+        "modules": [
+          "server/gear_release.py"
+        ],
+        "tests": [
+          "tests/gear_release_test.py"
+        ],
+        "runtimeConsumers": [],
+        "activationBoundary": "Phase 4A owns only pure release ID, manifest validation, observed candidate election, shadow comparison, promotion decision and pointer-command contracts. PostgreSQL schema/write, shadow readers, active pointer cutover and scheduled refresh remain forbidden until Slices 4B-4E."
+      },
       "dormantAdapters": {
         "status": "contract_only_unconsumed",
         "modules": [
@@ -354,7 +365,8 @@
         "tests/gear_rule_matrix_test.py",
         "tests/gear_evidence_ledger_test.py",
         "tests/gear_resolver_test.py",
-        "tests/pg_gear_authority_loader_test.py"
+        "tests/pg_gear_authority_loader_test.py",
+        "tests/gear_release_test.py"
       ],
       "runtimeSurfaces": [
         "server/gear_public_contract.py",
@@ -385,6 +397,7 @@
         "server/gear_rule_matrix.py",
         "server/gear_evidence_ledger.py",
         "server/gear_resolver.py",
+        "server/gear_release.py",
         "server/pg_gear_authority_loader.py",
         "server/postgres_cache_store.py",
         "pages/builds/websim-api.js",
@@ -394,6 +407,7 @@
         "tests/gear_rule_matrix_test.py",
         "tests/gear_evidence_ledger_test.py",
         "tests/gear_resolver_test.py",
+        "tests/gear_release_test.py",
         "tests/pg_gear_authority_loader_test.py"
       ],
       "backendOwnerMapRef": {
@@ -415,7 +429,8 @@
           "tests/gear_rule_matrix_test.py",
           "tests/gear_evidence_ledger_test.py",
           "tests/gear_resolver_test.py",
-          "tests/pg_gear_authority_loader_test.py"
+          "tests/pg_gear_authority_loader_test.py",
+          "tests/gear_release_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {

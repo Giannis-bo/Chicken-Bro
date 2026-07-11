@@ -244,3 +244,26 @@ python3 -m py_compile \
 ```
 
 Slice 3A must add `resolverContext` from the same live revision authority as the loader, keep `formalActiveManifest=false`, map `/gear/resolve` through exact 200/400/409/503 Result Envelope semantics, and make only profile bodies containing `selectionIntent` enter canonical re-resolve mode. Legacy profile bodies and `/gear/stats` remain compatible. Candidate evidence requires 40/40 public observed Intent resolution, representative canonical profile output, malformed/stale/illegal/missing-authority probes, fixed query and latency budgets, public observed-only/baseline-empty parity, PostgreSQL-only runtime, no deploy-driven async work, truthful SimC updater state, logs and code-only rollback.
+
+## Equipment Simulator Phase 4A Pure Release Contracts Profile
+
+The Strict Slice 4A packet at `artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts` adds only a dependency-free release policy domain. Before candidate deployment run:
+
+```bash
+python3 -m unittest \
+  tests.gear_release_test \
+  tests.gear_contracts_test \
+  tests.gear_resolver_test \
+  tests.gear_evidence_ledger_test
+node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
+node scripts/verify-project.js --profile backend \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts \
+  --base origin/main
+node scripts/verify-project.js --profile full \
+  --release artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts \
+  --base origin/main
+python3 -m py_compile server/gear_release.py
+git diff --check
+```
+
+Slice 4A must prove canonical hash-addressed Gear/Community Releases, exact manifest binding, deterministic observed winner/standby election, rejection of illegal/stale/source-invalid/mixed-release candidates, strict 40-spec shadow classification, risk-classified promotion decisions and pointer compare-and-swap command shapes. `server/gear_release.py` has no SQL, store, route, environment, filesystem, network, clock or process-execution owner and calls current Resolver behavior only through an injected callable. Candidate deployment proves import/hash/pure fixture parity and unchanged live gear/Profile/health/Catalyst behavior; no schema, write, release row, shadow reader, formal pointer, timer or public cutover may be claimed.

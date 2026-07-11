@@ -61,6 +61,30 @@
           "futureExtractionDirection": "Continue moving direct callers to server/gear_public_contract.py only after PG selector and runtime API snapshots stay green."
         },
         {
+          "id": "gear_release_policy",
+          "status": "phase4a_contract_only_unconsumed",
+          "extractedModule": "server/gear_release.py",
+          "runtimeConsumers": [],
+          "owns": [
+            "hash-addressed immutable Gear and Community Release descriptors",
+            "formal Active Season Manifest validation",
+            "observed candidate winner/standby/rejected election policy",
+            "old/new shadow classification",
+            "risk-classified promotion decisions",
+            "compare-and-swap pointer command contracts"
+          ],
+          "mustNotChange": [
+            "Slice 4A must not access PostgreSQL, environment, filesystem, network, process execution or current time.",
+            "Slice 4A must not activate a reader, release write, manifest pointer, timer or public payload change.",
+            "Only real-player observed sources may become public winners; baseline/recommended/default/SimC templates remain internal.",
+            "Catalyst parser allowlist alone must never enable retained-secondary-stat capability."
+          ],
+          "characterization": [
+            "tests/gear_release_test.py"
+          ],
+          "futureExtractionDirection": "Phase 4B may add one PostgreSQL release repository that consumes these pure contracts; persistence and pointer mutation must not leak back into this module."
+        },
+        {
           "id": "gear_legality_source_map",
           "status": "characterized",
           "contractFoundations": {
