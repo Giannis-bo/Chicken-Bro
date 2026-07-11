@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase4e-scheduled-refresh",
+  "requirementSlug": "equipment-simulator-phase4e-scheduled-refresh",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase4e-scheduled-refresh",
+  "commit": "pending_implementation",
+  "scope": [
+    "candidate_first_release_refresh",
+    "risk_classified_promotion",
+    "single_run_scheduled_job",
+    "bounded_health_admin_operations"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.gear_release_refresh_test",
+      "status": "not_run",
+      "summary": "TDD implementation has not started."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "partial_staging_publication",
+      "status": "blocked_by_requirement",
+      "detail": "Candidate sealing and full gates must finish before pointer CAS."
+    },
+    {
+      "id": "unsafe_auto_promotion",
+      "status": "blocked_by_requirement",
+      "detail": "Only explicitly low-risk compatible changes may auto-promote; all other risk classes remain manual."
+    },
+    {
+      "id": "overlapping_release_builds",
+      "status": "blocked_by_requirement",
+      "detail": "Systemd and database-visible single-run behavior must reject overlap without moving the pointer."
+    },
+    {
+      "id": "deploy_backflow",
+      "status": "blocked_by_requirement",
+      "detail": "Deploy may install and enable the timer but must not start the refresh service."
+    },
+    {
+      "id": "premature_phase5_or_catalyst",
+      "status": "blocked_by_requirement",
+      "detail": "Phase 5 and Catalyst activation are excluded."
+    }
+  ],
+  "rollback": [
+    "config_disable",
+    "code_rollback",
+    "data_restore"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/evidence.json",
+    "server/gear_release.py",
+    "server/gear_release_store.py",
+    "server/gear_release_tool.py",
+    "server/deploy_lighthouse.sh",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 4E is implementation-allowed only for a bounded staging-consumer that creates inactive candidates first, applies explicit risk-classified promotion gates, preserves the active pointer on uncertainty, installs a non-deploy-triggered timer, and keeps Phase 5 and Catalyst excluded."
+}
