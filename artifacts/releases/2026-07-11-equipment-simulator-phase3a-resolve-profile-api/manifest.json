@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T02:45:44.346Z",
+  "generatedAt": "2026-07-11T03:03:01.436Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase3a-resolve-profile-api"
@@ -105,13 +105,13 @@
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 12640,
+          "lineCount": 12659,
           "hotspot": true
         },
         {
           "path": "server/postgres_cache_store.py",
           "exists": true,
-          "lineCount": 6282,
+          "lineCount": 6283,
           "hotspot": true
         }
       ],
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
-    "sizeBytes": 10405,
+    "sizeBytes": 13276,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -252,7 +252,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "Slice 3A remains local-verified at corrected implementation head 827fcf0. Two failed candidates were truthfully rolled back: the first exposed direct systemd imports, the second exposed 40-spec armor/weapon/readiness and duplicate-alias authority gaps. Red-to-green tests cover both findings, 112 domain and 744 related tests pass, and a temporary remote PostgreSQL read-only preflight now resolves 40/40 public observed Intents. New exact-head GitHub Harness, a fresh full candidate deployment, negative HTTP, Profile matrix, latency/concurrency, unchanged-runtime and post-merge smoke remain required before archival."
+    "summary": "Slice 3A remains local-verified at performance-correction implementation head 9be919b. Three failed candidates were truthfully rolled back: direct systemd imports, 40-spec live authority mismatches, then a functionally correct candidate whose request-scoped Authority cache failed the warm latency gate. TDD now shares only a bounded DSN-isolated Authority LRU across request-scoped stores, keeps unrelated catalog state and PG connections unshared, and serializes LRU mutation safely under ThreadingHTTPServer. Fresh backend/full profiles pass. New exact-head GitHub Harness, a fresh full candidate deployment, latency/concurrency, unchanged-runtime and post-merge smoke remain required before archival."
   },
   "evidence": {
     "localTests": {
@@ -277,13 +277,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "2 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:25981, server/news_backend.py:12640, server/postgres_cache_store.py:6282"
+      "detail": "server/websim_payload.py:25981, server/news_backend.py:12659, server/postgres_cache_store.py:6283"
     },
     {
       "id": "localTests_missing",
@@ -313,9 +313,10 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 2,
       "changedFiles": [
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json"
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
+        " M artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/manifest.json"
       ]
     }
   },

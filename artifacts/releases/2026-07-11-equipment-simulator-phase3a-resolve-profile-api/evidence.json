@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/equipment-simulator-phase3a-resolve-profile-api",
-  "commit": "827fcf0deff4f4639b6ca977ef4fbf7ad5f0659c",
+  "commit": "9be919b1808453bafdc512606b18499957b363a0",
   "scope": [
     "backend resolver authoring context",
     "canonical gear runtime orchestration",
@@ -57,6 +57,16 @@
       "command": "local CR of live-authority correction at 827fcf0",
       "status": "pass",
       "summary": "No unresolved critical or important findings. Armor restriction remains an explicit backend-owned slot parameter and fails closed when absent; two-hand dual-wield is allowed only for the exact dual_wield_2h mode; ranged and ordinary two-hand occupancy remain distinct; public alias duplicates merge only when every semantic field matches and preserve all evidence refs, while divergent rows remain unavailable. Resolver/Ledger stay pure, PostgreSQL reads stay bounded and read-only, and no public template, migration, write, sync, frontend or Catalyst behavior was activated."
+    },
+    {
+      "command": "third candidate failure capture and exact rollback at e81976d",
+      "status": "pass",
+      "summary": "The corrected candidate passed 40/40 public Resolve, the 11-spec verified-talent Profile matrix, truthful blocking for 29 specs without verified talent imports, and malformed/stale/wrong-slot/missing-authority negative HTTP. It failed the performance hard gate: cold p95 was 398.046ms, warm p95 was 429.227ms against the 200ms limit, and the functionally correct 20x5 burst reached p95 5161.417ms. The route created a new PostgresCacheStore per request, so its bounded AuthorityContextCache never produced a warm hit. The candidate was immediately rolled back to exact Phase 2B; TDD now shares only the DSN-isolated Authority LRU across request-scoped stores and makes the LRU thread-safe without sharing connections or the store's unrelated raw catalog cache."
+    },
+    {
+      "command": "TDD cache-scope correction and fresh local verification at 9be919b",
+      "status": "pass",
+      "summary": "Red tests reproduced the request-scoped cache miss and absent LRU synchronization. The correction shares one 32-entry/4 MiB Authority cache for the current hashed PostgreSQL DSN, replaces it on configuration change or disabled PG runtime, keeps stores and connections request-scoped, and protects LRU ordering and byte accounting with an RLock. Focused cache/store/backend tests passed, 114 domain/runtime tests passed, 734 related backend/store/API tests passed, the backend profile passed 1190 Python tests with 1 skipped, and the full profile passed 365 Node plus 1190 Python tests with 1 skipped and all 127 commands. Local CR found no unresolved critical or important issue."
     }
   ],
   "candidateDeployment": {
@@ -78,11 +88,17 @@
         "status": "hard_gate_failed_then_rolled_back",
         "failure": "The candidate service and exact hashes were healthy, but only 3/40 public observed Intents completed Resolve/Profile. Thirty-one gear results were blocked by armor/weapon/readiness rule mismatches, Elemental Shaman had nine ambiguous duplicate variant aliases, and six otherwise resolved specs lacked a verified talent import for the profile probe.",
         "rollback": "Restored the same exact Phase 2B file backup, removed gear_runtime.py, restarted wow-backend and confirmed /health ok plus active/running/success. The candidate had async syncs disabled and performed no database writes; no data restore was needed."
+      },
+      {
+        "head": "e81976dff041de751aaec749f0d0049c1c2fd69e",
+        "status": "functional_gate_passed_performance_failed_then_rolled_back",
+        "failure": "All 40 public Resolve requests passed; 11 verified-talent canonical Profiles resolved with server signature, Ledger and serializer parity, while 29 missing verified talent imports truthfully returned blocked with the profile cleared. Negative HTTP passed. Cold 30 measured p50 364.215ms, p95 398.046ms and p99 398.089ms; warm 100 measured p50 370.280ms, p95 429.227ms and p99 509.312ms, failing the warm p95 <=200ms gate. Concurrency 1x5, 5x5 and 20x5 remained functionally correct but reached p95 389.562ms, 1984.977ms and 5161.417ms respectively.",
+        "rollback": "Restored exact Phase 2B hashes for news_backend.py, pg_gear_authority_loader.py and postgres_cache_store.py, removed gear_runtime.py, restarted wow-backend and confirmed active/running/success plus /health ok. Async syncs were disabled and the candidate performed no database writes; no data restore was needed."
       }
     ],
     "smoke": {
       "status": "blocked",
-      "summary": "The first candidate failed startup and the second failed the 40-spec authority gate; both were rolled back to exact Phase 2B files. The corrected implementation is local-verified and passed a 40/40 remote PostgreSQL read-only preflight; new exact-head CI and a fresh full candidate deployment remain required before merge."
+      "summary": "Three candidates were rolled back to exact Phase 2B: startup import failure, live authority mismatch, then a functionally correct candidate that failed the warm latency gate. The cache-scope and thread-safety correction is local-verified; new exact-head CI and a fresh full candidate deployment remain required before merge."
     },
     "timerBackflow": {
       "status": "blocked",
@@ -135,5 +151,5 @@
     "docs/backend-owner-map.json",
     "docs/project-owner-map.json"
   ],
-  "summary": "Slice 3A remains local-verified at corrected implementation head 827fcf0. Two failed candidates were truthfully rolled back: the first exposed direct systemd imports, the second exposed 40-spec armor/weapon/readiness and duplicate-alias authority gaps. Red-to-green tests cover both findings, 112 domain and 744 related tests pass, and a temporary remote PostgreSQL read-only preflight now resolves 40/40 public observed Intents. New exact-head GitHub Harness, a fresh full candidate deployment, negative HTTP, Profile matrix, latency/concurrency, unchanged-runtime and post-merge smoke remain required before archival."
+  "summary": "Slice 3A remains local-verified at performance-correction implementation head 9be919b. Three failed candidates were truthfully rolled back: direct systemd imports, 40-spec live authority mismatches, then a functionally correct candidate whose request-scoped Authority cache failed the warm latency gate. TDD now shares only a bounded DSN-isolated Authority LRU across request-scoped stores, keeps unrelated catalog state and PG connections unshared, and serializes LRU mutation safely under ThreadingHTTPServer. Fresh backend/full profiles pass. New exact-head GitHub Harness, a fresh full candidate deployment, latency/concurrency, unchanged-runtime and post-merge smoke remain required before archival."
 }
