@@ -86,7 +86,19 @@ SELECT
             FROM cache.websim_gear_release_sources candidate
             WHERE candidate.release_id = target.release_id
               AND candidate.item_id = requested.item_id
-            ORDER BY candidate.source_type, candidate.source_updated_at DESC, candidate.source_id
+            ORDER BY
+                candidate.source_type,
+                CASE WHEN LEFT(
+                    regexp_replace(
+                        COALESCE(candidate.payload_json->>'variantKey', ''),
+                        '[^A-Za-z0-9_:/.-]+',
+                        '',
+                        'g'
+                    ),
+                    240
+                ) = requested.variant_key THEN 0 ELSE 1 END,
+                candidate.source_updated_at DESC,
+                candidate.source_id
             LIMIT 8
         ) source
     ), '[]'::jsonb) AS source_records
@@ -193,6 +205,64 @@ def _selected_option_ids(selection_intent: Any) -> list[str]:
             )
         )
     return sorted(value for value in selected if value)
+
+
+def _observed_release_variant_record(
+    requested_variant: str,
+    item_record: Any,
+    source_records: Any,
+) -> dict[str, Any] | None:
+    """Project an exact observed variant from immutable release source evidence."""
+
+    try:
+        from .websim_payload import (
+            normalize_option_value,
+            observed_gear_simc_options,
+            observed_item_level,
+            observed_variant_stat_payload_fields,
+        )
+    except ImportError:
+        from websim_payload import (
+            normalize_option_value,
+            observed_gear_simc_options,
+            observed_item_level,
+            observed_variant_stat_payload_fields,
+        )
+
+    requested = _text(requested_variant)
+    item = item_record if isinstance(item_record, dict) else {}
+    for source in source_records if isinstance(source_records, list) else []:
+        if not isinstance(source, dict):
+            continue
+        payload = source.get("payload") if isinstance(source.get("payload"), dict) else {}
+        source_type = _text(source.get("sourceType") or payload.get("sourceType"))
+        if source_type != "observed_profile":
+            continue
+        if normalize_option_value(payload.get("variantKey")) != requested:
+            continue
+        item_level = observed_item_level(payload) or _int(item.get("itemLevel"))
+        simc_options = observed_gear_simc_options(payload)
+        if item_level:
+            simc_options = {"ilevel": str(item_level), **simc_options}
+        status = _text(source.get("status")).lower()
+        if status != "verified" and observed_variant_stat_payload_fields(payload):
+            status = "verified"
+        return {
+            "id": _text(source.get("id")),
+            "itemId": _text(payload.get("itemId") or payload.get("id") or item.get("id")),
+            "slot": _text(payload.get("slot") or payload.get("simcSlot") or item.get("slot")),
+            "variantKey": requested,
+            "label": _text(payload.get("displayName") or payload.get("name") or source.get("sourceLabel")),
+            "sourceType": source_type,
+            "difficultyKey": _text(source.get("difficultyKey") or payload.get("difficultyKey") or "observed_profile"),
+            "itemLevel": item_level,
+            "simcOptions": simc_options,
+            "status": status or "unknown",
+            "blockers": _canonical(payload.get("blockers") if isinstance(payload.get("blockers"), list) else []),
+            "payload": _canonical(payload),
+            "updatedAt": _text(source.get("updatedAt")),
+        }
+    return None
 
 
 def canonical_row_hash(row: dict[str, Any]) -> str:
@@ -369,6 +439,12 @@ def build_candidate_authority_context(
                     "payload": variant.get("payload") or {},
                     "updatedAt": variant.get("updatedAt") or "",
                 }
+            if variant_record is None:
+                variant_record = _observed_release_variant_record(
+                    requested_variant,
+                    item_record,
+                    source_records,
+                )
             item_rows.append((item_id, requested_variant, item_record, variant_record, source_records))
 
     selected_option_ids = set()
@@ -748,7 +824,18 @@ class GearReleaseStore:
                     RELEASE_SELECTED_ITEM_VARIANT_SQL,
                     (release_id, item_ids, variant_keys),
                 )
-                item_rows = cur.fetchall()
+                item_rows = []
+                for row in cur.fetchall():
+                    values = list(row or ())
+                    while len(values) < 5:
+                        values.append(None)
+                    if values[3] is None:
+                        values[3] = _observed_release_variant_record(
+                            _text(values[1]),
+                            values[2],
+                            values[4],
+                        )
+                    item_rows.append(tuple(values[:5]))
                 cur.execute(RELEASE_SELECTED_OPTION_SQL, (release_id, option_ids))
                 option_rows = cur.fetchall()
 

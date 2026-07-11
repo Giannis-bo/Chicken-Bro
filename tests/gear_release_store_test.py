@@ -670,13 +670,21 @@ class GearReleaseStoreTest(unittest.TestCase):
             "seasonRevision": "season-17",
             "status": "verified",
             "sourceStatus": "unknown",
-            "payload": {"status": "verified"},
+            "payload": {
+                "status": "verified",
+                "variantKey": "variant-a",
+                "slot": "head",
+                "itemId": "item-a",
+                "ilevel": "289",
+                "bonus_id": "100/200",
+                "itemStats": [{"key": "intellect", "value": 100}],
+            },
             "updatedAt": "2026-07-11T05:00:00+00:00",
         }]
         conn = FakeConnection(rowsets={
             "FROM cache.websim_release_registry": [self.release_row(release)],
             "gear_release_authority_items_variants": [
-                ("item-a", "variant-a", item_record, variant_record, source_records)
+                ("item-a", "variant-a", item_record, None, source_records)
             ],
             "gear_release_authority_options": [],
         })
@@ -699,6 +707,10 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(context["manifest"]["manifestType"], "candidate_shadow")
         self.assertFalse(context["manifest"]["formalActiveManifest"])
         self.assertEqual(context["missingFields"], [])
+        self.assertEqual(context["variantsByKey"]["variant-a"]["simcOptions"], {
+            "bonus_id": "100/200",
+            "ilevel": "289",
+        })
 
     def test_candidate_community_release_rejects_missing_or_mixed_binding(self):
         from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore

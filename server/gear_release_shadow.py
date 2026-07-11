@@ -7,12 +7,12 @@ from typing import Any, Iterable
 
 try:
     from . import gear_release, gear_runtime, pg_gear_read_model_selectors
-    from .websim_payload import normalize_slot
+    from .websim_payload import gear_resolver_runtime_authority, normalize_slot
 except ImportError:
     import gear_release
     import gear_runtime
     import pg_gear_read_model_selectors
-    from websim_payload import normalize_slot
+    from websim_payload import gear_resolver_runtime_authority, normalize_slot
 
 
 def _text(value: Any) -> str:
@@ -90,20 +90,25 @@ def _resolved_snapshot(http_status: int, envelope: Any) -> dict[str, Any] | None
     return None
 
 
+def _problem_codes(envelope: Any) -> list[str]:
+    value = envelope if isinstance(envelope, dict) else {}
+    problems = value.get("problems") if isinstance(value.get("problems"), list) else []
+    return sorted({
+        _text(problem.get("code"))
+        for problem in problems
+        if isinstance(problem, dict) and _text(problem.get("code"))
+    })
+
+
 def _profile_outcome(http_status: int, envelope: Any) -> dict[str, Any]:
     """Normalize user-visible canonical Profile output while ignoring release-only metadata."""
 
     value = envelope if isinstance(envelope, dict) else {}
     data = value.get("data") if isinstance(value.get("data"), dict) else {}
-    problems = value.get("problems") if isinstance(value.get("problems"), list) else []
     return {
         "httpStatus": http_status,
         "status": _text(value.get("status")),
-        "problemCodes": sorted({
-            _text(problem.get("code"))
-            for problem in problems
-            if isinstance(problem, dict) and _text(problem.get("code"))
-        }),
+        "problemCodes": _problem_codes(value),
         "data": {
             field: data.get(field)
             for field in (
@@ -235,7 +240,17 @@ def run_release_shadow(
         public_templates = public_templates if isinstance(public_templates, list) else []
         baselines = public.get("baselineTemplates") if isinstance(public, dict) else []
         baselines = baselines if isinstance(baselines, list) else []
-        resolver_context = public.get("resolverContext") if isinstance(public, dict) and isinstance(public.get("resolverContext"), dict) else {}
+        try:
+            resolver_context = store.get_gear_resolver_context(
+                gear_resolver_runtime_authority(
+                    class_key,
+                    spec_key,
+                    simc_runtime_revision=simc_runtime_revision,
+                )
+            )
+        except Exception:
+            resolver_context = {}
+        resolver_context = resolver_context if isinstance(resolver_context, dict) else {}
         formal_active = formal_active or resolver_context.get("formalActiveManifest") is True
 
         if baselines:
@@ -289,6 +304,8 @@ def run_release_shadow(
                 "status": "blocked",
                 "transitionalHttpStatus": old_status,
                 "candidateHttpStatus": new_status,
+                "transitionalProblemCodes": _problem_codes(old_envelope),
+                "candidateProblemCodes": _problem_codes(new_envelope),
             })
             continue
 

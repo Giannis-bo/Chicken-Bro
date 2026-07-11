@@ -49,12 +49,15 @@ class FakeShadowStore:
                 }},
             }],
             "baselineTemplates": [{} for _ in range(self.baseline_count)],
-            "resolverContext": {
-                "formalActiveManifest": False,
-                "authoredAgainst": {
-                    "seasonRevision": "season-17",
-                    "gearCatalogRevision": "compatibility-pg:old",
-                },
+        }
+
+    def get_gear_resolver_context(self, runtime_authority):
+        self.calls.append(("resolver-context", copy.deepcopy(runtime_authority)))
+        return {
+            "formalActiveManifest": False,
+            "authoredAgainst": {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": "compatibility-pg:old",
             },
         }
 
@@ -149,6 +152,10 @@ class GearReleaseShadowTest(unittest.TestCase):
         self.assertEqual(store.calls[0][0], "community")
         old_resolve.assert_called_once()
         candidate_resolve.assert_called_once()
+        self.assertEqual(
+            old_resolve.call_args.args[0]["authoredAgainst"]["gearCatalogRevision"],
+            "compatibility-pg:old",
+        )
 
     def test_internal_shadow_blocks_public_baseline_or_candidate_resolve_failure(self):
         candidate = self.candidate_row()
@@ -176,6 +183,10 @@ class GearReleaseShadowTest(unittest.TestCase):
         codes = {problem["code"] for problem in result["blockers"]}
         self.assertIn("PUBLIC_BASELINE_LEAK", codes)
         self.assertIn("CANDIDATE_RESOLVE_FAILED", codes)
+        self.assertEqual(
+            result["specResults"][0]["candidateProblemCodes"],
+            ["MISSING"],
+        )
 
     def test_internal_shadow_fails_closed_when_public_reader_raises(self):
         candidate = self.candidate_row()
