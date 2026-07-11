@@ -53,6 +53,12 @@ def _problem(code: str) -> dict[str, Any]:
     return {"code": code}
 
 
+def worker_identity(*, hostname: str = "", environ: dict[str, str] | None = None) -> str:
+    environment = os.environ if environ is None else environ
+    configured = _text(environment.get("WOW_GEAR_STAT_WORKER_ID"))
+    return configured or f"{_text(hostname or socket.gethostname())}-gear-stat-snapshot"
+
+
 def _fail(
     store: Any,
     job: dict[str, Any],
@@ -258,7 +264,7 @@ def main() -> int:
     connection_factory = lambda: connect_postgres(config.database_url)
     snapshot_store = GearStatSnapshotStore(connection_factory)
     authority_store = PostgresCacheStore(connection_factory)
-    worker_id = f"{socket.gethostname()}-{os.getpid()}"
+    worker_id = worker_identity()
     stopping = threading.Event()
 
     def stop(_signum, _frame) -> None:

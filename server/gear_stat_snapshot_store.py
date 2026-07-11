@@ -142,16 +142,27 @@ class GearStatSnapshotStore:
             """
         )
 
-    def lookup_snapshot(self, stat_signature: str) -> dict[str, Any]:
+    def lookup_snapshot(
+        self,
+        stat_signature: str,
+        *,
+        record_request: bool = False,
+    ) -> dict[str, Any]:
         signature = self._validate_signature(stat_signature)
         with self.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SET TRANSACTION READ ONLY")
+                if record_request:
+                    self._record_metric(cur, "request_count")
+                else:
+                    cur.execute("SET TRANSACTION READ ONLY")
                 cur.execute(
                     f"SELECT {_SNAPSHOT_COLUMNS} FROM cache.websim_gear_stat_snapshots WHERE stat_signature = %s",
                     (signature,),
                 )
-                return _snapshot_from_row(cur.fetchone())
+                snapshot = _snapshot_from_row(cur.fetchone())
+                if snapshot and record_request:
+                    self._record_metric(cur, "cache_hit_count")
+                return snapshot
 
     def get_or_start(
         self,
@@ -163,6 +174,7 @@ class GearStatSnapshotStore:
         now: str,
         global_limit: int = 100,
         per_client_limit: int = 2,
+        record_request: bool = True,
     ) -> dict[str, Any]:
         """Return one verified cache hit or create/reuse one active job."""
 
@@ -174,7 +186,8 @@ class GearStatSnapshotStore:
         client_cap = max(1, min(_int(per_client_limit), 100))
         with self.connection() as conn:
             with conn.cursor() as cur:
-                self._record_metric(cur, "request_count")
+                if record_request:
+                    self._record_metric(cur, "request_count")
                 cur.execute(
                     f"SELECT {_SNAPSHOT_COLUMNS} FROM cache.websim_gear_stat_snapshots WHERE stat_signature = %s",
                     (signature,),

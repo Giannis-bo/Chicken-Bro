@@ -1,7 +1,7 @@
 import copy
 import unittest
 
-from server.gear_stat_snapshot_worker import LeaseLost, process_claimed_job
+from server.gear_stat_snapshot_worker import LeaseLost, process_claimed_job, worker_identity
 
 
 SIGNATURE = "stat-snapshot:sha256:" + "a" * 64
@@ -80,6 +80,13 @@ def valid_result():
 
 
 class GearStatSnapshotWorkerTest(unittest.TestCase):
+    def test_worker_identity_is_stable_across_process_restarts(self):
+        self.assertEqual(worker_identity(hostname="candidate-host", environ={}), "candidate-host-gear-stat-snapshot")
+        self.assertEqual(
+            worker_identity(hostname="candidate-host", environ={"WOW_GEAR_STAT_WORKER_ID": "worker-a"}),
+            "worker-a",
+        )
+
     def prepare(self, value):
         calls = []
 

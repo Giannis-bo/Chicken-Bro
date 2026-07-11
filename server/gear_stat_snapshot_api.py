@@ -190,7 +190,7 @@ def get_or_start_stat_snapshot(
     release_context = prepared["releaseContext"]
     signature = prepared["signature"]["statSignature"]
     try:
-        cached = snapshot_store.lookup_snapshot(signature)
+        cached = snapshot_store.lookup_snapshot(signature, record_request=True)
     except Exception:
         return _problem_envelope(
             request_id,
@@ -228,6 +228,7 @@ def get_or_start_stat_snapshot(
             release_context=release_context,
             client_key_hash=client_key_hash(client_id),
             now=now,
+            record_request=False,
         )
     except GearStatSnapshotQueueUnavailable as error:
         return _problem_envelope(

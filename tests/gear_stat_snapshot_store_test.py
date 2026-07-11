@@ -84,6 +84,37 @@ JOB_ROW = (
 
 
 class GearStatSnapshotStoreTest(unittest.TestCase):
+    def test_lookup_can_record_one_api_request_and_verified_cache_hit_in_same_transaction(self):
+        snapshot_row = (
+            SIGNATURE,
+            "stat-signature-v1",
+            "sha256:gear",
+            "season-manifest:a",
+            "gear-release:a",
+            "simc-v1",
+            {"simcRuntimeRevision": "simc-v1"},
+            "sha256:profile",
+            "sha256:snapshot",
+            {"statStatus": "verified", "secondary": []},
+            "2026-07-11T12:00:00+00:00",
+        )
+        conn = FakeConnection(
+            lambda sql, _params: snapshot_row
+            if "FROM cache.websim_gear_stat_snapshots" in sql
+            else None
+        )
+
+        result = GearStatSnapshotStore(lambda: conn).lookup_snapshot(
+            SIGNATURE,
+            record_request=True,
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(result["statSignature"], SIGNATURE)
+        self.assertIn("request_count", sql)
+        self.assertIn("cache_hit_count", sql)
+        self.assertNotIn("SET TRANSACTION READ ONLY", sql)
+
     def test_worker_readiness_requires_fresh_matching_runtime(self):
         worker_row = (
             "worker-a",

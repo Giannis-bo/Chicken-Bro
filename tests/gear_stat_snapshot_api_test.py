@@ -52,8 +52,8 @@ class FakeSnapshotStore:
         self.queue_error = queue_error
         self.calls = []
 
-    def lookup_snapshot(self, stat_signature):
-        self.calls.append(("lookup", stat_signature))
+    def lookup_snapshot(self, stat_signature, *, record_request=False):
+        self.calls.append(("lookup", stat_signature, record_request))
         return copy.deepcopy(self.cached)
 
     def worker_readiness(self, *, simc_runtime_revision, now, max_age_seconds=30):
@@ -142,6 +142,7 @@ class GearStatSnapshotApiTest(unittest.TestCase):
         self.assertEqual(envelope["data"]["jobId"], 7)
         self.assertEqual(envelope["data"]["retryAfterMs"], 1500)
         queue_call = next(call for call in store.calls if call[0] == "queue")
+        self.assertFalse(queue_call[2]["record_request"])
         persisted = queue_call[2]["request_payload"]
         self.assertEqual(set(persisted), {"selectionIntent", "profileContext"})
         self.assertNotIn("untrustedExtra", persisted["profileContext"])
