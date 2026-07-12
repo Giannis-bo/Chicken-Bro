@@ -123,13 +123,17 @@ Generated preview DPS remains hidden in detail. A generated template may prove t
 
 The current task detail can show the simulated character attributes only when a verified compact snapshot is available. The snapshot shape is `statStatus=verified`, one primary metric, and the secondary metrics `crit/haste/mastery/versatility` with display values and percentages when available.
 
+The active confirmation flow uses the `POST /api/websim/gear/stat-snapshots` async stat-snapshot API. The Builds and SimC pages submit canonical `selectionIntent + profileContext`, poll a pending request within fixed attempt/time limits, and only accept a verified result whose signature still matches the current class/spec/race/scenario/talents/gear context. A changed signature makes the old snapshot stale/read-only and prevents an old completion from replacing the new request.
+
+Profile readiness and stat execution outcome are separate contracts. `profileReadiness=ready` means the canonical resolver and profile serializer authorize Worker execution; it does not promise a verified stat payload. Execution must end either with an immutable verified snapshot or an explicit fail-closed problem/blocker with no fabricated snapshot. The accepted Phase 5D closure matrix is 32 verified outcomes plus 8 explicit fail-closed outcomes.
+
 Snapshot sources, in priority order:
 
 1. `simcReport.build.statSnapshot` already stored in `analysis_json`.
 2. Verified `statSnapshot` carried by the submitted gear template metadata.
 3. A detail-time backfill from stored `gearSnapshot + talent rawString + class/spec/race/scenario`, using `build_websim_gear_stats_response`, written back into `analysis_json`.
 
-Frontend `pages/simulator/simc.js` only sends a cached `metadata.statSnapshot` when its request signature still matches the selected class/spec/race/scenario/talents/gear context. Stale snapshots must be omitted. The backend detail backfill is deliberately detail-only; list reads should not run stat calculations.
+Frontend `pages/simulator/simc.js` only sends a cached `metadata.statSnapshot` when its request signature still matches the selected class/spec/race/scenario/talents/gear context. Stale snapshots must be omitted. The backend detail backfill is deliberately detail-only; list reads should not run stat calculations. The legacy synchronous `/api/websim/gear/stats` route remains compatibility-only and is not the active frontend refresh path.
 
 Old tasks cannot always recover attributes. If neither a verified snapshot nor enough stored `gearSnapshot`/talent context exists, the detail page should simply omit stat rows instead of showing `待补` placeholders.
 

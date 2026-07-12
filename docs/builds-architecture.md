@@ -42,7 +42,9 @@
 - `GET /api/websim/talents/import?class=...&spec=...&hero=...` 返回窄 talent import code，用于装备属性快照或 SimC 模板确认在详情 payload 缺 talent code 时补齐后端权威编码；它不返回完整天赋树或社区模板列表。
 - `POST /api/websim/profile` 生成可提交 SimC 的 WebSim profile 前置 payload，并返回合并 talent/gear 的 `profileReadiness`。
 - `POST /api/websim/simulate` 只有在天赋编码成功且核心装备槽位 SimC-ready 时才提交到模拟链路。
-- `POST /api/websim/gear/stats` 保留给 WebSim/模拟器链路，不作为职业专精页的普通属性快照来源。
+- `POST /api/websim/gear/stat-snapshots` 是装备工作台和 SimC 模板确认页的活跃异步属性路径：提交 canonical `selectionIntent + profileContext`，cache miss 返回 `pending`，前端有界轮询并只接纳当前签名的 immutable verified snapshot；明确的 Worker problem/blocker 必须 fail-closed 且不得伪造 snapshot。
+- `profileReadiness=ready` 只授权 canonical profile 进入属性 Worker，stat execution outcome 仍独立收敛为 verified snapshot 或 explicit fail-closed problem。
+- 旧 `POST /api/websim/gear/stats` 仅保留兼容调用，不再由活跃前端发起，也不作为职业专精页的普通属性快照来源。
 
 每条前端可见构筑、装备、属性和循环数据都必须携带来源、时间窗口、状态或 blocker。缺来源字段的数据不得进入首页或详情页。
 

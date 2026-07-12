@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-12T12:14:18.261Z",
+  "generatedAt": "2026-07-12T12:19:14.299Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase5c-frontend-cutover"
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "7 changed files currently visible to git status."
+      "detail": "4 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,14 +313,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 7,
+      "changedFileCount": 4,
       "changedFiles": [
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json",
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json",
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/requirement.json",
-        " M docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
+        " M docs/builds-architecture.md",
+        " M docs/gear-simulation-full-chain-runbook.md",
+        " M docs/simulator-simc-end-to-end.md",
         " M tests/project-state.test.js"
       ]
     }

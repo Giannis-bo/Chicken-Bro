@@ -145,6 +145,9 @@ test('project-state is the single machine-readable current truth entry', () => {
   const phase5Closure = readJson(path.join(archivedPhase5Release, 'closure-audit.json'))
   const phase5Requirement = readJson(path.join(archivedPhase5Release, 'requirement.json'))
   const phase5Plan = fs.readFileSync('docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md', 'utf8')
+  const gearRunbook = fs.readFileSync('docs/gear-simulation-full-chain-runbook.md', 'utf8')
+  const buildsArchitecture = fs.readFileSync('docs/builds-architecture.md', 'utf8')
+  const simulatorContract = fs.readFileSync('docs/simulator-simc-end-to-end.md', 'utf8')
   assert.equal(phase5Evidence.status, 'archived')
   assert.equal(phase5Evidence.highestEvidenceLevel, 'live_verified')
   assert.equal(phase5Closure.status, 'completed_live_verified_archived')
@@ -165,6 +168,11 @@ test('project-state is the single machine-readable current truth entry', () => {
   )
   assert.doesNotMatch(phase5Plan, /Every combination that claims `profileReadiness=ready` must execute through the worker and produce parseable verified JSON/)
   assert.match(phase5Plan, /`profileReadiness=ready` authorizes canonical serialization and worker execution; it does not predeclare the stat execution result/)
+  assert.doesNotMatch(gearRunbook, /`pages\/simulator\/simc\.js`[^\n]*请求 `\/api\/websim\/gear\/stats`/)
+  assert.match(buildsArchitecture, /`POST \/api\/websim\/gear\/stat-snapshots`/)
+  assert.match(buildsArchitecture, /旧 `POST \/api\/websim\/gear\/stats`[^\n]*兼容/)
+  assert.match(simulatorContract, /async stat-snapshot API/)
+  assert.match(simulatorContract, /Profile readiness and stat execution outcome are separate contracts/)
 })
 
 test('current truth has one conclusion for UI, PG read-model, Harness normalization and equipment simulator Phase 0-5', () => {

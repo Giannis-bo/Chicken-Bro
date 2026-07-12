@@ -749,8 +749,9 @@ Unsupported / excluded：
 
 装备模拟链路会被 SimC 模板页和任务详情复用来展示“这次模拟对应的角色属性”。这不是列表 UI 字段，而是一条独立的 compact snapshot 合同：
 
-- `pages/simulator/simc.js` 在模板确认页请求 `/api/websim/gear/stats`，成功后只把 verified `statSnapshot` 写回装备模板 metadata。请求签名变化时，例如换种族、场景、天赋或装备，旧快照必须失效。
-- 旧 `/api/websim/gear/stats` 在 Phase 5 Worker 切换前继续同步返回原有字段，但只通过后端 `stat_snapshot_v1` flavor 运行 `iterations=1`、`calculate_scale_factors=0`，并由进程级单 permit 串行执行；普通 `/profile` 与 `/simulate` 仍使用默认 `standard_profile`，不得被降为一轮。
+- `pages/builds/detail.js` 与 `pages/simulator/simc.js` 通过 `POST /api/websim/gear/stat-snapshots` 提交 canonical `selectionIntent + profileContext`，对 `pending` 做有界轮询；只有签名仍匹配的 verified `statSnapshot` 才能写回装备模板 metadata。换种族、场景、天赋或装备后，旧快照必须进入 stale/read-only，旧请求完成不得覆盖新签名。
+- `profileReadiness=ready` 只证明 canonical Resolver 与 profile serializer 可以授权 Worker 执行，不预先保证 stat outcome。Worker 的诚实终态只能是 immutable verified snapshot，或带明确 problem/blocker 且不生成 snapshot 的 fail-closed outcome；Phase 5D 接受的实测矩阵是 32 verified + 8 explicit fail-closed。
+- 旧 `/api/websim/gear/stats` 仅作为兼容接口保留，不再是活跃前端路径；其同步 `stat_snapshot_v1` 仍使用 `iterations=1`、`calculate_scale_factors=0` 和进程级单 permit。普通 `/profile` 与 `/simulate` 继续使用默认 `standard_profile`，不得被降为一轮。
 - 2026-07-10 Phase 0C 线上收口：PR #59 候选与合入后 smoke 均验证 legacy HTTP `statStatus=verified` 且 10 个旧字段齐全、live-module `stat_snapshot_v1 iterations=1`、`standard_profile iterations=1000`、两线程 `maxActive=1`；Phase 0A forged enhancement 与 Phase 0B Catalyst blocker 继续通过。40 专精公开 initial 巡检为 HTTP 40/40、observed winner 40、baseline 0、正式 source/hash/identity/scan/slot/canApply 合同失败 0；运行环境保持 `postgres_only`，未触发 async sync/backfill。
 - 最终提交 `mode=simcraft_template` 时，前端只携带结构化 `gearSnapshot` 和当前仍匹配的 compact `statSnapshot`。大体积 profile/rawString 不应靠前端 setData 长期保存。
 - 后端 `simcraft_template_report_stat_snapshot_from_request` 只接受 `statStatus=verified` 的快照，并裁剪为主属性 + 暴击/急速/精通/全能四项副属性。
