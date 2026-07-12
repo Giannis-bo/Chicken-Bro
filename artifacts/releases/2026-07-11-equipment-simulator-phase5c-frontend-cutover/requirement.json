@@ -96,6 +96,10 @@
     {
       "date": "2026-07-11",
       "decision": "Both equipment detail and SimC summary use one canonical wrapper; the legacy wrapper remains only for older clients and compatibility tests."
+    },
+    {
+      "date": "2026-07-12",
+      "decision": "Phase 5D separates profileReadiness from stat execution outcome and accepts 32 verified snapshots plus 8 explicit fail-closed outcomes as honest closure evidence."
     }
   ]
 }

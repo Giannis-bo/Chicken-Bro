@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-11T13:58:35.193Z",
+  "generatedAt": "2026-07-12T12:19:14.299Z",
   "release": {
     "date": "2026-07-11",
     "slug": "equipment-simulator-phase5c-frontend-cutover"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 25032
+          "sizeBytes": 27312
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 260952
+          "sizeBytes": 261131
         },
         {
           "path": "docs/README.md",
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json",
-    "sizeBytes": 11399,
+    "sizeBytes": 15960,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "deployable",
-    "highestEvidenceLevel": "deployable",
-    "summary": "Phase 5C remains deployable after PR #81 merged at e7ac53a and clean-main smoke exposed a real slim-payload rederive regression. The TDD correction at fdddee5 passed related/frontend/full verification and exact WeChat candidate proof that the observed template survives initial invalidation and async stat rendering. Follow-up merge and a fresh clean-main smoke remain required before live_verified closure; no backend deployment or formal mini-program upload occurred."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "Phase 5C and the Phase 0-5 equipment simulator Goal are archived after PR #81 and correction PR #82 merged, clean-main d02d885 real WeChat proof passed pending-to-verified plus changed-input stale/read-only replacement, and the Phase 5D live matrix/operations gate passed with 32 verified snapshots and eight explicit fail-closed non-ready outcomes. Public gear remains observed-only, the runtime remains PG-only, and Phase 6 Catalyst remains an external-dependency TODO with capability disabled and frontend synthesis forbidden."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "4 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,9 +313,12 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 4,
       "changedFiles": [
-        " M artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json"
+        " M docs/builds-architecture.md",
+        " M docs/gear-simulation-full-chain-runbook.md",
+        " M docs/simulator-simc-end-to-end.md",
+        " M tests/project-state.test.js"
       ]
     }
   },
