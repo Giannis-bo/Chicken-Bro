@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase0-5-closure",
+  "status": "completed_live_verified_archived",
+  "checkedAt": "2026-07-12T01:28:23+00:00",
+  "goalBoundary": {
+    "completed": "Equipment Simulator Phase 0-5 trusted configuration workbench",
+    "notInGoal": "Phase 6 12.1 Catalyst retained-secondary-stat activation",
+    "productScopeUnchanged": true,
+    "newRuntimeCodeInClosure": false
+  },
+  "repository": {
+    "runtimeBaselineMainCommit": "d02d885915ba31827c9d62f6b24b77588d5cc098",
+    "mergedPullRequests": [79, 80, 81, 82],
+    "protectedLocalResidue": [".superpowers/"]
+  },
+  "realWechat": {
+    "status": "pass",
+    "buildIdentity": "wechat-devtools-clean-main:d02d885:791116-bytes",
+    "template": "observed_profile_mage_arcane",
+    "initialTemplateCount": 1,
+    "minimumTemplateCount": 1,
+    "flow": ["resolving", "requesting", "pending", "verified"],
+    "verifiedSignature": "stat-snapshot:sha256:74ab780432b801f60719402e8be596efd16a168904e577219847971ceba8912e",
+    "changedInput": {
+      "headItemId": "260370",
+      "oldSignatureStayedStale": true,
+      "oldSnapshotReadOnly": true,
+      "newVerifiedSignature": "stat-snapshot:sha256:388c657e663c7119ee74e3873305abe1945982e37f0ead080a71d07e3b973790"
+    }
+  },
+  "phase5dMatrix": {
+    "status": "pass_with_explicit_non_ready",
+    "contractDecision": {
+      "approvedAt": "2026-07-12",
+      "approvedBy": "user",
+      "decision": "split_profile_readiness_from_stat_execution_outcome",
+      "profileReadinessScope": "canonical_resolver_and_profile_serializer_readiness",
+      "acceptedStatExecutionOutcomes": [
+        "verified_immutable_snapshot",
+        "explicit_fail_closed_problem_without_snapshot"
+      ],
+      "verifiedSnapshotCount": 32,
+      "explicitFailClosedCount": 8,
+      "runtimeScopeExpanded": false
+    },
+    "specCount": 40,
+    "resolverHttp200": 40,
+    "resolverVerified": 40,
+    "terminalCount": 40,
+    "verifiedSnapshotCount": 32,
+    "verifiedSnapshotRowsPresent": 32,
+    "explicitNonReadyCount": 8,
+    "fabricatedSnapshotCount": 0,
+    "initialHttp": {"200": 34, "202": 6},
+    "latencyMs": {
+      "resolve": {"p50": 455.4, "p95": 641.0, "p99": 656.4, "max": 656.4},
+      "initialGetOrStart": {"p50": 264.5, "p95": 333.4, "p99": 411.1, "max": 411.1, "p95Limit": 500},
+      "verifiedCompletion": {"p50": 9154, "p95": 15338, "p99": 15603, "max": 15603},
+      "nonReadyCompletion": {"p50": 8298, "p95": 14818, "p99": 14818, "max": 14818},
+      "cacheHitTwentySamples": {"p50": 72.4, "p95": 84.8, "max": 108.3, "p95Limit": 200}
+    },
+    "requestAttempts": {"p50": 1, "p95": 2, "max": 2},
+    "metricDeltaDuringMatrix": {"requestCount": 46, "cacheHitCount": 32, "queueMissCount": 6, "legacyRequestCount": 0},
+    "singleFlight": {
+      "status": "pass",
+      "evidence": "Phase 5B candidate sent two concurrent misses for one signature and reused one job before verified publication."
+    },
+    "queryBoundary": {
+      "status": "pass",
+      "evidence": "Phase 5B store/API tests and candidate proof bound cache-hit and get-or-start queries independently of queue depth; Phase 5D added no query path."
+    },
+    "verifiedSnapshotContract": {
+      "requiresParseableBuffedStats": true,
+      "forbiddenFieldsObserved": [],
+      "scope": "gear stat_snapshot_v1 only; this does not claim an exact talent-build DPS result"
+    },
+    "nonReady": [
+      {
+        "key": "demonhunter:havoc",
+        "jobStatus": "failed",
+        "problemCode": "GEAR_STAT_SIMC_FAILED",
+        "rootCause": "SimC rejected the observed profile because it did not have a valid main-hand and off-hand weapon."
+      },
+      {
+        "key": "demonhunter:vengeance",
+        "jobStatus": "failed",
+        "problemCode": "GEAR_STAT_SIMC_FAILED",
+        "rootCause": "SimC rejected the observed profile because it did not have a valid main-hand and off-hand weapon."
+      },
+      {
+        "key": "monk:mistweaver",
+        "jobStatus": "failed",
+        "problemCode": "GEAR_STAT_SIMC_FAILED",
+        "rootCause": "The active SimC runtime reports Mistweaver Monk as not currently supported."
+      },
+      {
+        "key": "paladin:holy",
+        "jobStatus": "failed",
+        "problemCode": "GEAR_STAT_SIMC_FAILED",
+        "rootCause": "The active SimC runtime reports Holy Paladin as not currently supported."
+      },
+      {
+        "key": "priest:discipline",
+        "jobStatus": "failed",
+        "problemCode": "GEAR_STAT_SIMC_FAILED",
+        "rootCause": "The active SimC runtime reports healing Priest specializations as not currently supported."
+      },
+      {
+        "key": "priest:holy",
+        "jobStatus": "failed",
+        "problemCode": "GEAR_STAT_SIMC_FAILED",
+        "rootCause": "The active SimC runtime reports healing Priest specializations as not currently supported."
+      },
+      {
+        "key": "evoker:preservation",
+        "jobStatus": "blocked",
+        "problemCode": "GEAR_STAT_JSON_INVALID",
+        "rootCause": "SimC exited successfully but emitted empty collected_data.buffed_stats attribute and stats objects."
+      },
+      {
+        "key": "warlock:affliction",
+        "jobStatus": "blocked",
+        "problemCode": "GEAR_STAT_JSON_INVALID",
+        "rootCause": "SimC exited successfully but emitted empty collected_data.buffed_stats attribute and stats objects."
+      }
+    ]
+  },
+  "operations": {
+    "databaseRuntime": "postgres_only",
+    "simcRuntimeRevision": "1e357922af363f3d87cc0758863c2bb6d7701b72",
+    "dataHealth": {
+      "overallStatus": "partial",
+      "gearStatSnapshotStatus": "verified",
+      "interpretation": "The overall aggregate truthfully retains unrelated partial and blocked data domains; Phase 5 closure does not relabel them or treat them as Phase 5 regressions."
+    },
+    "worker": {"status": "ready_idle", "tasks": 1, "restarts": 0, "memoryCurrentBytes": 40919040, "memoryPeakBytes": 139243520, "cpuUsageNanosecondsSinceStart": 1177980929000},
+    "backend": {"status": "active", "tasks": 1, "restarts": 0, "memoryCurrentBytes": 161046528, "memoryPeakBytes": 185417728, "cpuUsageNanosecondsSinceStart": 74531662000},
+    "queue": {"queued": 0, "running": 0, "failedHistorical": 13, "blockedHistorical": 2},
+    "store": {"snapshotCount": 38, "completedJobs": 38, "legacyRequestCountAfterMatrix": 1},
+    "runtimeParity": {"status": "pass", "fileCount": 11, "runtimePath": "/opt/wow-mini-program"},
+    "errorPriorityJournal": "no_entries",
+    "naturalScheduledWork": {
+      "triggeredByClosureOrDeploy": false,
+      "source": "existing data-health-followup timer",
+      "websimSync": {"startedCst": "2026-07-12 08:16:33", "finishedCst": "2026-07-12 09:00:40", "result": "success"},
+      "statWeightSync": {"startedCst": "2026-07-12 08:16:33", "finishedCst": "2026-07-12 09:00:55", "result": "success"}
+    },
+    "deployAsyncSyncFlag": "WOW_DEPLOY_START_ASYNC_SYNCS=0"
+  },
+  "publicContract": {
+    "status": "pass",
+    "specCount": 40,
+    "http200": 40,
+    "dataVerified": 40,
+    "oneCommunityTemplate": 40,
+    "baselineEmpty": 40,
+    "observedOnly": 40,
+    "canApplyGear": 40,
+    "formalManifest": 40,
+    "pointerGeneration": 9,
+    "failures": []
+  },
+  "legacyCompatibility": {
+    "status": "pass",
+    "shapeEvidence": "Phase 5B archived live evidence",
+    "legacyRequestCountBeforeMatrix": 1,
+    "legacyRequestCountAfterMatrix": 1,
+    "newFrontendLegacyTraffic": 0
+  },
+  "phase6Catalyst": {
+    "status": "external_dependency_todo_fail_closed",
+    "simcOption": "redirected_base_stats",
+    "optionParseSupported": true,
+    "capabilityEnabled": false,
+    "serializerAuthority": "backend",
+    "frontendMaySynthesize": false,
+    "failClosed": true,
+    "todo": "TODOS.md#activate-the-121-catalyst-retained-secondary-stat-overlay"
+  },
+  "rollback": {
+    "frontend": "revert the async consumer to the compatible legacy client",
+    "worker": "stop and disable the worker and revert the async route if runtime repair is required",
+    "data": "retain additive 0015 tables and immutable verified snapshots; restore backup only for corruption",
+    "manifest": "Phase 4 active Manifest and refresh remain independent"
+  },
+  "conclusion": "Phase 0-5 is complete and live-verified. The workbench resolves untrusted selection intent through backend authority, binds active release revisions, publishes only verified immutable stat snapshots, keeps non-ready runtime/data combinations explicit and fail-closed, and leaves Phase 6 Catalyst disabled."
+}

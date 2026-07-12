@@ -1,11 +1,11 @@
 # Equipment Simulator Phase 5 Async Stat Snapshot Delivery Plan
 
-**Status:** Slices 5A-5B merged/live-verified; Slice 5C implementation allowed
+**Status:** Completed / live verified / archived
 **Classification:** Strict  
 **Goal boundary:** Phase 5 only; Phase 6 Catalyst remains disabled and external-dependency gated  
 **Starting point:** main `1e4b549867aac49ccbb73a4281821f0cf114423e`, Phase 4E merged by PR #78 and clean-main live-verified
 
-> 2026-07-11 progress: Slice 5A merged through PR #79 at `8a75fd5`; Slice 5B merged through PR #80 at `9ee557b` after exact-head CI, candidate and clean-main live verification. The canonical async route, stable one-child worker, active-binding/authority cache seam, bounded operations health and best-effort legacy telemetry are live. Slice 5C now owns only the active frontend client/state cutover; backend execution and Catalyst remain unchanged.
+> 2026-07-12 closure: Slices 5A-5C merged through PRs #79-#82 and clean-main `d02d885` passed real WeChat pending-to-verified plus changed-input stale/read-only replacement. Slice 5D closed with 40/40 observed Intents terminal: 32 immutable verified snapshots and eight explicit fail-closed non-ready outcomes, zero fabricated snapshots, cache-hit p95 84.8ms, one-child worker, zero active queue, PG-only/runtime parity/public/Catalyst/timer/log gates passing. Phase 6 remains a separate external-dependency TODO. Evidence: [Phase 0-5 closure audit](../../artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json).
 
 ## 1. Outcome
 
@@ -202,13 +202,15 @@ Candidate gate:
 - offline/unavailable view remains truthful and recoverable;
 - existing Profile/save/submit behavior remains compatible.
 
-### Slice 5D — Real 40-spec matrix, legacy telemetry and closure
+### Slice 5D — Real 40-spec matrix, legacy telemetry and closure (completed)
+
+User-approved closure decision (2026-07-12): `profileReadiness` proves canonical gear/profile serialization authority and permits worker execution; it does not predeclare that the active SimC specialization/runtime/data combination will emit the stat flavor. Phase 5D therefore accepts only two terminal stat-execution classes: a verified immutable `buffed_stats` snapshot, or an existing structured fail-closed problem with no snapshot row. The live matrix produced 32 verified and eight explicit fail-closed outcomes; the eight exact runtime/data causes are recorded in the closure audit. No blocked or failed result was promoted to verified, and this decision does not expand runtime scope.
 
 No new product semantics. This is the final runtime/evidence gate.
 
 - Run all 40 active observed Community Intents through current Resolver and stat get-or-start.
-- Every combination that claims `profileReadiness=ready` must execute through the worker and produce parseable verified JSON `buffed_stats`.
-- Non-ready specs must return the existing allowed explicit blocker; no false `ready` and no fabricated snapshot.
+- `profileReadiness=ready` authorizes canonical serialization and worker execution; it does not predeclare the stat execution result.
+- Every started stat execution must terminate as either parseable verified JSON `buffed_stats`, or an existing allowed explicit fail-closed blocker with no snapshot; no failed/blocked result may be relabelled verified and no snapshot may be fabricated.
 - Record queue latency, execution duration, cache-hit latency, single-flight rate, p50/p95/p99, memory, CPU, query counts, worker heartbeat and service restart behavior.
 - Prove legacy `/gear/stats` shape compatibility and bounded usage telemetry while new frontend traffic is zero on the legacy route.
 - Prove public 40-spec observed-only/baseline-empty policy, active Manifest integrity, Resolver/Profile compatibility, Catalyst fail-closed behavior and PG-only runtime.

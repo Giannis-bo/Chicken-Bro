@@ -1,24 +1,10 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-11",
-  "activeMilestone": "equipment_simulator_phase5",
+  "updatedAt": "2026-07-12",
+  "activeMilestone": "none",
   "featureIteration": "allowed_under_harness",
   "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover",
   "activeContracts": [
-    {
-      "id": "equipment_simulator_capability_architecture",
-      "path": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
-      "status": "approved_active",
-      "lifecycle": "active",
-      "notes": "Approved Phase 0-5 equipment simulator capability architecture; Phases 0-4 are complete, Phase 5 async stat snapshot delivery is active, and Phase 6 remains deferred."
-    },
-    {
-      "id": "equipment_simulator_phase5_async_stat_snapshot_plan",
-      "path": "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
-      "status": "phase5c_implementation_allowed",
-      "lifecycle": "active",
-      "notes": "Phase 4A through 4E and Phase 5A-5B are merged and live-verified. Slice 5C may replace only active frontend legacy stat calls with the structured async client and bounded race-safe polling state. Backend, schema, worker concurrency and Catalyst activation remain unchanged."
-    },
     {
       "id": "repo_native_harness_v0_5",
       "path": "docs/harness.md",
@@ -167,9 +153,37 @@
       "status": "completed",
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json",
       "notes": "PR #80 activated the canonical async snapshot API, one-child fenced worker/service, bounded health/admin and legacy telemetry. Exact-head CI, candidate and clean-main real 202-to-200, duplicate, worker-down, reclaim/fencing, latency/resource, 40-spec public, Catalyst, timer/backflow, logs and runtime parity passed."
+    },
+    {
+      "id": "equipment_simulator_phase5_20260712",
+      "domain": "equipment_simulator_phase0_5",
+      "status": "completed_live_verified",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json",
+      "notes": "PRs #79-#82 completed the Phase 5 store, worker/API and frontend cutover. Clean main d02d885 passed real WeChat pending-to-verified and changed-input stale/read-only replacement. The user approved splitting profileReadiness from stat execution outcome; the live 40-spec gate produced 32 verified immutable snapshots and eight explicit fail-closed outcomes without runtime scope expansion, with PG-only runtime, public observed-only, Catalyst disabled, latency/resource, timer/log and runtime parity evidence."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "equipment_simulator_phase5c_frontend_cutover",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase5_async_stat_snapshot_plan",
+      "path": "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json"
+    },
+    {
+      "id": "equipment_simulator_capability_architecture",
+      "path": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+      "status": "phase0_5_completed_phase6_external_todo",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json"
+    },
     {
       "id": "equipment_simulator_phase5b_stat_snapshot_worker_api",
       "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/requirement.json",
@@ -339,6 +353,12 @@
       "status": "completed",
       "activeContract": null,
       "evidence": "artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json"
+    },
+    {
+      "domain": "equipment_simulator_phase0_5",
+      "status": "completed_live_verified",
+      "activeContract": null,
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json"
     }
   ],
   "runtimeBaseline": {
@@ -391,16 +411,21 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json"
     },
     "gearStatSnapshot": {
-      "status": "phase5b_complete_phase5c_implementation_allowed",
+      "status": "phase5_complete_live_verified",
       "plan": "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
-      "activePacket": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/requirement.json",
+      "archivedEvidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json",
+      "closureAudit": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json",
       "legacyPath": "/api/websim/gear/stats",
-      "legacyExecution": "synchronous_stat_snapshot_v1_global_permit_1",
+      "legacyExecution": "compatible_bounded_telemetry_only",
       "newPath": "/api/websim/gear/stat-snapshots",
       "newPathActive": true,
       "snapshotStoreActive": true,
       "workerActive": true,
-      "frontendCutover": false
+      "frontendCutover": true,
+      "verifiedSpecCount": 32,
+      "explicitNonReadySpecCount": 8,
+      "fabricatedSnapshotCount": 0,
+      "workerConcurrency": 1
     }
   },
   "knownRisks": [
@@ -423,6 +448,16 @@
       "id": "simc_updater_github_transport",
       "status": "external_dependency_watch",
       "trigger": "Phase 2 closure observed GitHub proxy TLS EOF and direct archive timeout in the existing SimC updater. The active binary remained usable at commit 1e357922; future runtime work must report updater state truthfully and must not weaken Resolver or Catalyst gates."
+    },
+    {
+      "id": "phase5_stat_non_ready_specs",
+      "status": "accepted_fail_closed_runtime_and_data_boundary",
+      "trigger": "Phase 5D found eight non-ready combinations: four unsupported healer specializations, two DH observed profiles without a valid dual-wield pair and two successful SimC runs with empty buffed_stats. Existing structured problem codes remain authoritative and no snapshot is fabricated; runtime/data capability work requires a new Harness contract."
+    },
+    {
+      "id": "phase6_catalyst_retained_secondary_stats",
+      "status": "external_dependency_todo_fail_closed",
+      "trigger": "Phase 6 is not active. redirected_base_stats parsing alone is insufficient; capabilityEnabled=false, frontendMaySynthesize=false and failClosed=true remain required until the complete proof matrix is verified under a new approved contract."
     },
     {
       "id": "gear_slot_payload_memory",

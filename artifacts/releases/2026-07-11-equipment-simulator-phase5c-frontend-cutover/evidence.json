@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "equipment-simulator-phase5c-frontend-cutover",
   "requirementSlug": "equipment-simulator-phase5c-frontend-cutover",
-  "status": "deployable",
-  "highestEvidenceLevel": "deployable",
-  "branch": "codex/equipment-simulator-phase5c-postmerge-fix",
-  "commit": "fdddee5d0d655e1ca0a77670d6adfdaf5faf9a23",
+  "status": "archived",
+  "highestEvidenceLevel": "live_verified",
+  "branch": "main",
+  "commit": "d02d885915ba31827c9d62f6b24b77588d5cc098",
   "scope": [
     "structured_async_frontend_client",
     "bounded_race_safe_polling_state",
@@ -66,18 +66,48 @@
       "command": "WeChat DevTools correction candidate preview and official automation-port smoke",
       "status": "pass",
       "summary": "The fdddee5 candidate previewed at 791116 bytes (772.6 KB). Without any manual reload, the live Mage/Arcane page retained exactly one observed template through initial stat invalidation and through resolving/requesting/verified; the minimum observed template count remained one."
+    },
+    {
+      "command": "PR #82 merge plus clean-main WeChat DevTools smoke at d02d885",
+      "status": "pass",
+      "summary": "PR #82 merged at d02d885. The clean main project previewed at 791116 bytes; without a manual reload it retained observed_profile_mage_arcane from initial load through resolving/requesting/verified and finished on verified signature stat-snapshot:sha256:74ab780432b801f60719402e8be596efd16a168904e577219847971ceba8912e."
+    },
+    {
+      "command": "Phase 5D live 40-spec canonical Resolve and stat get-or-start matrix",
+      "status": "pass",
+      "summary": "All 40 observed Community Intents resolved against generation 9. Thirty-two combinations produced immutable verified snapshots. Eight returned explicit fail-closed terminal outcomes and no snapshot: six GEAR_STAT_SIMC_FAILED and two GEAR_STAT_JSON_INVALID. Runtime diagnostics tied them to unsupported healer specs, invalid DH dual-wield gear, or empty SimC buffed_stats; no result was relabelled verified."
+    },
+    {
+      "command": "Phase 5D live latency, queue, worker, PG-only, public, Catalyst, timer, log and runtime parity smoke",
+      "status": "pass",
+      "summary": "Twenty localhost cache hits were HTTP 200 with p50 72.4ms, p95 84.8ms and max 108.3ms against the 200ms gate. Worker/backend each had one task and zero restarts; active queue depth was zero, worker heartbeat was fresh and idle, 11 Phase 5 runtime files matched clean main SHA-256, public observed-only passed 40/40, Catalyst remained blocked/fail-closed, and error-priority journals were empty. Overall /api/data/health truthfully remained partial because of unrelated data domains while gear_stat_snapshot itself was verified."
+    },
+    {
+      "command": "Phase 5 closure TDD, local CR and full Project Harness profile",
+      "status": "pass",
+      "summary": "The closure contract test first failed on the stale active milestone/evidence/roadmap and then passed after the minimum control-plane update. Local CR kept the latest archived packet as activeReleaseArtifact so exact-head CI can resolve it, separated candidate and clean-main identities, and found no runtime-source change. The full profile passed 395 Node tests and 1326 Python tests with one existing skip across 130 commands."
+    },
+    {
+      "command": "User-approved Phase 5D profile-readiness/stat-outcome contract split",
+      "status": "pass",
+      "summary": "On 2026-07-12 the user explicitly approved treating profileReadiness as canonical resolver/profile serializer readiness while stat execution terminates independently as either a verified immutable buffed_stats snapshot or an explicit fail-closed problem without a snapshot. The accepted live evidence is 32 verified plus 8 explicit fail-closed outcomes, with no runtime scope expansion."
     }
   ],
   "candidateDeployment": {
-    "status": "preview_verified",
+    "status": "live_verified",
     "requiredBeforeMerge": true,
     "branch": "codex/equipment-simulator-phase5c-postmerge-fix",
     "commit": "fdddee5d0d655e1ca0a77670d6adfdaf5faf9a23",
     "buildIdentity": "wechat-devtools-preview:fdddee5:791116-bytes",
     "implementationCommit": "f8105c66ea804bd59708bdc1afe402872e6fa4e4",
+    "cleanMain": {
+      "commit": "d02d885915ba31827c9d62f6b24b77588d5cc098",
+      "buildIdentity": "wechat-devtools-clean-main:d02d885:791116-bytes",
+      "status": "live_verified"
+    },
     "runtimeParity": {
       "status": "pass",
-      "summary": "WeChat DevTools opened and previewed the exact correction candidate at fdddee5; no backend file was deployed because Slice 5C and its correction change only the frontend consumer."
+      "summary": "WeChat DevTools opened and previewed clean main d02d885. The frontend build identity is exact, and all 11 Phase 5 backend/store/worker/schema/service runtime files match clean-main SHA-256 on /opt/wow-mini-program; no backend deploy was needed for the frontend-only correction."
     },
     "smoke": {
       "status": "pass",
@@ -85,7 +115,7 @@
     },
     "timerBackflow": {
       "status": "pass",
-      "summary": "The gear release refresh timer remained active/waiting while its service plus WebSim/stat/community sync services remained inactive/dead-success; Slice 5C triggered no deployment or async backflow."
+      "summary": "No deploy or closure action triggered sync/backfill and deployment semantics remained WOW_DEPLOY_START_ASYNC_SYNCS=0. The existing data-health-followup timer independently started the scheduled WebSim/stat-weight run at 08:16 CST; both services completed with Result=success before final smoke and returned inactive."
     },
     "realFlow": {
       "status": "pass",
@@ -98,12 +128,18 @@
       "workerNRestarts": 0,
       "backendTasks": 1,
       "backendNRestarts": 0,
-      "queueDepth": 0
+      "queueDepth": 0,
+      "snapshotCount": 38,
+      "requestCount": 197,
+      "cacheHitCount": 114,
+      "queueMissCount": 53,
+      "legacyRequestCount": 1
     },
     "postMergeCorrection": {
-      "status": "candidate_verified",
+      "status": "merged_live_verified",
       "failedMergeCommit": "e7ac53a2d65139f0cfb2d3c40f6c47daa5e4c26e",
       "correctionCommit": "fdddee5d0d655e1ca0a77670d6adfdaf5faf9a23",
+      "mergeCommit": "d02d885915ba31827c9d62f6b24b77588d5cc098",
       "finding": "Stat invalidation and several gear-page state transitions rederived from the slim setData payload after communityTemplates had been intentionally removed, clearing the visible template list despite a valid full payload cache.",
       "fix": "All affected derived-state paths now bind gearPayload to fullGearPayloadForPage(this), preserving large payload data outside setData while retaining its derived template view.",
       "candidateSmoke": "Initial templateCount=1 without reload; minimum templateCount=1 through resolving/requesting/verified; final signature stat-snapshot:sha256:74ab780432b801f60719402e8be596efd16a168904e577219847971ceba8912e."
@@ -133,13 +169,25 @@
       "id": "timer_backflow_and_logs",
       "type": "timer_backflow",
       "status": "pass",
-      "summary": "No refresh or sync backflow ran, backend and worker remained restart-free, and the final 15-minute error-priority journal query returned no entries."
+      "summary": "No deploy or closure action triggered refresh/sync backflow. The independent scheduled WebSim/stat-weight sync ran later through the existing timer and completed successfully; backend and worker remained restart-free, and the final error-priority journal query returned no entries."
     },
     {
       "id": "postmerge_template_rederive_correction",
       "type": "smoke",
       "status": "pass",
-      "summary": "The exact correction candidate preserved observed_profile_mage_arcane from initial load through stat invalidation and verified cache-hit rendering without a manual reload; project.config temporary urlCheck override was removed afterward."
+      "summary": "The exact correction candidate and clean main d02d885 both preserved observed_profile_mage_arcane from initial load through stat invalidation and verified cache-hit rendering without a manual reload; project.config temporary urlCheck override was removed afterward."
+    },
+    {
+      "id": "phase5d_40_spec_stat_matrix",
+      "type": "smoke",
+      "status": "pass",
+      "summary": "The terminal matrix contained 32 completed snapshots, six failed jobs and two blocked jobs. Every non-completed combination had an existing bounded problem code and no snapshot row; the eight exact class/spec root causes are recorded in closure-audit.json."
+    },
+    {
+      "id": "phase5d_operations_and_parity",
+      "type": "smoke",
+      "status": "pass",
+      "summary": "PG-only runtime, a fresh one-child idle worker, zero active queue items, p95 cache-hit latency 84.8ms, 11-file runtime parity, public 40/40, generation 9, Catalyst fail-closed, successful natural timer completion and empty error journals passed. Aggregate data health remained honestly partial for unrelated domains; gear_stat_snapshot was verified."
     }
   ],
   "risks": [
@@ -177,7 +225,8 @@
     "docs/project-state.json",
     "docs/roadmap.md",
     "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
-    "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json"
+    "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json"
   ],
-  "summary": "Phase 5C remains deployable after PR #81 merged at e7ac53a and clean-main smoke exposed a real slim-payload rederive regression. The TDD correction at fdddee5 passed related/frontend/full verification and exact WeChat candidate proof that the observed template survives initial invalidation and async stat rendering. Follow-up merge and a fresh clean-main smoke remain required before live_verified closure; no backend deployment or formal mini-program upload occurred."
+  "summary": "Phase 5C and the Phase 0-5 equipment simulator Goal are archived after PR #81 and correction PR #82 merged, clean-main d02d885 real WeChat proof passed pending-to-verified plus changed-input stale/read-only replacement, and the Phase 5D live matrix/operations gate passed with 32 verified snapshots and eight explicit fail-closed non-ready outcomes. Public gear remains observed-only, the runtime remains PG-only, and Phase 6 Catalyst remains an external-dependency TODO with capability disabled and frontend synthesis forbidden."
 }
