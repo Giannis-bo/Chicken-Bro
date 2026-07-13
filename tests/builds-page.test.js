@@ -10120,6 +10120,10 @@ test('failed verified replacement retains inherited evidence and its prior bindi
 
   assert.equal(page.gearWorkbenchState.resolveStatus, 'blocked')
   assert.equal(page.gearWorkbenchState.currentSnapshot.resolvedGearSignature, 'sha256:blocked-different')
+  assert.equal(page.data.gearWorkbenchSignatureLabel, 'sha256:inherited-old')
+  assert.doesNotMatch(page.data.gearWorkbenchSignatureLabel, /blocked-different/)
+  assert.equal(page.data.gearWorkbenchStatusText, '当前装备配置未通过校验')
+  assert.equal(page.data.gearWorkbenchProblemRows[0].code, 'GEAR_REPLACEMENT_BLOCKED')
   assert.deepEqual(JSON.parse(JSON.stringify(page.communityEnhancementImportState)), evidenceBefore)
   const gemMetric = page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'gem')
   const enchantMetric = page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'enchant')

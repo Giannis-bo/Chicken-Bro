@@ -1112,6 +1112,7 @@ function canonicalGearSlotRows(rows, state) {
 function gearWorkbenchDataState(state, data, communityImportState) {
   const view = gearWorkbenchView(state)
   const displaySnapshot = acceptedGearDisplaySnapshot(state)
+  const displaySignature = cleanGearString(displaySnapshot && displaySnapshot.resolvedGearSignature)
   const displayCommunityImportState = ['dirty', 'resolving', 'pending', 'revision_conflict'].includes(cleanGearString(state && state.resolveStatus))
     ? emptyCommunityEnhancementImportState()
     : communityImportState
@@ -1129,7 +1130,7 @@ function gearWorkbenchDataState(state, data, communityImportState) {
   return {
     gearWorkbenchView: view,
     gearWorkbenchStatusText: statusText[view.resolveStatus] || '等待校验当前装备配置',
-    gearWorkbenchSignatureLabel: view.resolvedGearSignature ? view.resolvedGearSignature.slice(0, 20) : '',
+    gearWorkbenchSignatureLabel: displaySignature ? displaySignature.slice(0, 20) : '',
     gearWorkbenchProblemRows: workbenchProblemRows(state && state.problems),
     gearAttributePanel: canonicalGearAttributePanel(displaySnapshot, data && data.gearStatSnapshot, displayCommunityImportState),
     ...((data && Array.isArray(data.gearSlotRows)) ? { gearSlotRows: canonicalGearSlotRows(data.gearSlotRows, state) } : {})
