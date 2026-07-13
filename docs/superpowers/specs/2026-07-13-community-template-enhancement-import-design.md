@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-13
 
-**Status:** implemented and exact-candidate/live-WeChat verified at `52da68e`; draft PR #85, pending merge
+**Status:** implemented; exact candidate/live-WeChat verified at `52da68e`; [PR #85](https://github.com/boyuan19910222-ui/wow_mini_program/pull/85) squash-merged to `main` as `05a07fed`; clean-main/live smoke passed; archived
 
 **Scope:** equipment simulator community-template import, canonical enhancement facts, and enhancement-sheet slot visibility
 
