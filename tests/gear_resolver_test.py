@@ -282,6 +282,44 @@ class GearResolverTest(unittest.TestCase):
         self.assertTrue(main["canEnchant"])
         self.assertTrue(main["hasSelectedEnchant"])
 
+    def test_constraints_use_exact_variant_override_without_promoting_raw_simc_options(self):
+        fixture = self.fixture()
+        head_variant = fixture["authorityContext"]["variantsByKey"]["variant-set-head"]
+        head_variant["capabilityOverrides"] = {"socketCount": 2}
+        head_variant["overlay"]["capabilityOverrides"] = {}
+        head_variant["simcOptions"].update(
+            {"gem_id": "240892/240900", "enchant_id": "forged-raw-enchant"}
+        )
+        fixture["intent"]["slots"]["head"]["gemOptionIds"] = []
+
+        result = self.resolve(fixture)
+        constraints = result["constraints"]["slots"]["head"]
+        resolved = result["resolvedSlots"]["head"]
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(constraints["socketCount"], 2)
+        self.assertEqual(constraints["socketRemaining"], 2)
+        self.assertFalse(constraints["canEnchant"])
+        self.assertFalse(constraints["hasSelectedEnchant"])
+        self.assertEqual(resolved["selectedOptions"]["gemOptionIds"], [])
+        self.assertEqual(resolved["selectedOptions"]["enchantOptionId"], "")
+
+        forged = copy.deepcopy(fixture)
+        forged["intent"]["slots"]["head"]["enchantOptionId"] = "forged-enchant-option"
+        forged_result = self.resolve(forged)
+
+        self.assertEqual(forged_result["status"], "blocked")
+        self.assertTrue(
+            any(
+                problem["code"] == "GEAR_ENCHANT_OPTION_UNKNOWN"
+                for problem in forged_result["problems"]
+            )
+        )
+        self.assertNotEqual(
+            forged_result["resolvedSlots"]["head"]["simcOptions"].get("enchant_id"),
+            "forged-enchant-option",
+        )
+
     def test_illegal_enhancements_never_change_resolved_facts(self):
         fixture = self.fixture()
         fixture["authorityContext"]["itemsById"]["item-set-head"]["allowedGemOptionIds"] = []
