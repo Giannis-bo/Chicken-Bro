@@ -17644,6 +17644,27 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("no WebSim talent nodes selected", response["profileReadiness"]["blockers"])
         self.assertNotIn("class_talents=", response["profile"])
 
+    def test_profile_talent_store_failure_does_not_fallback_to_unverified_raw_code(self):
+        failed_encoding = self.websim_payload.blank_talent_encoding("failed", "postgres")
+        failed_encoding["errors"] = ["PostgreSQL talent authority is unavailable"]
+
+        with patch.object(
+            self.websim_payload,
+            "encode_websim_talents",
+            return_value=failed_encoding,
+        ):
+            profile = self.websim_payload.build_websim_profile(
+                {
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "talents": "C4DAAAAAAAAAAAAAAAAAAAAAAA",
+                },
+                conn=None,
+                talent_store=object(),
+            )
+
+        self.assertNotIn("talents=C4DAAAAAAAAAAAAAAAAAAAAAAA", profile)
+
     def test_websim_talent_encoding_uses_purchased_points_for_gates(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -20018,6 +20039,97 @@ class WebSimPayloadTest(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
+
+    def test_http_postgres_only_legacy_profile_uses_pg_talent_authority(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+            talent_payload = self.websim_payload.get_websim_talents(
+                conn,
+                "mage",
+                "arcane",
+                "spellslinger",
+            )
+        finally:
+            conn.close()
+
+        class FakePostgresStore:
+            def __init__(self, payload):
+                self.payload = payload
+                self.calls = []
+
+            def get_websim_talents(self, class_key, spec_key, hero_key=""):
+                self.calls.append((class_key, spec_key, hero_key))
+                return self.payload
+
+        store = FakePostgresStore(talent_payload)
+        original_postgres_only = self.backend.postgres_only_runtime_enabled
+        original_cache_store = self.backend.cache_data_store
+        self.backend.postgres_only_runtime_enabled = lambda: True
+        self.backend.cache_data_store = lambda: store
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/websim/profile",
+                data=json.dumps(self.websim_encoder_payload({"gearSelection": {"items": []}})).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            self.backend.postgres_only_runtime_enabled = original_postgres_only
+            self.backend.cache_data_store = original_cache_store
+
+        self.assertEqual(result["talentEncoding"]["status"], "encoded")
+        self.assertIn("class_talents=", result["profile"])
+        self.assertIn("spec_talents=", result["profile"])
+        self.assertIn("hero_talents=", result["profile"])
+        self.assertEqual(len(store.calls), 1)
+
+    def test_http_postgres_only_legacy_profile_fails_closed_without_pg_talent_authority(self):
+        class BrokenPostgresStore:
+            def get_websim_talents(self, class_key, spec_key, hero_key=""):
+                raise RuntimeError("pg down")
+
+        store_state = {"value": None}
+        original_postgres_only = self.backend.postgres_only_runtime_enabled
+        original_cache_store = self.backend.cache_data_store
+        original_init_db = self.backend.init_db
+        self.backend.postgres_only_runtime_enabled = lambda: True
+        self.backend.cache_data_store = lambda: store_state["value"]
+        self.backend.init_db = lambda: (_ for _ in ()).throw(
+            AssertionError("SQLite fallback should not be used for PG profile reads")
+        )
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            for store in (None, BrokenPostgresStore()):
+                store_state["value"] = store
+                request = Request(
+                    f"http://127.0.0.1:{server.server_port}/api/websim/profile",
+                    data=json.dumps(self.websim_encoder_payload({"gearSelection": {"items": []}})).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with self.subTest(store=type(store).__name__), urlopen(request) as response:
+                    result = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(result["talentEncoding"]["status"], "failed")
+                self.assertEqual(result["profileReadiness"]["talentReady"], False)
+                self.assertNotIn("talents=", result["profile"])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            self.backend.postgres_only_runtime_enabled = original_postgres_only
+            self.backend.cache_data_store = original_cache_store
+            self.backend.init_db = original_init_db
 
     def test_sync_reports_missing_blizzard_credentials_without_failing_simc_cache(self):
         payload = self.websim_payload.sync_websim_cache(self.db_path, include_blizzard=True)

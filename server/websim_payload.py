@@ -25487,6 +25487,8 @@ def build_websim_profile(
     payload,
     conn=None,
     execution_flavor=WEBSIM_EXECUTION_FLAVOR_STANDARD_PROFILE,
+    talent_store=None,
+    talent_encoding=None,
 ):
     source = payload if isinstance(payload, dict) else {}
     execution_flavor = str(execution_flavor or "").strip()
@@ -25511,10 +25513,20 @@ def build_websim_profile(
         f"role={role}",
         "position=back",
     ]
-    talent_encoding = encode_websim_talents(conn, source) if conn is not None else blank_talent_encoding()
-    if talent_encoding.get("status") in {"encoded", "external"}:
-        lines.extend(talent_encoding.get("lines") or [])
-    elif conn is None:
+    talent_authority = talent_store if talent_store is not None else conn
+    has_precomputed_talent_encoding = isinstance(talent_encoding, dict)
+    resolved_talent_encoding = (
+        talent_encoding
+        if has_precomputed_talent_encoding
+        else (
+            encode_websim_talents(talent_authority, source)
+            if talent_authority is not None
+            else blank_talent_encoding()
+        )
+    )
+    if resolved_talent_encoding.get("status") in {"encoded", "external"}:
+        lines.extend(resolved_talent_encoding.get("lines") or [])
+    elif not has_precomputed_talent_encoding and talent_authority is None:
         talents = external_talent_import_code(source)
         if talents:
             lines.append(f"talents={talents}")
@@ -25807,17 +25819,27 @@ def build_websim_profile_response(
     payload,
     conn=None,
     execution_flavor=WEBSIM_EXECUTION_FLAVOR_STANDARD_PROFILE,
+    talent_store=None,
 ):
     source = payload if isinstance(payload, dict) else {}
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
     gear_payload = websim_selected_gear_payload(source, class_key, spec_key, conn=conn)
-    talent_encoding = encode_websim_talents(conn, source) if conn is not None else encode_websim_talents(None, source)
+    talent_authority = talent_store if talent_store is not None else conn
+    try:
+        talent_encoding = encode_websim_talents(talent_authority, source)
+    except Exception:
+        if talent_store is None and conn is not None:
+            raise
+        talent_encoding = blank_talent_encoding("failed", "talent_authority")
+        talent_encoding["errors"] = ["talent authority is unavailable"]
     response = {
         "profile": build_websim_profile(
             payload,
             conn=conn,
             execution_flavor=execution_flavor,
+            talent_store=talent_store,
+            talent_encoding=talent_encoding,
         ),
         "gearItems": gear_payload["items"],
         "simcItems": gear_payload["simcItems"],

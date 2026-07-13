@@ -12734,7 +12734,15 @@ class Handler(BaseHTTPRequestHandler):
                 json_response(self, http_status, envelope)
                 return
             if postgres_only_runtime_enabled():
-                json_response(self, 200, build_websim_profile_response(request_payload, conn=None))
+                json_response(
+                    self,
+                    200,
+                    build_websim_profile_response(
+                        request_payload,
+                        conn=None,
+                        talent_store=runtime_talent_api_store(),
+                    ),
+                )
                 return
             init_db()
             with db_connection() as conn:
