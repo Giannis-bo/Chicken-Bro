@@ -475,6 +475,118 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertEqual(item["inventoryType"], "finger1")
         self.assertEqual(item["allowedSlots"], ["finger1", "finger2"])
 
+    def test_item_capabilities_are_derived_from_verified_metadata(self):
+        from server import gear_resolver
+
+        ring = self.item_row(
+            item={
+                "slot": "finger1",
+                "payload": {
+                    "inventory_type": {"type": "FINGER", "name": "Finger"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 0, "name": "Miscellaneous"},
+                    "sockets": [{"socket_type": {"type": "PRISMATIC"}}],
+                },
+            }
+        )
+        intent = self.intent(
+            {
+                "finger1": {
+                    "itemId": "item-head",
+                    "variantKey": "variant-head",
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            }
+        )
+        runtime = self.runtime_authority()
+        runtime["ruleParameters"]["inventoryTypesBySlot"] = {"finger1": ["finger1"]}
+        runtime["ruleParameters"]["requiredSlots"] = ["finger1"]
+
+        _cursor, context = self.load(
+            cursor=self.cursor(item_rows=[ring], option_rows=[]),
+            intent=intent,
+            runtime=runtime,
+        )
+        item = context["itemsById"]["item-head"]
+        snapshot = gear_resolver.resolve(intent, context)
+
+        self.assertEqual(item["baseCapabilities"]["socketCount"], 1)
+        self.assertTrue(item["baseCapabilities"]["canEnchant"])
+        self.assertEqual(item["socketCount"], 1)
+        self.assertEqual(snapshot["constraints"]["slots"]["finger1"]["socketCount"], 1)
+        self.assertTrue(snapshot["constraints"]["slots"]["finger1"]["canEnchant"])
+
+    def test_exact_verified_variant_gems_raise_only_variant_socket_capacity(self):
+        ring = list(self.item_row(
+            item={
+                "slot": "finger1",
+                "payload": {
+                    "inventory_type": {"type": "FINGER", "name": "Finger"},
+                    "item_class": {"id": 4, "name": "Armor"},
+                    "item_subclass": {"id": 0, "name": "Miscellaneous"},
+                    "sockets": [{"socket_type": {"type": "PRISMATIC"}}],
+                },
+            },
+            variant={"simcOptions": {"ilevel": "289", "gem_id": "240892/240900"}},
+        ))
+        second = copy.deepcopy(ring)
+        second[1] = "variant-head-no-gems"
+        second[3]["id"] = "variant-row-head-no-gems"
+        second[3]["variantKey"] = "variant-head-no-gems"
+        second[3]["simcOptions"] = {"ilevel": "289"}
+
+        _cursor, context = self.load(
+            cursor=self.cursor(item_rows=[tuple(ring), tuple(second)], option_rows=[]),
+        )
+
+        self.assertEqual(context["itemsById"]["item-head"]["baseCapabilities"]["socketCount"], 1)
+        self.assertEqual(
+            context["variantsByKey"]["variant-head"]["capabilityOverrides"].get("socketCount"),
+            2,
+        )
+        self.assertEqual(
+            context["variantsByKey"]["variant-head-no-gems"]["capabilityOverrides"],
+            {},
+        )
+
+    def test_exact_verified_variant_crafting_facts_raise_embellishment_capability(self):
+        for option_name, option_value in (
+            ("embellishment", "shadowflame_armor_patch"),
+            ("crafted_stats", "32/36"),
+        ):
+            with self.subTest(option_name=option_name):
+                row = self.item_row(
+                    variant={"simcOptions": {"ilevel": "289", option_name: option_value}},
+                )
+
+                _cursor, context = self.load(
+                    cursor=self.cursor(item_rows=[row], option_rows=[]),
+                )
+
+                self.assertTrue(
+                    context["variantsByKey"]["variant-head"]["capabilityOverrides"].get(
+                        "canEmbellish"
+                    )
+                )
+
+    def test_raw_variant_enchant_does_not_expand_option_applicability(self):
+        row = self.item_row(
+            variant={"simcOptions": {"ilevel": "289", "enchant_id": "forged-raw-enchant"}},
+        )
+
+        _cursor, context = self.load(
+            cursor=self.cursor(item_rows=[row], option_rows=[]),
+        )
+
+        self.assertNotIn(
+            "canEnchant",
+            context["variantsByKey"]["variant-head"]["capabilityOverrides"],
+        )
+
     def test_loader_projects_two_hand_weapon_type_and_handedness_from_item_payload(self):
         staff = self.item_row(
             item={
