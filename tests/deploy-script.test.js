@@ -65,6 +65,13 @@ test('lighthouse deploy script supports a no-download hot deploy mode', () => {
   }
 })
 
+test('websim sync bypasses mihomo for Wago TraitEdge downloads', () => {
+  const service = fs.readFileSync('server/wow-websim-sync.service', 'utf8')
+
+  assert.match(service, /Environment=NO_PROXY=[^\n]*wago\.tools/)
+  assert.match(service, /Environment=no_proxy=[^\n]*wago\.tools/)
+})
+
 test('lighthouse deploy script enables PG-native sync timers in PG-only mode', () => {
   const script = fs.readFileSync(scriptPath, 'utf8')
   const smokeIndex = script.indexOf('curl -fsS http://127.0.0.1/api/builds/home >/dev/null')
