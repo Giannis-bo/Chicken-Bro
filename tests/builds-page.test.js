@@ -9642,6 +9642,34 @@ function canonicalEmbellishmentLimitPageHarness(embellishmentMax, selectedSlots 
   return { pageConfig, page, toasts, resolveRequests }
 }
 
+test('canonical workbench without an accepted snapshot fails embellishments closed while legacy stays at two', async () => {
+  const canonical = canonicalEmbellishmentLimitPageHarness(2)
+  canonical.page.data.selectedGearBySlot.back.sourceType = 'crafted'
+  canonical.page.gearWorkbenchState.currentSnapshot = null
+  canonical.page.gearWorkbenchState.lastVerifiedSnapshot = null
+
+  canonical.pageConfig.openGearEnhancementSheet.call(canonical.page)
+
+  const canonicalSheet = canonical.page.data.gearEnhancementSheet
+  assert.equal(canonicalSheet.embellishmentMax, 0)
+  assert.equal(canonicalSheet.embellishmentRows[0].options[0].disabled, true)
+  canonicalSheet.draftEnhancementBySlot = {
+    back: { embellishmentOptionId: 'embellishment-back' }
+  }
+
+  await canonical.pageConfig.confirmGearEnhancementSheet.call(canonical.page)
+
+  assert.equal(canonical.resolveRequests.length, 0)
+  assert.ok(canonical.page.data.gearEnhancementSheet.blockers.includes('美化已超过上限 1/0'))
+
+  const legacy = canonicalEmbellishmentLimitPageHarness(2)
+  delete legacy.page.gearWorkbenchState
+  legacy.pageConfig.openGearEnhancementSheet.call(legacy.page)
+
+  assert.equal(legacy.page.data.gearEnhancementSheet.embellishmentMax, 2)
+  assert.equal(legacy.page.data.gearEnhancementSheet.embellishmentRows[0].options[0].disabled, false)
+})
+
 test('canonical embellishment max zero and one block over-limit confirmation', async () => {
   for (const [embellishmentMax, selectedSlots, overflowSlot] of [
     [0, [], 'back'],

@@ -4015,8 +4015,8 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
   const canonicalWorkbench = !!(page && page.gearWorkbenchState)
   const canonicalSnapshot = canonicalWorkbenchSnapshot(page)
   const canonicalEmbellishmentMaxValue = Number(canonicalSnapshot && canonicalSnapshot.constraints && canonicalSnapshot.constraints.embellishmentMax)
-  const canonicalEmbellishmentMax = canonicalSnapshot
-    ? (Number.isFinite(canonicalEmbellishmentMaxValue) && canonicalEmbellishmentMaxValue >= 0
+  const canonicalEmbellishmentMax = canonicalWorkbench
+    ? (canonicalSnapshot && Number.isFinite(canonicalEmbellishmentMaxValue) && canonicalEmbellishmentMaxValue >= 0
         ? canonicalEmbellishmentMaxValue
         : 0)
     : undefined
