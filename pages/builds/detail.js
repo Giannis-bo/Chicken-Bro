@@ -3370,12 +3370,227 @@ function communityTemplateBaseGearSelection(gearPayload, template) {
   return prunedGearSelectionByWeaponRule(gearPayload, templateSelection)
 }
 
-function communityTemplateEnhancementIntentBySlot(template) {
-  const explicit = normalizedEnhancementBySlot(
-    (template && template.enhancementBySlot) ||
-    ((template && template.payload && template.payload.enhancementBySlot) || {})
+function simcOptionTokens(value) {
+  const values = Array.isArray(value) ? value : [value]
+  const result = []
+  values.forEach((entry) => {
+    cleanGearString(entry).split(/[\s/,]+/).forEach((token) => {
+      const normalized = cleanGearString(token)
+      if (normalized && !result.includes(normalized)) result.push(normalized)
+    })
+  })
+  return result
+}
+
+function communityTemplateRawEnhancementBySlot(template) {
+  const result = {}
+  const recordForSlot = (slot) => {
+    if (!result[slot]) {
+      result[slot] = {
+        gemIds: [],
+        enchantIds: [],
+        embellishments: [],
+        gemOptionIds: [],
+        enchantOptionIds: [],
+        embellishmentOptionIds: []
+      }
+    }
+    return result[slot]
+  }
+  const addUnique = (target, values) => {
+    ;(Array.isArray(values) ? values : []).forEach((value) => {
+      const normalized = cleanGearString(value)
+      if (normalized && !target.includes(normalized)) target.push(normalized)
+    })
+  }
+  const mergeRecord = (slot, record, allowOptionIdentities) => {
+    if (!slot || !record || typeof record !== 'object') return
+    const target = recordForSlot(slot)
+    addUnique(target.gemIds, simcOptionTokens(record.gem_id || record.gemId || record.gemIds))
+    addUnique(target.enchantIds, simcOptionTokens(record.enchant_id || record.enchantId || record.enchantIds))
+    addUnique(target.embellishments, [record.embellishment || record.embellishmentId || record.embellishment_id])
+    if (allowOptionIdentities) {
+      addUnique(target.gemOptionIds, [
+        ...normalizedOptionIdentityList(record.gemOptionIds),
+        cleanGearString(record.socketOptionId || record.socket_option_id)
+      ])
+      addUnique(target.enchantOptionIds, [record.enchantOptionId || record.enchant_option_id])
+      addUnique(target.embellishmentOptionIds, [record.embellishmentOptionId || record.embellishment_option_id])
+    }
+  }
+  const payload = template && template.payload && typeof template.payload === 'object' ? template.payload : {}
+  ;[payload.enhancementBySlot, template && template.enhancementBySlot].forEach((enhancementBySlot) => {
+    Object.keys(enhancementBySlot || {}).forEach((slot) => mergeRecord(slot, enhancementBySlot[slot], true))
+  })
+  const gearItems = [
+    ...((Array.isArray(payload.gearItems) ? payload.gearItems : [])),
+    ...((template && Array.isArray(template.gearItems)) ? template.gearItems : [])
+  ]
+  gearItems.forEach((item) => {
+    const slot = cleanGearString(item && (item.simcSlot || item.slot))
+    const simcOptions = item && item.simcOptions && typeof item.simcOptions === 'object' ? item.simcOptions : {}
+    mergeRecord(slot, { ...simcOptions, ...(item || {}) }, false)
+  })
+  Object.keys(result).forEach((slot) => {
+    const record = result[slot]
+    if (!Object.keys(record).some((key) => Array.isArray(record[key]) && record[key].length)) delete result[slot]
+  })
+  return result
+}
+
+function communityEnhancementAffectedSlots(template) {
+  return Object.keys(communityTemplateRawEnhancementBySlot(template))
+}
+
+function loadCommunityTemplateEnhancementDetails(page, template) {
+  const affectedSlots = communityEnhancementAffectedSlots(template)
+  const incompleteSlots = affectedSlots.filter((slot) => gearPayloadNeedsSlotDetail(page, slot))
+  if (!incompleteSlots.length) return null
+  return Promise.all(incompleteSlots.map((slot) => (
+    loadGearSlotDetailForPage(page, slot).catch(() => fullGearPayloadForPage(page))
+  ))).then(() => fullGearPayloadForPage(page))
+}
+
+function communityEnhancementOptionVisible(option) {
+  const payload = optionPayload(option || {})
+  return !(
+    option && (option.isVisible === false || option.is_visible === false) ||
+    payload.isVisible === false ||
+    payload.is_visible === false
   )
-  return optionIdentityEnhancementBySlot(explicit)
+}
+
+function communityEnhancementOptionAppliesToSlot(option, slot) {
+  const payload = optionPayload(option || {})
+  const applicableSlots = option && Array.isArray(option.applicableSlots)
+    ? option.applicableSlots
+    : (Array.isArray(payload.applicableSlots) ? payload.applicableSlots : [])
+  if (!applicableSlots.length) return true
+  const normalized = applicableSlots.map(cleanGearString).filter(Boolean)
+  return normalized.includes('*') || normalized.includes(slot)
+}
+
+function communityEnhancementStableOptionIdentity(option) {
+  return cleanGearString(option && (option.optionKey || option.option_key))
+}
+
+function communityEnhancementOptionsForSlot(gearPayload, item, optionKey, type) {
+  const slot = cleanGearString(item && (item.simcSlot || item.slot))
+  const options = enhancementOptionsForSlot(gearPayload, item, optionKey).filter((option) => (
+    !!communityEnhancementStableOptionIdentity(option) &&
+    communityEnhancementOptionVisible(option) &&
+    communityEnhancementOptionAppliesToSlot(option, slot) &&
+    enhancementOptionRecordVerified(option) &&
+    !!readableEnhancementOptionLabel(option, type)
+  ))
+  return itemSupportsEnhancement(item, type, options) ? options : []
+}
+
+function communityEnhancementOptionForSimcValue(options, simcKey, rawValue) {
+  const expected = cleanGearString(rawValue)
+  if (!expected) return null
+  const matchesByIdentity = new Map()
+  ;(options || []).forEach((option) => {
+    const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
+    if (cleanGearString(simcOptions[simcKey]) !== expected) return
+    const identity = communityEnhancementStableOptionIdentity(option)
+    if (identity && !matchesByIdentity.has(identity)) matchesByIdentity.set(identity, option)
+  })
+  return matchesByIdentity.size === 1 ? Array.from(matchesByIdentity.values())[0] : null
+}
+
+function communityEnhancementOptionForIdentity(options, identity) {
+  const expected = cleanGearString(identity)
+  if (!expected) return null
+  return (options || []).find((option) => communityEnhancementStableOptionIdentity(option) === expected) || null
+}
+
+function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot, rawBySlot) {
+  const enhancementBySlot = {}
+  const unresolvedBySlot = {}
+  const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload || {}, selectedGearBySlot || {})
+  Object.keys(rawBySlot || {}).forEach((slot) => {
+    const raw = rawBySlot[slot] || {}
+    const item = indexed[slot]
+    const unresolved = { gemIds: [], enchantIds: [], embellishments: [], readOnly: true }
+    if (!item) {
+      unresolved.gemIds = simcOptionTokens(raw.gemIds)
+      unresolved.enchantIds = simcOptionTokens(raw.enchantIds)
+      unresolved.embellishments = (raw.embellishments || []).map(cleanGearString).filter(Boolean)
+      if (unresolved.gemIds.length || unresolved.enchantIds.length || unresolved.embellishments.length) {
+        unresolvedBySlot[slot] = unresolved
+      }
+      return
+    }
+    const next = {}
+    const gemOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'socketOptions', 'gem')
+    const enchantOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'enchantOptions', 'enchant')
+    const embellishmentOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions', 'embellishment')
+    const rawGemIds = simcOptionTokens(raw.gemIds)
+    if (rawGemIds.length > gearItemSocketCapacity(item)) {
+      unresolved.gemIds = rawGemIds
+    } else if (rawGemIds.length) {
+      const matchedGemOptionIds = []
+      rawGemIds.forEach((gemId) => {
+        const matched = communityEnhancementOptionForSimcValue(gemOptions, 'gem_id', gemId)
+        const optionId = communityEnhancementStableOptionIdentity(matched)
+        if (optionId && !matchedGemOptionIds.includes(optionId)) matchedGemOptionIds.push(optionId)
+        else unresolved.gemIds.push(gemId)
+      })
+      if (matchedGemOptionIds.length) next.gemOptionIds = matchedGemOptionIds
+    } else {
+      const explicitGemOptionIds = normalizedOptionIdentityList(raw.gemOptionIds)
+      if (explicitGemOptionIds.length <= gearItemSocketCapacity(item)) {
+        const matchedGemOptionIds = explicitGemOptionIds.filter((identity) => (
+          !!communityEnhancementOptionForIdentity(gemOptions, identity)
+        ))
+        if (matchedGemOptionIds.length) next.gemOptionIds = matchedGemOptionIds
+      }
+    }
+    const rawEnchantIds = simcOptionTokens(raw.enchantIds)
+    if (rawEnchantIds.length === 1) {
+      const matched = communityEnhancementOptionForSimcValue(enchantOptions, 'enchant_id', rawEnchantIds[0])
+      const optionId = communityEnhancementStableOptionIdentity(matched)
+      if (optionId) next.enchantOptionId = optionId
+      else unresolved.enchantIds = rawEnchantIds
+    } else if (rawEnchantIds.length > 1) {
+      unresolved.enchantIds = rawEnchantIds
+    } else {
+      const explicitEnchantOptionIds = normalizedOptionIdentityList(raw.enchantOptionIds)
+      if (explicitEnchantOptionIds.length === 1 && communityEnhancementOptionForIdentity(enchantOptions, explicitEnchantOptionIds[0])) {
+        next.enchantOptionId = explicitEnchantOptionIds[0]
+      }
+    }
+    const rawEmbellishments = (raw.embellishments || []).map(cleanGearString).filter(Boolean)
+    if (rawEmbellishments.length === 1) {
+      const matched = communityEnhancementOptionForSimcValue(embellishmentOptions, 'embellishment', rawEmbellishments[0])
+      const optionId = communityEnhancementStableOptionIdentity(matched)
+      if (optionId) next.embellishmentOptionId = optionId
+      else unresolved.embellishments = rawEmbellishments
+    } else if (rawEmbellishments.length > 1) {
+      unresolved.embellishments = rawEmbellishments
+    } else {
+      const explicitEmbellishmentOptionIds = normalizedOptionIdentityList(raw.embellishmentOptionIds)
+      if (
+        explicitEmbellishmentOptionIds.length === 1 &&
+        communityEnhancementOptionForIdentity(embellishmentOptions, explicitEmbellishmentOptionIds[0])
+      ) {
+        next.embellishmentOptionId = explicitEmbellishmentOptionIds[0]
+      }
+    }
+    if (Object.keys(next).length) enhancementBySlot[slot] = next
+    if (unresolved.gemIds.length || unresolved.enchantIds.length || unresolved.embellishments.length) {
+      unresolvedBySlot[slot] = unresolved
+    }
+  })
+  const unresolvedSlotCount = Object.keys(unresolvedBySlot).length
+  return {
+    enhancementBySlot,
+    unresolvedBySlot,
+    warnings: unresolvedSlotCount
+      ? [`${unresolvedSlotCount} 个槽位的社区强化缺少当前可编辑证据，已按只读事实保留。`]
+      : []
+  }
 }
 
 function communityTemplateNeedsWeaponSlotDetail(page, gearPayload, slot, selectedGearBySlot) {
@@ -5307,19 +5522,51 @@ Page({
       showToast('当前模板暂不可导入')
       return Promise.resolve()
     }
+    const importSerial = Number(this.communityEnhancementImportSerial || 0) + 1
+    const importSelectionKey = this.data.gearSelectionKey || (() => {
+      const keys = specWebsimKeys(this.data.selectedSpec || {})
+      return `${keys.classKey}:${keys.specKey}`
+    })()
+    this.communityEnhancementImportSerial = importSerial
+    this.communityEnhancementImportState = {
+      templateId,
+      serial: importSerial,
+      resolvedGearSignature: '',
+      unresolvedBySlot: {},
+      warnings: []
+    }
+    const importIsCurrent = () => {
+      const state = this.communityEnhancementImportState || {}
+      const currentKeys = specWebsimKeys(this.data.selectedSpec || {})
+      const currentSelectionKey = this.data.gearSelectionKey || `${currentKeys.classKey}:${currentKeys.specKey}`
+      return state.templateId === templateId && state.serial === importSerial && currentSelectionKey === importSelectionKey
+    }
     const applyWithCurrentPayload = () => {
+      if (!importIsCurrent()) return null
       const gearPayload = fullGearPayloadForPage(this) || {}
-      const selectedGearBySlot = repairedGearSelectionForSkippedWeapons(
+      const selectedGearBySlot = gearSelectionWithoutEmbeddedSimcEnhancements(repairedGearSelectionForSkippedWeapons(
         this,
         gearPayload,
         communityTemplateBaseGearSelection(gearPayload, template),
         template
+      ))
+      const reconciliation = reconcileCommunityTemplateEnhancements(
+        gearPayload,
+        selectedGearBySlot,
+        communityTemplateRawEnhancementBySlot(template)
       )
       const enhancementBySlot = prunedEnhancementBySlot(
         gearPayload,
         selectedGearBySlot,
-        communityTemplateEnhancementIntentBySlot(template)
+        reconciliation.enhancementBySlot
       )
+      this.communityEnhancementImportState = {
+        templateId,
+        serial: importSerial,
+        resolvedGearSignature: '',
+        unresolvedBySlot: reconciliation.unresolvedBySlot,
+        warnings: reconciliation.warnings
+      }
       const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
         ...this.data,
         gearPayload,
@@ -5341,8 +5588,9 @@ Page({
       return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot)
     }
     const detailPromise = loadCommunityTemplateWeaponRepairDetails(this, template)
-    if (detailPromise) return detailPromise.then(applyWithCurrentPayload)
-    return applyWithCurrentPayload()
+    return Promise.resolve(detailPromise)
+      .then(() => importIsCurrent() ? loadCommunityTemplateEnhancementDetails(this, template) : null)
+      .then(applyWithCurrentPayload)
   },
 
   setGearCandidateFilter(event) {
