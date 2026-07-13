@@ -604,6 +604,11 @@ def sync_websim_cache_postgres(include_blizzard=True, stage_callback=None, store
         _emit(stage_callback, "simc", "start", runner="postgres")
         simc_data = extract_simc_generated_data()
         talents = [item for item in (simc_data.get("talents") or []) if isinstance(item, dict)]
+        if not talents and str(simc_data.get("source") or "").strip():
+            raise RuntimeError(
+                "SimulationCraft talent catalog is empty; "
+                "preserving the current PostgreSQL talent tree"
+            )
         dependency_node_count = sum(
             1
             for talent in talents

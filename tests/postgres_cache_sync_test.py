@@ -345,6 +345,28 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertIn("TraitEdge request timed out", payload["simc"]["errors"][0])
         self.assertIn("talent dependency edges are unavailable", payload["errors"][0])
 
+    def test_websim_postgres_sync_preserves_current_talents_when_simc_candidate_is_empty(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        empty_simc_data = {
+            "talents": [],
+            "presets": [],
+            "spellDetails": [],
+            "source": "simc",
+            "build": "simc-build",
+            "dependencies": 0,
+            "traitEdgeSource": "",
+        }
+
+        with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=empty_simc_data):
+            payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
+
+        self.assertIsNone(store.replaced_data)
+        self.assertEqual(payload["simc"]["talents"], 0)
+        self.assertIn("talent catalog is empty", payload["simc"]["errors"][0])
+        self.assertIn("talent catalog is empty", payload["errors"][0])
+
     def test_websim_postgres_sync_writes_blizzard_journal_when_enabled(self):
         from server import postgres_cache_sync
 
