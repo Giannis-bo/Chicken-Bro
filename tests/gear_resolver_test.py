@@ -18,6 +18,35 @@ class GearResolverTest(unittest.TestCase):
         fixture = fixture or self.fixture()
         return gear_resolver.resolve(fixture["intent"], fixture["authorityContext"])
 
+    def add_gem_option(
+        self,
+        fixture,
+        *,
+        option_id,
+        simc_options,
+        stat_deltas=None,
+        source_ref_id="evidence:option:second-gem",
+    ):
+        fixture["authorityContext"]["optionsById"][option_id] = {
+            "optionId": option_id,
+            "optionType": "gem",
+            "statDeltas": stat_deltas or {},
+            "simcOptions": simc_options,
+            "uniqueGroupId": "",
+            "uniqueLimit": 0,
+            "sourceRefIds": [source_ref_id],
+        }
+        fixture["authorityContext"]["evidenceRecordsById"][source_ref_id] = {
+            "id": source_ref_id,
+            "sourceType": "catalog_option",
+            "sourceRevision": "gear-r17",
+        }
+        allowed = fixture["authorityContext"]["itemsById"]["item-set-head"][
+            "allowedGemOptionIds"
+        ]
+        if option_id not in allowed:
+            allowed.append(option_id)
+
     def test_resolver_rejects_malformed_intent_before_slot_resolution(self):
         fixture = self.fixture()
         fixture["intent"]["readiness"] = {"simcReady": True}
@@ -145,6 +174,161 @@ class GearResolverTest(unittest.TestCase):
         )
         gem_result = next(rule for rule in result["ruleResults"] if rule["ruleId"] == "socket_and_gem")
         self.assertEqual(gem_result["status"], "verified")
+
+    def test_multiple_selected_gems_preserve_order_and_replace_variant_raw_sequences(self):
+        fixture = self.fixture()
+        head_variant = fixture["authorityContext"]["variantsByKey"]["variant-set-head"]
+        head_variant["capabilityOverrides"] = {"socketCount": 2}
+        head_variant["overlay"]["capabilityOverrides"] = {}
+        head_variant["simcOptions"].update(
+            {
+                "gem_id": "variant-raw-one/variant-raw-two",
+                "gem_bonus_id": "raw-bonus-one/raw-bonus-two",
+                "gem_ilevel": "600/601",
+            }
+        )
+        fixture["authorityContext"]["optionsById"]["gem-haste"]["simcOptions"] = {
+            "gem_id": "240892",
+            "gem_bonus_id": "9727",
+            "gem_ilevel": "707",
+        }
+        self.add_gem_option(
+            fixture,
+            option_id="gem-versatility",
+            simc_options={
+                "gem_id": "240983",
+                "gem_bonus_id": "9728",
+                "gem_ilevel": "708",
+            },
+            stat_deltas={"versatility": 8},
+        )
+        fixture["intent"]["slots"]["head"]["gemOptionIds"] = [
+            "gem-haste",
+            "gem-versatility",
+        ]
+
+        result = self.resolve(fixture)
+        head = result["resolvedSlots"]["head"]
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            head["selectedOptions"]["gemOptionIds"],
+            ["gem-haste", "gem-versatility"],
+        )
+        self.assertEqual(head["simcOptions"]["gem_id"], "240892/240983")
+        self.assertEqual(head["simcOptions"]["gem_bonus_id"], "9727/9728")
+        self.assertEqual(head["simcOptions"]["gem_ilevel"], "707/708")
+        self.assertEqual(result["constraints"]["slots"]["head"]["socketRemaining"], 0)
+
+    def test_duplicate_selected_gem_identity_preserves_multiplicity_and_occurrence_facts(self):
+        fixture = self.fixture()
+        head_variant = fixture["authorityContext"]["variantsByKey"]["variant-set-head"]
+        head_variant["capabilityOverrides"] = {"socketCount": 2}
+        head_variant["overlay"]["capabilityOverrides"] = {}
+        head_variant["simcOptions"]["gem_id"] = "variant-raw-one/variant-raw-two"
+        fixture["intent"]["slots"]["head"]["gemOptionIds"] = [
+            "gem-haste",
+            "gem-haste",
+        ]
+
+        result = self.resolve(fixture)
+        head = result["resolvedSlots"]["head"]
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            head["selectedOptions"]["gemOptionIds"],
+            ["gem-haste", "gem-haste"],
+        )
+        self.assertEqual(head["simcOptions"]["gem_id"], "gem-haste/gem-haste")
+        self.assertEqual(head["resolvedStats"]["haste"], 45)
+        self.assertEqual(
+            head["statDeltas"]["enhancements"],
+            [
+                {"optionId": "gem-haste", "statDeltas": {"haste": 10}},
+                {"optionId": "gem-haste", "statDeltas": {"haste": 10}},
+            ],
+        )
+        self.assertEqual(head["sourceRefIds"].count("evidence:option:gem"), 1)
+
+    def test_selected_canonical_gems_clear_unproven_variant_sequence_fields(self):
+        fixture = self.fixture()
+        head_variant = fixture["authorityContext"]["variantsByKey"]["variant-set-head"]
+        head_variant["simcOptions"].update(
+            {
+                "gem_id": "variant-raw-gem",
+                "gem_bonus_id": "variant-raw-bonus",
+                "gem_ilevel": "600",
+            }
+        )
+
+        result = self.resolve(fixture)
+        simc_options = result["resolvedSlots"]["head"]["simcOptions"]
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(simc_options["gem_id"], "gem-haste")
+        self.assertNotIn("gem_bonus_id", simc_options)
+        self.assertNotIn("gem_ilevel", simc_options)
+        self.assertEqual(simc_options["bonus_id"], "head-bonus")
+
+    def test_empty_gem_selection_preserves_verified_variant_raw_gem_sequences(self):
+        fixture = self.fixture()
+        head_variant = fixture["authorityContext"]["variantsByKey"]["variant-set-head"]
+        head_variant["simcOptions"].update(
+            {
+                "gem_id": "240892/240983",
+                "gem_bonus_id": "9727/9728",
+                "gem_ilevel": "707/708",
+            }
+        )
+        fixture["intent"]["slots"]["head"]["gemOptionIds"] = []
+
+        result = self.resolve(fixture)
+        simc_options = result["resolvedSlots"]["head"]["simcOptions"]
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(simc_options["gem_id"], "240892/240983")
+        self.assertEqual(simc_options["gem_bonus_id"], "9727/9728")
+        self.assertEqual(simc_options["gem_ilevel"], "707/708")
+
+    def test_multi_gem_serialization_keeps_capacity_and_unknown_option_guards_fail_closed(self):
+        over_capacity = self.fixture()
+        over_capacity["intent"]["slots"]["head"]["gemOptionIds"] = [
+            "gem-haste",
+            "gem-haste",
+        ]
+
+        capacity_result = self.resolve(over_capacity)
+
+        self.assertEqual(capacity_result["status"], "blocked")
+        self.assertTrue(
+            any(
+                problem["code"] == "GEAR_GEM_SOCKET_CAPACITY_EXCEEDED"
+                for problem in capacity_result["problems"]
+            )
+        )
+
+        unknown = self.fixture()
+        unknown["intent"]["slots"]["head"]["gemOptionIds"] = ["forged-gem-option"]
+
+        unknown_result = self.resolve(unknown)
+
+        self.assertEqual(unknown_result["status"], "blocked")
+        self.assertTrue(
+            any(
+                problem["code"] == "GEAR_GEM_OPTION_UNKNOWN"
+                for problem in unknown_result["problems"]
+            )
+        )
+
+    def test_raw_client_gem_fact_never_gains_resolver_authority(self):
+        fixture = self.fixture()
+        fixture["intent"]["slots"]["head"]["gem_id"] = "240892/240983"
+
+        result = self.resolve(fixture)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["resolvedSlots"], {})
+        self.assertTrue(any(problem["code"] == "UNKNOWN_FIELD" for problem in result["problems"]))
 
     def test_resolver_preserves_all_ten_ordered_rule_results(self):
         result = self.resolve()

@@ -43,6 +43,7 @@ _OPTION_FIELDS = (
     ("craftedOptionId", "crafted"),
     ("catalystOptionId", "catalyst"),
 )
+_GEM_SIMC_SEQUENCE_FIELDS = ("gem_id", "gem_bonus_id", "gem_ilevel")
 _CAPABILITY_FIELDS = (
     "socketCount",
     "canEnchant",
@@ -399,6 +400,13 @@ def apply_selected_enhancements(
         "catalystOptionId": selection.get("catalystOptionId", ""),
     }
     simc_options = dict(state.get("variant", {}).get("simcOptions") or {})
+    replaces_variant_gem_sequences = bool(selected_options["gemOptionIds"])
+    selected_gem_sequences: dict[str, list[str]] = {
+        field: [] for field in _GEM_SIMC_SEQUENCE_FIELDS
+    }
+    if replaces_variant_gem_sequences:
+        for field in _GEM_SIMC_SEQUENCE_FIELDS:
+            simc_options.pop(field, None)
     capabilities = state.get("effectiveCapabilities", {})
     applied: list[dict[str, Any]] = []
     for field, expected_type in _OPTION_FIELDS:
@@ -449,7 +457,21 @@ def apply_selected_enhancements(
             state["sourceRefIds"] = _ids(
                 state["sourceRefIds"] + list(option.get("sourceRefIds", []))
             )
-            simc_options.update(option.get("simcOptions") or {})
+            option_simc_options = option.get("simcOptions") or {}
+            if expected_type == "gem" and replaces_variant_gem_sequences:
+                for simc_field in _GEM_SIMC_SEQUENCE_FIELDS:
+                    value = str(option_simc_options.get(simc_field) or "").strip()
+                    if value:
+                        selected_gem_sequences[simc_field].append(value)
+                simc_options.update(
+                    {
+                        key: value
+                        for key, value in option_simc_options.items()
+                        if key not in _GEM_SIMC_SEQUENCE_FIELDS
+                    }
+                )
+            else:
+                simc_options.update(option_simc_options)
             applied.append(
                 {
                     "field": field,
@@ -458,6 +480,14 @@ def apply_selected_enhancements(
                     "statDeltas": _canonical(option.get("statDeltas", {})),
                 }
             )
+    if replaces_variant_gem_sequences:
+        simc_options.update(
+            {
+                field: "/".join(values)
+                for field, values in selected_gem_sequences.items()
+                if values
+            }
+        )
     state["selectedOptions"] = selected_options
     state["appliedEnhancements"] = applied
     state["simcOptions"] = _canonical(simc_options)
