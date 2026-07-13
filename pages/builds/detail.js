@@ -3527,7 +3527,11 @@ function communityTemplateRawEnhancementBySlot(template) {
         gemOptionIdSequences: [],
         gemOptionConflict: false,
         enchantOptionIds: [],
-        embellishmentOptionIds: []
+        enchantOptionIdSequences: [],
+        enchantOptionConflict: false,
+        embellishmentOptionIds: [],
+        embellishmentOptionIdSequences: [],
+        embellishmentOptionConflict: false
       }
     }
     return result[slot]
@@ -3558,6 +3562,17 @@ function communityTemplateRawEnhancementBySlot(template) {
     target.gemOptionConflict = target.gemOptionIdSequences.length > 1
     target.gemOptionIds = target.gemOptionConflict ? [] : [...target.gemOptionIdSequences[0]]
   }
+  const addSingleOptionSequence = (target, value, idsKey, sequencesKey, conflictKey) => {
+    const normalized = cleanGearString(value)
+    if (!normalized) return
+    const sequence = [normalized]
+    const duplicate = target[sequencesKey].some((existing) => (
+      existing.length === sequence.length && existing.every((entry, index) => entry === sequence[index])
+    ))
+    if (!duplicate) target[sequencesKey].push(sequence)
+    target[conflictKey] = target[sequencesKey].length > 1
+    target[idsKey] = target[conflictKey] ? [] : [...target[sequencesKey][0]]
+  }
   const mergeRecord = (slot, record, allowOptionIdentities) => {
     if (!slot || !record || typeof record !== 'object') return
     const target = recordForSlot(slot)
@@ -3570,8 +3585,20 @@ function communityTemplateRawEnhancementBySlot(template) {
       addGemOptionSequence(target, gemOptionIds.length
         ? gemOptionIds
         : [record.socketOptionId || record.socket_option_id])
-      addUnique(target.enchantOptionIds, [record.enchantOptionId || record.enchant_option_id])
-      addUnique(target.embellishmentOptionIds, [record.embellishmentOptionId || record.embellishment_option_id])
+      addSingleOptionSequence(
+        target,
+        record.enchantOptionId || record.enchant_option_id,
+        'enchantOptionIds',
+        'enchantOptionIdSequences',
+        'enchantOptionConflict'
+      )
+      addSingleOptionSequence(
+        target,
+        record.embellishmentOptionId || record.embellishment_option_id,
+        'embellishmentOptionIds',
+        'embellishmentOptionIdSequences',
+        'embellishmentOptionConflict'
+      )
     }
   }
   const payload = template && template.payload && typeof template.payload === 'object' ? template.payload : {}
@@ -3709,12 +3736,26 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
     const conflictingGemOptionIds = (Array.isArray(raw.gemOptionIdSequences)
       ? raw.gemOptionIdSequences.flat()
       : []).map(cleanGearString).filter(Boolean)
+    const rawEnchantIds = simcOptionTokens(raw.enchantIds)
+    const explicitEnchantOptionIds = normalizedOptionIdentityList(raw.enchantOptionIds)
+    const conflictingEnchantOptionIds = (Array.isArray(raw.enchantOptionIdSequences)
+      ? raw.enchantOptionIdSequences.flat()
+      : []).map(cleanGearString).filter(Boolean)
+    const rawEmbellishments = (raw.embellishments || []).map(cleanGearString).filter(Boolean)
+    const explicitEmbellishmentOptionIds = normalizedOptionIdentityList(raw.embellishmentOptionIds)
+    const conflictingEmbellishmentOptionIds = (Array.isArray(raw.embellishmentOptionIdSequences)
+      ? raw.embellishmentOptionIdSequences.flat()
+      : []).map(cleanGearString).filter(Boolean)
     if (!item) {
       unresolved.gemIds = rawGemIds.length
         ? rawGemIds
         : (raw.gemOptionConflict ? conflictingGemOptionIds : explicitGemOptionIds)
-      unresolved.enchantIds = simcOptionTokens(raw.enchantIds)
-      unresolved.embellishments = (raw.embellishments || []).map(cleanGearString).filter(Boolean)
+      unresolved.enchantIds = rawEnchantIds.length
+        ? rawEnchantIds
+        : (raw.enchantOptionConflict ? conflictingEnchantOptionIds : explicitEnchantOptionIds)
+      unresolved.embellishments = rawEmbellishments.length
+        ? rawEmbellishments
+        : (raw.embellishmentOptionConflict ? conflictingEmbellishmentOptionIds : explicitEmbellishmentOptionIds)
       if (unresolved.gemIds.length || unresolved.enchantIds.length || unresolved.embellishments.length) {
         unresolvedBySlot[slot] = unresolved
       }
@@ -3751,36 +3792,41 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
         unresolved.gemIds = explicitGemOptionIds
       }
     }
-    const rawEnchantIds = simcOptionTokens(raw.enchantIds)
-    if (rawEnchantIds.length === 1) {
+    if (raw.enchantOptionConflict) {
+      unresolved.enchantIds = rawEnchantIds.length ? rawEnchantIds : conflictingEnchantOptionIds
+    } else if (rawEnchantIds.length === 1) {
       const matched = communityEnhancementOptionForSimcValue(enchantOptions, 'enchant_id', rawEnchantIds[0])
       const optionId = communityEnhancementStableOptionIdentity(matched)
       if (optionId) next.enchantOptionId = optionId
       else unresolved.enchantIds = rawEnchantIds
     } else if (rawEnchantIds.length > 1) {
       unresolved.enchantIds = rawEnchantIds
-    } else {
-      const explicitEnchantOptionIds = normalizedOptionIdentityList(raw.enchantOptionIds)
-      if (explicitEnchantOptionIds.length === 1 && communityEnhancementOptionForIdentity(enchantOptions, explicitEnchantOptionIds[0])) {
+    } else if (explicitEnchantOptionIds.length === 1) {
+      if (communityEnhancementOptionForIdentity(enchantOptions, explicitEnchantOptionIds[0])) {
         next.enchantOptionId = explicitEnchantOptionIds[0]
+      } else {
+        unresolved.enchantIds = explicitEnchantOptionIds
       }
+    } else if (explicitEnchantOptionIds.length > 1) {
+      unresolved.enchantIds = explicitEnchantOptionIds
     }
-    const rawEmbellishments = (raw.embellishments || []).map(cleanGearString).filter(Boolean)
-    if (rawEmbellishments.length === 1) {
+    if (raw.embellishmentOptionConflict) {
+      unresolved.embellishments = rawEmbellishments.length ? rawEmbellishments : conflictingEmbellishmentOptionIds
+    } else if (rawEmbellishments.length === 1) {
       const matched = communityEnhancementOptionForSimcValue(embellishmentOptions, 'embellishment', rawEmbellishments[0])
       const optionId = communityEnhancementStableOptionIdentity(matched)
       if (optionId) next.embellishmentOptionId = optionId
       else unresolved.embellishments = rawEmbellishments
     } else if (rawEmbellishments.length > 1) {
       unresolved.embellishments = rawEmbellishments
-    } else {
-      const explicitEmbellishmentOptionIds = normalizedOptionIdentityList(raw.embellishmentOptionIds)
-      if (
-        explicitEmbellishmentOptionIds.length === 1 &&
-        communityEnhancementOptionForIdentity(embellishmentOptions, explicitEmbellishmentOptionIds[0])
-      ) {
+    } else if (explicitEmbellishmentOptionIds.length === 1) {
+      if (communityEnhancementOptionForIdentity(embellishmentOptions, explicitEmbellishmentOptionIds[0])) {
         next.embellishmentOptionId = explicitEmbellishmentOptionIds[0]
+      } else {
+        unresolved.embellishments = explicitEmbellishmentOptionIds
       }
+    } else if (explicitEmbellishmentOptionIds.length > 1) {
+      unresolved.embellishments = explicitEmbellishmentOptionIds
     }
     if (Object.keys(next).length) enhancementBySlot[slot] = next
     if (unresolved.gemIds.length || unresolved.enchantIds.length || unresolved.embellishments.length) {

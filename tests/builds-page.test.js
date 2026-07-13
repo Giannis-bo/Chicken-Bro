@@ -8791,6 +8791,130 @@ test('community conflicting explicit gem identity sequences fail closed without 
   })
 })
 
+test('community explicit enchant and embellishment identities retain unknown and conflicting facts', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const helpers = pageConfig.__detailHelpers
+  const item = (slot, canEnchant, canEmbellish) => ({
+    slot,
+    simcSlot: slot,
+    itemId: `explicit-${slot}`,
+    id: `explicit-${slot}`,
+    displayName: `Explicit ${slot}`,
+    armorType: 'Cloth',
+    simcReady: true,
+    modCapabilities: { hasSocket: false, socketCount: 0, canEnchant, canEmbellish }
+  })
+  const items = {
+    finger1: item('finger1', true, false),
+    finger2: item('finger2', true, false),
+    chest: item('chest', true, false),
+    feet: item('feet', true, false),
+    back: item('back', false, true),
+    wrist: item('wrist', false, true),
+    waist: item('waist', false, true),
+    legs: item('legs', false, true)
+  }
+  const option = (type, optionKey) => ({
+    id: `row-${optionKey}`,
+    optionKey,
+    displayLabel: type === 'enchant' ? `附魔 ${optionKey}` : `美化 ${optionKey}`,
+    displayStatus: 'verified',
+    evidenceSource: 'test_authority',
+    status: 'verified',
+    simcOptions: type === 'enchant'
+      ? { enchant_id: `simc-${optionKey}` }
+      : { embellishment: `simc-${optionKey}` },
+    payload: { qualityRank: 2, slotGroup: 'armor' }
+  })
+  const candidates = {
+    finger1: [option('enchant', 'known-enchant')],
+    finger2: [option('enchant', 'conflict-enchant-a'), option('enchant', 'conflict-enchant-b')],
+    chest: [option('enchant', 'matched-enchant')],
+    feet: [option('enchant', 'single-matched-enchant')],
+    back: [option('embellishment', 'known-embellishment')],
+    wrist: [option('embellishment', 'conflict-embellishment-a'), option('embellishment', 'conflict-embellishment-b')],
+    waist: [option('embellishment', 'matched-embellishment')],
+    legs: [option('embellishment', 'single-matched-embellishment')]
+  }
+  const gearPayload = {
+    slots: Object.keys(items).map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    replacementCandidates: Object.keys(items).map((slot) => ({
+      slot,
+      simcSlot: slot,
+      detailMode: 'complete',
+      items: [items[slot]],
+      enchantOptions: ['finger1', 'finger2', 'chest', 'feet'].includes(slot) ? candidates[slot] : [],
+      embellishmentOptions: ['back', 'wrist', 'waist', 'legs'].includes(slot) ? candidates[slot] : []
+    }))
+  }
+  const rawBySlot = helpers.communityTemplateRawEnhancementBySlot({
+    enhancementBySlot: {
+      finger1: { enchantOptionId: 'unknown-enchant' },
+      finger2: { enchantOptionId: 'conflict-enchant-a' },
+      chest: { enchantOptionId: 'matched-enchant' },
+      feet: { enchantOptionId: 'single-matched-enchant' },
+      back: { embellishmentOptionId: 'unknown-embellishment' },
+      wrist: { embellishmentOptionId: 'conflict-embellishment-a' },
+      waist: { embellishmentOptionId: 'matched-embellishment' },
+      legs: { embellishmentOptionId: 'single-matched-embellishment' }
+    },
+    payload: {
+      enhancementBySlot: {
+        finger2: { enchantOptionId: 'conflict-enchant-b' },
+        chest: { enchantOptionId: 'matched-enchant' },
+        wrist: { embellishmentOptionId: 'conflict-embellishment-b' },
+        waist: { embellishmentOptionId: 'matched-embellishment' }
+      }
+    }
+  })
+  const reconciliation = helpers.reconcileCommunityTemplateEnhancements(
+    gearPayload,
+    items,
+    rawBySlot
+  )
+
+  assert.deepEqual(JSON.parse(JSON.stringify(rawBySlot.finger2.enchantOptionIdSequences)), [
+    ['conflict-enchant-a'],
+    ['conflict-enchant-b']
+  ])
+  assert.equal(rawBySlot.finger2.enchantOptionConflict, true)
+  assert.deepEqual(JSON.parse(JSON.stringify(rawBySlot.chest.enchantOptionIdSequences)), [
+    ['matched-enchant']
+  ])
+  assert.equal(rawBySlot.chest.enchantOptionConflict, false)
+  assert.deepEqual(JSON.parse(JSON.stringify(rawBySlot.wrist.embellishmentOptionIdSequences)), [
+    ['conflict-embellishment-a'],
+    ['conflict-embellishment-b']
+  ])
+  assert.equal(rawBySlot.wrist.embellishmentOptionConflict, true)
+  assert.deepEqual(JSON.parse(JSON.stringify(rawBySlot.waist.embellishmentOptionIdSequences)), [
+    ['matched-embellishment']
+  ])
+  assert.equal(rawBySlot.waist.embellishmentOptionConflict, false)
+  assert.deepEqual(JSON.parse(JSON.stringify(reconciliation.enhancementBySlot)), {
+    chest: { enchantOptionId: 'matched-enchant' },
+    feet: { enchantOptionId: 'single-matched-enchant' },
+    waist: { embellishmentOptionId: 'matched-embellishment' },
+    legs: { embellishmentOptionId: 'single-matched-embellishment' }
+  })
+  assert.deepEqual(JSON.parse(JSON.stringify(reconciliation.unresolvedBySlot)), {
+    finger1: { gemIds: [], enchantIds: ['unknown-enchant'], embellishments: [], readOnly: true },
+    finger2: {
+      gemIds: [],
+      enchantIds: ['conflict-enchant-a', 'conflict-enchant-b'],
+      embellishments: [],
+      readOnly: true
+    },
+    back: { gemIds: [], enchantIds: [], embellishments: ['unknown-embellishment'], readOnly: true },
+    wrist: {
+      gemIds: [],
+      enchantIds: [],
+      embellishments: ['conflict-embellishment-a', 'conflict-embellishment-b'],
+      readOnly: true
+    }
+  })
+})
+
 test('community enhancement reconciliation preserves duplicate gem multiplicity in Resolve', async () => {
   const resolveRequests = []
   const pageConfig = loadBuildsDetailPageConfig({
@@ -10267,6 +10391,137 @@ test('unmatched inherited enhancement renders a read-only slot without raw ident
   const inheritedBlock = wxml.match(/<view class="gear-enhancement-inherited-row"[\s\S]*?<\/view>/)
   assert.ok(inheritedBlock)
   assert.doesNotMatch(inheritedBlock[0], /<button|data-id=|raw/i)
+})
+
+test('explicit unresolved enchant and embellishment identities render only generic inherited types', async () => {
+  const rawIdentities = [
+    'unknown-explicit-enchant',
+    'conflicting-explicit-embellishment-a',
+    'conflicting-explicit-embellishment-b'
+  ]
+  const ring = {
+    slot: 'finger1', simcSlot: 'finger1', itemId: '299976', id: '299976', variantKey: 'explicit-ring',
+    displayName: 'Explicit Identity Ring', simcReady: true,
+    modCapabilities: { hasSocket: false, socketCount: 0, canEnchant: true, canEmbellish: false }
+  }
+  const back = {
+    slot: 'back', simcSlot: 'back', itemId: '299977', id: '299977', variantKey: 'explicit-back',
+    displayName: 'Explicit Identity Cloak', armorType: 'Cloth', simcReady: true,
+    modCapabilities: { hasSocket: false, socketCount: 0, canEnchant: false, canEmbellish: true }
+  }
+  const verifiedOption = (type, optionKey) => ({
+    id: `row-${optionKey}`,
+    optionKey,
+    displayLabel: type === 'enchant' ? '已验证附魔' : '已验证美化',
+    displayStatus: 'verified',
+    evidenceSource: 'test_authority',
+    status: 'verified',
+    simcOptions: type === 'enchant'
+      ? { enchant_id: `simc-${optionKey}` }
+      : { embellishment: `simc-${optionKey}` },
+    payload: { qualityRank: 2, slotGroup: 'armor' }
+  })
+  const gearPayload = {
+    classKey: 'mage', specKey: 'frost', maxLevel: 90,
+    slots: [
+      { slot: 'finger1', simcSlot: 'finger1', label: '戒指 1' },
+      { slot: 'back', simcSlot: 'back', label: '披风' }
+    ],
+    replacementCandidates: [
+      {
+        slot: 'finger1', simcSlot: 'finger1', detailMode: 'complete', items: [ring],
+        enchantOptions: [verifiedOption('enchant', 'known-ring-enchant')]
+      },
+      {
+        slot: 'back', simcSlot: 'back', detailMode: 'complete', items: [back],
+        embellishmentOptions: [
+          verifiedOption('embellishment', 'conflicting-explicit-embellishment-a'),
+          verifiedOption('embellishment', 'conflicting-explicit-embellishment-b')
+        ]
+      }
+    ],
+    resolverContext: canonicalTestResolverContext()
+  }
+  const resolveRequests = []
+  const constraints = {
+    finger1: { socketCount: 0, canEnchant: true, canEmbellish: false },
+    back: { socketCount: 0, canEnchant: false, canEmbellish: true }
+  }
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGearResolve(selectionIntent) {
+      resolveRequests.push(selectionIntent)
+      return canonicalEnhancementResolveTransport(
+        selectionIntent,
+        'sha256:explicit-unresolved-identities',
+        constraints,
+        2
+      )
+    }
+  })
+  const template = {
+    id: 'explicit-unresolved-identities',
+    canApplyGear: true,
+    gearItems: [ring, back],
+    enhancementBySlot: {
+      finger1: { enchantOptionId: rawIdentities[0] },
+      back: { embellishmentOptionId: rawIdentities[1] }
+    },
+    payload: {
+      enhancementBySlot: {
+        back: { embellishmentOptionId: rawIdentities[2] }
+      }
+    }
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear', selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearSelectionKey: 'mage:frost', gearPayload, selectedGearBySlot: {}, enhancementBySlot: {},
+      activeGearCommunityTemplates: [template], gearCommunityTemplateSheet: { visible: true },
+      gearSlotSheet: { visible: false }, gearEnhancementSheet: { visible: false }
+    },
+    setData(update) { this.data = { ...this.data, ...update } },
+    confirmAndResolveGearIntent: pageConfig.confirmAndResolveGearIntent
+  }
+
+  await pageConfig.applyGearCommunityTemplate.call(page, {
+    currentTarget: { dataset: { id: template.id } }
+  })
+
+  assert.equal(resolveRequests.length, 1)
+  assert.equal(resolveRequests[0].slots.finger1.enchantOptionId, '')
+  assert.equal(resolveRequests[0].slots.back.embellishmentOptionId, '')
+  rawIdentities.forEach((identity) => assert.doesNotMatch(JSON.stringify(resolveRequests[0]), new RegExp(identity)))
+  assert.deepEqual(JSON.parse(JSON.stringify(page.communityEnhancementImportState.unresolvedBySlot)), {
+    finger1: { gemIds: [], enchantIds: [rawIdentities[0]], embellishments: [], readOnly: true },
+    back: { gemIds: [], enchantIds: [], embellishments: [rawIdentities[1], rawIdentities[2]], readOnly: true }
+  })
+
+  pageConfig.openGearEnhancementSheet.call(page)
+  for (const [slot, type, label] of [
+    ['finger1', 'enchant', '附魔'],
+    ['back', 'embellishment', '美化']
+  ]) {
+    pageConfig.selectGearEnhancementSlot.call(page, { currentTarget: { dataset: { slot } } })
+    assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.activeInheritedRows)), [{
+      slot,
+      type,
+      label,
+      statusLabel: '已继承，当前目录不可编辑',
+      readOnly: true
+    }])
+    rawIdentities.forEach((identity) => {
+      assert.doesNotMatch(JSON.stringify(page.data.gearEnhancementSheet.activeInheritedRows), new RegExp(identity))
+    })
+  }
+
+  const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
+  const inheritedBlock = wxml.match(/<view class="gear-enhancement-inherited-row"[\s\S]*?<\/view>/)
+  assert.ok(inheritedBlock)
+  assert.match(inheritedBlock[0], /row.label/)
+  assert.match(inheritedBlock[0], /已继承，当前目录不可编辑/)
+  assert.doesNotMatch(inheritedBlock[0], /option|data-id|identity|raw/i)
 })
 
 test('post-Resolve stat refresh preserves inherited enhancement summary', async () => {
