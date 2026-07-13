@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hashlib
 import os
 import json
 import sqlite3
@@ -7,7 +8,11 @@ from datetime import datetime, timezone
 
 try:
     from .db import connect_postgres, database_config_from_env
-    from .postgres_cache_store import PostgresCacheStore, utc_now
+    from .postgres_cache_store import (
+        PostgresCacheStore,
+        simc_talent_persisted_content_identity,
+        utc_now,
+    )
     from .raiderio_payload import sync_raiderio_cache
     from .stat_weights_payload import (
         MPLUS_SCENARIOS,
@@ -65,7 +70,11 @@ try:
     )
 except ImportError:
     from db import connect_postgres, database_config_from_env
-    from postgres_cache_store import PostgresCacheStore, utc_now
+    from postgres_cache_store import (
+        PostgresCacheStore,
+        simc_talent_persisted_content_identity,
+        utc_now,
+    )
     from raiderio_payload import sync_raiderio_cache
     from stat_weights_payload import (
         MPLUS_SCENARIOS,
@@ -587,10 +596,789 @@ def sync_raiderio_cache_postgres(force=False, stage_callback=None, store=None):
     return payload
 
 
+def _percent_env(name, default):
+    try:
+        value = int(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        value = int(default)
+    return max(1, min(100, value))
+
+
+def _simc_talent_context(talent):
+    payload = talent.get("payload") if isinstance(talent.get("payload"), dict) else {}
+    tree_type = str(payload.get("treeType") or talent.get("treeType") or "").strip()
+    hero_key = str(payload.get("heroKey") or "").strip() if tree_type == "hero" else ""
+    return (
+        str(talent.get("classKey") or "").strip(),
+        str(talent.get("specKey") or "").strip(),
+        tree_type,
+        hero_key,
+    )
+
+
+def _canonical_simc_rank_entries(raw_entries):
+    if not isinstance(raw_entries, list) or not raw_entries or any(
+        not isinstance(entry, dict) for entry in raw_entries
+    ):
+        return ()
+    canonical = []
+    seen = set()
+    integer_fields = (
+        "traitId",
+        "traitDefinitionId",
+        "spellId",
+        "selectionIndex",
+        "rank",
+        "points",
+        "pointStart",
+        "pointEnd",
+    )
+    for entry in raw_entries:
+        if any(
+            field not in entry
+            or not isinstance(entry.get(field), int)
+            or isinstance(entry.get(field), bool)
+            for field in integer_fields
+        ):
+            return ()
+        item = tuple(int(entry[field]) for field in integer_fields)
+        trait_id, trait_definition_id, spell_id, selection_index, rank, points, point_start, point_end = item
+        identity = (trait_id, spell_id, selection_index)
+        if (
+            trait_id <= 0
+            or trait_definition_id <= 0
+            or spell_id <= 0
+            or selection_index < 0
+            or rank <= 0
+            or points <= 0
+            or point_start <= 0
+            or point_end < point_start
+            or identity in seen
+        ):
+            return ()
+        seen.add(identity)
+        canonical.append(item)
+    canonical.sort(key=lambda item: (item[3], item[0], item[2]))
+    total_points = 0
+    for index, item in enumerate(canonical, start=1):
+        _trait_id, _definition_id, _spell_id, _selection_index, rank, points, point_start, point_end = item
+        if rank != index or point_start != total_points + 1 or point_end != total_points + points:
+            return ()
+        total_points += points
+    return tuple(canonical)
+
+
+def validate_simc_generated_data_candidate(simc_data, previous_state=None):
+    simc_data = simc_data if isinstance(simc_data, dict) else {}
+    previous_state = previous_state if isinstance(previous_state, dict) else {}
+    raw_talents = simc_data.get("talents") or []
+    talents = list(raw_talents) if isinstance(raw_talents, list) else []
+    if not talents:
+        detail = str(simc_data.get("extractionError") or simc_data.get("traitEdgeError") or "").strip()
+        raise RuntimeError(
+            "SimulationCraft talent catalog is empty; preserving the current PostgreSQL talent tree"
+            + (f": {detail}" if detail else "")
+        )
+    if any(not isinstance(talent, dict) for talent in talents):
+        raise RuntimeError(
+            "SimulationCraft talent payload is invalid; preserving the current PostgreSQL talent tree"
+        )
+    raw_source = simc_data.get("source")
+    candidate_source = str(raw_source or "").strip()
+    if not candidate_source:
+        raise RuntimeError(
+            "SimulationCraft source identity is missing; preserving the current PostgreSQL talent tree"
+        )
+    if not isinstance(raw_source, str) or raw_source != candidate_source:
+        raise RuntimeError(
+            "SimulationCraft source identity is not canonical; preserving the current PostgreSQL talent tree"
+        )
+    if not str(simc_data.get("build") or "").strip():
+        raise RuntimeError(
+            "SimulationCraft talent build identity is missing; preserving the current PostgreSQL talent tree"
+        )
+
+    required_specs = set(expected_spec_pairs())
+    required_heroes = set(expected_hero_tree_triplets())
+    ids_by_context = {}
+    nodes_by_context = {}
+    talent_ids = set()
+    parent_ids_by_talent_id = {}
+    signature_identity_by_talent_id = {}
+    content_identity_by_talent_id = {}
+    for talent in talents:
+        payload = talent.get("payload") if isinstance(talent.get("payload"), dict) else {}
+        raw_talent_id = talent.get("id")
+        talent_id = str(raw_talent_id or "").strip()
+        if not talent_id or talent_id in talent_ids:
+            raise RuntimeError(
+                "SimulationCraft talent identifiers are invalid or duplicated; "
+                "preserving the current PostgreSQL talent tree"
+            )
+        talent_ids.add(talent_id)
+
+        raw_class_key = talent.get("classKey")
+        raw_spec_key = talent.get("specKey")
+        raw_top_tree_type = talent.get("treeType")
+        raw_payload_tree_type = payload.get("treeType")
+        raw_tree_id = talent.get("treeId")
+        class_key = str(raw_class_key or "").strip()
+        spec_key = str(raw_spec_key or "").strip()
+        top_tree_type = str(raw_top_tree_type or "").strip()
+        payload_tree_type = str(raw_payload_tree_type or "").strip()
+        tree_type = payload_tree_type or top_tree_type
+        raw_payload_hero_key = payload.get("heroKey")
+        raw_top_hero_key = talent.get("heroKey")
+        payload_hero_key = str(raw_payload_hero_key or "").strip()
+        top_hero_key = str(raw_top_hero_key or "").strip()
+        hero_key = payload_hero_key if tree_type == "hero" else ""
+        tree_id = str(raw_tree_id or "").strip()
+        raw_payload_tree_id = payload.get("treeId")
+        payload_tree_id = str(raw_payload_tree_id or "").strip()
+        required_identity_values = (
+            (raw_talent_id, talent_id),
+            (raw_class_key, class_key),
+            (raw_spec_key, spec_key),
+            (raw_top_tree_type, top_tree_type),
+            (raw_payload_tree_type, payload_tree_type),
+            (raw_tree_id, tree_id),
+            (raw_payload_hero_key, payload_hero_key),
+        )
+        optional_identity_values = (
+            (raw_top_hero_key, top_hero_key),
+            (raw_payload_tree_id, payload_tree_id),
+        )
+        if any(not isinstance(raw, str) or raw != normalized for raw, normalized in required_identity_values) or any(
+            raw is not None and (not isinstance(raw, str) or raw != normalized)
+            for raw, normalized in optional_identity_values
+        ):
+            raise RuntimeError(
+                "SimulationCraft talent identity is not canonical; "
+                f"talent {talent_id}; preserving the current PostgreSQL talent tree"
+            )
+        expected_tree_id = {
+            "class": f"class:{class_key}",
+            "spec": f"spec:{class_key}:{spec_key}",
+            "hero": f"hero:{hero_key}",
+        }.get(tree_type, "")
+        inconsistent_identity = (
+            not class_key
+            or not spec_key
+            or not top_tree_type
+            or not payload_tree_type
+            or top_tree_type != payload_tree_type
+            or tree_type not in {"class", "spec", "hero"}
+            or (tree_type == "hero" and not hero_key)
+            or (tree_type != "hero" and bool(payload_hero_key or top_hero_key))
+            or (top_hero_key and top_hero_key != hero_key)
+            or not tree_id
+            or tree_id != expected_tree_id
+            or (payload_tree_id and payload_tree_id != tree_id)
+        )
+        if inconsistent_identity:
+            raise RuntimeError(
+                "SimulationCraft talent tree identity is inconsistent; "
+                f"talent {talent_id}; preserving the current PostgreSQL talent tree"
+            )
+
+        try:
+            row_index = int(talent.get("row") or 0)
+            col_index = int(talent.get("col") or 0)
+            spell_id = int(talent.get("spellId") or 0)
+            node_id = int(payload.get("nodeId") or 0)
+            trait_id = int(payload.get("traitId") or 0)
+        except (TypeError, ValueError):
+            row_index = col_index = spell_id = node_id = trait_id = 0
+        if (
+            row_index <= 0
+            or col_index <= 0
+            or spell_id <= 0
+            or node_id <= 0
+            or trait_id <= 0
+            or not str(talent.get("name") or "").strip()
+        ):
+            raise RuntimeError(
+                "SimulationCraft talent read-model shape is invalid; "
+                f"talent {talent_id}; preserving the current PostgreSQL talent tree"
+            )
+        canonical_rank_entries = _canonical_simc_rank_entries(payload.get("rankEntries"))
+        signature_integer_fields = (
+            "selectionIndex",
+            "nodeType",
+            "rank",
+            "maxRank",
+            "selectedRank",
+            "grantedRank",
+            "pointRequirement",
+        )
+        if any(
+            field not in payload
+            or not isinstance(payload.get(field), int)
+            or isinstance(payload.get(field), bool)
+            for field in signature_integer_fields
+        ):
+            canonical_rank_entries = ()
+        signature_integer_values = {
+            field: (
+                payload.get(field)
+                if isinstance(payload.get(field), int) and not isinstance(payload.get(field), bool)
+                else 0
+            )
+            for field in signature_integer_fields
+        }
+        selection_index = signature_integer_values["selectionIndex"]
+        node_type = signature_integer_values["nodeType"]
+        rank = signature_integer_values["rank"]
+        max_rank = signature_integer_values["maxRank"]
+        selected_rank = signature_integer_values["selectedRank"]
+        granted_rank = signature_integer_values["grantedRank"]
+        point_requirement = signature_integer_values["pointRequirement"]
+        raw_granted = payload.get("granted")
+        raw_choice_group = payload.get("choiceGroup")
+        choice_group = str(raw_choice_group or "").strip()
+        raw_parent_mode = payload.get("parentMode")
+        parent_mode = str(raw_parent_mode or "any").strip().lower()
+        raw_shape = payload.get("shape")
+        shape = str(raw_shape or "").strip().lower()
+        total_rank_points = sum(entry[5] for entry in canonical_rank_entries)
+        first_rank_entry = canonical_rank_entries[0] if canonical_rank_entries else ()
+        invalid_rank_shape = (
+            not canonical_rank_entries
+            or selection_index < 0
+            or node_type < 0
+            or rank <= 0
+            or max_rank != rank
+            or rank != total_rank_points
+            or selected_rank < 0
+            or selected_rank > max_rank
+            or granted_rank < 0
+            or granted_rank > max_rank
+            or not isinstance(raw_granted, bool)
+            or raw_granted != (granted_rank > 0)
+            or not isinstance(raw_choice_group, str)
+            or raw_choice_group != choice_group
+            or point_requirement < 0
+            or (raw_parent_mode is not None and (not isinstance(raw_parent_mode, str) or raw_parent_mode != parent_mode))
+            or parent_mode not in {"any", "all"}
+            or not isinstance(raw_shape, str)
+            or raw_shape != shape
+            or shape not in {"circle", "square", "choice", "apex"}
+            or not first_rank_entry
+            or trait_id != first_rank_entry[0]
+            or spell_id != first_rank_entry[2]
+            or selection_index != first_rank_entry[3]
+        )
+        if invalid_rank_shape:
+            raise RuntimeError(
+                "SimulationCraft talent rankEntries payload is invalid; "
+                f"talent {talent_id}; preserving the current PostgreSQL talent tree"
+            )
+        raw_parent_ids = payload.get("parentIds")
+        if not isinstance(raw_parent_ids, list) or any(
+            not isinstance(parent_id, str)
+            or not parent_id.strip()
+            or parent_id != parent_id.strip()
+            for parent_id in raw_parent_ids
+        ):
+            raise RuntimeError(
+                "SimulationCraft talent parentIds payload is invalid; "
+                f"talent {talent_id}; preserving the current PostgreSQL talent tree"
+            )
+        parent_ids_by_talent_id[talent_id] = list(raw_parent_ids)
+        signature_identity_by_talent_id[talent_id] = (
+            row_index,
+            col_index,
+            spell_id,
+            node_id,
+            trait_id,
+            canonical_rank_entries,
+            selection_index,
+            node_type,
+            rank,
+            max_rank,
+            selected_rank,
+            granted_rank,
+            raw_granted,
+            choice_group,
+            point_requirement,
+            parent_mode,
+            shape,
+        )
+        content_identity_by_talent_id[talent_id] = simc_talent_persisted_content_identity(
+            talent_id,
+            class_key,
+            spec_key,
+            tree_id,
+            row_index,
+            col_index,
+            spell_id,
+            talent.get("name"),
+            payload,
+        )
+
+        context = (class_key, spec_key, tree_type, hero_key)
+        ids_by_context.setdefault(context, set()).add(talent_id)
+        nodes_by_context[context] = nodes_by_context.get(context, 0) + 1
+
+    try:
+        declared_dependencies = int(simc_data.get("dependencies") or 0)
+    except (TypeError, ValueError):
+        declared_dependencies = 0
+    dependency_node_count = 0
+    has_parent_ids = any(parent_ids_by_talent_id.values())
+    if (
+        declared_dependencies <= 0
+        or not has_parent_ids
+        or not str(simc_data.get("traitEdgeSource") or "").strip()
+    ):
+        detail = str(simc_data.get("traitEdgeError") or "").strip()
+        raise RuntimeError(
+            "SimulationCraft talent dependency edges are unavailable; "
+            "preserving the current PostgreSQL talent tree"
+            + (f": {detail}" if detail else "")
+        )
+
+    actual_specs = {
+        f"{talent.get('classKey')}:{talent.get('specKey')}"
+        for talent in talents
+        if talent.get("classKey") and talent.get("specKey")
+    }
+    missing_specs = sorted(required_specs - actual_specs)
+    if missing_specs:
+        raise RuntimeError(
+            "SimulationCraft specialization coverage is incomplete; "
+            f"missing {', '.join(missing_specs[:8])}; preserving the current PostgreSQL talent tree"
+        )
+
+    actual_heroes = {
+        f"{class_key}:{spec_key}:{hero_key}"
+        for class_key, spec_key, tree_type, hero_key in (_simc_talent_context(talent) for talent in talents)
+        if tree_type == "hero" and class_key and spec_key and hero_key
+    }
+    missing_heroes = sorted(required_heroes - actual_heroes)
+    if missing_heroes:
+        raise RuntimeError(
+            "SimulationCraft hero-tree coverage is incomplete; "
+            f"missing {', '.join(missing_heroes[:8])}; preserving the current PostgreSQL talent tree"
+        )
+
+    dependency_refs = 0
+    dependent_contexts = set()
+    parent_nodes_by_context = {}
+    dependency_refs_by_context = {}
+    parents_by_context = {}
+    invalid_parent_refs = []
+    malformed_parent_refs = []
+    for talent in talents:
+        context = _simc_talent_context(talent)
+        talent_id = str(talent.get("id") or "").strip()
+        parent_ids = parent_ids_by_talent_id[talent_id]
+        parents_by_context.setdefault(context, {})[talent_id] = parent_ids
+        if talent_id in parent_ids or len(parent_ids) != len(set(parent_ids)):
+            malformed_parent_refs.append(talent_id)
+        dependency_refs += len(parent_ids)
+        dependency_refs_by_context[context] = dependency_refs_by_context.get(context, 0) + len(parent_ids)
+        if parent_ids:
+            dependency_node_count += 1
+            dependent_contexts.add(context)
+            parent_nodes_by_context[context] = parent_nodes_by_context.get(context, 0) + 1
+        for parent_id in parent_ids:
+            if parent_id not in ids_by_context.get(context, set()):
+                invalid_parent_refs.append(f"{talent.get('id')}->{parent_id}")
+                if len(invalid_parent_refs) >= 4:
+                    break
+        if len(invalid_parent_refs) >= 4:
+            break
+    if malformed_parent_refs:
+        raise RuntimeError(
+            "SimulationCraft talent dependency references are invalid or duplicated; "
+            f"examples {', '.join(malformed_parent_refs[:4])}; preserving the current PostgreSQL talent tree"
+        )
+    if invalid_parent_refs:
+        raise RuntimeError(
+            "SimulationCraft talent dependency references leave their tree context; "
+            f"examples {', '.join(invalid_parent_refs)}; preserving the current PostgreSQL talent tree"
+        )
+    for context, parent_map in parents_by_context.items():
+        visit_state = {}
+
+        def visit(node_id):
+            state = visit_state.get(node_id, 0)
+            if state == 1:
+                context_label = ":".join(filter(None, context))
+                raise RuntimeError(
+                    "SimulationCraft talent dependency cycle detected for "
+                    f"{context_label} at {node_id}; preserving the current PostgreSQL talent tree"
+                )
+            if state == 2:
+                return
+            visit_state[node_id] = 1
+            for parent_id in parent_map.get(node_id, []):
+                visit(parent_id)
+            visit_state[node_id] = 2
+
+        for talent_id in parent_map:
+            visit(talent_id)
+    if dependency_refs != declared_dependencies:
+        raise RuntimeError(
+            "SimulationCraft talent dependency count does not match parent references; "
+            f"declared {declared_dependencies}, actual {dependency_refs}; "
+            "preserving the current PostgreSQL talent tree"
+        )
+    if dependency_node_count <= 0:
+        raise RuntimeError(
+            "SimulationCraft talent dependency edges are unavailable; "
+            "preserving the current PostgreSQL talent tree"
+        )
+
+    required_contexts = set()
+    for spec_pair in required_specs:
+        class_key, spec_key = spec_pair.split(":", 1)
+        required_contexts.add((class_key, spec_key, "class", ""))
+        required_contexts.add((class_key, spec_key, "spec", ""))
+    for triplet in required_heroes:
+        class_key, spec_key, hero_key = triplet.split(":", 2)
+        required_contexts.add((class_key, spec_key, "hero", hero_key))
+    missing_dependency_contexts = sorted(required_contexts - dependent_contexts)
+    if missing_dependency_contexts:
+        labels = [":".join(filter(None, context)) for context in missing_dependency_contexts[:8]]
+        raise RuntimeError(
+            "SimulationCraft tree dependency coverage is incomplete; "
+            f"missing {', '.join(labels)}; preserving the current PostgreSQL talent tree"
+        )
+
+    min_parent_coverage = _percent_env("WOW_WEBSIM_SIMC_MIN_PARENT_COVERAGE_PERCENT", 80)
+    for context in sorted(required_contexts):
+        node_count = int(nodes_by_context.get(context) or 0)
+        parent_count = int(parent_nodes_by_context.get(context) or 0)
+        if node_count <= 0 or parent_count * 100 < node_count * min_parent_coverage:
+            context_label = ":".join(filter(None, context))
+            raise RuntimeError(
+                "SimulationCraft talent dependency coverage is incomplete for "
+                f"{context_label}: {parent_count}/{node_count} parent-bearing nodes is below "
+                f"{min_parent_coverage}%; preserving the current PostgreSQL talent tree"
+            )
+
+    raw_presets = simc_data.get("presets") or []
+    presets = list(raw_presets) if isinstance(raw_presets, list) else []
+    preset_ids = set()
+    profile_specs = set()
+    profile_content_signatures = set()
+    for preset in presets:
+        if not isinstance(preset, dict):
+            raise RuntimeError(
+                "SimulationCraft profile preset payload is invalid; preserving the current PostgreSQL talent tree"
+            )
+        raw_preset_id = preset.get("id")
+        raw_class_key = preset.get("classKey")
+        raw_spec_key = preset.get("specKey")
+        raw_profile = preset.get("profile")
+        preset_id = str(raw_preset_id or "").strip()
+        preset_class_key = str(raw_class_key or "").strip()
+        preset_spec_key = str(raw_spec_key or "").strip()
+        spec_pair = f"{preset_class_key}:{preset_spec_key}"
+        profile = str(raw_profile or "").strip()
+        if (
+            not isinstance(raw_preset_id, str)
+            or raw_preset_id != preset_id
+            or not isinstance(raw_class_key, str)
+            or raw_class_key != preset_class_key
+            or not isinstance(raw_spec_key, str)
+            or raw_spec_key != preset_spec_key
+            or not isinstance(raw_profile, str)
+            or not preset_id
+            or preset_id in preset_ids
+            or spec_pair not in required_specs
+            or not profile
+        ):
+            raise RuntimeError(
+                "SimulationCraft profile preset payload is invalid; preserving the current PostgreSQL talent tree"
+            )
+        preset_ids.add(preset_id)
+        profile_specs.add(spec_pair)
+        profile_content_signatures.add(
+            (
+                preset_class_key,
+                preset_spec_key,
+                hashlib.sha256(profile.encode("utf-8")).hexdigest(),
+            )
+        )
+
+    min_profile_coverage = _percent_env("WOW_WEBSIM_SIMC_MIN_PROFILE_COVERAGE_PERCENT", 80)
+    min_profile_count = (len(required_specs) * min_profile_coverage + 99) // 100
+    if len(profile_specs) < min_profile_count:
+        raise RuntimeError(
+            "SimulationCraft profile preset coverage is incomplete; "
+            f"found {len(profile_specs)}, require at least {min_profile_count} of {len(required_specs)} specializations; "
+            "preserving the current PostgreSQL talent tree"
+        )
+
+    graph_baseline = previous_state.get("graphBaseline")
+    graph_baseline = graph_baseline if isinstance(graph_baseline, dict) else {}
+    previous_simc = previous_state.get("simc") if isinstance(previous_state.get("simc"), dict) else {}
+    candidate_counts = {
+        "talents": len(talents),
+        "profileSpecCoverage": len(profile_specs),
+        "dependencies": dependency_refs,
+        "dependencyNodes": dependency_node_count,
+    }
+    previous_source = str(previous_simc.get("source") or "").strip()
+    same_source = bool(previous_source and previous_source == candidate_source)
+    min_retention = _percent_env("WOW_WEBSIM_SIMC_MIN_BASELINE_RETENTION_PERCENT", 80)
+
+    try:
+        baseline_profile_count = int(graph_baseline.get("profiles") or 0)
+    except (TypeError, ValueError):
+        baseline_profile_count = 0
+    if baseline_profile_count > 0:
+        candidate_profile_count = len(presets)
+        if same_source and candidate_profile_count < baseline_profile_count:
+            raise RuntimeError(
+                "SimulationCraft candidate fell below the last-known-good same-source baseline; "
+                f"profiles declined from {baseline_profile_count} to {candidate_profile_count}; "
+                "preserving the current PostgreSQL talent tree"
+            )
+        if not same_source and candidate_profile_count * 100 < baseline_profile_count * min_retention:
+            raise RuntimeError(
+                "SimulationCraft candidate fell below the last-known-good baseline; "
+                f"profiles retained {candidate_profile_count}/{baseline_profile_count}, "
+                f"below {min_retention}%; preserving the current PostgreSQL talent tree"
+            )
+
+    for key, candidate_count in candidate_counts.items():
+        baseline_value = graph_baseline.get(key) if key in graph_baseline else previous_simc.get(key)
+        try:
+            previous_count = int(baseline_value or 0)
+        except (TypeError, ValueError):
+            previous_count = 0
+        if previous_count <= 0:
+            continue
+        if same_source and candidate_count < previous_count:
+            raise RuntimeError(
+                "SimulationCraft candidate fell below the last-known-good same-source baseline; "
+                f"{key} declined from {previous_count} to {candidate_count}; "
+                "preserving the current PostgreSQL talent tree"
+            )
+        if not same_source and candidate_count * 100 < previous_count * min_retention:
+            raise RuntimeError(
+                "SimulationCraft candidate fell below the last-known-good baseline; "
+                f"{key} retained {candidate_count}/{previous_count}, below {min_retention}%; "
+                "preserving the current PostgreSQL talent tree"
+            )
+
+    previous_profile_specs = {
+        str(spec_pair or "").strip()
+        for spec_pair in (graph_baseline.get("profileSpecs") or [])
+        if str(spec_pair or "").strip()
+    }
+    missing_previous_profile_specs = sorted(previous_profile_specs - profile_specs)
+    if same_source and missing_previous_profile_specs:
+        raise RuntimeError(
+            "SimulationCraft same-source profile specialization set declined; "
+            f"missing {', '.join(missing_previous_profile_specs[:8])}; "
+            "preserving the current PostgreSQL talent tree"
+        )
+    if not same_source and previous_profile_specs:
+        retained_profile_specs = len(previous_profile_specs & profile_specs)
+        if retained_profile_specs * 100 < len(previous_profile_specs) * min_retention:
+            raise RuntimeError(
+                "SimulationCraft profile specialization identities fell below the last-known-good baseline; "
+                f"retained {retained_profile_specs}/{len(previous_profile_specs)}, below {min_retention}%; "
+                "preserving the current PostgreSQL talent tree"
+            )
+
+    previous_profile_content_signatures = set()
+    for raw_signature in graph_baseline.get("profileContentSignatures") or []:
+        if not isinstance(raw_signature, (list, tuple)) or len(raw_signature) != 3:
+            continue
+        class_key, spec_key, profile_hash = (
+            str(value or "").strip() for value in raw_signature
+        )
+        if class_key and spec_key and profile_hash:
+            previous_profile_content_signatures.add((class_key, spec_key, profile_hash))
+    missing_profile_content_signatures = (
+        previous_profile_content_signatures - profile_content_signatures
+    )
+    if same_source and missing_profile_content_signatures:
+        raise RuntimeError(
+            "SimulationCraft same-source profile content identities declined; "
+            f"missing {len(missing_profile_content_signatures)} of "
+            f"{len(previous_profile_content_signatures)}; preserving the current PostgreSQL talent tree"
+        )
+
+    candidate_graphs = {}
+    for context, parent_map in parents_by_context.items():
+        graph_entries = sorted(
+            (
+                talent_id,
+                *signature_identity_by_talent_id[talent_id],
+                sorted(parent_ids),
+            )
+            for talent_id, parent_ids in parent_map.items()
+        )
+        content_entries = sorted(
+            content_identity_by_talent_id[talent_id]
+            for talent_id in parent_map
+        )
+        candidate_graphs[context] = {
+            "nodeIds": [entry[0] for entry in graph_entries],
+            "structureSignature": hashlib.sha256(
+                json.dumps(
+                    content_entries,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest(),
+            "parentIdsByNode": {
+                entry[0]: set(entry[-1])
+                for entry in graph_entries
+            },
+            "graphSignature": hashlib.sha256(
+                json.dumps(graph_entries, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ).hexdigest(),
+        }
+
+    baseline_rows = graph_baseline.get("contexts") or []
+    for row in baseline_rows or []:
+        if not isinstance(row, dict):
+            continue
+        context = (
+            str(row.get("classKey") or "").strip(),
+            str(row.get("specKey") or "").strip(),
+            str(row.get("treeType") or "").strip(),
+            str(row.get("heroKey") or "").strip(),
+        )
+        if context not in required_contexts:
+            continue
+        candidate_context_counts = {
+            "nodes": int(nodes_by_context.get(context) or 0),
+            "dependencyNodes": int(parent_nodes_by_context.get(context) or 0),
+            "dependencies": int(dependency_refs_by_context.get(context) or 0),
+        }
+        for key, candidate_count in candidate_context_counts.items():
+            try:
+                previous_count = int(row.get(key) or 0)
+            except (TypeError, ValueError):
+                previous_count = 0
+            if previous_count <= 0:
+                continue
+            context_label = ":".join(filter(None, context))
+            if same_source and candidate_count < previous_count:
+                raise RuntimeError(
+                    "SimulationCraft tree context fell below the same-source baseline; "
+                    f"{context_label} {key} declined from {previous_count} to {candidate_count}; "
+                    "preserving the current PostgreSQL talent tree"
+                )
+            if not same_source and candidate_count * 100 < previous_count * min_retention:
+                raise RuntimeError(
+                    "SimulationCraft tree context fell below the last-known-good baseline; "
+                    f"{context_label} {key} retained {candidate_count}/{previous_count}, "
+                    f"below {min_retention}%; preserving the current PostgreSQL talent tree"
+                )
+
+        candidate_graph = candidate_graphs.get(context) or {}
+        previous_signature = str(row.get("graphSignature") or "").strip()
+        candidate_signature = str(candidate_graph.get("graphSignature") or "").strip()
+        previous_node_ids = {
+            str(node_id or "").strip()
+            for node_id in (row.get("nodeIds") or [])
+            if str(node_id or "").strip()
+        }
+        candidate_node_ids = set(candidate_graph.get("nodeIds") or [])
+        context_label = ":".join(filter(None, context))
+        source_unknown_same_node_set = bool(
+            not previous_source
+            and previous_node_ids
+            and candidate_node_ids == previous_node_ids
+        )
+        guarded_same_graph = same_source or source_unknown_same_node_set
+        previous_structure_signature = str(row.get("structureSignature") or "").strip()
+        candidate_structure_signature = str(candidate_graph.get("structureSignature") or "").strip()
+        if (
+            guarded_same_graph
+            and previous_structure_signature
+            and candidate_structure_signature != previous_structure_signature
+        ):
+            source_scope = "same-source" if same_source else "source-unknown"
+            raise RuntimeError(
+                f"SimulationCraft {source_scope} graph structure changed for "
+                f"{context_label}; preserving the current PostgreSQL talent tree"
+            )
+        if (
+            guarded_same_graph
+            and previous_signature
+            and candidate_signature != previous_signature
+        ):
+            source_scope = "same-source" if same_source else "source-unknown"
+            previous_nodes = int(row.get("nodes") or 0)
+            previous_dependency_nodes = int(row.get("dependencyNodes") or 0)
+            incomplete_previous_graph = bool(
+                previous_nodes > 0
+                and previous_dependency_nodes * 100 < previous_nodes * min_parent_coverage
+            )
+            if incomplete_previous_graph and previous_structure_signature:
+                previous_parent_map = {}
+                raw_parent_map = row.get("parentIdsByNode") or []
+                if isinstance(raw_parent_map, list):
+                    for raw_entry in raw_parent_map:
+                        if not isinstance(raw_entry, (list, tuple)) or len(raw_entry) != 2:
+                            continue
+                        node_id = str(raw_entry[0] or "").strip()
+                        raw_parent_ids = raw_entry[1]
+                        if not node_id or not isinstance(raw_parent_ids, list):
+                            continue
+                        previous_parent_map[node_id] = {
+                            str(parent_id or "").strip()
+                            for parent_id in raw_parent_ids
+                            if str(parent_id or "").strip()
+                        }
+                candidate_parent_map = candidate_graph.get("parentIdsByNode") or {}
+                monotonic_recovery = bool(
+                    previous_parent_map
+                    and set(previous_parent_map) == set(candidate_parent_map)
+                    and all(
+                        previous_parents <= set(candidate_parent_map.get(node_id) or set())
+                        for node_id, previous_parents in previous_parent_map.items()
+                    )
+                    and any(
+                        previous_parents < set(candidate_parent_map.get(node_id) or set())
+                        for node_id, previous_parents in previous_parent_map.items()
+                    )
+                )
+                if monotonic_recovery:
+                    continue
+                raise RuntimeError(
+                    f"SimulationCraft {source_scope} dependency recovery is not monotonic for "
+                    f"{context_label}; preserving the current PostgreSQL talent tree"
+                )
+            raise RuntimeError(
+                f"SimulationCraft {source_scope} graph signature changed for "
+                f"{context_label}; preserving the current PostgreSQL talent tree"
+            )
+        if not same_source and previous_node_ids:
+            retained_node_ids = len(previous_node_ids & candidate_node_ids)
+            if retained_node_ids * 100 < len(previous_node_ids) * min_retention:
+                raise RuntimeError(
+                    "SimulationCraft tree context node identities fell below the last-known-good baseline; "
+                    f"{context_label} retained {retained_node_ids}/{len(previous_node_ids)}, "
+                    f"below {min_retention}%; preserving the current PostgreSQL talent tree"
+                )
+
+    return {
+        "dependencies": dependency_refs,
+        "dependencyNodes": dependency_node_count,
+        "specCoverage": len(required_specs),
+        "heroCoverage": len(required_heroes),
+        "profiles": len(presets),
+        "profileSpecCoverage": len(profile_specs),
+    }
+
+
 def sync_websim_cache_postgres(include_blizzard=True, stage_callback=None, store=None):
     store = store or cache_store_from_env()
     _emit(stage_callback, "websim", "start", includeBlizzard=bool(include_blizzard))
     checked_at = utc_now()
+    talent_state = store.get_sync_state("websim_sync") or {}
     simc_counts = {
         "talents": 0,
         "profiles": 0,
@@ -600,32 +1388,14 @@ def sync_websim_cache_postgres(include_blizzard=True, stage_callback=None, store
         "traitEdgeSource": "",
         "errors": [],
     }
+    graph_baseline = {}
     try:
         _emit(stage_callback, "simc", "start", runner="postgres")
+        validation_state = dict(talent_state)
+        graph_baseline = store.simc_talent_graph_baseline()
+        validation_state["graphBaseline"] = graph_baseline
         simc_data = extract_simc_generated_data()
-        talents = [item for item in (simc_data.get("talents") or []) if isinstance(item, dict)]
-        if not talents and str(simc_data.get("source") or "").strip():
-            raise RuntimeError(
-                "SimulationCraft talent catalog is empty; "
-                "preserving the current PostgreSQL talent tree"
-            )
-        dependency_node_count = sum(
-            1
-            for talent in talents
-            if isinstance(talent.get("payload") or talent, dict)
-            and (talent.get("payload") or talent).get("parentIds")
-        )
-        if talents and (
-            int(simc_data.get("dependencies") or 0) <= 0
-            or dependency_node_count <= 0
-            or not str(simc_data.get("traitEdgeSource") or "").strip()
-        ):
-            detail = str(simc_data.get("traitEdgeError") or "").strip()
-            raise RuntimeError(
-                "SimulationCraft talent dependency edges are unavailable; "
-                "preserving the current PostgreSQL talent tree"
-                + (f": {detail}" if detail else "")
-            )
+        simc_data.update(validate_simc_generated_data_candidate(simc_data, validation_state))
         simc_counts = store.replace_simc_generated_data(simc_data)
         _emit(
             stage_callback,
@@ -637,7 +1407,19 @@ def sync_websim_cache_postgres(include_blizzard=True, stage_callback=None, store
             spellDetails=simc_counts.get("spellDetails") or 0,
         )
     except Exception as error:
+        previous_simc = talent_state.get("simc") if isinstance(talent_state.get("simc"), dict) else {}
+        if previous_simc:
+            simc_counts = dict(previous_simc)
+        if isinstance(graph_baseline, dict):
+            for key in ("talents", "profiles", "profileSpecCoverage", "dependencies", "dependencyNodes"):
+                if key in graph_baseline:
+                    simc_counts[key] = int(graph_baseline.get(key) or 0)
         simc_counts["errors"] = [str(error)]
+        simc_counts["lastAttempt"] = {
+            "status": "blocked",
+            "checkedAt": checked_at,
+            "error": str(error),
+        }
         _emit(stage_callback, "simc", "blocked", runner="postgres", errors=1)
     blizzard_counts = {"runner": "postgres", "skipped": not include_blizzard}
     gear_catalog = store.get_sync_state("gearCatalog") or {}
@@ -662,7 +1444,6 @@ def sync_websim_cache_postgres(include_blizzard=True, stage_callback=None, store
             blizzard_counts = {"runner": "postgres", "sourceStatus": "blocked", "errors": [str(error)]}
             _emit(stage_callback, "blizzard", "blocked", runner="postgres", errors=1)
     season = store.get_active_season_payload()
-    talent_state = store.get_sync_state("websim_sync") or {}
     blockers = []
     data_status = season.get("dataStatus") or "blocked"
     if simc_counts.get("errors"):

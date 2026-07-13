@@ -5,6 +5,7 @@ import inspect
 import os
 import sqlite3
 import subprocess
+import tarfile
 import tempfile
 import threading
 import time
@@ -45,6 +46,8 @@ class WebSimPayloadTest(unittest.TestCase):
         os.environ.pop("WOW_WEBSIM_FETCH_SIMC_REMOTE", None)
         os.environ.pop("WOW_WEBSIM_DEFAULT_RANK_TWO_GEM_SEED", None)
         os.environ.pop("WOW_WEBSIM_FETCH_WAGO_DB2_TRAIT_EDGE", None)
+        os.environ.pop("WOW_WAGO_DB2_TRAIT_EDGE_MAX_BYTES", None)
+        os.environ.pop("WOW_WAGO_DB2_TRAIT_EDGE_MAX_ROWS", None)
         os.environ.pop("WOW_SIMC_TRAIT_DATA_FILE", None)
         os.environ.pop("WOW_SIMC_SPELLTEXT_DATA_FILE", None)
         os.environ.pop("WOW_SIMC_BIN", None)
@@ -59,6 +62,16 @@ class WebSimPayloadTest(unittest.TestCase):
                     raise
                 gc.collect()
                 time.sleep(0.2)
+
+    def write_simc_profile_tar(self, filename, members):
+        tar_path = Path(self.tmp.name) / filename
+        with tarfile.open(tar_path, "w:gz") as tar:
+            for member_name, profile in members:
+                payload = profile.encode("utf-8")
+                member = tarfile.TarInfo(member_name)
+                member.size = len(payload)
+                tar.addfile(member, io.BytesIO(payload))
+        return tar_path
 
     def insert_websim_talent(
         self,
@@ -772,6 +785,150 @@ class WebSimPayloadTest(unittest.TestCase):
         self.websim_payload.urlopen = fail_urlopen
 
         self.assertEqual(self.websim_payload.download_wago_trait_edge_csv("12.0.5.67823"), ("", ""))
+
+    def test_trait_edge_download_rejects_oversized_payload(self):
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, size=-1):
+                return b"x" * size
+
+        with patch.object(self.websim_payload, "urlopen", return_value=FakeResponse()), patch.dict(
+            os.environ,
+            {"WOW_WAGO_DB2_TRAIT_EDGE_MAX_BYTES": "10"},
+        ):
+            with self.assertRaisesRegex(RuntimeError, "exceeds 10 bytes"):
+                self.websim_payload.download_wago_trait_edge_csv("12.0.5.67823")
+
+    def test_trait_edge_parser_rejects_excess_rows(self):
+        payload = (
+            "ID,VisualStyle,LeftTraitNodeID,RightTraitNodeID,Type\n"
+            "1,1,90001,90002,2\n"
+            "2,1,90002,90003,2\n"
+        )
+
+        with patch.dict(os.environ, {"WOW_WAGO_DB2_TRAIT_EDGE_MAX_ROWS": "1"}):
+            with self.assertRaisesRegex(RuntimeError, "exceeds 1 rows"):
+                self.websim_payload.parse_trait_edge_data_text(payload)
+
+    def test_trait_edge_parser_counts_invalid_input_rows_toward_limit(self):
+        payload = (
+            "ID,VisualStyle,LeftTraitNodeID,RightTraitNodeID,Type\n"
+            "1,1,0,0,2\n"
+            "2,1,90001,90002,2\n"
+        )
+
+        with patch.dict(os.environ, {"WOW_WAGO_DB2_TRAIT_EDGE_MAX_ROWS": "1"}):
+            with self.assertRaisesRegex(RuntimeError, "exceeds 1 rows"):
+                self.websim_payload.parse_trait_edge_data_text(payload)
+
+    def test_trait_edge_reverse_index_only_joins_shared_tree_context(self):
+        talents = [
+            {
+                "id": "tree-a-left",
+                "treeId": "tree-a",
+                "classKey": "mage",
+                "specKey": "frost",
+                "row": 1,
+                "col": 1,
+                "payload": {"nodeId": 90001, "heroKey": ""},
+            },
+            {
+                "id": "tree-a-right",
+                "treeId": "tree-a",
+                "classKey": "mage",
+                "specKey": "frost",
+                "row": 2,
+                "col": 1,
+                "payload": {"nodeId": 90002, "heroKey": ""},
+            },
+            {
+                "id": "tree-b-left",
+                "treeId": "tree-b",
+                "classKey": "mage",
+                "specKey": "fire",
+                "row": 1,
+                "col": 1,
+                "payload": {"nodeId": 90001, "heroKey": ""},
+            },
+            {
+                "id": "tree-c-right",
+                "treeId": "tree-c",
+                "classKey": "warlock",
+                "specKey": "destruction",
+                "row": 2,
+                "col": 1,
+                "payload": {"nodeId": 90002, "heroKey": ""},
+            },
+        ]
+
+        added = self.websim_payload.apply_trait_edges_to_talents(
+            talents,
+            [{"leftNodeId": 90001, "rightNodeId": 90002}],
+        )
+
+        self.assertEqual(added, 1)
+        self.assertEqual(talents[1]["payload"]["parentIds"], ["tree-a-left"])
+        self.assertNotIn("parentIds", talents[2]["payload"])
+        self.assertNotIn("parentIds", talents[3]["payload"])
+
+    def test_simc_extraction_preserves_remote_download_error(self):
+        with patch.object(self.websim_payload, "current_simc_source_tar", return_value=None), patch.object(
+            self.websim_payload,
+            "current_simc_trait_data_file",
+            return_value=None,
+        ), patch.object(
+            self.websim_payload,
+            "download_simc_trait_data_text",
+            side_effect=TimeoutError("SimulationCraft download timed out"),
+        ):
+            data = self.websim_payload.extract_simc_generated_data()
+
+        self.assertEqual(data["talents"], [])
+        self.assertEqual(data["source"], "")
+        self.assertIn("SimulationCraft download timed out", data["extractionError"])
+
+    def test_simc_tar_extractor_assigns_stable_ids_to_conflicting_profiles(self):
+        profile_a = 'mage="Shared Actor"\nspec=frost\ntalents=AAA\nhead=first_helm,id=100001\n'
+        profile_b = 'mage="Shared Actor"\nspec=frost\ntalents=BBB\nhead=second_helm,id=100002\n'
+        members = [
+            ("simc/profiles/MID_Frost_A.simc", profile_a),
+            ("simc/profiles/MID_Frost_B.simc", profile_b),
+        ]
+        forward = self.websim_payload.extract_simc_data_from_tar(
+            self.write_simc_profile_tar("profiles-forward.tar.gz", members)
+        )
+        reverse = self.websim_payload.extract_simc_data_from_tar(
+            self.write_simc_profile_tar("profiles-reverse.tar.gz", list(reversed(members)))
+        )
+
+        forward_ids = {preset["profile"]: preset["id"] for preset in forward["presets"]}
+        reverse_ids = {preset["profile"]: preset["id"] for preset in reverse["presets"]}
+        base_id = self.websim_payload.parse_profile_preset(members[0][0], profile_a)["id"]
+
+        self.assertEqual(set(forward_ids), {profile_a.strip(), profile_b.strip()})
+        self.assertEqual(forward_ids, reverse_ids)
+        self.assertEqual(len(set(forward_ids.values())), 2)
+        self.assertTrue(all(preset_id.startswith(f"{base_id}-") for preset_id in forward_ids.values()))
+
+    def test_simc_tar_extractor_deduplicates_identical_conflicting_profiles(self):
+        profile = 'mage="Shared Actor"\nspec=frost\ntalents=AAA\nhead=first_helm,id=100001\n'
+        result = self.websim_payload.extract_simc_data_from_tar(
+            self.write_simc_profile_tar(
+                "profiles-duplicate.tar.gz",
+                [
+                    ("simc/profiles/MID_Frost_A.simc", profile),
+                    ("simc/profiles/MID_Frost_A_Copy.simc", profile),
+                ],
+            )
+        )
+
+        self.assertEqual(len(result["presets"]), 1)
+        self.assertEqual(result["presets"][0]["profile"], profile.strip())
 
     def test_trait_edge_fetch_failure_is_reported_in_extracted_simc_data(self):
         original_trait_edge = self.websim_payload.download_wago_trait_edge_csv

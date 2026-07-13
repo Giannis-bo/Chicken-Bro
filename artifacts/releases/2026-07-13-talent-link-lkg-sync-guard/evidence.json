@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "slug": "talent-link-lkg-sync-guard",
+  "requirementSlug": "talent-link-lkg-sync-guard",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/fix-talent-tree-links",
+  "commit": "pending_candidate_commit",
+  "scope": [
+    "talent_traitedge_extraction_bounds",
+    "postgres_live_lkg_projection",
+    "fail_closed_simc_candidate_validation",
+    "deterministic_profile_identity",
+    "scheduled_sync_runtime_guard"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.postgres_cache_store_test tests.postgres_cache_sync_test tests.websim_payload_test",
+      "status": "pass",
+      "summary": "608 PostgreSQL store, sync and WebSim extraction tests passed after both independent-review regressions were reproduced red and fixed green."
+    },
+    {
+      "command": "node --test tests/deploy-script.test.js",
+      "status": "pass",
+      "summary": "15 deployment and systemd contract tests passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-13-talent-link-lkg-sync-guard --base origin/main",
+      "status": "pass",
+      "summary": "Full profile passed 432 Node tests and 1409 Python tests with 1 skipped, plus compile, JSON, Harness and diff gates."
+    },
+    {
+      "command": "candidate backup, read-only extraction validation, controlled SimC-only sync and live smoke",
+      "status": "not_run",
+      "summary": "Pending exact-commit candidate deployment."
+    },
+    {
+      "command": "real WeChat exact-candidate connector and community enhancement import verification",
+      "status": "not_run",
+      "summary": "Reserved for user verification before merge."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true,
+    "branch": "codex/fix-talent-tree-links",
+    "commit": "pending_candidate_commit"
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "upstream_partial_overwrite",
+      "status": "blocked_by_requirement",
+      "detail": "Candidate validation finishes before replace_simc_generated_data and a rejected attempt retains live PG counts and rows."
+    },
+    {
+      "id": "incomplete_graph_cannot_self_repair",
+      "status": "mitigated_local_verified",
+      "detail": "An independent review reproduced the trap; tests now allow only monotonic edge additions over an incomplete same-source graph with identical non-edge structure."
+    },
+    {
+      "id": "timer_backflow_during_candidate",
+      "status": "pending_live_gate",
+      "detail": "Candidate deployment requires inactive sync services, a free shared lock, async sync disabled and post-smoke timer restoration evidence."
+    },
+    {
+      "id": "wechat_runtime_not_yet_verified",
+      "status": "pending_user_evidence",
+      "detail": "Local and API evidence cannot prove real mini-program connector rendering; merge remains blocked on exact-worktree user verification."
+    }
+  ],
+  "rollback": [
+    "config_disable",
+    "code_rollback",
+    "data_restore"
+  ],
+  "cleanup": {
+    "required": true,
+    "items": [
+      "restore any temporarily stopped timer to its pre-deploy state",
+      "leave asynchronous sync services inactive and release the shared lock",
+      "keep unrelated root .superpowers files untracked and untouched"
+    ]
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/talent-simulation-full-chain-runbook.md",
+    "docs/project-owner-map.json",
+    "docs/backend-owner-map.json"
+  ],
+  "summary": "Local candidate guards are verified. Full Harness, exact production backup/read-only validation, controlled sync, API/data smoke and real WeChat evidence remain required before merge."
+}

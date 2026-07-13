@@ -1,7 +1,230 @@
+import hashlib
 import json
 import os
 import unittest
 from unittest.mock import patch
+
+
+def complete_simc_candidate(
+    spec_pairs=("mage:frost",),
+    hero_triplets=("mage:frost:spellslinger",),
+    nodes_per_context=5,
+):
+    talents = []
+    next_node_id = 90000
+    for spec_pair in spec_pairs:
+        class_key, spec_key = spec_pair.split(":", 1)
+        contexts = [
+            ("class", f"class:{class_key}", ""),
+            ("spec", f"spec:{class_key}:{spec_key}", ""),
+        ]
+        contexts.extend(
+            ("hero", f"hero:{hero_key}", hero_key)
+            for hero_class, hero_spec, hero_key in (triplet.split(":", 2) for triplet in hero_triplets)
+            if (hero_class, hero_spec) == (class_key, spec_key)
+        )
+        for tree_type, tree_id, hero_key in contexts:
+            previous_id = ""
+            for index in range(nodes_per_context):
+                next_node_id += 1
+                talent_id = f"simc-{tree_type}-{class_key}-{spec_key}-{hero_key or 'none'}-{index}"
+                spell_id = next_node_id + 100000
+                trait_id = next_node_id + 200000
+                trait_definition_id = next_node_id + 300000
+                payload = {
+                    "treeType": tree_type,
+                    "nodeId": next_node_id,
+                    "traitId": trait_id,
+                    "traitDefinitionId": trait_definition_id,
+                    "heroKey": hero_key,
+                    "parentIds": [previous_id] if previous_id else [],
+                    "parentMode": "any",
+                    "selectionIndex": 0,
+                    "nodeType": 0,
+                    "rank": 1,
+                    "maxRank": 1,
+                    "selectedRank": 0,
+                    "grantedRank": 0,
+                    "granted": False,
+                    "choiceGroup": "",
+                    "shape": "square",
+                    "pointRequirement": 0,
+                    "rankEntries": [
+                        {
+                            "rank": 1,
+                            "points": 1,
+                            "pointStart": 1,
+                            "pointEnd": 1,
+                            "traitId": trait_id,
+                            "traitDefinitionId": trait_definition_id,
+                            "spellId": spell_id,
+                            "selectionIndex": 0,
+                        }
+                    ],
+                }
+                talents.append(
+                    {
+                        "id": talent_id,
+                        "classKey": class_key,
+                        "specKey": spec_key,
+                        "treeId": tree_id,
+                        "treeType": tree_type,
+                        "row": index + 1,
+                        "col": 1,
+                        "spellId": spell_id,
+                        "name": f"Fixture Talent {next_node_id}",
+                        "payload": payload,
+                    }
+                )
+                previous_id = talent_id
+    return {
+        "talents": talents,
+        "presets": [
+            {
+                "id": f"preset-{spec_pair.replace(':', '-')}",
+                "classKey": spec_pair.split(":", 1)[0],
+                "specKey": spec_pair.split(":", 1)[1],
+                "profile": (
+                    f'{spec_pair.split(":", 1)[0]}="Fixture"\n'
+                    f'spec={spec_pair.split(":", 1)[1]}'
+                ),
+            }
+            for spec_pair in spec_pairs
+        ],
+        "spellDetails": [{"spellId": 123}],
+        "source": "simc",
+        "build": "simc-build",
+        "dependencies": sum(
+            len((talent.get("payload") or {}).get("parentIds") or []) for talent in talents
+        ),
+        "traitEdgeSource": "wago://TraitEdge",
+    }
+
+
+def simc_graph_baseline(candidate):
+    from server.postgres_cache_store import simc_talent_persisted_content_identity
+
+    contexts = {}
+    for talent in candidate.get("talents") or []:
+        payload = talent.get("payload") or {}
+        tree_type = str(payload.get("treeType") or "")
+        hero_key = str(payload.get("heroKey") or "") if tree_type == "hero" else ""
+        key = (
+            str(talent.get("classKey") or ""),
+            str(talent.get("specKey") or ""),
+            tree_type,
+            hero_key,
+        )
+        counts = contexts.setdefault(
+            key,
+            {
+                "classKey": key[0],
+                "specKey": key[1],
+                "treeType": key[2],
+                "heroKey": key[3],
+                "nodes": 0,
+                "dependencyNodes": 0,
+                "dependencies": 0,
+                "graphEntries": [],
+                "contentEntries": [],
+            },
+        )
+        parent_ids = [parent_id for parent_id in (payload.get("parentIds") or []) if parent_id]
+        counts["nodes"] += 1
+        counts["dependencyNodes"] += int(bool(parent_ids))
+        counts["dependencies"] += len(parent_ids)
+        rank_entries = tuple(
+            sorted(
+                (
+                    (
+                        int(entry.get("traitId") or 0),
+                        int(entry.get("traitDefinitionId") or 0),
+                        int(entry.get("spellId") or 0),
+                        int(entry.get("selectionIndex") or 0),
+                        int(entry.get("rank") or 0),
+                        int(entry.get("points") or 0),
+                        int(entry.get("pointStart") or 0),
+                        int(entry.get("pointEnd") or 0),
+                    )
+                    for entry in (payload.get("rankEntries") or [])
+                ),
+                key=lambda entry: (entry[3], entry[0], entry[2]),
+            )
+        )
+        counts["graphEntries"].append(
+            (
+                str(talent.get("id") or ""),
+                int(talent.get("row") or 0),
+                int(talent.get("col") or 0),
+                int(talent.get("spellId") or 0),
+                int(payload.get("nodeId") or 0),
+                int(payload.get("traitId") or 0),
+                rank_entries,
+                int(payload.get("selectionIndex") or 0),
+                int(payload.get("nodeType") or 0),
+                int(payload.get("rank") or 0),
+                int(payload.get("maxRank") or 0),
+                int(payload.get("selectedRank") or 0),
+                int(payload.get("grantedRank") or 0),
+                bool(payload.get("granted")),
+                str(payload.get("choiceGroup") or ""),
+                int(payload.get("pointRequirement") or 0),
+                str(payload.get("parentMode") or "any").strip().lower(),
+                str(payload.get("shape") or "").strip().lower(),
+                sorted(parent_ids),
+            )
+        )
+        counts["contentEntries"].append(
+            simc_talent_persisted_content_identity(
+                talent.get("id"),
+                talent.get("classKey"),
+                talent.get("specKey"),
+                talent.get("treeId"),
+                talent.get("row"),
+                talent.get("col"),
+                talent.get("spellId"),
+                talent.get("name"),
+                payload,
+            )
+        )
+    rows = list(contexts.values())
+    for row in rows:
+        entries = sorted(row.pop("graphEntries"))
+        content_entries = sorted(row.pop("contentEntries"))
+        row["nodeIds"] = [entry[0] for entry in entries]
+        row["structureSignature"] = hashlib.sha256(
+            json.dumps(content_entries, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        row["parentIdsByNode"] = [[entry[0], entry[-1]] for entry in entries]
+        row["graphSignature"] = hashlib.sha256(
+            json.dumps(entries, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+    presets = [preset for preset in (candidate.get("presets") or []) if isinstance(preset, dict)]
+    profile_specs = sorted(
+        {
+            f"{preset.get('classKey')}:{preset.get('specKey')}"
+            for preset in presets
+            if preset.get("classKey") and preset.get("specKey") and str(preset.get("profile") or "").strip()
+        }
+    )
+    return {
+        "contexts": rows,
+        "talents": sum(row["nodes"] for row in rows),
+        "dependencyNodes": sum(row["dependencyNodes"] for row in rows),
+        "dependencies": sum(row["dependencies"] for row in rows),
+        "profiles": len({str(preset.get("id") or "") for preset in presets if preset.get("id")}),
+        "profileSpecCoverage": len(profile_specs),
+        "profileSpecs": profile_specs,
+        "profileContentSignatures": sorted(
+            (
+                str(preset.get("classKey") or ""),
+                str(preset.get("specKey") or ""),
+                hashlib.sha256(str(preset.get("profile") or "").strip().encode("utf-8")).hexdigest(),
+            )
+            for preset in presets
+            if preset.get("classKey") and preset.get("specKey") and str(preset.get("profile") or "").strip()
+        ),
+    }
 
 
 class FakePostgresSyncStore:
@@ -26,6 +249,8 @@ class FakePostgresSyncStore:
         self.metadata_gaps = []
         self.item_metadata_gaps = []
         self.real_player_residue_cleanups = []
+        self.websim_sync_state = {}
+        self.simc_graph_baseline = {"contexts": []}
 
     def replace_simc_generated_data(self, data):
         self.replaced_data = data
@@ -35,8 +260,16 @@ class FakePostgresSyncStore:
             "spellDetails": len(data.get("spellDetails") or []),
             "build": data.get("build") or "",
             "source": data.get("source") or "",
+            "dependencies": int(data.get("dependencies") or 0),
+            "dependencyNodes": int(data.get("dependencyNodes") or 0),
+            "specCoverage": int(data.get("specCoverage") or 0),
+            "heroCoverage": int(data.get("heroCoverage") or 0),
+            "profileSpecCoverage": int(data.get("profileSpecCoverage") or 0),
             "traitEdgeSource": data.get("traitEdgeSource") or "",
         }
+
+    def simc_talent_graph_baseline(self):
+        return self.simc_graph_baseline
 
     def replace_websim_journal_data(self, data):
         self.journal_data = data
@@ -58,6 +291,8 @@ class FakePostgresSyncStore:
     def get_sync_state(self, key):
         if key == "gearCatalog":
             return {"status": "verified", "blockers": []}
+        if key == "websim_sync":
+            return self.websim_sync_state
         return {}
 
     def community_talent_template_counts(self):
@@ -295,24 +530,21 @@ class PostgresCacheSyncTest(unittest.TestCase):
         from server import postgres_cache_sync
 
         store = FakePostgresSyncStore()
-        simc_data = {
-            "talents": [
-                {"id": "talent-root"},
-                {"id": "talent-a", "payload": {"parentIds": ["talent-root"]}},
-            ],
-            "presets": [{"id": "preset-a"}],
-            "spellDetails": [{"spellId": 123}],
-            "source": "simc",
-            "build": "simc-build",
-            "dependencies": 1,
-            "traitEdgeSource": "wago://TraitEdge",
-        }
+        simc_data = complete_simc_candidate()
 
-        with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=simc_data):
+        with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=simc_data), patch.object(
+            postgres_cache_sync,
+            "expected_spec_pairs",
+            return_value=["mage:frost"],
+        ), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
             payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
 
         self.assertIs(store.replaced_data, simc_data)
-        self.assertEqual(payload["simc"]["talents"], 2)
+        self.assertEqual(payload["simc"]["talents"], 15)
         self.assertEqual(payload["simc"]["profiles"], 1)
         self.assertEqual(payload["simc"]["build"], "simc-build")
         self.assertEqual(store.saved_states[-1][0], "websim_sync")
@@ -322,19 +554,16 @@ class PostgresCacheSyncTest(unittest.TestCase):
         from server import postgres_cache_sync
 
         store = FakePostgresSyncStore()
-        edge_less_simc_data = {
-            "talents": [
-                {"id": "talent-root", "payload": {"parentIds": []}},
-                {"id": "talent-child", "payload": {"parentIds": []}},
-            ],
-            "presets": [],
-            "spellDetails": [],
-            "source": "simc",
-            "build": "simc-build",
-            "dependencies": 0,
-            "traitEdgeSource": "",
-            "traitEdgeError": "TimeoutError: TraitEdge request timed out",
-        }
+        edge_less_simc_data = complete_simc_candidate()
+        for talent in edge_less_simc_data["talents"]:
+            talent["payload"]["parentIds"] = []
+        edge_less_simc_data.update(
+            {
+                "dependencies": 0,
+                "traitEdgeSource": "",
+                "traitEdgeError": "TimeoutError: TraitEdge request timed out",
+            }
+        )
 
         with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=edge_less_simc_data):
             payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
@@ -349,18 +578,10 @@ class PostgresCacheSyncTest(unittest.TestCase):
         from server import postgres_cache_sync
 
         store = FakePostgresSyncStore()
-        simc_data = {
-            "talents": [
-                {"id": "talent-root", "payload": {"parentIds": []}},
-                {"id": "talent-child", "payload": {"parentIds": []}},
-            ],
-            "presets": [],
-            "spellDetails": [],
-            "source": "simc",
-            "build": "simc-build",
-            "dependencies": 1,
-            "traitEdgeSource": "wago://TraitEdge",
-        }
+        simc_data = complete_simc_candidate()
+        for talent in simc_data["talents"]:
+            talent["payload"]["parentIds"] = []
+        simc_data["dependencies"] = 1
 
         with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=simc_data):
             payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
@@ -378,18 +599,8 @@ class PostgresCacheSyncTest(unittest.TestCase):
         from server import postgres_cache_sync
 
         store = FakePostgresSyncStore()
-        simc_data = {
-            "talents": [
-                {"id": "talent-root"},
-                {"id": "talent-child", "payload": {"parentIds": ["talent-root"]}},
-            ],
-            "presets": [],
-            "spellDetails": [],
-            "source": "simc",
-            "build": "simc-build",
-            "dependencies": 1,
-            "traitEdgeSource": "",
-        }
+        simc_data = complete_simc_candidate()
+        simc_data["traitEdgeSource"] = ""
 
         with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=simc_data):
             payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
@@ -418,6 +629,1098 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(payload["simc"]["talents"], 0)
         self.assertIn("talent catalog is empty", payload["simc"]["errors"][0])
         self.assertIn("talent catalog is empty", payload["errors"][0])
+
+    def test_websim_postgres_sync_blocks_empty_candidate_without_source(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        empty_simc_data = {
+            "talents": [],
+            "presets": [],
+            "spellDetails": [],
+            "source": "",
+            "extractionError": "TimeoutError: SimulationCraft download timed out",
+        }
+
+        with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=empty_simc_data):
+            payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
+
+        self.assertIsNone(store.replaced_data)
+        self.assertFalse(payload["ok"])
+        self.assertIn("talent catalog is empty", payload["simc"]["errors"][0])
+        self.assertIn("SimulationCraft download timed out", payload["simc"]["errors"][0])
+
+    def test_websim_postgres_sync_blocks_truncated_trait_edge_coverage(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        simc_data = complete_simc_candidate(nodes_per_context=100)
+        for talent in simc_data["talents"]:
+            talent["payload"]["parentIds"] = []
+        simc_data["talents"][1]["payload"]["parentIds"] = [simc_data["talents"][0]["id"]]
+        simc_data["dependencies"] = 1
+
+        with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=simc_data), patch.object(
+            postgres_cache_sync,
+            "expected_spec_pairs",
+            return_value=["mage:frost"],
+        ), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
+
+        self.assertIsNone(store.replaced_data)
+        self.assertFalse(payload["ok"])
+        self.assertIn("dependency coverage is incomplete", payload["simc"]["errors"][0])
+
+    def test_websim_postgres_sync_blocks_missing_spec_coverage(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        simc_data = complete_simc_candidate()
+
+        with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=simc_data), patch.object(
+            postgres_cache_sync,
+            "expected_spec_pairs",
+            return_value=["mage:frost", "warrior:arms"],
+        ), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger", "warrior:arms:slayer"],
+        ):
+            payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
+
+        self.assertIsNone(store.replaced_data)
+        self.assertIn("specialization coverage is incomplete", payload["simc"]["errors"][0])
+
+    def test_websim_postgres_sync_blocks_empty_profile_presets(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        simc_data = complete_simc_candidate()
+        simc_data["presets"] = []
+
+        with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=simc_data), patch.object(
+            postgres_cache_sync,
+            "expected_spec_pairs",
+            return_value=["mage:frost"],
+        ), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
+
+        self.assertIsNone(store.replaced_data)
+        self.assertIn("profile preset coverage is incomplete", payload["simc"]["errors"][0])
+
+    def test_websim_postgres_sync_blocks_candidate_below_previous_baseline(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.websim_sync_state = {
+            "simc": {
+                "talents": 20,
+                "profiles": 1,
+                "dependencies": 12,
+                "build": "previous-build",
+            }
+        }
+        simc_data = complete_simc_candidate()
+
+        with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=simc_data), patch.object(
+            postgres_cache_sync,
+            "expected_spec_pairs",
+            return_value=["mage:frost"],
+        ), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
+
+        self.assertIsNone(store.replaced_data)
+        self.assertIn("fell below the last-known-good baseline", payload["simc"]["errors"][0])
+
+    def test_websim_postgres_sync_keeps_baseline_after_repeated_rejection(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.websim_sync_state = {
+            "simc": {
+                "talents": 20,
+                "profiles": 1,
+                "dependencies": 12,
+                "build": "previous-build",
+                "source": "previous-source",
+                "traitEdgeSource": "previous-edges",
+            }
+        }
+        simc_data = complete_simc_candidate()
+
+        for _attempt in range(2):
+            with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=simc_data), patch.object(
+                postgres_cache_sync,
+                "expected_spec_pairs",
+                return_value=["mage:frost"],
+            ), patch.object(
+                postgres_cache_sync,
+                "expected_hero_tree_triplets",
+                return_value=["mage:frost:spellslinger"],
+            ):
+                payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
+
+            self.assertIsNone(store.replaced_data)
+            self.assertEqual(payload["simc"]["talents"], 20)
+            self.assertEqual(payload["simc"]["build"], "previous-build")
+            self.assertIn("fell below the last-known-good baseline", payload["simc"]["errors"][0])
+            store.websim_sync_state = payload
+
+    def test_websim_postgres_sync_recovers_live_pg_baseline_when_sync_state_is_missing(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        good_candidate = complete_simc_candidate()
+        store.simc_graph_baseline = simc_graph_baseline(good_candidate)
+        rejected_candidate = complete_simc_candidate()
+        rejected_candidate["presets"] = []
+
+        with patch.object(
+            postgres_cache_sync,
+            "extract_simc_generated_data",
+            return_value=rejected_candidate,
+        ), patch.object(
+            postgres_cache_sync,
+            "expected_spec_pairs",
+            return_value=["mage:frost"],
+        ), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
+
+        self.assertIsNone(store.replaced_data)
+        self.assertEqual(payload["simc"]["talents"], len(good_candidate["talents"]))
+        self.assertEqual(payload["simc"]["dependencies"], good_candidate["dependencies"])
+        self.assertEqual(payload["simc"]["dependencyNodes"], good_candidate["dependencies"])
+        self.assertEqual(payload["simc"]["profiles"], 1)
+        self.assertEqual(payload["simc"]["profileSpecCoverage"], 1)
+        self.assertIn("profile preset coverage is incomplete", payload["simc"]["errors"][0])
+
+    def test_simc_candidate_validation_accepts_complete_expected_matrix(self):
+        from server import postgres_cache_sync
+
+        spec_pairs = tuple(postgres_cache_sync.expected_spec_pairs())
+        hero_triplets = tuple(postgres_cache_sync.expected_hero_tree_triplets())
+        simc_data = complete_simc_candidate(spec_pairs, hero_triplets)
+
+        counts = postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+        self.assertEqual(counts["specCoverage"], 40)
+        self.assertEqual(counts["heroCoverage"], 80)
+        self.assertEqual(counts["dependencies"], simc_data["dependencies"])
+        self.assertEqual(counts["dependencyNodes"], simc_data["dependencies"])
+
+    def test_simc_candidate_validation_accepts_profile_pack_with_known_spec_gaps(self):
+        from server import postgres_cache_sync
+
+        spec_pairs = tuple(postgres_cache_sync.expected_spec_pairs())
+        hero_triplets = tuple(postgres_cache_sync.expected_hero_tree_triplets())
+        simc_data = complete_simc_candidate(spec_pairs, hero_triplets)
+        missing_profile_specs = set(spec_pairs[-7:])
+        simc_data["presets"] = [
+            preset
+            for preset in simc_data["presets"]
+            if f"{preset['classKey']}:{preset['specKey']}" not in missing_profile_specs
+        ]
+        while len(simc_data["presets"]) < 50:
+            duplicate = dict(simc_data["presets"][len(simc_data["presets"]) % 10])
+            duplicate["id"] = f"{duplicate['id']}-variant-{len(simc_data['presets'])}"
+            simc_data["presets"].append(duplicate)
+
+        counts = postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+        self.assertEqual(counts["profiles"], 50)
+
+    def test_simc_candidate_validation_rejects_duplicate_single_spec_profiles(self):
+        from server import postgres_cache_sync
+
+        spec_pairs = tuple(postgres_cache_sync.expected_spec_pairs())
+        hero_triplets = tuple(postgres_cache_sync.expected_hero_tree_triplets())
+        simc_data = complete_simc_candidate(spec_pairs, hero_triplets)
+        seed = dict(simc_data["presets"][0])
+        simc_data["presets"] = [{**seed, "id": f"duplicate-{index}"} for index in range(50)]
+
+        with self.assertRaisesRegex(RuntimeError, "profile preset coverage is incomplete"):
+            postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_empty_profile_payload(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        simc_data["presets"][0]["profile"] = ""
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "profile preset payload is invalid"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_single_truncated_hero_context(self):
+        from server import postgres_cache_sync
+
+        heroes = ("mage:frost:spellslinger", "mage:frost:frostfire")
+        simc_data = complete_simc_candidate(("mage:frost",), heroes, nodes_per_context=20)
+        baseline = simc_graph_baseline(simc_data)
+        truncated_hero = [
+            talent
+            for talent in simc_data["talents"]
+            if (talent.get("payload") or {}).get("heroKey") == "frostfire"
+        ]
+        keep_ids = {talent["id"] for talent in truncated_hero[:5]}
+        simc_data["talents"] = [
+            talent
+            for talent in simc_data["talents"]
+            if (talent.get("payload") or {}).get("heroKey") != "frostfire" or talent["id"] in keep_ids
+        ]
+        simc_data["dependencies"] = sum(
+            len((talent.get("payload") or {}).get("parentIds") or []) for talent in simc_data["talents"]
+        )
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=list(heroes),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "tree context fell below"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(
+                    simc_data,
+                    {"graphBaseline": baseline},
+                )
+
+    def test_simc_candidate_validation_rejects_tree_identity_mismatch(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        hero_talent = next(
+            talent for talent in simc_data["talents"] if talent.get("treeType") == "hero"
+        )
+        hero_talent["payload"]["treeType"] = "spec"
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "tree identity is inconsistent"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_wrong_tree_id(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        simc_data["talents"][0]["treeId"] = "spec:mage:frost"
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "tree identity is inconsistent"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_empty_source(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        simc_data["source"] = ""
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "source identity is missing"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_duplicate_talent_id(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        simc_data["talents"][1]["id"] = simc_data["talents"][0]["id"]
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "talent identifiers are invalid"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_duplicate_preset_id(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        simc_data["presets"].append(dict(simc_data["presets"][0]))
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "profile preset payload is invalid"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_allows_same_build_growth(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        previous_state = {
+            "simc": {
+                "build": simc_data["build"],
+                "source": simc_data["source"],
+                "talents": len(simc_data["talents"]) - 1,
+                "profiles": len(simc_data["presets"]),
+                "dependencies": simc_data["dependencies"] - 1,
+                "dependencyNodes": simc_data["dependencies"] - 1,
+            }
+        }
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            counts = postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+        self.assertEqual(counts["profileSpecCoverage"], 1)
+
+    def test_simc_candidate_validation_rejects_same_build_decline(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        previous_state = {
+            "simc": {
+                "build": simc_data["build"],
+                "source": simc_data["source"],
+                "talents": len(simc_data["talents"]) + 1,
+                "profiles": len(simc_data["presets"]),
+                "dependencies": simc_data["dependencies"],
+                "dependencyNodes": simc_data["dependencies"],
+            }
+        }
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "same-source baseline"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+    def test_simc_candidate_validation_rejects_same_build_profile_spec_decline(self):
+        from server import postgres_cache_sync
+
+        spec_pairs = tuple(postgres_cache_sync.expected_spec_pairs())
+        hero_triplets = tuple(postgres_cache_sync.expected_hero_tree_triplets())
+        simc_data = complete_simc_candidate(spec_pairs, hero_triplets)
+        retained = list(simc_data["presets"][:32])
+        while len(retained) < 40:
+            duplicate = dict(retained[len(retained) % 8])
+            duplicate["id"] = f"{duplicate['id']}-variant-{len(retained)}"
+            retained.append(duplicate)
+        simc_data["presets"] = retained
+        previous_state = {
+            "simc": {
+                "build": simc_data["build"],
+                "source": simc_data["source"],
+                "talents": len(simc_data["talents"]),
+                "profiles": 40,
+                "profileSpecCoverage": 40,
+                "dependencies": simc_data["dependencies"],
+                "dependencyNodes": simc_data["dependencies"],
+            }
+        }
+
+        with self.assertRaisesRegex(RuntimeError, "profileSpecCoverage declined from 40 to 32"):
+            postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+    def test_simc_candidate_validation_rejects_same_source_profile_spec_swap(self):
+        from server import postgres_cache_sync
+
+        spec_pairs = tuple(postgres_cache_sync.expected_spec_pairs())
+        hero_triplets = tuple(postgres_cache_sync.expected_hero_tree_triplets())
+        simc_data = complete_simc_candidate(spec_pairs, hero_triplets)
+        previous_profile_specs = list(spec_pairs[:32])
+        candidate_profile_specs = set(spec_pairs[1:33])
+        simc_data["presets"] = [
+            preset
+            for preset in simc_data["presets"]
+            if f"{preset['classKey']}:{preset['specKey']}" in candidate_profile_specs
+        ]
+        previous_state = {
+            "simc": {"source": simc_data["source"]},
+            "graphBaseline": {
+                "profileSpecCoverage": 32,
+                "profileSpecs": previous_profile_specs,
+                "contexts": [],
+            },
+        }
+
+        with self.assertRaisesRegex(RuntimeError, "profile specialization set declined"):
+            postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+    def test_simc_candidate_validation_rejects_same_source_live_profile_count_decline(self):
+        from server import postgres_cache_sync
+
+        spec_pairs = tuple(postgres_cache_sync.expected_spec_pairs())
+        hero_triplets = tuple(postgres_cache_sync.expected_hero_tree_triplets())
+        simc_data = complete_simc_candidate(spec_pairs, hero_triplets)
+        retained_profile_specs = set(spec_pairs[:32])
+        simc_data["presets"] = [
+            preset
+            for preset in simc_data["presets"]
+            if f"{preset['classKey']}:{preset['specKey']}" in retained_profile_specs
+        ]
+        previous_state = {
+            "simc": {"source": simc_data["source"]},
+            "graphBaseline": {
+                "profiles": 50,
+                "profileSpecCoverage": 32,
+                "profileSpecs": sorted(retained_profile_specs),
+                "contexts": [],
+            },
+        }
+
+        with self.assertRaisesRegex(RuntimeError, "profiles declined from 50 to 32"):
+            postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+    def test_simc_candidate_validation_rejects_same_source_profile_content_replacement(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        baseline = simc_graph_baseline(simc_data)
+        simc_data["presets"][0]["profile"] += "\n# replaced content"
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "profile content identities declined"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(
+                    simc_data,
+                    {
+                        "simc": {"source": simc_data["source"]},
+                        "graphBaseline": baseline,
+                    },
+                )
+
+    def test_simc_candidate_validation_allows_same_source_profile_id_rekey_with_preserved_content(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        baseline = simc_graph_baseline(simc_data)
+        simc_data["presets"][0]["id"] = "preset-mage-frost-content-hash"
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            counts = postgres_cache_sync.validate_simc_generated_data_candidate(
+                simc_data,
+                {
+                    "simc": {"source": simc_data["source"]},
+                    "graphBaseline": baseline,
+                },
+            )
+
+        self.assertEqual(counts["profiles"], 1)
+
+    def test_simc_candidate_validation_allows_same_source_profile_growth_with_rekeyed_ids(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        base_preset = simc_data["presets"][0]
+        simc_data["presets"] = [
+            {
+                **base_preset,
+                "id": f"preset-old-{index}",
+                "profile": f"{base_preset['profile']}\n# variant {index}",
+            }
+            for index in range(49)
+        ]
+        baseline = simc_graph_baseline(simc_data)
+        for index, preset in enumerate(simc_data["presets"]):
+            preset["id"] = f"preset-rekeyed-{index}"
+        simc_data["presets"].append(
+            {
+                **base_preset,
+                "id": "preset-new-49",
+                "profile": f"{base_preset['profile']}\n# variant 49",
+            }
+        )
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            counts = postgres_cache_sync.validate_simc_generated_data_candidate(
+                simc_data,
+                {
+                    "simc": {"source": simc_data["source"]},
+                    "graphBaseline": baseline,
+                },
+            )
+
+        self.assertEqual(counts["profiles"], 50)
+
+    def test_simc_candidate_validation_rejects_cross_source_profile_spec_retention_below_threshold(self):
+        from server import postgres_cache_sync
+
+        spec_pairs = tuple(postgres_cache_sync.expected_spec_pairs())
+        hero_triplets = tuple(postgres_cache_sync.expected_hero_tree_triplets())
+        simc_data = complete_simc_candidate(spec_pairs, hero_triplets)
+        previous_profile_specs = list(spec_pairs[:32])
+        candidate_profile_specs = set(spec_pairs[-32:])
+        simc_data["source"] = "new-simc-source"
+        simc_data["presets"] = [
+            preset
+            for preset in simc_data["presets"]
+            if f"{preset['classKey']}:{preset['specKey']}" in candidate_profile_specs
+        ]
+        previous_state = {
+            "simc": {"source": "old-simc-source"},
+            "graphBaseline": {
+                "profileSpecCoverage": 32,
+                "profileSpecs": previous_profile_specs,
+                "contexts": [],
+            },
+        }
+
+        with self.assertRaisesRegex(RuntimeError, "profile specialization identities fell below"):
+            postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+    def test_simc_candidate_validation_allows_cross_source_profile_spec_retention_at_threshold(self):
+        from server import postgres_cache_sync
+
+        spec_pairs = tuple(postgres_cache_sync.expected_spec_pairs())
+        hero_triplets = tuple(postgres_cache_sync.expected_hero_tree_triplets())
+        simc_data = complete_simc_candidate(spec_pairs, hero_triplets)
+        candidate_profile_specs = set(spec_pairs[:32])
+        simc_data["source"] = "new-simc-source"
+        simc_data["presets"] = [
+            preset
+            for preset in simc_data["presets"]
+            if f"{preset['classKey']}:{preset['specKey']}" in candidate_profile_specs
+        ]
+        previous_state = {
+            "simc": {"source": "old-simc-source"},
+            "graphBaseline": {
+                "profileSpecCoverage": 40,
+                "profileSpecs": list(spec_pairs),
+                "contexts": [],
+            },
+        }
+
+        counts = postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+        self.assertEqual(counts["profileSpecCoverage"], 32)
+
+    def test_simc_candidate_validation_rejects_cross_source_live_profile_count_below_threshold(self):
+        from server import postgres_cache_sync
+
+        spec_pairs = tuple(postgres_cache_sync.expected_spec_pairs())
+        hero_triplets = tuple(postgres_cache_sync.expected_hero_tree_triplets())
+        simc_data = complete_simc_candidate(spec_pairs, hero_triplets)
+        retained_profile_specs = set(spec_pairs[:32])
+        simc_data["source"] = "new-simc-source"
+        simc_data["presets"] = [
+            preset
+            for preset in simc_data["presets"]
+            if f"{preset['classKey']}:{preset['specKey']}" in retained_profile_specs
+        ]
+        while len(simc_data["presets"]) < 39:
+            duplicate = dict(simc_data["presets"][len(simc_data["presets"]) % 32])
+            duplicate["id"] = f"{duplicate['id']}-variant-{len(simc_data['presets'])}"
+            simc_data["presets"].append(duplicate)
+        previous_state = {
+            "simc": {"source": "old-simc-source"},
+            "graphBaseline": {
+                "profiles": 50,
+                "profileSpecCoverage": 32,
+                "profileSpecs": sorted(retained_profile_specs),
+                "contexts": [],
+            },
+        }
+
+        with self.assertRaisesRegex(RuntimeError, "profiles retained 39/50"):
+            postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+    def test_simc_candidate_validation_allows_cross_source_live_profile_count_at_threshold(self):
+        from server import postgres_cache_sync
+
+        spec_pairs = tuple(postgres_cache_sync.expected_spec_pairs())
+        hero_triplets = tuple(postgres_cache_sync.expected_hero_tree_triplets())
+        simc_data = complete_simc_candidate(spec_pairs, hero_triplets)
+        retained_profile_specs = set(spec_pairs[:32])
+        simc_data["source"] = "new-simc-source"
+        simc_data["presets"] = [
+            preset
+            for preset in simc_data["presets"]
+            if f"{preset['classKey']}:{preset['specKey']}" in retained_profile_specs
+        ]
+        while len(simc_data["presets"]) < 40:
+            duplicate = dict(simc_data["presets"][len(simc_data["presets"]) % 32])
+            duplicate["id"] = f"{duplicate['id']}-variant-{len(simc_data['presets'])}"
+            simc_data["presets"].append(duplicate)
+        previous_state = {
+            "simc": {"source": "old-simc-source"},
+            "graphBaseline": {
+                "profiles": 50,
+                "profileSpecCoverage": 32,
+                "profileSpecs": sorted(retained_profile_specs),
+                "contexts": [],
+            },
+        }
+
+        counts = postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+        self.assertEqual(counts["profiles"], 40)
+
+    def test_simc_candidate_validation_allows_profile_variant_count_decline(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        previous_state = {
+            "simc": {
+                "build": simc_data["build"],
+                "source": simc_data["source"],
+                "talents": len(simc_data["talents"]),
+                "profiles": len(simc_data["presets"]) + 1,
+                "profileSpecCoverage": 1,
+                "dependencies": simc_data["dependencies"],
+                "dependencyNodes": simc_data["dependencies"],
+            }
+        }
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            counts = postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+        self.assertEqual(counts["profiles"], 1)
+
+    def test_simc_candidate_validation_allows_same_source_monotonic_edge_recovery(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        incomplete = complete_simc_candidate()
+        for talent in simc_data["talents"]:
+            if talent["payload"]["parentIds"]:
+                talent["payload"]["dependencySource"] = "wago-db2-traitedge"
+        for talent in incomplete["talents"]:
+            talent["payload"]["parentIds"] = []
+            talent["payload"].pop("parentMode", None)
+            talent["payload"].pop("dependencySource", None)
+        incomplete["dependencies"] = 0
+        baseline = simc_graph_baseline(incomplete)
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            counts = postgres_cache_sync.validate_simc_generated_data_candidate(
+                simc_data,
+                {
+                    "simc": {"source": simc_data["source"], "build": simc_data["build"]},
+                    "graphBaseline": baseline,
+                },
+            )
+
+        self.assertEqual(counts["dependencies"], simc_data["dependencies"])
+
+    def test_simc_candidate_validation_rejects_non_edge_change_during_same_source_recovery(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        incomplete = complete_simc_candidate()
+        for talent in incomplete["talents"]:
+            talent["payload"]["parentIds"] = []
+        incomplete["dependencies"] = 0
+        baseline = simc_graph_baseline(incomplete)
+        simc_data["talents"][0]["payload"]["pointRequirement"] = 1
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "graph structure changed"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(
+                    simc_data,
+                    {
+                        "simc": {"source": simc_data["source"], "build": simc_data["build"]},
+                        "graphBaseline": baseline,
+                    },
+                )
+
+    def test_simc_candidate_validation_rejects_non_monotonic_edge_recovery(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        incomplete = complete_simc_candidate()
+        for tree_type in ("class", "spec", "hero"):
+            context_nodes = [talent for talent in incomplete["talents"] if talent["treeType"] == tree_type]
+            for talent in context_nodes:
+                talent["payload"]["parentIds"] = []
+            context_nodes[2]["payload"]["parentIds"] = [context_nodes[0]["id"]]
+        incomplete["dependencies"] = 3
+        baseline = simc_graph_baseline(incomplete)
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "dependency recovery is not monotonic"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(
+                    simc_data,
+                    {
+                        "simc": {"source": simc_data["source"], "build": simc_data["build"]},
+                        "graphBaseline": baseline,
+                    },
+                )
+
+    def test_simc_candidate_validation_rejects_same_source_graph_rewire(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        baseline = simc_graph_baseline(simc_data)
+        for tree_type in ("class", "spec", "hero"):
+            context_nodes = [talent for talent in simc_data["talents"] if talent["treeType"] == tree_type]
+            root_id = context_nodes[0]["id"]
+            for talent in context_nodes[1:]:
+                talent["payload"]["parentIds"] = [root_id]
+
+        previous_state = {
+            "simc": {
+                "build": simc_data["build"],
+                "source": simc_data["source"],
+            },
+            "graphBaseline": baseline,
+        }
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "graph signature changed"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+    def test_simc_candidate_validation_rejects_same_source_layout_collapse(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        baseline = simc_graph_baseline(simc_data)
+        for talent in simc_data["talents"]:
+            talent["row"] = 1
+            talent["col"] = 1
+
+        previous_state = {
+            "simc": {"source": simc_data["source"]},
+            "graphBaseline": baseline,
+        }
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "graph structure changed"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+    def test_simc_candidate_validation_rejects_same_source_encoding_field_change(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        baseline = simc_graph_baseline(simc_data)
+        simc_data["talents"][0]["payload"]["pointRequirement"] = 1
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "graph structure changed"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(
+                    simc_data,
+                    {
+                        "simc": {"source": simc_data["source"]},
+                        "graphBaseline": baseline,
+                    },
+                )
+
+    def test_simc_candidate_validation_rejects_same_source_persisted_content_changes(self):
+        from server import postgres_cache_sync
+
+        baseline_candidate = complete_simc_candidate()
+        baseline = simc_graph_baseline(baseline_candidate)
+        mutations = (
+            ("name", lambda talent: talent.__setitem__("name", "Changed Talent Name")),
+            (
+                "traitDefinitionId",
+                lambda talent: talent["payload"].__setitem__(
+                    "traitDefinitionId",
+                    int(talent["payload"]["traitDefinitionId"]) + 1,
+                ),
+            ),
+            ("heroLabel", lambda talent: talent["payload"].__setitem__("heroLabel", "Changed Hero Label")),
+            (
+                "rankEntryName",
+                lambda talent: talent["payload"]["rankEntries"][0].__setitem__(
+                    "name",
+                    "Changed Rank Entry Name",
+                ),
+            ),
+        )
+
+        for label, mutate in mutations:
+            with self.subTest(field=label):
+                simc_data = complete_simc_candidate()
+                mutate(simc_data["talents"][0])
+                with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+                    postgres_cache_sync,
+                    "expected_hero_tree_triplets",
+                    return_value=["mage:frost:spellslinger"],
+                ):
+                    with self.assertRaisesRegex(RuntimeError, "graph structure changed"):
+                        postgres_cache_sync.validate_simc_generated_data_candidate(
+                            simc_data,
+                            {
+                                "simc": {"source": simc_data["source"]},
+                                "graphBaseline": baseline,
+                            },
+                        )
+
+    def test_simc_candidate_validation_rejects_graph_rewire_when_source_state_is_missing(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        baseline = simc_graph_baseline(simc_data)
+        for tree_type in ("class", "spec", "hero"):
+            context_nodes = [talent for talent in simc_data["talents"] if talent["treeType"] == tree_type]
+            root_id = context_nodes[0]["id"]
+            for talent in context_nodes[1:]:
+                talent["payload"]["parentIds"] = [root_id]
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "graph signature changed"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(
+                    simc_data,
+                    {"graphBaseline": baseline},
+                )
+
+    def test_simc_candidate_validation_rejects_cross_source_node_identity_collapse(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate(nodes_per_context=10)
+        baseline = simc_graph_baseline(simc_data)
+        class_nodes = [talent for talent in simc_data["talents"] if talent["treeType"] == "class"]
+        id_map = {talent["id"]: f"replacement-{index}" for index, talent in enumerate(class_nodes[:3])}
+        for talent in simc_data["talents"]:
+            if talent["id"] in id_map:
+                talent["id"] = id_map[talent["id"]]
+            talent["payload"]["parentIds"] = [id_map.get(parent_id, parent_id) for parent_id in talent["payload"]["parentIds"]]
+        simc_data["source"] = "new-simc-source"
+
+        previous_state = {
+            "simc": {"source": "old-simc-source"},
+            "graphBaseline": baseline,
+        }
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "node identities fell below"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data, previous_state)
+
+    def test_simc_candidate_validation_rejects_dependency_cycle(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        for tree_type in ("class", "spec", "hero"):
+            context_nodes = [talent for talent in simc_data["talents"] if talent["treeType"] == tree_type]
+            context_nodes[0]["payload"]["parentIds"] = [context_nodes[1]["id"]]
+        simc_data["dependencies"] = sum(
+            len((talent.get("payload") or {}).get("parentIds") or []) for talent in simc_data["talents"]
+        )
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "dependency cycle"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_noncanonical_identity_whitespace(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        for talent in simc_data["talents"]:
+            talent["classKey"] = " mage "
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "identity is not canonical"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_non_array_parent_ids(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        class_root = simc_data["talents"][0]
+        class_child = simc_data["talents"][1]
+        old_root_id = class_root["id"]
+        class_root["id"] = "x"
+        class_child["payload"]["parentIds"] = "x"
+        for talent in simc_data["talents"]:
+            parent_ids = (talent.get("payload") or {}).get("parentIds")
+            if isinstance(parent_ids, list):
+                talent["payload"]["parentIds"] = ["x" if parent_id == old_root_id else parent_id for parent_id in parent_ids]
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "parentIds payload is invalid"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_empty_rank_entries(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        simc_data["talents"][0]["payload"]["rankEntries"] = []
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "rankEntries payload is invalid"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_invalid_rank_entry_identity(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        simc_data["talents"][0]["payload"]["rankEntries"][0]["spellId"] = 0
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "rankEntries payload is invalid"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_non_integer_rank_field_cleanly(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        simc_data["talents"][0]["payload"]["rank"] = "one"
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "rankEntries payload is invalid"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_unreadable_node_shape(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        talent = simc_data["talents"][0]
+        talent["spellId"] = 0
+        talent["row"] = 0
+        talent["payload"]["nodeId"] = 0
+        talent["payload"]["traitId"] = 0
+        talent["payload"]["rankEntries"] = []
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "read-model shape is invalid"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_self_parent(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        simc_data["talents"][1]["payload"]["parentIds"] = [simc_data["talents"][1]["id"]]
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "dependency references are invalid or duplicated"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_duplicate_parent(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        parent_id = simc_data["talents"][0]["id"]
+        simc_data["talents"][1]["payload"]["parentIds"] = [parent_id, parent_id]
+        simc_data["dependencies"] += 1
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "dependency references are invalid or duplicated"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
+
+    def test_simc_candidate_validation_rejects_cross_context_parent(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        class_child = simc_data["talents"][1]
+        spec_root = simc_data["talents"][5]
+        class_child["payload"]["parentIds"] = [spec_root["id"]]
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            with self.assertRaisesRegex(RuntimeError, "leave their tree context"):
+                postgres_cache_sync.validate_simc_generated_data_candidate(simc_data)
 
     def test_websim_postgres_sync_writes_blizzard_journal_when_enabled(self):
         from server import postgres_cache_sync

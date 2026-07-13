@@ -1,10 +1,17 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-12",
+  "updatedAt": "2026-07-13",
   "activeMilestone": "none",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard",
   "activeContracts": [
+    {
+      "id": "talent_link_lkg_sync_guard",
+      "path": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/requirement.json",
+      "status": "implementation_allowed",
+      "lifecycle": "active",
+      "notes": "Current candidate contract for restoring talent links while preserving the live PostgreSQL SimC graph and profile LKG before any scheduled write."
+    },
     {
       "id": "repo_native_harness_v0_5",
       "path": "docs/harness.md",

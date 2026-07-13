@@ -9,6 +9,7 @@ const controlPlaneRelease = 'artifacts/releases/2026-07-10-harness-control-plane
 const executableHarnessRelease = 'artifacts/releases/2026-07-10-executable-project-harness'
 const characterizationRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
 const archivedPhase5Release = 'artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover'
+const activeTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'))
@@ -28,10 +29,10 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-07-12')
+  assert.equal(state.updatedAt, '2026-07-13')
   assert.equal(state.activeMilestone, 'none')
   assert.equal(state.featureIteration, 'allowed_under_harness')
-  assert.equal(state.activeReleaseArtifact, archivedPhase5Release)
+  assert.equal(state.activeReleaseArtifact, activeTalentLkgRelease)
 
   assert.ok(Array.isArray(state.activeContracts), 'activeContracts should be an array')
   assert.ok(Array.isArray(state.completedBaselines), 'completedBaselines should be an array')
@@ -43,6 +44,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assertUniqueById(state.historicalContracts, 'historicalContracts')
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
+  assert.ok(activeContractIds.has('talent_link_lkg_sync_guard'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase5_async_stat_snapshot_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolve_profile_workbench_plan'))
@@ -84,7 +86,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
+  for (const releasePath of [activeTalentLkgRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))

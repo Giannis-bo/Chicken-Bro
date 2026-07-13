@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "slug": "talent-link-lkg-sync-guard",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Restore talent-tree dependency links and make the PostgreSQL SimC refresh preserve the live last-known-good talent graph and profile presets whenever extraction, TraitEdge, identity, encoding, coverage or baseline validation is incomplete.",
+  "userValue": "Talent simulator connectors remain visible after scheduled refreshes, while a damaged or partial upstream candidate cannot silently erase executable talent rules or profile presets.",
+  "nonGoals": [
+    "No frontend talent geometry redesign or new user-visible talent rules",
+    "No change to the public observed-only community gear template policy",
+    "No weakening of PostgreSQL-only runtime or serializer fail-closed behavior",
+    "No trait_data-only or remote-text fallback publication when the full source archive and profile presets are unavailable",
+    "No deploy-triggered asynchronous WebSim, stat-weight or community sync",
+    "No dependency installation, third-party download or SimC source update",
+    "No PR merge before exact-candidate API, data and real WeChat verification"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/talent-simulation-full-chain-runbook.md",
+      "docs/project-owner-map.json",
+      "docs/backend-owner-map.json",
+      "server/postgres_cache_store.py",
+      "server/postgres_cache_sync.py",
+      "server/websim_payload.py",
+      "server/wow-websim-sync.service"
+    ],
+    "activeMilestone": "none",
+    "featureIteration": "allowed_under_harness",
+    "databaseRuntime": "postgres_only",
+    "candidateDeploymentRequiredBeforeMerge": true,
+    "deploymentAsyncSyncDefault": 0
+  },
+  "impactMap": {
+    "mustChange": [
+      "SimC extraction must bound Wago TraitEdge bytes, rows and runtime and preserve a precise extraction error",
+      "the scheduled PostgreSQL writer must validate a complete candidate before replacing live talents, presets or spell details",
+      "the live PostgreSQL baseline must cover global and per-context node, dependency, graph, encoding and profile content identities",
+      "same-source incomplete graphs may recover only by monotonic parent-edge additions with identical nodes and non-edge structure",
+      "rejected candidates must preserve live rows and report a bounded blocked lastAttempt",
+      "duplicate SimC profile IDs with different content must receive deterministic content-derived identities"
+    ],
+    "mustNotChange": [
+      "the active public talent read model remains PostgreSQL-owned and read-only",
+      "frontend talent selection remains a consumer of backend node and dependency facts",
+      "community gear import continues to preserve governed gems, enchants and embellishments",
+      "deployment leaves asynchronous sync disabled unless explicitly controlled after read-only validation",
+      "existing healthy same-source graph signatures and profile content identities cannot be replaced or reduced"
+    ],
+    "riskUnknown": [
+      "exact production source-tar extraction and Wago TraitEdge parity until candidate validation runs on the known host",
+      "real WeChat rendering of connectors and imported enhancement slots until the user tests the exact clean candidate worktree"
+    ],
+    "evidenceRequired": [
+      "red-to-green tests cover empty candidates, missing edges, malformed rankEntries, graph rewires, profile loss and monotonic incomplete-graph recovery",
+      "related Python and deployment tests plus the full repository Harness pass",
+      "candidate deployment records exact commit, runtime parity, live PostgreSQL backup and rollback path",
+      "read-only production extraction validates 5246 talents, 8465 dependencies, 160 contexts, 40 specs, 80 hero trees and 50 profiles before any write",
+      "one controlled SimC-only sync preserves graph/profile identities and community gear enhancement behavior",
+      "health, API, timer/backflow, service, log and real WeChat smoke pass before merge"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/postgres_cache_sync.py owns candidate acceptance; server/postgres_cache_store.py::simc_talent_graph_baseline owns the live PostgreSQL LKG projection; server/websim_payload.py owns source extraction",
+    "consumers": [
+      "server/websim_sync.py scheduled orchestration",
+      "server/wow-websim-sync.service bounded runtime configuration",
+      "server/news_backend.py PostgreSQL talent read model and health",
+      "pages/builds/talent-simulator.* connector rendering"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch_guarded",
+    "reason": "This changes a write-capable scheduled hotspot. The gate remains read-before-write, uses one live PostgreSQL baseline query, performs linear graph validation, rejects before replacement, keeps the global sync lock and records explicit rollback evidence."
+  },
+  "acceptanceEvidence": [
+    "python3 -m unittest tests.postgres_cache_store_test tests.postgres_cache_sync_test tests.websim_payload_test",
+    "node --test tests/deploy-script.test.js",
+    "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-13-talent-link-lkg-sync-guard --base origin/main",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/requirement.json --evidence-file artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json --base origin/main",
+    "candidate backup, read-only extraction validation, controlled SimC-only sync and production API/data smoke",
+    "real WeChat exact-candidate connector and community enhancement import verification"
+  ],
+  "releaseTrigger": "scheduled_jobs",
+  "rollback": [
+    "config_disable",
+    "code_rollback",
+    "data_restore"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-13",
+      "decision": "The user selected option A: integrate the talent-link and community-template fixes through an isolated clean candidate, candidate deployment and manual WeChat verification before merge."
+    },
+    {
+      "date": "2026-07-13",
+      "decision": "A healthy candidate may repair a same-source incomplete graph only when node identities and all non-edge structure match and every prior parent edge is retained."
+    },
+    {
+      "date": "2026-07-13",
+      "decision": "The full SimC source archive is required for publication because trait-data-only fallback cannot preserve profile presets; blocked extraction keeps the live LKG."
+    }
+  ]
+}
