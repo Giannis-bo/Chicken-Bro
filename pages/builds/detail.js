@@ -2391,14 +2391,23 @@ function selectedEnhancementUniqueGroups(gearPayload, indexed, enhancement, type
     const selected = enhancement[slot] || {}
     if (!item || !enhancementRecordHasSelectedType(selected, type)) return
     const options = enhancementOptionsForSlot(gearPayload, item, 'socketOptions')
-    options.filter((option) => enhancementOptionSelected(option, selected, type)).forEach((selectedOption) => {
+    const recordSelectedOption = (selectedOption) => {
       const group = enhancementOptionUniqueGroup(selectedOption, type)
       if (!group) return
       const limit = enhancementOptionUniqueLimit(selectedOption, type) || 1
       if (!state[group]) state[group] = { limit, slots: [] }
       state[group].limit = Math.min(state[group].limit || limit, limit)
       state[group].slots.push(slot)
-    })
+    }
+    const gemOptionIds = normalizedOptionIdentityList(selected.gemOptionIds)
+    if (gemOptionIds.length) {
+      gemOptionIds.forEach((optionId) => {
+        const selectedOption = options.find((option) => enhancementOptionIdentity(option) === optionId)
+        if (selectedOption) recordSelectedOption(selectedOption)
+      })
+      return
+    }
+    options.filter((option) => enhancementOptionSelected(option, selected, type)).forEach(recordSelectedOption)
   })
   return state
 }

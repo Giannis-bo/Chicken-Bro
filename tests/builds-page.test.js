@@ -9335,6 +9335,7 @@ function multiGemEditorHarness({
   socketCount = 2,
   enhancementBySlot = {},
   optionIds = ['gem-first', 'gem-second', 'gem-third'],
+  optionPayloadById = {},
   captureResolve = false,
   exposeDetailHelpers = false
 } = {}) {
@@ -9355,7 +9356,7 @@ function multiGemEditorHarness({
     evidenceSource: 'test_authority',
     status: 'verified',
     simcOptions: { gem_id: String(240901 + index) },
-    payload: { qualityRank: 2 }
+    payload: { qualityRank: 2, ...(optionPayloadById[id] || {}) }
   }))
   const selectedNeck = {
     slot: 'neck',
@@ -9425,6 +9426,38 @@ function multiGemEditorHarness({
   if (captureResolve) page.confirmAndResolveGearIntent = pageConfig.confirmAndResolveGearIntent
   return { pageConfig, page, toasts, resolveRequests }
 }
+
+test('duplicate unique gem occurrences block confirmation without resolving', async () => {
+  const { pageConfig, page, toasts, resolveRequests } = multiGemEditorHarness({
+    socketCount: 2,
+    enhancementBySlot: { neck: { gemOptionIds: ['primary-gem', 'primary-gem'] } },
+    optionIds: ['primary-gem'],
+    optionPayloadById: {
+      'primary-gem': { uniqueGroup: 'primary_stat_gem', uniqueLimit: 1 }
+    },
+    captureResolve: true
+  })
+
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot.neck.gemOptionIds)),
+    ['primary-gem', 'primary-gem']
+  )
+  const blockersBeforeConfirm = [...page.data.gearEnhancementSheet.blockers]
+
+  await pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.ok(blockersBeforeConfirm.includes('主属性宝石已超过上限 2/1'))
+  assert.ok(page.data.gearEnhancementSheet.blockers.includes('主属性宝石已超过上限 2/1'))
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot.neck.gemOptionIds)),
+    ['primary-gem', 'primary-gem']
+  )
+  assert.match(toasts.at(-1).title, /主属性宝石已超过上限 2\/1/)
+  assert.equal(resolveRequests.length, 0)
+})
 
 test('gem option toggles preserve two identities and stop at canonical socket capacity', () => {
   const { pageConfig, page } = multiGemEditorHarness({ socketCount: 2 })
