@@ -849,6 +849,7 @@ class WebSimPayloadTest(unittest.TestCase):
         }
         self.assertEqual(counts["dependencies"], 1)
         self.assertEqual(counts["traitEdgeSource"], "wago://TraitEdge")
+        self.assertEqual(counts["traitEdgeError"], "")
         self.assertEqual(len(parent_payloads), 1)
         self.assertTrue(next(iter(parent_payloads.values()))["parentIds"])
 

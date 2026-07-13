@@ -7913,6 +7913,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 ],
                 "source": "simc",
                 "build": "simc-build",
+                "traitEdgeError": "sentinel-edge-error",
             }
         )
 
@@ -7921,6 +7922,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(counts["profiles"], 1)
         self.assertEqual(counts["presets"], 1)
         self.assertEqual(counts["spellDetails"], 1)
+        self.assertEqual(counts["traitEdgeError"], "sentinel-edge-error")
         self.assertIn("DELETE FROM cache.websim_talents", sql)
         self.assertIn("DELETE FROM cache.websim_profile_presets", sql)
         self.assertIn("INSERT INTO cache.websim_talents", sql)
