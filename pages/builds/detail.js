@@ -3388,6 +3388,8 @@ function communityTemplateRawEnhancementBySlot(template) {
     if (!result[slot]) {
       result[slot] = {
         gemIds: [],
+        gemIdSequences: [],
+        gemConflict: false,
         enchantIds: [],
         embellishments: [],
         gemOptionIds: [],
@@ -3403,11 +3405,21 @@ function communityTemplateRawEnhancementBySlot(template) {
       if (normalized && !target.includes(normalized)) target.push(normalized)
     })
   }
+  const addGemSequence = (target, values) => {
+    const sequence = (Array.isArray(values) ? values : []).map(cleanGearString).filter(Boolean)
+    if (!sequence.length) return
+    const duplicate = target.gemIdSequences.some((existing) => (
+      existing.length === sequence.length && existing.every((value, index) => value === sequence[index])
+    ))
+    if (!duplicate) target.gemIdSequences.push(sequence)
+    target.gemConflict = target.gemIdSequences.length > 1
+    target.gemIds = target.gemConflict ? target.gemIdSequences.flat() : [...target.gemIdSequences[0]]
+  }
   const mergeRecord = (slot, record, allowOptionIdentities) => {
     if (!slot || !record || typeof record !== 'object') return
     const target = recordForSlot(slot)
     const gemIds = simcOptionTokens(record.gem_id || record.gemId || record.gemIds)
-    if (!target.gemIds.length && gemIds.length) target.gemIds = gemIds
+    addGemSequence(target, gemIds)
     addUnique(target.enchantIds, simcOptionTokens(record.enchant_id || record.enchantId || record.enchantIds))
     addUnique(target.embellishments, [record.embellishment || record.embellishmentId || record.embellishment_id])
     if (allowOptionIdentities) {
@@ -3563,7 +3575,9 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
     const enchantOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'enchantOptions', 'enchant')
     const embellishmentOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions', 'embellishment')
     const rawGemIds = simcOptionTokens(raw.gemIds)
-    if (rawGemIds.length > gearItemSocketCapacity(item)) {
+    if (raw.gemConflict) {
+      unresolved.gemIds = rawGemIds
+    } else if (rawGemIds.length > gearItemSocketCapacity(item)) {
       unresolved.gemIds = rawGemIds
     } else if (rawGemIds.length) {
       const matchedGemOptionIds = []

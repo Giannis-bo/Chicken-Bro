@@ -8685,7 +8685,11 @@ test('community enhancement reconciliation preserves duplicate gem multiplicity 
   }
   const rawBySlot = pageConfig.__detailHelpers.communityTemplateRawEnhancementBySlot({
     enhancementBySlot: { finger1: { gem_id: '240892/240892' } },
-    gearItems: [{ ...ring, gem_id: '240892/240892' }]
+    gearItems: [{ ...ring, gem_id: '240892/240892' }],
+    payload: {
+      enhancementBySlot: { finger1: { gem_id: '240892/240892' } },
+      gearItems: [{ ...ring, gem_id: '240892/240892' }]
+    }
   })
   const reconciliation = pageConfig.__detailHelpers.reconcileCommunityTemplateEnhancements(
     gearPayload,
@@ -8716,6 +8720,85 @@ test('community enhancement reconciliation preserves duplicate gem multiplicity 
     ['gem-240892', 'gem-240892']
   )
   assert.deepEqual(JSON.parse(JSON.stringify(reconciliation.unresolvedBySlot)), {})
+})
+
+test('community enhancement reconciliation keeps conflicting gem source sequences wholly unresolved', async () => {
+  const resolveRequests = []
+  const pageConfig = loadBuildsDetailPageConfig({
+    exposeDetailHelpers: true,
+    requestWebsimGearResolve(selectionIntent) {
+      resolveRequests.push(selectionIntent)
+      return canonicalResolveTransport(selectionIntent)
+    }
+  })
+  const ring = {
+    slot: 'finger1', simcSlot: 'finger1', itemId: '288893', id: '288893', variantKey: 'ring-conflicting-gems',
+    displayName: 'Conflicting Gem Ring', simcReady: true,
+    modCapabilities: { hasSocket: true, socketCount: 2, canEnchant: false, canEmbellish: false }
+  }
+  const option = (gemId) => ({
+    id: `row-gem-${gemId}`,
+    optionKey: `gem-${gemId}`,
+    displayLabel: gemId === '240892' ? '+32 急速' : '+32 精通',
+    displayStatus: 'verified',
+    evidenceSource: 'test_authority',
+    status: 'verified',
+    simcOptions: { gem_id: gemId }
+  })
+  const gearPayload = {
+    classKey: 'mage', specKey: 'frost', maxLevel: 90,
+    slots: [{ slot: 'finger1', simcSlot: 'finger1', label: '戒指 1' }],
+    replacementCandidates: [{
+      slot: 'finger1', simcSlot: 'finger1', label: '戒指 1', detailMode: 'complete', items: [ring],
+      socketOptions: [option('240892'), option('240900')]
+    }],
+    resolverContext: canonicalTestResolverContext()
+  }
+  const rawBySlot = pageConfig.__detailHelpers.communityTemplateRawEnhancementBySlot({
+    enhancementBySlot: { finger1: { gem_id: '240892/240892' } },
+    gearItems: [{ ...ring, gem_id: '240900/240900' }],
+    payload: {
+      enhancementBySlot: { finger1: { gem_id: '240900/240900' } },
+      gearItems: [{ ...ring, gem_id: '240900/240900' }]
+    }
+  })
+  const reconciliation = pageConfig.__detailHelpers.reconcileCommunityTemplateEnhancements(
+    gearPayload,
+    { finger1: ring },
+    rawBySlot
+  )
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear', selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearSelectionKey: 'mage:frost', gearPayload, selectedGearBySlot: { finger1: ring },
+      enhancementBySlot: {}, gearEnhancementSheet: { visible: false }, gearSlotSheet: {},
+      gearCommunityTemplateSheet: { visible: false }
+    },
+    setData(update) { this.data = { ...this.data, ...update } }
+  }
+
+  await pageConfig.confirmAndResolveGearIntent.call(
+    page,
+    { finger1: ring },
+    reconciliation.enhancementBySlot
+  )
+
+  assert.equal(resolveRequests.length, 1)
+  assert.deepEqual(JSON.parse(JSON.stringify(resolveRequests[0].slots.finger1.gemOptionIds)), [])
+  assert.deepEqual(JSON.parse(JSON.stringify(reconciliation)), {
+    enhancementBySlot: {},
+    unresolvedBySlot: {
+      finger1: {
+        gemIds: ['240892', '240892', '240900', '240900'],
+        enchantIds: [],
+        embellishments: [],
+        readOnly: true
+      }
+    },
+    warnings: ['1 个槽位的社区强化缺少当前可编辑证据，已按只读事实保留。']
+  })
 })
 
 test('community enhancement reconciliation requires affirmative trust fields and a genuine display label', () => {
