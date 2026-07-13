@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-13T15:37:22.966Z",
+  "generatedAt": "2026-07-13T15:38:02.044Z",
   "release": {
     "date": "2026-07-13",
     "slug": "talent-link-lkg-sync-guard"
@@ -274,12 +274,6 @@
   },
   "riskMatrix": [
     {
-      "id": "dirty_worktree",
-      "severity": "medium",
-      "status": "watch",
-      "detail": "5 changed files currently visible to git status."
-    },
-    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
@@ -312,15 +306,9 @@
   ],
   "repo": {
     "git": {
-      "status": "dirty",
-      "changedFileCount": 5,
-      "changedFiles": [
-        " M artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json",
-        " M artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/manifest.json",
-        " M docs/roadmap.md",
-        "?? .gstack/deploy-reports/2026-07-13-pr84-candidate-deploy.md",
-        "?? .superpowers/"
-      ]
+      "status": "clean",
+      "changedFileCount": 0,
+      "changedFiles": []
     }
   },
   "write": {
