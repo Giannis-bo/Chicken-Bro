@@ -7055,6 +7055,7 @@ def parse_trait_data_text(text, limit=20000):
                 "choiceGroup": choice_group,
                 "shape": simc_shape_for(record),
                 "pointRequirement": max(0, record["pointRequirement"]),
+                "parentIds": [],
                 "source": "simulationcraft",
             }
             talent = {

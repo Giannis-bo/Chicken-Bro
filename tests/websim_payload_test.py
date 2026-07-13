@@ -440,6 +440,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(nodes[0]["row"], 1)
         self.assertEqual(nodes[0]["col"], 2)
         self.assertEqual(nodes[0]["name"], "Frostbolt")
+        self.assertEqual(nodes[0]["payload"]["parentIds"], [])
 
     def test_season_recommendation_is_preferred_baseline_source(self):
         templates = [
