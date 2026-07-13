@@ -2439,9 +2439,14 @@ function gemOptionIdentityBlockers(gearPayload, indexed, enhancement) {
   return blockers
 }
 
-function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible, requestedActiveSlot) {
+function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible, requestedActiveSlot, requestedEmbellishmentMax) {
   const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
   const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
+  const requestedEmbellishmentMaxValue = Number(requestedEmbellishmentMax)
+  const embellishmentMax = requestedEmbellishmentMax !== undefined && requestedEmbellishmentMax !== null &&
+    Number.isFinite(requestedEmbellishmentMaxValue) && requestedEmbellishmentMaxValue >= 0
+    ? requestedEmbellishmentMaxValue
+    : gearEnhancementMax
   const builtInCount = Object.keys(indexed).filter((slot) => builtInEmbellishmentValue(indexed[slot])).length
   const selectedEmbellishmentCount = Object.keys(enhancement).filter((slot) => (
     cleanGearString(enhancement[slot].embellishmentOptionId) || cleanGearString(enhancement[slot].embellishment)
@@ -2454,8 +2459,8 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
   const warnings = []
   const blockers = stringList(gearPayload && gearPayload.gearLegalityBlockers)
   blockers.push(...gemOptionIdentityBlockers(gearPayload, indexed, enhancement))
-  if (embellishmentUsed > gearEnhancementMax) {
-    blockers.push(`美化已超过上限 ${embellishmentUsed}/${gearEnhancementMax}`)
+  if (embellishmentUsed > embellishmentMax) {
+    blockers.push(`美化已超过上限 ${embellishmentUsed}/${embellishmentMax}`)
   }
   Object.keys(gemUniqueGroups).forEach((group) => {
     const state = gemUniqueGroups[group]
@@ -2501,7 +2506,7 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
       blockers.push(`${gearSlotDisplay(slot)} 附魔已不兼容`)
     }
     if (embellishmentOptions.length && itemSupportsEnhancement(item, 'embellishment', embellishmentOptions) && !builtInEmbellishmentValue(item)) {
-      const row = enhancementRow(slot, item, embellishmentOptions, selected, 'embellishment', embellishmentUsed >= gearEnhancementMax)
+      const row = enhancementRow(slot, item, embellishmentOptions, selected, 'embellishment', embellishmentUsed >= embellishmentMax)
       if (row.options.length) embellishmentRows.push(row)
     } else if (selected.embellishment) {
       blockers.push(`${gearSlotDisplay(slot)} 美化已不兼容`)
@@ -2540,7 +2545,7 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
     enchantRows,
     embellishmentRows,
     embellishmentUsed,
-    embellishmentMax: gearEnhancementMax,
+    embellishmentMax,
     warnings,
     blockers,
     emptyText
@@ -3519,6 +3524,8 @@ function communityTemplateRawEnhancementBySlot(template) {
         enchantIds: [],
         embellishments: [],
         gemOptionIds: [],
+        gemOptionIdSequences: [],
+        gemOptionConflict: false,
         enchantOptionIds: [],
         embellishmentOptionIds: []
       }
@@ -3541,6 +3548,16 @@ function communityTemplateRawEnhancementBySlot(template) {
     target.gemConflict = target.gemIdSequences.length > 1
     target.gemIds = target.gemConflict ? target.gemIdSequences.flat() : [...target.gemIdSequences[0]]
   }
+  const addGemOptionSequence = (target, values) => {
+    const sequence = (Array.isArray(values) ? values : []).map(cleanGearString).filter(Boolean)
+    if (!sequence.length) return
+    const duplicate = target.gemOptionIdSequences.some((existing) => (
+      existing.length === sequence.length && existing.every((value, index) => value === sequence[index])
+    ))
+    if (!duplicate) target.gemOptionIdSequences.push(sequence)
+    target.gemOptionConflict = target.gemOptionIdSequences.length > 1
+    target.gemOptionIds = target.gemOptionConflict ? [] : [...target.gemOptionIdSequences[0]]
+  }
   const mergeRecord = (slot, record, allowOptionIdentities) => {
     if (!slot || !record || typeof record !== 'object') return
     const target = recordForSlot(slot)
@@ -3549,10 +3566,10 @@ function communityTemplateRawEnhancementBySlot(template) {
     addUnique(target.enchantIds, simcOptionTokens(record.enchant_id || record.enchantId || record.enchantIds))
     addUnique(target.embellishments, [record.embellishment || record.embellishmentId || record.embellishment_id])
     if (allowOptionIdentities) {
-      addUnique(target.gemOptionIds, [
-        ...normalizedOptionIdentityList(record.gemOptionIds),
-        cleanGearString(record.socketOptionId || record.socket_option_id)
-      ])
+      const gemOptionIds = normalizedOptionIdentityList(record.gemOptionIds)
+      addGemOptionSequence(target, gemOptionIds.length
+        ? gemOptionIds
+        : [record.socketOptionId || record.socket_option_id])
       addUnique(target.enchantOptionIds, [record.enchantOptionId || record.enchant_option_id])
       addUnique(target.embellishmentOptionIds, [record.embellishmentOptionId || record.embellishment_option_id])
     }
@@ -3687,8 +3704,15 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
     const raw = rawBySlot[slot] || {}
     const item = indexed[slot]
     const unresolved = { gemIds: [], enchantIds: [], embellishments: [], readOnly: true }
+    const rawGemIds = simcOptionTokens(raw.gemIds)
+    const explicitGemOptionIds = normalizedOptionIdentityList(raw.gemOptionIds)
+    const conflictingGemOptionIds = (Array.isArray(raw.gemOptionIdSequences)
+      ? raw.gemOptionIdSequences.flat()
+      : []).map(cleanGearString).filter(Boolean)
     if (!item) {
-      unresolved.gemIds = simcOptionTokens(raw.gemIds)
+      unresolved.gemIds = rawGemIds.length
+        ? rawGemIds
+        : (raw.gemOptionConflict ? conflictingGemOptionIds : explicitGemOptionIds)
       unresolved.enchantIds = simcOptionTokens(raw.enchantIds)
       unresolved.embellishments = (raw.embellishments || []).map(cleanGearString).filter(Boolean)
       if (unresolved.gemIds.length || unresolved.enchantIds.length || unresolved.embellishments.length) {
@@ -3700,9 +3724,8 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
     const gemOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'socketOptions', 'gem')
     const enchantOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'enchantOptions', 'enchant')
     const embellishmentOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions', 'embellishment')
-    const rawGemIds = simcOptionTokens(raw.gemIds)
-    if (raw.gemConflict) {
-      unresolved.gemIds = rawGemIds
+    if (raw.gemConflict || raw.gemOptionConflict) {
+      unresolved.gemIds = rawGemIds.length ? rawGemIds : conflictingGemOptionIds
     } else if (rawGemIds.length > gearItemSocketCapacity(item)) {
       unresolved.gemIds = rawGemIds
     } else if (rawGemIds.length) {
@@ -3715,12 +3738,17 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
       })
       if (matchedGemOptionIds.length) next.gemOptionIds = matchedGemOptionIds
     } else {
-      const explicitGemOptionIds = normalizedOptionIdentityList(raw.gemOptionIds)
       if (explicitGemOptionIds.length <= gearItemSocketCapacity(item)) {
         const matchedGemOptionIds = explicitGemOptionIds.filter((identity) => (
           !!communityEnhancementOptionForIdentity(gemOptions, identity)
         ))
-        if (matchedGemOptionIds.length) next.gemOptionIds = matchedGemOptionIds
+        if (matchedGemOptionIds.length === explicitGemOptionIds.length) {
+          if (matchedGemOptionIds.length) next.gemOptionIds = matchedGemOptionIds
+        } else if (explicitGemOptionIds.length) {
+          unresolved.gemIds = explicitGemOptionIds
+        }
+      } else {
+        unresolved.gemIds = explicitGemOptionIds
       }
     }
     const rawEnchantIds = simcOptionTokens(raw.enchantIds)
@@ -3986,6 +4014,12 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
   ) || (page && page.data && page.data.enhancementBySlot) || {}
   const canonicalWorkbench = !!(page && page.gearWorkbenchState)
   const canonicalSnapshot = canonicalWorkbenchSnapshot(page)
+  const canonicalEmbellishmentMaxValue = Number(canonicalSnapshot && canonicalSnapshot.constraints && canonicalSnapshot.constraints.embellishmentMax)
+  const canonicalEmbellishmentMax = canonicalSnapshot
+    ? (Number.isFinite(canonicalEmbellishmentMaxValue) && canonicalEmbellishmentMaxValue >= 0
+        ? canonicalEmbellishmentMaxValue
+        : 0)
+    : undefined
   const selectedGearBySlot = canonicalWorkbench
     ? gearSelectionWithCanonicalEnhancementConstraints(currentSelectedGearBySlot, canonicalSnapshot)
     : currentSelectedGearBySlot
@@ -4003,14 +4037,9 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
     selectedGearBySlot,
     enhancementBySlot,
     visible,
-    requestedActiveSlot
+    requestedActiveSlot,
+    canonicalEmbellishmentMax
   )
-  if (canonicalSnapshot) {
-    const embellishmentMax = Number(canonicalSnapshot.constraints && canonicalSnapshot.constraints.embellishmentMax)
-    sheet.embellishmentMax = Number.isFinite(embellishmentMax) && embellishmentMax >= 0
-      ? embellishmentMax
-      : 0
-  }
   sheet.confirmedEnhancementBySlot = confirmedEnhancementBySlot
   const detailSlots = gearEnhancementDetailSlotsForPage(page)
   const communityImportState = eligibleCommunityEnhancementImportStateForPage(page, canonicalSnapshot)
