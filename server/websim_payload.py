@@ -7217,16 +7217,20 @@ def attach_trait_edges_to_data(data, trait_text):
     data["build"] = build
     data.setdefault("dependencies", 0)
     data.setdefault("traitEdgeSource", "")
+    data.setdefault("traitEdgeError", "")
     if not data.get("talents") or not build:
         return data
     try:
         edge_text, edge_source = download_wago_trait_edge_csv(build)
-    except Exception:
+    except Exception as error:
         edge_text, edge_source = "", ""
+        data["traitEdgeError"] = f"{type(error).__name__}: {error}"
     edges = parse_trait_edge_data_text(edge_text)
     if edges:
         data["dependencies"] = apply_trait_edges_to_talents(data["talents"], edges)
         data["traitEdgeSource"] = edge_source
+    elif edge_text and not data["traitEdgeError"]:
+        data["traitEdgeError"] = "TraitEdge payload did not contain usable dependency edges"
     return data
 
 
@@ -7241,6 +7245,7 @@ def extract_simc_data_from_tar(tar_path):
         "spellIconSource": "",
         "dependencies": 0,
         "traitEdgeSource": "",
+        "traitEdgeError": "",
         "build": "",
     }
     if not tar_path or not Path(tar_path).exists():
@@ -7289,6 +7294,7 @@ def extract_simc_data_from_trait_text(text, source, spelltext_text="", spelltext
         "spellTextSource": spelltext_source,
         "dependencies": 0,
         "traitEdgeSource": "",
+        "traitEdgeError": "",
         "build": "",
         "spellIcons": 0,
         "spellIconSource": "",
@@ -7335,6 +7341,7 @@ def extract_simc_generated_data():
         "spellTextSource": "",
         "dependencies": 0,
         "traitEdgeSource": "",
+        "traitEdgeError": "",
         "build": "",
     }
 
@@ -7543,6 +7550,7 @@ def sync_simc_generated_data(conn):
         "spellIconSource": data.get("spellIconSource", ""),
         "spellLocalizationSource": data.get("spellLocalizationSource", ""),
         "traitEdgeSource": data.get("traitEdgeSource", ""),
+        "traitEdgeError": data.get("traitEdgeError", ""),
     }
 
 

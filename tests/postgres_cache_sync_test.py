@@ -296,22 +296,54 @@ class PostgresCacheSyncTest(unittest.TestCase):
 
         store = FakePostgresSyncStore()
         simc_data = {
-            "talents": [{"id": "talent-a"}],
+            "talents": [
+                {"id": "talent-root"},
+                {"id": "talent-a", "payload": {"parentIds": ["talent-root"]}},
+            ],
             "presets": [{"id": "preset-a"}],
             "spellDetails": [{"spellId": 123}],
             "source": "simc",
             "build": "simc-build",
+            "dependencies": 1,
+            "traitEdgeSource": "wago://TraitEdge",
         }
 
         with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=simc_data):
             payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
 
         self.assertIs(store.replaced_data, simc_data)
-        self.assertEqual(payload["simc"]["talents"], 1)
+        self.assertEqual(payload["simc"]["talents"], 2)
         self.assertEqual(payload["simc"]["profiles"], 1)
         self.assertEqual(payload["simc"]["build"], "simc-build")
         self.assertEqual(store.saved_states[-1][0], "websim_sync")
         self.assertEqual(store.saved_states[-1][1]["runner"], "postgres")
+
+    def test_websim_postgres_sync_preserves_current_talents_when_trait_edges_are_missing(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        edge_less_simc_data = {
+            "talents": [
+                {"id": "talent-root", "payload": {"parentIds": []}},
+                {"id": "talent-child", "payload": {"parentIds": []}},
+            ],
+            "presets": [],
+            "spellDetails": [],
+            "source": "simc",
+            "build": "simc-build",
+            "dependencies": 0,
+            "traitEdgeSource": "",
+            "traitEdgeError": "TimeoutError: TraitEdge request timed out",
+        }
+
+        with patch.object(postgres_cache_sync, "extract_simc_generated_data", return_value=edge_less_simc_data):
+            payload = postgres_cache_sync.sync_websim_cache_postgres(store=store)
+
+        self.assertIsNone(store.replaced_data)
+        self.assertEqual(payload["simc"]["talents"], 0)
+        self.assertIn("talent dependency edges are unavailable", payload["simc"]["errors"][0])
+        self.assertIn("TraitEdge request timed out", payload["simc"]["errors"][0])
+        self.assertIn("talent dependency edges are unavailable", payload["errors"][0])
 
     def test_websim_postgres_sync_writes_blizzard_journal_when_enabled(self):
         from server import postgres_cache_sync

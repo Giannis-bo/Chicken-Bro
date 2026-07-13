@@ -773,6 +773,24 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertEqual(self.websim_payload.download_wago_trait_edge_csv("12.0.5.67823"), ("", ""))
 
+    def test_trait_edge_fetch_failure_is_reported_in_extracted_simc_data(self):
+        original_trait_edge = self.websim_payload.download_wago_trait_edge_csv
+        self.addCleanup(setattr, self.websim_payload, "download_wago_trait_edge_csv", original_trait_edge)
+
+        def fail_trait_edge_fetch(_build):
+            raise TimeoutError("TraitEdge request timed out")
+
+        self.websim_payload.download_wago_trait_edge_csv = fail_trait_edge_fetch
+        data = {
+            "talents": [{"id": "root", "payload": {"nodeId": 90001}}],
+        }
+
+        self.websim_payload.attach_trait_edges_to_data(data, "// wow build 12.0.5.67823")
+
+        self.assertEqual(data["dependencies"], 0)
+        self.assertEqual(data["traitEdgeSource"], "")
+        self.assertIn("TraitEdge request timed out", data["traitEdgeError"])
+
     def test_sync_simc_generated_data_reports_trait_edge_dependencies(self):
         sample = """
         // Player trait definitions, wow build 12.0.5.67823

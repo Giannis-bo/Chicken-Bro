@@ -2163,6 +2163,7 @@ class PostgresCacheStore:
             "spellIconSource": data.get("spellIconSource") or "",
             "spellLocalizationSource": data.get("spellLocalizationSource") or "",
             "traitEdgeSource": data.get("traitEdgeSource") or "",
+            "traitEdgeError": data.get("traitEdgeError") or "",
         }
 
     def _status_counts(self, table_name):

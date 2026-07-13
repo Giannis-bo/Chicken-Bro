@@ -602,7 +602,26 @@ def sync_websim_cache_postgres(include_blizzard=True, stage_callback=None, store
     }
     try:
         _emit(stage_callback, "simc", "start", runner="postgres")
-        simc_counts = store.replace_simc_generated_data(extract_simc_generated_data())
+        simc_data = extract_simc_generated_data()
+        talents = [item for item in (simc_data.get("talents") or []) if isinstance(item, dict)]
+        dependency_node_count = sum(
+            1
+            for talent in talents
+            if isinstance(talent.get("payload") or talent, dict)
+            and (talent.get("payload") or talent).get("parentIds")
+        )
+        if talents and (
+            int(simc_data.get("dependencies") or 0) <= 0
+            or dependency_node_count <= 0
+            or not str(simc_data.get("traitEdgeSource") or "").strip()
+        ):
+            detail = str(simc_data.get("traitEdgeError") or "").strip()
+            raise RuntimeError(
+                "SimulationCraft talent dependency edges are unavailable; "
+                "preserving the current PostgreSQL talent tree"
+                + (f": {detail}" if detail else "")
+            )
+        simc_counts = store.replace_simc_generated_data(simc_data)
         _emit(
             stage_callback,
             "simc",
