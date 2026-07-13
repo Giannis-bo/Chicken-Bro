@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-13
 
-**Status:** implemented and exact-candidate/live-WeChat verified at `52da68e`; pending merge
+**Status:** implemented and exact-candidate/live-WeChat verified at `52da68e`; draft PR #85, pending merge
 
 **Scope:** equipment simulator community-template import, canonical enhancement facts, and enhancement-sheet slot visibility
 

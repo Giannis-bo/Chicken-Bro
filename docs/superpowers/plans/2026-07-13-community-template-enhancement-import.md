@@ -164,4 +164,4 @@ communityEnhancementImportState: {
 - [x] Verify live Resolve returns truthful socket/enchant/embellishment constraints and matched `selectedOptions` without relying on forged raw client values.
 - [x] Verify in the real mini-program that community import produces non-zero canonical enhancement counts, matched options are selected, affected slots are listed, and unmatched facts are readable/non-editable.
 - [x] Record rollback command/path and candidate evidence in `docs/roadmap.md`, then mark the correction `已完成` only if every smoke passes.
-- [ ] Commit and push final evidence; prepare the branch/PR handoff without merging unless the user authorizes merge.
+- [x] Commit and push final evidence; prepare the branch/PR handoff without merging unless the user authorizes merge.
