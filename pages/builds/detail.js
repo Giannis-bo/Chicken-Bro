@@ -1994,8 +1994,9 @@ function enhancementOptionSelected(option, selected, type) {
   const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
   const optionId = enhancementOptionIdentity(option)
   if (type === 'gem') {
+    const gemOptionIds = normalizedOptionIdentityList(selected.gemOptionIds)
+    if (gemOptionIds.length) return gemOptionIds.includes(optionId)
     return !!(
-      normalizedOptionIdentityList(selected.gemOptionIds).includes(optionId) ||
       (selected.socketOptionId && optionId === selected.socketOptionId) ||
       (selected.gem_id && cleanGearString(simcOptions.gem_id) === selected.gem_id)
     )
@@ -2285,6 +2286,33 @@ function selectedEnhancementUniqueGroups(gearPayload, indexed, enhancement, type
   return state
 }
 
+function gemOptionIdentityBlockers(gearPayload, indexed, enhancement) {
+  const blockers = []
+  Object.keys(enhancement || {}).forEach((slot) => {
+    const gemOptionIds = normalizedOptionIdentityList(enhancement[slot] && enhancement[slot].gemOptionIds)
+    if (!gemOptionIds.length) return
+    const item = indexed && indexed[slot]
+    if (!item) {
+      blockers.push(`${gearSlotDisplay(slot)} 宝石选项当前不可用：${gemOptionIds.join('、')}`)
+      return
+    }
+    const socketCapacity = gearItemSocketCapacity(item)
+    if (gemOptionIds.length > socketCapacity) {
+      blockers.push(`${gearSlotDisplay(slot)} 宝石已超过插槽上限 ${gemOptionIds.length}/${socketCapacity}`)
+    }
+    const availableOptionIds = new Set(
+      enhancementOptionsForSlot(gearPayload, item, 'socketOptions')
+        .map(enhancementOptionIdentity)
+        .filter(Boolean)
+    )
+    const unmatchedOptionIds = gemOptionIds.filter((id) => !availableOptionIds.has(id))
+    if (unmatchedOptionIds.length) {
+      blockers.push(`${gearSlotDisplay(slot)} 宝石选项当前不可用：${unmatchedOptionIds.join('、')}`)
+    }
+  })
+  return blockers
+}
+
 function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible, requestedActiveSlot) {
   const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
   const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
@@ -2299,6 +2327,7 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
   const embellishmentRows = []
   const warnings = []
   const blockers = stringList(gearPayload && gearPayload.gearLegalityBlockers)
+  blockers.push(...gemOptionIdentityBlockers(gearPayload, indexed, enhancement))
   if (embellishmentUsed > gearEnhancementMax) {
     blockers.push(`美化已超过上限 ${embellishmentUsed}/${gearEnhancementMax}`)
   }
@@ -2322,7 +2351,8 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
     const selectedGemCount = enhancementRecordSelectedCount(selected, 'gem')
     const socketCapacity = gearItemSocketCapacity(item)
     if (selectedGemCount > socketCapacity) {
-      blockers.push(`${gearSlotDisplay(slot)} 宝石已超过插槽上限 ${selectedGemCount}/${socketCapacity}`)
+      const blocker = `${gearSlotDisplay(slot)} 宝石已超过插槽上限 ${selectedGemCount}/${socketCapacity}`
+      if (!blockers.includes(blocker)) blockers.push(blocker)
     }
     if (socketOptions.length && itemSupportsEnhancement(item, 'gem', socketOptions)) {
       const row = enhancementRow(slot, item, socketOptions, selected, 'gem', (option, isSelected) => {
@@ -2408,8 +2438,22 @@ function prunedEnhancementBySlot(gearPayload, selectedGearBySlot, enhancementByS
     )
   }
   Object.keys(normalized).forEach((slot) => {
-    if (!rowKeepsSelection('gem', slot)) {
-      delete normalized[slot].gemOptionIds
+    const gemOptionIds = normalizedOptionIdentityList(normalized[slot].gemOptionIds)
+    if (gemOptionIds.length) {
+      const row = rowsByType.gem.get(slot)
+      const selectedOptionIds = new Set(
+        row && Array.isArray(row.options)
+          ? row.options.filter((option) => option.selected).map((option) => cleanGearString(option.id)).filter(Boolean)
+          : []
+      )
+      const retainedGemOptionIds = gemOptionIds.filter((id) => selectedOptionIds.has(id))
+      if (retainedGemOptionIds.length) normalized[slot].gemOptionIds = retainedGemOptionIds
+      else delete normalized[slot].gemOptionIds
+      delete normalized[slot].socketOptionId
+      delete normalized[slot].gem_id
+      delete normalized[slot].gem_bonus_id
+      delete normalized[slot].gem_ilevel
+    } else if (!rowKeepsSelection('gem', slot)) {
       delete normalized[slot].socketOptionId
       delete normalized[slot].gem_id
       delete normalized[slot].gem_bonus_id
@@ -5110,10 +5154,34 @@ Page({
     const editorSelectedGearBySlot = this.gearWorkbenchState
       ? gearSelectionWithCanonicalEnhancementConstraints(selectedGearBySlot, canonicalWorkbenchSnapshot(this))
       : selectedGearBySlot
+    const draftEnhancementBySlot = normalizedEnhancementBySlot(
+      sheet.draftEnhancementBySlot || this.data.enhancementBySlot || {}
+    )
+    const draftGemBlockers = gemOptionIdentityBlockers(
+      gearPayload,
+      enrichedSelectedGearByCanonicalSlot(gearPayload, editorSelectedGearBySlot),
+      draftEnhancementBySlot
+    )
+    if (draftGemBlockers.length) {
+      const draftValidationSheet = buildGearEnhancementSheetForPage(this, true, sheet.activeSlot, {
+        selectedGearBySlot,
+        enhancementBySlot: draftEnhancementBySlot
+      })
+      draftValidationSheet.blockers = Array.from(new Set([
+        ...draftGemBlockers,
+        ...(draftValidationSheet.blockers || [])
+      ]))
+      showToast(draftGemBlockers[0])
+      this.setData({
+        selectedGearBySlot,
+        gearEnhancementSheet: draftValidationSheet
+      })
+      return
+    }
     const enhancementBySlot = prunedEnhancementBySlot(
       gearPayload,
       editorSelectedGearBySlot,
-      sheet.draftEnhancementBySlot || this.data.enhancementBySlot || {}
+      draftEnhancementBySlot
     )
     const validationSheet = buildGearEnhancementSheetForPage(this, true, sheet.activeSlot, {
       selectedGearBySlot,

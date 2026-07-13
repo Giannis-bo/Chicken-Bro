@@ -8433,10 +8433,38 @@ test('multiple gem option identities preserve ordered normalized state and legac
   assert.equal(helpers.enhancementOptionSelected({ id: 'legacy-gem' }, normalized.finger1, 'gem'), true)
 })
 
-function multiGemEditorHarness({ socketCount = 2, enhancementBySlot = {} } = {}) {
+test('gem option identity array overrides legacy scalar and raw fallbacks', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const helpers = pageConfig.__detailHelpers
+  const selected = {
+    gemOptionIds: ['canonical-gem'],
+    socketOptionId: 'legacy-gem',
+    gem_id: '240908'
+  }
+
+  assert.equal(helpers.enhancementOptionSelected({ id: 'canonical-gem' }, selected, 'gem'), true)
+  assert.equal(helpers.enhancementOptionSelected({ id: 'legacy-gem' }, selected, 'gem'), false)
+  assert.equal(helpers.enhancementOptionSelected({ id: 'raw-gem', simcOptions: { gem_id: '240908' } }, selected, 'gem'), false)
+})
+
+function multiGemEditorHarness({
+  socketCount = 2,
+  enhancementBySlot = {},
+  optionIds = ['gem-first', 'gem-second', 'gem-third'],
+  captureResolve = false,
+  exposeDetailHelpers = false
+} = {}) {
   const toasts = []
-  const pageConfig = loadBuildsDetailPageConfig({ toasts })
-  const socketOptions = ['gem-first', 'gem-second', 'gem-third'].map((id, index) => ({
+  const resolveRequests = []
+  const pageConfig = loadBuildsDetailPageConfig({
+    toasts,
+    exposeDetailHelpers,
+    requestWebsimGearResolve(selectionIntent) {
+      resolveRequests.push(selectionIntent)
+      return canonicalResolveTransport(selectionIntent)
+    }
+  })
+  const socketOptions = optionIds.map((id, index) => ({
     id,
     displayLabel: `宝石 ${index + 1}`,
     displayStatus: 'verified',
@@ -8458,6 +8486,9 @@ function multiGemEditorHarness({ socketCount = 2, enhancementBySlot = {} } = {})
     socketOptions
   }
   const gearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    maxLevel: 90,
     slots: [{ slot: 'neck', simcSlot: 'neck', label: '项链' }],
     equippedSet: {},
     replacementCandidates: [{
@@ -8468,7 +8499,8 @@ function multiGemEditorHarness({ socketCount = 2, enhancementBySlot = {} } = {})
       socketOptions
     }],
     slotReadiness: {},
-    readiness: { fullReady: true }
+    readiness: { fullReady: true },
+    resolverContext: canonicalTestResolverContext()
   }
   const page = {
     gearPayloadCache: gearPayload,
@@ -8500,7 +8532,8 @@ function multiGemEditorHarness({ socketCount = 2, enhancementBySlot = {} } = {})
       this.data = { ...this.data, ...update }
     }
   }
-  return { pageConfig, page, toasts }
+  if (captureResolve) page.confirmAndResolveGearIntent = pageConfig.confirmAndResolveGearIntent
+  return { pageConfig, page, toasts, resolveRequests }
 }
 
 test('gem option toggles preserve two identities and stop at canonical socket capacity', () => {
@@ -8565,6 +8598,82 @@ test('gem option capacity overflow blocks confirmation without truncating identi
     ['gem-first', 'gem-second', 'gem-third']
   )
   assert.match(toasts.at(-1).title, /宝石已超过插槽上限 3\/2/)
+})
+
+test('gem option draft without surviving option rows blocks before pruning or Resolve', async () => {
+  const { pageConfig, page, toasts, resolveRequests } = multiGemEditorHarness({
+    socketCount: 0,
+    optionIds: [],
+    captureResolve: true
+  })
+  page.data.gearEnhancementSheet = {
+    ...page.data.gearEnhancementSheet,
+    visible: true,
+    activeSlot: 'neck',
+    draftEnhancementBySlot: {
+      neck: { gemOptionIds: ['orphaned-gem'] }
+    }
+  }
+
+  await pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot.neck.gemOptionIds)),
+    ['orphaned-gem']
+  )
+  assert.match(page.data.gearEnhancementSheet.blockers.join('；'), /宝石/)
+  assert.match(toasts.at(-1).title, /宝石/)
+  assert.equal(resolveRequests.length, 0)
+})
+
+test('gem option mixed matched and unmatched identities stay local and never reach Resolve', async () => {
+  const { pageConfig, page, toasts, resolveRequests } = multiGemEditorHarness({
+    socketCount: 2,
+    optionIds: ['verified-gem'],
+    captureResolve: true
+  })
+  page.data.gearEnhancementSheet = {
+    ...page.data.gearEnhancementSheet,
+    visible: true,
+    activeSlot: 'neck',
+    draftEnhancementBySlot: {
+      neck: { gemOptionIds: ['verified-gem', '240908'] }
+    }
+  }
+
+  await pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot.neck.gemOptionIds)),
+    ['verified-gem', '240908']
+  )
+  assert.match(page.data.gearEnhancementSheet.blockers.join('；'), /240908/)
+  assert.match(toasts.at(-1).title, /240908/)
+  assert.equal(resolveRequests.length, 0)
+})
+
+test('gem option pruning removes unmatched identities before direct Resolve entry', async () => {
+  const { pageConfig, page, resolveRequests } = multiGemEditorHarness({
+    socketCount: 2,
+    optionIds: ['verified-gem'],
+    captureResolve: true,
+    exposeDetailHelpers: true
+  })
+  const prunedEnhancementBySlot = pageConfig.__detailHelpers.prunedEnhancementBySlot(
+    page.data.gearPayload,
+    page.data.selectedGearBySlot,
+    { neck: { gemOptionIds: ['verified-gem', '240908'] } }
+  )
+
+  await page.confirmAndResolveGearIntent(page.data.selectedGearBySlot, prunedEnhancementBySlot)
+
+  assert.equal(resolveRequests.length, 1)
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(resolveRequests[0].slots.neck.gemOptionIds)),
+    ['verified-gem']
+  )
 })
 
 test('gear enhancement sheet renders verified label-only payload options', () => {
