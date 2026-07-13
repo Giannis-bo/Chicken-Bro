@@ -404,6 +404,7 @@ def apply_selected_enhancements(
     selected_gem_sequences: dict[str, list[str]] = {
         field: [] for field in _GEM_SIMC_SEQUENCE_FIELDS
     }
+    applied_gem_count = 0
     if replaces_variant_gem_sequences:
         for field in _GEM_SIMC_SEQUENCE_FIELDS:
             simc_options.pop(field, None)
@@ -459,6 +460,7 @@ def apply_selected_enhancements(
             )
             option_simc_options = option.get("simcOptions") or {}
             if expected_type == "gem" and replaces_variant_gem_sequences:
+                applied_gem_count += 1
                 for simc_field in _GEM_SIMC_SEQUENCE_FIELDS:
                     value = str(option_simc_options.get(simc_field) or "").strip()
                     if value:
@@ -485,7 +487,7 @@ def apply_selected_enhancements(
             {
                 field: "/".join(values)
                 for field, values in selected_gem_sequences.items()
-                if values
+                if applied_gem_count and len(values) == applied_gem_count
             }
         )
     state["selectedOptions"] = selected_options

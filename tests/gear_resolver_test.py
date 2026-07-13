@@ -220,6 +220,40 @@ class GearResolverTest(unittest.TestCase):
         self.assertEqual(head["simcOptions"]["gem_ilevel"], "707/708")
         self.assertEqual(result["constraints"]["slots"]["head"]["socketRemaining"], 0)
 
+    def test_mixed_presence_gem_sequences_are_omitted_instead_of_compacted(self):
+        fixture = self.fixture()
+        head_variant = fixture["authorityContext"]["variantsByKey"]["variant-set-head"]
+        head_variant["capabilityOverrides"] = {"socketCount": 2}
+        head_variant["overlay"]["capabilityOverrides"] = {}
+        head_variant["simcOptions"].update(
+            {
+                "gem_id": "variant-raw-one/variant-raw-two",
+                "gem_bonus_id": "raw-bonus-one/raw-bonus-two",
+                "gem_ilevel": "600/601",
+            }
+        )
+        fixture["authorityContext"]["optionsById"]["gem-haste"]["simcOptions"] = {
+            "gem_id": "A",
+            "gem_ilevel": "707",
+        }
+        self.add_gem_option(
+            fixture,
+            option_id="gem-versatility",
+            simc_options={"gem_id": "B", "gem_bonus_id": "B-bonus"},
+        )
+        fixture["intent"]["slots"]["head"]["gemOptionIds"] = [
+            "gem-haste",
+            "gem-versatility",
+        ]
+
+        result = self.resolve(fixture)
+        simc_options = result["resolvedSlots"]["head"]["simcOptions"]
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(simc_options["gem_id"], "A/B")
+        self.assertNotIn("gem_bonus_id", simc_options)
+        self.assertNotIn("gem_ilevel", simc_options)
+
     def test_duplicate_selected_gem_identity_preserves_multiplicity_and_occurrence_facts(self):
         fixture = self.fixture()
         head_variant = fixture["authorityContext"]["variantsByKey"]["variant-set-head"]
