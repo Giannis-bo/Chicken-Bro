@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-13T15:04:31.650Z",
+  "generatedAt": "2026-07-13T15:05:32.513Z",
   "release": {
     "date": "2026-07-13",
     "slug": "talent-link-lkg-sync-guard"
@@ -274,12 +274,6 @@
   },
   "riskMatrix": [
     {
-      "id": "dirty_worktree",
-      "severity": "medium",
-      "status": "watch",
-      "detail": "12 changed files currently visible to git status."
-    },
-    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
@@ -312,22 +306,9 @@
   ],
   "repo": {
     "git": {
-      "status": "dirty",
-      "changedFileCount": 12,
-      "changedFiles": [
-        " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M docs/talent-simulation-full-chain-runbook.md",
-        " M server/postgres_cache_store.py",
-        " M server/postgres_cache_sync.py",
-        " M server/websim_payload.py",
-        " M server/wow-websim-sync.service",
-        " M tests/deploy-script.test.js",
-        " M tests/postgres_cache_store_test.py",
-        " M tests/postgres_cache_sync_test.py",
-        " M tests/project-state.test.js",
-        " M tests/websim_payload_test.py"
-      ]
+      "status": "clean",
+      "changedFileCount": 0,
+      "changedFiles": []
     }
   },
   "write": {

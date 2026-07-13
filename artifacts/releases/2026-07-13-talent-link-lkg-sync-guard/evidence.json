@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/fix-talent-tree-links",
-  "commit": "pending_candidate_commit",
+  "commit": "30da70799949b358c18a7d1dbe05dfd83b721c18",
   "scope": [
     "talent_traitedge_extraction_bounds",
     "postgres_live_lkg_projection",
@@ -44,7 +44,8 @@
     "status": "pending",
     "requiredBeforeMerge": true,
     "branch": "codex/fix-talent-tree-links",
-    "commit": "pending_candidate_commit"
+    "commit": "30da70799949b358c18a7d1dbe05dfd83b721c18",
+    "implementationCommit": "30da70799949b358c18a7d1dbe05dfd83b721c18"
   },
   "runtimeEvidence": [],
   "risks": [
