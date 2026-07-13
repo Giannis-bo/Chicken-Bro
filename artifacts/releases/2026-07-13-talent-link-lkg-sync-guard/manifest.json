@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-13T15:05:32.513Z",
+  "generatedAt": "2026-07-13T15:37:22.966Z",
   "release": {
     "date": "2026-07-13",
     "slug": "talent-link-lkg-sync-guard"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 271852
+          "sizeBytes": 272663
         },
         {
           "path": "docs/README.md",
@@ -99,13 +99,13 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 26034,
+          "lineCount": 26057,
           "hotspot": true
         },
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 12845,
+          "lineCount": 12853,
           "hotspot": true
         },
         {
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json",
-    "sizeBytes": 3791,
+    "sizeBytes": 8379,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Local candidate guards are verified. Full Harness, exact production backup/read-only validation, controlled sync, API/data smoke and real WeChat evidence remain required before merge."
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "Exact candidate 28f3c54 is runtime verified: full Harness, production backup/parity, read-only preflight, controlled SimC-only sync, API/data/operations smoke and community gear compatibility all passed. Real WeChat connector and enhancement-sheet verification remains required before merge."
   },
   "evidence": {
     "localTests": {
@@ -274,10 +274,16 @@
   },
   "riskMatrix": [
     {
+      "id": "dirty_worktree",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "5 changed files currently visible to git status."
+    },
+    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:26034, server/news_backend.py:12845, server/postgres_cache_store.py:6972"
+      "detail": "server/websim_payload.py:26057, server/news_backend.py:12853, server/postgres_cache_store.py:6972"
     },
     {
       "id": "localTests_missing",
@@ -306,9 +312,15 @@
   ],
   "repo": {
     "git": {
-      "status": "clean",
-      "changedFileCount": 0,
-      "changedFiles": []
+      "status": "dirty",
+      "changedFileCount": 5,
+      "changedFiles": [
+        " M artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json",
+        " M artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/manifest.json",
+        " M docs/roadmap.md",
+        "?? .gstack/deploy-reports/2026-07-13-pr84-candidate-deploy.md",
+        "?? .superpowers/"
+      ]
     }
   },
   "write": {
