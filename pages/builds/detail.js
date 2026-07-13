@@ -1483,7 +1483,7 @@ function orderedGearBySlot(selectedGearBySlot, gearPayload) {
 function normalizedOptionIdentityList(value) {
   return (Array.isArray(value) ? value : [])
     .map(cleanGearString)
-    .filter((id, index, values) => id && values.indexOf(id) === index)
+    .filter(Boolean)
 }
 
 function normalizedEnhancementBySlot(enhancementBySlot) {

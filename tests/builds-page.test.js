@@ -8775,6 +8775,95 @@ test('community enhancement reconciliation preserves duplicate gem multiplicity 
   assert.deepEqual(JSON.parse(JSON.stringify(reconciliation.unresolvedBySlot)), {})
 })
 
+test('duplicate gem community import survives unchanged enhancement editor confirmation', async () => {
+  const resolveRequests = []
+  const ring = {
+    slot: 'finger1', simcSlot: 'finger1', itemId: '288892', id: '288892', variantKey: 'ring-duplicate-editor',
+    displayName: 'Duplicate Gem Editor Ring', simcReady: true,
+    modCapabilities: { hasSocket: true, socketCount: 2, canEnchant: false, canEmbellish: false }
+  }
+  const gearPayload = {
+    classKey: 'mage', specKey: 'frost', maxLevel: 90,
+    slots: [{ slot: 'finger1', simcSlot: 'finger1', label: '戒指 1' }],
+    equippedSet: {},
+    replacementCandidates: [{
+      slot: 'finger1', simcSlot: 'finger1', label: '戒指 1', detailMode: 'complete', items: [ring],
+      socketOptions: [{
+        id: 'row-gem-240892',
+        optionKey: 'gem-240892',
+        displayLabel: '+32 急速',
+        displayStatus: 'verified',
+        evidenceSource: 'test_authority',
+        status: 'verified',
+        simcOptions: { gem_id: '240892' }
+      }]
+    }],
+    slotReadiness: {}, readiness: { fullReady: true }, resolverContext: canonicalTestResolverContext()
+  }
+  const template = {
+    id: 'duplicate-gem-editor-template', canApplyGear: true, readySlotCount: 1,
+    gearItems: [{ ...ring, gem_id: '240892/240892' }]
+  }
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGearResolve(selectionIntent) {
+      resolveRequests.push(selectionIntent)
+      return canonicalEnhancementResolveTransport(
+        selectionIntent,
+        `sha256:duplicate-editor-${resolveRequests.length}`,
+        { finger1: { socketCount: 2, canEnchant: false, canEmbellish: false } }
+      )
+    }
+  })
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear', selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearSelectionKey: 'mage:frost', gearPayload, selectedGearBySlot: {}, enhancementBySlot: {},
+      activeGearCommunityTemplates: [template], gearCommunityTemplateSheet: { visible: true },
+      gearEnhancementSheet: { visible: false }, gearSlotSheet: { visible: false }
+    },
+    setData(update) { this.data = { ...this.data, ...update } },
+    confirmAndResolveGearIntent: pageConfig.confirmAndResolveGearIntent
+  }
+
+  await pageConfig.applyGearCommunityTemplate.call(page, {
+    currentTarget: { dataset: { id: template.id } }
+  })
+
+  assert.equal(resolveRequests.length, 1)
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(resolveRequests[0].slots.finger1.gemOptionIds)),
+    ['gem-240892', 'gem-240892']
+  )
+
+  await pageConfig.openGearEnhancementSheet.call(page)
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.enhancementBySlot.finger1.gemOptionIds)),
+    ['gem-240892', 'gem-240892']
+  )
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot.finger1.gemOptionIds)),
+    ['gem-240892', 'gem-240892']
+  )
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.blockers)), [])
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'gem').value, '2/2')
+
+  await pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(resolveRequests.length, 2)
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(resolveRequests[1].slots.finger1.gemOptionIds)),
+    ['gem-240892', 'gem-240892']
+  )
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.enhancementBySlot.finger1.gemOptionIds)),
+    ['gem-240892', 'gem-240892']
+  )
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'gem').value, '2/2')
+})
+
 test('community enhancement reconciliation keeps conflicting gem source sequences wholly unresolved', async () => {
   const resolveRequests = []
   const pageConfig = loadBuildsDetailPageConfig({
@@ -9190,7 +9279,7 @@ test('slower community enhancement hydration cannot overwrite a newer community 
   })
 })
 
-test('multiple gem option identities preserve ordered normalized state and legacy scalar reads', () => {
+test('multiple gem option identities preserve ordered multiplicity and legacy scalar reads', () => {
   const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
   const helpers = pageConfig.__detailHelpers
 
@@ -9205,7 +9294,7 @@ test('multiple gem option identities preserve ordered normalized state and legac
 
   assert.deepEqual(JSON.parse(JSON.stringify(normalized)), {
     neck: {
-      gemOptionIds: ['gem-first', 'gem-second']
+      gemOptionIds: ['gem-first', 'gem-second', 'gem-first']
     },
     finger1: {
       socketOptionId: 'legacy-gem'
@@ -9213,16 +9302,16 @@ test('multiple gem option identities preserve ordered normalized state and legac
   })
   assert.deepEqual(JSON.parse(JSON.stringify(helpers.optionIdentityEnhancementBySlot(normalized))), {
     neck: {
-      gemOptionIds: ['gem-first', 'gem-second']
+      gemOptionIds: ['gem-first', 'gem-second', 'gem-first']
     },
     finger1: {
       socketOptionId: 'legacy-gem'
     }
   })
   assert.deepEqual(JSON.parse(JSON.stringify(helpers.compactEnhancementRecord(normalized.neck))), {
-    gemOptionIds: ['gem-first', 'gem-second']
+    gemOptionIds: ['gem-first', 'gem-second', 'gem-first']
   })
-  assert.equal(helpers.enhancementRecordSelectedCount(normalized.neck, 'gem'), 2)
+  assert.equal(helpers.enhancementRecordSelectedCount(normalized.neck, 'gem'), 3)
   assert.equal(helpers.enhancementOptionSelected({ id: 'gem-second' }, normalized.neck, 'gem'), true)
   assert.equal(helpers.enhancementRecordSelectedCount(normalized.finger1, 'gem'), 1)
   assert.equal(helpers.enhancementOptionSelected({ id: 'legacy-gem' }, normalized.finger1, 'gem'), true)
