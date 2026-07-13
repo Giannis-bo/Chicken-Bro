@@ -43,6 +43,7 @@ _OPTION_FIELDS = (
     ("craftedOptionId", "crafted"),
     ("catalystOptionId", "catalyst"),
 )
+_GEM_SIMC_SEQUENCE_FIELDS = ("gem_id", "gem_bonus_id", "gem_ilevel")
 _CAPABILITY_FIELDS = (
     "socketCount",
     "canEnchant",
@@ -399,6 +400,14 @@ def apply_selected_enhancements(
         "catalystOptionId": selection.get("catalystOptionId", ""),
     }
     simc_options = dict(state.get("variant", {}).get("simcOptions") or {})
+    replaces_variant_gem_sequences = bool(selected_options["gemOptionIds"])
+    selected_gem_sequences: dict[str, list[str]] = {
+        field: [] for field in _GEM_SIMC_SEQUENCE_FIELDS
+    }
+    applied_gem_count = 0
+    if replaces_variant_gem_sequences:
+        for field in _GEM_SIMC_SEQUENCE_FIELDS:
+            simc_options.pop(field, None)
     capabilities = state.get("effectiveCapabilities", {})
     applied: list[dict[str, Any]] = []
     for field, expected_type in _OPTION_FIELDS:
@@ -449,7 +458,22 @@ def apply_selected_enhancements(
             state["sourceRefIds"] = _ids(
                 state["sourceRefIds"] + list(option.get("sourceRefIds", []))
             )
-            simc_options.update(option.get("simcOptions") or {})
+            option_simc_options = option.get("simcOptions") or {}
+            if expected_type == "gem" and replaces_variant_gem_sequences:
+                applied_gem_count += 1
+                for simc_field in _GEM_SIMC_SEQUENCE_FIELDS:
+                    value = str(option_simc_options.get(simc_field) or "").strip()
+                    if value:
+                        selected_gem_sequences[simc_field].append(value)
+                simc_options.update(
+                    {
+                        key: value
+                        for key, value in option_simc_options.items()
+                        if key not in _GEM_SIMC_SEQUENCE_FIELDS
+                    }
+                )
+            else:
+                simc_options.update(option_simc_options)
             applied.append(
                 {
                     "field": field,
@@ -458,6 +482,14 @@ def apply_selected_enhancements(
                     "statDeltas": _canonical(option.get("statDeltas", {})),
                 }
             )
+    if replaces_variant_gem_sequences:
+        simc_options.update(
+            {
+                field: "/".join(values)
+                for field, values in selected_gem_sequences.items()
+                if applied_gem_count and len(values) == applied_gem_count
+            }
+        )
     state["selectedOptions"] = selected_options
     state["appliedEnhancements"] = applied
     state["simcOptions"] = _canonical(simc_options)
@@ -564,7 +596,10 @@ def _static_attributes(resolved_slots: dict[str, dict[str, Any]]) -> dict[str, i
     return {key: totals[key] for key in sorted(totals)}
 
 
-def _constraints(resolved_slots: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _constraints(
+    resolved_slots: dict[str, dict[str, Any]],
+    authority_context: dict[str, Any],
+) -> dict[str, Any]:
     slots: dict[str, Any] = {}
     for slot in sorted(resolved_slots):
         resolved = resolved_slots[slot]
@@ -579,7 +614,15 @@ def _constraints(resolved_slots: dict[str, dict[str, Any]]) -> dict[str, Any]:
             "canEmbellish": capabilities.get("canEmbellish") is True,
             "hasSelectedEmbellishment": bool(resolved["selectedOptions"]["embellishmentOptionId"]),
         }
-    return {"slots": slots}
+    constraints = {"slots": slots}
+    embellishment_limit = authority_context["ruleParameters"].get("embellishmentLimit")
+    if (
+        isinstance(embellishment_limit, int)
+        and not isinstance(embellishment_limit, bool)
+        and embellishment_limit >= 0
+    ):
+        constraints["embellishmentMax"] = embellishment_limit
+    return constraints
 
 
 def _profile_readiness(
@@ -920,7 +963,7 @@ def resolve(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
         "staticAttributes": static_attributes,
         "setState": set_state,
         "profileReadiness": readiness,
-        "constraints": _constraints(resolved_slots),
+        "constraints": _constraints(resolved_slots, authority_context),
         "serializerInput": _serializer_input(resolved_slots),
         "evidenceLedger": ledger,
         "problems": problems,

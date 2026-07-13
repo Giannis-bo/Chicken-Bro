@@ -138,6 +138,41 @@ class GearRuntimeTest(unittest.TestCase):
         self.assertEqual(envelope["releaseContext"]["talentCatalogRevision"], "talent-catalog:r17")
         self.assertTrue(envelope["releaseContext"]["formalActiveManifest"])
 
+    def test_resolve_and_profile_transport_backend_embellishment_limit(self):
+        fixture = self.fixture()
+        store = FakeStore(fixture["authorityContext"])
+
+        resolve_status, resolved = gear_runtime.resolve_selection_intent(
+            fixture["intent"],
+            store=store,
+            simc_runtime_revision="simc-v1",
+            request_id="request-embellishment-limit-resolve",
+        )
+
+        self.assertEqual(resolve_status, 200)
+        self.assertEqual(resolved["data"]["constraints"]["embellishmentMax"], 2)
+
+        profile_status, profile = gear_runtime.build_profile_from_selection_intent(
+            {
+                "selectionIntent": fixture["intent"],
+                "profileContext": {
+                    "name": "Canonical",
+                    "race": "orc",
+                    "scenarioKey": "single",
+                    "talents": "external-talent-code",
+                },
+            },
+            store=store,
+            simc_runtime_revision="simc-v1",
+            request_id="request-embellishment-limit-profile",
+        )
+
+        self.assertEqual(profile_status, 200)
+        self.assertEqual(
+            (profile["data"].get("constraints") or {}).get("embellishmentMax"),
+            2,
+        )
+
     def test_candidate_shadow_resolves_only_through_exact_release_reader(self):
         fixture = self.fixture()
         gear_release_id = fixture["intent"]["authoredAgainst"]["gearCatalogRevision"]

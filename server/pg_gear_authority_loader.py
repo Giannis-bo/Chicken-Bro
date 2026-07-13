@@ -20,6 +20,7 @@ try:
         EQUIVALENT_GEAR_SLOTS,
         ITEM_METADATA_SOURCE,
         gear_item_handedness_fields,
+        item_mod_capabilities,
         item_slot_from_payload,
         item_type_metadata_from_payload,
     )
@@ -28,6 +29,7 @@ except ImportError:
         EQUIVALENT_GEAR_SLOTS,
         ITEM_METADATA_SOURCE,
         gear_item_handedness_fields,
+        item_mod_capabilities,
         item_slot_from_payload,
         item_type_metadata_from_payload,
     )
@@ -295,6 +297,12 @@ def _int(value: Any) -> int:
         return int(value or 0)
     except (TypeError, ValueError, OverflowError):
         return 0
+
+
+def _non_negative_int(value: Any) -> int:
+    if isinstance(value, bool):
+        return 0
+    return max(0, _int(value))
 
 
 def _texts(values: Iterable[Any]) -> list[str]:
@@ -591,6 +599,38 @@ def _source_is_verified(source: Any) -> bool:
     return "verified" in statuses or bool(_tier_set_id_from_source(source))
 
 
+def _project_base_capabilities(
+    payload: dict[str, Any],
+    canonical_slot: str,
+    type_metadata: dict[str, Any],
+) -> dict[str, Any]:
+    explicit = _json_value(payload.get("baseCapabilities"), {})
+    explicit = explicit if isinstance(explicit, dict) else {}
+    explicit = {
+        **explicit,
+        **{
+            field: payload[field]
+            for field in ("socketCount", "canEnchant", "canEmbellish")
+            if field in payload
+        },
+    }
+    derived = item_mod_capabilities(
+        payload=payload,
+        slot=canonical_slot,
+        item={"slot": canonical_slot, **type_metadata},
+    )
+    socket_count = max(
+        _non_negative_int(explicit.get("socketCount")),
+        _non_negative_int(derived.get("socketCount")),
+    )
+    return {
+        **explicit,
+        "socketCount": socket_count,
+        "canEnchant": explicit.get("canEnchant") is True or derived.get("canEnchant") is True,
+        "canEmbellish": explicit.get("canEmbellish") is True or derived.get("canEmbellish") is True,
+    }
+
+
 def _project_item(
     requested_item_id: str,
     record: Any,
@@ -660,18 +700,8 @@ def _project_item(
     inventory_type = _text(payload.get("inventoryType"))
     if not inventory_type:
         inventory_type = "weapon" if handedness in {"one_hand", "two_hand", "ranged"} else canonical_slot
-    base_capabilities = _json_value(payload.get("baseCapabilities"), {})
-    base_capabilities = base_capabilities if isinstance(base_capabilities, dict) else {}
-    socket_count = payload.get("socketCount", base_capabilities.get("socketCount", 0))
-    if isinstance(socket_count, bool) or not isinstance(socket_count, int):
-        socket_count = 0
-    base_capabilities.update(
-        {
-            "socketCount": socket_count,
-            "canEnchant": payload.get("canEnchant", base_capabilities.get("canEnchant", False)) is True,
-            "canEmbellish": payload.get("canEmbellish", base_capabilities.get("canEmbellish", False)) is True,
-        }
-    )
+    base_capabilities = _project_base_capabilities(payload, canonical_slot, type_metadata)
+    socket_count = base_capabilities["socketCount"]
     item_id = _text(record.get("id")) or requested_item_id
     return {
         "itemId": item_id,
@@ -697,6 +727,32 @@ def _project_item(
         "dynamicEffects": _json_value(payload.get("dynamicEffects"), []),
         "sourceRefIds": _texts(source_ref_ids),
     }
+
+
+def _variant_capability_overrides(
+    payload: dict[str, Any],
+    simc_options: dict[str, Any],
+) -> dict[str, Any]:
+    explicit = _json_value(payload.get("capabilityOverrides"), {})
+    explicit = explicit if isinstance(explicit, dict) else {}
+    overrides = dict(explicit)
+    gem_count = len(
+        [token for token in _text(simc_options.get("gem_id")).split("/") if token.strip()]
+    )
+    if "socketCount" in explicit or gem_count:
+        overrides["socketCount"] = max(
+            _non_negative_int(explicit.get("socketCount")),
+            gem_count,
+        )
+    proves_embellishment = bool(
+        _text(simc_options.get("embellishment"))
+        or _text(simc_options.get("crafted_stats"))
+    )
+    if "canEmbellish" in explicit or proves_embellishment:
+        overrides["canEmbellish"] = (
+            explicit.get("canEmbellish") is True or proves_embellishment
+        )
+    return overrides
 
 
 def _project_variant(
@@ -728,6 +784,8 @@ def _project_variant(
     }
     overlay = _json_value(payload.get("overlay"), {})
     overlay = overlay if isinstance(overlay, dict) else {}
+    simc_options = _json_value(record.get("simcOptions"), {})
+    simc_options = simc_options if isinstance(simc_options, dict) else {}
     projected = {
         "variantKey": requested_variant_key,
         "itemId": requested_item_id,
@@ -736,9 +794,9 @@ def _project_variant(
         "statDeltas": _authority_stat_map(payload.get("statDeltas"))
         if "statDeltas" in payload
         else {},
-        "simcOptions": _json_value(record.get("simcOptions"), {}),
+        "simcOptions": simc_options,
         "itemSetId": _text(payload.get("itemSetId")),
-        "capabilityOverrides": _json_value(payload.get("capabilityOverrides"), {}),
+        "capabilityOverrides": _variant_capability_overrides(payload, simc_options),
         "dynamicEffects": _json_value(payload.get("dynamicEffects"), []),
         "sourceRefIds": _texts([*item_source_refs, evidence_id]),
     }

@@ -25664,6 +25664,9 @@ def build_websim_profile_response_from_resolved_snapshot(
             "status": "resolved",
             "profileReadiness": json.loads(json.dumps(readiness, sort_keys=True)),
             "resolvedGearSignature": str(snapshot.get("resolvedGearSignature") or ""),
+            "constraints": json.loads(
+                json.dumps(snapshot.get("constraints") or {}, sort_keys=True)
+            ),
             "evidenceLedger": json.loads(
                 json.dumps(snapshot.get("evidenceLedger") or {}, sort_keys=True)
             ),

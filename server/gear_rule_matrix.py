@@ -371,7 +371,11 @@ def _embellishment_and_crafted(intent: dict[str, Any], authority: dict[str, Any]
             if option_id not in item.get(allowed_field, []):
                 problems.append(_problem("GEAR_CRAFT_", "OPTION_NOT_ALLOWED", "Crafting option is not allowed for this item.", path=path))
     limit = authority["ruleParameters"].get("embellishmentLimit")
-    if not isinstance(limit, int):
+    if (
+        not isinstance(limit, int)
+        or isinstance(limit, bool)
+        or limit < 0
+    ):
         problems.append(_problem("GEAR_CRAFT_", "AUTHORITY_UNAVAILABLE", "Embellishment limit authority is unavailable.", kind="AUTHORITY_UNAVAILABLE", path="ruleParameters.embellishmentLimit"))
     elif embellishment_count > limit:
         problems.append(_problem("GEAR_CRAFT_", "EMBELLISHMENT_LIMIT_EXCEEDED", "Whole-character embellishment limit was exceeded.", meta={"count": embellishment_count, "limit": limit}))
