@@ -600,6 +600,7 @@ function enhancementRecordSelectedCount(record, type) {
   if (!record || typeof record !== 'object') return 0
   if (type === 'gem') {
     return Math.max(
+      normalizedOptionIdentityList(record.gemOptionIds).length,
       simcOptionValueCount(record.gem_id),
       cleanGearString(record.socketOptionId) ? 1 : 0,
       cleanGearString(record.gem_bonus_id) ? 1 : 0
@@ -1409,12 +1410,20 @@ function orderedGearBySlot(selectedGearBySlot, gearPayload) {
   return snapshot
 }
 
+function normalizedOptionIdentityList(value) {
+  return (Array.isArray(value) ? value : [])
+    .map(cleanGearString)
+    .filter((id, index, values) => id && values.indexOf(id) === index)
+}
+
 function normalizedEnhancementBySlot(enhancementBySlot) {
   const result = {}
   Object.keys(enhancementBySlot || {}).sort().forEach((slot) => {
     const record = enhancementBySlot[slot]
     if (!record || typeof record !== 'object') return
     const next = {}
+    const gemOptionIds = normalizedOptionIdentityList(record.gemOptionIds)
+    if (gemOptionIds.length) next.gemOptionIds = gemOptionIds
     ;['socketOptionId', 'enchantOptionId', 'embellishmentOptionId', 'gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'embellishment'].forEach((key) => {
       const value = cleanGearString(record[key])
       if (value) next[key] = value
@@ -1429,6 +1438,8 @@ function optionIdentityEnhancementBySlot(enhancementBySlot) {
   const result = {}
   Object.keys(normalized).forEach((slot) => {
     const next = {}
+    const gemOptionIds = normalizedOptionIdentityList(normalized[slot] && normalized[slot].gemOptionIds)
+    if (gemOptionIds.length) next.gemOptionIds = gemOptionIds
     ;['socketOptionId', 'enchantOptionId', 'embellishmentOptionId'].forEach((key) => {
       const value = cleanGearString(normalized[slot] && normalized[slot][key])
       if (value) next[key] = value
@@ -1984,6 +1995,7 @@ function enhancementOptionSelected(option, selected, type) {
   const optionId = enhancementOptionIdentity(option)
   if (type === 'gem') {
     return !!(
+      normalizedOptionIdentityList(selected.gemOptionIds).includes(optionId) ||
       (selected.socketOptionId && optionId === selected.socketOptionId) ||
       (selected.gem_id && cleanGearString(simcOptions.gem_id) === selected.gem_id)
     )
@@ -2259,15 +2271,16 @@ function selectedEnhancementUniqueGroups(gearPayload, indexed, enhancement, type
   requiredGearTemplateSlots(gearPayload || {}).forEach((slot) => {
     const item = indexed[slot]
     const selected = enhancement[slot] || {}
-    if (!item || !selected.gem_id) return
+    if (!item || !enhancementRecordHasSelectedType(selected, type)) return
     const options = enhancementOptionsForSlot(gearPayload, item, 'socketOptions')
-    const selectedOption = options.find((option) => enhancementOptionSelected(option, selected, type))
-    const group = enhancementOptionUniqueGroup(selectedOption, type)
-    if (!group) return
-    const limit = enhancementOptionUniqueLimit(selectedOption, type) || 1
-    if (!state[group]) state[group] = { limit, slots: [] }
-    state[group].limit = Math.min(state[group].limit || limit, limit)
-    state[group].slots.push(slot)
+    options.filter((option) => enhancementOptionSelected(option, selected, type)).forEach((selectedOption) => {
+      const group = enhancementOptionUniqueGroup(selectedOption, type)
+      if (!group) return
+      const limit = enhancementOptionUniqueLimit(selectedOption, type) || 1
+      if (!state[group]) state[group] = { limit, slots: [] }
+      state[group].limit = Math.min(state[group].limit || limit, limit)
+      state[group].slots.push(slot)
+    })
   })
   return state
 }
@@ -2306,9 +2319,15 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
     const embellishmentOptions = enhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions')
     const runeforgeWarning = deathKnightRuneforgeWarningForItem(gearPayload, item)
     if (runeforgeWarning && !warnings.includes(runeforgeWarning)) warnings.push(runeforgeWarning)
+    const selectedGemCount = enhancementRecordSelectedCount(selected, 'gem')
+    const socketCapacity = gearItemSocketCapacity(item)
+    if (selectedGemCount > socketCapacity) {
+      blockers.push(`${gearSlotDisplay(slot)} 宝石已超过插槽上限 ${selectedGemCount}/${socketCapacity}`)
+    }
     if (socketOptions.length && itemSupportsEnhancement(item, 'gem', socketOptions)) {
       const row = enhancementRow(slot, item, socketOptions, selected, 'gem', (option, isSelected) => {
         if (isSelected) return false
+        if (selectedGemCount >= socketCapacity) return true
         const group = enhancementOptionUniqueGroup(option, 'gem')
         if (!group) return false
         const limit = enhancementOptionUniqueLimit(option, 'gem') || 1
@@ -2390,6 +2409,7 @@ function prunedEnhancementBySlot(gearPayload, selectedGearBySlot, enhancementByS
   }
   Object.keys(normalized).forEach((slot) => {
     if (!rowKeepsSelection('gem', slot)) {
+      delete normalized[slot].gemOptionIds
       delete normalized[slot].socketOptionId
       delete normalized[slot].gem_id
       delete normalized[slot].gem_bonus_id
@@ -2408,14 +2428,21 @@ function prunedEnhancementBySlot(gearPayload, selectedGearBySlot, enhancementByS
   return normalized
 }
 
-function enhancementSelectionFromOption(type, option) {
+function enhancementSelectionFromOption(type, option, record) {
   const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
   if (type === 'gem') {
+    const currentGemOptionIds = normalizedOptionIdentityList(record && record.gemOptionIds)
+    const legacyOptionId = cleanGearString(record && record.socketOptionId)
+    const optionId = cleanGearString(option.id)
     return {
-      socketOptionId: cleanGearString(option.id),
-      gem_id: cleanGearString(simcOptions.gem_id),
-      gem_bonus_id: cleanGearString(simcOptions.gem_bonus_id),
-      gem_ilevel: cleanGearString(simcOptions.gem_ilevel)
+      gemOptionIds: normalizedOptionIdentityList([
+        ...(currentGemOptionIds.length ? currentGemOptionIds : (legacyOptionId ? [legacyOptionId] : [])),
+        optionId
+      ]),
+      socketOptionId: '',
+      gem_id: '',
+      gem_bonus_id: '',
+      gem_ilevel: ''
     }
   }
   if (type === 'enchant') {
@@ -2433,9 +2460,16 @@ function enhancementSelectionFromOption(type, option) {
   return {}
 }
 
-function removeEnhancementType(record, type) {
+function removeEnhancementType(record, type, optionId) {
   const next = { ...(record || {}) }
   if (type === 'gem') {
+    const gemOptionIds = normalizedOptionIdentityList(next.gemOptionIds)
+    const removedOptionId = cleanGearString(optionId)
+    const remainingGemOptionIds = removedOptionId
+      ? gemOptionIds.filter((id) => id !== removedOptionId)
+      : []
+    if (remainingGemOptionIds.length) next.gemOptionIds = remainingGemOptionIds
+    else delete next.gemOptionIds
     delete next.socketOptionId
     delete next.gem_id
     delete next.gem_bonus_id
@@ -2452,6 +2486,8 @@ function removeEnhancementType(record, type) {
 
 function compactEnhancementRecord(record) {
   const next = {}
+  const gemOptionIds = normalizedOptionIdentityList(record && record.gemOptionIds)
+  if (gemOptionIds.length) next.gemOptionIds = gemOptionIds
   ;['socketOptionId', 'enchantOptionId', 'embellishmentOptionId', 'gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'embellishment'].forEach((key) => {
     const value = cleanGearString(record && record[key])
     if (value) next[key] = value
@@ -5054,8 +5090,8 @@ Page({
     const current = normalizedEnhancementBySlot(sheet.draftEnhancementBySlot || this.data.enhancementBySlot || {})
     const existing = current[slot] || {}
     const nextRecord = option.selected
-      ? removeEnhancementType(existing, type)
-      : { ...existing, ...enhancementSelectionFromOption(type, option) }
+      ? removeEnhancementType(existing, type, optionId)
+      : { ...existing, ...enhancementSelectionFromOption(type, option, existing) }
     const compactRecord = compactEnhancementRecord(nextRecord)
     if (compactRecord) current[slot] = compactRecord
     else delete current[slot]
