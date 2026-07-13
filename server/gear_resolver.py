@@ -596,7 +596,10 @@ def _static_attributes(resolved_slots: dict[str, dict[str, Any]]) -> dict[str, i
     return {key: totals[key] for key in sorted(totals)}
 
 
-def _constraints(resolved_slots: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _constraints(
+    resolved_slots: dict[str, dict[str, Any]],
+    authority_context: dict[str, Any],
+) -> dict[str, Any]:
     slots: dict[str, Any] = {}
     for slot in sorted(resolved_slots):
         resolved = resolved_slots[slot]
@@ -611,7 +614,15 @@ def _constraints(resolved_slots: dict[str, dict[str, Any]]) -> dict[str, Any]:
             "canEmbellish": capabilities.get("canEmbellish") is True,
             "hasSelectedEmbellishment": bool(resolved["selectedOptions"]["embellishmentOptionId"]),
         }
-    return {"slots": slots}
+    constraints = {"slots": slots}
+    embellishment_limit = authority_context["ruleParameters"].get("embellishmentLimit")
+    if (
+        isinstance(embellishment_limit, int)
+        and not isinstance(embellishment_limit, bool)
+        and embellishment_limit >= 0
+    ):
+        constraints["embellishmentMax"] = embellishment_limit
+    return constraints
 
 
 def _profile_readiness(
@@ -952,7 +963,7 @@ def resolve(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
         "staticAttributes": static_attributes,
         "setState": set_state,
         "profileReadiness": readiness,
-        "constraints": _constraints(resolved_slots),
+        "constraints": _constraints(resolved_slots, authority_context),
         "serializerInput": _serializer_input(resolved_slots),
         "evidenceLedger": ledger,
         "problems": problems,

@@ -47,6 +47,28 @@ class GearResolverTest(unittest.TestCase):
         if option_id not in allowed:
             allowed.append(option_id)
 
+    def enable_embellishment_slots(self, fixture, slots):
+        for slot in slots:
+            selection = fixture["intent"]["slots"][slot]
+            item = fixture["authorityContext"]["itemsById"][selection["itemId"]]
+            option_id = f"embellishment-{slot}"
+            source_ref_id = f"evidence:option:{option_id}"
+            fixture["authorityContext"]["optionsById"][option_id] = {
+                "optionId": option_id,
+                "optionType": "embellishment",
+                "statDeltas": {},
+                "simcOptions": {"embellishment": option_id},
+                "sourceRefIds": [source_ref_id],
+            }
+            fixture["authorityContext"]["evidenceRecordsById"][source_ref_id] = {
+                "id": source_ref_id,
+                "sourceType": "catalog_option",
+                "sourceRevision": "gear-r17",
+            }
+            item["baseCapabilities"]["canEmbellish"] = True
+            item["allowedEmbellishmentOptionIds"] = [option_id]
+        return fixture
+
     def test_resolver_rejects_malformed_intent_before_slot_resolution(self):
         fixture = self.fixture()
         fixture["intent"]["readiness"] = {"simcReady": True}
@@ -499,6 +521,99 @@ class GearResolverTest(unittest.TestCase):
         self.assertFalse(head["canEnchant"])
         self.assertTrue(main["canEnchant"])
         self.assertTrue(main["hasSelectedEnchant"])
+
+    def test_constraints_publish_backend_owned_embellishment_limit(self):
+        fixture = self.fixture()
+
+        result = self.resolve(fixture)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["constraints"].get("embellishmentMax"),
+            fixture["authorityContext"]["ruleParameters"]["embellishmentLimit"],
+        )
+        self.assertEqual(result["constraints"]["embellishmentMax"], 2)
+
+        fixture["authorityContext"]["ruleParameters"]["embellishmentLimit"] = 1
+        authority_changed = self.resolve(fixture)
+        self.assertEqual(authority_changed["status"], "verified")
+        self.assertEqual(authority_changed["constraints"]["embellishmentMax"], 1)
+
+    def test_constraints_keep_embellishment_limit_for_zero_one_and_two_selections(self):
+        fixture = self.enable_embellishment_slots(self.fixture(), ["head", "chest"])
+
+        for selected_count in range(3):
+            with self.subTest(selected_count=selected_count):
+                candidate = copy.deepcopy(fixture)
+                for slot in ("head", "chest")[:selected_count]:
+                    candidate["intent"]["slots"][slot]["embellishmentOptionId"] = (
+                        f"embellishment-{slot}"
+                    )
+
+                result = self.resolve(candidate)
+
+                self.assertEqual(result["status"], "verified")
+                self.assertEqual(result["constraints"]["embellishmentMax"], 2)
+
+    def test_embellishment_over_limit_blocks_without_changing_authoritative_max(self):
+        fixture = self.enable_embellishment_slots(
+            self.fixture(), ["head", "chest", "main_hand"]
+        )
+        for slot in ("head", "chest", "main_hand"):
+            fixture["intent"]["slots"][slot]["embellishmentOptionId"] = (
+                f"embellishment-{slot}"
+            )
+
+        result = self.resolve(fixture)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["constraints"]["embellishmentMax"], 2)
+        self.assertTrue(
+            any(
+                problem["code"] == "GEAR_CRAFT_EMBELLISHMENT_LIMIT_EXCEEDED"
+                for problem in result["problems"]
+            )
+        )
+
+    def test_client_cannot_publish_an_embellishment_limit(self):
+        fixture = self.fixture()
+        fixture["intent"]["embellishmentMax"] = 99
+
+        result = self.resolve(fixture)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["constraints"], {"slots": {}})
+        self.assertTrue(
+            any(problem["code"] == "UNKNOWN_FIELD" for problem in result["problems"])
+        )
+
+    def test_empty_snapshot_does_not_claim_an_unvalidated_embellishment_limit(self):
+        fixture = self.fixture()
+        fixture["authorityContext"].pop("ruleParameters")
+
+        result = self.resolve(fixture)
+
+        self.assertEqual(result["status"], "unavailable")
+        self.assertEqual(result["constraints"], {"slots": {}})
+
+    def test_invalid_authority_embellishment_limit_blocks_without_publishing_max(self):
+        for invalid_limit in (True, -1):
+            with self.subTest(invalid_limit=invalid_limit):
+                fixture = self.fixture()
+                fixture["authorityContext"]["ruleParameters"]["embellishmentLimit"] = (
+                    invalid_limit
+                )
+
+                result = self.resolve(fixture)
+
+                self.assertEqual(result["status"], "blocked")
+                self.assertNotIn("embellishmentMax", result["constraints"])
+                self.assertTrue(
+                    any(
+                        problem["code"] == "GEAR_CRAFT_AUTHORITY_UNAVAILABLE"
+                        for problem in result["problems"]
+                    )
+                )
 
     def test_constraints_use_exact_variant_override_without_promoting_raw_simc_options(self):
         fixture = self.fixture()
