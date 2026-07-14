@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "slug": "community-enhancement-editability",
+  "requirementSlug": "community-enhancement-editability",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/fix-community-enhancement-editability",
+  "commit": "2e7db63361944a786422771a8f8358a0d5d20366",
+  "scope": [
+    "static_socket_authority",
+    "raiderio_gem_occurrence_transport",
+    "gear_release_capability_revision",
+    "postgres_runtime_socket_projection",
+    "editable_community_enhancement_import",
+    "canonical_draft_resolve_commit",
+    "candidate_manual_cutover"
+  ],
+  "verification": [
+    {
+      "command": "node --test tests/builds-page.test.js tests/gear-workbench-state.test.js tests/project-state.test.js tests/project-harness.test.js",
+      "status": "pass",
+      "summary": "Baseline before implementation passed 188/188 Node tests in the clean isolated worktree."
+    },
+    {
+      "command": "python3 -m unittest tests.websim_payload_test tests.pg_gear_authority_loader_test tests.gear_resolver_test tests.gear_release_test tests.gear_release_tool_test",
+      "status": "pass",
+      "summary": "Baseline before implementation passed 513 Python tests; existing temporary SQLite ResourceWarnings were non-failing."
+    },
+    {
+      "command": "node --test tests/project-harness.test.js tests/project-owner-map.test.js tests/backend-owner-map.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "The approved v2 current-truth and Strict packet update passed 23/23 control-plane tests."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-14-community-enhancement-editability --base origin/main",
+      "status": "pass",
+      "summary": "Harness profile passed all six commands, including JSON validation, syntax checks, packet check and diff check."
+    },
+    {
+      "command": "python3 -m unittest tests.raiderio_payload_test tests.gear_socket_authority_test tests.gear_release_tool_test tests.gear_release_refresh_test tests.gear_contracts_test tests.gear_release_store_test tests.gear_runtime_test tests.pg_gear_authority_loader_test tests.gear_resolver_test tests.gear_rule_matrix_test tests.websim_payload_test",
+      "status": "not_run",
+      "summary": "Required after backend TDD implementation."
+    },
+    {
+      "command": "node --test tests/builds-page.test.js tests/gear-workbench-state.test.js",
+      "status": "not_run",
+      "summary": "Required after frontend TDD implementation."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile frontend --release artifacts/releases/2026-07-14-community-enhancement-editability --base origin/main",
+      "status": "not_run",
+      "summary": "Required before candidate deployment."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-14-community-enhancement-editability --base origin/main",
+      "status": "not_run",
+      "summary": "Required before candidate deployment."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-14-community-enhancement-editability --base origin/main",
+      "status": "not_run",
+      "summary": "Required before candidate promotion and again after final evidence updates."
+    },
+    {
+      "command": "candidate v1-reader deployment, inactive v2 release generation, 40-spec shadow, manual pointer cutover and production API/operations smoke",
+      "status": "not_run",
+      "summary": "Required before merge with WOW_DEPLOY_START_ASYNC_SYNCS=0."
+    },
+    {
+      "command": "real WeChat exact-candidate import and editable replacement matrix",
+      "status": "not_run",
+      "summary": "Required user-visible evidence before merge."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "requiredBeforeMerge": true,
+    "branch": "codex/fix-community-enhancement-editability",
+    "commit": "pending_implementation",
+    "buildIdentity": "pending_exact_candidate",
+    "smoke": {
+      "status": "not_run",
+      "summary": "No candidate has been deployed."
+    },
+    "timerBackflow": {
+      "status": "not_run",
+      "summary": "No runtime change has been made."
+    },
+    "realWeChat": {
+      "status": "not_run",
+      "summary": "Reserved for the exact clean candidate worktree before merge."
+    }
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "socket_rule_overgeneralization",
+      "status": "open_tdd_required",
+      "detail": "An exact item with two sockets must not upgrade every item in the same jewelry slot. Pure authority and release fixtures must prove item-scoped behavior."
+    },
+    {
+      "id": "capability_revision_rollout_gap",
+      "status": "open_tdd_and_candidate_required",
+      "detail": "A v2-only reader could reject the active v1 manifest before cutover. The implementation must deploy a v1/v2-compatible reader first and preserve pointer rollback."
+    },
+    {
+      "id": "frontend_full_capacity_replacement",
+      "status": "open_real_wechat_required",
+      "detail": "Local tests cannot prove WeChat sheet behavior at 8/8 gems and 2/2 embellishments; the exact candidate remains merge-blocked on real-device evidence."
+    },
+    {
+      "id": "unrelated_talent_candidate_overlap",
+      "status": "controlled_by_isolated_composite_candidate",
+      "detail": "The root checkout contains separate talent-link work. Any joint runtime verification must use an isolated exact composite candidate without modifying that branch."
+    }
+  ],
+  "rollback": [
+    "config_disable",
+    "code_rollback",
+    "data_restore",
+    "feature_hide",
+    "resync_repair"
+  ],
+  "cleanup": {
+    "required": true,
+    "items": [
+      "remove any temporary composite candidate worktree after exact candidate evidence is archived",
+      "leave WOW_DEPLOY_START_ASYNC_SYNCS=0 and do not trigger background refresh during deploy",
+      "restore production timers, services and shared sync lock to their pre-candidate state",
+      "retain the previous v1 active Manifest pointer and checksummed runtime backup through merge and post-merge smoke",
+      "keep unrelated root .superpowers files untracked and untouched"
+    ]
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/superpowers/specs/2026-07-13-community-template-enhancement-import-design.md",
+    "docs/superpowers/plans/2026-07-13-community-template-enhancement-import.md",
+    "docs/superpowers/plans/2026-07-14-community-enhancement-editability-v2.md",
+    ".gstack/deploy-reports/2026-07-13-pr85-deploy.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/evidence.json",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json"
+  ],
+  "summary": "The user approved the v2 requirement and the isolated origin/main worktree has a clean 188-test Node and 513-test Python baseline. No business implementation, candidate release, deployment or real WeChat verification has started."
+}

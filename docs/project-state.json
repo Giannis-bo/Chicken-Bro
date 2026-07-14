@@ -1,10 +1,17 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-12",
+  "updatedAt": "2026-07-14",
   "activeMilestone": "none",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-14-community-enhancement-editability",
   "activeContracts": [
+    {
+      "id": "community_enhancement_editability",
+      "path": "artifacts/releases/2026-07-14-community-enhancement-editability/requirement.json",
+      "status": "implementation_allowed",
+      "lifecycle": "active",
+      "notes": "Current Strict candidate contract for release-backed editable community-template gems, enchants and embellishments with exact static socket capacity."
+    },
     {
       "id": "repo_native_harness_v0_5",
       "path": "docs/harness.md",
@@ -163,6 +170,20 @@
     }
   ],
   "historicalContracts": [
+    {
+      "id": "community_template_enhancement_import_v1_design",
+      "path": "docs/superpowers/specs/2026-07-13-community-template-enhancement-import-design.md",
+      "status": "completed_live_verified_superseded_for_capacity_and_editability",
+      "lifecycle": "historical",
+      "evidence": ".gstack/deploy-reports/2026-07-13-pr85-deploy.md"
+    },
+    {
+      "id": "community_template_enhancement_import_v1_plan",
+      "path": "docs/superpowers/plans/2026-07-13-community-template-enhancement-import.md",
+      "status": "completed_live_verified_superseded_for_capacity_and_editability",
+      "lifecycle": "historical",
+      "evidence": ".gstack/deploy-reports/2026-07-13-pr85-deploy.md"
+    },
     {
       "id": "equipment_simulator_phase5c_frontend_cutover",
       "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/requirement.json",
