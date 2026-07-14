@@ -855,6 +855,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--target-mode", choices=("active", "transitional"), default="active")
     parser.add_argument("--updated-by", default="")
     parser.add_argument("--level", type=int, default=90)
+    parser.add_argument("--expect-formal-active", action="store_true")
     return parser
 
 
@@ -934,6 +935,7 @@ def main(argv=None) -> int:
             community_release_id=args.community_release_id,
             simc_runtime_revision=args.simc_runtime_revision,
             level=args.level,
+            expect_formal_active=args.expect_formal_active,
         )
         cache_metrics = getattr(shadow_store, "gear_authority_cache_metrics", None)
         statement_metrics = getattr(shadow_store, "shadow_read_statement_metrics", None)

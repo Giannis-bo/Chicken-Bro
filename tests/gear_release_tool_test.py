@@ -953,9 +953,37 @@ class GearReleaseToolTest(unittest.TestCase):
         shadow.assert_called_once()
         self.assertEqual(shadow.call_args.kwargs["gear_release_id"], "gear-release:a")
         self.assertEqual(shadow.call_args.kwargs["community_release_id"], "community-release:a")
+        self.assertIs(shadow.call_args.kwargs.get("expect_formal_active"), False)
 
         with self.assertRaises(SystemExit):
             gear_release_tool.main(["shadow", "--simc-runtime-revision", "simc-r1"])
+
+    def test_shadow_command_can_explicitly_expect_formal_active(self):
+        from server import gear_release_tool
+
+        output = io.StringIO()
+        with patch.object(
+            gear_release_tool,
+            "_shadow_store_from_environment",
+            return_value=object(),
+        ), patch.object(
+            gear_release_tool.gear_release_shadow,
+            "run_release_shadow",
+            return_value={"status": "pass", "publicReadCount": 40, "blockers": []},
+        ) as shadow, redirect_stdout(output):
+            try:
+                status = gear_release_tool.main([
+                    "shadow",
+                    "--gear-release-id", "gear-release:a",
+                    "--community-release-id", "community-release:a",
+                    "--simc-runtime-revision", "simc-r1",
+                    "--expect-formal-active",
+                ])
+            except SystemExit as error:
+                self.fail(f"shadow CLI rejected --expect-formal-active: {error}")
+
+        self.assertEqual(status, 0)
+        self.assertIs(shadow.call_args.kwargs.get("expect_formal_active"), True)
 
     def test_promote_command_atomically_seals_manifest_and_cas_pointer(self):
         from server import gear_release_tool
