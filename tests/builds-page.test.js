@@ -48,9 +48,13 @@ globalThis.__detailHelpers = {
       sandbox.pageConfig = config
     },
     wx: {
-      navigateTo() {},
+      navigateTo(route) {
+        if (Array.isArray(options.navigations)) options.navigations.push(route || {})
+      },
       redirectTo() {},
-      setStorageSync() {},
+      setStorageSync(key, value) {
+        if (Array.isArray(options.storageWrites)) options.storageWrites.push({ key, value })
+      },
       showToast(toast) {
         if (Array.isArray(options.toasts)) options.toasts.push(toast || {})
       }
@@ -2021,6 +2025,8 @@ function atomicEnhancementSheetHarness() {
   const pendingResolves = []
   const savedTemplates = []
   const toasts = []
+  const navigations = []
+  const storageWrites = []
   const option = (id) => ({
     id,
     optionKey: id,
@@ -2080,6 +2086,8 @@ function atomicEnhancementSheetHarness() {
   const pageConfig = loadBuildsDetailPageConfig({
     savedTemplates,
     toasts,
+    navigations,
+    storageWrites,
     requestWebsimGearResolve(selectionIntent) {
       return new Promise((resolve, reject) => pendingResolves.push({ selectionIntent, resolve, reject }))
     }
@@ -2100,10 +2108,11 @@ function atomicEnhancementSheetHarness() {
       gearCommunityTemplateSheet: { visible: false }
     },
     setData(update) { this.data = { ...this.data, ...update } },
+    buildSimcContext: pageConfig.buildSimcContext,
     confirmAndResolveGearIntent: pageConfig.confirmAndResolveGearIntent
   }
   pageConfig.refreshDerivedState.call(page)
-  return { pageConfig, page, pendingResolves, savedTemplates, toasts }
+  return { pageConfig, page, pendingResolves, savedTemplates, toasts, navigations, storageWrites }
 }
 
 async function verifiedAtomicEnhancementTransport(selectionIntent, canonicalOptionId = 'enchant-canonical') {
@@ -2178,6 +2187,88 @@ test('pending enhancement Resolve cannot be closed or reopened into a second tra
 
   pendingResolves[0].resolve(await verifiedAtomicEnhancementTransport(pendingResolves[0].selectionIntent))
   await pending
+})
+
+test('SimC navigation uses the committed verified enhancement while atomic Resolve is pending', async () => {
+  const { pageConfig, page, pendingResolves, navigations, storageWrites } = atomicEnhancementSheetHarness()
+  page.gearWorkbenchState.currentSnapshot.resolvedSlots.finger1.selectedOptions.enchantOptionId = 'enchant-canonical'
+  page.data.enhancementBySlot = { finger1: { enchantOptionId: 'enchant-canonical' } }
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+  const pending = pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(page.gearWorkbenchState.resolveStatus, 'resolving')
+  pageConfig.openSimcWithBuildContext.call(page)
+
+  assert.equal(storageWrites.length, 1)
+  assert.equal(navigations.length, 1)
+  assert.match(navigations[0].url, /\/pages\/simulator\/simc\?from=builds/)
+  assert.equal(storageWrites[0].value.simulatorState.gear.resolvedGearSignature, 'sha256:atomic-old')
+  assert.equal(
+    storageWrites[0].value.simulatorState.gear.selectionIntent.slots.finger1.enchantOptionId,
+    'enchant-canonical'
+  )
+
+  pendingResolves[0].resolve(await verifiedAtomicEnhancementTransport(pendingResolves[0].selectionIntent))
+  await pending
+})
+
+test('SimC navigation uses the committed verified enhancement after atomic Resolve is blocked', async () => {
+  const { pageConfig, page, pendingResolves, navigations, storageWrites } = atomicEnhancementSheetHarness()
+  page.gearWorkbenchState.currentSnapshot.resolvedSlots.finger1.selectedOptions.enchantOptionId = 'enchant-canonical'
+  page.data.enhancementBySlot = { finger1: { enchantOptionId: 'enchant-canonical' } }
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+  const pending = pageConfig.confirmGearEnhancementSheet.call(page)
+  pendingResolves[0].resolve({
+    httpStatus: 422,
+    fromFallback: false,
+    payload: {
+      contractRevision: 'gear-result-envelope-v1',
+      requestId: 'atomic-blocked-simc-entry',
+      releaseContext: {},
+      status: 'blocked',
+      problems: [{ kind: 'ILLEGAL_SELECTION', code: 'GEAR_OPTION_NOT_ALLOWED', title: 'draft rejected' }],
+      data: { contractRevision: 'gear-resolved-snapshot-v1', status: 'blocked', resolvedSlots: {} }
+    }
+  })
+  await pending
+
+  assert.equal(page.gearWorkbenchState.resolveStatus, 'blocked')
+  pageConfig.openSimcWithBuildContext.call(page)
+
+  assert.equal(storageWrites.length, 1)
+  assert.equal(navigations.length, 1)
+  assert.equal(storageWrites[0].value.simulatorState.gear.resolvedGearSignature, 'sha256:atomic-old')
+  assert.equal(
+    storageWrites[0].value.simulatorState.gear.selectionIntent.slots.finger1.enchantOptionId,
+    'enchant-canonical'
+  )
+})
+
+test('SimC navigation stays blocked when no committed verified workbench exists', () => {
+  const { pageConfig, page, navigations, storageWrites, toasts } = atomicEnhancementSheetHarness()
+  page.gearWorkbenchState = {
+    ...page.gearWorkbenchState,
+    resolveStatus: 'blocked',
+    currentSnapshot: null,
+    readOnly: true,
+    problems: [{ kind: 'ILLEGAL_SELECTION', code: 'GEAR_OPTION_NOT_ALLOWED', title: 'no committed pointer' }]
+  }
+  delete page.atomicEnhancementCommittedWorkbenchState
+  pageConfig.refreshDerivedState.call(page)
+
+  pageConfig.openSimcWithBuildContext.call(page)
+
+  assert.equal(storageWrites.length, 0)
+  assert.equal(navigations.length, 0)
+  assert.match(toasts.at(-1).title, /尚未通过服务端校验/)
 })
 
 test('enhancement confirm atomically commits canonical options after verified Resolve', async () => {

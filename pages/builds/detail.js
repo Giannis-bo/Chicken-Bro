@@ -6604,7 +6604,8 @@ Page({
 
   openSimcWithBuildContext() {
     if (!this.data.selectedDetail || !this.data.activeDetail) return
-    if (this.data.activeQueryKey === 'gear' && !gearWorkbenchCanRunProfile(this.gearWorkbenchState)) {
+    const committedWorkbenchState = committedGearWorkbenchStateForPage(this)
+    if (this.data.activeQueryKey === 'gear' && !gearWorkbenchCanRunProfile(committedWorkbenchState)) {
       showToast('当前装备配置尚未通过服务端校验，暂不能进入 SimC')
       return
     }
